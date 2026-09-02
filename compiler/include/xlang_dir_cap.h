@@ -10,12 +10,22 @@
  * Linux: open(O_DIRECTORY) + getdents64 into a heap DIR stream; readdir fills a
  * glibc-layout dirent so DIRENT_D_NAME_OFF=19 stays valid for std.fs.
  * Other POSIX: thin libc wrappers (Darwin residual until later).
- * Windows: not used — call sites keep Win32 FindFirstFile.
+ * Windows (MinGW/MSYS leftover PE SAT): _findfirst / _findnext / _findclose.
+ *   fmt_check_cmd.from_x.c previously kept a second _findfirst copy
+ *   (opendir_win / closedir_win returning void). Casting that void closedir
+ *   to int32_t in xlang_fmt_closedir failed MinGW SAT, and full-seed
+ *   walk_dir_collect_impl calls xlang_dir_open which the previous
+ *   `#if !defined(_WIN32)` wrapper left undeclared. G.7 有则补全 this header —
+ *   do not add a third Windows dir probe in the seed.
+ *   Product user-fs on Windows stays std/fs/win32.x FindFirstFileA (different
+ *   layer). pipeline_abi sibling-dir scan still skips Windows (product
+ *   semantic at that layer; not changed here).
  *
  * Heap: malloc/free still host (Cap residual for allocator is separate).
  * Cap residual 9.1.9: syscall asm via xlang_syscall_cap.h (G.7).
  *
- * PLATFORM: LINUX primary; POSIX fallback elsewhere (non-Win).
+ * PLATFORM: LINUX primary; POSIX fallback elsewhere;
+ *           WINDOWS MinGW CRT wrappers (leftover-PE SAT).
  */
 
 #ifndef XLANG_DIR_CAP_H
@@ -267,6 +277,109 @@ static inline int xlang_dir_close(void *dirp) {
 }
 
 #endif /* LINUX Cap vs POSIX */
+
+#else /* _WIN32|_WIN64 — leftover PE / MinGW SAT compiles fmt rest */
+
+/*
+ * PLATFORM: WINDOWS — complete the existing dir-cap authority (G.7 有则补全).
+ * MinGW CRT: _findfirst / _findnext / _findclose. closedir returns 0/-1
+ * (POSIX xlang_dir_close contract) — do not use a void closedir_win helper.
+ * Name-only stream: d_name is the first field of the opaque "dirent" so
+ * fmt readdir_name consumers do not depend on glibc DIRENT_D_NAME_OFF=19.
+ * POSIX gold path above is unchanged.
+ */
+#include <io.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef _A_SUBDIR
+#define _A_SUBDIR 0x10
+#endif
+
+struct xlang_dir_win_ent {
+  char d_name[260];
+  unsigned char d_type;
+};
+
+struct xlang_dir_win_stream {
+  intptr_t handle;
+  struct _finddata_t fd;
+  int first;
+  int done;
+  struct xlang_dir_win_ent ent;
+};
+
+/** PLATFORM: WINDOWS — MinGW _findfirst glob `path/*`. */
+static inline void *xlang_dir_open(const char *name) {
+  struct xlang_dir_win_stream *d;
+  char pattern[512];
+  size_t n = 0;
+  if (!name || !name[0])
+    return NULL;
+  while (name[n] && n + 3 < sizeof(pattern)) {
+    pattern[n] = name[n];
+    n++;
+  }
+  if (name[n])
+    return NULL;
+  pattern[n++] = '/';
+  pattern[n++] = '*';
+  pattern[n] = '\0';
+  d = (struct xlang_dir_win_stream *)calloc(1, sizeof(*d));
+  if (!d)
+    return NULL;
+  d->handle = _findfirst(pattern, &d->fd);
+  if (d->handle == (intptr_t)-1) {
+    free(d);
+    return NULL;
+  }
+  d->first = 1;
+  d->done = 0;
+  return (void *)d;
+}
+
+/** PLATFORM: WINDOWS — next d_name, or NULL at EOF/error. */
+static inline char *xlang_dir_readdir_name(void *dirp) {
+  struct xlang_dir_win_stream *d = (struct xlang_dir_win_stream *)dirp;
+  size_t nlen;
+  if (!d || d->handle == (intptr_t)-1 || d->done)
+    return (char *)0;
+  if (d->first) {
+    d->first = 0;
+  } else {
+    if (_findnext(d->handle, &d->fd) != 0) {
+      d->done = 1;
+      return (char *)0;
+    }
+  }
+  nlen = 0;
+  while (d->fd.name[nlen] && nlen + 1 < sizeof(d->ent.d_name)) {
+    d->ent.d_name[nlen] = d->fd.name[nlen];
+    nlen++;
+  }
+  d->ent.d_name[nlen] = '\0';
+  d->ent.d_type = (unsigned char)((d->fd.attrib & _A_SUBDIR) ? _A_SUBDIR : 0);
+  return d->ent.d_name;
+}
+
+/** PLATFORM: WINDOWS — opaque dirent* whose first field is d_name. */
+static inline void *xlang_dir_read(void *dirp) {
+  if (!xlang_dir_readdir_name(dirp))
+    return NULL;
+  return (void *)&((struct xlang_dir_win_stream *)dirp)->ent;
+}
+
+/** PLATFORM: WINDOWS — _findclose + free; 0 ok, -1 null. */
+static inline int xlang_dir_close(void *dirp) {
+  struct xlang_dir_win_stream *d = (struct xlang_dir_win_stream *)dirp;
+  if (!d)
+    return -1;
+  if (d->handle != (intptr_t)-1)
+    (void)_findclose(d->handle);
+  free(d);
+  return 0;
+}
 
 #endif /* !_WIN32 */
 #endif /* XLANG_DIR_CAP_H */

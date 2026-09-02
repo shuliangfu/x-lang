@@ -26,52 +26,6 @@
 /* G.7: Cap before Win32 opendir pattern snprintf and all later path joins. */
 #undef snprintf
 #define snprintf xlang_snprintf
-#ifdef _WIN32
-/* MinGW 无 dirent.h 的 d_type/DT_REG——用 _findfirst/_findnext 兼容层 */
-#include <io.h>
-#include <direct.h>
-#define DT_DIR _A_SUBDIR
-#define DT_REG _A_NORMAL
-#define DT_UNKNOWN 0
-struct dirent {
-    char d_name[260];
-    unsigned char d_type;
-};
-typedef struct { intptr_t handle; struct _finddata_t fd; int first; struct dirent ent; } DIR;
-static DIR *opendir_win(const char *name) {
-    char pattern[512];
-    DIR *d = (DIR *)calloc(1, sizeof(DIR));
-    if (!d) return NULL;
-    snprintf(pattern, sizeof(pattern), "%s/*", name);
-    d->handle = _findfirst(pattern, &d->fd);
-    if (d->handle == -1) { free(d); return NULL; }
-    d->first = 1;
-    return d;
-}
-static struct dirent *readdir_win(DIR *d) {
-    if (!d || d->handle == -1) return NULL;
-    if (d->first) { d->first = 0; }
-    else { if (_findnext(d->handle, &d->fd) != 0) return NULL; }
-    strncpy(d->ent.d_name, d->fd.name, sizeof(d->ent.d_name) - 1);
-    d->ent.d_name[sizeof(d->ent.d_name) - 1] = 0;
-    d->ent.d_type = (d->fd.attrib & _A_SUBDIR) ? DT_DIR : DT_REG;
-    return &d->ent;
-}
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void closedir_win(DIR *d) {
-    if (d && d->handle != -1) _findclose(d->handle);
-    free(d);
-}
-
-
-
-
-#define opendir opendir_win
-#define readdir readdir_win
-#define closedir closedir_win
-#else
-#include <dirent.h>
-#endif
 #include <sys/stat.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -94,34 +48,26 @@ void closedir_win(DIR *d) {
  * (and any peer pure-asm that U's the same face while this leaf is on the bag).
  *
  * Cap residual 9.1.10: opendir/readdir/closedir via xlang_dir_cap.h (G.7).
- * PLATFORM: SHARED — Win32 macros above remap libc names before Cap include;
- * access still unistd shim on MinGW. Weak globals for pure-asm thin U faces.
+ * PLATFORM: SHARED — header is the single authority (Linux Cap / POSIX libc /
+ * WINDOWS MinGW _findfirst). Do not keep a second _findfirst / void closedir_win
+ * copy in this seed. access still unistd shim on MinGW. Weak globals for
+ * pure-asm thin U faces.
  */
-#if !defined(_WIN32) && !defined(_WIN64)
 #include <xlang_dir_cap.h>
-#endif
 
 XLANG_WEAK uint8_t *xlang_fmt_opendir(uint8_t *name) {
     if (!name) {
         return (uint8_t *)0;
     }
-#if !defined(_WIN32) && !defined(_WIN64)
-    /* Cap residual 9.1.10: no libc opendir on Linux. PLATFORM: SHARED */
+    /* Cap residual 9.1.10: no libc opendir on Linux; MinGW _findfirst in header. */
     return (uint8_t *)xlang_dir_open((const char *)(void *)name);
-#else
-    return (uint8_t *)(void *)opendir((const char *)(void *)name);
-#endif
 }
 
 XLANG_WEAK int32_t xlang_fmt_closedir(uint8_t *dirp) {
     if (!dirp) {
         return (int32_t)-1;
     }
-#if !defined(_WIN32) && !defined(_WIN64)
     return (int32_t)xlang_dir_close((void *)dirp);
-#else
-    return (int32_t)closedir((DIR *)(void *)dirp);
-#endif
 }
 
 XLANG_WEAK int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {
@@ -135,17 +81,10 @@ XLANG_WEAK uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {
     if (!dirp) {
         return (uint8_t *)0;
     }
-#if !defined(_WIN32) && !defined(_WIN64)
     {
         char *n = xlang_dir_readdir_name((void *)dirp);
         return (uint8_t *)(void *)n;
     }
-#else
-    {
-        struct dirent *ent = readdir((DIR *)(void *)dirp);
-        return ent ? (uint8_t *)(void *)ent->d_name : (uint8_t *)0;
-    }
-#endif
 }
 
 /* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);

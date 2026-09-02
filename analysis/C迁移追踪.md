@@ -156,7 +156,7 @@
 ### 9.1 OS 系统调用（P0）
 
 - ✅ **9.1.1** getenv／setenv／unsetenv／environ — **Ubuntu ✅（WIP）**：POSIX `xlang_environ_cap.h` 走查／改写 environ（无 libc getenv／setenv／unsetenv）；权威 `link_abi_getenv_impl`＋process／env_os。探针 `process_env_raw_smoke.x`。残：Darwin／Win CRT  
-- ✅ **9.1.2** stat／access／realpath — **Ubuntu ✅（WIP）**：`xlang_path_cap.h`（faccessat／newfstatat／fstat／open+readlink）；`fs_libc_stat`／`fstat` raw_syscall；fk0＋`std_fs_stat`。探针 `fs_stat_raw_smoke.x`。Darwin POSIX 残：`#include <stdlib.h>` for `realpath`（L4 隐式声明，本波补）。残：Darwin Cap 离 libc · Win · fmt_check.o  
+- ✅ **9.1.2** stat／access／realpath — **Ubuntu ✅（WIP）**：`xlang_path_cap.h`（faccessat／newfstatat／fstat／open+readlink）；`fs_libc_stat`／`fstat` raw_syscall；fk0＋`std_fs_stat`。探针 `fs_stat_raw_smoke.x`。Darwin POSIX 残：`#include <stdlib.h>` for `realpath`（L4 隐式声明，本波补）。**Win MinGW** `_access`／`stat`／`fstat`／`_fullpath`＠**`630fdbeef`**（SAT link_abi 待 Windows harvest）。残：Darwin Cap 离 libc  
 - ✅ **9.1.3** getcwd／chdir／getpid／getppid — **Ubuntu ✅（WIP）**：四 API Linux raw syscall（无 libc）；缓存语义保留。探针 `process_getpid_raw_smoke.x`／`process_getcwd_raw_smoke.x`。残：Darwin／Win  
 - ✅ **9.1.4** execve／waitpid／pipe／spawn／system — **Ubuntu ✅（WIP）**：产品 `xlang_process_cap.h`＋host `spawn_sync`／`waitpid_retry`／`system_impl`／`execvp` PATH。探针 `process_spawn_raw_smoke.x`／`process_pipe_raw_smoke.x`。残：signal／strerror 文案 · Darwin／Win  
 - ✅ **9.1.5** clock_gettime／nanosleep／gmtime_r／QPC／Sleep — **Ubuntu ✅（WIP）**：`xlang_time_cap.h`（Linux syscall＋civil gmtime）；`runtime_time_os`＋scheduler／channel／sync／driver wall。探针 `time_raw_smoke.x`。残：localtime_r／mktime（tz）· mega 未注入 · Darwin／Win QPC 面既有  
@@ -164,7 +164,7 @@
 - 🟡 **9.1.7** getaddrinfo／WSAStartup／socket／connect／poll／recvmmsg／sendmmsg — **slice0–3＋poll 收口 Ubuntu ✅（WIP）**：net Cap＋DNS Cap＋http 宏＋**preamble Cap poll**（`3d10ea818`；g05 后 `net.o`／bytes／fs **无 U poll**，reloc→`xlang_net_poll`）。残：WSAStartup／Darwin  
 - ✅ **9.1.8** `_write`／write／read — **Ubuntu ✅（WIP）**：`xlang_io_cap.h`；preamble＋stubs weak `xlang_sys_`*＋io_abi cold read/write→Cap。探针 `io_write_raw_smoke.x`／`io_read_raw_smoke.x`＠**`c73745da4`**。残：Darwin／Win 金标  
 - ✅ **9.1.9** inline asm syscall（Linux x86_64）— **Ubuntu ✅（WIP）**：G.7 `xlang_syscall_cap.h`（syscall0..6；x86_64＋aarch64）；path／io／net／process／time／random 改 alias。探针 `syscall_cap_raw_smoke.x`＠**`fecc624dd`**。残：非 Cap 种子内仍有独立 asm（bootstrap／freestanding）  
-- 🟡 **9.1.10** opendir／readdir／closedir — **Ubuntu ✅（WIP）**：G.7 `xlang_dir_cap.h`＋`-E` prologue＋formal merge＋posix／fmt／pabi Cap。证＠**`6ee38226e`**：fs／fmt／pabi **无 U opendir** · Cap smoke **0**。残：Darwin／Win  
+- 🟡 **9.1.10** opendir／readdir／closedir — **Ubuntu ✅（WIP）**：G.7 `xlang_dir_cap.h`＋`-E` prologue＋formal merge＋posix／fmt／pabi Cap。证＠**`6ee38226e`**：fs／fmt／pabi **无 U opendir** · Cap smoke **0**。**Win MinGW** `_findfirst`／`_findnext`／`_findclose` 补进既有头（fmt seed 第二套 `_findfirst`／void `closedir_win` 已收敛；SAT fmt 待 Windows harvest）。残：Darwin Cap 离 libc  
 - ✅ **9.1.11** execinfo／dladdr／DbgHelp — **Linux+Darwin+Windows Cap ✅**＠`dcd335be4`：SHARED FP walk＋Linux maps/ELF＋Darwin Mach-O＋**Win VirtualQuery+PE export**（无 CaptureStackBackTrace／DbgHelp／`-ldbghelp`）；双端 capture／dladdr smoke **0**。残：MSYS 实机金标
 - 🟡 **9.1.12** sysctl／proc／`#if` — **Linux s0＋Darwin s1 ✅（WIP）**：Linux `xlang_proc_cap.h`＠**`3f7cc46c6`** · Darwin arm64 去 sysctlbyname／x86 CPUID＠**`4dbe69e88`** · target_cpu.o Linux **无 U fopen/fprintf** · macOS **无 U sysctl**。残：Darwin print Cap · arm SVE via caps（若内核暴露）  
 
