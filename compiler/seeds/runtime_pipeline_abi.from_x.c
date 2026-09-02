@@ -26715,7 +26715,9 @@ int32_t pipeline_expr_enum_field_tag_via_module(uint8_t *enum_name, int32_t enum
  * wave153 block_body (independent ifndef after this cluster).
  * pipeline_elf_ctx_append_reloc_absolute64 is a separate leftover cluster
  * (wave273 extract after closing wave154/wave178/wave273 reopen-after-F7).
- * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178).
+ * pipeline_asm_emit_ctx_sret_*_set is a separate leftover cluster (wave223
+ * extract after closing wave154/wave178).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178 stub).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
@@ -27712,11 +27714,13 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  * (do not re-extern void*). glue_vector_type_lanes_esz_c stays closed in
  * wave132 (not unique); leftover rest externs it (SAT / leftover standalone).
  * Do not convert neighboring typeck_typeck_struct_layout_metrics (not unique)
- * or glue_type_named_layout_size_any_module_elf_c (nested in wave178).
+ * or glue_type_named_layout_size_any_module_elf_c (nested in wave178 stub).
  * pipeline_asm_emit_expr_elf_rec is a separate leftover cluster (wave152
  * extract after closing wave149).
  * pipeline_elf_ctx_append_reloc_absolute64 is a separate leftover cluster
  * (wave273 extract after closing wave154/wave178/wave273 reopen-after-F7).
+ * pipeline_asm_emit_ctx_sret_*_set is a separate leftover cluster (wave223
+ * extract after closing wave154/wave178).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  */
@@ -30777,14 +30781,36 @@ void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
   g_wave222_emit_dep_pipe = ctx;
 }
 
-/*
- * wave223 cold twins: emit_ctx sret_active / sret_home_off / sret_ret_sz BSS
- * (G.7 pure leave). Working freestanding BSS twins of pure
- * g_pipeline_asm_func_sret_active / g_pipeline_asm_sret_home_off /
- * g_pipeline_asm_func_sret_ret_sz. Hybrid product links pure; cold seed keeps
- * local static under #ifndef FROM_X. Mid-file return/CALL cold bodies call
- * these faces via extern. PLATFORM: SHARED freestanding sret cells.
+#endif /* close wave178 FROM_X for leftover-PE sret BSS cluster */
+#endif /* close wave154 FROM_X after glue_type for leftover-PE sret BSS cluster */
+
+/* Sret leftover cluster (surgical extract of nested wave223 after closing
+ * enclosing wave154 reopen-after-glue_type + wave178 INDEX-peel ifndef):
+ * pipeline_asm_emit_ctx_sret_active_set / sret_home_off_set / sret_ret_sz_set
+ * plus getters (share the three BSS cells — convert together).
+ * Unique lists the three setters.
+ * leftover standalone defines 0 of remaining unique.
+ * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave223 @80285).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
+ * set — must close wave178 + enclosing wave154 first.
+ * Reopen both after this cluster (named_layout stub / module storage / wave224
+ * still closed on leftover rest).
+ * Header does not declare sret get/set (not a dual-decl). Always-compiled
+ * proto of sret get/set is absent in this TU. No cluster callees.
+ * Getters are not unique (SAT / leftover standalone provide T); leftover rest
+ * compiling them is proto+def of the same BSS, required so setters have a
+ * cell. Do not convert neighboring wave222 emit_ctx module/dep_pipe (not
+ * unique) or glue_type_named_layout_size_any_module_elf_c (seed body is a
+ * stub; nested rest of wave178) or pipeline_module_*_storage_* (nested
+ * wave178 sidecar).
+ * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
+ * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
+ * PLATFORM: SHARED freestanding emit sret cells · LINUX gold · MACOS co-path.
  */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 static int32_t g_wave223_sret_active = 0;
 static int32_t g_wave223_sret_home_off = -1;
 static int32_t g_wave223_sret_ret_sz = 0;
@@ -30807,6 +30833,10 @@ int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
 void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
   g_wave223_sret_ret_sz = sz;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE sret BSS cluster */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
 /*
  * wave224 cold twins: typeck_active module BSS (G.7 pure leave).
@@ -38441,7 +38471,8 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
  * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
  * set — must close wave273 + enclosing wave178/wave154 first.
  * Reopen all three after this cluster (rest of wave273 + wave178 named_layout
- * / module storage still closed on leftover rest).
+ * stub / module storage still closed on leftover rest; sret is a separate
+ * leftover cluster extracted from the original wave154/wave178 before F7).
  * Header does not declare absolute64 (not a dual-decl). Always-compiled proto
  * of absolute64 is absent in this TU.
  * Cluster callee pipeline_elf_ctx_append_reloc_typed is leftover rest U
@@ -38450,7 +38481,9 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
  * Do not convert neighboring pipeline_elf_ctx_append_reloc /
  * pipeline_elf_ctx_append_reloc_typed (not unique) or
  * pipeline_elf_ctx_reloc_sym_name_ptr (not unique).
- * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178).
+ * glue_type_named_layout_size_any_module_elf_c stays closed (nested wave178 stub).
+ * pipeline_asm_emit_ctx_sret_*_set is a separate leftover cluster (wave223
+ * extract after closing the original wave154/wave178, not this F7 reopen).
  * pipeline_debug_trace_named_func_bodies stays closed (void* vs struct*).
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * PLATFORM: SHARED freestanding ELF leave · LINUX gold · MACOS co-path.

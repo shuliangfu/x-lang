@@ -3341,7 +3341,16 @@ ensure_pipeline_abi_prefer_one() {
   #          provide T; do not convert neighboring append_reloc / typed —
   #          not unique — or reloc_sym_name_ptr — not unique — or
   #          glue_type_named_layout_size_any_module_elf_c — nested in
-  #          wave178).
+  #          wave178 stub) +
+  #          sret leftover cluster (surgical extract of nested wave223
+  #          after closing enclosing wave154 reopen-after-glue_type +
+  #          wave178: three sret setters + getters sharing BSS cells;
+  #          unique lists the three setters; leftover standalone defines
+  #          0 of remaining unique; getters not unique — SAT / leftover
+  #          standalone provide T; convert together so setters have a
+  #          cell; do not convert neighboring wave222 module/dep_pipe —
+  #          not unique — or named_layout — seed body is a stub — or
+  #          pipeline_module_*_storage_* — nested wave178 sidecar).
   #          pipeline_resolve_path / read_file stay closed this wave.
   #          pipeline_debug_trace_named_func_bodies stays closed
   #          (void* vs struct* extern).
