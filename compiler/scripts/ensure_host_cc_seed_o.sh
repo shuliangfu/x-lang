@@ -3252,7 +3252,11 @@ ensure_pipeline_abi_prefer_one() {
   #          independent ifndefs; wrappers call always-extern pipeline.x
   #          faces; leftover standalone defines 0 of remaining unique) +
   #          dep_prerun_entry_dir + _pick (independent ifndefs; entry_dir
-  #          calls _pick; leftover standalone defines 0 of remaining unique).
+  #          calls _pick; leftover standalone defines 0 of remaining unique) +
+  #          merge_deps_path_already_out + _scan + merge_direct_then_transitive
+  #          deps / dep_paths (independent ifndefs; wrappers call always-
+  #          compiled _impl; _impl already calls already_out; leftover
+  #          standalone defines 0 of remaining unique).
   #          Larger twins (emit_expr_elf_rec / glue_type_size /
   #          append_reloc_absolute64) stay closed (helper/dual-decl).
   #          pipeline_resolve_path / read_file stay closed this wave.

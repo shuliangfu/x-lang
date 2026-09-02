@@ -1920,8 +1920,19 @@ int xlang_find_loaded_import_index_scan(const char *import_path, char **all_path
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
-/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-134: hybrid pure owns xlang_merge_deps_path_already_out_scan
+ * (strcmp loop over out_paths[0..n_out)).
+ * PLATFORM: SHARED — match → 1, else 0.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * already_out / _scan / merge_direct_then_transitive_deps / _dep_paths.
+ * leftover standalone defines 0 of remaining unique. Independent ifndefs
+ * (not nested in wave149/154/273). Same produce point as wave123: OR
+ * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles them.
+ * Always-compiled proto of _scan at G-02f-51 is prototype+definition, not dual.
+ * already_out calls _scan; always-compiled merge_*_impl already calls
+ * already_out — convert the four together because POSIX .x thin owns all. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
     int j;
     for (j = 0; j < n_out; j++) {
@@ -3275,7 +3286,16 @@ int xlang_import_dep_dir_from_path(const char *path, char *dep_dir, size_t dep_d
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 判断 import 路径是否已在 out_paths[0..n_out) 中（asm dep merge 去重）。 */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-134: hybrid pure owns xlang_merge_deps_path_already_out
+ * (null-check wrapper → _scan). Header declares already_out (int);
+ * seed defines it (not a dual-decl).
+ * PLATFORM: SHARED — null path / out_paths / n_out<=0 → 0.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns
+ * already_out. Independent ifndef; convert with _scan (callee) and
+ * merge_direct_then_transitive_* wrappers (always-compiled _impl
+ * already calls already_out). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_merge_deps_path_already_out(const char *path, char *out_paths[], int n_out) {
   if (path == NULL) {
     return 0;
@@ -3530,8 +3550,14 @@ int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports
     return 0;
 }
 
-/* G-02f-235：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-235: hybrid pure owns xlang_merge_direct_then_transitive_deps
+ * (null-check wrapper → always-compiled _impl).
+ * PLATFORM: SHARED — null module / out_n → -1.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns this
+ * wrapper. Independent ifndef; _impl already always compiled and calls
+ * already_out — convert with already_out / _scan / _dep_paths. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
   if (module == NULL) {
@@ -3636,8 +3662,14 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
     return 0;
 }
 
-/* G-02f-234：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-234: hybrid pure owns xlang_merge_direct_then_transitive_dep_paths
+ * (null-check wrapper → always-compiled _impl).
+ * PLATFORM: SHARED — null module / out_n → -1.
+ * PLATFORM: WINDOWS leftover PE cannot -E the .x thin that owns this
+ * wrapper. Independent ifndef; _impl already always compiled and calls
+ * already_out — convert with already_out / _scan / deps wrapper. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
   if (module == NULL) {
