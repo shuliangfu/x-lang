@@ -1499,6 +1499,14 @@ for fm in _func_def_re.finditer(s):
 # Ubuntu leftover calls are 3-arg only (listen_on); a SHARED def-rename
 # without mixed leftover would steal those calls or leave them undeclared.
 # G.7: same mmap-family mixed-arity rule (defs + X-arity calls; POSIX FFI stays).
+#
+# PLATFORM: MACOS — POSIX send(2)/recv(2) are 4-arg; X std.channel exports
+# send(ch,val) / recv(ch,out) are 2-arg. Same socket.h exposure as listen:
+# `static send(...)` → "static declaration follows non-static"; channel.o
+# never lands → product -o UNDEF _std_channel_*. Linux Cap omits socket.h
+# (Ubuntu L4@b5d919060 channel already green). Do NOT add send/recv to the
+# SHARED #define lists (same leftover-steal risk as listen). close/free
+# already clash-renamed (same arity as libc). G.7 complete this table.
 _libc_clash = {
     'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
     'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
@@ -1507,6 +1515,7 @@ _libc_clash = {
     'read', 'write', 'sync',
     'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
     'listen',
+    'send', 'recv',
     'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
     'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
@@ -1523,6 +1532,8 @@ _libc_clash_posix_arity = {
     'munmap': 2,
     'msync': 3,
     'listen': 2,
+    'send': 4,
+    'recv': 4,
 }
 def _arg_count(args_str):
     a = (args_str or '').strip()
