@@ -33680,6 +33680,207 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_load_var unique */
 
+/* WIN leftover-PE rest glue_call_arg_resolve_var_stack_off_elf_c unique
+ * (leftover rest rec U; SAT / leftover standalone only local t).
+ * Remaining wave203 stub stays for !FROM_X (`return -1`).
+ * A !FROM_X || WIN OR here would dual-def that nested stub.
+ * POSIX FROM_X stays ABSENT (.x thin owns @74955).
+ * Seed stub harvest is fake-green (glue_call_return lesson) — port the
+ * .x true body (fast stack_off then body-let walk / anon SKIP_TYPECK).
+ * SAT local t callees leftover rest T together so leftover rest U of
+ * those names does not unique-swap:
+ *   glue_block_let_name_is_unusable_c
+ *   glue_append_block_let_local_at_offset
+ *   glue_call_arg_resolve_anon_body_let_elf_c
+ *   glue_lazy_append_block_let_local  (remaining-wave @11365 real body;
+ *     leftover rest FROM_X omits it — SAT only local t)
+ * Skip leftover rest WIN stub T glue_var_expr_stack_off (fast path -1
+ * then slow path). Skip SAT global T emit_module_ref / func_index /
+ * ast_ast_block_num_lets / pipeline_block_let_name_* /
+ * pipeline_module_func_body_ref_at. Skip SAT global T asm_ctx_local_*
+ * / asm_ctx_block_slot_get / asm_local_slot_reg_offset. Skip
+ * backend_block_slot_base_for / backend_asm_ctx_slot_offset (seed-link
+ * T; leftover rest U OK). Skip pipe_store_i32_le / pipe_asm_ctx_off_num_locals
+ * (SAT ABSENT) — write num_locals@8 like leftover rest lazy_append.
+ * Skip field_access / return_impl / emit_binop / glue_asm_resolve.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped before this OR on leftover rest FROM_X:
+ * rec @28114 glue_call_arg, rec @28115 glue_var_expr_stack_off,
+ * leftover rest WIN @11320 emit_module_ref / func_index,
+ * leftover rest WIN @10584 pipeline_block_let_name_len / copy64,
+ * leftover rest WIN @11312 expr_kind / var_name,
+ * leftover rest WIN @22691 asm_ctx_local_find_offset (uint8_t*),
+ * always @657 pipeline_module_func_body_ref_at /
+ * ast_ast_block_num_lets / ast_ast_block_num_consts.
+ * Do not redeclare those. */
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t backend_block_slot_base_for(void *ctx, void *arena, int32_t block_ref);
+extern int32_t backend_asm_ctx_slot_offset(void *ctx, int32_t slot_idx);
+
+int32_t glue_block_let_name_is_unusable_c(uint8_t *name_buf, int32_t name_len) {
+  int32_t k;
+  if (!name_buf || name_len <= 0)
+    return 1;
+  k = 0;
+  while (k < name_len && k < 127) {
+    if (name_buf[k] != 0)
+      return 0;
+    k = k + 1;
+  }
+  return 1;
+}
+
+int32_t glue_append_block_let_local_at_offset(void *ctx, uint8_t *name, int32_t name_len,
+                                             int32_t slot_off) {
+  int32_t found;
+  int32_t ap;
+  int32_t nloc;
+  if (!ctx || !name || name_len <= 0)
+    return -1;
+  found = asm_ctx_local_find_offset((uint8_t *)ctx, name, name_len);
+  if (found >= 0)
+    return 0;
+  ap = asm_ctx_local_append((uint8_t *)ctx, name, name_len, slot_off);
+  if (ap < 0)
+    return -1;
+  nloc = asm_ctx_local_count((uint8_t *)ctx);
+  /* LP64 num_locals@8 (pipe_asm_ctx_off_num_locals SAT ABSENT). */
+  *(int32_t *)((uint8_t *)ctx + 8) = nloc;
+  return 0;
+}
+
+int32_t glue_call_arg_resolve_anon_body_let_elf_c(void *arena, void *ctx, int32_t body_ref,
+                                                 int32_t let_idx, uint8_t *vname, int32_t vlen) {
+  int32_t slot_base;
+  int32_t nconst;
+  int32_t slot;
+  int32_t slot_off;
+  int32_t rc;
+  if (!arena || !ctx || !vname || vlen <= 0 || body_ref <= 0 || let_idx < 0)
+    return -1;
+  slot_base = backend_block_slot_base_for(ctx, arena, body_ref);
+  nconst = ast_ast_block_num_consts(arena, body_ref);
+  slot = slot_base + nconst + let_idx;
+  slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+  rc = glue_append_block_let_local_at_offset(ctx, vname, vlen, slot_off);
+  if (rc != 0)
+    return -1;
+  return slot_off;
+}
+
+int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_ref, int32_t let_idx,
+                                        uint8_t *name, int32_t name_len) {
+  int32_t tref;
+  int32_t off;
+  int32_t slot_off;
+  int32_t *ly_next;
+  int32_t *ly_num;
+  if (!arena || !ctx || !name || name_len <= 0 || block_ref <= 0 || let_idx < 0)
+    return -1;
+  /* LP64: next_offset@4, num_locals@8 on AsmFuncCtx layout overlay */
+  ly_next = (int32_t *)((uint8_t *)ctx + 4);
+  ly_num = (int32_t *)((uint8_t *)ctx + 8);
+  if (asm_ctx_local_find_offset((uint8_t *)ctx, name, name_len) >= 0)
+    return 0;
+  if (asm_ctx_block_slot_get((uint8_t *)ctx, block_ref) >= 0)
+    return 0;
+  tref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  off = *ly_next;
+  slot_off = asm_local_slot_reg_offset(arena, tref, off, &off);
+  *ly_next = off;
+  if (asm_ctx_local_append((uint8_t *)ctx, name, name_len, slot_off) < 0)
+    return -1;
+  *ly_num = asm_ctx_local_count((uint8_t *)ctx);
+  return 0;
+}
+
+int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  int32_t off;
+  int32_t body_ref;
+  int32_t li;
+  int32_t nlet;
+  uint8_t vname[128];
+  int32_t vlen;
+  int32_t ko;
+  void *mod;
+  int32_t fi;
+  uint8_t lb[128];
+  int32_t llen;
+  int32_t k;
+  int32_t eq;
+  int32_t rc;
+  if (!arena || !ctx || var_expr_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  /* GLUE_EXPR_KIND_VAR == 3 */
+  if (ko != 3)
+    return -1;
+  /* 1) Fast path: scoped/unscoped leftover rest WIN stub stack_off (-1). */
+  off = glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
+  if (off >= 0)
+    return off;
+  mod = pipeline_asm_emit_module_ref_c();
+  fi = pipeline_asm_emit_func_index_c();
+  if (!mod || fi < 0)
+    return -1;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 127)
+    return -1;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  body_ref = pipeline_module_func_body_ref_at(mod, fi);
+  if (body_ref <= 0)
+    return -1;
+  nlet = ast_ast_block_num_lets(arena, body_ref);
+  li = 0;
+  while (li < nlet) {
+    llen = pipeline_block_let_name_len(arena, body_ref, li);
+    pipeline_block_let_name_copy64(arena, body_ref, li, lb);
+    /* name_len matches VAR but bytes unwritten (SKIP_TYPECK) → anon let. */
+    if (llen == vlen && vlen > 0 && glue_block_let_name_is_unusable_c(lb, llen) != 0) {
+      if (nlet == 1 && li == 0)
+        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
+      li = li + 1;
+      continue;
+    }
+    if (llen != vlen) {
+      /* Single name_len==0 body let → anon register under VAR name. */
+      if (llen == 0 && vlen > 0 && nlet == 1 && li == 0)
+        return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
+      li = li + 1;
+      continue;
+    }
+    eq = 1;
+    k = 0;
+    while (k < vlen) {
+      if (lb[k] != vname[k]) {
+        eq = 0;
+        break;
+      }
+      k = k + 1;
+    }
+    if (eq == 0) {
+      li = li + 1;
+      continue;
+    }
+    /* Named body let: lazy-append then re-resolve stack_off. */
+    rc = glue_lazy_append_block_let_local(arena, ctx, body_ref, li, vname, vlen);
+    if (rc != 0)
+      return -1;
+    return glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
+  }
+  return -1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_call_arg unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
