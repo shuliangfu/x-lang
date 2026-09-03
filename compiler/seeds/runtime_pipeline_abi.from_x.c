@@ -14790,6 +14790,106 @@ int32_t glue_try_array_lit_lane_const_i32_c(void *arena, int32_t arr_ref, int32_
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE fold unique */
 
+/* WIN leftover-PE rest force_esz + fixed_array unique (leftover rest FROM_X
+ * rest UNDEFs these; SAT / leftover standalone only local t). Modlet OR
+ * @15190 and array_lit unique OR @17559 already call both; extracting
+ * force_esz without the real fixed_array body would leave unique of
+ * fixed_array (leftover rest wave180 @30148 is a return-0 stub). Remaining
+ * wave136 force_esz @17606 and wave180 stub @30148 stay for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def those nested/stub bodies.
+ * POSIX FROM_X stays ABSENT (.x thin owns the faces: force_esz @37963,
+ * fixed_array @66834).
+ * Callees pipeline_type_* / glue_type_size_simple leftover rest or SAT T;
+ * pipeline_asm_emit_module_ref_c leftover rest remaining wave136 closed,
+ * SAT global T (not unique). glue_fixed_array_temp_bytes /
+ * glue_index_elem_byte_sz_from_type_ref_c stay closed (not unique).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+
+int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth) {
+  int32_t n;
+  int32_t elem;
+  int32_t ek;
+  int32_t esz;
+  void *mod;
+  if (!arena || ty_ref <= 0 || depth > 8)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, ty_ref);
+  if (ek != 10)
+    return 0;
+  n = pipeline_type_array_size_at(arena, ty_ref);
+  elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (n <= 0 || elem <= 0)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, elem);
+  if (ek == 10) {
+    esz = glue_fixed_array_total_bytes_c(arena, elem, depth + 1);
+    if (esz <= 0)
+      return 0;
+    return n * esz;
+  }
+  if (ek == 2 || ek == 1)
+    esz = 1;
+  else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+    esz = 4;
+  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9)
+    esz = 8;
+  else if (ek == 8) {
+    mod = pipeline_asm_emit_module_ref_c();
+    if (mod) {
+      esz = glue_type_size_simple(mod, arena, elem, 0);
+      if (esz <= 0)
+        esz = 8;
+    } else {
+      esz = 4;
+    }
+  } else if (ek == 11) {
+    /* TYPE_SLICE fat row: [N][]T stride is 16. PLATFORM: SHARED. */
+    esz = 16;
+  } else {
+    esz = 4;
+  }
+  return n * esz;
+}
+
+int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
+  int32_t ek;
+  if (!arena || et <= 0)
+    return 0;
+  ek = pipeline_type_kind_ord_at(arena, et);
+  if (ek == 2 || ek == 1)
+    return 1;
+  if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
+    return 4;
+  /* Twin living/runtime_pipeline_abi.x 10.3.1 slice13: TYPE_FN=18 → 8. */
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9 || ek == 18)
+    return 8;
+  if (ek == 8) {
+    void *mod = pipeline_asm_emit_module_ref_c();
+    if (mod) {
+      int32_t ssz = glue_type_size_simple(mod, arena, et, 0);
+      if (ssz > 0)
+        return ssz;
+    }
+  }
+  /* TYPE_ARRAY=10: row stride = sizeof([N]T). PLATFORM: SHARED. */
+  if (ek == 10) {
+    int32_t asz = glue_fixed_array_total_bytes_c(arena, et, 0);
+    if (asz > 0)
+      return asz;
+  }
+  if (ek == 11)
+    return 16;
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE force_esz+fixed_array unique */
+
 /* Modlet leftover cluster (surgical extract of nested wave139 after
  * closing enclosing wave136):
  * pipeline_asm_modlet_prepare_and_emit_elf_c /
