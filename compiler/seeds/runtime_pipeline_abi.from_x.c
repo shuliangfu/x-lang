@@ -14132,6 +14132,49 @@ int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(void *arena, void *elf_ctx,
   if (!ctx) return -1;
   return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
 }
+#endif /* close remaining wave136 FROM_X for leftover-PE emit_as unique */
+
+/* Complete emit_as_impl unique (harvest@57683a0b8 unique 49→47):
+ * leftover rest emit_as_impl T UNDEFs glue_emit_module_from_ctx /
+ * glue_module_func_index_by_name_c / glue_var_expr_stack_off_elf_c
+ * (SAT/standalone do not T them — try_propagate lesson).
+ * array_lit_emit stays closed (not unique). emit_as_elf_c wrapper stays
+ * closed (not unique).
+ * The three unique callees are file-scope AFTER the truncated-cmp close
+ * @14277 (do NOT put them in this OR — !FROM_X would nest them inside
+ * the truncated cmp and leftover rest callers @23573 could not see a
+ * nested function).
+ * pipeline_elf_ctx_append_bytes uses uint8_t* to match modlet OR @14414
+ * (void* would dual-decl on WIN leftover).
+ * PLATFORM: WINDOWS leftover PE cannot -E the thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. Close remaining wave136
+ * first — inserting an OR inside a FALSE outer ifndef is never parsed.
+ * Reopen remaining wave136 after this unique for the wrapper.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx, uint8_t *ptr, int32_t n);
+extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_lea_sym_to_reg_arch(void *elf_ctx, int32_t reg, uint8_t *name, int32_t name_len, int32_t ta);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
 
 int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op, tgt, tgt_kind, src_tr, src_kind, op_ko, src_is_f32, src_is_f64;
@@ -14266,6 +14309,9 @@ int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_r
   }
   return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_as_impl unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE emit_as unique */
 
 int32_t pipeline_asm_emit_as_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
@@ -14275,6 +14321,55 @@ int32_t pipeline_asm_emit_as_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
 mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
 }
 #endif /* close wave136 FROM_X for leftover-PE modlet cluster */
+
+/* File-scope leftover-PE unique callees of emit_as_impl.
+ * Moved out of remaining wave136 @23002 (real body) and wave188/189 stubs
+ * nested in remaining wave154/wave178 (FALSE when FROM_X).
+ * WIN leftover PE cannot -E those thins; OR WIN_LEFTOVER_GROW_VEC so
+ * leftover-PE FROM_X rest compiles the unique. POSIX FROM_X stays ABSENT
+ * (.x thin owns the faces).
+ * Stubs match leftover rest cold-twin contracts: stack_off -1 (not found),
+ * module_from_ctx NULL. Hybrid product links pure.
+ * Must be AFTER truncated-cmp close so !FROM_X is file-scope (callers
+ * @23573 live in remaining wave136 @21854).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len) {
+  int32_t fi;
+  int32_t flen;
+  uint8_t fb[128];
+  int32_t k;
+  if (!mod || !name || name_len <= 0 || name_len > 127)
+    return -1;
+  for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
+    flen = pipeline_module_func_name_len_at(mod, fi);
+    if (flen != name_len)
+      continue;
+    pipeline_module_func_name_copy64(mod, fi, fb);
+    for (k = 0; k < name_len; k++) {
+      if (fb[k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return fi;
+  }
+  return -1;
+}
+
+int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  (void)arena;
+  (void)ctx;
+  (void)var_expr_ref;
+  return -1;
+}
+
+void *glue_emit_module_from_ctx(void *ctx) {
+  (void)ctx;
+  return 0;
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_as callee unique */
 
 /* Modlet leftover cluster (surgical extract of nested wave139 after
  * closing enclosing wave136):
@@ -22996,30 +23091,9 @@ int32_t pipeline_asm_emit_vector_binop_let_init_elf_c(void *arena,
   return 0;
 }
 
-/**
- * 按名称查本模块函数下标；-1 未找到（向量 CALL 内联 fold 用）。
- */
-int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len) {
-  int32_t fi;
-  int32_t flen;
-  uint8_t fb[128];
-  int32_t k;
-  if (!mod || !name || name_len <= 0 || name_len > 127)
-    return -1;
-  for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
-    flen = pipeline_module_func_name_len_at(mod, fi);
-    if (flen != name_len)
-      continue;
-    pipeline_module_func_name_copy64(mod, fi, fb);
-    for (k = 0; k < name_len; k++) {
-      if (fb[k] != name[k])
-        break;
-    }
-    if (k == name_len)
-      return fi;
-  }
-  return -1;
-}
+/* glue_module_func_index_by_name_c moved to leftover-PE emit_as callee
+ * unique OR after truncated-cmp close (file-scope !FROM_X || WIN).
+ * Leaving the body here would dual-def on !FROM_X. */
 
 /**
  * 读取函数体单一 return 的操作数 ref（显式 return 或 final_expr）；失败 0。
@@ -29941,25 +30015,17 @@ int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_re
 
 /*
  * wave188 cold twin: VAR expr stack_off (G.7 pure leave).
- * Freestanding-safe stub: return -1 (not found). Hybrid product links pure.
+ * Body moved to leftover-PE emit_as callee unique OR (file-scope
+ * !FROM_X || WIN). Leaving it here would dual-def on !FROM_X.
  * PLATFORM: SHARED freestanding VAR frame offset path.
  */
-int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
-  (void)arena;
-  (void)ctx;
-  (void)var_expr_ref;
-  return -1;
-}
 
 /*
  * wave189 cold twins: module_from_ctx + needs_ptr cluster (G.7 pure leave).
- * Freestanding-safe stubs. Hybrid product links pure.
+ * glue_emit_module_from_ctx moved to leftover-PE emit_as callee unique OR.
+ * Remaining needs_ptr stubs stay here (not unique).
  * PLATFORM: SHARED freestanding emit-module / load-vs-lea path.
  */
-void *glue_emit_module_from_ctx(void *ctx) {
-  (void)ctx;
-  return 0;
-}
 
 int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, int32_t var_expr_ref) {
   (void)arena;
