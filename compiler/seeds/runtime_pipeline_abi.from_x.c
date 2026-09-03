@@ -36533,6 +36533,137 @@ void asm_ctx_fill_locals_block_tree(uint8_t *ctx, void *arena, int32_t block_ref
 }
 /* end wave269 block_tree cold twins */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave269 cold twins */
+#endif /* close wave178 FROM_X for leftover-PE find_or_alloc_ptr unique */
+#endif /* close wave154 FROM_X for leftover-PE find_or_alloc_ptr unique */
+
+/* WIN leftover-PE rest pipeline_type_find_or_alloc_ptr unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone
+ * ABSENT — remaining wave270 is FALSE FROM_X; leftover-PE thin T
+ * find_or_alloc_slice / named but not ptr) plus sibling unique
+ * pipeline_type_set_elem_array_size_at (typeck_x.o UNDEFs it; SAT /
+ * leftover rest ABSENT). Remaining wave270 originals stay
+ * for !FROM_X.
+ * Same produce point as F7 / type_alias: inserting an OR inside
+ * FALSE outer remaining-wave154 @34907 + remaining-wave178 @34908
+ * is never parsed when FROM_X is set — must close both first.
+ * A !FROM_X || WIN OR here would dual-def remaining-wave270 nested
+ * bodies.
+ * POSIX FROM_X stays ABSENT (.x thin owns the faces @86769 / @86889).
+ * Bodies match leftover rest remaining-wave270 (kind@0 elem@136
+ * array_size@140 name_len@132 region_label@144 region_len@272
+ * slot size 276; TYPE_PTR kind 9). Helpers are static _win copies
+ * of remaining-wave270 wave270_* (those statics are FALSE FROM_X).
+ * Skip find_or_alloc_slice / find_or_alloc_named / kind_ord_at /
+ * elem_ref_at / array_size_at (leftover rest hybrid / SAT already
+ * global T — would dual-def).
+ * Callees leftover rest already T: pipeline_arena_type_ptr /
+ * pipeline_arena_type_alloc / pipeline_arena_num_types (SAT T;
+ * not unique).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique pair. LINUX gold / MACOS co-path
+ * still POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern void *pipeline_arena_type_ptr(void *arena, int32_t ref);
+extern int32_t pipeline_arena_type_alloc(void *arena);
+extern int32_t pipeline_arena_num_types(void *arena);
+
+enum {
+  W270_TY_PTR_WIN = 9,
+  W270_TY_SIZE_WIN = 276
+};
+
+static void wave270_zero_slot_win(uint8_t *t) {
+  int32_t i;
+  if (!t)
+    return;
+  for (i = 0; i < W270_TY_SIZE_WIN; i++)
+    t[i] = 0;
+}
+
+static void wave270_store_i32_win(uint8_t *b, int32_t off, int32_t v) {
+  b[off] = (uint8_t)(v & 255);
+  b[off + 1] = (uint8_t)((v >> 8) & 255);
+  b[off + 2] = (uint8_t)((v >> 16) & 255);
+  b[off + 3] = (uint8_t)((v >> 24) & 255);
+}
+
+static int32_t wave270_load_i32_win(uint8_t *b, int32_t off) {
+  return (int32_t)((uint32_t)b[off] | ((uint32_t)b[off + 1] << 8) | ((uint32_t)b[off + 2] << 16) |
+                   ((uint32_t)b[off + 3] << 24));
+}
+
+static int32_t wave270_bytes_eq_win(uint8_t *a, uint8_t *b, int32_t n) {
+  int32_t i;
+  if (n <= 0)
+    return 1;
+  if (!a || !b)
+    return 0;
+  for (i = 0; i < n; i++)
+    if (a[i] != b[i])
+      return 0;
+  return 1;
+}
+
+static uint8_t *wave270_slot_at_win(void *arena, int32_t ref) {
+  int32_t nt;
+  if (!arena || ref <= 0)
+    return NULL;
+  nt = pipeline_arena_num_types(arena);
+  if (ref > nt)
+    return NULL;
+  return (uint8_t *)pipeline_arena_type_ptr(arena, ref);
+}
+
+int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
+  int32_t nt, k;
+  uint8_t *t;
+  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 127)
+    return 0;
+  if (region_len > 0 && !region)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (!t)
+      continue;
+    if (wave270_load_i32_win(t, 0) == W270_TY_PTR_WIN && wave270_load_i32_win(t, 136) == elem_ref &&
+        wave270_load_i32_win(t, 140) == 0 && wave270_load_i32_win(t, 132) == 0 &&
+        wave270_load_i32_win(t, 272) == region_len &&
+        (region_len == 0 || wave270_bytes_eq_win(t + 144, region, region_len)))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot_win(t);
+  wave270_store_i32_win(t, 0, W270_TY_PTR_WIN);
+  wave270_store_i32_win(t, 136, elem_ref);
+  if (region_len > 0 && region) {
+    int32_t i;
+    for (i = 0; i < region_len; i++)
+      t[144 + i] = region[i];
+    wave270_store_i32_win(t, 272, region_len);
+  }
+  return k;
+}
+
+int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t elem_ref, int32_t array_size) {
+  uint8_t *t = wave270_slot_at_win(arena, ref);
+  if (!t)
+    return 0;
+  wave270_store_i32_win(t, 136, elem_ref);
+  wave270_store_i32_win(t, 140, array_size);
+  return 1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE find_or_alloc_ptr unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE find_or_alloc_ptr unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE find_or_alloc_ptr unique */
 
 /*
  * WAVE270: ast_pool_type pure-owned leave cold twins
