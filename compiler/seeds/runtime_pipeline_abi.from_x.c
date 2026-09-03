@@ -10549,8 +10549,10 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
  * so leftover-PE FROM_X rest compiles the unique. Close remaining wave101
  * first — inserting an OR inside a FALSE outer ifndef is never parsed when
  * FROM_X is set (assign_like / named_struct lesson).
- * Reopen remaining wave101 after this unique (wpo_dump / strict_parse_into_init
- * stay closed on leftover rest).
+ * Reopen remaining wave101 after this unique (strict_parse_into_init
+ * stays closed on leftover rest). wpo_dump unique is a later WIN-only
+ * file-scope OR (not !FROM_X || WIN — remaining wave101 nested body
+ * would dual-def).
  * Header does not declare this face (not a dual-decl). Always-compiled
  * proto of this face is absent in leftover rest FROM_X.
  * Callees: link_abi_getenv always-compiled extern @247; pipeline_module_num_funcs
@@ -10561,8 +10563,7 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
  * swapped unique unused_hints → pipe_load (SAT / leftover standalone do not
  * T it). Body ≡ runtime_pipeline_abi.x @5252 / seed_pipe_load_i32_le @11485
  * (void* to match this OR's call site; ABI = *u8).
- * Do not convert neighboring unused_private_funcs / wpo_dump (wpo_dump still
- * unique; needs wave121_mark still in remaining wave101).
+ * Do not convert neighboring unused_private_funcs (not unique).
  * Externs live inside the OR (not always-compiled): leftover rest later
  * defines ast_pipeline_block_const_name_* with struct ast_ASTArena * —
  * a void* prototype here would dual-decl (glue_type lesson).
@@ -10683,6 +10684,179 @@ int32_t pipeline_typeck_unused_binding_hints(void *m, void *a) {
   return nh;
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE unused_hints unique */
+
+/* WIN leftover-PE rest pipeline_typeck_wpo_dump_callgraph unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone
+ * only local t). Remaining wave101 original stays for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def that nested body.
+ * POSIX FROM_X stays ABSENT (.x thin / wpo_dump_thin owns the face).
+ * Body matches leftover rest remaining-wave101: getenv path, fopen
+ * opaque, name-based CALL/METHOD mark, JSON v2 graph.
+ * wave121_mark_local_call_names and wave121_ArenaHdr live inside
+ * remaining wave101 (FROM_X false). WIN leftover copies the mark
+ * helper as a file-scope static and reads ASTArena.num_exprs @4
+ * via pipe_load_i32_le (unused_hints OR already T on WIN leftover).
+ * Skip unused_private_funcs (not unique). Do not extract
+ * xlang_driver_fopen_write_opaque / fwrite / fclose / fwrite_stdout
+ * (runtime_driver_abi WEAK T at seed-link; not unique).
+ * Callees leftover rest already T: pipeline_expr_kind_ord_at /
+ * call_callee_ref / var_name / method_call_name /
+ * pipeline_module_func_name_equal_at / is_export_at / name_len /
+ * name_copy64 / pipeline_asm_module_func_is_extern_at /
+ * pipe_load_i32_le. leftover rest U pipeline_module_num_funcs
+ * (SAT T) / link_abi_getenv (always-compiled).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped before this OR on leftover rest FROM_X:
+ * link_abi_getenv @247, pipeline_module_num_funcs / name_len_at /
+ * name_copy64 @654, unused_hints OR pipe_load_i32_le + kind_ord +
+ * var_name, header fwrite_stdout_n (uint8_t*). Do not redeclare
+ * those (const vs uint8_t dual-decl). Later leftover rest WAVE280
+ * definitions use uint8_t *name — match that, not const. */
+extern int32_t pipeline_expr_call_callee_ref_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_name_len(void *a, int32_t expr_ref);
+extern void pipeline_expr_method_call_name_into(void *a, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_module_func_is_export_at(void *m, int32_t func_index);
+extern int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t func_index);
+extern uint8_t *xlang_driver_fopen_write_opaque(uint8_t *path);
+extern int32_t xlang_driver_fwrite_opaque(uint8_t *data, int32_t len, uint8_t *stream);
+extern int32_t xlang_driver_fclose_opaque(uint8_t *stream);
+
+static void wpo_dump_mark_local_call_names_win(void *a, uint8_t *used_flags, int32_t nfuncs, void *m) {
+  int32_t er;
+  int32_t nexpr;
+  int32_t fi;
+  if (!a || !used_flags || !m || nfuncs <= 0)
+    return;
+  /* ASTArena.num_exprs @ offset 4 — twin of wave121_ArenaHdr.num_exprs. */
+  nexpr = pipe_load_i32_le(a, 4);
+  for (er = 1; er <= nexpr; er++) {
+    int32_t ko = pipeline_expr_kind_ord_at(a, er);
+    if (ko == 48) { /* EXPR_CALL */
+      int32_t callee_ref = pipeline_expr_call_callee_ref_at(a, er);
+      int32_t clen;
+      uint8_t cname[128];
+      if (callee_ref <= 0)
+        continue;
+      if (pipeline_expr_kind_ord_at(a, callee_ref) != 3)
+        continue;
+      clen = pipeline_expr_var_name_len(a, callee_ref);
+      if (clen <= 0)
+        continue;
+      pipeline_expr_var_name_into(a, callee_ref, cname);
+      for (fi = 0; fi < nfuncs; fi++) {
+        if (pipeline_module_func_name_equal_at(m, fi, cname, clen))
+          used_flags[fi] = 1;
+      }
+    } else if (ko == 49) { /* EXPR_METHOD_CALL */
+      int32_t mlen = pipeline_expr_method_call_name_len(a, er);
+      uint8_t mname[128];
+      if (mlen <= 0)
+        continue;
+      pipeline_expr_method_call_name_into(a, er, mname);
+      for (fi = 0; fi < nfuncs; fi++) {
+        if (pipeline_module_func_name_equal_at(m, fi, mname, mlen))
+          used_flags[fi] = 1;
+      }
+    }
+  }
+}
+
+int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
+  const char *path;
+  FILE *fp = NULL;
+  int use_stdout = 0;
+  int32_t nfuncs, fi, root = -1, nlen, is_ext;
+  uint8_t *reach = NULL;
+  uint8_t *called = NULL;
+  uint8_t name[128];
+  int first;
+  (void)ctx;
+  if (!m || !a) return 0;
+  path = link_abi_getenv("XLANG_WPO_DUMP_CALLGRAPH");
+  if (!path || !path[0]) return 0;
+  if (path[0] == '-' && path[1] == '\0') use_stdout = 1;
+  else {
+    fp = (FILE *)(void *)xlang_driver_fopen_write_opaque((uint8_t *)path);
+    if (!fp) return 0;
+  }
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0) {
+    if (fp) xlang_driver_fclose_opaque((uint8_t *)(void *)fp);
+    return 0;
+  }
+  reach = (uint8_t *)calloc((size_t)nfuncs, 1);
+  called = (uint8_t *)calloc((size_t)nfuncs, 1);
+  if (!reach || !called) {
+    free(reach); free(called);
+    if (fp) xlang_driver_fclose_opaque((uint8_t *)(void *)fp);
+    return 0;
+  }
+  wpo_dump_mark_local_call_names_win(a, called, nfuncs, m);
+  for (fi = 0; fi < nfuncs; fi++) {
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"main", 4)) {
+      root = fi; break;
+    }
+  }
+  if (root < 0) {
+    for (fi = 0; fi < nfuncs; fi++) {
+      if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"entry", 5)) {
+        root = fi; break;
+      }
+    }
+  }
+  if (root < 0) root = 0;
+  reach[root] = 1;
+  for (fi = 0; fi < nfuncs; fi++) {
+    if (called[fi]) reach[fi] = 1;
+    if (pipeline_module_func_is_export_at(m, fi)) reach[fi] = 1;
+  }
+  {
+    char hdr[] = "{\n  \"version\": 2,\n  \"entry\": \"\",\n  \"modules\": [\n    {\"id\": 0, \"path\": \"\"}\n  ],\n  \"functions\": [\n";
+    if (use_stdout) xlang_driver_fwrite_stdout_n((uint8_t *)hdr, (int32_t)(sizeof(hdr) - 1));
+    else fprintf(fp, "%s", hdr);
+  }
+  first = 1;
+  for (fi = 0; fi < nfuncs; fi++) {
+    nlen = pipeline_module_func_name_len_at(m, fi);
+    is_ext = pipeline_asm_module_func_is_extern_at(m, fi);
+    if (nlen < 0) nlen = 0;
+    if (nlen >= 128) nlen = 127;
+    if (nlen > 0) pipeline_module_func_name_copy64(m, fi, name);
+    name[nlen] = 0;
+    if (!first) {
+      if (use_stdout) xlang_driver_fwrite_stdout_n((uint8_t *)",\n", 2);
+      else fputs(",\n", fp);
+    }
+    first = 0;
+    if (use_stdout) {
+      char line[384];
+      int n = snprintf(line, sizeof(line),
+        "    {\"id\": %d, \"module\": 0, \"name\": \"%s\", \"extern\": %s, \"reachable\": %s}",
+        fi, (const char *)name, is_ext ? "true" : "false", reach[fi] ? "true" : "false");
+      if (n > 0) xlang_driver_fwrite_stdout_n((uint8_t *)line, n);
+    } else {
+      fprintf(fp, "    {\"id\": %d, \"module\": 0, \"name\": \"%s\", \"extern\": %s, \"reachable\": %s}",
+        fi, (const char *)name, is_ext ? "true" : "false", reach[fi] ? "true" : "false");
+    }
+  }
+  {
+    char tail[128];
+    int n = snprintf(tail, sizeof(tail),
+      "\n  ],\n  \"edges\": [\n  ],\n  \"call_sites\": [],\n  \"root\": %d\n}\n", root);
+    if (use_stdout) xlang_driver_fwrite_stdout_n((uint8_t *)tail, n);
+    else fputs(tail, fp);
+  }
+  free(reach); free(called);
+  if (fp) xlang_driver_fclose_opaque((uint8_t *)(void *)fp);
+  return 1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE wpo_dump unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave101 FROM_X after leftover-PE unused_hints unique */
 
