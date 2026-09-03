@@ -29215,7 +29215,7 @@ void glue_sync_struct_layout_field_offsets_c(void *m, void *a) {
  * pipeline_type_* getters / pipeline_block_resolve_var_type_ref /
  * pipeline_module_func_param_type_ref_for_name. leftover rest already U
  * typeck_get_field_offset_from_layout_deps (typeck_x.o T; SAT also U).
- * glue_fill_var_types stays closed (struct* / W277_Block dual-decl).
+ * glue_fill_var_types extracted after this endif (WIN-only getter bodies).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
@@ -29400,6 +29400,225 @@ int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_r
   return -1;
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE field_layout unique */
+
+/* WIN leftover-PE rest glue_fill_var_types_from_lets_in_block unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone only
+ * local t) plus sibling unique glue_fill_var_types_from_params_for_func
+ * (typeck_x.o UNDEFs it; SAT / leftover rest only t). Completing
+ * fill_var_types also defines leftover rest remaining-wave136
+ * glue_let_name_matches_var (SAT / leftover rest only t — extracting
+ * fill_var_types alone would swap unique onto it). Remaining wave136
+ * originals @19935 stay for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def those nested bodies.
+ * POSIX FROM_X stays ABSENT (.x thin owns the faces @42443 / @42592).
+ * Bodies use pipeline getters + pipe_load_i32_le (nexprs@4 nblocks@8
+ * parent_block_ref@88) instead of leftover rest struct ast_ASTArena *
+ * / struct ast_Module * / W277_Block (typedef later @43679).
+ * Skip glue_expr_in_scope_block_c / glue_fill_array_lit_* / w277_block_at
+ * / pipeline_block_parent_block_ref_at (not unique; leftover rest / SAT
+ * only t of those helpers — would swap unique). Match leftover rest
+ * original (no OOM fallback that calls glue_expr_in_scope_block_c).
+ * Callees leftover rest already T: pipe_load_i32_le / pipeline_expr_* /
+ * pipeline_block_let_* / ast_ast_block_num_lets / pipeline_arena_block_ptr
+ * / pipeline_module_func_* / pipeline_asm_module_func_is_extern_at.
+ * leftover rest WIN of pipeline_module_num_funcs is ABSENT (remaining
+ * wave121 FALSE FROM_X); SAT global T (not unique).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipe_load_i32_le(void *base, int32_t off);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *a, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *a, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_resolved_type_ref(void *a, int32_t expr_ref);
+extern void pipeline_expr_set_resolved_type_ref(void *a, int32_t expr_ref, int32_t type_ref);
+extern int32_t pipeline_expr_block_ref_at(void *a, int32_t expr_ref);
+extern int32_t ast_ast_block_num_lets(void *a, int32_t br);
+extern int32_t pipeline_block_let_type_ref(void *a, int32_t br, int32_t li);
+extern int32_t pipeline_block_let_name_len(void *a, int32_t br, int32_t li);
+extern void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *dst);
+extern void *pipeline_arena_block_ptr(void *a, int32_t br);
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t pipeline_module_func_body_ref_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_num_params_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_param_name_len_at(void *m, int32_t fi, int32_t pi);
+extern void pipeline_module_func_param_name_copy32(void *m, int32_t fi, int32_t pi, uint8_t *out);
+extern int32_t pipeline_module_func_param_type_ref_at(void *m, int32_t fi, int32_t pi);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
+
+static void *g_fill_var_memo_arena_win;
+static int32_t g_fill_var_memo_nexprs_win;
+static int g_fill_var_lets_done_win;
+static int g_fill_var_params_done_win;
+static void *g_fill_var_params_mod_win;
+
+static void glue_fill_var_memo_touch(void *arena) {
+  int32_t nexprs;
+  if (!arena)
+    return;
+  nexprs = pipe_load_i32_le(arena, 4);
+  if (g_fill_var_memo_arena_win != arena || g_fill_var_memo_nexprs_win != nexprs) {
+    g_fill_var_memo_arena_win = arena;
+    g_fill_var_memo_nexprs_win = nexprs;
+    g_fill_var_lets_done_win = 0;
+    g_fill_var_params_done_win = 0;
+    g_fill_var_params_mod_win = NULL;
+  }
+}
+
+int glue_let_name_matches_var(void *arena, int32_t expr_ref, const uint8_t *let_nm,
+                              int32_t let_nlen) {
+  uint8_t vn[128];
+  int32_t vlen;
+  int32_t j;
+  if (!arena || !let_nm || let_nlen <= 0 || expr_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  if (vlen != let_nlen)
+    return 0;
+  pipeline_expr_var_name_into(arena, expr_ref, vn);
+  for (j = 0; j < let_nlen; j++) {
+    if (vn[j] != let_nm[j])
+      return 0;
+  }
+  return 1;
+}
+
+void glue_fill_var_types_from_params_for_func(void *m, void *arena, int32_t func_index) {
+  int32_t fi;
+  int32_t ei;
+  int32_t *owner;
+  int32_t nblocks;
+  int32_t nexprs;
+  int32_t nfuncs;
+  if (!m || !arena || func_index < 0)
+    return;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (func_index >= nfuncs)
+    return;
+  glue_fill_var_memo_touch(arena);
+  if (g_fill_var_params_done_win && g_fill_var_params_mod_win == m)
+    return;
+  nblocks = pipe_load_i32_le(arena, 8);
+  nexprs = pipe_load_i32_le(arena, 4);
+  if (nblocks <= 0 || nexprs <= 0) {
+    g_fill_var_params_done_win = 1;
+    g_fill_var_params_mod_win = m;
+    return;
+  }
+  owner = (int32_t *)calloc((size_t)nblocks + 1, sizeof(int32_t));
+  if (!owner)
+    return;
+  for (fi = 0; fi < nfuncs; fi++) {
+    int32_t br;
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
+      continue;
+    br = pipeline_module_func_body_ref_at(m, fi);
+    if (br > 0 && br <= nblocks)
+      owner[br] = fi + 1;
+  }
+  for (ei = 1; ei <= nexprs; ei++) {
+    int32_t cur;
+    int32_t depth;
+    if (pipeline_expr_kind_ord_at(arena, ei) != 3)
+      continue;
+    if (pipeline_expr_resolved_type_ref(arena, ei) > 0)
+      continue;
+    cur = pipeline_expr_block_ref_at(arena, ei);
+    depth = 0;
+    while (cur > 0 && cur <= nblocks && depth < 128) {
+      int32_t own = owner[cur];
+      if (own > 0) {
+        int32_t f = own - 1;
+        int32_t np = pipeline_module_func_num_params_at(m, f);
+        int32_t pi;
+        for (pi = 0; pi < np; pi++) {
+          uint8_t nm[128];
+          int32_t nlen = pipeline_module_func_param_name_len_at(m, f, pi);
+          int32_t tref;
+          if (nlen <= 0 || nlen > 127)
+            continue;
+          pipeline_module_func_param_name_copy32(m, f, pi, nm);
+          tref = pipeline_module_func_param_type_ref_at(m, f, pi);
+          if (tref > 0 && glue_let_name_matches_var(arena, ei, nm, nlen)) {
+            pipeline_expr_set_resolved_type_ref(arena, ei, tref);
+            break;
+          }
+        }
+        break;
+      }
+      {
+        void *bp = pipeline_arena_block_ptr(arena, cur);
+        if (!bp)
+          break;
+        cur = pipe_load_i32_le(bp, 88);
+        depth++;
+      }
+    }
+  }
+  free(owner);
+  g_fill_var_params_done_win = 1;
+  g_fill_var_params_mod_win = m;
+}
+
+void glue_fill_var_types_from_lets_in_block(void *arena, int32_t block_ref) {
+  int32_t ei;
+  int32_t nblocks;
+  int32_t nexprs;
+  if (!arena || block_ref <= 0)
+    return;
+  nblocks = pipe_load_i32_le(arena, 8);
+  if (block_ref > nblocks)
+    return;
+  glue_fill_var_memo_touch(arena);
+  if (g_fill_var_lets_done_win)
+    return;
+  nexprs = pipe_load_i32_le(arena, 4);
+  for (ei = 1; ei <= nexprs; ei++) {
+    int32_t cur;
+    int32_t depth;
+    if (pipeline_expr_kind_ord_at(arena, ei) != 3)
+      continue;
+    if (pipeline_expr_resolved_type_ref(arena, ei) > 0)
+      continue;
+    cur = pipeline_expr_block_ref_at(arena, ei);
+    depth = 0;
+    while (cur > 0 && cur <= nblocks && depth < 128) {
+      int32_t nlet = ast_ast_block_num_lets(arena, cur);
+      int32_t li;
+      int found = 0;
+      for (li = 0; li < nlet; li++) {
+        int32_t tref = pipeline_block_let_type_ref(arena, cur, li);
+        uint8_t nm[128];
+        int32_t nlen;
+        if (tref <= 0)
+          continue;
+        nlen = pipeline_block_let_name_len(arena, cur, li);
+        if (nlen <= 0 || nlen > 127)
+          continue;
+        pipeline_block_let_name_copy64(arena, cur, li, nm);
+        if (glue_let_name_matches_var(arena, ei, nm, nlen)) {
+          pipeline_expr_set_resolved_type_ref(arena, ei, tref);
+          found = 1;
+          break;
+        }
+      }
+      if (found)
+        break;
+      {
+        void *bp = pipeline_arena_block_ptr(arena, cur);
+        if (!bp)
+          break;
+        cur = pipe_load_i32_le(bp, 88);
+        depth++;
+      }
+    }
+  }
+  g_fill_var_lets_done_win = 1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE fill_var_types unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_type cluster */
 
