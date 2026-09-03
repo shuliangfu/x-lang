@@ -29883,6 +29883,49 @@ int32_t typeck_layout_index_for_named_type_c(void *m, void *a, int32_t ty_ref) {
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE named_struct unique */
 
+/* WIN leftover-PE rest typeck_struct_layouts_same_shape_c unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone
+ * only local t). Remaining wave154 original stays for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def that nested body.
+ * POSIX FROM_X stays ABSENT (.x thin owns the face @59653).
+ * Body matches leftover rest remaining-wave154: same field count,
+ * offsets, and pipeline_typeck_type_refs_equal_c on field types.
+ * Skip pad/hot warn (not unique). Do not extract
+ * pipeline_typeck_type_refs_equal_c (SAT / leftover rest hybrid
+ * already global T — not unique; leftover rest FROM_X rest U is
+ * SAT T at seed-link).
+ * Callees leftover rest already T: pipeline_module_struct_layout_*
+ * num_fields / field_offset_at / field_type_ref (SAT T).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_offset_at(void *m, int32_t li, int32_t fi);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t fi);
+extern int32_t pipeline_typeck_type_refs_equal_c(void *a, int32_t ta, int32_t tb);
+
+int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t lb) {
+  int32_t nfa, nfb, j;
+  if (!m || !a || la < 0 || lb < 0) return 0;
+  nfa = pipeline_module_struct_layout_num_fields(m, la);
+  nfb = pipeline_module_struct_layout_num_fields(m, lb);
+  if (nfa != nfb || nfa <= 0) return 0;
+  for (j = 0; j < nfa; j++) {
+    if (pipeline_module_struct_layout_field_offset_at(m, la, j) !=
+        pipeline_module_struct_layout_field_offset_at(m, lb, j))
+      return 0;
+    if (!pipeline_typeck_type_refs_equal_c(a,
+          pipeline_module_struct_layout_field_type_ref(m, la, j),
+          pipeline_module_struct_layout_field_type_ref(m, lb, j)))
+      return 0;
+  }
+  return 1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE same_shape unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE named_struct unique */
 
 int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t lb) {
