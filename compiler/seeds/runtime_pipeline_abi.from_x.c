@@ -36799,6 +36799,306 @@ int32_t pipeline_asm_emit_binop_bitwise_elf_c(void *arena, void *elf_ctx, int32_
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_bitwise unique */
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
+/* Forward declarations for WIN leftover-PE field_access helpers */
+extern int32_t pipeline_expr_field_access_is_enum_variant(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t pipeline_expr_enum_variant_tag_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_field_access_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t val_lo, int32_t val_hi, int32_t ta);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_field_access_soa_stride(void *arena, int32_t expr_ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t typeck_soa_field_soa_index(void *mod, void *arena, int32_t expr_ref, int32_t base_ref);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
+extern int32_t backend_enc_load_zext8_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_32_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t var_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t var_ref, uint8_t *out);
+extern int32_t pipeline_expr_enum_namespace_field_tag(void *arena, int32_t expr_ref);
+extern int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, void *arena, uint8_t *name, int32_t len);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t len);
+extern int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_ref, int32_t slot_off, void *ctx);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t off, int32_t ta);
+extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t expr_ref);
+extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t slot_off, void *ctx, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+
+static int32_t win_pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len) {
+  static const char *const names[] = {
+      "TOKEN_EOF",       "TOKEN_FUNCTION",  "TOKEN_LET",         "TOKEN_CONST",      "TOKEN_IF",
+      "TOKEN_ELSE",      "TOKEN_WHILE",     "TOKEN_LOOP",        "TOKEN_FOR",        "TOKEN_BREAK",
+      "TOKEN_CONTINUE",  "TOKEN_RETURN",    "TOKEN_PANIC",       "TOKEN_DEFER",      "TOKEN_MATCH",
+      "TOKEN_STRUCT",    "TOKEN_PACKED",    "TOKEN_ENUM",        "TOKEN_GOTO",       "TOKEN_TRAIT",
+      "TOKEN_IMPL",      "TOKEN_SELF",      "TOKEN_UNDERSCORE",  "TOKEN_IMPORT",     "TOKEN_EXTERN",
+      "TOKEN_IDENT",     "TOKEN_I32",       "TOKEN_BOOL",        "TOKEN_U8",         "TOKEN_U32",
+      "TOKEN_U64",       "TOKEN_I64",       "TOKEN_USIZE",       "TOKEN_ISIZE",      "TOKEN_I32X4",
+      "TOKEN_I32X8",     "TOKEN_I32X16",    "TOKEN_U32X4",       "TOKEN_U32X8",      "TOKEN_U32X16",
+      "TOKEN_F32X4",     "TOKEN_TRUE",      "TOKEN_FALSE",       "TOKEN_F32",        "TOKEN_F64",        "TOKEN_VOID",
+      "TOKEN_INT",       "TOKEN_FLOAT",     "TOKEN_LPAREN",      "TOKEN_RPAREN",     "TOKEN_LBRACE",
+      "TOKEN_RBRACE",    "TOKEN_LBRACKET",  "TOKEN_RBRACKET",    "TOKEN_ARROW",      "TOKEN_FATARROW",
+      "TOKEN_COMMA",     "TOKEN_COLON",     "TOKEN_DOT",         "TOKEN_SEMICOLON",  "TOKEN_PLUS",
+      "TOKEN_MINUS",     "TOKEN_STAR",      "TOKEN_SLASH",       "TOKEN_PERCENT",    "TOKEN_AMP",
+      "TOKEN_PIPE",      "TOKEN_CARET",     "TOKEN_LSHIFT",      "TOKEN_RSHIFT",     "TOKEN_PLUS_EQ",
+      "TOKEN_MINUS_EQ",  "TOKEN_STAR_EQ",   "TOKEN_SLASH_EQ",    "TOKEN_PERCENT_EQ", "TOKEN_AMP_EQ",
+      "TOKEN_PIPE_EQ",   "TOKEN_CARET_EQ",  "TOKEN_LSHIFT_EQ",   "TOKEN_RSHIFT_EQ",  "TOKEN_TILDE",
+      "TOKEN_ASSIGN",    "TOKEN_EQ",        "TOKEN_NE",          "TOKEN_LT",         "TOKEN_GT",
+      "TOKEN_LE",        "TOKEN_GE",        "TOKEN_AMPAMP",      "TOKEN_PIPEPIPE",   "TOKEN_BANG",
+      "TOKEN_QUESTION",  "TOKEN_AS",        "TOKEN_AT",
+  };
+  int32_t i;
+  int32_t nlen;
+  if (!variant_name || variant_len <= 0)
+    return -1;
+  for (i = 0; i < (int32_t)(sizeof(names) / sizeof(names[0])); i++) {
+    nlen = (int32_t)strlen(names[i]);
+    if (nlen == variant_len && memcmp(variant_name, names[i], (size_t)variant_len) == 0)
+      return i;
+  }
+  return -1;
+}
+
+static int32_t win_pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32_t flen) {
+  if (!field_buf || flen < 7)
+    return -1;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_I32", 7) == 0)
+    return 0;
+  if (flen >= 8 && memcmp(field_buf, "TYPE_BOOL", 8) == 0)
+    return 1;
+  if (flen >= 6 && memcmp(field_buf, "TYPE_U8", 6) == 0) {
+    if (flen >= 9 && memcmp(field_buf, "TYPE_USIZE", 9) == 0)
+      return 6;
+    if (flen >= 7 && memcmp(field_buf, "TYPE_U32", 7) == 0)
+      return 3;
+    if (flen >= 7 && memcmp(field_buf, "TYPE_U64", 7) == 0)
+      return 4;
+    return 2;
+  }
+  if (flen >= 7 && memcmp(field_buf, "TYPE_U32", 7) == 0)
+    return 3;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_U64", 7) == 0)
+    return 4;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_I64", 7) == 0)
+    return 5;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_USIZE", 9) == 0)
+    return 6;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_ISIZE", 9) == 0)
+    return 7;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_NAMED", 9) == 0)
+    return 8;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_PTR", 7) == 0)
+    return 9;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_ARRAY", 9) == 0)
+    return 10;
+  if (flen >= 9 && memcmp(field_buf, "TYPE_SLICE", 9) == 0)
+    return 11;
+  if (flen >= 11 && memcmp(field_buf, "TYPE_VECTOR", 11) == 0)
+    return 12;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_F32", 7) == 0)
+    return 13;
+  if (flen >= 7 && memcmp(field_buf, "TYPE_F64", 7) == 0)
+    return 14;
+  if (flen >= 8 && memcmp(field_buf, "TYPE_VOID", 8) == 0)
+    return 15;
+  return -1;
+}
+
+static inline int32_t win_glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
+  if (ta == 1)
+    return data_home + 8;
+  return data_home - 8;
+}
+
+static inline int32_t win_glue_field_access_effective_offset_c(void *arena, void *mod, int32_t fa_ref) {
+  return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
+}
+
+int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t base_ref;
+  int32_t vlen;
+  int32_t var_off;
+  int32_t field_off;
+  int32_t load_sz;
+  uint8_t vname[128];
+  void *mod;
+
+  base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3)
+    return -99;
+  vlen = pipeline_expr_var_name_len(arena, base_ref);
+  if (vlen <= 0 || vlen > 127)
+    return -99;
+  pipeline_expr_var_name_into(arena, base_ref, vname);
+  var_off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+  if (var_off < 0)
+    var_off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
+  if (var_off < 0)
+    return -99;
+
+  {
+    int32_t base_ty_sl = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+    int32_t flen_sl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (base_ty_sl > 0 && flen_sl > 0 && flen_sl <= 63 &&
+        pipeline_type_kind_ord_at(arena, base_ty_sl) == 11 /* TYPE_SLICE */ &&
+        glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, var_off, ctx) == 0) {
+      uint8_t fn_sl[128];
+      pipeline_expr_field_access_name_into(arena, expr_ref, fn_sl);
+      if (flen_sl == 6 && memcmp(fn_sl, "length", 6) == 0)
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx, win_glue_slice_dual_gp_length_off_c(var_off, ta), ta);
+      if (flen_sl == 4 && memcmp(fn_sl, "data", 4) == 0)
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+    }
+  }
+
+  mod = pipeline_asm_emit_module_ref_c();
+  field_off = win_glue_field_access_effective_offset_c(arena, mod, expr_ref);
+  if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0)
+    return -1;
+  if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+    return -1;
+
+  load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+  if (load_sz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (load_sz == 8)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+}
+
+/**
+ * EXPR_FIELD_ACCESS fast path: enum TokenKind/ExprKind/TypeKind, VAR fields.
+ * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+ */
+int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t fa_base2;
+  int32_t blen2;
+  void *mod;
+
+  if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0)
+    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
+
+  {
+    int32_t flen_arr = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (flen_arr == 6) {
+      uint8_t fn_arr[128];
+      int32_t base_ref_arr;
+      int32_t base_ty_arr;
+      int32_t bk_arr;
+      int32_t asz_arr;
+      pipeline_expr_field_access_name_into(arena, expr_ref, fn_arr);
+      if (memcmp(fn_arr, "length", 6) == 0) {
+        base_ref_arr = pipeline_expr_field_access_base_ref(arena, expr_ref);
+        base_ty_arr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref_arr);
+        if (base_ty_arr <= 0)
+          base_ty_arr = pipeline_expr_resolved_type_ref(arena, base_ref_arr);
+        if (base_ty_arr > 0) {
+          bk_arr = pipeline_type_kind_ord_at(arena, base_ty_arr);
+          if (bk_arr == 10 /* TYPE_ARRAY */ || bk_arr == 13 /* TYPE_VECTOR */) {
+            asz_arr = pipeline_type_array_size_at(arena, base_ty_arr);
+            if (asz_arr > 0)
+              return backend_enc_mov_imm64_to_rax_arch(elf_ctx, asz_arr, 0, ta);
+          }
+        }
+      }
+    }
+  }
+
+  fa_base2 = pipeline_expr_field_access_base_ref(arena, expr_ref);
+  mod = pipeline_asm_emit_module_ref_c();
+
+  /** SoA `arr[i].field` */
+  if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 47) {
+    int32_t load_sz;
+    if (pipeline_expr_field_access_soa_stride(arena, expr_ref) <= 0 && mod != 0) {
+      (void)typeck_soa_field_soa_index(mod, arena, expr_ref, fa_base2);
+    }
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+      return -99;
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    if (load_sz == 1)
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    if (load_sz == 8)
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  }
+
+  /** VAR field access */
+  if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 3) {
+    blen2 = pipeline_expr_var_name_len(arena, fa_base2);
+    if (blen2 >= 9) {
+      uint8_t bn[128];
+      uint8_t fb[128];
+      int32_t flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
+      int32_t tk;
+      pipeline_expr_var_name_into(arena, fa_base2, bn);
+      if (memcmp(bn, "TokenKind", 9) == 0 && flen2 > 0) {
+        pipeline_expr_field_access_name_into(arena, expr_ref, fb);
+        tk = win_pipeline_token_kind_variant_tag(fb, flen2);
+        if (tk < 0) {
+          int32_t sl = (int32_t)strlen((const char *)fb);
+          if (sl > 0 && sl < flen2)
+            tk = win_pipeline_token_kind_variant_tag(fb, sl);
+        }
+        if (tk >= 0)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, tk, ta);
+      }
+    }
+    if (blen2 >= 8) {
+      uint8_t bn[128];
+      uint8_t fb[128];
+      int32_t flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
+      int32_t ev_tag;
+      pipeline_expr_var_name_into(arena, fa_base2, bn);
+      if (memcmp(bn, "TypeKind", 8) == 0 && flen2 > 0) {
+        pipeline_expr_field_access_name_into(arena, expr_ref, fb);
+        ev_tag = win_pipeline_asm_typekind_variant_tag(fb, flen2);
+        if (ev_tag >= 0)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ev_tag, ta);
+      }
+      if (memcmp(bn, "ExprKind", 8) == 0 && flen2 > 0) {
+        ev_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+        if (ev_tag >= 0)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ev_tag, ta);
+      }
+    }
+    {
+      int32_t vr = pipeline_asm_emit_var_field_access_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      if (vr != -99)
+        return vr;
+    }
+  }
+
+  {
+    int32_t ns_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+    if (ns_tag >= 0)
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ns_tag, ta);
+  }
+
+  /** Chained / general FIELD_ACCESS: lvalue eff addr + load */
+  {
+    int32_t load_sz;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+      return -99;
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    if (load_sz == 1)
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    if (load_sz == 8)
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+  }
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE field_access unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
