@@ -28866,6 +28866,10 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  * wave132 (not unique); leftover rest externs it (SAT / leftover standalone).
  * Do not convert neighboring typeck_typeck_struct_layout_metrics (not unique)
  * or glue_type_named_layout_size_any_module_elf_c (nested in wave178 stub).
+ * glue_struct_layout_compute_field_offset_c / index_by_type_name_c /
+ * glue_sync_struct_layout_field_offsets_c are WIN-only after this cluster
+ * (typeck pin unique of index_by_type_name + sync_struct; compute_field_offset
+ * is the leftover rest callee of sync_struct — SAT / leftover rest only t).
  * pipeline_asm_emit_expr_elf_rec is a separate leftover cluster (wave152
  * extract after closing wave149).
  * pipeline_elf_ctx_append_reloc_absolute64 is a separate leftover cluster
@@ -29117,6 +29121,79 @@ int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) 
 }
 
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
+
+/* WIN leftover-PE rest glue_sync_struct_layout_field_offsets_c unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone only
+ * local t) plus sibling unique glue_struct_layout_index_by_type_name_c
+ * (leftover rest FROM_X already U; SAT only t). Completing sync_struct
+ * also defines leftover rest remaining-wave154 glue_struct_layout_compute_field_offset_c
+ * (SAT / leftover rest only t — extracting sync_struct alone would swap
+ * unique onto it). Remaining wave154 originals below stay for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def those nested bodies.
+ * POSIX FROM_X stays ABSENT (.x thin owns the faces @58281 / @58348 / @58376).
+ * Callees leftover rest already global T: glue_type_align_simple /
+ * glue_type_size_simple / glue_type_is_empty_struct_c (glue_type cluster
+ * immediately above) + pipeline_module_* getters / set_field_offset
+ * (ALWAYS @34749). index_by_type_name uses this-TU static w154_layout_name_eq
+ * from the glue_type cluster (visible after that endif).
+ * typeck_typeck_struct_layout_metrics stays closed (not unique).
+ * glue_field_layout_offset_for_base_field stays closed (uses w151_TypeMirror
+ * + ast_TypeKind enum later in the TU; var_base_field already unique).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_align_at(void *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_set_field_offset(void *m, int32_t li, int32_t j, int32_t foff);
+
+int32_t glue_struct_layout_compute_field_offset_c(void *m, void *a, int32_t li, int32_t fj) {
+  int32_t current = 0, j, nf, nlayouts, ftr, A, fa, rem, gap, fsize;
+  if (!m || !a || li < 0 || fj < 0) return fj >= 0 ? fj * 8 : 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  if (li >= nlayouts) return fj * 8;
+  nf = pipeline_module_struct_layout_num_fields(m, li);
+  if (fj >= nf) return fj * 8;
+  for (j = 0; j <= fj; j++) {
+    ftr = pipeline_module_struct_layout_field_type_ref(m, li, j);
+    A = glue_type_align_simple(m, a, ftr, 0);
+    if (A <= 0) A = 1;
+    fa = pipeline_module_struct_layout_field_align_at(m, li, j);
+    if (fa > A) A = fa;
+    rem = current % A; gap = (A - rem) % A;
+    if (j == fj) return current + gap;
+    current += gap;
+    fsize = glue_type_size_simple(m, a, ftr, 0);
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(m, a, ftr, 0) == 0)) fsize = 4;
+    current += fsize;
+  }
+  return fj * 8;
+}
+
+int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen) {
+  int32_t k, nlayouts;
+  if (!m || !struct_name || nlen <= 0 || nlen > 127) return -1;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++)
+    if (w154_layout_name_eq(m, k, struct_name, nlen)) return k;
+  if (nlayouts == 1) return 0;
+  return -1;
+}
+
+void glue_sync_struct_layout_field_offsets_c(void *m, void *a) {
+  int32_t li, nf, j, off, nlayouts;
+  if (!m || !a) return;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (li = 0; li < nlayouts; li++) {
+    nf = pipeline_module_struct_layout_num_fields(m, li);
+    for (j = 0; j < nf; j++) {
+      off = glue_struct_layout_compute_field_offset_c(m, a, li, j);
+      pipeline_module_struct_layout_set_field_offset(m, li, j, off);
+    }
+  }
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE sync_struct unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_type cluster */
 
