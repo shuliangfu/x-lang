@@ -4,6 +4,9 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * cast/unary/as_suffix 已 thin delegate；本 slice 处理 expr 左结合二元链至 compare。
  * P2 Darwin -o: 1-token peek cache (term…logor share one unconsumed token).
+ * P2 Darwin -o: parse_logor had two identical || chains from the same start
+ * lex (stretch padding → every expr parsed twice). Product keeps one.
+ * single_tok_chain audit_fn uses PARSER_ASM_STRETCH_AUDIT_CALL (was un-gated).
  * PLATFORM: SHARED. Do not assemble parser.x.
  */
 #ifndef PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
@@ -452,8 +455,13 @@ static void parser_asm_binop_single_tok_chain_c(void *arena, struct parser_asm_l
   lower(arena, lex, source, out);
   if (!out->ok)
     return;
+  /* Stretch probes re-lex the next token. Product builds leave
+   * XLANG_PARSER_STRETCH_AUDIT undefined so PARSER_ASM_STRETCH_AUDIT_CALL
+   * is a no-op; this audit_fn path used to bypass that gate and extra-lex
+   * every bitand…logor expression. Keep the call only when the gate is on.
+   * PLATFORM: SHARED — same gate as sibling term/addsub/shift/rel/eq. */
   if (audit_fn)
-    (void)audit_fn(out->next_lex, source);
+    PARSER_ASM_STRETCH_AUDIT_CALL(audit_fn(out->next_lex, source));
   lex_cur = out->next_lex;
   for (;;) {
     parser_asm_binop_lex_peek_into(&r, lex_cur, source);
@@ -1203,11 +1211,14 @@ void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer le
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
+  /* One || chain from the original lex. A second identical call was stretch
+   * padding: it re-parsed every expression from the same start (logor is the
+   * top of parse_expr) and overwrote out. Product hello -o sample was then
+   * ~2× Pratt. Stretch audits above stay (no-op unless XLANG_PARSER_STRETCH_AUDIT).
+   * PLATFORM: SHARED — do not assemble parser.x. */
   parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_PIPEPIPE, PARSER_ASM_EXPR_LOGOR,
                                       parser_parse_logand_into, parser_asm_stretch_expr_logor_binop_audit_c);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
-  parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_PIPEPIPE, PARSER_ASM_EXPR_LOGOR,
-                                      parser_parse_logand_into, parser_asm_stretch_expr_logor_binop_audit_c);
 }
 
 #endif /* PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED */

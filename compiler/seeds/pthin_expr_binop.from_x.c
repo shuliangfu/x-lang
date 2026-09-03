@@ -6,6 +6,10 @@
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  * P2 Darwin -o: slice-local 1-token peek cache for left-assoc chains
  * (term…logor re-lexed the same unconsumed token once per level).
+ * P2 Darwin -o: parse_logor_into used to invoke the || chain twice from the
+ * same start lex (stretch padding). Product keeps one chain; stretch audits
+ * stay no-op unless XLANG_PARSER_STRETCH_AUDIT. audit_fn on single_tok_chain
+ * uses the same gate (was extra-lexing every bitand…logor expr).
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
