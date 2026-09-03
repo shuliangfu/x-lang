@@ -14440,6 +14440,356 @@ int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t e
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_as callee unique */
 
+/* WIN leftover-PE rest fold unique (typeck_x.o UNDEFs these; SAT / leftover
+ * standalone only local t). Remaining wave136 originals @23171 stay for
+ * !FROM_X (gcc nested inside truncated cmp; callers @13371). A
+ * !FROM_X || WIN OR here would dual-def those nested bodies.
+ * POSIX FROM_X stays ABSENT (.x thin owns the faces).
+ * Completing the unique set = define all six PLUS
+ * glue_fold_func_return_operand_ref_c (leftover rest T of try_eval would
+ * otherwise swap unique onto it; SAT only t; no other TU global T).
+ * Do NOT define glue_is_vector_lane_scalar_binop_ko: src/asm/backend_try_inline_dispatch.o
+ * already global T (seed-link r3-prefer); leftover rest U is satisfied.
+ * Kind ordinals are numeric: remaining-wave136 originals use ast_ExprKind_*
+ * defined later @39963 (not in scope here). 22=NEG 23=BITNOT 24=LOGNOT
+ * 46=ARRAY_LIT 47=INDEX.
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_module_func_param_name_len_at(void *mod, int32_t func_idx, int32_t param_ix);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern void pipeline_module_func_param_name_copy32(void *mod, int32_t func_idx, int32_t param_ix, uint8_t *out);
+extern int32_t pipeline_module_func_body_ref_at(void *mod, int32_t func_idx);
+extern int32_t pipeline_asm_block_final_expr_ref_at(void *arena, int32_t block_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
+extern int32_t pipeline_expr_const_folded_valid_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t arr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t arr_ref, int32_t lane);
+extern int32_t pipeline_module_func_num_params_at(void *mod, int32_t func_idx);
+extern int32_t pipeline_module_func_return_type_at(void *mod, int32_t func_idx);
+extern int32_t asm_type_is_simd_vector_spelling(void *arena, int32_t type_ref);
+extern int32_t asm_type_is_simd_vector(void *arena, int32_t type_ref);
+extern int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
+
+int32_t glue_fold_func_return_operand_ref_c(void *arena, void *mod, int32_t func_idx) {
+  int32_t body_ref;
+  int32_t fin;
+  int32_t nes;
+  int32_t found;
+  int32_t op_ref;
+  int32_t ei;
+  int32_t er;
+  int32_t op_e;
+  if (!arena || !mod || func_idx < 0)
+    return 0;
+  body_ref = pipeline_module_func_body_ref_at(mod, func_idx);
+  if (body_ref <= 0)
+    return 0;
+  fin = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
+  if (fin != 0) {
+    if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
+      op_e = pipeline_expr_unary_operand_ref_at(arena, fin);
+      if (op_e != 0)
+        return op_e;
+    }
+    return fin;
+  }
+  nes = ast_ast_block_num_expr_stmts(arena, body_ref);
+  found = 0;
+  op_ref = 0;
+  for (ei = 0; ei < nes; ei++) {
+    er = ast_ast_block_expr_stmt_ref(arena, body_ref, ei);
+    if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 41) {
+      op_e = pipeline_expr_unary_operand_ref_at(arena, er);
+      if (op_e != 0) {
+        found = found + 1;
+        op_ref = op_e;
+      }
+    }
+  }
+  return found == 1 ? op_ref : 0;
+}
+
+int32_t glue_expr_is_func_param_at_c(void *arena, void *mod, int32_t func_idx,
+                                    int32_t expr_ref, int32_t param_ix) {
+  uint8_t pbuf[128];
+  uint8_t vbuf[128];
+  int32_t plen;
+  int32_t vlen;
+  int32_t k;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)
+    return 0;
+  plen = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
+  vlen = pipeline_expr_var_name_len(arena, expr_ref);
+  if (plen <= 0 || plen != vlen)
+    return 0;
+  pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, pbuf);
+  pipeline_expr_var_name_into(arena, expr_ref, vbuf);
+  k = 0;
+  while (k < plen) {
+    if (pbuf[k] != vbuf[k])
+      return 0;
+    k = k + 1;
+  }
+  return 1;
+}
+
+int32_t glue_try_eval_pure_param0_scalar_func_c(void *arena, void *mod,
+                                               int32_t func_idx, int32_t arg_val, int32_t *out) {
+  int32_t ret_ref;
+  int32_t ko;
+  int32_t al;
+  int32_t ar;
+  int32_t uop;
+  int32_t lit_val;
+  int32_t ret_ty;
+  int32_t left_p0;
+  int32_t right_p0;
+  int32_t lit_ko;
+  if (!out || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 1)
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(mod, func_idx);
+  if (ret_ty > 0 &&
+      (asm_type_is_simd_vector_spelling(arena, ret_ty) != 0 || asm_type_is_simd_vector(arena, ret_ty) != 0))
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, ret_ref, 0) != 0) {
+    *out = arg_val;
+    return 1;
+  }
+  ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  /* Unary: -p0 / ~p0 / !p0 (EXPR_NEG=22, BITNOT=23, LOGNOT=24). */
+  if (ko == 22 || ko == 23 || ko == 24) {
+    uop = pipeline_expr_unary_operand_ref_at(arena, ret_ref);
+    if (uop <= 0 || glue_expr_is_func_param_at_c(arena, mod, func_idx, uop, 0) == 0)
+      return 0;
+    if (ko == 22)
+      *out = (int32_t)(-(int64_t)arg_val);
+    else if (ko == 23)
+      *out = (int32_t)(~(int64_t)arg_val);
+    else
+      *out = arg_val ? 0 : 1;
+    return 1;
+  }
+  if (ko < 4 || ko > 8)
+    return 0;
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (al <= 0 || ar <= 0)
+    return 0;
+  left_p0 = glue_expr_is_func_param_at_c(arena, mod, func_idx, al, 0);
+  right_p0 = glue_expr_is_func_param_at_c(arena, mod, func_idx, ar, 0);
+  if (left_p0 != 0 && right_p0 == 0) {
+    if (pipeline_expr_const_folded_valid_at(arena, ar) != 0)
+      lit_val = pipeline_expr_const_folded_val_at(arena, ar);
+    else {
+      lit_ko = pipeline_expr_kind_ord_at(arena, ar);
+      if (lit_ko != 0 && lit_ko != 2)
+        return 0;
+      lit_val = (int32_t)pipeline_expr_int_val_at(arena, ar);
+    }
+    switch (ko) {
+    case 4:
+      *out = (int32_t)((int64_t)arg_val + (int64_t)lit_val);
+      break;
+    case 5:
+      *out = (int32_t)((int64_t)arg_val - (int64_t)lit_val);
+      break;
+    case 6:
+      *out = (int32_t)((int64_t)arg_val * (int64_t)lit_val);
+      break;
+    case 7:
+      if (lit_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)arg_val / (int64_t)lit_val);
+      break;
+    case 8:
+      if (lit_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)arg_val % (int64_t)lit_val);
+      break;
+    default:
+      return 0;
+    }
+    return 1;
+  }
+  if (right_p0 != 0 && left_p0 == 0) {
+    if (pipeline_expr_const_folded_valid_at(arena, al) != 0)
+      lit_val = pipeline_expr_const_folded_val_at(arena, al);
+    else {
+      lit_ko = pipeline_expr_kind_ord_at(arena, al);
+      if (lit_ko != 0 && lit_ko != 2)
+        return 0;
+      lit_val = (int32_t)pipeline_expr_int_val_at(arena, al);
+    }
+    switch (ko) {
+    case 4:
+      *out = (int32_t)((int64_t)lit_val + (int64_t)arg_val);
+      break;
+    case 5:
+      *out = (int32_t)((int64_t)lit_val - (int64_t)arg_val);
+      break;
+    case 6:
+      *out = (int32_t)((int64_t)lit_val * (int64_t)arg_val);
+      break;
+    case 7:
+      if (arg_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)lit_val / (int64_t)arg_val);
+      break;
+    case 8:
+      if (arg_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)lit_val % (int64_t)arg_val);
+      break;
+    default:
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+int32_t glue_fold_func_returns_param01_scalar_binop_c(void *arena, void *mod,
+                                                     int32_t func_idx, int32_t *out_binop_ko) {
+  int32_t ret_ref;
+  int32_t ko;
+  int32_t al;
+  int32_t ar;
+  int32_t ret_ty;
+  if (!out_binop_ko || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 2)
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(mod, func_idx);
+  if (ret_ty > 0 &&
+      (asm_type_is_simd_vector_spelling(arena, ret_ty) != 0 || asm_type_is_simd_vector(arena, ret_ty) != 0))
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  if (ko < 4 || ko > 8)
+    return 0;
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, al, 0) == 0)
+    return 0;
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, ar, 1) == 0)
+    return 0;
+  *out_binop_ko = ko;
+  return 1;
+}
+
+int32_t glue_fold_func_returns_param0_index_const_c(void *arena, void *mod,
+                                                   int32_t func_idx, int32_t *out_lane) {
+  int32_t ret_ref;
+  int32_t base_ref;
+  int32_t idx_ref;
+  int32_t lane;
+  int32_t idx_ko;
+  if (!out_lane || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 1)
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, ret_ref) != 47)
+    return 0;
+  base_ref = pipeline_expr_index_base_ref(arena, ret_ref);
+  idx_ref = pipeline_expr_index_index_ref(arena, ret_ref);
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, base_ref, 0) == 0)
+    return 0;
+  if (pipeline_expr_const_folded_valid_at(arena, idx_ref) != 0)
+    lane = pipeline_expr_const_folded_val_at(arena, idx_ref);
+  else {
+    idx_ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+    if (idx_ko != 0 && idx_ko != 2)
+      return 0;
+    lane = (int32_t)pipeline_expr_int_val_at(arena, idx_ref);
+  }
+  *out_lane = lane;
+  return 1;
+}
+
+int32_t glue_fold_func_returns_param01_vector_binop_ctfe_c(void *arena, void *mod,
+                                                          int32_t func_idx, int32_t *out_binop_ko) {
+  int32_t ret_ref;
+  int32_t ko;
+  int32_t al;
+  int32_t ar;
+  int32_t ret_ty;
+  if (!out_binop_ko || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 2)
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  if (ko == 51)
+    ko = 4;
+  else if (!glue_is_vector_lane_scalar_binop_ko(ko))
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(mod, func_idx);
+  if (ret_ty > 0) {
+    if (asm_type_is_simd_vector_spelling(arena, ret_ty) == 0 && asm_type_is_simd_vector(arena, ret_ty) == 0) {
+      if (ko < 4 || ko > 8)
+        return 0;
+    }
+  }
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, al, 0) == 0)
+    return 0;
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, ar, 1) == 0)
+    return 0;
+  *out_binop_ko = ko;
+  return 1;
+}
+
+int32_t glue_try_array_lit_lane_const_i32_c(void *arena, int32_t arr_ref, int32_t lane, int32_t *out) {
+  int32_t ne;
+  int32_t elem_ref;
+  int32_t eko;
+  if (!arena || arr_ref <= 0 || !out || lane < 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, arr_ref) != 46)
+    return 0;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, arr_ref);
+  if (lane >= ne)
+    return 0;
+  elem_ref = pipeline_expr_array_lit_elem_ref(arena, arr_ref, lane);
+  if (elem_ref <= 0)
+    return 0;
+  if (pipeline_expr_const_folded_valid_at(arena, elem_ref) != 0) {
+    *out = pipeline_expr_const_folded_val_at(arena, elem_ref);
+    return 1;
+  }
+  eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+  if (eko == 0 || eko == 2) {
+    *out = (int32_t)pipeline_expr_int_val_at(arena, elem_ref);
+    return 1;
+  }
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE fold unique */
+
 /* Modlet leftover cluster (surgical extract of nested wave139 after
  * closing enclosing wave136):
  * pipeline_asm_modlet_prepare_and_emit_elf_c /
