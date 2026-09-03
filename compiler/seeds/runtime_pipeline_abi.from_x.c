@@ -28823,15 +28823,43 @@ int32_t glue_enc_swap_rax_rbx_arm64_elf_c(void *elf_ctx, int32_t ta) {
   return 0;
 }
 
+#endif /* close wave156 FROM_X for leftover-PE assign_like unique */
+#endif /* close remaining wave154 FROM_X for leftover-PE assign_like unique */
+
+/*
+ * glue_expr_kind_is_assign_like_ord leftover unique (surgical extract of
+ * wave156 nested remaining wave154 after closing BOTH enclosing FROM_X):
+ * true when expr kind ord is ASSIGN / *ASSIGN (28..38). Zero callees.
+ * Unique lists it after leftover-PE Track L typeck pin (typeck_x.o UNDEFs
+ * it; POSIX .x thin owns the face @62379).
+ * leftover standalone defines 0 of remaining unique.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. Close wave156 AND
+ * remaining wave154 first — inserting an OR inside a FALSE outer ifndef
+ * is never parsed when FROM_X is set (prior attempt closed only inner
+ * wave156; OR stayed at depth 1 inside remaining wave154 @28629).
+ * Reopen remaining wave154 then remaining wave156 after this unique
+ * (glue_binop_kill stays closed on leftover rest).
+ * Header does not declare this face (not a dual-decl). Always-compiled
+ * proto of this face is absent in leftover rest FROM_X (extern @27225
+ * lives in a FALSE FROM_X nest).
+ * PLATFORM: SHARED freestanding assign-like kind · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int32_t glue_expr_kind_is_assign_like_ord(int32_t ko) {
   return ko == 28 || (ko >= 29 && ko <= 38);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE assign_like unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE assign_like unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave156 FROM_X after leftover-PE assign_like unique */
 
 void glue_binop_kill_assign_lhs_slots_elf_c(void *arena, void *ctx, int32_t assign_expr_ref) {
   (void)arena; (void)ctx; (void)assign_expr_ref;
 }
 
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* remaining wave156 after leftover-PE assign_like unique */
 
 
 /*
