@@ -33127,6 +33127,118 @@ void pipeline_typeck_active_module_set_c(void *m) {
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE active_module unique */
 
+/* WIN leftover-PE rest pipeline_asm_emit_logand_elf_impl /
+ * pipeline_asm_emit_logor_elf_impl unique
+ * (leftover rest rec U; SAT / leftover standalone only local t).
+ * Remaining wave128 original stays for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def that nested body.
+ * POSIX FROM_X stays ABSENT (.x thin owns @24744 / @24849).
+ * Body matches leftover rest remaining-wave128 / .x wave128:
+ * short-circuit && / || via emit_expr_elf_c + enc test/jz/jnz/jmp/mov/label
+ * + next_label + binop left/right.
+ * Skip glue_enc_local / load_f32 / load_var / call_arg (seed stubs).
+ * Skip emit_binop family / run_x wrappers / glue_asm_resolve (still closed).
+ * Skip field_access / return_impl (large callee graphs).
+ * Callees leftover rest already T: binop_left/right, emit_expr_elf_c,
+ * next_label. leftover rest U jz / jmp / label / mov_imm32
+ * (backend_enc_dispatch seed-link T; not unique). leftover rest ABSENT
+ * test_eax_eax / jnz become U (same backend_enc T).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped before this OR on leftover rest FROM_X:
+ * rec @28101 binop_left/right, rec T emit_expr_elf_c / next_label,
+ * rec @28105 mov_imm32. Do not redeclare those. */
+extern int32_t backend_enc_test_eax_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jnz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+
+int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t left_ref;
+  int32_t right_ref;
+  uint8_t false_lbl[128];
+  uint8_t end_lbl[128];
+  int32_t false_len;
+  int32_t end_len;
+  left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+  right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  if (left_ref <= 0 || right_ref <= 0)
+    return -1;
+  false_len = pipeline_asm_emit_next_label_c(ctx, false_lbl, 64);
+  end_len = pipeline_asm_emit_next_label_c(ctx, end_lbl, 64);
+  if (false_len <= 0 || end_len <= 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jz_arch(elf_ctx, false_lbl, false_len, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jz_arch(elf_ctx, false_lbl, false_len, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_jmp_arch(elf_ctx, end_lbl, end_len, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, false_lbl, false_len, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
+    return -1;
+  return 0;
+}
+
+int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t left_ref;
+  int32_t right_ref;
+  uint8_t true_lbl[128];
+  uint8_t end_lbl[128];
+  int32_t true_len;
+  int32_t end_len;
+  left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+  right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+  if (left_ref <= 0 || right_ref <= 0)
+    return -1;
+  true_len = pipeline_asm_emit_next_label_c(ctx, true_lbl, 64);
+  end_len = pipeline_asm_emit_next_label_c(ctx, end_lbl, 64);
+  if (true_len <= 0 || end_len <= 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jnz_arch(elf_ctx, true_lbl, true_len, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jnz_arch(elf_ctx, true_lbl, true_len, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_jmp_arch(elf_ctx, end_lbl, end_len, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, true_lbl, true_len, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, end_lbl, end_len, 0, ta) != 0)
+    return -1;
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE logand/logor unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
