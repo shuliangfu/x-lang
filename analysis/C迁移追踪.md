@@ -112,7 +112,7 @@
 - ✅ **7.4.7** typeck archaeology patch 幂等 — L4 g05 `cc typeck_gen.c` 重复定义 `g_typeck_allow_legacy_extern_calls`：7.4.5 pin 已有体、patcher 只认 `XLANG_ALLOW_LEGACY_EXTERN` 注释。G.7 补全既有 patcher（符号已在则 skip）＋pin 补标记。证：Darwin patch skip · `cc -c` 0
 - ✅ **7.4.8** typeck pin discard `_` — L4 g05 typeck T001 `print_any` 多份 `let _`：权威 `typeck.x` 已豁免，pin 孪生无。G.7 补全 pin let／const。L4＠`d9903f8e8` duplicate 已消，转 **argument type mismatch**（println 实参）
 - ✅ **7.4.9** typeck pin println 复合实参 JSON any — L4 g05 T001 `fmt.println(Point／array／Option)`：权威 `typeck.x` `typeck_call_is_fmt_debug_print_any`，pin／empty_surface 孪生无。G.7 补全 pin `check_call_arg_types` score＜0 后放行；无第三 scorer；禁改 print_any 期望。Ubuntu L4＠`1174c5bb3` fmt-std **OK**
-- 🟡 **7.4.10** leftover PE typeck／codegen unique — harvest：binop 簇全部收口（add/sub/mul/div/mod/and/shift/bitwise 8/8）。余 2＝field_access＋return_impl 仍闭（禁 remaining-wave149 整巢 OR）
+- 🟡 **7.4.10** leftover PE typeck／codegen unique — harvest＠`418374fe6`：binop 簇全闭（8/8 完成；hybrid **1379038B** T=**2501**；unique **6→2**）。余 2＝field_access＋return_impl 仍闭（禁 remaining-wave149 整巢 OR）
 - 🟡 **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补；Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**。残：f32 ymm select
 
 ---
