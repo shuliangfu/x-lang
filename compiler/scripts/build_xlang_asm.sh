@@ -4732,12 +4732,20 @@ ensure_asm_gen_driver_x_objs() {
   sed -i.bak 's/uint8_t state_buf\[16388\] = { 0 }/extern uint8_t g_lsp_state_buf[16388]/' "$GEN_DIR/lsp_gen.c" 2>/dev/null || true
   sed -i.bak 's/(state_buf)/(g_lsp_state_buf)/g' "$GEN_DIR/lsp_gen.c" 2>/dev/null || true
   rm -f "$GEN_DIR/lsp_gen.c.bak"
+  if [ ! -s lsp_io_std_heap_gen.c ]; then
+    bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap 2>/dev/null || true
+  fi
   if [ -f lsp_io_std_heap_gen.c ] && [ -s lsp_io_std_heap_gen.c ] && [ "${XLANG_FORCE_REGEN_GEN:-0}" != "1" ]; then
   echo " pinned lsp_io_std_heap_gen.c -> $GEN_DIR/lsp_io_std_heap_gen.c ($(wc -c <lsp_io_std_heap_gen.c | tr -d ' ') bytes)"
   cp -f lsp_io_std_heap_gen.c "$GEN_DIR/lsp_io_std_heap_gen.c"
   else
   echo " $XLANG_E -E lsp_io_std_heap.x (-E-extern) -> $GEN_DIR/lsp_io_std_heap_gen.c ..."
-  "$XLANG_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.x -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c"
+  "$XLANG_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.x -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c" 2>/dev/null || true
+  if [ ! -s "$GEN_DIR/lsp_io_std_heap_gen.c" ] && [ -f "seeds/lsp_io_std_heap_gen.linux.x86_64.c" ]; then
+    echo " lsp_io_std_heap: -E failed/empty; fallback seed seeds/lsp_io_std_heap_gen.linux.x86_64.c (archaeology parity)"
+    cp -f "seeds/lsp_io_std_heap_gen.linux.x86_64.c" "$GEN_DIR/lsp_io_std_heap_gen.c"
+    cp -f "seeds/lsp_io_std_heap_gen.linux.x86_64.c" lsp_io_std_heap_gen.c 2>/dev/null || true
+  fi
   fi
   driver_gen_pinned=0
   if [ -f driver_gen.c ] && [ -s driver_gen.c ] && [ "${XLANG_FORCE_REGEN_GEN:-0}" != "1" ]; then

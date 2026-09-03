@@ -427,7 +427,22 @@ _load_driver_leaf_base_cflags_via_make() {
   [ -n "${BASE_CFLAGS:-}" ]
 }
 
+# True when this host's product -E binary is a leftover Windows PE that cannot
+# compile tip .x sources without name mangling (_reti32) or stdout clashes.
+# PLATFORM: WINDOWS — 2026-07-31 leftover PE fallback to cold seeds.
+driver_leaf_windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
+# Pick first usable xlang binary for -E preprocessing of driver/lsp leaves.
+# PLATFORM: SHARED — on Windows leftover-PE, returns 1 to force cold seed fallback.
 pick_xlang() {
+  if driver_leaf_windows_leftover_pe_cannot_e; then
+    return 1
+  fi
   for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
     if [ -x "$b" ]; then
       printf '%s\n' "$b"
