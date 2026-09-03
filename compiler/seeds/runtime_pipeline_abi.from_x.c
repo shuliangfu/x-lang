@@ -10537,22 +10537,44 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
   return nwarn;
 }
 
-/* L6 unused-binding hints — cold seed twin of runtime_pipeline_abi.x /
- * unused_hints_thin.x. Gated by XLANG_UNUSED_HINT=1. PLATFORM: SHARED. */
+#endif /* close remaining wave101 FROM_X for leftover-PE unused_hints unique */
+
+/* L6 unused-binding hints leftover unique (surgical extract of the inner
+ * unused_hints ifndef after closing enclosing remaining wave101 @5839):
+ * pipeline_typeck_unused_binding_hints + wave_l6 helpers.
+ * Unique lists it after leftover-PE Track L typeck pin (typeck_x.o UNDEFs
+ * it; POSIX unused_hints_thin / runtime_pipeline_abi.x owns the face).
+ * leftover standalone defines 0 of remaining unique.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. Close remaining wave101
+ * first — inserting an OR inside a FALSE outer ifndef is never parsed when
+ * FROM_X is set (assign_like / named_struct lesson).
+ * Reopen remaining wave101 after this unique (wpo_dump / strict_parse_into_init
+ * stay closed on leftover rest).
+ * Header does not declare this face (not a dual-decl). Always-compiled
+ * proto of this face is absent in leftover rest FROM_X.
+ * Callees: link_abi_getenv always-compiled extern @247; pipeline_module_num_funcs
+ * / func_body_ref_at / ast_ast_block_num_{lets,consts} always-compiled extern
+ * @654; pipeline_expr_kind_ord_at leftover rest WAVE284 T; var_name leftover
+ * rest WAVE278 T; pipe_load_i32_le / block_let_name / driver_diagnostic
+ * SAT / leftover standalone T.
+ * Do not convert neighboring unused_private_funcs / wpo_dump (wpo_dump still
+ * unique; needs wave121_mark still in remaining wave101).
+ * Externs live inside the OR (not always-compiled): leftover rest later
+ * defines ast_pipeline_block_const_name_* with struct ast_ASTArena * —
+ * a void* prototype here would dual-decl (glue_type lesson).
+ * PLATFORM: SHARED unused-binding hints · LINUX gold · MACOS co-path. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 extern int32_t pipe_load_i32_le(void *base, int32_t off);
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
-extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
 extern int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t let_idx);
 extern void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t let_idx, uint8_t *dst);
-extern int32_t ast_pipeline_block_const_name_len(void *arena, int32_t block_ref, int32_t i);
-extern void ast_pipeline_block_const_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t ast_pipeline_block_const_name_len(struct ast_ASTArena *a, int32_t br, int32_t ci);
+extern void ast_pipeline_block_const_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t ci, uint8_t *dst);
 extern void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
-extern char *link_abi_getenv(const char *name);
-
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static int32_t wave_l6_unused_hint_enabled(void) {
   const char *e = link_abi_getenv("XLANG_UNUSED_HINT");
   return (e && e[0] == '1' && e[1] == '\0') ? 1 : 0;
@@ -10650,9 +10672,9 @@ int32_t pipeline_typeck_unused_binding_hints(void *m, void *a) {
   }
   return nh;
 }
-#else
-/* FROM_X: pure/thin owns pipeline_typeck_unused_binding_hints. */
-#endif
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE unused_hints unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave101 FROM_X after leftover-PE unused_hints unique */
 
 /* WPO_DUMP_CALLGRAPH — cold seed twin of runtime_pipeline_abi_wpo_dump_thin.x.
  * Gated by XLANG_WPO_DUMP_CALLGRAPH. PLATFORM: SHARED. */
