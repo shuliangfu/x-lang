@@ -1501,7 +1501,22 @@ ensure_r3_prefer() {
 # Residual after: rt multi-slice · pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
 
+# True when this host's product -E binary is a leftover Windows PE that cannot
+# compile tip .x sources (e.g. pipeline_abi mega 92k LOC or labi multi-slice).
+# PLATFORM: WINDOWS — 2026-07-31 leftover PE is present for Track L / can_run
+# egg pick, but attempting -E with it hangs or corrupts stdout.
+windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
 labi_prefer_pick_xlang() {
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip slices; fallback to cold seed.
+  if windows_leftover_pe_cannot_e; then
+    return 1
+  fi
   # stdout: first executable product binary.
   local b
   for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
@@ -3701,10 +3716,7 @@ pipeline_abi_o_is_libtool_archive() {
 # G.7: one predicate; prefer FORCE hybrid + thin inject both consult it
 # BEFORE launching leftover PE -E (post-fail keep is not enough: mega hangs).
 pipeline_abi_windows_leftover_pe_cannot_e() {
-  case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-  esac
-  return 1
+  windows_leftover_pe_cannot_e
 }
 
 # Return 0 if every global text symbol in THIN is already a global T in BASE.
