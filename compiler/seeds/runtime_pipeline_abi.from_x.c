@@ -33508,6 +33508,178 @@ int32_t glue_load_f32_var_slot_to_rax_elf_c(void *elf_ctx, void *arena, void *ct
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_load_f32 unique */
 
+/* WIN leftover-PE rest glue_load_var_as_value_to_rax_rdx_elf_c unique
+ * (leftover rest rec U; SAT / leftover standalone only local t).
+ * Remaining wave193 stub stays for !FROM_X (`return -1`).
+ * A !FROM_X || WIN OR here would dual-def that nested stub.
+ * POSIX FROM_X stays ABSENT (.x thin owns @72733).
+ * Seed stub harvest is fake-green (glue_call_return lesson) — port the
+ * .x true body (ptr-home load then optional 9–16B deref; dual-GP
+ * high-end x86 / low-end arm64; scalar sxt/zxt).
+ * SAT local t callees leftover rest T together so leftover rest U of
+ * those names does not unique-swap: glue_sysv_dual_gp_byte_size_c
+ * (.x @72490 named-layout / Allocator|StrView|Result_i32 16B).
+ * Skip SAT global T deref_struct16 (leftover rest U OK). Skip
+ * load_rbp / load_rbp_to_rdx / mov_rax_to_arg_reg (backend_enc
+ * seed-link T). Skip leftover rest WIN T needs_ptr_load (enc_local
+ * cluster) / named_layout / sxt/zxt / var_decl / size_simple /
+ * emit_module_ref. Skip remaining-wave param_agg (not unique).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped before this OR on leftover rest FROM_X:
+ * rec @28119 glue_load_var, rec @28117 glue_var_decl_type_ref,
+ * rec @28094 resolved_type_ref / @28095 type_kind_ord /
+ * @28096 named_name_into, leftover rest WIN @11320 emit_module_ref,
+ * leftover rest WIN named_layout T, leftover rest WIN sxt/zxt T,
+ * leftover rest WIN needs_ptr_load T (enc_local), leftover rest WIN
+ * enc_local load_rbp, leftover rest T glue_type_size_simple.
+ * Do not redeclare those. */
+extern int32_t backend_enc_load_rbp_to_rdx_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
+
+int32_t glue_sysv_dual_gp_byte_size_c(void *arena, int32_t ty_ref) {
+  uint8_t name[128];
+  int32_t nlen;
+  int32_t sz;
+  int32_t base_off;
+  int32_t i;
+  int32_t bl;
+  int32_t tk;
+  if (!arena || ty_ref <= 0)
+    return 0;
+  sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+  if (sz > 8 && sz <= 16)
+    return sz;
+  tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  /* TYPE_NAMED == 8 */
+  if (tk != 8)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 127)
+    return 0;
+  base_off = 0;
+  i = 0;
+  while (i < nlen) {
+    /* '.' separator → bare suffix (heap.Allocator) */
+    if (name[i] == 46)
+      base_off = i + 1;
+    i = i + 1;
+  }
+  bl = nlen - base_off;
+  /* Bare or suffix: Allocator / StrView / Result_i32 (16B INTEGER class). */
+  if (bl == 9) {
+    if (name[base_off] == 65 && name[base_off + 1] == 108 && name[base_off + 2] == 108 &&
+        name[base_off + 3] == 111 && name[base_off + 4] == 99 && name[base_off + 5] == 97 &&
+        name[base_off + 6] == 116 && name[base_off + 7] == 111 && name[base_off + 8] == 114)
+      return 16;
+  }
+  if (bl == 7) {
+    if (name[base_off] == 83 && name[base_off + 1] == 116 && name[base_off + 2] == 114 &&
+        name[base_off + 3] == 86 && name[base_off + 4] == 105 && name[base_off + 5] == 101 &&
+        name[base_off + 6] == 119)
+      return 16;
+  }
+  if (bl == 10) {
+    if (name[base_off] == 82 && name[base_off + 1] == 101 && name[base_off + 2] == 115 &&
+        name[base_off + 3] == 117 && name[base_off + 4] == 108 && name[base_off + 5] == 116 &&
+        name[base_off + 6] == 95 && name[base_off + 7] == 105 && name[base_off + 8] == 51 &&
+        name[base_off + 9] == 50)
+      return 16;
+  }
+  return 0;
+}
+
+int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void *ctx,
+                                               int32_t var_expr_ref, int32_t off, int32_t ta) {
+  int32_t tr;
+  int32_t sz;
+  int32_t nsz;
+  void *mod;
+  int32_t rc;
+  int32_t kind_ord;
+  if (!elf_ctx || off < 0)
+    return -1;
+  /* *T / T[N] / T[] formal: load pointer home, then optional 9–16B deref. */
+  if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, off, ctx) != 0) {
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+    if (rc != 0)
+      return -1;
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+    if (tr <= 0)
+      tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+    mod = pipeline_asm_emit_module_ref_c();
+    sz = glue_type_size_simple(mod, arena, tr, 0);
+    if (sz <= 16 && tr > 0) {
+      nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (nsz > sz)
+        sz = nsz;
+    }
+    if (sz > 8 && sz <= 16 && ta == 0)
+      return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+    /* arm64 *T dual soft: pointer-in-x0 only (rare freestanding path). */
+    return 0;
+  }
+  tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+  mod = pipeline_asm_emit_module_ref_c();
+  sz = glue_type_size_simple(mod, arena, tr, 0);
+  if (sz <= 16 && tr > 0) {
+    nsz = glue_sysv_dual_gp_byte_size_c(arena, tr);
+    if (nsz > sz)
+      sz = nsz;
+  }
+  /* 9–16B dual-GP by-value into spill-expected GP pair. */
+  if (sz > 8 && sz <= 16 && arena && ctx) {
+    if (ta == 1) {
+      /* MACOS|ARM64: high first into x1 (via x0 temp), then low into x0. */
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off + 8, ta);
+      if (rc != 0)
+        return -1;
+      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
+      if (rc != 0)
+        return -1;
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+      if (rc != 0)
+        return -1;
+      return 0;
+    }
+    if (ta == 0) {
+      /* LINUX+MACOS x86_64: low→rax, high→rdx (high-end polarity). */
+      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+      if (rc != 0)
+        return -1;
+      rc = backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta);
+      if (rc != 0)
+        return -1;
+      return 0;
+    }
+  }
+  rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+  if (rc != 0)
+    return -1;
+  /* Narrow integer VAR: full-width stack load keeps AAPCS/SysV high-bit
+   * garbage from param_home. Index/binop need clean GP.
+   * TypeKind: I32=0 BOOL=1 U8=2 U32=3 (ast.x).
+   * PLATFORM: SHARED freestanding · LINUX+MACOS x86 · MACOS|ARM64. */
+  if (arena && tr > 0) {
+    kind_ord = pipeline_type_kind_ord_at(arena, tr);
+    if (kind_ord == 0)
+      return glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta);
+    if (kind_ord == 3)
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    if (kind_ord == 1 || kind_ord == 2)
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+  }
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_load_var unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
