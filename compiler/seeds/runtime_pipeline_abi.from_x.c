@@ -14890,6 +14890,79 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE force_esz+fixed_array unique */
 
+/* WIN leftover-PE rest glue_vector_type_lanes_esz_c unique (leftover rest
+ * FROM_X rest UNDEFs it; SAT / leftover standalone only local t). Remaining
+ * wave136 original @24322 stays for !FROM_X. A !FROM_X || WIN OR here would
+ * dual-def that nested/file-scope body. POSIX FROM_X stays ABSENT (.x thin
+ * owns the face @46166).
+ * Callees leftover rest already global T (WAVE282 spelling / type getters /
+ * named_name_into) except xlang_simd_vector_lanes_esz_from_spelling (leftover
+ * rest already U; target_cpu_pure.from_x.c seed-link T; SAT U — not unique).
+ * glue_vector_let_init_uses_direct_slot / glue_vector_elem_is_f32_c stay
+ * closed (not unique; leftover rest / SAT only t).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t asm_type_is_simd_vector_spelling(void *arena, int32_t type_ref);
+extern int32_t pipeline_arena_num_types(void *arena);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
+extern int32_t xlang_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len,
+                                                        int32_t *out_lanes, int32_t *out_esz);
+
+int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out_lanes, int32_t *out_esz) {
+  int32_t lanes;
+  int32_t esz;
+  int32_t elem_ref;
+  int32_t tk;
+  int32_t nlen;
+  int32_t nt;
+  int32_t arr_sz;
+  int32_t spell_lanes = 0;
+  int32_t spell_esz = 0;
+  int32_t etk;
+  uint8_t nm[64];
+  if (!arena || !out_lanes || !out_esz)
+    return -1;
+  if (!asm_type_is_simd_vector_spelling(arena, type_ref))
+    return -1;
+  nt = pipeline_arena_num_types(arena);
+  arr_sz = pipeline_type_array_size_at(arena, type_ref);
+  tk = pipeline_type_kind_ord_at(arena, type_ref);
+  lanes = (arr_sz > 0) ? arr_sz : 4;
+  if (tk == 8) {
+    nlen = pipeline_type_named_name_into(arena, type_ref, nm);
+    if (nlen > 0 &&
+        xlang_simd_vector_lanes_esz_from_spelling((const char *)nm, (size_t)nlen, &spell_lanes, &spell_esz) == 0) {
+      *out_lanes = spell_lanes;
+      *out_esz = spell_esz;
+      return 0;
+    }
+    lanes = 4;
+    if (nlen == 5 && nm[4] == 56)
+      lanes = 8;
+    if (nlen == 6 && nm[4] == 49 && nm[5] == 54)
+      lanes = 16;
+  }
+  esz = 4;
+  elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+  if (elem_ref > 0 && elem_ref <= nt) {
+    etk = pipeline_type_kind_ord_at(arena, elem_ref);
+    if (etk == 2)
+      esz = 1;
+    else if (etk == 14)
+      esz = 4;
+    else if (etk == 8 || etk == 4 || etk == 5 || etk == 6)
+      esz = 8;
+  }
+  *out_lanes = lanes;
+  *out_esz = esz;
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE vector_lanes unique */
+
 /* Modlet leftover cluster (surgical extract of nested wave139 after
  * closing enclosing wave136):
  * pipeline_asm_modlet_prepare_and_emit_elf_c /
