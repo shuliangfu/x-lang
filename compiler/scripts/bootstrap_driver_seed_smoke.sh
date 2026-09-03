@@ -107,6 +107,9 @@ run_smoke() {
   fi
   echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o (may take ~1min) ..."
   rm -f "$SMOKE_OUT"
+  # PLATFORM: SHARED — Stage 12.2.3: product host-cc spawn is experimental;
+  # -backend c requires ALLOW opt-in. Matches xlang_asm_postlink_smoke.sh / verify-selfhost-stage2.
+  export XLANG_ALLOW_HOST_CC=1
   "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log"
   _rc="${PIPESTATUS[0]:-1}"
   if [ "$_rc" -ne 0 ]; then
