@@ -367,7 +367,7 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path);
  * path_out64 容量 ≥64B；失败 NULL（fail 后可能 clear path[0]）。
  */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
-/** Permanent OS residual: WINDOWS → 0；POSIX → 1（pure mkstemp_fdopen gate）。 */
+/** OS residual gate: SHARED → 1（pure mkstemp_fdopen；Windows MinGW enabled）. */
 int32_t xlang_driver_asm_mkstemp_fdopen_enabled(void);
 void driver_asm_fclose(uint8_t *fp);
 /**

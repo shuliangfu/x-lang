@@ -5601,17 +5601,17 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
 // ---- Wave41 Cap residual pure: driver_asm_mkstemp_fdopen ----
 // G.7: reuse wave27 open_out helpers (tmp_prefix + cstr_copy/cat + mkstemp/close/unlink).
 // Cap residual split:
-//   - seed always: xlang_driver_asm_mkstemp_fdopen_enabled (WINDOWS → 0; POSIX → 1)
+//   - seed always: xlang_driver_asm_mkstemp_fdopen_enabled (SHARED → 1; MinGW mkstemp OK)
 //   - g05 prologue: xlang_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
 //   - pure orch: null guard, enable gate, template fill into path_out64, mkstemp,
 //     fdopen; fail → close+unlink+clear path[0]
 // Wave42 owns exec_compiled_body (see below).
-// PLATFORM: SHARED orch; WINDOWS disabled via residual (matches cold twin).
+// PLATFORM: SHARED orch; WINDOWS|POSIX enabled (closes want-exe BLD001 host-cc fallback).
 
 /**
- * Host gate for asm mkstemp+fdopen: 0 on Windows (always null), 1 on POSIX product.
+ * Host gate for asm mkstemp+fdopen: 1 on all product hosts (incl. Windows MinGW).
  * @return i32 — 1 enabled; 0 disabled (pure returns null without OS calls)
- * PLATFORM: WINDOWS returns 0; POSIX/LINUX/MACOS return 1. Always-seed residual.
+ * PLATFORM: SHARED — WINDOWS|POSIX|LINUX|MACOS return 1. Always-seed residual.
  */
 export extern "C" function xlang_driver_asm_mkstemp_fdopen_enabled(): i32;
 /**
@@ -5629,7 +5629,7 @@ export extern "C" function xlang_driver_fdopen_wb_opaque(fd: i32): *u8;
  * On failure after mkstemp: close(fd), unlink(path), clear path_out64[0].
  * Wave41 pure: null + enable gate pure; template = tmp_prefix + "xlang_asm_XXXXXX"
  * (reuses wave27 cstr helpers); mkstemp/close/unlink libc; g05 fdopen_wb_opaque.
- * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch; WINDOWS residual disabled.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch (WINDOWS MinGW mkstemp enabled).
  */
 #[no_mangle]
 export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
@@ -5640,7 +5640,7 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    // PLATFORM: WINDOWS — cold twin always returns null; do not call mkstemp.
+    // PLATFORM: SHARED — gate is 1 on Windows MinGW and POSIX; fail soft on OS error.
     if (xlang_driver_asm_mkstemp_fdopen_enabled() == 0) {
       return 0 as *u8;
     }

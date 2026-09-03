@@ -112,7 +112,7 @@
  *     （g05 stderr_ptr / fflush_stdout / fopen_wb_opaque；write_metric pure orch
  *       fopen_wb + fwrite 1×0 + fclose_opaque）；FROM_X 无 pure-dup；
  *   + wave41 Cap residual pure：driver_asm_mkstemp_fdopen 在 thin.x
- *     （null + WINDOWS gate residual xlang_driver_asm_mkstemp_fdopen_enabled；
+ *     （null + SHARED gate xlang_driver_asm_mkstemp_fdopen_enabled→1；
  *       template pure tmp_prefix+"xlang_asm_XXXXXX"；mkstemp/close/unlink；
  *       g05 xlang_driver_fdopen_wb_opaque）；FROM_X 无 pure-dup；
  *   + wave42 Cap residual pure：driver_exec_compiled_body 在 thin.x
@@ -3094,25 +3094,19 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path) {
 #endif
 #endif
 
-/* Permanent OS residual: WINDOWS disables asm mkstemp+fdopen (always linked under FROM_X).
- * Pure wave41 calls this before template/mkstemp; cold twin inlines the same gate.
- * PLATFORM: WINDOWS → 0; POSIX/LINUX/MACOS → 1. */
+/* OS residual gate for asm mkstemp+fdopen (always linked under FROM_X).
+ * Pure wave41 calls this before template/mkstemp; cold twin uses the same body.
+ * MinGW provides mkstemp+fdopen; enabling Windows closes want-exe pure-asm BLD001
+ * that previously forced -backend c fallback in win32 gates.
+ * PLATFORM: SHARED — WINDOWS|POSIX|LINUX|MACOS → 1. */
 int32_t xlang_driver_asm_mkstemp_fdopen_enabled(void) {
-#if defined(_WIN32) || defined(_WIN64)
-    return 0;
-#else
     return 1;
-#endif
 }
 
 /* wave41 pure: hybrid thin owns mkstemp_fdopen orch; cold twin under #ifndef FROM_X.
- * PLATFORM: POSIX mkstemp+fdopen; WINDOWS returns NULL (enabled residual). */
+ * PLATFORM: SHARED — mkstemp+fdopen (MinGW/POSIX); XLANG_TMP_PREFIX is host residual. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
-#if defined(_WIN32) || defined(_WIN64)
-    (void)path_out64;
-    return NULL;
-#else
     int fd;
     FILE *fp;
     if (path_out64 == NULL)
@@ -3129,7 +3123,6 @@ uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
         return NULL;
     }
     return (uint8_t *)(void *)fp;
-#endif
 }
 #endif
 
