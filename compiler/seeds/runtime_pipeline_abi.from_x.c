@@ -634,12 +634,20 @@ void pipeline_diag_merge_dep_missing(const char *import_path) {
 
 
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* wave235 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv). */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave235 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv).
+ * leftover-PE unique of current typeck pin: POSIX .x thin owns the face;
+ * leftover PE cannot -E that thin. Independent ifndef (not nested in a
+ * FALSE FROM_X). Callee link_abi_getenv is always-compiled extern @247
+ * (T in link_abi TU). Always-compiled proto @354 is proto+def, not dual-def.
+ * PLATFORM: WINDOWS leftover-PE rest compiles this with WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. POSIX FROM_X still omits
+ * (thin owns T). */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int pipeline_asm_debug_enabled(void) {
   return link_abi_getenv("XLANG_ASM_DEBUG") != NULL;
 }
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE pipeline_asm_debug_enabled unique */
 
 
 
@@ -42307,7 +42315,40 @@ int32_t ast_ast_arena_type_alloc(void *a) { return pipeline_arena_type_alloc(a);
 int32_t ast_ast_arena_expr_alloc(void *a) { return pipeline_arena_expr_alloc(a); }
 int32_t ast_ast_arena_block_alloc(void *a) { return pipeline_arena_block_alloc(a); }
 int32_t ast_ast_arena_func_alloc(void *a) { return pipeline_arena_func_alloc(a); }
+
+#endif /* WAVE276_ARENA_DOMAIN_COLD */
+#endif /* close wave276 FROM_X for leftover-PE glue_arena_expr_at_ref unique */
+
+/*
+ * glue_arena_expr_at_ref leftover unique (surgical extract of wave276
+ * arena domain cold after closing enclosing FROM_X + WAVE276 include
+ * guard): one-liner historical glue name for expr slot pointer.
+ * Unique lists it after leftover-PE Track L typeck pin (hottest ld
+ * UNDEF; POSIX .x thin owns the face @95656).
+ * leftover standalone defines 0 of remaining unique.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. Close wave276 first —
+ * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X
+ * is set. Reopen remaining wave276 after this unique (implicit_tail /
+ * module_fill stay closed on leftover rest).
+ * Callee pipeline_arena_expr_ptr is not unique (ALWAYS proto @41837;
+ * T from leftover-PE thin / SAT). Do not convert neighboring
+ * ast_ast_arena_*_alloc / implicit_tail_expr_disallowed_by_glue (not this
+ * unique). WAVE276_ARENA_DOMAIN_COLD include guard stays defined so the
+ * reopen must NOT re-enter that guard (would skip remaining twins).
+ * Header does not declare this face (not a dual-decl). Always-compiled
+ * proto of this face is absent in leftover rest FROM_X (fwd @26423 lives
+ * in a FALSE FROM_X nest).
+ * PLATFORM: SHARED freestanding arena expr slot · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void *glue_arena_expr_at_ref(void *a, int32_t expr_ref) { return pipeline_arena_expr_ptr(a, expr_ref); }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE glue_arena_expr_at_ref unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave276 FROM_X after leftover-PE glue_arena unique */
+/* WAVE276_ARENA_DOMAIN_COLD already 1; remaining arena cold twins continue. */
+
 int implicit_tail_expr_disallowed_by_glue(void *a, int32_t expr_ref) {
   uint8_t *ex;
   int32_t ne, k;
@@ -42499,8 +42540,7 @@ int32_t pipeline_parser_extern_init_arena_func_and_register_c(void *arena, void 
   return fi;
 }
 
-#endif /* WAVE276_ARENA_DOMAIN_COLD */
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* remaining wave276 after leftover-PE glue_arena unique */
 /* =============================================================================
  * WAVE277 ALWAYS: ast_pool_block domain Cap residual (host leaf deleted).
  * Not gated by FROM_X. Complex GrowVec insert-and-shift + multi-pool mutators
