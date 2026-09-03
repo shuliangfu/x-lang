@@ -36410,6 +36410,395 @@ int32_t pipeline_asm_emit_binop_div_elf_c(void *arena, void *elf_ctx, int32_t le
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_div unique */
 
+/*
+ * leftover-PE emit_binop_mod unique knife (after emit_binop_div).
+ * G.7: WIN-only file-scope OR; wave149 cold twin stays under #ifndef FROM_X
+ * (ban nest !FROM_X || WIN dual-def). Reuse div OR helpers
+ * (glue_binop_operand_is_unsigned_elf_c, glue_try_binop_left_rax_right_rbx_elf_c,
+ * pipeline_asm_emit_panic_int_div_zero_elf_c, pipeline_asm_emit_divisor_zero_check_rbx_elf_c,
+ * pipeline_asm_expr_lit_i32_at_c, pipeline_asm_emit_expr_elf_c,
+ * glue_binop_var_slot_cache_invalidate_rax/rbx).
+ * Do not compile and/shift/bitwise / field_access / return_impl.
+ * backend_enc_rem_mod_* → seed-link T.
+ * PLATFORM: WINDOWS leftover-PE rest; LINUX gold / MACOS POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t backend_enc_rem_mod_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rem_mod_unsigned_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out_imm);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_binop_operand_is_unsigned_elf_c(void *arena, void *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_try_binop_left_rax_right_rbx_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(void *elf_ctx, void *ctx, int32_t ta);
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
+
+/**
+ * wave149 cold twin pipeline_asm_emit_binop_mod_elf_c (≡ .x @52878).
+ * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+ */
+int32_t pipeline_asm_emit_binop_mod_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t lit_imm;
+  int32_t vr;
+  int32_t is_unsigned;
+  is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
+  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
+    if (lit_imm == 0)
+      return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    /* rem leaves remainder in rax — drop slot-cache (twin of div). */
+    if ((is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta)) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
+  }
+  vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  if (vr == -1)
+    return -1;
+  if (vr == 0) {
+    if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+      return -1;
+    if ((is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta)) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    return 0;
+  }
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if ((is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta)) != 0)
+    return -1;
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_mod unique */
+
+/*
+ * leftover-PE emit_binop_and unique knife (after emit_binop_mod).
+ * G.7: WIN-only file-scope OR; wave149 cold twin stays under #ifndef FROM_X
+ * (ban nest !FROM_X || WIN dual-def). Reuse add/mul commutative helpers
+ * (pipeline_asm_expr_lit_i32_at_c, pipeline_asm_emit_expr_elf_c,
+ * glue_binop_var_slot_cache_invalidate_rax/rbx,
+ * pipeline_expr_kind_ord_at, glue_expr_emit_may_clobber_rbx_elf_c,
+ * glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c,
+ * glue_try_binop_load_operand_elf_c,
+ * glue_try_binop_commutative_rax_rbx_elf_c,
+ * glue_finish_binop_commutative_slow_rax_rbx_elf_c).
+ * Do not compile shift/bitwise / field_access / return_impl.
+ * backend_enc_and_rbx_rax_arch → seed-link T.
+ * PLATFORM: WINDOWS leftover-PE rest; LINUX gold / MACOS POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t backend_enc_and_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out_imm);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t ref);
+extern int32_t glue_expr_emit_may_clobber_rbx_elf_c(void *arena, int32_t expr_ref);
+extern void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(void *arena, void *ctx, int32_t right_ref, int32_t ta, void *elf_ctx);
+extern int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ref, void *ctx, int32_t ta, int32_t is_right);
+extern int32_t glue_try_binop_commutative_rax_rbx_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t glue_finish_binop_commutative_slow_rax_rbx_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
+
+/**
+ * wave149 cold twin pipeline_asm_emit_binop_and_elf_c (≡ .x @52586).
+ * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+ */
+int32_t pipeline_asm_emit_binop_and_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t lit_imm;
+  int32_t vr;
+  if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    if (backend_enc_and_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    if (backend_enc_and_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  /** 7.3 / wave338: left-assoc & when right is VAR and left may clobber rbx. */
+  if (pipeline_expr_kind_ord_at(arena, right_ref) == 3 &&
+      glue_expr_emit_may_clobber_rbx_elf_c(arena, left_ref) != 0) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena, ctx, right_ref, ta, elf_ctx);
+    if (glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1) != 0)
+      return -1;
+    if (backend_enc_and_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  vr = glue_try_binop_commutative_rax_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  if (vr == 0) {
+    if (backend_enc_and_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  if (vr == -1)
+    return -1;
+  if (glue_finish_binop_commutative_slow_rax_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_and_rbx_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  glue_binop_var_slot_cache_invalidate_rax();
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_and unique */
+
+/*
+ * leftover-PE emit_binop_shift unique knife (after emit_binop_and).
+ * G.7: WIN-only file-scope OR; wave149 cold twin stays under #ifndef FROM_X
+ * (ban nest !FROM_X || WIN dual-def). Reuse div/and/add helpers:
+ * (glue_binop_operand_is_64bit_elf_c, glue_binop_operand_is_unsigned_elf_c,
+ * pipeline_asm_expr_lit_i32_at_c, pipeline_asm_emit_expr_elf_c,
+ * glue_binop_var_slot_cache_invalidate_rbx, backend_enc_mov_imm32_to_rbx_arch,
+ * glue_try_binop_left_rax_right_rbx_elf_c, backend_enc_push_rax_arch,
+ * backend_enc_mov_rax_to_rbx_arch, backend_enc_pop_rax_arch,
+ * glue_binop_var_slot_cache_clear).
+ * backend_enc_mov_rbx_to_ecx_arch, backend_enc_shl_cl_rax_arch,
+ * backend_enc_shl_cl_eax_arch, backend_enc_shr_cl_rax_arch,
+ * backend_enc_shr_cl_eax_arch, backend_enc_sar_cl_rax_arch,
+ * backend_enc_sar_cl_eax_arch → seed-link T.
+ * Do not compile bitwise / field_access / return_impl.
+ * PLATFORM: WINDOWS leftover-PE rest; LINUX gold / MACOS POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t glue_binop_operand_is_64bit_elf_c(void *arena, void *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t glue_binop_operand_is_unsigned_elf_c(void *arena, void *ctx, int32_t left_ref, int32_t right_ref);
+extern int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out_imm);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
+extern void glue_binop_var_slot_cache_clear(void);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t glue_try_binop_left_rax_right_rbx_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_ecx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shl_cl_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shl_cl_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shr_cl_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shr_cl_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_sar_cl_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_sar_cl_eax_arch(void *elf_ctx, int32_t ta);
+
+/**
+ * wave149 cold twin pipeline_asm_emit_binop_shift_elf_c (≡ .x @52797).
+ * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+ */
+int32_t pipeline_asm_emit_binop_shift_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta, int32_t op) {
+  int32_t lit_imm;
+  int32_t vr;
+  int32_t is_64bit;
+  int32_t is_unsigned;
+  /* i64/u64/usize/isize/ptr need 64-bit shift forms (REX.W / sf=1). */
+  is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  /* Left operand width decides arithmetic vs logical right shift. */
+  is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
+  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+  } else {
+    vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+    if (vr == -1)
+      return -1;
+    if (vr == -2) {
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+  }
+  glue_binop_var_slot_cache_clear();
+  if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (op == 0)
+    return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  /* op==1 right shift: signed arithmetic, unsigned logical. */
+  if (is_unsigned)
+    return is_64bit ? backend_enc_shr_cl_rax_arch(elf_ctx, ta) : backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+  return is_64bit ? backend_enc_sar_cl_rax_arch(elf_ctx, ta) : backend_enc_sar_cl_eax_arch(elf_ctx, ta);
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_shift unique */
+
+/*
+ * leftover-PE emit_binop_bitwise unique knife (after emit_binop_shift).
+ * G.7: WIN-only file-scope OR; wave149 cold twin stays under #ifndef FROM_X
+ * (ban nest !FROM_X || WIN dual-def). Reuse and/shift/add helpers:
+ * (pipeline_asm_expr_lit_i32_at_c, pipeline_asm_emit_expr_elf_c,
+ * glue_binop_var_slot_cache_invalidate_rax/rbx, glue_binop_var_slot_cache_clear,
+ * backend_enc_mov_imm32_to_rbx_arch, backend_enc_push_rax_arch,
+ * backend_enc_mov_rax_to_rbx_arch, backend_enc_pop_rax_arch,
+ * pipeline_expr_kind_ord_at, glue_expr_emit_may_clobber_rbx_elf_c,
+ * glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c,
+ * glue_try_binop_load_operand_elf_c,
+ * glue_try_binop_commutative_rax_rbx_elf_c).
+ * backend_enc_xor_rbx_rax_arch, backend_enc_or_rbx_rax_arch → seed-link T.
+ * Do not compile field_access / return_impl.
+ * PLATFORM: WINDOWS leftover-PE rest; LINUX gold / MACOS POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t backend_enc_or_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_xor_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out_imm);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t ref);
+extern int32_t glue_expr_emit_may_clobber_rbx_elf_c(void *arena, int32_t expr_ref);
+extern void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(void *arena, void *ctx, int32_t right_ref, int32_t ta, void *elf_ctx);
+extern int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ref, void *ctx, int32_t ta, int32_t is_right);
+extern int32_t glue_try_binop_commutative_rax_rbx_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
+extern void glue_binop_var_slot_cache_clear(void);
+
+/**
+ * wave149 cold twin pipeline_asm_emit_binop_bitwise_elf_c (≡ .x @52675).
+ * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+ */
+int32_t pipeline_asm_emit_binop_bitwise_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta, int32_t is_xor) {
+  int32_t lit_imm;
+  int32_t vr;
+  if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    if (is_xor) {
+      if (backend_enc_xor_rbx_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (backend_enc_or_rbx_rax_arch(elf_ctx, ta) != 0) {
+      return -1;
+    }
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rbx();
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
+      return -1;
+    if (is_xor) {
+      if (backend_enc_xor_rbx_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (backend_enc_or_rbx_rax_arch(elf_ctx, ta) != 0) {
+      return -1;
+    }
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  /** 7.3 / wave338: left-assoc |/^ when right is VAR and left may clobber rbx. */
+  if (pipeline_expr_kind_ord_at(arena, right_ref) == 3 &&
+      glue_expr_emit_may_clobber_rbx_elf_c(arena, left_ref) != 0) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+    glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena, ctx, right_ref, ta, elf_ctx);
+    if (glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1) != 0)
+      return -1;
+    if (is_xor) {
+      if (backend_enc_xor_rbx_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (backend_enc_or_rbx_rax_arch(elf_ctx, ta) != 0) {
+      return -1;
+    }
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  vr = glue_try_binop_commutative_rax_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  if (vr == 0) {
+    if (is_xor) {
+      if (backend_enc_xor_rbx_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (backend_enc_or_rbx_rax_arch(elf_ctx, ta) != 0) {
+      return -1;
+    }
+    glue_binop_var_slot_cache_invalidate_rax();
+    return 0;
+  }
+  if (vr == -1)
+    return -1;
+  glue_binop_var_slot_cache_clear();
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (is_xor) {
+    if (backend_enc_xor_rbx_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  } else if (backend_enc_or_rbx_rax_arch(elf_ctx, ta) != 0) {
+    return -1;
+  }
+  glue_binop_var_slot_cache_clear();
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_bitwise unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
