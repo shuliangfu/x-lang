@@ -33881,6 +33881,58 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_call_arg unique */
 
+/* WIN leftover-PE rest run_x wrapper unique cluster
+ * (leftover rest impl T U wrappers; SAT / leftover standalone ABSENT wrappers;
+ * SAT global T of run_x_pipeline_*_c callees).
+ * Remaining wave101 wrappers stay for !FROM_X (thin pull _c with struct*).
+ * A !FROM_X || WIN OR here would dual-def those nested wrappers.
+ * POSIX FROM_X stays ABSENT (.x thin owns the wrappers).
+ * leftover rest T wrappers only — leftover rest U _c is OK because SAT
+ * global T run_x_pipeline_parse_entry_if_needed_c /
+ * load_deps_after_parse_c / typecheck_after_load_c /
+ * codegen_deps_c / codegen_entry_c. Do not leftover rest T _c
+ * (SAT T). Do not leftover rest T last_rc BSS (SAT T).
+ * Do not leftover rest T neighboring non-unique wrappers
+ * (do_parse / typecheck_entry / fill_dep / codegen_one_dep /
+ * prepare / finish). Skip glue_asm_resolve / emit_binop /
+ * field_access / return_impl.
+ * Wrappers already prototyped leftover rest WIN @5773 (impl cluster).
+ * Do not redeclare those. leftover rest FROM_X omits wave101
+ * struct* _c externs @5607 — leftover rest extern void* _c here
+ * (matches remaining-wave wave106 _c defs).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique wrappers. LINUX gold / MACOS co-path
+ * still POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t run_x_pipeline_parse_entry_if_needed_c(void *module, void *arena, uint8_t *source_data,
+                                                     size_t source_len, void *ctx);
+extern int32_t run_x_pipeline_load_deps_after_parse_c(void *module, void *arena, void *ctx);
+extern int32_t run_x_pipeline_typecheck_after_load_c(void *module, void *arena, void *ctx);
+extern int32_t run_x_pipeline_codegen_deps_c(void *module, void *arena, void *out_buf, void *ctx,
+                                            int32_t skip_asm_dep_codegen);
+extern int32_t run_x_pipeline_codegen_entry_c(void *module, void *arena, void *out_buf, void *ctx);
+
+int32_t pipeline_run_x_pipeline_parse_entry_if_needed(void *module, void *arena, uint8_t *source_data,
+                                                      size_t source_len, void *ctx) {
+  return run_x_pipeline_parse_entry_if_needed_c(module, arena, source_data, source_len, ctx);
+}
+int32_t pipeline_run_x_pipeline_load_deps_after_parse(void *module, void *arena, void *ctx) {
+  return run_x_pipeline_load_deps_after_parse_c(module, arena, ctx);
+}
+int32_t pipeline_run_x_pipeline_typecheck_after_load(void *module, void *arena, void *ctx) {
+  return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
+}
+int32_t pipeline_run_x_pipeline_codegen_deps(void *module, void *arena, void *out_buf, void *ctx,
+                                             int32_t skip_asm_dep_codegen) {
+  return run_x_pipeline_codegen_deps_c(module, arena, out_buf, ctx, skip_asm_dep_codegen);
+}
+int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *out_buf, void *ctx) {
+  return run_x_pipeline_codegen_entry_c(module, arena, out_buf, ctx);
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE run_x wrapper unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
