@@ -33428,6 +33428,86 @@ int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_enc_local unique */
 
+/* WIN leftover-PE rest glue_load_f32_var_slot_to_rax_elf_c unique
+ * (leftover rest rec U; SAT / leftover standalone only local t).
+ * Remaining wave200 stub stays for !FROM_X (`return -1`).
+ * A !FROM_X || WIN OR here would dual-def that nested stub.
+ * POSIX FROM_X stays ABSENT (.x thin owns @74017).
+ * Seed stub harvest is fake-green (glue_call_return lesson) — port the
+ * .x true body (param home vs local 4B lane).
+ * SAT local t callees leftover rest T together so leftover rest U of
+ * those names does not unique-swap: glue_type_ref_is_scalar_f32_c
+ * (kind==14) + static glue_var_is_current_func_param_c.
+ * Skip rbx twin (not unique). Skip SAT global T (emit_module_ref /
+ * emit_func_index). Skip load_rbp / lane / cvtsd2ss / abi_f32_xmm
+ * (backend_enc / call_dispatch seed-link T). Skip remaining-wave
+ * glue_expr_resolved_is_scalar_f32 (not called).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped before this OR on leftover rest FROM_X:
+ * rec @28118 glue_load_f32, rec @28117 glue_var_decl_type_ref,
+ * rec @28089 kind_ord / @28094 resolved_type_ref / @28095 type_kind_ord,
+ * leftover rest WIN @11320 emit_module_ref / @11321 func_index,
+ * leftover rest WIN @14348 cvtsd2ss, enc_local cluster load_rbp,
+ * leftover rest T glue_expr_is_func_param_at_c @14697 /
+ * pipeline_module_func_num_params_at. Do not redeclare those. */
+extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
+extern int32_t backend_enc_load_rbp_lane_to_rax_arch(void *elf, int32_t off, int32_t esz, int32_t ta);
+
+int32_t glue_type_ref_is_scalar_f32_c(void *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == 14 ? 1 : 0;
+}
+
+static int32_t glue_var_is_current_func_param_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  void *mod;
+  int32_t fi;
+  int32_t np;
+  int32_t pi;
+  int32_t rc;
+  if (!arena || !ctx || var_expr_ref <= 0)
+    return 0;
+  mod = pipeline_asm_emit_module_ref_c();
+  fi = pipeline_asm_emit_func_index_c();
+  if (!mod || fi < 0)
+    return 0;
+  np = pipeline_module_func_num_params_at(mod, fi);
+  pi = 0;
+  while (pi < np) {
+    rc = glue_expr_is_func_param_at_c(arena, mod, fi, var_expr_ref, pi);
+    if (rc != 0)
+      return 1;
+    pi = pi + 1;
+  }
+  return 0;
+}
+
+int32_t glue_load_f32_var_slot_to_rax_elf_c(void *elf_ctx, void *arena, void *ctx,
+                                           int32_t var_expr_ref, int32_t off, int32_t ta) {
+  int32_t tr;
+  int32_t rc;
+  int32_t f32en;
+  if (glue_var_is_current_func_param_c(arena, ctx, var_expr_ref) != 0) {
+    f32en = pipeline_asm_abi_f32_xmm_enabled_c();
+    if ((ta == 0 || ta == 1) && f32en != 0) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+      if (glue_type_ref_is_scalar_f32_c(arena, tr) != 0)
+        return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
+    }
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+    if (rc != 0)
+      return -1;
+    return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+  }
+  return backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, off, 4, ta);
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_load_f32 unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
