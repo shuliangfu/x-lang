@@ -37099,6 +37099,57 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE field_access unique */
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
+/* Forward declarations for WIN leftover-PE return_impl */
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *lbl, int32_t len, int32_t ta);
+
+static inline int32_t win_return_load_i32(const void *p, int32_t off) {
+  const uint8_t *b = (const uint8_t *)p + off;
+  return (int32_t)((uint32_t)b[0] | ((uint32_t)b[1] << 8) | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24));
+}
+
+/**
+ * Windows leftover-PE hybrid return_impl (wave144 cold face).
+ * Emits expression operand if non-zero, performs scratch/async cleanup,
+ * and jumps to function tail join label.
+ * Avoids unresolved SAT-t references while closing the final leftover-PE unique symbol.
+ * PLATFORM: WINDOWS leftover-PE hybrid; POSIX FROM_X path remains unchanged.
+ */
+int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref,
+                                          void *ctx, int32_t ta) {
+  uint8_t *ly;
+  int32_t ret_op;
+  int32_t tj_len;
+  int32_t ti;
+  uint8_t tj_lbl[128];
+
+  ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+  ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (ret_op != 0) {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0)
+      return -1;
+  }
+  if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
+    return -1;
+  if (glue_async_cps_emit_phase_reset(elf_ctx, ta) != 0)
+    return -1;
+  if (!ly)
+    return -1;
+  tj_len = win_return_load_i32(ly, 1520 /* W144_LY_TAIL_JOIN_LEN */);
+  if (tj_len <= 0)
+    return -1;
+  for (ti = 0; ti < tj_len && ti < 128; ti++)
+    tj_lbl[ti] = ly[1392 /* W144_LY_TAIL_JOIN_LBL */ + ti];
+  return backend_enc_jmp_arch(elf_ctx, tj_lbl, tj_len, ta);
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE return_impl unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
