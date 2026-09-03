@@ -29137,8 +29137,6 @@ int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) 
  * (ALWAYS @34749). index_by_type_name uses this-TU static w154_layout_name_eq
  * from the glue_type cluster (visible after that endif).
  * typeck_typeck_struct_layout_metrics stays closed (not unique).
- * glue_field_layout_offset_for_base_field stays closed (uses w151_TypeMirror
- * + ast_TypeKind enum later in the TU; var_base_field already unique).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
@@ -29194,6 +29192,214 @@ void glue_sync_struct_layout_field_offsets_c(void *m, void *a) {
   }
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE sync_struct unique */
+
+/* WIN leftover-PE rest glue_field_layout_offset_for_base_field unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone only
+ * local t) plus sibling unique glue_field_layout_offset_for_var_base_field
+ * (leftover rest FROM_X already U from rec cluster match_subject_field;
+ * SAT only t). Completing field_layout also defines leftover rest
+ * remaining-wave149 glue_struct_layout_field_offset_by_name_c
+ * (SAT / leftover rest only t — extracting field_layout alone would swap
+ * unique onto it). Remaining wave149 originals stay for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def those nested bodies.
+ * POSIX FROM_X stays ABSENT (.x thin owns the faces @53881 / @54016 / @54164).
+ * Bodies use pipeline getters (kind_ord 9=PTR / 8=NAMED) instead of
+ * leftover rest w151_TypeMirror + ast_TypeKind (enum later in the TU).
+ * Emit-global wrappers leftover rest already T: pipeline_asm_emit_func_index_c
+ * / pipeline_asm_emit_dep_pipe_c (ALWAYS @16162 / @16130).
+ * Skip pipeline_asm_emit_ctx_scope_block_get — leftover rest / SAT have
+ * only local BSS of g_pipeline_asm_emit_scope_block; no seed-link T of
+ * the getter (would swap unique). Body-ref let lookup still covers
+ * current-func lets. Callees leftover rest already T: glue_struct_layout_index_by_type_name_c
+ * (sync_struct harvest) / glue_struct_layout_compute_field_offset_c /
+ * pipeline_type_* getters / pipeline_block_resolve_var_type_ref /
+ * pipeline_module_func_param_type_ref_for_name. leftover rest already U
+ * typeck_get_field_offset_from_layout_deps (typeck_x.o T; SAT also U).
+ * glue_fill_var_types stays closed (struct* / W277_Block dual-decl).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t j, uint8_t *out);
+extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t pipeline_module_func_body_ref_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_param_type_ref_for_name(void *m, int32_t fi, uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *a, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *a, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_resolved_type_ref(void *a, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t ty_ref);
+extern int32_t pipeline_type_elem_ref_at(void *a, int32_t ty_ref);
+extern int32_t pipeline_type_named_name_into(void *a, int32_t ty_ref, uint8_t *out);
+extern int32_t pipeline_block_resolve_var_type_ref(void *a, int32_t block_ref, uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern void *pipeline_asm_emit_dep_pipe_c(void);
+extern int32_t typeck_get_field_offset_from_layout_deps(void *m, void *ctx, uint8_t *type_name, int32_t type_name_len,
+                                                       uint8_t *field_name, int32_t field_name_len);
+
+int32_t glue_struct_layout_field_offset_by_name_c(void *m, void *a, int32_t li,
+                                                         uint8_t *field_name, int32_t flen) {
+  int32_t j;
+  if (!m || !a || li < 0 || !field_name || flen <= 0)
+    return -1;
+  for (j = 0; j < pipeline_module_struct_layout_num_fields(m, li); j++) {
+    int32_t fnlen = pipeline_module_struct_layout_field_name_len(m, li, j);
+    int32_t feq = 1;
+    int32_t fi;
+    if (fnlen != flen)
+      continue;
+    for (fi = 0; fi < fnlen; fi++) {
+      uint8_t fb[128];
+      pipeline_module_struct_layout_field_name_into(m, li, j, fb);
+      if (fb[fi] != field_name[fi]) {
+        feq = 0;
+        break;
+      }
+    }
+    if (!feq)
+      continue;
+    return glue_struct_layout_compute_field_offset_c(m, a, li, j);
+  }
+  return -1;
+}
+
+int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
+                                                           int32_t base_var_ref, uint8_t *field_name,
+                                                           int32_t flen) {
+  int32_t base_ty;
+  int32_t fi;
+  uint8_t vname[128];
+  int32_t vlen;
+  uint8_t struct_name[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t ko;
+  int32_t nfuncs;
+  int32_t nsl;
+  int32_t body_ref;
+  void *dep;
+  int32_t dep_off;
+  int32_t kord;
+  int32_t off;
+  if (!a || !m || base_var_ref <= 0 || !field_name || flen <= 0 || flen > 127)
+    return -1;
+  base_ty = 0;
+  ko = pipeline_expr_kind_ord_at(a, base_var_ref);
+  if (ko == 3) {
+    fi = pipeline_asm_emit_func_index_c();
+    vlen = pipeline_expr_var_name_len(a, base_var_ref);
+    nfuncs = pipeline_module_num_funcs(m);
+    if (fi >= 0 && fi < nfuncs && vlen > 0 && vlen <= 63) {
+      pipeline_expr_var_name_into(a, base_var_ref, vname);
+      base_ty = pipeline_module_func_param_type_ref_for_name(m, fi, vname, vlen);
+    }
+  }
+  if (base_ty <= 0)
+    base_ty = pipeline_expr_resolved_type_ref(a, base_var_ref);
+  /* Skip emit-global scope_block getter (no seed-link T; leftover rest / SAT
+   * only local BSS of g_pipeline_asm_emit_scope_block). Body-ref fallback
+   * below still resolves current-func lets. */
+  if (base_ty <= 0 && ko == 3) {
+    fi = pipeline_asm_emit_func_index_c();
+    nfuncs = pipeline_module_num_funcs(m);
+    if (fi >= 0 && fi < nfuncs) {
+      vlen = pipeline_expr_var_name_len(a, base_var_ref);
+      if (vlen > 0 && vlen <= 63) {
+        body_ref = pipeline_module_func_body_ref_at(m, fi);
+        pipeline_expr_var_name_into(a, base_var_ref, vname);
+        if (body_ref > 0)
+          base_ty = pipeline_block_resolve_var_type_ref(a, body_ref, vname, vlen);
+      }
+    }
+  }
+  nsl = pipeline_module_num_struct_layouts_at(m);
+  if (base_ty <= 0 && nsl == 1) {
+    off = glue_struct_layout_field_offset_by_name_c(m, a, 0, field_name, flen);
+    if (off >= 0)
+      return off;
+  }
+  if (base_ty <= 0)
+    return -1;
+  kord = pipeline_type_kind_ord_at(a, base_ty);
+  if (kord == 9) {
+    base_ty = pipeline_type_elem_ref_at(a, base_ty);
+    if (base_ty <= 0)
+      return -1;
+    kord = pipeline_type_kind_ord_at(a, base_ty);
+  }
+  if (kord != 8)
+    return -1;
+  nlen = pipeline_type_named_name_into(a, base_ty, struct_name);
+  if (nlen <= 0 || nlen > 127)
+    return -1;
+  k = glue_struct_layout_index_by_type_name_c(m, struct_name, nlen);
+  if (k >= 0) {
+    off = glue_struct_layout_field_offset_by_name_c(m, a, k, field_name, flen);
+    if (off >= 0)
+      return off;
+    return -1;
+  }
+  dep = pipeline_asm_emit_dep_pipe_c();
+  if (dep) {
+    dep_off = typeck_get_field_offset_from_layout_deps(m, dep, struct_name, nlen, field_name, flen);
+    if (dep_off >= 0)
+      return dep_off;
+  }
+  return -1;
+}
+
+int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_ref,
+                                                uint8_t *field_name, int32_t flen) {
+  int32_t base_ty;
+  uint8_t struct_name[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t off;
+  int32_t ko;
+  int32_t nsl;
+  int32_t kord;
+  void *dep;
+  int32_t dep_off;
+  if (!a || !m || base_ref <= 0 || !field_name || flen <= 0 || flen > 127)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(a, base_ref);
+  if (ko == 3)
+    return glue_field_layout_offset_for_var_base_field(a, m, base_ref, field_name, flen);
+  base_ty = pipeline_expr_resolved_type_ref(a, base_ref);
+  nsl = pipeline_module_num_struct_layouts_at(m);
+  if (base_ty <= 0 && nsl == 1)
+    return glue_struct_layout_field_offset_by_name_c(m, a, 0, field_name, flen);
+  if (base_ty <= 0)
+    return -1;
+  kord = pipeline_type_kind_ord_at(a, base_ty);
+  if (kord == 9) {
+    base_ty = pipeline_type_elem_ref_at(a, base_ty);
+    if (base_ty <= 0)
+      return -1;
+    kord = pipeline_type_kind_ord_at(a, base_ty);
+  }
+  if (kord != 8)
+    return -1;
+  nlen = pipeline_type_named_name_into(a, base_ty, struct_name);
+  if (nlen <= 0 || nlen > 127)
+    return -1;
+  k = glue_struct_layout_index_by_type_name_c(m, struct_name, nlen);
+  if (k >= 0) {
+    off = glue_struct_layout_field_offset_by_name_c(m, a, k, field_name, flen);
+    if (off >= 0)
+      return off;
+  }
+  dep = pipeline_asm_emit_dep_pipe_c();
+  if (dep) {
+    dep_off = typeck_get_field_offset_from_layout_deps(m, dep, struct_name, nlen, field_name, flen);
+    if (dep_off >= 0)
+      return dep_off;
+  }
+  return -1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE field_layout unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_type cluster */
 
