@@ -33101,6 +33101,32 @@ void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE sret BSS cluster */
 
+/* WIN leftover-PE rest pipeline_typeck_active_module_set_c unique
+ * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone
+ * only local t). Remaining wave224 original stays for !FROM_X.
+ * A !FROM_X || WIN OR here would dual-def that nested body.
+ * POSIX FROM_X stays ABSENT (.x thin owns get/set @80392 / @80406).
+ * Unique lists only the setter. Getter pipeline_typeck_active_module_c
+ * is not unique (SAT / leftover standalone T) but shares
+ * g_wave224_typeck_active_module — convert BSS + get + set together
+ * (sret / block_diverged rest-first merge). No callees.
+ * Skip wave261 glue_statics (not unique).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+static void *g_wave224_typeck_active_module = 0;
+
+void *pipeline_typeck_active_module_c(void) {
+  return g_wave224_typeck_active_module;
+}
+void pipeline_typeck_active_module_set_c(void *m) {
+  g_wave224_typeck_active_module = m;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE active_module unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
