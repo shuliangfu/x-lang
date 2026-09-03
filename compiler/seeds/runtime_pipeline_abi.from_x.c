@@ -37148,6 +37148,21 @@ int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t ex
     tj_lbl[ti] = ly[1392 /* W144_LY_TAIL_JOIN_LBL */ + ti];
   return backend_enc_jmp_arch(elf_ctx, tj_lbl, tj_len, ta);
 }
+
+/**
+ * Windows leftover-PE hybrid process-wide DepCtx sidecar pool.
+ *
+ * Why: build_asm/pipeline_glue_standalone.o (archaeology object used on Windows
+ * because leftover-PE cannot -E) has depctx_sidecar_get referencing weak
+ * g_xlang_depctx_sc. On PE/COFF, unresolved weak symbols resolve to invalid
+ * addresses (fallback to dummy function symbol in .text) causing SIGSEGV on write.
+ * Providing a strong global BSS buffer here satisfies the weak reference and
+ * allows depctx_sidecar_get to function safely without memory corruption.
+ * Table size: 64 entries * 272 bytes = 17408 bytes (covers up to 272-byte DepCtxSidecar).
+ *
+ * PLATFORM: WINDOWS leftover-PE hybrid only; POSIX remains unchanged.
+ */
+uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE return_impl unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
