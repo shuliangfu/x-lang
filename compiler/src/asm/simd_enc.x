@@ -1242,17 +1242,19 @@ export function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vxorps_ymm3_ymm3`.
- * Implements `simd_x86_vxorps_ymm3_ymm3`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vxorps ymm3, ymm3, ymm3` as VEX 2-byte `C5 E4 57 DB`.
+ * VEX.vvvv must be ymm3 (0xE4), L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 240;
-  let b2: u8 = 87;
-  let b3: u8 = 219;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xe4;
+  let b2: u8 = 0x57;
+  let b3: u8 = 0xdb;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1266,17 +1268,21 @@ export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vcmpgtps_ymm2_ymm3`.
- * Comparison/utility `simd_x86_vcmpgtps_ymm2_ymm3`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vcmpgtps ymm2, ymm2, ymm3` as VEX 2-byte `C5 EC C2 D3 0E`
+ * (`vcmpps ymm2, ymm2, ymm3, 14`). VEX.vvvv=ymm2, L=1 (256-bit ymm),
+ * opcode 0xC2 (CMPPS), imm 0x0E (GT_OQ).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 232;
-  let b2: u8 = 87;
-  let b3: u8 = 211;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xec;
+  let b2: u8 = 0xc2;
+  let b3: u8 = 0xd3;
+  let b4: u8 = 0x0e;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1286,21 +1292,25 @@ export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
   if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
+  if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
 }
 
-/** Exported function `simd_x86_vandps_ymm0_ymm2`.
- * Implements `simd_x86_vandps_ymm0_ymm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vandps ymm0, ymm0, ymm2` as VEX 2-byte `C5 FC 54 C2`.
+ * VEX.vvvv must be ymm0 (0xFC), not ymm3 (0xE0); L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 224;
-  let b2: u8 = 84;
-  let b3: u8 = 194;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xfc;
+  let b2: u8 = 0x54;
+  let b3: u8 = 0xc2;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1314,17 +1324,19 @@ export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vandnps_ymm2_ymm1`.
- * Implements `simd_x86_vandnps_ymm2_ymm1`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vandnps ymm2, ymm2, ymm1` as VEX 2-byte `C5 EC 55 D1`
+ * (`ymm2 = ~ymm2 & ymm1`). VEX.vvvv must be ymm2 (0xEC), L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 232;
-  let b2: u8 = 85;
-  let b3: u8 = 209;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xec;
+  let b2: u8 = 0x55;
+  let b3: u8 = 0xd1;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1338,17 +1350,19 @@ export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vorps_ymm0_ymm2`.
- * Implements `simd_x86_vorps_ymm0_ymm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vorps ymm0, ymm0, ymm2` as VEX 2-byte `C5 FC 56 C2`.
+ * VEX.vvvv must be ymm0 (0xFC), not ymm3 (0xE0); L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 224;
-  let b2: u8 = 86;
-  let b3: u8 = 194;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xfc;
+  let b2: u8 = 0x56;
+  let b3: u8 = 0xc2;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }

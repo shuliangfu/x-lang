@@ -1572,8 +1572,9 @@ int32_t simd_x86_vpor_ymm0_ymm2(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vxorps_ymm3_ymm3(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX — C5 E4 57 DB (vxorps ymm3,ymm3,ymm3). */
   uint8_t b0 = 197;
-  uint8_t b1 = 240;
+  uint8_t b1 = 228;
   uint8_t b2 = 87;
   uint8_t b3 = 219;
   int32_t r = 0;
@@ -1607,10 +1608,12 @@ int32_t simd_x86_vxorps_ymm3_ymm3(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vcmpgtps_ymm2_ymm3(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX — C5 EC C2 D3 0E (vcmpgtps ymm2,ymm2,ymm3). */
   uint8_t b0 = 197;
-  uint8_t b1 = 232;
-  uint8_t b2 = 87;
+  uint8_t b1 = 236;
+  uint8_t b2 = 194;
   uint8_t b3 = 211;
+  uint8_t b4 = 14;
   int32_t r = 0;
   {
     (void)((r = simd_append(elf, &(b0), 1)));
@@ -1637,13 +1640,20 @@ int32_t simd_x86_vcmpgtps_ymm2_ymm3(uint8_t * elf) {
     return (0 - 1);
   }
   {
+    (void)((r = simd_append(elf, &(b4), 1)));
+  }
+  if ((r !=0)) {
+    return (0 - 1);
+  }
+  {
     (void)((r = 0));
   }
   return r;
 }
 int32_t simd_x86_vandps_ymm0_ymm2(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX — C5 FC 54 C2 (vandps ymm0,ymm0,ymm2). */
   uint8_t b0 = 197;
-  uint8_t b1 = 224;
+  uint8_t b1 = 252;
   uint8_t b2 = 84;
   uint8_t b3 = 194;
   int32_t r = 0;
@@ -1677,8 +1687,9 @@ int32_t simd_x86_vandps_ymm0_ymm2(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vandnps_ymm2_ymm1(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX — C5 EC 55 D1 (vandnps ymm2,ymm2,ymm1). */
   uint8_t b0 = 197;
-  uint8_t b1 = 232;
+  uint8_t b1 = 236;
   uint8_t b2 = 85;
   uint8_t b3 = 209;
   int32_t r = 0;
@@ -1712,8 +1723,9 @@ int32_t simd_x86_vandnps_ymm2_ymm1(uint8_t * elf) {
   return r;
 }
 int32_t simd_x86_vorps_ymm0_ymm2(uint8_t * elf) {
+  /* PLATFORM: SHARED emit / x86 AVX — C5 FC 56 C2 (vorps ymm0,ymm0,ymm2). */
   uint8_t b0 = 197;
-  uint8_t b1 = 224;
+  uint8_t b1 = 252;
   uint8_t b2 = 86;
   uint8_t b3 = 194;
   int32_t r = 0;

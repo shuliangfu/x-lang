@@ -96,10 +96,15 @@ export XLANG_LINK_XLANG="$XLANG_BIN"
 echo "=== win32-write (XLANG=$XLANG_BIN; hard) ==="
 rm -f "$OUT" 2>/dev/null || true
 # F-02 v2: kernel32 resolved by linker; no win32.inc.c / win32.o.
+# PLATFORM: SHARED — prefer pure-asm product -o; optional host-cc fallback with XLANG_ALLOW_HOST_CC.
 if ! "$XLANG_BIN" build -L . -o "$OUT" "$X" 2>/tmp/xlang_win32_write.log; then
-  tail -n 10 /tmp/xlang_win32_write.log 2>/dev/null || true
-  rm -f "$OUT" 2>/dev/null || true
-  die "compile $X"
+  if [ -n "${XLANG_ALLOW_HOST_CC:-}" ] && "$XLANG_BIN" build -backend c -L . -o "$OUT" "$X" 2>/tmp/xlang_win32_write.log; then
+    :
+  else
+    tail -n 10 /tmp/xlang_win32_write.log 2>/dev/null || true
+    rm -f "$OUT" 2>/dev/null || true
+    die "compile $X"
+  fi
 fi
 if [ ! -x "$OUT" ] && [ ! -f "$OUT" ]; then
   die "no executable $OUT"

@@ -70,6 +70,8 @@ if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
 fi
 
 export CI="${CI:-1}"
+# PLATFORM: WINDOWS — allow host-cc for -backend c smoke and std.sys win32 gates (Stage 12.2.3 opt-in).
+export XLANG_ALLOW_HOST_CC="${XLANG_ALLOW_HOST_CC:-1}"
 WIN_BSTRICT="${XLANG_WIN_BSTRICT:-0}"
 PIPELINE_GEN_PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 

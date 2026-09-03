@@ -1553,11 +1553,12 @@ int32_t simd_x86_vpor_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vxorps ymm3, ymm3, ymm3（C5 F0 57 DB）。 */
+/** x86 AVX：vxorps ymm3, ymm3, ymm3（C5 E4 57 DB）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm3 (0xE4), L=1 (256-bit). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vxorps_ymm3_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xf0, 0x57, 0xdb};
+    static const uint8_t insn[4] = {0xc5, 0xe4, 0x57, 0xdb};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1570,12 +1571,13 @@ int32_t simd_x86_vxorps_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vcmpgtps ymm2, ymm2, ymm3（C5 E8 57 D3）。 */
+/** x86 AVX：vcmpgtps ymm2, ymm2, ymm3（C5 EC C2 D3 0E）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.256 vcmpps ymm2, ymm2, ymm3, 14. */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vcmpgtps_ymm2_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe8, 0x57, 0xd3};
-    return simd_append_impl(elf_ctx, insn, 4);
+    static const uint8_t insn[5] = {0xc5, 0xec, 0xc2, 0xd3, 0x0e};
+    return simd_append_impl(elf_ctx, insn, 5);
 }
 
 #ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
@@ -1587,11 +1589,12 @@ int32_t simd_x86_vcmpgtps_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) 
 
 
 
-/** x86 AVX：vandps ymm0, ymm0, ymm2（C5 E0 54 C2）。 */
+/** x86 AVX：vandps ymm0, ymm0, ymm2（C5 FC 54 C2）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm0 (0xFC) not ymm3 (0xE0). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vandps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe0, 0x54, 0xc2};
+    static const uint8_t insn[4] = {0xc5, 0xfc, 0x54, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1604,11 +1607,12 @@ int32_t simd_x86_vandps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vandnps ymm2, ymm2, ymm1（C5 E8 55 D1）。 */
+/** x86 AVX：vandnps ymm2, ymm2, ymm1（C5 EC 55 D1）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm2 (0xEC), L=1 (256-bit). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vandnps_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe8, 0x55, 0xd1};
+    static const uint8_t insn[4] = {0xc5, 0xec, 0x55, 0xd1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1621,11 +1625,12 @@ int32_t simd_x86_vandnps_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vorps ymm0, ymm0, ymm2（C5 E0 56 C2）。 */
+/** x86 AVX：vorps ymm0, ymm0, ymm2（C5 FC 56 C2）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm0 (0xFC) not ymm3 (0xE0). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vorps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe0, 0x56, 0xc2};
+    static const uint8_t insn[4] = {0xc5, 0xfc, 0x56, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
