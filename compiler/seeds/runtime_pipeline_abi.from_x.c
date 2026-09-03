@@ -11125,10 +11125,16 @@ int32_t glue_asm_lea_rax_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave124: pipeline_asm_emit_var_decl pure leave cold twins under #ifndef FROM_X.
+/* wave124: pipeline_asm_emit_var_decl pure leave cold twins under #ifndef FROM_X,
+ * or WIN leftover-PE rest (PE cannot -E .x thin; leftover standalone 7/31
+ * only local t of glue_var_decl_type_ref_elf_c).
  * PLATFORM: SHARED freestanding emit · Cap residual emit context + local/slot helpers.
- * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * PLATFORM: WINDOWS leftover-PE hybrid compiles glue_var_decl_type_ref_elf_c
+ * in FROM_X rest (harvest unique). glue_lazy_append_block_let_local stays
+ * closed (not unique). Callees already leftover-rest / SAT global T. */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
@@ -11139,12 +11145,6 @@ extern int32_t pipeline_module_func_param_type_ref_for_name(void *module, int32_
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern void *pipeline_asm_emit_module_ref_c(void);
 extern int32_t pipeline_asm_emit_func_index_c(void);
-extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
-extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
-extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t let_idx);
-extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
-extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
-extern int32_t asm_ctx_local_count(uint8_t *ctx);
 
 /* GLUE_EXPR_KIND_VAR == 3 */
 int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
@@ -11178,6 +11178,15 @@ int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_re
     return tr;
   return 0;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE var_decl unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave124 FROM_X for lazy_append (not unique) */
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
 
 int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_ref, int32_t let_idx, uint8_t *name,
                                          int32_t name_len) {
@@ -14376,11 +14385,11 @@ void *glue_emit_module_from_ctx(void *ctx) {
  * glue_expr_resolved_is_scalar_f64_c / glue_type_ref_is_scalar_f64_c
  * (file-scope T of binop_operand would otherwise swap unique onto those
  * two; leftover rest FROM_X omits them in remaining wave136 @24660).
- * glue_var_decl_type_ref_elf_c is already unique (leftover rest already U);
- * do not extract it this knife. Moved from remaining wave136 @24660 so
- * !FROM_X is not dual-def. Same file-scope OR as emit_as callees (AFTER
- * truncated-cmp close). PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E
- * unchanged. */
+ * glue_var_decl_type_ref_elf_c unique lives in wave124 OR (this file,
+ * earlier). Keep the extern so leftover rest callers in this OR type-check
+ * on !FROM_X before the wave124 def is visible as a nested vs file-scope
+ * mix; leftover rest WIN already compiled the wave124 def. PLATFORM:
+ * WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
@@ -17882,7 +17891,7 @@ extern int32_t glue_asm_lea_rbx_common_adrp_arm64(struct platform_elf_ElfCodegen
 extern int32_t glue_asm_lea_rbx_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf, uint8_t *n, int32_t nl);
 extern int32_t glue_asm_lea_rax_common_adrp_arm64(struct platform_elf_ElfCodegenCtx *elf, uint8_t *n, int32_t nl);
 extern int32_t glue_asm_lea_rax_common_rip_x86(struct platform_elf_ElfCodegenCtx *elf, uint8_t *n, int32_t nl);
-extern int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *a, struct backend_AsmFuncCtx *ctx, int32_t er);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t er);
 extern int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t tr, int32_t depth);
 extern int32_t glue_enc_local_slot_ptr_or_addr_rbx_elf_c(struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf, int32_t er, int32_t off, struct backend_AsmFuncCtx *ctx, int32_t ta);
 extern int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, struct ast_ASTArena *a, uint8_t *n, int32_t nl);
