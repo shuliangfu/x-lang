@@ -10556,8 +10556,11 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
  * Callees: link_abi_getenv always-compiled extern @247; pipeline_module_num_funcs
  * / func_body_ref_at / ast_ast_block_num_{lets,consts} always-compiled extern
  * @654; pipeline_expr_kind_ord_at leftover rest WAVE284 T; var_name leftover
- * rest WAVE278 T; pipe_load_i32_le / block_let_name / driver_diagnostic
- * SAT / leftover standalone T.
+ * rest WAVE278 T; block_let_name / driver_diagnostic SAT / leftover standalone T.
+ * pipe_load_i32_le is defined in this OR: harvest of unused_hints @51b521e6f
+ * swapped unique unused_hints → pipe_load (SAT / leftover standalone do not
+ * T it). Body ≡ runtime_pipeline_abi.x @5252 / seed_pipe_load_i32_le @11485
+ * (void* to match this OR's call site; ABI = *u8).
  * Do not convert neighboring unused_private_funcs / wpo_dump (wpo_dump still
  * unique; needs wave121_mark still in remaining wave101).
  * Externs live inside the OR (not always-compiled): leftover rest later
@@ -10566,7 +10569,14 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
  * PLATFORM: SHARED unused-binding hints · LINUX gold · MACOS co-path. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-extern int32_t pipe_load_i32_le(void *base, int32_t off);
+int32_t pipe_load_i32_le(void *base, int32_t off) {
+  const uint8_t *p;
+  if (!base || off < 0)
+    return 0;
+  p = (const uint8_t *)base + off;
+  return (int32_t)((uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+                   ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24));
+}
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
@@ -13934,6 +13944,59 @@ extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *
 extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
 extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
 
+#endif /* close remaining wave136 FROM_X for leftover-PE await/as unique */
+
+/* Await/as leftover unique (surgical extract of nested wave138 after
+ * closing enclosing remaining wave136 @13164):
+ * glue_expr_is_await_at_c / glue_expr_is_x_as_cast_at_c /
+ * pipeline_asm_emit_await_sync_elf_impl /
+ * pipeline_asm_emit_try_propagate_elf_impl /
+ * glue_emit_float_lit_to_rax_elf_c.
+ * Unique lists them after leftover-PE Track L typeck pin (typeck_x.o UNDEFs
+ * them; POSIX .x thin owns the faces).
+ * leftover standalone defines 0 of remaining unique.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. Close remaining wave136
+ * first — inserting an OR inside a FALSE outer ifndef is never parsed when
+ * FROM_X is set (assign_like / unused_hints lesson).
+ * Reopen remaining wave136 after this unique (array_lit_emit /
+ * emit_as_impl / emit_as_elf_c stay closed on leftover rest).
+ * emit_as_impl stays closed this wave: it sits after non-unique
+ * array_lit_emit and calls unique glue_emit_module_from_ctx /
+ * glue_module_func_index_by_name_c / glue_var_expr_stack_off_elf_c.
+ * Header does not declare these faces (not a dual-decl). Always-compiled
+ * proto of these faces is absent in leftover rest FROM_X.
+ * Callees: kind_ord leftover rest WAVE284 T; unary/as operand leftover
+ * rest WAVE278 T; emit_expr SAT T; ieee/float_bits leftover rest T @42050;
+ * backend_enc / ctx_layout SAT / leftover rest T.
+ * PLATFORM: SHARED await/as/try/float-lit emit · LINUX gold · MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_target_type_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_float_bits_lo_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_float_bits_hi_at(void *arena, int32_t expr_ref);
+extern int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi);
+extern int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb);
+extern int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern int32_t arch_x86_64_enc_enc_test_edx_edx(void *elf_ctx);
+extern int32_t backend_enc_test_rbx_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+
 int32_t glue_expr_is_await_at_c(void *arena, int32_t expr_ref) {
   int32_t ko, uop;
   if (!arena || expr_ref <= 0) return 0;
@@ -14011,6 +14074,9 @@ int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t exp
   }
   return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE await/as unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE await/as unique */
 
 int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(void *arena, void *elf_ctx, int32_t array_lit_ref,
                                                      int32_t elem_ref, void *ctx, int32_t ta, int32_t force_esz) {

@@ -112,7 +112,7 @@
 - ✅ **7.4.7** typeck archaeology patch 幂等 — L4 g05 `cc typeck_gen.c` 重复定义 `g_typeck_allow_legacy_extern_calls`：7.4.5 pin 已有体、patcher 只认 `XLANG_ALLOW_LEGACY_EXTERN` 注释。G.7 补全既有 patcher（符号已在则 skip）＋pin 补标记。证：Darwin patch skip · `cc -c` 0
 - ✅ **7.4.8** typeck pin discard `_` — L4 g05 typeck T001 `print_any` 多份 `let _`：权威 `typeck.x` 已豁免，pin 孪生无。G.7 补全 pin let／const。L4＠`d9903f8e8` duplicate 已消，转 **argument type mismatch**（println 实参）
 - ✅ **7.4.9** typeck pin println 复合实参 JSON any — L4 g05 T001 `fmt.println(Point／array／Option)`：权威 `typeck.x` `typeck_call_is_fmt_debug_print_any`，pin／empty_surface 孪生无。G.7 补全 pin `check_call_arg_types` score＜0 后放行；无第三 scorer；禁改 print_any 期望。Ubuntu L4＠`1174c5bb3` fmt-std **OK**
-- 🟡 **7.4.10** leftover PE typeck／codegen unique — harvest＠`6accbd5e5`：pabi leftover unique **48→0**；Track L 当前 typeck pin unique T 已入 `typeck_x.o`，seed 链 unique **54→53**（assign_like＝0）。leftover PE Track L／pin cc 成功现保留 bak。`unused_hints` 已编（待再收割 53→52；关 remaining wave101 后 OR）。`wpo_dump`／`same_shape`／run_x wrappers／emit_binop 仍闭
+- 🟡 **7.4.10** leftover PE typeck／codegen unique — harvest＠`51b521e6f`：pabi leftover unique **48→0**；Track L 当前 typeck pin unique T 已入 `typeck_x.o`，seed 链 unique **53 未降**（unused_hints＝0，换成 `pipe_load_i32_le`）。leftover PE Track L／pin cc 成功现保留 bak。`pipe_load`＋await／as 五枚已编（待再收割 53→47；`pipe_load` 补 unused_hints OR；await／as 关 remaining wave136 后 OR）。`emit_as_impl`／`wpo_dump`／`same_shape`／run_x wrappers／emit_binop 仍闭
 - 🟡 **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补；Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**。残：f32 ymm select
 
 ---
