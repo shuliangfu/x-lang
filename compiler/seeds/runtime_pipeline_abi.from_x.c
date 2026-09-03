@@ -14369,6 +14369,66 @@ void *glue_emit_module_from_ctx(void *ctx) {
   (void)ctx;
   return 0;
 }
+
+/* Completing emit_as_impl: leftover rest T of emit_as_impl UNDEFs
+ * glue_binop_operand_is_scalar_f64_elf_c (SAT / leftover standalone only
+ * have local t — not a global T). Completing that unique = define it PLUS
+ * glue_expr_resolved_is_scalar_f64_c / glue_type_ref_is_scalar_f64_c
+ * (file-scope T of binop_operand would otherwise swap unique onto those
+ * two; leftover rest FROM_X omits them in remaining wave136 @24660).
+ * glue_var_decl_type_ref_elf_c is already unique (leftover rest already U);
+ * do not extract it this knife. Moved from remaining wave136 @24660 so
+ * !FROM_X is not dual-def. Same file-scope OR as emit_as callees (AFTER
+ * truncated-cmp close). PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E
+ * unchanged. */
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_call_return_type_kind_ord_c(void *arena, int32_t call_expr_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+
+int32_t glue_type_ref_is_scalar_f64_c(void *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == 15 ? 1 : 0;
+}
+
+int32_t glue_expr_resolved_is_scalar_f64_c(void *arena, int32_t expr_ref) {
+  return glue_type_ref_is_scalar_f64_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
+}
+
+int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref) {
+  int32_t ko;
+  int32_t tr;
+  int32_t rk;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  if (glue_expr_resolved_is_scalar_f64_c(arena, expr_ref))
+    return 1;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 3 && ctx) {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+    return glue_type_ref_is_scalar_f64_c(arena, tr);
+  }
+  /* FLOAT_LIT default / unresolved → treat as f64 (typeck ensures_f64). */
+  if (ko == 1)
+    return 1;
+  /* CALL (48) / METHOD_CALL (49): callee return kind when expr resolved is empty. */
+  if (ko == 48 || ko == 49) {
+    rk = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+    return rk == 15 ? 1 : 0;
+  }
+  if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
+    int32_t lr = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    int32_t rr = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    if (lr > 0 && rr > 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, lr) &&
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, rr))
+      return 1;
+  }
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_as callee unique */
 
 /* Modlet leftover cluster (surgical extract of nested wave139 after
@@ -18861,7 +18921,7 @@ extern int32_t glue_block_let_is_fixed_array_type(struct ast_ASTArena *a, int32_
 extern int32_t glue_emit_fixed_array_type_let_init_elf_c(struct ast_ASTArena *a, void *elf, int32_t init, void *ctx, int32_t ta, int32_t ty, int32_t off);
 extern int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *a, void *elf, int32_t init, void *ctx, int32_t ta, int32_t ty, int32_t off);
 extern void pipeline_asm_bump_next_offset_after_let_init(struct ast_ASTArena *a, int32_t br, int32_t li, int32_t init, void *ctx);
-extern int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *a, int32_t ty);
+extern int32_t glue_type_ref_is_scalar_f64_c(void *a, int32_t ty);
 extern int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *a, void *ctx, int32_t er);
 extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(void *elf, int32_t ta);
 extern int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *a, int32_t er);
@@ -24657,22 +24717,18 @@ int32_t glue_type_ref_is_scalar_f32_c(void *arena, int32_t type_ref) {
   return pipeline_type_kind_ord_at(arena, type_ref) == 14 ? 1 : 0;
 }
 
-/* wave149 cold twin glue_type_ref_is_scalar_f64_c. PLATFORM: SHARED. */
-int32_t glue_type_ref_is_scalar_f64_c(void *arena, int32_t type_ref) {
-  if (!arena || type_ref <= 0)
-    return 0;
-  return pipeline_type_kind_ord_at(arena, type_ref) == 15 ? 1 : 0;
-}
+/* wave149 cold twin glue_type_ref_is_scalar_f64_c moved to file-scope
+ * leftover-PE emit_as callee OR (after truncated-cmp close). Leaving the
+ * body here dual-defs !FROM_X. PLATFORM: SHARED. */
 
 /* wave149 cold twin glue_expr_resolved_is_scalar_f32_c. PLATFORM: SHARED. */
 int32_t glue_expr_resolved_is_scalar_f32_c(void *arena, int32_t expr_ref) {
   return glue_type_ref_is_scalar_f32_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
 }
 
-/* wave149 cold twin glue_expr_resolved_is_scalar_f64_c. PLATFORM: SHARED. */
-int32_t glue_expr_resolved_is_scalar_f64_c(void *arena, int32_t expr_ref) {
-  return glue_type_ref_is_scalar_f64_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
-}
+/* wave149 cold twin glue_expr_resolved_is_scalar_f64_c moved to file-scope
+ * leftover-PE emit_as callee OR (after truncated-cmp close). Leaving the
+ * body here dual-defs !FROM_X. PLATFORM: SHARED. */
 
 /* wave149 cold twin glue_binop_operand_is_scalar_f32_elf_c. PLATFORM: SHARED. */
 int32_t glue_binop_operand_is_scalar_f32_elf_c(void *arena, void *ctx, int32_t expr_ref) {
@@ -24730,37 +24786,9 @@ int32_t glue_binop_operand_is_scalar_f32_elf_c(void *arena, void *ctx, int32_t e
   return 0;
 }
 
-/* wave149 cold twin glue_binop_operand_is_scalar_f64_elf_c. PLATFORM: SHARED. */
-int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref) {
-  int32_t ko;
-  int32_t tr;
-  int32_t rk;
-  if (!arena || expr_ref <= 0)
-    return 0;
-  if (glue_expr_resolved_is_scalar_f64_c(arena, expr_ref))
-    return 1;
-  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (ko == 3 && ctx) {
-    tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
-    return glue_type_ref_is_scalar_f64_c(arena, tr);
-  }
-  /** FLOAT_LIT default / unresolved → treat as f64 (typeck ensures_f64). */
-  if (ko == 1)
-    return 1;
-  /* CALL (48) / METHOD_CALL (49): callee return kind when expr resolved is empty. */
-  if (ko == 48 || ko == 49) {
-    rk = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
-    return rk == 15 ? 1 : 0;
-  }
-  if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
-    int32_t lr = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-    int32_t rr = pipeline_expr_binop_right_ref_at(arena, expr_ref);
-    if (lr > 0 && rr > 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, lr) &&
-        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, rr))
-      return 1;
-  }
-  return 0;
-}
+/* wave149 cold twin glue_binop_operand_is_scalar_f64_elf_c moved to
+ * file-scope leftover-PE emit_as callee OR (after truncated-cmp close).
+ * Leaving the body here dual-defs !FROM_X. PLATFORM: SHARED. */
 
 /* wave149 cold twin glue_try_emit_mixed_f32_f64_arith_elf_c. PLATFORM: SHARED. */
 int32_t glue_try_emit_mixed_f32_f64_arith_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t left_ref, int32_t right_ref, int32_t ta, int32_t op_kind) {
