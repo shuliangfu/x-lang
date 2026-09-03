@@ -314,7 +314,15 @@ build_typeck() {
   fi
   # wave329: try Track L cold seed first (bypasses assemble/patch chain)
   if _try_frontend_track_l_cold_seed typeck_x.o "seeds/typeck_gen.linux.x86_64.c"; then
-    rm -f "$_typeck_bak"
+    # PLATFORM: WINDOWS leftover PE — Track L cc of CURRENT typeck pin
+    # succeeds, then bootstrap-driver-seed UNDEFs glue leftover pabi hybrid
+    # does not define (harvest unique 58 @ e7d52c04f). Keep bak so a later
+    # restore is possible; do not rm on cc success.
+    if migrate_windows_leftover_pe_cannot_e && [ -n "$_typeck_bak" ] && [ -f "$_typeck_bak" ]; then
+      log "typeck_x.o leftover PE Track L OK; kept $_typeck_bak (seed link may UNDEF leftover-pabi glue)"
+    else
+      rm -f "$_typeck_bak"
+    fi
     return 0
   fi
   log "typeck_x.o: Track L cold seed failed; falling back to typeck_gen.c (archaeology)"
@@ -330,7 +338,11 @@ build_typeck() {
   if [ "$_typeck_cc" -eq 0 ]; then
     sz=$(obj_size typeck_x.o)
     if [ "$sz" -gt 10000 ]; then
-      rm -f "$_typeck_bak"
+      if migrate_windows_leftover_pe_cannot_e && [ -n "$_typeck_bak" ] && [ -f "$_typeck_bak" ]; then
+        log "typeck_x.o leftover PE pin cc OK ($sz bytes); kept $_typeck_bak"
+      else
+        rm -f "$_typeck_bak"
+      fi
       log "typeck_x.o OK ($sz bytes)"
       return 0
     fi
@@ -368,7 +380,13 @@ build_codegen() {
   fi
   # wave329: try Track L cold seed first
   if _try_frontend_track_l_cold_seed codegen_x.o "seeds/codegen_gen.linux.x86_64.c"; then
-    rm -f "$_codegen_bak"
+    # PLATFORM: WINDOWS leftover PE — keep bak on Track L cc success
+    # (same seed-link UNDEF class as typeck pin; see typeck bak note).
+    if migrate_windows_leftover_pe_cannot_e && [ -n "$_codegen_bak" ] && [ -f "$_codegen_bak" ]; then
+      log "codegen_x.o leftover PE Track L OK; kept $_codegen_bak (seed link may UNDEF leftover-pabi glue)"
+    else
+      rm -f "$_codegen_bak"
+    fi
     return 0
   fi
   log "codegen_x.o: Track L cold seed failed; falling back to codegen_gen.c (archaeology)"
@@ -380,7 +398,11 @@ build_codegen() {
   if [ "$_codegen_cc" -eq 0 ]; then
     sz=$(obj_size codegen_x.o)
     if [ "$sz" -gt 50000 ]; then
-      rm -f "$_codegen_bak"
+      if migrate_windows_leftover_pe_cannot_e && [ -n "$_codegen_bak" ] && [ -f "$_codegen_bak" ]; then
+        log "codegen_x.o leftover PE pin cc OK ($sz bytes); kept $_codegen_bak"
+      else
+        rm -f "$_codegen_bak"
+      fi
       log "codegen_x.o OK ($sz bytes)"
       return 0
     fi

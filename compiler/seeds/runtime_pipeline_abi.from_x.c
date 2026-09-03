@@ -28561,6 +28561,36 @@ int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t e
   return pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -1);
 }
 
+#endif /* close remaining wave154 FROM_X for leftover-PE named_struct unique */
+
+/*
+ * Named_struct leftover cluster (surgical extract of remaining wave154 after
+ * glue_type OR): typeck_type_is_named_struct_c +
+ * typeck_layout_index_for_named_type_c.
+ * Unique lists both after leftover-PE Track L typeck pin (current typeck_x.o
+ * UNDEFs them; POSIX .x thin owns the faces).
+ * leftover standalone defines 0 of remaining unique.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the cluster. Close remaining wave154
+ * first — inserting an OR inside a FALSE outer ifndef is never parsed when
+ * FROM_X is set.
+ * Reopen remaining wave154 after this cluster (same_shape / pad/hot warn
+ * stay closed on leftover rest). same_shape stays closed: it calls
+ * pipeline_typeck_type_refs_equal_c which leftover rest does not define
+ * (would replace one unique with another). Header does not declare these
+ * two (not a dual-decl). Always-compiled proto of the two is absent in
+ * this TU.
+ * Cluster callees: w154_layout_name_eq is static in leftover rest glue_type
+ * OR (same TU); kind_ord / named_name_into / num_struct_layouts already
+ * externed there. Do not convert neighboring
+ * typeck_typeck_struct_layout_metrics / typeck_struct_layouts_same_shape_c /
+ * pad_fields_warn_layout / hot_reorder_warn_layout (not this unique pair).
+ * PLATFORM: SHARED freestanding named-struct layout probe · LINUX gold ·
+ * MACOS co-path.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
 int32_t typeck_type_is_named_struct_c(void *m, void *a, int32_t ty_ref) {
   uint8_t name[128];
   int32_t nlen, k, nlayouts;
@@ -28586,6 +28616,9 @@ int32_t typeck_layout_index_for_named_type_c(void *m, void *a, int32_t ty_ref) {
     if (w154_layout_name_eq(m, k, name, nlen)) return k;
   return -1;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE named_struct unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE named_struct unique */
 
 int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t lb) {
   int32_t nfa, nfb, j;
