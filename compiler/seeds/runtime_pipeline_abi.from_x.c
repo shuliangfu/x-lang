@@ -14076,6 +14076,39 @@ int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t exp
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE await/as unique */
 
+/* Complete try_propagate unique (harvest@29e0810ae unique 53→49):
+ * leftover rest try_propagate T UNDEFs
+ * glue_index_scratch_spills_cleanup_all_elf_c + glue_async_cps_emit_phase_reset
+ * (SAT/standalone do not T them — unused_hints/pipe_load lesson).
+ * cleanup_all leftover rest already has a wave169 no-op stub; compile it
+ * under WIN leftover (moved out of #ifndef FROM_X so !FROM_X is not dual-def).
+ * phase_reset leftover rest has the full wave131 body (needs
+ * g_glue_async_cps_emit static). WIN leftover PE cannot -E wave131 thin;
+ * inactive stub return 0 matches leftover rest CPS-inactive contract
+ * (try_propagate only needs 0 to continue). WIN-only so !FROM_X keeps
+ * the wave131 body.
+ * PLATFORM: WINDOWS leftover PE cannot -E those thins; OR WIN_LEFTOVER_GROW_VEC
+ * so leftover-PE FROM_X rest compiles the unique. POSIX FROM_X stays ABSENT
+ * (.x thin owns the faces).
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE cleanup_all unique */
+
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE phase_reset unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE await/as unique */
 
 int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(void *arena, void *elf_ctx, int32_t array_lit_ref,
@@ -29191,15 +29224,12 @@ void glue_block_simulate_cfg_live_from_empty(void *arena, void *ctx, int32_t blo
 /*
  * wave169 cold twins: index-scratch public faces.
  * Freestanding-safe no-op stubs. Hybrid product links pure.
+ * glue_index_scratch_spills_cleanup_all_elf_c moved to leftover-PE
+ * try_propagate unique OR after await/as (WIN leftover T; !FROM_X still
+ * compiled there). Keep invalidate_var / binop_stack_spill_push here.
  * PLATFORM: SHARED freestanding 7.3.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
-
-int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta) {
-  (void)elf_ctx;
-  (void)ta;
-  return 0;
-}
 
 void glue_index_scratch_spill_invalidate_var(void *arena, void *elf_ctx, void *ctx, int32_t var_ref,
                                              int32_t ta) {
