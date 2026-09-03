@@ -35688,6 +35688,104 @@ int32_t pipeline_asm_index_elem_byte_sz(void *a, int32_t index_expr_ref) {
 
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_add unique */
 
+/* WIN leftover-PE harvest swap-in close after emit_binop_add unique.
+ * Harvest @6ad9f6d03: emit_binop_add unique 0, but ld_undef swapped in
+ * pipe_store_i32_le / glue_align_next_offset /
+ * glue_var_expr_type_ref_with_decl_fallback_c (SAT/rest only local t —
+ * local t does not resolve rest U across ld -r; harvest counts only global T).
+ * pipe_store ≡ .x @5228 / seed_pipe_store twin of unused_hints pipe_load.
+ * glue_align uses wave126 cold twin (direct next_offset@4) — avoid
+ * pipe_asm_ctx_off_next_offset unique swap.
+ * glue_var_expr ≡ .x @67051 true body (seed @31053 stub return 0 is fake-green).
+ * scope_block get/set + BSS co-compiled (wave221 #ifndef FROM_X only; leftover
+ * rest / SAT ABSENT global T). Do not OR whole wave221 cluster.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; LINUX gold / MACOS
+ * co-path still POSIX FROM_X thin. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already leftover rest / WIN T: pipe_load_i32_le (unused_hints OR),
+ * pipeline_expr_* / emit_module_ref / emit_func_index /
+ * module_func_param_type_ref_for_name / block_resolve_var_type_ref /
+ * module_func_body_ref_at. Do not redeclare those. */
+
+void pipe_store_i32_le(void *base, int32_t off, int32_t v) {
+  uint8_t *p;
+  uint32_t u;
+  if (!base || off < 0)
+    return;
+  p = (uint8_t *)base + off;
+  u = (uint32_t)v;
+  p[0] = (uint8_t)(u & 0xffu);
+  p[1] = (uint8_t)((u >> 8) & 0xffu);
+  p[2] = (uint8_t)((u >> 16) & 0xffu);
+  p[3] = (uint8_t)((u >> 24) & 0xffu);
+}
+
+void glue_align_next_offset(void *ctx) {
+  int32_t *ly_next;
+  int32_t off;
+  int32_t m;
+  if (!ctx)
+    return;
+  /* LP64 AsmFuncCtx next_offset @4 — wave126 cold twin (no pipe_* helpers). */
+  ly_next = (int32_t *)((uint8_t *)ctx + 4);
+  off = *ly_next;
+  m = off % 8;
+  if (m != 0)
+    *ly_next = off + (8 - m);
+}
+
+/* WIN leftover-PE scope_block BSS — wave221 cold twin is #ifndef FROM_X only. */
+static int32_t g_win_leftover_emit_scope_block = 0;
+
+int32_t pipeline_asm_emit_ctx_scope_block_get(void) {
+  return g_win_leftover_emit_scope_block;
+}
+
+void pipeline_asm_emit_ctx_scope_block_set(int32_t block_ref) {
+  g_win_leftover_emit_scope_block = block_ref;
+}
+
+int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref) {
+  int32_t tr;
+  int32_t vlen;
+  int32_t ko;
+  int32_t fi;
+  int32_t scope_br;
+  int32_t body_ref;
+  void *mod;
+  uint8_t vname[128];
+  if (!arena || var_ref <= 0)
+    return 0;
+  tr = pipeline_expr_resolved_type_ref(arena, var_ref);
+  if (tr > 0)
+    return tr;
+  ko = pipeline_expr_kind_ord_at(arena, var_ref);
+  mod = pipeline_asm_emit_module_ref_c();
+  /* GLUE_EXPR_KIND_VAR == 3 */
+  if (ko != 3 || !mod)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, var_ref);
+  if (vlen <= 0 || vlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, var_ref, vname);
+  fi = pipeline_asm_emit_func_index_c();
+  scope_br = pipeline_asm_emit_ctx_scope_block_get();
+  if (fi >= 0)
+    tr = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+  if (tr <= 0 && scope_br > 0)
+    tr = pipeline_block_resolve_var_type_ref(arena, scope_br, vname, vlen);
+  if (tr <= 0 && fi >= 0) {
+    body_ref = pipeline_module_func_body_ref_at(mod, fi);
+    if (body_ref > 0)
+      tr = pipeline_block_resolve_var_type_ref(arena, body_ref, vname, vlen);
+  }
+  if (tr > 0)
+    return tr;
+  return 0;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE emit_binop_add swap-in close */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
