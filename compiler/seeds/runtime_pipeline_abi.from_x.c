@@ -33239,6 +33239,195 @@ int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t exp
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE logand/logor unique */
 
+/* WIN leftover-PE rest glue_enc_local_slot_ptr_or_addr_elf_c unique
+ * (leftover rest rec U; SAT / leftover standalone only local t).
+ * Remaining wave179 stub stays for !FROM_X (`return -1`).
+ * A !FROM_X || WIN OR here would dual-def that nested stub.
+ * POSIX FROM_X stays ABSENT (.x thin owns @66624).
+ * Seed stub harvest is fake-green (glue_call_return lesson) — port the
+ * .x true body (needs_ptr_load then load_rbp vs lea_rbp).
+ * SAT local t callees leftover rest T together so leftover rest U of
+ * those names does not unique-swap: needs_ptr_load / array_slot /
+ * glue_type_is_fixed_array / home_width. host_is_arm64 SAT ABSENT
+ * (leftover rest remaining-wave @33016 skipped on FROM_X) leftover rest
+ * T of remaining-wave compile-time ISA. w189 static walks *T param
+ * homes. home_width leftover rest T is the remaining-wave stub
+ * `return 8` — leftover rest T of .x would leftover rest U SAT-t
+ * glue_func_param_agg_byte_size_c (unique-swap).
+ * Skip rbx twin (not unique). Skip SAT global T:
+ * indirect_struct_slot / num_funcs / func_index / param_type_ref_* /
+ * type_kind_ord. Skip load/lea_rbp (backend_enc_dispatch seed-link T).
+ * Skip holds_indirect_ptr (try_inline_dispatch seed-link T).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped before this OR on leftover rest FROM_X:
+ * rec @28163 glue_enc_local, rec @28180 glue_emit_module_from_ctx,
+ * rec @28089 kind_ord / @28095 type_kind_ord / @28099-28100 var_name,
+ * always-compiled @654 num_funcs, leftover rest WIN @11317
+ * param_type_ref_for_name / @11321 func_index, WIN-only @14652
+ * num_params_at. Do not redeclare those. */
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t asm_local_var_slot_holds_indirect_ptr(void *arena, int32_t var_expr_ref, void *mod, void *ctx);
+extern int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(void *arena, void *mod, int32_t var_expr_ref);
+extern int32_t pipeline_module_func_param_type_ref_at(void *m, int32_t func_index, int32_t param_index);
+
+int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == 10 ? 1 : 0;
+}
+
+int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index) {
+  (void)arena;
+  (void)mod;
+  (void)func_index;
+  (void)param_index;
+  return 8;
+}
+
+int32_t pipeline_asm_host_is_arm64_c(void) {
+#if defined(__aarch64__) || defined(__arm64__)
+  return 1;
+#else
+  return 0;
+#endif
+}
+
+int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, int32_t var_expr_ref) {
+  uint8_t vname[128];
+  int32_t vlen;
+  int32_t fi;
+  int32_t pty;
+  int32_t nf;
+  int32_t ko;
+  if (!arena || !mod || var_expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  if (ko != 3)
+    return 0;
+  fi = pipeline_asm_emit_func_index_c();
+  nf = pipeline_module_num_funcs(mod);
+  if (fi < 0 || fi >= nf)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 127)
+    return 0;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  pty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+  return glue_type_is_fixed_array(arena, pty);
+}
+
+static int32_t w189_stack_off_is_emit_param_ptr_slot(void *arena, void *mod, int32_t func_index, int32_t stack_off) {
+  int32_t pi;
+  int32_t np;
+  int32_t pty;
+  int32_t nf;
+  int32_t tk;
+  int32_t off;
+  int32_t is_arm;
+  int32_t width;
+  int32_t slot_off;
+  if (!arena || !mod || func_index < 0 || stack_off < 8)
+    return 0;
+  nf = pipeline_module_num_funcs(mod);
+  if (func_index >= nf)
+    return 0;
+  if ((stack_off & 7) != 0)
+    return 0;
+  is_arm = pipeline_asm_host_is_arm64_c();
+  np = pipeline_module_func_num_params_at(mod, func_index);
+  pi = 0;
+  off = 16;
+  while (pi < np) {
+    width = glue_func_param_home_width_c(arena, mod, func_index, pi);
+    if (width <= 0)
+      width = 8;
+    if (is_arm != 0) {
+      slot_off = off;
+      if (width > 8)
+        off = off + width;
+      else
+        off = off + 8;
+    } else {
+      if (width > 8) {
+        slot_off = off + width;
+        off = slot_off + 8;
+      } else {
+        slot_off = off;
+        off = off + 8;
+      }
+    }
+    if (slot_off == stack_off) {
+      pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+      if (pty <= 0)
+        return 0;
+      tk = pipeline_type_kind_ord_at(arena, pty);
+      if (tk == 9)
+        return 1;
+      return 0;
+    }
+    pi = pi + 1;
+  }
+  return 0;
+}
+
+int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_ref, int32_t stack_off, void *ctx) {
+  void *mod;
+  int32_t holds;
+  int32_t fi;
+  int32_t ko;
+  uint8_t vname[128];
+  int32_t vlen;
+  int32_t pty;
+  int32_t tk;
+  mod = glue_emit_module_from_ctx(ctx);
+  holds = asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, mod, ctx);
+  if (holds != 0)
+    return 1;
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod && fi >= 0) {
+    if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0)
+      return 1;
+    if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0)
+      return 1;
+    if (w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, stack_off) != 0)
+      return 1;
+    if (arena && var_expr_ref > 0) {
+      ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+      if (ko == 3) {
+        vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+        if (vlen > 0 && vlen <= 63) {
+          pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+          pty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+          if (pty > 0) {
+            tk = pipeline_type_kind_ord_at(arena, pty);
+            if (tk == 11)
+              return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t var_off,
+                                             void *ctx, int32_t ta) {
+  int32_t needs;
+  if (!elf_ctx)
+    return -1;
+  needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, var_ref, var_off, ctx);
+  if (needs != 0)
+    return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, var_off, ta);
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_enc_local unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
