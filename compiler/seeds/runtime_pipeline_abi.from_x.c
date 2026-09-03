@@ -33933,6 +33933,306 @@ int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *o
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE run_x wrapper unique */
 
+/* WIN leftover-PE rest glue_asm_resolve_call_target_module_c unique
+ * (leftover rest rec U; SAT / leftover standalone only local t).
+ * Remaining wave199 stub stays for !FROM_X (`return -1`).
+ * A !FROM_X || WIN OR here would dual-def that nested stub.
+ * POSIX FROM_X stays ABSENT (.x thin owns @73651).
+ * Seed stub harvest is fake-green (glue_call_return lesson) — port the
+ * .x true body (resolved_func_index fast path; typeck resolve_for_emit;
+ * import BINDING METHOD_CALL / FIELD_ACCESS; linear dep scan SELECT).
+ * leftover rest C encoding of the .x LP64 Module** cell is void**
+ * (same ABI as leftover rest rec glue_call_return / seed stub).
+ * leftover rest has no pipe_load/store_ptr_slot — write *mod_out = mod.
+ * Do not leftover rest T pipe_store_ptr_slot (SAT ABSENT would unique-swap).
+ * leftover rest U SAT T callees OK: emit_module_ref / emit_dep_pipe /
+ * dep_ctx_module_at / dep_ctx_ndep / import_* /
+ * typeck_resolve_call_func_index_for_emit_c /
+ * typeck_find_func_return_type_in_module(_by_name)_c.
+ * leftover rest U parser_get_module_num_imports OK (SAT U, parser_x.o T).
+ * leftover rest T WAVE278 expr getters later in this TU (need proto here).
+ * Skip leftover rest rec @31691 void** prototype — do not redeclare.
+ * Skip leftover rest WIN @11320 emit_module_ref / leftover rest rec
+ * @28174 emit_module_ref / leftover rest rec @29081 emit_dep_pipe /
+ * leftover rest rec @29082 dep_ctx_module_at.
+ * Skip pipeline_dep_ctx_ndep always-compiled struct* @2724 (do not
+ * re-extern a void*). Skip parser_get_module_num_imports always @2502.
+ * Skip leftover rest rec @28089 expr_kind / @28099 var_name.
+ * Skip remaining-wave field_access / return_impl / emit_binop
+ * (SAT-t helpers unique-swap; return_impl struct*).
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin; WIN leftover
+ * rest compiles the unique. LINUX gold / MACOS co-path still
+ * POSIX FROM_X thin.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Already prototyped leftover rest WIN:
+ * rec @31691 glue_asm_resolve void**, leftover rest WIN @11320
+ * emit_module_ref / func_index, leftover rest rec @28174
+ * emit_module_ref, leftover rest rec @29081 emit_dep_pipe,
+ * leftover rest rec @29082 dep_ctx_module_at, leftover rest rec
+ * @28089 expr_kind, leftover rest rec @28099 var_name,
+ * always @2502 parser_get_module_num_imports,
+ * always-compiled struct* ndep @2724.
+ * Do not redeclare those. */
+extern int32_t pipeline_expr_call_resolved_func_index_at(void *a, int32_t er);
+extern int32_t pipeline_expr_call_resolved_dep_index_at(void *a, int32_t er);
+extern int32_t pipeline_expr_call_callee_ref_at(void *a, int32_t er);
+extern int32_t pipeline_expr_method_call_base_ref_at(void *a, int32_t er);
+extern int32_t pipeline_expr_method_call_name_len(void *a, int32_t er);
+extern void pipeline_expr_method_call_name_into(void *a, int32_t er, uint8_t *out64);
+extern int32_t pipeline_expr_field_access_base_ref(void *a, int32_t er);
+extern int32_t pipeline_expr_field_access_name_len(void *a, int32_t er);
+extern void pipeline_expr_field_access_name_into(void *a, int32_t er, uint8_t *out64);
+extern int32_t pipeline_module_import_kind_at(void *m, int32_t idx);
+extern int32_t pipeline_module_import_binding_name_len(void *m, int32_t idx);
+extern uint8_t pipeline_module_import_binding_name_byte_at(void *m, int32_t idx, int32_t off);
+extern int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(void *m, void *a,
+                                                                int32_t call_expr_ref);
+extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(void *mod, void *caller_arena,
+                                                                       uint8_t *name, int32_t name_len,
+                                                                       int32_t from_dep_index, void *ctx,
+                                                                       int32_t *func_index_out);
+extern int32_t pipeline_typeck_find_func_return_type_in_module_c(void *mod, void *mod_arena,
+                                                               void *caller_arena, void *callee_arena,
+                                                               int32_t callee_expr_ref,
+                                                               int32_t from_dep_index, void *ctx,
+                                                               int32_t *func_index_out);
+
+/**
+ * Resolve a CALL / METHOD_CALL expression to (module, func_index, dep_ix).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave199 @73651.
+ * Seed stub `return -1` is not compiled on leftover rest.
+ * C encoding of the .x LP64 Module** cell is void** (same ABI as leftover
+ * rest rec glue_call_return); leftover rest has no pipe_load/store_ptr_slot.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED CALL resolve.
+ */
+int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
+                                             void **mod_out, int32_t *func_ix_out,
+                                             int32_t *dep_ix_out) {
+  void *mod;
+  int32_t func_ix;
+  int32_t dep_ix;
+  int32_t callee_ref;
+  int32_t i;
+  int32_t imax;
+  int32_t call_ord;
+  int32_t callee_ord;
+  int32_t base_ref;
+  uint8_t base_name[128];
+  int32_t base_len;
+  uint8_t field_name[128];
+  int32_t field_len;
+  int32_t j;
+  void *dm;
+  int32_t fx_slot;
+  int32_t bl;
+  int32_t eq;
+  int32_t bi;
+  int32_t n_imp;
+  int32_t ndep;
+  void *dep_pipe;
+  int32_t rty;
+  uint8_t cv_nm[128];
+  int32_t cv_len;
+  int32_t import_binding;
+  int32_t import_select;
+  int32_t kind_var;
+  int32_t kind_field;
+  int32_t kind_method;
+  int32_t base_ko;
+  int32_t base_ko2;
+  /* Import kind constants (glue residual GLUE_TYPECK_IMPORT_*). */
+  import_binding = 1;
+  import_select = 2;
+  /* Expr kind ords: VAR=3, FIELD_ACCESS=44, METHOD_CALL=49 (ast_ExprKind). */
+  kind_var = 3;
+  kind_field = 44;
+  kind_method = 49;
+  if (!arena || call_expr_ref <= 0 || !mod_out || !func_ix_out)
+    return -1;
+  *mod_out = 0;
+  *func_ix_out = -1;
+  if (dep_ix_out)
+    *dep_ix_out = -1;
+  mod = pipeline_asm_emit_module_ref_c();
+  if (!mod)
+    return -1;
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  /* Fast path: typeck pre-resolved func (+ optional dep module). */
+  func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+  if (func_ix >= 0) {
+    if (dep_ix >= 0 && dep_pipe) {
+      dm = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
+      if (dm)
+        mod = dm;
+    }
+    *mod_out = mod;
+    *func_ix_out = func_ix;
+    if (dep_ix_out)
+      *dep_ix_out = dep_ix;
+    return 0;
+  }
+  /* Same-module resolve / overload pick (public emit wrapper). */
+  func_ix = pipeline_typeck_resolve_call_func_index_for_emit_c(mod, arena, call_expr_ref);
+  if (func_ix >= 0) {
+    *mod_out = mod;
+    *func_ix_out = func_ix;
+    if (dep_ix_out)
+      *dep_ix_out = -1;
+    return 0;
+  }
+  if (!dep_pipe)
+    return -1;
+  call_ord = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+  /* import binding METHOD_CALL: `const math = import("std.math"); math.floor(x)`. */
+  if (call_ord == kind_method) {
+    base_ref = pipeline_expr_method_call_base_ref_at(arena, call_expr_ref);
+    field_len = pipeline_expr_method_call_name_len(arena, call_expr_ref);
+    if (base_ref > 0 && field_len > 0 && field_len <= 63) {
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      if (base_ko == kind_var) {
+        base_len = pipeline_expr_var_name_len(arena, base_ref);
+        if (base_len > 0 && base_len <= 63) {
+          pipeline_expr_var_name_into(arena, base_ref, base_name);
+          pipeline_expr_method_call_name_into(arena, call_expr_ref, field_name);
+          n_imp = parser_get_module_num_imports(mod);
+          j = 0;
+          while (j < n_imp) {
+            if (pipeline_module_import_kind_at(mod, j) == import_binding) {
+              bl = pipeline_module_import_binding_name_len(mod, j);
+              if (bl == base_len) {
+                eq = 1;
+                bi = 0;
+                while (bi < bl) {
+                  if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
+                    eq = 0;
+                    break;
+                  }
+                  bi = bi + 1;
+                }
+                if (eq != 0) {
+                  dm = pipeline_dep_ctx_module_at(dep_pipe, j);
+                  if (dm) {
+                    fx_slot = 0;
+                    rty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                        dm, arena, field_name, field_len, j, dep_pipe, &fx_slot);
+                    if (rty != 0) {
+                      *mod_out = dm;
+                      *func_ix_out = fx_slot;
+                      if (dep_ix_out)
+                        *dep_ix_out = j;
+                      return 0;
+                    }
+                  }
+                }
+              }
+            }
+            j = j + 1;
+          }
+        }
+      }
+    }
+    /* METHOD_CALL has no CALL callee_ref; do not fall through to FIELD_ACCESS/VAR. */
+    return -1;
+  }
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
+  if (callee_ref <= 0)
+    return -1;
+  callee_ord = pipeline_expr_kind_ord_at(arena, callee_ref);
+  /* import binding FIELD_ACCESS: CALL form `math.floor(x)` as CALL+FIELD_ACCESS. */
+  if (callee_ord == kind_field) {
+    base_ref = pipeline_expr_field_access_base_ref(arena, callee_ref);
+    field_len = pipeline_expr_field_access_name_len(arena, callee_ref);
+    if (base_ref > 0 && field_len > 0 && field_len <= 63) {
+      base_ko2 = pipeline_expr_kind_ord_at(arena, base_ref);
+      if (base_ko2 == kind_var) {
+        base_len = pipeline_expr_var_name_len(arena, base_ref);
+        if (base_len > 0 && base_len <= 63) {
+          pipeline_expr_var_name_into(arena, base_ref, base_name);
+          pipeline_expr_field_access_name_into(arena, callee_ref, field_name);
+          n_imp = parser_get_module_num_imports(mod);
+          j = 0;
+          while (j < n_imp) {
+            if (pipeline_module_import_kind_at(mod, j) == import_binding) {
+              bl = pipeline_module_import_binding_name_len(mod, j);
+              if (bl == base_len) {
+                eq = 1;
+                bi = 0;
+                while (bi < bl) {
+                  if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
+                    eq = 0;
+                    break;
+                  }
+                  bi = bi + 1;
+                }
+                if (eq != 0) {
+                  dm = pipeline_dep_ctx_module_at(dep_pipe, j);
+                  if (dm) {
+                    fx_slot = 0;
+                    rty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                        dm, arena, field_name, field_len, j, dep_pipe, &fx_slot);
+                    if (rty != 0) {
+                      *mod_out = dm;
+                      *func_ix_out = fx_slot;
+                      if (dep_ix_out)
+                        *dep_ix_out = j;
+                      return 0;
+                    }
+                  }
+                }
+              }
+            }
+            j = j + 1;
+          }
+        }
+      }
+    }
+  }
+  /* Linear dep scan: match callee VAR name in each dep module; SELECT by name. */
+  n_imp = parser_get_module_num_imports(mod);
+  ndep = pipeline_dep_ctx_ndep(dep_pipe);
+  imax = n_imp;
+  if (ndep > imax)
+    imax = ndep;
+  i = 0;
+  while (i < imax) {
+    dm = pipeline_dep_ctx_module_at(dep_pipe, i);
+    if (dm) {
+      fx_slot = 0;
+      rty = pipeline_typeck_find_func_return_type_in_module_c(
+          dm, arena, arena, arena, callee_ref, i, dep_pipe, &fx_slot);
+      if (rty != 0) {
+        *mod_out = dm;
+        *func_ix_out = fx_slot;
+        if (dep_ix_out)
+          *dep_ix_out = i;
+        return 0;
+      }
+      if (i < n_imp && pipeline_module_import_kind_at(mod, i) == import_select && callee_ord == kind_var) {
+        cv_len = pipeline_expr_var_name_len(arena, callee_ref);
+        if (cv_len > 0 && cv_len <= 63) {
+          pipeline_expr_var_name_into(arena, callee_ref, cv_nm);
+          fx_slot = 0;
+          rty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+              dm, arena, cv_nm, cv_len, i, dep_pipe, &fx_slot);
+          if (rty != 0) {
+            *mod_out = dm;
+            *func_ix_out = fx_slot;
+            if (dep_ix_out)
+              *dep_ix_out = i;
+            return 0;
+          }
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_asm_resolve unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE sret */
 
