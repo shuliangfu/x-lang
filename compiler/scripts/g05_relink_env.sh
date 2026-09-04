@@ -117,7 +117,13 @@ case "$UNAME_S" in
   esac
   # wave309: empty pipeline mega on Windows product path too.
   _PIPELINE_LINK_O=""
-  _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
+  # PLATFORM: WINDOWS | MSYS | MINGW — PE XLANG_WEAK is empty (strong stubs) and
+  # --allow-multiple-definition is FIRST-wins (see include/xlang_weak.h + _GLUE_SUFFIX).
+  # Real arch_*_enc_* bodies (backend_x86_64_enc_c.o) MUST precede asm_full_link_stubs.o
+  # and asm_backend_compat_stubs.o; otherwise stub arch_x86_64_enc_enc_label (mov $-1;ret)
+  # wins → mega_body_c enc_label fail → CG002 code_len=0 on every user -backend asm.
+  # Linux ELF keeps stubs-first (weak override). Darwin uses filtered objs + weak.
+  _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/user_asm_seed_bridge.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_full_link_stubs.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   *)
   echo "g05_relink_env: unsupported host $UNAME_S/$UNAME_M (use ./xbuild bootstrap-driver-seed cold path)" >&2

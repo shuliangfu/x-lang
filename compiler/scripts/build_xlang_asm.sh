@@ -4260,9 +4260,15 @@ refresh_bstrict_link_variants() {
   if [ -n "$BSTRICT_BACKEND_ARM64_ENC_LINK" ]; then
   BSTRICT_DISPATCH_COMPANIONS=$(echo "$BSTRICT_DISPATCH_OBJS" | sed "s|[[:space:]]*${BSTRICT_BACKEND_ARM64_ENC_LINK}||g")
   fi
-  # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
+  # Keep full_link_stubs next to partial on ELF/Darwin (weak stubs; order free).
   # user_asm + arm64 enc live in BSTRICT_USER_ASM_EARLY_LINK on asm_only_strict lines.
+  # PLATFORM: WINDOWS | PE — real enc/dispatch BEFORE strong full_link/compat stubs
+  # (FIRST-wins; twin g05_relink_env WINDOWS). Stubs-first → enc_label -1 → CG002.
+  if build_xlang_asm_is_msys 2>/dev/null; then
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_DISPATCH_OBJS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BUILD_DIR/seed_host/asm_full_link_stubs.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  else
   GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  fi
   # wave309/wave304: glue seed shells retired; pure runtime_pipeline_abi.o (already in
   # LD argv) is G.7 authority. Drop BSTRICT_EXPERIMENTAL_GLUE_OBJ path when .o physically
   # absent so LD argv does not reference non-existent file (ld.bfd "cannot find").
@@ -4274,8 +4280,13 @@ refresh_bstrict_link_variants() {
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
 # PLATFORM: SHARED — include asm_full_link_stubs after partial (g05 USER_ASM_LINK /
 #   Makefile USER_ASM_SEED_HOST_STUBS). PE hybrid needs strong platform_coff_* when
-#   partial is thin/stale; ELF uses them as U-fill too. Order: partial then stubs.
+#   partial is thin/stale; ELF uses them as U-fill too.
+# PLATFORM: WINDOWS | PE — real enc/dispatch BEFORE stubs (FIRST-wins; see refresh above).
+#   Default (ELF/Darwin) keeps partial then stubs (weak override).
 GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+if build_xlang_asm_is_msys 2>/dev/null; then
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_DISPATCH_OBJS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BUILD_DIR/seed_host/asm_full_link_stubs.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+fi
 
 # gen_driver fallback: pipeline_x.o / runtime_driver need parser/lexer/codegen X + driver
 # subcmds + orchestration (Darwin: not seed parser.o alone).
