@@ -37498,7 +37498,18 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
   if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
     return -1;
 
-  load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+  /* TYPE_FN=18 / TYPE_PTR=9: pointer-sized. SAT load_byte_sz scans every
+   * layout for field name `f` and can steal i32 width (cltq + call *trunc).
+   * leftover rest WAVE278 resolved_type + WAVE270 kind, same .o.
+   * PLATFORM: WINDOWS leftover-PE / SHARED Cap ABI. */
+  {
+    int32_t rtr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+    if (rko == 9 || rko == 18)
+      load_sz = 8;
+    else
+      load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+  }
   if (load_sz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
   if (load_sz == 8)
@@ -37719,7 +37730,14 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
             return -1;
         }
       }
-      load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+      {
+        int32_t rtr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+        if (rko == 9 || rko == 18)
+          load_sz = 8;
+        else
+          load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+      }
       if (load_sz == 1)
         return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
       if (load_sz == 8)
@@ -37785,7 +37803,14 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
     int32_t load_sz;
     if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
       return -99;
-    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    {
+      int32_t rtr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+      if (rko == 9 || rko == 18)
+        load_sz = 8;
+      else
+        load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    }
     if (load_sz == 1)
       return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
     if (load_sz == 8)
