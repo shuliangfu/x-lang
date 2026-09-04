@@ -127,6 +127,7 @@
   - ✅ ARRAY_LIT TYPE_SLICE 作参 `take([foo])`＠`3b28e38ab`
   - ✅ VAR TYPE_SLICE packing lea fat\*＠`f736b04a4`
   - ✅ TYPE_SLICE TYPE_FN let-init COMMON BSS＠`966d3c4c7`
+  - ✅ INDEX TYPE_SLICE 形参 bounds fat\*+8＠`2fbf82dff`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
