@@ -40633,6 +40633,13 @@ export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
     }
     return fin;
   }
+  /*
+   * Fallback when stmt_order is empty: walk expr_stmts for EXPR_RETURN.
+   * Do not return 0 on RETURN — that assumed emit_block already ran via
+   * stmt_order>0; empty stmt_order (e.g. Windows PE multi-def) then emitted
+   * nothing. Mirror final_expr: return the operand for mega emit_expr.
+   * PLATFORM: SHARED.
+   */
   unsafe {
     nstmt = ast_ast_block_num_expr_stmts(a, body_ref);
   }
@@ -40646,7 +40653,13 @@ export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
         ko = pipeline_expr_kind_ord_at(a, ers);
       }
       if (ko == 41) {
-        return 0;
+        unsafe {
+          op = pipeline_expr_unary_operand_ref_at(a, ers);
+        }
+        if (op != 0) {
+          return op;
+        }
+        return ers;
       }
     }
     ei = ei - 1;
@@ -56482,16 +56495,25 @@ export function pipeline_asm_block_final_expr_ref_at(arena: *u8, block_ref: i32)
 
 
 /**
- * backend.x: read Block.num_stmt_order.
+ * backend.x: read Block.num_stmt_order @0x54 via arena block pointer.
  * wave153 pure: G.7 authority (was pipeline_asm_emit_block_body.c).
+ * Avoid ast_ast_block_num_stmt_order (PE multi-def / block_get twin).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_asm_block_num_stmt_order_at(arena: *u8, block_ref: i32): i32 {
+  let b: *u8 = 0 as *u8;
   let n: i32 = 0;
-  unsafe {
-    n = ast_ast_block_num_stmt_order(arena, block_ref);
+  if (arena == (0 as *u8) || block_ref <= 0) {
+    return 0;
   }
+  unsafe {
+    b = pipeline_arena_block_ptr(arena, block_ref);
+  }
+  if (b == (0 as *u8)) {
+    return 0;
+  }
+  n = pipe_load_i32_le(b, 84);
   return n;
 }
 

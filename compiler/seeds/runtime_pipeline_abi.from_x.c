@@ -19490,14 +19490,26 @@ int32_t pipeline_backend_get_return_expr_ref(struct ast_ASTArena *a, struct ast_
       return op;
     return fin;
   }
+  /*
+   * Fallback when stmt_order is empty: walk expr_stmts for EXPR_RETURN.
+   * Historical `return 0` on RETURN assumed emit_block (stmt_order>0) already
+   * emitted the return — but PE multi-def / empty stmt_order left both paths
+   * silent (prologue+epilogue only, no mov imm). Mirror final_expr: return the
+   * operand so mega's get_return → emit_expr path loads rax/w0.
+   * PLATFORM: SHARED (Windows leftover empty-.text was the discoverer).
+   */
   nstmt = ast_ast_block_num_expr_stmts(a, body_ref);
   ei = nstmt - 1;
   while (ei >= 0) {
     ers = ast_pipeline_block_expr_stmt_ref(a, body_ref, ei);
     if (ers != 0 && ers > 0 && ers <= nexprs) {
       ko = pipeline_expr_kind_ord_at(a, ers);
-      if (ko == W144_EXPR_RETURN)
-        return 0;
+      if (ko == W144_EXPR_RETURN) {
+        op = pipeline_expr_unary_operand_ref_at(a, ers);
+        if (op != 0)
+          return op;
+        return ers;
+      }
     }
     ei--;
   }
@@ -28881,8 +28893,23 @@ int32_t pipeline_asm_block_final_expr_ref_at(void *a, int32_t br) {
   return ast_ast_block_final_expr_ref(a, br);
 }
 
+extern void *pipeline_arena_block_ptr(void *a, int32_t br);
+
+/**
+ * Block stmt_order count for mega emit_block gate.
+ * PLATFORM: WINDOWS PE — do not call ast_ast_block_num_stmt_order (duplicate
+ * block_get-by-value twin + strict_glue stub collide under first-wins). Read
+ * W277_Block.num_stmt_order @0x54 via arena block pointer (G.7 with w277 path).
+ * PLATFORM: SHARED pointer layout (same offset on POSIX).
+ */
 int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
-  return ast_ast_block_num_stmt_order(a, br);
+  void *b;
+  if (!a || br <= 0)
+    return 0;
+  b = pipeline_arena_block_ptr(a, br);
+  if (!b)
+    return 0;
+  return *(int32_t *)((uint8_t *)b + 0x54);
 }
 
 int32_t pipeline_asm_block_stmt_order_has_return(void *a, int32_t br) {
@@ -37147,6 +37174,202 @@ int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t ex
   for (ti = 0; ti < tj_len && ti < 128; ti++)
     tj_lbl[ti] = ly[1392 /* W144_LY_TAIL_JOIN_LBL */ + ti];
   return backend_enc_jmp_arch(elf_ctx, tj_lbl, tj_len, ta);
+}
+
+/**
+ * Windows leftover-PE: get_return expr_stmts fallback must return RETURN operand.
+ * Seed #ifndef FROM_X twin is excluded from FROM_X rest; standalone/.x amalgam
+ * still has historical `return 0` on EXPR_RETURN which yields empty .text when
+ * stmt_order is 0. Rest links before thin → same-TU mega binds here.
+ * Reads W277_Block fields via arena pointer (avoid ast_ast_block_* PE stubs).
+ * PLATFORM: WINDOWS leftover-PE hybrid.
+ */
+extern int32_t pipeline_block_num_labeled_stmts(void *a, int32_t body_ref);
+extern int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t body_ref, int32_t j);
+extern int32_t pipeline_block_expr_stmt_ref(void *a, int32_t body_ref, int32_t ei);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *a, int32_t expr_ref);
+extern void *pipeline_arena_block_ptr(void *a, int32_t br);
+extern int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t func_index);
+
+static int32_t win_blk_i32(const void *b, int32_t off) {
+  const uint8_t *p = (const uint8_t *)b + off;
+  return (int32_t)((uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
+                   ((uint32_t)p[3] << 24));
+}
+
+int32_t pipeline_backend_get_return_expr_ref(void *a, void *f) {
+  int32_t body_ref;
+  int32_t nblocks;
+  int32_t nexprs;
+  int32_t j;
+  int32_t nlab;
+  int32_t ret_ref;
+  int32_t fin;
+  int32_t ei;
+  int32_t nstmt;
+  int32_t ers;
+  int32_t ko;
+  int32_t op;
+  uint8_t *ab;
+  uint8_t *fb;
+  void *blk;
+  if (!a || !f)
+    return 0;
+  ab = (uint8_t *)a;
+  fb = (uint8_t *)f;
+  /* Func.body_ref @148; Arena.num_exprs @4; Arena.num_blocks @8 (W144/W277). */
+  body_ref = win_blk_i32(fb, 148);
+  nexprs = win_blk_i32(ab, 4);
+  nblocks = win_blk_i32(ab, 8);
+  if (body_ref <= 0 || body_ref > nblocks)
+    return 0;
+  blk = pipeline_arena_block_ptr(a, body_ref);
+  if (!blk)
+    return 0;
+  nlab = pipeline_block_num_labeled_stmts(a, body_ref);
+  for (j = 0; j < nlab; j++) {
+    ret_ref = pipeline_block_labeled_return_expr_ref(a, body_ref, j);
+    if (ret_ref != 0)
+      return ret_ref;
+  }
+  fin = win_blk_i32(blk, 0x4c); /* final_expr_ref */
+  if (fin != 0) {
+    if (fin <= 0 || fin > nexprs)
+      return fin;
+    ko = pipeline_expr_kind_ord_at(a, fin);
+    op = pipeline_expr_unary_operand_ref_at(a, fin);
+    /* Bare `return;` (EXPR_RETURN, op=0): do not hand RETURN node to emit_expr
+     * (PE emits a broken self-jmp). Return 0 so mega void-main mov-imm-0 runs.
+     * PLATFORM: WINDOWS leftover-PE hybrid. */
+    if (ko == 41) {
+      if (op != 0)
+        return op;
+      return 0;
+    }
+    return fin;
+  }
+  nstmt = win_blk_i32(blk, 0x48); /* num_expr_stmts */
+  for (ei = nstmt - 1; ei >= 0; ei--) {
+    ers = pipeline_block_expr_stmt_ref(a, body_ref, ei);
+    if (ers != 0 && ers > 0 && ers <= nexprs) {
+      ko = pipeline_expr_kind_ord_at(a, ers);
+      if (ko == 41) {
+        op = pipeline_expr_unary_operand_ref_at(a, ers);
+        if (op != 0)
+          return op;
+        /* Bare return in expr_stmts — same as final_expr bare. */
+        return 0;
+      }
+    }
+  }
+  return 0;
+}
+
+int32_t pipeline_backend_get_return_expr_ref_at(void *a, void *m, int32_t func_index) {
+  uint8_t fake_func[160];
+  int32_t body_ref;
+  int32_t bi;
+  if (!a || !m || func_index < 0)
+    return 0;
+  body_ref = pipeline_asm_module_func_body_ref_at(m, func_index);
+  if (body_ref <= 0)
+    return 0;
+  /* Only body_ref@148 is read by get_return_expr_ref; avoid W280_Func* clash. */
+  for (bi = 0; bi < 160; bi++)
+    fake_func[bi] = 0;
+  fake_func[148] = (uint8_t)(body_ref & 0xff);
+  fake_func[149] = (uint8_t)((body_ref >> 8) & 0xff);
+  fake_func[150] = (uint8_t)((body_ref >> 16) & 0xff);
+  fake_func[151] = (uint8_t)((body_ref >> 24) & 0xff);
+  return pipeline_backend_get_return_expr_ref(a, fake_func);
+}
+
+int32_t pipeline_asm_get_return_expr_ref_at(void *a, void *m, int32_t func_index) {
+  return pipeline_backend_get_return_expr_ref_at(a, m, func_index);
+}
+
+/**
+ * Windows leftover-PE: stmt_order count via block pointer (avoid multi-def twin).
+ * Thin mega cannot be edited; when body has no if/let/loop/for, report nso=0 so
+ * mega takes get_return (redirected) instead of archaeology emit_block that emits
+ * nothing for simple `return imm` while still seeing spurious nso>0.
+ * Control / local bodies keep the real count so emit_block still runs.
+ *
+ * Also run sparse-if rebuild here: leftover-PE product -c path may skip
+ * prepare_entry fixup, leaving ifs in Block.num_if_stmts but absent from
+ * stmt_order (emit then only sees fallthrough return → RUN=9 for ifelse).
+ * Offsets (W277_Block): num_lets@0x0c, num_loops@0x18, num_for_loops@0x20,
+ * num_if_stmts@0x28, num_stmt_order@0x54.
+ * PLATFORM: WINDOWS leftover-PE hybrid.
+ */
+void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br);
+
+int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
+  void *b;
+  int32_t nso;
+  int32_t nif;
+  int32_t nlet;
+  int32_t nloop;
+  int32_t nfor;
+  if (!a || br <= 0)
+    return 0;
+  /* Rebuild before reading counts — idempotent when ifs already in order. */
+  pipeline_block_stmt_order_rebuild_sparse_ifs(a, br);
+  b = pipeline_arena_block_ptr(a, br);
+  if (!b)
+    return 0;
+  nso = win_blk_i32(b, 0x54);
+  nif = win_blk_i32(b, 0x28);
+  nlet = win_blk_i32(b, 0x0c);
+  nloop = win_blk_i32(b, 0x18);
+  nfor = win_blk_i32(b, 0x20);
+  if (nif == 0 && nlet == 0 && nloop == 0 && nfor == 0)
+    return 0;
+  return nso;
+}
+
+/**
+ * Windows leftover-PE: final_expr emit must unwrap EXPR_RETURN to its operand.
+ * Thin archaeology passes the RETURN node to emit_expr → CG002 (let+return) or
+ * a broken self-jmp (bare `return;`). Rest first-wins + emit-site redirect.
+ * Keep this face freestanding: only call helpers already resolved in the hybrid.
+ * PLATFORM: WINDOWS leftover-PE hybrid.
+ */
+extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                               int32_t ta);
+
+int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
+  void *blk;
+  int32_t fref;
+  int32_t ko;
+  int32_t op;
+  int32_t nso;
+  int32_t si;
+  if (!arena || !elf_ctx || !ctx || block_ref <= 0)
+    return 0;
+  blk = pipeline_arena_block_ptr(arena, block_ref);
+  if (!blk)
+    return 0;
+  fref = win_blk_i32(blk, 0x4c); /* final_expr_ref */
+  if (fref == 0)
+    return 0;
+  /* If stmt_order already has an expr-stmt return, final_expr is redundant. */
+  nso = win_blk_i32(blk, 0x54);
+  for (si = 0; si < nso; si++) {
+    if (pipeline_block_stmt_order_kind(arena, block_ref, si) == 2)
+      return 0;
+  }
+  ko = pipeline_expr_kind_ord_at(arena, fref);
+  if (ko == 41) {
+    op = pipeline_expr_unary_operand_ref_at(arena, fref);
+    if (op == 0)
+      return 0; /* bare return — mega void-main path */
+    fref = op;
+  }
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, fref, ctx, ta) != 0)
+    return -1;
+  return 0;
 }
 
 /**
@@ -49732,7 +49955,8 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
  * Stage12.0.5: do NOT rebuild as consts+ALL lets+ALL ifs — that hoisted mid-block
  * lets (e.g. after append ifs) to the front and broke pass1-deferred CALL order.
  * Preserve original non-if order; emit full if set once at the first if slot
- * (or append if no if slot). Drop kind=2 only.
+ * (or PREPEND if no if slot — append put if after fallthrough return).
+ * Drop kind=2 only when if_in_order>0 (cond fragments); keep fallthrough returns.
  * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
 void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
@@ -49747,21 +49971,36 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   int32_t if_in_order;
   int32_t emitted_ifs;
   int32_t abs;
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: rebuild_sparse_ifs ENTER br=%d\n", (int)br);
   if (!a || br <= 0)
     return;
   b = w277_block_at(a, br);
   sc = arena_sidecar_get(a, 1);
-  if (!b || !sc || b->num_if_stmts <= 0)
+  if (!b || !sc || b->num_if_stmts <= 0) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr,
+              "xlang: rebuild_sparse_ifs early br=%d b=%p sc=%p nif=%d\n",
+              (int)br, (void *)b, (void *)sc, b ? (int)b->num_if_stmts : -1);
     return;
+  }
   nso = b->num_stmt_order;
   nif = b->num_if_stmts;
   if (nso > 512)
     return;
   if_in_order = 0;
   for (i = 0; i < nso; i++) {
-    if (pipeline_block_stmt_order_kind(a, br, i) == 5)
+    uint8_t k0 = pipeline_block_stmt_order_kind(a, br, i);
+    if (k0 == 5)
       if_in_order++;
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: rebuild_sparse_ifs so[%d]=kind=%u idx=%d\n", (int)i, (unsigned)k0,
+              (int)pipeline_block_stmt_order_idx(a, br, i));
   }
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr,
+            "xlang: rebuild_sparse_ifs br=%d nso=%d nif=%d if_in_order=%d\n",
+            (int)br, (int)nso, (int)nif, (int)if_in_order);
   if (if_in_order >= nif)
     return;
   nn = 0;
@@ -49769,8 +50008,16 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   for (i = 0; i < nso; i++) {
     uint8_t k = pipeline_block_stmt_order_kind(a, br, i);
     int32_t idx = pipeline_block_stmt_order_idx(a, br, i);
-    if (k == 2)
-      continue; /* drop mis-parsed cond fragment expr */
+    /*
+     * Drop kind=2 only when stmt_order already lists some ifs (kind=5): those
+     * kind=2 rows are mis-parsed cond fragments beside partial if entries.
+     * When if_in_order==0, kind=2 is often a real fallthrough `return` /
+     * expr_stmt — dropping it left only prepended/appended ifs and lost the
+     * trailing return (Windows leftover-PE ifelse → wrong exit / empty body).
+     * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
+     */
+    if (k == 2 && if_in_order > 0)
+      continue;
     if (k == 5) {
       if (emitted_ifs == 0) {
         for (j = 0; j < nif; j++) {
@@ -49791,11 +50038,32 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
     nn++;
   }
   if (emitted_ifs == 0) {
+    /*
+     * No if slot in the preserved order: put full if set FIRST, then the
+     * preserved non-if stmts (e.g. fallthrough return). Appending ifs after
+     * a leading return made emit_block run `return` before `if`.
+     * PLATFORM: SHARED.
+     */
+    W277_StmtOrderItem saved[512];
+    int32_t sn;
+    int32_t si;
+    sn = nn;
+    if (sn > 512)
+      return;
+    for (si = 0; si < sn; si++)
+      saved[si] = neu[si];
+    nn = 0;
     for (j = 0; j < nif; j++) {
       if (nn >= 512)
         return;
       neu[nn].kind = 5;
       neu[nn].idx = j;
+      nn++;
+    }
+    for (si = 0; si < sn; si++) {
+      if (nn >= 512)
+        return;
+      neu[nn] = saved[si];
       nn++;
     }
   }
