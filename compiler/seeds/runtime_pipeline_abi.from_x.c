@@ -34193,7 +34193,13 @@ static int32_t w189_stack_off_is_emit_param_ptr_slot(void *arena, void *mod, int
       if (pty <= 0)
         return 0;
       tk = pipeline_type_kind_ord_at(arena, pty);
-      if (tk == 9)
+      /* TYPE_PTR=9 / TYPE_ARRAY=10: leftover-PE packs both as E* (8B
+       * pointer home). Local ARRAY lets sit at higher next_offset and
+       * must stay lea (arr0). Name-based glue_emit_func_param_is_indirect
+       * _array_slot false-positived locals → SAT emit_index loaded the
+       * payload as a pointer (arr0/fnarr0 SEGV 139). PLATFORM: WINDOWS
+       * leftover-PE / SHARED E* ARRAY formal. */
+      if (tk == 9 || tk == 10)
         return 1;
       return 0;
     }
@@ -34273,6 +34279,7 @@ int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx
                                                      void *ctx, int32_t ta) {
   int32_t ko;
   int32_t boff;
+  int32_t fi;
   void *mod;
   if (!arena || !elf_ctx || !ctx || base_ref <= 0)
     return -2;
@@ -34283,7 +34290,12 @@ int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx
   if (boff < 0)
     return -2;
   mod = glue_emit_module_from_ctx(ctx);
-  if (!mod || glue_emit_func_param_is_indirect_array_slot_c(arena, mod, base_ref) == 0)
+  fi = pipeline_asm_emit_func_index_c();
+  /* Offset-based E* param home (w189), not name lookup: leftover rest
+   * glue_emit_func_param_is_indirect_array_slot false-positived local
+   * ARRAY lets (arr0/fnarr0 SEGV). Local arrays stay −2 → SAT emit_expr
+   * lea. PLATFORM: WINDOWS leftover-PE. */
+  if (!mod || fi < 0 || w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, boff) == 0)
     return -2;
   return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
 }
