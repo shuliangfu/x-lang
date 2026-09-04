@@ -33785,9 +33785,11 @@ void glue_asm73_cfg_interf_prepare(void) {
  * stamps ARRAY_LIT). TYPE_SLICE ARRAY_LIT: rec dest then wrap
  * {data,n_arr} fat* (formals are 1 GP). TYPE_SLICE VAR: leftover rest
  * glue_enc_local_slot_ptr_or_addr (local lea fat home / formal load
- * E*). Do not leftover rest remaining-wave 221 pty for
- * TYPE_ARRAY-as-SLICE wrap. POSIX FROM_X stays ABSENT
- * (.x thin owns @79135).
+ * E*). TYPE_SLICE DEREF `take(*p)`: leftover rest emit_deref now
+ * dual-GP (rax=data, rdx=length); wrap store rax+rdx then lea fat*
+ * (POSIX CALL TYPE_SLICE @79744 same wrap). Do not leftover rest
+ * remaining-wave 221 pty for TYPE_ARRAY-as-SLICE wrap. POSIX FROM_X
+ * stays ABSENT (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -33815,6 +33817,7 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int3
 extern void glue_align_next_offset(void *ctx);
 extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref,
                                                      int32_t var_off, void *ctx, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
@@ -33934,6 +33937,42 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
     if (nbytes > 0 && nbytes <= 8)
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     return 0;
+  }
+  /* DEREF=52 TYPE_SLICE: leftover rest emit_deref now dual-GP
+   * (rax=data, rdx=length). TYPE_SLICE formals are 1 GP fat* —
+   * VAR packing lea/load via enc_local; ARRAY_LIT wrap {data,n}.
+   * DEREF is neither: rec left rax=data as fat* then callee
+   * extra-deref (`slice_ptr_arg` SEGV 139). G.7 complete leftover
+   * rest for_call_args: rec then store rax+rdx to 16B home, lea
+   * fat* (POSIX CALL TYPE_SLICE @79744 same wrap; do not copy
+   * .x packer / remaining-wave 221 pty). Kind from leftover rest
+   * WAVE278 resolved_type_ref. TYPE_ARRAY DEREF stay rec leave-ptr.
+   * Length polarity = leftover rest WIN leftover
+   * win_glue_slice_dual_gp_length_off (x86 home-8).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 52) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
   }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
