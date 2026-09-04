@@ -37338,6 +37338,7 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
  */
 extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                                int32_t ta);
+extern uint8_t pipeline_block_stmt_order_kind(void *a, int32_t br, int32_t si);
 
 int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   void *blk;
