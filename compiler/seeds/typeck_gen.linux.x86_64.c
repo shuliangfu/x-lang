@@ -9743,6 +9743,9 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
     /* 10.3.1 slice14: INDEX/FIELD Cap/TYPE_FN callees (twin typeck.x). */
     int32_t ord_index = 47;
     int32_t ord_field = 44;
+    /* EXPR_CALL / EXPR_METHOD_CALL — TYPE_FN CALL-of-CALL `getf()()` (twin typeck.x). */
+    int32_t ord_call = 48;
+    int32_t ord_method = 49;
     int32_t minus_one = -1;
     int32_t callee_ref = 0;
     int32_t callee_eff = 0;
@@ -9791,10 +9794,11 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
  }) : 0);
     }
     /* Cap-fn-ptr (10.3.2) / TYPE_FN (10.3.1): stamp ret from TYPE_FN elem or expected/i32.
-     * 10.3.1 slice14: also INDEX/FIELD Cap surfaces (twin typeck.x). */
+     * 10.3.1 slice14: also INDEX/FIELD Cap surfaces (twin typeck.x).
+     * CALL-of-CALL `getf()()`: callee EXPR_CALL/METHOD_CALL typed TYPE_FN (twin typeck.x). */
     if ((ret_ty ==0)) {
       int32_t ckind = pipeline_expr_kind_ord_at(arena, callee_eff);
-      if ((((ckind ==ord_var) || (ckind ==ord_index)) || (ckind ==ord_field))) {
+      if ((((((ckind ==ord_var) || (ckind ==ord_index)) || (ckind ==ord_field)) || (ckind ==ord_call)) || (ckind ==ord_method))) {
       if ((typeck_check_expr(module, arena, callee_eff, 0, ctx) ==0)) {
         int32_t ctr = pipeline_expr_resolved_type_ref(arena, callee_eff);
         int32_t cko = 0;

@@ -11703,6 +11703,9 @@ ctx: *PipelineDepCtx): i32 {
     /* EXPR_INDEX / EXPR_FIELD — Cap/TYPE_FN surface callees (10.3.1 slice14). */
     let ord_index: i32 = 47;
     let ord_field: i32 = 44;
+    /* EXPR_CALL / EXPR_METHOD_CALL — TYPE_FN CALL-of-CALL `getf()()`. */
+    let ord_call: i32 = 48;
+    let ord_method: i32 = 49;
     /* See implementation. */
     let minus_one: i32 = -1;
     let callee_ref: i32 = 0;
@@ -11776,13 +11779,17 @@ ctx: *PipelineDepCtx): i32 {
      * Type the callee; Cap *u8 stamps ret from expected or i32; TYPE_FN
      * stamps ret from elem (return type).
      * 10.3.1 slice14: also INDEX (`fs[0](x)`) and FIELD Cap surfaces —
-     * prior VAR-only left CALL ret `?` (return mismatch). Asm Cap emit
-     * already loads any Cap-typed expr then blr.
+     * prior VAR-only left CALL ret `?` (return mismatch).
+     * CALL-of-CALL `getf()()`: callee is EXPR_CALL whose resolved type is
+     * TYPE_FN — same stamp; prior VAR/INDEX/FIELD-only left outer ret `?`.
+     * METHOD_CALL callee (`P.getf()()`) is the same surface.
+     * Asm Cap emit already loads any Cap-typed expr then blr.
      * PLATFORM: SHARED.
      */
     if (ret_ty == 0) {
       let ckind: i32 = pipeline_expr_kind_ord_at(arena, callee_eff);
-      if (ckind == ord_var || ckind == ord_index || ckind == ord_field) {
+      if (ckind == ord_var || ckind == ord_index || ckind == ord_field
+          || ckind == ord_call || ckind == ord_method) {
       if (check_expr(module, arena, callee_eff, 0, ctx) == 0) {
         let ctr: i32 = pipeline_expr_resolved_type_ref(arena, callee_eff);
         let cko: i32 = 0;
