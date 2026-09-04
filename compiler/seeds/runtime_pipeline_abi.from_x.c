@@ -14584,9 +14584,13 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
  * WIN leftover PE cannot -E those thins; OR WIN_LEFTOVER_GROW_VEC so
  * leftover-PE FROM_X rest compiles the unique. POSIX FROM_X stays ABSENT
  * (.x thin owns the faces).
- * module_from_ctx stays NULL (not this knife). stack_off harvest stub
- * used to return -1 always → leftover rest emit_expr_fast VAR / binop
- * never found `let x` (letimm RUN=42, letvar/letret CG002 code_len=24).
+ * module_from_ctx harvest stub used to return NULL always (same class
+ * as stack_off return -1): leftover rest emit_as_impl fnptr /
+ * needs_ptr_load *T param / glue_type_size_simple NAMED saw no module.
+ * This wave completes module_from_ctx to the .x authority (below).
+ * stack_off harvest stub used to return -1 always → leftover rest
+ * emit_expr_fast VAR / binop never found `let x` (letimm RUN=42,
+ * letvar/letret CG002 code_len=24).
  * G.7: complete stack_off to the .x authority (kind==VAR then
  * glue_asm_local_var_stack_off_scoped). Body of scoped lives later in
  * this TU (wave148 leftover-PE unique). POSIX FROM_X stays ABSENT.
@@ -14639,9 +14643,29 @@ int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_r
   return glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
 }
 
+extern void *pipeline_asm_emit_module_ref_c(void);
+
+/**
+ * Resolve current emit module: process-local emit module, else
+ * AsmFuncCtx.module_ref@16. Harvest unique used to be `return 0`, so
+ * leftover-PE rest-first hid the module from emit_as_impl fnptr /
+ * needs_ptr_load *T param / glue_type_size_simple NAMED.
+ * G.7: same body as runtime_pipeline_abi.x glue_emit_module_from_ctx
+ * (wave141 pipeline_asm_emit_module_ref_c — SAT global T, leftover rest
+ * remaining wave136 closed, do not leftover rest second T; fallback
+ * LP64 ctx+16 — leftover rest C has no pipe_load_ptr_slot T; same load
+ * as leftover rest fill_block_locals_tree / glue_block_body_bind).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
 void *glue_emit_module_from_ctx(void *ctx) {
-  (void)ctx;
-  return 0;
+  void *m;
+  m = pipeline_asm_emit_module_ref_c();
+  if (m)
+    return m;
+  if (!ctx)
+    return 0;
+  /* AsmFuncCtx.module_ref @16 / slot 2 (LP64). */
+  return *(void **)((uint8_t *)ctx + 16);
 }
 
 /* Completing emit_as_impl: leftover rest T of emit_as_impl UNDEFs
