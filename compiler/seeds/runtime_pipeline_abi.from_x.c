@@ -16438,214 +16438,82 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, void *arena, int32
   return size + 64;
 }
 
+#endif /* close remaining wave136 FROM_X for leftover-PE fill_param_slots unique */
+
+/*
+ * leftover-PE unique: fill_param_slots + emit_param_home.
+ * SAT egg fill relative-calls egg pipeline_asm_module_func_num_params_at
+ * (PE first-wins does not rewrite intra-object). Egg accessor reads SAT
+ * Module layout; leftover rest WAVE280 sidecar has np=2 / name "a" but
+ * nloc stays 0 → callee VAR `a` CG002 (add/id red; zero-arg f() green).
+ * G.7: complete leftover rest fill + param_home so leftover rest mega_body
+ * same-TU uses leftover rest WAVE280 accessors. POSIX FROM_X stays ABSENT
+ * (.x thin owns the faces).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_asm_module_func_num_params_at(void *mod, int32_t func_index);
+extern void pipeline_asm_module_func_param_name_copy32(void *mod, int32_t func_index, int32_t param_index, uint8_t *dst);
+extern int32_t pipeline_asm_module_func_param_name_len_at(void *mod, int32_t func_index, int32_t param_index);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t backend_enc_mov_arg_reg_to_rax_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+
 void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   int32_t off;
   int32_t np;
   int32_t i;
   uint8_t pname_buf[128];
   int32_t plen;
-  void *arena;
-  int32_t is_arm;
+  int32_t slot_off;
   if (!ctx || !mod)
     return;
-  pipeline_asm_emit_ctx_module_set(mod);
-  arena = pipeline_asm_emit_ctx_arena_get();
+  /* i32/ptr homes: 8-byte slots from 16. Wide/agg width stays SAT egg path. */
   off = 16;
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
-  is_arm = pipeline_asm_host_is_arm64_c();
   for (i = 0; i < np; i++) {
-    int32_t width;
-    int32_t slot_off;
     pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
     plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
-    width = arena ? glue_func_param_home_width_c(arena, mod, func_index, i) : 8;
-    if (is_arm) {
-      slot_off = off;
-      if (asm_ctx_local_append(ctx, pname_buf, plen, slot_off) < 0)
-        return;
-      *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx); /* num_locals@8 */
-      off = (width > 8) ? (off + width) : (off + 8);
-    } else {
-      if (width > 8)
-        slot_off = off + width;
-      else
-        slot_off = off;
-      if (asm_ctx_local_append(ctx, pname_buf, plen, slot_off) < 0)
-        return;
-      *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx);
-      off = (width > 8) ? (slot_off + 8) : (off + 8);
-    }
+    if (plen <= 0)
+      continue;
+    slot_off = off;
+    if (asm_ctx_local_append((uint8_t *)ctx, pname_buf, plen, slot_off) < 0)
+      return;
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
+    off += 8;
   }
-  *(int32_t *)((uint8_t *)ctx + 4) = off; /* next_offset@4 */
+  *(int32_t *)((uint8_t *)ctx + 4) = off;
 }
 
 int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, int32_t func_index, int32_t ta) {
   int32_t np;
-  int32_t reg_max;
   int32_t i;
-  int32_t sret_act;
-  int32_t sret_off;
-  if (!elf_ctx || !ctx || !mod || func_index < 0)
+  int32_t home;
+  (void)ctx;
+  if (!elf_ctx || !mod || func_index < 0)
     return -1;
-  pipeline_asm_emit_set_func_index(func_index);
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
-  sret_act = pipeline_asm_emit_ctx_sret_active_get();
-  sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
-  if (sret_act && sret_off >= 0) {
-    if (ta == 0) {
-      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, sret_off, ta) != 0)
-        return -1;
-    } else if (ta == 1) {
-      if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, 8, sret_off, ta) != 0)
-        return -1;
-    }
-  }
   if (np <= 0)
     return 0;
-  if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c() != 0)
-    return pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx, ctx, mod, func_index, np);
-  if (ta == 0) {
-    void *arena = pipeline_asm_emit_ctx_arena_get();
-    int32_t gp = sret_act ? 1 : 0;
-    int32_t stack_pos = 16;
-    int32_t cur = 16;
-    int32_t k;
-    if (!arena)
-      return -1;
-    for (i = 0; i < np; i++) {
-      int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
-      int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
-      int32_t home = (home_w > 8) ? (cur + home_w) : cur;
-      if (psz > 16) {
-        int32_t nbytes = (psz + 7) & ~7;
-        for (k = 0; k < nbytes; k += 8) {
-          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + k, 0) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - k, 0) != 0)
-            return -1;
-        }
-        stack_pos += nbytes;
-      } else if (psz > 8) {
-        if (gp + 2 <= 6) {
-          if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-            return -1;
-          if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp + 1, 0) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0) != 0)
-            return -1;
-          gp += 2;
-        } else {
-          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-            return -1;
-          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + 8, 0) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, 0) != 0)
-            return -1;
-          stack_pos += 16;
-        }
-      } else if (gp < 6) {
-        void *arena = pipeline_asm_emit_ctx_arena_get();
-        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
-          return -1;
-        /* Stage 12.0.5: clean SysV high garbage for i32/u8/u32/bool before store. */
-        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-          return -1;
-        gp++;
-      } else {
-        void *arena = pipeline_asm_emit_ctx_arena_get();
-        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
-          return -1;
-        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
-          return -1;
-        stack_pos += 8;
-      }
-      cur = (home_w > 8) ? (home + 8) : (cur + 8);
-    }
+  /* x86_64: GP arg k → rax → [rbp-home]. Wide/f32/arm64 stay SAT egg.
+   * Do not call SAT-local-t f32 xmm / canonicalize (leftover rest UNDEF). */
+  if (ta != 0)
     return 0;
-  }
-  reg_max = 8;
-  {
-    void *arena = pipeline_asm_emit_ctx_arena_get();
-    int32_t gp = 0;
-    int32_t stack_pos = 16;
-    int32_t cur = 16;
-    int32_t k;
-    if (!arena)
+  home = 16;
+  for (i = 0; i < np && i < 6; i++) {
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, i, ta) != 0)
       return -1;
-    if (ctx) {
-      int32_t fs = *(int32_t *)((uint8_t *)ctx + 0); /* frame_size@0 */
-      if (fs > 16)
-        stack_pos = fs;
-    }
-    /* PLATFORM: MACOS|ARM64 — skip 16B x19 save; incoming stack args at request+16.
-     * Twin of pipeline_abi.x param_home AAPCS64 stack_pos += 16. */
-    stack_pos += 16;
-    for (i = 0; i < np; i++) {
-      int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
-      int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
-      int32_t home = cur;
-      if (psz > 16) {
-        int32_t nbytes = (psz + 7) & ~7;
-        for (k = 0; k < nbytes; k += 8) {
-          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos + k, ta) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home + k, ta) != 0)
-            return -1;
-        }
-        stack_pos += nbytes;
-      } else if (psz > 8) {
-        if (gp + 2 <= reg_max) {
-          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp, home, ta) != 0)
-            return -1;
-          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, gp + 1, home + 8, ta) != 0)
-            return -1;
-          gp += 2;
-        } else {
-          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
-            return -1;
-          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos + 8, ta) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home + 8, ta) != 0)
-            return -1;
-          stack_pos += 16;
-        }
-      } else if (gp < reg_max) {
-        /* Stage 12.0.5: Xn→X0 + canonicalize narrow before store (AAPCS high garbage). */
-        if (gp != 0) {
-          if (glue_enc_arm64_mov_xn_to_x0_elf_c(elf_ctx, gp) != 0)
-            return -1;
-        }
-        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, ta) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
-          return -1;
-        gp++;
-      } else {
-        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta) != 0)
-          return -1;
-        if (glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena, mod, func_index, i, ta) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
-          return -1;
-        stack_pos += 8;
-      }
-      cur = (home_w > 8) ? (cur + home_w) : (cur + 8);
-    }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    home += 8;
   }
   return 0;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_param_slots unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE fill_param_slots unique */
 
 void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
   int32_t off;
@@ -28531,6 +28399,10 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
     if (off < 0) {
       int32_t mod_imm;
       void *mod = pipeline_asm_emit_module_ref_c();
+      if (link_abi_getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr,
+                "xlang: emit_expr_fast VAR miss vlen=%d name=%.*s off=%d ctx=%p\n",
+                (int)vlen, (int)vlen, (char *)vname, (int)off, (void *)ctx);
       if (mod && asm_module_top_level_const_lit_i32(mod, arena, vname, vlen, &mod_imm) != 0)
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
       if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, vname, vlen) == 0)
@@ -58018,6 +57890,10 @@ extern void pipeline_asm_emit_ctx_sret_active_set(int32_t v);
 extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off);
 extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz);
 extern void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_asm_module_func_param_name_len_at(void *m, int32_t fi, int32_t pi);
+extern void pipeline_asm_module_func_param_name_copy32(void *m, int32_t fi, int32_t pi, uint8_t *dst);
 extern int32_t glue_func_return_byte_size_c(void *mod, void *arena, int32_t func_index);
 extern void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, int32_t func_index);
 extern int32_t glue_asm_build_func_export_sym_c(void *m, void *a, int32_t func_ix, uint8_t *out, int32_t out_cap);
@@ -58155,6 +58031,25 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     pipeline_asm_emit_ctx_sret_ret_sz_set(0);
     pipeline_asm_fill_param_slots(bctx, m, i);
     pipeline_debug_trace_named_func_bodies("mega_post_param_slots", m, a);
+    /* PLATFORM: WINDOWS leftover-PE — diagnose callee-param VAR CG002.
+     * call0 (0 params) green; add/id fail in callee body with code_len=12
+     * (prologue only). Print np / param0 name_len / local-slot count. */
+    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
+      int32_t np_dbg = pipeline_asm_module_func_num_params_at(m, i);
+      int32_t plen0 = (np_dbg > 0) ? pipeline_asm_module_func_param_name_len_at(m, i, 0) : -1;
+      int32_t nloc = asm_ctx_local_count((uint8_t *)bctx);
+      uint8_t p0[128];
+      int32_t off0 = -2;
+      memset(p0, 0, sizeof(p0));
+      if (np_dbg > 0 && plen0 > 0) {
+        pipeline_asm_module_func_param_name_copy32(m, i, 0, p0);
+        off0 = asm_ctx_local_find_offset((uint8_t *)bctx, p0, plen0);
+      }
+      fprintf(stderr,
+              "xlang: mega_body_c post_fill fi=%d np=%d plen0=%d nloc=%d off0=%d p0=%.*s\n",
+              (int)i, (int)np_dbg, (int)plen0, (int)nloc, (int)off0,
+              (int)(plen0 > 0 ? plen0 : 0), (char *)p0);
+    }
     /*
      * >16B return: reserve 8B to save incoming hidden dest (before top-level lets).
      * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
@@ -58206,8 +58101,11 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
       if (ly_fs)
         ly_fs->frame_size = frame_sz;
     }
-    if (pipeline_asm_emit_param_home_elf_c(elf_ctx, bctx, m, i, ta) != 0)
+    if (pipeline_asm_emit_param_home_elf_c(elf_ctx, bctx, m, i, ta) != 0) {
+      if (link_abi_getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: mega_body_c param_home fail fi=%d\n", (int)i);
       return -1;
+    }
     /* Mutable module-level lit lets on non-hoist: seed stack slots after param home. */
     if (pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a, elf_ctx, bctx, m, i, ta) != 0) {
       if (link_abi_getenv("XLANG_ASM_DEBUG"))
