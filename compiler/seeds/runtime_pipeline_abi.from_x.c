@@ -58572,7 +58572,13 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
       if (fn_ret_sz > 16) {
         pipeline_asm_emit_ctx_sret_ret_sz_set(fn_ret_sz);
         pipeline_asm_emit_ctx_sret_active_set(1);
-        pipeline_asm_emit_ctx_sret_home_off_set(ctx.next_offset);
+        /* PLATFORM: WINDOWS leftover-PE — SAT emit_struct_lit intra SAT
+         * sret_active=0 allocates implicit dest at high-end home≈vb
+         * (24B → lea [rbp-0x18] occupying [rbp-24,rbp), which clobbers
+         * sret_home=16). Park the hidden dest pointer 256B above the
+         * current next_offset (compute_frame_size scratch ≥512).
+         * POSIX .x emit_struct_lit takes sret dest and does not overlap. */
+        pipeline_asm_emit_ctx_sret_home_off_set(ctx.next_offset + 256);
         ctx.next_offset += 8;
       }
     }
