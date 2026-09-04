@@ -68,6 +68,22 @@ EMIT_REDIRECT_SYMS = (
     "ast_pipeline_expr_match_arm_is_enum_variant",
     "ast_pipeline_expr_match_arm_variant_index",
     "ast_pipeline_expr_match_arm_lit_val",
+    # WAVE278 ARRAY_LIT sidecar (SAT emit_array_lit intra SAT
+    # array_lit_* → n_arr==0 lea-empty; INDEX assign already green).
+    "pipeline_expr_array_lit_num_elems_at",
+    "pipeline_expr_array_lit_elem_ref",
+    "ast_pipeline_expr_array_lit_num_elems_at",
+    "ast_pipeline_expr_array_lit_elem_ref",
+    "pipeline_expr_index_base_ref",
+    "pipeline_expr_index_index_ref",
+    "ast_pipeline_expr_index_base_ref",
+    "ast_pipeline_expr_index_index_ref",
+    # WAVE277 let type + WAVE270 kind (SAT emit_block_inits intra SAT
+    # let_type_ref → glue_block_let_is_fixed_array false → store ARRAY_LIT
+    # pointer into the [N]T slot; INDEX then lea-slot).
+    "pipeline_block_let_type_ref",
+    "ast_pipeline_block_let_type_ref",
+    "pipeline_type_kind_ord_at",
     "ast_pipeline_block_if_cond_ref",
     "ast_pipeline_block_if_then_body_ref",
     "ast_pipeline_block_if_else_body_ref",
@@ -88,6 +104,18 @@ EMIT_SCAN_FUNCS = (
     ("backend_emit_for_loop_elf_sync", 0x2000),
     ("backend_emit_loop_body_content_elf_sync", 0x800),
     ("pipeline_asm_emit_match_elf_c", 0x2000),
+    ("pipeline_asm_emit_array_lit_elf_c", 0x200),
+    ("pipeline_asm_emit_array_lit_force_esz_elf_c", 0x4000),
+    ("glue_asm_emit_array_lit_durable_ptr_rax_elf_c", 0x4000),
+    ("glue_array_lit_emit_scalar_elem_to_rax_elf_c", 0x400),
+    ("pipeline_asm_emit_array_lit_flat_elf_c", 0x2000),
+    ("glue_emit_fixed_array_type_let_init_elf_c", 0x800),
+    ("glue_struct_lit_store_fixed_array_field_elf_c", 0x2000),
+    ("pipeline_asm_emit_index_elf_c", 0x1000),
+    ("glue_emit_index_eff_addr_scaled_elf_c", 0x2000),
+    ("pipeline_asm_emit_block_inits_elf_c", 0x3000),
+    ("glue_block_let_is_fixed_array_type", 0x200),
+    ("glue_type_is_fixed_array", 0x400),
 )
 
 # Thin wrapper intra-calls thin mega_body (PE first-wins does not rewrite).
