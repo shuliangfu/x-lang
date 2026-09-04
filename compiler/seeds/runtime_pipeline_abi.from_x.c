@@ -34193,13 +34193,13 @@ static int32_t w189_stack_off_is_emit_param_ptr_slot(void *arena, void *mod, int
       if (pty <= 0)
         return 0;
       tk = pipeline_type_kind_ord_at(arena, pty);
-      /* TYPE_PTR=9 / TYPE_ARRAY=10: leftover-PE packs both as E* (8B
-       * pointer home). Local ARRAY lets sit at higher next_offset and
-       * must stay lea (arr0). Name-based glue_emit_func_param_is_indirect
-       * _array_slot false-positived locals → SAT emit_index loaded the
-       * payload as a pointer (arr0/fnarr0 SEGV 139). PLATFORM: WINDOWS
-       * leftover-PE / SHARED E* ARRAY formal. */
-      if (tk == 9 || tk == 10)
+      if (tk == 9)
+        return 1;
+      /* TYPE_ARRAY=10 first GP home only (slot 16). np-walk of a stale
+       * func_index would map local ARRAY lets at 24 to a phantom 2nd
+       * param (arr0 SEGV). E* ARRAY formals are 8B homes. PLATFORM:
+       * WINDOWS leftover-PE. */
+      if (tk == 10 && slot_off == 16)
         return 1;
       return 0;
     }
