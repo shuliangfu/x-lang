@@ -6673,7 +6673,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
    */
   {
     int32_t has_recv = (base_ref != 0) ? 1 : 0;
-    int32_t n_place = has_recv + nargs;
+    int32_t n_place;
     int32_t need_aref = 0;
     int32_t reg_start[GLUE_ASM_MAX_CALL_ARGS];
     int32_t reg_units[GLUE_ASM_MAX_CALL_ARGS];
@@ -6688,6 +6688,23 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     int32_t xmm_cur;
     int32_t mem_stack;
     int32_t reg_max;
+    /*
+     * Associated Type.method(): resolved callee nparams == nargs (no implicit
+     * self). `P.mk()` / `P.id(7)` / `P.get(p)` — type-name receiver is not
+     * an argument. Instance `p.get()` keeps nparams == nargs+1 so has_recv
+     * stays 1. PLATFORM: SHARED — G.7 complete UFCS leave; twin
+     * src/asm/backend_call_dispatch.x.
+     */
+    if (has_recv) {
+      int32_t assoc_fn = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      int32_t assoc_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      if (assoc_fn >= 0 && assoc_dep < 0 && mod_ref) {
+        int32_t assoc_np = pipeline_module_func_num_params_at(mod_ref, assoc_fn);
+        if (assoc_np == nargs)
+          has_recv = 0;
+      }
+    }
+    n_place = has_recv + nargs;
 
     if (n_place < 0 || n_place > GLUE_ASM_MAX_CALL_ARGS)
       return -1;

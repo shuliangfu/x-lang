@@ -13269,6 +13269,93 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
       (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
       return 0;
     }
+    /*
+     * Associated Type.method(): receiver is a type name. check_expr(VAR) fails
+     * because the name is not a value. `P.mk()` / `P.id(7)` / `P.get(p)`
+     * resolve to a same-module func with nparams == num_args (no implicit self).
+     * Instance `p.get()` already matched UFCS nparams == num_args+1 above.
+     * PLATFORM: SHARED — G.7 complete typeck_check_expr_method_call;
+     * authority twin compiler/src/typeck/typeck.x.
+     */
+    if (((base_kind == ord_var) && (method_nlen > 0)) && (base_rc != 0)) {
+      int32_t assoc_nlen = pipeline_expr_var_name_len(arena, base_ref);
+      if ((assoc_nlen > 0) && (assoc_nlen <= 127)) {
+        pipeline_expr_var_name_into(arena, base_ref, &((base_nm)[0]));
+        if (typeck_soa_find_layout_idx_by_name(module, &((base_nm)[0]), assoc_nlen) >= 0) {
+          int32_t assoc_uj = 0;
+          int32_t assoc_best = -1;
+          int32_t assoc_best_score = -1;
+          int32_t assoc_nf = pipeline_module_num_funcs(module);
+          while (assoc_uj < assoc_nf) {
+            if (pipeline_module_func_name_equal_at(module, assoc_uj, &((method_nm)[0]), method_nlen) != 0) {
+              int32_t assoc_np = pipeline_module_func_num_params_at(module, assoc_uj);
+              if (assoc_np == num_args) {
+                int32_t assoc_matched = 1;
+                int32_t assoc_score = 1;
+                int32_t assoc_ai = 0;
+                while (assoc_ai < num_args) {
+                  int32_t assoc_param = pipeline_module_func_param_type_ref_at(module, assoc_uj, assoc_ai);
+                  int32_t assoc_arg = pipeline_expr_method_call_arg_ref(arena, expr_ref, assoc_ai);
+                  int32_t assoc_arg_ty = 0;
+                  if ((assoc_arg > 0) && (assoc_param > 0)) {
+                    (void)typeck_coerce_init_array_vector_lit_to_decl(arena, assoc_arg, assoc_param,
+                        pipeline_type_kind_ord_at(arena, assoc_param),
+                        pipeline_expr_kind_ord_at(arena, assoc_arg));
+                    (void)typeck_coerce_array_lit_struct_elems_to_decl(module, arena, assoc_arg, assoc_param);
+                    (void)typeck_coerce_init_struct_lit_to_decl(module, arena, assoc_arg, assoc_param);
+                    assoc_arg_ty = pipeline_expr_resolved_type_ref(arena, assoc_arg);
+                  }
+                  if ((((assoc_param <= 0) || (assoc_arg_ty <= 0)) ||
+                       (pipeline_typeck_type_refs_equal_c_ASTArena_ptr_i32_i32_reti32(arena, assoc_arg_ty, assoc_param) == 0))) {
+                    assoc_matched = 0;
+                    assoc_ai = num_args;
+                  } else {
+                    assoc_score = assoc_score + 1000;
+                    assoc_ai = assoc_ai + 1;
+                  }
+                }
+                if (assoc_matched != 0) {
+                  int32_t assoc_ret = pipeline_module_func_return_type_at(module, assoc_uj);
+                  if ((assoc_ret > 0) && (pipeline_type_kind_ord_at(arena, assoc_ret) == 8)) {
+                    uint8_t assoc_rnm[128] = {};
+                    int32_t assoc_rnlen = pipeline_type_named_name_into(arena, assoc_ret, &((assoc_rnm)[0]));
+                    if ((assoc_rnlen == assoc_nlen) && (assoc_rnlen > 0)) {
+                      int32_t assoc_eq = 1;
+                      int32_t assoc_bi = 0;
+                      while (assoc_bi < assoc_rnlen) {
+                        if (assoc_rnm[assoc_bi] != base_nm[assoc_bi]) {
+                          assoc_eq = 0;
+                          assoc_bi = assoc_rnlen;
+                        } else {
+                          assoc_bi = assoc_bi + 1;
+                        }
+                      }
+                      if (assoc_eq != 0) {
+                        assoc_score = assoc_score + 100;
+                      }
+                    }
+                  }
+                  if (assoc_score > assoc_best_score) {
+                    assoc_best_score = assoc_score;
+                    assoc_best = assoc_uj;
+                  }
+                }
+              }
+            }
+            assoc_uj = assoc_uj + 1;
+          }
+          if (assoc_best >= 0) {
+            int32_t assoc_ok_ret = pipeline_module_func_return_type_at(module, assoc_best);
+            if (assoc_ok_ret > 0) {
+              (void)(pipeline_expr_apply_call_resolve(arena, expr_ref, -1, assoc_best));
+              (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, assoc_ok_ret));
+              (void)(typeck_stamp_resolved_args_float_lit(arena, expr_ref, module, assoc_best, -1, ctx, 0));
+              return 0;
+            }
+          }
+        }
+      }
+    }
     if ((base_rc !=0)) {
       return -1;
     }

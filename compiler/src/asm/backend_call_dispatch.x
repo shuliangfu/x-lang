@@ -3710,6 +3710,27 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       let sret_sh_u: i32 = 0;
       let gp_cur_u: i32 = 0;
       if (base_ref != 0) { has_recv = 1; }
+      /*
+       * Associated Type.method(): resolved callee nparams == nargs (no implicit
+       * self). `P.mk()` / `P.id(7)` / `P.get(p)` — type-name receiver is not
+       * an argument. Instance `p.get()` keeps nparams == nargs+1 so has_recv
+       * stays 1. PLATFORM: SHARED — G.7 complete UFCS leave; seed twin
+       * seeds/backend_call_dispatch.from_x.c.
+       */
+      if (has_recv != 0) {
+        let assoc_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+        let assoc_dep: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+        if (assoc_fn >= 0) {
+          if (assoc_dep < 0) {
+            if (mod_ref != 0 as *u8) {
+              let assoc_np: i32 = pipeline_module_func_num_params_at(mod_ref, assoc_fn);
+              if (assoc_np == nargs) {
+                has_recv = 0;
+              }
+            }
+          }
+        }
+      }
       n_place = has_recv + nargs;
       if (n_place < 0) { return 0 - 1; }
       if (n_place > 96) { return 0 - 1; }

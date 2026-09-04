@@ -15386,8 +15386,11 @@ num_args: i32): i32 {
  * 5) generic-body bound method: receiver is free T, enclosing `fn<T: Trait>`
  *    lists Trait.method — stamp ret (Self / T → receiver type) and accept.
  *    func_ix stays -1; codegen C6 re-resolves the impl on the concrete type.
- * 6) bootstrap i32.double() when impl blocks skipped
- * 7) no-impl LANG-004 diagnostic
+ * 6) associated Type.method(): VAR base is a struct-layout name, not a value
+ *    (`P.mk()` / `P.id(7)` / `P.get(p)`). Same-module func with
+ *    nparams == num_args (no implicit self). Instance `p.get()` stays step 4.
+ * 7) bootstrap i32.double() when impl blocks skipped
+ * 8) no-impl LANG-004 diagnostic
  *
  * Cap residual / strict_minimal faces thin → this function (dual-export ban).
  *
@@ -17488,6 +17491,100 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (ret_ty > 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
       return 0;
+    }
+    /*
+     * Associated Type.method(): receiver is a type name. check_expr(VAR) fails
+     * because the name is not a value (not local/param). `P.mk()` / `P.id(7)` /
+     * `P.get(p)` resolve to a same-module func with nparams == num_args
+     * (self is an explicit extra when present). Instance `p.get()` already
+     * matched UFCS nparams == num_args+1 above. Prefer a constructor whose
+     * return TYPE_NAMED spelling matches the layout name.
+     * Hoisted impl methods and free fns of the same arity both match (P.mk()
+     * ≡ mk() when mk is unique). PLATFORM: SHARED — G.7 complete
+     * typeck_check_expr_method_call; pin twin typeck_gen.linux.x86_64.c.
+     */
+    if (base_kind == ord_var && method_nlen > 0 && base_rc != 0) {
+      let assoc_nlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
+      if (assoc_nlen > 0 && assoc_nlen <= 127) {
+        pipeline_expr_var_name_into(arena, base_ref, &base_nm[0]);
+        if (typeck_soa_find_layout_idx_by_name(module, &base_nm[0], assoc_nlen) >= 0) {
+          let assoc_uj: i32 = 0;
+          let assoc_best: i32 = 0 - 1;
+          let assoc_best_score: i32 = 0 - 1;
+          let assoc_nf: i32 = pipeline_module_num_funcs(module);
+          while (assoc_uj < assoc_nf) {
+            let assoc_np: i32 = 0;
+            if (pipeline_module_func_name_equal_at(module, assoc_uj, &method_nm[0], method_nlen) != 0) {
+              assoc_np = pipeline_module_func_num_params_at(module, assoc_uj);
+              if (assoc_np == num_args) {
+                let assoc_matched: i32 = 1;
+                let assoc_score: i32 = 1;
+                let assoc_ai: i32 = 0;
+                let assoc_ret: i32 = 0;
+                let assoc_rnlen: i32 = 0;
+                let assoc_rnm: u8[128] = [];
+                while (assoc_ai < num_args) {
+                  let assoc_param: i32 = pipeline_module_func_param_type_ref_at(module, assoc_uj, assoc_ai);
+                  let assoc_arg: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, assoc_ai);
+                  let assoc_arg_ty: i32 = 0;
+                  if (assoc_arg > 0 && assoc_param > 0) {
+                    typeck_coerce_init_array_vector_lit_to_decl(arena, assoc_arg, assoc_param,
+                    pipeline_type_kind_ord_at(arena, assoc_param),
+                    pipeline_expr_kind_ord_at(arena, assoc_arg));
+                    typeck_coerce_array_lit_struct_elems_to_decl(module, arena, assoc_arg, assoc_param);
+                    typeck_coerce_init_struct_lit_to_decl(module, arena, assoc_arg, assoc_param);
+                    assoc_arg_ty = pipeline_expr_resolved_type_ref(arena, assoc_arg);
+                  }
+                  if (assoc_param <= 0 || assoc_arg_ty <= 0
+                      || pipeline_typeck_type_refs_equal_c(arena, assoc_arg_ty, assoc_param) == 0) {
+                    assoc_matched = 0;
+                    assoc_ai = num_args;
+                  } else {
+                    assoc_score = assoc_score + 1000;
+                    assoc_ai = assoc_ai + 1;
+                  }
+                }
+                if (assoc_matched != 0) {
+                  assoc_ret = pipeline_module_func_return_type_at(module, assoc_uj);
+                  if (assoc_ret > 0 && pipeline_type_kind_ord_at(arena, assoc_ret) == 8) {
+                    assoc_rnlen = pipeline_type_named_name_into(arena, assoc_ret, &assoc_rnm[0]);
+                    if (assoc_rnlen == assoc_nlen && assoc_rnlen > 0) {
+                      let assoc_eq: i32 = 1;
+                      let assoc_bi: i32 = 0;
+                      while (assoc_bi < assoc_rnlen) {
+                        if (assoc_rnm[assoc_bi] != base_nm[assoc_bi]) {
+                          assoc_eq = 0;
+                          assoc_bi = assoc_rnlen;
+                        } else {
+                          assoc_bi = assoc_bi + 1;
+                        }
+                      }
+                      if (assoc_eq != 0) {
+                        assoc_score = assoc_score + 100;
+                      }
+                    }
+                  }
+                  if (assoc_score > assoc_best_score) {
+                    assoc_best_score = assoc_score;
+                    assoc_best = assoc_uj;
+                  }
+                }
+              }
+            }
+            assoc_uj = assoc_uj + 1;
+          }
+          if (assoc_best >= 0) {
+            let assoc_ok_ret: i32 = pipeline_module_func_return_type_at(module, assoc_best);
+            if (assoc_ok_ret > 0) {
+              pipeline_expr_apply_call_resolve(arena, expr_ref, 0 - 1, assoc_best);
+              pipeline_expr_set_resolved_type_ref(arena, expr_ref, assoc_ok_ret);
+              /* is_method=0: extra i maps to param i (no implicit self). */
+              typeck_stamp_resolved_args_float_lit(arena, expr_ref, module, assoc_best, 0 - 1, ctx, 0);
+              return 0;
+            }
+          }
+        }
+      }
     }
     if (base_rc != 0) {
       return 0 - 1;
