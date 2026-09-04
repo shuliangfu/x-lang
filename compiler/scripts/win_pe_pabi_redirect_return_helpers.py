@@ -187,6 +187,18 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_block_let_name_len",
     "pipeline_block_let_name_copy64",
     "glue_lazy_append_block_let_local",
+    # TYPE_ARRAY formal E* (16B apply([foo, bar]) / [4]i32): SAT try_index
+    # intra SAT enc_local (local t) needs_ptr_load=0 → lea 8B home as
+    # payload (8B load_64 compensation; 16B dest pointer SEGV 139 /
+    # garbage). leftover rest WIN leftover enc_local / needs_ptr_load /
+    # is_indirect_array_slot load the T[N] pointer home. Do not leftover
+    # rest T SAT try_index (SAT local t is the real body; leftover rest
+    # remaining-wave stub -2 FROM_X ABSENT). PE first-wins does not
+    # rewrite SAT intra. G.7 complete of this table.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_enc_local_slot_ptr_or_addr_elf_c",
+    "glue_local_var_slot_needs_ptr_load_elf_c",
+    "glue_emit_func_param_is_indirect_array_slot_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
@@ -212,6 +224,9 @@ EMIT_SCAN_FUNCS = (
     ("glue_struct_lit_store_fixed_array_field_elf_c", 0x2000),
     ("pipeline_asm_emit_index_elf_c", 0x1000),
     ("glue_emit_index_eff_addr_scaled_elf_c", 0x2000),
+    ("glue_try_index_var_or_field_base_to_rax_elf_c", 0x800),
+    ("glue_enc_local_slot_ptr_or_addr_elf_c", 0x200),
+    ("glue_local_var_slot_needs_ptr_load_elf_c", 0x400),
     ("pipeline_asm_emit_block_inits_elf_c", 0x3000),
     ("pipeline_asm_emit_expr_elf_rec", 0x2000),
     ("pipeline_asm_emit_deref_elf_c", 0x400),

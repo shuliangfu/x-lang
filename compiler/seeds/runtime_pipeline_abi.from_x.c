@@ -15126,7 +15126,9 @@ int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t dept
     esz = 1;
   else if (ek == 0 || ek == 3 || ek == 13 || ek == 14)
     esz = 4;
-  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9)
+  else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9
+           || ek == 18)
+    /* TYPE_FN=18 is pointer-width (twin of leftover rest array_lit_elem_byte_sz). */
     esz = 8;
   else if (ek == 8) {
     mod = pipeline_asm_emit_module_ref_c();
@@ -33714,17 +33716,16 @@ void glue_asm73_cfg_interf_prepare(void) {
  * (INT_LIT still fell through SAT rec; VAR `add(x,4)` CG002).
  * G.7: complete leftover rest — VAR uses leftover rest
  * glue_call_arg_resolve_var_stack_off + glue_load_var_as_value (WIN
- * uniques); ARRAY_LIT as TYPE_ARRAY formal ≤8B loads the dest payload
- * (VAR `apply(fs)` already load_var 8B; rec emit_array_lit leaves dest
- * pointer → callee INDEX leas E* home → SEGV 139). Do not copy the
- * full .x slice/SIMD packer (SAT-local-t UNDEF). Do not intercept SAT
- * glue_try_index (shared with local ARRAY). Do not dual-def WAVE277.
- * Do not leftover rest UNDEF remaining-wave 221
- * pipeline_asm_emit_ctx_call_param_ty_get (SAT standalone has no T;
- * leftover rest FROM_X omits remaining-wave; `!FROM_X || WIN` on that
- * original is banned). Formal kind comes from leftover rest WAVE278
- * pipeline_expr_resolved_type_ref (ALWAYS). POSIX FROM_X stays ABSENT
- * (.x thin owns @79135).
+ * uniques). TYPE_ARRAY formals pack as E* (8B). 8B T[N] leftover-PE
+ * keeps payload in the 8B home (load_64 / load_var) so SAT INDEX lea
+ * works; >8B home is the dest pointer — callee INDEX leftover rest
+ * enc_local loads E* (needs_ptr_load nbytes>8). Do not leftover rest T
+ * SAT glue_try_index (SAT local t is the real body; intercept SEGV
+ * arr0). Redirect SAT try_index → leftover rest enc_local. Do not copy
+ * the .x slice/SIMD packer. Do not dual-def WAVE277. Do not leftover
+ * rest UNDEF remaining-wave 221 call_param_ty_get. Formal kind from
+ * leftover rest WAVE278 resolved_type_ref (ALWAYS). POSIX FROM_X stays
+ * ABSENT (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -33738,6 +33739,12 @@ extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_
 extern char *link_abi_getenv(const char *name);
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, int32_t var_expr_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
 extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
@@ -33748,9 +33755,10 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   int32_t off;
   int32_t rty;
   int32_t tk;
+  int32_t nbytes;
   int32_t n_arr;
   int32_t esz;
-  int32_t nbytes;
+  void *mod;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
@@ -33758,20 +33766,36 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * rest WIN unique (SAT wave203 stub returns -1 intra-object). */
   if (ko == 3 && ctx) {
     off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
-    if (off >= 0)
+    if (off >= 0) {
+      /* TYPE_ARRAY == 10: 8B payload load_var; >8B local lea dest (E*).
+       * Formal T[N] >8B load the pointer home. PLATFORM: WINDOWS
+       * leftover-PE / SHARED Cap ARRAY E*. */
+      rty = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+      if (rty <= 0)
+        rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      tk = 0;
+      if (rty > 0)
+        tk = pipeline_type_kind_ord_at(arena, rty);
+      if (tk == 10) {
+        nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+        mod = glue_emit_module_from_ctx(ctx);
+        if (nbytes > 8) {
+          if (mod && glue_emit_func_param_is_indirect_array_slot_c(arena, mod, expr_ref) != 0)
+            return backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+          return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+        }
+      }
       return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+    }
     if (link_abi_getenv("XLANG_ASM_DEBUG"))
       fprintf(stderr,
               "xlang: for_call_args VAR miss expr_ref=%d off=%d ctx=%p\n",
               (int)expr_ref, (int)off, (void *)ctx);
   }
-  /* EXPR_ARRAY_LIT == 46 as TYPE_ARRAY formal: rec leaves dest pointer
-   * (SAT emit_array_lit). VAR 8B arrays pass the payload (load_var).
-   * Load dest[0..8) so rdi holds the same bits. >8B stays dest pointer
-   * (16B dual-GP later). TYPE_SLICE stays dest/fat. Kind from leftover
-   * rest WAVE278 resolved_type (ALWAYS) — not remaining-wave 221
-   * call_param_ty_get (SAT standalone ABSENT). PLATFORM: WINDOWS
-   * leftover-PE / SHARED Cap ARRAY ABI. */
+  /* ARRAY_LIT TYPE_ARRAY: rec dest pointer. ≤8B load_64 payload (SAT INDEX
+   * lea-home). >8B dest is E* (callee leftover rest enc_local loads).
+   * TYPE_SLICE stays dest/fat. Kind from WAVE278 resolved_type.
+   * PLATFORM: WINDOWS leftover-PE / SHARED Cap ARRAY E*. */
   if (ko == 46) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
       return -1;
@@ -34262,8 +34286,28 @@ int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_r
   if (mod && fi >= 0) {
     if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0)
       return 1;
-    if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0)
-      return 1;
+    if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0) {
+      /* 8B T[N] formal home holds payload (leftover rest for_call_args
+       * load_64). >8B home is E* (SysV ARRAY→8); INDEX must load the
+       * pointer. Ban leftover rest T SAT try_index (local ARRAY intercept
+       * SEGV arr0). PLATFORM: WINDOWS leftover-PE / SHARED ARRAY E*. */
+      int32_t atr;
+      int32_t nbytes;
+      atr = glue_var_decl_type_ref_elf_c(arena, ctx, var_expr_ref);
+      if (atr <= 0)
+        atr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+      if (atr <= 0) {
+        vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+        if (vlen > 0 && vlen <= 127) {
+          pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+          atr = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+        }
+      }
+      nbytes = glue_fixed_array_total_bytes_c(arena, atr, 0);
+      if (nbytes > 8)
+        return 1;
+      return 0;
+    }
     if (w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, stack_off) != 0)
       return 1;
     if (arena && var_expr_ref > 0) {
