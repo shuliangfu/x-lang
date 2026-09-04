@@ -37114,7 +37114,7 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
   /*
    * CALL/METHOD/STRUCT_LIT rvalue base, including nested FIELD chain
    * (`mk().x` / `mk().p.f` / `(P { x: 3, y: 4 }).x` /
-   * `(Outer { p: Inner { f } }).p.f`).
+   * `(Outer { p: Inner { f } }).p.f` / `(Outer { p: &i }).p.f`).
    * G.7 complete leftover rest WIN leftover field_access_fast: SAT
    * glue_field_access_call_base_rvalue is SAT local t — leftover rest UNDEF
    * does not resolve (ld -r keeps U; final gcc fails). Walk FIELD (ko==44)
@@ -37124,14 +37124,19 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
    *   CALL/METHOD: leftover rest rec (SAT emit_call global T; SysV ≤8B packed
    *     rax) then layout temp store/lea (LP64 next_offset@4; x86 high-end
    *     home=off+8)
-   * then add each field offset inner→outer and load outermost load_sz.
+   * then add each field offset inner→outer; intermediate hops (ci>0) whose
+   * WAVE278 resolved_type_ref is TYPE_PTR=9 load *T (SAT wave596) so outer
+   * offsets apply through the pointer. Never peel TYPE_SLICE=11 (by-value
+   * fat; SAT glue_field_chain_mid_auto_deref is *T only).
+   * SAT glue_index_deref_ptr_field_slot_rax leftover rest FROM_X T is a
+   * no-op stub (rest-first would win); glue_field_access_field_type_ref
+   * leftover rest T returns 0 — do not UNDEF either. Use WAVE278
+   * resolved_type_ref + WAVE270 type_kind_ord + backend_enc_load_64.
    * SAT glue_align_next_offset / glue_store_retval are leftover rest FROM_X
    * ABSENT (SAT T may be local t) — bump next_offset inline; store rax 8B.
-   * Pointer intermediate (`mk().ptr.f`) / >8B dual-GP / sret / METHOD.field
-   * are separate neighborhoods.
-   * Prior: only direct CALL/STRUCT_LIT base; nested mk().p.f base is FIELD
-   * → lvalue_eff_addr (VAR/INDEX/DEREF only) → -99 → rec ko==44 enum-only
-   * → CG002. PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED=-99.
+   * >8B dual-GP / sret / METHOD.field are separate neighborhoods.
+   * Prior: nested mk().p.f base is FIELD → CG002; nestptr compiled RUN=104
+   * (mid *T treated as value). PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED=-99.
    * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
    */
   {
@@ -37202,8 +37207,18 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
       }
       for (ci = chain_n - 1; ci >= 0; ci--) {
         int32_t fo = pipeline_expr_field_access_layout_offset(arena, mod, chain_fa[ci]);
+        int32_t mid_tr;
+        int32_t mid_k;
         if (fo != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, fo, ta) != 0)
           return -1;
+        /* Intermediate hop: *T auto-deref (SAT wave596). Never peel SLICE. */
+        if (ci > 0) {
+          mid_tr = pipeline_expr_resolved_type_ref(arena, chain_fa[ci]);
+          mid_k = (mid_tr > 0) ? pipeline_type_kind_ord_at(arena, mid_tr) : 0;
+          if (mid_k == 9 /* TYPE_PTR */ &&
+              backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
       }
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
       if (load_sz == 1)
