@@ -16236,7 +16236,9 @@ int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_r
 /* PLATFORM: SHARED — ADDR_OF of ARRAY_LIT (dest extras dest-PTR stamp
  * nested extra lit `&[[2],[4]]`). G.7 complete: reuse ARRAY_LIT emit
  * (temp + lea → rax). Twin runtime_pipeline_abi.x + thin
- * pipeline_glue_strict_minimal.x. Do not invent -3. */
+ * pipeline_glue_strict_minimal.x. Do not invent -3.
+ * leftover-PE WIN leftover first-wins lives in the rec cluster
+ * (FROM_X && WIN); this remaining-wave body stays #ifndef FROM_X. */
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op;
@@ -28524,6 +28526,117 @@ debug_done:
 int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
+
+#ifdef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/*
+ * leftover rest WIN leftover ADDR_OF / DEREF first-wins.
+ * Remaining wave140 @16241/@16282 stays #ifndef FROM_X (SAT T). A
+ * !FROM_X || WIN OR on that cluster would dual-def INDEX emit (not
+ * unique) plus these faces in the same TU. POSIX FROM_X stays ABSENT
+ * (.x thin owns pipeline_asm_emit_addr_of_elf_c / emit_deref_elf_c).
+ *
+ * Five questions: produce = leftover rest rec ko==51/52 UNDEFs SAT T;
+ * SAT intra SAT emit_expr / resolved_type / unary (PE first-wins does
+ * not rewrite intra-object relative calls) so DEREF leaves the pointer
+ * in rax (ptr7u RUN=40, takepu RUN=120). Store = leftover rest rec
+ * dispatch. Consume = want-exe `unsafe { return *p }` local *i32 and
+ * *i32 param. G.7 complete leftover rest bodies ≡ .x VAR ADDR_OF +
+ * scalar DEREF; leftover rest rec same .o calls leftover rest emit_expr
+ * (WAVE278 unary / resolved_type / leftover rest slots).
+ *
+ * Do not leftover rest UNDEF SAT local t: lvalue_eff_addr /
+ * glue_emit_index_eff_addr / deref_struct16 / glue_index_elem
+ * remaining-wave stubs. INDEX/FIELD/DEREF-operand ADDR_OF stay
+ * FAST_UNHANDLED (SAT T hidden; not this knife). ARRAY_LIT ADDR_OF
+ * reuses SAT emit_array_lit global T (leftover rest rec already U).
+ * Do not leftover rest second WAVE277 / glue_fixed_array.
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out_lanes,
+                                            int32_t *out_esz);
+
+int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  int32_t ok;
+  int32_t off;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0)
+    return -1;
+  ok = pipeline_expr_kind_ord_at(arena, op);
+  if (ok == 3) {
+    /* VAR: leftover rest slot authority (same as leftover rest rec VAR). */
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, op);
+    if (off < 0)
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
+    if (off < 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+  }
+  /* EXPR_ARRAY_LIT = 46: dest-stamp into temp then lea (rax = &temp).
+   * SAT emit_array_lit is SAT global T (leftover rest rec already U). */
+  if (ok == 46)
+    return pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, op, ctx, ta);
+  return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+}
+
+int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  int32_t tr;
+  int32_t esz;
+  int32_t trk;
+  int32_t named_sz;
+  void *modp;
+  int32_t lanes = 0;
+  int32_t lane_esz = 0;
+  if (!arena || !elf_ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0)
+    return -1;
+  /* leftover rest rec wrapper — same leftover rest .o, WAVE278 faces. */
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  trk = (tr > 0) ? pipeline_type_kind_ord_at(arena, tr) : 0;
+  if (trk == 10)
+    return 0;
+  /* TYPE_SLICE=11 / 9–16B named: SAT deref_struct16 is remaining-wave
+   * stub FROM_X ABSENT (possibly SAT local t). Leave the pointer
+   * (ARRAY twin). Not this knife (`*i32`). */
+  if (trk == 11)
+    return 0;
+  if (trk == 9)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  modp = glue_emit_module_from_ctx(ctx);
+  esz = glue_type_size_simple(modp, arena, tr, 0);
+  named_sz = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+  if (named_sz > esz)
+    esz = named_sz;
+  if (esz <= 8 && glue_vector_type_lanes_esz_c(arena, tr, &lanes, &lane_esz) == 0 && lanes > 0 &&
+      lane_esz > 0)
+    esz = lanes * lane_esz;
+  /* i32 DEREF with unresolved type: size_simple 0 would fall through to
+   * load_64 (pointer bits). Default 4 matches remaining-wave glue_index
+   * stub and TYPE_I32/U32. */
+  if (esz <= 0)
+    esz = 4;
+  if (esz > 16)
+    return 0;
+  if (esz > 8)
+    return 0;
+  if (esz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (esz == 4)
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+}
+#endif /* FROM_X — leftover rest WIN leftover ADDR_OF/DEREF (rec cluster already WIN) */
 
 /* wave152 cold twin pipeline_asm_emit_expr_elf_fast. PLATFORM: SHARED. */
 int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
