@@ -51,6 +51,23 @@ EMIT_REDIRECT_SYMS = (
     "ast_ast_block_for_cond_ref",
     "ast_ast_block_for_step_ref",
     "ast_ast_block_for_body_ref",
+    # WAVE278 match sidecar (SAT emit_match intra SAT Expr.match_* → CG002).
+    "pipeline_expr_match_matched_ref_at",
+    "pipeline_expr_match_num_arms_at",
+    "pipeline_expr_match_arm_is_wildcard",
+    "pipeline_expr_match_arm_guard_ref",
+    "pipeline_expr_match_arm_result_ref",
+    "pipeline_expr_match_arm_is_enum_variant",
+    "pipeline_expr_match_arm_variant_index",
+    "pipeline_expr_match_arm_lit_val",
+    "ast_pipeline_expr_match_matched_ref_at",
+    "ast_pipeline_expr_match_num_arms_at",
+    "ast_pipeline_expr_match_arm_is_wildcard",
+    "ast_pipeline_expr_match_arm_guard_ref",
+    "ast_pipeline_expr_match_arm_result_ref",
+    "ast_pipeline_expr_match_arm_is_enum_variant",
+    "ast_pipeline_expr_match_arm_variant_index",
+    "ast_pipeline_expr_match_arm_lit_val",
     "ast_pipeline_block_if_cond_ref",
     "ast_pipeline_block_if_then_body_ref",
     "ast_pipeline_block_if_else_body_ref",
@@ -70,6 +87,7 @@ EMIT_SCAN_FUNCS = (
     ("backend_emit_while_loop_elf_sync", 0x2000),
     ("backend_emit_for_loop_elf_sync", 0x2000),
     ("backend_emit_loop_body_content_elf_sync", 0x800),
+    ("pipeline_asm_emit_match_elf_c", 0x2000),
 )
 
 # Thin wrapper intra-calls thin mega_body (PE first-wins does not rewrite).
