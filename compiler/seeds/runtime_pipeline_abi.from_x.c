@@ -28608,17 +28608,25 @@ int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_re
  * scalar DEREF; leftover rest rec same .o calls leftover rest emit_expr
  * (WAVE278 unary / resolved_type / leftover rest slots).
  *
- * Do not leftover rest UNDEF SAT local t: lvalue_eff_addr /
- * glue_emit_index_eff_addr / deref_struct16 / glue_index_elem
- * remaining-wave stubs. INDEX/FIELD/DEREF-operand ADDR_OF stay
- * FAST_UNHANDLED (SAT T hidden; not this knife). ARRAY_LIT ADDR_OF
- * reuses SAT emit_array_lit global T (leftover rest rec already U).
- * Do not leftover rest second WAVE277 / glue_fixed_array.
+ * Do not leftover rest UNDEF SAT local t: lvalue_eff_addr leftover rest
+ * stub -1 @31725 / glue_emit_index_eff_addr remaining-wave SAT intra /
+ * deref_struct16 / glue_index_elem remaining-wave stubs. ARRAY_LIT
+ * ADDR_OF reuses SAT emit_array_lit global T (leftover rest rec already
+ * U). G.7 complete leftover rest ADDR_OF INDEX/FIELD with leftover rest
+ * slots + WAVE278 index/FIELD + leftover rest glue_enc_local_slot
+ * (same leftover rest .o). Do not leftover rest second WAVE277 /
+ * glue_fixed_array.
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t expr_ref);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mul_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_add_rax_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
 extern int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out_lanes,
                                             int32_t *out_esz);
@@ -28641,6 +28649,108 @@ int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr
     if (off < 0)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
     return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+  }
+  /* EXPR_INDEX = 47: &a[i] → lea element. leftover rest rec ko==47
+   * UNDEFs SAT emit_index (load). ADDR_OF needs the address, not the
+   * load. SAT glue_emit_index_eff_addr is SAT intra; leftover rest
+   * lvalue_eff_addr is leftover rest stub -1. G.7 complete leftover
+   * rest ADDR_OF with leftover rest slots + WAVE278 index + leftover
+   * rest glue_enc_local_slot (lea TYPE_ARRAY / load *T).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ok == 47) {
+    int32_t base_ref;
+    int32_t idx_ref;
+    int32_t base_ko;
+    int32_t idx_ko;
+    int32_t esz;
+    int32_t rtr;
+    void *modp;
+    base_ref = pipeline_expr_index_base_ref(arena, op);
+    idx_ref = pipeline_expr_index_index_ref(arena, op);
+    if (base_ref <= 0 || idx_ref <= 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    if (base_ko != 3)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, base_ref);
+    if (off < 0)
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+    if (off < 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    modp = glue_emit_module_from_ctx(ctx);
+    rtr = pipeline_expr_resolved_type_ref(arena, op);
+    esz = glue_type_size_simple(modp, arena, rtr, 0);
+    if (esz <= 0)
+      esz = 4;
+    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, off, ctx, ta) != 0)
+      return -1;
+    idx_ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+    if (idx_ko == 0 || (pipeline_expr_const_folded_valid_at(arena, idx_ref) != 0 && idx_ko != 3)) {
+      int32_t lit;
+      int32_t add;
+      if (idx_ko == 0)
+        lit = (int32_t)pipeline_expr_int64_val_at(arena, idx_ref);
+      else
+        lit = pipeline_expr_const_folded_val_at(arena, idx_ref);
+      add = lit * esz;
+      if (add != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, add, ta) != 0)
+        return -1;
+      return 0;
+    }
+    /* Non-lit index: emit idx, scale, add to base. leftover rest rec
+     * same leftover rest .o. enc mul/add are enc global T. */
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+      return -1;
+    if (esz != 1) {
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    return 0;
+  }
+  /* EXPR_FIELD = 44: &s.x → lea slot+layout_offset. leftover rest
+   * var_field_access already materializes addr then loads; ADDR_OF
+   * stops at the address. SAT layout_offset is SAT global T (leftover
+   * rest field_access already U). Do not leftover rest lvalue_eff_addr
+   * stub. Nested FIELD / CALL.field ADDR_OF stay FAST_UNHANDLED.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ok == 44) {
+    int32_t base_ref;
+    int32_t field_off;
+    void *mod;
+    base_ref = pipeline_expr_field_access_base_ref(arena, op);
+    if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, base_ref);
+    if (off < 0)
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+    if (off < 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    mod = glue_emit_module_from_ctx(ctx);
+    if (!mod)
+      mod = pipeline_asm_emit_module_ref_c();
+    field_off = pipeline_expr_field_access_layout_offset(arena, mod, op);
+    if (field_off < 0)
+      field_off = 0;
+    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, off, ctx, ta) != 0)
+      return -1;
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+      return -1;
+    return 0;
   }
   /* EXPR_ARRAY_LIT = 46: dest-stamp into temp then lea (rax = &temp).
    * SAT emit_array_lit is SAT global T (leftover rest rec already U). */
