@@ -36816,9 +36816,14 @@ extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ct
 /* SAT global T: leftover rest rec ko==45 already UNDEF-calls this.
  * SAT glue_field_access_call_base_rvalue / emit_struct_let_init are
  * SAT local t — leftover rest cannot UNDEF them (ld -r leaves U).
+ * leftover rest rec (same leftover rest TU, first-wins) dispatches
+ * ko==48 → SAT emit_call global T. store/lea live in backend_enc (not pabi SAT t).
  * PLATFORM: WINDOWS leftover-PE. */
 extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
 extern int32_t backend_enc_load_zext8_from_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
@@ -37064,6 +37069,61 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
     if (load_sz == 8)
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+  }
+
+  /*
+   * CALL/METHOD rvalue base (`mk().x`).
+   * G.7 complete leftover rest WIN leftover field_access_fast: SAT
+   * glue_field_access_call_base_rvalue is SAT local t — leftover rest UNDEF
+   * does not resolve (ld -r keeps U; final gcc fails). leftover rest rec
+   * already dispatches ko==48 → SAT emit_call global T (id(42) / add(x,4)).
+   * SysV ≤8B struct returns packed in rax. Store to leftover rest layout
+   * temp (LP64 next_offset@4; x86 high-end home=off+8), lea+field_offset, load.
+   * SAT glue_align_next_offset / glue_store_retval are leftover rest FROM_X
+   * ABSENT (SAT T may be local t) — bump next_offset inline; store rax 8B.
+   * >8B dual-GP / sret / nested mk().p.f are separate neighborhoods.
+   * Prior: fell through to lvalue_eff_addr (VAR/INDEX/DEREF only) → -99
+   * → rec ko==44 enum-only → CG002. PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED=-99.
+   * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+   */
+  if (fa_base2 > 0) {
+    int32_t bko = pipeline_expr_kind_ord_at(arena, fa_base2);
+    if (bko == 48 || bko == 49) {
+      int32_t call_rc;
+      int32_t field_off;
+      int32_t load_sz;
+      int32_t *ly_next;
+      int32_t off;
+      int32_t m;
+      int32_t home;
+      call_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, fa_base2, ctx, ta);
+      if (call_rc != 0)
+        return call_rc;
+      if (!ctx)
+        return -1;
+      ly_next = (int32_t *)((uint8_t *)ctx + 4); /* LP64 AsmFuncCtx.next_offset@4 */
+      off = *ly_next;
+      m = off % 8;
+      if (m != 0)
+        off = off + (8 - m);
+      /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — high-end home=off+alloc.
+       * SAT call_base_rvalue ta!=1 matches this (arm64 ta==1 is not leftover-PE). */
+      home = off + 8;
+      *ly_next = home;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      field_off = pipeline_expr_field_access_layout_offset(arena, mod, expr_ref);
+      if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+        return -1;
+      load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+      if (load_sz == 1)
+        return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+      if (load_sz == 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+    }
   }
 
   /** VAR field access */
