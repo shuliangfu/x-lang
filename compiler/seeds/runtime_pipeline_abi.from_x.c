@@ -29444,9 +29444,8 @@ int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t blo
  * (`slice_call_let` SEGV 139). leftover rest glue_type_size_simple
  * already returns 16 for kind 11; POSIX `.x` @75346 stores rdx
  * on tk==11 after rax regardless of size_simple. G.7 complete
- * leftover rest T: store rax; TYPE_SLICE store rdx at x86
- * home-8 / arm64 home+8 (same polarity as leftover rest
- * for_call_args wrap / ARRAY_LIT TYPE_SLICE let-init); 9–16B
+ * leftover rest T: store rax; TYPE_SLICE store rdx at home+8
+ * (C fat; SAT INDEX of local TYPE_SLICE reads home+8); 9–16B
  * named rdx. Do not UNDEF SAT local t copy_large / classifier /
  * deref_struct16 (leftover rest remaining-wave `#ifndef FROM_X`
  * ABSENT; SAT standalone is local t — leftover rest U fails
@@ -29495,7 +29494,14 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
      * win_glue_slice_dual_gp_length_off (x86 home-8).
      * PLATFORM: WINDOWS leftover-PE. */
     if (tk == 11) {
-      half2 = (ta == 1) ? (slot_off + 8) : (slot_off - 8);
+      /* C fat {data@home, length@home+8}. SAT INDEX of a local
+       * TYPE_SLICE loads length from home+8 (slice_call_let
+       * objdump). x86 VAR `.length` home-8 is a different face
+       * (formal fat*+8 / ARRAY_LIT dual-GP). Do not use
+       * win_glue_slice_dual_gp_length_off here — SAT INDEX
+       * would read uninitialized home+8.
+       * PLATFORM: WINDOWS leftover-PE. */
+      half2 = slot_off + 8;
       if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
         return -1;
       return 0;

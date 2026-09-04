@@ -208,6 +208,17 @@ EMIT_REDIRECT_SYMS = (
     # rewrite SAT intra. G.7 complete of this table.
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "glue_asm_emit_array_lit_durable_ptr_rax_elf_c",
+    # CALL TYPE_SLICE let-init: SAT emit_block_inits intra SAT
+    # glue_emit_struct_type_let_init intra SAT store_retval_pair
+    # (local t) stores rax+rdx then reent deep-copy. SAT reent uses
+    # 32-bit addl that truncates PE COMMON (`slice_call_let` SEGV 139).
+    # leftover rest WIN leftover unique first-wins: store rax+rdx,
+    # skip reent (payload is leftover rest durable COMMON). SAT
+    # store_retval_pair is SAT local t — not leftover rest T SAT
+    # global T. PE first-wins does not rewrite SAT intra. G.7
+    # complete of this table.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_store_retval_pair_to_rbp_elf_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
