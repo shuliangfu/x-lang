@@ -28788,13 +28788,68 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
   /* STRUCT_LIT=45: SAT emit_struct_lit global T; dest pointer stays in
    * rbx (leftover rest rec ko==45 already UNDEFs SAT emit_struct_lit).
    * SAT fields_elf is SAT local t — do not leftover rest UNDEF it.
-   * rax = dest of the temp. ADDR_OF FIELD of STRUCT_LIT
+   * SAT dest reuses leftover rest next_offset (naddr_stx dump:
+   * dest==let-p slot rbp-0x18; storing &temp into p clobbers the
+   * struct → RUN=127). G.7: park a leftover rest frame temp then
+   * qword-copy SAT dest (same leftover rest rec sret copy; do not
+   * enc_call memcpy). rax = &parked temp. ADDR_OF FIELD of STRUCT_LIT
    * (`&(P { x: 3 }).x`) recurses here then adds layout_offset.
    * PLATFORM: WINDOWS leftover-PE. */
   if (ko == 45) {
+    int32_t *ly_next;
+    int32_t m;
+    int32_t home;
+    int32_t ret_sz;
+    int32_t alloc_sz;
+    int32_t root_ty;
+    int32_t copy_off;
+    ly_next = (int32_t *)((uint8_t *)ctx + 4); /* LP64 AsmFuncCtx.next_offset@4 */
+    off = *ly_next;
+    m = off % 8;
+    if (m != 0)
+      off = off + (8 - m);
+    modp = glue_emit_module_from_ctx(ctx);
+    if (!modp)
+      modp = pipeline_asm_emit_module_ref_c();
+    root_ty = pipeline_expr_resolved_type_ref(arena, lval_ref);
+    ret_sz = 0;
+    if (root_ty > 0)
+      ret_sz = glue_type_size_simple(modp, arena, root_ty, 0);
+    if (ret_sz <= 0)
+      ret_sz = 8;
+    if (ret_sz > 4096)
+      return -1;
+    if (ret_sz <= 8)
+      alloc_sz = 8;
+    else
+      alloc_sz = (ret_sz + 7) & ~7;
+    home = off + alloc_sz;
+    *ly_next = home;
     if (pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, lval_ref, ctx, ta) != 0)
       return -1;
-    return backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    copy_off = 0;
+    while (copy_off + 8 <= ret_sz) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - copy_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+        return -1;
+      copy_off = copy_off + 8;
+    }
+    if (copy_off < ret_sz) {
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - copy_off, ta) != 0)
+        return -1;
+    }
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
   }
   /* CALL=48 / METHOD=49: leftover rest rec (SAT emit_call / emit_method
    * global T) then layout temp. Same leftover rest field_access_fast
