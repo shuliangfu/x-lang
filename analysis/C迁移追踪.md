@@ -122,6 +122,7 @@
   - ✅ ADDR_OF CALL／STRUCT_LIT 基（`&mk().x`／`&(P { x: 3 }).x`／`&P.mk().x`）＠`aba7b5d20`
   - ✅ ARRAY_LIT TYPE_FN 元素 coerce（live module＋store 宽 8）＠`cb3e910d6`
   - ✅ ARRAY_LIT TYPE_FN STRUCT_LIT 字段 `H { fs: [foo] }`／`h.fs[0]()`＠`4d216d78c`
+  - ✅ ARRAY_LIT TYPE_FN 作参 `apply([foo])`＠`eb50d1198`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
