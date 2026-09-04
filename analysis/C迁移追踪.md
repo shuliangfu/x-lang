@@ -135,6 +135,7 @@
   - ✅ INDEX DEREF `*[]i32` `(*p)[1]` dual-GP fat＠`3acdc367c`
   - ✅ TYPE_SLICE DEREF 作参 `take(*p)` dual-GP wrap fat*＠`5322f3b2b`
   - ✅ CALL 返回 TYPE_SLICE 作参 `take(mk())` durable dual-GP wrap fat*＠`8b98c0572`
+  - ✅ FIELD TYPE_SLICE 作参 `take(s.xs)` store_sz 16＋deref_struct16 wrap fat*＠`96364cea6`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
