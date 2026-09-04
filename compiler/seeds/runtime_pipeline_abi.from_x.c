@@ -37311,6 +37311,7 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
 extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                                int32_t ta);
 extern uint8_t pipeline_block_stmt_order_kind(void *a, int32_t br, int32_t si);
+extern int32_t pipeline_block_stmt_order_idx(void *a, int32_t br, int32_t si);
 extern int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                                  int32_t ta);
 
@@ -37320,6 +37321,8 @@ int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block
   int32_t ko;
   int32_t nso;
   int32_t si;
+  int32_t idx;
+  int32_t er;
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return 0;
   blk = pipeline_arena_block_ptr(arena, block_ref);
@@ -37328,10 +37331,18 @@ int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block
   fref = win_blk_i32(blk, 0x4c); /* final_expr_ref */
   if (fref == 0)
     return 0;
-  /* If stmt_order already has an expr-stmt return, final_expr is redundant. */
+  /* Skip only when stmt_order already emitted a RETURN expr-stmt (ko==41).
+   * kind==2 is any expr_stmt: `x = 4` is also kind 2, and treating it as a
+   * return left eax at the let-init (`asgimm` RUN=3). WAVE277 leftover rest
+   * expr_stmt_ref is the sidecar authority (G.7 complete).
+   * PLATFORM: WINDOWS leftover-PE hybrid. */
   nso = win_blk_i32(blk, 0x54);
   for (si = 0; si < nso; si++) {
-    if (pipeline_block_stmt_order_kind(arena, block_ref, si) == 2)
+    if (pipeline_block_stmt_order_kind(arena, block_ref, si) != 2)
+      continue;
+    idx = pipeline_block_stmt_order_idx(arena, block_ref, si);
+    er = pipeline_block_expr_stmt_ref(arena, block_ref, idx);
+    if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 41)
       return 0;
   }
   ko = pipeline_expr_kind_ord_at(arena, fref);

@@ -26,7 +26,9 @@ MEGA_REDIRECT_SYMS = (
     "pipeline_asm_module_func_body_ref_at",
 )
 
-# Thin emit_block / emit_if → rest W277 ast_* faces (high twin mis-reads kind).
+# Thin emit_block / emit_if / emit_while → rest W277 ast_* faces
+# (high twin mis-reads kind / SAT Block.num_expr_stmts=0 skips `x=4`).
+# PLATFORM: WINDOWS leftover-PE hybrid — G.7 complete of this redirect table.
 EMIT_REDIRECT_SYMS = (
     "ast_ast_block_stmt_order_kind",
     "ast_ast_block_stmt_order_idx",
@@ -34,7 +36,21 @@ EMIT_REDIRECT_SYMS = (
     "ast_ast_block_num_if_stmts",
     "ast_ast_block_num_lets",
     "ast_ast_block_num_consts",
+    "ast_ast_block_num_expr_stmts",
+    "ast_ast_block_num_loops",
+    "ast_ast_block_num_for_loops",
     "ast_ast_block_final_expr_ref",
+    "ast_ast_block_expr_stmt_ref",
+    "ast_pipeline_block_expr_stmt_ref",
+    "pipeline_block_expr_stmt_ref",
+    "ast_ast_block_while_cond_ref",
+    "ast_ast_block_while_body_ref",
+    "pipeline_block_while_cond_ref",
+    "pipeline_block_while_body_ref",
+    "ast_ast_block_for_init_ref",
+    "ast_ast_block_for_cond_ref",
+    "ast_ast_block_for_step_ref",
+    "ast_ast_block_for_body_ref",
     "ast_pipeline_block_if_cond_ref",
     "ast_pipeline_block_if_then_body_ref",
     "ast_pipeline_block_if_else_body_ref",
@@ -51,6 +67,9 @@ EMIT_SCAN_FUNCS = (
     ("pipeline_asm_emit_block_if_stmt_elf", 0x1000),
     ("glue_emit_block_final_expr_elf", 0x400),
     ("glue_block_stmt_order_has_return", 0x400),
+    ("backend_emit_while_loop_elf_sync", 0x2000),
+    ("backend_emit_for_loop_elf_sync", 0x2000),
+    ("backend_emit_loop_body_content_elf_sync", 0x800),
 )
 
 # Thin wrapper intra-calls thin mega_body (PE first-wins does not rewrite).
