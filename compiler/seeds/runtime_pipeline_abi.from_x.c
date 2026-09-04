@@ -38449,14 +38449,16 @@ int32_t pipeline_asm_get_return_expr_ref_at(void *a, void *m, int32_t func_index
 
 /**
  * Windows leftover-PE: stmt_order count via block pointer (avoid multi-def twin).
- * Thin mega cannot be edited; when body has no if/let/loop/for/region/expr-stmt,
- * report nso=0 so mega takes get_return (redirected) instead of archaeology
- * emit_block that emits nothing for simple `return imm` while still seeing
- * spurious nso>0. Control / local / unsafe-region / expr-stmt bodies keep the
- * real count so emit_block still runs (`take(p: *i32) { unsafe { return *p; } }`
- * is nlet=0 nreg=1; `take(x) { x = 9; return x; }` is nlet=0 nexpr=1).
- * Trailing `return` is final_expr (parser return_ends_block) so nexpr=0 for
- * return-only bodies — do not treat a folded return as an expr-stmt.
+ * Thin mega cannot be edited; when body has no if/let/loop/for/region and no
+ * non-RETURN expr-stmt, report nso=0 so mega takes get_return (redirected)
+ * instead of archaeology emit_block. leftover rest emit_block skips RETURN
+ * (ko==41) and leftover rest final_expr also skips when stmt_order already
+ * has a RETURN — they cancel, so return-only bodies must stay on get_return
+ * (`return 42` nexpr may still be 1: leftover-PE parser does not always fold
+ * trailing return to final_expr). ASSIGN/CALL without a let
+ * (`take(x) { x = 9; return x; }`) is nlet=0 plus a non-RETURN expr-stmt so
+ * emit_block still runs. Control / local / unsafe-region keep the real count
+ * (`take(p: *i32) { unsafe { return *p; } }` is nlet=0 nreg=1).
  *
  * Also run sparse-if rebuild here: leftover-PE product -c path may skip
  * prepare_entry fixup, leaving ifs in Block.num_if_stmts but absent from
@@ -38477,6 +38479,9 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
   int32_t nfor;
   int32_t nreg;
   int32_t nexpr;
+  int32_t ei;
+  int32_t er;
+  int32_t ko;
   if (!a || br <= 0)
     return 0;
   /* Rebuild before reading counts — idempotent when ifs already in order. */
@@ -38491,8 +38496,20 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
   nfor = win_blk_i32(b, 0x20);
   nreg = win_blk_i32(b, 0x30);
   nexpr = win_blk_i32(b, 0x48);
-  if (nif == 0 && nlet == 0 && nloop == 0 && nfor == 0 && nreg == 0 && nexpr == 0)
+  if (nif == 0 && nlet == 0 && nloop == 0 && nfor == 0 && nreg == 0) {
+    /* RETURN-only expr-stmts stay on get_return (emit_block+final_expr cancel). */
+    if (nexpr <= 0)
+      return 0;
+    for (ei = 0; ei < nexpr; ei++) {
+      er = pipeline_block_expr_stmt_ref(a, br, ei);
+      if (er <= 0)
+        continue;
+      ko = pipeline_expr_kind_ord_at(a, er);
+      if (ko != 41)
+        return nso;
+    }
     return 0;
+  }
   return nso;
 }
 
