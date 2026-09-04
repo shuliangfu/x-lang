@@ -33944,8 +33944,12 @@ void glue_asm73_cfg_interf_prepare(void) {
  * rax+rdx then lea fat*. TYPE_SLICE FIELD `take(s.xs)`: rec leaves
  * dual-GP (STRUCT_LIT store_sz 16 + ARRAY_LIT rec dual-GP + FIELD
  * deref_struct16); wrap store rax+rdx then lea fat*. Do not leftover
- * rest remaining-wave 221 pty for TYPE_ARRAY-as-SLICE wrap. POSIX
- * FROM_X stays ABSENT (.x thin owns @79135).
+ * rest remaining-wave 221 pty for TYPE_ARRAY-as-SLICE wrap. TYPE_ARRAY
+ * DEREF `take(*p)` of `*[2]i32`: emit_deref leave-ptr; 8B leftover-PE
+ * formals keep payload in the home (VAR load_var / ARRAY_LIT load_64)
+ * so rec E* as 8B INTEGER made SAT INDEX lea-home-as-payload
+ * (`arr_ptr_arg` RUN=110 = high 32 of E*). Rec then ≤8B load_64;
+ * >8B leave E*. POSIX FROM_X stays ABSENT (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -34102,7 +34106,16 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * rest for_call_args: rec then store rax+rdx to 16B home, lea
    * fat* (POSIX CALL TYPE_SLICE @79744 same wrap; do not copy
    * .x packer / remaining-wave 221 pty). Kind from leftover rest
-   * WAVE278 resolved_type_ref. TYPE_ARRAY DEREF stay rec leave-ptr.
+   * WAVE278 resolved_type_ref. TYPE_ARRAY DEREF: emit_deref
+   * leave-ptr (array address). 8B leftover-PE formals keep payload
+   * in the 8B home (VAR load_var / ARRAY_LIT load_64); rec leave-ptr
+   * put E* bits in the home then SAT INDEX lea-home-as-payload
+   * (`arr_ptr_arg` RUN=110 = high 32 of E*). >8B leftover-PE home
+   * is dest E* — leave-ptr is already correct. Rec then ≤8B
+   * load_64 (ARRAY_LIT TYPE_ARRAY twin). nbytes from leftover rest
+   * glue_fixed_array_total_bytes (already T @15009; do not dual-def).
+   * Do not leftover rest T SAT try_index (arr0). POSIX .x rec
+   * leave-ptr is SysV always-E* — leftover-PE 8B compensation only.
    * Length polarity = leftover rest WIN leftover
    * win_glue_slice_dual_gp_length_off (x86 home-8).
    * PLATFORM: WINDOWS leftover-PE. */
@@ -34128,6 +34141,14 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
         return -1;
       return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (tk == 10) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
     }
   }
   /* CALL=48 / METHOD=49 TYPE_SLICE: leftover rest rec of mk() now
