@@ -120,6 +120,7 @@
   - ✅ ADDR_OF／DEREF／let-init／Cap-fn-ptr／TYPE_FN let·call·参·字段·return·CALL-of-CALL
   - ✅ nested ADDR_OF `&s.a[0]`／`&a[0].x`／`&*p`
   - ✅ ADDR_OF CALL／STRUCT_LIT 基（`&mk().x`／`&(P { x: 3 }).x`／`&P.mk().x`）＠`aba7b5d20`
+  - ✅ ARRAY_LIT TYPE_FN 元素 coerce（live module＋store 宽 8）＠`cb3e910d6`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
