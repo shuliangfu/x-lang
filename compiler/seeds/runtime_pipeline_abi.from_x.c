@@ -37330,21 +37330,26 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
 }
 
 /**
- * Windows leftover-PE: final_expr emit must unwrap EXPR_RETURN to its operand.
- * Thin archaeology passes the RETURN node to emit_expr → CG002 (let+return) or
- * a broken self-jmp (bare `return;`). Rest first-wins + emit-site redirect.
+ * Windows leftover-PE: block final_expr emit.
+ * EXPR_RETURN must go through leftover rest return_impl (operand + jmp tail).
+ * Unwrapping to emit_expr left control in the if-join: then `return 2` became
+ * `mov $2; jmp done` with rel32=0, then outer `return 9` overwrote eax
+ * (ifelse RUN=9). Thin emit_expr of the RETURN node is CG002.
+ * Bare `return;` (op=0) still tail-jmps via return_impl (void-main nso=0 stays
+ * on mega get_return and does not call this face).
  * Keep this face freestanding: only call helpers already resolved in the hybrid.
  * PLATFORM: WINDOWS leftover-PE hybrid.
  */
 extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                                int32_t ta);
 extern uint8_t pipeline_block_stmt_order_kind(void *a, int32_t br, int32_t si);
+extern int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                 int32_t ta);
 
 int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   void *blk;
   int32_t fref;
   int32_t ko;
-  int32_t op;
   int32_t nso;
   int32_t si;
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
@@ -37362,12 +37367,8 @@ int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block
       return 0;
   }
   ko = pipeline_expr_kind_ord_at(arena, fref);
-  if (ko == 41) {
-    op = pipeline_expr_unary_operand_ref_at(arena, fref);
-    if (op == 0)
-      return 0; /* bare return — mega void-main path */
-    fref = op;
-  }
+  if (ko == 41)
+    return pipeline_asm_emit_return_elf_impl(arena, elf_ctx, fref, ctx, ta);
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, fref, ctx, ta) != 0)
     return -1;
   return 0;
