@@ -34277,17 +34277,27 @@ extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var
 
 int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
                                                      void *ctx, int32_t ta) {
-  /* SAT emit_index intra this face (redirect). Do not intercept local
-   * ARRAY lets here — name/offset false-positives loaded payload as E*
-   * (arr0/fnarr0 SEGV). T[N] formals are E* via leftover rest
-   * glue_load_var_as_value + w189 TYPE_ARRAY=10 (needs_ptr_load). SAT
-   * stub −2 → emit_expr that path. PLATFORM: WINDOWS leftover-PE. */
-  (void)arena;
-  (void)elf_ctx;
-  (void)base_ref;
-  (void)ctx;
-  (void)ta;
-  return -2;
+  int32_t ko;
+  int32_t boff;
+  int32_t fi;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || base_ref <= 0)
+    return -2;
+  ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (ko != 3)
+    return -2;
+  boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+  if (boff < 0)
+    return -2;
+  mod = glue_emit_module_from_ctx(ctx);
+  fi = pipeline_asm_emit_func_index_c();
+  /* Offset-based E* param home (w189), not name lookup: leftover rest
+   * glue_emit_func_param_is_indirect_array_slot false-positived local
+   * ARRAY lets (arr0/fnarr0 SEGV). Local arrays stay −2 → SAT emit_expr
+   * lea. PLATFORM: WINDOWS leftover-PE. */
+  if (!mod || fi < 0 || w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, boff) == 0)
+    return -2;
+  return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_enc_local unique */
 
