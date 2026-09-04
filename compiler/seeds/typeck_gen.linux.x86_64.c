@@ -17568,6 +17568,7 @@ extern int32_t pipeline_expr_match_arm_is_enum_variant(struct ast_ASTArena *a, i
 extern int32_t pipeline_expr_match_arm_variant_index(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 extern int32_t pipeline_expr_match_arm_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 extern int32_t pipeline_expr_match_arm_result_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
@@ -18560,21 +18561,24 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *      emit emit a single mov imm32 instead of a runtime cmp/branch dispatch.
    * Invariant: Only stamps const_folded_valid=1 when (1) subject folds to a constant and
    *            (2) the first matching arm (literal or wildcard) result also folds to a
-   *            constant. Enum-variant arms compare variant_index; guarded arms
-   *            (would need guard eval) are left unfolded (const_folded_valid stays 0).
+   *            constant. Enum-variant arms compare variant_index. Const guards
+   *            (`_ if 0` / `_ if false`) fold then skip (0) or take (nonzero);
+   *            non-const guards leave the match unfolded.
    * Asm/Perf: Replaces `mov rbx,subj; cmp;jmp;armN;mov w0,result;done` (~30 bytes)
    *           with `mov w0, #const` (4 bytes); also enables parent binop folds.
    */
   if (kd == ast_ExprKind_EXPR_MATCH) {
     int32_t matched_ref;
     int32_t num_arms;
-    int32_t wild_idx;
     int32_t i;
     int32_t cmp_val;
     int32_t arm_result_ref;
     int32_t matched_val;
+    int32_t is_wild;
+    int32_t guard_ref;
     struct ast_Expr *em;
     struct ast_Expr *er;
+    struct ast_Expr *eg;
 
     matched_ref = pipeline_expr_match_matched_ref_at(a, expr_ref);
     if (matched_ref <= 0)
@@ -18589,20 +18593,29 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     if (num_arms <= 0 || num_arms > 32)
       return;
 
-    /* First-match wins (mirrors ELF emit semantics). Wildcard only fires as fallback. */
-    wild_idx = -1;
+    /* First-match wins (mirrors leftover rest emit_match). A guarded
+     * `_ if 0` is not an unguarded default — skip when the const guard
+     * is 0, take when nonzero, leave unfolded when the guard is not const.
+     * PLATFORM: SHARED — complete C5 MATCH CTFE (G.7). */
     for (i = 0; i < num_arms; i++) {
-      if (pipeline_expr_match_arm_is_wildcard(a, expr_ref, i) != 0) {
-        if (wild_idx < 0)
-          wild_idx = i;
-        continue;
+      is_wild = pipeline_expr_match_arm_is_wildcard(a, expr_ref, i);
+      if (is_wild == 0) {
+        if (pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i) != 0)
+          cmp_val = pipeline_expr_match_arm_variant_index(a, expr_ref, i);
+        else
+          cmp_val = pipeline_expr_match_arm_lit_val(a, expr_ref, i);
+        if (cmp_val != matched_val)
+          continue;
       }
-      if (pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i) != 0)
-        cmp_val = pipeline_expr_match_arm_variant_index(a, expr_ref, i);
-      else
-        cmp_val = pipeline_expr_match_arm_lit_val(a, expr_ref, i);
-      if (cmp_val != matched_val)
-        continue;
+      guard_ref = pipeline_expr_match_arm_guard_ref(a, expr_ref, i);
+      if (guard_ref > 0) {
+        typeck_fold_expr_ref_impl(a, guard_ref, const_names, const_values, n_const_names);
+        eg = glue_arena_expr_at_ref(a, guard_ref);
+        if (!eg || !eg->const_folded_valid)
+          return;
+        if (eg->const_folded_val == 0)
+          continue;
+      }
       arm_result_ref = pipeline_expr_match_arm_result_ref(a, expr_ref, i);
       if (arm_result_ref <= 0)
         return;
@@ -18613,19 +18626,6 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
         e->const_folded_valid = 1;
       }
       return;
-    }
-
-    /* Wildcard arm fallback (only if no lit/variant arm matched). */
-    if (wild_idx >= 0) {
-      arm_result_ref = pipeline_expr_match_arm_result_ref(a, expr_ref, wild_idx);
-      if (arm_result_ref > 0) {
-        typeck_fold_expr_ref_impl(a, arm_result_ref, const_names, const_values, n_const_names);
-        er = glue_arena_expr_at_ref(a, arm_result_ref);
-        if (er && er->const_folded_valid) {
-          e->const_folded_val = er->const_folded_val;
-          e->const_folded_valid = 1;
-        }
-      }
     }
     return;
   }
