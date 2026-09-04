@@ -33987,6 +33987,9 @@ extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx,
 extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t lval_ref,
                                                       void *ctx, int32_t ta);
+extern int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref);
+extern int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
@@ -34001,6 +34004,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   int32_t home;
   int32_t len_off;
   int32_t past;
+  int32_t fty;
   void *mod;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
@@ -34218,6 +34222,24 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
     tk = 0;
     if (rty > 0)
       tk = pipeline_type_kind_ord_at(arena, rty);
+    /* dest-SLICE stamps FA resolved TYPE_SLICE so wrap uses tk==11.
+     * dest-ARRAY does not stamp: FA resolved is 0 / i32 and rec 4B-loads
+     * (`arr_field_arg` INDEX0=3 INDEX1=0). POSIX .x @79444 uses
+     * field_type_ref layout TYPE_ARRAY (comment @71660). leftover rest
+     * unique field_type_ref was a SAT-t stub returning 0 — complete it
+     * (same leftover rest .o) then use it here when resolved is not
+     * TYPE_ARRAY. Do not leftover rest T SAT try_index (arr0).
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (tk != 11 && tk != 10) {
+      mod = glue_emit_module_from_ctx(ctx);
+      if (!mod)
+        mod = pipeline_asm_emit_module_ref_c();
+      fty = glue_field_access_field_type_ref_c(arena, mod, expr_ref);
+      if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
+        rty = fty;
+        tk = 10;
+      }
+    }
     if (tk == 11) {
       if (!ctx)
         return -1;
@@ -35948,10 +35970,108 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   (void)tr;
   return 4;
 }
+
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_module_num_struct_layouts_at(void *module);
+extern int32_t pipeline_module_struct_layout_name_len(void *module, int32_t idx);
+extern uint8_t pipeline_module_struct_layout_name_byte_at(void *module, int32_t idx, int32_t off);
+extern int32_t pipeline_module_struct_layout_num_fields(void *module, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int32_t j,
+                                                         uint8_t *out);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, int32_t j);
+
+/*
+ * leftover rest unique FIELD type_ref. SAT local t is the POSIX .x @71624
+ * body; leftover rest T first-wins was a return-0 stub so for_call_args
+ * could not see TYPE_ARRAY of `s.a` (dest-ARRAY does not stamp FA
+ * resolved; dest-SLICE stamps TYPE_SLICE — wrap stays on resolved
+ * tk==11). G.7 complete leftover rest: layout from base TYPE_NAMED
+ * (WAVE266 sidecar ALWAYS + WAVE278 field name). Do not global-scan by
+ * field name (POSIX @71779). Do not leftover rest remaining-wave @32288
+ * via !FROM_X || WIN (FROM_X omits; that twin is also a stub).
+ * PLATFORM: WINDOWS leftover-PE.
+ */
 int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref) {
-  (void)arena;
-  (void)mod;
-  (void)fa_ref;
+  int32_t flen;
+  uint8_t field_name[128];
+  int32_t base_ref;
+  int32_t base_ko;
+  int32_t base_ty;
+  int32_t kord;
+  uint8_t struct_name[128];
+  int32_t nlen;
+  int32_t nsl;
+  int32_t k;
+  int32_t j;
+  int32_t nf;
+  int32_t fnlen;
+  int32_t feq;
+  int32_t fi;
+  uint8_t fb[128];
+  int32_t tr;
+  int32_t ln;
+  int32_t eq;
+  int32_t bi;
+  if (!arena || fa_ref <= 0)
+    return 0;
+  flen = pipeline_expr_field_access_name_len(arena, fa_ref);
+  if (flen <= 0 || flen > 127)
+    return 0;
+  pipeline_expr_field_access_name_into(arena, fa_ref, field_name);
+  base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+  base_ty = 0;
+  if (base_ref > 0 && mod) {
+    base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    if (base_ko > 0)
+      base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (base_ty > 0) {
+      kord = pipeline_type_kind_ord_at(arena, base_ty);
+      if (kord == 9) {
+        base_ty = pipeline_type_elem_ref_at(arena, base_ty);
+        kord = (base_ty > 0) ? pipeline_type_kind_ord_at(arena, base_ty) : 0;
+      }
+      if (kord == 8) {
+        nlen = pipeline_type_named_name_into(arena, base_ty, struct_name);
+        nsl = pipeline_module_num_struct_layouts_at(mod);
+        if (nlen > 0 && nlen <= 63) {
+          for (k = 0; k < nsl; k++) {
+            ln = pipeline_module_struct_layout_name_len(mod, k);
+            if (ln != nlen)
+              continue;
+            eq = 1;
+            for (bi = 0; bi < nlen; bi++) {
+              if (pipeline_module_struct_layout_name_byte_at(mod, k, bi) != struct_name[bi]) {
+                eq = 0;
+                break;
+              }
+            }
+            if (!eq)
+              continue;
+            nf = pipeline_module_struct_layout_num_fields(mod, k);
+            for (j = 0; j < nf; j++) {
+              fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
+              if (fnlen != flen)
+                continue;
+              pipeline_module_struct_layout_field_name_into(mod, k, j, fb);
+              feq = 1;
+              for (fi = 0; fi < fnlen; fi++) {
+                if (fb[fi] != field_name[fi]) {
+                  feq = 0;
+                  break;
+                }
+              }
+              if (feq)
+                return pipeline_module_struct_layout_field_type_ref(mod, k, j);
+            }
+          }
+        }
+      }
+    }
+  }
+  tr = pipeline_expr_resolved_type_ref(arena, fa_ref);
+  if (tr > 0)
+    return tr;
   return 0;
 }
 
