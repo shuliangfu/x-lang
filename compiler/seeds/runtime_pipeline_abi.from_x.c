@@ -33724,8 +33724,10 @@ void glue_asm73_cfg_interf_prepare(void) {
  * arr0). Redirect SAT try_index → leftover rest enc_local. Do not copy
  * the .x slice/SIMD packer. Do not dual-def WAVE277. Do not leftover
  * rest UNDEF remaining-wave 221 call_param_ty_get. Formal kind from
- * leftover rest WAVE278 resolved_type_ref (ALWAYS). POSIX FROM_X stays
- * ABSENT (.x thin owns @79135).
+ * leftover rest WAVE278 resolved_type_ref (ALWAYS; typeck dest-SLICE
+ * stamps ARRAY_LIT). TYPE_SLICE ARRAY_LIT: rec dest then wrap
+ * {data,n_arr} fat* (formals are 1 GP). POSIX FROM_X stays ABSENT
+ * (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -33748,6 +33750,9 @@ extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, i
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
 extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern void glue_align_next_offset(void *ctx);
 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
@@ -33758,6 +33763,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   int32_t nbytes;
   int32_t n_arr;
   int32_t esz;
+  int32_t base_off;
+  int32_t home;
+  int32_t len_off;
   void *mod;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
@@ -33792,10 +33800,14 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
               "xlang: for_call_args VAR miss expr_ref=%d off=%d ctx=%p\n",
               (int)expr_ref, (int)off, (void *)ctx);
   }
-  /* ARRAY_LIT TYPE_ARRAY: rec dest pointer. ≤8B load_64 payload (SAT INDEX
-   * lea-home). >8B dest is E* (callee leftover rest enc_local loads).
-   * TYPE_SLICE stays dest/fat. Kind from WAVE278 resolved_type.
-   * PLATFORM: WINDOWS leftover-PE / SHARED Cap ARRAY E*. */
+  /* ARRAY_LIT: rec dest pointer. TYPE_ARRAY ≤8B load_64 payload (SAT
+   * INDEX lea-home); >8B dest is E*. TYPE_SLICE (11): dest-SLICE stamp
+   * from typeck; wrap {data=dest, length=n_arr} and lea fat* (formals
+   * are 1 GP). Do not leftover rest remaining-wave 221 call_param_ty_get.
+   * Do not copy .x durable/SIMD packer. Length polarity = leftover rest
+   * WIN leftover win_glue_slice_dual_gp_length_off (x86 home-8).
+   * next_offset@4 ≡ leftover rest glue_align_next_offset.
+   * PLATFORM: WINDOWS leftover-PE / SHARED Cap ARRAY E* / SLICE fat*. */
   if (ko == 46) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
       return -1;
@@ -33803,6 +33815,30 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
     tk = 0;
     if (rty > 0)
       tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+      if (n_arr < 0)
+        n_arr = 0;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      if (ta == 1)
+        *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      else
+        *(int32_t *)((uint8_t *)ctx + 4) = home + 8;
+      glue_align_next_offset(ctx);
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
     if (tk != 10)
       return 0;
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
