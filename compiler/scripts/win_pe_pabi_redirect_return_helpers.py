@@ -159,12 +159,27 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_asm_emit_deref_elf_c",
     "pipeline_expr_unary_operand_ref_at",
     "ast_pipeline_expr_unary_operand_ref_at",
+    # Nested-block lets (unsafe region / if / while / for): SAT emit_block
+    # formula num_locals-nlets + SAT let_name skip nlen==0. leftover rest
+    # WIN leftover emit_block_body uses block_slot_get after fill walks
+    # WAVE277 children. SAT emit_if intra SAT emit_block (PE first-wins
+    # does not rewrite) — redirect SAT if/while/for → leftover rest body.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "pipeline_asm_emit_block_body_sync_elf",
+    "backend_emit_block_body_sync_elf",
+    "pipeline_block_let_name_len",
+    "pipeline_block_let_name_copy64",
+    "glue_lazy_append_block_let_local",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
 EMIT_SCAN_FUNCS = (
     ("pipeline_asm_emit_block_body_sync_elf", 0x6000),
-    ("pipeline_asm_emit_block_if_stmt_elf", 0x1000),
+    ("backend_emit_block_body_sync_elf", 0x8000),
+    ("pipeline_asm_emit_block_if_stmt_elf", 0x2000),
+    ("pipeline_asm_fill_local_slots", 0x800),
+    ("asm_ctx_fill_locals_block_tree", 0x400),
+    ("asm_ctx_ensure_block_locals", 0x400),
     ("glue_emit_block_final_expr_elf", 0x400),
     ("glue_block_stmt_order_has_return", 0x400),
     ("backend_emit_while_loop_elf_sync", 0x2000),

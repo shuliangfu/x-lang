@@ -16660,6 +16660,15 @@ extern int32_t asm_ctx_local_count(uint8_t *ctx);
 extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
 extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t type_ref, int32_t init_ref);
+extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_if_then_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_if_else_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_while_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_for_body_ref(void *arena, int32_t block_ref, int32_t i);
 
 void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
   int32_t off;
@@ -16719,6 +16728,49 @@ void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
   }
   *(int32_t *)((uint8_t *)ctx + 4) = off;
   asm_ctx_block_slot_set((uint8_t *)ctx, block_ref, slot_base);
+  /*
+   * Nested WAVE277 blocks (unsafe region / if / while / for) own their
+   * lets. mega_body only filled the function body, so `unsafe { let y }`
+   * had no slot: SAT emit_block `num_locals - nlets` went negative
+   * (letinit_lit CG002 labels=1) or aliased the last parent slot.
+   * Recurse after this block's slot_base is recorded so
+   * asm_ctx_block_slot_get(child) is the child's first local.
+   * Same child set as WAVE269 fill_tree. Do not leftover rest second
+   * WAVE277 rebuild / glue_fixed_array.
+   * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+   */
+  {
+    int32_t nch;
+    int32_t ci;
+    int32_t ch;
+    nch = ast_ast_block_num_regions(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = pipeline_block_region_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+    nch = ast_ast_block_num_if_stmts(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = ast_pipeline_block_if_then_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+      ch = ast_pipeline_block_if_else_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+    nch = ast_ast_block_num_loops(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = pipeline_block_while_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+    nch = ast_ast_block_num_for_loops(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = pipeline_block_for_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+  }
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_local_slots unique */
 
@@ -28838,6 +28890,138 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
 }
 
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
+
+/*
+ * leftover rest WIN leftover emit_block_body first-wins.
+ * SAT pipeline_asm_emit_block_body_sync_elf is SAT T (wave153
+ * `#ifndef FROM_X`); leftover rest FROM_X was ABSENT so SAT body
+ * used `num_locals - nlets` and SAT let names. Function-body lets
+ * worked; `unsafe { let y }` had nlets=1 after WAVE277 redirect but
+ * no slot (mega fill skipped regions) → slot_base < 0 CG002
+ * (letinit_lit / addrof). .x uses backend_block_slot_base_for
+ * (block_slot_get). G.7 complete leftover rest body: fill (now
+ * walks WAVE277 children) + slot_base from block_slot_get + SAT
+ * emit_block_inits (global T; emit_expr already redirected to
+ * leftover rest rec) + stmt_order. SAT emit_if / while / for are
+ * SAT global T — leftover rest UNDEFs them. Do not leftover rest
+ * second WAVE277 / glue_fixed_array / mega.
+ * POSIX FROM_X stays ABSENT (.x thin owns body_sync).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
+extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern int32_t pipeline_asm_emit_block_inits_elf_c(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                                  int32_t ta, int32_t slot_base);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block, int32_t if_idx,
+                                                  void *ctx, int32_t ta, int32_t stmt_i);
+extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t wi,
+                                               void *ctx, int32_t ta);
+extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
+                                             void *ctx, int32_t ta);
+extern int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta);
+extern void glue_asm_ctx_set_scope_block(void *ctx, int32_t block_ref);
+extern void glue_block_body_bind_module_dep_from_ctx(void *ctx);
+
+int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
+  int32_t slot_base;
+  int32_t nso;
+  int32_t si;
+  int32_t k;
+  int32_t idx;
+  int32_t er;
+  int32_t inner;
+  int32_t ncfg;
+  if (!arena || !elf_ctx || !ctx || block_ref <= 0)
+    return -1;
+  glue_block_body_bind_module_dep_from_ctx(ctx);
+  glue_asm_ctx_set_scope_block(ctx, block_ref);
+  pipeline_asm_fill_local_slots(ctx, arena, block_ref);
+  slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, block_ref);
+  if (slot_base < 0)
+    slot_base = 0;
+  if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, block_ref, ctx, ta, slot_base) != 0)
+    return -1;
+  nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  for (si = 0; si < nso; si++) {
+    k = ast_ast_block_stmt_order_kind(arena, block_ref, si);
+    idx = ast_ast_block_stmt_order_idx(arena, block_ref, si);
+    /* 1 = let (already emit_block_inits). */
+    if (k == 1)
+      continue;
+    if (k == 2) {
+      ncfg = ast_ast_block_num_expr_stmts(arena, block_ref);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      er = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
+      if (er <= 0)
+        continue;
+      /* RETURN: leftover rest final_expr RETURN-only skip of stmt_order. */
+      if (pipeline_expr_kind_ord_at(arena, er) == 41)
+        continue;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 3) {
+      ncfg = ast_ast_block_num_loops(arena, block_ref);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (backend_emit_while_loop_elf_sync(arena, elf_ctx, block_ref, idx, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 4) {
+      ncfg = ast_ast_block_num_for_loops(arena, block_ref);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (backend_emit_for_loop_elf_sync(arena, elf_ctx, block_ref, idx, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 5) {
+      ncfg = ast_ast_block_num_if_stmts(arena, block_ref);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (pipeline_asm_emit_block_if_stmt_elf(arena, elf_ctx, block_ref, idx, ctx, ta, si) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 6) {
+      ncfg = ast_ast_block_num_regions(arena, block_ref);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      inner = pipeline_block_region_body_ref(arena, block_ref, idx);
+      if (inner > 0 && pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, inner, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    /* 7 = labeled: SAT leftover; not this knife. */
+  }
+  if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0)
+    return -1;
+  return 0;
+}
+
+int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
+  return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
+}
+#endif /* !FROM_X || WIN leftover rest emit_block_body */
 
 /* ========================================================================== *
  * wave153 cold twins: pipeline_asm_emit_block_body pure-owned leave.
