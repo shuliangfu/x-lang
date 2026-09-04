@@ -36813,6 +36813,12 @@ extern int32_t pipeline_expr_field_access_soa_stride(void *arena, int32_t expr_r
 extern void *pipeline_asm_emit_module_ref_c(void);
 extern int32_t typeck_soa_field_soa_index(void *mod, void *arena, int32_t expr_ref, int32_t base_ref);
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+/* SAT global T: leftover rest rec ko==45 already UNDEF-calls this.
+ * SAT glue_field_access_call_base_rvalue / emit_struct_let_init are
+ * SAT local t — leftover rest cannot UNDEF them (ld -r leaves U).
+ * PLATFORM: WINDOWS leftover-PE. */
+extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
 extern int32_t backend_enc_load_zext8_from_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
@@ -37025,6 +37031,39 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
     if (load_sz == 8)
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  }
+
+  /*
+   * STRUCT_LIT rvalue base (`(P { x: 3, y: 4 }).x`).
+   * G.7 complete leftover rest WIN leftover field_access_fast: SAT
+   * emit_struct_lit is leftover rest rec's STRUCT_LIT authority (global T).
+   * SAT call_base_rvalue / emit_struct_let_init are SAT local t — leftover
+   * rest UNDEF does not resolve (ld -r keeps U; final gcc fails). SAT
+   * emit_struct_lit rvalue (stack_slot_off=-1) leaves dest pointer in rbx
+   * (rax may be packed ≤8B value). Re-home from rbx, add field offset, load.
+   * CALL/METHOD rvalue field is a separate neighborhood.
+   * Prior: fell through to lvalue_eff_addr (VAR/INDEX/DEREF only) → -99
+   * → rec ko==44 enum-only → CG002. PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED=-99.
+   * PLATFORM: WINDOWS leftover-PE · SHARED freestanding emit.
+   */
+  if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 45) {
+    int32_t sl_rc;
+    int32_t field_off;
+    int32_t load_sz;
+    sl_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, fa_base2, ctx, ta);
+    if (sl_rc != 0)
+      return sl_rc;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    field_off = pipeline_expr_field_access_layout_offset(arena, mod, expr_ref);
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+      return -1;
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    if (load_sz == 1)
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    if (load_sz == 8)
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
   }
 
   /** VAR field access */

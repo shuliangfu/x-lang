@@ -100,6 +100,19 @@ EMIT_REDIRECT_SYMS = (
     "glue_struct_layout_index_by_type_name_c",
     "pipeline_module_num_struct_layouts_at",
     "pipeline_module_struct_layout_num_fields",
+    # WAVE278 FIELD_ACCESS sidecar (SAT glue_field_access_call_base_rvalue
+    # intra SAT field_access_base_ref → SAT Expr empty → UNHANDLED CG002
+    # for bare STRUCT_LIT.field). leftover rest WAVE278 ALWAYS reads W278_Expr.
+    "pipeline_expr_field_access_base_ref",
+    "pipeline_expr_field_access_name_len",
+    "pipeline_expr_field_access_name_into",
+    "pipeline_expr_field_access_offset",
+    "pipeline_expr_field_access_soa_stride",
+    "ast_pipeline_expr_field_access_offset",
+    "ast_pipeline_expr_field_access_is_enum_variant",
+    "glue_arena_expr_at_ref",
+    "pipeline_arena_expr_ptr",
+    "pipeline_asm_ctx_layout",
     # WAVE277 let type + WAVE270 kind (SAT emit_block_inits intra SAT
     # let_type_ref → glue_block_let_is_fixed_array false → store ARRAY_LIT
     # pointer into the [N]T slot; INDEX then lea-slot).
@@ -147,6 +160,12 @@ EMIT_SCAN_FUNCS = (
     ("pipeline_expr_struct_lit_field_type_ref_at", 0x400),
     ("pipeline_expr_struct_lit_value_bytes", 0x400),
     ("pipeline_expr_struct_lit_field_store_sz", 0x200),
+    ("glue_field_access_call_base_rvalue_elf_c", 0x2000),
+    ("pipeline_asm_emit_field_access_elf_fast_c", 0x2000),
+    ("pipeline_asm_emit_var_field_access_elf_c", 0x800),
+    ("pipeline_expr_field_access_layout_offset", 0x400),
+    ("pipeline_expr_field_access_load_byte_sz", 0x400),
+    ("glue_field_access_effective_offset_c", 0x200),
 )
 
 # Thin wrapper intra-calls thin mega_body (PE first-wins does not rewrite).
