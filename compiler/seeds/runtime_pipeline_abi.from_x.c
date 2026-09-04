@@ -14520,7 +14520,10 @@ int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_r
   }
   /* Cap-fn-ptr (10.3.2 slice0): same-module bare fn as *u8 → LEA into rax/x0.
    * Twin of runtime_pipeline_abi.x pipeline_asm_emit_as_elf_impl Cap path.
-   * Locals win; #[no_mangle] only. PLATFORM: SHARED · MACOS '_' · LINUX bare. */
+   * Locals win. POSIX .x stays #[no_mangle] only (mangled export names).
+   * leftover-PE emits source names for every module func (export /
+   * #[no_mangle] / plain — nm T foo / T id), so require only a name hit.
+   * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
   if (tgt > 0) {
     tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
     op_ko = pipeline_expr_kind_ord_at(arena, op);
@@ -14534,7 +14537,6 @@ int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_r
           int32_t fnptr_sym_len = 0;
           int32_t fnptr_k = 0;
           int32_t fnptr_fi = 0;
-          int32_t fnptr_nm = 0;
           int32_t fnptr_macho = 0;
           void *fnptr_mod = 0;
           pipeline_expr_var_name_into(arena, op, fnptr_vname);
@@ -14542,21 +14544,18 @@ int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_r
           if (fnptr_mod) {
             fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, fnptr_vname, fnptr_vlen);
             if (fnptr_fi >= 0) {
-              fnptr_nm = pipeline_module_func_is_no_mangle_at(fnptr_mod, fnptr_fi);
-              if (fnptr_nm != 0) {
-                fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
-                if (fnptr_macho != 0) {
-                  fnptr_sym[0] = (uint8_t)'_';
-                  for (fnptr_k = 0; fnptr_k < fnptr_vlen; fnptr_k++)
-                    fnptr_sym[fnptr_k + 1] = fnptr_vname[fnptr_k];
-                  fnptr_sym_len = fnptr_vlen + 1;
-                } else {
-                  for (fnptr_k = 0; fnptr_k < fnptr_vlen; fnptr_k++)
-                    fnptr_sym[fnptr_k] = fnptr_vname[fnptr_k];
-                  fnptr_sym_len = fnptr_vlen;
-                }
-                return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, fnptr_sym, fnptr_sym_len, ta);
+              fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+              if (fnptr_macho != 0) {
+                fnptr_sym[0] = (uint8_t)'_';
+                for (fnptr_k = 0; fnptr_k < fnptr_vlen; fnptr_k++)
+                  fnptr_sym[fnptr_k + 1] = fnptr_vname[fnptr_k];
+                fnptr_sym_len = fnptr_vlen + 1;
+              } else {
+                for (fnptr_k = 0; fnptr_k < fnptr_vlen; fnptr_k++)
+                  fnptr_sym[fnptr_k] = fnptr_vname[fnptr_k];
+                fnptr_sym_len = fnptr_vlen;
               }
+              return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, fnptr_sym, fnptr_sym_len, ta);
             }
           }
         }
@@ -28820,27 +28819,25 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
           int32_t fnptr_sym_len = 0;
           int32_t fnptr_k = 0;
           int32_t fnptr_fi = 0;
-          int32_t fnptr_nm = 0;
           int32_t fnptr_macho = 0;
           void *fnptr_mod = glue_emit_module_from_ctx(ctx);
+          /* leftover-PE source-name emit: lea on name hit. POSIX .x Cap
+           * path stays #[no_mangle] only. PLATFORM: WINDOWS leftover-PE. */
           if (fnptr_mod) {
             fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, vname, vlen);
             if (fnptr_fi >= 0) {
-              fnptr_nm = pipeline_module_func_is_no_mangle_at(fnptr_mod, fnptr_fi);
-              if (fnptr_nm != 0) {
-                fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
-                if (fnptr_macho != 0) {
-                  fnptr_sym[0] = (uint8_t)'_';
-                  for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
-                    fnptr_sym[fnptr_k + 1] = vname[fnptr_k];
-                  fnptr_sym_len = vlen + 1;
-                } else {
-                  for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
-                    fnptr_sym[fnptr_k] = vname[fnptr_k];
-                  fnptr_sym_len = vlen;
-                }
-                return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, fnptr_sym, fnptr_sym_len, ta);
+              fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+              if (fnptr_macho != 0) {
+                fnptr_sym[0] = (uint8_t)'_';
+                for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
+                  fnptr_sym[fnptr_k + 1] = vname[fnptr_k];
+                fnptr_sym_len = vlen + 1;
+              } else {
+                for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
+                  fnptr_sym[fnptr_k] = vname[fnptr_k];
+                fnptr_sym_len = vlen;
               }
+              return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, fnptr_sym, fnptr_sym_len, ta);
             }
           }
         }
