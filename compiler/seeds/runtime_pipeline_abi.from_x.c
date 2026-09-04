@@ -29471,27 +29471,35 @@ extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t d
 /*
  * leftover rest WIN leftover length_off unique.
  * SAT glue_slice_dual_gp_length_off_c is SAT local t (remaining-wave
- * `#ifndef FROM_X` leftover rest ABSENT). SAT slice_from_array
- * (SAT local t) stores ARRAY_LIT TYPE_SLICE length via SAT t
- * x86 home-8; leftover rest unique store_retval_pair / FIELD
- * already use C fat home+8 (signed rbp-style let slots).
- * `let xs: []i32 = [3, 4]; return xs.length` then RUN=56.
- * SAT INDEX of the same ARRAY_LIT local is GREEN because it
- * also uses SAT t home-8 for bounds — FIELD and INDEX of one
- * home must share polarity. G.7 complete leftover rest unique
- * T: always +8 so SAT intra (redirect) unifies ARRAY_LIT store
- * with FIELD and SAT INDEX bounds. win_glue home-8 stays for
- * leftover rest for_call_args wrap of positive next_offset
- * temps (lea fat* then callee [fat*+8]). Do not leftover rest
- * remaining-wave original via !FROM_X || WIN. Do not leftover
- * rest T SAT length_to_rbx / try_index / emit_assign. SAT
- * length_off is SAT local t — not leftover rest T SAT global T.
- * POSIX FROM_X stays ABSENT (.x thin owns @41039).
+ * `#ifndef FROM_X` leftover rest ABSENT). leftover-PE named lets
+ * use positive product offsets encoded as [rbp-off]. C fat MEMORY
+ * {data@addr, length@addr+8} is product home-8 (x86) / home+8
+ * (arm64) — same as win_glue / SAT remaining-wave / POSIX `.x`
+ * @41039. Always +8 put length at memory data-8: local FIELD/INDEX
+ * of ARRAY_LIT stayed consistent (`i32slen_let` RUN=2) but lea
+ * fat* as call-arg loaded [fat*+8] empty (`i32one_var` SEGV 139).
+ * G.7 complete leftover rest unique T: win_glue polarity so SAT
+ * intra (redirect) ARRAY_LIT store, FIELD, SAT INDEX bounds, and
+ * leftover rest unique store_retval_pair share C fat MEMORY with
+ * for_call_args wrap. Do not leftover rest remaining-wave original
+ * via !FROM_X || WIN. Do not leftover rest T SAT length_to_rbx /
+ * try_index / emit_assign. SAT length_off is SAT local t — not
+ * leftover rest T SAT global T. POSIX FROM_X stays ABSENT (.x
+ * thin owns @41039).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
-  (void)ta;
-  return data_home + 8;
+  /* leftover-PE named lets use positive product offsets encoded as
+   * [rbp-off]. C fat MEMORY {data@addr, length@addr+8} is then
+   * product home-8 (x86) / home+8 (arm64). Always +8 put length at
+   * [rbp-(home+8)] = memory data-8: local FIELD/INDEX stayed consistent
+   * (`i32slen_let` RUN=2) but lea fat* as call-arg loaded [fat*+8] =
+   * memory data+8 empty (`i32one_var` / `slice_ptr_arg` SEGV 139).
+   * Same polarity as win_glue / SAT remaining-wave / POSIX `.x` @41039.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ta == 1)
+    return data_home + 8;
+  return data_home - 8;
 }
 
 int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
@@ -29520,14 +29528,13 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
      * win_glue_slice_dual_gp_length_off (x86 home-8).
      * PLATFORM: WINDOWS leftover-PE. */
     if (tk == 11) {
-      /* C fat {data@home, length@home+8}. SAT INDEX of a local
-       * TYPE_SLICE loads length from home+8 (slice_call_let
-       * objdump). x86 VAR `.length` home-8 is a different face
-       * (formal fat*+8 / ARRAY_LIT dual-GP). Do not use
-       * win_glue_slice_dual_gp_length_off here — SAT INDEX
-       * would read uninitialized home+8.
+      /* C fat MEMORY {data@addr, length@addr+8}. leftover-PE named
+       * lets are positive product offsets ([rbp-off]); x86 length
+       * half is product home-8 (win_glue / leftover rest unique
+       * length_off). Always +8 was memory data-8 and broke lea
+       * fat* as call-arg. Formals stay fat*+8 (needs_ptr_load).
        * PLATFORM: WINDOWS leftover-PE. */
-      half2 = slot_off + 8;
+      half2 = glue_slice_dual_gp_length_off_c(slot_off, ta);
       if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
         return -1;
       return 0;
@@ -38418,16 +38425,18 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
         glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, var_off, ctx) == 0) {
       uint8_t fn_sl[128];
       pipeline_expr_field_access_name_into(arena, expr_ref, fn_sl);
-      /* TYPE_SLICE local dual-GP `.length`: C fat {data@home, length@home+8}.
-       * leftover rest unique store_retval_pair and SAT INDEX of the same
-       * local already use home+8 (`let s = mk(); return s[1]` GREEN;
-       * `return s.length` was RUN=0 from win_glue x86 home-8).
-       * win_glue home-8 stays for positive next_offset temps in
-       * for_call_args wrap (lea fat* then callee [fat*+8]).
-       * Formals (needs_ptr_load!=0) stay fat*+8 below.
+      /* TYPE_SLICE local dual-GP `.length`: C fat MEMORY
+       * {data@addr, length@addr+8}. leftover-PE named lets are
+       * positive product offsets ([rbp-off]); x86 length half is
+       * product home-8 (win_glue / leftover rest unique length_off).
+       * Always var_off+8 was memory data-8: local `.length` of
+       * CALL let-init GREEN at the wrong slot while ARRAY_LIT
+       * store (SAT t home-8) RAN=56, and lea fat* as call-arg
+       * SEGV. Formals (needs_ptr_load!=0) stay fat*+8 below.
        * PLATFORM: WINDOWS leftover-PE. */
       if (flen_sl == 6 && memcmp(fn_sl, "length", 6) == 0)
-        return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off + 8, ta);
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx,
+            win_glue_slice_dual_gp_length_off_c(var_off, ta), ta);
       if (flen_sl == 4 && memcmp(fn_sl, "data", 4) == 0)
         return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
     }
