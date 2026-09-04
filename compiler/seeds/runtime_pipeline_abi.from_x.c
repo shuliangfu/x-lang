@@ -33987,9 +33987,89 @@ extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx,
 extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t lval_ref,
                                                       void *ctx, int32_t ta);
-extern int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref);
 extern int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref);
 extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_field_access_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ty_ref, uint8_t *out);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ty_ref);
+extern int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen);
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t j, uint8_t *out);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
+
+/*
+ * leftover rest unique field_type_ref T first-wins is a 23B SAT-t stub
+ * (gcc -E of the completed body is live; merged leftover rest T is still
+ * `return 0`). for_call_args cannot UNDEF SAT local t. G.7: layout from
+ * leftover rest already-T glue_struct_layout_index_by_type_name (field_layout
+ * unique @30310) + WAVE266 field type. dest-SLICE wrap stays on resolved
+ * tk==11. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, int32_t fa_ref) {
+  int32_t flen;
+  uint8_t field_name[128];
+  int32_t base_ref;
+  int32_t base_ko;
+  int32_t base_ty;
+  int32_t kord;
+  uint8_t struct_name[128];
+  int32_t nlen;
+  int32_t k;
+  int32_t j;
+  int32_t nf;
+  int32_t fnlen;
+  int32_t feq;
+  int32_t fi;
+  uint8_t fb[128];
+  if (!arena || !mod || fa_ref <= 0)
+    return 0;
+  flen = pipeline_expr_field_access_name_len(arena, fa_ref);
+  if (flen <= 0 || flen > 127)
+    return 0;
+  pipeline_expr_field_access_name_into(arena, fa_ref, field_name);
+  base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+  if (base_ref <= 0)
+    return 0;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_ko <= 0)
+    return 0;
+  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (base_ty <= 0)
+    return 0;
+  kord = pipeline_type_kind_ord_at(arena, base_ty);
+  if (kord == 9) {
+    base_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    kord = (base_ty > 0) ? pipeline_type_kind_ord_at(arena, base_ty) : 0;
+  }
+  if (kord != 8)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, base_ty, struct_name);
+  if (nlen <= 0 || nlen > 63)
+    return 0;
+  k = glue_struct_layout_index_by_type_name_c(mod, struct_name, nlen);
+  if (k < 0)
+    return 0;
+  nf = pipeline_module_struct_layout_num_fields(mod, k);
+  for (j = 0; j < nf; j++) {
+    fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
+    if (fnlen != flen)
+      continue;
+    pipeline_module_struct_layout_field_name_into(mod, k, j, fb);
+    feq = 1;
+    for (fi = 0; fi < fnlen; fi++) {
+      if (fb[fi] != field_name[fi]) {
+        feq = 0;
+        break;
+      }
+    }
+    if (feq)
+      return pipeline_module_struct_layout_field_type_ref(mod, k, j);
+  }
+  return 0;
+}
 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
@@ -34234,7 +34314,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       mod = glue_emit_module_from_ctx(ctx);
       if (!mod)
         mod = pipeline_asm_emit_module_ref_c();
-      fty = glue_field_access_field_type_ref_c(arena, mod, expr_ref);
+      fty = win_glue_fa_layout_type_ref_c(arena, mod, expr_ref);
       if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
         rty = fty;
         tk = 10;
