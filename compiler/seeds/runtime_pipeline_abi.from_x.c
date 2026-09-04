@@ -28648,6 +28648,12 @@ extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, in
 extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                              int32_t ta);
+/* SAT T of wave197 deref_struct16 (leftover rest remaining-wave stub
+ * @32633 #ifndef FROM_X ABSENT). leftover rest WIN leftover
+ * glue_load_var_as_value_to_rax_rdx already U this face. Do not
+ * leftover rest T the remaining-wave stub (returns -1).
+ * PLATFORM: WINDOWS leftover-PE. */
+extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
 
 /*
  * leftover rest WIN leftover lvalue effective address: VAR / INDEX /
@@ -29028,11 +29034,19 @@ int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   trk = (tr > 0) ? pipeline_type_kind_ord_at(arena, tr) : 0;
   if (trk == 10)
     return 0;
-  /* TYPE_SLICE=11 / 9–16B named: SAT deref_struct16 is remaining-wave
-   * stub FROM_X ABSENT (possibly SAT local t). Leave the pointer
-   * (ARRAY twin). Not this knife (`*i32`). */
+  /* TYPE_SLICE=11: remaining-wave emit_deref loads 16B fat via
+   * pipeline_asm_deref_struct16_rax_ptr_elf_c (rax=data, rdx=length).
+   * leftover rest previously left the pointer (ARRAY twin) — `*i32`
+   * knife. SAT rvalue_slice_once wave773 then treats DEREF of *[]T as
+   * dual-GP: leftover rest leave-ptr stored the fat home as "data" and
+   * `(*p)[1]` loaded *(fat+4) (`slice_ptr` RUN=246). G.7 complete
+   * leftover rest emit_deref TYPE_SLICE only. SAT T of deref_struct16
+   * satisfies leftover rest U (same as glue_load_var_as_value_to_rax_rdx).
+   * Do not leftover rest T remaining-wave stub / SAT try_index (arr0).
+   * 9–16B named still leave-ptr (not this knife).
+   * PLATFORM: WINDOWS leftover-PE. */
   if (trk == 11)
-    return 0;
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
   if (trk == 9)
     return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
   modp = glue_emit_module_from_ctx(ctx);
