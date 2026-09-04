@@ -38392,8 +38392,16 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
         glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, var_off, ctx) == 0) {
       uint8_t fn_sl[128];
       pipeline_expr_field_access_name_into(arena, expr_ref, fn_sl);
+      /* TYPE_SLICE local dual-GP `.length`: C fat {data@home, length@home+8}.
+       * leftover rest unique store_retval_pair and SAT INDEX of the same
+       * local already use home+8 (`let s = mk(); return s[1]` GREEN;
+       * `return s.length` was RUN=0 from win_glue x86 home-8).
+       * win_glue home-8 stays for positive next_offset temps in
+       * for_call_args wrap (lea fat* then callee [fat*+8]).
+       * Formals (needs_ptr_load!=0) stay fat*+8 below.
+       * PLATFORM: WINDOWS leftover-PE. */
       if (flen_sl == 6 && memcmp(fn_sl, "length", 6) == 0)
-        return backend_enc_load_rbp_to_rax_arch(elf_ctx, win_glue_slice_dual_gp_length_off_c(var_off, ta), ta);
+        return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off + 8, ta);
       if (flen_sl == 4 && memcmp(fn_sl, "data", 4) == 0)
         return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
     }
