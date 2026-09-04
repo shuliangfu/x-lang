@@ -159,6 +159,16 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_asm_emit_deref_elf_c",
     "pipeline_expr_unary_operand_ref_at",
     "ast_pipeline_expr_unary_operand_ref_at",
+    # TYPE_FN STRUCT_LIT field: SAT emit_struct_lit intra SAT
+    # field_store_sz (SAT type_kind miss → fsz==0 skip store). leftover
+    # rest WIN leftover first-wins field_store_sz (WAVE270 kind + TYPE_FN=18
+    # → 8). SAT load_byte_sz name-scan stole i32 width for field `f`.
+    # WAVE278 resolved_type_ref first-wins so SAT load_byte_sz sees TYPE_FN.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_struct_lit_field_store_sz",
+    "pipeline_expr_struct_lit_field_store_sz",
+    "pipeline_expr_resolved_type_ref",
+    "ast_pipeline_expr_resolved_type_ref",
     # Nested-block lets (unsafe region / if / while / for): SAT emit_block
     # formula num_locals-nlets + SAT let_name skip nlen==0. leftover rest
     # WIN leftover emit_block_body uses block_slot_get after fill walks

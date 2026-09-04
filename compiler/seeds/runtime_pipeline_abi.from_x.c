@@ -26663,6 +26663,7 @@ extern int32_t pipeline_asm_emit_call_arg_active_c(void);
 extern int32_t glue_call_param_named_struct_pass_addr_elf_c(void *arena, int32_t pty);
 extern int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
@@ -27771,6 +27772,18 @@ int32_t pipeline_expr_field_access_load_byte_sz(void *a, void *m, int32_t expr_r
   if (flen <= 0 || flen > 127)
     return 8;
   memcpy(field_name, ex->field_access_field_name, (size_t)flen);
+  /* TYPE_FN=18 / TYPE_PTR=9 field load is pointer-sized. Consult FIELD
+   * resolved_type BEFORE scanning every layout for a matching field name
+   * (`f` as i32 in an earlier layout stole width 4 → cltq + call * truncated).
+   * PLATFORM: WINDOWS leftover-PE / SHARED Cap ABI. */
+  tr = pipeline_expr_resolved_type_ref(a, expr_ref);
+  if (tr > 0) {
+    kind_ord = pipeline_type_kind_ord_at(a, tr);
+    if (kind_ord == 9 || kind_ord == 18)
+      return 8;
+    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12)
+      return glue_field_access_load_bytes_for_type_ref(a, tr);
+  }
   /* 任意 struct layout 中按字段名匹配（base resolved_type_ref 缺失时仍可用，如 core.option 形参 opt）。 */
   if (m) {
     for (k = 0; k < (int32_t)pipeline_module_num_struct_layouts_at(m); k++) {
@@ -30227,6 +30240,80 @@ void glue_fill_var_types_from_lets_in_block(void *arena, int32_t block_ref) {
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE fill_var_types unique */
 
+/*
+ * leftover-PE STRUCT_LIT TYPE_FN field store width.
+ * SAT emit_struct_lit intra SAT glue_struct_lit_field_store_sz (PE first-wins
+ * does not rewrite): SAT type_kind miss → glue_type_size_simple 0 → fsz==0
+ * skip store (`H { f: foo }` lea dest then load uninit → SIGSEGV). *u8
+ * field already stores 8. leftover rest WAVE270 type_kind + leftover rest
+ * glue_type_size_simple already TYPE_FN=18 → 8; first-wins this face so
+ * SAT fields_elf (redirect) uses leftover rest. POSIX FROM_X stays ABSENT
+ * (.x thin owns the face). PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern void pipeline_asm_emit_set_module(void *m);
+extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *m, int32_t expr_ref, int32_t field_ix);
+extern int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t ref);
+extern int32_t glue_sysv_dual_gp_byte_size_c(void *arena, int32_t ty);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_ref, int32_t field_ix);
+extern int32_t pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_struct_lit_value_bytes(void *a, void *m, int32_t expr_ref);
+
+int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi) {
+  int32_t ty, kind_ord, nsz, foff, next_off, nf;
+  void *mod = pipeline_asm_emit_module_ref_c();
+  ty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, expr_ref, fi);
+  if (ty <= 0) return 8;
+  if (mod && glue_type_is_empty_struct_c(mod, arena, ty, 0) != 0) return 0;
+  kind_ord = pipeline_type_kind_ord_at(arena, ty);
+  /* u8 stays 1. bool: store 4 when C padding to next field / struct end is
+   * >= 4 so inlined Option { is_some:false } zeros the pad that ldr-w tag
+   * loads consume. Packed adjacent bools (gap<4) stay 1.
+   * PLATFORM: SHARED — cold twin of runtime_pipeline_abi.x (FROM_X live). */
+  if (kind_ord == 2 || kind_ord == 1) {
+    if (mod) {
+      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
+      nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      if (fi + 1 < nf)
+        next_off = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi + 1);
+      else
+        next_off = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
+      if (foff >= 0 && next_off >= foff + 4) return 4;
+    }
+    return 1;
+  }
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) return 4;
+  /* TYPE_PTR=9 / TYPE_FN=18: opaque Cap-fn-ptr ABI is pointer-sized.
+   * SAT type_kind miss used to fall through size_simple→0 and skip the
+   * store. leftover rest WAVE270 kind + leftover rest size_simple already
+   * 18→8; pin the width here so a kind miss cannot skip. PLATFORM: WINDOWS
+   * leftover-PE / SHARED Cap ABI. */
+  if (kind_ord == 9 || kind_ord == 18) return 8;
+  nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
+  if (nsz > 8 && nsz <= 16) return nsz;
+  nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
+  if (nsz > 8 && nsz <= 16) return nsz;
+  nsz = glue_type_size_simple(mod, arena, ty, 0);
+  if (nsz == 0) return 0;
+  if (nsz > 0 && nsz <= 8) return nsz;
+  return 8;
+}
+
+int32_t pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
+  void *prev = pipeline_asm_emit_module_ref_c();
+  int32_t sz;
+  pipeline_asm_emit_set_module(m);
+  sz = glue_struct_lit_field_store_sz(a, expr_ref, field_ix);
+  pipeline_asm_emit_set_module(prev);
+  return sz;
+}
+#endif /* !FROM_X || WIN leftover rest STRUCT_LIT field_store_sz unique */
+
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_type cluster */
 
 int32_t typeck_typeck_struct_layout_metrics(void *module, void *arena, int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
@@ -30372,49 +30459,6 @@ int32_t pipeline_expr_struct_lit_value_bytes(void *a, void *m, int32_t expr_ref)
     return sz_out > 0 ? sz_out : 0;
   }
   return 0;
-}
-
-int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi) {
-  int32_t ty, kind_ord, nsz, foff, next_off, nf;
-  void *mod = pipeline_asm_emit_module_ref_c();
-  ty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, expr_ref, fi);
-  if (ty <= 0) return 8;
-  if (mod && glue_type_is_empty_struct_c(mod, arena, ty, 0) != 0) return 0;
-  kind_ord = pipeline_type_kind_ord_at(arena, ty);
-  /* u8 stays 1. bool: store 4 when C padding to next field / struct end is
-   * >= 4 so inlined Option { is_some:false } zeros the pad that ldr-w tag
-   * loads consume. Packed adjacent bools (gap<4) stay 1.
-   * PLATFORM: SHARED — cold twin of runtime_pipeline_abi.x (FROM_X live). */
-  if (kind_ord == 2 || kind_ord == 1) {
-    if (mod) {
-      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
-      nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
-      if (fi + 1 < nf)
-        next_off = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi + 1);
-      else
-        next_off = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
-      if (foff >= 0 && next_off >= foff + 4) return 4;
-    }
-    return 1;
-  }
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) return 4;
-  nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
-  if (nsz > 8 && nsz <= 16) return nsz;
-  nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
-  if (nsz > 8 && nsz <= 16) return nsz;
-  nsz = glue_type_size_simple(mod, arena, ty, 0);
-  if (nsz == 0) return 0;
-  if (nsz > 0 && nsz <= 8) return nsz;
-  return 8;
-}
-
-int32_t pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
-  void *prev = pipeline_asm_emit_module_ref_c();
-  int32_t sz;
-  pipeline_asm_emit_set_module(m);
-  sz = glue_struct_lit_field_store_sz(a, expr_ref, field_ix);
-  pipeline_asm_emit_set_module(prev);
-  return sz;
 }
 
 int32_t glue_struct_lit_rehome_dest_rbx_elf_c(void *elf_ctx, int32_t rehome_off, int32_t ta) {
