@@ -34008,7 +34008,7 @@ extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li,
  * unique @30310) + WAVE266 field type. dest-SLICE wrap stays on resolved
  * tk==11. PLATFORM: WINDOWS leftover-PE.
  */
-static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, int32_t fa_ref) {
+static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, void *ctx, int32_t fa_ref) {
   int32_t flen;
   uint8_t field_name[128];
   int32_t base_ref;
@@ -34036,7 +34036,15 @@ static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, int32_t fa_
   base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
   if (base_ko <= 0)
     return 0;
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  /* VAR `let s: H`: leftover-PE may leave FA/VAR resolved 0; leftover rest
+   * unique glue_var_decl_type_ref reads the let decl (same leftover rest
+   * unique for_call_args VAR path). POSIX field_type_ref @71670 same
+   * resolved-then-decl fallback. PLATFORM: WINDOWS leftover-PE. */
+  base_ty = 0;
+  if (base_ko == 3 && ctx)
+    base_ty = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+  if (base_ty <= 0)
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (base_ty <= 0)
     return 0;
   kord = pipeline_type_kind_ord_at(arena, base_ty);
@@ -34314,7 +34322,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       mod = glue_emit_module_from_ctx(ctx);
       if (!mod)
         mod = pipeline_asm_emit_module_ref_c();
-      fty = win_glue_fa_layout_type_ref_c(arena, mod, expr_ref);
+      fty = win_glue_fa_layout_type_ref_c(arena, mod, ctx, expr_ref);
       if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
         rty = fty;
         tk = 10;
