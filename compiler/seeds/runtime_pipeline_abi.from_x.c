@@ -28630,7 +28630,9 @@ extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, in
 extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mul_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
-extern int32_t backend_enc_add_rax_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale1_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale4_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale8_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
@@ -28733,6 +28735,18 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
    * rest lvalue INDEX only (load_64_from_rax when base rtk==11).
    * TYPE_ARRAY stays lea payload / load E* (rtk==10). Remaining-wave
    * glue_emit_index_eff_addr_scaled stays #ifndef FROM_X.
+   *
+   * Non-lit idx: POSIX glue_emit_index_rax_plus_rbx_scaled uses
+   * lea [rax+rbx*esz] (64-bit). leftover rest previously did
+   * mul_imm_to_rbx + backend_enc_add_rax_rbx_arch. That add is
+   * 32-bit ADD EAX,EBX and zero-extends rax (enc_add_rax_rbx
+   * comment: i32 wrap; ptr arith must use scale1). PE image
+   * 0x14000xxxx → rax=0x4000xxxx after the add → SEGV on
+   * `&xs[i]` (`addrof_sidx_var`). Lit `&xs[1]` stays GREEN because
+   * add_imm_to_rax is REX.W. G.7 complete leftover rest lvalue
+   * INDEX non-lit only (emit idx then scale*; emit_expr sxts i32
+   * so rbx is clean). Do not leftover rest T remaining-wave
+   * scaled / SAT try_index (arr0 intercept).
    * PLATFORM: WINDOWS leftover-PE. */
   if (ko == 47) {
     base_ref = pipeline_expr_index_base_ref(arena, lval_ref);
@@ -28778,22 +28792,32 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
       return -1;
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
       return -1;
-    if (esz != 1) {
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
-        return -1;
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
-        return -1;
-      return 0;
-    }
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
-    if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0)
+    /* 64-bit lea [rax+rbx*esz]. Do not add_rax_rbx (32-bit, zeros
+     * PE image high bits). Remaining-wave rax_plus_rbx_scaled stays
+     * #ifndef FROM_X — inline the 1/4/8 dispatch here.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (esz == 1) {
+      if (backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (esz == 4) {
+      if (backend_enc_rax_plus_rbx_scale4_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (esz == 8) {
+      if (backend_enc_rax_plus_rbx_scale8_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
+      return -1;
+    if (backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta) != 0)
       return -1;
     return 0;
   }
