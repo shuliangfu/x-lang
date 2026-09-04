@@ -33949,7 +33949,14 @@ void glue_asm73_cfg_interf_prepare(void) {
  * formals keep payload in the home (VAR load_var / ARRAY_LIT load_64)
  * so rec E* as 8B INTEGER made SAT INDEX lea-home-as-payload
  * (`arr_ptr_arg` RUN=110 = high 32 of E*). Rec then ≤8B load_64;
- * >8B leave E*. POSIX FROM_X stays ABSENT (.x thin owns @79135).
+ * >8B leave E*. TYPE_ARRAY FIELD `take(s.a)` of `[2]i32` field: rec
+ * 4B-loads (var_field_access load_byte_sz catch-all 4) so rec-then
+ * load_64 would deref payload bits (`arr_field_arg` RUN=0 = a[1] of
+ * [3,0]). leftover rest lvalue leaves field address; ≤8B load_64;
+ * >8B leave E*. POSIX .x @79444 try_index is SAT local t — leftover
+ * rest UNDEF fails final gcc; remaining-wave stub -2 FROM_X ABSENT.
+ * Do not leftover rest T SAT try_index (arr0). POSIX FROM_X stays
+ * ABSENT (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -33978,6 +33985,8 @@ extern void glue_align_next_offset(void *ctx);
 extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref,
                                                      int32_t var_off, void *ctx, int32_t ta);
 extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t lval_ref,
+                                                      void *ctx, int32_t ta);
 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
@@ -34192,9 +34201,17 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * rax=data as 16B INTEGER then take extra-deref (`slice_field_arg`
    * SEGV 139). G.7 complete leftover rest for_call_args: rec then
    * store rax+rdx to 16B home, lea fat* (CALL/DEREF wrap twin).
-   * Kind from leftover rest WAVE278 resolved_type_ref. Do not copy
-   * .x packer / remaining-wave 221 pty. Do not leftover rest T SAT
-   * try_index (arr0).
+   * TYPE_ARRAY FIELD `take(s.a)`: rec 4B-loads (var_field_access
+   * load_byte_sz catch-all 4) so rec-then-load_64 would deref
+   * payload bits (`arr_field_arg` RUN=0). leftover rest lvalue
+   * leaves field address (same leftover rest .o; already T).
+   * 8B leftover-PE formals keep payload in the home (ARRAY_LIT /
+   * DEREF / VAR twins); ≤8B load_64; >8B leave E*. POSIX .x
+   * @79444 try_index is SAT local t — leftover rest UNDEF fails
+   * final gcc; remaining-wave stub -2 FROM_X ABSENT. Do not
+   * leftover rest T SAT try_index (arr0). Kind from leftover rest
+   * WAVE278 resolved_type_ref. nbytes from leftover rest
+   * glue_fixed_array_total_bytes (already T @15009; do not dual-def).
    * PLATFORM: WINDOWS leftover-PE. */
   if (ko == 44) {
     rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
@@ -34218,6 +34235,16 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
         return -1;
       return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (tk == 10) {
+      if (!ctx)
+        return -1;
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
     }
   }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
