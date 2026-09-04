@@ -127,6 +127,17 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_block_stmt_order_kind",
     "pipeline_block_stmt_order_idx",
     "glue_emit_block_final_expr_elf",
+    # WAVE277 region sidecar (SAT emit_block intra SAT region_body →
+    # SAT Block.num_regions=0 skips `unsafe { return *p }`; ADDR_OF of
+    # VAR already lea'd). leftover rest WAVE277 ALWAYS reads W277_Region.
+    # G.7 complete of this redirect table.
+    "ast_ast_block_num_regions",
+    "ast_ast_block_region_body_ref",
+    "pipeline_block_region_body_ref",
+    "pipeline_block_region_is_unsafe",
+    "pipeline_block_region_with_arena_cap_ref",
+    "ast_pipeline_block_region_body_ref",
+    "ast_pipeline_block_num_regions",
     # wave223 leftover rest sret BSS (SAT emit_struct_lit intra SAT
     # sret_active_get BSS=0 → local dest, ignores caller rdi). leftover
     # rest mega_body + param_home write leftover rest cells; PE first-wins
