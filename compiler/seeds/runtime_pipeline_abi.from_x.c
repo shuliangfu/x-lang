@@ -28264,6 +28264,8 @@ extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz, int32_t ta);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
 extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28527,8 +28529,33 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
       }
     }
   }
-  else if (ko == 46)
+  else if (ko == 46) {
     out_rc = pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    /* TYPE_SLICE ARRAY_LIT rvalue: SAT emit_array_lit leaves dest
+     * pointer. STRUCT_LIT field store_sz 16 then needs dual-GP
+     * (rax=data, rdx=n_arr) so `S { xs: [3, 4] }` keeps length.
+     * for_call_args ARRAY_LIT arm recs internally then wrap n_arr
+     * over rdx — still GREEN. Do not leftover rest remaining-wave
+     * emit_return via !FROM_X || WIN.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (out_rc == 0) {
+      int32_t al_rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t al_tk = (al_rty > 0) ? pipeline_type_kind_ord_at(arena, al_rty) : 0;
+      if (al_tk == 11) {
+        int32_t al_n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+        if (al_n < 0)
+          al_n = 0;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, al_n, 0, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, (ta == 1) ? 1 : 2, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+      }
+    }
+  }
   else if (ko == 47)
     out_rc = pipeline_asm_emit_index_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 51)
@@ -30666,6 +30693,11 @@ int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi
    * 18→8; pin the width here so a kind miss cannot skip. PLATFORM: WINDOWS
    * leftover-PE / SHARED Cap ABI. */
   if (kind_ord == 9 || kind_ord == 18) return 8;
+  /* TYPE_SLICE=11: 16B fat {data,length}. Catch-all `return 8` used to
+   * store only the ARRAY_LIT dest pointer (`S { xs: [3, 4] }` then
+   * `take(s.xs)` SEGV). G.7 complete leftover rest field_store_sz.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (kind_ord == 11) return 16;
   nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
   if (nsz > 8 && nsz <= 16) return nsz;
   nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
@@ -33790,9 +33822,11 @@ void glue_asm73_cfg_interf_prepare(void) {
  * (POSIX CALL TYPE_SLICE @79744 same wrap). TYPE_SLICE CALL/METHOD
  * `take(mk())`: rec leaves callee return (leftover rest mega_body
  * ARRAY_LIT TYPE_SLICE return is durable dual-GP); wrap store
- * rax+rdx then lea fat*. Do not leftover rest remaining-wave 221
- * pty for TYPE_ARRAY-as-SLICE wrap. POSIX FROM_X stays ABSENT
- * (.x thin owns @79135).
+ * rax+rdx then lea fat*. TYPE_SLICE FIELD `take(s.xs)`: rec leaves
+ * dual-GP (STRUCT_LIT store_sz 16 + ARRAY_LIT rec dual-GP + FIELD
+ * deref_struct16); wrap store rax+rdx then lea fat*. Do not leftover
+ * rest remaining-wave 221 pty for TYPE_ARRAY-as-SLICE wrap. POSIX
+ * FROM_X stays ABSENT (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -33989,6 +34023,40 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * remaining-wave emit_return via !FROM_X || WIN.
    * PLATFORM: WINDOWS leftover-PE. */
   if (ko == 48 || ko == 49) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+  }
+  /* FIELD=44 TYPE_SLICE: leftover rest rec of s.xs now dual-GP
+   * (field_store_sz 16 + ARRAY_LIT rec dual-GP + FIELD
+   * deref_struct16). TYPE_SLICE formals are 1 GP fat* — rec left
+   * rax=data as 16B INTEGER then take extra-deref (`slice_field_arg`
+   * SEGV 139). G.7 complete leftover rest for_call_args: rec then
+   * store rax+rdx to 16B home, lea fat* (CALL/DEREF wrap twin).
+   * Kind from leftover rest WAVE278 resolved_type_ref. Do not copy
+   * .x packer / remaining-wave 221 pty. Do not leftover rest T SAT
+   * try_index (arr0).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 44) {
     rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
     tk = 0;
     if (rty > 0)
@@ -38261,6 +38329,12 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
     int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
     if (rko == 9 || rko == 18)
       load_sz = 8;
+    else if (rko == 11)
+      /* TYPE_SLICE field: 16B fat dual-GP. SAT load_byte_sz was 4
+       * (`mov (%rax),%eax` truncated dest; `take(s.xs)` SEGV).
+       * rax holds &field; deref_struct16 loads C {data,length}.
+       * PLATFORM: WINDOWS leftover-PE. */
+      return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
     else
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
   }
@@ -38489,6 +38563,8 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
         int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
         if (rko == 9 || rko == 18)
           load_sz = 8;
+        else if (rko == 11)
+          return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
         else
           load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
       }
@@ -38562,6 +38638,8 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
       int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
       if (rko == 9 || rko == 18)
         load_sz = 8;
+      else if (rko == 11)
+        return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
       else
         load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
     }
