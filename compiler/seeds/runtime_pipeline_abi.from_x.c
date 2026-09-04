@@ -32830,20 +32830,56 @@ void glue_asm73_cfg_interf_prepare(void) {
   glue_asm73_cfg_peak_clear();
 }
 
+#endif /* close remaining wave178 FROM_X for leftover-PE for_call_args unique */
+#endif /* close remaining wave154 FROM_X after glue_type for leftover-PE for_call_args unique */
+
 /*
- * wave216 cold twin: for_call_args mega entry (G.7 pure leave).
- * Freestanding-safe stub (-1 = gate/enc fail). Hybrid product links pure.
- * PLATFORM: SHARED freestanding CALL-arg packing · LINUX+MACOS SysV · MACOS|ARM64.
+ * leftover-PE unique: pipeline_asm_emit_expr_elf_for_call_args.
+ * SAT egg glue_emit_one_call_arg UNDEF-calls this face. Remaining wave216
+ * stub (`return -1`) lives in remaining wave178 #ifndef FROM_X — leftover
+ * rest FROM_X omitted it, so SAT standalone stub T hid the .x authority
+ * (INT_LIT still fell through SAT rec; VAR `add(x,4)` CG002).
+ * G.7: complete leftover rest — VAR uses leftover rest
+ * glue_call_arg_resolve_var_stack_off + glue_load_var_as_value (WIN
+ * uniques); else leftover rest rec (INT_LIT / binop). Do not copy the
+ * full .x slice/array/f32 packer (SAT-local-t UNDEF). Do not dual-def
+ * WAVE277 rebuild. POSIX FROM_X stays ABSENT (.x thin owns @79135).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void *ctx,
+                                                       int32_t var_expr_ref, int32_t off, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                               int32_t ta);
+extern char *link_abi_getenv(const char *name);
+
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
-  (void)arena;
-  (void)elf_ctx;
-  (void)expr_ref;
-  (void)ctx;
-  (void)ta;
-  return -1;
+  int32_t ko;
+  int32_t off;
+  if (!arena || !elf_ctx || expr_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  /* EXPR_VAR == 3: local-let call args (`add(x,4)`). Resolve via leftover
+   * rest WIN unique (SAT wave203 stub returns -1 intra-object). */
+  if (ko == 3 && ctx) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
+    if (off >= 0)
+      return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr,
+              "xlang: for_call_args VAR miss expr_ref=%d off=%d ctx=%p\n",
+              (int)expr_ref, (int)off, (void *)ctx);
+  }
+  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE for_call_args unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE for_call_args unique */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave178 FROM_X after leftover-PE for_call_args unique */
 
 /*
  * wave219 cold twin: ARRAY_LIT / escape / deep-copy COMMON seq take (G.7 pure leave).
