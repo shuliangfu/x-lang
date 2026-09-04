@@ -34405,6 +34405,166 @@ int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_enc_local unique */
 
+/*
+ * WIN leftover-PE rest glue_asm_emit_array_lit_durable_ptr_rax unique.
+ * SAT standalone only local t; leftover rest remaining-wave @18311 is
+ * #ifndef FROM_X ABSENT. SAT jmp-over text-embed parks const i32 payload
+ * in RX .text; TYPE_SLICE let-init `let xs: []i32 = [3, 4]; xs[0] = 9`
+ * stores to RX → SEGV 139. `take([3, 4], 9)` stack dest is writable
+ * (GREEN). TYPE_FN `[foo]` is non-const → SAT already COMMON BSS.
+ * G.7: leftover rest T of SAT local t (not SAT global T). Skip jmp-over;
+ * always SHN_COMMON + runtime stores (writable BSS; COFF COMMON is
+ * IMAGE_SYM_UNDEFINED+size). Bulk TYPE_ARRAY / nested TYPE_SLICE elem
+ * (esz>8 / etk==10 / etk==11 && esz==16) returns -1 so SAT
+ * slice_from_array stack-falls back. Do not leftover rest remaining-wave
+ * via !FROM_X || WIN. Do not leftover rest T SAT emit_assign / try_index.
+ * Redirect SAT slice_from_array intra SAT durable.
+ * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t ai);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t load_sz,
+                                                         int32_t ta);
+extern int32_t glue_pipeline_asm_al_nc_seq_take_c(void);
+extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx, uint8_t *name, int32_t name_len,
+                                               int32_t size, int32_t align);
+extern int32_t glue_asm_lea_rax_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_asm_lea_rbx_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_array_lit_emit_scalar_elem_to_rax_elf_c(void *arena, void *elf_ctx,
+                                                            int32_t array_lit_ref, int32_t elem_ref,
+                                                            void *ctx, int32_t ta, int32_t force_esz);
+
+int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                       int32_t force_esz, int32_t ta, void *ctx,
+                                                       int32_t dest_elem_ty) {
+  int32_t n_arr;
+  int32_t esz;
+  int32_t ai;
+  int32_t nbytes;
+  int32_t elem_ref;
+  int32_t eko;
+  int32_t all_const;
+  int64_t v64;
+  uint8_t label[24];
+  int32_t llen;
+  int32_t seq;
+  int32_t v;
+  int32_t nd;
+  int32_t di;
+  uint8_t digs[8];
+  const char *pfx;
+  int32_t elem_ty;
+  int32_t etk;
+  int32_t common_align;
+  if (!arena || !elf_ctx || expr_ref <= 0 || ta != 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 46)
+    return -1;
+  n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+  if (n_arr < 0 || n_arr > 1024)
+    return -1;
+  if (n_arr == 0)
+    return backend_enc_mov_imm64_to_rax_arch(elf_ctx, 0, 0, ta);
+  esz = force_esz;
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
+    if (force_esz > 8)
+      esz = force_esz;
+    else if (force_esz > 0)
+      return -1;
+    else
+      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+  }
+  if (esz <= 0)
+    return -1;
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+    return -1;
+  if (n_arr > 4096 / esz)
+    return -1;
+  nbytes = n_arr * esz;
+  if (nbytes <= 0 || nbytes > 4096)
+    return -1;
+  all_const = 1;
+  for (ai = 0; ai < n_arr; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref <= 0)
+      return -1;
+    eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+    if (eko != 0 && eko != 2)
+      all_const = 0;
+  }
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  if (dest_elem_ty > 0)
+    elem_ty = dest_elem_ty;
+  etk = elem_ty > 0 ? pipeline_type_kind_ord_at(arena, elem_ty) : 0;
+  /* Nested ARRAY / fat SLICE rows stay SAT stack-fallback. */
+  if (esz > 8 || etk == 10 || (etk == 11 && esz == 16))
+    return -1;
+  if (all_const == 0 && !ctx)
+    return -1;
+  seq = glue_pipeline_asm_al_nc_seq_take_c();
+  llen = 0;
+  pfx = "Lxlang_al_";
+  while (pfx[llen] != 0 && llen < 12) {
+    label[llen] = (uint8_t)pfx[llen];
+    llen++;
+  }
+  v = seq;
+  nd = 0;
+  if (v == 0) {
+    digs[0] = (uint8_t)'0';
+    nd = 1;
+  } else {
+    while (v > 0 && nd < 8) {
+      digs[nd++] = (uint8_t)('0' + (v % 10));
+      v /= 10;
+    }
+  }
+  for (di = nd - 1; di >= 0 && llen < 23; di--)
+    label[llen++] = digs[di];
+  common_align = esz;
+  if (common_align > 16)
+    common_align = 16;
+  if (common_align < 1)
+    common_align = 1;
+  if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, common_align) != 0)
+    return -1;
+  for (ai = 0; ai < n_arr; ai++) {
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai);
+    if (elem_ref <= 0)
+      return -1;
+    if (all_const != 0) {
+      v64 = (int64_t)pipeline_expr_int_val_at(arena, elem_ref);
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, (int32_t)(v64 & 0xffffffff),
+                                             (int32_t)((v64 >> 32) & 0xffffffff), ta) != 0)
+        return -1;
+    } else {
+      if (glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, expr_ref, elem_ref, ctx, ta,
+                                                        force_esz) != 0)
+        return -1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, esz, ta) != 0)
+      return -1;
+  }
+  return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
+}
+#endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE durable COMMON unique */
+
 /* WIN leftover-PE rest glue_load_f32_var_slot_to_rax_elf_c unique
  * (leftover rest rec U; SAT / leftover standalone only local t).
  * Remaining wave200 stub stays for !FROM_X (`return -1`).

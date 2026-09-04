@@ -199,6 +199,15 @@ EMIT_REDIRECT_SYMS = (
     "glue_enc_local_slot_ptr_or_addr_elf_c",
     "glue_local_var_slot_needs_ptr_load_elf_c",
     "glue_emit_func_param_is_indirect_array_slot_c",
+    # INDEX TYPE_SLICE store: SAT slice_from_array intra SAT durable
+    # jmp-over text-embed parks const i32 in RX .text (`xs[0] = 9`
+    # SEGV 139). leftover rest WIN leftover durable first-wins
+    # SHN_COMMON BSS (writable). SAT durable is SAT local t — not
+    # leftover rest T SAT global T. leftover rest remaining-wave
+    # durable is #ifndef FROM_X ABSENT. PE first-wins does not
+    # rewrite SAT intra. G.7 complete of this table.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_asm_emit_array_lit_durable_ptr_rax_elf_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
@@ -219,6 +228,12 @@ EMIT_SCAN_FUNCS = (
     ("pipeline_asm_emit_array_lit_force_esz_elf_c", 0x4000),
     ("glue_asm_emit_array_lit_durable_ptr_rax_elf_c", 0x4000),
     ("glue_array_lit_emit_scalar_elem_to_rax_elf_c", 0x400),
+    # TYPE_SLICE let-init: SAT slice_from_array intra SAT durable
+    # (local t text-embed). leftover rest WIN leftover durable is
+    # COMMON BSS. Scan SAT local t so PE first-wins leftover rest T.
+    # Do not leftover rest T SAT emit_assign / try_index.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    ("glue_emit_slice_from_array_let_init_elf_c", 0x800),
     ("pipeline_asm_emit_array_lit_flat_elf_c", 0x2000),
     ("glue_emit_fixed_array_type_let_init_elf_c", 0x800),
     ("glue_struct_lit_store_fixed_array_field_elf_c", 0x2000),
