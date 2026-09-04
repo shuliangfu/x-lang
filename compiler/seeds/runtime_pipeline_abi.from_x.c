@@ -33833,9 +33833,12 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
       home = base_off + 16;
-      past = (ta == 1) ? (home + 16) : (home + 8);
-      if (nbytes > 0 && home + nbytes > past)
-        past = home + nbytes;
+      /* Fat is 16B {data,length}. SAT dest is next+16 — leave a 16B
+       * gap after home so 1-elem i32 (4B) cannot alias the data half
+       * (take([7]) INDEX0 was dest-pointer bits). PLATFORM: WINDOWS. */
+      past = home + 16;
+      if (nbytes > 0)
+        past = home + 16 + nbytes;
       *(int32_t *)((uint8_t *)ctx + 4) = past;
       glue_align_next_offset(ctx);
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
