@@ -145,6 +145,20 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_asm_emit_ctx_sret_active_get",
     "pipeline_asm_emit_ctx_sret_home_off_get",
     "pipeline_asm_emit_ctx_sret_ret_sz_get",
+    # SAT emit_block_inits intra SAT emit_expr wrapper → SAT rec (local t)
+    # → SAT remaining-wave emit_deref intra SAT unary_operand (SAT Expr
+    # empty → op=0 → -1) → let-init DEREF `let y: i32 = *p` CG002
+    # labels=1 patches=0. Contrast: `return *p` SAT emit_block UNDEFs
+    # leftover rest rec first-wins (already green). PE first-wins does
+    # not rewrite SAT intra. G.7 complete of this redirect table:
+    # SAT emit_block_inits / SAT rec → leftover rest wrapper/rec/deref;
+    # SAT remaining-wave deref → leftover rest WAVE278 unary_operand.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "pipeline_asm_emit_expr_elf_c",
+    "pipeline_asm_emit_expr_elf_rec",
+    "pipeline_asm_emit_deref_elf_c",
+    "pipeline_expr_unary_operand_ref_at",
+    "ast_pipeline_expr_unary_operand_ref_at",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
@@ -167,6 +181,8 @@ EMIT_SCAN_FUNCS = (
     ("pipeline_asm_emit_index_elf_c", 0x1000),
     ("glue_emit_index_eff_addr_scaled_elf_c", 0x2000),
     ("pipeline_asm_emit_block_inits_elf_c", 0x3000),
+    ("pipeline_asm_emit_expr_elf_rec", 0x2000),
+    ("pipeline_asm_emit_deref_elf_c", 0x400),
     ("glue_block_let_is_fixed_array_type", 0x200),
     ("glue_type_is_fixed_array", 0x400),
     ("pipeline_asm_emit_struct_lit_elf_c", 0x200),
