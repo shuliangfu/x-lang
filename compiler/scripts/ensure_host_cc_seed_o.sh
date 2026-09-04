@@ -3543,10 +3543,10 @@ ensure_pipeline_abi_prefer_one() {
       return 1
     fi
     rm -f "$win_rest"
-    # PLATFORM: WINDOWS — thin mega keeps relative calls to thin get_return/nso
-    # (PE first-wins does not rewrite intra-object twins). Rest WIN_LEFTOVER
-    # helpers return EXPR_RETURN operand; redirect thin→rest or empty .text.
-    # G.7: one post-merge redirect script (proved by return-42 smoke).
+    # PLATFORM: WINDOWS — thin mega / thin wrapper keep relative calls to thin
+    # twins (PE first-wins does not rewrite intra-object). Rest WIN_LEFTOVER:
+    # get_return/nso/body_ref + WAVE290 mega_body void-main mov-imm-0.
+    # G.7: one post-merge redirect script (proved by return-42 / void-main).
     if ! bash scripts/win_pe_pabi_redirect_return_helpers.sh "$o"; then
       echo "ensure_host_cc_seed_o: Windows thin→rest return-helper redirect failed for $o" >&2
       return 1

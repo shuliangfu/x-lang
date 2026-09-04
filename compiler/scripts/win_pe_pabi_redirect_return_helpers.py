@@ -7,6 +7,7 @@
 #
 # Redirects thin→lower-VA rest:
 #   Mega helpers: nso_at / get_return_at / body_ref_at
+#   Wrapper: mega_body_c (WAVE290 void-main mov-imm-0 lives in leftover rest)
 #   Emit-block AST faces: stmt_order kind/idx/count, if_cond/then/else, …
 #
 # Usage: win_pe_pabi_redirect_return_helpers.py <pe-or-coff-path>
@@ -50,6 +51,17 @@ EMIT_SCAN_FUNCS = (
     ("pipeline_asm_emit_block_if_stmt_elf", 0x1000),
     ("glue_emit_block_final_expr_elf", 0x400),
     ("glue_block_stmt_order_has_return", 0x400),
+)
+
+# Thin wrapper intra-calls thin mega_body (PE first-wins does not rewrite).
+# Leftover rest WAVE290 ALWAYS has the Zig-like void-main `mov imm 0` gate
+# (rkind==16 && i==main_func_index); thin mega_body does not.
+# PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+WRAPPER_REDIRECT_SYMS = (
+    "pipeline_backend_asm_codegen_ast_to_elf_mega_body_c",
+)
+WRAPPER_SCAN_FUNCS = (
+    ("pipeline_backend_asm_codegen_ast_to_elf_c", 0x400),
 )
 
 
@@ -168,15 +180,26 @@ def main() -> int:
 
     mega_map = collect_rest_thin(path, MEGA_REDIRECT_SYMS)
     emit_map = collect_rest_thin(path, EMIT_REDIRECT_SYMS)
+    wrap_map = collect_rest_thin(path, WRAPPER_REDIRECT_SYMS)
 
     rest_of: dict[str, int] = {s: pair[0] for s, pair in mega_map.items()}
     rest_of.update({s: pair[0] for s, pair in emit_map.items()})
+    rest_of.update({s: pair[0] for s, pair in wrap_map.items()})
 
     if not rest_of:
         print("win_pe_pabi_redirect: no twin symbols to redirect")
         return 0
 
     patches: list[tuple[int, int, str]] = []
+
+    # 0) Thin wrapper → rest mega_body (void-main mov-imm-0)
+    if wrap_map:
+        rest_wrap = {s: pair[0] for s, pair in wrap_map.items()}
+        wrap_alt = "|".join(re.escape(s) for s in wrap_map)
+        for fname, span in WRAPPER_SCAN_FUNCS:
+            addrs = nm_t_addrs(path, fname)
+            for start in addrs:
+                patch_calls_in_range(path, start, span, rest_wrap, wrap_alt, patches)
 
     # 1) Thin mega → rest helpers
     if len(megas) >= 2 and mega_map:
