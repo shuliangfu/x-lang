@@ -29434,7 +29434,7 @@ int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t blo
 
 /*
  * leftover rest WIN leftover store_retval_pair unique.
- * SAT glue_store_retval_pair_to_rbp_elf_c is SAT T (wave204
+ * SAT glue_store_retval_pair_to_rbp_elf_c is SAT local t (wave204
  * `#ifndef FROM_X` leftover rest stub -1 ABSENT). SAT
  * emit_block_inits (SAT T; leftover rest remaining-wave
  * `#ifndef FROM_X` ABSENT) → SAT glue_emit_struct_type_let_init
@@ -29447,9 +29447,11 @@ int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t blo
  * leftover rest T: store rax; TYPE_SLICE store rdx at x86
  * home-8 / arm64 home+8 (same polarity as leftover rest
  * for_call_args wrap / ARRAY_LIT TYPE_SLICE let-init); 9–16B
- * named rdx; >16B CALL/METHOD/INDEX memcpy via SAT T
- * glue_copy_large (leftover rest remaining-wave @12352
- * `#ifndef FROM_X` ABSENT). Skip reent deep-copy (leftover rest
+ * named rdx. Do not UNDEF SAT local t copy_large / classifier /
+ * deref_struct16 (leftover rest remaining-wave `#ifndef FROM_X`
+ * ABSENT; SAT standalone is local t — leftover rest U fails
+ * final gcc). SAT glue_emit_struct_type_let_init already sret
+ * >16B before this store. Skip reent deep-copy (leftover rest
  * remaining-wave stub -1; mk() payload is leftover rest durable
  * COMMON). Do not leftover rest remaining-wave stub via
  * !FROM_X || WIN (dual-def). Do not leftover rest T SAT
@@ -29465,19 +29467,14 @@ int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t blo
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ty_ref);
-extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
-extern int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(void *arena, int32_t call_expr_ref);
-extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
-extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz,
-                                                         int32_t ta);
 
 int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
                                             int32_t slot_off, int32_t ta, int32_t init_ref, void *ctx) {
   int32_t sz;
-  int32_t ko;
   int32_t tk;
   int32_t half2;
+  (void)init_ref;
   (void)ctx;
   if (!elf_ctx)
     return -1;
@@ -29488,22 +29485,6 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
    * SAT extract may still report 8 — tk==11 path below is the
    * G.7 TYPE_SLICE dual-GP store, not size_simple.
    * PLATFORM: WINDOWS leftover-PE. */
-  if (sz > 16 && init_ref > 0 && arena) {
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
-    /* EXPR_CALL=48 / METHOD=49 / INDEX=47: memcpy *rax → slot.
-     * SAT glue_emit_struct_type_let_init already sret >16B
-     * before this store; keep the POSIX gate so a direct
-     * caller still copies. SAT T copy_large (leftover rest
-     * remaining-wave ABSENT). */
-    if (ko == 48 || ko == 49 || ko == 47)
-      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
-  }
-  if (sz > 8 && sz <= 16 && init_ref > 0 && arena) {
-    if (pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, init_ref) != 0) {
-      if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0)
-        return -1;
-    }
-  }
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slot_off, ta) != 0)
     return -1;
   if (arena && ty_ref > 0) {
