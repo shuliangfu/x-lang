@@ -127,6 +127,13 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_block_stmt_order_kind",
     "pipeline_block_stmt_order_idx",
     "glue_emit_block_final_expr_elf",
+    # wave223 leftover rest sret BSS (SAT emit_struct_lit intra SAT
+    # sret_active_get BSS=0 → local dest, ignores caller rdi). leftover
+    # rest mega_body + param_home write leftover rest cells; PE first-wins
+    # does not rewrite SAT intra calls. G.7 complete of this redirect table.
+    "pipeline_asm_emit_ctx_sret_active_get",
+    "pipeline_asm_emit_ctx_sret_home_off_get",
+    "pipeline_asm_emit_ctx_sret_ret_sz_get",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).

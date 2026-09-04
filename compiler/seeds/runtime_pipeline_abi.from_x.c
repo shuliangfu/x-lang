@@ -16533,6 +16533,8 @@ extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_le
 extern int32_t asm_ctx_local_count(uint8_t *ctx);
 extern int32_t backend_enc_mov_arg_reg_to_rax_arch(void *elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
 
 void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   int32_t off;
@@ -16564,19 +16566,37 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
   int32_t np;
   int32_t i;
   int32_t home;
+  int32_t sret_act;
+  int32_t sret_off;
+  int32_t gp;
   (void)ctx;
   if (!elf_ctx || !mod || func_index < 0)
     return -1;
-  np = pipeline_asm_module_func_num_params_at(mod, func_index);
-  if (np <= 0)
-    return 0;
   /* x86_64: GP arg k → rax → [rbp-home]. Wide/f32/arm64 stay SAT egg.
    * Do not call SAT-local-t f32 xmm / canonicalize (leftover rest UNDEF). */
   if (ta != 0)
     return 0;
+  /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — hidden dest@rdi.
+   * leftover rest mega_body already sets leftover rest sret BSS when
+   * fn_ret_sz>16, but previously np<=0 returned before saving rdi, so
+   * SAT emit_struct_lit wrote a local dest (sret24a/sret24f RED).
+   * G.7 complete leftover rest param_home: save arg0 to sret_home, then
+   * user GP starts at 1. POSIX .x authority @35063. */
+  sret_act = pipeline_asm_emit_ctx_sret_active_get();
+  sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
+  if (sret_act != 0 && sret_off >= 0) {
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, sret_off, ta) != 0)
+      return -1;
+  }
+  np = pipeline_asm_module_func_num_params_at(mod, func_index);
+  if (np <= 0)
+    return 0;
+  gp = (sret_act != 0) ? 1 : 0;
   home = 16;
-  for (i = 0; i < np && i < 6; i++) {
-    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, i, ta) != 0)
+  for (i = 0; i < np && (gp + i) < 6; i++) {
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp + i, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
       return -1;
@@ -28142,6 +28162,10 @@ extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(void *arena, void *elf_ctx, i
 extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_panic_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta, int32_t stack_slot_off);
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28349,8 +28373,27 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     out_rc = pipeline_asm_emit_match_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 42)
     out_rc = pipeline_asm_emit_panic_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-  else if (ko == 45)
-    out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 45) {
+    int32_t sret_act;
+    int32_t sret_home;
+    /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — callee >16B STRUCT_LIT
+     * return. leftover rest mega_body sets leftover rest sret BSS; SAT
+     * emit_struct_lit intra SAT sret_active_get (SAT BSS=0, may be inlined)
+     * so implicit dest is a local lea (sret24a dump: lea [rbp-0x18]).
+     * G.7 complete leftover rest rec ko==45: load saved rdi dest into rbx,
+     * SAT fields DEST_IN_RBX=-3 (POSIX .x glue_struct_lit_dest_in_rbx).
+     * POSIX .x emit_struct_lit @58898 is the same sret_direct path. */
+    sret_act = pipeline_asm_emit_ctx_sret_active_get();
+    sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+    if (sret_act != 0 && sret_home >= 0 && (ta == 0 || ta == 1)) {
+      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, sret_home, ta) != 0)
+        out_rc = -1;
+      else
+        out_rc = pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -3);
+    } else {
+      out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    }
+  }
   else if (ko == 46)
     out_rc = pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 47)
