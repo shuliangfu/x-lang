@@ -224,6 +224,18 @@ EMIT_SCAN_FUNCS = (
     ("glue_struct_lit_store_fixed_array_field_elf_c", 0x2000),
     ("pipeline_asm_emit_index_elf_c", 0x1000),
     ("glue_emit_index_eff_addr_scaled_elf_c", 0x2000),
+    # INDEX TYPE_SLICE formal bounds: SAT emit_index intra SAT
+    # length_to_rbx intra SAT needs_ptr_load (local t return 0) treats
+    # 8B fat* home as 16B dual-GP so length loads saved rbx
+    # (param_home+8) → panic 127 (`i32one_var` / `xs[1]`). leftover rest
+    # WIN leftover needs_ptr_load tk==11 → 1 (fat*+8). leftover rest
+    # remaining-wave length_to_rbx is #ifndef FROM_X ABSENT (SAT local t
+    # is the body) — do not leftover rest T SAT length / try_index /
+    # remaining-wave via !FROM_X || WIN. SAT try_index already scanned
+    # (eff-addr load fat* already green). PE first-wins does not rewrite
+    # SAT intra. G.7 complete of this table.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    ("glue_emit_slice_length_to_rbx_elf_c", 0x800),
     ("glue_try_index_var_or_field_base_to_rax_elf_c", 0x800),
     ("glue_enc_local_slot_ptr_or_addr_elf_c", 0x200),
     ("glue_local_var_slot_needs_ptr_load_elf_c", 0x400),
