@@ -8693,13 +8693,17 @@ export function typeck_array_to_slice_ok(arena: *ASTArena, src_ty: i32, dest_ty:
  * typeck_coerce_init_bool_to_int_decl only — not return.
  * [N]T → []T (equal elems) is accepted without stamping: emit wrap keys off
  * TYPE_ARRAY to materialize the fat (same contract as 4.2.10 call-arg score).
+ * TYPE_FN return of a same-module Cap *u8 (bare `return foo`) reuses
+ * typeck_fnptr_surface_compat with the live module — do not pass 0 and hope
+ * pipeline_typeck_active_module_c() is set (leftover-PE BSS can be NULL).
+ * @param module *Module — live typeck module; 0 → active_module fallback
  * @param arena *ASTArena — type/expr arena
  * @param op_ref i32 — return operand expr
  * @param expect_ref i32 — declared function return type
  * @return bool — true when operand may return as expect
  * PLATFORM: SHARED — G.7 single return match authority (typeck.x + seed twins).
  */
-export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, expect_ref: i32): bool {
+export function typeck_return_operand_matches(module: *Module, arena: *ASTArena, op_ref: i32, expect_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let got: i32 = expr_type_ref(arena, op_ref);
@@ -8746,7 +8750,7 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
      * when TYPE_FN↔TYPE_FN or bare fn recoverable. G.7 typeck_fnptr_surface_compat.
      * PLATFORM: SHARED.
      */
-    if (typeck_fnptr_surface_compat(0 as *Module, arena, expect_ref, got, op_ref, 0) != 0) {
+    if (typeck_fnptr_surface_compat(module, arena, expect_ref, got, op_ref, 0) != 0) {
       return true;
     }
     let ord_linear: i32 = 12;
@@ -11372,7 +11376,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref);
       typeck_ret_coerce_integral_widen(arena, op_ref, return_type_ref);
       got = expr_type_ref(arena, op_ref);
-      if (!typeck_return_operand_matches(arena, op_ref, return_type_ref)) {
+      if (!typeck_return_operand_matches(module, arena, op_ref, return_type_ref)) {
         /* See implementation. */
         if (!ast.ref_is_null(got) && got > 0 && !ast.ref_is_null(return_type_ref)) {
           expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
@@ -19337,7 +19341,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
       typeck_ret_coerce_integral_to_expect_i32(arena, fin_op, return_type_ref);
       typeck_ret_coerce_integral_widen(arena, fin_op, return_type_ref);
     }
-    if (typeck_return_operand_matches(arena, fin_op, return_type_ref)) {
+    if (typeck_return_operand_matches(module, arena, fin_op, return_type_ref)) {
       return 0;
     }
     /* See implementation. */
@@ -23909,7 +23913,7 @@ export function pipeline_typeck_expr_type_ref_c(arena: *ASTArena, expr_ref: i32)
 #[no_mangle]
 export function pipeline_typeck_return_operand_matches_c(arena: *ASTArena, op_ref: i32,
 expect_ref: i32): i32 {
-  if (typeck_return_operand_matches(arena, op_ref, expect_ref)) {
+  if (typeck_return_operand_matches(0 as *Module, arena, op_ref, expect_ref)) {
     return 1;
   }
   return 0;

@@ -1836,7 +1836,7 @@ extern int32_t typeck_method_call_field_fnptr_ty(struct ast_Module * module, str
     struct ast_PipelineDepCtx * ctx, int32_t base_ty, uint8_t * method_nm, int32_t method_nlen);
 extern int32_t typeck_dyn_rhs_is_null_sentinel(struct ast_ASTArena * arena, int32_t rhs_type_ref, int32_t rhs_expr_ref);
 extern int32_t typeck_array_to_slice_ok(struct ast_ASTArena * arena, int32_t src_ty, int32_t dest_ty);
-extern int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
+extern int typeck_return_operand_matches(struct ast_Module * module, struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
 extern int32_t typeck_expr_is_null_keyword(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
@@ -7748,7 +7748,7 @@ int32_t typeck_array_to_slice_ok(struct ast_ASTArena * arena, int32_t src_ty, in
     return 1;
   }
 }
-int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
+int typeck_return_operand_matches(struct ast_Module * module, struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
   {
     int32_t got = typeck_expr_type_ref(arena, op_ref);
     int32_t expect_kind = 0;
@@ -7781,8 +7781,9 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
     if ((typeck_array_to_slice_ok(arena, got, expect_ref) !=0)) {
       return 1;
     }
-    /* 10.3.1: Cap/TYPE_FN surface + signature (≡ typeck.x). */
-    if ((typeck_fnptr_surface_compat(0, arena, expect_ref, got, op_ref, 0) != 0)) {
+    /* 10.3.1: Cap/TYPE_FN surface + signature (≡ typeck.x). Pass live module;
+     * leftover-PE pipeline_typeck_active_module_c BSS may be NULL. */
+    if ((typeck_fnptr_surface_compat(module, arena, expect_ref, got, op_ref, 0) != 0)) {
       return 1;
     }
     int32_t ord_linear = 12;
@@ -9508,7 +9509,7 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
       (void)(typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref));
       (void)(typeck_ret_coerce_integral_widen(arena, op_ref, return_type_ref));
       (void)((got = typeck_expr_type_ref(arena, op_ref)));
-      if (!(typeck_return_operand_matches(arena, op_ref, return_type_ref))) {
+      if (!(typeck_return_operand_matches(module, arena, op_ref, return_type_ref))) {
         if (((!(ast_ref_is_null(got)) && (got > 0)) && !(ast_ref_is_null(return_type_ref)))) {
           (void)((expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
           (void)((got_kind = pipeline_type_kind_ord_at(arena, got)));
@@ -14535,7 +14536,7 @@ int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena
       (void)(typeck_ret_coerce_integral_to_expect_i32(arena, fin_op, return_type_ref));
       (void)(typeck_ret_coerce_integral_widen(arena, fin_op, return_type_ref));
     }
-    if (typeck_return_operand_matches(arena, fin_op, return_type_ref)) {
+    if (typeck_return_operand_matches(module, arena, fin_op, return_type_ref)) {
       return 0;
     }
     if (((!(ast_ref_is_null(fin_op)) && (fin_op > 0)) && !(ast_ref_is_null(return_type_ref)))) {
@@ -17272,7 +17273,7 @@ int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena * arena, int32_t exp
   return typeck_expr_type_ref(arena, expr_ref);
 }
 int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
-  if (typeck_return_operand_matches(arena, op_ref, expect_ref)) {
+  if (typeck_return_operand_matches(0, arena, op_ref, expect_ref)) {
     return 1;
   }
   return 0;

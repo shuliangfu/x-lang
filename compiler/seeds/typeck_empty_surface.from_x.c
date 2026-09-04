@@ -580,7 +580,7 @@ extern int typeck_int_family_id(struct ast_ASTArena * arena, int32_t type_ref);
 extern int typeck_integer_widen_ok_refs(struct ast_ASTArena * arena, int32_t dest_ref, int32_t src_ref);
 extern int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind);
 
-int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
+int typeck_return_operand_matches(struct ast_Module * module, struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
 extern int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_enum_field_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
@@ -3570,8 +3570,11 @@ int typeck_float_widen_ok(int32_t dest_kind, int32_t src_kind) {
   return 0;
 }
 
-/* wave671 Cap residual: G.7 ≡ typeck.x — no BOOL_LIT/LOGNOT → i32 return. */
-int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
+/* wave671 Cap residual: G.7 ≡ typeck.x — no BOOL_LIT/LOGNOT → i32 return.
+ * module is live typeck module (TYPE_FN return recover); unused here — empty
+ * surface has no typeck_fnptr_surface_compat. PLATFORM: SHARED signature twin. */
+int typeck_return_operand_matches(struct ast_Module * module, struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
+  (void)module;
   int32_t got = expr_type_ref(arena, op_ref);
   int32_t expect_kind = 0;
   int32_t got_kind = 0;
@@ -5020,7 +5023,7 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
     (void)(typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref));
     (void)(typeck_ret_coerce_integral_widen(arena, op_ref, return_type_ref));
     (void)((got = expr_type_ref(arena, op_ref)));
-    if (!(typeck_return_operand_matches(arena, op_ref, return_type_ref))) {
+    if (!(typeck_return_operand_matches(module, arena, op_ref, return_type_ref))) {
       if (((!(ast_ref_is_null(got)) && (got > 0)) && !(ast_ref_is_null(return_type_ref)))) {
         (void)((expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
         (void)((got_kind = pipeline_type_kind_ord_at(arena, got)));
@@ -7160,7 +7163,7 @@ int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena
     (void)(typeck_ret_coerce_integral_to_expect_i32(arena, fin_op, return_type_ref));
     (void)(typeck_ret_coerce_integral_widen(arena, fin_op, return_type_ref));
   }
-  if (typeck_return_operand_matches(arena, fin_op, return_type_ref)) {
+  if (typeck_return_operand_matches(module, arena, fin_op, return_type_ref)) {
     return 0;
   }
   if (((!(ast_ref_is_null(fin_op)) && (fin_op > 0)) && !(ast_ref_is_null(return_type_ref)))) {
