@@ -12543,6 +12543,22 @@ int32_t glue_enc_arm64_mov_xn_to_x0_elf_c(void *elf_ctx, int32_t reg) {
   return pipeline_elf_ctx_append_bytes(elf_ctx, insn, 4);
 }
 
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — split wave132 before leftover-PE jz */
+
+/*
+ * leftover-PE unique: glue_enc_jz_after_bool_in_eax.
+ * SAT twin is local t (thin 0x3bac8 t) — leftover rest UNDEF does not
+ * resolve (same class as SAT call_base_rvalue). leftover rest remaining
+ * emit_match (WIN leftover below) needs this for wild+guard / lit+guard
+ * jz-next. G.7 complete leftover rest remaining body as WIN leftover
+ * first-wins. POSIX FROM_X stays ABSENT.
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t backend_enc_test_eax_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+
 int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
   if (ta == 0) {
     if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
@@ -12550,6 +12566,9 @@ int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t lab
   }
   return backend_enc_jz_arch(elf_ctx, label, label_len, ta);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE jz-after-bool unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave132 after leftover-PE jz */
 
 int32_t pipeline_asm_emit_neg_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op;
@@ -12808,6 +12827,57 @@ int32_t pipeline_codegen_match_name_is_subject_field_c(void *module, void *arena
   return 0;
 }
 
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — split wave132 before leftover-PE emit_match */
+
+/*
+ * leftover-PE unique: pipeline_asm_emit_match_elf_c.
+ * SAT emit_match (only T before this extract) is an older two-pass: emit
+ * subject once via SAT rec, skip every wildcard (no guard_ref), last wild
+ * is default. Nested `match echo1(1)` SAT rec CALL fails → main omitted
+ * (WinMain). Guarded `_ if n > 0` ignored. leftover rest remaining body
+ * (wave134 sequential first-match + guard_ref) was #ifndef FROM_X so
+ * leftover rest ABSENT. G.7 complete as WIN leftover first-wins SAT.
+ * Subject/guard go leftover rest rec (same leftover rest .o; CALL + CMP).
+ * WAVE278 match faces are leftover rest ALWAYS. jz is leftover rest WIN
+ * leftover T (SAT local t). set_subject stays SAT global T (UNDEF).
+ * Do not dual-def WAVE277 rebuild / glue_fixed_array. POSIX FROM_X stays
+ * ABSENT (.x thin owns product).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_match_matched_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_match_num_arms_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_match_arm_is_wildcard(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_guard_ref(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_result_ref(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_is_enum_variant(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_variant_index(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_lit_val(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(void *arena, void *elf_ctx, int32_t arm_ref, void *ctx,
+                                                   int32_t ta);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_cmp_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jne_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_module_func_param_type_ref_for_name(void *module, int32_t func_index, uint8_t *var_name,
+                                                           int32_t name_len);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void *pipeline_codegen_match_mod_c(void);
+extern int32_t pipeline_codegen_match_matched_ref_c(void);
+extern int32_t pipeline_codegen_match_subject_ty_c(void);
+extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_ref, int32_t subject_ty);
+
 int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t matched_ref;
   int32_t num_arms;
@@ -12922,6 +12992,9 @@ match_elf_done:
   pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
   return rc;
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_match unique */
+
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave132 after leftover-PE emit_match */
 
 int32_t pipeline_asm_emit_expr_if_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t cond;
