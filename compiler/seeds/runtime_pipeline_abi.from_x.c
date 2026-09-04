@@ -29468,6 +29468,32 @@ extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ty_ref);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 
+/*
+ * leftover rest WIN leftover length_off unique.
+ * SAT glue_slice_dual_gp_length_off_c is SAT local t (remaining-wave
+ * `#ifndef FROM_X` leftover rest ABSENT). SAT slice_from_array
+ * (SAT local t) stores ARRAY_LIT TYPE_SLICE length via SAT t
+ * x86 home-8; leftover rest unique store_retval_pair / FIELD
+ * already use C fat home+8 (signed rbp-style let slots).
+ * `let xs: []i32 = [3, 4]; return xs.length` then RUN=56.
+ * SAT INDEX of the same ARRAY_LIT local is GREEN because it
+ * also uses SAT t home-8 for bounds — FIELD and INDEX of one
+ * home must share polarity. G.7 complete leftover rest unique
+ * T: always +8 so SAT intra (redirect) unifies ARRAY_LIT store
+ * with FIELD and SAT INDEX bounds. win_glue home-8 stays for
+ * leftover rest for_call_args wrap of positive next_offset
+ * temps (lea fat* then callee [fat*+8]). Do not leftover rest
+ * remaining-wave original via !FROM_X || WIN. Do not leftover
+ * rest T SAT length_to_rbx / try_index / emit_assign. SAT
+ * length_off is SAT local t — not leftover rest T SAT global T.
+ * POSIX FROM_X stays ABSENT (.x thin owns @41039).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta) {
+  (void)ta;
+  return data_home + 8;
+}
+
 int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
                                             int32_t slot_off, int32_t ta, int32_t init_ref, void *ctx) {
   int32_t sz;

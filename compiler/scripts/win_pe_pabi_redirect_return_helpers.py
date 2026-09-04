@@ -219,6 +219,20 @@ EMIT_REDIRECT_SYMS = (
     # complete of this table.
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "glue_store_retval_pair_to_rbp_elf_c",
+    # ARRAY_LIT TYPE_SLICE local `.length`: SAT slice_from_array
+    # intra SAT length_off (local t x86 home-8) stores length at
+    # the other half from leftover rest unique store_retval_pair /
+    # FIELD C fat home+8 (`i32slen_let` RUN=56). SAT INDEX of the
+    # same local uses the same helper for bounds. leftover rest
+    # unique T always +8 first-wins. SAT length_off is SAT local t
+    # — not leftover rest T SAT global T. leftover rest
+    # remaining-wave length_off is #ifndef FROM_X ABSENT. Do not
+    # leftover rest T SAT length_to_rbx / try_index / emit_assign
+    # / remaining-wave via !FROM_X || WIN. SAT slice_from_array
+    # and SAT length_to_rbx already EMIT_SCAN. win_glue home-8
+    # stays for leftover rest for_call_args wrap temps.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_slice_dual_gp_length_off_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
