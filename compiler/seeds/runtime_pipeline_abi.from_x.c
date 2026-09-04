@@ -38449,17 +38449,21 @@ int32_t pipeline_asm_get_return_expr_ref_at(void *a, void *m, int32_t func_index
 
 /**
  * Windows leftover-PE: stmt_order count via block pointer (avoid multi-def twin).
- * Thin mega cannot be edited; when body has no if/let/loop/for/region, report
- * nso=0 so mega takes get_return (redirected) instead of archaeology emit_block
- * that emits nothing for simple `return imm` while still seeing spurious nso>0.
- * Control / local / unsafe-region bodies keep the real count so emit_block
- * still runs (`take(p: *i32) { unsafe { return *p; } }` is nlet=0 nreg=1).
+ * Thin mega cannot be edited; when body has no if/let/loop/for/region/expr-stmt,
+ * report nso=0 so mega takes get_return (redirected) instead of archaeology
+ * emit_block that emits nothing for simple `return imm` while still seeing
+ * spurious nso>0. Control / local / unsafe-region / expr-stmt bodies keep the
+ * real count so emit_block still runs (`take(p: *i32) { unsafe { return *p; } }`
+ * is nlet=0 nreg=1; `take(x) { x = 9; return x; }` is nlet=0 nexpr=1).
+ * Trailing `return` is final_expr (parser return_ends_block) so nexpr=0 for
+ * return-only bodies — do not treat a folded return as an expr-stmt.
  *
  * Also run sparse-if rebuild here: leftover-PE product -c path may skip
  * prepare_entry fixup, leaving ifs in Block.num_if_stmts but absent from
  * stmt_order (emit then only sees fallthrough return → RUN=9 for ifelse).
  * Offsets (W277_Block): num_lets@0x0c, num_loops@0x18, num_for_loops@0x20,
- * num_if_stmts@0x28, num_regions@0x30, num_stmt_order@0x54.
+ * num_if_stmts@0x28, num_regions@0x30, num_expr_stmts@0x48,
+ * num_stmt_order@0x54.
  * PLATFORM: WINDOWS leftover-PE hybrid.
  */
 void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br);
@@ -38472,6 +38476,7 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
   int32_t nloop;
   int32_t nfor;
   int32_t nreg;
+  int32_t nexpr;
   if (!a || br <= 0)
     return 0;
   /* Rebuild before reading counts — idempotent when ifs already in order. */
@@ -38485,7 +38490,8 @@ int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br) {
   nloop = win_blk_i32(b, 0x18);
   nfor = win_blk_i32(b, 0x20);
   nreg = win_blk_i32(b, 0x30);
-  if (nif == 0 && nlet == 0 && nloop == 0 && nfor == 0 && nreg == 0)
+  nexpr = win_blk_i32(b, 0x48);
+  if (nif == 0 && nlet == 0 && nloop == 0 && nfor == 0 && nreg == 0 && nexpr == 0)
     return 0;
   return nso;
 }
