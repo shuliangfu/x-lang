@@ -14511,8 +14511,12 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
  * WIN leftover PE cannot -E those thins; OR WIN_LEFTOVER_GROW_VEC so
  * leftover-PE FROM_X rest compiles the unique. POSIX FROM_X stays ABSENT
  * (.x thin owns the faces).
- * Stubs match leftover rest cold-twin contracts: stack_off -1 (not found),
- * module_from_ctx NULL. Hybrid product links pure.
+ * module_from_ctx stays NULL (not this knife). stack_off harvest stub
+ * used to return -1 always → leftover rest emit_expr_fast VAR / binop
+ * never found `let x` (letimm RUN=42, letvar/letret CG002 code_len=24).
+ * G.7: complete stack_off to the .x authority (kind==VAR then
+ * glue_asm_local_var_stack_off_scoped). Body of scoped lives later in
+ * this TU (wave148 leftover-PE unique). POSIX FROM_X stays ABSENT.
  * Must be AFTER truncated-cmp close so !FROM_X is file-scope (callers
  * @23573 live in remaining wave136 @21854).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
@@ -14541,11 +14545,25 @@ int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_
   return -1;
 }
 
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx, int32_t var_expr_ref);
+
+/**
+ * EXPR_VAR rbp stack offset. Harvest unique used to be `return -1`, so
+ * leftover-PE rest-first hid SAT's real t and `return x` CG002'd after
+ * a successful let-init store (letimm green, letvar/letret red).
+ * G.7: same body as runtime_pipeline_abi.x glue_var_expr_stack_off_elf_c
+ * (kind==3 then wave148 scoped authority).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
 int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
-  (void)arena;
-  (void)ctx;
-  (void)var_expr_ref;
-  return -1;
+  int32_t ko;
+  if (!arena || !ctx || var_expr_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  if (ko != 3)
+    return -1;
+  return glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
 }
 
 void *glue_emit_module_from_ctx(void *ctx) {
@@ -33721,8 +33739,8 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
  *   glue_call_arg_resolve_anon_body_let_elf_c
  *   glue_lazy_append_block_let_local  (remaining-wave @11365 real body;
  *     leftover rest FROM_X omits it — SAT only local t)
- * Skip leftover rest WIN stub T glue_var_expr_stack_off (fast path -1
- * then slow path). Skip SAT global T emit_module_ref / func_index /
+ * leftover rest glue_var_expr_stack_off is the wave188 .x twin (not the
+ * harvest -1 stub). Skip SAT global T emit_module_ref / func_index /
  * ast_ast_block_num_lets / pipeline_block_let_name_* /
  * pipeline_module_func_body_ref_at. Skip SAT global T asm_ctx_local_*
  * / asm_ctx_block_slot_get / asm_local_slot_reg_offset. Skip
@@ -33844,14 +33862,13 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
   int32_t llen;
   int32_t k;
   int32_t eq;
-  int32_t rc;
   if (!arena || !ctx || var_expr_ref <= 0)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
   /* GLUE_EXPR_KIND_VAR == 3 */
   if (ko != 3)
     return -1;
-  /* 1) Fast path: scoped/unscoped leftover rest WIN stub stack_off (-1). */
+  /* 1) Fast path: leftover rest stack_off (wave188 .x twin; was harvest -1). */
   off = glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
   if (off >= 0)
     return off;
@@ -33898,11 +33915,13 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
       li = li + 1;
       continue;
     }
-    /* Named body let: lazy-append then re-resolve stack_off. */
-    rc = glue_lazy_append_block_let_local(arena, ctx, body_ref, li, vname, vlen);
-    if (rc != 0)
-      return -1;
-    return glue_var_expr_stack_off_elf_c(arena, ctx, var_expr_ref);
+    /* Named body let: same slot_base+append as anon. Do not re-query
+     * stack_off after lazy_append — fill_tree may have set block_slot so
+     * lazy_append no-ops and a harvest-era stub then returned -1.
+     * G.7: reuse glue_call_arg_resolve_anon_body_let_elf_c (registers
+     * VAR name at the let slot, returns slot_off).
+     * PLATFORM: WINDOWS leftover-PE hybrid. */
+    return glue_call_arg_resolve_anon_body_let_elf_c(arena, ctx, body_ref, li, vname, vlen);
   }
   return -1;
 }
