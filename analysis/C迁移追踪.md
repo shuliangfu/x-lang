@@ -133,6 +133,7 @@
   - ✅ ADDR_OF INDEX TYPE_SLICE `&xs[0]` fat.data＠`80e3c6e04`
   - ✅ ADDR_OF INDEX TYPE_SLICE 非字面量 `&xs[i]` 64-bit scaled lea＠`817b6447e`
   - ✅ INDEX DEREF `*[]i32` `(*p)[1]` dual-GP fat＠`3acdc367c`
+  - ✅ TYPE_SLICE DEREF 作参 `take(*p)` dual-GP wrap fat*＠`5322f3b2b`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
