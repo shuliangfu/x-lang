@@ -33726,7 +33726,10 @@ void glue_asm73_cfg_interf_prepare(void) {
  * rest UNDEF remaining-wave 221 call_param_ty_get. Formal kind from
  * leftover rest WAVE278 resolved_type_ref (ALWAYS; typeck dest-SLICE
  * stamps ARRAY_LIT). TYPE_SLICE ARRAY_LIT: rec dest then wrap
- * {data,n_arr} fat* (formals are 1 GP). POSIX FROM_X stays ABSENT
+ * {data,n_arr} fat* (formals are 1 GP). TYPE_SLICE VAR: leftover rest
+ * glue_enc_local_slot_ptr_or_addr (local lea fat home / formal load
+ * E*). Do not leftover rest remaining-wave 221 pty for
+ * TYPE_ARRAY-as-SLICE wrap. POSIX FROM_X stays ABSENT
  * (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
@@ -33753,6 +33756,8 @@ extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
 extern void glue_align_next_offset(void *ctx);
+extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref,
+                                                     int32_t var_off, void *ctx, int32_t ta);
 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
                                                   void *ctx, int32_t ta) {
@@ -33777,8 +33782,14 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
     off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
     if (off >= 0) {
       /* TYPE_ARRAY == 10: 8B payload load_var; >8B local lea dest (E*).
-       * Formal T[N] >8B load the pointer home. PLATFORM: WINDOWS
-       * leftover-PE / SHARED Cap ARRAY E*. */
+       * Formal T[N] >8B load the pointer home. TYPE_SLICE == 11:
+       * formals are 1 GP fat* — leftover rest enc_local leas the
+       * local dual-GP home (needs_ptr_load=0) or loads a TYPE_SLICE
+       * formal E* (needs_ptr_load tk==11). load_var dual-GP left
+       * data-in-rax as the 1 GP arg (fnslice_var SEGV; i32slice_var
+       * INDEX0=127). .x @79307 same enc_local. Do not leftover rest
+       * remaining-wave 221 pty. PLATFORM: WINDOWS leftover-PE /
+       * SHARED Cap ARRAY E* / SLICE fat*. */
       rty = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
       if (rty <= 0)
         rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
@@ -33794,6 +33805,8 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
           return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
         }
       }
+      if (tk == 11)
+        return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, expr_ref, off, ctx, ta);
       return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
     }
     if (link_abi_getenv("XLANG_ASM_DEBUG"))
