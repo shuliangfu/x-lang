@@ -34252,6 +34252,41 @@ int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_
     return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, var_off, ta);
 }
+
+/*
+ * leftover-PE INDEX of T[N] formal (`apply(fs: [1]function(): i32)` /
+ * `fs[0]()`). SysV / leftover-PE packs ARRAY formals as E* (caller lea
+ * dest → rdi). SAT glue_try_index_var_or_field_base is a remaining-wave
+ * stub −2 (`#ifndef FROM_X`); SAT emit_index then emit_expr VAR which
+ * leas the pointer home, then load_64 treats the pointer bits as elem0
+ * → `call *array_addr` SEGV 139. Local ARRAY (`let fs = [foo]`) stays
+ * −2 so SAT emit_expr lea of the value slot is unchanged (arr0 green).
+ * G.7: reuse leftover rest glue_enc_local_slot (needs_ptr_load already
+ * calls leftover rest glue_emit_func_param_is_indirect_array_slot).
+ * Do not copy the .x FIELD/CALL/SIMD forest. SAT stub stays for POSIX
+ * !FROM_X. PE first-wins does not rewrite SAT emit_index intra — redirect
+ * glue_try_index. PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged.
+ */
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+
+int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                     void *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t boff;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || base_ref <= 0)
+    return -2;
+  ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (ko != 3)
+    return -2;
+  boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
+  if (boff < 0)
+    return -2;
+  mod = glue_emit_module_from_ctx(ctx);
+  if (!mod || glue_emit_func_param_is_indirect_array_slot_c(arena, mod, base_ref) == 0)
+    return -2;
+  return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
+}
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE glue_enc_local unique */
 
 /* WIN leftover-PE rest glue_load_f32_var_slot_to_rax_elf_c unique

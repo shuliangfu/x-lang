@@ -176,6 +176,13 @@ EMIT_REDIRECT_SYMS = (
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "pipeline_asm_array_lit_elem_byte_sz_c",
     "pipeline_asm_array_lit_elem_type_ref",
+    # ARRAY_LIT TYPE_FN call-arg: SAT emit_index intra SAT glue_try_index
+    # stub −2 → emit_expr VAR leas T[N] E* home; load_64 then call *ptr
+    # SEGV 139. leftover rest WIN leftover first-wins glue_try_index for
+    # T[N] formals via glue_enc_local_slot (needs_ptr_load). Local ARRAY
+    # stays −2. PE first-wins does not rewrite SAT intra.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_try_index_var_or_field_base_to_rax_elf_c",
     # Nested-block lets (unsafe region / if / while / for): SAT emit_block
     # formula num_locals-nlets + SAT let_name skip nlen==0. leftover rest
     # WIN leftover emit_block_body uses block_slot_get after fill walks
