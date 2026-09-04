@@ -6731,7 +6731,7 @@ func_index_out: *i32): i32 {
               aref = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, ai);
             }
             if (aref > 0 && pty > 0) {
-              typeck_coerce_init_array_vector_lit_to_decl(caller_arena, aref, pty,
+              typeck_coerce_init_array_vector_lit_to_decl(mod, caller_arena, aref, pty,
               pipeline_type_kind_ord_at(caller_arena, pty),
               pipeline_expr_kind_ord_at(caller_arena, aref));
             }
@@ -6920,7 +6920,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
                 aref2 = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, ai);
               }
               if (aref2 > 0 && pty2 > 0) {
-                typeck_coerce_init_array_vector_lit_to_decl(caller_arena, aref2, pty2,
+                typeck_coerce_init_array_vector_lit_to_decl(mod, caller_arena, aref2, pty2,
                 pipeline_type_kind_ord_at(caller_arena, pty2),
                 pipeline_expr_kind_ord_at(caller_arena, aref2));
               }
@@ -9160,10 +9160,18 @@ decl_kind: i32): i32 {
  * into TYPE_FN element decls must reuse typeck_fnptr_surface_compat (let/assign
  * authority). Prior: only type_refs_equal → `expected function, found *u8`.
  * Recoverable bare/as Cap hard-checks arity; true opaque Cap rejected on
- * coerce (allow_opaque=0); explicit `as function` may allow. PLATFORM: SHARED.
+ * coerce (allow_opaque=0); explicit `as function` may allow.
+ * TYPE_FN recover uses the live module — do not pass 0 and hope
+ * pipeline_typeck_active_module_c() is set (leftover-PE BSS can be NULL).
+ * @param module *Module — live typeck module; 0 → active_module fallback
+ * @param arena *ASTArena — expr/type pool
+ * @param init_ref i32 — EXPR_ARRAY_LIT
+ * @param decl_ty_ref i32 — TYPE_ARRAY / TYPE_SLICE dest
+ * @return i32 — 1 stamped, 0 skip, -1 known elem mismatch
+ * PLATFORM: SHARED.
  */
-export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
-decl_ty_ref: i32): i32 {
+export function typeck_coerce_array_lit_elem_types_to_decl(module: *Module, arena: *ASTArena,
+init_ref: i32, decl_ty_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ord_type_array: i32 = 10;
@@ -9217,7 +9225,7 @@ decl_ty_ref: i32): i32 {
        */
       if (elem_kind == ord_expr_array_lit
       && (elem_decl_kind == ord_type_array || elem_decl_kind == ord_type_slice)) {
-        if (typeck_coerce_array_lit_elem_types_to_decl(arena, elem_ref, elem_decl_ref) < 0) {
+        if (typeck_coerce_array_lit_elem_types_to_decl(module, arena, elem_ref, elem_decl_ref) < 0) {
           return - 1;
         }
       } else {
@@ -9231,13 +9239,13 @@ decl_ty_ref: i32): i32 {
           got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
           /*
            * 10.3.1 slice12: TYPE_FN elem decl ← Cap *u8 / TYPE_FN via G.7
-           * typeck_fnptr_surface_compat (active module for bare-name recover).
-           * PLATFORM: SHARED.
+           * typeck_fnptr_surface_compat with the live module (same as let/assign/
+           * return). Do not pass 0. PLATFORM: SHARED.
            */
           if (type_refs_equal(arena, elem_ty, elem_decl_ref)
           || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)
           || typeck_float_widen_ok(elem_decl_kind, got_kind)
-          || typeck_fnptr_surface_compat(0 as *Module, arena, elem_decl_ref, elem_ty, elem_ref, 0) != 0) {
+          || typeck_fnptr_surface_compat(module, arena, elem_decl_ref, elem_ty, elem_ref, 0) != 0) {
             pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref);
           } else {
             /*
@@ -9333,6 +9341,7 @@ export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i3
 
 /**
  * Coerce ARRAY_LIT init to array / slice / vector declaration type.
+ * @param module *Module — live typeck module; 0 → active_module fallback
  * @param arena *ASTArena — pool
  * @param init_ref i32 — init expression
  * @param decl_ty_ref i32 — declaration type
@@ -9341,8 +9350,8 @@ export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i3
  * @return i32 — 1 if coerced, 0 otherwise
  * PLATFORM: SHARED — wave328: TYPE_SLICE + ARRAY_LIT (same elem coerce as fixed array).
  */
-export function typeck_coerce_init_array_vector_lit_to_decl(arena: *ASTArena, init_ref: i32,
-decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+export function typeck_coerce_init_array_vector_lit_to_decl(module: *Module, arena: *ASTArena,
+init_ref: i32, decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ord_type_array: i32 = 10;
@@ -9361,7 +9370,7 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
     /* Fixed array T[N] or open slice T[] ← [e0, e1, …] */
     if ((decl_kind == ord_type_array || decl_kind == ord_type_slice)
     && init_kind == ord_expr_array_lit) {
-      return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
+      return typeck_coerce_array_lit_elem_types_to_decl(module, arena, init_ref, decl_ty_ref);
     }
     if (init_kind == ord_expr_array_lit) {
       n_elems = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
@@ -9781,7 +9790,7 @@ decl_ty_ref: i32): i32 {
      * let/const do not soft-skip unstamped init_ty and false-green.
      */
     {
-      let arr_c: i32 = typeck_coerce_init_array_vector_lit_to_decl(arena, init_ref, decl_ty_ref,
+      let arr_c: i32 = typeck_coerce_init_array_vector_lit_to_decl(module, arena, init_ref, decl_ty_ref,
       decl_kind, init_kind);
       if (arr_c < 0) {
         return -1;
@@ -11010,7 +11019,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         let ord_type_slice: i32 = 11;
         if (rhs_kind == ord_expr_array_lit
         && (lt_kind == ord_type_array || lt_kind == ord_type_slice)) {
-          if (typeck_coerce_array_lit_elem_types_to_decl(arena, right_ref, lt) < 0) {
+          if (typeck_coerce_array_lit_elem_types_to_decl(module, arena, right_ref, lt) < 0) {
             return - 1;
           }
           rt_after = expr_type_ref(arena, right_ref);
@@ -11344,7 +11353,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       let crc_arr: i32 = 0;
       op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
       rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
-      crc_arr = typeck_coerce_init_array_vector_lit_to_decl(arena, op_ref, return_type_ref, rt_kind,
+      crc_arr = typeck_coerce_init_array_vector_lit_to_decl(module, arena, op_ref, return_type_ref, rt_kind,
       op_kind);
       if (crc_arr < 0) {
         return - 1;
@@ -12584,7 +12593,7 @@ ctx: *PipelineDepCtx): i32 {
               pty_c = mapped_c;
             }
           }
-          typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, pty_c,
+          typeck_coerce_init_array_vector_lit_to_decl(module, arena, arg_ref, pty_c,
           pipeline_type_kind_ord_at(arena, pty_c),
           pipeline_expr_kind_ord_at(arena, arg_ref));
           /* Anonymous `{ fields }` call-arg: same dest backfill as let.
@@ -14101,7 +14110,7 @@ ctx: *PipelineDepCtx): i32 {
       if (arg_ref > 0 && param_ref > 0) {
         arg_kind = pipeline_expr_kind_ord_at(arena, arg_ref);
         param_kind = pipeline_type_kind_ord_at(arena, param_ref);
-        typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_ref, param_kind, arg_kind);
+        typeck_coerce_init_array_vector_lit_to_decl(module, arena, arg_ref, param_ref, param_kind, arg_kind);
       }
       arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
       if (typeck_check_slice_region_assign(arena, arg_ref, param_ref, arg_ty) != 0) {
@@ -17372,7 +17381,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
              * PLATFORM: SHARED.
              */
             if (p0 > 0 && base_ref > 0) {
-              let crc0: i32 = typeck_coerce_init_array_vector_lit_to_decl(arena, base_ref, p0,
+              let crc0: i32 = typeck_coerce_init_array_vector_lit_to_decl(module, arena, base_ref, p0,
               pipeline_type_kind_ord_at(arena, p0),
               pipeline_expr_kind_ord_at(arena, base_ref));
               let bk0: i32 = pipeline_expr_kind_ord_at(arena, base_ref);
@@ -17417,7 +17426,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 let arg_ty: i32 = 0;
                 let crc_a: i32 = 0;
                 if (arg_ref2 > 0 && param_raw > 0) {
-                  crc_a = typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref2, param_raw,
+                  crc_a = typeck_coerce_init_array_vector_lit_to_decl(module, arena, arg_ref2, param_raw,
                   pipeline_type_kind_ord_at(arena, param_raw),
                   pipeline_expr_kind_ord_at(arena, arg_ref2));
                   /*
@@ -17539,7 +17548,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let assoc_arg: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, assoc_ai);
                   let assoc_arg_ty: i32 = 0;
                   if (assoc_arg > 0 && assoc_param > 0) {
-                    typeck_coerce_init_array_vector_lit_to_decl(arena, assoc_arg, assoc_param,
+                    typeck_coerce_init_array_vector_lit_to_decl(module, arena, assoc_arg, assoc_param,
                     pipeline_type_kind_ord_at(arena, assoc_param),
                     pipeline_expr_kind_ord_at(arena, assoc_arg));
                     typeck_coerce_array_lit_struct_elems_to_decl(module, arena, assoc_arg, assoc_param);
@@ -17999,7 +18008,7 @@ expr_ref: i32, base_ty: i32): i32 {
           typeck_coerce_init_enum_field_to_decl(module, arena, init_r, ftr, ftr_kind, init_kind);
           typeck_coerce_init_named_call_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
           typeck_coerce_init_resolved_alias_to_decl(module, arena, init_r, ftr, ftr_kind);
-          crc = typeck_coerce_init_array_vector_lit_to_decl(arena, init_r, ftr, ftr_kind, init_kind);
+          crc = typeck_coerce_init_array_vector_lit_to_decl(module, arena, init_r, ftr, ftr_kind, init_kind);
           if (crc < 0) {
             return -1;
           }
@@ -23723,7 +23732,8 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
 #[no_mangle]
 export function pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
-  return typeck_coerce_init_array_vector_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
+  /* C ABI unchanged: no module param. Pass 0 → active_module fallback. */
+  return typeck_coerce_init_array_vector_lit_to_decl(0 as *Module, arena, init_ref, decl_ty_ref, decl_kind, init_kind);
 }
 
 /**

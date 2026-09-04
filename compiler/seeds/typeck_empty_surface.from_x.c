@@ -586,9 +586,9 @@ extern int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena,
 extern int32_t typeck_coerce_init_enum_field_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_named_call_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_resolved_alias_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind);
-extern int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref);
+extern int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref);
 extern int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t type_ref);
-extern int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+extern int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_vector_binop_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_int_binop_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_slice_from_array(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind);
@@ -3801,7 +3801,7 @@ int32_t typeck_coerce_init_resolved_alias_to_decl(struct ast_Module * module, st
   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
   return 1;
 }
-int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref) {
+int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref) {
   int32_t ord_type_array = 10;
   int32_t ord_expr_array_lit = 46;
   int32_t elem_decl_ref = 0;
@@ -3831,7 +3831,7 @@ int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, 
     }
     (void)((elem_kind = pipeline_expr_kind_ord_at(arena, elem_ref)));
     if (((elem_kind ==ord_expr_array_lit) && (elem_decl_kind ==ord_type_array))) {
-      if ((typeck_coerce_array_lit_elem_types_to_decl(arena, elem_ref, elem_decl_ref) < 0)) {
+      if ((typeck_coerce_array_lit_elem_types_to_decl(module, arena, elem_ref, elem_decl_ref) < 0)) {
         return -(1);
       }
     } else {
@@ -3903,7 +3903,7 @@ int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t type_re
   }
   return 0;
 }
-int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
+int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   int32_t ord_type_array = 10;
   int32_t ord_type_slice = 11;
   int32_t ord_type_vector = 13;
@@ -3916,7 +3916,7 @@ int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena,
   int32_t elem_ref = 0;
   int32_t ek = 0;
   if ((((decl_kind ==ord_type_array) || (decl_kind ==ord_type_slice)) && (init_kind ==ord_expr_array_lit))) {
-    return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
+    return typeck_coerce_array_lit_elem_types_to_decl(module, arena, init_ref, decl_ty_ref);
   }
   if ((init_kind ==ord_expr_array_lit)) {
     n_elems = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
@@ -4057,7 +4057,7 @@ int32_t typeck_coerce_init_expr_to_decl(struct ast_Module * module, struct ast_A
   if ((typeck_coerce_init_resolved_alias_to_decl(module, arena, init_ref, decl_ty_ref, decl_kind) !=0)) {
     return 1;
   }
-  if ((typeck_coerce_init_array_vector_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind) !=0)) {
+  if ((typeck_coerce_init_array_vector_lit_to_decl(module, arena, init_ref, decl_ty_ref, decl_kind, init_kind) !=0)) {
     return 1;
   }
   if ((typeck_coerce_init_vector_binop_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind) !=0)) {
@@ -4776,7 +4776,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
     (void)((rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref)));
     (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
     if (((rhs_kind ==ord_expr_array_lit) && ((lt_kind ==ord_type_array) || (lt_kind ==ord_type_slice)))) {
-      if ((typeck_coerce_array_lit_elem_types_to_decl(arena, right_ref, lt) < 0)) {
+      if ((typeck_coerce_array_lit_elem_types_to_decl(module, arena, right_ref, lt) < 0)) {
         return -(1);
       }
       (void)((rt_after = expr_type_ref(arena, right_ref)));
@@ -4990,7 +4990,7 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
     (void)((op_kind = pipeline_expr_kind_ord_at(arena, op_ref)));
     (void)((rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
     if (((op_kind ==ord_expr_array_lit) && (rt_kind ==ord_type_array))) {
-      if ((typeck_coerce_array_lit_elem_types_to_decl(arena, op_ref, return_type_ref) < 0)) {
+      if ((typeck_coerce_array_lit_elem_types_to_decl(module, arena, op_ref, return_type_ref) < 0)) {
         return -(1);
       }
     }
@@ -5626,7 +5626,7 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
       }
       /* G.7 ≡ typeck.x: ARRAY_LIT → SIMD/array/slice formal before score. */
       if (arg_ref > 0) {
-        (void)typeck_coerce_init_array_vector_lit_to_decl(arena, arg_ref, param_raw,
+        (void)typeck_coerce_init_array_vector_lit_to_decl(module, arena, arg_ref, param_raw,
           pipeline_type_kind_ord_at(arena, param_raw),
           pipeline_expr_kind_ord_at(arena, arg_ref));
       }
