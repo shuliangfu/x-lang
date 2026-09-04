@@ -28628,6 +28628,7 @@ extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref
 extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t expr_ref);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mul_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
 extern int32_t backend_enc_add_rax_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
@@ -28720,7 +28721,19 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
    * the address of a pointer (FIELD), then add idx*esz. VAR *T /
    * DEREF already yield the pointer value via glue_enc_local_slot /
    * emit_expr. SAT glue_emit_index_eff_addr is SAT intra — do not
-   * leftover rest UNDEF it. */
+   * leftover rest UNDEF it.
+   *
+   * TYPE_SLICE fat: leftover rest VAR lvalue enc_local leas the dual-GP
+   * home (local needs=0) or loads fat* (formal tk==11 needs=1). POSIX
+   * .x glue_try_index_var_or_field_base_to_rax peels fat.data into rax
+   * before idx*esz. leftover rest ADDR_OF INDEX `&xs[0]` used this
+   * lvalue without the peel → rax=&fat / fat*, `unsafe { return *p }`
+   * loads pointer bits (RUN=127). SAT try_index is SAT local t — do
+   * not leftover rest T it (arr0 intercept). G.7 complete leftover
+   * rest lvalue INDEX only (load_64_from_rax when base rtk==11).
+   * TYPE_ARRAY stays lea payload / load E* (rtk==10). Remaining-wave
+   * glue_emit_index_eff_addr_scaled stays #ifndef FROM_X.
+   * PLATFORM: WINDOWS leftover-PE. */
   if (ko == 47) {
     base_ref = pipeline_expr_index_base_ref(arena, lval_ref);
     idx_ref = pipeline_expr_index_index_ref(arena, lval_ref);
@@ -28736,6 +28749,12 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
         if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
           return -1;
       }
+    }
+    rtr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    rtk = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+    if (rtk == 11) {
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
     }
     modp = glue_emit_module_from_ctx(ctx);
     rtr = pipeline_expr_resolved_type_ref(arena, lval_ref);
