@@ -28162,10 +28162,15 @@ extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(void *arena, void *elf_ctx, i
 extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_panic_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
-extern int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta, int32_t stack_slot_off);
 extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
 extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
-extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_call_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28376,22 +28381,39 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
   else if (ko == 45) {
     int32_t sret_act;
     int32_t sret_home;
+    int32_t sret_sz;
+    static const uint8_t memcpy_sym[] = "memcpy";
     /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — callee >16B STRUCT_LIT
-     * return. leftover rest mega_body sets leftover rest sret BSS; SAT
-     * emit_struct_lit intra SAT sret_active_get (SAT BSS=0, may be inlined)
-     * so implicit dest is a local lea (sret24a dump: lea [rbp-0x18]).
-     * G.7 complete leftover rest rec ko==45: load saved rdi dest into rbx,
-     * SAT fields DEST_IN_RBX=-3 (POSIX .x glue_struct_lit_dest_in_rbx).
-     * POSIX .x emit_struct_lit @58898 is the same sret_direct path. */
+     * return. SAT emit_struct_lit is SAT global T but intra SAT
+     * sret_active_get (SAT BSS=0, often inlined) so implicit dest is a
+     * local lea (sret24a dump: lea [rbp-0x18]; rax=that ptr on return).
+     * SAT fields_elf is SAT local t — leftover rest must not UNDEF it.
+     * G.7 complete leftover rest rec: SAT writes local, leftover rest
+     * memcpy rax→dest saved at leftover rest sret_home (param_home rdi). */
     sret_act = pipeline_asm_emit_ctx_sret_active_get();
     sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
-    if (sret_act != 0 && sret_home >= 0 && (ta == 0 || ta == 1)) {
-      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, sret_home, ta) != 0)
+    sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+    out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    if (out_rc == 0 && sret_act != 0 && sret_home >= 0 && sret_sz > 16 && ta == 0) {
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
         out_rc = -1;
-      else
-        out_rc = pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -3);
-    } else {
-      out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+      else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_load_rbp_to_rax_arch(elf_ctx, sret_home, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sret_sz, 0, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym,
+                                     (int32_t)(sizeof(memcpy_sym) - 1), ta) != 0)
+        out_rc = -1;
     }
   }
   else if (ko == 46)
