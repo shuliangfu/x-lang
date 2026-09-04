@@ -33787,9 +33787,12 @@ void glue_asm73_cfg_interf_prepare(void) {
  * glue_enc_local_slot_ptr_or_addr (local lea fat home / formal load
  * E*). TYPE_SLICE DEREF `take(*p)`: leftover rest emit_deref now
  * dual-GP (rax=data, rdx=length); wrap store rax+rdx then lea fat*
- * (POSIX CALL TYPE_SLICE @79744 same wrap). Do not leftover rest
- * remaining-wave 221 pty for TYPE_ARRAY-as-SLICE wrap. POSIX FROM_X
- * stays ABSENT (.x thin owns @79135).
+ * (POSIX CALL TYPE_SLICE @79744 same wrap). TYPE_SLICE CALL/METHOD
+ * `take(mk())`: rec leaves callee return (leftover rest mega_body
+ * ARRAY_LIT TYPE_SLICE return is durable dual-GP); wrap store
+ * rax+rdx then lea fat*. Do not leftover rest remaining-wave 221
+ * pty for TYPE_ARRAY-as-SLICE wrap. POSIX FROM_X stays ABSENT
+ * (.x thin owns @79135).
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -33951,6 +33954,41 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * win_glue_slice_dual_gp_length_off (x86 home-8).
    * PLATFORM: WINDOWS leftover-PE. */
   if (ko == 52) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+  }
+  /* CALL=48 / METHOD=49 TYPE_SLICE: leftover rest rec of mk() now
+   * dual-GP (mega_body ARRAY_LIT TYPE_SLICE return durable COMMON +
+   * rdx=n_arr). TYPE_SLICE formals are 1 GP fat* — rec left rax=data
+   * as 16B INTEGER (rdi+rsi) then take extra-deref dest (`slice_call_arg`
+   * SEGV 139). G.7 complete leftover rest for_call_args: rec then
+   * store rax+rdx to 16B home, lea fat* (POSIX CALL TYPE_SLICE @79744
+   * same wrap minus reent deep-copy; payload is leftover rest durable
+   * COMMON). Kind from leftover rest WAVE278 resolved_type_ref. Do
+   * not copy .x packer / remaining-wave 221 pty. Do not leftover rest
+   * remaining-wave emit_return via !FROM_X || WIN.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 48 || ko == 49) {
     rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
     tk = 0;
     if (rty > 0)
@@ -59562,6 +59600,17 @@ extern int32_t pipeline_asm_get_return_expr_ref_at(void *a, void *m, int32_t fun
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                            int32_t force_esz, int32_t ta, void *ctx,
+                                                            int32_t dest_elem_ty);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
 extern int32_t pipeline_module_main_func_index(void *m);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
@@ -59799,8 +59848,53 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     if (body_ref == 0 || pipeline_asm_block_num_stmt_order_at(a, body_ref) == 0)
       result_ref = pipeline_asm_get_return_expr_ref_at(a, m, i);
     if (result_ref != 0) {
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+      /* leftover-PE get_return peels RETURN to ARRAY_LIT; SAT
+       * emit_array_lit leaves dest pointer (remaining-wave emit_return
+       * dual-GP @19267 is #ifndef FROM_X ABSENT). take(mk()) then
+       * dangling dest as fat* (`slice_call_arg` SEGV 139). G.7 complete
+       * leftover rest mega_body: durable COMMON + dual-GP (rax=data
+       * rdx=n_arr). Do not leftover rest remaining-wave emit_return via
+       * !FROM_X || WIN. Do not copy .x reent deep-copy.
+       * PLATFORM: WINDOWS leftover-PE. */
+      {
+        int32_t rrty = pipeline_module_func_return_type_at(m, i);
+        int32_t rrtk = (rrty > 0) ? pipeline_type_kind_ord_at(a, rrty) : 0;
+        int32_t rko = pipeline_expr_kind_ord_at(a, result_ref);
+        int32_t n_arr;
+        int32_t et;
+        int32_t force_esz;
+        int32_t wrapped = 0;
+        if (rrtk == 11 && rko == 46) {
+          n_arr = pipeline_expr_array_lit_num_elems_at(a, result_ref);
+          if (n_arr < 0)
+            n_arr = 0;
+          et = (rrty > 0) ? pipeline_type_elem_ref_at(a, rrty) : 0;
+          force_esz = pipeline_asm_array_lit_elem_byte_sz_c(a, result_ref);
+          if (force_esz <= 0)
+            force_esz = 4;
+          if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(a, elf_ctx, result_ref, force_esz, ta, bctx,
+                                                            et) == 0) {
+            if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+              return -1;
+            if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+              return -1;
+            if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, (ta == 1) ? 1 : 2, ta) != 0)
+              return -1;
+            if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+              return -1;
+            wrapped = 1;
+          }
+        }
+        if (wrapped == 0) {
+          if (pipeline_asm_emit_expr_elf_c(a, elf_ctx, result_ref, bctx, ta) != 0)
+            return -1;
+        }
+      }
+#else
       if (pipeline_asm_emit_expr_elf_c(a, elf_ctx, result_ref, bctx, ta) != 0)
         return -1;
+#endif
     }
     /*
      * PLATFORM: LINUX+MACOS x86_64 SysV — place scalar float return in xmm0 before epilogue.
