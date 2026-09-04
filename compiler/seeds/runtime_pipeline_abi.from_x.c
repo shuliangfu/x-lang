@@ -16663,8 +16663,8 @@ extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t ty
 extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
 extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
 extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
-extern int32_t ast_pipeline_block_if_then_body_ref(void *arena, int32_t block_ref, int32_t i);
-extern int32_t ast_pipeline_block_if_else_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t i);
 extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
 extern int32_t pipeline_block_while_body_ref(void *arena, int32_t block_ref, int32_t i);
 extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
@@ -28913,10 +28913,10 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
 extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern uint8_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
 extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
 extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
-extern int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
+extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t ei);
 extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
