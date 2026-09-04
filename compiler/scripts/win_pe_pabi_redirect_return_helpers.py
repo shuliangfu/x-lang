@@ -169,6 +169,13 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_expr_struct_lit_field_store_sz",
     "pipeline_expr_resolved_type_ref",
     "ast_pipeline_expr_resolved_type_ref",
+    # ARRAY_LIT TYPE_FN: SAT emit_array_lit intra SAT elem_byte_sz
+    # (kind miss → esz=4 `mov %eax` truncates PE fn ptr; INDEX loads 8).
+    # leftover rest WIN leftover first-wins elem_byte_sz (TYPE_FN=18 / PTR=9 → 8).
+    # PE first-wins does not rewrite SAT intra. G.7 complete of this table.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "pipeline_asm_array_lit_elem_byte_sz_c",
+    "pipeline_asm_array_lit_elem_type_ref",
     # Nested-block lets (unsafe region / if / while / for): SAT emit_block
     # formula num_locals-nlets + SAT let_name skip nlen==0. leftover rest
     # WIN leftover emit_block_body uses block_slot_get after fill walks
