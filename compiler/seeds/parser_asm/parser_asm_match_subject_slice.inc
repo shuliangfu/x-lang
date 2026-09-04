@@ -2,7 +2,10 @@
  * parser_asm_match_subject_slice.inc — parse_match_subject_into / parse_match_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * match subject：裸 IDENT 走 EXPR_VAR；parse_match_into 解析整段 match 表达式并回调 parse_expr_into X mega。
+ * match subject: bare IDENT → EXPR_VAR (so `{` after IDENT is match arms,
+ * not STRUCT_LIT). IDENT followed by CALL `(` / INDEX `[` / FIELD `.`
+ * falls through to parse_expr_into (parser_x mega). parse_match_into
+ * parses the full match expression and callbacks parse_expr_into.
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
@@ -182,11 +185,18 @@ static void parser_asm_match_expr_common_zeros_c(struct ast_Expr *e) {
 }
 
 /**
- * parse_match_subject_into：解析 match 的 subject；裸 IDENT 不经过 parse_expr_into。
+ * parse_match_subject_into: parse the match subject.
+ * Bare IDENT stays EXPR_VAR and does not call parse_expr_into — `{` after
+ * the ident is the arm list, not a STRUCT_LIT (`match x { 1 => 2; _ => 0 }`).
+ * IDENT with postfix CALL `(` / INDEX `[` / FIELD `.` rewinds to the original
+ * lex and uses parse_expr_into (parser_x mega suffix authority). Do not
+ * peek-fallthrough on TOKEN_LBRACE.
+ * PLATFORM: SHARED — parser_asm match-subject authority (G.7).
  */
 void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                            struct parser_asm_parse_expr_result *out) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_lexer_result peek;
   int32_t ref;
   struct ast_Expr e;
   int32_t name_len;
@@ -197,6 +207,15 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
   out->ok = 0;
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+    /* Peek next token without consuming original lex. Postfix CALL/INDEX/FIELD
+     * must go through parse_expr_into from the IDENT start; `{` must not. */
+    lexer_next_into(&peek, r.next_lex, source);
+    if (peek.tok.kind == (int32_t)TOKEN_LPAREN
+        || peek.tok.kind == (int32_t)TOKEN_LBRACKET
+        || peek.tok.kind == (int32_t)TOKEN_DOT) {
+      parse_expr_into(arena, lex, source, out);
+      return;
+    }
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_subject_ident_audit_c(r, source));
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0)

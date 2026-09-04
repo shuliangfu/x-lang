@@ -1444,7 +1444,8 @@ int32_t parser_parse_if_stmt_into_glue(void *arena, struct parser_asm_lexer lex_
   return parser_asm_parse_if_stmt_into_c(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
 }
 
-/** parse_match_subject_into_glue：match subject；裸 IDENT→EXPR_VAR，其余 parse_expr_into X mega。 */
+/** parse_match_subject_into_glue: match subject. Bare IDENT → EXPR_VAR;
+ * IDENT+CALL/INDEX/FIELD postfix → parse_expr_into. Thin wrapper (G.7). */
 void parser_parse_match_subject_into_glue(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                           struct parser_asm_parse_expr_result *out) {
   parser_asm_parse_match_subject_into_c(arena, lex, source, out);
