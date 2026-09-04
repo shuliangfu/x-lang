@@ -16513,7 +16513,34 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_param_slots unique */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE fill_param_slots unique */
+/*
+ * leftover-PE unique: pipeline_asm_fill_local_slots.
+ * SAT emit_block_body intra-calls SAT fill_tree/ensure (SAT Block names /
+ * SAT locals table). leftover rest mega_body skipped fill when nso>0, so
+ * two body lets both stored at 0x0(%rbp) (`add(x,y)` RUN=8). G.7: complete
+ * leftover rest fill using WAVE277 pipeline_block_* name accessors (not SAT
+ * egg ast_pipeline_* twins) so leftover rest WAVE267 slots get distinct
+ * rbp offsets. POSIX FROM_X stays ABSENT (.x thin owns @35406).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_const_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void pipeline_block_const_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t pipeline_block_const_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_let_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern void asm_ctx_block_slot_set(uint8_t *ctx, int32_t block_ref, int32_t slot_base);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t type_ref, int32_t init_ref);
 
 void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
   int32_t off;
@@ -16526,43 +16553,57 @@ void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
   int32_t slot_base;
   if (!ctx || !arena || block_ref <= 0)
     return;
-  if (asm_ctx_block_slot_get(ctx, block_ref) >= 0)
+  if (asm_ctx_block_slot_get((uint8_t *)ctx, block_ref) >= 0)
     return;
-  slot_base = asm_ctx_local_count(ctx);
+  slot_base = asm_ctx_local_count((uint8_t *)ctx);
   off = *(int32_t *)((uint8_t *)ctx + 4); /* next_offset@4 */
   nconst = ast_ast_block_num_consts(arena, block_ref);
   for (i = 0; i < nconst; i++) {
     int32_t type_ref;
     int32_t slot_off;
-    ast_pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
-    nlen = ast_pipeline_block_const_name_len(arena, block_ref, i);
+    pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
+    nlen = pipeline_block_const_name_len(arena, block_ref, i);
     type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
     slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
-    if (asm_ctx_local_append(ctx, name_buf, nlen, slot_off) < 0)
+    if (nlen <= 0) {
+      name_buf[0] = (uint8_t)'$';
+      name_buf[1] = (uint8_t)('A' + (i & 15));
+      nlen = 2;
+    }
+    if (asm_ctx_local_append((uint8_t *)ctx, name_buf, nlen, slot_off) < 0)
       return;
-    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx);
-    init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, i);
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
+    init_ref = pipeline_block_const_init_ref(arena, block_ref, i);
     off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
   }
   nlet = ast_ast_block_num_lets(arena, block_ref);
   for (i = 0; i < nlet; i++) {
     int32_t type_ref;
     int32_t slot_off;
-    ast_pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
-    nlen = ast_pipeline_block_let_name_len(arena, block_ref, i);
+    pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
+    nlen = pipeline_block_let_name_len(arena, block_ref, i);
     type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
     slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
-    if (asm_ctx_local_append(ctx, name_buf, nlen, slot_off) < 0)
+    /* WAVE277 sidecar names are the authority. If a let is still nameless
+     * (SKIP_TYPECK / empty bytes), still reserve a distinct slot so later
+     * lets do not alias rbp+0 (`add(x,y)` both stored at 0 → RUN=8). */
+    if (nlen <= 0) {
+      name_buf[0] = (uint8_t)'$';
+      name_buf[1] = (uint8_t)('a' + (i & 15));
+      nlen = 2;
+    }
+    if (asm_ctx_local_append((uint8_t *)ctx, name_buf, nlen, slot_off) < 0)
       return;
-    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count(ctx);
-    init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, i);
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
+    init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
     off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
   }
   *(int32_t *)((uint8_t *)ctx + 4) = off;
-  asm_ctx_block_slot_set(ctx, block_ref, slot_base);
+  asm_ctx_block_slot_set((uint8_t *)ctx, block_ref, slot_base);
 }
+#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_local_slots unique */
 
-
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE fill_local_slots unique */
 
 /*
  * wave142: pipeline_asm_emit_assign pure-owned leave cold twins.
@@ -58122,8 +58163,11 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     if (body_ref != 0) {
       frame_sz = pipeline_asm_compute_frame_size_c(pipeline_asm_module_func_num_params_at(m, i), a, body_ref, m, i);
       pipeline_debug_trace_named_func_bodies("mega_post_frame_size", m, a);
-      if (pipeline_asm_block_num_stmt_order_at(a, body_ref) == 0)
-        pipeline_asm_fill_local_slots(bctx, a, body_ref);
+      /* Always fill: nso>0 used to skip, so SAT emit_block stored every let
+       * at rbp+0 (`add(x,y)` RUN=8). leftover rest fill_local_slots is
+       * first-wins WAVE277 names → WAVE267 distinct slots.
+       * PLATFORM: WINDOWS leftover-PE hybrid. */
+      pipeline_asm_fill_local_slots(bctx, a, body_ref);
       pipeline_debug_trace_named_func_bodies("mega_post_fill_local_slots", m, a);
     }
     if (backend_enc_prologue_arch(elf_ctx, frame_sz, ta) != 0)
