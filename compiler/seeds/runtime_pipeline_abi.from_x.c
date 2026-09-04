@@ -33766,6 +33766,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   int32_t base_off;
   int32_t home;
   int32_t len_off;
+  int32_t past;
   void *mod;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
@@ -33809,8 +33810,6 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * next_offset@4 ≡ leftover rest glue_align_next_offset.
    * PLATFORM: WINDOWS leftover-PE / SHARED Cap ARRAY E* / SLICE fat*. */
   if (ko == 46) {
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
-      return -1;
     rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
     tk = 0;
     if (rty > 0)
@@ -33821,15 +33820,26 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
       if (n_arr < 0)
         n_arr = 0;
+      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+      if (esz <= 0)
+        esz = 4;
+      nbytes = n_arr * esz;
+      if (nbytes < 0)
+        nbytes = 0;
+      /* Reserve fat home before rec so SAT dest cannot alias home
+       * ([3,4] INDEX0 was dest-pointer bits). .x @79510 same order;
+       * do not copy durable/SIMD. PLATFORM: WINDOWS leftover-PE. */
       base_off = *(int32_t *)((uint8_t *)ctx + 4);
       if ((base_off % 8) != 0)
         base_off = (base_off + 7) / 8 * 8;
       home = base_off + 16;
-      if (ta == 1)
-        *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
-      else
-        *(int32_t *)((uint8_t *)ctx + 4) = home + 8;
+      past = (ta == 1) ? (home + 16) : (home + 8);
+      if (nbytes > 0 && home + nbytes > past)
+        past = home + nbytes;
+      *(int32_t *)((uint8_t *)ctx + 4) = past;
       glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
         return -1;
       if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
@@ -33839,6 +33849,8 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
         return -1;
       return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
     }
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+      return -1;
     if (tk != 10)
       return 0;
     n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
