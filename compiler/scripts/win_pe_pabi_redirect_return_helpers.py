@@ -78,6 +78,28 @@ EMIT_REDIRECT_SYMS = (
     "pipeline_expr_index_index_ref",
     "ast_pipeline_expr_index_base_ref",
     "ast_pipeline_expr_index_index_ref",
+    # WAVE278 STRUCT_LIT sidecar (SAT emit_struct_lit intra SAT
+    # struct_lit_num_fields → n_fields==0 lea-empty; FIELD assign already
+    # green). leftover rest WIN leftover FROM_X reads W278_Expr.
+    "pipeline_expr_struct_lit_num_fields",
+    "pipeline_expr_struct_lit_init_ref",
+    "pipeline_expr_struct_lit_field_name_len",
+    "pipeline_expr_struct_lit_field_name_into",
+    "pipeline_expr_struct_lit_type_name_len",
+    "pipeline_expr_struct_lit_type_name_into",
+    "pipeline_expr_struct_lit_type_name_set",
+    "ast_pipeline_expr_struct_lit_num_fields",
+    "ast_pipeline_expr_struct_lit_init_ref",
+    "ast_pipeline_expr_struct_lit_field_name_len",
+    "ast_pipeline_expr_struct_lit_field_name_into",
+    "ast_pipeline_expr_struct_lit_type_name_len",
+    "ast_pipeline_expr_struct_lit_type_name_into",
+    "ast_pipeline_expr_struct_lit_type_name_set",
+    "pipeline_expr_kind_ord_at",
+    "glue_struct_layout_compute_field_offset_c",
+    "glue_struct_layout_index_by_type_name_c",
+    "pipeline_module_num_struct_layouts_at",
+    "pipeline_module_struct_layout_num_fields",
     # WAVE277 let type + WAVE270 kind (SAT emit_block_inits intra SAT
     # let_type_ref → glue_block_let_is_fixed_array false → store ARRAY_LIT
     # pointer into the [N]T slot; INDEX then lea-slot).
@@ -116,6 +138,15 @@ EMIT_SCAN_FUNCS = (
     ("pipeline_asm_emit_block_inits_elf_c", 0x3000),
     ("glue_block_let_is_fixed_array_type", 0x200),
     ("glue_type_is_fixed_array", 0x400),
+    ("pipeline_asm_emit_struct_lit_elf_c", 0x200),
+    ("pipeline_asm_emit_struct_lit_fields_elf_c", 0x4000),
+    ("pipeline_asm_emit_struct_let_init_elf_c", 0x200),
+    ("glue_emit_struct_type_let_init_elf_c", 0x2000),
+    ("glue_struct_lit_field_store_sz", 0x400),
+    ("pipeline_expr_struct_lit_field_offset_at", 0x400),
+    ("pipeline_expr_struct_lit_field_type_ref_at", 0x400),
+    ("pipeline_expr_struct_lit_value_bytes", 0x400),
+    ("pipeline_expr_struct_lit_field_store_sz", 0x200),
 )
 
 # Thin wrapper intra-calls thin mega_body (PE first-wins does not rewrite).

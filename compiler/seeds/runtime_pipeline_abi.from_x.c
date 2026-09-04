@@ -50456,6 +50456,10 @@ extern int32_t pipeline_expr_field_access_is_enum_variant(void *a, int32_t expr_
 extern int32_t pipeline_expr_field_access_layout_offset(void *a, void *m, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_load_byte_sz(void *a, void *m, int32_t expr_ref);
 extern int32_t pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_struct_lit_type_name_len(void *a, int32_t expr_ref);
+extern void pipeline_expr_struct_lit_type_name_into(void *a, int32_t expr_ref, uint8_t *out64);
+extern void pipeline_expr_struct_lit_type_name_set(void *a, int32_t expr_ref, uint8_t *name,
+                                                   int32_t name_len);
 extern int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_ref, int32_t field_ix);
 extern int32_t pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_t expr_ref, int32_t field_ix);
 extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
@@ -51202,6 +51206,65 @@ int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t expr_ref, int32_t j) 
   return fe ? fe->init_ref : 0;
 }
 
+/*
+ * WAVE278 STRUCT_LIT sidecar faces leftover rest remaining wave154 defines
+ * under #ifndef FROM_X (SAT Expr W154 offsets). leftover-PE parser writes
+ * W278_Expr via pipeline_arena_expr_ptr; SAT emit_struct_lit intra SAT
+ * num_fields → n_fields==0 lea-empty (no mov $3/$4).
+ * G.7 complete: FROM_X && WIN leftover only so leftover rest !FROM_X keeps
+ * remaining SAT-layout twins (no dual-def). POSIX FROM_X leftover rest
+ * ABSENT — SAT T for SAT Expr (POSIX -E).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref) {
+  W278_Expr *ex = w278_expr_ptr(a, expr_ref);
+  return ex ? ex->struct_lit_num_fields : 0;
+}
+
+int32_t pipeline_expr_struct_lit_type_name_len(void *a, int32_t expr_ref) {
+  W278_Expr *ex = w278_expr_ptr(a, expr_ref);
+  return ex ? ex->struct_lit_struct_name_len : 0;
+}
+
+void pipeline_expr_struct_lit_type_name_into(void *a, int32_t expr_ref, uint8_t *out64) {
+  W278_Expr *ex;
+  int32_t nlen;
+  if (!out64)
+    return;
+  ex = w278_expr_ptr(a, expr_ref);
+  if (!ex) {
+    memset(out64, 0, 128);
+    return;
+  }
+  nlen = ex->struct_lit_struct_name_len;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 127)
+    nlen = 127;
+  memset(out64, 0, 128);
+  if (nlen > 0)
+    memcpy(out64, ex->struct_lit_struct_name, (size_t)nlen);
+}
+
+void pipeline_expr_struct_lit_type_name_set(void *a, int32_t expr_ref, uint8_t *name,
+                                            int32_t name_len) {
+  W278_Expr *ex;
+  int32_t n;
+  if (!a || !name || expr_ref <= 0 || name_len < 0)
+    return;
+  ex = w278_expr_ptr(a, expr_ref);
+  if (!ex)
+    return;
+  n = name_len > 127 ? 127 : name_len;
+  memset(ex->struct_lit_struct_name, 0, sizeof(ex->struct_lit_struct_name));
+  if (n > 0)
+    memcpy(ex->struct_lit_struct_name, name, (size_t)n);
+  ex->struct_lit_struct_name_len = n;
+}
+#endif /* FROM_X && WIN_LEFTOVER — leftover-PE W278 STRUCT_LIT name/nf */
+
 int32_t pipeline_expr_append_array_lit_elem(void *a, int32_t expr_ref, int32_t elem_ref) {
   W278_Expr *ex;
   int32_t *slot;
@@ -51897,6 +51960,29 @@ void ast_pipeline_expr_match_arm_set_enum_variant(void *a, int32_t expr_ref, int
 int32_t ast_pipeline_expr_append_struct_lit_field(void *a, int32_t expr_ref, uint8_t *name_bytes,
                                                   int32_t name_len, int32_t init_ref) {
   return pipeline_expr_append_struct_lit_field(a, expr_ref, name_bytes, name_len, init_ref);
+}
+int32_t ast_pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref) {
+  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+}
+int32_t ast_pipeline_expr_struct_lit_init_ref(void *a, int32_t expr_ref, int32_t j) {
+  return pipeline_expr_struct_lit_init_ref(a, expr_ref, j);
+}
+int32_t ast_pipeline_expr_struct_lit_field_name_len(void *a, int32_t expr_ref, int32_t j) {
+  return pipeline_expr_struct_lit_field_name_len(a, expr_ref, j);
+}
+void ast_pipeline_expr_struct_lit_field_name_into(void *a, int32_t expr_ref, int32_t j,
+                                                  uint8_t *out64) {
+  pipeline_expr_struct_lit_field_name_into(a, expr_ref, j, out64);
+}
+int32_t ast_pipeline_expr_struct_lit_type_name_len(void *a, int32_t expr_ref) {
+  return pipeline_expr_struct_lit_type_name_len(a, expr_ref);
+}
+void ast_pipeline_expr_struct_lit_type_name_into(void *a, int32_t expr_ref, uint8_t *out64) {
+  pipeline_expr_struct_lit_type_name_into(a, expr_ref, out64);
+}
+void ast_pipeline_expr_struct_lit_type_name_set(void *a, int32_t expr_ref, uint8_t *name,
+                                                int32_t name_len) {
+  pipeline_expr_struct_lit_type_name_set(a, expr_ref, name, name_len);
 }
 int32_t ast_pipeline_expr_append_array_lit_elem(void *a, int32_t expr_ref, int32_t elem_ref) {
   return pipeline_expr_append_array_lit_elem(a, expr_ref, elem_ref);
