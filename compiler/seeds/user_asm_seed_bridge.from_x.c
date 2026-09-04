@@ -536,23 +536,43 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     str_off = 4;
     for (s = 0; s < num_syms; s++) {
       uint8_t ent[18];
+      int32_t is_common;
       memset(ent, 0, sizeof(ent));
       /* Long name: Zeroes + string-table offset */
       ent[4] = (uint8_t)(str_off);
       ent[5] = (uint8_t)(str_off >> 8);
       ent[6] = (uint8_t)(str_off >> 16);
       ent[7] = (uint8_t)(str_off >> 24);
+      /* Value: function = .text offset; COMMON = payload size
+       * (pipeline_elf_ctx_add_common_sym stores size in offset). */
       ent[8] = (uint8_t)(ctx->syms[s].offset);
       ent[9] = (uint8_t)(ctx->syms[s].offset >> 8);
       ent[10] = (uint8_t)(ctx->syms[s].offset >> 16);
       ent[11] = (uint8_t)(ctx->syms[s].offset >> 24);
-      ent[12] = 1; /* SectionNumber */
-      ent[13] = 0;
-      /* Type = IMAGE_SYM_DTYPE_FUNCTION << 4 */
-      ent[14] = 32;
-      ent[15] = 0;
-      ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
-      ent[17] = 0;
+      /* ELF SHN_COMMON = 0xfff2. PE/COFF has no SHN_COMMON: IMAGE_SYM_UNDEFINED
+       * (SectionNumber=0) + Value=size + IMAGE_SYM_CLASS_EXTERNAL is the
+       * Microsoft common-block convention (GNU ld / MinGW allocate writable
+       * BSS). Twin of ELF SHN_COMMON / Mach-O N_UNDF|N_EXT (wave405).
+       * Prior: every symbol was SectionNumber=1 + Type=FUNCTION, so leftover-PE
+       * TYPE_FN let-init `Lxlang_al_*` landed in RX .text (store/call SEGV).
+       * PLATFORM: WINDOWS leftover-PE / SHARED COFF cross-emit. */
+      is_common = (ctx->syms[s].sym_shndx == (int32_t)0xfff2) ? 1 : 0;
+      if (is_common != 0) {
+        ent[12] = 0;
+        ent[13] = 0;
+        ent[14] = 0;
+        ent[15] = 0;
+        ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
+        ent[17] = 0;
+      } else {
+        ent[12] = 1; /* SectionNumber = .text */
+        ent[13] = 0;
+        /* Type = IMAGE_SYM_DTYPE_FUNCTION << 4 */
+        ent[14] = 32;
+        ent[15] = 0;
+        ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
+        ent[17] = 0;
+      }
       if (seed_coff_append(out, ent, 18) != 0)
         return -1;
       str_off = str_off + ctx->syms[s].name_len + 1;

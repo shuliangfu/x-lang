@@ -51,11 +51,16 @@ export function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   return 0;
 }
 
-/** Exported function `write_coff_o_to_buf`.
- * Write path helper `write_coff_o_to_buf`.
- * @param ctx *ElfCodegenCtx
- * @param out *CodegenOutBuf
- * @return i32
+/**
+ * Write a PE/COFF .obj from ElfCodegenCtx into CodegenOutBuf.
+ * Twin of seeds/user_asm_seed_bridge.from_x.c::seed_platform_coff_write_coff_o_to_buf
+ * (product authority until this .x is non-stub on leftover-PE).
+ * COMMON symbols (ELF SHN_COMMON / sym_shndx=65522) emit as IMAGE_SYM_UNDEFINED
+ * + Value=size + EXTERNAL so the linker allocates writable BSS — never .text.
+ * @param ctx *ElfCodegenCtx — filled ELF codegen context (e_machine must be 62)
+ * @param out *CodegenOutBuf — destination object bytes
+ * @return i32 — byte length on success, -1 on failure
+ * PLATFORM: WINDOWS leftover-PE / SHARED COFF cross-emit
  */
 export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -222,6 +227,7 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
     s = 0;
     while (s < num_syms) {
       let ent: u8[18] = [];
+      let is_common: i32 = 0;
       ent[0] = 0;
       ent[1] = 0;
       ent[2] = 0;
@@ -230,17 +236,37 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
       ent[5] = elf.elf_to_u8(str_off >> 8);
       ent[6] = elf.elf_to_u8(str_off >> 16);
       ent[7] = elf.elf_to_u8(str_off >> 24);
+      // Value: function = .text offset; COMMON = payload size
+      // (pipeline_elf_ctx_add_common_sym stores size in offset).
       ent[8] = elf.elf_to_u8(ctx.syms[s].offset);
       ent[9] = elf.elf_to_u8(ctx.syms[s].offset >> 8);
       ent[10] = elf.elf_to_u8(ctx.syms[s].offset >> 16);
       ent[11] = elf.elf_to_u8(ctx.syms[s].offset >> 24);
-      ent[12] = 1;
-      ent[13] = 0;
-      /* Type = IMAGE_SYM_DTYPE_FUNCTION << 4; StorageClass = EXTERNAL (2). */
-      ent[14] = 32;
-      ent[15] = 0;
-      ent[16] = 2;
-      ent[17] = 0;
+      // ELF SHN_COMMON = 0xfff2 = 65522. PE/COFF has no SHN_COMMON:
+      // IMAGE_SYM_UNDEFINED (SectionNumber=0) + Value=size + EXTERNAL
+      // is the Microsoft common-block convention (GNU ld / MinGW allocate
+      // writable BSS). Twin of ELF SHN_COMMON / Mach-O N_UNDF|N_EXT.
+      // Never map COMMON into .text (RX SEGV on leftover-PE TYPE_FN let-init).
+      // PLATFORM: WINDOWS leftover-PE / SHARED COFF cross-emit.
+      if (ctx.syms[s].sym_shndx == 65522) {
+        is_common = 1;
+      }
+      if (is_common != 0) {
+        ent[12] = 0;
+        ent[13] = 0;
+        ent[14] = 0;
+        ent[15] = 0;
+        ent[16] = 2;
+        ent[17] = 0;
+      } else {
+        ent[12] = 1;
+        ent[13] = 0;
+        // Type = IMAGE_SYM_DTYPE_FUNCTION << 4; StorageClass = EXTERNAL (2).
+        ent[14] = 32;
+        ent[15] = 0;
+        ent[16] = 2;
+        ent[17] = 0;
+      }
       if (coff_append(out, ent, 18) != 0) { return -1; }
       str_off = str_off + ctx.syms[s].name_len + 1;
       s = s + 1;
