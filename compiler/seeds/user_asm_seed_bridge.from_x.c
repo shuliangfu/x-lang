@@ -336,6 +336,23 @@ static int32_t seed_coff_append(struct codegen_CodegenOutBuf *out, const uint8_t
 }
 
 /**
+ * Sym names live in ElfCodegenCtx.sym_name_data (elf_add_sym /
+ * pipeline_elf_ctx_add_sym); ElfSymEntry.name[] is unused. Twin of
+ * elf.x::elf_sym_name_ptr. PLATFORM: SHARED.
+ */
+static uint8_t *seed_elf_sym_name_ptr(struct platform_elf_ElfCodegenCtx *ctx, int32_t sym_idx) {
+  int32_t off = 0;
+  int32_t i;
+  if (!ctx || sym_idx < 0)
+    return NULL;
+  for (i = 0; i < sym_idx && i < ctx->num_syms; i++)
+    off = off + ctx->syms[i].name_len;
+  if (off < 0 || off >= 131072)
+    return NULL;
+  return &ctx->sym_name_data[off];
+}
+
+/**
  * Product Windows COFF .obj writer (cross-host).
  * Twin of compiler/src/asm/platform/coff.x::write_coff_o_to_buf.
  * Historical false root: this face was `#if _WIN32` only and returned -1 on
@@ -458,9 +475,11 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
     rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
     for (m = 0; m < num_syms; m++) {
-      if (rlen == ctx->syms[m].name_len &&
+      uint8_t *sym_nm = seed_elf_sym_name_ptr(ctx, m);
+      if (sym_nm != NULL &&
+          rlen == ctx->syms[m].name_len &&
           rlen > 0 &&
-          memcmp(r_sym_buf, ctx->syms[m].name, (size_t)rlen) == 0) {
+          memcmp(r_sym_buf, sym_nm, (size_t)rlen) == 0) {
         sym_idx = 2 + m;
         break;
       }
@@ -485,10 +504,22 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     uint8_t aux[18];
     int32_t str_off;
     uint8_t str_size[4];
+    /* IMAGE_SYMBOL (18B): Name[8] | Value[4] | SectionNumber[2] | Type[2] |
+     * StorageClass[1] | NumberOfAuxSymbols[1]. Prior layout put SectionNumber at
+     * byte 16 and left SectionNumber=0 → lld-link "special section 0". */
     memset(sym_sec, 0, sizeof(sym_sec));
-    sym_sec[14] = 3; /* IMAGE_SYM_CLASS_STATIC */
-    sym_sec[15] = 1; /* NumberOfAuxSymbols */
-    sym_sec[16] = 1; /* SectionNumber = 1 */
+    /* ShortName ".text" */
+    sym_sec[0] = 46;
+    sym_sec[1] = 116;
+    sym_sec[2] = 101;
+    sym_sec[3] = 120;
+    sym_sec[4] = 116;
+    sym_sec[12] = 1; /* SectionNumber = 1 */
+    sym_sec[13] = 0;
+    sym_sec[14] = 0; /* Type */
+    sym_sec[15] = 0;
+    sym_sec[16] = 3; /* IMAGE_SYM_CLASS_STATIC */
+    sym_sec[17] = 1; /* NumberOfAuxSymbols */
     if (seed_coff_append(out, sym_sec, 18) != 0)
       return -1;
     memset(aux, 0, sizeof(aux));
@@ -506,6 +537,7 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     for (s = 0; s < num_syms; s++) {
       uint8_t ent[18];
       memset(ent, 0, sizeof(ent));
+      /* Long name: Zeroes + string-table offset */
       ent[4] = (uint8_t)(str_off);
       ent[5] = (uint8_t)(str_off >> 8);
       ent[6] = (uint8_t)(str_off >> 16);
@@ -515,8 +547,12 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
       ent[10] = (uint8_t)(ctx->syms[s].offset >> 16);
       ent[11] = (uint8_t)(ctx->syms[s].offset >> 24);
       ent[12] = 1; /* SectionNumber */
-      ent[14] = 32; /* IMAGE_SYM_CLASS_EXTERNAL */
-      ent[16] = 2; /* Type = function */
+      ent[13] = 0;
+      /* Type = IMAGE_SYM_DTYPE_FUNCTION << 4 */
+      ent[14] = 32;
+      ent[15] = 0;
+      ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
+      ent[17] = 0;
       if (seed_coff_append(out, ent, 18) != 0)
         return -1;
       str_off = str_off + ctx->syms[s].name_len + 1;
@@ -529,8 +565,9 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     if (seed_coff_append(out, str_size, 4) != 0)
       return -1;
     for (s = 0; s < num_syms; s++) {
-      if (ctx->syms[s].name_len > 0 &&
-          seed_coff_append(out, ctx->syms[s].name, ctx->syms[s].name_len) != 0)
+      uint8_t *sym_nm = seed_elf_sym_name_ptr(ctx, s);
+      if (ctx->syms[s].name_len > 0 && sym_nm != NULL &&
+          seed_coff_append(out, sym_nm, ctx->syms[s].name_len) != 0)
         return -1;
       if (seed_coff_append(out, zero, 1) != 0)
         return -1;
@@ -573,8 +610,9 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     platform_elf_elf_ctx_reset(elf_ctx);
     if (pctx && pipeline_dep_ctx_use_macho_o(pctx) != 0)
       seed_elf_ctx_set_macho_leading_underscore(elf_ctx, 1);
-    if (pctx && pipeline_dep_ctx_use_coff_o(pctx) != 0)
-      seed_elf_ctx_set_macho_leading_underscore(elf_ctx, 1);
+    /* PLATFORM: WINDOWS | PE/COFF — no Mach-O leading underscore.
+     * Historical twin wrongly set underscore on use_coff_o → export `_main`
+     * while MinGW CRT / MSVC expect `main`; lld `/entry:_main` papered over it. */
   }
   /** WPO v0：elf 全程序 emit 前构建 reach，供 backend 跳过 dead export。 */
   pipeline_asm_wpo_reach_compute_for_elf((struct ast_Module *)module, (struct ast_ASTArena *)arena, pctx);

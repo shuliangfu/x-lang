@@ -190,11 +190,22 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
       r = r + 1;
     }
   
+    /* IMAGE_SYMBOL (18B): Name[8] | Value[4] | SectionNumber[2] | Type[2] |
+     * StorageClass[1] | NumberOfAuxSymbols[1].
+     * PLATFORM: SHARED — PE/COFF; wrong SectionNumber@16 left section=0 →
+     * lld-link "should not refer to special section 0" (twin seed bridge). */
     let sym_sec: u8[18] = [];
-    sym_sec[16] = 1;
-    sym_sec[17] = 0;
-    sym_sec[14] = 3;
-    sym_sec[15] = 1;
+    sym_sec[0] = 46;
+    sym_sec[1] = 116;
+    sym_sec[2] = 101;
+    sym_sec[3] = 120;
+    sym_sec[4] = 116;
+    sym_sec[12] = 1;
+    sym_sec[13] = 0;
+    sym_sec[14] = 0;
+    sym_sec[15] = 0;
+    sym_sec[16] = 3;
+    sym_sec[17] = 1;
     if (coff_append(out, sym_sec, 18) != 0) { return -1; }
     let aux: u8[18] = [];
     aux[0] = elf.elf_to_u8(align4);
@@ -225,6 +236,7 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
       ent[11] = elf.elf_to_u8(ctx.syms[s].offset >> 24);
       ent[12] = 1;
       ent[13] = 0;
+      /* Type = IMAGE_SYM_DTYPE_FUNCTION << 4; StorageClass = EXTERNAL (2). */
       ent[14] = 32;
       ent[15] = 0;
       ent[16] = 2;

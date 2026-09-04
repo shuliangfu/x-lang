@@ -5925,6 +5925,30 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
         }
 #endif
         if (use_coff_o) {
+#if defined(_WIN32) && (defined(__MINGW32__) || defined(__MINGW64__))
+            /* PLATFORM: WINDOWS | MINGW — gcc as link driver pulls UCRT/msvcrt and
+             * resolves on-demand std/panic objs. Bare lld-link without /libpath to
+             * mingw ucrt left printf/__acrt_iob_func UNDEF after ws2_32 was fixed. */
+            la = 0;
+            ld_bank->n = 0;
+            memset(ld_bank->slots, 0, sizeof ld_bank->slots);
+            argv[la++] = "gcc";
+            argv[la++] = "-o";
+            argv[la++] = exe_path;
+            argv[la++] = o_path;
+            xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
+            argv[la] = NULL;
+            {
+                int rc = xlang_spawn_sync("gcc", (const char *const *)argv);
+                if (rc != 0) {
+                    link_diag_tool_status("ld", rc);
+                    return -1;
+                }
+            }
+            return 0;
+#else
             int nn = snprintf(out_opt, sizeof(out_opt), "/out:%s", exe_path);
             if (nn < 0 || nn >= (int)sizeof(out_opt))
                 return -1;
@@ -5932,7 +5956,10 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
             ld_bank->n = 0;
             memset(ld_bank->slots, 0, sizeof ld_bank->slots);
             argv[la++] = "lld-link";
-            argv[la++] = "/entry:_main";
+            /* PLATFORM: WINDOWS | PE — lld-link requires an explicit subsystem for
+             * console want-exe (else "subsystem must be defined"). */
+            argv[la++] = "/subsystem:console";
+            argv[la++] = "/entry:main";
             argv[la++] = out_opt;
             argv[la++] = o_path;
             xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
@@ -5948,6 +5975,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
                 }
             }
             return 0;
+#endif
         }
         la = 0;
         ld_bank->n = 0;
