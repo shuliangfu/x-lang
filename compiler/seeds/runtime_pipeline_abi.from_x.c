@@ -28935,8 +28935,6 @@ extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int3
 extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
                                              void *ctx, int32_t ta);
 extern int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta);
-extern void glue_asm_ctx_set_scope_block(void *ctx, int32_t block_ref);
-extern void glue_block_body_bind_module_dep_from_ctx(void *ctx);
 
 int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   int32_t slot_base;
@@ -28949,8 +28947,10 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t ncfg;
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return -1;
-  glue_block_body_bind_module_dep_from_ctx(ctx);
-  glue_asm_ctx_set_scope_block(ctx, block_ref);
+  /* SAT glue_block_body_bind_module_dep_from_ctx / glue_asm_ctx_set_scope_block
+   * are SAT local t — leftover rest must not UNDEF them. mega_body already
+   * bound the module; leftover rest VAR slots are name-keyed.
+   * PLATFORM: WINDOWS leftover-PE hybrid. */
   pipeline_asm_fill_local_slots(ctx, arena, block_ref);
   slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, block_ref);
   if (slot_base < 0)
