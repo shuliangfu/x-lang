@@ -166,6 +166,7 @@
   - ✅ TYPE_NAMED dest-in-rbx MATCH 24B／32B scalar leftover rest unique emit_match DEST_IN_RBX helper（6×i32／8×i32；代码已在 MATCH 16B）＠`db4780c2f`
   - ✅ TYPE_NAMED dest-in-rbx nested STRUCT_LIT leftover rest unique helper recurse dest+base_off+foff＠`ef2d5608f`
   - ✅ TYPE_NAMED dest-in-rbx MATCH arm VAR leftover rest unique leftover_emit_match_arm_result dest-parked VAR slot lea＋qword-copy parked dest＠`4fdbaf0c0`
+  - ✅ TYPE_NAMED dest-in-rbx MATCH arm CALL leftover rest unique leftover_emit_match_arm_result dest-parked CALL SAT emit_call＋dual-GP store parked dest＠`6ddcd9178`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
