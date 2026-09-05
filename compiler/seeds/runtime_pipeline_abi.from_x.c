@@ -29595,7 +29595,7 @@ extern int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr);
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
 extern int32_t pipeline_expr_field_access_is_enum_variant(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
-extern int32_t glue_field_access_effective_offset_c(void *arena, void *mod, int32_t fa_ref);
+extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t fa_ref);
 extern void *pipeline_asm_emit_module_ref_c(void);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                            int32_t ta);
@@ -29781,8 +29781,8 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
     var_off = glue_var_expr_stack_off_elf_c(arena, ctx, var_base);
     if (var_off < 0)
       return -1;
-    field_off = glue_field_access_effective_offset_c(arena, pipeline_asm_emit_module_ref_c(),
-                                                     init_ref);
+    field_off = pipeline_expr_field_access_layout_offset(arena, pipeline_asm_emit_module_ref_c(),
+                                                         init_ref);
     if (field_off < 0)
       field_off = 0;
     src_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
