@@ -12879,6 +12879,7 @@ extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
 extern int32_t pipeline_expr_if_cond_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_if_then_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_if_else_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern void *pipeline_asm_ctx_layout(void *ctx);
 extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
@@ -13233,9 +13234,20 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * leftover_emit_match_arm_result(then/else) so STRUCT_LIT/ARRAY_LIT/
    * VAR/CALL/FIELD/DEREF/BLOCK inside IF still dest-parked. Do not
    * leftover_emit_if twin of leftover unique emit_if / .x thin emit_if.
+   * MATCH arm CAST=54 EXPR_AS wrapping ARRAY_LIT (`[3,4] as [2]i32` /
+   * `P { x: 3 } as P`): SAT if_arm of CAST leftover unique rec leftover
+   * unique emit_as_impl recs operand SAT implicit dest, parked dest stays 0.
+   * G.7 complete: peel operand then leftover_emit_match_arm_result so
+   * STRUCT_LIT/ARRAY_LIT/VAR/CALL/FIELD/DEREF/BLOCK/IF inside CAST still
+   * dest-parked. Nested CAST peels by recurse. Do not leftover_emit_as twin
+   * of leftover unique emit_as_impl (SAT rec operand). leftover unique
+   * leftover_emit_match_arm_result remaining ADDR_OF (rko==51) skip unless
+   * proven (pointer dest). leftover unique leftover_emit_match_arm_result
+   * remaining BINARY skip unless proven.
    * Do not leftover rest remaining-wave. Do not leftover rest T SAT
    * emit_call / emit_method / emit_assign / emit_array_lit /
-   * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync.
+   * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync /
+   * emit_as.
    * Do not leftover rest U SAT local t copy_large.
    * PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
@@ -13400,6 +13412,18 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
       return -1;
     return 0;
+  }
+  /* MATCH arm CAST dest-parked. leftover unique emit_as_impl SAT recs
+   * operand (identity ARRAY_LIT as [N]T / STRUCT_LIT as Named) so parked
+   * dest stays 0. Peel operand; leftover_emit_match_arm_result dest-parks
+   * ARRAY_LIT/STRUCT_LIT/VAR/CALL/FIELD/DEREF/BLOCK/IF. Do not leftover_emit_as
+   * twin. PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 54) {
+    int32_t op;
+    op = pipeline_expr_as_operand_ref_at(arena, result_ref);
+    if (op <= 0)
+      return -1;
+    return leftover_emit_match_arm_result_elf_c(arena, elf_ctx, op, ctx, ta);
   }
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
