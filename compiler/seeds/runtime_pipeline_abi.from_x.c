@@ -33999,6 +33999,7 @@ extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
 extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t j);
 extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t j, uint8_t *out);
 extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
+extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref);
 
 /*
  * leftover rest unique field_type_ref T first-wins is a 23B SAT-t stub
@@ -34036,12 +34037,15 @@ static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, void *ctx, 
   base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
   if (base_ko <= 0)
     return 0;
-  /* VAR `let s: H`: leftover-PE may leave FA/VAR resolved 0; leftover rest
-   * unique glue_var_decl_type_ref reads the let decl (same leftover rest
-   * unique for_call_args VAR path). POSIX field_type_ref @71670 same
-   * resolved-then-decl fallback. PLATFORM: WINDOWS leftover-PE. */
-  base_ty = 0;
-  if (base_ko == 3 && ctx)
+  /* VAR `let s: H`: leftover-PE may leave FA/VAR resolved 0.
+   * leftover rest unique glue_var_decl reads asm_ctx_scope_block on
+   * ctx (0 when leftover-PE scope lives in BSS). leftover rest unique
+   * glue_var_expr (already T; TYPE_SLICE `.length` GREEN) reads BSS
+   * scope + body_ref lets. Prefer that; keep decl/resolved as
+   * fallback. POSIX field_type_ref @71670 same resolved-then-decl.
+   * PLATFORM: WINDOWS leftover-PE. */
+  base_ty = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (base_ty <= 0 && base_ko == 3 && ctx)
     base_ty = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
   if (base_ty <= 0)
     base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
