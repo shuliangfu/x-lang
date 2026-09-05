@@ -12969,7 +12969,9 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
  * (`{ if true { [3,4] } }`) dest-parks inside IF (return 1).
  * Nested last inside IF (`{ if true { if true { [3,4] } } }`)
  * peels last stmt_order kind 5 from then/else so last dest-parks
- * inside the outer IF (not SAT rec of the outer IF).
+ * inside the outer IF (not SAT rec of the outer IF). Dest-region
+ * last in else (`{ if false { } else { [3,4] } }`) peels else when
+ * then last is empty and then is not dest-region.
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
@@ -12996,6 +12998,9 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
   int32_t else_len;
   int32_t done_len;
   int32_t if_idx;
+  int32_t then_peel;
+  int32_t else_peel;
+  int32_t then_last_peel;
   uint8_t name_buf[128];
   uint8_t else_lbl[128];
   uint8_t done_lbl[128];
@@ -13079,9 +13084,34 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
           idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
           if (k == 6 && idx >= 0)
             peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
-          else if (k == 5 && idx >= 0)
-            peel_br = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
-          else
+          else if (k == 5 && idx >= 0) {
+            /* Dest-region last in else (`{ if false { } else { [3,4] } }`
+             * nested under IF / with_arena): peel then only when then last
+             * is last or then is dest-region (kind 5/6); otherwise peel else.
+             * `{ if true { unsafe { [3,4] } } }` then last ≤0 but then nso
+             * kind 6 — keep then. PLATFORM: WINDOWS leftover-PE. */
+            then_peel = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
+            else_peel = ast_pipeline_block_if_else_body_ref(arena, peel_br, idx);
+            then_last_peel = 0;
+            k = 0;
+            if (then_peel > 0) {
+              then_last_peel = ast_ast_block_final_expr_ref(arena, then_peel);
+              if (then_last_peel <= 0) {
+                ncfg = ast_ast_block_num_expr_stmts(arena, then_peel);
+                if (ncfg > 0)
+                  then_last_peel = ast_pipeline_block_expr_stmt_ref(arena, then_peel, ncfg - 1);
+              }
+              ncfg = ast_ast_block_num_stmt_order(arena, then_peel);
+              if (ncfg > 0)
+                k = (int32_t)ast_ast_block_stmt_order_kind(arena, then_peel, ncfg - 1);
+            }
+            if (then_last_peel == last || k == 5 || k == 6)
+              peel_br = then_peel;
+            else if (else_peel > 0)
+              peel_br = else_peel;
+            else
+              peel_br = then_peel;
+          } else
             break;
           if (peel_br <= 0)
             break;
@@ -13111,9 +13141,34 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
           idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
           if (k == 6 && idx >= 0)
             peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
-          else if (k == 5 && idx >= 0)
-            peel_br = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
-          else
+          else if (k == 5 && idx >= 0) {
+            /* Dest-region last in else (`{ if false { } else { [3,4] } }`
+             * nested under IF / with_arena): peel then only when then last
+             * is last or then is dest-region (kind 5/6); otherwise peel else.
+             * `{ if true { unsafe { [3,4] } } }` then last ≤0 but then nso
+             * kind 6 — keep then. PLATFORM: WINDOWS leftover-PE. */
+            then_peel = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
+            else_peel = ast_pipeline_block_if_else_body_ref(arena, peel_br, idx);
+            then_last_peel = 0;
+            k = 0;
+            if (then_peel > 0) {
+              then_last_peel = ast_ast_block_final_expr_ref(arena, then_peel);
+              if (then_last_peel <= 0) {
+                ncfg = ast_ast_block_num_expr_stmts(arena, then_peel);
+                if (ncfg > 0)
+                  then_last_peel = ast_pipeline_block_expr_stmt_ref(arena, then_peel, ncfg - 1);
+              }
+              ncfg = ast_ast_block_num_stmt_order(arena, then_peel);
+              if (ncfg > 0)
+                k = (int32_t)ast_ast_block_stmt_order_kind(arena, then_peel, ncfg - 1);
+            }
+            if (then_last_peel == last || k == 5 || k == 6)
+              peel_br = then_peel;
+            else if (else_peel > 0)
+              peel_br = else_peel;
+            else
+              peel_br = then_peel;
+          } else
             break;
           if (peel_br <= 0)
             break;
@@ -13247,9 +13302,34 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
           idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
           if (k == 6 && idx >= 0)
             peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
-          else if (k == 5 && idx >= 0)
-            peel_br = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
-          else
+          else if (k == 5 && idx >= 0) {
+            /* Dest-region last in else (`{ if false { } else { [3,4] } }`
+             * nested under IF / with_arena): peel then only when then last
+             * is last or then is dest-region (kind 5/6); otherwise peel else.
+             * `{ if true { unsafe { [3,4] } } }` then last ≤0 but then nso
+             * kind 6 — keep then. PLATFORM: WINDOWS leftover-PE. */
+            then_peel = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
+            else_peel = ast_pipeline_block_if_else_body_ref(arena, peel_br, idx);
+            then_last_peel = 0;
+            k = 0;
+            if (then_peel > 0) {
+              then_last_peel = ast_ast_block_final_expr_ref(arena, then_peel);
+              if (then_last_peel <= 0) {
+                ncfg = ast_ast_block_num_expr_stmts(arena, then_peel);
+                if (ncfg > 0)
+                  then_last_peel = ast_pipeline_block_expr_stmt_ref(arena, then_peel, ncfg - 1);
+              }
+              ncfg = ast_ast_block_num_stmt_order(arena, then_peel);
+              if (ncfg > 0)
+                k = (int32_t)ast_ast_block_stmt_order_kind(arena, then_peel, ncfg - 1);
+            }
+            if (then_last_peel == last || k == 5 || k == 6)
+              peel_br = then_peel;
+            else if (else_peel > 0)
+              peel_br = else_peel;
+            else
+              peel_br = then_peel;
+          } else
             break;
           if (peel_br <= 0)
             break;
@@ -13400,7 +13480,10 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * of leftover unique emit_as_impl (SAT rec operand). leftover unique
    * leftover_emit_match_arm_result remaining ADDR_OF (rko==51) skip unless
    * proven (pointer dest). leftover unique leftover_emit_match_arm_result
-   * remaining BINARY skip unless proven.
+   * remaining BINARY skip unless proven. leftover unique leftover_emit_match_arm_result
+   * remaining MATCH nested (rko==43) skip unless leftover unique leftover_emit_match_arm_result
+   * remaining fallthrough SAT if_arm leftover unique rec leftover unique emit_match
+   * does not dest-park.
    * Do not leftover rest remaining-wave. Do not leftover rest T SAT
    * emit_call / emit_method / emit_assign / emit_array_lit /
    * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync /
@@ -13456,7 +13539,9 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
      * k==6 peel (not after deinit). Dest-region last inside IF
      * (`{ if true { [3,4] } }`) peels last stmt_order kind 5 into then
      * so leftover unique leftover_emit_match_arm_block_stmts_except_last
-     * k==5 dest-parks inside IF (not SAT if_arm of BLOCK).
+     * k==5 dest-parks inside IF (not SAT if_arm of BLOCK). Dest-region
+     * last in else (`{ if false { } else { [3,4] } }`) peels else when
+     * then last is empty and then is not dest-region.
      * PLATFORM: WINDOWS leftover-PE. */
     peel = 0;
     peel_br = br;
@@ -13469,9 +13554,28 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
       so_idx = ast_ast_block_stmt_order_idx(arena, peel_br, nso - 1);
       if (so_k == 6 && so_idx >= 0)
         inner = pipeline_block_region_body_ref(arena, peel_br, so_idx);
-      else if (so_k == 5 && so_idx >= 0)
+      else if (so_k == 5 && so_idx >= 0) {
+        /* dest-region last in else (`{ if false { } else { [3,4] } }`):
+         * peel then only when then last lives or then is dest-region
+         * (kind 5/6); otherwise peel else. `{ if true { unsafe { [3,4] } } }`
+         * then last ≤0 but then nso kind 6 — keep then.
+         * PLATFORM: WINDOWS leftover-PE. */
         inner = ast_pipeline_block_if_then_body_ref(arena, peel_br, so_idx);
-      else
+        last = 0;
+        nexpr_inner = 0;
+        so_k = 0;
+        if (inner > 0) {
+          last = ast_ast_block_final_expr_ref(arena, inner);
+          nexpr_inner = ast_ast_block_num_expr_stmts(arena, inner);
+          if (last <= 0 && nexpr_inner > 0)
+            last = ast_pipeline_block_expr_stmt_ref(arena, inner, nexpr_inner - 1);
+          nexpr_inner = ast_ast_block_num_stmt_order(arena, inner);
+          if (nexpr_inner > 0)
+            so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, inner, nexpr_inner - 1);
+        }
+        if (!(last > 0 || so_k == 5 || so_k == 6))
+          inner = ast_pipeline_block_if_else_body_ref(arena, peel_br, so_idx);
+      } else
         break;
       if (inner <= 0)
         break;
