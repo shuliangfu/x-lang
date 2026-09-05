@@ -906,7 +906,11 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     if (src_off < 0) {
       return 0 - 1;
     }
-  } else if (iko == 48 || iko == 49 || iko == 47) {
+  } else if (iko == 48 || iko == 49 || iko == 47 || iko == 52) {
+    /* CALL=48 / METHOD=49 / INDEX=47 / DEREF=52: emit leaves E* (TYPE_ARRAY
+     * return / subrow / emit_deref trk==10 leave-ptr). Same payload copy.
+     * `unsafe { let y: [N]T = *p }` used to fall through to -2 → CG002.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path. */
     ly = pipeline_asm_ctx_layout(ctx);
     if (ly == (0 as *u8)) {
       return 0 - 1;
