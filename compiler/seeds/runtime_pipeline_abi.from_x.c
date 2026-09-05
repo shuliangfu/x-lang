@@ -12902,17 +12902,18 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
   rko = pipeline_expr_kind_ord_at(arena, result_ref);
   /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). VAR arm:
-   * slot lea + qword-copy (match_arm_var16). CALL arm: SAT emit_call
-   * then dual-GP store (≤16) or SysV sret into parked dest (>16;
-   * match_arm_call24 SEGV 139 when thin if_arm SAT implicit dest
-   * overlaps p). Do not leftover rest T SAT emit_call / emit_assign.
-   * Do not leftover rest U SAT local t copy_large. METHOD=49 is a
-   * neighbor. PLATFORM: WINDOWS leftover-PE. */
+   * slot lea + qword-copy (match_arm_var16). CALL=48 / METHOD=49 arm:
+   * SAT emit_call / emit_method then dual-GP store (≤16) or SysV sret
+   * into parked dest (>16; match_arm_call24 / star_method32 SEGV 139
+   * when thin if_arm SAT implicit dest overlaps p; MATCH arm METHOD
+   * unintercepted CG002 undefined done label). Do not leftover rest T
+   * SAT emit_call / emit_method / emit_assign. Do not leftover rest U
+   * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 3)
     return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
-  if (rko == 48)
+  if (rko == 48 || rko == 49)
     return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
@@ -28646,18 +28647,20 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
 }
 
 /*
- * DEST_IN_RBX MATCH arm CALL / ASSIGN dest-in-rbx CALL: SAT emit_call
- * then store into parked dest. ≤16B: dual-GP rax@0 rdx@8
- * (match_arm_call16). >16B: SysV sret hidden dest is parked rbx
- * (match_arm_call24 thin if_arm SAT implicit dest SEGV 139;
- * star_call32 SAT emit_assign no rdi SEGV 139). Same dest-in-rbx sret
- * as leftover rest unique lvalue CALL (lea dest / rdi / sret_reg_shift).
- * nbytes maxes park flag + named_layout + call_return_byte_size
- * (glue_type_size_simple NAMED can report 0/4). SAT emit_call /
- * set_call_sret / set_call_expected_ret_ty are SAT global T — leftover
- * rest rec already UNDEFs emit_call. Do not leftover rest T SAT
- * emit_call. Do not leftover rest U SAT local t copy_large (FROM_X
- * body ABSENT). PLATFORM: WINDOWS leftover-PE.
+ * DEST_IN_RBX MATCH arm CALL/METHOD / ASSIGN dest-in-rbx CALL/METHOD:
+ * SAT emit_call (ko==48) or SAT emit_method (ko==49) then store into
+ * parked dest. ≤16B: dual-GP rax@0 rdx@8 (match_arm_call16 /
+ * star_method16 RUN=0). >16B: SysV sret hidden dest is parked rbx
+ * (match_arm_call24 / star_call32 / star_method32 SAT emit_assign no
+ * rdi SEGV 139; MATCH arm METHOD unintercepted CG002). Same dest-in-rbx
+ * sret as leftover rest unique lvalue CALL/METHOD (lea dest / rdi /
+ * sret_reg_shift). nbytes maxes park flag + named_layout +
+ * call_return_byte_size (glue_type_size_simple NAMED can report 0/4).
+ * SAT emit_call / emit_method / set_call_sret / set_call_expected_ret_ty
+ * are SAT global T — leftover rest rec already UNDEFs them. Do not
+ * leftover rest T SAT emit_call / emit_method. Do not leftover rest U
+ * SAT local t copy_large (FROM_X body ABSENT). PLATFORM: WINDOWS
+ * leftover-PE.
  */
 static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
                                                  int32_t ta) {
@@ -28666,9 +28669,11 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
   int32_t ret_ty;
   int32_t named_sz;
   int32_t rc;
+  int32_t ko;
   void *mod;
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return -1;
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
   nbytes = g_leftover_match_dest_nbytes;
   ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
   if (ret_ty > 0) {
@@ -28691,8 +28696,9 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
     nbytes = 8;
   if (nbytes > 4096)
     return -1;
-  /* SAT emit_call is SAT global T. leftover rest rec ko==48 already
-   * UNDEF-calls it. Do not leftover rest T SAT emit_call. */
+  /* SAT emit_call / emit_method are SAT global T. leftover rest rec
+   * ko==48 / ko==49 already UNDEF-calls them. Do not leftover rest T
+   * SAT emit_call / emit_method. */
   if (nbytes > 16) {
     /* Restore parked dest into rbx (CPU stack), pass as SysV sret rdi.
      * SAT set_call_sret_reg_shift / set_call_expected_ret_ty are SAT
@@ -28710,12 +28716,18 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
     ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
     pipeline_asm_set_call_expected_ret_ty_c(ret_ty > 0 ? ret_ty : 0);
     pipeline_asm_emit_set_call_sret_reg_shift_c(1);
-    rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+    if (ko == 49)
+      rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+    else
+      rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
     pipeline_asm_emit_set_call_sret_reg_shift_c(0);
     pipeline_asm_set_call_expected_ret_ty_c(0);
     return rc != 0 ? -1 : 0;
   }
-  if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
+  if (ko == 49) {
+    if (pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
+      return -1;
+  } else if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
     return -1;
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
     return -1;
@@ -29113,19 +29125,21 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
             out_rc = -1;
         }
-      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 && asg_rko == 48) {
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 &&
+                 (asg_rko == 48 || asg_rko == 49)) {
         int32_t asg_nbytes;
         void *asg_mod;
-        /* TYPE_NAMED dest-in-rbx CALL `*p = mk()`. SAT emit_assign DEREF
-         * dest emit CALL clobbers rbx then stores rax (no SysV sret rdi;
-         * star_call24 / star_call32 SEGV 139). G.7 complete leftover rest
-         * unique rec ASSIGN: park dest CPU stack, leftover_emit_call
-         * (nbytes>16 SysV sret rdi=parked dest; ≤16 dual-GP). Always
-         * intercept — glue_type_size_simple NAMED can report 0/4 and a
-         * nbytes>16 gate would skip (MATCH 16B lesson). Do not leftover
-         * rest T SAT emit_assign / emit_call. Do not leftover rest U SAT
-         * local t copy_large. METHOD=49 is a neighbor.
-         * PLATFORM: WINDOWS leftover-PE. */
+        /* TYPE_NAMED dest-in-rbx CALL `*p = mk()` / METHOD `*p = S.mk()`.
+         * SAT emit_assign DEREF dest emit CALL/METHOD clobbers rbx then
+         * stores rax (no SysV sret rdi; star_call24 / star_call32 /
+         * star_method32 SEGV 139; star_method16 RUN=0). G.7 complete
+         * leftover rest unique rec ASSIGN: park dest CPU stack,
+         * leftover_emit_call (nbytes>16 SysV sret rdi=parked dest; ≤16
+         * dual-GP; ko==49 SAT emit_method). Always intercept —
+         * glue_type_size_simple NAMED can report 0/4 and a nbytes>16
+         * gate would skip (MATCH 16B lesson). Do not leftover rest T
+         * SAT emit_assign / emit_call / emit_method. Do not leftover
+         * rest U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
         asg_mod = glue_emit_module_from_ctx(ctx);
         if (!asg_mod)
           asg_mod = pipeline_asm_emit_module_ref_c();
