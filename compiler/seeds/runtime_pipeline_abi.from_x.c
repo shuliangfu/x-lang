@@ -12882,6 +12882,12 @@ extern int32_t pipeline_expr_if_else_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t str_expr_ref, int32_t ta);
+extern int32_t glue_asm_string_lit_len(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
 extern void *pipeline_asm_ctx_layout(void *ctx);
 extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
 extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
@@ -13501,10 +13507,16 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * of leftover unique emit_as_impl (SAT rec operand). leftover unique
    * leftover_emit_match_arm_result remaining ADDR_OF (rko==51) skip unless
    * proven (pointer dest). leftover unique leftover_emit_match_arm_result
-   * remaining BINARY skip unless proven. leftover unique leftover_emit_match_arm_result
-   * remaining fallthrough SAT if_arm leftover unique rec leftover unique emit_match
-   * does not dest-park. MATCH nested (rko==43) dest-parks via leftover unique
-   * emit_match recurse.
+   * remaining BINARY skip unless proven. MATCH nested (rko==43) dest-parks
+   * via leftover unique emit_match recurse. MATCH arm STRING_LIT (rko==59)
+   * dest-parks TYPE_SLICE dest_tk==11 via leftover unique rec leftover rest
+   * SAT T glue_asm_emit_string_lit_ptr_rax then store data@0 + slen@8 (same
+   * leftover unique leftover_emit_array_lit dest_tk==11). dest_tk!=11 is
+   * pointer dest *u8 — SAT if_arm leftover rest rec. dest_tk==10 TYPE_ARRAY
+   * STRING_LIT leftover unique leftover_emit_match_arm_result remaining.
+   * leftover unique leftover_emit_match_arm_result remaining fallthrough
+   * SAT if_arm leftover unique rec leftover unique emit_match does not
+   * dest-park.
    * Do not leftover rest remaining-wave. Do not leftover rest T SAT
    * emit_call / emit_method / emit_assign / emit_array_lit /
    * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync /
@@ -13729,6 +13741,44 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * PLATFORM: WINDOWS leftover-PE. */
   if (rko == 43)
     return pipeline_asm_emit_match_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+  /* MATCH arm STRING_LIT dest-parked TYPE_SLICE
+   * (`*p = match { 1 => "hi"; _ => ""; }` dest_tk==11). leftover unique
+   * leftover_emit_match_arm_result rko==59 fell through SAT if_arm of
+   * STRING_LIT. leftover rest rec ko==59 leftover unique rec leftover rest
+   * SAT T glue_asm_emit_string_lit_ptr_rax puts data ptr in rax; parked dest
+   * stays 0 (same as ARRAY_LIT dest_tk==11 before leftover unique leftover_emit_array_lit
+   * dest_tk==11 fat store). G.7 complete: leftover unique rec leftover rest
+   * SAT T glue_asm_emit_string_lit_ptr_rax then store data@0 + slen@8 (same
+   * leftover unique leftover_emit_array_lit dest_tk==11). dest_tk!=11 is
+   * pointer dest *u8 — SAT if_arm leftover rest rec. dest_tk==10 TYPE_ARRAY
+   * STRING_LIT leftover unique leftover_emit_match_arm_result remaining.
+   * Do not leftover unique leftover_emit_string twin. Do not leftover rest
+   * remaining-wave. Do not leftover rest T SAT emit_assign / emit_array_lit.
+   * leftover unique leftover_emit_match_arm_result remaining ADDR_OF
+   * (rko==51) skip unless proven (pointer dest). leftover unique leftover_emit_match_arm_result
+   * remaining BINARY skip unless proven.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 59) {
+    int32_t slen;
+    if (g_leftover_match_dest_tk != 11)
+      return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+    if (glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, result_ref, ta) != 0)
+      return -1;
+    slen = glue_asm_string_lit_len(arena, result_ref);
+    if (slen < 0)
+      slen = 0;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, slen, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+      return -1;
+    return 0;
+  }
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
