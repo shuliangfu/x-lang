@@ -177,6 +177,7 @@
   - ✅ VAR dest MATCH arm CALL `d = match { 1 => mk(); }` leftover rest unique rec ASSIGN TYPE_NAMED MATCH 扩 VAR dest park dest＋emit_match dest-parked＠`f0bc07f51`
   - ✅ TYPE_ARRAY dest-in-rbx MATCH arm CALL `*p = match { 1 => mk(); }` leftover_emit_call TYPE_ARRAY E* copy＋store MATCH dest_tk=10＠`d04a46574`
   - ✅ TYPE_SLICE dest-in-rbx MATCH `*p = match { 1 => [3, 4]; }` leftover rest unique rec ASSIGN park dest＋emit_match dest-parked dest_tk=11；ARRAY_LIT 臂 SAT emit_array_lit store fat data@0 length@8＠`906f66134`
+  - ✅ TYPE_SLICE VAR dest MATCH `d = match { 1 => [3, 4]; }` leftover rest unique rec ASSIGN TYPE_SLICE MATCH 扩 VAR dest park dest＋emit_match dest-parked dest_tk=11＠`586d8ad12`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
