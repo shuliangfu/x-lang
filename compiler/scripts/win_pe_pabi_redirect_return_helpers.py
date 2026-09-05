@@ -232,6 +232,18 @@ EMIT_REDIRECT_SYMS = (
     # already EMIT_SCAN.
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "glue_slice_dual_gp_length_off_c",
+    # TYPE_ARRAY DEREF let-init: SAT emit_block_inits intra SAT
+    # glue_emit_fixed_array_type_let_init intra SAT store_fixed_array_field
+    # (local t) CALL/INDEX E* only; DEREF=52 returns -2 → CG002
+    # (`unsafe { let y: [2]i32 = *p }`). leftover rest unique T
+    # first-wins FULL body + DEREF. PE first-wins does not rewrite
+    # SAT intra. SAT store_fixed_array_field is SAT local t — not
+    # leftover rest T SAT global T. Do not leftover rest T SAT
+    # emit_block_inits. Do not leftover rest remaining-wave via
+    # !FROM_X || WIN. G.7 complete of this table.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_emit_fixed_array_type_let_init_elf_c",
+    "glue_struct_lit_store_fixed_array_field_elf_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
