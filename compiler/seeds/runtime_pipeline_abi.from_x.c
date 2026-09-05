@@ -12886,6 +12886,20 @@ extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_
 extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
 extern int32_t pipeline_asm_emit_block_inits_elf_c(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
                                                   int32_t ta, int32_t slot_base);
+extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
+extern uint8_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t wi,
+                                               void *ctx, int32_t ta);
+extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
+                                             void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block, int32_t if_idx,
+                                                  void *ctx, int32_t ta, int32_t stmt_i);
 extern void *pipeline_codegen_match_mod_c(void);
 extern int32_t pipeline_codegen_match_matched_ref_c(void);
 extern int32_t pipeline_codegen_match_subject_ty_c(void);
@@ -12912,6 +12926,94 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
                                                  int32_t ta);
 static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
                                                          int32_t ta);
+
+/*
+ * MATCH arm BLOCK preceding stmt_order except dest-parked last.
+ * leftover rest WIN leftover body_sync walks kinds 1..6 then
+ * SAT-recs last via glue_emit_block_final_expr. leftover unique
+ * leftover_emit_match_arm_result cannot leftover_emit_block twin
+ * (SAT implicit dest, parked dest stays 0). G.7 complete: same
+ * SAT T while/for/block_if as leftover rest WIN leftover
+ * body_sync; region recurse this walk (skip last) instead of
+ * leftover rest body_sync. Kind 7 labeled not this knife.
+ * PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
+                                                              void *ctx, int32_t ta) {
+  int32_t nso;
+  int32_t si;
+  int32_t k;
+  int32_t idx;
+  int32_t er;
+  int32_t inner;
+  int32_t ncfg;
+  int32_t slot_base;
+  if (!arena || !elf_ctx || !ctx || br <= 0)
+    return -1;
+  nso = ast_ast_block_num_stmt_order(arena, br);
+  for (si = 0; si < nso; si++) {
+    k = (int32_t)ast_ast_block_stmt_order_kind(arena, br, si);
+    idx = ast_ast_block_stmt_order_idx(arena, br, si);
+    if (k == 1)
+      continue;
+    if (k == 2) {
+      ncfg = ast_ast_block_num_expr_stmts(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      er = ast_pipeline_block_expr_stmt_ref(arena, br, idx);
+      if (er <= 0 || er == last)
+        continue;
+      if (pipeline_expr_kind_ord_at(arena, er) == 41)
+        continue;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 3) {
+      ncfg = ast_ast_block_num_loops(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (backend_emit_while_loop_elf_sync(arena, elf_ctx, br, idx, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 4) {
+      ncfg = ast_ast_block_num_for_loops(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (backend_emit_for_loop_elf_sync(arena, elf_ctx, br, idx, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 5) {
+      ncfg = ast_ast_block_num_if_stmts(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (pipeline_asm_emit_block_if_stmt_elf(arena, elf_ctx, br, idx, ctx, ta, si) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 6) {
+      ncfg = ast_ast_block_num_regions(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      inner = pipeline_block_region_body_ref(arena, br, idx);
+      if (inner <= 0)
+        continue;
+      backend_ensure_block_local_slots(ctx, arena, inner);
+      pipeline_asm_fill_local_slots(ctx, arena, inner);
+      slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, inner);
+      if (slot_base < 0)
+        slot_base = 0;
+      if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, inner, ctx, ta, slot_base) != 0)
+        return -1;
+      if (leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, last, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+  }
+  return 0;
+}
 
 static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
                                                    int32_t ta) {
@@ -12965,8 +13067,14 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * final_expr via SAT rec (implicit dest); leftover rest FROM_X stub
    * -1. G.7 complete: fill slots + SAT emit_block_inits (lets) +
    * leftover unique rec of preceding expr_stmts except last, then
-   * leftover_emit_match_arm_result(last). Loops/ifs/regions in MATCH
-   * arm BLOCK not this knife. MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
+   * leftover_emit_match_arm_result(last). MATCH arm BLOCK preceding
+   * while/for/if/region (`{ while x < 1 { x = x + 1; } [3,4] }` /
+   * `{ if true { x = 1; } [3,4] }` / `{ unsafe { x = 1; } [3,4] }` /
+   * `{ unsafe { [3,4] } }`): leftover rest WIN leftover body_sync
+   * SAT-recs last. G.7 complete: stmt_order kinds 3/4/5 SAT T
+   * while/for/block_if; kind 6 recurse skip last (do not leftover
+   * rest body_sync dest-region). Kind 7 labeled not this knife.
+   * MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
    * `named_star_match_if` / `arr_star_match_if`):
    * `if true { [3, 4] } else { [0, 0] }`. SAT if_arm of IF recs the
    * IF; leftover unique rec → leftover unique emit_if remaining-wave
@@ -12978,8 +13086,9 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * leftover_emit_if twin of leftover unique emit_if / .x thin emit_if.
    * Do not leftover rest remaining-wave. Do not leftover rest T SAT
    * emit_call / emit_method / emit_assign / emit_array_lit /
-   * emit_field / emit_deref / emit_struct_lit. Do not leftover rest U
-   * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+   * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync.
+   * Do not leftover rest U SAT local t copy_large.
+   * PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 46)
@@ -13000,6 +13109,11 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     int32_t sv_locs;
     int32_t sv_next;
     int32_t r;
+    int32_t nso;
+    int32_t so_k;
+    int32_t so_idx;
+    int32_t inner;
+    int32_t nexpr_inner;
     uint8_t *ly;
     br = pipeline_expr_block_ref_at(arena, result_ref);
     if (br <= 0)
@@ -13008,11 +13122,31 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     last = ast_ast_block_final_expr_ref(arena, br);
     if (last <= 0 && nexpr > 0)
       last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
+    /* dest-region `{ unsafe { [3,4] } }`: outer nso==1 kind 6, last
+     * lives on the inner block. Do not leftover rest body_sync the
+     * dest-region (SAT rec last). PLATFORM: WINDOWS leftover-PE. */
+    if (last <= 0) {
+      nso = ast_ast_block_num_stmt_order(arena, br);
+      if (nso == 1) {
+        so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, br, 0);
+        so_idx = ast_ast_block_stmt_order_idx(arena, br, 0);
+        if (so_k == 6 && so_idx >= 0) {
+          inner = pipeline_block_region_body_ref(arena, br, so_idx);
+          if (inner > 0) {
+            last = ast_ast_block_final_expr_ref(arena, inner);
+            nexpr_inner = ast_ast_block_num_expr_stmts(arena, inner);
+            if (last <= 0 && nexpr_inner > 0)
+              last = ast_pipeline_block_expr_stmt_ref(arena, inner, nexpr_inner - 1);
+          }
+        }
+      }
+    }
     if (last <= 0 || last == result_ref)
       return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
-    /* Preceding lets/expr_stmts keep dest on the CPU stack. SAT rec of
-     * last would write SAT implicit dest. Do not leftover_emit_block
-     * twin of leftover rest WIN leftover body_sync. PLATFORM: WINDOWS. */
+    /* Preceding lets/expr_stmts/while/for/if/region keep dest on the
+     * CPU stack. SAT rec of last would write SAT implicit dest. Do
+     * not leftover_emit_block twin of leftover rest WIN leftover
+     * body_sync. PLATFORM: WINDOWS leftover-PE. */
     ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
     if (!ly)
       return -1;
@@ -13028,16 +13162,25 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
       *(int32_t *)(ly + 4) = sv_next;
       return -1;
     }
-    for (ei = 0; ei < nexpr; ei++) {
-      er = ast_pipeline_block_expr_stmt_ref(arena, br, ei);
-      if (er <= 0 || er == last)
-        continue;
-      if (pipeline_expr_kind_ord_at(arena, er) == 41)
-        continue;
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0) {
+    nso = ast_ast_block_num_stmt_order(arena, br);
+    if (nso > 0) {
+      if (leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, br, last, ctx, ta) != 0) {
         *(int32_t *)(ly + 8) = sv_locs;
         *(int32_t *)(ly + 4) = sv_next;
         return -1;
+      }
+    } else {
+      for (ei = 0; ei < nexpr; ei++) {
+        er = ast_pipeline_block_expr_stmt_ref(arena, br, ei);
+        if (er <= 0 || er == last)
+          continue;
+        if (pipeline_expr_kind_ord_at(arena, er) == 41)
+          continue;
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0) {
+          *(int32_t *)(ly + 8) = sv_locs;
+          *(int32_t *)(ly + 4) = sv_next;
+          return -1;
+        }
       }
     }
     r = leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
