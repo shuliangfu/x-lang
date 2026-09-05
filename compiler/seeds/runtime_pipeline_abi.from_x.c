@@ -28858,6 +28858,15 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
               out_rc = -1;
             else
               out_rc = 0;
+          } else if (asg_nbytes <= 16) {
+            /* 16B TYPE_NAMED: SAT emit_struct_lit leaves dual-GP not E*
+             * (memcpy-from-rax SEGV match_star16). PLATFORM: WINDOWS. */
+            if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+              out_rc = -1;
+            else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+              out_rc = -1;
+            else
+              out_rc = 0;
           } else {
             asg_copy = 0;
             out_rc = 0;
