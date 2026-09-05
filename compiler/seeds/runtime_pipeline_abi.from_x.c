@@ -28649,11 +28649,22 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * CPU stack, leftover rest unique lvalue of FIELD/INDEX
      * (rax=&fat pair; INDEX of [N][]T leas payload+idx*16, INDEX of
      * [][]T peels fat.data then +idx*16), qword-copy 16B data@0+length@8
-     * into parked dest. Do not leftover rest U SAT local t copy_large /
-     * field_type_ref (23B stub). Do not leftover rest T SAT emit_assign.
-     * Do not leftover rest remaining-wave emit_assign / fields_elf via
-     * !FROM_X || WIN. Do not leftover rest T SAT try_index (arr0). Do
-     * not call glue_emit_slice_from_array_let_init(-3) (rbp-3).
+     * into parked dest.
+     *
+     * TYPE_SLICE VAR dest FIELD `b = s.xs` is a sibling dest (VAR
+     * frame slot, not dest-in-rbx). leftover rest unique rec ASSIGN
+     * previously intercepted DEREF dest only; VAR dest fell through
+     * to SAT emit_assign SAT global T which intra-emits FIELD without
+     * dual-GP then stores rax+rdx (garbage rdx) (slice_asg_field
+     * SEGV 139). VAR dest INDEX is already GREEN via SAT emit_index
+     * dual-GP. G.7 complete leftover rest unique rec ASSIGN TYPE_SLICE
+     * FIELD/INDEX arm: VAR dest (asg_lko==3) uses the same park dest +
+     * lvalue rhs + qword-copy 16B. Do not leftover rest T SAT
+     * emit_assign. Do not leftover rest remaining-wave emit_assign /
+     * fields_elf via !FROM_X || WIN. Do not leftover rest T SAT
+     * try_index (arr0). Do not leftover rest U SAT local t copy_large /
+     * field_type_ref (23B stub). Do not call
+     * glue_emit_slice_from_array_let_init(-3) (rbp-3).
      * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
     int32_t asg_left = pipeline_expr_binop_left_ref_at(arena, expr_ref);
     int32_t asg_right = pipeline_expr_binop_right_ref_at(arena, expr_ref);
@@ -28664,23 +28675,31 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     int32_t asg_dop_tr = 0;
     int32_t asg_st = 0;
     int32_t asg_rko = 0;
-    if (asg_lko == 52 && asg_right > 0) {
-      asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
-      asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
-      if (asg_dtk != 10 && asg_dtk != 8 && asg_dtk != 11) {
-        asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
-        if (asg_dop > 0) {
-          asg_dop_tr = pipeline_expr_resolved_type_ref(arena, asg_dop);
-          if (asg_dop_tr <= 0)
-            asg_dop_tr = glue_var_decl_type_ref_elf_c(arena, ctx, asg_dop);
-          if (asg_dop_tr > 0 && pipeline_type_kind_ord_at(arena, asg_dop_tr) == 9) {
-            asg_dtr = pipeline_type_elem_ref_at(arena, asg_dop_tr);
-            asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+    if (asg_right > 0 && (asg_lko == 52 || asg_lko == 3)) {
+      if (asg_lko == 52) {
+        asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
+        asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+        if (asg_dtk != 10 && asg_dtk != 8 && asg_dtk != 11) {
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+          if (asg_dop > 0) {
+            asg_dop_tr = pipeline_expr_resolved_type_ref(arena, asg_dop);
+            if (asg_dop_tr <= 0)
+              asg_dop_tr = glue_var_decl_type_ref_elf_c(arena, ctx, asg_dop);
+            if (asg_dop_tr > 0 && pipeline_type_kind_ord_at(arena, asg_dop_tr) == 9) {
+              asg_dtr = pipeline_type_elem_ref_at(arena, asg_dop_tr);
+              asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+            }
           }
         }
+      } else {
+        /* VAR dest: resolved or decl type. PLATFORM: WINDOWS leftover-PE. */
+        asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
+        if (asg_dtr <= 0)
+          asg_dtr = glue_var_decl_type_ref_elf_c(arena, ctx, asg_left);
+        asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
       }
       asg_rko = pipeline_expr_kind_ord_at(arena, asg_right);
-      if (asg_dtr > 0 && asg_dtk == 10) {
+      if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 10) {
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
@@ -28695,7 +28714,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           else
             out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
         }
-      } else if (asg_dtr > 0 && asg_dtk == 8 && asg_rko == 45) {
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 && asg_rko == 45) {
         int32_t asg_nbytes;
         int32_t asg_copy;
         void *asg_mod;
@@ -28756,7 +28775,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
             }
           }
         }
-      } else if (asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
         int32_t asg_n;
         asg_n = pipeline_expr_array_lit_num_elems_at(arena, asg_right);
         if (asg_n < 0)
@@ -28781,10 +28800,10 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           out_rc = 0;
       } else if (asg_dtr > 0 && asg_dtk == 11 &&
                  (asg_rko == 44 || asg_rko == 47)) {
-        /* TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` / INDEX `*p = rows[1]`.
-         * Park dest (emit_lvalue of FIELD/INDEX clobbers rbx), leftover
-         * rest unique lvalue → rax=&fat, qword-copy 16B.
-         * PLATFORM: WINDOWS leftover-PE. */
+        /* TYPE_SLICE dest-in-rbx OR VAR dest FIELD `*p = s.xs` /
+         * `b = s.xs` / INDEX. Park dest (emit_lvalue of FIELD/INDEX
+         * clobbers rbx), leftover rest unique lvalue → rax=&fat,
+         * qword-copy 16B. PLATFORM: WINDOWS leftover-PE. */
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
