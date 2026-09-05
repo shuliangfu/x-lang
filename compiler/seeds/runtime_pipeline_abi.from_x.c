@@ -12939,6 +12939,8 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
                                                  int32_t ta);
 static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
                                                          int32_t ta);
+static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
+                                                   int32_t ta);
 
 /*
  * MATCH arm BLOCK preceding stmt_order except dest-parked last.
@@ -12952,7 +12954,9 @@ static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf
  * as dest-in-rbx IF extra-arm. Labeled return as prefix is
  * leftover (would exit the function; dest is dead). Kind 6
  * with_arena: same SAT T glue_wa_scope + init/deinit as leftover
- * rest WIN leftover body_sync.
+ * rest WIN leftover body_sync. Dest-region last that lives on
+ * inner (`{ with_arena { [3,4] } }`) dest-parks inside Arena64
+ * (return 1 so the caller skips leftover_emit_match_arm_result).
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
@@ -12969,9 +12973,12 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
   int32_t nlen;
   int32_t wa_cap;
   int32_t wa_off;
+  int32_t inner_last;
+  int32_t parked;
   uint8_t name_buf[128];
   if (!arena || !elf_ctx || !ctx || br <= 0)
     return -1;
+  parked = 0;
   nso = ast_ast_block_num_stmt_order(arena, br);
   for (si = 0; si < nso; si++) {
     k = (int32_t)ast_ast_block_stmt_order_kind(arena, br, si);
@@ -13021,11 +13028,14 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
      * independently (skip last; do not leftover rest body_sync dest-
      * region SAT rec last). G.7 complete: same SAT T glue_wa_scope +
      * glue_emit_with_arena_init/deinit as leftover rest WIN leftover
-     * body_sync. Do not leftover_emit_block twin. Do not leftover rest
-     * remaining-wave leftover rest WIN leftover body_sync. Do not
-     * glue_asm_ctx_set_scope_block (SAT local t leftover unique
-     * remaining-wave #ifndef FROM_X). Dest-region last after deinit
-     * leftover unless last needs Arena64. PLATFORM: WINDOWS leftover-PE. */
+     * body_sync. Dest-region `{ with_arena { [3,4] } }`: last lives on
+     * inner — dest-park last INSIDE Arena64 (return 1). `{ with_arena
+     * { x = 1; } [3,4] }` last is outer — deinit then return 0 so the
+     * caller dest-parks after deinit. Do not leftover_emit_block twin.
+     * Do not leftover rest remaining-wave leftover rest WIN leftover
+     * body_sync. Do not glue_asm_ctx_set_scope_block (SAT local t
+     * leftover unique remaining-wave #ifndef FROM_X).
+     * PLATFORM: WINDOWS leftover-PE. */
     if (k == 6) {
       ncfg = ast_ast_block_num_regions(arena, br);
       if (idx < 0 || idx >= ncfg)
@@ -13047,14 +13057,32 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
         slot_base = 0;
       if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, inner, ctx, ta, slot_base) != 0)
         return -1;
-      if (leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, last, ctx, ta) != 0)
+      er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, last, ctx, ta);
+      if (er < 0)
         return -1;
+      if (er > 0)
+        parked = 1;
+      else if (wa_cap > 0) {
+        inner_last = ast_ast_block_final_expr_ref(arena, inner);
+        if (inner_last <= 0) {
+          ncfg = ast_ast_block_num_expr_stmts(arena, inner);
+          if (ncfg > 0)
+            inner_last = ast_pipeline_block_expr_stmt_ref(arena, inner, ncfg - 1);
+        }
+        if (inner_last > 0 && inner_last == last) {
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta) != 0)
+            return -1;
+          parked = 1;
+        }
+      }
       if (wa_cap > 0) {
         er = glue_emit_with_arena_deinit_elf(elf_ctx, wa_off, ta);
         glue_wa_scope_pop_c();
         if (er != 0)
           return -1;
       }
+      if (parked)
+        return 1;
       continue;
     }
     /* MATCH arm BLOCK preceding labeled/goto (`{ goto L; L: [3,4] }`
@@ -13148,10 +13176,11 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * leftover_emit_match_arm_result(last). MATCH arm BLOCK preceding
    * while/for/if/region (`{ while x < 1 { x = x + 1; } [3,4] }` /
    * `{ if true { x = 1; } [3,4] }` / `{ unsafe { x = 1; } [3,4] }` /
-   * `{ unsafe { [3,4] } }`): leftover rest WIN leftover body_sync
-   * SAT-recs last. G.7 complete: stmt_order kinds 3/4/5 SAT T
-   * while/for/block_if; kind 6 recurse skip last (do not leftover
-   * rest body_sync dest-region). MATCH arm BLOCK preceding
+   * `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }`): leftover
+   * rest WIN leftover body_sync SAT-recs last. G.7 complete: stmt_order
+   * kinds 3/4/5 SAT T while/for/block_if; kind 6 recurse skip last
+   * (do not leftover rest body_sync dest-region) + dest-park last
+   * inside Arena64 when last lives on inner. MATCH arm BLOCK preceding
    * labeled/goto (`{ goto L; L: [3,4] }` / `{ L: x = 1; [3,4] }`):
    * leftover rest WIN leftover body_sync skips k==7. G.7 complete:
    * same jmp/label as dest-in-rbx IF extra-arm. Labeled return as
@@ -13204,9 +13233,11 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     last = ast_ast_block_final_expr_ref(arena, br);
     if (last <= 0 && nexpr > 0)
       last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
-    /* dest-region `{ unsafe { [3,4] } }`: outer nso==1 kind 6, last
-     * lives on the inner block. Do not leftover rest body_sync the
-     * dest-region (SAT rec last). PLATFORM: WINDOWS leftover-PE. */
+    /* dest-region `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }`:
+     * outer nso==1 kind 6, last lives on the inner block. Do not
+     * leftover rest body_sync the dest-region (SAT rec last).
+     * with_arena dest-parks last inside leftover unique leftover_emit_match_arm_block_stmts_except_last
+     * k==6 (return 1). PLATFORM: WINDOWS leftover-PE. */
     if (last <= 0) {
       nso = ast_ast_block_num_stmt_order(arena, br);
       if (nso == 1) {
@@ -13245,8 +13276,10 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
       return -1;
     }
     nso = ast_ast_block_num_stmt_order(arena, br);
+    r = 0;
     if (nso > 0) {
-      if (leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, br, last, ctx, ta) != 0) {
+      r = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, br, last, ctx, ta);
+      if (r < 0) {
         *(int32_t *)(ly + 8) = sv_locs;
         *(int32_t *)(ly + 4) = sv_next;
         return -1;
@@ -13265,10 +13298,18 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
         }
       }
     }
-    r = leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+    /* r==1: dest-region last already dest-parked inside with_arena. */
+    if (r == 0) {
+      r = leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+      if (r != 0) {
+        *(int32_t *)(ly + 8) = sv_locs;
+        *(int32_t *)(ly + 4) = sv_next;
+        return -1;
+      }
+    }
     *(int32_t *)(ly + 8) = sv_locs;
     *(int32_t *)(ly + 4) = sv_next;
-    return r;
+    return 0;
   }
   if (rko == 25 || rko == 27) {
     int32_t cond;
