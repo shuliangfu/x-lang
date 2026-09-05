@@ -30858,6 +30858,15 @@ extern int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block
 extern void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
 extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
 extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+extern int32_t pipeline_block_labeled_return_expr_ref(void *arena, int32_t block_ref, int32_t li);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern int32_t pipeline_module_func_return_type_at(void *module, int32_t func_index);
+extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
+extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty_ref,
+                                                      int32_t src_ty_ref, int32_t ta);
+extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
 
 int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   int32_t slot_base;
@@ -30870,6 +30879,13 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t ncfg;
   int32_t is_g;
   int32_t nlen;
+  int32_t ret_ref;
+  int32_t tj_len;
+  int32_t fi;
+  int32_t rty;
+  int32_t sty;
+  void *mod;
+  uint8_t *ly;
   uint8_t name_buf[128];
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return -1;
@@ -30971,6 +30987,37 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
       if (nlen > 0 && nlen <= 127) {
         if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
           return -1;
+      }
+      /* leftover rest WIN leftover body_sync labeled return (`L: return e`).
+       * glue_emit_block_final_expr skips when stmt_order has_return, so
+       * labeled return must emit here. G.7 complete: same SAT rec + promote
+       * + cleanup + tail-join as .x thin body_sync. leftover unique leftover_emit_match_arm_result
+       * dest-parks last independently (labeled return dest dead). Do not leftover
+       * rest remaining-wave leftover unique leftover_emit_match_arm_result.
+       * Do not leftover rest T SAT emit_block_body_sync.
+       * PLATFORM: WINDOWS leftover-PE. */
+      ret_ref = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx);
+      if (ret_ref > 0) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_ref, ctx, ta) != 0)
+          return -1;
+        mod = pipeline_asm_emit_module_ref_c();
+        fi = pipeline_asm_emit_func_index_c();
+        if (mod && fi >= 0) {
+          rty = pipeline_module_func_return_type_at(mod, fi);
+          sty = glue_float_promote_src_ty_ref_c(arena, ret_ref);
+          if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0)
+            return -1;
+        }
+        if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
+          return -1;
+        ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+        if (!ly)
+          return -1;
+        tj_len = *(int32_t *)(ly + 1520);
+        if (tj_len > 0 && tj_len <= 127) {
+          if (backend_enc_jmp_arch(elf_ctx, ly + 1392, tj_len, ta) != 0)
+            return -1;
+        }
       }
       continue;
     }
