@@ -29141,19 +29141,26 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           else if (out_rc != 0)
             (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
         }
-      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 && asg_rko == 43) {
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 asg_rko == 43) {
         int32_t asg_nbytes;
         void *asg_mod;
-        /* TYPE_NAMED dest-in-rbx MATCH `*p = match 1 { 1 => P {..}; _ => .. }`.
-         * SAT emit_assign DEREF dest emit MATCH clobbers rbx then 4B store
-         * (match_star_dy SEGV 139). Park dest + store rax payload greens 8B.
-         * 16B arm STRUCT_LIT SAT implicit dest still overlaps p/d
-         * (match_star16 SEGV 139 after bump + dual-GP). G.7: dest >8B parks
-         * dest then leftover rest unique rec ko==45 DEST_IN_RBX field stores
-         * (same helper as TYPE_NAMED dest-in-rbx STRUCT_LIT). Bump
-         * next_offset past p + dest width so any SAT arm dest cannot
-         * clobber p. Match arms use `;` not `,`. Do not leftover rest T
-         * SAT emit_assign / emit_struct_lit. PLATFORM: WINDOWS leftover-PE. */
+        /* TYPE_NAMED dest-in-rbx MATCH `*p = match 1 { 1 => P {..}; _ => .. }`
+         * AND VAR dest MATCH `d = match 1 { 1 => mk(); _ => S {..} }`
+         * (match_asg_call32). SAT emit_assign DEREF dest emit MATCH
+         * clobbers rbx then 4B store (match_star_dy SEGV 139). VAR dest
+         * previously fell through SAT emit_assign (SAT global T): MATCH
+         * dest not parked → 16B dual-GP not stored (match_asg_call16
+         * RUN=0); 24/32B callee sret dest overflow (match_asg_call24 /
+         * match_asg_call32 SEGV 139). G.7 complete leftover rest unique
+         * rec ASSIGN TYPE_NAMED MATCH: park dest CPU stack (lvalue of
+         * DEREF or VAR) then leftover rest unique emit_match dest-parked
+         * (arm CALL leftover_emit_call SysV sret rdi / dual-GP). Bump
+         * next_offset past the dest slot (pointer p, or VAR d) + dest
+         * width so SAT arm dest cannot clobber it. Match arms use `;`
+         * not `,`. Do not leftover rest T SAT emit_assign / emit_call /
+         * emit_struct_lit. Do not leftover rest U SAT local t copy_large.
+         * PLATFORM: WINDOWS leftover-PE. */
         asg_mod = glue_emit_module_from_ctx(ctx);
         if (!asg_mod)
           asg_mod = pipeline_asm_emit_module_ref_c();
@@ -29167,7 +29174,11 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
         }
         if (asg_nbytes <= 0)
           asg_nbytes = 8;
-        asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
         if (asg_dop > 0) {
           int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
           int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
