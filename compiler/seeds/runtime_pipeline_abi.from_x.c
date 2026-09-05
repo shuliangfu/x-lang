@@ -29178,7 +29178,17 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * leftover rest unique rec ASSIGN TYPE_SLICE MATCH: park dest CPU
      * stack, leftover rest unique emit_match dest-parked dest_tk=11
      * (ARRAY_LIT arm SAT emit_array_lit + store fat data@0 length@8).
-     * Do not leftover rest T SAT emit_assign / emit_array_lit.
+     *
+     * TYPE_SLICE VAR dest MATCH `d = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+     * is a sibling dest (VAR frame slot, not dest-in-rbx). leftover
+     * rest unique rec ASSIGN TYPE_SLICE MATCH previously intercepted
+     * DEREF dest only (asg_lko==52); VAR dest fell through SAT
+     * emit_assign SAT global T, MATCH dest not parked, dest [0]
+     * length stays 1 (slice_asg_match INDEX [1] panic 127). TYPE_NAMED
+     * MATCH already intercepts VAR dest (asg_lko==3). G.7 complete
+     * leftover rest unique rec ASSIGN TYPE_SLICE MATCH: VAR dest uses
+     * the same park dest + emit_match dest-parked dest_tk=11. Do not
+     * leftover rest T SAT emit_assign / emit_array_lit.
      *
      * TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` / INDEX `*p = rows[1]`
      * are the same produce: SAT emit_assign DEREF dest SAT local t
@@ -29432,18 +29442,25 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           out_rc = -1;
         else
           out_rc = 0;
-      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 43) {
-        /* TYPE_SLICE dest-in-rbx MATCH. SAT emit_assign DEREF dest
-         * SAT local t struct_let_init -2 then emit MATCH clobbers rbx
-         * then 4B store (slice_star_match SEGV 139 / _len RUN=1).
-         * Park dest CPU stack; leftover rest unique emit_match
-         * dest-parked dest_tk=11 (ARRAY_LIT arm SAT emit_array_lit +
-         * store fat data@0 length@8). Bump next_offset past p so SAT
-         * implicit dest cannot clobber the pointer slot (TYPE_NAMED
-         * MATCH 8B lesson). Do not leftover rest T SAT emit_assign /
-         * emit_array_lit. Do not leftover rest U SAT local t
-         * copy_large. PLATFORM: WINDOWS leftover-PE. */
-        asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 &&
+                 asg_rko == 43) {
+        /* TYPE_SLICE dest-in-rbx MATCH AND VAR dest MATCH
+         * `d = match 1 { 1 => [3, 4]; _ => [0, 0] }` (slice_asg_match).
+         * SAT emit_assign DEREF dest SAT local t struct_let_init -2
+         * then emit MATCH clobbers rbx then 4B store (slice_star_match
+         * SEGV 139 / _len RUN=1). VAR dest previously fell through SAT
+         * emit_assign (SAT global T): MATCH dest not parked → dest [0]
+         * length stays 1 (slice_asg_match INDEX [1] panic 127). Park
+         * dest CPU stack (lvalue of DEREF or VAR); leftover rest unique
+         * emit_match dest-parked dest_tk=11 (ARRAY_LIT arm SAT
+         * emit_array_lit + store fat data@0 length@8). Bump next_offset
+         * past the dest slot (pointer p, or VAR d) so SAT implicit dest
+         * cannot clobber it (TYPE_NAMED MATCH 8B lesson). Do not leftover
+         * rest T SAT emit_assign / emit_array_lit. Do not leftover rest
+         * U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
         if (asg_dop > 0) {
           int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
           int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
