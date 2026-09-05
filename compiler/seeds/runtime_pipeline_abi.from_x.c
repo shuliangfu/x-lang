@@ -12926,9 +12926,12 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * TYPE_NAMED dest MATCH arm FIELD/INDEX (dest_tk!=11; rec ASSIGN
    * TYPE_NAMED MATCH parks dest with nbytes, dest_tk stays 0): same
    * lvalue + qword-copy nbytes (named_star_match_field). TYPE_ARRAY
-   * dest (dest_tk==10) stays unclaimed. Do not leftover rest T SAT
-   * emit_call / emit_method / emit_assign / emit_array_lit. Do not
-   * leftover rest U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+   * dest MATCH arm FIELD/INDEX (dest_tk==10; leftover rest unique
+   * store MATCH parks dest nbytes=n_arr*esz): same lvalue +
+   * qword-copy nbytes (arr_star_match_field `s.a` / INDEX of
+   * [N][M]T). Do not leftover rest T SAT emit_call / emit_method /
+   * emit_assign / emit_array_lit / emit_field. Do not leftover rest
+   * U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 46)
@@ -12937,7 +12940,7 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   if (rko == 48 || rko == 49)
     return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
-  if ((rko == 44 || rko == 47) && g_leftover_match_dest_tk != 10)
+  if (rko == 44 || rko == 47)
     return leftover_emit_slice_lvalue_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
@@ -28774,10 +28777,13 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
  * TYPE_NAMED dest (dest_tk!=11; rec ASSIGN TYPE_NAMED MATCH parks dest
  * with nbytes, dest_tk stays 0): MATCH arm FIELD `s.p` / INDEX of [N]P
  * leftover rest unique lvalue leaves rax=&payload; qword-copy nbytes
- * (same loop as leftover_emit_var). TYPE_ARRAY dest (dest_tk==10)
- * stays unclaimed. dest is on the CPU stack (pop/push rbx). Do not
- * leftover rest T SAT emit_assign / emit_field. Do not leftover rest U
- * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE.
+ * (same loop as leftover_emit_var). TYPE_ARRAY dest (dest_tk==10;
+ * leftover rest unique store MATCH parks dest nbytes=n_arr*esz):
+ * MATCH arm FIELD `s.a` / INDEX of [N][M]T leftover rest unique
+ * lvalue leaves rax=&payload; qword-copy nbytes (arr_star_match_field).
+ * dest is on the CPU stack (pop/push rbx). Do not leftover rest T SAT
+ * emit_assign / emit_field. Do not leftover rest U SAT local t
+ * copy_large. PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
                                                          int32_t ta) {
