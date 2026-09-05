@@ -155,6 +155,7 @@
   - ✅ TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` leftover rest unique rec ASSIGN park dest CPU 栈＋lvalue FIELD qword-copy 16B＠`10cb14b3a`
   - ✅ TYPE_SLICE dest-in-rbx INDEX `*p = rows[1]` leftover rest unique rec ASSIGN＋store_fixed_array_field TYPE_SLICE 行 fat＠`55c93ba2f`
   - ✅ TYPE_SLICE VAR dest FIELD `b = s.xs` leftover rest unique rec ASSIGN TYPE_SLICE FIELD／INDEX 臂扩 VAR dest＠`2b329b46e`
+  - ✅ TYPE_SLICE let-init INDEX `let s = rows[1]` leftover rest unique T of SAT local t slice_from_array＋redirect SAT emit_block_inits intra＠`5ecf2773e`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
