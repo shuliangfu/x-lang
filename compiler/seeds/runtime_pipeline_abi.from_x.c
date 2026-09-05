@@ -12890,6 +12890,8 @@ static int32_t g_leftover_match_dest_parked = 0;
 static int32_t g_leftover_match_dest_nbytes = 0;
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                        int32_t ta, int32_t base_off);
+static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+                                                      int32_t ta);
 static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
                                                 int32_t ta);
 static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
@@ -12901,16 +12903,18 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
   if (g_leftover_match_dest_parked == 0)
     return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
   rko = pipeline_expr_kind_ord_at(arena, result_ref);
-  /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). VAR arm:
-   * slot lea + qword-copy (match_arm_var16). CALL=48 / METHOD=49 arm:
-   * SAT emit_call / emit_method then dual-GP store (≤16) or SysV sret
-   * into parked dest (>16; match_arm_call24 / star_method32 SEGV 139
-   * when thin if_arm SAT implicit dest overlaps p; MATCH arm METHOD
-   * unintercepted CG002 undefined done label). Do not leftover rest T
-   * SAT emit_call / emit_method / emit_assign. Do not leftover rest U
-   * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+  /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). ARRAY_LIT
+   * arm: DEST_IN_RBX elem stores (arr_star_match RUN=0 — thin if_arm
+   * SAT rec SAT emit_array_lit implicit dest, parked dest stays 0).
+   * VAR arm: slot lea + qword-copy (match_arm_var16). CALL=48 /
+   * METHOD=49 arm: SAT emit_call / emit_method then dual-GP store
+   * (≤16) or SysV sret into parked dest (>16). Do not leftover rest T
+   * SAT emit_call / emit_method / emit_assign / emit_array_lit. Do not
+   * leftover rest U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
+  if (rko == 46)
+    return leftover_emit_array_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   if (rko == 3)
     return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   if (rko == 48 || rko == 49)
@@ -28324,6 +28328,7 @@ extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var
 extern void glue_align_next_offset(void *ctx);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
 extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28563,6 +28568,59 @@ static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_c
     if (fsz > 8)
       fsz = 8;
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, fsz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm ARRAY_LIT: write elems into parked dest.
+ * thin if_arm SAT rec → SAT emit_array_lit implicit dest; parked dest
+ * stays 0 (arr_star_match RUN=0 / arr_star_match0 garbage). Same rec +
+ * store-rax-to-rbx-offset as leftover_emit_struct_lit scalar fields.
+ * Size from leftover rest unique park nbytes / n (TYPE_ARRAY n*esz).
+ * Nest freeze 64. Do not leftover rest T SAT emit_array_lit /
+ * emit_assign. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+                                                      int32_t ta) {
+  int32_t n;
+  int32_t i;
+  int32_t eref;
+  int32_t nbytes;
+  int32_t esz;
+  int32_t store_sz;
+  int32_t store_off;
+  if (!arena || !elf_ctx || lit_ref <= 0)
+    return -1;
+  n = pipeline_expr_array_lit_num_elems_at(arena, lit_ref);
+  if (n <= 0 || n > 64)
+    return -1;
+  nbytes = g_leftover_match_dest_nbytes;
+  esz = 4;
+  if (nbytes > 0)
+    esz = nbytes / n;
+  if (esz <= 0)
+    esz = 4;
+  if (esz > 8)
+    esz = 8;
+  store_sz = esz;
+  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+    store_sz = 4;
+  for (i = 0; i < n; i++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, lit_ref, i);
+    if (eref <= 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, eref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    store_off = i * esz;
+    if (store_off > 4096)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, store_sz, ta) != 0)
       return -1;
   }
   return 0;
@@ -30893,6 +30951,8 @@ extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t 
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz,
                                                          int32_t ta);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                            int32_t ta);
 
 int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta) {
   int32_t mag;
@@ -31079,6 +31139,46 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
     src_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
     if (src_off < 0)
       return -1;
+  } else if (iko == 43) {
+    /* TYPE_ARRAY MATCH `*p = match 1 { 1 => [3, 4]; _ => [0, 0] }` /
+     * `let a: [2]i32 = match 1 { … }`. leftover rest unique rec ASSIGN
+     * dest-in-rbx calls this let_init(-3); MATCH was unhandled (-2) →
+     * SAT emit_assign (arr_star_match RUN=0 / arr_star_match0 garbage;
+     * dump rec MATCH without dest-parked, ARRAY_LIT SAT implicit dest).
+     * VAR let-init SAT emit_block_inits redirect leftover rest unique
+     * store; MATCH -2 → CG002 (arr_match_let). MATCH emit clobbers rbx
+     * (subject mov rax→rbx). G.7 complete leftover rest unique store
+     * MATCH: park dest CPU stack, leftover rest unique emit_match
+     * dest-parked (ARRAY_LIT arms leftover_emit_array_lit). Do not
+     * leftover rest T SAT emit_assign / emit_array_lit. Do not leftover
+     * rest U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+    int32_t nbytes;
+    int32_t mrc;
+    if (sret_direct != 0)
+      return -2;
+    nbytes = n_arr * esz;
+    if (nbytes <= 0)
+      nbytes = 8;
+    if (nbytes > 4096)
+      return -1;
+    if (dest_in_rbx == 0) {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    g_leftover_match_dest_parked = 1;
+    g_leftover_match_dest_nbytes = nbytes;
+    mrc = pipeline_asm_emit_match_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    g_leftover_match_dest_parked = 0;
+    g_leftover_match_dest_nbytes = 0;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (mrc != 0)
+      return -1;
+    return 0;
   } else if (iko == 46 && elem_tr > 0 &&
              pipeline_type_kind_ord_at(arena, elem_tr) == 11) {
     /* TYPE_ARRAY of TYPE_SLICE. SAT emit_array_lit flattens to i32
