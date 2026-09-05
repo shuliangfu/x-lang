@@ -28868,8 +28868,11 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
         else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
           out_rc = -1;
         else {
-          if (asg_nbytes > 8)
-            g_leftover_match_dest_parked = 1;
+          /* Always DEST_IN_RBX: leftover rest glue_type_size_simple NAMED
+           * can report 0 → nbytes=8, which skipped the 16B field stores
+           * (match_star16 RUN=0 not SEGV). 8B match_star uses the same
+           * parked field stores as named_star_lit. PLATFORM: WINDOWS. */
+          g_leftover_match_dest_parked = 1;
           if (pipeline_asm_emit_match_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
             out_rc = -1;
           else
@@ -28877,13 +28880,6 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           g_leftover_match_dest_parked = 0;
           if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
             out_rc = -1;
-          else if (out_rc == 0 && asg_nbytes > 8) {
-            /* DEST_IN_RBX already wrote dest. PLATFORM: WINDOWS. */
-            out_rc = 0;
-          } else if (out_rc == 0) {
-            if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, asg_nbytes, ta) != 0)
-              out_rc = -1;
-          }
         }
       } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
         int32_t asg_n;
