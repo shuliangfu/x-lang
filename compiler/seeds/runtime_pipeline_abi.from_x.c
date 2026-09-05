@@ -29806,12 +29806,16 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
  * / `slice_let_idx_len` RUN=0). FIELD of TYPE_SLICE (`let s = h.xs`)
  * same fallthrough: data GREEN length garbage (`slice_let_field_len`
  * RUN=127). SAT emit_index of fat rows already dual-GP
- * (`slice_idx_rval` GREEN). G.7 complete leftover rest T of SAT
- * local t: FULL ARRAY_LIT + VAR wrap (INDEX-only leftover rest T
- * first-wins after redirect would hide SAT ARRAY_LIT / VAR wrap)
- * + INDEX TYPE_SLICE emit_expr + leftover rest unique
- * store_retval_pair + FIELD TYPE_SLICE leftover rest unique lvalue
- * qword-copy into the let slot. ARRAY_LIT skips remaining-wave bump
+ * (`slice_idx_rval` GREEN). DEREF of *[]T (`unsafe { let s: []i32
+ * = *p }`) also returned 0 then SAT store_rax only
+ * (`addrof_deref_let` SEGV 139). INDEX of DEREF `(*p)[1]` is
+ * rvalue_slice_once (GREEN). G.7 complete leftover rest T of SAT
+ * local t: FULL ARRAY_LIT + VAR wrap (INDEX/DEREF-only leftover
+ * rest T first-wins after redirect would hide SAT ARRAY_LIT /
+ * VAR wrap) + INDEX TYPE_SLICE emit_expr + leftover rest unique
+ * store_retval_pair + FIELD TYPE_SLICE leftover rest unique
+ * lvalue qword-copy + DEREF TYPE_SLICE emit_expr +
+ * store_retval_pair. ARRAY_LIT skips remaining-wave bump
  * @11427 (`#ifndef FROM_X` ABSENT; leftover rest unique durable is
  * COMMON BSS). Do not leftover rest T SAT try_index (arr0; FIELD
  * TYPE_ARRAY wrap uses leftover rest unique lvalue). Do not leftover
@@ -30028,6 +30032,30 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, in
       return 0;
     etk = pipeline_type_kind_ord_at(arena, etr);
     if (etk != 11)
+      return 0;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      return -1;
+    if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_type_ref,
+                                            slice_slot_off, ta, init_ref, ctx) != 0)
+      return -1;
+    return 1;
+  }
+  /* DEREF of *[]T (`unsafe { let s: []i32 = *p }`). leftover rest
+   * unique emit_deref TYPE_SLICE already dual-GP (deref_struct16
+   * rax=data rdx=length). SAT emit_block_inits SAT global T intra
+   * this helper returned 0 then SAT struct_let_init -2 then
+   * store_rax only (`addrof_deref_let` SEGV 139). INDEX of DEREF
+   * `(*p)[1]` is rvalue_slice_once (GREEN). Do not leftover rest T
+   * SAT emit_block_inits / struct_let_init (SAT global T / SAT
+   * local t TYPE_NAMED). Do not leftover rest unique T DEREF-only
+   * returning 0 (would hide ARRAY_LIT / VAR wrap / INDEX / FIELD).
+   * CALL TYPE_SLICE let-init stays SAT struct_let_init (already
+   * GREEN via leftover rest unique store_retval_pair). PLATFORM:
+   * WINDOWS leftover-PE. */
+  if (init_ko == 52) {
+    init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+    itk = (init_tr > 0) ? pipeline_type_kind_ord_at(arena, init_tr) : 0;
+    if (itk != 11)
       return 0;
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
       return -1;
