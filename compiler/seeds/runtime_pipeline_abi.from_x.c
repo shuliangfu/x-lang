@@ -30867,6 +30867,14 @@ extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
 extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty_ref,
                                                       int32_t src_ty_ref, int32_t ta);
 extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_block_region_with_arena_cap_ref(void *arena, int32_t block_ref, int32_t ri);
+extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern int32_t glue_wa_scope_alloc_off_c(void *ctx);
+extern void glue_wa_scope_push_c(int32_t wa_off);
+extern void glue_wa_scope_pop_c(void);
+extern int32_t glue_emit_with_arena_init_elf(void *arena, void *elf_ctx, void *ctx, int32_t wa_off, int32_t cap_ref,
+                                            int32_t ta);
+extern int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t ta);
 
 int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   int32_t slot_base;
@@ -30884,6 +30892,8 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t fi;
   int32_t rty;
   int32_t sty;
+  int32_t wa_cap;
+  int32_t wa_off;
   void *mod;
   uint8_t *ly;
   uint8_t name_buf[128];
@@ -30944,13 +30954,47 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
         return -1;
       continue;
     }
+    /* leftover rest WIN leftover body_sync k==6 with_arena
+     * (`with_arena { e }` / `{ with_arena { x = 1; } e }`).
+     * SAT leftover recurse skipped Arena64 init/deinit so leftover
+     * rest WIN leftover function-body with_arena and leftover rest
+     * WIN leftover product MATCH/IF dest extra via body_sync dest-
+     * region with_arena never planted heap_arena_init_c. leftover
+     * unique leftover_emit_match_arm_result dest-parks last
+     * independently (k==6 skip last; with_arena leftover unique next).
+     * G.7 complete: same SAT T glue_wa_scope_alloc_off +
+     * glue_emit_with_arena_init/deinit + push/pop as .x thin
+     * body_sync. backend_ensure_block_local_slots SAT T first so
+     * inner lets occupy next_offset before Arena64. Do not
+     * glue_asm_ctx_set_scope_block (SAT local t leftover unique
+     * remaining-wave #ifndef FROM_X). Do not leftover rest
+     * remaining-wave leftover unique leftover_emit_match_arm_result.
+     * Do not leftover rest T SAT emit_block_body_sync.
+     * Do not leftover unique remaining-wave glue_with_arena twins.
+     * PLATFORM: WINDOWS leftover-PE. */
     if (k == 6) {
       ncfg = ast_ast_block_num_regions(arena, block_ref);
       if (idx < 0 || idx >= ncfg)
         continue;
       inner = pipeline_block_region_body_ref(arena, block_ref, idx);
-      if (inner > 0 && pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, inner, ctx, ta) != 0)
-        return -1;
+      wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, idx);
+      if (inner > 0) {
+        backend_ensure_block_local_slots(ctx, arena, inner);
+        if (wa_cap > 0) {
+          wa_off = glue_wa_scope_alloc_off_c(ctx);
+          if (glue_emit_with_arena_init_elf(arena, elf_ctx, ctx, wa_off, wa_cap, ta) != 0)
+            return -1;
+          glue_wa_scope_push_c(wa_off);
+        }
+        if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, inner, ctx, ta) != 0)
+          return -1;
+        if (wa_cap > 0) {
+          er = glue_emit_with_arena_deinit_elf(elf_ctx, wa_off, ta);
+          glue_wa_scope_pop_c();
+          if (er != 0)
+            return -1;
+        }
+      }
       continue;
     }
     /* leftover rest WIN leftover body_sync k==7 labeled/goto
