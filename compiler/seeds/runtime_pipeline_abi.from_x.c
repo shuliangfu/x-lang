@@ -12908,9 +12908,12 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * SAT rec SAT emit_array_lit implicit dest, parked dest stays 0).
    * VAR arm: slot lea + qword-copy (match_arm_var16). CALL=48 /
    * METHOD=49 arm: SAT emit_call / emit_method then dual-GP store
-   * (≤16) or SysV sret into parked dest (>16). Do not leftover rest T
-   * SAT emit_call / emit_method / emit_assign / emit_array_lit. Do not
-   * leftover rest U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+   * (≤16) or SysV sret into parked dest (>16). TYPE_ARRAY CALL returns
+   * E* (8B), not NAMED payload — leftover_emit_call copies elems from
+   * E* into parked dest (arr_star_match_call RUN=246 stored the E*
+   * pointer as i32[2]). Do not leftover rest T SAT emit_call /
+   * emit_method / emit_assign / emit_array_lit. Do not leftover rest U
+   * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 46)
@@ -28393,6 +28396,10 @@ extern void *pipeline_asm_emit_module_ref_c(void);
  * (void*). leftover rest U the closed-block bodies; SAT / leftover standalone
  * provide T. Do not re-extern void* ndep (always-compiled struct* @2724). */
 extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
+extern int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et);
+extern int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr);
+extern int32_t pipeline_module_func_return_type_at(void *mod, int32_t func_idx);
 extern void *glue_emit_module_from_ctx(void *ctx);
 extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
@@ -28719,12 +28726,21 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
  * sret as leftover rest unique lvalue CALL/METHOD (lea dest / rdi /
  * sret_reg_shift). nbytes maxes park flag + named_layout +
  * call_return_byte_size (glue_type_size_simple NAMED can report 0/4).
- * SAT emit_call / emit_method / set_call_sret / set_call_expected_ret_ty
- * are SAT global T — leftover rest rec already UNDEFs them. Do not
- * leftover rest T SAT emit_call / emit_method. Do not leftover rest U
- * SAT local t copy_large (FROM_X body ABSENT). PLATFORM: WINDOWS
- * leftover-PE.
+ * TYPE_ARRAY CALL returns E* (glue_call_return_byte_size 8; SysV never
+ * sret the payload). Dual-GP / sret would store the pointer into dest
+ * (arr_star_match_call RUN=246). G.7 complete: SAT emit_call leaves E*
+ * then leftover rest unique copy_from_e_star into parked rbx (same as
+ * leftover rest unique store CALL dest-in-rbx). Do not leftover rest T
+ * SAT emit_call / emit_method. Do not leftover rest U SAT local t
+ * copy_large (FROM_X body ABSENT). PLATFORM: WINDOWS leftover-PE.
  */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+static int32_t win_leftover_fixed_array_copy_from_e_star(void *elf_ctx, int32_t spill_off,
+                                                        int32_t n_arr, int32_t esz,
+                                                        int32_t sret_direct, int32_t dest_in_rbx,
+                                                        int32_t field_mag, int32_t foff, int32_t ta);
+#endif
 static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
                                                  int32_t ta) {
   int32_t nbytes;
@@ -28778,6 +28794,77 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
     nbytes = named_sz;
   if (nbytes <= 0)
     nbytes = 8;
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+  /* TYPE_ARRAY CALL returns E* (8B), never NAMED sret / dual-GP payload.
+   * glue_call_return_byte_size reports 8 so nbytes≤16 stored rax=E* into
+   * dest (arr_star_match_call RUN=246). MATCH arm CALL may lack expr
+   * resolved_type (MEGA ASSIGN rhs) — resolve the callee return type.
+   * SAT emit_call leaves E*; leftover rest unique copy_from_e_star
+   * writes elems into parked rbx. Do not leftover rest T SAT emit_call.
+   * PLATFORM: WINDOWS leftover-PE. */
+  {
+    int32_t arr_ty;
+    int32_t arr_k;
+    arr_ty = ret_ty;
+    arr_k = (arr_ty > 0) ? pipeline_type_kind_ord_at(arena, arr_ty) : 0;
+    if (arr_k != 10) {
+      void *rmod;
+      int32_t rfi;
+      int32_t rdep;
+      rmod = 0;
+      rfi = -1;
+      rdep = -1;
+      if (glue_asm_resolve_call_target_module_c(arena, call_ref, &rmod, &rfi, &rdep) == 0 &&
+          rmod && rfi >= 0) {
+        arr_ty = pipeline_module_func_return_type_at(rmod, rfi);
+        arr_k = (arr_ty > 0) ? pipeline_type_kind_ord_at(arena, arr_ty) : 0;
+      }
+    }
+    if (arr_k == 10) {
+      int32_t n_arr;
+      int32_t esz;
+      int32_t elem_tr;
+      int32_t *ly_next;
+      int32_t next_off;
+      int32_t spill_off;
+      n_arr = pipeline_type_array_size_at(arena, arr_ty);
+      elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+      esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+      if (esz <= 0)
+        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, arr_ty);
+      if (esz <= 0)
+        esz = 4;
+      if (n_arr <= 0 && esz > 0 && g_leftover_match_dest_nbytes > 0)
+        n_arr = g_leftover_match_dest_nbytes / esz;
+      if (n_arr <= 0 || esz <= 0 || n_arr > 64)
+        return -1;
+      if (n_arr * esz > 4096)
+        return -1;
+      if (ko == 49)
+        rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+      else
+        rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+      if (rc != 0)
+        return -1;
+      ly_next = (int32_t *)((uint8_t *)ctx + 4);
+      next_off = *ly_next;
+      if (next_off + 16 < next_off)
+        return -1;
+      next_off = next_off + 16;
+      *ly_next = next_off;
+      spill_off = next_off;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return win_leftover_fixed_array_copy_from_e_star(elf_ctx, spill_off, n_arr, esz, 0, 1, 0, 0,
+                                                      ta);
+    }
+  }
+#endif
   if (nbytes > 4096)
     return -1;
   /* SAT emit_call / emit_method are SAT global T. leftover rest rec
