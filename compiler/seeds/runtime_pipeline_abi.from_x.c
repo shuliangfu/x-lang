@@ -28804,6 +28804,78 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           else if (out_rc != 0)
             (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
         }
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 && asg_rko == 43) {
+        int32_t asg_nbytes;
+        int32_t asg_copy;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx MATCH `*p = match 1 { 1 => P {..}; _ => .. }`.
+         * SAT emit_assign DEREF dest emit MATCH clobbers rbx then 4B store
+         * (match_star / match_star_dy SEGV 139). VAR dest MATCH is GREEN
+         * (match_asg rbp slot). leftover rest unique emit_match first-wins;
+         * 8B arm STRUCT_LIT leaves payload in rax. G.7: park dest CPU stack,
+         * emit_match, store rax (≤8B) or qword-copy from rax E* (>8B).
+         * Do not leftover rest T SAT emit_assign / emit_match SAT.
+         * Match arms use `;` not `,` (parser). PLATFORM: WINDOWS leftover-PE. */
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (pipeline_asm_emit_match_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          asg_mod = glue_emit_module_from_ctx(ctx);
+          if (!asg_mod)
+            asg_mod = pipeline_asm_emit_module_ref_c();
+          asg_nbytes = 0;
+          if (asg_mod)
+            asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+          if (asg_nbytes <= 0)
+            asg_nbytes = 8;
+          if (asg_nbytes > 4096)
+            out_rc = -1;
+          else if (asg_nbytes <= 8) {
+            if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, asg_nbytes, ta) != 0)
+              out_rc = -1;
+            else
+              out_rc = 0;
+          } else {
+            asg_copy = 0;
+            out_rc = 0;
+            while (asg_copy + 8 <= asg_nbytes) {
+              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                out_rc = -1;
+                break;
+              }
+              if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+                out_rc = -1;
+                break;
+              }
+              if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, asg_copy, 8, ta) != 0) {
+                out_rc = -1;
+                break;
+              }
+              if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                out_rc = -1;
+                break;
+              }
+              if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) {
+                out_rc = -1;
+                break;
+              }
+              asg_copy = asg_copy + 8;
+            }
+            if (out_rc == 0 && asg_copy < asg_nbytes) {
+              if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0)
+                out_rc = -1;
+              else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, asg_copy, 4, ta) != 0)
+                out_rc = -1;
+            }
+          }
+        }
       } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
         int32_t asg_n;
         asg_n = pipeline_expr_array_lit_num_elems_at(arena, asg_right);
