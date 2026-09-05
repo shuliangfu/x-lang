@@ -34403,6 +34403,36 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       return 0;
     }
   }
+  /* INDEX=47 TYPE_ARRAY: SAT emit_index dest-stamps rtk==10 and
+   * leaves the row E* (SysV always-E*). leftover-PE 8B INTEGER
+   * home wants payload — rec leave-E* then SAT INDEX
+   * lea-home-as-payload (`take(rows[1])` of [2][2]i32 RUN=229).
+   * Pack only when WAVE278 INDEX resolved is TYPE_ARRAY (that is
+   * the leave-E* gate). dest pty GET would force packing when
+   * dest does not stamp: rec then load_64 of the 8B row
+   * (index_elem_byte_sz of nested ARRAY) would extra-deref
+   * payload bits. >8B leftover-PE home is dest E* — leave-E*
+   * is already correct. Rec then <=8B load_64 (CALL/DEREF/
+   * ARRAY_LIT twin). nbytes from leftover rest
+   * glue_fixed_array_total_bytes (already T @15009; do not
+   * dual-def). Do not leftover rest T SAT try_index (arr0).
+   * Do not leftover rest remaining-wave scaled via
+   * !FROM_X || WIN. TYPE_SLICE INDEX as fat* wrap is a
+   * different knife (POSIX @79373). PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 47) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 10) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
+    }
+  }
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE for_call_args unique */
