@@ -30041,6 +30041,212 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, in
 #endif /* FROM_X && WIN leftover rest slice_from_array */
 
 /*
+ * leftover rest WIN leftover rvalue_slice_once unique.
+ * SAT glue_try_index_rvalue_slice_once_elf_c is SAT local t
+ * (remaining-wave @22106 `#ifndef FROM_X` leftover rest FROM_X ABSENT).
+ * SAT egg predates wave773 DEREF=52: INDEX of DEREF of *[]i32
+ * (`(*p)[1]` after `let p: *[]i32 = &rows[1]`) falls through SAT
+ * length_to_rbx non-VAR `add 8; load 64` on already-peeled data
+ * (`*(data+8)` as length) → 32-bit cmp panics 127 (`addrof_row`).
+ * ADDR_OF INDEX lea of the fat-row is already correct (`addrof_row0`
+ * [0] GREEN; `addrof_row_len` GREEN). POSIX `.x` @45119 and
+ * remaining-wave C already treat DEREF=52 as dual-GP once-eval.
+ * G.7 complete leftover rest T of SAT local t FULL CALL/METHOD/INDEX
+ * /DEREF (DEREF-only leftover rest T first-wins after redirect would
+ * hide SAT `take()[1]` once-eval). Inline lit + scale (do not UNDEF
+ * remaining-wave bump @11427 / SAT local t scaled / static
+ * wave147_expr_lit). Do not leftover rest T SAT emit_index /
+ * length_to_rbx / try_index (SAT emit_index is SAT global T; SAT
+ * length_to_rbx remaining-wave ABSENT). Do not leftover rest
+ * remaining-wave via !FROM_X || WIN. Redirect SAT
+ * glue_emit_index_eff_addr_scaled intra (already EMIT_SCAN).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_valid_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(void *arena, int32_t call_expr_ref);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern void glue_align_next_offset(void *ctx);
+extern int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                           int32_t ta);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_cmp_rax_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cmp_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jge_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global,
+                                     int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale1_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale4_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale8_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mul_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+
+static int32_t win_leftover_rvalue_slice_lit_i32(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 0 || ko == 2) {
+    if (out_imm)
+      *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
+    return 1;
+  }
+  if (pipeline_expr_const_folded_valid_at(arena, expr_ref) != 0 && ko != 3) {
+    if (out_imm)
+      *out_imm = pipeline_expr_const_folded_val_at(arena, expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+static int32_t win_leftover_index_rax_plus_rbx_scaled(void *elf_ctx, int32_t esz, int32_t ta) {
+  if (esz == 1)
+    return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
+  if (esz == 4)
+    return backend_enc_rax_plus_rbx_scale4_arch(elf_ctx, ta);
+  if (esz == 8)
+    return backend_enc_rax_plus_rbx_scale8_arch(elf_ctx, ta);
+  if (backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
+    return -1;
+  return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta);
+}
+
+int32_t glue_try_index_rvalue_slice_once_elf_c(void *arena, void *elf_ctx, int32_t ix_ref,
+                                              int32_t base_ref, int32_t idx_ref, void *ctx, int32_t ta,
+                                              int32_t esz) {
+  int32_t base_ko;
+  int32_t bty;
+  int32_t dual_gp;
+  int32_t home;
+  int32_t base_off;
+  int32_t *ly_next;
+  int32_t lit_idx;
+  int32_t ok_lo_len;
+  int32_t ok_hi_len;
+  uint8_t ok_lo[128];
+  uint8_t ok_hi[128];
+  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
+    return -2;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  /* CALL=48 METHOD=49 INDEX=47 DEREF=52 of TYPE_SLICE. SAT egg misses
+   * DEREF=52 so leftover-PE INDEX of *[]i32 hits length_to_rbx
+   * *(data+8). PLATFORM: WINDOWS leftover-PE. */
+  if (base_ko != 48 && base_ko != 49 && base_ko != 47 && base_ko != 52)
+    return -2;
+  bty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (bty <= 0 || pipeline_type_kind_ord_at(arena, bty) != 11)
+    return -2;
+  dual_gp = 0;
+  if (base_ko == 49 || base_ko == 47 || base_ko == 52)
+    dual_gp = 1;
+  else if (base_ko == 48 && pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref) == 0)
+    dual_gp = 1;
+  /* LP64 AsmFuncCtx.next_offset@4. Do not UNDEF remaining-wave
+   * glue_align_next_offset @11414 (`#ifndef FROM_X` ABSENT) — leftover
+   * rest unique T @38470 is the same leftover rest .o.
+   * PLATFORM: WINDOWS leftover-PE. */
+  ly_next = (int32_t *)((uint8_t *)ctx + 4);
+  base_off = *ly_next;
+  if ((base_off % 8) != 0)
+    base_off = base_off + (8 - (base_off % 8));
+  home = base_off + 16;
+  *ly_next = (ta == 1) ? (home + 16) : (home + 8);
+  glue_align_next_offset(ctx);
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+    return -1;
+  if (dual_gp != 0) {
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+      return -1;
+  } else {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      return -1;
+  }
+  /* Always emit bounds from materialized length. Do not UNDEF SAT
+   * local t pipeline_expr_index_proven_in_bounds (skip is optional).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (win_leftover_rvalue_slice_lit_i32(arena, idx_ref, &lit_idx) && lit_idx < 0)
+    return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
+  ok_lo_len = pipeline_asm_emit_next_label_c(ctx, ok_lo, 64);
+  ok_hi_len = pipeline_asm_emit_next_label_c(ctx, ok_hi, 64);
+  if (ok_lo_len <= 0 || ok_hi_len <= 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jge_arch(elf_ctx, ok_lo, ok_lo_len, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, ok_lo, ok_lo_len, 0, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta) != 0)
+    return -1;
+  if (backend_enc_add_imm_to_rbx_arch(elf_ctx, -1, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jge_arch(elf_ctx, ok_hi, ok_hi_len, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, ok_hi, ok_hi_len, 0, ta) != 0)
+    return -1;
+  if (win_leftover_rvalue_slice_lit_i32(arena, idx_ref, &lit_idx)) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+      return -1;
+    if (lit_idx != 0 && esz != 0) {
+      int32_t off = lit_idx * esz;
+      if (off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+    return -1;
+  return win_leftover_index_rax_plus_rbx_scaled(elf_ctx, esz, ta);
+}
+#endif /* FROM_X && WIN leftover rest rvalue_slice_once */
+
+/*
  * leftover rest WIN leftover store_fixed_array_field unique.
  * SAT glue_struct_lit_store_fixed_array_field_elf_c is SAT local t
  * (remaining-wave @21173 `#ifndef FROM_X` leftover rest FROM_X ABSENT).

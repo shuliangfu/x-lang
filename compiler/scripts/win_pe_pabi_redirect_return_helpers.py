@@ -255,6 +255,17 @@ EMIT_REDIRECT_SYMS = (
     # Do not leftover rest T SAT emit_block_inits / try_index.
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "glue_emit_slice_from_array_let_init_elf_c",
+    # ADDR_OF INDEX of TYPE_ARRAY of TYPE_SLICE then INDEX of DEREF
+    # `(*p)[1]`: SAT eff_addr_scaled intra SAT rvalue_slice_once
+    # (local t, SAT egg misses DEREF=52) falls through SAT
+    # length_to_rbx *(data+8) → panic 127. leftover rest unique T
+    # FULL CALL/METHOD/INDEX/DEREF first-wins. SAT rvalue_slice_once
+    # is SAT local t — not leftover rest T SAT global T. PE
+    # first-wins does not rewrite SAT intra. G.7 complete of this
+    # table. Do not leftover rest T SAT emit_index / length_to_rbx /
+    # try_index. PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E
+    # unchanged.
+    "glue_try_index_rvalue_slice_once_elf_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
@@ -286,6 +297,12 @@ EMIT_SCAN_FUNCS = (
     ("glue_struct_lit_store_fixed_array_field_elf_c", 0x2000),
     ("pipeline_asm_emit_index_elf_c", 0x1000),
     ("glue_emit_index_eff_addr_scaled_elf_c", 0x2000),
+    # ADDR_OF INDEX of [2][]i32 then (*p)[1]: SAT emit_index intra SAT
+    # rvalue_slice_once (egg misses DEREF=52). Scan SAT local t so PE
+    # first-wins leftover rest unique T. Do not leftover rest T SAT
+    # emit_index / try_index / length_to_rbx.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    ("glue_try_index_rvalue_slice_once_elf_c", 0x800),
     # INDEX TYPE_SLICE formal bounds: SAT emit_index intra SAT
     # length_to_rbx intra SAT needs_ptr_load (local t return 0) treats
     # 8B fat* home as 16B dual-GP so length loads saved rbx
