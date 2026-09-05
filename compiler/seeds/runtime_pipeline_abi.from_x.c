@@ -29791,9 +29791,13 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
  * redirect would hide SAT ARRAY_LIT/VAR/FIELD/CALL/INDEX and break
  * arr0/arr_var_let/arr_call_let. leftover rest unique T of the thin
  * wrapper must not UNDEF SAT local t store_fixed_array_field (final gcc
- * keeps U). ARRAY_LIT non-empty uses emit_expr (SAT emit_array_lit is
- * SAT global T; leftover rest rec already U) then the same E* copy —
- * do not UNDEF SAT local t vector_let_init. esz>8 copies 8B chunks;
+ * keeps U). ARRAY_LIT of scalar/TYPE_ARRAY elems uses emit_expr (SAT
+ * emit_array_lit is SAT global T; leftover rest rec already U) then
+ * the same E* copy. ARRAY_LIT of TYPE_SLICE elems (`[2][]i32`) must
+ * not rec SAT emit_array_lit: SAT flattens to i32 stride 4 while
+ * INDEX/lvalue expects 16B fat rows. G.7 complete: emit each elem as
+ * TYPE_SLICE (rax+rdx) into dest+ai*16. Do not leftover rest T SAT
+ * emit_array_lit. do not UNDEF SAT local t vector_let_init. esz>8 copies 8B chunks;
  * do not UNDEF SAT local t bulk_mem_copy. Do not leftover rest T SAT
  * emit_block_inits (SAT global T). Do not leftover rest remaining-wave
  * via !FROM_X || WIN. Do not leftover rest T SAT try_index. Do not
@@ -29808,7 +29812,11 @@ extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t ai);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_push_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et);
 extern int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr);
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
@@ -30028,6 +30036,58 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
     src_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
     if (src_off < 0)
       return -1;
+  } else if (iko == 46 && elem_tr > 0 &&
+             pipeline_type_kind_ord_at(arena, elem_tr) == 11) {
+    /* TYPE_ARRAY of TYPE_SLICE. SAT emit_array_lit flattens to i32
+     * payload. Emit each elem as TYPE_SLICE fat (rax=data, rdx=n;
+     * leftover rest rec ko==46 wraps n_arr). Park dest CPU stack
+     * (emit_expr clobbers rbx). Do not leftover rest T SAT
+     * emit_array_lit. PLATFORM: WINDOWS leftover-PE. */
+    int32_t eref;
+    if (dest_in_rbx == 0) {
+      if (sret_direct == 0) {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, field_mag, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, pipeline_asm_emit_ctx_sret_home_off_get(),
+                                             ta) != 0)
+          return -1;
+        if (foff != 0) {
+          if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+            return -1;
+          if (backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0)
+            return -1;
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
+      }
+    }
+    for (ai = 0; ai < n_arr; ai++) {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      if (eref <= 0)
+        return -1;
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, eref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+        return -1;
+      if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+        return -1;
+      if (ai + 1 < n_arr) {
+        if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 16, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+    }
+    return 0;
   } else if (iko == 48 || iko == 49 || iko == 47 || iko == 52 || iko == 46) {
     /* CALL/METHOD/INDEX/DEREF/ARRAY_LIT: emit leaves E*. DEREF=52 of *[N]T
      * is leftover rest unique emit_deref trk==10 leave-ptr. ARRAY_LIT recs
