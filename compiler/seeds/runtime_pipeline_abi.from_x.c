@@ -12902,16 +12902,17 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
   rko = pipeline_expr_kind_ord_at(arena, result_ref);
   /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). VAR arm:
-   * slot lea + qword-copy (match_arm_var16). CALL arm: thin if_arm SAT
-   * rec leaves dest 0 (match_arm_call16 RUN=0). G.7 complete this
-   * helper — SAT emit_call then dual-GP store parked dest. Do not
-   * leftover rest T SAT emit_call / emit_assign. >16B sret is a
+   * slot lea + qword-copy (match_arm_var16). CALL arm: SAT emit_call
+   * then dual-GP store (≤16) or SysV sret into parked dest (>16;
+   * match_arm_call24 SEGV 139 when thin if_arm SAT implicit dest
+   * overlaps p). Do not leftover rest T SAT emit_call / emit_assign.
+   * Do not leftover rest U SAT local t copy_large. METHOD=49 is a
    * neighbor. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 3)
     return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
-  if (rko == 48 && g_leftover_match_dest_nbytes <= 16)
+  if (rko == 48)
     return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
@@ -28328,6 +28329,9 @@ extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32
 extern int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_method_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
+extern void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t str_expr_ref, int32_t ta);
 /* Stage10 10.2.1: EXPR_ASM (60) template emit (call_dispatch authority). */
 extern int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28641,25 +28645,53 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
 }
 
 /*
- * DEST_IN_RBX MATCH arm CALL: SAT emit_call then store dual-GP into
- * parked dest. thin if_arm SAT rec leaves dest 0 (match_arm_call16
- * RUN=0). Same rax@0 rdx@8 as TYPE_SLICE dest-in-rbx CALL. 8B stores
- * rax only. Do not leftover rest T SAT emit_call / U SAT local t
- * copy_large. >16B sret is a neighbor. PLATFORM: WINDOWS leftover-PE.
+ * DEST_IN_RBX MATCH arm CALL: SAT emit_call then store into parked dest.
+ * ≤16B: dual-GP rax@0 rdx@8 (match_arm_call16). >16B: SysV sret hidden
+ * dest is parked rbx (match_arm_call24 thin if_arm SAT implicit dest
+ * SEGV 139). Same dest-in-rbx sret as leftover rest unique lvalue CALL
+ * (lea dest / rdi / sret_reg_shift). SAT emit_call / set_call_sret /
+ * set_call_expected_ret_ty are SAT global T — leftover rest rec already
+ * UNDEFs emit_call. Do not leftover rest T SAT emit_call. Do not
+ * leftover rest U SAT local t copy_large (FROM_X body ABSENT).
+ * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
                                                  int32_t ta) {
   int32_t nbytes;
   int32_t lo_sz;
+  int32_t ret_ty;
+  int32_t rc;
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return -1;
   nbytes = g_leftover_match_dest_nbytes;
   if (nbytes <= 0)
     nbytes = 8;
-  if (nbytes > 16)
+  if (nbytes > 4096)
     return -1;
   /* SAT emit_call is SAT global T. leftover rest rec ko==48 already
    * UNDEF-calls it. Do not leftover rest T SAT emit_call. */
+  if (nbytes > 16) {
+    /* Restore parked dest into rbx (CPU stack), pass as SysV sret rdi.
+     * SAT set_call_sret_reg_shift / set_call_expected_ret_ty are SAT
+     * global T (leftover rest FROM_X body ABSENT). SAT emit_call_args
+     * reads the same SAT BSS. ta==0 on leftover-PE.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
+    pipeline_asm_set_call_expected_ret_ty_c(ret_ty > 0 ? ret_ty : 0);
+    pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+    rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+    pipeline_asm_set_call_expected_ret_ty_c(0);
+    return rc != 0 ? -1 : 0;
+  }
   if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
     return -1;
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
