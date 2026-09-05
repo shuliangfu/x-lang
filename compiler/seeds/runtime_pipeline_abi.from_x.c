@@ -29809,12 +29809,15 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
  * (`slice_idx_rval` GREEN). DEREF of *[]T (`unsafe { let s: []i32
  * = *p }`) also returned 0 then SAT store_rax only
  * (`addrof_deref_let` SEGV 139). INDEX of DEREF `(*p)[1]` is
- * rvalue_slice_once (GREEN). G.7 complete leftover rest T of SAT
- * local t: FULL ARRAY_LIT + VAR wrap (INDEX/DEREF-only leftover
- * rest T first-wins after redirect would hide SAT ARRAY_LIT /
- * VAR wrap) + INDEX TYPE_SLICE emit_expr + leftover rest unique
- * store_retval_pair + FIELD TYPE_SLICE leftover rest unique
- * lvalue qword-copy + DEREF TYPE_SLICE emit_expr +
+ * rvalue_slice_once (GREEN). VAR of TYPE_SLICE (`let s: []i32 = xs`)
+ * TYPE_ARRAY wrap arr_sz<=0 returns 0 then store_rax only
+ * (`slice_var_let` data GREEN / `slice_var_let_len` RUN=127). G.7
+ * complete leftover rest T of SAT local t: FULL ARRAY_LIT + VAR
+ * TYPE_ARRAY wrap + VAR TYPE_SLICE fat copy (INDEX/DEREF/VAR-SLICE
+ * -only leftover rest T first-wins after redirect would hide SAT
+ * ARRAY_LIT / TYPE_ARRAY wrap) + INDEX TYPE_SLICE emit_expr +
+ * leftover rest unique store_retval_pair + FIELD TYPE_SLICE leftover
+ * rest unique lvalue qword-copy + DEREF TYPE_SLICE emit_expr +
  * store_retval_pair. ARRAY_LIT skips remaining-wave bump
  * @11427 (`#ifndef FROM_X` ABSENT; leftover rest unique durable is
  * COMMON BSS). Do not leftover rest T SAT try_index (arr0; FIELD
@@ -29857,6 +29860,9 @@ extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t expr_ref);
 extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                     int32_t off, void *ctx, int32_t ta);
+extern int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_ref, int32_t stack_off,
+                                                       void *ctx);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern void *glue_emit_module_from_ctx(void *ctx);
 
 int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, int32_t block_ref,
@@ -29921,9 +29927,10 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, in
       return -1;
     return 1;
   }
-  /* VAR of prior TYPE_ARRAY: lea payload, length=N. Do not leftover
-   * rest T SAT try_index / remaining-wave modlet. PLATFORM: WINDOWS
-   * leftover-PE. */
+  /* VAR of prior TYPE_ARRAY: lea payload, length=N. VAR of TYPE_SLICE
+   * (`let s: []i32 = xs`): copy fat (local win_glue polarity; formal
+   * fat* C-order). Do not leftover rest T SAT try_index / remaining-wave
+   * modlet. PLATFORM: WINDOWS leftover-PE. */
   if (init_ko == 3) {
     vlen = pipeline_expr_var_name_len(arena, init_ref);
     if (vlen <= 0 || vlen > 127)
@@ -29957,8 +29964,53 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, in
       if (init_tr > 0 && pipeline_type_kind_ord_at(arena, init_tr) == 10)
         arr_sz = pipeline_type_array_size_at(arena, init_tr);
     }
-    if (arr_sz <= 0)
-      return 0;
+    if (arr_sz <= 0) {
+      /* TYPE_SLICE VAR: dest-SLICE stamp hides N so TYPE_ARRAY wrap
+       * misses. SAT emit_block_inits then store_rax only (data GREEN,
+       * length garbage). leftover rest rec ko==3 falls to SAT slow
+       * (rax=data only, not dual-GP) — do not emit_expr + store_retval
+       * pair. Local 16B fat uses win_glue polarity (x86 home-8); FIELD
+       * -style [home+8] would load the next slot toward rbp. Formal
+       * TYPE_SLICE 8B home holds fat* (needs=1); pointed-to fat is
+       * C-order data+8. Do not leftover rest T SAT emit_block_inits /
+       * leftover rest unique T VAR-SLICE-only after REDIRECT (would
+       * hide ARRAY_LIT / TYPE_ARRAY wrap). PLATFORM: WINDOWS leftover-PE. */
+      init_tr = pipeline_expr_resolved_type_ref(arena, init_ref);
+      itk = (init_tr > 0) ? pipeline_type_kind_ord_at(arena, init_tr) : 0;
+      if (itk != 11)
+        return 0;
+      arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+      if (arr_off < 0)
+        return -1;
+      if (glue_local_var_slot_needs_ptr_load_elf_c(arena, init_ref, arr_off, ctx) != 0) {
+        if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, init_ref, arr_off, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta) != 0)
+          return -1;
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+          return -1;
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, half2, ta) != 0)
+          return -1;
+        return 1;
+      }
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, arr_off, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(arr_off, ta), ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, half2, ta) != 0)
+        return -1;
+      return 1;
+    }
     arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
     if (arr_off < 0)
       return -1;

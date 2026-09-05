@@ -244,14 +244,16 @@ EMIT_REDIRECT_SYMS = (
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "glue_emit_fixed_array_type_let_init_elf_c",
     "glue_struct_lit_store_fixed_array_field_elf_c",
-    # TYPE_SLICE let-init INDEX / DEREF: SAT emit_block_inits intra
-    # SAT slice_from_array (local t) ARRAY_LIT/VAR wrap already
-    # GREEN; INDEX of TYPE_ARRAY of TYPE_SLICE and DEREF of *[]T
-    # returned 0 then store_rax only (`slice_let_idx` /
-    # `addrof_deref_let` SEGV 139). leftover rest unique T
+    # TYPE_SLICE let-init INDEX / DEREF / VAR: SAT emit_block_inits
+    # intra SAT slice_from_array (local t) ARRAY_LIT/VAR TYPE_ARRAY
+    # wrap already GREEN; INDEX of TYPE_ARRAY of TYPE_SLICE, DEREF
+    # of *[]T, and VAR of TYPE_SLICE returned 0 then store_rax only
+    # (`slice_let_idx` / `addrof_deref_let` SEGV 139 /
+    # `slice_var_let_len` RUN=127). leftover rest unique T
     # first-wins FULL body + INDEX TYPE_SLICE emit +
     # store_retval_pair + FIELD TYPE_SLICE lvalue qword-copy +
-    # DEREF TYPE_SLICE emit + store_retval_pair. SAT
+    # DEREF TYPE_SLICE emit + store_retval_pair + VAR TYPE_SLICE
+    # fat copy (local win_glue / formal fat* C-order). SAT
     # slice_from_array is SAT local t — not leftover rest T SAT
     # global T. PE first-wins does not rewrite SAT intra. G.7
     # complete of this table. Do not leftover rest T SAT
