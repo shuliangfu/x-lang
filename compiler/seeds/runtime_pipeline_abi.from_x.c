@@ -28624,8 +28624,23 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * (same leftover rest rec sret copy). A frame spill at next_offset
      * overlaps SAT implicit dest (named_star_lit dump: SAT wrote x=3
      * over the dest pointer at rbp-0x38 → copy through 3 → SEGV 139).
+     *
+     * TYPE_SLICE dest-in-rbx VAR `*p = xs` stays SAT emit_assign
+     * (slice_star_asg GREEN via SAT local t memcpy data half). TYPE_SLICE
+     * dest-in-rbx ARRAY_LIT `*p = [3, 4]` is a different produce: SAT
+     * emit_assign DEREF dest SAT local t struct_let_init -2 then emit
+     * ARRAY_LIT clobbers rbx then 4B store through garbage rbx
+     * (slice_star_lit SEGV 139). Remaining-wave emit_assign VAR TYPE_SLICE
+     * ARRAY_LIT @17549 already stores data+n_arr to rbp[off] but FROM_X
+     * omits remaining-wave (SAT emit_assign is SAT global T). G.7 complete
+     * leftover rest unique rec ASSIGN: park dest CPU stack, SAT
+     * emit_array_lit (SAT global T; leftover rest rec ko==46 already
+     * UNDEFs it), store rax data to [rbx+0] and n_arr to [rbx+8].
+     * leftover rest remaining-wave bump @11427 is #ifndef FROM_X ABSENT
+     * (do not leftover rest UNDEF it). SAT emit_array_lit owns dest.
      * Do not leftover rest T SAT emit_assign. Do not leftover rest
-     * remaining-wave fields_elf via !FROM_X || WIN.
+     * remaining-wave emit_assign / fields_elf via !FROM_X || WIN. Do not
+     * call glue_emit_slice_from_array_let_init(-3) (rbp-3).
      * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
     int32_t asg_left = pipeline_expr_binop_left_ref_at(arena, expr_ref);
     int32_t asg_right = pipeline_expr_binop_right_ref_at(arena, expr_ref);
@@ -28639,7 +28654,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     if (asg_lko == 52 && asg_right > 0) {
       asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
       asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
-      if (asg_dtk != 10 && asg_dtk != 8) {
+      if (asg_dtk != 10 && asg_dtk != 8 && asg_dtk != 11) {
         asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
         if (asg_dop > 0) {
           asg_dop_tr = pipeline_expr_resolved_type_ref(arena, asg_dop);
@@ -28728,6 +28743,29 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
             }
           }
         }
+      } else if (asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
+        int32_t asg_n;
+        asg_n = pipeline_expr_array_lit_num_elems_at(arena, asg_right);
+        if (asg_n < 0)
+          asg_n = 0;
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, asg_n, 0, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+          out_rc = -1;
+        else
+          out_rc = 0;
       } else
         out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
     } else
