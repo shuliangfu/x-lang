@@ -174,6 +174,7 @@
   - ✅ TYPE_NAMED dest-in-rbx MATCH arm METHOD leftover unique resolve associated Type.method()＋leftover_emit_call stamp 后 SAT emit_method＠`876cee300`
   - ✅ TYPE_ARRAY dest-in-rbx MATCH leftover rest unique store MATCH park dest＋leftover rest unique emit_match dest-parked；ARRAY_LIT 臂 leftover_emit_array_lit＠`4a695017c`
   - ✅ CALL.field 32B `mk().h` leftover rest unique field_access_fast >16B SysV sret rdi＋callee sret STRUCT_LIT DEST_IN_RBX（探针-only＠`4a695017c`；代码 `f8fa30de5`）
+  - ✅ VAR dest MATCH arm CALL `d = match { 1 => mk(); }` leftover rest unique rec ASSIGN TYPE_NAMED MATCH 扩 VAR dest park dest＋emit_match dest-parked＠`f0bc07f51`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
