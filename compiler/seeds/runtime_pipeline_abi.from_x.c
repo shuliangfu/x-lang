@@ -28372,6 +28372,11 @@ extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
 extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+extern int32_t pipeline_expr_call_resolved_func_index_at(void *a, int32_t er);
+extern void pipeline_expr_apply_call_resolve(void *a, int32_t er, int32_t dep_ix, int32_t func_ix);
+extern int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
+                                                    void **mod_out, int32_t *func_ix_out,
+                                                    int32_t *dep_ix_out);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t glue_i32_to_f32_bits(int32_t v);
 extern int32_t glue_i64_to_f32_bits(int64_t v);
@@ -28674,6 +28679,27 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
   if (!arena || !elf_ctx || !ctx || call_ref <= 0)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  /* MATCH arm METHOD=49: MEGA ASSIGN rhs leaves the arm unresolved so SAT
+   * emit_method has_recv=1 recs type-name VAR `S` (match_arm_method32
+   * CG002; dump rec VAR after subject INT; ASSIGN `*p = S.mk()` stamps
+   * and GREEN). G.7 complete leftover unique resolve associated
+   * Type.method() then stamp so SAT emit_method nparams==nargs has_recv=0.
+   * Do not leftover rest T SAT emit_method. PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 49) {
+    int32_t r_fn;
+    int32_t rfi;
+    int32_t rdep;
+    void *rmod;
+    r_fn = pipeline_expr_call_resolved_func_index_at(arena, call_ref);
+    if (r_fn < 0) {
+      rmod = 0;
+      rfi = -1;
+      rdep = -1;
+      if (glue_asm_resolve_call_target_module_c(arena, call_ref, &rmod, &rfi, &rdep) == 0 &&
+          rfi >= 0)
+        pipeline_expr_apply_call_resolve(arena, call_ref, rdep, rfi);
+    }
+  }
   nbytes = g_leftover_match_dest_nbytes;
   ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
   if (ret_ty > 0) {
@@ -37399,6 +37425,14 @@ extern int32_t pipeline_typeck_find_func_return_type_in_module_c(void *mod, void
                                                                int32_t callee_expr_ref,
                                                                int32_t from_dep_index, void *ctx,
                                                                int32_t *func_index_out);
+extern int32_t pipeline_expr_method_call_num_args_at(void *a, int32_t er);
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_func_num_params_at(void *m, int32_t fi);
+extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
+extern int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
 
 /**
  * Resolve a CALL / METHOD_CALL expression to (module, func_index, dep_ix).
@@ -37531,6 +37565,88 @@ int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref
               }
             }
             j = j + 1;
+          }
+        }
+      }
+    }
+    /* Associated Type.method(): VAR base is a struct-layout name
+     * (`S.mk()` / `S.id(7)`). typeck stamps ASSIGN `*p = S.mk()`; MATCH
+     * arm METHOD is typeck'd via MEGA ASSIGN rhs and left unresolved —
+     * SAT emit_method has_recv=1 recs type-name VAR (match_arm_method32
+     * CG002 undefined done_lbl; dump rec VAR after subject INT). G.7
+     * complete leftover unique resolve: same-module func nparams ==
+     * nargs (no implicit self). Twin typeck_check_expr_method_call
+     * step 6. Prefer return TYPE_NAMED spelling the layout name.
+     * Do not leftover rest T SAT emit_method. leftover_emit_call
+     * stamps this resolve before SAT emit_method.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (base_ref > 0 && field_len > 0 && field_len <= 63) {
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      if (base_ko == kind_var) {
+        base_len = pipeline_expr_var_name_len(arena, base_ref);
+        if (base_len > 0 && base_len <= 63) {
+          int32_t layout_hit;
+          int32_t nargs_m;
+          int32_t nf_m;
+          int32_t uj;
+          int32_t best;
+          int32_t best_score;
+          pipeline_expr_var_name_into(arena, base_ref, base_name);
+          pipeline_expr_method_call_name_into(arena, call_expr_ref, field_name);
+          layout_hit = glue_struct_layout_index_by_type_name_c(mod, base_name, base_len);
+          if (layout_hit >= 0) {
+            nargs_m = pipeline_expr_method_call_num_args_at(arena, call_expr_ref);
+            if (nargs_m < 0)
+              nargs_m = 0;
+            nf_m = pipeline_module_num_funcs(mod);
+            best = -1;
+            best_score = -1;
+            uj = 0;
+            while (uj < nf_m) {
+              if (pipeline_module_func_name_equal_at(mod, uj, field_name, field_len) != 0) {
+                int32_t np = pipeline_module_func_num_params_at(mod, uj);
+                int32_t score;
+                int32_t rty_m;
+                int32_t rk;
+                int32_t rnlen;
+                uint8_t rnm[128];
+                int32_t eqm;
+                int32_t bi;
+                if (np == nargs_m) {
+                  score = 1;
+                  rty_m = pipeline_module_func_return_type_at(mod, uj);
+                  if (rty_m > 0) {
+                    rk = pipeline_type_kind_ord_at(arena, rty_m);
+                    if (rk == 8) {
+                      rnlen = pipeline_type_named_name_into(arena, rty_m, rnm);
+                      if (rnlen == base_len && rnlen > 0) {
+                        eqm = 1;
+                        bi = 0;
+                        while (bi < rnlen) {
+                          if (rnm[bi] != base_name[bi])
+                            eqm = 0;
+                          bi = bi + 1;
+                        }
+                        if (eqm != 0)
+                          score = score + 100;
+                      }
+                    }
+                  }
+                  if (score > best_score) {
+                    best_score = score;
+                    best = uj;
+                  }
+                }
+              }
+              uj = uj + 1;
+            }
+            if (best >= 0) {
+              *mod_out = mod;
+              *func_ix_out = best;
+              if (dep_ix_out)
+                *dep_ix_out = -1;
+              return 0;
+            }
           }
         }
       }
