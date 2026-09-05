@@ -140,6 +140,7 @@
   - ✅ CALL 返回 TYPE_SLICE let-init 局部 `.length` C fat home+8＠`a14d2bf15`
   - ✅ ARRAY_LIT TYPE_SLICE 局部 `.length` win_glue C fat＠`35f5b39f8`
   - ✅ TYPE_ARRAY 8B DEREF 作参 `take(*p)` of `*[2]i32` load_64＠`db81db6f2`
+  - ✅ FIELD TYPE_ARRAY 8B 作参 `take(s.a)` rec load_64＠`b6bdaf3b5`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
