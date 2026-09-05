@@ -12958,8 +12958,10 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
  * inner (`{ with_arena { [3,4] } }`) dest-parks inside Arena64
  * (return 1 so the caller skips leftover_emit_match_arm_result).
  * Nested dest-region last (`{ with_arena { unsafe { [3,4] } } }`)
- * peels nso==1 kind 6 from inner so last dest-parks inside Arena64
- * too (not after deinit).
+ * peels last stmt_order kind 6 from inner so last dest-parks inside
+ * Arena64 too (not after deinit). Trailing dest-region of nso>1
+ * (`{ with_arena { x = 1; unsafe { [3,4] } } }`) peels the last
+ * kind 6, not only nso==1.
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
@@ -13035,14 +13037,15 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
      * glue_emit_with_arena_init/deinit as leftover rest WIN leftover
      * body_sync. Dest-region `{ with_arena { [3,4] } }`: last lives on
      * inner — dest-park last INSIDE Arena64 (return 1). Nested
-     * dest-region `{ with_arena { unsafe { [3,4] } } }`: last lives on
-     * a descendant — peel nso==1 kind 6 from inner (cap 16) then
-     * dest-park inside Arena64. `{ with_arena { x = 1; } [3,4] }` last
-     * is outer — deinit then return 0 so the caller dest-parks after
-     * deinit. Do not leftover_emit_block twin. Do not leftover rest
-     * remaining-wave leftover rest WIN leftover body_sync. Do not
-     * glue_asm_ctx_set_scope_block (SAT local t leftover unique
-     * remaining-wave #ifndef FROM_X).
+     * dest-region `{ with_arena { unsafe { [3,4] } } }` / trailing
+     * dest-region of nso>1 `{ with_arena { x = 1; unsafe { [3,4] } } }`:
+     * last lives on a descendant — peel last stmt_order kind 6 from
+     * inner (cap 16) then dest-park inside Arena64. `{ with_arena
+     * { x = 1; } [3,4] }` last is outer — deinit then return 0 so the
+     * caller dest-parks after deinit. Do not leftover_emit_block twin.
+     * Do not leftover rest remaining-wave leftover rest WIN leftover
+     * body_sync. Do not glue_asm_ctx_set_scope_block (SAT local t
+     * leftover unique remaining-wave #ifndef FROM_X).
      * PLATFORM: WINDOWS leftover-PE. */
     if (k == 6) {
       ncfg = ast_ast_block_num_regions(arena, br);
@@ -13078,17 +13081,18 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
             inner_last = ast_pipeline_block_expr_stmt_ref(arena, inner, ncfg - 1);
         }
         /* Nested dest-region last is not immediate inner_last.
-         * Peel nso==1 kind 6 from inner (cap 16). Do not clobber nso
+         * Peel last stmt_order kind 6 from inner (cap 16), including
+         * trailing dest-region of nso>1. Do not clobber nso
          * (stmt_order walk bound). PLATFORM: WINDOWS leftover-PE. */
         peel = 0;
         peel_br = inner;
         while (!(inner_last > 0 && inner_last == last) && peel < 16) {
           peel++;
           ncfg = ast_ast_block_num_stmt_order(arena, peel_br);
-          if (ncfg != 1)
+          if (ncfg <= 0)
             break;
-          k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, 0);
-          idx = ast_ast_block_stmt_order_idx(arena, peel_br, 0);
+          k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, ncfg - 1);
+          idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
           if (k != 6 || idx < 0)
             break;
           peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
@@ -13270,12 +13274,13 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     if (last <= 0 && nexpr > 0)
       last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
     /* dest-region `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }` /
-     * nested `{ unsafe { unsafe { [3,4] } } }`: nso==1 kind 6, last
-     * lives on an inner block. One-level peel left nested dest-region
-     * last<=0 then SAT if_arm of BLOCK (SAT rec last, parked dest
-     * stays 0). G.7 complete: peel while last<=0 && nso==1 kind 6
-     * (cap 16). Do not rewrite br (outer with_arena still walks
-     * leftover unique leftover_emit_match_arm_block_stmts_except_last).
+     * nested `{ unsafe { unsafe { [3,4] } } }` / trailing dest-region
+     * of nso>1 `{ with_arena { x = 1; unsafe { [3,4] } } }`: last
+     * lives on an inner block. nso==1 peel left trailing dest-region
+     * last as the preceding expr_stmt then dest-parked the wrong last.
+     * G.7 complete: peel last stmt_order kind 6 (cap 16), not only
+     * nso==1 / last<=0. Do not rewrite br (outer with_arena still
+     * walks leftover unique leftover_emit_match_arm_block_stmts_except_last).
      * Do not leftover rest body_sync the dest-region (SAT rec last).
      * Nested last inside with_arena dest-parks inside Arena64 via
      * leftover unique leftover_emit_match_arm_block_stmts_except_last
@@ -13283,13 +13288,13 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
      * PLATFORM: WINDOWS leftover-PE. */
     peel = 0;
     peel_br = br;
-    while (last <= 0 && peel < 16) {
+    while (peel < 16) {
       peel++;
       nso = ast_ast_block_num_stmt_order(arena, peel_br);
-      if (nso != 1)
+      if (nso <= 0)
         break;
-      so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, 0);
-      so_idx = ast_ast_block_stmt_order_idx(arena, peel_br, 0);
+      so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, nso - 1);
+      so_idx = ast_ast_block_stmt_order_idx(arena, peel_br, nso - 1);
       if (so_k != 6 || so_idx < 0)
         break;
       inner = pipeline_block_region_body_ref(arena, peel_br, so_idx);
