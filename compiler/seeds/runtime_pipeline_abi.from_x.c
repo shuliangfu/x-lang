@@ -12888,6 +12888,7 @@ extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_r
  */
 static int32_t g_leftover_match_dest_parked = 0;
 static int32_t g_leftover_match_dest_nbytes = 0;
+static int32_t g_leftover_match_dest_tk = 0;
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                        int32_t ta, int32_t base_off);
 static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
@@ -28821,6 +28822,13 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
         arr_k = (arr_ty > 0) ? pipeline_type_kind_ord_at(arena, arr_ty) : 0;
       }
     }
+    /* MATCH arm CALL under MEGA ASSIGN rhs may lack expr resolved_type
+     * and leftover unique resolve (arr_star_match_call dest-in-rbx
+     * RUN=246; arr_match_let_call let-init GREEN — typeck stamped).
+     * leftover rest unique store MATCH dest is TYPE_ARRAY (tk==10).
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (arr_k != 10 && g_leftover_match_dest_tk == 10)
+      arr_k = 10;
     if (arr_k == 10) {
       int32_t n_arr;
       int32_t esz;
@@ -28828,11 +28836,15 @@ static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, in
       int32_t *ly_next;
       int32_t next_off;
       int32_t spill_off;
-      n_arr = pipeline_type_array_size_at(arena, arr_ty);
-      elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
-      esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
-      if (esz <= 0)
-        esz = glue_index_elem_byte_sz_from_type_ref_c(arena, arr_ty);
+      n_arr = 0;
+      esz = 4;
+      if (arr_ty > 0 && pipeline_type_kind_ord_at(arena, arr_ty) == 10) {
+        n_arr = pipeline_type_array_size_at(arena, arr_ty);
+        elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+        esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+        if (esz <= 0)
+          esz = glue_index_elem_byte_sz_from_type_ref_c(arena, arr_ty);
+      }
       if (esz <= 0)
         esz = 4;
       if (n_arr <= 0 && esz > 0 && g_leftover_match_dest_nbytes > 0)
@@ -31269,9 +31281,11 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
       return -1;
     g_leftover_match_dest_parked = 1;
     g_leftover_match_dest_nbytes = nbytes;
+    g_leftover_match_dest_tk = 10;
     mrc = pipeline_asm_emit_match_elf_c(arena, elf_ctx, init_ref, ctx, ta);
     g_leftover_match_dest_parked = 0;
     g_leftover_match_dest_nbytes = 0;
+    g_leftover_match_dest_tk = 0;
     if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
       return -1;
     if (mrc != 0)
