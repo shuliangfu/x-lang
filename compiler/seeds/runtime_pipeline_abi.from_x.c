@@ -28300,6 +28300,14 @@ extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref)
 extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
 extern int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
                                                         int32_t ta, int32_t type_ref, int32_t stack_slot_off);
+extern int32_t glue_emit_fixed_array_return_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t src_ref,
+                                                                void *ctx, int32_t ta, int32_t arr_ty);
+extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t backend_emit_expr_elf_slow(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28584,9 +28592,67 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     out_rc = pipeline_asm_try_emit_inline_asm_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko >= 14 && ko <= 19)
     out_rc = pipeline_asm_emit_cmp_elf(arena, elf_ctx, expr_ref, ctx, ta);
-  else if (ko == 41)
+  else if (ko == 41) {
+    /* TYPE_ARRAY whole-array `return a`. SAT emit_return is SAT global T
+     * (do not leftover rest T): remaining-wave Path B0 `#ifndef FROM_X`
+     * ABSENT, so SAT emit_expr of VAR hits leftover rest rec load_var
+     * payload (`arr_ret_whole` SEGV 139). ARRAY_LIT `return [3,4]` is
+     * mega_body durable E*; DEREF `return *p` of caller-owned leave-ptr
+     * is GREEN. Local VAR/FIELD/INDEX/DEREF dangle after epilogue —
+     * POSIX Path B0 durable COMMON. G.7 complete leftover rest rec
+     * RETURN arm. Do not leftover rest remaining-wave emit_return via
+     * !FROM_X || WIN. PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+    int32_t ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    int32_t ret_rty = 0;
+    int32_t ret_rtk = 0;
+    int32_t ret_fi = pipeline_asm_emit_func_index_c();
+    void *ret_mod = pipeline_asm_emit_module_ref_c();
+    int32_t ret_st = -2;
+    uint8_t *ret_ly;
+    int32_t ret_tj_len = 0;
+    uint8_t ret_tj_lbl[128];
+    int32_t ret_ti;
+    if (ret_mod && ret_fi >= 0)
+      ret_rty = pipeline_module_func_return_type_at(ret_mod, ret_fi);
+    if (ret_rty <= 0 && ret_op > 0)
+      ret_rty = pipeline_expr_resolved_type_ref(arena, ret_op);
+    if (ret_rty > 0)
+      ret_rtk = pipeline_type_kind_ord_at(arena, ret_rty);
+    if (ret_rty > 0 && ret_rtk == 10 && ret_op > 0)
+      ret_st = glue_emit_fixed_array_return_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta,
+                                                                 ret_rty);
+    if (ret_st == 0) {
+      if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
+        out_rc = -1;
+      else if (glue_async_cps_emit_phase_reset(elf_ctx, ta) != 0)
+        out_rc = -1;
+      else {
+        ret_ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+        if (!ret_ly)
+          out_rc = -1;
+        else {
+          memcpy(&ret_tj_len, ret_ly + 1520, 4);
+          if (ret_tj_len <= 0)
+            out_rc = -1;
+          else {
+            if (ret_tj_len > 128)
+              ret_tj_len = 128;
+            for (ret_ti = 0; ret_ti < ret_tj_len; ret_ti++)
+              ret_tj_lbl[ret_ti] = ret_ly[1392 + ret_ti];
+            out_rc = backend_enc_jmp_arch(elf_ctx, ret_tj_lbl, ret_tj_len, ta);
+          }
+        }
+      }
+    } else if (ret_st == -1)
+      out_rc = -1;
+    else
+      out_rc = pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+#else
     out_rc = pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-  else if (ko == 39)
+#endif
+  } else if (ko == 39)
     out_rc = pipeline_asm_emit_break_elf_c(arena, elf_ctx, ctx, ta);
   else if (ko == 40)
     out_rc = pipeline_asm_emit_continue_elf_c(arena, elf_ctx, ctx, ta);
@@ -29657,6 +29723,13 @@ extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t 
                                            int32_t ta);
 extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
 extern int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                      int32_t ta);
+extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t size,
+                                               int32_t align);
+extern int32_t glue_asm_lea_rax_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
+extern int32_t glue_asm_lea_rbx_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
@@ -29920,6 +29993,99 @@ int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, in
     return -2;
   return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
                                                        stack_slot_off, 0, type_ref);
+}
+
+/*
+ * leftover rest unique TYPE_ARRAY return durable E*. POSIX Path B0
+ * (runtime_pipeline_abi.x @40121) copies local [N]T into COMMON then
+ * rax=E* — stack lea dangles after epilogue (`return a` SEGV 139).
+ * SAT emit_return remaining-wave Path B0 is `#ifndef FROM_X` ABSENT
+ * (SAT global T; do not leftover rest T). G.7 complete leftover rest
+ * rec RETURN / mega_body get_return: lvalue src E* + COMMON copy
+ * (reuse leftover rest unique copy_from_e_star dest-in-rbx; do not
+ * UNDEF SAT local t bulk_mem_copy). ARRAY_LIT stays leftover rest
+ * unique durable. CALL already returns durable E*.
+ * @return 0 handled; -2 not applicable; -1 hard fail.
+ * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged.
+ */
+int32_t glue_emit_fixed_array_return_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t src_ref,
+                                                          void *ctx, int32_t ta, int32_t arr_ty) {
+  int32_t iko;
+  int32_t n_arr;
+  int32_t esz;
+  int32_t nbytes;
+  int32_t elem_tr;
+  int32_t next_off;
+  int32_t spill_off;
+  uint8_t label[24];
+  int32_t llen;
+  int32_t seq;
+  int32_t v;
+  int32_t nd;
+  int32_t di;
+  uint8_t digs[8];
+  const char *pfx;
+  static int32_t win_durable_rar_seq = 0;
+  if (!arena || !elf_ctx || !ctx || src_ref <= 0 || arr_ty <= 0 || ta != 0)
+    return -2;
+  if (!glue_type_is_fixed_array(arena, arr_ty))
+    return -2;
+  iko = pipeline_expr_kind_ord_at(arena, src_ref);
+  /* VAR=3 FIELD=44 INDEX=47 DEREF=52. ARRAY_LIT/CALL stay other arms. */
+  if (iko != 3 && iko != 44 && iko != 47 && iko != 52)
+    return -2;
+  n_arr = pipeline_type_array_size_at(arena, arr_ty);
+  elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+  if (esz <= 0)
+    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, arr_ty);
+  if (esz <= 0)
+    esz = 4;
+  nbytes = glue_fixed_array_total_bytes_c(arena, arr_ty, 0);
+  if (nbytes <= 0)
+    nbytes = n_arr * esz;
+  if (n_arr <= 0 || nbytes <= 0 || nbytes > 4096)
+    return -2;
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, src_ref, ctx, ta) != 0)
+    return -1;
+  next_off = *(int32_t *)((uint8_t *)ctx + 4);
+  if (next_off + 16 < next_off)
+    return -1;
+  next_off = next_off + 16;
+  *(int32_t *)((uint8_t *)ctx + 4) = next_off;
+  spill_off = next_off;
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
+    return -1;
+  seq = win_durable_rar_seq;
+  if (seq < 0 || seq > 999999)
+    seq = 0;
+  win_durable_rar_seq = seq + 1;
+  llen = 0;
+  pfx = "Lxlang_rar_";
+  while (pfx[llen] != 0 && llen < 12) {
+    label[llen] = (uint8_t)pfx[llen];
+    llen++;
+  }
+  v = seq;
+  nd = 0;
+  if (v == 0) {
+    digs[0] = (uint8_t)'0';
+    nd = 1;
+  } else {
+    while (v > 0 && nd < 8) {
+      digs[nd++] = (uint8_t)('0' + (v % 10));
+      v /= 10;
+    }
+  }
+  for (di = nd - 1; di >= 0 && llen < 23; di--)
+    label[llen++] = digs[di];
+  if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, label, llen, nbytes, (esz > 16) ? 16 : esz) != 0)
+    return -1;
+  if (glue_asm_lea_rbx_common_rip_x86(elf_ctx, label, llen) != 0)
+    return -1;
+  if (win_leftover_fixed_array_copy_from_e_star(elf_ctx, spill_off, n_arr, esz, 0, 1, 0, 0, ta) != 0)
+    return -1;
+  return glue_asm_lea_rax_common_rip_x86(elf_ctx, label, llen);
 }
 #endif /* FROM_X && WIN leftover rest store_fixed_array_field */
 
@@ -60560,6 +60726,8 @@ extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_r
 extern int32_t glue_asm_emit_array_lit_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                             int32_t force_esz, int32_t ta, void *ctx,
                                                             int32_t dest_elem_ty);
+extern int32_t glue_emit_fixed_array_return_durable_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t src_ref,
+                                                                void *ctx, int32_t ta, int32_t arr_ty);
 extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
@@ -60860,6 +61028,17 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
             force_esz = 4;
           if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(a, elf_ctx, result_ref, force_esz, ta, bctx,
                                                             et) == 0)
+            wrapped = 1;
+        }
+        /* TYPE_ARRAY VAR/FIELD/INDEX/DEREF return: leftover-PE get_return
+         * peels RETURN when nso==0 (`return a` of a formal). SAT emit_expr
+         * of local VAR load_var payload (`arr_ret_whole` SEGV). G.7 same
+         * leftover rest unique durable COMMON as rec RETURN. Do not
+         * leftover rest remaining-wave emit_return via !FROM_X || WIN.
+         * PLATFORM: WINDOWS leftover-PE. */
+        if (wrapped == 0 && rrtk == 10 && rrty > 0 &&
+            (rko == 3 || rko == 44 || rko == 47 || rko == 52)) {
+          if (glue_emit_fixed_array_return_durable_ptr_rax_elf_c(a, elf_ctx, result_ref, bctx, ta, rrty) == 0)
             wrapped = 1;
         }
         if (wrapped == 0) {
