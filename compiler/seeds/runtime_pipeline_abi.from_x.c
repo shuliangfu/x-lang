@@ -12957,6 +12957,9 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
  * rest WIN leftover body_sync. Dest-region last that lives on
  * inner (`{ with_arena { [3,4] } }`) dest-parks inside Arena64
  * (return 1 so the caller skips leftover_emit_match_arm_result).
+ * Nested dest-region last (`{ with_arena { unsafe { [3,4] } } }`)
+ * peels nso==1 kind 6 from inner so last dest-parks inside Arena64
+ * too (not after deinit).
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
@@ -12975,6 +12978,8 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
   int32_t wa_off;
   int32_t inner_last;
   int32_t parked;
+  int32_t peel;
+  int32_t peel_br;
   uint8_t name_buf[128];
   if (!arena || !elf_ctx || !ctx || br <= 0)
     return -1;
@@ -13029,12 +13034,15 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
      * region SAT rec last). G.7 complete: same SAT T glue_wa_scope +
      * glue_emit_with_arena_init/deinit as leftover rest WIN leftover
      * body_sync. Dest-region `{ with_arena { [3,4] } }`: last lives on
-     * inner — dest-park last INSIDE Arena64 (return 1). `{ with_arena
-     * { x = 1; } [3,4] }` last is outer — deinit then return 0 so the
-     * caller dest-parks after deinit. Do not leftover_emit_block twin.
-     * Do not leftover rest remaining-wave leftover rest WIN leftover
-     * body_sync. Do not glue_asm_ctx_set_scope_block (SAT local t
-     * leftover unique remaining-wave #ifndef FROM_X).
+     * inner — dest-park last INSIDE Arena64 (return 1). Nested
+     * dest-region `{ with_arena { unsafe { [3,4] } } }`: last lives on
+     * a descendant — peel nso==1 kind 6 from inner (cap 16) then
+     * dest-park inside Arena64. `{ with_arena { x = 1; } [3,4] }` last
+     * is outer — deinit then return 0 so the caller dest-parks after
+     * deinit. Do not leftover_emit_block twin. Do not leftover rest
+     * remaining-wave leftover rest WIN leftover body_sync. Do not
+     * glue_asm_ctx_set_scope_block (SAT local t leftover unique
+     * remaining-wave #ifndef FROM_X).
      * PLATFORM: WINDOWS leftover-PE. */
     if (k == 6) {
       ncfg = ast_ast_block_num_regions(arena, br);
@@ -13068,6 +13076,30 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
           ncfg = ast_ast_block_num_expr_stmts(arena, inner);
           if (ncfg > 0)
             inner_last = ast_pipeline_block_expr_stmt_ref(arena, inner, ncfg - 1);
+        }
+        /* Nested dest-region last is not immediate inner_last.
+         * Peel nso==1 kind 6 from inner (cap 16). Do not clobber nso
+         * (stmt_order walk bound). PLATFORM: WINDOWS leftover-PE. */
+        peel = 0;
+        peel_br = inner;
+        while (!(inner_last > 0 && inner_last == last) && peel < 16) {
+          peel++;
+          ncfg = ast_ast_block_num_stmt_order(arena, peel_br);
+          if (ncfg != 1)
+            break;
+          k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, 0);
+          idx = ast_ast_block_stmt_order_idx(arena, peel_br, 0);
+          if (k != 6 || idx < 0)
+            break;
+          peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
+          if (peel_br <= 0)
+            break;
+          inner_last = ast_ast_block_final_expr_ref(arena, peel_br);
+          if (inner_last <= 0) {
+            ncfg = ast_ast_block_num_expr_stmts(arena, peel_br);
+            if (ncfg > 0)
+              inner_last = ast_pipeline_block_expr_stmt_ref(arena, peel_br, ncfg - 1);
+          }
         }
         if (inner_last > 0 && inner_last == last) {
           if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta) != 0)
@@ -13245,8 +13277,9 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
      * (cap 16). Do not rewrite br (outer with_arena still walks
      * leftover unique leftover_emit_match_arm_block_stmts_except_last).
      * Do not leftover rest body_sync the dest-region (SAT rec last).
-     * Nested last inside with_arena dest-parks after deinit leftover
-     * unless last is the immediate inner last.
+     * Nested last inside with_arena dest-parks inside Arena64 via
+     * leftover unique leftover_emit_match_arm_block_stmts_except_last
+     * k==6 peel (not after deinit).
      * PLATFORM: WINDOWS leftover-PE. */
     peel = 0;
     peel_br = br;
