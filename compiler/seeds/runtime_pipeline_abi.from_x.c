@@ -28358,6 +28358,7 @@ extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_
 extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t layout_idx, int32_t fi, uint8_t *out64);
 extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, int32_t j);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
 extern int32_t glue_i32_to_f32_bits(int32_t v);
 extern int32_t glue_i64_to_f32_bits(int64_t v);
 extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
