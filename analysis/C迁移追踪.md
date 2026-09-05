@@ -162,6 +162,7 @@
   - ✅ TYPE_SLICE dest-in-rbx VAR `*p = xs` leftover rest unique rec ASSIGN dest-in-rbx TYPE_SLICE VAR lvalue qword-copy＋CALL／DEREF dual-GP＠`2a027afc5`
   - ✅ TYPE_NAMED dest-in-rbx STRUCT_LIT `(*p).y` leftover rest unique rec ASSIGN POSIX DEST_IN_RBX 字段写 parked dest＠`9578af192`
   - ✅ TYPE_NAMED dest-in-rbx MATCH 8B leftover rest unique rec ASSIGN park dest＋bump next_offset 过 p＋emit_match＋store rax＠`3ec4b0cab`
+  - ✅ TYPE_NAMED dest-in-rbx MATCH 16B leftover rest unique emit_match DEST_IN_RBX 字段写 parked dest（thin if_arm intra SAT rec）＠`db4780c2f`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
