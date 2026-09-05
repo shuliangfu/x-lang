@@ -12888,12 +12888,12 @@ extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_r
  */
 static int32_t g_leftover_match_dest_parked = 0;
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
-                                                       int32_t ta);
+                                                       int32_t ta, int32_t base_off);
 
 static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
                                                    int32_t ta) {
   if (g_leftover_match_dest_parked != 0 && pipeline_expr_kind_ord_at(arena, result_ref) == 45)
-    return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+    return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
@@ -28466,21 +28466,27 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
 int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 
 /*
- * MATCH dest-in-rbx 16B: SAT emit_struct_lit implicit dest overlaps p/d
- * (match_star16 SEGV 139 after 8B bump + dual-GP). G.7: rec ASSIGN parks
- * dest then leftover rest unique rec ko==45 writes fields to parked rbx
- * (same DEST_IN_RBX as TYPE_NAMED dest-in-rbx STRUCT_LIT). Do not leftover
- * rest T SAT emit_struct_lit. PLATFORM: WINDOWS leftover-PE.
+ * DEST_IN_RBX STRUCT_LIT into parked rbx. Scalar fields store rax at
+ * dest+foff. Nested STRUCT_LIT fields recurse at dest+base_off+foff
+ * (nest_star_lit SAT implicit dest SEGV 139; nest_star_match dest-parked
+ * rec wrote Inner at dest+0 RUN=0). Do not leftover rest T SAT
+ * emit_struct_lit. PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
-                                                       int32_t ta) {
+                                                       int32_t ta, int32_t base_off) {
   int32_t nf;
   int32_t fi;
   int32_t iref;
   int32_t foff;
   int32_t fsz;
+  int32_t store_off;
+  int32_t iko;
   void *mod;
   if (!arena || !elf_ctx || lit_ref <= 0)
+    return -1;
+  /* Nested STRUCT_LIT fields store at dest+base_off. Cap matches
+   * leftover rest ASSIGN dest-width 4096. nest freeze 64. */
+  if (base_off < 0 || base_off > 4096)
     return -1;
   mod = glue_emit_module_from_ctx(ctx);
   if (!mod)
@@ -28497,11 +28503,25 @@ static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_c
       foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, lit_ref, fi);
     if (foff < 0)
       foff = 0;
+    store_off = foff + base_off;
+    if (store_off > 4096)
+      return -1;
+    if (iref <= 0)
+      return -1;
+    iko = pipeline_expr_kind_ord_at(arena, iref);
+    /* Nested STRUCT_LIT: write subfields at dest+store_off. rec ko==45
+     * dest-parked would store Inner at dest+0 (nest_star_match RUN=0).
+     * SAT emit_struct_lit implicit dest overlaps p (nest_star_lit SEGV
+     * 139). G.7 complete this helper — do not leftover rest T SAT
+     * emit_struct_lit. PLATFORM: WINDOWS leftover-PE. */
+    if (iko == 45) {
+      if (leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off) != 0)
+        return -1;
+      continue;
+    }
     fsz = glue_struct_lit_field_store_sz(arena, lit_ref, fi);
     if (fsz <= 0)
       continue;
-    if (iref <= 0)
-      return -1;
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, iref, ctx, ta) != 0)
       return -1;
     if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
@@ -28510,7 +28530,7 @@ static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_c
       return -1;
     if (fsz > 8)
       fsz = 8;
-    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, fsz, ta) != 0)
       return -1;
   }
   return 0;
@@ -28579,7 +28599,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * leftover rest unique helper as rec ASSIGN TYPE_NAMED STRUCT_LIT.
      * Do not leftover rest T SAT emit_struct_lit. PLATFORM: WINDOWS. */
     if (g_leftover_match_dest_parked != 0) {
-      out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta);
+      out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0);
       goto debug_done;
     }
     /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — callee >16B STRUCT_LIT
@@ -28831,7 +28851,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
         else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
           out_rc = -1;
         else {
-          out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, asg_right, ctx, ta);
+          out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, asg_right, ctx, ta, 0);
           if (out_rc == 0 && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
             out_rc = -1;
           else if (out_rc != 0)
