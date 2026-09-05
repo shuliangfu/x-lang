@@ -28294,6 +28294,12 @@ extern int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t
 extern int32_t pipeline_asm_emit_try_propagate_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
 extern int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                      int32_t ta);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                        int32_t ta, int32_t type_ref, int32_t stack_slot_off);
 extern int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t backend_emit_expr_elf_slow(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
@@ -28596,7 +28602,57 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     out_rc = pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == GLUE_EXPR_KIND_TRY_PROPAGATE || ko == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
     out_rc = pipeline_asm_emit_try_propagate_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-  else if (ko == 28 || (ko >= 29 && ko <= 38))
+  else if (ko == 28) {
+    /* TYPE_ARRAY dest-in-rbx `*p = a` / `*p = [w]`. SAT emit_assign is SAT
+     * global T (do not leftover rest T): DEREF dest calls SAT local t
+     * struct_let_init which -2s TYPE_ARRAY 8B then 4B store (RUN=0).
+     * POSIX .x calls glue_emit_fixed_array_type_let_init(-3). leftover rest
+     * unique rec first-wins; G.7 complete ASSIGN arm. TYPE_NAMED dest-in-rbx
+     * stays SAT emit_assign (named_star_asg GREEN).
+     * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
+    int32_t asg_left = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    int32_t asg_right = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    int32_t asg_lko = (asg_left > 0) ? pipeline_expr_kind_ord_at(arena, asg_left) : 0;
+    int32_t asg_dtr = 0;
+    int32_t asg_dtk = 0;
+    int32_t asg_dop = 0;
+    int32_t asg_dop_tr = 0;
+    int32_t asg_st = 0;
+    if (asg_lko == 52 && asg_right > 0) {
+      asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
+      asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+      if (asg_dtk != 10) {
+        asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          asg_dop_tr = pipeline_expr_resolved_type_ref(arena, asg_dop);
+          if (asg_dop_tr <= 0)
+            asg_dop_tr = glue_var_decl_type_ref_elf_c(arena, ctx, asg_dop);
+          if (asg_dop_tr > 0 && pipeline_type_kind_ord_at(arena, asg_dop_tr) == 9) {
+            asg_dtr = pipeline_type_elem_ref_at(arena, asg_dop_tr);
+            asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+          }
+        }
+      }
+      if (asg_dtr > 0 && asg_dtk == 10) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          asg_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, asg_right, ctx, ta,
+                                                            asg_dtr, -3);
+          if (asg_st == 0)
+            out_rc = 0;
+          else if (asg_st == -1)
+            out_rc = -1;
+          else
+            out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+        }
+      } else
+        out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    } else
+      out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  } else if (ko >= 29 && ko <= 38)
     out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 20)
     out_rc = pipeline_asm_emit_logand_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
@@ -29605,6 +29661,7 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t slot_off
 extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
 extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
@@ -29637,8 +29694,12 @@ int32_t glue_struct_field_frame_mag_c(int32_t base_off, int32_t foff, int32_t ta
 }
 
 static int32_t win_leftover_fixed_array_store_at(void *elf_ctx, int32_t sret_direct,
-                                                int32_t field_mag, int32_t dest_off,
-                                                int32_t store_sz, int32_t ta) {
+                                                int32_t dest_in_rbx, int32_t field_mag,
+                                                int32_t dest_off, int32_t store_sz, int32_t ta) {
+  /* dest-in-rbx: SAT emit_assign already lea dest → rbx. lea rbp-3
+   * would clobber dest (`*p = a` RUN=0). PLATFORM: WINDOWS leftover-PE. */
+  if (dest_in_rbx)
+    return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, dest_off, store_sz, ta);
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
     return -1;
   if (sret_direct == 0) {
@@ -29665,8 +29726,8 @@ static int32_t win_leftover_fixed_array_load_esz(void *elf_ctx, int32_t esz, int
 
 static int32_t win_leftover_fixed_array_copy_from_e_star(void *elf_ctx, int32_t spill_off,
                                                         int32_t n_arr, int32_t esz,
-                                                        int32_t sret_direct, int32_t field_mag,
-                                                        int32_t foff, int32_t ta) {
+                                                        int32_t sret_direct, int32_t dest_in_rbx,
+                                                        int32_t field_mag, int32_t foff, int32_t ta) {
   int32_t ai;
   int32_t off;
   int32_t total;
@@ -29690,7 +29751,8 @@ static int32_t win_leftover_fixed_array_copy_from_e_star(void *elf_ctx, int32_t 
       if (win_leftover_fixed_array_load_esz(elf_ctx, chunk, ta) != 0)
         return -1;
       dest_off = (sret_direct == 0) ? off : (foff + off);
-      if (win_leftover_fixed_array_store_at(elf_ctx, sret_direct, field_mag, dest_off, chunk, ta) != 0)
+      if (win_leftover_fixed_array_store_at(elf_ctx, sret_direct, dest_in_rbx, field_mag, dest_off,
+                                           chunk, ta) != 0)
         return -1;
       off += chunk;
     }
@@ -29704,7 +29766,8 @@ static int32_t win_leftover_fixed_array_copy_from_e_star(void *elf_ctx, int32_t 
     if (win_leftover_fixed_array_load_esz(elf_ctx, esz, ta) != 0)
       return -1;
     dest_off = (sret_direct == 0) ? (ai * esz) : (foff + ai * esz);
-    if (win_leftover_fixed_array_store_at(elf_ctx, sret_direct, field_mag, dest_off, esz, ta) != 0)
+    if (win_leftover_fixed_array_store_at(elf_ctx, sret_direct, dest_in_rbx, field_mag, dest_off, esz,
+                                         ta) != 0)
       return -1;
   }
   return 0;
@@ -29727,6 +29790,8 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
   int32_t field_off;
   int32_t next_off;
   int32_t spill_off;
+  int32_t dest_in_rbx;
+  int32_t dest_park;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0 || fty <= 0)
     return -1;
   iko = pipeline_expr_kind_ord_at(arena, init_ref);
@@ -29742,7 +29807,11 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
   if (esz <= 0)
     esz = 4;
   field_mag = 0;
-  if (sret_direct == 0) {
+  dest_in_rbx = (sret_direct == 0 && base_off == -3) ? 1 : 0;
+  dest_park = 0;
+  /* dest-in-rbx: SAT emit_assign lea dest → rbx. glue_struct_field_frame_mag
+   * of -3 would lea rbp-3 (`*p = a` RUN=0). PLATFORM: WINDOWS leftover-PE. */
+  if (sret_direct == 0 && dest_in_rbx == 0) {
     field_mag = glue_struct_field_frame_mag_c(base_off, foff, ta);
     if (field_mag < 0)
       return -1;
@@ -29764,7 +29833,8 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
       return -1;
     for (ai = 0; ai < n_arr; ai++) {
       int32_t dest_off = (sret_direct == 0) ? (ai * esz) : (foff + ai * esz);
-      if (win_leftover_fixed_array_store_at(elf_ctx, sret_direct, field_mag, dest_off, esz, ta) != 0)
+      if (win_leftover_fixed_array_store_at(elf_ctx, sret_direct, dest_in_rbx, field_mag, dest_off,
+                                           esz, ta) != 0)
         return -1;
     }
     return 0;
@@ -29798,12 +29868,31 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
     next_off = next_off + 16;
     *(int32_t *)((uint8_t *)ctx + 4) = next_off;
     spill_off = next_off;
+    if (dest_in_rbx) {
+      /* emit_expr clobbers rbx (SAT emit_array_lit / CALL). Park dest.
+       * PLATFORM: WINDOWS leftover-PE dest-in-rbx. */
+      if (next_off + 16 < next_off)
+        return -1;
+      next_off = next_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = next_off;
+      dest_park = next_off;
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_park, ta) != 0)
+        return -1;
+    }
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
       return -1;
+    if (dest_in_rbx) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_park, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
     return win_leftover_fixed_array_copy_from_e_star(elf_ctx, spill_off, n_arr, esz, sret_direct,
-                                                    field_mag, foff, ta);
+                                                    dest_in_rbx, field_mag, foff, ta);
   }
   if (src_off >= 0) {
     next_off = *(int32_t *)((uint8_t *)ctx + 4);
@@ -29817,7 +29906,7 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
       return -1;
     return win_leftover_fixed_array_copy_from_e_star(elf_ctx, spill_off, n_arr, esz, sret_direct,
-                                                    field_mag, foff, ta);
+                                                    dest_in_rbx, field_mag, foff, ta);
   }
   return -2;
 }
