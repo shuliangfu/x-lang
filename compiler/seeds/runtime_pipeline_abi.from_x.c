@@ -12892,6 +12892,8 @@ static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_c
                                                        int32_t ta, int32_t base_off);
 static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
                                                 int32_t ta);
+static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
+                                                 int32_t ta);
 
 static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
                                                    int32_t ta) {
@@ -12900,13 +12902,17 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
   rko = pipeline_expr_kind_ord_at(arena, result_ref);
   /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). VAR arm:
-   * thin if_arm SAT rec leaves dest 0 (match_arm_var16 RUN=0). G.7
-   * complete this helper — do not leftover rest T SAT emit_assign.
-   * CALL arm is a neighbor (match_arm_call16). PLATFORM: WINDOWS. */
+   * slot lea + qword-copy (match_arm_var16). CALL arm: thin if_arm SAT
+   * rec leaves dest 0 (match_arm_call16 RUN=0). G.7 complete this
+   * helper — SAT emit_call then dual-GP store parked dest. Do not
+   * leftover rest T SAT emit_call / emit_assign. >16B sret is a
+   * neighbor. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 3)
     return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if (rko == 48 && g_leftover_match_dest_nbytes <= 16)
+    return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
@@ -28629,6 +28635,46 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, rem, ta) != 0)
       return -1;
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm CALL: SAT emit_call then store dual-GP into
+ * parked dest. thin if_arm SAT rec leaves dest 0 (match_arm_call16
+ * RUN=0). Same rax@0 rdx@8 as TYPE_SLICE dest-in-rbx CALL. 8B stores
+ * rax only. Do not leftover rest T SAT emit_call / U SAT local t
+ * copy_large. >16B sret is a neighbor. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
+                                                 int32_t ta) {
+  int32_t nbytes;
+  int32_t lo_sz;
+  if (!arena || !elf_ctx || !ctx || call_ref <= 0)
+    return -1;
+  nbytes = g_leftover_match_dest_nbytes;
+  if (nbytes <= 0)
+    nbytes = 8;
+  if (nbytes > 16)
+    return -1;
+  /* SAT emit_call is SAT global T. leftover rest rec ko==48 already
+   * UNDEF-calls it. Do not leftover rest T SAT emit_call. */
+  if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  lo_sz = nbytes;
+  if (lo_sz > 8)
+    lo_sz = 8;
+  if (lo_sz > 4 && lo_sz < 8)
+    lo_sz = 4;
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, lo_sz, ta) != 0)
+    return -1;
+  if (nbytes > 8) {
+    if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
       return -1;
   }
   return 0;
