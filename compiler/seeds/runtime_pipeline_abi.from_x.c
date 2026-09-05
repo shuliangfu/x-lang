@@ -12927,11 +12927,11 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * TYPE_NAMED MATCH parks dest with nbytes, dest_tk stays 0): same
    * lvalue + qword-copy nbytes (named_star_match_field). TYPE_ARRAY
    * dest MATCH arm FIELD/INDEX (dest_tk==10; leftover rest unique
-   * store MATCH parks dest nbytes=n_arr*esz): same lvalue +
-   * qword-copy nbytes (arr_star_match_field `s.a` / INDEX of
-   * [N][M]T). Do not leftover rest T SAT emit_call / emit_method /
-   * emit_assign / emit_array_lit / emit_field. Do not leftover rest
-   * U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+   * store MATCH / rec ASSIGN VAR dest MATCH parks dest nbytes=n_arr*esz):
+   * same lvalue + qword-copy nbytes (arr_star_match_field `s.a` /
+   * arr_asg_match / INDEX of [N][M]T). Do not leftover rest T SAT
+   * emit_call / emit_method / emit_assign / emit_array_lit / emit_field.
+   * Do not leftover rest U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 46)
@@ -29218,6 +29218,15 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * POSIX .x calls glue_emit_fixed_array_type_let_init(-3). leftover rest
      * unique rec first-wins; G.7 complete ASSIGN arm.
      *
+     * TYPE_ARRAY VAR dest MATCH `d = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+     * (arr_asg_match) is a sibling dest (VAR frame slot, not dest-in-rbx).
+     * leftover rest unique rec ASSIGN TYPE_ARRAY previously intercepted
+     * DEREF dest only (asg_lko==52); VAR dest fell through SAT emit_assign
+     * SAT global T, MATCH dest not parked (arr_asg_match RUN=0 / CG002).
+     * TYPE_NAMED/TYPE_SLICE MATCH already intercept VAR dest (asg_lko==3).
+     * Do not intercept VAR dest TYPE_ARRAY non-MATCH rhs (arr_asg_var /
+     * arr_asg_lit already GREEN via SAT emit_assign).
+     *
      * TYPE_NAMED dest-in-rbx VAR `*p = a` stays SAT emit_assign
      * (named_star_asg GREEN via SAT local t memcpy). TYPE_NAMED dest-in-rbx
      * CALL `*p = mk()` is a different produce: SAT emit_assign does not
@@ -29341,6 +29350,71 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
       asg_rko = pipeline_expr_kind_ord_at(arena, asg_right);
       if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 10) {
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          asg_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, asg_right, ctx, ta,
+                                                            asg_dtr, -3);
+          if (asg_st == 0)
+            out_rc = 0;
+          else if (asg_st == -1)
+            out_rc = -1;
+          else
+            out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+        }
+      } else if (asg_lko == 3 && asg_dtr > 0 && asg_dtk == 10 && asg_rko == 43) {
+        int32_t asg_nbytes;
+        int32_t asg_n_arr;
+        int32_t asg_esz;
+        int32_t asg_elem;
+        /* VAR dest TYPE_ARRAY MATCH `d = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+         * (arr_asg_match). leftover rest unique rec ASSIGN TYPE_ARRAY
+         * previously intercepted DEREF dest only (asg_lko==52) via
+         * let_init(-3) → leftover rest unique store MATCH dest_tk=10.
+         * VAR dest fell through SAT emit_assign (SAT global T): MATCH dest
+         * not parked → ARRAY_LIT arm SAT implicit dest (arr_asg_match
+         * RUN=0 / CG002). TYPE_NAMED/TYPE_SLICE MATCH already intercept
+         * VAR dest (asg_lko==3). G.7 complete leftover rest unique rec
+         * ASSIGN TYPE_ARRAY MATCH: VAR dest parks dest via lvalue then
+         * glue_emit_fixed_array_type_let_init(-3) (same store MATCH
+         * dest_tk=10 nbytes=n_arr*esz as DEREF dest / let-init MATCH).
+         * Bump next_offset past d so SAT arm dest cannot clobber it
+         * (TYPE_NAMED MATCH 8B lesson). Match arms use `;` not `,`.
+         * Do not leftover rest T SAT emit_assign / emit_array_lit.
+         * Do not leftover rest remaining-wave. Do not leftover rest U
+         * SAT local t copy_large. Do not intercept VAR dest TYPE_ARRAY
+         * non-MATCH rhs. PLATFORM: WINDOWS leftover-PE. */
+        asg_n_arr = pipeline_type_array_size_at(arena, asg_dtr);
+        asg_elem = pipeline_type_elem_ref_at(arena, asg_dtr);
+        asg_esz = glue_array_lit_force_esz_from_elem_type_c(arena, asg_elem);
+        if (asg_esz <= 0)
+          asg_esz = glue_index_elem_byte_sz_from_type_ref_c(arena, asg_dtr);
+        if (asg_esz <= 0)
+          asg_esz = 4;
+        asg_nbytes = asg_n_arr * asg_esz;
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_left);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           out_rc = -1;
