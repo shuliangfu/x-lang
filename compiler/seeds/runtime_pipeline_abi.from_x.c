@@ -12880,6 +12880,12 @@ extern int32_t pipeline_expr_if_cond_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_if_then_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_if_else_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern int32_t pipeline_asm_emit_block_inits_elf_c(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                                  int32_t ta, int32_t slot_base);
 extern void *pipeline_codegen_match_mod_c(void);
 extern int32_t pipeline_codegen_match_matched_ref_c(void);
 extern int32_t pipeline_codegen_match_subject_ty_c(void);
@@ -12953,9 +12959,14 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * STRUCT_LIT/ARRAY_LIT/VAR/CALL/FIELD/DEREF inside BLOCK still
    * dest-parked. Do not leftover_emit_block twin of SAT if_arm. Do not
    * SAT if_arm of BLOCK then leftover_emit_match_arm_result(last)
-   * (double-emit last). Preceding stmts (`{ let x = 1; [3,4] }`) not
-   * this knife (SAT block_body stub -1; preceding SAT rec would clobber
-   * parked rbx). MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
+   * (double-emit last). MATCH arm BLOCK preceding stmts
+   * (`{ let x = 1; [3,4] }` / `{ let x = 3; [x, 4] }`): dest is parked
+   * on the CPU stack. leftover rest WIN leftover body_sync emits
+   * final_expr via SAT rec (implicit dest); leftover rest FROM_X stub
+   * -1. G.7 complete: fill slots + SAT emit_block_inits (lets) +
+   * leftover unique rec of preceding expr_stmts except last, then
+   * leftover_emit_match_arm_result(last). Loops/ifs/regions in MATCH
+   * arm BLOCK not this knife. MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
    * `named_star_match_if` / `arr_star_match_if`):
    * `if true { [3, 4] } else { [0, 0] }`. SAT if_arm of IF recs the
    * IF; leftover unique rec → leftover unique emit_if remaining-wave
@@ -12983,6 +12994,13 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     int32_t br;
     int32_t nexpr;
     int32_t last;
+    int32_t ei;
+    int32_t er;
+    int32_t slot_base;
+    int32_t sv_locs;
+    int32_t sv_next;
+    int32_t r;
+    uint8_t *ly;
     br = pipeline_expr_block_ref_at(arena, result_ref);
     if (br <= 0)
       return -1;
@@ -12992,7 +13010,40 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
       last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
     if (last <= 0 || last == result_ref)
       return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
-    return leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+    /* Preceding lets/expr_stmts keep dest on the CPU stack. SAT rec of
+     * last would write SAT implicit dest. Do not leftover_emit_block
+     * twin of leftover rest WIN leftover body_sync. PLATFORM: WINDOWS. */
+    ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+    if (!ly)
+      return -1;
+    sv_locs = *(int32_t *)(ly + 8);
+    sv_next = *(int32_t *)(ly + 4);
+    backend_ensure_block_local_slots(ctx, arena, br);
+    pipeline_asm_fill_local_slots(ctx, arena, br);
+    slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, br);
+    if (slot_base < 0)
+      slot_base = 0;
+    if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, br, ctx, ta, slot_base) != 0) {
+      *(int32_t *)(ly + 8) = sv_locs;
+      *(int32_t *)(ly + 4) = sv_next;
+      return -1;
+    }
+    for (ei = 0; ei < nexpr; ei++) {
+      er = ast_pipeline_block_expr_stmt_ref(arena, br, ei);
+      if (er <= 0 || er == last)
+        continue;
+      if (pipeline_expr_kind_ord_at(arena, er) == 41)
+        continue;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0) {
+        *(int32_t *)(ly + 8) = sv_locs;
+        *(int32_t *)(ly + 4) = sv_next;
+        return -1;
+      }
+    }
+    r = leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+    *(int32_t *)(ly + 8) = sv_locs;
+    *(int32_t *)(ly + 4) = sv_next;
+    return r;
   }
   if (rko == 25 || rko == 27) {
     int32_t cond;
