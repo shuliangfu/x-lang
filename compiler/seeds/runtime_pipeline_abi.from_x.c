@@ -13176,11 +13176,13 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * leftover_emit_match_arm_result(last). MATCH arm BLOCK preceding
    * while/for/if/region (`{ while x < 1 { x = x + 1; } [3,4] }` /
    * `{ if true { x = 1; } [3,4] }` / `{ unsafe { x = 1; } [3,4] }` /
-   * `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }`): leftover
-   * rest WIN leftover body_sync SAT-recs last. G.7 complete: stmt_order
-   * kinds 3/4/5 SAT T while/for/block_if; kind 6 recurse skip last
-   * (do not leftover rest body_sync dest-region) + dest-park last
-   * inside Arena64 when last lives on inner. MATCH arm BLOCK preceding
+   * `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }` /
+   * `{ unsafe { unsafe { [3,4] } } }`): leftover rest WIN leftover
+   * body_sync SAT-recs last. G.7 complete: stmt_order kinds 3/4/5 SAT T
+   * while/for/block_if; kind 6 recurse skip last (do not leftover rest
+   * body_sync dest-region) + dest-park last inside Arena64 when last
+   * lives on inner; dest-region peel while last<=0 && nso==1 kind 6.
+   * MATCH arm BLOCK preceding
    * labeled/goto (`{ goto L; L: [3,4] }` / `{ L: x = 1; [3,4] }`):
    * leftover rest WIN leftover body_sync skips k==7. G.7 complete:
    * same jmp/label as dest-in-rbx IF extra-arm. Labeled return as
@@ -13225,6 +13227,8 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     int32_t so_idx;
     int32_t inner;
     int32_t nexpr_inner;
+    int32_t peel;
+    int32_t peel_br;
     uint8_t *ly;
     br = pipeline_expr_block_ref_at(arena, result_ref);
     if (br <= 0)
@@ -13233,26 +13237,36 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     last = ast_ast_block_final_expr_ref(arena, br);
     if (last <= 0 && nexpr > 0)
       last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
-    /* dest-region `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }`:
-     * outer nso==1 kind 6, last lives on the inner block. Do not
-     * leftover rest body_sync the dest-region (SAT rec last).
-     * with_arena dest-parks last inside leftover unique leftover_emit_match_arm_block_stmts_except_last
-     * k==6 (return 1). PLATFORM: WINDOWS leftover-PE. */
-    if (last <= 0) {
-      nso = ast_ast_block_num_stmt_order(arena, br);
-      if (nso == 1) {
-        so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, br, 0);
-        so_idx = ast_ast_block_stmt_order_idx(arena, br, 0);
-        if (so_k == 6 && so_idx >= 0) {
-          inner = pipeline_block_region_body_ref(arena, br, so_idx);
-          if (inner > 0) {
-            last = ast_ast_block_final_expr_ref(arena, inner);
-            nexpr_inner = ast_ast_block_num_expr_stmts(arena, inner);
-            if (last <= 0 && nexpr_inner > 0)
-              last = ast_pipeline_block_expr_stmt_ref(arena, inner, nexpr_inner - 1);
-          }
-        }
-      }
+    /* dest-region `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }` /
+     * nested `{ unsafe { unsafe { [3,4] } } }`: nso==1 kind 6, last
+     * lives on an inner block. One-level peel left nested dest-region
+     * last<=0 then SAT if_arm of BLOCK (SAT rec last, parked dest
+     * stays 0). G.7 complete: peel while last<=0 && nso==1 kind 6
+     * (cap 16). Do not rewrite br (outer with_arena still walks
+     * leftover unique leftover_emit_match_arm_block_stmts_except_last).
+     * Do not leftover rest body_sync the dest-region (SAT rec last).
+     * Nested last inside with_arena dest-parks after deinit leftover
+     * unless last is the immediate inner last.
+     * PLATFORM: WINDOWS leftover-PE. */
+    peel = 0;
+    peel_br = br;
+    while (last <= 0 && peel < 16) {
+      peel++;
+      nso = ast_ast_block_num_stmt_order(arena, peel_br);
+      if (nso != 1)
+        break;
+      so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, 0);
+      so_idx = ast_ast_block_stmt_order_idx(arena, peel_br, 0);
+      if (so_k != 6 || so_idx < 0)
+        break;
+      inner = pipeline_block_region_body_ref(arena, peel_br, so_idx);
+      if (inner <= 0)
+        break;
+      last = ast_ast_block_final_expr_ref(arena, inner);
+      nexpr_inner = ast_ast_block_num_expr_stmts(arena, inner);
+      if (last <= 0 && nexpr_inner > 0)
+        last = ast_pipeline_block_expr_stmt_ref(arena, inner, nexpr_inner - 1);
+      peel_br = inner;
     }
     if (last <= 0 || last == result_ref)
       return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
