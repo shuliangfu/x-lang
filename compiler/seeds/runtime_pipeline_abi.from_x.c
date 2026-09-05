@@ -34000,6 +34000,7 @@ extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li,
 extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t j, uint8_t *out);
 extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
 extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref);
+extern int32_t pipeline_asm_emit_ctx_call_param_ty_get(void);
 
 /*
  * leftover rest unique field_type_ref T first-wins is a 23B SAT-t stub
@@ -34097,6 +34098,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   int32_t len_off;
   int32_t past;
   int32_t fty;
+  int32_t pty;
   void *mod;
   if (!arena || !elf_ctx || expr_ref <= 0)
     return -1;
@@ -34316,21 +34318,34 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       tk = pipeline_type_kind_ord_at(arena, rty);
     /* dest-SLICE stamps FA resolved TYPE_SLICE so wrap uses tk==11.
      * dest-ARRAY does not stamp: FA resolved is 0 / i32 and rec 4B-loads
-     * (`arr_field_arg` INDEX0=3 INDEX1=0). POSIX .x @79444 uses
-     * field_type_ref layout TYPE_ARRAY (comment @71660). leftover rest
-     * unique field_type_ref was a SAT-t stub returning 0 — complete it
-     * (same leftover rest .o) then use it here when resolved is not
-     * TYPE_ARRAY. Do not leftover rest T SAT try_index (arr0).
-     * PLATFORM: WINDOWS leftover-PE. */
+     * (`arr_field_arg` INDEX0=3 INDEX1=0). POSIX .x @79444 uses dest
+     * pty TYPE_ARRAY then try_index. SAT egg leftover rest unique SET
+     * wrapper (ALWAYS @16428) writes leftover rest unique call_param_ty
+     * BSS (scope_block sibling; SAT standalone has no GET). leftover
+     * rest unique GET first-wins leftover rest unique BSS. Layout
+     * helper stays fallback when dest is 0. Do not leftover rest
+     * remaining-wave 221 original via !FROM_X || WIN. Do not leftover
+     * rest T SAT try_index (arr0). PLATFORM: WINDOWS leftover-PE. */
     if (tk != 11 && tk != 10) {
-      mod = glue_emit_module_from_ctx(ctx);
-      if (!mod)
-        mod = pipeline_asm_emit_module_ref_c();
-      fty = win_glue_fa_layout_type_ref_c(arena, mod, ctx, expr_ref);
-      if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
-        rty = fty;
+      pty = pipeline_asm_emit_ctx_call_param_ty_get();
+      if (pty > 0 && glue_type_is_fixed_array(arena, pty) != 0) {
+        rty = pty;
         tk = 10;
       }
+      if (tk != 10) {
+        mod = glue_emit_module_from_ctx(ctx);
+        if (!mod)
+          mod = pipeline_asm_emit_module_ref_c();
+        fty = win_glue_fa_layout_type_ref_c(arena, mod, ctx, expr_ref);
+        if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
+          rty = fty;
+          tk = 10;
+        }
+      }
+      if (link_abi_getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr,
+                "xlang: for_call_args FIELD dest_pty=%d tk=%d rty=%d\n",
+                (int)pty, (int)tk, (int)rty);
     }
     if (tk == 11) {
       if (!ctx)
@@ -37450,8 +37465,17 @@ void glue_align_next_offset(void *ctx) {
     *ly_next = off + (8 - m);
 }
 
-/* WIN leftover-PE scope_block BSS — wave221 cold twin is #ifndef FROM_X only. */
+/* WIN leftover-PE scope_block / call_param_ty BSS — wave221 cold twins
+ * are #ifndef FROM_X only. leftover rest unique SET wrapper ALWAYS
+ * @16428 UNDEFs leftover rest unique SET. SAT egg glue_emit_one_call_arg
+ * leftover rest unique SET writes leftover rest unique BSS so leftover
+ * rest unique for_call_args GET can see dest TYPE_ARRAY (POSIX .x
+ * @79444 dest-ARRAY FIELD packing). SAT standalone has no remaining-wave
+ * GET — leftover rest unique GET T, not leftover rest U remaining-wave
+ * GET. Do not leftover rest remaining-wave original via !FROM_X || WIN.
+ * PLATFORM: WINDOWS leftover-PE. */
 static int32_t g_win_leftover_emit_scope_block = 0;
+static int32_t g_win_leftover_emit_call_param_ty = 0;
 
 int32_t pipeline_asm_emit_ctx_scope_block_get(void) {
   return g_win_leftover_emit_scope_block;
@@ -37459,6 +37483,14 @@ int32_t pipeline_asm_emit_ctx_scope_block_get(void) {
 
 void pipeline_asm_emit_ctx_scope_block_set(int32_t block_ref) {
   g_win_leftover_emit_scope_block = block_ref;
+}
+
+int32_t pipeline_asm_emit_ctx_call_param_ty_get(void) {
+  return g_win_leftover_emit_call_param_ty;
+}
+
+void pipeline_asm_emit_ctx_call_param_ty_set(int32_t type_ref) {
+  g_win_leftover_emit_call_param_ty = type_ref;
 }
 
 int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref) {
