@@ -151,6 +151,7 @@
   - ✅ TYPE_ARRAY dest-in-rbx `*p = a`／`*p = [3, 4]` leftover rest unique rec ASSIGN＋store 跳过 mag=-3＠`921fee867`
   - ✅ TYPE_ARRAY 整数组 return `return a` leftover rest unique emit_return Path B0 durable COMMON＠`0e21c1b0b`
   - ✅ TYPE_NAMED dest-in-rbx STRUCT_LIT `*p = P { x: 3, y: 4 }` leftover rest unique rec ASSIGN park dest CPU 栈＋SAT emit_struct_lit qword-copy＠`46f12fcd0`
+  - ✅ TYPE_SLICE dest-in-rbx ARRAY_LIT `*p = [3, 4]` leftover rest unique rec ASSIGN park dest CPU 栈＋SAT emit_array_lit store data+n_arr＠`631e7c8aa`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
