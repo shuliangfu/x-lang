@@ -244,6 +244,17 @@ EMIT_REDIRECT_SYMS = (
     # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
     "glue_emit_fixed_array_type_let_init_elf_c",
     "glue_struct_lit_store_fixed_array_field_elf_c",
+    # TYPE_SLICE let-init INDEX: SAT emit_block_inits intra SAT
+    # slice_from_array (local t) ARRAY_LIT/VAR wrap already GREEN;
+    # INDEX of TYPE_ARRAY of TYPE_SLICE returns 0 then store_rax
+    # only (`slice_let_idx` SEGV 139). leftover rest unique T
+    # first-wins FULL body + INDEX TYPE_SLICE emit + store_retval_pair
+    # + FIELD TYPE_SLICE lvalue qword-copy. SAT slice_from_array is
+    # SAT local t — not leftover rest T SAT global T. PE first-wins
+    # does not rewrite SAT intra. G.7 complete of this table.
+    # Do not leftover rest T SAT emit_block_inits / try_index.
+    # PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+    "glue_emit_slice_from_array_let_init_elf_c",
 )
 
 # Functions whose call sites we rewrite (thin text → rest callees).
