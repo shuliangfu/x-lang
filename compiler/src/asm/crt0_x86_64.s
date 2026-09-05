@@ -1,7 +1,7 @@
 # crt0_x86_64.s - freestanding / hybrid entry: _start (x86_64 Linux)
 # PLATFORM: LINUX — Linux x86_64 SysV; not used on Darwin (see crt0_darwin_x86_64.s / arm64).
 # E-04 v19: _start calls main_entry (driver_x.o / bridge weak stub); replaces main.c.
-# NL-07 v5: bootstrap_init_static_tls (%fs:0x28 stack canary) then bootstrap_init_environ.
+# NL-07 v5: bootstrap_init_static_tls (PT_TLS image + %fs:0x28 canary) then bootstrap_init_environ.
 # NL-07 v6: argc/argv live in r12/r13; bootstrap stubs clobber rdi/rsi — restore before each call.
 # NL-07 v7: keep SysV 16B stack alignment before C calls (do not extra sub $8).
 #

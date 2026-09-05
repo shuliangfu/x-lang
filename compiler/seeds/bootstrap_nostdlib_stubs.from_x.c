@@ -105,9 +105,110 @@ extern void xlang_sys_exit(int code) __attribute__((noreturn));
 #endif
 
 /**
- * NL-07 v5：nostdlib 静态链无 glibc TLS 初始化；gcc -fstack-protector 读 %fs:0x28 会 SIGSEGV。
- * FS 基址设为 &block 后，fs:0x28 即 block.stack_guard（Linux x86_64 TLS 布局）。
+ * NL-07 v5 / 2026-09-05 complete: nostdlib static has no glibc TLS.
+ * x86-64 SysV: FS = TCB; PT_TLS lives at [FS - p_memsz, FS); canary at FS+0x28.
+ *
+ * The original 48-byte block only covered the canary. gcc initial-exec
+ * __thread stores (parser binop-peek PT_TLS memsz=0x70) use negative FS
+ * offsets and wrote into BSS, zeroing `environ`. Then execve(..., NULL)
+ * made gcc 15 posix_spawnp("cc1") ENOENT after L4 wipe (ensure rebuilds
+ * runtime_link_abi_user_env.o via cc).
+ *
+ * G.7: complete this function; do not add a second TLS init.
+ * PLATFORM: LINUX x86_64 nostdlib (crt0_x86_64.s calls this before main).
  */
+#if defined(__linux__) && defined(__x86_64__)
+#ifndef PT_TLS
+#define PT_TLS 7
+#endif
+/* Storage cap: PT_TLS p_memsz + TCB. Today p_memsz=0x70; mmap if larger. */
+#define BOOTSTRAP_TLS_IMG_CAP 4096u
+#define BOOTSTRAP_TCB_LEN 64u
+
+static unsigned char bootstrap_tls_area[BOOTSTRAP_TLS_IMG_CAP + BOOTSTRAP_TCB_LEN]
+    __attribute__((aligned(16)));
+
+struct bootstrap_elf64_ehdr {
+    unsigned char e_ident[16];
+    uint16_t e_type;
+    uint16_t e_machine;
+    uint32_t e_version;
+    uint64_t e_entry;
+    uint64_t e_phoff;
+    uint64_t e_shoff;
+    uint32_t e_flags;
+    uint16_t e_ehsize;
+    uint16_t e_phentsize;
+    uint16_t e_phnum;
+    uint16_t e_shentsize;
+    uint16_t e_shnum;
+    uint16_t e_shstrndx;
+};
+
+struct bootstrap_elf64_phdr {
+    uint32_t p_type;
+    uint32_t p_flags;
+    uint64_t p_offset;
+    uint64_t p_vaddr;
+    uint64_t p_paddr;
+    uint64_t p_filesz;
+    uint64_t p_memsz;
+    uint64_t p_align;
+};
+
+extern char __executable_start[] __attribute__((weak));
+
+static unsigned long bootstrap_read_pt_tls_memsz(void) {
+    const struct bootstrap_elf64_ehdr *eh;
+    const struct bootstrap_elf64_phdr *ph;
+    unsigned int i;
+    unsigned int n;
+    if (!__executable_start)
+        return 0;
+    eh = (const struct bootstrap_elf64_ehdr *)(const void *)__executable_start;
+    if (eh->e_ident[0] != 0x7f || eh->e_ident[1] != 'E' ||
+        eh->e_ident[2] != 'L' || eh->e_ident[3] != 'F')
+        return 0;
+    if (eh->e_phentsize != (uint16_t)sizeof(struct bootstrap_elf64_phdr))
+        return 0;
+    ph = (const struct bootstrap_elf64_phdr *)(const void *)((const char *)eh + eh->e_phoff);
+    n = eh->e_phnum;
+    for (i = 0; i < n; i++) {
+        if (ph[i].p_type == (uint32_t)PT_TLS)
+            return (unsigned long)ph[i].p_memsz;
+    }
+    return 0;
+}
+
+void bootstrap_init_static_tls(void) {
+    unsigned long tls_len;
+    unsigned long fs;
+    unsigned long *guard;
+    unsigned char *img;
+    long ret;
+
+    tls_len = bootstrap_read_pt_tls_memsz();
+    if (tls_len == 0)
+        tls_len = 256;
+    tls_len = (tls_len + 15ul) & ~15ul;
+    img = bootstrap_tls_area;
+    if (tls_len > BOOTSTRAP_TLS_IMG_CAP) {
+        /* PROT_READ|PROT_WRITE=3, MAP_PRIVATE|MAP_ANONYMOUS=0x22 */
+        img = (unsigned char *)xlang_sys_mmap((void *)0, tls_len + BOOTSTRAP_TCB_LEN,
+                                              3, 0x22, -1, 0);
+        if (!img || img == (unsigned char *)(long)-1) {
+            tls_len = BOOTSTRAP_TLS_IMG_CAP;
+            img = bootstrap_tls_area;
+        }
+    }
+    /* FS = TCB; __thread slots are at FS - tls_len .. FS-1. */
+    fs = (unsigned long)(img + tls_len);
+    guard = (unsigned long *)(fs + 0x28);
+    *guard = 0xdeadbeefdeadbeefUL ^ fs;
+    __asm__ volatile("syscall" : "=a"(ret) : "a"(158L), "D"(0x1002L), "S"(fs) : "rcx", "r11", "memory");
+    (void)ret;
+}
+#else
 struct bootstrap_tls_block {
     char pad[0x28];
     unsigned long stack_guard;
@@ -115,19 +216,15 @@ struct bootstrap_tls_block {
 
 static struct bootstrap_tls_block bootstrap_tls;
 
-/**
- * 由 crt0_x86_64.s _start 在 main_entry 之前调用；仅 Linux x86_64 nostdlib 链需要。
- * 不用 libc syscall()（-nostdlib 无 syscall 桩）。
- */
 void bootstrap_init_static_tls(void) {
     long ret;
     unsigned long tls_base = (unsigned long)&bootstrap_tls;
     bootstrap_tls.stack_guard =
         (unsigned long)0xdeadbeefdeadbeefUL ^ tls_base;
-    /* Linux x86_64：arch_prctl(ARCH_SET_FS, tls_base) */
     __asm__ volatile("syscall" : "=a"(ret) : "a"(158L), "D"(0x1002L), "S"(tls_base) : "rcx", "r11", "memory");
     (void)ret;
 }
+#endif
 
 /**
  * NL-07 v5：自定义 crt0 不链 libc _start，须从栈布局 argv[argc+1]… 初始化 environ。
