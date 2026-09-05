@@ -12971,7 +12971,10 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
  * peels last stmt_order kind 5 from then/else so last dest-parks
  * inside the outer IF (not SAT rec of the outer IF). Dest-region
  * last in else (`{ if false { } else { [3,4] } }`) peels else when
- * then last is empty and then is not dest-region.
+ * then last is empty and then is not dest-region. Preceding IF
+ * (`{ if true { x = 1; } [3,4] }`) emits cond+then+else here
+ * (leftover unique remaining-wave pipeline_asm_emit_block_if_stmt_elf
+ * is #ifndef FROM_X ABSENT on FROM_X WIN leftover).
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
@@ -13001,6 +13004,8 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
   int32_t then_peel;
   int32_t else_peel;
   int32_t then_last_peel;
+  int32_t dest_park_if;
+  int32_t then_skip;
   uint8_t name_buf[128];
   uint8_t else_lbl[128];
   uint8_t done_lbl[128];
@@ -13060,7 +13065,10 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
        * remaining-wave that. G.7 complete: dest-park last INSIDE IF when last lives
        * on then/else (peel last stmt_order kind 6 / kind 5 from then/else for nested
        * dest-region / nested IF; return 1). Preceding IF (`{ if true { x = 1; } [3,4] }`)
-       * last is outer — SAT T leftover unique remaining-wave pipeline_asm_emit_block_if_stmt_elf.
+       * last is outer — emit cond+then+else via leftover unique leftover_emit_match_arm_block_stmts_except_last
+       * recurse skip dest-park (return 0). Do not leftover unique remaining-wave
+       * pipeline_asm_emit_block_if_stmt_elf (ABSENT on FROM_X WIN leftover). leftover rest
+       * WIN leftover body_sync k==5 same latent UNDEF later leftover rest unique knife.
        * Do not leftover rest body_sync dest-region SAT rec last.
        * Do not glue_asm_ctx_set_scope_block (SAT local t leftover unique remaining-wave).
        * PLATFORM: WINDOWS leftover-PE. */
@@ -13180,7 +13188,16 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
           }
         }
       }
-      if (last > 0 && (inner_last == last || else_last == last) && cond > 0 && inner > 0) {
+      dest_park_if = (last > 0 && (inner_last == last || else_last == last));
+      if (cond > 0 && inner > 0) {
+        /* Preceding IF (`{ if true { x = 1; } [3,4] }`) last is outer —
+         * emit cond+then+else here (leftover unique remaining-wave
+         * pipeline_asm_emit_block_if_stmt_elf is #ifndef FROM_X ABSENT
+         * on FROM_X WIN leftover). Dest-park last INSIDE IF only when
+         * last lives on then/else. Do not leftover_emit_if twin.
+         * leftover rest WIN leftover body_sync k==5 same latent UNDEF
+         * later leftover rest unique knife.
+         * PLATFORM: WINDOWS leftover-PE. */
         if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta) != 0)
           return -1;
         else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
@@ -13196,10 +13213,11 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
           slot_base = 0;
         if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, inner, ctx, ta, slot_base) != 0)
           return -1;
-        er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, inner_last, ctx, ta);
+        then_skip = dest_park_if ? inner_last : last;
+        er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, then_skip, ctx, ta);
         if (er < 0)
           return -1;
-        if (er == 0 && inner_last > 0) {
+        if (dest_park_if && er == 0 && inner_last > 0) {
           if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, inner_last, ctx, ta) != 0)
             return -1;
         }
@@ -13215,25 +13233,27 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
             slot_base = 0;
           if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, else_br, ctx, ta, slot_base) != 0)
             return -1;
-          er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, else_br, else_last, ctx, ta);
+          then_skip = dest_park_if ? else_last : last;
+          er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, else_br, then_skip, ctx, ta);
           if (er < 0)
             return -1;
-          if (er == 0 && else_last > 0) {
+          if (dest_park_if && er == 0 && else_last > 0) {
             if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, else_last, ctx, ta) != 0)
               return -1;
           }
-        } else {
+        } else if (dest_park_if) {
           if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
             return -1;
         }
         if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
           return -1;
-        parked = 1;
-        return 1;
+        if (dest_park_if) {
+          parked = 1;
+          return 1;
+        }
+        continue;
       }
-      if (pipeline_asm_emit_block_if_stmt_elf(arena, elf_ctx, br, if_idx, ctx, ta, si) != 0)
-        return -1;
-      continue;
+      return -1;
     }
     /* MATCH arm BLOCK preceding with_arena (`{ with_arena { x = 1; } [3,4] }`).
      * leftover rest WIN leftover body_sync k==6 now plants Arena64;
