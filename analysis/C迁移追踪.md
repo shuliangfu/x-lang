@@ -149,6 +149,7 @@
   - ✅ TYPE_ARRAY DEREF let-init `unsafe { let y: [2]i32 = *p }` E* 拷贝＠`be3cbf90e`
   - ✅ TYPE_ARRAY 整数组赋值 `y = *p`／STRUCT_LIT `H { a: *p }`（SAT emit_assign 未入 SCAN；SAT let_init 已 SCAN＋store REDIRECT）＠`be3cbf90e`
   - ✅ TYPE_ARRAY dest-in-rbx `*p = a`／`*p = [3, 4]` leftover rest unique rec ASSIGN＋store 跳过 mag=-3＠`921fee867`
+  - ✅ TYPE_ARRAY 整数组 return `return a` leftover rest unique emit_return Path B0 durable COMMON＠`0e21c1b0b`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
