@@ -12872,6 +12872,10 @@ extern int32_t pipeline_module_func_param_type_ref_for_name(void *module, int32_
                                                            int32_t name_len);
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_block_ref_at(void *arena, int32_t expr_ref);
+extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
+extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern void *pipeline_codegen_match_mod_c(void);
 extern int32_t pipeline_codegen_match_matched_ref_c(void);
@@ -12937,8 +12941,20 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * rax/rdx, parked dest stays 0. G.7 complete: same lvalue + qword-copy
    * as FIELD/INDEX (do not leftover_emit_deref twin; rec ASSIGN
    * TYPE_SLICE asg_rko==52 is terminal dual-GP, not MATCH helper).
-   * Do not leftover rest T SAT emit_call / emit_method / emit_assign /
-   * emit_array_lit / emit_field / emit_deref. Do not leftover rest U
+   * MATCH arm BLOCK=26 (`slice_star_match_block` /
+   * `named_star_match_block` / `arr_star_match_block`): `{ [3,4] }` /
+   * `{ P { x: 3 } }` / `{ *q }`. SAT if_arm of BLOCK emits last as SAT
+   * emit_array_lit implicit dest (leftover rest FROM_X block_body_sync
+   * stub -1; product uses .x thin); parked dest stays 0. G.7 complete:
+   * peel last expr then recurse leftover_emit_match_arm_result so
+   * STRUCT_LIT/ARRAY_LIT/VAR/CALL/FIELD/DEREF inside BLOCK still
+   * dest-parked. Do not leftover_emit_block twin of SAT if_arm. Do not
+   * SAT if_arm of BLOCK then leftover_emit_match_arm_result(last)
+   * (double-emit last). Preceding stmts (`{ let x = 1; [3,4] }`) not
+   * this knife (SAT block_body stub -1; preceding SAT rec would clobber
+   * parked rbx). Do not leftover rest remaining-wave. Do not leftover
+   * rest T SAT emit_call / emit_method / emit_assign / emit_array_lit /
+   * emit_field / emit_deref / emit_struct_lit. Do not leftover rest U
    * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
@@ -12950,6 +12966,21 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   if (rko == 44 || rko == 47 || rko == 52)
     return leftover_emit_slice_lvalue_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if (rko == 26) {
+    int32_t br;
+    int32_t nexpr;
+    int32_t last;
+    br = pipeline_expr_block_ref_at(arena, result_ref);
+    if (br <= 0)
+      return -1;
+    nexpr = ast_ast_block_num_expr_stmts(arena, br);
+    last = ast_ast_block_final_expr_ref(arena, br);
+    if (last <= 0 && nexpr > 0)
+      last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
+    if (last <= 0 || last == result_ref)
+      return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+    return leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+  }
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
