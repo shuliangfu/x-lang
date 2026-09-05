@@ -142,6 +142,7 @@
   - ✅ TYPE_ARRAY 8B DEREF 作参 `take(*p)` of `*[2]i32` load_64＠`db81db6f2`
   - ✅ FIELD TYPE_ARRAY 8B 作参 `take(s.a)` rec load_64＠`b6bdaf3b5`
   - ✅ CALL 返回 TYPE_ARRAY 8B 作参 `take(mk())` durable E*＋load_64＠`c11bc6a1d`
+  - ✅ INDEX of `[2][2]i32` 作 TYPE_ARRAY 形参 `take(rows[1])` rec load_64＠`9739736be`
 - ✅ **L4＠1174c5bb3 bstrict** — Ubuntu shuffle 后 **select SIGILL**：`vpxor ymm3` 写 `C5 F5 77`（EMMS #UD）；`vpand`／`vpandn`／`vpor` VEX.vvvv 误用 ymm3。i32 ymm 编码器已补（Ubuntu L4＠`6c0fdeebf` shuffle-select **OK**）；f32 ymm select 编码器亦已补全（`vxorps` `C5 E4 57 DB`、`vcmpgtps` `C5 EC C2 D3 0E`、`vandps` `C5 FC 54 C2`、`vandnps` `C5 EC 55 D1`、`vorps` `C5 FC 56 C2`）
 
 ---
