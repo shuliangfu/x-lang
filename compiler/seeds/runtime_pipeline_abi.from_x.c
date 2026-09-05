@@ -12876,6 +12876,9 @@ extern int32_t pipeline_expr_block_ref_at(void *arena, int32_t expr_ref);
 extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
 extern int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
 extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
+extern int32_t pipeline_expr_if_cond_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_if_then_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_if_else_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern void *pipeline_codegen_match_mod_c(void);
 extern int32_t pipeline_codegen_match_matched_ref_c(void);
@@ -12952,8 +12955,18 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * SAT if_arm of BLOCK then leftover_emit_match_arm_result(last)
    * (double-emit last). Preceding stmts (`{ let x = 1; [3,4] }`) not
    * this knife (SAT block_body stub -1; preceding SAT rec would clobber
-   * parked rbx). Do not leftover rest remaining-wave. Do not leftover
-   * rest T SAT emit_call / emit_method / emit_assign / emit_array_lit /
+   * parked rbx). MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
+   * `named_star_match_if` / `arr_star_match_if`):
+   * `if true { [3, 4] } else { [0, 0] }`. SAT if_arm of IF recs the
+   * IF; leftover unique rec → leftover unique emit_if remaining-wave
+   * `#ifndef FROM_X` ABSENT, .x thin emit_if SAT if_arm of then/else.
+   * SAT if_arm of ARRAY_LIT/STRUCT_LIT recs SAT implicit dest; parked
+   * dest stays 0. G.7 complete: emit cond then recurse
+   * leftover_emit_match_arm_result(then/else) so STRUCT_LIT/ARRAY_LIT/
+   * VAR/CALL/FIELD/DEREF/BLOCK inside IF still dest-parked. Do not
+   * leftover_emit_if twin of leftover unique emit_if / .x thin emit_if.
+   * Do not leftover rest remaining-wave. Do not leftover rest T SAT
+   * emit_call / emit_method / emit_assign / emit_array_lit /
    * emit_field / emit_deref / emit_struct_lit. Do not leftover rest U
    * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
@@ -12980,6 +12993,44 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     if (last <= 0 || last == result_ref)
       return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
     return leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+  }
+  if (rko == 25 || rko == 27) {
+    int32_t cond;
+    int32_t then_ref;
+    int32_t else_ref;
+    uint8_t else_lbl[128];
+    uint8_t done_lbl[128];
+    int32_t else_len;
+    int32_t done_len;
+    cond = pipeline_expr_if_cond_ref_at(arena, result_ref);
+    then_ref = pipeline_expr_if_then_ref_at(arena, result_ref);
+    else_ref = pipeline_expr_if_else_ref_at(arena, result_ref);
+    if (cond <= 0 || then_ref <= 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta) != 0)
+      return -1;
+    else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
+    done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
+    if (else_len <= 0 || done_len <= 0)
+      return -1;
+    if (glue_enc_jz_after_bool_in_eax(elf_ctx, else_lbl, else_len, ta) != 0)
+      return -1;
+    if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, then_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+      return -1;
+    if (backend_enc_label_arch(elf_ctx, else_lbl, else_len, 0, ta) != 0)
+      return -1;
+    if (else_ref > 0) {
+      if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, else_ref, ctx, ta) != 0)
+        return -1;
+    } else {
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
+      return -1;
+    return 0;
   }
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
