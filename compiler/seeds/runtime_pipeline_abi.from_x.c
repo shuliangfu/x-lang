@@ -12900,6 +12900,12 @@ extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_
                                              void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block, int32_t if_idx,
                                                   void *ctx, int32_t ta, int32_t stmt_i);
+extern int32_t pipeline_block_num_labeled_stmts(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_labeled_is_goto(void *arena, int32_t block_ref, int32_t li);
+extern int32_t pipeline_block_labeled_label_len(void *arena, int32_t block_ref, int32_t li);
+extern void pipeline_block_labeled_label_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
+extern int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block_ref, int32_t li);
+extern void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
 extern void *pipeline_codegen_match_mod_c(void);
 extern int32_t pipeline_codegen_match_matched_ref_c(void);
 extern int32_t pipeline_codegen_match_subject_ty_c(void);
@@ -12935,7 +12941,10 @@ static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf
  * (SAT implicit dest, parked dest stays 0). G.7 complete: same
  * SAT T while/for/block_if as leftover rest WIN leftover
  * body_sync; region recurse this walk (skip last) instead of
- * leftover rest body_sync. Kind 7 labeled not this knife.
+ * leftover rest body_sync. Kind 7 labeled/goto: same jmp/label
+ * as dest-in-rbx IF extra-arm (leftover rest WIN leftover
+ * body_sync still SAT leftover). Labeled return as prefix is
+ * leftover (would exit the function; dest is dead).
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
@@ -12948,6 +12957,9 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
   int32_t inner;
   int32_t ncfg;
   int32_t slot_base;
+  int32_t is_g;
+  int32_t nlen;
+  uint8_t name_buf[128];
   if (!arena || !elf_ctx || !ctx || br <= 0)
     return -1;
   nso = ast_ast_block_num_stmt_order(arena, br);
@@ -13009,6 +13021,38 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
         return -1;
       if (leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, last, ctx, ta) != 0)
         return -1;
+      continue;
+    }
+    /* MATCH arm BLOCK preceding labeled/goto (`{ goto L; L: [3,4] }`
+     * / `{ L: x = 1; [3,4] }`). leftover rest WIN leftover body_sync
+     * skips k==7 (SAT leftover). dest-in-rbx IF extra-arm already
+     * emits jmp/label so dest stays parked and the side effect after
+     * the label is not lost. G.7 complete: same SAT T enc_jmp /
+     * enc_label. Do not leftover rest remaining-wave leftover rest
+     * WIN leftover body_sync. Do not leftover_emit_block twin.
+     * Labeled return (`L: return e`) as extra prefix is leftover
+     * (would exit the function; dest is dead). PLATFORM: WINDOWS
+     * leftover-PE. */
+    if (k == 7) {
+      ncfg = pipeline_block_num_labeled_stmts(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      is_g = pipeline_block_labeled_is_goto(arena, br, idx);
+      if (is_g != 0) {
+        pipeline_block_labeled_goto_target_copy32(arena, br, idx, name_buf);
+        nlen = pipeline_block_labeled_goto_target_len(arena, br, idx);
+        if (nlen > 0 && nlen <= 127) {
+          if (backend_enc_jmp_arch(elf_ctx, name_buf, nlen, ta) != 0)
+            return -1;
+        }
+        continue;
+      }
+      pipeline_block_labeled_label_copy32(arena, br, idx, name_buf);
+      nlen = pipeline_block_labeled_label_len(arena, br, idx);
+      if (nlen > 0 && nlen <= 127) {
+        if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
+          return -1;
+      }
       continue;
     }
   }
@@ -13073,7 +13117,11 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * `{ unsafe { [3,4] } }`): leftover rest WIN leftover body_sync
    * SAT-recs last. G.7 complete: stmt_order kinds 3/4/5 SAT T
    * while/for/block_if; kind 6 recurse skip last (do not leftover
-   * rest body_sync dest-region). Kind 7 labeled not this knife.
+   * rest body_sync dest-region). MATCH arm BLOCK preceding
+   * labeled/goto (`{ goto L; L: [3,4] }` / `{ L: x = 1; [3,4] }`):
+   * leftover rest WIN leftover body_sync skips k==7. G.7 complete:
+   * same jmp/label as dest-in-rbx IF extra-arm. Labeled return as
+   * prefix is leftover (dest dead).
    * MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
    * `named_star_match_if` / `arr_star_match_if`):
    * `if true { [3, 4] } else { [0, 0] }`. SAT if_arm of IF recs the
