@@ -28275,6 +28275,11 @@ extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t o
 extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
 extern int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx);
+extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
+extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
+                                                       int32_t field_ix);
+extern int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
@@ -28726,65 +28731,78 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
             out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
         }
       } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 && asg_rko == 45) {
-        int32_t asg_nbytes;
-        int32_t asg_copy;
+        int32_t asg_nf;
+        int32_t asg_fi;
+        int32_t asg_iref;
+        int32_t asg_foff;
+        int32_t asg_fsz;
         void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx STRUCT_LIT. SAT emit_struct_lit SAT
+         * global T implicit dest uses leftover rest next_offset@ctx+4
+         * (stale vs user locals) so field stores clobber `p`
+         * (`named_star_lit` return d.y GREEN / (*p).y SEGV 139). Park
+         * dest saves &d but does not restore p. POSIX DEST_IN_RBX
+         * writes fields to rbx — no SAT dest. G.7 complete leftover
+         * rest unique rec ASSIGN: park dest CPU stack, emit each
+         * field via leftover rest rec, store to [rbx+foff]. Do not
+         * leftover rest T SAT emit_struct_lit. Do not leftover rest U
+         * SAT local t fields_elf. PLATFORM: WINDOWS leftover-PE. */
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
           out_rc = -1;
-        else if (pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
-          out_rc = -1;
-        else if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-          out_rc = -1;
-        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
-          out_rc = -1;
         else {
           asg_mod = glue_emit_module_from_ctx(ctx);
           if (!asg_mod)
             asg_mod = pipeline_asm_emit_module_ref_c();
-          asg_nbytes = 0;
-          if (asg_mod)
-            asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
-          if (asg_nbytes <= 0)
-            asg_nbytes = 8;
-          if (asg_nbytes > 4096)
+          asg_nf = pipeline_expr_struct_lit_num_fields(arena, asg_right);
+          if (asg_nf < 0)
+            asg_nf = 0;
+          if (asg_nf > 64)
             out_rc = -1;
           else {
-            asg_copy = 0;
             out_rc = 0;
-            while (asg_copy + 8 <= asg_nbytes) {
-              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+            for (asg_fi = 0; asg_fi < asg_nf; asg_fi++) {
+              asg_iref = pipeline_expr_struct_lit_init_ref(arena, asg_right, asg_fi);
+              asg_foff = 0;
+              if (asg_mod)
+                asg_foff = pipeline_expr_struct_lit_field_offset_at(arena, asg_mod, asg_right,
+                                                                   asg_fi);
+              if (asg_foff < 0)
+                asg_foff = 0;
+              asg_fsz = glue_struct_lit_field_store_sz(arena, asg_right, asg_fi);
+              if (asg_fsz <= 0)
+                continue;
+              if (asg_iref <= 0) {
                 out_rc = -1;
                 break;
               }
-              if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+              if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, asg_iref, ctx, ta) != 0) {
                 out_rc = -1;
                 break;
               }
-              if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, asg_copy, 8, ta) != 0) {
+              if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0) {
                 out_rc = -1;
                 break;
               }
-              if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+              if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0) {
                 out_rc = -1;
                 break;
               }
-              if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) {
+              if (asg_fsz > 8)
+                asg_fsz = 8;
+              if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, asg_foff, asg_fsz, ta) != 0) {
                 out_rc = -1;
                 break;
               }
-              asg_copy = asg_copy + 8;
-            }
-            if (out_rc == 0 && asg_copy < asg_nbytes) {
-              if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0)
-                out_rc = -1;
-              else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, asg_copy, 4, ta) != 0)
-                out_rc = -1;
             }
           }
+          if (out_rc == 0 && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (out_rc != 0)
+            (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
         }
       } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
         int32_t asg_n;
