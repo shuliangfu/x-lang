@@ -12889,11 +12889,23 @@ extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_r
 static int32_t g_leftover_match_dest_parked = 0;
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                        int32_t ta, int32_t base_off);
+static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
+                                                int32_t ta);
 
 static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
                                                    int32_t ta) {
-  if (g_leftover_match_dest_parked != 0 && pipeline_expr_kind_ord_at(arena, result_ref) == 45)
+  int32_t rko;
+  if (g_leftover_match_dest_parked == 0)
+    return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+  rko = pipeline_expr_kind_ord_at(arena, result_ref);
+  /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). VAR arm:
+   * thin if_arm SAT rec leaves dest 0 (match_arm_var16 RUN=0). G.7
+   * complete this helper — do not leftover rest T SAT emit_assign.
+   * CALL arm is a neighbor (match_arm_call16). PLATFORM: WINDOWS. */
+  if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
+  if (rko == 3)
+    return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
@@ -28531,6 +28543,81 @@ static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_c
     if (fsz > 8)
       fsz = 8;
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, fsz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm VAR: copy the named slot into parked dest.
+ * thin if_arm SAT rec emits VAR into rax (first 8B) and leaves dest 0
+ * (match_arm_var16 RUN=0). Same lvalue + qword-copy as TYPE_SLICE
+ * dest-in-rbx VAR (16B fat). Size from leftover rest unique
+ * named_layout (size_simple NAMED can report 0 → nbytes=8, 16B d
+ * stays 0). Do not leftover rest T SAT emit_assign / U SAT local t
+ * copy_large. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
+                                                int32_t ta) {
+  int32_t ty_ref;
+  int32_t nbytes;
+  int32_t named_sz;
+  int32_t copy_off;
+  int32_t rem;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || var_ref <= 0)
+    return -1;
+  ty_ref = pipeline_expr_resolved_type_ref(arena, var_ref);
+  if (ty_ref <= 0)
+    ty_ref = glue_var_decl_type_ref_elf_c(arena, ctx, var_ref);
+  if (ty_ref <= 0)
+    return -1;
+  mod = glue_emit_module_from_ctx(ctx);
+  if (!mod)
+    mod = pipeline_asm_emit_module_ref_c();
+  nbytes = 0;
+  if (mod)
+    nbytes = glue_type_size_simple(mod, arena, ty_ref, 0);
+  named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+  if (named_sz > nbytes)
+    nbytes = named_sz;
+  if (nbytes <= 0)
+    nbytes = 8;
+  if (nbytes > 4096)
+    return -1;
+  /* lvalue of VAR clobbers rbx; dest is on the CPU stack. Same park
+   * restore as leftover_emit_struct_lit_into_parked_rbx. */
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, var_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  copy_off = 0;
+  while (copy_off + 8 <= nbytes) {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 8, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
+    copy_off += 8;
+  }
+  if (copy_off < nbytes) {
+    rem = nbytes - copy_off;
+    if (rem > 4)
+      rem = 4;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, rem, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
   }
   return 0;
