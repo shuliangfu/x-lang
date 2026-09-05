@@ -28272,6 +28272,9 @@ extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
@@ -28625,9 +28628,17 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * overlaps SAT implicit dest (named_star_lit dump: SAT wrote x=3
      * over the dest pointer at rbp-0x38 → copy through 3 → SEGV 139).
      *
-     * TYPE_SLICE dest-in-rbx VAR `*p = xs` stays SAT emit_assign
-     * (slice_star_asg GREEN via SAT local t memcpy data half). TYPE_SLICE
-     * dest-in-rbx ARRAY_LIT `*p = [3, 4]` is a different produce: SAT
+     * TYPE_SLICE dest-in-rbx VAR `*p = xs` / CALL `*p = mk()` / DEREF
+     * `*p = *q` fell through SAT emit_assign (SAT local t memcpy data
+     * half / 4B store). slice_star_asg dest [0,0] was false GREEN
+     * (length already 2); dest [0] length stays 1 (`slice_star_var`
+     * [1] panic 127 / `slice_star_var_len` RUN=1). leftover rest rec
+     * ko==3 SAT slow rax=data only — VAR uses lvalue qword-copy
+     * (local lea C-order / formal fat*). CALL/METHOD/DEREF leftover
+     * rest emit already dual-GP. Do not intercept VAR dest VAR/CALL
+     * (SAT emit_assign store rax+rdx already GREEN).
+     *
+     * TYPE_SLICE dest-in-rbx ARRAY_LIT `*p = [3, 4]` is a different produce: SAT
      * emit_assign DEREF dest SAT local t struct_let_init -2 then emit
      * ARRAY_LIT clobbers rbx then 4B store through garbage rbx
      * (slice_star_lit SEGV 139). Remaining-wave emit_assign VAR TYPE_SLICE
@@ -28795,6 +28806,73 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
         else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, asg_n, 0, ta) != 0)
           out_rc = -1;
         else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+          out_rc = -1;
+        else
+          out_rc = 0;
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 &&
+                 (asg_rko == 3 || asg_rko == 48 || asg_rko == 49 || asg_rko == 52)) {
+        /* TYPE_SLICE dest-in-rbx VAR/CALL/METHOD/DEREF. Park dest
+         * (emit_expr / lvalue clobbers rbx). VAR: leftover rest unique
+         * lvalue qword-copy 16B (not rec ko==3 SAT slow). CALL/METHOD/
+         * DEREF: leftover rest emit dual-GP then store rax@0 rdx@8.
+         * Do not leftover rest T SAT emit_assign. PLATFORM: WINDOWS
+         * leftover-PE. */
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (asg_rko == 3) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        } else if (asg_rko == 52) {
+          if (pipeline_asm_emit_deref_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        } else if (asg_rko == 49) {
+          if (pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        } else if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+          out_rc = -1;
+        else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
           out_rc = -1;
         else
           out_rc = 0;
