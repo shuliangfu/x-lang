@@ -12878,6 +12878,25 @@ extern int32_t pipeline_codegen_match_matched_ref_c(void);
 extern int32_t pipeline_codegen_match_subject_ty_c(void);
 extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_ref, int32_t subject_ty);
 
+/*
+ * MATCH dest-in-rbx: leftover rest unique emit_match first-wins, but
+ * if_arm is thin intra-object SAT rec (PE first-wins does not rewrite
+ * intra-object). Flag + rec ko==45 never ran (match_star16 dump: SAT
+ * implicit dest lea rbp-0x60, dest stays 0). G.7: emit_match itself
+ * DEST_IN_RBX field-stores STRUCT_LIT arms when dest is parked.
+ * PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t g_leftover_match_dest_parked = 0;
+static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+                                                       int32_t ta);
+
+static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
+                                                   int32_t ta) {
+  if (g_leftover_match_dest_parked != 0 && pipeline_expr_kind_ord_at(arena, result_ref) == 45)
+    return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+}
+
 int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t matched_ref;
   int32_t num_arms;
@@ -12933,7 +12952,7 @@ int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_r
     if (result_ref <= 0)
       goto match_elf_done;
     if (is_wild != 0 && guard_ref <= 0) {
-      if (pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
+      if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
         goto match_elf_done;
       if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
         if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
@@ -12972,7 +12991,7 @@ int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_r
           goto match_elf_done;
       }
     }
-    if (pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
+    if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
       goto match_elf_done;
     if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
       if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
@@ -28453,8 +28472,6 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
  * (same DEST_IN_RBX as TYPE_NAMED dest-in-rbx STRUCT_LIT). Do not leftover
  * rest T SAT emit_struct_lit. PLATFORM: WINDOWS leftover-PE.
  */
-static int32_t g_leftover_match_dest_parked = 0;
-
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                        int32_t ta) {
   int32_t nf;
