@@ -28639,18 +28639,21 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * leftover rest remaining-wave bump @11427 is #ifndef FROM_X ABSENT
      * (do not leftover rest UNDEF it). SAT emit_array_lit owns dest.
      *
-     * TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` is a different produce:
-     * SAT emit_assign DEREF dest SAT local t struct_let_init -2 (FIELD
-     * is not VAR/CALL/DEREF) then SAT intra emit FIELD clobbers rbx
-     * then 4B store (slice_star_field SEGV 139). leftover rest unique
+     * TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` / INDEX `*p = rows[1]`
+     * are the same produce: SAT emit_assign DEREF dest SAT local t
+     * struct_let_init -2 (FIELD/INDEX are not VAR/CALL/DEREF) then SAT
+     * intra emit FIELD/INDEX clobbers rbx then 4B store
+     * (slice_star_field / slice_star_idx SEGV 139). leftover rest unique
      * rec ko==44 is enum-namespace only (non-enum -1). G.7 complete
-     * leftover rest unique rec ASSIGN TYPE_SLICE FIELD: park dest CPU
-     * stack, leftover rest unique lvalue of FIELD (rax=&fat pair),
-     * qword-copy 16B data@0+length@8 into parked dest. Do not leftover
-     * rest U SAT local t copy_large / field_type_ref (23B stub). Do not
-     * leftover rest T SAT emit_assign. Do not leftover rest
-     * remaining-wave emit_assign / fields_elf via !FROM_X || WIN. Do not
-     * call glue_emit_slice_from_array_let_init(-3) (rbp-3).
+     * leftover rest unique rec ASSIGN TYPE_SLICE FIELD/INDEX: park dest
+     * CPU stack, leftover rest unique lvalue of FIELD/INDEX
+     * (rax=&fat pair; INDEX of [N][]T leas payload+idx*16, INDEX of
+     * [][]T peels fat.data then +idx*16), qword-copy 16B data@0+length@8
+     * into parked dest. Do not leftover rest U SAT local t copy_large /
+     * field_type_ref (23B stub). Do not leftover rest T SAT emit_assign.
+     * Do not leftover rest remaining-wave emit_assign / fields_elf via
+     * !FROM_X || WIN. Do not leftover rest T SAT try_index (arr0). Do
+     * not call glue_emit_slice_from_array_let_init(-3) (rbp-3).
      * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
     int32_t asg_left = pipeline_expr_binop_left_ref_at(arena, expr_ref);
     int32_t asg_right = pipeline_expr_binop_right_ref_at(arena, expr_ref);
@@ -28776,10 +28779,12 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           out_rc = -1;
         else
           out_rc = 0;
-      } else if (asg_dtr > 0 && asg_dtk == 11 && asg_rko == 44) {
-        /* TYPE_SLICE dest-in-rbx FIELD `*p = s.xs`. Park dest (emit_lvalue
-         * of FIELD clobbers rbx), leftover rest unique lvalue → rax=&fat,
-         * qword-copy 16B. PLATFORM: WINDOWS leftover-PE. */
+      } else if (asg_dtr > 0 && asg_dtk == 11 &&
+                 (asg_rko == 44 || asg_rko == 47)) {
+        /* TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` / INDEX `*p = rows[1]`.
+         * Park dest (emit_lvalue of FIELD/INDEX clobbers rbx), leftover
+         * rest unique lvalue → rax=&fat, qword-copy 16B.
+         * PLATFORM: WINDOWS leftover-PE. */
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
