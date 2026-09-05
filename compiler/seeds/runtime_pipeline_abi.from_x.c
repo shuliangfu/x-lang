@@ -28280,6 +28280,8 @@ extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, 
 extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
                                                        int32_t field_ix);
 extern int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern void glue_align_next_offset(void *ctx);
 extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
@@ -28810,12 +28812,26 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
         void *asg_mod;
         /* TYPE_NAMED dest-in-rbx MATCH `*p = match 1 { 1 => P {..}; _ => .. }`.
          * SAT emit_assign DEREF dest emit MATCH clobbers rbx then 4B store
-         * (match_star / match_star_dy SEGV 139). VAR dest MATCH is GREEN
-         * (match_asg rbp slot). leftover rest unique emit_match first-wins;
-         * 8B arm STRUCT_LIT leaves payload in rax. G.7: park dest CPU stack,
-         * emit_match, store rax (≤8B) or qword-copy from rax E* (>8B).
-         * Do not leftover rest T SAT emit_assign / emit_match SAT.
-         * Match arms use `;` not `,` (parser). PLATFORM: WINDOWS leftover-PE. */
+         * (match_star_dy SEGV 139). Park dest + store rax payload greens d.y.
+         * Arm STRUCT_LIT SAT implicit dest still overlaps `p` (`(*p).y` SEGV).
+         * G.7: bump leftover rest next_offset@ctx+4 past the pointer slot
+         * before emit_match so SAT dest cannot clobber p. Match arms use
+         * `;` not `,`. Do not leftover rest T SAT emit_assign.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 8;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
           out_rc = -1;
         else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
