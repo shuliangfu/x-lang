@@ -33941,7 +33941,9 @@ void glue_asm73_cfg_interf_prepare(void) {
  * (POSIX CALL TYPE_SLICE @79744 same wrap). TYPE_SLICE CALL/METHOD
  * `take(mk())`: rec leaves callee return (leftover rest mega_body
  * ARRAY_LIT TYPE_SLICE return is durable dual-GP); wrap store
- * rax+rdx then lea fat*. TYPE_SLICE FIELD `take(s.xs)`: rec leaves
+ * rax+rdx then lea fat*. TYPE_ARRAY CALL `take(mk())` of [2]i32:
+ * mega_body durable COMMON E*; rec then <=8B load_64 / >8B leave E*
+ * (ARRAY_LIT / DEREF twins). TYPE_SLICE FIELD `take(s.xs)`: rec leaves
  * dual-GP (STRUCT_LIT store_sz 16 + ARRAY_LIT rec dual-GP + FIELD
  * deref_struct16); wrap store rax+rdx then lea fat*. Do not leftover
  * rest remaining-wave 221 pty for TYPE_ARRAY-as-SLICE wrap. TYPE_ARRAY
@@ -34265,15 +34267,31 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
    * SEGV 139). G.7 complete leftover rest for_call_args: rec then
    * store rax+rdx to 16B home, lea fat* (POSIX CALL TYPE_SLICE @79744
    * same wrap minus reent deep-copy; payload is leftover rest durable
-   * COMMON). Kind from leftover rest WAVE278 resolved_type_ref. Do
-   * not copy .x packer / remaining-wave 221 pty. Do not leftover rest
-   * remaining-wave emit_return via !FROM_X || WIN.
-   * PLATFORM: WINDOWS leftover-PE. */
+   * COMMON). TYPE_ARRAY CALL `take(mk())` of [2]i32: mega_body now
+   * durable COMMON E* (no length). 8B leftover-PE formals keep payload
+   * in the home (ARRAY_LIT / DEREF / VAR / FIELD twins); rec leave-E*
+   * put dest bits in the home then SAT INDEX lea-home-as-payload
+   * (`arr_call_arg` RUN=226). Rec then <=8B load_64; >8B leave E*.
+   * dest-ARRAY may not stamp CALL resolved — leftover rest unique
+   * GET dest pty (scope_block sibling; SAT egg SET). Kind from
+   * leftover rest WAVE278 resolved_type_ref then dest pty. nbytes
+   * from leftover rest glue_fixed_array_total_bytes (already T
+   * @15009; do not dual-def). Do not copy .x packer / remaining-wave
+   * 221 original via !FROM_X || WIN. Do not leftover rest remaining-wave
+   * emit_return via !FROM_X || WIN. Do not leftover rest T SAT try_index
+   * (arr0). PLATFORM: WINDOWS leftover-PE. */
   if (ko == 48 || ko == 49) {
     rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
     tk = 0;
     if (rty > 0)
       tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk != 11 && tk != 10) {
+      pty = pipeline_asm_emit_ctx_call_param_ty_get();
+      if (pty > 0 && glue_type_is_fixed_array(arena, pty) != 0) {
+        rty = pty;
+        tk = 10;
+      }
+    }
     if (tk == 11) {
       if (!ctx)
         return -1;
@@ -34291,6 +34309,14 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
         return -1;
       return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (tk == 10) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
     }
   }
   /* FIELD=44 TYPE_SLICE: leftover rest rec of s.xs now dual-GP
@@ -60410,6 +60436,29 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
               return -1;
             wrapped = 1;
           }
+        }
+        /* TYPE_ARRAY=10 ARRAY_LIT return: leftover-PE get_return peels
+         * RETURN to ARRAY_LIT; SAT emit_array_lit leaves a stack dest
+         * (remaining-wave emit_return durable E* @19252 is #ifndef
+         * FROM_X ABSENT). take(mk()) then stores dest bits as the 8B
+         * leftover-PE INTEGER home (`arr_call_arg` RUN=226). G.7
+         * complete leftover rest mega_body: same leftover rest unique
+         * durable COMMON as TYPE_SLICE, E* only (no length half;
+         * remaining-wave @19266). Caller for_call_args CALL tk==10
+         * <=8B load_64 / >8B leave E*. Do not leftover rest
+         * remaining-wave emit_return via !FROM_X || WIN.
+         * PLATFORM: WINDOWS leftover-PE. */
+        if (wrapped == 0 && rrtk == 10 && rko == 46) {
+          n_arr = pipeline_expr_array_lit_num_elems_at(a, result_ref);
+          if (n_arr < 0)
+            n_arr = 0;
+          et = (rrty > 0) ? pipeline_type_elem_ref_at(a, rrty) : 0;
+          force_esz = pipeline_asm_array_lit_elem_byte_sz_c(a, result_ref);
+          if (force_esz <= 0)
+            force_esz = 4;
+          if (glue_asm_emit_array_lit_durable_ptr_rax_elf_c(a, elf_ctx, result_ref, force_esz, ta, bctx,
+                                                            et) == 0)
+            wrapped = 1;
         }
         if (wrapped == 0) {
           if (pipeline_asm_emit_expr_elf_c(a, elf_ctx, result_ref, bctx, ta) != 0)
