@@ -28768,7 +28768,6 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     int32_t sret_act;
     int32_t sret_home;
     int32_t sret_sz;
-    int32_t copy_off;
     /* MATCH dest-in-rbx 16B parks dest then emit_match recs arm STRUCT_LIT
      * here. SAT emit_struct_lit implicit dest overlaps p/d (match_star16
      * SEGV 139). G.7: DEST_IN_RBX field stores into parked rbx — same
@@ -28781,53 +28780,37 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
     /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — callee >16B STRUCT_LIT
      * return. SAT emit_struct_lit is SAT global T but intra SAT
      * sret_active_get (SAT BSS=0, often inlined) so implicit dest is a
-     * local lea (sret24a dump: lea [rbp-0x18]; rax=that ptr on return).
+     * local lea [rbp-0x18] (24B). 24B fields fit; 28B/32B stores at
+     * +0x18/+0x1c overflow saved rbp / return address (match_arm_call32
+     * SEGV 139; dump mk still lea [rbp-0x18] then DWORD [rbx+0x1c]).
      * SAT fields_elf is SAT local t — leftover rest must not UNDEF it.
      * enc_call_arch("memcpy") on leftover-PE emitted a recursive call to
-     * the current func (sret24a RUN=127). G.7: qword copy via enc global T
-     * into dest leftover rest param_home saved at sret_home. */
+     * the current func (sret24a RUN=127). G.7 complete leftover rest rec:
+     * DEST_IN_RBX field stores into sret dest (param_home saved rdi).
+     * Do not leftover rest T SAT emit_struct_lit. Do not leftover rest U
+     * SAT local t copy_large. */
     sret_act = pipeline_asm_emit_ctx_sret_active_get();
     sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
     sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
-    out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-    if (out_rc == 0 && sret_act != 0 && sret_home >= 0 && sret_sz > 16 && sret_sz <= 4096 &&
+    if (sret_act != 0 && sret_home >= 0 && sret_sz > 16 && sret_sz <= 4096 &&
         ta == 0) {
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-        out_rc = -1;
-      else if (backend_enc_load_rbp_to_rax_arch(elf_ctx, sret_home, ta) != 0)
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, sret_home, ta) != 0)
         out_rc = -1;
       else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
         out_rc = -1;
-      else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
         out_rc = -1;
       else {
-        copy_off = 0;
-        while (copy_off + 8 <= sret_sz) {
-          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
-            out_rc = -1;
-            break;
-          }
-          if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
-            out_rc = -1;
-            break;
-          }
-          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 8, ta) != 0) {
-            out_rc = -1;
-            break;
-          }
-          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
-            out_rc = -1;
-            break;
-          }
-          if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0) {
-            out_rc = -1;
-            break;
-          }
-          copy_off += 8;
-        }
-        if (out_rc == 0 && backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0);
+        if (out_rc == 0 && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (out_rc != 0)
+          (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
+        else if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
           out_rc = -1;
       }
+    } else {
+      out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
     }
   }
   else if (ko == 46) {
