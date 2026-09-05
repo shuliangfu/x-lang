@@ -30850,6 +30850,14 @@ extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int3
 extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
                                              void *ctx, int32_t ta);
 extern int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_block_num_labeled_stmts(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_labeled_is_goto(void *arena, int32_t block_ref, int32_t li);
+extern int32_t pipeline_block_labeled_label_len(void *arena, int32_t block_ref, int32_t li);
+extern void pipeline_block_labeled_label_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
+extern int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block_ref, int32_t li);
+extern void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
 
 int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   int32_t slot_base;
@@ -30860,6 +30868,9 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t er;
   int32_t inner;
   int32_t ncfg;
+  int32_t is_g;
+  int32_t nlen;
+  uint8_t name_buf[128];
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return -1;
   /* SAT glue_block_body_bind_module_dep_from_ctx / glue_asm_ctx_set_scope_block
@@ -30926,7 +30937,43 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
         return -1;
       continue;
     }
-    /* 7 = labeled: SAT leftover; not this knife. */
+    /* leftover rest WIN leftover body_sync k==7 labeled/goto
+     * (`{ goto L; L: e }` / `{ L: x = 1; e }`). SAT leftover skip
+     * dropped jmp/label so leftover rest WIN leftover product
+     * MATCH/IF dest extra via body_sync lost the side effect after
+     * the label. leftover unique leftover_emit_match_arm_result
+     * dest-parks last independently; this knife is leftover rest
+     * unique leftover rest WIN leftover body_sync. G.7 complete:
+     * same SAT T enc_jmp/enc_label as dest-in-rbx IF extra-arm /
+     * leftover unique leftover_emit_match_arm_block_stmts_except_last.
+     * Labeled return (`L: return e`) as extra leftover (would exit
+     * the function; dest dead; .x thin body_sync SAT rec + promote
+     * + tail-join is leftover rest unique next). Do not leftover
+     * rest remaining-wave leftover unique leftover_emit_match_arm_result.
+     * Do not leftover rest T SAT emit_block_body_sync.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (k == 7) {
+      ncfg = pipeline_block_num_labeled_stmts(arena, block_ref);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      is_g = pipeline_block_labeled_is_goto(arena, block_ref, idx);
+      if (is_g != 0) {
+        pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, name_buf);
+        nlen = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
+        if (nlen > 0 && nlen <= 127) {
+          if (backend_enc_jmp_arch(elf_ctx, name_buf, nlen, ta) != 0)
+            return -1;
+        }
+        continue;
+      }
+      pipeline_block_labeled_label_copy32(arena, block_ref, idx, name_buf);
+      nlen = pipeline_block_labeled_label_len(arena, block_ref, idx);
+      if (nlen > 0 && nlen <= 127) {
+        if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
+          return -1;
+      }
+      continue;
+    }
   }
   if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0)
     return -1;
