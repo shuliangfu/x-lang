@@ -5724,7 +5724,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # Stage 12.2.2: zero-CC crt0 link via pure_ld_try_link (G.7 single authority).
   # Reuses the same pure-ld helpers as g05 product chain (wave773/774):
   #   · pure_ld_multidef_flags → --allow-multiple-definition (Linux)
-  #   · pure_ld_platform_prefix → syslibroot (Darwin) / empty (Linux)
+  #   · pure_ld_platform_prefix → syslibroot (Darwin) / --dynamic-linker (Linux)
   #   · pure_ld_default_entry → -e _start
   # This fixes the multidef issue that breaks the $CC crt0 path (both $CC and
   # bare ld fail without --allow-multiple-definition; pure_ld_try_link adds it).

@@ -7,7 +7,8 @@
 #
 # PLATFORM: SHARED — freestanding eligibility + multidef / entry composition
 # PLATFORM: MACOS  — syslibroot / -dynamic / -arch / -platform_version / -lSystem
-# PLATFORM: LINUX  — multidef + -lc (libc freestanding) or nostdlib static (g05)
+# PLATFORM: LINUX  — --dynamic-linker (glibc INTERP; -lc dynamic) + multidef;
+#                    g05 nostdlib -static ignores the interp flag
 # PLATFORM: WINDOWS — pure-ld not eligible (caller uses named CC residual only)
 #
 # G.7: Do not open a second pure-ld platform table in cold or g05.
@@ -18,11 +19,12 @@
 # Wave: 772 platform prefix in seed_link · 773 extract + g05 prefer · 774 drop silent fallback.
 
 # ---------------------------------------------------------------------------
-# pure_ld_platform_prefix — stdout: space-separated ld flags (may be empty)
-# Returns 1 when host cannot pure-ld (Windows / missing Darwin SDK).
+# pure_ld_platform_prefix — stdout: space-separated ld flags
+# Returns 1 when host cannot pure-ld (Windows / missing Darwin SDK /
+# Linux glibc interp not found).
 # ---------------------------------------------------------------------------
 pure_ld_platform_prefix() {
-  local os arch sdk ver
+  local os arch sdk ver interp c
   os="$(uname -s 2>/dev/null || echo Unknown)"
   arch="$(uname -m 2>/dev/null || echo unknown)"
   case "$os" in
@@ -53,7 +55,37 @@ pure_ld_platform_prefix() {
       return 0
       ;;
     Linux)
-      printf '%s\n' ""
+      # PLATFORM: LINUX — cold seed pure-ld uses -lc (dynamic). GNU ld
+      # without --dynamic-linker may write PT_INTERP /lib/ld64.so.1
+      # (ENOENT on Ubuntu glibc; binutils 2.46 sit-red 2026-09-05).
+      # Candidate list = labi_linux_hosted_dyn_linker (runtime_link_abi).
+      # G.7 complete this prefix; do not open a second interp table.
+      # g05 nostdlib -static ignores --dynamic-linker.
+      interp=""
+      case "$arch" in
+        x86_64|amd64)
+          for c in \
+            /lib64/ld-linux-x86-64.so.2 \
+            /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 \
+            /lib/ld-linux-x86-64.so.2
+          do
+            if [ -e "$c" ]; then interp="$c"; break; fi
+          done
+          ;;
+        aarch64|arm64)
+          for c in \
+            /lib/ld-linux-aarch64.so.1 \
+            /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1
+          do
+            if [ -e "$c" ]; then interp="$c"; break; fi
+          done
+          ;;
+      esac
+      if [ -z "$interp" ]; then
+        echo "pure_ld_shared: Linux dynamic linker not found (arch=$arch)" >&2
+        return 1
+      fi
+      printf '%s\n' "--dynamic-linker ${interp}"
       return 0
       ;;
     *)
