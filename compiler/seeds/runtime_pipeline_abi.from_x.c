@@ -12880,6 +12880,7 @@ extern int32_t pipeline_expr_if_cond_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_if_then_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_if_else_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 extern void *pipeline_asm_ctx_layout(void *ctx);
 extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
@@ -13501,9 +13502,9 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * leftover_emit_match_arm_result remaining ADDR_OF (rko==51) skip unless
    * proven (pointer dest). leftover unique leftover_emit_match_arm_result
    * remaining BINARY skip unless proven. leftover unique leftover_emit_match_arm_result
-   * remaining MATCH nested (rko==43) skip unless leftover unique leftover_emit_match_arm_result
    * remaining fallthrough SAT if_arm leftover unique rec leftover unique emit_match
-   * does not dest-park.
+   * does not dest-park. MATCH nested (rko==43) dest-parks via leftover unique
+   * emit_match recurse.
    * Do not leftover rest remaining-wave. Do not leftover rest T SAT
    * emit_call / emit_method / emit_assign / emit_array_lit /
    * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync /
@@ -13712,6 +13713,22 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
       return -1;
     return leftover_emit_match_arm_result_elf_c(arena, elf_ctx, op, ctx, ta);
   }
+  /* MATCH arm nested MATCH dest-parked
+   * (`match { 1 => match { 1 => [3,4]; _ => [0,0]; }; _ => [0,0]; }`).
+   * leftover unique leftover_emit_match_arm_result rko==43 fell through
+   * SAT if_arm of MATCH. if_arm is thin intra-object SAT rec (PE
+   * first-wins does not rewrite intra-object) so SAT emit_match
+   * implicit dest, parked dest stays 0. leftover unique emit_match
+   * dest-parks arms via leftover_emit_match_arm_result. G.7 complete:
+   * recurse leftover unique emit_match so STRUCT_LIT/ARRAY_LIT/VAR/CALL/
+   * FIELD/DEREF/BLOCK/IF/CAST inside nested MATCH still dest-parked
+   * (same g_leftover_match_dest_*). Nested MATCH peels by recurse.
+   * Do not leftover unique emit_match twin. Do not leftover rest
+   * remaining-wave. Do not leftover rest T SAT emit_match /
+   * emit_expr_if_arm.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 43)
+    return pipeline_asm_emit_match_elf_c(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
