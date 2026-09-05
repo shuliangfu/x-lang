@@ -31313,6 +31313,12 @@ extern void glue_wa_scope_pop_c(void);
 extern int32_t glue_emit_with_arena_init_elf(void *arena, void *elf_ctx, void *ctx, int32_t wa_off, int32_t cap_ref,
                                             int32_t ta);
 extern int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t ta);
+extern int32_t ast_pipeline_block_if_cond_ref(void *arena, int32_t block_ref, int32_t if_idx);
+extern int32_t ast_pipeline_block_if_then_body_ref(void *arena, int32_t block_ref, int32_t if_idx);
+extern int32_t ast_pipeline_block_if_else_body_ref(void *arena, int32_t block_ref, int32_t if_idx);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t cap);
+extern int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int glue_block_stmt_order_has_return(void *arena, int32_t block_ref);
 
 int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   int32_t slot_base;
@@ -31332,9 +31338,15 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t sty;
   int32_t wa_cap;
   int32_t wa_off;
+  int32_t cond;
+  int32_t else_br;
+  int32_t else_len;
+  int32_t done_len;
   void *mod;
   uint8_t *ly;
   uint8_t name_buf[128];
+  uint8_t else_lbl[128];
+  uint8_t done_lbl[128];
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return -1;
   /* SAT glue_block_body_bind_module_dep_from_ctx / glue_asm_ctx_set_scope_block
@@ -31388,7 +31400,51 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
       ncfg = ast_ast_block_num_if_stmts(arena, block_ref);
       if (idx < 0 || idx >= ncfg)
         continue;
-      if (pipeline_asm_emit_block_if_stmt_elf(arena, elf_ctx, block_ref, idx, ctx, ta, si) != 0)
+      /* leftover rest WIN leftover body_sync k==5 IF
+       * (`{ if true { x = 1; } e }`). SAT leftover SAT T leftover unique
+       * remaining-wave pipeline_asm_emit_block_if_stmt_elf `#ifndef FROM_X`
+       * ABSENT on FROM_X WIN leftover — UNDEF. leftover unique leftover_emit_match_arm_block_stmts_except_last
+       * k==5 dest-parks MATCH arm independently. G.7 complete: emit cond+jz
+       * + leftover rest WIN leftover body_sync recurse then/else. Do not
+       * leftover_emit_if twin. Do not leftover rest remaining-wave leftover unique
+       * remaining-wave pipeline_asm_emit_block_if_stmt_elf. Do not
+       * glue_asm_ctx_set_scope_block (SAT local t leftover unique remaining-wave).
+       * Do not leftover rest remaining-wave leftover unique leftover_emit_match_arm_result.
+       * Do not leftover rest T SAT emit_block_body_sync.
+       * PLATFORM: WINDOWS leftover-PE. */
+      cond = ast_pipeline_block_if_cond_ref(arena, block_ref, idx);
+      inner = ast_pipeline_block_if_then_body_ref(arena, block_ref, idx);
+      else_br = ast_pipeline_block_if_else_body_ref(arena, block_ref, idx);
+      if (cond <= 0 || inner <= 0)
+        return -1;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta) != 0)
+        return -1;
+      else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
+      done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
+      if (else_len <= 0 || done_len <= 0)
+        return -1;
+      if (else_br > 0) {
+        if (glue_enc_jz_after_bool_in_eax(elf_ctx, else_lbl, else_len, ta) != 0)
+          return -1;
+      } else {
+        if (glue_enc_jz_after_bool_in_eax(elf_ctx, done_lbl, done_len, ta) != 0)
+          return -1;
+      }
+      backend_ensure_block_local_slots(ctx, arena, inner);
+      if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, inner, ctx, ta) != 0)
+        return -1;
+      if (!glue_block_stmt_order_has_return(arena, inner)) {
+        if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+          return -1;
+      }
+      if (else_br > 0) {
+        if (backend_enc_label_arch(elf_ctx, else_lbl, else_len, 0, ta) != 0)
+          return -1;
+        backend_ensure_block_local_slots(ctx, arena, else_br);
+        if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, else_br, ctx, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
         return -1;
       continue;
     }
