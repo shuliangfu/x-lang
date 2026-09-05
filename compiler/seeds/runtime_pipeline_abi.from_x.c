@@ -12897,6 +12897,8 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
                                                 int32_t ta);
 static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
                                                  int32_t ta);
+static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
+                                                         int32_t ta);
 
 static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
                                                    int32_t ta) {
@@ -12915,7 +12917,14 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
    * (>16). TYPE_ARRAY CALL returns E* (8B), not NAMED payload —
    * leftover_emit_call copies elems from E* into parked dest
    * (arr_star_match_call RUN=246 stored the E* pointer as i32[2]).
-   * Do not leftover rest T SAT emit_call / emit_method / emit_assign /
+   * TYPE_SLICE dest MATCH arm FIELD=44 / INDEX=47: rec ASSIGN already
+   * parks dest (dest_tk==11). rko==44/47 fell through thin if_arm SAT
+   * rec; rec ko==44 is enum-namespace only (non-enum -1). MATCH arm
+   * FIELD `s.xs` dest stays [0] length 1 (slice_star_match_field INDEX
+   * [1] panic 127). G.7 complete: leftover rest unique lvalue +
+   * qword-copy 16B (same as rec ASSIGN TYPE_SLICE FIELD/INDEX).
+   * named_star_match_field (dest_tk!=11) stays unclaimed. Do not
+   * leftover rest T SAT emit_call / emit_method / emit_assign /
    * emit_array_lit. Do not leftover rest U SAT local t copy_large.
    * PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
@@ -12926,6 +12935,8 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   if (rko == 48 || rko == 49)
     return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if ((rko == 44 || rko == 47) && g_leftover_match_dest_tk == 11)
+    return leftover_emit_slice_lvalue_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
   return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
 }
 
@@ -28744,6 +28755,48 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
   }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm FIELD=44 / INDEX=47 of TYPE_SLICE dest:
+ * leftover rest unique rec ASSIGN TYPE_SLICE MATCH parks dest, then
+ * leftover_emit_match_arm_result only handled STRUCT_LIT / ARRAY_LIT /
+ * VAR / CALL / METHOD. rko==44 fell through thin if_arm SAT rec; rec
+ * ko==44 is enum-namespace only (non-enum -1). MATCH arm FIELD `s.xs`
+ * dest stays [0] length 1 (slice_star_match_field INDEX [1] panic 127).
+ * Same leftover rest unique lvalue + qword-copy 16B as rec ASSIGN
+ * TYPE_SLICE FIELD/INDEX (`*p = s.xs` / `b = s.xs`). dest is on the
+ * CPU stack (pop/push rbx, same as leftover_emit_var). INDEX of
+ * [N][]T / [][]T: leftover rest unique lvalue leaves rax=&fat. Do not
+ * leftover rest T SAT emit_assign / emit_field. Do not leftover rest U
+ * SAT local t copy_large. Do not mix named_star_match_field
+ * (TYPE_NAMED dest). PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
+                                                         int32_t ta) {
+  if (!arena || !elf_ctx || !ctx || src_ref <= 0)
+    return -1;
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, src_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+    return -1;
+  if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+    return -1;
   return 0;
 }
 
