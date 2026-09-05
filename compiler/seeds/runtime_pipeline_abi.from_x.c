@@ -12887,6 +12887,7 @@ extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_r
  * PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t g_leftover_match_dest_parked = 0;
+static int32_t g_leftover_match_dest_nbytes = 0;
 static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                        int32_t ta, int32_t base_off);
 static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
@@ -28359,6 +28360,7 @@ extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t 
 extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, int32_t j);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t glue_i32_to_f32_bits(int32_t v);
 extern int32_t glue_i64_to_f32_bits(int64_t v);
 extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
@@ -28565,30 +28567,38 @@ static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int
   int32_t named_sz;
   int32_t copy_off;
   int32_t rem;
+  int32_t src_off;
   void *mod;
   if (!arena || !elf_ctx || !ctx || var_ref <= 0)
     return -1;
+  nbytes = g_leftover_match_dest_nbytes;
   ty_ref = pipeline_expr_resolved_type_ref(arena, var_ref);
   if (ty_ref <= 0)
     ty_ref = glue_var_decl_type_ref_elf_c(arena, ctx, var_ref);
-  if (ty_ref <= 0)
-    return -1;
-  mod = glue_emit_module_from_ctx(ctx);
-  if (!mod)
-    mod = pipeline_asm_emit_module_ref_c();
-  nbytes = 0;
-  if (mod)
-    nbytes = glue_type_size_simple(mod, arena, ty_ref, 0);
-  named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
-  if (named_sz > nbytes)
-    nbytes = named_sz;
+  if (ty_ref > 0) {
+    mod = glue_emit_module_from_ctx(ctx);
+    if (!mod)
+      mod = pipeline_asm_emit_module_ref_c();
+    named_sz = 0;
+    if (mod) {
+      named_sz = glue_type_size_simple(mod, arena, ty_ref, 0);
+      if (named_sz > nbytes)
+        nbytes = named_sz;
+    }
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > nbytes)
+      nbytes = named_sz;
+  }
   if (nbytes <= 0)
     nbytes = 8;
   if (nbytes > 4096)
     return -1;
-  /* lvalue of VAR clobbers rbx; dest is on the CPU stack. Same park
-   * restore as leftover_emit_struct_lit_into_parked_rbx. */
-  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, var_ref, ctx, ta) != 0)
+  /* Slot lea — do not leftover rest lvalue (enc_local SAT/stub dual).
+   * dest is on the CPU stack. Same park restore as STRUCT_LIT helper. */
+  src_off = glue_var_expr_stack_off_elf_c(arena, ctx, var_ref);
+  if (src_off < 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
     return -1;
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
     return -1;
@@ -28964,6 +28974,11 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
         asg_nbytes = 0;
         if (asg_mod)
           asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
         if (asg_nbytes <= 0)
           asg_nbytes = 8;
         asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
@@ -28998,11 +29013,13 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
            * (match_star16 RUN=0 not SEGV). 8B match_star uses the same
            * parked field stores as named_star_lit. PLATFORM: WINDOWS. */
           g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
           if (pipeline_asm_emit_match_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
             out_rc = -1;
           else
             out_rc = 0;
           g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
           if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
             out_rc = -1;
         }
