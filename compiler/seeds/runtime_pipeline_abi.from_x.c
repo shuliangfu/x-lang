@@ -34333,19 +34333,20 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
         tk = 10;
       }
       if (tk != 10) {
-        mod = glue_emit_module_from_ctx(ctx);
+        /* Prefer emit_module_ref (var_field_access / SAT load_byte_sz
+         * layout walk). glue_emit_module_from_ctx can return a non-null
+         * leftover-PE ctx module with empty layouts — helper then
+         * misses TYPE_ARRAY while load_byte_sz still 4B-loads.
+         * PLATFORM: WINDOWS leftover-PE. */
+        mod = pipeline_asm_emit_module_ref_c();
         if (!mod)
-          mod = pipeline_asm_emit_module_ref_c();
+          mod = glue_emit_module_from_ctx(ctx);
         fty = win_glue_fa_layout_type_ref_c(arena, mod, ctx, expr_ref);
         if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
           rty = fty;
           tk = 10;
         }
       }
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        fprintf(stderr,
-                "xlang: for_call_args FIELD dest_pty=%d tk=%d rty=%d\n",
-                (int)pty, (int)tk, (int)rty);
     }
     if (tk == 11) {
       if (!ctx)
@@ -38597,6 +38598,10 @@ extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t off, int3
 extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t expr_ref);
 extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t slot_off, void *ctx, int32_t ta);
 extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
+static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, void *ctx, int32_t fa_ref);
 
 static int32_t win_pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len) {
   static const char *const names[] = {
@@ -38744,10 +38749,19 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
   /* TYPE_FN=18 / TYPE_PTR=9: pointer-sized. SAT load_byte_sz scans every
    * layout for field name `f` and can steal i32 width (cltq + call *trunc).
    * leftover rest WAVE278 resolved_type + WAVE270 kind, same .o.
+   * dest-ARRAY does not stamp FA resolved (dest-SLICE stamps TYPE_SLICE).
+   * SAT load_byte_sz → glue_field_access_load_bytes_for_type_ref TYPE_ARRAY
+   * catch-all 4 (`arr_field_arg` rec 4B of a[0]=3, INTEGER home, INDEX1=0).
+   * TYPE_ARRAY 8B leftover-PE payload load_64; >8B leave E*. Layout via
+   * leftover rest unique win_glue_fa_layout_type_ref (same TU; emit_module
+   * ref). Do not leftover rest T SAT load_byte_sz (SHARED i32 widths).
+   * Do not leftover rest T SAT try_index (arr0).
    * PLATFORM: WINDOWS leftover-PE / SHARED Cap ABI. */
   {
     int32_t rtr = pipeline_expr_resolved_type_ref(arena, expr_ref);
     int32_t rko = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+    int32_t fty;
+    int32_t nbytes;
     if (rko == 9 || rko == 18)
       load_sz = 8;
     else if (rko == 11)
@@ -38756,8 +38770,20 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
        * rax holds &field; deref_struct16 loads C {data,length}.
        * PLATFORM: WINDOWS leftover-PE. */
       return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
-    else
+    else {
+      fty = 0;
+      if (rko == 10)
+        fty = rtr;
+      if (fty <= 0)
+        fty = win_glue_fa_layout_type_ref_c(arena, mod, ctx, expr_ref);
+      if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
+        nbytes = glue_fixed_array_total_bytes_c(arena, fty, 0);
+        if (nbytes > 0 && nbytes <= 8)
+          return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+        return 0;
+      }
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    }
   }
   if (load_sz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
