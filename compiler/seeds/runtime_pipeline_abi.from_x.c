@@ -12907,14 +12907,17 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
   /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). ARRAY_LIT
    * arm: DEST_IN_RBX elem stores (arr_star_match RUN=0 — thin if_arm
    * SAT rec SAT emit_array_lit implicit dest, parked dest stays 0).
-   * VAR arm: slot lea + qword-copy (match_arm_var16). CALL=48 /
-   * METHOD=49 arm: SAT emit_call / emit_method then dual-GP store
-   * (≤16) or SysV sret into parked dest (>16). TYPE_ARRAY CALL returns
-   * E* (8B), not NAMED payload — leftover_emit_call copies elems from
-   * E* into parked dest (arr_star_match_call RUN=246 stored the E*
-   * pointer as i32[2]). Do not leftover rest T SAT emit_call /
-   * emit_method / emit_assign / emit_array_lit. Do not leftover rest U
-   * SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+   * TYPE_SLICE dest (dest_tk==11): ARRAY_LIT is a fat view, not a
+   * payload — SAT emit_array_lit then store data@0 + n@8 (slice_star_match
+   * SEGV 139 / _len RUN=1). VAR arm: slot lea + qword-copy
+   * (match_arm_var16). CALL=48 / METHOD=49 arm: SAT emit_call /
+   * emit_method then dual-GP store (≤16) or SysV sret into parked dest
+   * (>16). TYPE_ARRAY CALL returns E* (8B), not NAMED payload —
+   * leftover_emit_call copies elems from E* into parked dest
+   * (arr_star_match_call RUN=246 stored the E* pointer as i32[2]).
+   * Do not leftover rest T SAT emit_call / emit_method / emit_assign /
+   * emit_array_lit. Do not leftover rest U SAT local t copy_large.
+   * PLATFORM: WINDOWS leftover-PE. */
   if (rko == 45)
     return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
   if (rko == 46)
@@ -28587,8 +28590,11 @@ static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_c
  * stays 0 (arr_star_match RUN=0 / arr_star_match0 garbage). Same rec +
  * store-rax-to-rbx-offset as leftover_emit_struct_lit scalar fields.
  * Size from leftover rest unique park nbytes / n (TYPE_ARRAY n*esz).
- * Nest freeze 64. Do not leftover rest T SAT emit_array_lit /
- * emit_assign. PLATFORM: WINDOWS leftover-PE.
+ * TYPE_SLICE dest (dest_tk==11): dest is a 16B fat pair, not a payload.
+ * SAT emit_array_lit leaves rax=data; store data@0 + n@8 (same as
+ * leftover rest unique rec ASSIGN TYPE_SLICE ARRAY_LIT). Empty n==0
+ * stores length 0. Nest freeze 64. Do not leftover rest T SAT
+ * emit_array_lit / emit_assign. PLATFORM: WINDOWS leftover-PE.
  */
 static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                       int32_t ta) {
@@ -28602,7 +28608,31 @@ static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ct
   if (!arena || !elf_ctx || lit_ref <= 0)
     return -1;
   n = pipeline_expr_array_lit_num_elems_at(arena, lit_ref);
-  if (n <= 0 || n > 64)
+  if (n < 0)
+    n = 0;
+  if (n > 64)
+    return -1;
+  /* TYPE_SLICE dest-in-rbx MATCH arm ARRAY_LIT. Do not write elems
+   * into the fat pair (that overwrites data+length with i32 payload
+   * — slice_star_match SEGV 139 / _len RUN=1). SAT emit_array_lit
+   * SAT global T; leftover rest rec ko==46 already UNDEFs it.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (g_leftover_match_dest_tk == 11) {
+    if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, lit_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (n <= 0)
     return -1;
   nbytes = g_leftover_match_dest_nbytes;
   esz = 4;
@@ -29140,6 +29170,16 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
      * leftover rest remaining-wave bump @11427 is #ifndef FROM_X ABSENT
      * (do not leftover rest UNDEF it). SAT emit_array_lit owns dest.
      *
+     * TYPE_SLICE dest-in-rbx MATCH `*p = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+     * is a different produce: SAT emit_assign DEREF dest SAT local t
+     * struct_let_init -2 (MATCH is not ARRAY_LIT/VAR/CALL/FIELD/INDEX)
+     * then emit MATCH clobbers rbx then 4B store (slice_star_match
+     * SEGV 139 / _len RUN=1 dest [0] length stays 1). G.7 complete
+     * leftover rest unique rec ASSIGN TYPE_SLICE MATCH: park dest CPU
+     * stack, leftover rest unique emit_match dest-parked dest_tk=11
+     * (ARRAY_LIT arm SAT emit_array_lit + store fat data@0 length@8).
+     * Do not leftover rest T SAT emit_assign / emit_array_lit.
+     *
      * TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` / INDEX `*p = rows[1]`
      * are the same produce: SAT emit_assign DEREF dest SAT local t
      * struct_let_init -2 (FIELD/INDEX are not VAR/CALL/DEREF) then SAT
@@ -29392,6 +29432,51 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
           out_rc = -1;
         else
           out_rc = 0;
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 43) {
+        /* TYPE_SLICE dest-in-rbx MATCH. SAT emit_assign DEREF dest
+         * SAT local t struct_let_init -2 then emit MATCH clobbers rbx
+         * then 4B store (slice_star_match SEGV 139 / _len RUN=1).
+         * Park dest CPU stack; leftover rest unique emit_match
+         * dest-parked dest_tk=11 (ARRAY_LIT arm SAT emit_array_lit +
+         * store fat data@0 length@8). Bump next_offset past p so SAT
+         * implicit dest cannot clobber the pointer slot (TYPE_NAMED
+         * MATCH 8B lesson). Do not leftover rest T SAT emit_assign /
+         * emit_array_lit. Do not leftover rest U SAT local t
+         * copy_large. PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = 16;
+          g_leftover_match_dest_tk = 11;
+          if (pipeline_asm_emit_match_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
       } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 11 &&
                  (asg_rko == 3 || asg_rko == 48 || asg_rko == 49 || asg_rko == 52)) {
         /* TYPE_SLICE dest-in-rbx VAR/CALL/METHOD/DEREF. Park dest
