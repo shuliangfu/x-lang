@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.10 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.11 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -121,9 +121,15 @@
 #   Hand-port source-only / (data,len) audits widened to pointer ABI
 #   `(lex, source)` / `(lex, data, len)`: snap+reset-to-init+restore (≡ C
 #   fresh lexer_init local; caller cursor net-zero). Soft fixed-point unlocks
-#   parse_into_preamble_deep/full + parse_into_entry_full (buf). Still refused:
-#   simd from_at (lexer_result by-val), peek_kind_chain out-array, 88+ versal /
-#   ultra/super/hyper mega dump.
+#   parse_into_preamble_deep/full + parse_into_entry_full (buf).
+#
+# v5.11: controlled mega batch (ultra + super layers only) —
+#   Soft fixed-point only (no new hand-port root): unlock deferred
+#   ultra_mega / super_mega short combinators whose callees are already
+#   migrated. Cap = ultra+super (≈22). Hyper / ultra_hyper / max / apex /
+#   88+ versal stay refused this wave (eq wall-clock — deep score chains).
+#   Still refused: simd from_at (lexer_result by-val), peek_kind_chain
+#   out-array.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
