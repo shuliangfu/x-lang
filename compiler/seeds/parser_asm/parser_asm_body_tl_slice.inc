@@ -303,8 +303,8 @@ void parser_asm_body_skip_let_const_then_if_into_slice_c(struct parser_asm_lexer
   if (!out || !source)
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_let_const_then_if_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_mega_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_mega_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_ultra_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_super_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_hyper_mega_full_deep_audit_c(lex, source));

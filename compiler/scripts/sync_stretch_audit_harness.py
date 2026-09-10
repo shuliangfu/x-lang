@@ -126,16 +126,9 @@ int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t na
 int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
-/* v4.9: loop_stmt_body is by-value + void-cast in block_stmt twin — stub OK
- * (no cursor net effect; .x port elides the same call). */
-int32_t parser_asm_stretch_loop_stmt_body_audit_c(struct parser_asm_lexer lex,
-                                                  struct parser_asm_slice_u8 *source,
-                                                  int32_t expect_while) {
-  (void)lex;
-  (void)source;
-  (void)expect_while;
-  return 0;
-}
+/* v5.8: loop_stmt_body is a real flag3 .x port; c_ref twin comes from the
+ * gated suite body via sync (no harness stub — stub returned 0 and would
+ * diverge on score+= callers unlocked this wave). */
 '''
 
 
