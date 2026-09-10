@@ -283,20 +283,29 @@ void parser_asm_lex_skip_one_param_type_inplace_c(void *lex_inout, void *source)
 }
 
 /**
- * Peek the NEXT token's ident pointer (points into the source bytes; only
- * meaningful when the token is an IDENT). Lets .x call name validators that
- * take a raw byte pointer + length without seeing any struct.
+ * Peek the NEXT token's ident bytes (into the source slice) without advancing.
+ * Authority matches suite audits: `source->data + token_start`. The lexer often
+ * leaves `tok.ident` null while still filling `token_start` + `ident_len`;
+ * returning only `tok.ident` made `return bind_name_validate(idptr, idlen)`
+ * ports (e.g. impl_type_for_trait) verdict-diverge (c=1/x=0). Prefer the
+ * non-null `tok.ident` when set; otherwise fall back to source-relative bytes.
  * @param lex *u8 — opaque struct parser_asm_lexer* (read-only)
  * @param source *u8 — opaque struct parser_asm_slice_u8*
- * @return *u8 — next token's ident pointer (null when args null)
+ * @return *u8 — pointer into source ident bytes (null when args/source null)
  * PLATFORM: SHARED.
  */
 uint8_t *parser_asm_lex_peek_ident_ptr_c(void *lex, void *source) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_slice_u8 *sl;
   if (!lex || !source)
     return 0;
-  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
-  return r.tok.ident;
+  sl = (struct parser_asm_slice_u8 *)source;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, sl);
+  if (r.tok.ident)
+    return r.tok.ident;
+  if (!sl->data)
+    return 0;
+  return sl->data + r.token_start;
 }
 
 /**

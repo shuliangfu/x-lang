@@ -5398,7 +5398,7 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
    * only when token path cannot start (defensive).
    */
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_header_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(&lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_TRAIT) {
     /* Fallback raw skip for non-token edge cases. */
@@ -7648,8 +7648,8 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
       memset(g_xlang_skip_impl_for_names[si], 0, 64);
       g_xlang_skip_impl_seen_n++;
     }
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_type_for_trait_audit_c(lex, source));
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(lex, source));
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_type_for_trait_audit_c(&lex, source));
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_audit_c(&lex, source));
     parser_asm_lex_from_result_val_into(&lex, r);
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_STAR) {
@@ -7701,7 +7701,7 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
     out->col = lex.col;
     return;
   }
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_body_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_body_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_probe_c(&r.next_lex, source, 0));
   /* wave390: do NOT skip_balanced_braces — leave methods for outer parse_into free-fn commit. */
   out->pos = r.next_lex.pos;

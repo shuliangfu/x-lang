@@ -107,9 +107,9 @@ extern int32_t parser_asm_stretch_extern_param_bind_audit_c(const uint8_t *name,
 extern int32_t parser_asm_stretch_extern_param_count_audit_c(void *lex_inout, void *source, int32_t *out_param_count);
 extern int32_t parser_asm_stretch_extern_return_type_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_impl_header_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_impl_items_body_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_impl_items_body_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_impl_items_probe_c(void *lex_inout, void *source, int32_t *out_item_count);
-extern int32_t parser_asm_stretch_impl_type_for_trait_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_impl_type_for_trait_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_skip_allow_modifiers_c(struct parser_asm_lexer *inout_lex, struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_skip_one_extern_body_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_skip_return_type_audit_c(void *lex_inout, void *source);
@@ -162,7 +162,7 @@ extern int32_t parser_asm_stretch_struct_wholeversal_completeversal_fullversal_e
 extern int32_t parser_asm_stretch_struct_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_struct_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_trait_header_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_trait_impl_type_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_trait_impl_type_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_trait_methods_body_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_trait_methods_probe_c(void *lex_inout, void *source, int32_t *out_method_count);
 extern void parser_skip_one_extern_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);

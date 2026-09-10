@@ -153,6 +153,7 @@ SUITE_HELPER_SIGS = [
     "static int32_t parser_asm_stretch_enum_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_trait_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_match_advance_to_arms_lex_c(",
+    "static int32_t parser_asm_stretch_impl_advance_to_body_lex_c(",
 ]
 
 

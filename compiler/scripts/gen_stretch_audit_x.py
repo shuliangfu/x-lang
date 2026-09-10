@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.3 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.4 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -64,6 +64,13 @@
 #   Gate: only the thin advance+probe shape (no mixed use of pre-advance primary
 #   lex — if_stmt_body stays refused). Helpers with `lex_cur` secondary (function/
 #   if advance) stay refused until a dedicated inplace bridge exists.
+#
+# v5.4: `impl_type_for_trait` return-bind wall —
+#   Root was NOT the generator template: bridge `peek_ident_ptr` returned
+#   `tok.ident` (often null) while suite C uses `source->data + token_start`.
+#   Void-discard bind call sites stayed harness-green; `return bind(...)`
+#   ports diverged (c=1/x=0). Fix = G.7 complete the bridge (source-relative
+#   fallback). Unlocks impl_type_for_trait + impl_items_body + trait_impl_* deep.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
