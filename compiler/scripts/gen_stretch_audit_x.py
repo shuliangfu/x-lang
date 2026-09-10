@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.12 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.13 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -138,6 +138,18 @@
 #   88+ versal (eq wall-clock) and hypers blocked on unmigrated
 #   import/struct/try_skip super. Still refused: simd from_at
 #   (lexer_result by-val), peek_kind_chain out-array.
+#
+# v5.13: controlled mega batch (exact ultra_hyper layer only) —
+#   Soft fixed-point only: unlock exact `*_ultra_hyper_mega_*` whose
+#   hyper_mega callees are already migrated (expr/primary/match/
+#   control_flow/body_skip + library buf). Cap ≈11. Refuse max/apex/
+#   88+ versal (eq wall-clock); refuse fn/library(non-buf)/import/
+#   struct/try_skip ultra_hyper blocked on unmigrated library_hyper /
+#   import·struct·try_skip hyper (need import_super chain). Still
+#   refused: simd from_at (lexer_result by-val), peek_kind_chain
+#   out-array. Root wall for import chain = import_path_full_deep
+#   (`if (r.tok.kind==IMPORT) score += import_dot_segment(r,…)`) and
+#   try_skip_allow_full_deep (`allow_kw_paren(r,…)` lexer_result by-val).
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
