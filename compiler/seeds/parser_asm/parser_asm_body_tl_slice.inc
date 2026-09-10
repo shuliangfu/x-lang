@@ -302,7 +302,7 @@ void parser_asm_body_skip_let_const_then_if_into_slice_c(struct parser_asm_lexer
                                                          struct parser_asm_slice_u8 *source) {
   if (!out || !source)
     return;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_let_const_then_if_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_let_const_then_if_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_ultra_mega_full_deep_audit_c(lex, source));
@@ -1051,7 +1051,7 @@ void parser_asm_body_skip_let_const_then_if_into_slice_c(struct parser_asm_lexer
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_let_const_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_let_const_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_let_const_decl_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_body_skip_let_const_type_audit_c(&lex, source));
   parser_asm_diag_skip_let_const_into_slice_c(out, lex, source);

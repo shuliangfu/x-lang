@@ -42,7 +42,7 @@ void parser_asm_skip_one_if_core_into_slice_c(struct parser_asm_lexer_result *ou
   struct parser_asm_lexer lex_cur;
   if (!out || !source)
     return;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_core_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_core_deep_audit_c(&lex, source));
   lexer_next_into(out, lex, source);
   if (out->tok.kind != (int32_t)TOKEN_LPAREN)
     return;
@@ -70,8 +70,8 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_core_buf_c(struct parser_a
                                                                  int32_t len) {
   struct parser_asm_lexer_result r;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_cond_int_as_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_core_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_core_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_cond_expr_deep_buf_audit_c(&lex, data, len));
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LPAREN)
@@ -142,11 +142,11 @@ void parser_asm_skip_one_if_statement_into_slice_c(struct parser_asm_lexer_resul
   if (!out || !source)
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_header_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_body_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_body_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_else_chain_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_control_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_body_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_body_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_else_chain_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_control_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_ultra_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_super_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_hyper_mega_full_deep_audit_c(lex, source));
@@ -926,11 +926,11 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_statement_buf_c(struct par
                                                                       int32_t len) {
   struct parser_asm_lexer_result r;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_body_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_body_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_else_chain_full_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_control_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_body_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_body_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_else_chain_full_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_control_mega_full_deep_buf_audit_c(&lex, data, len));
   r = parser_asm_skip_one_if_core_buf_c(lex, data, len);
   while (r.tok.kind == (int32_t)TOKEN_ELSE) {
     parser_asm_lex_from_result_val_into(&lex, r);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.6 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.7 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -93,6 +93,16 @@
 #       `spawn_kw_audit_c((int32_t)r.tok.kind)` → PURE_HELPER(kind);
 #       elide void `validate_toplevel_token_c(r,…)`.
 #   if_stmt_body / if_advance stay refused (mixed primary).
+#
+# v5.7: layout-name / if_stmt_body mixed-primary / lex_at_if / score+= &r.next_lex —
+#   (1) fold void `struct_layout_name_audit_c(source->data+…)` onto peek+bind
+#       (G.7 thin wrap of bind_name_validate; unlocks struct_record_layout chain).
+#   (2) expand `if_stmt_body` mixed shape: inline if_advance onto primary with
+#       success fallthrough; body peeks on advanced lex; else-path restores
+#       entry pos0 before `branch_audit(&lex)` (C kept the by-value entry copy).
+#   (3) rename suite primary `lex_at_if` → `lex` before translate (if_expr_deep).
+#   (4) `score += CALLEE(&r.next_lex, source)` in top-level + if-block: C copies
+#       next_lex (zero net on primary) → snapshot/step/call/restore-entry.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -790,6 +800,38 @@ def translate(name, body, tokvals):
             emit("}")
             si += 1
             continue
+        # v5.7: single-line if (kind==TOKEN) score += CALLEE(&r.next_lex, source);
+        # join_logical merges the if + score line (if_expr_deep LPAREN arm).
+        m = re.match(
+            r"if \((r\w*)\.tok\.kind == \(int32_t\)(TOKEN_\w+)\) "
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\(&(r\w*)\.next_lex, source(?:, (\d+))?\);$",
+            st)
+        if (m and m.group(1) in cur_results and m.group(3) in int_vars
+                and m.group(6) == m.group(1)):
+            tok = m.group(2)
+            var, op, callee = m.group(3), m.group(4), m.group(5)
+            flag = m.group(7)
+            used.add(tok)
+            x2, ntok = translate_call(callee, "lex", flag)
+            used |= ntok
+            call = strip_inout(x2)
+            emit(f"if (kind == {tok}) {{")
+            emit("  la_pos = parser_asm_lex_pos_c(lex);")
+            emit("  la_line = parser_asm_lex_line_c(lex);")
+            emit("  la_col = parser_asm_lex_col_c(lex);")
+            emit("  parser_asm_lex_step_kind_c(lex, source);")
+            if op == "+=":
+                emit(f"  {var} = {var} + {call};")
+            else:
+                emit(f"  {var} = {call};")
+            emit("  parser_asm_lex_set_pos_c(lex, la_pos);")
+            emit("  parser_asm_lex_set_line_c(lex, la_line);")
+            emit("  parser_asm_lex_set_col_c(lex, la_col);")
+            emit("}")
+            int_vars.add("la_pos_us")
+            BLOCK_HOIST_USED.update({"la_pos", "la_line", "la_col"})
+            si += 1
+            continue
         # v5.6: lex = skip_one_struct_slice_c(lex, source) → inplace + rebase
         m = re.match(
             r"lex = parser_asm_skip_one_struct_slice_c\(lex, source\);$", st)
@@ -849,6 +891,48 @@ def translate(name, body, tokvals):
             r"\(void\)parser_asm_stretch_validate_toplevel_token_c\((r\w*), source\);$",
             st)
         if m and m.group(1) in cur_results:
+            si += 1
+            continue
+        # v5.7: score += CALLEE(&r.next_lex, source) — C copies next_lex (zero
+        # net on primary). Snapshot, step, call at stepped pos, restore snapshot.
+        m = re.match(
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\(&(r\w*)\.next_lex, source(?:, (\d+))?\);$",
+            st)
+        if m and m.group(1) in int_vars and m.group(4) in cur_results:
+            var, op, callee = m.group(1), m.group(2), m.group(3)
+            flag = m.group(5)
+            x2, ntok = translate_call(callee, "lex", flag)
+            used |= ntok
+            call = strip_inout(x2)
+            emit("la_pos = parser_asm_lex_pos_c(lex);")
+            emit("la_line = parser_asm_lex_line_c(lex);")
+            emit("la_col = parser_asm_lex_col_c(lex);")
+            emit("parser_asm_lex_step_kind_c(lex, source);")
+            if op == "+=":
+                emit(f"{var} = {var} + {call};")
+            else:
+                emit(f"{var} = {call};")
+            emit("parser_asm_lex_set_pos_c(lex, la_pos);")
+            emit("parser_asm_lex_set_line_c(lex, la_line);")
+            emit("parser_asm_lex_set_col_c(lex, la_col);")
+            # la_line/la_col emitted via la_pos_us special lets in emit_x.
+            int_vars.add("la_pos_us")
+            BLOCK_HOIST_USED.update({"la_pos", "la_line", "la_col"})
+            si += 1
+            continue
+        # v5.7: score += CALLEE(data, len) — buf helper with no lex arg (e.g.
+        # diag_lex_after_imports_buf). Pass the opaque wrap via translate_call buf.
+        m = re.match(
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\(data, len\);$", st)
+        if m and m.group(1) in int_vars:
+            var, op, callee = m.group(1), m.group(2), m.group(3)
+            x2, ntok = translate_call(callee, "lex", buf=True)
+            used |= ntok
+            call = strip_inout(x2)
+            if op == "+=":
+                emit(f"{var} = {var} + {call};")
+            else:
+                emit(f"{var} = {call};")
             si += 1
             continue
         # v2/v5.2: score arithmetic from sub-audit calls or literals.
@@ -1421,18 +1505,25 @@ def translate_return(expr, cur_results):
     """return EXPR → restore trio + computed return (2-4 lines)."""
     used = set()
     e = expr.strip()
-    # delegation: return CALLEE(ARG, source);  where ARG is lex/&lex/lex_at_if...
-    m = re.match(r"(parser_asm_stretch_\w+_c)\((r\w*)\.next_lex, source(?:, (\d+))?\)$", e)
+    # return CALLEE(&?r.next_lex, source, flag?) — step onto next_lex, call at
+    # the stepped cursor, then restore entry (by-value net). v5.7: accept `&`
+    # and strip __INOUT__ so the marker never leaks into .x.
+    # (Old order step→restore→return called at entry and was wrong for
+    # block/fields probes that must see the post-token cursor.)
+    m = re.match(
+        r"(parser_asm_stretch_\w+_c)\(&?(r\w*)\.next_lex, source(?:, (\d+))?\)$", e)
     if m and m.group(2) in cur_results:
         x2, ntok = translate_call(m.group(1), "lex", m.group(3))
         used |= ntok
+        call = strip_inout(x2)
         return (
             [
                 "      parser_asm_lex_step_kind_c(lex, source);",
+                f"      rc = {call};",
                 "      parser_asm_lex_set_pos_c(lex, pos0);",
                 "      parser_asm_lex_set_line_c(lex, line0);",
                 "      parser_asm_lex_set_col_c(lex, col0);",
-                f"      return {x2};",
+                "      return rc;",
             ],
             used,
         )
@@ -1447,6 +1538,23 @@ def translate_return(expr, cur_results):
                 "      return parser_asm_stretch_bind_name_validate_c(idptr, idlen);",
             ],
             set(),
+        )
+    # v5.7: return CALLEE(&lex_at_entry, source) — mixed if_stmt_body else-path.
+    # C kept the by-value entry copy; restore pos0 before the call, then return.
+    m = re.match(
+        r"(parser_asm_stretch_\w+_c)\(&lex_at_entry, source(?:, (\d+))?\)$", e)
+    if m:
+        x2, ntok = translate_call(m.group(1), "lex", m.group(2))
+        used |= ntok
+        call = strip_inout(x2)
+        return (
+            [
+                "      parser_asm_lex_set_pos_c(lex, pos0);",
+                "      parser_asm_lex_set_line_c(lex, line0);",
+                "      parser_asm_lex_set_col_c(lex, col0);",
+                f"      return {call};",
+            ],
+            used,
         )
     # v4.5: return CALLEE(&cursor, source) is a real call at the in-place
     # cursor, NOT a pure-delegation (that would drop preceding guards — v4.4
@@ -1689,6 +1797,31 @@ def translate_block(block, cur_results, indent=2):
         if m:
             out.append(f"{pad}parser_asm_lex_skip_imports_inplace_c(lex, source);")
             BLOCK_HOIST_USED.add("lex_rebased")
+            si += 1
+            continue
+        # v5.7: score += CALLEE(&r.next_lex, source) inside if-block (same as
+        # top-level: C copies next_lex → snapshot/step/call/restore).
+        m = re.match(
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\(&(r\w*)\.next_lex, source(?:, (\d+))?\);$",
+            st)
+        if m and m.group(1) in int_vars and m.group(4) in cur_results:
+            var, op, callee = m.group(1), m.group(2), m.group(3)
+            flag = m.group(5)
+            x2, ntok = translate_call(callee, "lex", flag)
+            used |= ntok
+            call = strip_inout(x2)
+            out.append(f"{pad}la_pos = parser_asm_lex_pos_c(lex);")
+            out.append(f"{pad}la_line = parser_asm_lex_line_c(lex);")
+            out.append(f"{pad}la_col = parser_asm_lex_col_c(lex);")
+            out.append(f"{pad}parser_asm_lex_step_kind_c(lex, source);")
+            if op == "+=":
+                out.append(f"{pad}{var} = {var} + {call};")
+            else:
+                out.append(f"{pad}{var} = {call};")
+            out.append(f"{pad}parser_asm_lex_set_pos_c(lex, la_pos);")
+            out.append(f"{pad}parser_asm_lex_set_line_c(lex, la_line);")
+            out.append(f"{pad}parser_asm_lex_set_col_c(lex, la_col);")
+            BLOCK_HOIST_USED.update({"la_pos", "la_line", "la_col"})
             si += 1
             continue
         # v5.6: score += / = sub-audit (callee restore-trio; no outer pos0 —
@@ -2140,7 +2273,7 @@ def try_emit_void_name_audit(st, pad, cur_results):
             f"{pad}parser_asm_stretch_bind_name_validate_c(idptr, idlen);",
         ]
     m = re.match(
-        r"\(void\)parser_asm_stretch_function_name_audit_c"
+        r"\(void\)parser_asm_stretch_(?:function_name_audit|struct_layout_name_audit)_c"
         r"\(source->data \+ (r\w*)\.token_start, (r\w*)\.tok\.ident_len\);$",
         st)
     if m and m.group(1) in cur_results and m.group(2) in cur_results:
@@ -2160,12 +2293,11 @@ def try_emit_void_name_audit(st, pad, cur_results):
 # Cache of static advance_to_*_lex_c helper bodies parsed from SUITE.
 _ADVANCE_TO_HELPERS = None
 
-# Helpers that still need a live secondary cursor or mixed primary use after
-# rewrite. function_advance is unlocked in v5.5 (lex_cur folds onto primary);
-# if_advance stays refused (if_stmt_body mixes pre-advance primary lex).
-_ADVANCE_TO_REFUSE = frozenset({
-    "parser_asm_stretch_if_advance_to_body_lex_c",
-})
+# Helpers that still need a live secondary cursor after rewrite. function_advance
+# unlocked in v5.5; if_advance unlocked in v5.7 via mixed if_stmt_body expand
+# (entry restore on the else-path branch_audit). Empty refuse set kept as the
+# extension point for future secondary-cursor helpers.
+_ADVANCE_TO_REFUSE = frozenset()
 
 
 def load_advance_to_helpers():
@@ -2206,7 +2338,7 @@ def load_advance_to_helpers():
     return helpers
 
 
-def _rewrite_advance_helper_body(helper_lines, probe_return):
+def _rewrite_advance_helper_body(helper_lines, probe_return, fallthrough_success=False):
     """Rewrite a static advance_to helper onto primary `lex`.
 
     - Drop null-guards on source/out.
@@ -2216,6 +2348,8 @@ def _rewrite_advance_helper_body(helper_lines, probe_return):
       (restore-trio callee on a copy has zero net cursor effect).
     - Success `*out_* = r.next_lex; return 1;` → from_result + `probe_return`
       (so mid-loop success in match_advance does not return the bare 1).
+      When `fallthrough_success` (v5.7 if_stmt_body mixed), success just
+      continues — caller appends the post-advance body on primary lex.
     - Keep failure `return 0`.
     Refuses helpers that still need a live secondary cursor after rewrite.
     PLATFORM: SHARED — host-side generator only.
@@ -2275,8 +2409,10 @@ def _rewrite_advance_helper_body(helper_lines, probe_return):
             pending_out_assign = True
             continue
         if st == "return 1;":
-            # Advance succeeded — return the probe verdict (not the bare 1).
-            out.append(probe_return)
+            # Advance succeeded — return the probe verdict (not the bare 1),
+            # or fall through for mixed if_stmt_body (v5.7).
+            if not fallthrough_success:
+                out.append(probe_return)
             pending_out_assign = False
             continue
         # Joined form: *out = r.next_lex; return 1;
@@ -2284,11 +2420,13 @@ def _rewrite_advance_helper_body(helper_lines, probe_return):
             r"\*out_(?:body|arms)_lex = r\.next_lex; return 1;$", st)
         if m:
             out.append("parser_asm_lex_from_result_val_into(&lex, r);")
-            out.append(probe_return)
+            if not fallthrough_success:
+                out.append(probe_return)
             continue
         m = re.match(r"\*out_(?:body|arms)_lex = (\w+); return 1;$", st)
         if m:
-            out.append(probe_return)
+            if not fallthrough_success:
+                out.append(probe_return)
             continue
         # Secondary local copy of the primary cursor — fold onto lex.
         if re.match(r"lex_cur = lex;$", st):
@@ -2296,7 +2434,7 @@ def _rewrite_advance_helper_body(helper_lines, probe_return):
         st = re.sub(r"\blex_cur\b", "lex", st)
         out.append(st)
         pending_out_assign = False
-    if pending_out_assign:
+    if pending_out_assign and not fallthrough_success:
         # Helper wrote *out but had no return 1 (should not happen); probe anyway.
         out.append(probe_return)
     joined = "\n".join(out)
@@ -2309,11 +2447,84 @@ def _rewrite_advance_helper_body(helper_lines, probe_return):
     return out
 
 
+def try_expand_if_stmt_body_mixed(body):
+    """Expand if_stmt_body mixed-primary shape onto opaque primary lex (v5.7).
+
+    Suite shape (by-value):
+      advance_to_body → body_lex
+      (void)cond_int_as(&body_lex)          # copy; zero net
+      next_into(&r, body_lex)
+      if LBRACE: return block_probe(&r.next_lex)
+      return branch_audit(&lex)             # ORIGINAL entry lex
+
+    Under inplace: inline if_advance with success fallthrough (primary ends at
+    body); elide void cond; peek/step on primary; else-path uses `&lex_at_entry`
+    so translate_return restores pos0 before branch_audit (C kept the entry copy).
+    PLATFORM: SHARED — host-side generator only.
+    """
+    stmts = [s.strip() for s in join_logical(body) if s.strip()]
+    sec = None
+    code = []
+    prefix = []
+    for s in stmts:
+        m = re.match(r"struct parser_asm_lexer (\w+);$", s)
+        if m and m.group(1) == "body_lex":
+            sec = m.group(1)
+            continue
+        if s.startswith("struct parser_asm_lexer_result "):
+            prefix.append(s)
+            continue
+        if re.match(r"int32_t \w+;$", s):
+            prefix.append(s)
+            continue
+        code.append(s)
+    if sec != "body_lex" or len(code) != 5:
+        return None
+    m_adv = re.match(
+        r"if \(!?parser_asm_stretch_if_advance_to_body_lex_c\("
+        r"([^,]+), ([^,]+), &body_lex\)\) return 0;$",
+        code[0])
+    if not m_adv:
+        return None
+    if not re.match(
+            r"\(void\)parser_asm_stretch_cond_int_as_audit_c\(&body_lex, source\);$",
+            code[1]):
+        return None
+    if not re.match(r"lexer_next_into\(&?r, body_lex, source\);$", code[2]):
+        return None
+    # join_logical merges `if (LBRACE)\n  return block…;` into one statement.
+    m_lbr = re.match(
+        r"if \(r\.tok\.kind == \(int32_t\)TOKEN_LBRACE\) "
+        r"return parser_asm_stretch_block_stmt_kind_probe_c\(&r\.next_lex, source, 0\);$",
+        code[3])
+    m_br = re.match(
+        r"return parser_asm_stretch_if_stmt_branch_audit_c\(&lex, source\);$",
+        code[4])
+    if not m_lbr or not m_br:
+        return None
+
+    helpers = load_advance_to_helpers()
+    helper_name = "parser_asm_stretch_if_advance_to_body_lex_c"
+    if helper_name not in helpers:
+        raise Refuse(f"advance_to helper not found in suite: {helper_name}")
+    inlined = _rewrite_advance_helper_body(
+        helpers[helper_name], probe_return="", fallthrough_success=True)
+    # Post-advance body on primary: elide void cond (by-value copy); peek from
+    # advanced lex; LBRACE → block probe; else → entry-restore branch_audit.
+    rest = [
+        "lexer_next_into(&r, lex, source);",
+        "if (r.tok.kind == (int32_t)TOKEN_LBRACE) "
+        "return parser_asm_stretch_block_stmt_kind_probe_c(&r.next_lex, source, 0);",
+        "return parser_asm_stretch_if_stmt_branch_audit_c(&lex_at_entry, source);",
+    ]
+    return prefix + inlined + rest
+
+
 def try_expand_thin_advance_probe(body):
     """Expand thin `advance_to + return probe(&sec, …)` onto primary lex.
 
     Returns rewritten body lines, or None if the body is not the thin shape.
-    Raises Refuse for recognized-but-blocked helpers (function/if advance).
+    Raises Refuse for recognized-but-blocked helpers.
     """
     stmts = [s.strip() for s in join_logical(body) if s.strip()]
     # Collect secondary-cursor decl; keep other stmts as code.
@@ -2369,6 +2580,9 @@ def try_expand_thin_advance_probe(body):
 
 
 def gen_x_function(name, body, tokvals, existing_consts, buftail_mode=False):
+    # v5.7: suite primary cursor may be named `lex_at_if` (if_expr/if_stmt deep).
+    # Opaque .x ports always use `lex`; rename before translate/handlers.
+    body = [re.sub(r"\blex_at_if\b", "lex", l) for l in body]
     # v5.2 buftail rewrites first so advance_to expand sees `source` not `&sl`.
     if buftail_mode:
         # buf→buf 委托链: CALLEE(lex, data, len) 标记为 BUFCALL 形态供 handler 识别
@@ -2380,10 +2594,12 @@ def gen_x_function(name, body, tokvals, existing_consts, buftail_mode=False):
                 for l in body]
         body = [re.sub(r"lexer_next_into\(&(r\w*), ([^,]+), source\)",
                        r"lexer_next_into(\1, \2, source)", l) for l in body]
-    # v5.3: try thin advance_to → inplace expand before the refuse gate.
+    # v5.3/v5.7: try advance_to expand (thin probe, or mixed if_stmt_body) first.
     joined = "\n".join(body)
     if re.search(r"parser_asm_stretch_\w*advance_to_\w+_lex_c\s*\(", joined):
-        expanded = try_expand_thin_advance_probe(body)
+        expanded = try_expand_if_stmt_body_mixed(body)
+        if expanded is None:
+            expanded = try_expand_thin_advance_probe(body)
         if expanded is None:
             raise Refuse("secondary-cursor advance_to_*_lex (no local lexer out-param under opaque *u8)")
         body = expanded
@@ -2479,6 +2695,9 @@ def emit_buf_thick_x(name, x_lines, int_vars=()):
         int_lets = "  let adv0: usize = 0;\n" + int_lets
     if "chain_pos_us" in int_vars:
         int_lets = "  let chain_pos: usize = 0;\n" + int_lets
+    if "la_pos_us" in int_vars:
+        int_lets = ("  let la_pos: usize = 0;\n  let la_line: i32 = 0;\n"
+                    "  let la_col: i32 = 0;\n") + int_lets
     if "bhit_us" in int_vars:
         int_lets = ("  let data2: *u8 = 0 as *u8;\n  let ts2: usize = 0;\n"
                     "  let sln2: usize = 0;\n  let bhit: i32 = 0;\n") + int_lets
@@ -2525,6 +2744,9 @@ def emit_x(name, x_lines, docline, int_vars=()):
         int_lets = "  let adv0: usize = 0;\n" + int_lets
     if "chain_pos_us" in int_vars:
         int_lets = "  let chain_pos: usize = 0;\n" + int_lets
+    if "la_pos_us" in int_vars:
+        int_lets = ("  let la_pos: usize = 0;\n  let la_line: i32 = 0;\n"
+                    "  let la_col: i32 = 0;\n") + int_lets
     if "bhit_us" in int_vars:
         int_lets = ("  let data2: *u8 = 0 as *u8;\n  let ts2: usize = 0;\n"
                     "  let sln2: usize = 0;\n  let bhit: i32 = 0;\n") + int_lets
@@ -2879,6 +3101,19 @@ def main():
                     f"{m.group(1)}{{\n"
                     f"{m.group(1)}  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();\n"
                     f"{m.group(1)}  {m.group(2)}{m.group(3)}{n}(&lex_init, {m.group(4)};\n"
+                    f"{m.group(1)}}}"
+                ),
+                t,
+            )
+            # v5.7: PARSER_ASM_STRETCH_AUDIT_CALL(CALLEE(init(), data, len))
+            # same temp-lex expand (helpers_slice corpus sites).
+            t = re.sub(
+                r"([ \t]*)PARSER_ASM_STRETCH_AUDIT_CALL\(" + re.escape(n)
+                + r"\(parser_asm_lexer_init_c\(\), ([^)]+)\)\);",
+                lambda m: (
+                    f"{m.group(1)}{{\n"
+                    f"{m.group(1)}  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();\n"
+                    f"{m.group(1)}  PARSER_ASM_STRETCH_AUDIT_CALL({n}(&lex_init, {m.group(2)}));\n"
                     f"{m.group(1)}}}"
                 ),
                 t,

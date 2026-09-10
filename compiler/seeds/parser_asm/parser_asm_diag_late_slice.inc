@@ -36,7 +36,7 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_buf_c(
     return fail;
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_imports_then_structs_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_imports_structs_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_imports_structs_deep_buf_audit_c(&lex, data, len));
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_diag_after_imports_then_structs_slice_c(lex, &source);

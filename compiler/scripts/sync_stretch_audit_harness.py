@@ -122,6 +122,10 @@ int32_t parser_asm_stretch_enum_discriminant_kind_audit_c(int32_t kind) {
 int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
+/* v5.7: struct_layout_name_audit is the same thin wrap (G.7). */
+int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len) {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
 /* v4.9: loop_stmt_body is by-value + void-cast in block_stmt twin — stub OK
  * (no cursor net effect; .x port elides the same call). */
 int32_t parser_asm_stretch_loop_stmt_body_audit_c(struct parser_asm_lexer lex,
@@ -148,7 +152,8 @@ SUITE_HELPER_SIGS = [
     # v5.3: body_* c_ref twins still call static advance_to_* out-param helpers
     # (by-value C authority). .x ports expand them inplace; twins keep the C shape.
     # Only helpers whose callees are already migrated (c_ref-rewritable) belong
-    # here — if advance stays out until if_stmt_body goes green (mixed cursor).
+    # here. v5.7: if_stmt_body .x expands if_advance inplace; c_ref twin still
+    # calls the static helper (by-value C authority).
     "static int32_t parser_asm_stretch_struct_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_enum_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_trait_advance_to_body_lex_c(",
@@ -156,6 +161,8 @@ SUITE_HELPER_SIGS = [
     "static int32_t parser_asm_stretch_impl_advance_to_body_lex_c(",
     # v5.5: function_body_block_stmt c_ref twin still calls function_advance.
     "static int32_t parser_asm_stretch_function_advance_to_body_lex_c(",
+    # v5.7: if_stmt_body c_ref twin still calls if_advance.
+    "static int32_t parser_asm_stretch_if_advance_to_body_lex_c(",
     # v5.6: deep-scan / library_scan / match_subject helpers (small suite defs)
     "int32_t parser_asm_stretch_spawn_kw_audit_c(",
     "int32_t parser_asm_stretch_match_subject_ident_audit_c(",

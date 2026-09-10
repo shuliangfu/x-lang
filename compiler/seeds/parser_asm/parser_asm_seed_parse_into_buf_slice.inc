@@ -34,8 +34,7 @@ extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex
 extern int32_t parser_asm_stretch_parse_into_buf_preamble_peek_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_top_level_let_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
                                                             int32_t is_const);
-extern int32_t parser_asm_stretch_struct_record_layout_body_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                        int32_t len);
+extern int32_t parser_asm_stretch_struct_record_layout_body_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_type_ref_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                                   const uint8_t *name);
@@ -63,10 +62,8 @@ extern int32_t parser_asm_stretch_top_level_let_full_deep_buf_audit_c(struct par
                                                                       int32_t len, int32_t is_const);
 extern int32_t parser_asm_stretch_top_level_let_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
                                                                            int32_t len, int32_t is_const);
-extern int32_t parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex,
-                                                                                 uint8_t *data, int32_t len);
-extern int32_t parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                          int32_t len);
+extern int32_t parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_parse_into_preamble_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
                                                                           int32_t len);
 extern int32_t parser_asm_stretch_parse_into_entry_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
@@ -286,7 +283,7 @@ extern int32_t parser_asm_stretch_toplevel_max_ultra_hyper_mega_full_deep_buf_au
 extern int32_t parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
                                                                             int32_t len);
 extern int32_t parser_asm_stretch_top_level_let_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
-extern int32_t parser_asm_stretch_struct_layout_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_struct_layout_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_parse_into_loop_iter_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern void parser_lex_from_next_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 extern void parser_asm_collect_imports_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len, void *module,
@@ -3856,10 +3853,10 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       mod_hdr->pending_repr_compatible_struct = 0;
       if (pr)
         ap = 1;
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_record_layout_body_buf_audit_c(lex, data, len));
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(lex, data, len));
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(lex, data, len));
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(lex, data, len));
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_record_layout_body_buf_audit_c(&lex, data, len));
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(&lex, data, len));
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_full_deep_buf_audit_c(&lex, data, len));
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_struct_layout_mega_full_deep_buf_audit_c(&lex, data, len));
       if (parser_parse_struct_record_layout_into_glue(arena, module, lex, &slice, &out_lex, ap, ps, pc) != 0) {
         /*
          * wave679 Cap residual: P012 duplicate field must not soft-skip+continue.
