@@ -417,12 +417,15 @@ static int32_t c_ref_parse_peek_function_name_buf_audit(void *lex_inout, uint8_t
 static int32_t c_ref_body_skip_let_const_type_audit(void *lex_inout, void *source);
 static int32_t c_ref_skip_one_function_full_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_fn_shape_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_extern_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_scan_audit(void *lex_inout, void *source);
 static int32_t c_ref_library_return_type_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_scan_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_skip_one_if_else_chain_audit(void *lex_inout, void *source);
 static int32_t c_ref_skip_one_if_else_chain_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_type_ref_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_skip_one_extern_body_audit(void *lex_inout, void *source);
+static int32_t c_ref_skip_one_extern_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_async_fn_prefix_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_cond_int_as_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_primary_head_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
@@ -431,19 +434,24 @@ static int32_t c_ref_peek_kind_chain_buf_audit(void *lex_inout, uint8_t *data, i
 static int32_t c_ref_parse_cond_expr_audit(void *lex_inout, void *source);
 static int32_t c_ref_parse_cond_expr_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_let_bracket_deep_audit(void *lex_inout, void *source);
+static int32_t c_ref_primary_expr_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_balanced_brackets_depth_probe(void *lex_inout, void *source);
 static int32_t c_ref_balanced_brackets_depth_probe_buf(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_primary_expr_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_parse_expr_prefix_chain_audit(void *lex_inout, void *source);
 static int32_t c_ref_parse_expr_prefix_chain_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_type_ref_bracket_composite_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_ternary_assign_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_ternary_assign_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_binop_lower_chain_audit(void *lex_inout, void *source);
 static int32_t c_ref_expr_binop_lower_chain_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_trait_impl_header_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_enum_body_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_binop_upper_chain_audit(void *lex_inout, void *source);
 static int32_t c_ref_expr_binop_upper_chain_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_binop_mid_chain_audit(void *lex_inout, void *source);
 static int32_t c_ref_expr_binop_mid_chain_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_extern_skip_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_diag_skip_let_const_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_diag_skip_let_const_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_binop_full_chain_audit(void *lex_inout, void *source);
@@ -461,11 +469,15 @@ static int32_t c_ref_parse_cond_expr_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_parse_cond_expr_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_lit_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_struct_lit_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_extern_skip_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_enum_skip_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_type_ref_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_ternary_assign_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_ternary_assign_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_primary_expr_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_primary_expr_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_async_fn_sig_full_deep_audit(void *lex_inout, void *source);
+static int32_t c_ref_async_fn_sig_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_cast_unary_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_cast_unary_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_return_stmt_full_deep_audit(void *lex_inout, void *source);
@@ -478,7 +490,10 @@ static int32_t c_ref_fn_sig_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_fn_sig_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_binop_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_expr_binop_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_extern_skip_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_enum_skip_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_type_ref_mega_full_deep_audit(void *lex_inout, void *source);
+static int32_t c_ref_type_ref_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_primary_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_primary_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_async_fn_mega_full_deep_audit(void *lex_inout, void *source);
@@ -2677,6 +2692,28 @@ static int32_t c_ref_library_fn_shape_buf_audit(void *lex_inout, uint8_t *data, 
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_extern_body_buf_audit_c. */
+static int32_t c_ref_extern_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+  int32_t param_count;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_extern_fn_audit(&lex, &sl);
+  score += c_ref_extern_param_count_audit(&lex, &sl, &param_count);
+  score += c_ref_extern_return_type_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_library_scan_audit_c. */
 static int32_t c_ref_library_scan_audit(void *lex_inout, void *source) {
 
@@ -2770,6 +2807,40 @@ static int32_t c_ref_type_ref_deep_buf_audit(void *lex_inout, uint8_t *data, int
   sl.data = data;
   sl.length = (size_t)len;
   return c_ref_type_ref_deep_audit(&lex, &sl);
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_one_extern_body_audit_c. */
+static int32_t c_ref_skip_one_extern_body_audit(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+  int32_t param_count;
+
+  score = c_ref_extern_fn_audit(&lex, source);
+  score += c_ref_extern_param_count_audit(&lex, source, &param_count);
+  score += c_ref_extern_return_type_audit(&lex, source);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_one_extern_body_buf_audit_c. */
+static int32_t c_ref_skip_one_extern_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  return c_ref_skip_one_extern_body_audit(&lex, &sl);
 
 }
 
@@ -2900,6 +2971,28 @@ static int32_t c_ref_body_let_bracket_deep_audit(void *lex_inout, void *source) 
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_primary_expr_deep_buf_audit_c. */
+static int32_t c_ref_primary_expr_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_primary_head_buf_audit(&lex, data, len);
+  score += c_ref_unary_prefix_audit(&lex, &sl);
+  score += c_ref_primary_suffix_chain_probe(&lex, &sl);
+  score += c_ref_as_suffix_chain_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_balanced_brackets_depth_probe_c. */
 static int32_t c_ref_balanced_brackets_depth_probe(void *lex_inout, void *source) {
 
@@ -2982,6 +3075,27 @@ static int32_t c_ref_parse_expr_prefix_chain_buf_audit(void *lex_inout, uint8_t 
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_type_ref_bracket_composite_buf_audit_c. */
+static int32_t c_ref_type_ref_bracket_composite_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_array_type_bracket_audit(&lex, &sl);
+  score += c_ref_slice_type_bracket_audit(&lex, &sl);
+  score += c_ref_type_ref_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_ternary_assign_deep_audit_c. */
 static int32_t c_ref_ternary_assign_deep_audit(void *lex_inout, void *source) {
 
@@ -3045,6 +3159,49 @@ static int32_t c_ref_expr_binop_lower_chain_buf_audit(void *lex_inout, uint8_t *
   sl.data = data;
   sl.length = (size_t)len;
   return c_ref_expr_binop_lower_chain_audit(&lex, &sl);
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_trait_impl_header_deep_buf_audit_c. */
+static int32_t c_ref_trait_impl_header_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_trait_header_audit(&lex, &sl);
+  score += c_ref_impl_header_audit(&lex, &sl);
+  score += c_ref_skip_one_trait_buf_audit(&lex, data, len);
+  score += c_ref_skip_one_impl_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_enum_body_deep_buf_audit_c. */
+static int32_t c_ref_enum_body_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_enum_header_audit(&lex, &sl);
+  score += c_ref_enum_variants_probe(&lex, &sl, 0);
+  score += c_ref_skip_one_enum_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
 
 }
 
@@ -3112,6 +3269,22 @@ static int32_t c_ref_expr_binop_mid_chain_buf_audit(void *lex_inout, uint8_t *da
   sl.data = data;
   sl.length = (size_t)len;
   return c_ref_expr_binop_mid_chain_audit(&lex, &sl);
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_extern_skip_deep_buf_audit_c. */
+static int32_t c_ref_extern_skip_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  score = c_ref_skip_one_extern_buf_audit(&lex, data, len);
+  score += c_ref_extern_body_buf_audit(&lex, data, len);
+  score += c_ref_skip_one_extern_body_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
 
 }
 
@@ -3396,6 +3569,73 @@ static int32_t c_ref_struct_lit_deep_buf_audit(void *lex_inout, uint8_t *data, i
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_extern_skip_full_deep_buf_audit_c. */
+static int32_t c_ref_extern_skip_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t param_count;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_extern_skip_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_one_extern_buf_audit(&lex, data, len);
+  score += c_ref_extern_param_count_audit(&lex, &sl, &param_count);
+  score += c_ref_extern_return_type_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_enum_skip_full_deep_buf_audit_c. */
+static int32_t c_ref_enum_skip_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_skip_one_enum_buf_audit(&lex, data, len);
+  score += c_ref_enum_body_deep_buf_audit(&lex, data, len);
+  score += c_ref_enum_body_deep_slice_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_type_ref_full_deep_buf_audit_c. */
+static int32_t c_ref_type_ref_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_type_ref_deep_buf_audit(&lex, data, len);
+  score += c_ref_type_ref_bracket_composite_buf_audit(&lex, data, len);
+  score += c_ref_linear_type_audit(&lex, &sl);
+  score += c_ref_array_type_bracket_audit(&lex, &sl);
+  score += c_ref_slice_type_bracket_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_ternary_assign_full_deep_audit_c. */
 static int32_t c_ref_ternary_assign_full_deep_audit(void *lex_inout, void *source) {
 
@@ -3477,6 +3717,26 @@ static int32_t c_ref_async_fn_sig_full_deep_audit(void *lex_inout, void *source)
   score += c_ref_fn_sig_audit(&lex, source);
   score += c_ref_diag_fn_param_sig_audit(&lex, source);
   score += c_ref_diag_fn_deep_audit(&lex, source);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_async_fn_sig_full_deep_buf_audit_c. */
+static int32_t c_ref_async_fn_sig_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_async_fn_prefix_buf_audit(&lex, data, len);
+  score += c_ref_async_fn_sig_full_deep_audit(&lex, &sl);
   return score > 0 ? 1 : 0;
 
 }
@@ -3683,6 +3943,48 @@ static int32_t c_ref_expr_binop_mega_full_deep_buf_audit(void *lex_inout, uint8_
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_extern_skip_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_extern_skip_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_extern_skip_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_one_extern_buf_audit(&lex, data, len);
+  score += c_ref_extern_fn_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_enum_skip_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_enum_skip_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_enum_skip_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_enum_header_audit(&lex, &sl);
+  score += c_ref_enum_variants_body_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_type_ref_mega_full_deep_audit_c. */
 static int32_t c_ref_type_ref_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -3696,6 +3998,26 @@ static int32_t c_ref_type_ref_mega_full_deep_audit(void *lex_inout, void *source
   score += c_ref_type_ref_peek_audit(&lex, source);
   score += c_ref_struct_align_paren_audit(&lex, source);
   score += c_ref_linear_type_audit(&lex, source);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_type_ref_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_type_ref_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  score = c_ref_type_ref_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_type_ref_mega_full_deep_audit(&lex, &sl);
   return score > 0 ? 1 : 0;
 
 }

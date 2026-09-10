@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.1 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.2 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -46,6 +46,16 @@
 #       later 0 sub-audit wiped an earlier hit → mass c=1/x=0).
 #   (3) negative byte-chain polarity: `!=`/`||` hoists to `bhit == 0`
 #       (all-match → continue), not `bhit == 1` (was inverted → linear_type).
+#
+# v5.2: thick-buf score wall —
+#   (1) buftail rewrite `&sl,` → `source,` (v3 only rewrote `&sl)` so
+#       mid-arg `&sl, 0` / `&sl, &out` never became `, source`);
+#   (2) buf score/void/return accept `&?\w+, data, len` (was bare
+#       `lex|lex_at_if` only — `&lex, data, len` mass-refused);
+#   (3) optional trailing flag on buf score (`…, data, len, N|ident`);
+#   (4) slice score third arg `&out_local` → null `0` (out is optional;
+#       return verdict does not depend on the write — extern_param_count /
+#       enum_variants_probe).
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -189,7 +199,13 @@ def translate_call(callee, arg, flag=None, buf=False):
             and not an.endswith("_lex")):
         raise Refuse(f"sub-call on non-cursor var {arg}")
     if buf:
-        return f"{callee}(lex, data, len)", set()
+        # v5.2: optional trailing flag (top_level_let is_const / polarity).
+        tail = f", {flag}" if flag is not None else ""
+        return f"{callee}(lex, data, len{tail})", set()
+    # v5.2: C `&out_local` on optional out-param probes → null 0 (write skipped;
+    # return verdict identical — see extern_param_count / enum_variants_probe).
+    if isinstance(flag, str) and flag.startswith("&"):
+        flag = "0"
     tail = f", {flag}" if flag is not None else ""
     return f"__INOUT__{callee}(lex, source{tail})", set()
 
@@ -723,9 +739,11 @@ def translate(name, body, tokvals):
             continue
         if st.startswith("else"):
             raise Refuse("else branch")
-        # v2: score arithmetic from sub-audit calls or literals
-        m = re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+))?\);$", st) or \
-        re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((lex|lex_at_if), data, len\);$", st)
+        # v2/v5.2: score arithmetic from sub-audit calls or literals.
+        # Buf form accepts &lex (C by-value take-address) + optional trailing flag.
+        # Slice form third arg may be a digit flag OR &out_local (→ null 0).
+        m = re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\);$", st) or \
+        re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\);$", st)
         if m and m.group(1) in int_vars:
             var, op, callee, arg = m.group(1), m.group(2), m.group(3), m.group(4)
             is_buf_call = "data, len" in st
@@ -1334,9 +1352,10 @@ def translate_return(expr, cur_results):
     m = re.match(r"(parser_asm_stretch_\w+_c)\(&(?:lex|\w+), data, len\)$", e)
     if m:
         raise Delegation(m.group(1))
-    m = re.match(r"(\w+) \+ (parser_asm_stretch_\w+_c)\((lex|lex_at_if), data, len\)$", e)
+    # v5.2: &lex + optional flag on buf score-expression returns
+    m = re.match(r"(\w+) \+ (parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\)$", e)
     if m:
-        x2, ntok = translate_call(m.group(2), m.group(3), buf=True)
+        x2, ntok = translate_call(m.group(2), m.group(3), m.group(4), buf=True)
         used |= ntok
         return (
             [
@@ -1360,7 +1379,7 @@ def translate_return(expr, cur_results):
             ],
             used,
         )
-    m = re.match(r"(\w+) \+ (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+))?\)$", e)
+    m = re.match(r"(\w+) \+ (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\)$", e)
     if m:
         x2, ntok = translate_call(m.group(2), m.group(3), m.group(4))
         used |= ntok
@@ -1663,10 +1682,11 @@ def translate_block(block, cur_results, indent=2):
         if m:
             si += 1
             continue
-        m = re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+))?\);$", st) or \
-        re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((lex|lex_at_if), data, len\);$", st)
+        m = re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\);$", st) or \
+        re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\);$", st)
         if m:
-            x2, ntok = translate_call(m.group(1), m.group(2), m.group(3))
+            is_buf = "data, len" in st
+            x2, ntok = translate_call(m.group(1), m.group(2), m.group(3), buf=is_buf)
             used |= ntok
             # discard-call: strip the inout marker (same as &r.next_lex void path)
             out.append(f"{pad}{strip_inout(x2)};")
@@ -1932,7 +1952,9 @@ def gen_x_function(name, body, tokvals, existing_consts, buftail_mode=False):
         # buf→buf 委托链: CALLEE(lex, data, len) 标记为 BUFCALL 形态供 handler 识别
         body = [re.sub(r"(parser_asm_stretch_\w+_c)\((lex|lex_at_if), data, len\)",
                        r"\1(\2, data, len)", l) for l in body]
-        body = [l.replace("&sl)", "source)").replace(", source);", ", source);")
+        # v5.2: mid-arg `&sl,` (flag/out follows) as well as terminal `&sl)`.
+        body = [l.replace("&sl,", "source,").replace("&sl)", "source)")
+                .replace(", source);", ", source);")
                 for l in body]
         body = [re.sub(r"lexer_next_into\(&(r\w*), ([^,]+), source\)",
                        r"lexer_next_into(\1, \2, source)", l) for l in body]

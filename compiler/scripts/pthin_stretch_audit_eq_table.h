@@ -9,6 +9,7 @@ extern int32_t parser_asm_stretch_async_fn_mega_full_deep_buf_audit_c(void *lex_
 extern int32_t parser_asm_stretch_async_fn_prefix_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_async_fn_prefix_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_async_fn_sig_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_async_fn_sig_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_balanced_braces_depth_probe_buf_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_balanced_braces_depth_probe_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_balanced_brackets_depth_probe_buf_c(void *lex_inout, uint8_t *data, int32_t len);
@@ -45,8 +46,11 @@ extern int32_t parser_asm_stretch_diag_skip_let_full_deep_buf_audit_c(void *lex_
 extern int32_t parser_asm_stretch_diag_toplevel_after_imports_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_else_if_chain_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_else_stmt_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_enum_body_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_enum_body_deep_slice_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_enum_header_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_enum_skip_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_enum_skip_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_enum_variants_body_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_enum_variants_body_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_enum_variants_probe_c(void *lex_inout, void *source, int32_t *out_variant_count);
@@ -76,9 +80,13 @@ extern int32_t parser_asm_stretch_expr_stmt_mega_full_deep_audit_c(void *lex_ino
 extern int32_t parser_asm_stretch_expr_stmt_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_expr_ultra_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_expr_ultra_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_extern_body_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_extern_fn_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_extern_param_count_audit_c(void *lex_inout, void *source, int32_t *out_param_count);
 extern int32_t parser_asm_stretch_extern_return_type_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_extern_skip_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_extern_skip_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_extern_skip_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_fn_param_list_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_fn_sig_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_fn_sig_full_deep_audit_c(void *lex_inout, void *source);
@@ -118,6 +126,7 @@ extern int32_t parser_asm_stretch_peek_kind_chain_buf_audit_c(void *lex_inout, u
 extern int32_t parser_asm_stretch_primary_call_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_primary_call_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_primary_expr_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_primary_expr_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_primary_expr_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_primary_expr_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_primary_expr_mega_full_deep_audit_c(void *lex_inout, void *source);
@@ -137,6 +146,8 @@ extern int32_t parser_asm_stretch_return_stmt_full_deep_buf_audit_c(void *lex_in
 extern int32_t parser_asm_stretch_skip_imports_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_skip_one_enum_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_skip_one_enum_register_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_skip_one_extern_body_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_skip_one_extern_body_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_skip_one_extern_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_skip_one_function_full_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_skip_one_if_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
@@ -165,6 +176,7 @@ extern int32_t parser_asm_stretch_ternary_assign_mega_full_deep_buf_audit_c(void
 extern int32_t parser_asm_stretch_ternary_op_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_toplevel_kind_peek_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_trait_header_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_trait_impl_header_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_trait_method_paren_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_trait_method_return_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_trait_methods_probe_c(void *lex_inout, void *source, int32_t *out_method_count);
@@ -172,9 +184,12 @@ extern int32_t parser_asm_stretch_try_skip_allow_deep_audit_c(void *lex_inout, v
 extern int32_t parser_asm_stretch_try_skip_allow_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_try_skip_allow_paren_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_try_skip_allow_paren_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_type_ref_bracket_composite_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_type_ref_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_type_ref_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_type_ref_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_type_ref_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_type_ref_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_type_ref_peek_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_unary_prefix_audit_c(void *lex_inout, void *source);
 
@@ -198,6 +213,8 @@ static int32_t x_async_fn_prefix_buf_audit(void *l, void *s, int32_t f) { (void)
 static int32_t r_async_fn_prefix_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_async_fn_prefix_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_async_fn_sig_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_async_fn_sig_full_deep_audit_c(l, s); }
 static int32_t r_async_fn_sig_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_async_fn_sig_full_deep_audit(l, s); }
+static int32_t x_async_fn_sig_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_async_fn_sig_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_async_fn_sig_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_async_fn_sig_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_balanced_braces_depth_probe_buf(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_balanced_braces_depth_probe_buf_c(l, sl_->data, (int32_t)sl_->length); }
 static int32_t r_balanced_braces_depth_probe_buf(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_balanced_braces_depth_probe_buf(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_balanced_braces_depth_probe(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_balanced_braces_depth_probe_c(l, s); }
@@ -269,10 +286,16 @@ static int32_t x_else_if_chain_audit(void *l, void *s, int32_t f) { (void)f; ret
 static int32_t r_else_if_chain_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_else_if_chain_audit(l, s); }
 static int32_t x_else_stmt_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_else_stmt_audit_c(l, s); }
 static int32_t r_else_stmt_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_else_stmt_audit(l, s); }
+static int32_t x_enum_body_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_enum_body_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_enum_body_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_enum_body_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_enum_body_deep_slice_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_enum_body_deep_slice_audit_c(l, s); }
 static int32_t r_enum_body_deep_slice_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_enum_body_deep_slice_audit(l, s); }
 static int32_t x_enum_header_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_enum_header_audit_c(l, s); }
 static int32_t r_enum_header_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_enum_header_audit(l, s); }
+static int32_t x_enum_skip_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_enum_skip_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_enum_skip_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_enum_skip_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_enum_skip_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_enum_skip_mega_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_enum_skip_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_enum_skip_mega_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_enum_variants_body_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_enum_variants_body_audit_c(l, s); }
 static int32_t r_enum_variants_body_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_enum_variants_body_audit(l, s); }
 static int32_t x_enum_variants_body_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_enum_variants_body_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
@@ -331,12 +354,20 @@ static int32_t x_expr_ultra_mega_full_deep_audit(void *l, void *s, int32_t f) { 
 static int32_t r_expr_ultra_mega_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_expr_ultra_mega_full_deep_audit(l, s); }
 static int32_t x_expr_ultra_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_expr_ultra_mega_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
 static int32_t r_expr_ultra_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_expr_ultra_mega_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_extern_body_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_extern_body_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_extern_body_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_extern_body_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_extern_fn_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_extern_fn_audit_c(l, s); }
 static int32_t r_extern_fn_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_extern_fn_audit(l, s); }
 static int32_t x_extern_param_count_audit(void *l, void *s, int32_t f) { int32_t slot = 0; int32_t rc = parser_asm_stretch_extern_param_count_audit_c(l, s, f ? &slot : 0); return f ? ((rc & 0xffff) | (slot << 16)) : rc; }
 static int32_t r_extern_param_count_audit(void *l, void *s, int32_t f) { int32_t slot = 0; int32_t rc = c_ref_extern_param_count_audit(l, s, f ? &slot : 0); return f ? ((rc & 0xffff) | (slot << 16)) : rc; }
 static int32_t x_extern_return_type_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_extern_return_type_audit_c(l, s); }
 static int32_t r_extern_return_type_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_extern_return_type_audit(l, s); }
+static int32_t x_extern_skip_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_extern_skip_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_extern_skip_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_extern_skip_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_extern_skip_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_extern_skip_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_extern_skip_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_extern_skip_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_extern_skip_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_extern_skip_mega_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_extern_skip_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_extern_skip_mega_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_fn_param_list_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_fn_param_list_audit_c(l, s); }
 static int32_t r_fn_param_list_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_fn_param_list_audit(l, s); }
 static int32_t x_fn_sig_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_fn_sig_audit_c(l, s); }
@@ -414,6 +445,8 @@ static int32_t x_primary_call_deep_buf_audit(void *l, void *s, int32_t f) { (voi
 static int32_t r_primary_call_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_primary_call_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_primary_expr_deep_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_primary_expr_deep_audit_c(l, s); }
 static int32_t r_primary_expr_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_primary_expr_deep_audit(l, s); }
+static int32_t x_primary_expr_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_primary_expr_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_primary_expr_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_primary_expr_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_primary_expr_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_primary_expr_full_deep_audit_c(l, s); }
 static int32_t r_primary_expr_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_primary_expr_full_deep_audit(l, s); }
 static int32_t x_primary_expr_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_primary_expr_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
@@ -452,6 +485,10 @@ static int32_t x_skip_one_enum_buf_audit(void *l, void *s, int32_t f) { (void)f;
 static int32_t r_skip_one_enum_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_skip_one_enum_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_skip_one_enum_register_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_skip_one_enum_register_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
 static int32_t r_skip_one_enum_register_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_skip_one_enum_register_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_skip_one_extern_body_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_skip_one_extern_body_audit_c(l, s); }
+static int32_t r_skip_one_extern_body_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_skip_one_extern_body_audit(l, s); }
+static int32_t x_skip_one_extern_body_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_skip_one_extern_body_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_skip_one_extern_body_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_skip_one_extern_body_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_skip_one_extern_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_skip_one_extern_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
 static int32_t r_skip_one_extern_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_skip_one_extern_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_skip_one_function_full_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_skip_one_function_full_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
@@ -508,6 +545,8 @@ static int32_t x_toplevel_kind_peek_audit(void *l, void *s, int32_t f) { (void)f
 static int32_t r_toplevel_kind_peek_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_toplevel_kind_peek_audit(l, s); }
 static int32_t x_trait_header_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_trait_header_audit_c(l, s); }
 static int32_t r_trait_header_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_trait_header_audit(l, s); }
+static int32_t x_trait_impl_header_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_trait_impl_header_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_trait_impl_header_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_trait_impl_header_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_trait_method_paren_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_trait_method_paren_audit_c(l, s); }
 static int32_t r_trait_method_paren_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_trait_method_paren_audit(l, s); }
 static int32_t x_trait_method_return_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_trait_method_return_audit_c(l, s); }
@@ -522,12 +561,18 @@ static int32_t x_try_skip_allow_paren_audit(void *l, void *s, int32_t f) { (void
 static int32_t r_try_skip_allow_paren_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_try_skip_allow_paren_audit(l, s); }
 static int32_t x_try_skip_allow_paren_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_try_skip_allow_paren_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
 static int32_t r_try_skip_allow_paren_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_try_skip_allow_paren_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_type_ref_bracket_composite_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_type_ref_bracket_composite_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_type_ref_bracket_composite_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_type_ref_bracket_composite_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_type_ref_deep_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_type_ref_deep_audit_c(l, s); }
 static int32_t r_type_ref_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_type_ref_deep_audit(l, s); }
 static int32_t x_type_ref_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_type_ref_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
 static int32_t r_type_ref_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_type_ref_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
+static int32_t x_type_ref_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_type_ref_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_type_ref_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_type_ref_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_type_ref_mega_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_type_ref_mega_full_deep_audit_c(l, s); }
 static int32_t r_type_ref_mega_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_type_ref_mega_full_deep_audit(l, s); }
+static int32_t x_type_ref_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_type_ref_mega_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_type_ref_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_type_ref_mega_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_type_ref_peek_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_type_ref_peek_audit_c(l, s); }
 static int32_t r_type_ref_peek_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_type_ref_peek_audit(l, s); }
 static int32_t x_unary_prefix_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_unary_prefix_audit_c(l, s); }
@@ -544,6 +589,7 @@ static const audit_case k_cases[] = {
     {"async_fn_prefix_audit", r_async_fn_prefix_audit, x_async_fn_prefix_audit, 0, 0},
     {"async_fn_prefix_buf_audit", r_async_fn_prefix_buf_audit, x_async_fn_prefix_buf_audit, 0, 0},
     {"async_fn_sig_full_deep_audit", r_async_fn_sig_full_deep_audit, x_async_fn_sig_full_deep_audit, 0, 0},
+    {"async_fn_sig_full_deep_buf_audit", r_async_fn_sig_full_deep_buf_audit, x_async_fn_sig_full_deep_buf_audit, 0, 0},
     {"balanced_braces_depth_probe_buf", r_balanced_braces_depth_probe_buf, x_balanced_braces_depth_probe_buf, 0, 0},
     {"balanced_braces_depth_probe", r_balanced_braces_depth_probe, x_balanced_braces_depth_probe, 0, 0},
     {"balanced_brackets_depth_probe_buf", r_balanced_brackets_depth_probe_buf, x_balanced_brackets_depth_probe_buf, 0, 0},
@@ -583,8 +629,11 @@ static const audit_case k_cases[] = {
     {"diag_toplevel_after_imports_audit", r_diag_toplevel_after_imports_audit, x_diag_toplevel_after_imports_audit, 0, 0},
     {"else_if_chain_audit", r_else_if_chain_audit, x_else_if_chain_audit, 0, 0},
     {"else_stmt_audit", r_else_stmt_audit, x_else_stmt_audit, 0, 0},
+    {"enum_body_deep_buf_audit", r_enum_body_deep_buf_audit, x_enum_body_deep_buf_audit, 0, 0},
     {"enum_body_deep_slice_audit", r_enum_body_deep_slice_audit, x_enum_body_deep_slice_audit, 0, 0},
     {"enum_header_audit", r_enum_header_audit, x_enum_header_audit, 0, 0},
+    {"enum_skip_full_deep_buf_audit", r_enum_skip_full_deep_buf_audit, x_enum_skip_full_deep_buf_audit, 0, 0},
+    {"enum_skip_mega_full_deep_buf_audit", r_enum_skip_mega_full_deep_buf_audit, x_enum_skip_mega_full_deep_buf_audit, 0, 0},
     {"enum_variants_body_audit", r_enum_variants_body_audit, x_enum_variants_body_audit, 0, 0},
     {"enum_variants_body_buf_audit", r_enum_variants_body_buf_audit, x_enum_variants_body_buf_audit, 0, 0},
     {"enum_variants_probe/null", r_enum_variants_probe, x_enum_variants_probe, 0, 0},
@@ -615,10 +664,14 @@ static const audit_case k_cases[] = {
     {"expr_stmt_mega_full_deep_buf_audit", r_expr_stmt_mega_full_deep_buf_audit, x_expr_stmt_mega_full_deep_buf_audit, 0, 0},
     {"expr_ultra_mega_full_deep_audit", r_expr_ultra_mega_full_deep_audit, x_expr_ultra_mega_full_deep_audit, 0, 0},
     {"expr_ultra_mega_full_deep_buf_audit", r_expr_ultra_mega_full_deep_buf_audit, x_expr_ultra_mega_full_deep_buf_audit, 0, 0},
+    {"extern_body_buf_audit", r_extern_body_buf_audit, x_extern_body_buf_audit, 0, 0},
     {"extern_fn_audit", r_extern_fn_audit, x_extern_fn_audit, 0, 0},
     {"extern_param_count_audit/null", r_extern_param_count_audit, x_extern_param_count_audit, 0, 0},
     {"extern_param_count_audit/slot", r_extern_param_count_audit, x_extern_param_count_audit, 1, 0},
     {"extern_return_type_audit", r_extern_return_type_audit, x_extern_return_type_audit, 0, 0},
+    {"extern_skip_deep_buf_audit", r_extern_skip_deep_buf_audit, x_extern_skip_deep_buf_audit, 0, 0},
+    {"extern_skip_full_deep_buf_audit", r_extern_skip_full_deep_buf_audit, x_extern_skip_full_deep_buf_audit, 0, 0},
+    {"extern_skip_mega_full_deep_buf_audit", r_extern_skip_mega_full_deep_buf_audit, x_extern_skip_mega_full_deep_buf_audit, 0, 0},
     {"fn_param_list_audit", r_fn_param_list_audit, x_fn_param_list_audit, 0, 1},
     {"fn_sig_audit", r_fn_sig_audit, x_fn_sig_audit, 0, 0},
     {"fn_sig_full_deep_audit", r_fn_sig_full_deep_audit, x_fn_sig_full_deep_audit, 0, 0},
@@ -661,6 +714,7 @@ static const audit_case k_cases[] = {
     {"primary_call_deep_audit", r_primary_call_deep_audit, x_primary_call_deep_audit, 0, 0},
     {"primary_call_deep_buf_audit", r_primary_call_deep_buf_audit, x_primary_call_deep_buf_audit, 0, 0},
     {"primary_expr_deep_audit", r_primary_expr_deep_audit, x_primary_expr_deep_audit, 0, 0},
+    {"primary_expr_deep_buf_audit", r_primary_expr_deep_buf_audit, x_primary_expr_deep_buf_audit, 0, 0},
     {"primary_expr_full_deep_audit", r_primary_expr_full_deep_audit, x_primary_expr_full_deep_audit, 0, 0},
     {"primary_expr_full_deep_buf_audit", r_primary_expr_full_deep_buf_audit, x_primary_expr_full_deep_buf_audit, 0, 0},
     {"primary_expr_mega_full_deep_audit", r_primary_expr_mega_full_deep_audit, x_primary_expr_mega_full_deep_audit, 0, 0},
@@ -680,6 +734,8 @@ static const audit_case k_cases[] = {
     {"skip_imports_buf_audit", r_skip_imports_buf_audit, x_skip_imports_buf_audit, 0, 0},
     {"skip_one_enum_buf_audit", r_skip_one_enum_buf_audit, x_skip_one_enum_buf_audit, 0, 0},
     {"skip_one_enum_register_buf_audit", r_skip_one_enum_register_buf_audit, x_skip_one_enum_register_buf_audit, 0, 0},
+    {"skip_one_extern_body_audit", r_skip_one_extern_body_audit, x_skip_one_extern_body_audit, 0, 0},
+    {"skip_one_extern_body_buf_audit", r_skip_one_extern_body_buf_audit, x_skip_one_extern_body_buf_audit, 0, 0},
     {"skip_one_extern_buf_audit", r_skip_one_extern_buf_audit, x_skip_one_extern_buf_audit, 0, 0},
     {"skip_one_function_full_buf_audit", r_skip_one_function_full_buf_audit, x_skip_one_function_full_buf_audit, 0, 0},
     {"skip_one_if_buf_audit", r_skip_one_if_buf_audit, x_skip_one_if_buf_audit, 0, 0},
@@ -710,6 +766,7 @@ static const audit_case k_cases[] = {
     {"ternary_op_audit", r_ternary_op_audit, x_ternary_op_audit, 0, 0},
     {"toplevel_kind_peek_audit", r_toplevel_kind_peek_audit, x_toplevel_kind_peek_audit, 0, 0},
     {"trait_header_audit", r_trait_header_audit, x_trait_header_audit, 0, 0},
+    {"trait_impl_header_deep_buf_audit", r_trait_impl_header_deep_buf_audit, x_trait_impl_header_deep_buf_audit, 0, 0},
     {"trait_method_paren_audit", r_trait_method_paren_audit, x_trait_method_paren_audit, 0, 0},
     {"trait_method_return_audit", r_trait_method_return_audit, x_trait_method_return_audit, 0, 0},
     {"trait_methods_probe/null", r_trait_methods_probe, x_trait_methods_probe, 0, 0},
@@ -718,9 +775,12 @@ static const audit_case k_cases[] = {
     {"try_skip_allow_deep_buf_audit", r_try_skip_allow_deep_buf_audit, x_try_skip_allow_deep_buf_audit, 0, 0},
     {"try_skip_allow_paren_audit", r_try_skip_allow_paren_audit, x_try_skip_allow_paren_audit, 0, 0},
     {"try_skip_allow_paren_buf_audit", r_try_skip_allow_paren_buf_audit, x_try_skip_allow_paren_buf_audit, 0, 0},
+    {"type_ref_bracket_composite_buf_audit", r_type_ref_bracket_composite_buf_audit, x_type_ref_bracket_composite_buf_audit, 0, 0},
     {"type_ref_deep_audit", r_type_ref_deep_audit, x_type_ref_deep_audit, 0, 0},
     {"type_ref_deep_buf_audit", r_type_ref_deep_buf_audit, x_type_ref_deep_buf_audit, 0, 0},
+    {"type_ref_full_deep_buf_audit", r_type_ref_full_deep_buf_audit, x_type_ref_full_deep_buf_audit, 0, 0},
     {"type_ref_mega_full_deep_audit", r_type_ref_mega_full_deep_audit, x_type_ref_mega_full_deep_audit, 0, 0},
+    {"type_ref_mega_full_deep_buf_audit", r_type_ref_mega_full_deep_buf_audit, x_type_ref_mega_full_deep_buf_audit, 0, 0},
     {"type_ref_peek_audit", r_type_ref_peek_audit, x_type_ref_peek_audit, 0, 0},
     {"unary_prefix_audit", r_unary_prefix_audit, x_unary_prefix_audit, 0, 0},
 };
