@@ -133,6 +133,17 @@ int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32
  * from the gated suite body via sync. item_bind stays suite-local thin wrap
  * of bind_name_validate (G.7). path_validate copy mirrors pthin_stretch.x
  * (product authority) so audit_x.o UNDEF resolves in this TU. */
+/* v5.10: diag_lex_after_imports(+buf) are real .x ports (ABI-widened no-lex
+ * roots); c_ref twins come from the gated suite bodies via sync. Fresh
+ * lexer_init copy matches foundation authority (pos=0,line=1,col=1) so the
+ * diag_lex c_ref twin can call it without pulling pthin_foundation.o. */
+struct parser_asm_lexer parser_asm_lexer_init_c(void) {
+  struct parser_asm_lexer lex;
+  lex.pos = 0;
+  lex.line = 1;
+  lex.col = 1;
+  return lex;
+}
 int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                            int32_t name_len) {
   if (!source || name_len <= 0)

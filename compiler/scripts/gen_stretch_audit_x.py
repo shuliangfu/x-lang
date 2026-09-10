@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.9 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.10 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -116,8 +116,14 @@
 #   data+token_start fallback + COMMA/RBRACE; inout keeps mid-fail advance).
 #   Soft fixed-point unlocks import_select_deep / import_stmt_full /
 #   collect_imports_* / skip_imports_deep (no ultra/super mega dump).
-#   Follow-ons still refused: no-lex diag_lex_after_imports, simd from_at,
-#   peek_kind_chain out-array, 88+ versal mega.
+#
+# v5.10: diag_lex_after_imports no-lex root (ABI widen) —
+#   Hand-port source-only / (data,len) audits widened to pointer ABI
+#   `(lex, source)` / `(lex, data, len)`: snap+reset-to-init+restore (≡ C
+#   fresh lexer_init local; caller cursor net-zero). Soft fixed-point unlocks
+#   parse_into_preamble_deep/full + parse_into_entry_full (buf). Still refused:
+#   simd from_at (lexer_result by-val), peek_kind_chain out-array, 88+ versal /
+#   ultra/super/hyper mega dump.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended

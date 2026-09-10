@@ -908,7 +908,11 @@ struct parser_asm_lexer parser_asm_diag_lex_after_imports_slice_c(struct parser_
   struct parser_asm_lexer lex;
   if (!source)
     return parser_asm_lexer_init_c();
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_lex_after_imports_audit_c(source));
+  /* v5.10: diag_lex root widened to (lex, source); scratch init for AUDIT_CALL. */
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_lex_after_imports_audit_c(&lex_init, source));
+  }
   lex = parser_asm_lexer_init_c();
   return parser_asm_skip_imports_slice_c(lex, source);
 }

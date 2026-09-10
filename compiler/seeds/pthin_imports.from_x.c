@@ -64,7 +64,7 @@ extern int32_t parser_asm_stretch_collect_imports_mega_full_deep_buf_audit_c(voi
 extern int32_t parser_asm_stretch_collect_imports_post_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern void parser_asm_stretch_collect_imports_preamble_audit_c(struct parser_asm_lexer_result r, struct parser_asm_lexer_result r2, struct parser_asm_lexer_result r3, struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_const_import_kw_audit_c(int32_t after_assign_kind);
-extern int32_t parser_asm_stretch_diag_lex_after_imports_buf_audit_c(uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_diag_lex_after_imports_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_diag_token_after_collect_imports_buf_audit_c(uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_diag_toplevel_after_imports_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
