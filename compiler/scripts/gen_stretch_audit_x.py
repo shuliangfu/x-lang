@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.11 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.12 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -127,9 +127,17 @@
 #   Soft fixed-point only (no new hand-port root): unlock deferred
 #   ultra_mega / super_mega short combinators whose callees are already
 #   migrated. Cap = ultra+super (≈22). Hyper / ultra_hyper / max / apex /
-#   88+ versal stay refused this wave (eq wall-clock — deep score chains).
-#   Still refused: simd from_at (lexer_result by-val), peek_kind_chain
+#   88+ versal stay refused that wave (eq wall-clock — deep score chains).
+#   Still refused then: simd from_at (lexer_result by-val), peek_kind_chain
 #   out-array.
+#
+# v5.12: controlled mega batch (exact hyper layer only) —
+#   Soft fixed-point only: unlock exact `*_hyper_mega_*` whose super_mega
+#   callees are already migrated (expr/primary/match/fn/control_flow/
+#   body_skip + library buf). Cap ≈13. Refuse ultra_hyper / max / apex /
+#   88+ versal (eq wall-clock) and hypers blocked on unmigrated
+#   import/struct/try_skip super. Still refused: simd from_at
+#   (lexer_result by-val), peek_kind_chain out-array.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended

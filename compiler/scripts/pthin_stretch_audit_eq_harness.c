@@ -202,7 +202,19 @@ int main(int argc, char **argv) {
     }
     fclose(fp);
     buf[sz] = 0;
-    battery(argv[f], buf, (size_t)sz + 1, 1200); /* +1: NUL sentinel */
+    /* Default 1200 offsets/file. EQ_MAX_FILE_OFF caps wall-clock for deep
+     * mega layers (hyper+): same twins, fewer file offsets; synthetic +
+     * null-guard battery stay full. PLATFORM: SHARED. */
+    {
+      int32_t file_off = 1200;
+      const char *cap = getenv("EQ_MAX_FILE_OFF");
+      if (cap && cap[0]) {
+        long v = strtol(cap, 0, 10);
+        if (v > 0 && v < file_off)
+          file_off = (int32_t)v;
+      }
+      battery(argv[f], buf, (size_t)sz + 1, file_off); /* +1: NUL sentinel */
+    }
     free(buf);
   }
   /* Null-guard parity: every pair must answer 0 without dereferencing. */

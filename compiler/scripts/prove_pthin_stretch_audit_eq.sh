@@ -13,6 +13,8 @@
 # 判据：返回值一致 + .x 版调用方 lexer 三元组(pos/line/col)不动。
 # 诊断工件落 tests/probes/pthin_stretch_audit/，不写 /tmp。
 #
+# 墙钟：文件语料默认每文件 1200 偏移。深 mega（hyper+）可设
+#   EQ_MAX_FILE_OFF=N（1..1199）压文件偏移；合成串 + null 守卫仍全量。
 # PLATFORM: SHARED（Darwin 与 Ubuntu 双端各跑一次）。
 set -eu
 
