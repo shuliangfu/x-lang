@@ -56,14 +56,10 @@ extern void parser_finish_struct_lit_from_type_ident_into_glue(void *arena, int3
                                                                struct parser_asm_slice_u8 *source,
                                                                struct parser_asm_parse_expr_result *out);
 extern int32_t parser_asm_stretch_primary_head_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_primary_expr_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_primary_expr_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_primary_ultra_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_primary_super_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_primary_expr_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_primary_expr_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_primary_ultra_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_primary_super_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_primary_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
                                                                  struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_primary_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
@@ -142,11 +138,9 @@ extern int32_t parser_asm_stretch_primary_summit_apexversal_maxversal_wholeversa
                                                                  struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_primary_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
                                                                  struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_primary_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_primary_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_primary_expr_deep_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_primary_call_deep_audit_c(struct parser_asm_lexer lex,
-                                                            struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_primary_call_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_panic_kw_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_if_expr_branch_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_array_lit_head_audit_c(void *lex_inout, void *source);
@@ -1850,12 +1844,12 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_head_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_call_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_mega_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_mega_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultra_mega_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_super_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_call_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_mega_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_mega_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultra_mega_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_super_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_max_ultra_hyper_mega_full_deep_audit_c(lex, source));

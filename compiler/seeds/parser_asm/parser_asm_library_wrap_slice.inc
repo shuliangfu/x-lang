@@ -1549,7 +1549,7 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
   if (!result || !source)
     return 0;
   result->ok = 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_scan_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_scan_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_scan_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_fn_shape_audit_c(&lex, source));
   memset(&r, 0, sizeof(r));

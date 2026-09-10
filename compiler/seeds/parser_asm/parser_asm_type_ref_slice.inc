@@ -92,11 +92,10 @@ extern struct ast_Type ast_arena_type_get(void *arena, int32_t ref);
 extern void ast_arena_type_set(void *arena, int32_t ref, struct ast_Type t);
 extern int32_t pipeline_type_ensure_by_kind_ord(void *arena, int32_t kind_ord);
 extern int32_t parser_asm_stretch_type_ref_deep_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_type_ref_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                  struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_type_ref_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_vector_type_ident_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                           int32_t nlen);
-extern int32_t parser_asm_stretch_linear_type_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_linear_type_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_array_type_bracket_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_slice_type_bracket_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind);
@@ -608,7 +607,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   if (!source || !out_lex)
     return 0;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(&lex, source));
   lexer_next_into(&r, lex, source);
   /*
    * 4.2.2 impl type prefix + one TYPE_DYN producer (G.7).
@@ -901,7 +900,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
           linear_match = 0;
       }
       if (linear_match) {
-        PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_linear_type_audit_c(lex, source));
+        PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_linear_type_audit_c(&lex, source));
         parser_asm_lex_from_result_val_into(&lex, r);
         lexer_next_into(&r, lex, source);
         if (r.tok.kind != (int32_t)TOKEN_LPAREN) {

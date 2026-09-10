@@ -820,7 +820,7 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
   /* wave439: stash full-file source for generic-bound scan. */
   xlang_generic_bound_stash_source_c(source);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_header_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_body_deep_slice_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_body_deep_slice_audit_c(&lex, source));
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_ENUM) {
     out->pos = lex.pos;
@@ -8128,7 +8128,7 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
   int32_t depth;
   if (!out || !source)
     return;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_body_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_body_audit_c(&lex, source));
   depth = 1;
   while (depth > 0) {
     struct parser_asm_lexer_result r;

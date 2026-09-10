@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.0 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.1 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -36,6 +36,16 @@
 #   the call has zero cursor net effect. The old v4.5 step+call before a
 #   following `skip_*(…, r.next_lex)` / `lexer_next_into(&r, r.next_lex)`
 #   double-stepped (trait_methods / array·slice bracket wall).
+#
+# v5.1: three honesty gates for deep/mega score combinators —
+#   (1) refuse `*_advance_to_*_lex_c` secondary-cursor helpers (local
+#       `struct parser_asm_lexer body_lex` out-param; opaque *u8 has no
+#       second cursor; translate_cond was leaking undeclared &body_lex →
+#       XT001). body_* audits stay C until an inplace advance bridge exists.
+#   (2) preserve `score +=` under inout callees (was always `score =`, so a
+#       later 0 sub-audit wiped an earlier hit → mass c=1/x=0).
+#   (3) negative byte-chain polarity: `!=`/`||` hoists to `bhit == 0`
+#       (all-match → continue), not `bhit == 1` (was inverted → linear_type).
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -722,8 +732,13 @@ def translate(name, body, tokvals):
             x2, ntok = translate_call(callee, arg, (m.group(5) if m.lastindex >= 5 else None), buf=is_buf_call)
             used |= ntok
             if x2.startswith("__INOUT__"):
+                # v5.1: inout restore must still honor += (C by-value copies
+                # leave caller lex intact; each sub-audit starts at pos0).
                 call = x2[len("__INOUT__"):]
-                emit(f"{var} = {call};")
+                if op == "+=":
+                    emit(f"{var} = {var} + {call};")
+                else:
+                    emit(f"{var} = {call};")
                 emit("parser_asm_lex_set_pos_c(lex, pos0);")
                 emit("parser_asm_lex_set_line_c(lex, line0);")
                 emit("parser_asm_lex_set_col_c(lex, col0);")
@@ -1115,6 +1130,8 @@ def hoist_byte_chain(cond, emit):
     if not m:
         m3 = BYTE_CHAIN_RE3.search(cond)
         if m3:
+            # Negative polarity (!= / ||): bhit=1 means all bytes matched, so
+            # the original "any differs" condition is `bhit == 0`.
             chain = m3.group(1)
             ks = [int(k) if k else 0 for k in re.findall(r"token_start(?: \+ (\d+))?\]", chain)]
             top_k = max(ks) if ks else 0
@@ -1128,7 +1145,7 @@ def hoist_byte_chain(cond, emit):
             emit("if (data2 != 0 as *u8 && ts2 + " + str(top_k) + " < sln2 && " + " && ".join(cmps) + ") {")
             emit("  bhit = 1;")
             emit("}")
-            return cond[: m3.start()] + "bhit == 1" + cond[m3.end() :], set()
+            return cond[: m3.start()] + "bhit == 0" + cond[m3.end() :], set()
         m = BYTE_CHAIN_RE2.search(cond)
         negate = False
     if not m:
@@ -1145,8 +1162,9 @@ def hoist_byte_chain(cond, emit):
     emit("if (data2 != 0 as *u8 && ts2 + " + str(top_k) + " < sln2 && " + " && ".join(cmps) + ") {")
     emit("  bhit = 1;")
     emit("}")
-    return cond[: m.start()] + "bhit == 1" + cond[m.end() :], set()
-
+    # v5.1: negative (!=) → bhit == 0; positive (==) → bhit == 1
+    hit_pred = "bhit == 0" if negate else "bhit == 1"
+    return cond[: m.start()] + hit_pred + cond[m.end() :], set()
 
 def desugar_increments(cond, emit):
     """Rewrite VAR++ in conditions: emit the increment before, compare the old
@@ -1204,6 +1222,9 @@ def translate_cond(cond, cur_results):
         c = c.replace(f"{res}.tok.ident_len", "idlen")
     if ".tok." in c or ".next_lex" in c:
         raise Refuse(f"cond on stale result: {cond[:50]}")
+    # v5.1 belt: never let advance_to_* / &local_lex leak into .x conditions
+    if re.search(r"advance_to_\w+_lex_c\s*\(", c) or re.search(r"&\w+_lex\b", c):
+        raise Refuse(f"secondary-cursor cond: {cond[:50]}")
     # bounds-only guard (no bytes): map directly
     mb = re.fullmatch(r"!?source->data \|\| (r\w*)\.token_start \+ (\d+) >= source->length", c)
     if mb:
@@ -1901,6 +1922,12 @@ def try_emit_void_name_audit(st, pad, cur_results):
 
 
 def gen_x_function(name, body, tokvals, existing_consts, buftail_mode=False):
+    # v5.1: secondary-cursor wall — advance_to_*_lex writes a local lexer
+    # out-param that opaque *u8 cannot host. Refuse at the door (never emit
+    # undeclared &body_lex via translate_cond passthrough).
+    joined = "\n".join(body)
+    if re.search(r"parser_asm_stretch_\w*advance_to_\w+_lex_c\s*\(", joined):
+        raise Refuse("secondary-cursor advance_to_*_lex (no local lexer out-param under opaque *u8)")
     if buftail_mode:
         # buf→buf 委托链: CALLEE(lex, data, len) 标记为 BUFCALL 形态供 handler 识别
         body = [re.sub(r"(parser_asm_stretch_\w+_c)\((lex|lex_at_if), data, len\)",

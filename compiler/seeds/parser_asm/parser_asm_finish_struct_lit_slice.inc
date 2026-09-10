@@ -18,11 +18,9 @@ extern int32_t pipeline_expr_append_struct_lit_field(void *arena, int32_t expr_r
 extern struct ast_Expr ast_ast_arena_expr_get(void *arena, int32_t ref);
 extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
-extern int32_t parser_asm_stretch_struct_lit_deep_audit_c(struct parser_asm_lexer lex,
-                                                          struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_struct_lit_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_struct_lit_fields_probe_c(void *lex_inout, void *source, int32_t *out_field_count);
-extern int32_t parser_asm_stretch_struct_lit_fields_body_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_struct_lit_fields_body_audit_c(void *lex_inout, void *source);
 
 /** EXPR_STRUCT_LIT 序值（与 ast.x / ast.h AST_EXPR_STRUCT_LIT 一致，须为 45 勿用源文件行号）。 */
 #define PARSER_ASM_FINISH_STRUCT_LIT_KIND 45
@@ -129,9 +127,9 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
   if (!arena || !source || !out || lit_ref == 0)
     return;
   out->ok = 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_fields_body_audit_c(lex_in_brace, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_fields_body_audit_c(&lex_in_brace, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_fields_probe_c(&lex_in_brace, source, 0));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_deep_audit_c(lex_in_brace, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_deep_audit_c(&lex_in_brace, source));
   lex = lex_in_brace;
   for (;;) {
     memset(&rf, 0, sizeof(rf));
