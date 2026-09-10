@@ -56,7 +56,7 @@ extern struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_
 extern int32_t parser_asm_stretch_array_type_bracket_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len);
 extern int32_t parser_asm_stretch_diag_after_imports_structs_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
-extern int32_t parser_asm_stretch_diag_after_imports_then_structs_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_diag_after_imports_then_structs_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_diag_fail_at_token_kind_buf_audit_c(uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_diag_fn_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_diag_fn_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);

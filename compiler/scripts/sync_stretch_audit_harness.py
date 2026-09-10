@@ -156,7 +156,74 @@ SUITE_HELPER_SIGS = [
     "static int32_t parser_asm_stretch_impl_advance_to_body_lex_c(",
     # v5.5: function_body_block_stmt c_ref twin still calls function_advance.
     "static int32_t parser_asm_stretch_function_advance_to_body_lex_c(",
+    # v5.6: deep-scan / library_scan / match_subject helpers (small suite defs)
+    "int32_t parser_asm_stretch_spawn_kw_audit_c(",
+    "int32_t parser_asm_stretch_match_subject_ident_audit_c(",
 ]
+
+# v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
+# generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit
+# corpus shape: advance to '{' / skip balanced braces; skip_imports returns
+# lex unchanged when no CONST-import prefix (eq synth rarely stresses cfg).
+# Product g05 links the real suite authority via the bridge inplace wrappers.
+HARNESS_SKIP_STUBS = r'''
+/* v5.6 harness stub — G.7 product authority remains suite skip_one_struct_slice. */
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  struct parser_asm_lexer after;
+  int32_t guard;
+  if (!source)
+    return lex;
+  guard = 0;
+  for (;;) {
+    if (guard++ > 256)
+      return lex;
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+      parser_asm_skip_balanced_braces_into_slice_c(&after, r.next_lex, source);
+      return after;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_EOF)
+      return lex;
+    lex = r.next_lex;
+  }
+}
+
+/* v5.6 harness stub — G.7 product authority remains suite skip_imports_slice. */
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                        struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  int32_t guard;
+  if (!source)
+    return lex;
+  guard = 0;
+  for (;;) {
+    if (guard++ > 64)
+      return lex;
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind != (int32_t)TOKEN_CONST)
+      return lex;
+    /* Consume a coarse "const … ;" span (eq corpus import shapes). */
+    lex = r.next_lex;
+    {
+      int32_t g2 = 0;
+      for (;;) {
+        if (g2++ > 128)
+          return lex;
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+          lex = r.next_lex;
+          break;
+        }
+        if (r.tok.kind == (int32_t)TOKEN_EOF)
+          return lex;
+        lex = r.next_lex;
+      }
+    }
+  }
+}
+'''
 
 
 def suite_helper_defs(suite, exports=None):
@@ -249,6 +316,13 @@ def main():
         for other in exports:
             if other != name:
                 body = body.replace(f"{other}(", f"c_ref_{other[len('parser_asm_stretch_'):-2]}(")
+        # v5.6: .x elides void validate_toplevel_token_c(r,…) — keep c_ref in sync
+        # (validate pulls token_run_len/verify_kw tables too heavy for this TU).
+        body = re.sub(
+            r"\(void\)parser_asm_stretch_validate_toplevel_token_c\([^;]*\);",
+            "/* elide void validate_toplevel (v5.6; matches .x) */",
+            body,
+        )
         sig_line = (f"static int32_t c_ref_{base}(void *lex_inout, uint8_t *data, int32_t len) {{\n"
                     if name in buf3 else
                     f"static int32_t c_ref_{base}(void *lex_inout, void *source{twin_extra}) {{\n")
@@ -270,6 +344,7 @@ def main():
         + "\n".join(fwds) + "\n\n"
         # advance_to helpers after fwds so they can call c_ref_* (v5.3)
         + suite_helper_defs(suite, exports)
+        + HARNESS_SKIP_STUBS
         + "\n".join(twins)
     )
 

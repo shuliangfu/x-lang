@@ -1023,7 +1023,7 @@ void parser_asm_collect_imports_buf_c(struct parser_asm_lexer lex, uint8_t *data
   if (!data || !out)
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_select_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_post_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_full_deep_buf_audit_c(lex, data, len));

@@ -367,3 +367,38 @@ void parser_asm_lex_skip_balanced_braces_inplace_c(void *lex_inout, void *source
                                                *(struct parser_asm_lexer *)lex_inout,
                                                (struct parser_asm_slice_u8 *)source);
 }
+
+extern struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                                  struct parser_asm_slice_u8 *source);
+extern struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                               struct parser_asm_slice_u8 *source);
+
+/**
+ * In-place skip of one top-level struct definition (header + body).
+ * G.7 single authority: wraps suite parser_asm_skip_one_struct_slice_c —
+ * do not re-implement skip logic here.
+ * @param lex_inout *u8 — opaque lexer, advanced past the struct
+ * @param source *u8 — opaque slice
+ * PLATFORM: SHARED.
+ */
+void parser_asm_lex_skip_one_struct_inplace_c(void *lex_inout, void *source) {
+  if (!lex_inout || !source)
+    return;
+  *(struct parser_asm_lexer *)lex_inout = parser_asm_skip_one_struct_slice_c(
+      *(struct parser_asm_lexer *)lex_inout, (struct parser_asm_slice_u8 *)source);
+}
+
+/**
+ * In-place skip of leading top-level const-import statements.
+ * G.7 single authority: wraps suite parser_asm_skip_imports_slice_c —
+ * do not re-implement import-skip logic here.
+ * @param lex_inout *u8 — opaque lexer, advanced to the first non-import token
+ * @param source *u8 — opaque slice
+ * PLATFORM: SHARED.
+ */
+void parser_asm_lex_skip_imports_inplace_c(void *lex_inout, void *source) {
+  if (!lex_inout || !source)
+    return;
+  *(struct parser_asm_lexer *)lex_inout = parser_asm_skip_imports_slice_c(
+      *(struct parser_asm_lexer *)lex_inout, (struct parser_asm_slice_u8 *)source);
+}

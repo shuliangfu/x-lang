@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.5 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.6 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -80,6 +80,19 @@
 #   same `skip_balanced_parens_into_slice(…, r.next_lex)` → step+inplace
 #   shape that translate_block already had. if_advance / if_stmt_body stay
 #   refused (mixed primary cursor after advance).
+#
+# v5.6: after_imports / deep-scan wall —
+#   (1) buftail rewrite stripped `lexer_next_into(&r,…)` → `lexer_next_into(r,…)`
+#       but the step handler still required `&r` (false refuse). Accept optional `&`.
+#   (2) single-line `if (r.tok.kind == TOKEN_X) lexer_next_into(&r, r.next_lex)`
+#       → conditional step+peek (library_scan / match_subject / skip_one_if core).
+#   (3) `lex = skip_one_struct_slice_c` / `after_imports = skip_imports_slice_c`
+#       → bridge inplace adapters; after skip, mark lex rebased so later
+#       inout score+= does NOT restore to function-entry pos0 (would undo skip).
+#   (4) fold `match_subject_ident_audit_c(r,…)` → peek_ident_ptr+bind;
+#       `spawn_kw_audit_c((int32_t)r.tok.kind)` → PURE_HELPER(kind);
+#       elide void `validate_toplevel_token_c(r,…)`.
+#   if_stmt_body / if_advance stay refused (mixed primary).
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -219,7 +232,7 @@ def translate_call(callee, arg, flag=None, buf=False):
         raise Refuse(f"sub-call to unmigrated {callee}")
     an = arg.lstrip("&")
     if (an not in ("lex", "lex_at_if", "cur", "body_lex", "arms_lex", "after",
-                   "sel_lex", "lex_cur", "param_lex")
+                   "after_imports", "sel_lex", "lex_cur", "param_lex")
             and not an.endswith("_lex")):
         raise Refuse(f"sub-call on non-cursor var {arg}")
     if buf:
@@ -458,6 +471,10 @@ def translate(name, body, tokvals):
     alias_current = set()  # lexer locals currently aliased to the cursor
     lexer_locals = set()
     helper_alias = None
+    # v5.6: after skip_one_struct / skip_imports assignment, local lex is the
+    # new by-value base — do not restore inout score+= back to function-entry
+    # pos0 (that would undo the skip). Final restore trio still uses entry pos0.
+    lex_rebased = False
     kind_arrays = {}  # name -> N for stack kinds[N] / peek_kinds[N]
     BLOCK_HOIST_USED.clear()
     LOOKAHEAD_KIND.clear()
@@ -656,8 +673,8 @@ def translate(name, body, tokvals):
             int_vars.add(var)
             si += 1
             continue
-        # lexer step
-        m = re.match(r"lexer_next_into\(&(r\w*), ([^,]+), source\);$", st)
+        # lexer step (v5.6: buftail strips `&r` → `r`; accept optional `&`)
+        m = re.match(r"lexer_next_into\(&?(r\w*), ([^,]+), source\);$", st)
         if m:
             res, srcvar = m.group(1), m.group(2)
             reads_ident = any(f"{res}.tok.ident_len" in s for s in stmts)
@@ -669,7 +686,7 @@ def translate(name, body, tokvals):
                 cur_results = {res}
                 si += 1
                 continue
-            if srcvar in alias_current:
+            if srcvar in alias_current or (srcvar == "lex" and lex_rebased):
                 emit("kind = parser_asm_lex_peek_kind_c(lex, source);")
                 if reads_ident:
                     emit("idlen = parser_asm_lex_peek_ident_len_c(lex, source);")
@@ -678,13 +695,6 @@ def translate(name, body, tokvals):
                 continue
             if srcvar == "lex" and first_step_done:
                 raise Refuse("second step from original lex (backtrack)")
-            if srcvar in alias_current:
-                emit("kind = parser_asm_lex_peek_kind_c(lex, source);")
-                if reads_ident:
-                    emit("idlen = parser_asm_lex_peek_ident_len_c(lex, source);")
-                cur_results = {res}
-                si += 1
-                continue
             m2 = re.match(r"(r\w*)\.next_lex$", srcvar)
             if m2 and m2.group(1) in cur_results:
                 emit("parser_asm_lex_step_kind_c(lex, source);")
@@ -763,6 +773,84 @@ def translate(name, body, tokvals):
             continue
         if st.startswith("else"):
             raise Refuse("else branch")
+        # v5.6: single-line if (r.tok.kind == TOKEN_X) lexer_next_into(&?r, r.next_lex);
+        m = re.match(
+            r"if \((r\w*)\.tok\.kind == \(int32_t\)(TOKEN_\w+)\) "
+            r"lexer_next_into\(&?(r\w*), (r\w*)\.next_lex, source\);$",
+            st)
+        if m and m.group(1) in cur_results and m.group(3) == m.group(1) and m.group(4) == m.group(1):
+            tok = m.group(2)
+            used.add(tok)
+            reads_ident = any(f"{m.group(1)}.tok.ident_len" in s for s in stmts)
+            emit(f"if (kind == {tok}) {{")
+            emit("  parser_asm_lex_step_kind_c(lex, source);")
+            emit("  kind = parser_asm_lex_peek_kind_c(lex, source);")
+            if reads_ident:
+                emit("  idlen = parser_asm_lex_peek_ident_len_c(lex, source);")
+            emit("}")
+            si += 1
+            continue
+        # v5.6: lex = skip_one_struct_slice_c(lex, source) → inplace + rebase
+        m = re.match(
+            r"lex = parser_asm_skip_one_struct_slice_c\(lex, source\);$", st)
+        if m:
+            emit("parser_asm_lex_skip_one_struct_inplace_c(lex, source);")
+            lex_rebased = True
+            alias_current = set(cursor_names)
+            cur_results = set()
+            first_step_done = True
+            si += 1
+            continue
+        # v5.6: after_imports = skip_imports_slice_c(lex, source) → inplace + alias
+        m = re.match(
+            r"(\w+) = parser_asm_skip_imports_slice_c\(lex, source\);$", st)
+        if m and (m.group(1) in lexer_locals or m.group(1) in ("after_imports", "after")):
+            emit("parser_asm_lex_skip_imports_inplace_c(lex, source);")
+            lex_rebased = True
+            alias_current = {m.group(1)} | set(cursor_names)
+            cur_results = set()
+            first_step_done = True
+            si += 1
+            continue
+        # v5.6: fold match_subject_ident_audit_c(r, source) → peek+bind
+        m = re.match(
+            r"(\w+) (\+=|=) parser_asm_stretch_match_subject_ident_audit_c\((r\w*), source\);$",
+            st)
+        if m and m.group(1) in int_vars and m.group(3) in cur_results:
+            var, op = m.group(1), m.group(2)
+            emit("idlen = parser_asm_lex_peek_ident_len_c(lex, source);")
+            emit("idptr = parser_asm_lex_peek_ident_ptr_c(lex, source);")
+            call = "parser_asm_stretch_bind_name_validate_c(idptr, idlen)"
+            # C: kind!=IDENT or idlen<=0 → 0; bind on source-relative bytes.
+            emit("if (kind == TOKEN_IDENT && idlen > 0) {")
+            used.add("TOKEN_IDENT")
+            if op == "+=":
+                emit(f"  {var} = {var} + {call};")
+            else:
+                emit(f"  {var} = {call};")
+            emit("}")
+            si += 1
+            continue
+        # v5.6: spawn_kw_audit_c((int32_t)r.tok.kind) → PURE_HELPER(kind)
+        m = re.match(
+            r"(\w+) (\+=|=) parser_asm_stretch_spawn_kw_audit_c\(\(int32_t\)(r\w*)\.tok\.kind\);$",
+            st)
+        if m and m.group(1) in int_vars and m.group(3) in cur_results:
+            var, op = m.group(1), m.group(2)
+            call = "parser_asm_stretch_spawn_kw_audit_c(kind)"
+            if op == "+=":
+                emit(f"{var} = {var} + {call};")
+            else:
+                emit(f"{var} = {call};")
+            si += 1
+            continue
+        # v5.6: elide void validate_toplevel_token_c(r, source) — peek-only
+        m = re.match(
+            r"\(void\)parser_asm_stretch_validate_toplevel_token_c\((r\w*), source\);$",
+            st)
+        if m and m.group(1) in cur_results:
+            si += 1
+            continue
         # v2/v5.2: score arithmetic from sub-audit calls or literals.
         # Buf form accepts &lex (C by-value take-address) + optional trailing flag.
         # Slice form third arg may be a digit flag OR &out_local (→ null 0).
@@ -776,14 +864,17 @@ def translate(name, body, tokvals):
             if x2.startswith("__INOUT__"):
                 # v5.1: inout restore must still honor += (C by-value copies
                 # leave caller lex intact; each sub-audit starts at pos0).
+                # v5.6: after skip rebase, callee's own restore-trio is enough —
+                # do not snap back to function-entry pos0 (would undo the skip).
                 call = x2[len("__INOUT__"):]
                 if op == "+=":
                     emit(f"{var} = {var} + {call};")
                 else:
                     emit(f"{var} = {call};")
-                emit("parser_asm_lex_set_pos_c(lex, pos0);")
-                emit("parser_asm_lex_set_line_c(lex, line0);")
-                emit("parser_asm_lex_set_col_c(lex, col0);")
+                if not lex_rebased:
+                    emit("parser_asm_lex_set_pos_c(lex, pos0);")
+                    emit("parser_asm_lex_set_line_c(lex, line0);")
+                    emit("parser_asm_lex_set_col_c(lex, col0);")
             elif op == "+=":
                 emit(f"{var} = {var} + {x2};")
             else:
@@ -1015,6 +1106,11 @@ def translate(name, body, tokvals):
             used |= ntok2
             x.extend(body_x)
             emit("}")
+            # v5.6: block may have skip_one_struct / skip_imports → rebase
+            if "lex_rebased" in BLOCK_HOIST_USED:
+                lex_rebased = True
+                alias_current = set(cursor_names)
+                first_step_done = True
             si = j + 1
             continue
         # v2.1: kind-membership while loop (uniform counter pattern)
@@ -1316,6 +1412,8 @@ PURE_HELPERS = {
     # suite/stretch.x pure classifier (C symbol kept for hybrid cold twin)
     "parser_asm_stretch_classify_toplevel_c": (
         "kind: i32, next_kind: i32, third_kind: i32", "i32"),
+    # v5.6: kind-only classifier (library_scan_deep after FUNCTION peek)
+    "parser_asm_stretch_spawn_kw_audit_c": ("kind: i32", "i32"),
 }
 
 
@@ -1576,11 +1674,73 @@ def translate_block(block, cur_results, indent=2):
             out.append(f"{pad}}}")
             si = j + 1
             continue
+        # v5.6: lex = skip_one_struct_slice_c(lex, source) → inplace
+        m = re.match(
+            r"lex = parser_asm_skip_one_struct_slice_c\(lex, source\);$", st)
+        if m:
+            out.append(f"{pad}parser_asm_lex_skip_one_struct_inplace_c(lex, source);")
+            # Mark that subsequent peeks from lex are refresh (not backtrack).
+            BLOCK_HOIST_USED.add("lex_rebased")
+            si += 1
+            continue
+        # v5.6: after_imports = skip_imports_slice_c(lex, source)
+        m = re.match(
+            r"(\w+) = parser_asm_skip_imports_slice_c\(lex, source\);$", st)
+        if m:
+            out.append(f"{pad}parser_asm_lex_skip_imports_inplace_c(lex, source);")
+            BLOCK_HOIST_USED.add("lex_rebased")
+            si += 1
+            continue
+        # v5.6: score += / = sub-audit (callee restore-trio; no outer pos0 —
+        # loop bodies that skip_one_struct must keep the advanced cursor).
+        m = re.match(
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\);$",
+            st) or re.match(
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\);$",
+            st)
+        if m and m.group(1) in int_vars:
+            var, op, callee, arg = m.group(1), m.group(2), m.group(3), m.group(4)
+            is_buf_call = "data, len" in st
+            x2, ntok = translate_call(
+                callee, arg,
+                (m.group(5) if m.lastindex and m.lastindex >= 5 else None),
+                buf=is_buf_call)
+            used |= ntok
+            call = strip_inout(x2)
+            if op == "+=":
+                out.append(f"{pad}{var} = {var} + {call};")
+            else:
+                out.append(f"{pad}{var} = {call};")
+            si += 1
+            continue
+        # v5.6: peek refresh after skip (buftail may strip &)
+        m = re.match(r"lexer_next_into\(&?(r\w*), lex, source\);$", st)
+        if m:
+            out.append(f"{pad}kind = parser_asm_lex_peek_kind_c(lex, source);")
+            out.append(f"{pad}idlen = parser_asm_lex_peek_ident_len_c(lex, source);")
+            cur_results = {m.group(1)}
+            si += 1
+            continue
+        # v5.6: single-line if (kind==TOKEN) step+peek
+        m = re.match(
+            r"if \((r\w*)\.tok\.kind == \(int32_t\)(TOKEN_\w+)\) "
+            r"lexer_next_into\(&?(r\w*), (r\w*)\.next_lex, source\);$",
+            st)
+        if m and m.group(1) in cur_results and m.group(3) == m.group(1) and m.group(4) == m.group(1):
+            tok = m.group(2)
+            used.add(tok)
+            out.append(f"{pad}if (kind == {tok}) {{")
+            out.append(f"{pad}  parser_asm_lex_step_kind_c(lex, source);")
+            out.append(f"{pad}  kind = parser_asm_lex_peek_kind_c(lex, source);")
+            out.append(f"{pad}  idlen = parser_asm_lex_peek_ident_len_c(lex, source);")
+            out.append(f"{pad}}}")
+            si += 1
+            continue
         # v4.9: look-ahead OR committed step from *.next_lex
         #   lexer_next_into(&r, r.next_lex)     → commit (same result var)
         #   lexer_next_into(&rnx, r.next_lex)   → look-ahead (different var;
         #     snapshot/step/kind2/restore; do NOT poison r.tok.kind → kind2)
-        m = re.match(r"lexer_next_into\(&(r\w*), (r\w*)\.next_lex, source\);$", st)
+        m = re.match(r"lexer_next_into\(&?(r\w*), (r\w*)\.next_lex, source\);$", st)
         if m and m.group(2) in cur_results:
             if m.group(1) == m.group(2):
                 out.append(f"{pad}parser_asm_lex_step_kind_c(lex, source);")
@@ -1955,6 +2115,8 @@ PURE_HELPERS = {
     # heavy_stretch_slice.inc). Declared extern here so audit.x can call them.
     "parser_asm_stretch_struct_field_name_kind_c": ("kind: i32", "i32"),
     "parser_asm_stretch_struct_field_continues_kind_c": ("kind: i32", "i32"),
+    # v5.6: kind-only classifier (library_scan_deep after FUNCTION peek)
+    "parser_asm_stretch_spawn_kw_audit_c": ("kind: i32", "i32"),
 }
 
 
@@ -2530,6 +2692,9 @@ def main():
         "parser_asm_lex_wrap_buf_c": "data: *u8, len: i32): *u8",
         "parser_asm_lex_source_data_c": "source: *u8): *u8",
         "parser_asm_lex_source_length_c": "source: *u8): usize",
+        # v5.6: after_imports / struct-scan deep
+        "parser_asm_lex_skip_one_struct_inplace_c": "lex_inout: *u8, source: *u8): void",
+        "parser_asm_lex_skip_imports_inplace_c": "lex_inout: *u8, source: *u8): void",
     }
     for bname, bsig in BRIDGE_EXTERNS.items():
         if bname in xsrc:
@@ -2705,6 +2870,21 @@ def main():
             t = re.sub(
                 re.escape(n) + r"\((?!&|struct|void )([^,()]+),",
                 lambda m: f"{n}(&{m.group(1)},", t)
+            # v5.6: CALLEE(parser_asm_lexer_init_c(), …) cannot take & of a call
+            # expression — expand score=/+= sites to a braced temp.
+            t = re.sub(
+                r"([ \t]*)(\w+)(\s*\+=\s*|\s*=\s*)" + re.escape(n)
+                + r"\(parser_asm_lexer_init_c\(\), ([^;]+);",
+                lambda m: (
+                    f"{m.group(1)}{{\n"
+                    f"{m.group(1)}  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();\n"
+                    f"{m.group(1)}  {m.group(2)}{m.group(3)}{n}(&lex_init, {m.group(4)};\n"
+                    f"{m.group(1)}}}"
+                ),
+                t,
+            )
+            if re.search(re.escape(n) + r"\(parser_asm_lexer_init_c\(\),", t):
+                print(f"WARN: leftover {n}(parser_asm_lexer_init_c(), …) — fix by hand")
             if is_buf_def:
                 t = re.sub(
                     r"(extern\s+)?int32_t\s+" + re.escape(n) + r"\(struct\s+parser_asm_lexer\s+\w+,\s*uint8_t\s+\*data,\s*int32_t\s+len\);",
