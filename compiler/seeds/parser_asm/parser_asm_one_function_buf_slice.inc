@@ -72,7 +72,7 @@ extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, str
                                                                 struct parser_asm_lexer *out_lex);
 extern int32_t parser_asm_stretch_onefunc_buf_name_audit_c(const uint8_t *name, int32_t name_len);
 extern int32_t parser_asm_stretch_onefunc_slice_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
-extern int32_t parser_asm_stretch_onefunc_buf_full_deep_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_onefunc_buf_full_deep_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_onefunc_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_onefunc_slice_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_fn_ultra_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
@@ -116,7 +116,7 @@ extern int32_t parser_asm_stretch_fn_maxversal_wholeversal_completeversal_fullve
 extern int32_t parser_asm_stretch_fn_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_fn_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_fn_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
-extern int32_t parser_asm_stretch_onefunc_buf_deep_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern int32_t parser_asm_stretch_onefunc_buf_deep_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 
 /** 写失败 OneFuncResult（等价 parser.x set_onefunc_fail；force_stub 勿 X emit）。 */
 static void parser_asm_set_onefunc_fail_c(struct parser_asm_onefunc_result *out, struct parser_asm_lexer lex) {
@@ -189,8 +189,8 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   /* 消费函数名，后续须读到 '(' */
   parser_lex_from_next_into_glue(&lex, r);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_name_audit_c(dummy_name, name_len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_deep_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_full_deep_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_deep_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_buf_full_deep_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_slice_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_mega_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_onefunc_slice_mega_full_deep_buf_audit_c(lex, data, len));

@@ -1066,7 +1066,7 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
     out->col = lex_cur.col;
     return;
   }
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_body_block_stmt_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_body_block_stmt_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_deep_audit_c(r.next_lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_kind_probe_c(&r.next_lex, source, 0));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_mega_full_deep_audit_c(r.next_lex, source));
@@ -1425,7 +1425,7 @@ void parser_parse_one_type_alias_into_glue(void *arena, void *module, struct par
 /** parse_one_function_buf_into_glue：buf 路径精简 function 解析（LexerResult 链勿 X emit）。 */
 void parser_parse_one_function_buf_into_glue(struct parser_asm_onefunc_result *out, void *arena,
                                            struct parser_asm_lexer lex, uint8_t *data, int32_t len) {
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_buf_deep_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_buf_deep_audit_c(&lex, data, len));
   parser_asm_parse_one_function_buf_into_c(out, arena, lex, data, len);
 }
 
@@ -4005,7 +4005,7 @@ void parser_skip_one_function_full_into_buf_glue(struct parser_asm_lexer *out, s
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_mega_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_return_stmt_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_body_block_stmt_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_body_block_stmt_buf_audit_c(&lex, data, len));
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
   parser_asm_skip_one_function_full_into_slice_c(out, lex, &source);

@@ -113,7 +113,7 @@ struct parser_asm_lexer parser_asm_skip_balanced_parens_buf_c(struct parser_asm_
   int32_t depth = 1;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_parens_depth_probe_buf_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(&lex, data, len));
   while (depth > 0) {
     struct parser_asm_lexer_result r = lexer_next_buf(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LPAREN)
@@ -158,7 +158,7 @@ void parser_asm_skip_balanced_parens_into_slice_c(struct parser_asm_lexer *out, 
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_parens_depth_probe_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(&lex, source));
   while (depth > 0) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_LPAREN)
@@ -202,7 +202,7 @@ struct parser_asm_lexer parser_asm_skip_balanced_braces_buf_c(struct parser_asm_
   int32_t depth = 1;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_braces_depth_probe_buf_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(&lex, data, len));
   while (depth > 0) {
     struct parser_asm_lexer_result r = lexer_next_buf(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LBRACE)
@@ -485,7 +485,7 @@ void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer *out, 
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_braces_depth_probe_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(&lex, source));
   while (depth > 0) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_LBRACE)

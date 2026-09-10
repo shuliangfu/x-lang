@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.4 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.5 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -71,6 +71,15 @@
 #   Void-discard bind call sites stayed harness-green; `return bind(...)`
 #   ports diverged (c=1/x=0). Fix = G.7 complete the bridge (source-relative
 #   fallback). Unlocks impl_type_for_trait + impl_items_body + trait_impl_* deep.
+#
+# v5.5: function_advance_to_body wall —
+#   Unlock thin `function_body_block_stmt` by expanding function_advance onto
+#   primary lex. Rewrite drops `lex_cur` decl (fold onto lex), elides the
+#   peek-only `ret_audit` copy block (restore-trio skip_return_type has zero
+#   net cursor effect on the copy), and top-level translate now hosts the
+#   same `skip_balanced_parens_into_slice(…, r.next_lex)` → step+inplace
+#   shape that translate_block already had. if_advance / if_stmt_body stay
+#   refused (mixed primary cursor after advance).
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -1121,6 +1130,36 @@ def translate(name, body, tokvals):
             emit(strip_inout(x2) + ";")
             si += 1
             continue
+        # v5.5: balanced skip from r.next_lex at top level (same as translate_block).
+        # Caller is parked on '(' / '[' / '{'; step consumes it, inplace skip
+        # walks from the post-open cursor (matches suite into_slice(r.next_lex)).
+        m = re.match(r"parser_asm_skip_balanced_parens_into_slice_c\(&\w+, (r\w*)\.next_lex, source\);$", st)
+        if m and m.group(1) in cur_results:
+            emit("parser_asm_lex_step_kind_c(lex, source);")
+            emit("parser_asm_lex_skip_balanced_parens_inplace_c(lex, source);")
+            cur_results = set()
+            alias_current = set(cursor_names)
+            first_step_done = True
+            si += 1
+            continue
+        m = re.match(r"parser_asm_stretch_skip_balanced_brackets_into_c\(&\w+, (r\w*)\.next_lex, source\);$", st)
+        if m and m.group(1) in cur_results:
+            emit("parser_asm_lex_step_kind_c(lex, source);")
+            emit("parser_asm_lex_skip_balanced_brackets_inplace_c(lex, source);")
+            cur_results = set()
+            alias_current = set(cursor_names)
+            first_step_done = True
+            si += 1
+            continue
+        m = re.match(r"parser_asm_skip_balanced_braces_into_slice_c\(&\w+, (r\w*)\.next_lex, source\);$", st)
+        if m and m.group(1) in cur_results:
+            emit("parser_asm_lex_step_kind_c(lex, source);")
+            emit("parser_asm_lex_skip_balanced_braces_inplace_c(lex, source);")
+            cur_results = set()
+            alias_current = set(cursor_names)
+            first_step_done = True
+            si += 1
+            continue
         raise Refuse(f"unhandled statement: {st[:60]}")
     if BLOCK_HOIST_USED:
         int_vars.update({"data2_us", "ts2_us", "sln2_us", "bhit_us"})
@@ -1959,10 +1998,10 @@ def try_emit_void_name_audit(st, pad, cur_results):
 # Cache of static advance_to_*_lex_c helper bodies parsed from SUITE.
 _ADVANCE_TO_HELPERS = None
 
-# Helpers that introduce a true secondary cursor (`lex_cur`) or skip_parens
-# dance that the thin inplace model does not yet host. Stay refused (v5.3).
+# Helpers that still need a live secondary cursor or mixed primary use after
+# rewrite. function_advance is unlocked in v5.5 (lex_cur folds onto primary);
+# if_advance stays refused (if_stmt_body mixes pre-advance primary lex).
 _ADVANCE_TO_REFUSE = frozenset({
-    "parser_asm_stretch_function_advance_to_body_lex_c",
     "parser_asm_stretch_if_advance_to_body_lex_c",
 })
 
@@ -2009,14 +2048,55 @@ def _rewrite_advance_helper_body(helper_lines, probe_return):
     """Rewrite a static advance_to helper onto primary `lex`.
 
     - Drop null-guards on source/out.
+    - Drop `struct parser_asm_lexer lex_cur;` (v5.5 — fold onto primary; do not
+      rename the decl into a shadowing `struct parser_asm_lexer lex;`).
+    - Elide peek-only `{ ret_audit = lex_cur; (void)skip_return_type(...); }`
+      (restore-trio callee on a copy has zero net cursor effect).
     - Success `*out_* = r.next_lex; return 1;` → from_result + `probe_return`
       (so mid-loop success in match_advance does not return the bare 1).
     - Keep failure `return 0`.
     Refuses helpers that still need a live secondary cursor after rewrite.
+    PLATFORM: SHARED — host-side generator only.
     """
+    # Pre-pass: drop lex_cur decl + elide ret_audit peek block before join.
+    filtered = []
+    raw_lines = list(helper_lines)
+    i = 0
+    while i < len(raw_lines):
+        st = raw_lines[i].strip()
+        if st == "struct parser_asm_lexer lex_cur;":
+            i += 1
+            continue
+        if st == "{":
+            block = []
+            depth = 0
+            j = i
+            while j < len(raw_lines):
+                for ch in raw_lines[j]:
+                    if ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                block.append(raw_lines[j])
+                j += 1
+                if depth == 0:
+                    break
+            btxt = "\n".join(block)
+            # Peek-only copy: restore-trio skip_return_type on a local copy.
+            if ("ret_audit" in btxt
+                    and "skip_return_type_audit_c" in btxt
+                    and "struct parser_asm_lexer ret_audit" in btxt):
+                i = j
+                continue
+            filtered.extend(block)
+            i = j
+            continue
+        filtered.append(raw_lines[i])
+        i += 1
+
     out = []
     pending_out_assign = False
-    for raw in join_logical(helper_lines):
+    for raw in join_logical(filtered):
         st = raw.strip()
         if not st:
             continue

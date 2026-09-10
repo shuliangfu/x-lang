@@ -148,12 +148,14 @@ SUITE_HELPER_SIGS = [
     # v5.3: body_* c_ref twins still call static advance_to_* out-param helpers
     # (by-value C authority). .x ports expand them inplace; twins keep the C shape.
     # Only helpers whose callees are already migrated (c_ref-rewritable) belong
-    # here — impl/function/if advance stay out until their body audits go green.
+    # here — if advance stays out until if_stmt_body goes green (mixed cursor).
     "static int32_t parser_asm_stretch_struct_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_enum_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_trait_advance_to_body_lex_c(",
     "static int32_t parser_asm_stretch_match_advance_to_arms_lex_c(",
     "static int32_t parser_asm_stretch_impl_advance_to_body_lex_c(",
+    # v5.5: function_body_block_stmt c_ref twin still calls function_advance.
+    "static int32_t parser_asm_stretch_function_advance_to_body_lex_c(",
 ]
 
 
