@@ -129,6 +129,33 @@ int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32
 /* v5.8: loop_stmt_body is a real flag3 .x port; c_ref twin comes from the
  * gated suite body via sync (no harness stub — stub returned 0 and would
  * diverge on score+= callers unlocked this wave). */
+/* v5.9: import_select_list is a real flag3 inout .x port; c_ref twin comes
+ * from the gated suite body via sync. item_bind stays suite-local thin wrap
+ * of bind_name_validate (G.7). path_validate copy mirrors pthin_stretch.x
+ * (product authority) so audit_x.o UNDEF resolves in this TU. */
+int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                           int32_t name_len) {
+  if (!source || name_len <= 0)
+    return 0;
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
+}
+int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len) {
+  int32_t i;
+  if (!path || path_len <= 0)
+    return 0;
+  if (path_len > 63)
+    path_len = 63;
+  for (i = 0; i < path_len; i++) {
+    uint8_t c = path[i];
+    if (c == 0)
+      break;
+    if (c == (uint8_t)'.')
+      continue;
+    if (parser_asm_stretch_ident_byte_ok_c(c, 0) == 0)
+      return 0;
+  }
+  return 1;
+}
 '''
 
 
@@ -359,8 +386,10 @@ def main():
             rows.append(f'    {{"{base}/null", r_{base}, x_{base}, 0, 0}},')
             rows.append(f'    {{"{base}/slot", r_{base}, x_{base}, 1, 0}},')
         elif name in flag3:
-            rows.append(f'    {{"{base}/1", c_ref_{base}, x_{base}, 1, 0}},')
-            rows.append(f'    {{"{base}/0", c_ref_{base}, x_{base}, 0, 0}},')
+            # v5.9: flag3 may also be inout (import_select_list max_names).
+            inout = 1 if name in INOUT_SET else 0
+            rows.append(f'    {{"{base}/1", c_ref_{base}, x_{base}, 1, {inout}}},')
+            rows.append(f'    {{"{base}/0", c_ref_{base}, x_{base}, 0, {inout}}},')
         else:
             inout = 1 if name in INOUT_SET else 0
             rows.append(f'    {{"{base}", r_{base}, x_{base}, 0, {inout}}},')
@@ -412,6 +441,8 @@ def main():
 INOUT_SET = {
     "parser_asm_stretch_fn_param_list_audit_c",
     "parser_asm_stretch_skip_return_type_audit_c",
+    # v5.9: import select-list advances past `}` (and mid-fail past last IDENT)
+    "parser_asm_stretch_import_select_list_audit_c",
 }
 
 

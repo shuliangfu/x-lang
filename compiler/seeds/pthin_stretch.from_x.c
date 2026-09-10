@@ -88,8 +88,7 @@ int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len
 int32_t parser_asm_stretch_collect_imports_bind_audit_c(const uint8_t *bind, int32_t bind_len);
 int32_t parser_asm_stretch_enum_header_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_extern_param_count_audit_c(void *lex_inout, void *source, int32_t *out_param_count);
-int32_t parser_asm_stretch_import_select_list_audit_c(struct parser_asm_lexer *inout_lex,
-                                                      struct parser_asm_slice_u8 *source, int32_t max_names);
+int32_t parser_asm_stretch_import_select_list_audit_c(void *lex_inout, void *source, int32_t max_names);
 int32_t parser_asm_stretch_struct_header_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_trait_header_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_impl_header_audit_c(void *lex_inout, void *source);

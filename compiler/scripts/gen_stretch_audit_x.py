@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.8 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.9 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -109,8 +109,15 @@
 #   re-step kw/`(` + elide void cond_int_as + parens inplace + brace probe /
 #   assign). Replaces the harness stub that always returned 0 (would diverge on
 #   score+= callers). Unlocks the block/loop/body_skip deep fixed-point chain.
+#
+# v5.9: import_select_list inout flag3 root —
+#   Hand-port `import_select_list_audit_c(lex_inout, source, max_names)` (peek
+#   IDENT loop + void item_bind→bind_name_validate + path_validate with
+#   data+token_start fallback + COMMA/RBRACE; inout keeps mid-fail advance).
+#   Soft fixed-point unlocks import_select_deep / import_stmt_full /
+#   collect_imports_* / skip_imports_deep (no ultra/super mega dump).
 #   Follow-ons still refused: no-lex diag_lex_after_imports, simd from_at,
-#   import_select_list inout, peek_kind_chain out-array.
+#   peek_kind_chain out-array, 88+ versal mega.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
