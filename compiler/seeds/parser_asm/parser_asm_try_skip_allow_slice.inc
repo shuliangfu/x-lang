@@ -21,8 +21,8 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
   struct parser_asm_try_skip_allow_result out;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_paren_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_hyper_mega_full_deep_audit_c(lex, source));
@@ -787,8 +787,8 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
   struct parser_asm_try_skip_allow_result out;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_paren_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_full_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_full_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_allow_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_ultra_mega_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_super_mega_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_hyper_mega_full_deep_buf_audit_c(lex, data, len));
@@ -1558,7 +1558,9 @@ void parser_asm_parse_into_try_skip_allow_into_slice_c(struct parser_asm_try_ski
     parser_asm_write_try_skip_allow_result(out, lex, 0);
     return;
   }
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_allow_kw_paren_audit_c(r, source));
+  /* v5.16: allow_kw_paren widened to pointer ABI; lex is the pre-token cursor
+   * that produced r (peek-from-lex ≡ historical by-val r). */
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_allow_kw_paren_audit_c(&lex, source));
   res = parser_asm_try_skip_allow_padding_struct_slice_c(r.next_lex, source);
   *out = res;
 }
@@ -1578,7 +1580,8 @@ void parser_asm_parse_into_try_skip_allow_into_buf_c(struct parser_asm_try_skip_
     parser_asm_write_try_skip_allow_result(out, lex, 0);
     return;
   }
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_allow_kw_paren_buf_audit_c(r, data, len));
+  /* v5.16: allow_kw_paren_buf widened to (lex, data, len). */
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_allow_kw_paren_buf_audit_c(&lex, data, len));
   res = parser_asm_try_skip_allow_padding_struct_buf_c(r.next_lex, data, len);
   *out = res;
 }

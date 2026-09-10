@@ -13246,6 +13246,103 @@ export function parser_asm_stretch_diag_lex_after_imports_buf_audit_c(lex: *u8, 
   return 0;
 }
 
+/**
+ * Audit `allow` IDENT followed by `(` — peek-at-current pointer ABI.
+ * Suite twin historically took `lexer_result` by-value (tok + next_lex);
+ * B-minus widens to `(lex, source)` where `lex` is parked on the IDENT
+ * (≡ the cursor that produced `r` in C). Callee restores (by-value net).
+ * Port of `parser_asm_stretch_allow_kw_paren_audit_c`.
+ * @param lex *u8 — opaque lexer parked on the candidate IDENT (read-only net)
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 iff peek is IDENT "allow" and the next token is `(`
+ * PLATFORM: SHARED — B-minus v5.16 root unlock for try_skip_allow_full_deep chain.
+ */
+#[no_mangle]
+export function parser_asm_stretch_allow_kw_paren_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let ts: usize = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    if (kind != TOKEN_IDENT) {
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+    }
+    idlen = parser_asm_lex_peek_ident_len_c(lex, source);
+    if (idlen != 5) {
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ts = parser_asm_lex_peek_token_start_c(lex, source);
+    /* C: source->data[token_start..+4] == "allow" (a l l o w). */
+    if (data == 0 as *u8 || ts + 4 >= slen) {
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+    }
+    if (data[ts] != 97 || data[ts + 1] != 108 || data[ts + 2] != 108
+        || data[ts + 3] != 111 || data[ts + 4] != 119) {
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex, source);
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    if (kind == TOKEN_LPAREN) {
+      rc = 1;
+    } else {
+      rc = 0;
+    }
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    return rc;
+  }
+  return 0;
+}
+
+/**
+ * Buf twin of allow_kw_paren: wrap (data,len) then run the source audit.
+ * Widened from C `(lexer_result, data, len)` to `(lex, data, len)`.
+ * @param lex *u8 — opaque lexer parked on the candidate IDENT (read-only net)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.16.
+ */
+#[no_mangle]
+export function parser_asm_stretch_allow_kw_paren_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let source: *u8 = 0 as *u8;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    return parser_asm_stretch_allow_kw_paren_audit_c(lex, source);
+  }
+  return 0;
+}
+
 /* ── generated (gen_stretch_audit_x.py) ── */
 
 /**
@@ -17503,6 +17600,310 @@ export function parser_asm_stretch_match_apex_max_ultra_hyper_mega_full_deep_buf
       return 0;
     }
     return parser_asm_stretch_match_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  }
+  return 0;
+}
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * Generated audit port parser_asm_stretch_import_path_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_import_path_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_path_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_import_stmt_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_toplevel_kind_peek_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated audit port parser_asm_stretch_try_skip_allow_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_try_skip_allow_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_try_skip_allow_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_try_skip_allow_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_balanced_delim_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    score = score + parser_asm_stretch_allow_kw_paren_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated audit port parser_asm_stretch_import_path_mega_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_import_path_mega_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_path_mega_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_import_path_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_collect_imports_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_toplevel_kind_peek_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated audit port parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_try_skip_allow_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_struct_skip_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_balanced_delim_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated buf-shim port parser_asm_stretch_import_path_full_deep_buf_audit_c.
+ * Generated buf-shim port: wraps (data,len) via the bridge ring and
+ * delegates to the slice-based .x audit .
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — callee verdict
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_path_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let source: *u8 = 0 as *u8;
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    return parser_asm_stretch_import_path_full_deep_audit_c(lex, source);
+  }
+  return 0;
+}
+
+/**
+ * Generated buf-shim port parser_asm_stretch_try_skip_allow_full_deep_buf_audit_c.
+ * Generated buf-shim port: wraps (data,len) via the bridge ring and
+ * delegates to the slice-based .x audit .
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — callee verdict
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_try_skip_allow_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let source: *u8 = 0 as *u8;
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    return parser_asm_stretch_try_skip_allow_full_deep_audit_c(lex, source);
+  }
+  return 0;
+}
+
+/**
+ * Generated buf-shim port parser_asm_stretch_import_path_mega_full_deep_buf_audit_c.
+ * Generated buf-shim port: wraps (data,len) via the bridge ring and
+ * delegates to the slice-based .x audit .
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — callee verdict
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_path_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let source: *u8 = 0 as *u8;
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    return parser_asm_stretch_import_path_mega_full_deep_audit_c(lex, source);
+  }
+  return 0;
+}
+
+/**
+ * Generated buf-shim port parser_asm_stretch_try_skip_allow_mega_full_deep_buf_audit_c.
+ * Generated buf-shim port: wraps (data,len) via the bridge ring and
+ * delegates to the slice-based .x audit .
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — callee verdict
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_try_skip_allow_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let source: *u8 = 0 as *u8;
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    return parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c(lex, source);
   }
   return 0;
 }

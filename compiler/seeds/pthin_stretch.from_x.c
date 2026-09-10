@@ -157,8 +157,7 @@ int32_t parser_asm_stretch_enum_variant_bind_audit_c(struct parser_asm_slice_u8 
                                                      int32_t name_len);
 int32_t parser_asm_stretch_diag_toplevel_after_imports_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_diag_fn_param_sig_audit_c(void *lex_inout, void *source);
-int32_t parser_asm_stretch_allow_kw_paren_audit_c(struct parser_asm_lexer_result r,
-                                                  struct parser_asm_slice_u8 *source);
+int32_t parser_asm_stretch_allow_kw_paren_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_try_skip_allow_paren_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_linear_type_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_array_type_bracket_audit_c(void *lex_inout, void *source);
@@ -203,7 +202,7 @@ int32_t parser_asm_stretch_skip_one_if_buf_audit_c(void *lex_inout, uint8_t *dat
 int32_t parser_asm_stretch_skip_one_extern_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 
 int32_t parser_asm_stretch_try_skip_allow_paren_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
-int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(struct parser_asm_lexer_result r, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 
 #include "parser_asm_emit_heavy_stretch_slice.inc"
 #include "parser_asm_emit_heavy_stretch_suite_slice.inc"

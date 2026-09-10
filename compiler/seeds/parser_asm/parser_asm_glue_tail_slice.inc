@@ -4034,7 +4034,8 @@ struct parser_asm_try_skip_allow_result parser_parse_into_try_skip_allow_buf_glu
     z.skipped = 0;
     return z;
   }
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_allow_kw_paren_buf_audit_c(r, data, len));
+  /* v5.16: allow_kw_paren_buf pointer ABI; lex is the pre-token cursor. */
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_allow_kw_paren_buf_audit_c(&lex, data, len));
   return parser_asm_try_skip_allow_padding_struct_buf_c(r.next_lex, data, len);
 }
 

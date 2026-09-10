@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.15 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.16 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,18 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.16: hand-port allow_kw_paren root (lexer_result → pointer ABI) —
+#   Hand-port `allow_kw_paren(_buf)` widened to `(lex, source)` /
+#   `(lex, data, len)` (lex parked on IDENT; peek-at-current ≡ historical
+#   by-val `r`). Generator: `score += allow_kw_paren(r, source)` → call at
+#   current peek; elide `if (IMPORT) score += import_dot_segment(r,…)`
+#   (import_dot_segment(IMPORT) always returns 0 — eq-honest no-op).
+#   Soft FP controlled: import_path_full_deep + try_skip_allow_full_deep
+#   (+ buf) and their mega twins. Cap ≈10 (2 hand + 8 soft). Refuse
+#   import_stmt_mega (needs skip_imports_mega), hyper+/versal, simd
+#   from_at, peek_kind_chain out-array. Unlocks import/struct/try_skip
+#   chain climb for follow-on waves.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -960,6 +972,39 @@ def translate(name, body, tokvals):
             r"\(void\)parser_asm_stretch_validate_toplevel_token_c\((r\w*), source\);$",
             st)
         if m and m.group(1) in cur_results:
+            si += 1
+            continue
+        # v5.16: score += allow_kw_paren(r, source) — hand-ported pointer ABI
+        # peeks at current token (≡ C's by-val r after lexer_next_into).
+        m = re.match(
+            r"(\w+) (\+=|=) parser_asm_stretch_allow_kw_paren_audit_c\((r\w*), source\);$",
+            st)
+        if m and m.group(1) in int_vars and m.group(3) in cur_results:
+            var, op = m.group(1), m.group(2)
+            x2, ntok = translate_call(
+                "parser_asm_stretch_allow_kw_paren_audit_c", "lex")
+            used |= ntok
+            call = strip_inout(x2)
+            if op == "+=":
+                emit(f"{var} = {var} + {call};")
+            else:
+                emit(f"{var} = {call};")
+            # restore after by-val score+= (callee also restores; redundant OK)
+            if not lex_rebased:
+                emit("parser_asm_lex_set_pos_c(lex, pos0);")
+                emit("parser_asm_lex_set_line_c(lex, line0);")
+                emit("parser_asm_lex_set_col_c(lex, col0);")
+            si += 1
+            continue
+        # v5.16: if (r.tok.kind == TOKEN_IMPORT) score += import_dot_segment(r,…);
+        # import_dot_segment only accepts IDENT/I32/ASYNC — IMPORT → always 0.
+        # Elide as eq-honest no-op (join_logical merges if + score into one).
+        m = re.match(
+            r"if \((r\w*)\.tok\.kind == \(int32_t\)TOKEN_IMPORT\) "
+            r"(\w+) \+= parser_asm_stretch_import_dot_segment_audit_c\(\1, source\);$",
+            st)
+        if m and m.group(1) in cur_results and m.group(2) in int_vars:
+            used.add("TOKEN_IMPORT")
             si += 1
             continue
         # v5.7: score += CALLEE(&r.next_lex, source) — C copies next_lex (zero
@@ -3103,6 +3148,17 @@ def main():
                         r"lexer_next_into(\1, \2, (struct parser_asm_slice_u8 *)source)", nb_txt)
         nb_txt = nb_txt.replace("source->data", "((struct parser_asm_slice_u8 *)source)->data")
         nb_txt = nb_txt.replace("source->length", "((struct parser_asm_slice_u8 *)source)->length")
+        # v5.16: elide import_dot_segment(IMPORT) in C twin (always 0; ≡ .x).
+        nb_txt = re.sub(
+            r"if \(r\.tok\.kind == \(int32_t\)TOKEN_IMPORT\)\n"
+            r"\s*score \+= parser_asm_stretch_import_dot_segment_audit_c\(r, source\);",
+            "/* v5.16: import_dot_segment(IMPORT)==0 — elide */\n  (void)r;",
+            nb_txt)
+        # v5.16: allow_kw_paren(r,…) → (&lex,…) in C twin (pointer ABI root).
+        nb_txt = re.sub(
+            r"parser_asm_stretch_allow_kw_paren_audit_c\(r, source\)",
+            "parser_asm_stretch_allow_kw_paren_audit_c(&lex, source)",
+            nb_txt)
         outn = out_sigs.get(n)
         if is_buf_def:
             sig_h = f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len) {{\n"
