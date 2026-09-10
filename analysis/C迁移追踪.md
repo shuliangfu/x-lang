@@ -275,7 +275,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（361／1,956；v5.12 exact-hyper 分批 mega 已收；续＝simd from_at／补 import·struct·try_skip 链／peek_kind）＋ **BC + 8.3**  
+2. 🟡 **7.2.1b** B-minus 续（372／1,956；v5.13 exact-ultra_hyper 分批 mega 已收；续＝补 import·struct·try_skip 链／simd from_at／peek_kind／可控 max）＋ **BC + 8.3**  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
