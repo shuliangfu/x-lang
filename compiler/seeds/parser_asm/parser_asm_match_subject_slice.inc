@@ -442,7 +442,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   if (r.tok.kind != (int32_t)TOKEN_MATCH)
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_kw_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_arms_body_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_arms_body_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_subject_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_block_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_subject_full_deep_audit_c(lex, source));

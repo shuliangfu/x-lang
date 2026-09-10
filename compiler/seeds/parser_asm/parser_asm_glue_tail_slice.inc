@@ -1234,7 +1234,7 @@ void parser_skip_one_enum_register_into_buf_glue(void *module, struct parser_asm
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_enum_register_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_body_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_body_from_header_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_body_from_header_buf_audit_c(&lex, data, len));
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
   parser_asm_skip_one_enum_register_into_slice_c(module, out, lex, &source);
@@ -4069,7 +4069,7 @@ void parser_skip_one_struct_into_buf_glue(struct parser_asm_lexer *out, struct p
   if (!out || !data)
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_struct_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_fields_body_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_fields_body_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_skip_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_layout_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_skip_full_deep_buf_audit_c(lex, data, len));
@@ -4847,7 +4847,7 @@ void parser_skip_one_enum_into_buf_glue(struct parser_asm_lexer *out, struct par
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_enum_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_body_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_body_from_header_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_body_from_header_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_skip_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_skip_mega_full_deep_buf_audit_c(&lex, data, len));
   source.data = data;
@@ -4879,7 +4879,7 @@ void parser_skip_one_trait_into_buf_glue(struct parser_asm_lexer *out, struct pa
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_header_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_body_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_type_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_methods_body_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_methods_body_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_skip_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_skip_mega_full_deep_buf_audit_c(lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_trait_impl_mega_full_deep_buf_audit_c(lex, data, len));

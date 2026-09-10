@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.2 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.3 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -56,6 +56,14 @@
 #   (4) slice score third arg `&out_local` → null `0` (out is optional;
 #       return verdict does not depend on the write — extern_param_count /
 #       enum_variants_probe).
+#
+# v5.3: secondary-cursor advance_to wall (thin body audits) —
+#   Expand `*_advance_to_*_lex_c(lex, source, &body_lex)` + `return probe(&body_lex, …)`
+#   by inlining the static helper onto the primary opaque lex (outer restore-trio
+#   keeps by-value net semantics). `*out = r.next_lex` → `from_result_val_into(&lex, r)`.
+#   Gate: only the thin advance+probe shape (no mixed use of pre-advance primary
+#   lex — if_stmt_body stays refused). Helpers with `lex_cur` secondary (function/
+#   if advance) stay refused until a dedicated inplace bridge exists.
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
@@ -1941,13 +1949,178 @@ def try_emit_void_name_audit(st, pad, cur_results):
     return None
 
 
+# Cache of static advance_to_*_lex_c helper bodies parsed from SUITE.
+_ADVANCE_TO_HELPERS = None
+
+# Helpers that introduce a true secondary cursor (`lex_cur`) or skip_parens
+# dance that the thin inplace model does not yet host. Stay refused (v5.3).
+_ADVANCE_TO_REFUSE = frozenset({
+    "parser_asm_stretch_function_advance_to_body_lex_c",
+    "parser_asm_stretch_if_advance_to_body_lex_c",
+})
+
+
+def load_advance_to_helpers():
+    """Parse static `*_advance_to_*_lex_c` bodies from the suite slice.
+    PLATFORM: SHARED — host-side generator only; output is freestanding.
+    """
+    global _ADVANCE_TO_HELPERS
+    if _ADVANCE_TO_HELPERS is not None:
+        return _ADVANCE_TO_HELPERS
+    src = open(SUITE).read()
+    lines = src.split("\n")
+    helpers = {}
+    i = 0
+    while i < len(lines):
+        l = lines[i]
+        m = re.match(
+            r"^static int32_t (parser_asm_stretch_\w+_advance_to_\w+_lex_c)\(",
+            l)
+        if not m:
+            i += 1
+            continue
+        name = m.group(1)
+        # Find opening brace of the function body.
+        while i < len(lines) and "{" not in lines[i]:
+            i += 1
+        if i >= len(lines):
+            break
+        depth = 0
+        body_start = i
+        while i < len(lines):
+            depth += lines[i].count("{") - lines[i].count("}")
+            if depth == 0 and i > body_start:
+                helpers[name] = lines[body_start + 1 : i]
+                break
+            i += 1
+        i += 1
+    _ADVANCE_TO_HELPERS = helpers
+    return helpers
+
+
+def _rewrite_advance_helper_body(helper_lines, probe_return):
+    """Rewrite a static advance_to helper onto primary `lex`.
+
+    - Drop null-guards on source/out.
+    - Success `*out_* = r.next_lex; return 1;` → from_result + `probe_return`
+      (so mid-loop success in match_advance does not return the bare 1).
+    - Keep failure `return 0`.
+    Refuses helpers that still need a live secondary cursor after rewrite.
+    """
+    out = []
+    pending_out_assign = False
+    for raw in join_logical(helper_lines):
+        st = raw.strip()
+        if not st:
+            continue
+        # Null-guards on the out-param API — irrelevant under inplace expand.
+        if re.match(r"if \(!source \|\| !out_(?:body|arms)_lex\) return 0;$", st):
+            continue
+        # Success write of the secondary cursor → advance primary lex.
+        if re.match(r"\*out_(?:body|arms)_lex = r\.next_lex;$", st):
+            out.append("parser_asm_lex_from_result_val_into(&lex, r);")
+            pending_out_assign = True
+            continue
+        if re.match(r"\*out_(?:body|arms)_lex = (\w+);$", st):
+            # e.g. *out = lex_cur — cursor already at body under rename.
+            pending_out_assign = True
+            continue
+        if st == "return 1;":
+            # Advance succeeded — return the probe verdict (not the bare 1).
+            out.append(probe_return)
+            pending_out_assign = False
+            continue
+        # Joined form: *out = r.next_lex; return 1;
+        m = re.match(
+            r"\*out_(?:body|arms)_lex = r\.next_lex; return 1;$", st)
+        if m:
+            out.append("parser_asm_lex_from_result_val_into(&lex, r);")
+            out.append(probe_return)
+            continue
+        m = re.match(r"\*out_(?:body|arms)_lex = (\w+); return 1;$", st)
+        if m:
+            out.append(probe_return)
+            continue
+        # Secondary local copy of the primary cursor — fold onto lex.
+        if re.match(r"lex_cur = lex;$", st):
+            continue
+        st = re.sub(r"\blex_cur\b", "lex", st)
+        out.append(st)
+        pending_out_assign = False
+    if pending_out_assign:
+        # Helper wrote *out but had no return 1 (should not happen); probe anyway.
+        out.append(probe_return)
+    joined = "\n".join(out)
+    if re.search(r"out_(?:body|arms)_lex", joined):
+        raise Refuse("advance_to helper still references out_* after rewrite")
+    if re.search(r"\blex_cur\b", joined):
+        raise Refuse("advance_to helper still references lex_cur after rewrite")
+    if "return 1;" in joined:
+        raise Refuse("advance_to helper still has bare return 1 after rewrite")
+    return out
+
+
+def try_expand_thin_advance_probe(body):
+    """Expand thin `advance_to + return probe(&sec, …)` onto primary lex.
+
+    Returns rewritten body lines, or None if the body is not the thin shape.
+    Raises Refuse for recognized-but-blocked helpers (function/if advance).
+    """
+    stmts = [s.strip() for s in join_logical(body) if s.strip()]
+    # Collect secondary-cursor decl; keep other stmts as code.
+    sec = None
+    code = []
+    prefix = []  # non-advance decls to keep (buf prologue already stripped)
+    for s in stmts:
+        m = re.match(r"struct parser_asm_lexer (\w+);$", s)
+        if m and m.group(1) in ("body_lex", "arms_lex"):
+            sec = m.group(1)
+            continue
+        if s.startswith("struct parser_asm_lexer_result "):
+            prefix.append(s)
+            continue
+        if re.match(r"int32_t \w+;$", s):
+            prefix.append(s)
+            continue
+        code.append(s)
+    if sec is None or len(code) < 2:
+        return None
+    # Thin shape: if (!advance(...)) return 0;  return probe(&sec, source|…);
+    m_adv = re.match(
+        rf"if \(!?(parser_asm_stretch_\w+_advance_to_\w+_lex_c)\("
+        rf"([^,]+), ([^,]+), &{sec}\)\) return 0;$",
+        code[0])
+    if not m_adv:
+        return None
+    # Only allow a single trailing return on &sec — anything else is mixed-cursor.
+    if len(code) != 2:
+        return None
+    m_ret = re.match(
+        rf"return (parser_asm_stretch_\w+_c)\(&{sec}, (source|&sl)(?:, (0|&?\w+))?\);$",
+        code[1])
+    if not m_ret:
+        return None
+
+    helper_name = m_adv.group(1)
+    if helper_name in _ADVANCE_TO_REFUSE:
+        raise Refuse(f"secondary-cursor advance_to helper blocked: {helper_name}")
+    helpers = load_advance_to_helpers()
+    if helper_name not in helpers:
+        raise Refuse(f"advance_to helper not found in suite: {helper_name}")
+
+    probe = m_ret.group(1)
+    flag = m_ret.group(3)
+    if flag is None:
+        probe_return = f"return {probe}(&lex, source);"
+    else:
+        probe_return = f"return {probe}(&lex, source, {flag});"
+    inlined = _rewrite_advance_helper_body(helpers[helper_name], probe_return)
+    # Success paths already emit probe_return; no trailing append.
+    return prefix + inlined
+
+
 def gen_x_function(name, body, tokvals, existing_consts, buftail_mode=False):
-    # v5.1: secondary-cursor wall — advance_to_*_lex writes a local lexer
-    # out-param that opaque *u8 cannot host. Refuse at the door (never emit
-    # undeclared &body_lex via translate_cond passthrough).
-    joined = "\n".join(body)
-    if re.search(r"parser_asm_stretch_\w*advance_to_\w+_lex_c\s*\(", joined):
-        raise Refuse("secondary-cursor advance_to_*_lex (no local lexer out-param under opaque *u8)")
+    # v5.2 buftail rewrites first so advance_to expand sees `source` not `&sl`.
     if buftail_mode:
         # buf→buf 委托链: CALLEE(lex, data, len) 标记为 BUFCALL 形态供 handler 识别
         body = [re.sub(r"(parser_asm_stretch_\w+_c)\((lex|lex_at_if), data, len\)",
@@ -1958,6 +2131,13 @@ def gen_x_function(name, body, tokvals, existing_consts, buftail_mode=False):
                 for l in body]
         body = [re.sub(r"lexer_next_into\(&(r\w*), ([^,]+), source\)",
                        r"lexer_next_into(\1, \2, source)", l) for l in body]
+    # v5.3: try thin advance_to → inplace expand before the refuse gate.
+    joined = "\n".join(body)
+    if re.search(r"parser_asm_stretch_\w*advance_to_\w+_lex_c\s*\(", joined):
+        expanded = try_expand_thin_advance_probe(body)
+        if expanded is None:
+            raise Refuse("secondary-cursor advance_to_*_lex (no local lexer out-param under opaque *u8)")
+        body = expanded
     lines, used, int_vars = translate(name, body, tokvals)
     # completeness pre-check: append missing TOKEN_* consts (wave-3 lesson)
     missing = sorted(t for t in used if t not in existing_consts)
