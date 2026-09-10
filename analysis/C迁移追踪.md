@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 133/1956；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 193/1956；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,14 +105,15 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **178／1,956**  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **193／1,956**  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
-  - [x] 桥面／P9a／三契约／生成器 v1→v5.1／等价 harness  
+  - [x] 桥面／P9a／三契约／生成器 v1→v5.2／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
-  - [ ] 厚 buf 体 ~279  
+  - [ ] 厚 buf 体余量（v5.2 首批＋15；仍余 secondary cursor／二级 lexer／未迁 callee）  
   - [x] out 参族 9／9（＋trait_methods；生成器 v5.0 elide void `&r.next_lex`）  
   - [x] array／slice bracket 头粗探（同波双步进根修解锁）  
   - [x] 深链组合器首批（v5.1：score+=／负字节链／拒 advance_to；诚实＋34；trait_impl 红未入）  
+  - [x] 厚 buf score 墙首批（v5.2：`&sl,`／`&lex, data, len`／尾旗／`&out`→0；诚实＋15）  
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -269,7 +270,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（178／1,956；厚 buf／trait_impl 二级 cursor；深链首批已收）＋ **BC + 8.3**  
+2. 🟡 **7.2.1b** B-minus 续（193／1,956；厚 buf 余量／trait_impl 二级 cursor；v5.2 厚 buf score 首批已收）＋ **BC + 8.3**  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
