@@ -50,7 +50,11 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(data, len));
+  /* v5.32: diag_parse_one mega widened to (lex, data, len); scratch init for AUDIT_CALL. */
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(&lex_init, data, len));
+  }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c(data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(data, len));

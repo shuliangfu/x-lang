@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.31 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.32 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,16 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.32: diag_parse_one_mega no-lex root (ABI widen) + parse_into_mega climb —
+#   Hand-port `diag_parse_one_mega_full_buf` widened from (data,len) to
+#   `(lex, data, len)`: snap+reset-to-init+restore (≡ C fresh lexer_init
+#   local; caller cursor net-zero). Soft fixed-point unlocks
+#   parse_into_mega_full_deep_buf (and any cascade whose mega callee is now
+#   migrated). Refuse infinite+/88+ versal dump; refuse remaining diag/
+#   toplevel (data,len-only). Still refused: simd from_at, peek_kind.
+#   Eq gate: HARD BAN deep daily — soft knife = FORCE smoke deep_off=0 /
+#   close only. Follow-up: parse_into ultra→… climb; infinite/versal.
 #
 # v5.31: controlled climb exact transcendent after v5.30 absolute —
 #   Soft fixed-point only (no new hand-port): unlock exact
@@ -648,12 +658,24 @@ def translate_switch(groups):
 
 def join_logical(body):
     """Merge continuation lines: a logical statement ends at a line whose
-    stripped form ends with ; { or } (or is a case/default label)."""
+    stripped form ends with ; { or } (or is a case/default label).
+
+    Pure `/* … */` block-comment lines are flushed alone and never merged
+    onto the next statement — merging them used to produce
+    `/* comment */ score += …` which the translate skip (`startswith("/*")`)
+    then silently dropped (v5.32 honesty: lost diag_parse_one_mega call).
+    """
     out = []
     buf = []
     for l in body:
         if not l.strip() and not buf:
             out.append(l)
+            continue
+        ts = l.strip()
+        # Standalone block comment — do not glue onto the following stmt.
+        if (not buf and ts.startswith("/*") and ts.endswith("*/")
+                and "*/" in ts[2:] and ts.find("*/") == len(ts) - 2):
+            out.append(ts)
             continue
         buf.append(l)
         t = " ".join(x.strip() for x in buf).strip()
@@ -742,8 +764,23 @@ def translate(name, body, tokvals):
     stmts = join_logical(body)
     while si < len(stmts):
         st = stmts[si].strip()
-        # blank / decls
-        if not st or st.startswith("/*") or st.startswith("*"):
+        # blank / decls / pure comments. If a leading /*…*/ is followed by
+        # code on the same logical line (legacy join), strip the comment and
+        # keep translating the code (v5.32 — do not silently drop score+=).
+        if not st:
+            si += 1
+            continue
+        if st.startswith("/*"):
+            end = st.find("*/")
+            if end < 0:
+                si += 1
+                continue
+            rest = st[end + 2:].strip()
+            if not rest:
+                si += 1
+                continue
+            st = rest
+        if st.startswith("*"):
             si += 1
             continue
         if st.startswith("struct parser_asm_lexer_result "):
