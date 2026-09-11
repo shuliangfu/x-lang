@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.16 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.17 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,14 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.17: controlled climb after v5.16 import/try_skip roots —
+#   Soft fixed-point only (no new hand-port): unlock exact
+#   `*_ultra_mega_*` + `*_super_mega_*` on import/struct/try_skip chains,
+#   plus `skip_imports_mega` → `import_stmt_mega` (+ buf). Cap ≈14.
+#   Refuse hyper+/ultra_hyper+/max+/apex+/88+ versal (eq wall-clock).
+#   Still refused: simd from_at (lexer_result by-val), peek_kind_chain
+#   out-array.
 #
 # v5.16: hand-port allow_kw_paren root (lexer_result → pointer ABI) —
 #   Hand-port `allow_kw_paren(_buf)` widened to `(lex, source)` /

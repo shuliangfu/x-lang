@@ -30,6 +30,20 @@ enum {
 
 /** block_stmt 内嵌审计前向声明（定义在本文件后部）。 */
 int32_t parser_asm_stretch_if_header_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_struct_super_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_skip_imports_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_skip_imports_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_import_stmt_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_import_ultra_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_import_super_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_struct_super_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_try_skip_super_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_import_stmt_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 int32_t parser_asm_stretch_import_path_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_try_skip_allow_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_import_path_mega_full_deep_audit_c(void *lex_inout, void *source);
@@ -8873,20 +8887,35 @@ int32_t parser_asm_stretch_expr_stmt_mega_full_deep_buf_audit_c(void *lex_inout,
 /**
  * tier38：skip_imports mega 全链 slice 深探（skip imports deep + import path mega）。
  */
-int32_t parser_asm_stretch_skip_imports_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                               struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_skip_imports_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_import_path_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_import_stmt_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier38：skip_imports mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_skip_imports_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                   int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_skip_imports_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   if (!data || len <= 0)
@@ -8895,6 +8924,7 @@ int32_t parser_asm_stretch_skip_imports_mega_full_deep_buf_audit_c(struct parser
   score += parser_asm_stretch_import_path_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier38：函数控制 mega 全链 slice 深探（async mega + onefunc mega + expr stmt mega）。
@@ -9028,29 +9058,45 @@ int32_t parser_asm_stretch_primary_expr_mega_full_deep_buf_audit_c(void *lex_ino
 /**
  * tier39：import 语句 mega 全链 slice 深探（import stmt full + import path mega + skip_imports mega）。
  */
-int32_t parser_asm_stretch_import_stmt_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                              struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_stmt_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_import_stmt_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_import_path_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier39：import 语句 mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_import_stmt_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                  int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_stmt_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_import_stmt_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_import_stmt_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier39：parse_into 入口 mega 全链 buf 深探（entry full + parse_into mega + ultra mega）。
@@ -9543,29 +9589,45 @@ int32_t parser_asm_stretch_primary_ultra_mega_full_deep_buf_audit_c(void *lex_in
 /**
  * tier40：import ultra mega 全链 slice 深探（import stmt mega + collect imports mega + skip imports mega）。
  */
-int32_t parser_asm_stretch_import_ultra_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                               struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_ultra_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
-  score = parser_asm_stretch_import_stmt_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_import_stmt_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier40：import ultra mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                   int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_import_ultra_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_import_ultra_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier40：parse_into super mega 全链 buf 深探（preamble mega + entry mega + ultra mega）。
@@ -9890,8 +9952,15 @@ int32_t parser_asm_stretch_library_ultra_mega_full_deep_buf_audit_c(void *lex_in
 /**
  * tier40：try_skip ultra mega 全链 slice 深探（try_skip mega + balanced delim mega + struct skip mega）。
  */
-int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_try_skip_allow_mega_full_deep_audit_c(&lex, source);
@@ -9899,20 +9968,29 @@ int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(struct parser_a
   score += parser_asm_stretch_struct_skip_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier40：try_skip ultra mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                     int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_ultra_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier40：top_level ultra mega 全链 buf 深探（top_level let mega + type_ref mega + import stmt mega）。
@@ -9925,7 +10003,7 @@ int32_t parser_asm_stretch_toplevel_ultra_mega_full_deep_buf_audit_c(struct pars
     return 0;
   score = parser_asm_stretch_top_level_let_mega_full_deep_buf_audit_c(lex, data, len, is_const);
   score += parser_asm_stretch_type_ref_mega_full_deep_buf_audit_c(&lex, data, len);
-  score += parser_asm_stretch_import_stmt_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_stmt_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
 
@@ -10018,29 +10096,45 @@ int32_t parser_asm_stretch_primary_super_mega_full_deep_buf_audit_c(void *lex_in
 /**
  * tier41：import super mega 全链 slice 深探（import ultra + collect imports mega + skip imports mega）。
  */
-int32_t parser_asm_stretch_import_super_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                               struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_super_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
-  score = parser_asm_stretch_import_ultra_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_import_ultra_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier41：import super mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                   int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_import_super_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_import_super_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier41：parse_into max mega 全链 buf 深探（super mega + import ultra + diag ultra2 mega）。
@@ -10052,7 +10146,7 @@ int32_t parser_asm_stretch_parse_into_max_mega_full_deep_buf_audit_c(struct pars
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_parse_into_super_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10103,29 +10197,45 @@ int32_t parser_asm_stretch_match_super_mega_full_deep_buf_audit_c(void *lex_inou
 /**
  * tier41：struct super mega 全链 slice 深探（struct ultra + try_skip ultra + layout mega）。
  */
-int32_t parser_asm_stretch_struct_super_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_struct_super_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_struct_ultra_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_parse_struct_layout_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier41：struct super mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_struct_super_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                   int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_struct_super_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_struct_super_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_struct_super_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier41：trait super mega 全链 buf 深探（trait ultra + struct ultra + impl skip mega）。
@@ -10248,7 +10358,7 @@ int32_t parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(uint8_t *data, 
     return 0;
   lex = parser_asm_lexer_init_c();
   score = parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(data, len);
-  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10342,29 +10452,45 @@ int32_t parser_asm_stretch_library_super_mega_full_deep_buf_audit_c(void *lex_in
 /**
  * tier41：try_skip super mega 全链 slice 深探（try_skip ultra + struct ultra + body skip ultra）。
  */
-int32_t parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
-  score = parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_try_skip_ultra_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_struct_ultra_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_body_skip_ultra_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier41：try_skip super mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_try_skip_super_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                     int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_super_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier41：top_level super mega 全链 buf 深探（toplevel ultra + import ultra + parse_into super mega）。
@@ -10376,7 +10502,7 @@ int32_t parser_asm_stretch_toplevel_super_mega_full_deep_buf_audit_c(struct pars
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_toplevel_ultra_mega_full_deep_buf_audit_c(lex, data, len, is_const);
-  score += parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_into_super_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10474,9 +10600,9 @@ int32_t parser_asm_stretch_import_hyper_mega_full_deep_audit_c(struct parser_asm
                                                                struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_import_super_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_import_super_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -10504,7 +10630,7 @@ int32_t parser_asm_stretch_parse_into_hyper_mega_full_deep_buf_audit_c(struct pa
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_parse_into_max_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10559,8 +10685,8 @@ int32_t parser_asm_stretch_struct_hyper_mega_full_deep_audit_c(struct parser_asm
                                                                struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_struct_super_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_struct_super_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_parse_struct_layout_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -10589,7 +10715,7 @@ int32_t parser_asm_stretch_trait_hyper_mega_full_deep_buf_audit_c(struct parser_
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_trait_super_mega_full_deep_buf_audit_c(&lex, data, len);
-  score += parser_asm_stretch_struct_super_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_struct_super_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_impl_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10692,7 +10818,7 @@ int32_t parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c(uint8_t *data, 
     return 0;
   lex = parser_asm_lexer_init_c();
   score = parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(data, len);
-  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10749,7 +10875,7 @@ int32_t parser_asm_stretch_library_hyper_mega_full_deep_audit_c(struct parser_as
 
   score = parser_asm_stretch_library_super_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_fn_super_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_import_super_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_import_super_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -10783,8 +10909,8 @@ int32_t parser_asm_stretch_try_skip_hyper_mega_full_deep_audit_c(struct parser_a
                                                                  struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_struct_super_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_struct_super_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_body_skip_super_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -10813,7 +10939,7 @@ int32_t parser_asm_stretch_toplevel_hyper_mega_full_deep_buf_audit_c(struct pars
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_toplevel_super_mega_full_deep_buf_audit_c(lex, data, len, is_const);
-  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_into_hyper_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -10913,7 +11039,7 @@ int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(struct pars
 
   score = parser_asm_stretch_import_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -11334,7 +11460,7 @@ int32_t parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(struct 
 
   score = parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -11724,7 +11850,7 @@ int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(st
 
   score = parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12074,7 +12200,7 @@ int32_t parser_asm_stretch_import_summit_apex_max_ultra_hyper_mega_full_deep_aud
 
   score = parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12408,7 +12534,7 @@ int32_t parser_asm_stretch_import_peak_summit_apex_max_ultra_hyper_mega_full_dee
 
   score = parser_asm_stretch_import_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12742,7 +12868,7 @@ int32_t parser_asm_stretch_import_zenith_peak_summit_apex_max_ultra_hyper_mega_f
 
   score = parser_asm_stretch_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -13076,7 +13202,7 @@ int32_t parser_asm_stretch_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyp
 
   score = parser_asm_stretch_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -13410,7 +13536,7 @@ int32_t parser_asm_stretch_import_crown_pinnacle_zenith_peak_summit_apex_max_ult
 
   score = parser_asm_stretch_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -13744,7 +13870,7 @@ int32_t parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex
 
   score = parser_asm_stretch_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -14078,7 +14204,7 @@ int32_t parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_su
 
   score = parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -14412,7 +14538,7 @@ int32_t parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenit
 
   score = parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -14746,7 +14872,7 @@ int32_t parser_asm_stretch_import_transcendent_absolute_ultimate_supreme_crown_p
 
   score = parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -15080,7 +15206,7 @@ int32_t parser_asm_stretch_import_infinite_transcendent_absolute_ultimate_suprem
 
   score = parser_asm_stretch_import_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -15414,7 +15540,7 @@ int32_t parser_asm_stretch_import_eternal_infinite_transcendent_absolute_ultimat
 
   score = parser_asm_stretch_import_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -15748,7 +15874,7 @@ int32_t parser_asm_stretch_import_cosmic_eternal_infinite_transcendent_absolute_
 
   score = parser_asm_stretch_import_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -16082,7 +16208,7 @@ int32_t parser_asm_stretch_import_universal_cosmic_eternal_infinite_transcendent
 
   score = parser_asm_stretch_import_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -16416,7 +16542,7 @@ int32_t parser_asm_stretch_import_omnipotent_universal_cosmic_eternal_infinite_t
 
   score = parser_asm_stretch_import_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -16750,7 +16876,7 @@ int32_t parser_asm_stretch_import_sovereign_omnipotent_universal_cosmic_eternal_
 
   score = parser_asm_stretch_import_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -17084,7 +17210,7 @@ int32_t parser_asm_stretch_import_imperial_sovereign_omnipotent_universal_cosmic
 
   score = parser_asm_stretch_import_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -17418,7 +17544,7 @@ int32_t parser_asm_stretch_import_divine_imperial_sovereign_omnipotent_universal
 
   score = parser_asm_stretch_import_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -17752,7 +17878,7 @@ int32_t parser_asm_stretch_import_celestial_divine_imperial_sovereign_omnipotent
 
   score = parser_asm_stretch_import_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -18086,7 +18212,7 @@ int32_t parser_asm_stretch_import_galactic_celestial_divine_imperial_sovereign_o
 
   score = parser_asm_stretch_import_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -18420,7 +18546,7 @@ int32_t parser_asm_stretch_import_intergalactic_galactic_celestial_divine_imperi
 
   score = parser_asm_stretch_import_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -18754,7 +18880,7 @@ int32_t parser_asm_stretch_import_multiversal_intergalactic_galactic_celestial_d
 
   score = parser_asm_stretch_import_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -19088,7 +19214,7 @@ int32_t parser_asm_stretch_import_metaversal_multiversal_intergalactic_galactic_
 
   score = parser_asm_stretch_import_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -19422,7 +19548,7 @@ int32_t parser_asm_stretch_import_hyperversal_metaversal_multiversal_intergalact
 
   score = parser_asm_stretch_import_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -19756,7 +19882,7 @@ int32_t parser_asm_stretch_import_omniversal_hyperversal_metaversal_multiversal_
 
   score = parser_asm_stretch_import_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -20090,7 +20216,7 @@ int32_t parser_asm_stretch_import_panversal_omniversal_hyperversal_metaversal_mu
 
   score = parser_asm_stretch_import_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -20424,7 +20550,7 @@ int32_t parser_asm_stretch_import_allversal_panversal_omniversal_hyperversal_met
 
   score = parser_asm_stretch_import_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -20758,7 +20884,7 @@ int32_t parser_asm_stretch_import_totversal_allversal_panversal_omniversal_hyper
 
   score = parser_asm_stretch_import_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -21092,7 +21218,7 @@ int32_t parser_asm_stretch_import_everyversal_totversal_allversal_panversal_omni
 
   score = parser_asm_stretch_import_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -21426,7 +21552,7 @@ int32_t parser_asm_stretch_import_fullversal_everyversal_totversal_allversal_pan
 
   score = parser_asm_stretch_import_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -21760,7 +21886,7 @@ int32_t parser_asm_stretch_import_completeversal_fullversal_everyversal_totversa
 
   score = parser_asm_stretch_import_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -22094,7 +22220,7 @@ int32_t parser_asm_stretch_import_wholeversal_completeversal_fullversal_everyver
 
   score = parser_asm_stretch_import_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -22428,7 +22554,7 @@ int32_t parser_asm_stretch_import_maxversal_wholeversal_completeversal_fullversa
 
   score = parser_asm_stretch_import_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -22762,7 +22888,7 @@ int32_t parser_asm_stretch_import_apexversal_maxversal_wholeversal_completeversa
 
   score = parser_asm_stretch_import_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -23096,7 +23222,7 @@ int32_t parser_asm_stretch_import_summit_apexversal_maxversal_wholeversal_comple
 
   score = parser_asm_stretch_import_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -23430,7 +23556,7 @@ int32_t parser_asm_stretch_import_peak_summit_apexversal_maxversal_wholeversal_c
 
   score = parser_asm_stretch_import_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -23764,7 +23890,7 @@ int32_t parser_asm_stretch_import_zenith_peak_summit_apexversal_maxversal_wholev
 
   score = parser_asm_stretch_import_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -24098,7 +24224,7 @@ int32_t parser_asm_stretch_import_pinnacle_zenith_peak_summit_apexversal_maxvers
 
   score = parser_asm_stretch_import_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -24433,7 +24559,7 @@ int32_t parser_asm_stretch_import_crown_pinnacle_zenith_peak_summit_apexversal_m
 
   score = parser_asm_stretch_import_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -24768,7 +24894,7 @@ int32_t parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex
 
   score = parser_asm_stretch_import_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -25103,7 +25229,7 @@ int32_t parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_su
 
   score = parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -25438,7 +25564,7 @@ int32_t parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenit
 
   score = parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -25773,7 +25899,7 @@ int32_t parser_asm_stretch_import_transcendent_absolute_ultimate_supreme_crown_p
 
   score = parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -26108,7 +26234,7 @@ int32_t parser_asm_stretch_import_infinite_transcendent_absolute_ultimate_suprem
 
   score = parser_asm_stretch_import_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -26443,7 +26569,7 @@ int32_t parser_asm_stretch_import_eternal_infinite_transcendent_absolute_ultimat
 
   score = parser_asm_stretch_import_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -26778,7 +26904,7 @@ int32_t parser_asm_stretch_import_cosmic_eternal_infinite_transcendent_absolute_
 
   score = parser_asm_stretch_import_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -27113,7 +27239,7 @@ int32_t parser_asm_stretch_import_universal_cosmic_eternal_infinite_transcendent
 
   score = parser_asm_stretch_import_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -27448,7 +27574,7 @@ int32_t parser_asm_stretch_import_omnipotent_universal_cosmic_eternal_infinite_t
 
   score = parser_asm_stretch_import_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -27783,7 +27909,7 @@ int32_t parser_asm_stretch_import_sovereign_omnipotent_universal_cosmic_eternal_
 
   score = parser_asm_stretch_import_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -28118,7 +28244,7 @@ int32_t parser_asm_stretch_import_imperial_sovereign_omnipotent_universal_cosmic
 
   score = parser_asm_stretch_import_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -28453,7 +28579,7 @@ int32_t parser_asm_stretch_import_divine_imperial_sovereign_omnipotent_universal
 
   score = parser_asm_stretch_import_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -28788,7 +28914,7 @@ int32_t parser_asm_stretch_import_celestial_divine_imperial_sovereign_omnipotent
 
   score = parser_asm_stretch_import_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -29123,7 +29249,7 @@ int32_t parser_asm_stretch_import_galactic_celestial_divine_imperial_sovereign_o
 
   score = parser_asm_stretch_import_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -29458,7 +29584,7 @@ int32_t parser_asm_stretch_import_intergalactic_galactic_celestial_divine_imperi
 
   score = parser_asm_stretch_import_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -29793,7 +29919,7 @@ int32_t parser_asm_stretch_import_multiversal_intergalactic_galactic_celestial_d
 
   score = parser_asm_stretch_import_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -30128,7 +30254,7 @@ int32_t parser_asm_stretch_import_metaversal_multiversal_intergalactic_galactic_
 
   score = parser_asm_stretch_import_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -30463,7 +30589,7 @@ int32_t parser_asm_stretch_import_hyperversal_metaversal_multiversal_intergalact
 
   score = parser_asm_stretch_import_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -30798,7 +30924,7 @@ int32_t parser_asm_stretch_import_omniversal_hyperversal_metaversal_multiversal_
 
   score = parser_asm_stretch_import_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -31133,7 +31259,7 @@ int32_t parser_asm_stretch_import_panversal_omniversal_hyperversal_metaversal_mu
 
   score = parser_asm_stretch_import_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -31468,7 +31594,7 @@ int32_t parser_asm_stretch_import_allversal_panversal_omniversal_hyperversal_met
 
   score = parser_asm_stretch_import_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -31802,7 +31928,7 @@ int32_t parser_asm_stretch_import_totversal_allversal_panversal_omniversal_hyper
 
   score = parser_asm_stretch_import_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
