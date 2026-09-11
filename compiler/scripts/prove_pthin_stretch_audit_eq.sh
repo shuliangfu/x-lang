@@ -13,17 +13,14 @@
 # 判据：返回值一致 + .x 版调用方 lexer 三元组(pos/line/col)不动。
 # 诊断工件落 tests/probes/pthin_stretch_audit/，不写 /tmp。
 #
-# 墙钟分层（2026-09-11 起强制 · 防每波双端 50min×2）：
-#   日常微步 / 软刀迭代（daily）：
-#     EQ_ONLY=<本波新增符号逗号子串> EQ_MAX_FILE_OFF=128
-#     可选 EQ_SKIP_SYNTH=1（只跑文件语料+null）→ 通常 <2 min
-#   整波结案 / 升钉前（full）：
-#     不设 EQ_ONLY；EQ_MAX_FILE_OFF=128（或默认）；双端各跑一次
-#   旋钮：
-#     EQ_MAX_FILE_OFF=N（1..1199）压文件偏移；合成串 + null 守卫默认仍全量
-#     EQ_ONLY=a,b,c — 仅跑 name 含任一子串的用例（差分）
-#     EQ_SKIP_SYNTH=1 — 跳过合成串电池
-# PLATFORM: SHARED（结案须双端 full；日常可双端 daily 或本机 daily + 对端结案 full）。
+# 墙钟分层（2026-09-11 · 目标软刀 L2 总墙钟 ≤10 min）：
+#   优先用 scripts/prove_pthin_stretch_audit_eq_mode.sh：
+#     daily <substrs>  — 本波差分（~1 min）
+#     close            — 全符号 OFF=32 × EQ_JOBS=4（~3–5 min；软刀结案）
+#     full             — 全符号 OFF=128 × EQ_JOBS=8（仅升钉/L4）
+#   本脚本仍为单进程直跑；旋钮：
+#     EQ_MAX_FILE_OFF / EQ_ONLY / EQ_SKIP_SYNTH / EQ_SHARD=i/n / EQ_FILE_STRIDE
+# PLATFORM: SHARED — 软刀结案双端 close（非串行 50min full）。
 set -eu
 
 cd "$(dirname "$0")/.."

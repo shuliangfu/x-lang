@@ -91,6 +91,9 @@ typedef struct {
 static int g_fail = 0;
 static long g_checks = 0;
 static size_t g_cases_sel = 0;
+static int g_shard_i = 0; /* EQ_SHARD=i/n → this worker owns indices ≡ i (mod n) */
+static int g_shard_n = 1;
+static int g_file_stride = 1; /* EQ_FILE_STRIDE=k → advance k tokens between checks */
 
 /**
  * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
@@ -122,14 +125,42 @@ static int case_selected(const audit_case *ac) {
   return 0;
 }
 
+/** Parse EQ_SHARD=i/n (parallel workers). Default 0/1 = whole table. */
+static void load_shard_env(void) {
+  const char *s = getenv("EQ_SHARD");
+  int i = 0, n = 1;
+  if (s && s[0] && sscanf(s, "%d/%d", &i, &n) == 2 && n > 0 && i >= 0 && i < n) {
+    g_shard_i = i;
+    g_shard_n = n;
+  } else {
+    g_shard_i = 0;
+    g_shard_n = 1;
+  }
+}
+
+static int case_in_shard(size_t ci) {
+  return (int)(ci % (size_t)g_shard_n) == g_shard_i;
+}
+
+static void load_stride_env(void) {
+  const char *s = getenv("EQ_FILE_STRIDE");
+  long v;
+  g_file_stride = 1;
+  if (s && s[0]) {
+    v = strtol(s, 0, 10);
+    if (v > 1 && v < 1024)
+      g_file_stride = (int)v;
+  }
+}
+
 /** Compare one (C ref, .x) pair on one lexer state; verify contract. */
-static void check_one(const audit_case *ac, struct parser_asm_lexer lex,
+static void check_one(const audit_case *ac, size_t ci, struct parser_asm_lexer lex,
                       struct parser_asm_slice_u8 *src) {
   struct parser_asm_lexer for_c = lex;
   struct parser_asm_lexer for_x = lex;
   int32_t rc_c;
   int32_t rc_x;
-  if (!case_selected(ac))
+  if (!case_selected(ac) || !case_in_shard(ci))
     return;
   if (getenv("EQ_TRACE")) fprintf(stderr, "[trace] %s pos=%zu\n", ac->name, lex.pos);
   rc_c = ac->c_ref(&for_c, src, ac->flag);
@@ -163,21 +194,28 @@ static void check_one(const audit_case *ac, struct parser_asm_lexer lex,
   }
 }
 
-/** Run all audit cases at every token offset of one source buffer. */
+/**
+ * Run shard-local audit cases at token offsets of one source buffer.
+ * EQ_FILE_STRIDE>1 skips offsets (still starts at 0) to cut wall-clock while
+ * keeping breadth across the file — used by close-mode mid coverage.
+ */
 static void battery(const char *tag, const char *text, size_t len, int max_steps) {
   struct parser_asm_slice_u8 src;
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
   size_t ci;
   int step;
+  int stride = g_file_stride > 0 ? g_file_stride : 1;
   src.data = (uint8_t *)(uintptr_t)text;
   src.length = len;
   lex.pos = 0;
   lex.line = 1;
   lex.col = 1;
   for (step = 0; step <= max_steps; step++) {
-    for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++)
-      check_one(&k_cases[ci], lex, &src);
+    if ((step % stride) == 0) {
+      for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++)
+        check_one(&k_cases[ci], ci, lex, &src);
+    }
     lexer_next_into(&r, lex, &src);
     if ((int32_t)r.tok.kind == (int32_t)TOKEN_EOF)
       break;
@@ -208,18 +246,23 @@ int main(int argc, char **argv) {
   };
   size_t i;
   int f;
+  load_shard_env();
+  load_stride_env();
   {
     size_t ci;
     g_cases_sel = 0;
     for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++)
-      if (case_selected(&k_cases[ci]))
+      if (case_selected(&k_cases[ci]) && case_in_shard(ci))
         g_cases_sel++;
-    fprintf(stderr, "eq_harness: cases_selected=%zu/%zu EQ_ONLY=%s EQ_SKIP_SYNTH=%s EQ_MAX_FILE_OFF=%s\n",
+    fprintf(stderr,
+            "eq_harness: cases_selected=%zu/%zu EQ_ONLY=%s EQ_SKIP_SYNTH=%s "
+            "EQ_MAX_FILE_OFF=%s EQ_SHARD=%d/%d EQ_FILE_STRIDE=%d\n",
             g_cases_sel, (size_t)(sizeof(k_cases) / sizeof(k_cases[0])),
             getenv("EQ_ONLY") && getenv("EQ_ONLY")[0] ? getenv("EQ_ONLY") : "(all)",
             getenv("EQ_SKIP_SYNTH") && getenv("EQ_SKIP_SYNTH")[0] ? getenv("EQ_SKIP_SYNTH") : "0",
             getenv("EQ_MAX_FILE_OFF") && getenv("EQ_MAX_FILE_OFF")[0] ? getenv("EQ_MAX_FILE_OFF")
-                                                                     : "1200");
+                                                                     : "1200",
+            g_shard_i, g_shard_n, g_file_stride);
   }
   /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain. */
   if (!(getenv("EQ_SKIP_SYNTH") && getenv("EQ_SKIP_SYNTH")[0] && getenv("EQ_SKIP_SYNTH")[0] != '0')) {
@@ -274,6 +317,8 @@ int main(int argc, char **argv) {
     lex.line = 1;
     lex.col = 1;
     for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++) {
+      if (!case_selected(&k_cases[ci]) || !case_in_shard(ci))
+        continue;
       g_checks++;
       if (k_cases[ci].x_ver(&lex, 0, k_cases[ci].flag) != 0) {
         printf("FAIL null-source guard (.x %s)\n", k_cases[ci].name);
@@ -287,9 +332,10 @@ int main(int argc, char **argv) {
     }
   }
   if (g_fail) {
-    printf("pthin_stretch_audit_eq: %ld checks, %d FAIL\n", g_checks, g_fail);
+    printf("pthin_stretch_audit_eq: %ld checks, %d FAIL (shard %d/%d)\n", g_checks, g_fail,
+           g_shard_i, g_shard_n);
     return 1;
   }
-  printf("pthin_stretch_audit_eq: %ld checks OK\n", g_checks);
+  printf("pthin_stretch_audit_eq: %ld checks OK (shard %d/%d)\n", g_checks, g_shard_i, g_shard_n);
   return 0;
 }
