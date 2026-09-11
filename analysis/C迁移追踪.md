@@ -60,7 +60,7 @@
 
 ### 开项
 
-- ⬜ **4.2.8** AST name 槽 128B layout raise — leave-off  
+- 🟡 **4.2.8** AST name 槽 128B→256B layout raise（content 127→255）— **下波主刀**（v5.29 absolute L012 墙；解锁余 18＋control_flow ultimate buf）  
 - ⬜ **4.2.9** LANG-006 标量 bool→int — 有意保留 soft  
 - ⬜ **4.2.16** `*T[N]` 解析序 — 有意保留 soft（`*[N]T`＝指针到数组）  
 
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **602／1,956**（v5.28）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **604／1,956**（v5.29）  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -275,7 +275,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（602／1,956；v5.28 exact-ultimate＋20；L012 拒 control_flow ultimate buf；续＝AST name 加宽／absolute／versal／parse_into_hyper／simd from_at／peek_kind；**深链 close only**）＋ **BC + 8.3**  
+2. 🟡 **7.2.1b** B-minus 续（604／1,956；v5.29 exact-absolute＋2≤127；L012 仍挡 18 absolute；续＝**4.2.8 AST name 加宽**／absolute 余／versal／parse_into_hyper／simd from_at／peek_kind；**深链 close only**）＋ **BC + 8.3**  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  

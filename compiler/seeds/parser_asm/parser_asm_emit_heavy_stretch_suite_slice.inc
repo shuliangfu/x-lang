@@ -30,6 +30,8 @@ enum {
 
 /** block_stmt 内嵌审计前向声明（定义在本文件后部）。 */
 int32_t parser_asm_stretch_if_header_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_expr_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
@@ -16215,8 +16217,15 @@ int32_t parser_asm_stretch_toplevel_ultimate_supreme_crown_pinnacle_zenith_peak_
 /**
  * tier53：expr apex max ultra hyper mega 全链 slice 深探（expr max ultra hyper + primary max ultra hyper + body skip max ultra hyper）。
  */
-int32_t parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                            struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_expr_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -16224,6 +16233,7 @@ int32_t parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_
   score += parser_asm_stretch_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier53：expr apex max ultra hyper mega 全链 buf 深探。
@@ -16236,7 +16246,7 @@ int32_t parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
 
 /**
@@ -16380,8 +16390,15 @@ int32_t parser_asm_stretch_trait_absolute_ultimate_supreme_crown_pinnacle_zenith
 /**
  * tier53：函数 apex max ultra hyper mega 全链 slice 深探（fn max ultra hyper + library max ultra hyper + body skip max ultra hyper）。
  */
-int32_t parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                          struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_fn_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -16389,6 +16406,7 @@ int32_t parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_pe
   score += parser_asm_stretch_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier53：函数 apex max ultra hyper mega 全链 buf 深探。
@@ -16401,7 +16419,7 @@ int32_t parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_pe
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
 
 /**
@@ -16553,7 +16571,7 @@ int32_t parser_asm_stretch_expr_transcendent_absolute_ultimate_supreme_crown_pin
                                                                             struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_primary_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_body_skip_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   return score > 0 ? 1 : 0;
@@ -16581,7 +16599,7 @@ int32_t parser_asm_stretch_primary_transcendent_absolute_ultimate_supreme_crown_
   int32_t score;
 
   score = parser_asm_stretch_primary_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_cast_unary_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -16651,7 +16669,7 @@ int32_t parser_asm_stretch_match_transcendent_absolute_ultimate_supreme_crown_pi
 
   score = parser_asm_stretch_match_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_control_flow_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -16718,7 +16736,7 @@ int32_t parser_asm_stretch_fn_transcendent_absolute_ultimate_supreme_crown_pinna
                                                                           struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_library_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   score += parser_asm_stretch_body_skip_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   return score > 0 ? 1 : 0;
@@ -16790,8 +16808,8 @@ int32_t parser_asm_stretch_body_skip_transcendent_absolute_ultimate_supreme_crow
   int32_t score;
 
   score = parser_asm_stretch_body_skip_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -16817,7 +16835,7 @@ int32_t parser_asm_stretch_library_transcendent_absolute_ultimate_supreme_crown_
   int32_t score;
 
   score = parser_asm_stretch_library_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
   return score > 0 ? 1 : 0;
 }

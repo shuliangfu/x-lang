@@ -26387,3 +26387,111 @@ export function parser_asm_stretch_try_skip_ultimate_supreme_crown_pinnacle_zeni
   }
   return 0;
 }
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * Generated audit port parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_fn_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_library_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated audit port parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_expr_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}

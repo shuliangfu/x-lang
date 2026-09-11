@@ -747,6 +747,8 @@ static int32_t c_ref_library_ultimate_supreme_crown_pinnacle_zenith_peak_summit_
 static int32_t c_ref_library_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_try_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_try_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
+static int32_t c_ref_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 
 static int32_t parser_asm_stretch_expr_binop_kinds_probe_c(struct parser_asm_lexer lex,
                                                              struct parser_asm_slice_u8 *source,
@@ -12029,5 +12031,37 @@ static int32_t c_ref_try_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit
   sl.data = data;
   sl.length = (size_t)len;
   return c_ref_try_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, &sl);
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
+static int32_t c_ref_expr_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  score = c_ref_expr_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, source);
+  score += c_ref_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, source);
+  score += c_ref_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, source);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
+static int32_t c_ref_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  score = c_ref_fn_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, source);
+  score += c_ref_library_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, source);
+  score += c_ref_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(&lex, source);
+  return score > 0 ? 1 : 0;
 
 }
