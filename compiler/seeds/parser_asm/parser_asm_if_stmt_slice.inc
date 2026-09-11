@@ -210,8 +210,7 @@ extern int32_t parser_asm_stretch_control_flow_hyper_mega_full_deep_audit_c(void
 extern int32_t parser_asm_stretch_control_flow_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_control_flow_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex_at_if,
-                                                         struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_control_flow_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex_at_if,
                                                          struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_control_flow_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex_at_if,
@@ -320,7 +319,7 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source));
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex_at_if, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source));
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_control_flow_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex_at_if, source));
