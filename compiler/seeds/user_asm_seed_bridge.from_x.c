@@ -471,7 +471,7 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     uint8_t rel[10];
     int32_t sym_idx = 0;
     int32_t m;
-    uint8_t r_sym_buf[128];
+    uint8_t r_sym_buf[256];
     int32_t rlen;
     int32_t roff;
     memset(r_sym_buf, 0, sizeof(r_sym_buf));
@@ -644,7 +644,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     for (jdep = 0; jdep < ndep_elf; jdep++) {
       struct ast_Module *dep_mod;
       struct ast_ASTArena *dep_ar;
-      uint8_t dep_path_buf[128];
+      uint8_t dep_path_buf[256];
       int pk;
       int dup;
       if (jdep == 0 && driver_skip_codegen_dep_0_get() != 0)

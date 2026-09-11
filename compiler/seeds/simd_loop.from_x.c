@@ -121,8 +121,8 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-384：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
-    uint8_t an[128];
-    uint8_t bn[128];
+    uint8_t an[256];
+    uint8_t bn[256];
     int32_t alen;
     int32_t blen;
     int32_t k;
@@ -199,7 +199,7 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
 /* G-02f-165/214：逻辑源 .x；G-02f-411：实现体始终 seed；public PREFER 时 thin pure forward */
 int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
-    uint8_t vbuf[128];
+    uint8_t vbuf[256];
     int32_t vlen;
     int32_t nlet;
     int32_t li;
@@ -213,7 +213,7 @@ int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block
     pipeline_expr_var_name_into(arena, var_ref, vbuf);
     nlet = ast_ast_block_num_lets(arena, block_ref);
     for (li = 0; li < nlet; li++) {
-        uint8_t lb[128];
+        uint8_t lb[256];
         int32_t llen;
         int32_t init_ref;
         int32_t k;

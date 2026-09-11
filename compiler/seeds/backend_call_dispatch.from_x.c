@@ -3848,7 +3848,7 @@ static int32_t glue_asm_fmt_any_append_dec_c(uint8_t *out, int32_t cap, int32_t 
 
 static int32_t glue_asm_fmt_any_find_layout_c(struct ast_Module *m, const uint8_t *nm, int32_t nlen) {
   int32_t n, k, ln, i;
-  uint8_t buf[128];
+  uint8_t buf[256];
   if (!m || !nm || nlen <= 0)
     return -1;
   n = pipeline_module_num_struct_layouts_at(m);
@@ -5510,13 +5510,13 @@ int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(struct ast_ASTArena *arena,
                                                     int32_t expr_ref, struct backend_AsmFuncCtx *ctx,
                                                     int32_t ta) {
   int32_t ko;
-  uint8_t tmpl[128];
+  uint8_t tmpl[256];
   uint8_t nop1 = 0x90u;
   uint8_t a64[4];
   int32_t nargs;
   int32_t num_in;
   int32_t arg_ref;
-  uint8_t pack[128];
+  uint8_t pack[256];
   uint8_t reg[32];
   uint8_t vname[256];
   int32_t i;
@@ -6235,8 +6235,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     int32_t ff_spill = 0;
     int32_t ff_reg_max = 0;
     uint8_t ff_nm[128];
-    uint8_t ff_fnm[128];
-    uint8_t ff_lnm[128];
+    uint8_t ff_fnm[256];
+    uint8_t ff_lnm[256];
     ff_base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
     if (ff_base_ty > 0) {
       ff_ty = ff_base_ty;

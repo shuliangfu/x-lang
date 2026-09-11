@@ -675,7 +675,7 @@ export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_r
       let name_len: i32 = pipeline_expr_var_name_len(arena, expr_ref);
       if (name_len <= 0) { return 0; }
       if (name_len > 255) { return 0; }
-      let name_buf: u8[128] = [];
+      let name_buf: u8[256] = [];
       pipeline_expr_var_name_into(arena, expr_ref, &name_buf[0]);
       if (const_names == 0) { return 0; }
       let i: i32 = 0;
@@ -1018,7 +1018,7 @@ export function pipeline_typeck_resolve_call_func_index_c(m: *u8, a: *u8, call_e
     let callee_name_len: i32 = pipeline_expr_var_name_len(a, callee_ref);
     if (callee_name_len <= 0) { return 0 - 1; }
     if (callee_name_len > 255) { return 0 - 1; }
-    let callee_name: u8[128] = [];
+    let callee_name: u8[256] = [];
     pipeline_expr_var_name_into(a, callee_ref, &callee_name[0]);
     let i: i32 = 0;
     let n: i32 = pipeline_module_num_funcs(m);
@@ -1577,7 +1577,7 @@ export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32,
     let vnlen: i32 = pipeline_expr_var_name_len(arena, op_ref);
     if (vnlen <= 0) { return 0; }
     if (vnlen > 255) { return 0; }
-    let vbuf: u8[128] = [];
+    let vbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, op_ref, &vbuf[0]);
     let block_ref: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
     if (block_ref > 0) {
@@ -1784,7 +1784,7 @@ export function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, 
     let name_len: i32 = pipeline_expr_var_name_len(arena, op_ref);
     if (name_len <= 0) { return 0; }
     if (name_len > 255) { return 0; }
-    let name_buf: u8[128] = [];
+    let name_buf: u8[256] = [];
     pipeline_expr_var_name_into(arena, op_ref, &name_buf[0]);
     let br: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
     if (br <= 0) { return 0; }
@@ -2322,7 +2322,7 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
     let fl: i32 = pipeline_expr_field_access_name_len(arena, expr_ref);
     if (fl <= 0) { return 0; }
     if (fl > 127) { return 0; }
-    let fn_buf: u8[128] = [];
+    let fn_buf: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
     let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
     if (nsl <= 0) { return 0; }
@@ -2335,7 +2335,7 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
       while (j < nf) {
         let fjl: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
         if (fjl == fl) {
-          let fjn: u8[128] = [];
+          let fjn: u8[256] = [];
           pipeline_module_struct_layout_field_name_into(module, k, j, &fjn[0]);
           /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
           let name_eq: i32 = 1;
@@ -2349,7 +2349,7 @@ function pipeline_typeck_field_reverse_infer_base_type_strict_minimal(module: *u
             if (lnl > 0) {
               // wave587 Cap residual: layout name content ≤255 (lnm[128]).
               if (lnl <= 255) {
-                let lnm: u8[128] = [];
+                let lnm: u8[256] = [];
                 pipeline_module_struct_layout_name_into(module, k, &lnm[0]);
                 let nty: i32 = pipeline_type_find_or_alloc_named(arena, &lnm[0], lnl);
                 if (nty > 0) {
@@ -2409,7 +2409,7 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
         if (prebind_len > 0) {
           // wave587 Cap residual: Type/enum prebind ≤127 (seed wave582; .x was drift).
           if (prebind_len <= 255) {
-            let prebind_name: u8[128] = [];
+            let prebind_name: u8[256] = [];
             pipeline_expr_var_name_into(arena, base_ref, &prebind_name[0]);
             let do_prebind: i32 = 1;
             if (ctx != 0 as *u8) {
@@ -3075,7 +3075,7 @@ export function glue_block_prior_const_name_match(arena: *u8, block_ref: i32, co
       if (clen == name_len) {
         if (clen > 0) {
           if (clen < 64) {
-            let cbuf: u8[128] = [];
+            let cbuf: u8[256] = [];
             pipeline_block_const_name_copy64(arena, block_ref, i, &cbuf[0]);
             let j: i32 = 0;
             let ok: i32 = 1;
@@ -3119,7 +3119,7 @@ export function glue_block_const_expr_is_const(arena: *u8, expr_ref: i32, block_
       let name_len: i32 = pipeline_expr_var_name_len(arena, expr_ref);
       if (name_len <= 0) { return 0; }
       if (name_len > 255) { return 0; }
-      let name_buf: u8[128] = [];
+      let name_buf: u8[256] = [];
       pipeline_expr_var_name_into(arena, expr_ref, &name_buf[0]);
       return glue_block_prior_const_name_match(arena, block_ref, const_idx, &name_buf[0], name_len);
     }

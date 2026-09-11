@@ -362,7 +362,7 @@ int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Modul
             }
         }
         {
-            uint8_t lnb[128];
+            uint8_t lnb[256];
             int32_t llen = pipeline_block_let_name_len(arena, br, idx);
             if (llen > 0 && llen <= 255 && n_def < ASYNC_LIVE_MAX_VARS) {
                 pipeline_block_let_name_copy64(arena, br, idx, lnb);

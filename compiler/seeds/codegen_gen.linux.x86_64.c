@@ -1873,7 +1873,7 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
     int32_t di = 0;
     int32_t nd = pipeline_dep_ctx_ndep(ctx);
     while ((di < nd)) {
-      uint8_t dep_path[128] = {};
+      uint8_t dep_path[256] = {};
       int32_t dep_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
       if ((dep_len ==path_len)) {
         int eq = 1;
@@ -1899,7 +1899,7 @@ int32_t codegen_find_seeded_global_dep_slot_by_path(uint8_t * path, int32_t path
     if ((((path ==0) || (path_len <=0)) || (path_len > 255))) {
       return -1;
     }
-    uint8_t path_buf[128] = {};
+    uint8_t path_buf[256] = {};
     int32_t i = 0;
     while (((i < path_len) && (i < 63))) {
       (void)(((path_buf)[i] = (path)[i]));
@@ -1948,7 +1948,7 @@ int32_t codegen_emit_prefix_len_from_ctx(struct ast_PipelineDepCtx * ctx, uint8_
     (void)(((buf)[pi] = ((uint8_t)(0))));
     return pi;
   }
-  uint8_t path_buf[128] = {};
+  uint8_t path_buf[256] = {};
   int32_t path_len = 0;
   if ((((ctx)->current_codegen_dep_index) >=0)) {
     (void)((path_len = codegen_dep_import_path_len_at(ctx, ((ctx)->current_codegen_dep_index), &((path_buf)[0]))));
@@ -2098,7 +2098,7 @@ int32_t codegen_emit_async_binding_import_call(struct ast_ASTArena * arena, stru
   {
     uint8_t reset_name[26] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116};
     uint8_t comma[3] = {44, 32, 0};
-    uint8_t dep_path[128] = {};
+    uint8_t dep_path[256] = {};
     uint8_t prefix_buf[256] = {};
     int32_t dep_ix = -1;
     int32_t n_args = 0;
@@ -6153,7 +6153,7 @@ int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * ctx, str
     int32_t bare_len = (name_len - bare_off);
     (void)((owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[bare_off]), bare_len)));
     if ((owner >=0)) {
-      uint8_t dep_path[128] = {};
+      uint8_t dep_path[256] = {};
       int32_t plen = codegen_dep_import_path_len_at(ctx, owner, &((dep_path)[0]));
       if ((plen > 0)) {
         (void)(codegen_import_path_to_c_prefix_into(&((dep_path)[0]), dst, dst_cap));
@@ -8072,7 +8072,7 @@ int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struc
               (void)((j = (j + 1)));
             }
             if (eq) {
-              uint8_t dep_path[128] = {};
+              uint8_t dep_path[256] = {};
               int32_t plen = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
               if ((plen > 0)) {
                 (void)(codegen_import_path_to_c_prefix_into(&((dep_path)[0]), dst, dst_cap));
@@ -10299,7 +10299,7 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
         }
         struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, di);
         struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, di);
-        uint8_t dep_path[128] = {};
+        uint8_t dep_path[256] = {};
         int32_t dep_path_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
         if ((((dep_mod ==0) || (dep_arena ==0)) || (dep_path_len <=0))) {
           (void)(((done)[di] = 1));
@@ -10447,7 +10447,7 @@ int32_t codegen_emit_dep_struct_forward_declarations(struct ast_PipelineDepCtx *
     while ((di < nd)) {
       struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, di);
       if ((dep_mod !=0)) {
-        uint8_t dep_path[128] = {};
+        uint8_t dep_path[256] = {};
         int32_t dep_path_len = codegen_dep_import_path_len_at(ctx, di, &((dep_path)[0]));
         uint8_t prefix_buf[256] = {};
         int32_t prefix_len = 0;
@@ -13725,7 +13725,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               }
             }
             if ((mc_resolved_ok !=0)) {
-              uint8_t dep_path[128] = {};
+              uint8_t dep_path[256] = {};
               (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &((dep_path)[0])));
               uint8_t pre_buf[256] = {};
               (void)(codegen_import_path_to_c_prefix_into(&((dep_path)[0]), &((pre_buf)[0]), 128));

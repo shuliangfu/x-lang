@@ -512,7 +512,7 @@ export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i3
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
     let pbuf: u8[128] = [];
-    let vbuf: u8[128] = [];
+    let vbuf: u8[256] = [];
     pipeline_asm_module_func_param_name_copy32(mod, fi, pix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, er, &vbuf[0]);
     let k: i32 = 0;
@@ -972,7 +972,7 @@ export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn
       if (slen == fnlen) {
         if (slen > 0) {
           if (slen <= 63) {
-            let sb: u8[128] = [];
+            let sb: u8[256] = [];
             pipeline_expr_struct_lit_field_name_into(arena, lit_ref, j, &sb[0]);
             let k: i32 = 0;
             let ok: i32 = 1;

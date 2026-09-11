@@ -16178,7 +16178,7 @@ function pipeline_dep_ctx_has_earlier_same_import_path_c(ctx: *u8, dep_j: i32): 
   if (path_len > 128) {
     return 0;
   }
-  let path_buf: u8[128] = [];
+  let path_buf: u8[256] = [];
   unsafe {
     memset(&path_buf[0], 0, 128 as usize);
     pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &path_buf[0]);
@@ -16190,7 +16190,7 @@ function pipeline_dep_ctx_has_earlier_same_import_path_c(ctx: *u8, dep_j: i32): 
       prev_len = pipeline_dep_ctx_import_path_len(ctx, prev_j);
     }
     if (prev_len == path_len && prev_len > 0 && prev_len <= 128) {
-      let prev_buf: u8[128] = [];
+      let prev_buf: u8[256] = [];
       unsafe {
         memset(&prev_buf[0], 0, 128 as usize);
         pipeline_dep_ctx_import_path_copy64(ctx, prev_j, &prev_buf[0]);
@@ -16236,7 +16236,7 @@ export function run_x_pipeline_codegen_one_dep_emit(dep_mod: *u8, out_buf: *u8, 
   if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, dep_j) != 0) {
     return 0;
   }
-  let dep_path_buf: u8[128] = [];
+  let dep_path_buf: u8[256] = [];
   unsafe {
     memset(&dep_path_buf[0], 0, 128 as usize);
     pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &dep_path_buf[0]);
@@ -92936,7 +92936,7 @@ export function pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes: *u8, idx: i32): *
 }
 
 /**
- * Copy reloc name row into dst[128] (ABI name kept as copy64; payload 128).
+ * Copy reloc name row into dst[256] (ABI name kept as copy64; Cap 4.2.8 payload 256).
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
  */

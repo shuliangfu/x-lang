@@ -444,7 +444,7 @@ export function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32)
   unsafe {
 
     let m: i32 = 0;
-    let r_sym_buf: u8[128] = [];
+    let r_sym_buf: u8[256] = [];
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, reloc_idx, &r_sym_buf[0]);
     let rlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, reloc_idx);
     while (m < ctx.num_syms) {

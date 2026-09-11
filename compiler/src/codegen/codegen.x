@@ -472,7 +472,7 @@ export function codegen_find_dep_index_by_path(ctx: *PipelineDepCtx, path: *u8, 
     let di: i32 = 0;
     let nd: i32 = pipeline_dep_ctx_ndep(ctx);
     while (di < nd) {
-      let dep_path: u8[128] = [];
+      let dep_path: u8[256] = [];
       let dep_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
       if (dep_len == path_len) {
         let eq: bool = true;
@@ -507,7 +507,7 @@ export function codegen_find_seeded_global_dep_slot_by_path(path: *u8, path_len:
     if (path == 0 as *u8 || path_len <= 0 || path_len > 255) {
       return -1;
     }
-    let path_buf: u8[128] = [];
+    let path_buf: u8[256] = [];
     let i: i32 = 0;
     while (i < path_len && i < 63) {
       path_buf[i] = path[i];
@@ -573,7 +573,7 @@ export function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8,
     buf[pi] = 0 as u8;
     return pi;
   }
-  let path_buf: u8[128] = [];
+  let path_buf: u8[256] = [];
   let path_len: i32 = 0;
   if (ctx.current_codegen_dep_index >= 0) {
     path_len = codegen_dep_import_path_len_at(ctx, ctx.current_codegen_dep_index, &path_buf[0]);
@@ -785,7 +785,7 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
 
     let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
-    let dep_path: u8[128] = [];
+    let dep_path: u8[256] = [];
     let prefix_buf: u8[256] = [];
     let dep_ix: i32 = -1;
     let n_args: i32 = 0;
@@ -5812,7 +5812,7 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
     let bare_len: i32 = name_len - bare_off;
     owner = codegen_type_dep_struct_owner_index(ctx, &ty_nm[bare_off], bare_len);
     if (owner >= 0) {
-      let dep_path: u8[128] = [];
+      let dep_path: u8[256] = [];
       let plen: i32 = codegen_dep_import_path_len_at(ctx, owner, &dep_path[0]);
       if (plen > 0) {
         codegen_import_path_to_c_prefix_into(&dep_path[0], dst, dst_cap);
@@ -8077,7 +8077,7 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
               j = j + 1;
             }
             if (eq) {
-              let dep_path: u8[128] = [];
+              let dep_path: u8[256] = [];
               let plen: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
               if (plen > 0) {
                 codegen_import_path_to_c_prefix_into(&dep_path[0], dst, dst_cap);
@@ -11336,7 +11336,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
         }
         let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
         let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
-        let dep_path: u8[128] = [];
+        let dep_path: u8[256] = [];
         let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
         if (dep_mod == 0 as *Module || dep_arena == 0 as *ASTArena || dep_path_len <= 0) {
           done[di] = 1;
@@ -11501,7 +11501,7 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
     while (di < nd) {
       let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
       if (dep_mod != 0 as *Module) {
-        let dep_path: u8[128] = [];
+        let dep_path: u8[256] = [];
         let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
         let prefix_buf: u8[256] = [];
         let prefix_len: i32 = 0;
@@ -13896,7 +13896,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   if (eq && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {
                     /* Why extern: dep extern symbols must match emit_func_extern_declaration or the linker fails. */
                     let callee_is_extern: i32 = pipeline_module_func_is_extern_at(dep_mod, fi);
-                    let dep_path_call: u8[128] = [];
+                    let dep_path_call: u8[256] = [];
                     pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path_call[0]);
                     let pre_buf: u8[128] = [];
                     codegen_import_path_to_c_prefix_into(&dep_path_call[0], &pre_buf[0], 128);
@@ -15279,7 +15279,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
             }
             if (mc_resolved_ok != 0) {
-            let dep_path: u8[128] = [];
+            let dep_path: u8[256] = [];
             pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path[0]);
             let pre_buf: u8[128] = [];
             codegen_import_path_to_c_prefix_into(&dep_path[0], &pre_buf[0], 128);

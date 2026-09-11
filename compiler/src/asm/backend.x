@@ -2766,8 +2766,8 @@ export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32
     let alen: i32 = pipeline_expr_var_name_len(arena, a_ref);
     let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
     if (alen <= 0 || alen != blen) { return 0; }
-    let abuf: u8[128] = [];
-    let bbuf: u8[128] = [];
+    let abuf: u8[256] = [];
+    let bbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, a_ref, &abuf[0]);
     pipeline_expr_var_name_into(arena, b_ref, &bbuf[0]);
     let k: i32 = 0;
@@ -3042,7 +3042,7 @@ export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
       if (llen == vlen) {
         let is_match: i32 = 1;
-        let lb: u8[128] = [];
+        let lb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
         let kk: i32 = 0;
         while (kk < vlen) {
@@ -3105,7 +3105,7 @@ export function fold_is_field_assign_from_var(
       return 0;
     }
     if (pipeline_expr_field_access_name_len(arena, left_ref) != 1) { return 0; }
-    let fn: u8[128] = [];
+    let fn: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
     if (fn[0] != field_ch) { return 0; }
     return fold_expr_var_refs_same(arena, right_ref, src_ref);
@@ -3133,7 +3133,7 @@ export function fold_is_field_assign_i_plus_one(arena: *ASTArena, er: i32, pair_
       return 0;
     }
     if (pipeline_expr_field_access_name_len(arena, left_ref) != 1) { return 0; }
-    let fn: u8[128] = [];
+    let fn: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
     if (fn[0] != 98 as u8) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, right_ref) != 4) { return 0; }
@@ -3372,7 +3372,7 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
       if (llen == vlen) {
         let is_match: i32 = 1;
-        let lb: u8[128] = [];
+        let lb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
         let kk: i32 = 0;
         while (kk < vlen) {
