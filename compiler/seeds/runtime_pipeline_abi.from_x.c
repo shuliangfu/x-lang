@@ -56388,6 +56388,11 @@ int32_t pipeline_arena_expr_cap(void) { return W276C_NO_LIMIT; }
 int32_t pipeline_arena_block_cap(void) { return W276C_NO_LIMIT; }
 int32_t pipeline_arena_func_cap(void) { return W276C_NO_LIMIT; }
 
+/**
+ * Initialize EXPR_VAR slot in Cap 4.2.8 Expr layout (name[256]@32, name_len@288).
+ * Oversize name_len (>255) clamps to 255 (content max). call_res_* @1216/1220.
+ * PLATFORM: SHARED — wave276 cold twin (#ifndef FROM_X); tip prefer uses .x.
+ */
 void pipeline_arena_expr_write_var(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
   uint8_t *ep;
   int32_t n, i;
@@ -56399,14 +56404,18 @@ void pipeline_arena_expr_write_var(void *a, int32_t ref, uint8_t *name, int32_t 
   w276_zero(ep, W276C_EX);
   w276_store_i32(ep, 0, 3); /* EXPR_VAR */
   n = name_len;
-  if (n > 127)
-    n = 63;
-  w276_store_i32(ep, 160, n);
+  if (n > 255)
+    n = 255;
+  w276_store_i32(ep, 288, n);
   for (i = 0; i < n; i++)
     ep[32 + i] = name[i];
-  w276_store_i32(ep, 704, -1);
-  w276_store_i32(ep, 708, -1);
+  w276_store_i32(ep, 1216, -1);
+  w276_store_i32(ep, 1220, -1);
 }
+/**
+ * Initialize binop expr slot (left@292 right@296; Cap 4.2.8 layout).
+ * PLATFORM: SHARED — wave276 cold twin; tip prefer uses .x.
+ */
 void pipeline_arena_expr_write_binop(void *a, int32_t ref, int32_t kind_ord, int32_t left_ref, int32_t right_ref) {
   uint8_t *ep;
   if (!a || ref <= 0)
@@ -56416,10 +56425,10 @@ void pipeline_arena_expr_write_binop(void *a, int32_t ref, int32_t kind_ord, int
     return;
   w276_zero(ep, W276C_EX);
   w276_store_i32(ep, 0, kind_ord);
-  w276_store_i32(ep, 164, left_ref);
-  w276_store_i32(ep, 168, right_ref);
-  w276_store_i32(ep, 704, -1);
-  w276_store_i32(ep, 708, -1);
+  w276_store_i32(ep, 292, left_ref);
+  w276_store_i32(ep, 296, right_ref);
+  w276_store_i32(ep, 1216, -1);
+  w276_store_i32(ep, 1220, -1);
 }
 void ast_pipeline_arena_expr_write_var(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
   pipeline_arena_expr_write_var(a, ref, name, name_len);
@@ -61673,10 +61682,14 @@ int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, i
   return memcmp(f->name, name, (size_t)name_len) == 0 ? 1 : 0;
 }
 
-/** Read module func name byte (0..name_len-1); OOB returns 0. */
+/**
+ * Read module func name byte (0..name_len-1); OOB returns 0.
+ * Cap 4.2.8: Func.name[256] content ≤255 — index bound is 256 (was 64).
+ * PLATFORM: SHARED — WAVE280 ALWAYS domain (tip rest + cold).
+ */
 uint8_t pipeline_module_func_name_byte_at(void *m, int32_t fi, int32_t i) {
   W280_Func *f;
-  if (!m || i < 0 || i >= 64)
+  if (!m || i < 0 || i >= 256)
     return 0;
   f = module_func_at(m, fi);
   if (!f || i >= (int32_t)f->name_len)

@@ -97791,11 +97791,12 @@ export function pipeline_arena_func_cap(): i32 {
 }
 
 /**
- * Initialize EXPR_VAR slot in C layout (avoid X whole-struct set).
+ * Initialize EXPR_VAR slot in Cap 4.2.8 C layout (avoid X whole-struct set).
  * @param a *u8 - ASTArena*
  * @param ref i32 - expr ref
  * @param name *u8 - name bytes
- * @param name_len i32 - length
+ * @param name_len i32 - length (content max 255; oversize clamps to 255)
+ * Layout: name[256]@32, name_len@288, call_res_fi/di@1216/1220.
  * wave276 pure Cap leave. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -97819,8 +97820,9 @@ export function pipeline_arena_expr_write_var(a: *u8, ref: i32, name: *u8, name_
   pipe_ar_zero(ep, pipe_ar_ex_sz());
   pipe_ar_store_i32(ep, pipe_ar_ex_kind(), pipe_ar_ek_var());
   let n: i32 = name_len;
+  // Cap 4.2.8: storage name[256] holds ≤255 content bytes; clamp oversize.
   if (n > 255) {
-    n = 63;
+    n = 255;
   }
   pipe_ar_store_i32(ep, pipe_ar_ex_var_name_len(), n);
   let i: i32 = 0;
