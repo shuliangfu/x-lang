@@ -30,6 +30,16 @@ enum {
 
 /** block_stmt 内嵌审计前向声明（定义在本文件后部）。 */
 int32_t parser_asm_stretch_if_header_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_trait_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 int32_t parser_asm_stretch_import_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_struct_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_try_skip_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
@@ -11105,8 +11115,15 @@ int32_t parser_asm_stretch_primary_ultra_hyper_mega_full_deep_buf_audit_c(void *
 /**
  * tier43：import ultra hyper mega 全链 slice 深探（import hyper + collect imports mega + skip imports mega）。
  */
-int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                     struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_import_hyper_mega_full_deep_audit_c(&lex, source);
@@ -11114,20 +11131,29 @@ int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(struct pars
   score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier43：import ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                          int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier43：parse_into ultra hyper mega 全链 buf 深探（hyper mega + import hyper + diag hyper）。
@@ -11190,8 +11216,15 @@ int32_t parser_asm_stretch_match_ultra_hyper_mega_full_deep_buf_audit_c(void *le
 /**
  * tier43：struct ultra hyper mega 全链 slice 深探（struct hyper + try_skip hyper + layout mega）。
  */
-int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                     struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_struct_hyper_mega_full_deep_audit_c(&lex, source);
@@ -11199,26 +11232,42 @@ int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(struct pars
   score += parser_asm_stretch_parse_struct_layout_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier43：struct ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                         int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier43：trait ultra hyper mega 全链 buf 深探（trait hyper + struct hyper + impl skip mega）。
  */
-int32_t parser_asm_stretch_trait_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                        int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_trait_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   if (!data || len <= 0)
@@ -11228,12 +11277,20 @@ int32_t parser_asm_stretch_trait_ultra_hyper_mega_full_deep_buf_audit_c(struct p
   score += parser_asm_stretch_impl_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier43：函数 ultra hyper mega 全链 slice 深探（fn hyper + library hyper + body skip hyper）。
  */
-int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                 struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_fn_hyper_mega_full_deep_audit_c(&lex, source);
@@ -11241,20 +11298,29 @@ int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(struct parser_a
   score += parser_asm_stretch_body_skip_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier43：函数 ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                     int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_fn_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier43：控制流 ultra hyper mega 全链 slice 深探（control flow hyper + body skip hyper + match hyper）。
@@ -11362,8 +11428,15 @@ int32_t parser_asm_stretch_body_skip_ultra_hyper_mega_full_deep_buf_audit_c(void
 /**
  * tier43：library ultra hyper mega 全链 slice 深探（library hyper + fn hyper + import hyper）。
  */
-int32_t parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                      struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_library_hyper_mega_full_deep_audit_c(&lex, source);
@@ -11371,6 +11444,7 @@ int32_t parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(struct par
   score += parser_asm_stretch_import_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier43：library ultra hyper mega 全链 buf 深探。
@@ -11398,8 +11472,15 @@ int32_t parser_asm_stretch_library_ultra_hyper_mega_full_deep_buf_audit_c(void *
 /**
  * tier43：try_skip ultra hyper mega 全链 slice 深探（try_skip hyper + struct hyper + body skip hyper）。
  */
-int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                       struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_try_skip_hyper_mega_full_deep_audit_c(&lex, source);
@@ -11407,20 +11488,29 @@ int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(struct pa
   score += parser_asm_stretch_body_skip_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier43：try_skip ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                           int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(lex, &sl);
+  return parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier43：top_level ultra hyper mega 全链 buf 深探（toplevel hyper + import hyper + parse_into ultra hyper mega）。
@@ -11530,7 +11620,7 @@ int32_t parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(struct 
                                                                          struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
@@ -11560,7 +11650,7 @@ int32_t parser_asm_stretch_parse_into_max_ultra_hyper_mega_full_deep_buf_audit_c
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_parse_into_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(data, len);
   return score > 0 ? 1 : 0;
 }
@@ -11615,8 +11705,8 @@ int32_t parser_asm_stretch_struct_max_ultra_hyper_mega_full_deep_audit_c(struct 
                                                                          struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_parse_struct_layout_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -11644,8 +11734,8 @@ int32_t parser_asm_stretch_trait_max_ultra_hyper_mega_full_deep_buf_audit_c(stru
 
   if (!data || len <= 0)
     return 0;
-  score = parser_asm_stretch_trait_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_struct_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score = parser_asm_stretch_trait_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += parser_asm_stretch_struct_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_impl_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -11657,8 +11747,8 @@ int32_t parser_asm_stretch_fn_max_ultra_hyper_mega_full_deep_audit_c(struct pars
                                                                      struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_body_skip_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -11732,7 +11822,7 @@ int32_t parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c(uint8
     return 0;
   lex = parser_asm_lexer_init_c();
   score = parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(data, len);
-  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -11746,7 +11836,7 @@ int32_t parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(stru
 
   score = parser_asm_stretch_body_skip_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_expr_ultra_hyper_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -11771,9 +11861,9 @@ int32_t parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_audit_c(struct
                                                                           struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_fn_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -11787,7 +11877,7 @@ int32_t parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_buf_audit_c(st
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_library_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
-  score += parser_asm_stretch_fn_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_fn_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_extern_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -11799,8 +11889,8 @@ int32_t parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_audit_c(struc
                                                                            struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_body_skip_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -11830,7 +11920,7 @@ int32_t parser_asm_stretch_toplevel_max_ultra_hyper_mega_full_deep_buf_audit_c(s
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_toplevel_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len, is_const);
-  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_into_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }

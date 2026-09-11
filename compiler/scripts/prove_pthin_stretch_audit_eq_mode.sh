@@ -113,7 +113,10 @@ case "$MODE" in
       exit 2
     fi
     export EQ_ONLY="$1"
-    export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-128}"
+    # Default OFF=24: ultra_hyper+ score chains make OFF=128 daily multi-minute;
+    # close already covers the full table at OFF=24×parallel. Override with
+    # EQ_MAX_FILE_OFF=128 when deliberately deepening a delta smoke.
+    export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-24}"
     unset EQ_SHARD || true
     echo "eq_mode=daily EQ_ONLY=$EQ_ONLY OFF=$EQ_MAX_FILE_OFF (target <2min)"
     build_harness
