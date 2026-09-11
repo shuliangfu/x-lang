@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.24 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.25 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,16 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.25: controlled climb exact pinnacle after v5.24 zenith —
+#   Soft fixed-point only (no new hand-port): unlock exact
+#   `*_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_*` whose
+#   zenith_peak callees are already migrated (import/struct/try_skip/fn/
+#   library/body_skip/control_flow/expr/match/primary + trait buf).
+#   Cap ≈21. Refuse crown+/88+ versal; refuse parse_into pinnacle
+#   (blocked on unmigrated parse_into zenith). Still refused: simd
+#   from_at, peek_kind, diag/toplevel (non-byval). Eq gate: HARD BAN
+#   deep daily — soft knife = close only (thinned defaults).
 #
 # v5.24: controlled climb exact zenith after v5.23 peak —
 #   Soft fixed-point only (no new hand-port): unlock exact
