@@ -387,7 +387,7 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
         nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
       }
       // Strip one module prefix so "heap.PageMmapHeap" matches dep "PageMmapHeap".
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         dot2 = 0 - 1;
         ji = 0;
         while (ji < nlen) {
