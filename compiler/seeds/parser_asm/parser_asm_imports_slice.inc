@@ -234,7 +234,7 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source));
 
 
 
@@ -1062,7 +1062,7 @@ void parser_asm_collect_imports_buf_c(struct parser_asm_lexer lex, uint8_t *data
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
 
 
 

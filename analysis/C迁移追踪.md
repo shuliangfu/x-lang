@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **561／1,956**（v5.26）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **582／1,956**（v5.27）  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -275,7 +275,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（561／1,956；v5.26 exact-crown import/struct/try_skip／fn／library／body_skip／control_flow／expr／match／primary／trait-buf 已收；续＝supreme／versal／parse_into_hyper／simd from_at／peek_kind；**深链 close only**）＋ **BC + 8.3**  
+2. 🟡 **7.2.1b** B-minus 续（582／1,956；v5.27 exact-supreme import/struct/try_skip／fn／library／body_skip／control_flow／expr／match／primary／trait-buf 已收；续＝ultimate／versal／parse_into_hyper／simd from_at／peek_kind；**深链 close only**）＋ **BC + 8.3**  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
