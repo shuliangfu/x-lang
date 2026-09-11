@@ -145,12 +145,14 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
     // Do NOT skip when name[0]=='_' — C reserved names like __error must become
     // ___error (host cc). Skipping left bare U __error → pure-ld fail / residual.
     let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    // Cap 4.2.8: reloc_name[256] holds '_' + up to 255 content (was [128]/127).
+    // PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag 0.
     if (macho != 0 && name_len > 0 && name_len <= 255) {
-      let reloc_name: u8[128] = [];
+      let reloc_name: u8[256] = [];
       reloc_name[0] = 95;
       let i: i32 = 0;
       while (i < name_len) {
-        if (i >= 127) { break; }
+        if (i >= 255) { break; }
         reloc_name[i + 1] = name[i];
         i = i + 1;
       }

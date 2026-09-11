@@ -314,7 +314,8 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
  * Hoist of emit_code_len before pad → multi-func SEGV (overload.x). */
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
-  uint8_t mn[128];
+  /* Cap 4.2.8: mn[256] holds '_' + up to 255 content (was [128] with k<255 smash). */
+  uint8_t mn[256];
   int32_t k;
   int32_t code_len;
   if (!elf_ctx || !name || name_len < 0) return -1;
@@ -325,7 +326,7 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
   code_len = pipeline_elf_ctx_emit_code_len(cb);
   if (pipeline_elf_ctx_add_label(cb, name, name_len, code_len) != 0) return -1;
   if (is_func == 0) return 0;
-  /* wave580 Cap: mn u8[128] holds '_' + up to 255 content (was 63).
+  /* Cap 4.2.8: mn u8[256] holds '_' + up to 255 content (was wave580 [128]).
    * PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name. */
   if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
     mn[0] = 95;

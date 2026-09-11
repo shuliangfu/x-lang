@@ -3441,7 +3441,8 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
           continue;
         if (pipeline_module_func_is_extern_at(mod, efi) != 0) {
           /* Prefer bare extern name (even if also listed with a body elsewhere). */
-          if (clen > 0 && clen < out_cap) {
+          /* Cap 4.2.8: length-returned API — exact out_cap fit is OK (no NUL). */
+          if (clen > 0 && clen <= out_cap) {
             memcpy(out, cname, (size_t)clen);
             return clen;
           }
@@ -3499,7 +3500,7 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
         for (fi2 = 0; fi2 < pipeline_module_num_funcs(dep_mod); fi2++) {
           if (pipeline_module_func_name_equal_at(dep_mod, fi2, cname, clen)
               && pipeline_module_func_is_extern_at(dep_mod, fi2) != 0) {
-            if (clen > 0 && clen < out_cap) {
+            if (clen > 0 && clen <= out_cap) {
               memcpy(out, cname, (size_t)clen);
               return clen;
             }
@@ -3568,7 +3569,7 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
       /* extern 函数（xlang_sys_* / libc）用裸名：定义由 freestanding_io 桩或 libc 提供，
        * 勿加 dep 前缀（否则 ld 缺符号 std_heap_page_mmap_xlang_sys_mmap）。 */
       if (pipeline_module_func_is_extern_at(mod, func_ix) != 0) {
-        if (clen > 0 && clen < out_cap) {
+        if (clen > 0 && clen <= out_cap) {
           memcpy(out, cname, (size_t)clen);
           return clen;
         }
@@ -3580,7 +3581,7 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
   /* 兜底：被调用函数既不在 dep 列表也不在当前模块 → extern 函数（xlang_sys_*, libc）。
    * extern 定义由 freestanding_io 桩或 libc 提供（裸名），勿加 dep 前缀
    *（否则 ld 缺符号 std_heap_page_mmap_xlang_sys_mmap）。 */
-  if (clen > 0 && clen < out_cap) {
+  if (clen > 0 && clen <= out_cap) {
     memcpy(out, cname, (size_t)clen);
     return clen;
   }
@@ -6134,10 +6135,10 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
       return inline_rc < 0 ? -1 : 0;
   }
   clen = pipeline_expr_var_name_len(arena, callee_ref);
-  /* wave580 Cap residual: long callee idents (64..127) must build call symbols. */
+  /* Cap 4.2.8: long callee idents (content ≤255) must build call symbols. */
   if (clen <= 0 || clen > 255)
     return -1;
-  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 128);
+  clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 256);
   if (clen <= 0)
     return -1;
   backend_call_debugf("call elf c %.*s nargs=%d", (int)clen, (char *)cname, (int)nargs);
@@ -7281,17 +7282,18 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     {
       int32_t r_fn_call = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
       int32_t r_dep_call = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-      uint8_t call_sym[128];
+      /* Cap 4.2.8: call_sym[256] / out_cap 256 (was [128] → long METHOD mid CG002). */
+      uint8_t call_sym[256];
       int32_t call_sym_len = -1;
       if (r_fn_call >= 0 && r_dep_call < 0 && mod_ref) {
-        call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, call_sym, 128);
+        call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, call_sym, 256);
       } else if (r_fn_call >= 0 && r_dep_call >= 0 && ly && ly->dep_pipe) {
         struct ast_Module *dm = pipeline_dep_ctx_module_at(ly->dep_pipe, r_dep_call);
         struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ly->dep_pipe, r_dep_call);
         if (dm) {
           if (!da)
             da = arena;
-          call_sym_len = glue_asm_build_func_export_sym_c(dm, da, r_fn_call, call_sym, 128);
+          call_sym_len = glue_asm_build_func_export_sym_c(dm, da, r_fn_call, call_sym, 256);
         }
       }
       if (call_sym_len > 0) {
@@ -7418,7 +7420,7 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
         uint8_t *trait_nm, int32_t trait_nlen, uint8_t *for_nm, int32_t for_nlen,
         int32_t for_ptr, int32_t slot_i, int32_t recv_rt) {
   uint8_t meth_nm[64]; int32_t meth_nlen;
-  int32_t impl_fi; uint8_t impl_nm[128]; int32_t impl_nlen;
+  int32_t impl_fi; uint8_t impl_nm[256]; int32_t impl_nlen;
   uint8_t wrap_nm[168]; int32_t wrap_nlen;
   int32_t macho; uint8_t sym_nm[170]; int32_t sym_nlen;
   int32_t entry_off, k;
@@ -7431,7 +7433,7 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
   impl_fi = codegen_find_impl_method_for_type(module, arena, meth_nm, meth_nlen, recv_rt);
   if (impl_fi < 0) { return 0; }
   pipeline_module_func_set_is_used(module, impl_fi, 1);
-  impl_nlen = glue_asm_build_func_export_sym_c(module, arena, impl_fi, impl_nm, 128);
+  impl_nlen = glue_asm_build_func_export_sym_c(module, arena, impl_fi, impl_nm, 256);
   if (impl_nlen <= 0) { return -1; }
   wrap_nlen = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,
           for_nm, for_nlen, for_ptr, slot_i, wrap_nm);

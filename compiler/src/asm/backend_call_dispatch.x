@@ -6745,10 +6745,12 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     }
     let clen0: i32 = pipeline_expr_var_name_len(arena, callee_ref);
     if (clen0 <= 0) { return 0 - 1; }
-    if (clen0 > 127) { return 0 - 1; }
+    // Cap 4.2.8: AST name content cap 255 (was wave580 hard-reject >127 → asm -o CG002).
+    if (clen0 > 255) { return 0 - 1; }
     let cname: u8[256] = [];
-    // wave580 Cap residual: out_cap must match cname[256] / AST name content cap 255.
-    let clen: i32 = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, dep_pipe, &cname[0], 128);
+    // Cap 4.2.8: out_cap must match cname[256] / AST name content cap 255 (was 128).
+    // PLATFORM: SHARED — Darwin '_' is applied in enc_call/enc_label, not here.
+    let clen: i32 = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, dep_pipe, &cname[0], 256);
     if (clen <= 0) { return 0 - 1; }
     return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, &cname[0], clen);
   }

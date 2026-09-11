@@ -60,7 +60,8 @@ int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, in
 int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                  int32_t is_func) {
   uint8_t *cb;
-  uint8_t mn[128];
+  /* Cap 4.2.8: mn[256] holds '_' + up to 255 content (was [128]/127 stack-smash risk). */
+  uint8_t mn[256];
   int32_t k;
   if (!elf_ctx || !name || name_len < 0)
     return -1;
@@ -71,12 +72,12 @@ int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
     return -1;
   if (is_func == 0)
     return 0;
-  /* wave580 Cap: mn is u8[128] → '_' + up to 255 content bytes (was 63).
+  /* Cap 4.2.8: mn is u8[256] → '_' + up to 255 content bytes (was wave580 [128]/127).
    * PLATFORM: MACOS|DARWIN arm64 pure-asm export syms. */
   if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
     mn[0] = 95;
     k = 0;
-    while (k < name_len && k < 127) {
+    while (k < name_len && k < 255) {
       mn[k + 1] = name[k];
       k = k + 1;
     }

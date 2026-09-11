@@ -51008,7 +51008,8 @@ int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t 
 /** num_relocs > TABLE_CAP 时的堆 sidecar（单 ctx 编译期有效；elf_ctx_reset 绑定 owner）。 */
 static uint8_t *g_pipeline_elf_reloc_sidecar_owner;
 static PipelineElfRelocHeapEntry g_pipeline_elf_reloc_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP];
-static uint8_t g_pipeline_elf_reloc_sym_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP][128];
+/* Cap 4.2.8: heap reloc sym rows match reloc_sym_names.bytes[256] (was [128]). */
+static uint8_t g_pipeline_elf_reloc_sym_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP][256];
 
 /** PGO 段索引 sidecar：内联 labels/patches/relocs 无 code_shndx 字段（与 elf.x 布局对齐）。 */
 static uint8_t *g_pipeline_elf_shndx_sidecar_owner;
@@ -53156,8 +53157,8 @@ int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t na
   if (ctx->num_labels >= PIPELINE_ELF_CTX_TABLE_CAP)
     return -1;
   li = ctx->num_labels;
-  /* wave577 Cap / wave580: labels.name is u8[128]; store up to 128 (was silent 64 clamp). */
-  n = name_len > 128 ? 128 : name_len;
+  /* Cap 4.2.8: labels.name is u8[256]; store up to 255 content (was wave580 128). */
+  n = name_len > 255 ? 255 : name_len;
   if (n < 0)
     n = 0;
   if (n > 0)
@@ -53214,10 +53215,10 @@ int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name
   if (g_pipeline_elf_common_owner != ctx_bytes)
     pipeline_elf_common_sidecar_reset(ctx_bytes);
   copy_len = name_len;
-  /* wave580 Cap residual: sym name pool holds link names up to 128
-   * ('_' + 127 AST content on Darwin). Was 64. */
-  if (copy_len > 128)
-    copy_len = 128;
+  /* Cap 4.2.8: sym name pool holds link names up to 256
+   * ('_' + 255 AST content on Darwin). Was wave580 128. */
+  if (copy_len > 256)
+    copy_len = 256;
   if (copy_len < 0)
     copy_len = 0;
   if (ctx->sym_name_len + copy_len > 131072)
@@ -53311,8 +53312,8 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
   pi = ctx->num_patches;
   ent = &ctx->patches[pi];
   ent->rel32_offset = rel32_offset;
-  /* wave580 Cap: patches.name is u8[128]; store clamped length matching copied bytes. */
-  n = name_len > 128 ? 128 : name_len;
+  /* Cap 4.2.8: patches.name is u8[256]; store clamped length matching copied bytes. */
+  n = name_len > 255 ? 255 : name_len;
   if (n < 0)
     n = 0;
   if (n > 0)
@@ -53555,9 +53556,9 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
     hent->name_len = name_len;
   }
   pipeline_elf_reloc_shndx_set(ctx_bytes, ri, pipeline_elf_ctx_current_shndx(ctx));
-  /* wave580 Cap: reloc_sym_names.bytes is u8[128]; clamp to full row ('_'+127 ok). */
+  /* Cap 4.2.8: reloc_sym_names.bytes is u8[256]; clamp to full row ('_'+255 ok). */
   memset(sym_row, 0, 256);
-  n = name_len > 128 ? 128 : name_len;
+  n = name_len > 255 ? 255 : name_len;
   if (n < 0)
     n = 0;
   if (n > 0)
@@ -66723,7 +66724,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     int32_t fname_len;
     int32_t export_sym_len;
     int32_t result_ref;
-    uint8_t export_sym[128];
+    /* Cap 4.2.8: export_sym[256] / out_cap 256 (was [128] → long def truncates). */
+    uint8_t export_sym[256];
     void *bctx = (void *)&ctx;
 
     if (i < 0)
@@ -66788,8 +66790,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     }
     pipeline_asm_register_module_top_level_lets_c(bctx, m, a, i);
     pipeline_debug_trace_named_func_bodies("mega_post_register_top_level", m, a);
-    /* wave580 Cap: export_sym is u8[128]; out_cap must be 128. */
-    export_sym_len = glue_asm_build_func_export_sym_c(m, a, i, export_sym, 128);
+    /* Cap 4.2.8: export_sym is u8[256]; out_cap must be 256 (AST content ≤255). */
+    export_sym_len = glue_asm_build_func_export_sym_c(m, a, i, export_sym, 256);
     if (export_sym_len <= 0)
       return -1;
     if (backend_enc_label_arch(elf_ctx, export_sym, export_sym_len, 1, ta) != 0) {

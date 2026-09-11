@@ -1165,12 +1165,13 @@ export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32
     if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) { return 0 - 1; }
     if (is_func == 0) { return 0; }
     // Mach-O: export with leading underscore when host requests it.
-    // wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
-      let mn: u8[128] = [0];
+    // Cap 4.2.8: mn u8[256] holds '_' + up to 255 content (was wave580 [128]/127).
+    // PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name.
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
+      let mn: u8[256] = [0];
       mn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 127) {
+      while (k < name_len && k < 255) {
         mn[k + 1] = name[k];
         k = k + 1;
       }
@@ -1954,11 +1955,12 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names (even if the
     // C name itself starts with '_', e.g. __error → ___error). Stage 12.0.5.
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127) {
-      let rn: u8[128] = [0];
+    // Cap 4.2.8: rn[256] holds '_' + up to 255 content (was [128]/127).
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 255) {
+      let rn: u8[256] = [0];
       rn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 127) {
+      while (k < name_len && k < 255) {
         rn[k + 1] = name[k];
         k = k + 1;
       }

@@ -91594,7 +91594,8 @@ function pipe_elf_rh_off_shndx(): i32 { return 8; }
 // ---------------------------------------------------------------------------
 let g_pipe_elf_reloc_sidecar_owner: *u8 = 0 as *u8;
 let g_pipe_elf_reloc_heap: u8[196608] = [];
-let g_pipe_elf_reloc_sym_heap: u8[2097152] = [];
+// Cap 4.2.8: RELOC_HEAP_CAP(16384) × 256-byte name rows (was 128 → 2097152).
+let g_pipe_elf_reloc_sym_heap: u8[4194304] = [];
 
 let g_pipe_elf_shndx_sidecar_owner: *u8 = 0 as *u8;
 let g_pipe_elf_label_shndx: u8[65536] = [];
@@ -91774,7 +91775,8 @@ function pipe_elf_reloc_sym_heap_at(hi: i32): *u8 {
   if (hi < 0 || hi >= pipe_elf_reloc_heap_cap()) {
     return 0 as *u8;
   }
-  let off: i64 = (hi as i64) * 128;
+  // Cap 4.2.8: row stride 256 (was wave580 128).
+  let off: i64 = (hi as i64) * 256;
   return &g_pipe_elf_reloc_sym_heap[0] + (off as usize);
 }
 
@@ -92371,8 +92373,9 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
   let li: i32 = nl;
   let lab2: *u8 = pipe_elf_label_at(ctx_bytes, li);
   let n: i32 = name_len;
-  if (n > 128) {
-    n = 128;
+  // Cap 4.2.8: labels.name[256] content ≤255 (was wave580 128 → asm -o long-name CG002).
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -92449,8 +92452,9 @@ export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i3
     pipe_elf_common_sidecar_reset(ctx_bytes);
   }
   let copy_len: i32 = name_len;
-  if (copy_len > 128) {
-    copy_len = 128;
+  // Cap 4.2.8: sym name pool holds '_' + ≤255 AST content (was wave580 128).
+  if (copy_len > 256) {
+    copy_len = 256;
   }
   if (copy_len < 0) {
     copy_len = 0;
@@ -92555,8 +92559,9 @@ export function pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32,
   let ent: *u8 = pipe_elf_patch_at(ctx_bytes, pi);
   pipe_store_i32_le(ent, pipe_elf_pat_off_rel32(), rel32_offset);
   let n: i32 = name_len;
-  if (n > 128) {
-    n = 128;
+  // Cap 4.2.8: patches.name[256] content ≤255 (was wave580 128).
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -92815,12 +92820,13 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
     sym_row = pipe_elf_reloc_sym_heap_at(hi);
   }
   pipe_elf_reloc_shndx_set(ctx_bytes, ri, pipe_elf_current_shndx(ctx_bytes));
+  // Cap 4.2.8: reloc_sym_names.bytes[256] (was wave580 memset/clamp 128).
   unsafe {
-    memset(sym_row, 0, 128 as usize);
+    memset(sym_row, 0, 256 as usize);
   }
   let n: i32 = name_len;
-  if (n > 128) {
-    n = 128;
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
