@@ -90,6 +90,37 @@ typedef struct {
 
 static int g_fail = 0;
 static long g_checks = 0;
+static size_t g_cases_sel = 0;
+
+/**
+ * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
+ * A case runs iff its name contains any substring. Empty/unset = all cases.
+ * PLATFORM: SHARED — used to prove only this wave's new exports in minutes
+ * instead of re-scoring the full 400+ table (~50 min at OFF=128).
+ */
+static int case_selected(const audit_case *ac) {
+  const char *only = getenv("EQ_ONLY");
+  char buf[2048];
+  size_t n;
+  char *tok;
+  char *save;
+  if (!only || !only[0])
+    return 1;
+  n = strlen(only);
+  if (n >= sizeof(buf))
+    n = sizeof(buf) - 1;
+  memcpy(buf, only, n);
+  buf[n] = 0;
+  for (tok = strtok_r(buf, ",", &save); tok; tok = strtok_r(0, ",", &save)) {
+    while (*tok == ' ' || *tok == '\t')
+      tok++;
+    if (!*tok)
+      continue;
+    if (strstr(ac->name, tok))
+      return 1;
+  }
+  return 0;
+}
 
 /** Compare one (C ref, .x) pair on one lexer state; verify contract. */
 static void check_one(const audit_case *ac, struct parser_asm_lexer lex,
@@ -98,6 +129,8 @@ static void check_one(const audit_case *ac, struct parser_asm_lexer lex,
   struct parser_asm_lexer for_x = lex;
   int32_t rc_c;
   int32_t rc_x;
+  if (!case_selected(ac))
+    return;
   if (getenv("EQ_TRACE")) fprintf(stderr, "[trace] %s pos=%zu\n", ac->name, lex.pos);
   rc_c = ac->c_ref(&for_c, src, ac->flag);
   rc_x = ac->x_ver(&for_x, src, ac->flag);
@@ -175,10 +208,26 @@ int main(int argc, char **argv) {
   };
   size_t i;
   int f;
-  for (i = 0; i < sizeof(k_synth) / sizeof(k_synth[0]); i++) {
-    char tag[32];
-    snprintf(tag, sizeof(tag), "synth%zu", i);
-    battery(tag, k_synth[i], strlen(k_synth[i]) + 1, 64); /* +1: NUL sentinel in slice (lexer authority contract: index < length) */
+  {
+    size_t ci;
+    g_cases_sel = 0;
+    for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++)
+      if (case_selected(&k_cases[ci]))
+        g_cases_sel++;
+    fprintf(stderr, "eq_harness: cases_selected=%zu/%zu EQ_ONLY=%s EQ_SKIP_SYNTH=%s EQ_MAX_FILE_OFF=%s\n",
+            g_cases_sel, (size_t)(sizeof(k_cases) / sizeof(k_cases[0])),
+            getenv("EQ_ONLY") && getenv("EQ_ONLY")[0] ? getenv("EQ_ONLY") : "(all)",
+            getenv("EQ_SKIP_SYNTH") && getenv("EQ_SKIP_SYNTH")[0] ? getenv("EQ_SKIP_SYNTH") : "0",
+            getenv("EQ_MAX_FILE_OFF") && getenv("EQ_MAX_FILE_OFF")[0] ? getenv("EQ_MAX_FILE_OFF")
+                                                                     : "1200");
+  }
+  /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain. */
+  if (!(getenv("EQ_SKIP_SYNTH") && getenv("EQ_SKIP_SYNTH")[0] && getenv("EQ_SKIP_SYNTH")[0] != '0')) {
+    for (i = 0; i < sizeof(k_synth) / sizeof(k_synth[0]); i++) {
+      char tag[32];
+      snprintf(tag, sizeof(tag), "synth%zu", i);
+      battery(tag, k_synth[i], strlen(k_synth[i]) + 1, 64); /* +1: NUL sentinel in slice */
+    }
   }
   for (f = 1; f < argc; f++) {
     FILE *fp = fopen(argv[f], "rb");
