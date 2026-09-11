@@ -91,7 +91,8 @@ function l6_binding_is_used(a: *u8, name: *u8, nlen: i32): i32 {
   let er: i32 = 1;
   let ko: i32 = 0;
   let vlen: i32 = 0;
-  let vbuf: u8[128] = [];
+  /* Cap 4.2.8: var_name_into memset(out,0,256). */
+  let vbuf: u8[256] = [];
   if (a == 0 as *u8 || name == 0 as *u8 || nlen <= 0) {
     return 1;
   }
@@ -107,7 +108,7 @@ function l6_binding_is_used(a: *u8, name: *u8, nlen: i32): i32 {
       unsafe {
         vlen = pipeline_expr_var_name_len(a, er);
       }
-      if (vlen == nlen && vlen > 0 && vlen < 128) {
+      if (vlen == nlen && vlen > 0 && vlen < 256) {
         unsafe {
           pipeline_expr_var_name_into(a, er, &vbuf[0]);
         }

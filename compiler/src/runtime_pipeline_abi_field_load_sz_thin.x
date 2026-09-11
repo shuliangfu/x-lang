@@ -69,7 +69,8 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let tr: i32 = 0;
   let base_tr: i32 = 0;
   let base_ref: i32 = 0;
-  let struct_name: u8[128] = [];
+  /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let flen: i32 = 0;
   /* Cap 4.2.8: field_access_name_into / layout_field_name_into write 256. */

@@ -111,7 +111,8 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   let mod: *u8 = 0 as *u8;
   let holds: i32 = 0;
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  /* Cap 4.2.8: var_name_into memset(out,0,256); align mega runtime_pipeline_abi.x. */
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let fi: i32 = 0;
   let nf: i32 = 0;
@@ -139,7 +140,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
