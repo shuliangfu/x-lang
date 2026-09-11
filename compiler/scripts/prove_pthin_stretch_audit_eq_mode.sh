@@ -65,7 +65,17 @@ default_jobs() {
 
 build_harness() {
   mkdir -p "$OUT"
-  ./xlang -E src/asm/pthin_stretch_audit.x >"$OUT/audit_x_E.c" 2>"$OUT/audit_x_E.err"
+  # Fail hard on -E: empty/failed emit must not reuse a stale audit_x.o (fake-green).
+  if ! ./xlang -E src/asm/pthin_stretch_audit.x >"$OUT/audit_x_E.c" 2>"$OUT/audit_x_E.err"; then
+    echo "pthin_stretch_audit_eq: -E FAILED (see $OUT/audit_x_E.err)" >&2
+    cat "$OUT/audit_x_E.err" >&2 || true
+    return 1
+  fi
+  if [ ! -s "$OUT/audit_x_E.c" ]; then
+    echo "pthin_stretch_audit_eq: -E produced empty C (see $OUT/audit_x_E.err)" >&2
+    cat "$OUT/audit_x_E.err" >&2 || true
+    return 1
+  fi
   $CC -c -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm -o "$OUT/audit_x.o" "$OUT/audit_x_E.c" \
     2>"$OUT/audit_x_cc.err" || { cat "$OUT/audit_x_cc.err" >&2; return 1; }
   $CC -c -I. -Iinclude -Isrc -Iseeds/parser_asm -o "$OUT/bridge.o" \
