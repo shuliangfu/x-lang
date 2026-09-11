@@ -27,7 +27,7 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_super_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_hyper_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
@@ -793,7 +793,7 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_super_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_try_skip_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));

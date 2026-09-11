@@ -15,7 +15,7 @@ void parser_asm_parse_one_function_library_into_slice_c(struct parser_asm_librar
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_super_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_hyper_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_ultra_hyper_mega_full_deep_audit_c(&lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
@@ -779,7 +779,7 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_super_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len));

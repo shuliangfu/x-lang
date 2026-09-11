@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.19 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.20 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.20: controlled climb exact max after v5.19 ultra_hyper —
+#   Soft fixed-point only (no new hand-port): unlock exact
+#   `*_max_ultra_hyper_mega_*` whose ultra_hyper_mega callees are already
+#   migrated (import/struct/try_skip/fn/library/body_skip + trait buf).
+#   Cap ≈13. Refuse apex+/88+ versal; refuse parse_into max (still
+#   blocked on unmigrated parse_into_ultra_hyper). Still refused: simd
+#   from_at, peek_kind. Eq gate: daily = EQ_ONLY delta (OFF=24);
+#   close = OFF=24×parallel ≤10min; full OFF=128 only at pin bump / L4.
 #
 # v5.19: controlled climb exact ultra_hyper after v5.18 hyper —
 #   Soft fixed-point only (no new hand-port): unlock exact
