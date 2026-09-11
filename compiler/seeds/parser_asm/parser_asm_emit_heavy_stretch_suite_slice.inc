@@ -30,6 +30,22 @@ enum {
 
 /** block_stmt 内嵌审计前向声明（定义在本文件后部）。 */
 int32_t parser_asm_stretch_if_header_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_trait_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
+int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 int32_t parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_fn_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
@@ -12045,8 +12061,15 @@ int32_t parser_asm_stretch_toplevel_max_ultra_hyper_mega_full_deep_buf_audit_c(s
 /**
  * tier45：expr max ultra hyper mega 全链 slice 深探（expr ultra hyper + primary ultra hyper + body skip ultra hyper）。
  */
-int32_t parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                       struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_expr_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12054,6 +12077,7 @@ int32_t parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(stru
   score += parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：expr max ultra hyper mega 全链 buf 深探。
@@ -12123,8 +12147,15 @@ int32_t parser_asm_stretch_primary_apex_max_ultra_hyper_mega_full_deep_buf_audit
 /**
  * tier45：import max ultra hyper mega 全链 slice 深探（import ultra hyper + collect imports mega + skip imports mega）。
  */
-int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                         struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12132,12 +12163,20 @@ int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(st
   score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：import max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                             int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
@@ -12146,6 +12185,7 @@ int32_t parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_
   sl.length = (size_t)len;
   return parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier45：parse_into max ultra hyper mega 全链 buf 深探（ultra hyper mega + import ultra hyper + diag ultra hyper）。
@@ -12208,8 +12248,15 @@ int32_t parser_asm_stretch_match_apex_max_ultra_hyper_mega_full_deep_buf_audit_c
 /**
  * tier45：struct max ultra hyper mega 全链 slice 深探（struct ultra hyper + try_skip ultra hyper + layout mega）。
  */
-int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                         struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_struct_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12217,12 +12264,20 @@ int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(st
   score += parser_asm_stretch_parse_struct_layout_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：struct max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                             int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
@@ -12231,12 +12286,20 @@ int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_buf_audit_
   sl.length = (size_t)len;
   return parser_asm_stretch_struct_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier45：trait max ultra hyper mega 全链 buf 深探（trait ultra hyper + struct ultra hyper + impl skip mega）。
  */
-int32_t parser_asm_stretch_trait_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                          int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_trait_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   if (!data || len <= 0)
@@ -12246,12 +12309,20 @@ int32_t parser_asm_stretch_trait_apex_max_ultra_hyper_mega_full_deep_buf_audit_c
   score += parser_asm_stretch_impl_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：函数 max ultra hyper mega 全链 slice 深探（fn ultra hyper + library ultra hyper + body skip ultra hyper）。
  */
-int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                     struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_fn_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12259,12 +12330,20 @@ int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(struct
   score += parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：函数 max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                         int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
@@ -12273,12 +12352,20 @@ int32_t parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(st
   sl.length = (size_t)len;
   return parser_asm_stretch_fn_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier45：控制流 max ultra hyper mega 全链 slice 深探（control flow ultra hyper + body skip ultra hyper + match ultra hyper）。
  */
-int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex_at_if,
-                                                                               struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex_at_if;
+  if (!lex_inout || !source)
+    return 0;
+  lex_at_if = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_control_flow_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source);
@@ -12286,12 +12373,20 @@ int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audi
   score += parser_asm_stretch_match_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：控制流 max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex,
-                                                                                   uint8_t *data, int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   if (!data || len <= 0)
@@ -12301,6 +12396,7 @@ int32_t parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_
   score += parser_asm_stretch_match_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：diag max ultra hyper mega 全链 buf 深探（diag ultra hyper + import ultra hyper + parse preamble mega）。
@@ -12321,8 +12417,15 @@ int32_t parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(
 /**
  * tier45：body skip max ultra hyper mega 全链 slice 深探（body skip ultra hyper + expr ultra hyper + fn ultra hyper）。
  */
-int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                            struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12330,12 +12433,20 @@ int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c
   score += parser_asm_stretch_fn_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：body skip max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex,
-                                                                               uint8_t *data, int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
@@ -12344,12 +12455,20 @@ int32_t parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_aud
   sl.length = (size_t)len;
   return parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier45：library max ultra hyper mega 全链 slice 深探（library ultra hyper + fn ultra hyper + import ultra hyper）。
  */
-int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                          struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_library_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12357,12 +12476,20 @@ int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(s
   score += parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：library max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
-                                                                              int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   if (!data || len <= 0)
@@ -12372,12 +12499,20 @@ int32_t parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit
   score += parser_asm_stretch_extern_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：try_skip max ultra hyper mega 全链 slice 深探（try_skip ultra hyper + struct ultra hyper + body skip ultra hyper）。
  */
-int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                                           struct parser_asm_slice_u8 *source) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   int32_t score;
 
   score = parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
@@ -12385,12 +12520,20 @@ int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(
   score += parser_asm_stretch_body_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier45：try_skip max ultra hyper mega 全链 buf 深探。
  */
-int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex,
-                                                                               uint8_t *data, int32_t len) {
+/* B-minus twin (7.2.1, generated): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (pointer ABI + by-value net semantics). Cold lane keeps this twin. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_slice_u8 sl;
 
   if (!data || len <= 0)
@@ -12399,6 +12542,7 @@ int32_t parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_buf_audi
   sl.length = (size_t)len;
   return parser_asm_stretch_try_skip_max_ultra_hyper_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier45：top_level max ultra hyper mega 全链 buf 深探（toplevel ultra hyper + import ultra hyper + parse_into max ultra hyper mega）。
@@ -12423,9 +12567,9 @@ int32_t parser_asm_stretch_expr_summit_apex_max_ultra_hyper_mega_full_deep_audit
                                                                             struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_primary_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12451,7 +12595,7 @@ int32_t parser_asm_stretch_primary_summit_apex_max_ultra_hyper_mega_full_deep_au
   int32_t score;
 
   score = parser_asm_stretch_primary_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_cast_unary_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -12477,7 +12621,7 @@ int32_t parser_asm_stretch_import_summit_apex_max_ultra_hyper_mega_full_deep_aud
                                                                               struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_skip_imports_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
@@ -12507,7 +12651,7 @@ int32_t parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len);
   return score > 0 ? 1 : 0;
 }
@@ -12520,8 +12664,8 @@ int32_t parser_asm_stretch_match_summit_apex_max_ultra_hyper_mega_full_deep_audi
   int32_t score;
 
   score = parser_asm_stretch_match_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
-  score += parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score += parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12546,8 +12690,8 @@ int32_t parser_asm_stretch_struct_summit_apex_max_ultra_hyper_mega_full_deep_aud
                                                                               struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   score += parser_asm_stretch_parse_struct_layout_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
@@ -12575,8 +12719,8 @@ int32_t parser_asm_stretch_trait_summit_apex_max_ultra_hyper_mega_full_deep_buf_
 
   if (!data || len <= 0)
     return 0;
-  score = parser_asm_stretch_trait_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score = parser_asm_stretch_trait_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_impl_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -12588,9 +12732,9 @@ int32_t parser_asm_stretch_fn_summit_apex_max_ultra_hyper_mega_full_deep_audit_c
                                                                           struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12615,8 +12759,8 @@ int32_t parser_asm_stretch_control_flow_summit_apex_max_ultra_hyper_mega_full_de
                                                                                     struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(lex_at_if, source);
-  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex_at_if, source);
+  score = parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source);
+  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source);
   score += parser_asm_stretch_match_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex_at_if, source);
   return score > 0 ? 1 : 0;
 }
@@ -12630,8 +12774,8 @@ int32_t parser_asm_stretch_control_flow_summit_apex_max_ultra_hyper_mega_full_de
 
   if (!data || len <= 0)
     return 0;
-  score = parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score = parser_asm_stretch_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_match_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -12647,7 +12791,7 @@ int32_t parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_a
     return 0;
   lex = parser_asm_lexer_init_c();
   score = parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len);
-  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -12659,9 +12803,9 @@ int32_t parser_asm_stretch_body_skip_summit_apex_max_ultra_hyper_mega_full_deep_
                                                                                  struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_expr_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12686,9 +12830,9 @@ int32_t parser_asm_stretch_library_summit_apex_max_ultra_hyper_mega_full_deep_au
                                                                                struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12701,8 +12845,8 @@ int32_t parser_asm_stretch_library_summit_apex_max_ultra_hyper_mega_full_deep_bu
 
   if (!data || len <= 0)
     return 0;
-  score = parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
-  score += parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score = parser_asm_stretch_library_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += parser_asm_stretch_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_extern_skip_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 }
@@ -12714,9 +12858,9 @@ int32_t parser_asm_stretch_try_skip_summit_apex_max_ultra_hyper_mega_full_deep_a
                                                                               struct parser_asm_slice_u8 *source) {
   int32_t score;
 
-  score = parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
-  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  score = parser_asm_stretch_try_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
+  score += parser_asm_stretch_body_skip_apex_max_ultra_hyper_mega_full_deep_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }
 
@@ -12745,7 +12889,7 @@ int32_t parser_asm_stretch_toplevel_summit_apex_max_ultra_hyper_mega_full_deep_b
   if (!data || len <= 0)
     return 0;
   score = parser_asm_stretch_toplevel_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len, is_const);
-  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+  score += parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex, data, len);
   score += parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
   return score > 0 ? 1 : 0;
 }
