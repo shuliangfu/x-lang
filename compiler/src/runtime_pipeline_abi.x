@@ -10751,7 +10751,7 @@ export function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
-  // byte offset = idx * 340 via repeated add (no ptr+int in .x)
+  // Cap 4.2.8: byte offset = idx * pipe_imp_entry_size() (532; was 340).
   let off: i32 = idx * pipe_imp_entry_size();
   // return base+off by reconstructing from raw address bits is unavailable;
   // use index into flat table: xlang path indexes base[off + field]
@@ -10838,9 +10838,11 @@ export function pipeline_module_import_alloc(module: *u8): i32 {
     return 0 - 1;
   }
   let off: i32 = pipe_imp_entry_off(n);
-  // zero new entry (340 bytes)
+  // Cap 4.2.8: zero new ImportEntry (532 bytes; was 340). Incomplete zero left
+  // binding_name_len@520 / select_* garbage → T001 "no impl for method".
+  let esz: i32 = pipe_imp_entry_size();
   let k: i32 = 0;
-  while (k < 340) {
+  while (k < esz) {
     unsafe {
       base[off + k] = 0;
     }
