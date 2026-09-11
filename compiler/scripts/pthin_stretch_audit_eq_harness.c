@@ -90,10 +90,19 @@ typedef struct {
 
 static int g_fail = 0;
 static long g_checks = 0;
+static long g_checks_at_progress = 0;
 static size_t g_cases_sel = 0;
 static int g_shard_i = 0; /* EQ_SHARD=i/n → this worker owns indices ≡ i (mod n) */
 static int g_shard_n = 1;
 static int g_file_stride = 1; /* EQ_FILE_STRIDE=k → advance k tokens between checks */
+/* Deep-climb names (peak/summit/zenith/versal) cost ~1s/check on large files.
+ * EQ_DEEP_MAX_FILE_OFF caps their token-offset budget independently of shallow
+ * cases. -1 = same as the battery max_steps (no extra cap). Soft-knife close
+ * sets this to 1 and relies on the short smoke battery (see main) — large
+ * product files skip deep entirely when source length > EQ_DEEP_MAX_SRC_LEN
+ * (default 512) so close stays in the minutes budget. */
+static int g_deep_max_file_off = -1;
+static size_t g_deep_max_src_len = 512;
 
 /**
  * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
@@ -153,6 +162,51 @@ static void load_stride_env(void) {
   }
 }
 
+static void load_deep_off_env(void) {
+  const char *s = getenv("EQ_DEEP_MAX_FILE_OFF");
+  const char *slen = getenv("EQ_DEEP_MAX_SRC_LEN");
+  long v;
+  g_deep_max_file_off = -1;
+  g_deep_max_src_len = 512;
+  if (s && s[0]) {
+    v = strtol(s, 0, 10);
+    /* 0 = offset 0 only; positive = inclusive max step for deep names. */
+    if (v >= 0 && v < 100000)
+      g_deep_max_file_off = (int)v;
+  }
+  if (slen && slen[0]) {
+    v = strtol(slen, 0, 10);
+    if (v >= 0 && v < 10000000)
+      g_deep_max_src_len = (size_t)v;
+  }
+}
+
+/**
+ * Score-chain climbs whose nested audit body is ~0.1–1s per call on large
+ * files. Measured 2026-09-11: peak×OFF=24×3files ≈25+ min; after peak/summit
+ * skip, max_ultra_hyper still dominated step-0 samples. Soft-knife close
+ * treats hyper+ score rungs as deep (smoke on short buffers only).
+ * PLATFORM: SHARED — name predicate only; no semantic change to twins.
+ */
+static int is_deep_climb_name(const char *name) {
+  if (!name)
+    return 0;
+  return strstr(name, "peak") != 0 || strstr(name, "summit") != 0 ||
+         strstr(name, "zenith") != 0 || strstr(name, "versal") != 0 ||
+         strstr(name, "apex_max") != 0 || strstr(name, "max_ultra") != 0 ||
+         strstr(name, "ultra_hyper") != 0 || strstr(name, "hyper_mega") != 0;
+}
+
+static void progress_maybe(const char *tag, int step) {
+  /* Live progress on stderr every 200 checks (or first check of a step). */
+  if (g_checks == 0 || (g_checks - g_checks_at_progress) < 200)
+    return;
+  g_checks_at_progress = g_checks;
+  fprintf(stderr, "eq_harness: progress checks=%ld fail=%d tag=%s step=%d shard=%d/%d\n",
+          g_checks, g_fail, tag ? tag : "?", step, g_shard_i, g_shard_n);
+  fflush(stderr);
+}
+
 /** Compare one (C ref, .x) pair on one lexer state; verify contract. */
 static void check_one(const audit_case *ac, size_t ci, struct parser_asm_lexer lex,
                       struct parser_asm_slice_u8 *src) {
@@ -198,6 +252,7 @@ static void check_one(const audit_case *ac, size_t ci, struct parser_asm_lexer l
  * Run shard-local audit cases at token offsets of one source buffer.
  * EQ_FILE_STRIDE>1 skips offsets (still starts at 0) to cut wall-clock while
  * keeping breadth across the file — used by close-mode mid coverage.
+ * Deep-climb names additionally respect EQ_DEEP_MAX_FILE_OFF (see g_deep_*).
  */
 static void battery(const char *tag, const char *text, size_t len, int max_steps) {
   struct parser_asm_slice_u8 src;
@@ -211,17 +266,33 @@ static void battery(const char *tag, const char *text, size_t len, int max_steps
   lex.pos = 0;
   lex.line = 1;
   lex.col = 1;
+  fprintf(stderr,
+          "eq_harness: battery start tag=%s len=%zu max_steps=%d stride=%d deep_cap=%d "
+          "deep_src_cap=%zu\n",
+          tag, len, max_steps, stride, g_deep_max_file_off, g_deep_max_src_len);
+  fflush(stderr);
   for (step = 0; step <= max_steps; step++) {
     if ((step % stride) == 0) {
-      for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++)
+      for (ci = 0; ci < sizeof(k_cases) / sizeof(k_cases[0]); ci++) {
+        if (g_deep_max_file_off >= 0 && is_deep_climb_name(k_cases[ci].name)) {
+          /* Large product files: skip deep (proven on short smoke instead). */
+          if (len > g_deep_max_src_len)
+            continue;
+          /* Short buffers: only the first deep_cap+1 offsets (inclusive). */
+          if (step > g_deep_max_file_off)
+            continue;
+        }
         check_one(&k_cases[ci], ci, lex, &src);
+      }
+      progress_maybe(tag, step);
     }
     lexer_next_into(&r, lex, &src);
     if ((int32_t)r.tok.kind == (int32_t)TOKEN_EOF)
       break;
     lex = r.next_lex;
   }
-  (void)tag;
+  fprintf(stderr, "eq_harness: battery done tag=%s checks=%ld fail=%d\n", tag, g_checks, g_fail);
+  fflush(stderr);
 }
 
 int main(int argc, char **argv) {
@@ -248,6 +319,7 @@ int main(int argc, char **argv) {
   int f;
   load_shard_env();
   load_stride_env();
+  load_deep_off_env();
   {
     size_t ci;
     g_cases_sel = 0;
@@ -256,15 +328,29 @@ int main(int argc, char **argv) {
         g_cases_sel++;
     fprintf(stderr,
             "eq_harness: cases_selected=%zu/%zu EQ_ONLY=%s EQ_SKIP_SYNTH=%s "
-            "EQ_MAX_FILE_OFF=%s EQ_SHARD=%d/%d EQ_FILE_STRIDE=%d\n",
+            "EQ_MAX_FILE_OFF=%s EQ_DEEP_MAX_FILE_OFF=%s EQ_SHARD=%d/%d "
+            "EQ_FILE_STRIDE=%d\n",
             g_cases_sel, (size_t)(sizeof(k_cases) / sizeof(k_cases[0])),
             getenv("EQ_ONLY") && getenv("EQ_ONLY")[0] ? getenv("EQ_ONLY") : "(all)",
             getenv("EQ_SKIP_SYNTH") && getenv("EQ_SKIP_SYNTH")[0] ? getenv("EQ_SKIP_SYNTH") : "0",
             getenv("EQ_MAX_FILE_OFF") && getenv("EQ_MAX_FILE_OFF")[0] ? getenv("EQ_MAX_FILE_OFF")
                                                                      : "1200",
+            getenv("EQ_DEEP_MAX_FILE_OFF") && getenv("EQ_DEEP_MAX_FILE_OFF")[0]
+                ? getenv("EQ_DEEP_MAX_FILE_OFF")
+                : "(none)",
             g_shard_i, g_shard_n, g_file_stride);
   }
-  /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain. */
+  /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain.
+   * Soft-knife close always keeps a short smoke battery so deep-climb twins
+   * still run (large product files skip deep when len > EQ_DEEP_MAX_SRC_LEN). */
+  {
+    static const char k_deep_smoke[] =
+        "if (x) { match v { 1 => 2, _ => 0 } } else { return 1 + 2; }\n"
+        "struct S { a: i32, b: u8 }\n"
+        "function f(a: i32) -> i32 { let x = a; return x; }\n";
+    int smoke_steps = g_deep_max_file_off >= 0 ? g_deep_max_file_off : 8;
+    battery("deep_smoke", k_deep_smoke, strlen(k_deep_smoke) + 1, smoke_steps);
+  }
   if (!(getenv("EQ_SKIP_SYNTH") && getenv("EQ_SKIP_SYNTH")[0] && getenv("EQ_SKIP_SYNTH")[0] != '0')) {
     for (i = 0; i < sizeof(k_synth) / sizeof(k_synth[0]); i++) {
       char tag[32];

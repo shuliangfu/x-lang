@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.22 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.23 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,18 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.23: controlled climb exact peak after v5.22 summit —
+#   Soft fixed-point only (no new hand-port): unlock exact
+#   `*_peak_summit_apex_max_ultra_hyper_mega_*` whose summit_apex_max
+#   callees are already migrated (import/struct/try_skip/fn/library/
+#   body_skip/control_flow/expr/match/primary + trait buf). Cap ≈21.
+#   Refuse zenith+/88+ versal; refuse parse_into peak (still blocked on
+#   unmigrated parse_into summit/apex/hyper root). Still refused: simd
+#   from_at, peek_kind, diag/toplevel (non-byval). Eq gate: HARD BAN
+#   deep daily (peak/summit/…) — soft knife = close only. Close defaults
+#   (2026-09-11): SKIP_SYNTH=1／STRIDE=4／DEEP_MAX_FILE_OFF=1／deep skip
+#   on src>512 + short deep_smoke；JOBS≤2. full OFF=128 only at pin/L4.
 #
 # v5.22: controlled climb exact summit after v5.21 apex —
 #   Soft fixed-point only (no new hand-port): unlock exact

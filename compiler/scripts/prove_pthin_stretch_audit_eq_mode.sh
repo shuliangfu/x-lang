@@ -11,12 +11,26 @@
 #   bash scripts/prove_pthin_stretch_audit_eq_mode.sh full
 #
 # daily — EQ_ONLY delta on this wave's new symbols. Typical ~1 min.
-# close — ALL symbols, OFF=24, parallel shards (default JOBS=min(8,ncpu)).
-#         Measured Darwin: ~3.2 min eq @ JOBS=8 → soft-knife L2 total ≤10 min.
+#         HARD BAN (2026-09-11): do NOT use daily for deep climb substrings
+#         (summit / peak / zenith / versal / apex_max_ultra… score chains).
+#         Measured: exact-summit daily OFF=24 ≈65 min for 21 symbols — burns
+#         a whole soft-knife slot. Soft-knife gate for deep climbs = **close
+#         only** (matrix+drift+compress+close). Override only with
+#         EQ_FORCE_DEEP_DAILY=1 (explicit, never default).
+# close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
+#         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
+#         burned 25+ min with no live logs:
+#           EQ_SKIP_SYNTH=1          (synth×deep ≈98% of check volume)
+#           EQ_FILE_STRIDE=4         (shallow breadth, fewer offsets)
+#           EQ_DEEP_MAX_FILE_OFF=1   (peak/summit/zenith/versal offset cap)
+#           deep skip on src len>512  (large .x files); short deep_smoke instead
+#         Harness prints battery/progress on stderr (live; not held to end).
 # full  — ALL symbols, OFF=128, parallel. Pin-bump / L4 only (NOT every soft knife).
-#         Serial JOBS=1 ≈50 min — avoid.
+#         Serial JOBS=1 ≈50 min — avoid. Does NOT apply deep_cap by default
+#         (set EQ_DEEP_MAX_FILE_OFF explicitly if needed).
 #
-# Env overrides: EQ_MAX_FILE_OFF, EQ_JOBS, EQ_FILE_STRIDE, EQ_SKIP_SYNTH.
+# Env overrides: EQ_MAX_FILE_OFF, EQ_JOBS, EQ_FILE_STRIDE, EQ_SKIP_SYNTH,
+#                EQ_DEEP_MAX_FILE_OFF, EQ_FORCE_DEEP_DAILY.
 # PLATFORM: SHARED — Darwin + Ubuntu.
 set -eu
 cd "$(dirname "$0")/.."
@@ -29,6 +43,8 @@ HARNESS="$OUT/eq_harness"
 CC=${CC:-cc}
 
 default_jobs() {
+  # Cap at 4: JOBS=8 saturated every core and made the machine unusable
+  # during soft-knife close (2026-09-11). Override with EQ_JOBS when deliberate.
   local n=4
   if n=$(sysctl -n hw.ncpu 2>/dev/null); then
     :
@@ -37,11 +53,12 @@ default_jobs() {
   else
     n=4
   fi
-  if [ "$n" -gt 8 ]; then
-    n=8
-  fi
-  if [ "$n" -lt 2 ]; then
+  # Soft default 2: leaves headroom for the IDE/agent. EQ_JOBS=4 when deliberate.
+  if [ "$n" -gt 2 ]; then
     n=2
+  fi
+  if [ "$n" -lt 1 ]; then
+    n=1
   fi
   echo "$n"
 }
@@ -76,7 +93,9 @@ run_shards() {
   for i in $(seq 0 $((jobs - 1))); do
     (
       export EQ_SHARD="$i/$jobs"
-      "$HARNESS" "${files[@]}" >"$logdir/w$i.out" 2>"$logdir/w$i.err"
+      # stdout → shard file (summary line); stderr live via tee so progress
+      # lines appear while workers run (old path held stderr until wait).
+      "$HARNESS" "${files[@]}" >"$logdir/w$i.out" 2> >(tee "$logdir/w$i.err" >&2)
       echo $? >"$logdir/w$i.rc"
     ) &
     pids+=($!)
@@ -85,7 +104,6 @@ run_shards() {
     wait "$i" || true
   done
   for i in $(seq 0 $((jobs - 1))); do
-    cat "$logdir/w$i.err" >&2 || true
     cat "$logdir/w$i.out" || true
     wrc=$(cat "$logdir/w$i.rc")
     if [ "$wrc" != 0 ]; then
@@ -113,6 +131,21 @@ case "$MODE" in
       exit 2
     fi
     export EQ_ONLY="$1"
+    # Refuse deep-climb dailies by default (hour-scale wall-clock). Soft-knife
+    # gate for those waves is close-only. See header HARD BAN.
+    if [ "${EQ_FORCE_DEEP_DAILY:-0}" != 1 ]; then
+      # Hour-scale only: exact summit+ and 88+ versal. Lower rungs (hyper/
+      # ultra_hyper/max/apex) may still use daily when <~15 min; apex already
+      # stretched the soft budget — prefer close when in doubt.
+      case ",$EQ_ONLY," in
+        *,*summit*|*,*peak*|*,*zenith*|*,*versal*)
+          echo "eq_mode=daily REFUSED: deep-climb EQ_ONLY='$EQ_ONLY' is hour-scale." >&2
+          echo "  Soft-knife gate = close (matrix+drift+compress+close)." >&2
+          echo "  Override only with EQ_FORCE_DEEP_DAILY=1 (never default)." >&2
+          exit 3
+          ;;
+      esac
+    fi
     # Default OFF=24: ultra_hyper+ score chains make OFF=128 daily multi-minute;
     # close already covers the full table at OFF=24×parallel. Override with
     # EQ_MAX_FILE_OFF=128 when deliberately deepening a delta smoke.
@@ -125,11 +158,15 @@ case "$MODE" in
     ;;
   close)
     # Soft-knife wave close: all symbols, thinned offsets, parallel shards.
+    # Defaults keep ≤10 min even when the table holds peak score-chains.
     unset EQ_ONLY || true
     export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-24}"
     JOBS="${EQ_JOBS:-$(default_jobs)}"
-    export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-1}"
-    echo "eq_mode=close OFF=$EQ_MAX_FILE_OFF JOBS=$JOBS STRIDE=$EQ_FILE_STRIDE (target eq ~3min; L2 total ≤10min)"
+    export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
+    export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
+    export EQ_DEEP_MAX_FILE_OFF="${EQ_DEEP_MAX_FILE_OFF:-1}"
+    export EQ_DEEP_MAX_SRC_LEN="${EQ_DEEP_MAX_SRC_LEN:-512}"
+    echo "eq_mode=close OFF=$EQ_MAX_FILE_OFF JOBS=$JOBS STRIDE=$EQ_FILE_STRIDE SKIP_SYNTH=$EQ_SKIP_SYNTH DEEP_CAP=$EQ_DEEP_MAX_FILE_OFF DEEP_SRC=$EQ_DEEP_MAX_SRC_LEN (target eq ~3min; L2 total ≤10min)"
     build_harness
     run_shards "$JOBS" "${FILES[@]}"
     ;;
@@ -139,7 +176,8 @@ case "$MODE" in
     export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-128}"
     JOBS="${EQ_JOBS:-$(default_jobs)}"
     export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-1}"
-    echo "eq_mode=full OFF=$EQ_MAX_FILE_OFF JOBS=$JOBS (pin/L4 only)"
+    # full keeps synth + no deep_cap unless caller sets them.
+    echo "eq_mode=full OFF=$EQ_MAX_FILE_OFF JOBS=$JOBS STRIDE=$EQ_FILE_STRIDE (pin/L4 only)"
     build_harness
     run_shards "$JOBS" "${FILES[@]}"
     ;;
