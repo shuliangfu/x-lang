@@ -366,7 +366,8 @@ int32_t xlang_expr_is_param0_field_access(void *arena, struct ast_Module *mod, i
 int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
-  uint8_t fb[128];
+  /* Cap 4.2.8: func_name_copy64 memset(dst,0,256); align with seed_link_compat.x. */
+  uint8_t fb[256];
   int32_t k;
 
   if (!mod || !name || name_len <= 0 || name_len > 255)

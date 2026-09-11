@@ -72,7 +72,8 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let struct_name: u8[128] = [];
   let nlen: i32 = 0;
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  /* Cap 4.2.8: field_access_name_into / layout_field_name_into write 256. */
+  let field_name: u8[256] = [];
   let k: i32 = 0;
   let j: i32 = 0;
   let ftr: i32 = 0;
@@ -83,7 +84,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   let ln: i32 = 0;
   let eq: i32 = 0;
   let nm_is_some: u8[7] = [105, 115, 95, 115, 111, 109, 101];
@@ -95,7 +96,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
   }
-  if (base_ref <= 0 || flen <= 0 || flen > 127) {
+  if (base_ref <= 0 || flen <= 0 || flen > 255) {
     return 8;
   }
   unsafe {

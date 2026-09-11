@@ -743,7 +743,8 @@ int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, 
 int32_t glue_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
-  uint8_t fb[128];
+  /* Cap 4.2.8: func_name_copy64 memset(dst,0,256). */
+  uint8_t fb[256];
   int32_t k;
   if (!mod || !name || name_len <= 0 || name_len > 255)
     return -1;
@@ -1477,7 +1478,8 @@ int32_t glue_dep_module_field_offset_by_name_impl(struct ast_PipelineDepCtx *pct
           if (fnlen != flen)
             continue;
           for (fi = 0; fi < fnlen; fi++) {
-            uint8_t fb[128];
+            /* Cap 4.2.8: layout_field_name_into memset/memcpy 256. */
+            uint8_t fb[256];
             pipeline_module_struct_layout_field_name_into(dm, k, j, fb);
             if (fb[fi] != field_name[fi]) {
               feq = 0;
@@ -1641,8 +1643,9 @@ int32_t try_inline_var_field_sum_binop_elf_impl(struct ast_ASTArena *arena, stru
       di = di + 1;
     }
     if (off_a < 0 || off_b < 0) {
-      uint8_t fname_a[128];
-      uint8_t fname_b[128];
+      /* Cap 4.2.8: field_access_name_into memset(out,0,256) even when flen≤63. */
+      uint8_t fname_a[256];
+      uint8_t fname_b[256];
       int32_t flen_a;
       int32_t flen_b;
       flen_a = pipeline_expr_field_access_name_len(arena, left_ref);
@@ -1892,7 +1895,8 @@ int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct pla
    */
   if (k == 0) {
     int32_t ret_ref;
-    uint8_t pname[128];
+    /* Cap 4.2.8: param_name_copy32 memcpy 256 bytes. */
+    uint8_t pname[256];
     uint8_t rname[256];
     int32_t plen;
     int32_t rlen;

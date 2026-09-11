@@ -35,16 +35,16 @@ extern void parser_asm_copy_slice_to_name64_slice_c(struct parser_asm_slice_u8 *
  */
 /**
  * Parse one top-level `type Alias = Target;`.
- * wave582 Cap residual: Alias name content ≤255 (TypeAliasEntry.name[256] + AST Cap).
- * Prior name_buf[64] + name_len>63 rejected long aliases while type_ref still
- * truncated use-sites to 63 → typeck "expected NAMED, found i32".
+ * Cap 4.2.8: Alias name content ≤255 (TypeAliasEntry.name[256] + AST Cap).
+ * name_buf must be ≥256: copy_slice_to_name64 writes name_len bytes (≤255).
+ * Prior name_buf[128]/[64] overflowed or truncated long aliases.
  * PLATFORM: SHARED product type_alias path (this .inc → thin glue).
  */
 void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                   struct parser_asm_slice_u8 *source,
                                                   struct parser_asm_type_alias_result *out) {
   struct parser_asm_lexer_result r;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   int32_t name_len;
   int32_t target_ref;
   int32_t alias_ix;

@@ -242,7 +242,8 @@ export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): 
     while (fi < nfuncs) {
       let flen: i32 = pipeline_asm_module_func_name_len_at(mod, fi);
       if (flen == nlen) {
-        let fb: u8[128] = [];
+        /* Cap 4.2.8: func_name_copy64 memset(dst,0,256). */
+        let fb: u8[256] = [];
         pipeline_asm_module_func_name_copy64(mod, fi, &fb[0]);
         let k: i32 = 0;
         let ok: i32 = 1;
@@ -1097,7 +1098,8 @@ export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8,
             if (fnlen == flen) {
               if (fnlen > 0) {
                 if (fnlen <= 63) {
-                  let fb: u8[128] = [];
+                  /* Cap 4.2.8: layout_field_name_into writes 256 bytes. */
+                  let fb: u8[256] = [];
                   pipeline_module_struct_layout_field_name_into(dm, k, j, &fb[0]);
                   let fi: i32 = 0;
                   let feq: i32 = 1;
@@ -1679,7 +1681,8 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
       if (plen <= 0) { return 0; }
       if (plen > 255) { return 0; }
       if (rlen != plen) { return 0; }
-      let pname: u8[128] = [];
+      /* Cap 4.2.8: param_name_copy32 memcpy 256 bytes. */
+      let pname: u8[256] = [];
       let rname: u8[256] = [];
       pipeline_asm_module_func_param_name_copy32(callee_mod, fi, 0, &pname[0]);
       pipeline_expr_var_name_into(callee_arena, ret_ref, &rname[0]);
@@ -2003,7 +2006,8 @@ export function try_inline_var_field_sum_binop_elf(
       let flen_a: i32 = pipeline_expr_field_access_name_len(arena, left_ref);
       if (flen_a > 0) {
         if (flen_a <= 63) {
-          let fname_a: u8[128] = [];
+          /* Cap 4.2.8: field_access_name_into memset(out,0,256). */
+          let fname_a: u8[256] = [];
           pipeline_expr_field_access_name_into(arena, left_ref, &fname_a[0]);
           off_a = glue_dep_module_field_offset_by_name(pctx, &fname_a[0], flen_a);
         }
@@ -2013,7 +2017,7 @@ export function try_inline_var_field_sum_binop_elf(
       let flen_b: i32 = pipeline_expr_field_access_name_len(arena, right_ref);
       if (flen_b > 0) {
         if (flen_b <= 63) {
-          let fname_b: u8[128] = [];
+          let fname_b: u8[256] = [];
           pipeline_expr_field_access_name_into(arena, right_ref, &fname_b[0]);
           off_b = glue_dep_module_field_offset_by_name(pctx, &fname_b[0], flen_b);
         }

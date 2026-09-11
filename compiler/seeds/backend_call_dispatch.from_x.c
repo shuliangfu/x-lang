@@ -2557,7 +2557,8 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(struct ast_AST
                                                               int32_t callee_expr_ref, uint8_t *sym_flat,
                                                               int32_t *out_match_imp_j) {
   int32_t cur_ref;
-  uint8_t layer_buf[128];
+  /* Cap 4.2.8: field_access_name_into / var_name_into memset(out,0,256). */
+  uint8_t layer_buf[256];
   int32_t nstack;
   int32_t dep_j;
   if (!arena || !cur_mod || !sym_flat || callee_expr_ref <= 0)
@@ -2583,7 +2584,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(struct ast_AST
     return -1;
   {
     int32_t vnlen;
-    uint8_t vname_buf[128];
+    uint8_t vname_buf[256];
     vnlen = pipeline_expr_var_name_len(arena, cur_ref);
     if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3 || vnlen <= 0 || vnlen > 255)
       return -1;

@@ -118,8 +118,8 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result rf;
   int32_t flen;
-  /* wave583 Cap residual: struct-lit field name content ≤255. */
-  uint8_t fnbuf[128];
+  /* Cap 4.2.8: struct-lit field name content ≤255; local fill must match name[256]. */
+  uint8_t fnbuf[256];
   size_t fs;
   int32_t fq;
   struct parser_asm_parse_expr_result fv;
@@ -148,7 +148,7 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
       return;
     fs = rf.token_start;
     fq = 0;
-    while (fq < flen && fq < 128) {
+    while (fq < flen && fq < 256) {
       size_t idx_fs;
       idx_fs = fs + (size_t)fq;
       if (idx_fs >= source->length)
@@ -156,7 +156,7 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
       fnbuf[fq] = source->data[idx_fs];
       fq = fq + 1;
     }
-    while (fq < 128) {
+    while (fq < 256) {
       fnbuf[fq] = 0;
       fq = fq + 1;
     }

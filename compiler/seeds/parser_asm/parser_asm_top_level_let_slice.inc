@@ -56,8 +56,8 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
                                                      struct parser_asm_top_level_let_result *out) {
   struct parser_asm_lexer_result r;
   struct parser_asm_parse_expr_result expr_res;
-  /* wave581 Cap residual: top-level let/const name content cap 255. */
-  uint8_t name_buf[128];
+  /* Cap 4.2.8: top-level let/const name content ≤255; copy_slice writes name_len. */
+  uint8_t name_buf[256];
   int32_t name_len;
   int32_t name_line;
   int32_t name_col;

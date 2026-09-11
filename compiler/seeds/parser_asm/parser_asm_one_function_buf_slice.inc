@@ -141,7 +141,8 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   struct parser_asm_lexer_result r;
   struct parser_asm_slice_u8 source;
   uint8_t dummy_name[64];
-  uint8_t pname_buf[128];
+  /* Cap 4.2.8: param32 helpers fill 256 bytes (content ≤255). */
+  uint8_t pname_buf[256];
   uint8_t *out_pool;
   int32_t param_idx;
   int32_t param_name_len;
