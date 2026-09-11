@@ -53,7 +53,8 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
  * PLATFORM: SHARED freestanding nest ZST · LINUX gold.
  */
 function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
-  let name: u8[128] = [];
+  /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -80,7 +81,7 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
   unsafe {
     nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   // Strip module prefix: "heap.PageMmapHeap" -> "PageMmapHeap".
@@ -211,7 +212,8 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
   let elem_ref: i32 = 0;
   let ek: i32 = 0;
   let soa_sz: i32 = 0;
-  let ename: u8[128] = [];
+  /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
+  let ename: u8[256] = [];
   let elen: i32 = 0;
   let nlayouts: i32 = 0;
   let lk: i32 = 0;
@@ -325,7 +327,8 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let ek: i32 = 0;
   let bytes: i32 = 0;
   let lanes: i32 = 0;
-  let name: u8[128] = [];
+  /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let cur: i32 = 0;
   let prod: i32 = 0;

@@ -71,7 +71,8 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
   let fnptr_vlen: i32 = 0;
   let fnptr_fi: i32 = 0;
   let fnptr_mod: *u8 = 0 as *u8;
-  let fnptr_vname: u8[128] = [];
+  /* Cap 4.2.8: var_name_into memset(out,0,256). */
+  let fnptr_vname: u8[256] = [];
   if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
     return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   }
@@ -361,7 +362,7 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
         unsafe {
           fnptr_vlen = pipeline_expr_var_name_len(arena, op);
         }
-        if (fnptr_vlen > 0 && fnptr_vlen < 128) {
+        if (fnptr_vlen > 0 && fnptr_vlen < 256) {
           unsafe {
             pipeline_expr_var_name_into(arena, op, &fnptr_vname[0]);
             fnptr_mod = glue_emit_module_from_ctx(ctx);

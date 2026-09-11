@@ -139,7 +139,8 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
   let holds: i32 = 0;
   let fi: i32 = 0;
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  /* Cap 4.2.8: var_name_into memset(out,0,256); align mega runtime_pipeline_abi.x. */
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let pty: i32 = 0;
   let tk: i32 = 0;
@@ -172,7 +173,7 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
         unsafe {
           vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
         }
-        if (vlen > 0 && vlen <= 63) {
+        if (vlen > 0 && vlen <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
             pty = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
