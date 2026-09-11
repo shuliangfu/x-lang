@@ -239,8 +239,9 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
                                                              struct parser_asm_lexer *out_lex, int32_t allow_pad,
                                                              int32_t force_soa, int32_t repr_compat) {
   struct parser_asm_lexer_result r;
-  /* wave583 Cap residual: struct/field name content ≤255 (layout name[256] / field name[256]). */
-  uint8_t sname_buf[128];
+  /* Cap 4.2.8: layout/field name[256]; field_name_into memcpy 256.
+   * sname/fname/prev at [128] → __stack_chk_fail (Ubuntu hello/si). */
+  uint8_t sname_buf[256];
   int32_t sname_len;
   int32_t is_soa;
   int32_t is_packed;
@@ -249,7 +250,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   int32_t replace_idx;
   int32_t layout_idx;
   int32_t nf;
-  uint8_t fname_buf[128];
+  uint8_t fname_buf[256];
   int32_t field_align_req;
   int32_t fn_len;
   int32_t tr;
@@ -977,7 +978,8 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
    * PLATFORM: SHARED parse.
    */
   {
-    uint8_t tp_names[8][128];
+    /* Cap 4.2.8: LayoutTypeParamEntry.name[256]. */
+    uint8_t tp_names[8][256];
     int32_t tp_lens[8];
     int32_t n_tp;
     int32_t tpi;
@@ -1127,12 +1129,13 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
     {
       extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t li, int32_t j);
       extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int32_t j,
-                                                                uint8_t *out128);
+                                                                uint8_t *out256);
       extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
       int32_t fj;
       int32_t fl;
       int32_t fk;
-      uint8_t prev_name[128];
+      /* Cap 4.2.8: field_name_into memcpy 256. */
+      uint8_t prev_name[256];
       for (fj = 0; fj < nf; fj++) {
         fl = pipeline_module_struct_layout_field_name_len(module, layout_idx, fj);
         if (fl != fn_len)
