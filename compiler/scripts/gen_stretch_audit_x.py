@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.29 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.30 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,18 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.30: Cap-256 absolute remainder after v5.29 + asm -o Cap-256 —
+#   Soft fixed-point only (no new hand-port): unlock remaining exact
+#   `*_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_*`
+#   (spans 128..139) now that AST name[256]/content 255 + asm -o Cap-256
+#   cleared the L012/CG002 wall, plus prerequisite
+#   control_flow_ultimate_*_buf (span 130; was L012-blocked in v5.28).
+#   Cap ≈20 (dry-run 20 OK / 3 refuse). Refuse diag/toplevel non-byval;
+#   refuse parse_into absolute (blocked on unmigrated parse_into ultimate).
+#   Refuse transcendent+/88+ versal. Still refused: simd from_at, peek_kind.
+#   Eq gate: HARD BAN deep daily — soft knife = close only (thinned).
+#   Follow-up: parse_into ultimate chain / transcendent / versal.
 #
 # v5.29: controlled climb exact absolute after v5.28 ultimate —
 #   Soft fixed-point only (no new hand-port): unlock exact
