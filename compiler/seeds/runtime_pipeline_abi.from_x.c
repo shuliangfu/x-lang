@@ -15914,7 +15914,8 @@ int32_t glue_fold_func_return_operand_ref_c(void *arena, void *mod, int32_t func
 
 int32_t glue_expr_is_func_param_at_c(void *arena, void *mod, int32_t func_idx,
                                     int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[128];
+  /* Cap 4.2.8: param_name_copy32 memset/memcpy 256 into dst. */
+  uint8_t pbuf[256];
   uint8_t vbuf[256];
   int32_t plen;
   int32_t vlen;
@@ -26171,7 +26172,8 @@ int32_t glue_fold_func_return_operand_ref_c(void *arena, void *mod,
 /* wave136 Cap residual for fold_primitives pure leave: non-face. */
 int32_t glue_expr_is_func_param_at_c(void *arena, void *mod, int32_t func_idx,
                                             int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[128];
+  /* Cap 4.2.8: param_name_copy32 memset/memcpy 256 into dst. */
+  uint8_t pbuf[256];
   uint8_t vbuf[256];
   int32_t plen;
   int32_t vlen;
@@ -58008,11 +58010,12 @@ int32_t pipeline_block_local_name_redecl_c(void *a, int32_t block_ref, uint8_t *
         if (nl != vlen)
           continue;
         {
-          /* wave585: copy32 ABI buffer is 128 bytes. */
-          uint8_t pbuf[128];
+          /* Cap 4.2.8: copy32 writes 256 bytes (name[256]); pbuf[128] smashed canary
+           * → __stack_chk_fail / exit 127 on hello/si (gdb: pipeline_block_local_name_redecl_c). */
+          uint8_t pbuf[256];
           int32_t k;
           if (nl > 255)
-            nl = 127;
+            nl = 255;
           pipeline_module_func_param_name_copy32((void *)m, func_index, pi, pbuf);
           for (k = 0; k < nl; k++) {
             if (pbuf[k] != vname[k])

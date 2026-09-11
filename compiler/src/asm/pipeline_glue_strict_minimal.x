@@ -137,8 +137,9 @@ export function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *
     let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
-    let pbuf: u8[128] = [];
-    let vbuf: u8[128] = [];
+    /* Cap 4.2.8: copy32 / var_name_into write 256 bytes. */
+    let pbuf: u8[256] = [];
+    let vbuf: u8[256] = [];
     pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
     let k: i32 = 0;
