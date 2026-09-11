@@ -1863,7 +1863,7 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * dst, struct parser_O
     (void)(((dst->next_lex) = (src->next_lex)));
     (void)(((dst->name_len) = (src->name_len)));
     int32_t ni = 0;
-    while ((ni < 128)) {
+    while ((ni < 256)) {
       if ((ni < (src->name_len))) {
         (void)((((dst->name))[ni] = ((src->name))[ni]));
       }
@@ -1888,7 +1888,7 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * dst, struct parser_O
     (void)(((dst->return_val) = (src->return_val)));
     (void)(((dst->return_var_name_len) = (src->return_var_name_len)));
     int32_t rvni = 0;
-    while ((rvni < 128)) {
+    while ((rvni < 256)) {
       (void)((((dst->return_var_name))[rvni] = ((src->return_var_name))[rvni]));
       (void)((rvni = (rvni + 1)));
     }
@@ -1898,7 +1898,7 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * dst, struct parser_O
     (void)(((dst->has_call_expr) = (src->has_call_expr)));
     (void)(((dst->call_callee_len) = (src->call_callee_len)));
     int32_t cci = 0;
-    while ((cci < 128)) {
+    while ((cci < 256)) {
       (void)((((dst->call_callee_name))[cci] = ((src->call_callee_name))[cci]));
       (void)((cci = (cci + 1)));
     }
@@ -1948,7 +1948,7 @@ void parser_onefunc_finish_impl_to_out(struct parser_OneFuncResult * out, struct
     (void)(((snap->next_lex) = lex));
     (void)(((snap->name_len) = name_len));
     int32_t ni = 0;
-    while ((ni < 128)) {
+    while ((ni < 256)) {
       (void)((((snap->name))[ni] = (name)[ni]));
       (void)((ni = (ni + 1)));
     }
@@ -1999,7 +1999,7 @@ void parser_onefunc_res_wire_dummy_for_if(struct parser_OneFuncResult * res) {
 }
 struct parser_OneFuncResult parser_onefunc_alloc_wired_for_parse(struct lexer_Lexer lex) {
   {
-    uint8_t dummy_name[128] = {};
+    uint8_t dummy_name[256] = {};
     struct parser_OneFuncResult res = parser_onefunc_scratch_empty();
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(&(res))));
     (void)(parser_onefunc_res_wire_dummy_head(&(res), lex, dummy_name));
@@ -2018,7 +2018,7 @@ void parser_onefunc_snap_set_return_path(struct parser_OneFuncResult * snap, int
     (void)(((snap->return_expr_ref) = ret_expr_ref));
     (void)(((snap->has_explicit_return_kw) = 1));
     int32_t rvni = 0;
-    while ((rvni < 128)) {
+    while ((rvni < 256)) {
       (void)((((snap->return_var_name))[rvni] = (ret_var)[rvni]));
       (void)((rvni = (rvni + 1)));
     }
@@ -4880,7 +4880,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     /* Cap 10.7.1: clear variadic until trailing `...` is seen (≡ parser.x). */
     (void)(((out->is_variadic) = 0));
     struct parser_OneFuncResult * out_ref = out;
-    uint8_t dummy_name[128] = {};
+    uint8_t dummy_name[256] = {};
     struct parser_OneFuncResult impl_snap = parser_onefunc_scratch_empty();
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(&(impl_snap))));
     (void)(parser_onefunc_res_wire_dummy_head(&(impl_snap), lex, dummy_name));
@@ -6920,13 +6920,13 @@ void parser_write_extern_params_to_pools(struct ast_ASTArena * arena, struct ast
 }
 void parser_extern_parse_set_fail(struct parser_ExternParseResult * out, struct lexer_Lexer lex) {
   {
-    uint8_t empty64[128] = {};
+    uint8_t empty64[256] = {};
     (void)(((out->next_lex) = lex));
     (void)(((out->name_len) = -(1)));
     (void)(((out->return_ty_ref) = 0));
     (void)(((out->num_params) = 0));
     int32_t ni = 0;
-    while ((ni < 128)) {
+    while ((ni < 256)) {
       (void)((((out->name))[ni] = (empty64)[ni]));
       (void)((ni = (ni + 1)));
     }

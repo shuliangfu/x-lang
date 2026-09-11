@@ -1092,7 +1092,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   dst.next_lex = src.next_lex;
   dst.name_len = src.name_len;
   let ni: i32 = 0;
-  while (ni < 64) {
+  while (ni < 256) {
     if (ni < src.name_len) { dst.name[ni] = src.name[ni]; }
     ni = ni + 1;
   }
@@ -1116,7 +1116,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   /* See implementation. */
   dst.return_var_name_len = src.return_var_name_len;
   let rvni: i32 = 0;
-  while (rvni < 64) {
+  while (rvni < 256) {
     dst.return_var_name[rvni] = src.return_var_name[rvni];
     rvni = rvni + 1;
   }
@@ -1126,7 +1126,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   dst.has_call_expr = src.has_call_expr;
   dst.call_callee_len = src.call_callee_len;
   let cci: i32 = 0;
-  while (cci < 64) { dst.call_callee_name[cci] = src.call_callee_name[cci]; cci = cci + 1; }
+  while (cci < 256) { dst.call_callee_name[cci] = src.call_callee_name[cci]; cci = cci + 1; }
   dst.call_num_args = src.call_num_args;
   /* See implementation. */
   dst.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(dst));
@@ -1152,7 +1152,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
 export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[128] = [];
+  let z64: u8[256] = [];
   return {
     ok: false,
     next_lex: lexer.lexer_init(),
@@ -1208,7 +1208,7 @@ export function onefunc_finish_impl_to_out(
   snap.next_lex = lex;
   snap.name_len = name_len;
   let ni: i32 = 0;
-  while (ni < 64) {
+  while (ni < 256) {
     snap.name[ni] = name[ni];
     ni = ni + 1;
   }
@@ -1219,10 +1219,10 @@ export function onefunc_finish_impl_to_out(
  * Implements `onefunc_res_wire_dummy_head`.
  * @param res *OneFuncResult
  * @param lex Lexer
- * @param name64 u8[128]
+ * @param name64 u8[256]
  * @return void
  */
-export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[128]): void {
+export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let _w: OneFuncResult = { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
@@ -1262,10 +1262,10 @@ export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
 /** Exported function `onefunc_res_wire_dummy_call_binop`.
  * Implements `onefunc_res_wire_dummy_call_binop`.
  * @param res *OneFuncResult
- * @param name64 u8[128]
+ * @param name64 u8[256]
  * @return void
  */
-export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[128]): void {
+export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let _w: OneFuncResult = { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
@@ -1309,7 +1309,7 @@ export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
 export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let dummy_name: u8[128] = [];
+  let dummy_name: u8[256] = [];
   let res: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&res));
   onefunc_res_wire_dummy_head(&res, lex, dummy_name);
@@ -1326,7 +1326,7 @@ export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
 export function onefunc_snap_set_return_path(
   snap: *OneFuncResult,
   has_call: bool,
-  ret_var: u8[128],
+  ret_var: u8[256],
   ret_var_len: i32,
   ret_expr_ref: i32
 ): void {
@@ -1337,7 +1337,7 @@ export function onefunc_snap_set_return_path(
   snap.return_expr_ref = ret_expr_ref;
   snap.has_explicit_return_kw = true;
   let rvni: i32 = 0;
-  while (rvni < 64) {
+  while (rvni < 256) {
     snap.return_var_name[rvni] = ret_var[rvni];
     rvni = rvni + 1;
   }
@@ -5911,7 +5911,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* Cap 10.7.1: clear variadic until trailing `...` is seen. */
   out.is_variadic = 0;
   let out_ref: *OneFuncResult = out;
-  let dummy_name: u8[128] = [];
+  let dummy_name: u8[256] = [];
   /* See implementation. */
   let impl_snap: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&impl_snap));
@@ -8382,7 +8382,7 @@ export function write_extern_params_to_pools(arena: *ASTArena, module: *Module, 
 export function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let empty64: u8[128] = [];
+  let empty64: u8[256] = [];
   out.next_lex = lex;
   out.name_len = -1;
   out.return_ty_ref = 0;
@@ -8391,7 +8391,7 @@ export function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void
   out.is_variadic = 0;
   out.has_body = 0;
   let ni: i32 = 0;
-  while (ni < 64) {
+  while (ni < 256) {
     out.name[ni] = empty64[ni];
     ni = ni + 1;
   }

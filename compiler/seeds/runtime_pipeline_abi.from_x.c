@@ -61700,14 +61700,14 @@ int32_t pipeline_module_func_body_expr_ref_at(void *m, int32_t fi) {
 /**
  * Write func name bytes into Func.name[256] (Cap: ≤255 bytes + NUL pad).
  * Called by codegen name-write path and parse-time func registration.
- * Contract: null m / OOB func_index / name_len outside [0,127] → no-op.
+ * Contract: null m / OOB func_index / name_len outside [0,255] → no-op.
  */
 void pipeline_module_func_name_write(void *m, int32_t func_index, uint8_t *name_bytes,
                                      int32_t name_len) {
   W280_Func *f;
   if (!m || func_index < 0)
     return;
-  /* wave577 Cap: AST Func.name is u8[128]; allow up to 127 bytes */
+  /* Cap 4.2.8: AST Func.name is u8[256]; allow up to 255 bytes */
   if (name_len < 0 || name_len > 255)
     return;
   if (name_len > 0 && !name_bytes)

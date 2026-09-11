@@ -140,7 +140,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
                                               struct parser_asm_lexer lex, uint8_t *data, int32_t len) {
   struct parser_asm_lexer_result r;
   struct parser_asm_slice_u8 source;
-  uint8_t dummy_name[64];
+  uint8_t dummy_name[256]; /* Cap 4.2.8: func name ≤255 */
   /* Cap 4.2.8: param32 helpers fill 256 bytes (content ≤255). */
   uint8_t pname_buf[256];
   uint8_t *out_pool;
@@ -181,7 +181,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     return;
   }
   name_len = r.tok.ident_len;
-  if (name_len <= 0 || name_len > 63) {
+  if (name_len <= 0 || name_len > 255) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
   }
@@ -1581,7 +1581,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     out->ok = 1;
     out->next_lex = lex;
     out->name_len = name_len;
-    for (ni = 0; ni < 64; ni++)
+    for (ni = 0; ni < 256; ni++)
       out->name[ni] = dummy_name[ni];
     out->has_explicit_return_kw = 1;
     return;
@@ -1656,7 +1656,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     out->ok = 1;
     out->next_lex = lex;
     out->name_len = name_len;
-    for (ni = 0; ni < 64; ni++)
+    for (ni = 0; ni < 256; ni++)
       out->name[ni] = dummy_name[ni];
     out->has_explicit_return_kw = 1;
     return;
@@ -1711,7 +1711,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       }
       parser_asm_copy_slice_to_name64_buf_c(data, len, r.token_start, rvn, out->return_var_name);
       tnl = rvn;
-      for (ni = 0; ni < 64 && ni < tnl; ni++)
+      for (ni = 0; ni < 256 && ni < tnl; ni++)
         tnm64[ni] = out->return_var_name[ni];
     }
     out->return_var_name_len = rvn;
@@ -1747,7 +1747,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       pe = ast_ast_arena_expr_get(arena, lit_ref);
       memset(&pe, 0, sizeof(pe));
       pe.var_name_len = tnl;
-      for (ti = 0; ti < 64 && ti < tnl; ti++)
+      for (ti = 0; ti < 256 && ti < tnl; ti++)
         pe.var_name[ti] = tnm64[ti];
       ast_ast_arena_expr_set(arena, lit_ref, pe);
       /* lex_in_brace must be past `{` (same as primary TypeName { path). */
@@ -1779,7 +1779,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->ok = 1;
       out->next_lex = lex;
       out->name_len = name_len;
-      for (ni = 0; ni < 64; ni++)
+      for (ni = 0; ni < 256; ni++)
         out->name[ni] = dummy_name[ni];
       out->has_explicit_return_kw = 1;
       return;
@@ -1829,7 +1829,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->ok = 1;
       out->next_lex = lex;
       out->name_len = name_len;
-      for (ni = 0; ni < 64; ni++)
+      for (ni = 0; ni < 256; ni++)
         out->name[ni] = dummy_name[ni];
       out->has_explicit_return_kw = 1;
       return;
@@ -1846,7 +1846,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     out->ok = 1;
     out->next_lex = lex;
     out->name_len = name_len;
-    for (ni = 0; ni < 64; ni++)
+    for (ni = 0; ni < 256; ni++)
       out->name[ni] = dummy_name[ni];
     out->has_explicit_return_kw = 1;
     return;
@@ -1874,7 +1874,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   out->ok = 1;
   out->next_lex = lex;
   out->name_len = name_len;
-  for (ni = 0; ni < 64; ni++)
+  for (ni = 0; ni < 256; ni++)
     out->name[ni] = dummy_name[ni];
   out->return_val = ret_val;
   out->has_explicit_return_kw = 1;
