@@ -161,7 +161,7 @@ function l6_scan_block(a: *u8, br: i32): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nh: i32 = 0;
   if (a == 0 as *u8 || br <= 0) {
     return 0;

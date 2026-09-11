@@ -196,7 +196,7 @@ static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e
   int32_t i;
   if (!e)
     return;
-  if (len > 127)
+  if (len > 255)
     len = 127;
   e->var_name_len = len;
   for (i = 0; i < len; i++) {
@@ -801,7 +801,7 @@ static int32_t parser_asm_type_ref_mangle_suffix_c(void *arena, int32_t type_ref
 
 /**
  * LANG-009 M8 / DOC `parser_append_type_inst_mangle`:
- * `Name` + type_arg refs → `Name_suf0[_suf1…]` (cap 127 content).
+ * `Name` + type_arg refs → `Name_suf0[_suf1…]` (cap 255 content).
  * CORE-016: `Result<T,i32>` compresses to `Result_T` (drop trailing `_i32` for E=i32).
  * @return mangled length, or 0 on failure
  * PLATFORM: SHARED — sole parse-time STRUCT_LIT type-inst mangle authority.
@@ -970,7 +970,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         return;
       }
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_field_access_name_audit_c(source, r->token_start, mname_len));
-      if (mname_len > 127)
+      if (mname_len > 255)
         mname_len = 127;
       {
         size_t mname_start = r->token_start;
@@ -1174,7 +1174,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
           }
           mlen = parser_asm_append_type_inst_mangle_c(arena, be.var_name, be.var_name_len, parsed_refs,
                                                        parsed_n, mangled, 128);
-          if (mlen <= 0 || mlen > 127) {
+          if (mlen <= 0 || mlen > 255) {
             out->ok = 0;
             return;
           }
@@ -1393,8 +1393,8 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         return;
       }
       tlen = fae.field_access_field_len;
-      /* Cap matches struct_lit_struct_name[128] content max (finish_struct_lit uses >127). */
-      if (tlen <= 0 || tlen > 127) {
+      /* Cap matches struct_lit_struct_name[256] content max (finish_struct_lit uses >255). */
+      if (tlen <= 0 || tlen > 255) {
         out->ok = 0;
         return;
       }

@@ -409,7 +409,7 @@ int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, i
 /* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-404：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref) {
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen;
     int32_t off;
     if (!arena || !ctx || var_expr_ref <= 0)

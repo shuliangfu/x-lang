@@ -568,7 +568,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   int32_t dep_ix;
   int32_t func_ix;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t j;
   if (!caller_arena || call_ref <= 0 || !ctx || !out_ca || !out_cm || !out_fi)
     return 0;
@@ -614,7 +614,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
       }
     }
     clen = pipeline_expr_method_call_name_len(caller_arena, call_ref);
-    if (clen <= 0 || clen > 127)
+    if (clen <= 0 || clen > 255)
       return 0;
     pipeline_expr_method_call_name_into(caller_arena, call_ref, cname);
     *out_fi = glue_module_func_index_by_name(entry_mod, cname, clen);
@@ -666,7 +666,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   /** import binding：`vec.vec_u8_new()` 等 FIELD_ACCESS callee。 */
   if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) == 44) {
     int32_t field_len = pipeline_expr_field_access_name_len(caller_arena, callee_ref);
-    uint8_t field_name[128];
+    uint8_t field_name[256];
     if (field_len > 0 && field_len <= 63) {
       pipeline_expr_field_access_name_into(caller_arena, callee_ref, field_name);
       pctx = (struct ast_PipelineDepCtx *)ctx->dep_pipe;
@@ -745,7 +745,7 @@ int32_t glue_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *nam
   int32_t flen;
   uint8_t fb[128];
   int32_t k;
-  if (!mod || !name || name_len <= 0 || name_len > 127)
+  if (!mod || !name || name_len <= 0 || name_len > 255)
     return -1;
   for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
     flen = pipeline_asm_module_func_name_len_at(mod, fi);
@@ -918,7 +918,7 @@ int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t
 /* G-02f-370 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_type_ref_is_named_struct_layout_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                     int32_t ty_ref) {
-  uint8_t nm[128];
+  uint8_t nm[256];
   int32_t nlen;
   if (ty_ref <= 0 || !mod)
     return 0;
@@ -952,7 +952,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr_impl(struct ast_ASTArena *arena, i
   int32_t decl_ty;
   int32_t scope_br;
   int32_t has_block_decl;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   if (!arena || expr_ref <= 0)
     return 0;
@@ -1273,7 +1273,7 @@ int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, st
   int32_t arg;
   int32_t nargs;
   int32_t nparams;
-  uint8_t fname[128];
+  uint8_t fname[256];
   if (!out_arg_ref || !arena || inner_call_ref <= 0 || outer_field_ref <= 0 || !ctx)
     return 0;
   iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
@@ -1345,7 +1345,7 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
   int32_t off;
   int32_t arg_ref;
   int32_t ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t slot_off;
   struct ast_Module *layout_mod;
@@ -1514,11 +1514,11 @@ int32_t glue_inline_var_field_access_offset_impl(struct ast_ASTArena *arena, str
   int32_t base_ty;
   int32_t scope_br;
   int32_t kind;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   uint8_t struct_name[128];
   int32_t nlen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t flen;
   int32_t off;
   int32_t fi;
@@ -1601,7 +1601,7 @@ int32_t try_inline_var_field_sum_binop_elf_impl(struct ast_ASTArena *arena, stru
   int32_t base_r;
   int32_t off_a;
   int32_t off_b;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t slot_off;
   if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
@@ -1716,7 +1716,7 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
   int32_t off_b;
   int32_t arg_ref;
   int32_t ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t slot_off;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
@@ -1892,7 +1892,7 @@ int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct pla
   if (k == 0) {
     int32_t ret_ref;
     uint8_t pname[128];
-    uint8_t rname[128];
+    uint8_t rname[256];
     int32_t plen;
     int32_t rlen;
     ret_ref = glue_fold_func_return_operand_ref_module(callee_arena, callee_mod, fi);
@@ -2266,9 +2266,9 @@ int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct pla
   int32_t av1;
   int32_t folded;
   int32_t args[2];
-  char sym[128];
+  char sym[256];
   int sym_len;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t clen;
   int32_t ko;
   /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
@@ -2363,9 +2363,9 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena
   int32_t mono_args[GLUE_WPO_MONO_MAX_ARGS];
   int32_t nargs;
   int32_t li;
-  char sym[128];
+  char sym[256];
   int sym_len;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t clen;
   int32_t ko;
   int32_t iko;
@@ -2485,7 +2485,7 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
   int32_t nlen;
   int32_t narg;
   int32_t ko;
-  uint8_t nm[128];
+  uint8_t nm[256];
   if (!arena || call_ref <= 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, call_ref);
@@ -2498,7 +2498,7 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
       return 0;
     }
     nlen = pipeline_expr_method_call_name_len(arena, call_ref);
-    if (nlen <= 0 || nlen > 127)
+    if (nlen <= 0 || nlen > 255)
       return 0;
     pipeline_expr_method_call_name_into(arena, call_ref, nm);
     return (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0) ? 1 : 0;
@@ -2513,14 +2513,14 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
     return 0;
   if (pipeline_expr_kind_ord_at(arena, callee_ref) == GLUE_EXPR_VAR) {
     nlen = pipeline_expr_var_name_len(arena, callee_ref);
-    if (nlen <= 0 || nlen > 127)
+    if (nlen <= 0 || nlen > 255)
       return 0;
     pipeline_expr_var_name_into(arena, callee_ref, nm);
     return (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0) ? 1 : 0;
   }
   if (pipeline_expr_kind_ord_at(arena, callee_ref) == 44) {
     nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
-    if (nlen <= 0 || nlen > 127)
+    if (nlen <= 0 || nlen > 255)
       return 0;
     pipeline_expr_field_access_name_into(arena, callee_ref, nm);
     if (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0)

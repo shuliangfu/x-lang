@@ -51,11 +51,11 @@ static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexe
  */
 struct ast_Type {
   int32_t kind;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[128];
+  uint8_t region_label[256];
   int32_t region_label_len;
 };
 
@@ -102,7 +102,7 @@ extern int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind);
 
 /**
  * Consume qualified type IDENT path `a.b.Type` into out[0..*out_len).
- * wave582 Cap residual: content cap 63→127 (Type.name[128] / AST Cap wave577).
+ * wave582 Cap residual: content cap 63→255 (Type.name[256] / AST Cap wave577).
  * Caller out must have capacity ≥128. PLATFORM: SHARED product type_ref path.
  */
 int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u8 *source,
@@ -118,7 +118,7 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
   if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len <= 0)
     return -1;
   seg_len = r->tok.ident_len;
-  if (seg_len > 127)
+  if (seg_len > 255)
     seg_len = 127;
   parser_asm_copy_slice_to_name64_at_end_slice_c(source, r->next_lex.pos, seg_len, out);
   total = seg_len;
@@ -142,7 +142,7 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
     if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len <= 0)
       return -1;
     seg_len = r->tok.ident_len;
-    if (total + seg_len > 127)
+    if (total + seg_len > 255)
       seg_len = 127 - total;
     if (seg_len <= 0)
       return -1;

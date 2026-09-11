@@ -297,7 +297,7 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
    * Stage 12.0.5 ABI: always prepend '_' for C call names. Do NOT skip when
    * name[0]=='_' — C reserved names like __error must become ___error (host cc). */
   macho_leading_underscore = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
-  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 127) {
+  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 255) {
     reloc_name[0] = (uint8_t)'_';
     for (i = 0; i < name_len && i < 127; i++)
       reloc_name[i + 1] = name[i];

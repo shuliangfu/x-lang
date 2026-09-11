@@ -296,7 +296,7 @@ export function onefunc_result_pool_ptr(res: *OneFuncResult): *u8 {
 allow(padding) struct OneFuncResult {
   ok: bool;
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   num_params: i32;
   num_generic_params: i32;
@@ -319,10 +319,10 @@ allow(padding) struct OneFuncResult {
   return_val: i32;
   /* See implementation. */
   has_call_expr: bool;
-  call_callee_name: u8[128];
+  call_callee_name: u8[256];
   call_callee_len: i32;
   /* See implementation. */
-  return_var_name: u8[128];
+  return_var_name: u8[256];
   return_var_name_len: i32;
   /* See implementation. */
   return_expr_ref: i32;
@@ -4334,7 +4334,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     } else if ((r.tok.kind as i32) == 51) {
       name_len = 4;
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* token_start is real offset in slice; 0 is legal (do not use token_start!=0 as sentinel). */
@@ -4590,7 +4590,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           se.var_name_len = 0;
           se.int_val = 0;
           /* Decode escapes so AST holds semantic bytes (\n→0x0A, \xHH→byte).
-           * slen>127: overflow chunks via int_val (G.7 complete of var_name store).
+           * slen>255: overflow chunks via int_val (G.7 complete of var_name store).
            * wave281: product set `\n \t \r \0 \\ \" \xHH` (lexer L010 rejects others). */
           ast.ast_arena_expr_set(arena, str_ref, se);
           parser_string_lit_decode_span(arena, str_ref, source, r.token_start, r.tok.ident_len, se.line, se.col);
@@ -5762,7 +5762,7 @@ export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool 
  * Callers must pass a dst buffer of at least 128 bytes.
  * @param source u8[] — source text
  * @param start usize — start offset into source
- * @param nlen i32 — content length (0..127 used; larger values still zero-fill)
+ * @param nlen i32 — content length (0..255 used; larger values still zero-fill)
  * @param out *u8 — destination row (≥128 bytes)
  * @return void
  * PLATFORM: SHARED
@@ -5949,8 +5949,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let plen_param: i32 = 0;
   let param_idx: i32 = 0;
   let param_pool: *u8 = 0 as *u8;
-  /* wave585 Cap residual: param name row 32→128 (content ≤127). */
-  let pname_row: u8[128] = [];
+  /* wave585 Cap residual: param name row 32→128 (content ≤255). */
+  let pname_row: u8[256] = [];
   let zi_param: i32 = 0;
   /* See implementation. */
   let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
@@ -5986,7 +5986,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     } else {
       func_name_len_storage[0] = r.tok.ident_len;
-      if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 127) {
+      if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 255) {
         set_onefunc_fail(out, lex); return;
       }
       name_start = r.next_lex.pos - func_name_len_storage[0];
@@ -5999,7 +5999,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     }
     func_name_len_storage[0] = r.tok.ident_len;
-    if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 127) {
+    if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 255) {
       set_onefunc_fail(out, lex); return;
     }
     name_start = r.next_lex.pos - func_name_len_storage[0];
@@ -6064,8 +6064,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       } else {
         plen_param = r.tok.ident_len;
       }
-      /* wave585 Cap residual: param content ≤127 (was 31). */
-      if (plen_param <= 0 || plen_param > 127) {
+      /* wave585 Cap residual: param content ≤255 (was 31). */
+      if (plen_param <= 0 || plen_param > 255) {
         set_onefunc_fail(out_ref, lex); return;
       }
       /* Clear row then copy binding-name bytes from token_start before append into sidecar pool. */
@@ -7922,7 +7922,7 @@ export extern function parser_module_try_register_enum_name_glue(module: *Module
 export function module_try_register_enum_name(module: *Module, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
+  if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 255) {
     return -1;
   }
   let ei: i32 = 0;
@@ -8005,8 +8005,8 @@ export function module_append_enum_variants_and_skip_body_into_buf(module: *Modu
       depth = depth + 1;
     } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == token.TokenKind.TOKEN_IDENT) {
       let vlen: i32 = r.tok.ident_len;
-      if (vlen > 127) {
-        vlen = 127;
+      if (vlen > 255) {
+        vlen = 255;
       }
       let vstart: usize = r.token_start;
       let vb: u8[128] = [];
@@ -8316,7 +8316,7 @@ function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
  */
 allow(padding) struct ExternParseResult {
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   /* See implementation. */
   return_ty_ref: i32;
@@ -8360,7 +8360,7 @@ export function write_extern_params_to_pools(arena: *ASTArena, module: *Module, 
   let pool: *u8 = extern_parse_pool_ptr(res);
   let p: i32 = 0;
   while (p < res.num_params) {
-    let pname32: u8[128] = [];
+    let pname32: u8[256] = [];
     pipeline_onefunc_param_name_copy32(pool, p, &pname32[0]);
     let plen: i32 = pipeline_onefunc_param_name_len(pool, p);
     let pty: i32 = pipeline_onefunc_param_type_ref(pool, p);
@@ -8578,7 +8578,7 @@ allow(padding) struct LibraryParseResult {
   ok: bool;
   _pad: u8[4];
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   _pad_tail: u8[4];
 }
@@ -8650,13 +8650,13 @@ struct LibraryParseScanResult {
   ok: bool;
   _pad: u8[4];
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
-  param_name: u8[128];
+  param_name: u8[256];
   param_name_len: i32;
-  param_type_name: u8[128];
+  param_type_name: u8[256];
   param_type_len: i32;
-  field_name: u8[128];
+  field_name: u8[256];
   field_len: i32;
   _pad_tail: u8[4];
   _pad_tail2: u8[4];
@@ -8685,7 +8685,7 @@ function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *Libr
 
 /* See implementation. */
 /* See implementation. */
-extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[128], nlen: i32): bool;
+extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[256], nlen: i32): bool;
 /** Internal function `struct_layout_name_exists_arr`.
  * Implements `struct_layout_name_exists_arr`.
  * @param module *Module
@@ -8693,7 +8693,7 @@ extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u
  * @param nlen i32
  * @return bool
  */
-export function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen: i32): bool {
+export function struct_layout_name_exists_arr(module: *Module, nm: u8[256], nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8722,7 +8722,7 @@ export function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen
 
 /* See implementation. */
 /* See implementation. */
-extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[128], nlen: i32): i32;
+extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[256], nlen: i32): i32;
 /** Internal function `struct_layout_first_name_match_idx`.
  * Implements `struct_layout_first_name_match_idx`.
  * @param module *Module
@@ -8730,7 +8730,7 @@ extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, 
  * @param nlen i32
  * @return i32
  */
-export function struct_layout_first_name_match_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
+export function struct_layout_first_name_match_idx(module: *Module, nm: u8[256], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8762,12 +8762,12 @@ export function struct_layout_first_name_match_idx(module: *Module, nm: u8[128],
  * See implementation.
  */
 /* See implementation. */
-extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[128], nlen: i32): i32;
+extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[256], nlen: i32): i32;
 /**
  * See implementation.
  * See implementation.
  */
-export function struct_layout_placeholder_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
+export function struct_layout_placeholder_idx(module: *Module, nm: u8[256], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -10521,7 +10521,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let mod_pool: *u8 = onefunc_result_pool_ptr(&res);
     let p: i32 = 0;
     while (p < res.num_params) {
-      let pname32: u8[128] = [];
+      let pname32: u8[256] = [];
       pipeline_onefunc_param_name_copy32(mod_pool, p, &pname32[0]);
       pipeline_module_func_param_write(module, fi, p, &pname32[0], pipeline_onefunc_param_name_len(mod_pool, p), pipeline_onefunc_param_type_ref(mod_pool, p));
       p = p + 1;
@@ -12637,7 +12637,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let p_copy: i32 = 0;
     let mod_pool_buf: *u8 = onefunc_result_pool_ptr(&res);
     while (p_copy < res.num_params) {
-      let pname32b: u8[128] = [];
+      let pname32b: u8[256] = [];
       pipeline_onefunc_param_name_copy32(mod_pool_buf, p_copy, &pname32b[0]);
       pipeline_module_func_param_write(module, fi_mod, p_copy, &pname32b[0], pipeline_onefunc_param_name_len(mod_pool_buf, p_copy), pipeline_onefunc_param_type_ref(mod_pool_buf, p_copy));
       p_copy = p_copy + 1;
@@ -12785,7 +12785,7 @@ export function copy_module_import_path64(module: *Module, i: i32, out: u8[128])
   unsafe {
   get_module_import_path(module, i, out);
   let path_len: i32 = 0;
-  while (path_len < 127 && out[path_len] != 0) {
+  while (path_len < 255 && out[path_len] != 0) {
     path_len = path_len + 1;
   }
   return path_len;

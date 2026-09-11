@@ -40,7 +40,7 @@ extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, str
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex);
 
-/** Copy ident into name_buf (content up to 127; buffer capacity 128). wave581 Cap residual. */
+/** Copy ident into name_buf (content up to 255; buffer capacity 128). wave581 Cap residual. */
 static void parser_asm_top_level_let_copy_ident_name_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                        int32_t name_len, uint8_t *name_buf) {
   if (!name_buf || name_len <= 0)
@@ -56,7 +56,7 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
                                                      struct parser_asm_top_level_let_result *out) {
   struct parser_asm_lexer_result r;
   struct parser_asm_parse_expr_result expr_res;
-  /* wave581 Cap residual: top-level let/const name content cap 127. */
+  /* wave581 Cap residual: top-level let/const name content cap 255. */
   uint8_t name_buf[128];
   int32_t name_len;
   int32_t name_line;
@@ -95,8 +95,8 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   /* 9.6.3: binding-name token position, kept for the P012 dup diagnostic. */
   name_line = (int32_t)r.tok.line;
   name_col = (int32_t)r.tok.col;
-  /* wave581 Cap residual: content cap 127 (was 63). PLATFORM: SHARED parse. */
-  if (name_len <= 0 || name_len > 127)
+  /* wave581 Cap residual: content cap 255 (was 63). PLATFORM: SHARED parse. */
+  if (name_len <= 0 || name_len > 255)
     return;
   parser_asm_top_level_let_copy_ident_name_c(source, r.token_start, name_len, name_buf);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(name_buf, name_len));

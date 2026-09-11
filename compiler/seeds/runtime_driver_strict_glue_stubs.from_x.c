@@ -719,10 +719,10 @@ XLANG_WEAK int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t 
 extern int cfg_eval_expr_c(const char *start, int len);
 
 struct ast_LabeledStmt {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[128];
+  uint8_t goto_target[256];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 };
@@ -991,16 +991,16 @@ void pipeline_block_labeled_set_names(struct ast_ASTArena *a, int32_t br, int32_
   if (!ls)
     return;
   if (label && label_len > 0) {
-    /* wave586 Cap residual: label content ≤127 (LabeledStmt.label[128]). */
-    if (label_len > 127)
+    /* wave586 Cap residual: label content ≤255 (LabeledStmt.label[128]). */
+    if (label_len > 255)
       label_len = 127;
     memcpy(ls->label, label, (size_t)label_len);
     ls->label[label_len] = 0;
     ls->label_len = label_len;
   }
   if (goto_target && goto_target_len > 0) {
-    /* wave586 Cap residual: goto target content ≤127. */
-    if (goto_target_len > 127)
+    /* wave586 Cap residual: goto target content ≤255. */
+    if (goto_target_len > 255)
       goto_target_len = 127;
     memcpy(ls->goto_target, goto_target, (size_t)goto_target_len);
     ls->goto_target[goto_target_len] = 0;

@@ -925,7 +925,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         pname_buf[4] = 0;
       } else {
         param_name_len = r.tok.ident_len;
-        if (param_name_len <= 0 || param_name_len > 127) {
+        if (param_name_len <= 0 || param_name_len > 255) {
           parser_asm_set_onefunc_fail_c(out, lex);
           return;
         }

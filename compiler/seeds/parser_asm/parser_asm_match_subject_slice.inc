@@ -204,7 +204,7 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
     e.kind = 3; /* AST_EXPR_VAR */
     /* wave582 Cap residual: Expr.var_name is u8[128]; clamp 63→127, pad 128. */
     name_len = r.tok.ident_len;
-    if (name_len > 127)
+    if (name_len > 255)
       name_len = 127;
     e.var_name_len = name_len;
     start = r.token_start;
@@ -243,11 +243,11 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
   *out_guard = 0;
   while (r->tok.kind != (int32_t)TOKEN_RBRACE && r->tok.kind != (int32_t)TOKEN_EOF) {
     if (r->tok.kind == (int32_t)TOKEN_IDENT) {
-      uint8_t fname[128];
+      uint8_t fname[256];
       int32_t flen = r->tok.ident_len;
       size_t fstart = r->token_start;
       int32_t fi;
-      if (flen > 127)
+      if (flen > 255)
         flen = 127;
       memset(fname, 0, sizeof(fname));
       for (fi = 0; fi < flen && fstart + (size_t)fi < source->length; fi++)
@@ -339,7 +339,7 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
  * PLATFORM: SHARED dest-typed enum match.
  */
 static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t vlen) {
-  uint8_t ename[128];
+  uint8_t ename[256];
   int32_t ei;
   int32_t nlen;
   int32_t bi;
@@ -355,7 +355,7 @@ static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t
     nlen = pipeline_module_enum_name_len(m, ei);
     if (nlen <= 0)
       break;
-    if (nlen > 127)
+    if (nlen > 255)
       nlen = 127;
     memset(ename, 0, sizeof(ename));
     bi = 0;
@@ -1244,9 +1244,9 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         is_wc = 1;
         parser_lex_from_next_into_glue(&lex, r);
       } else if (r.tok.kind == (int32_t)TOKEN_IDENT) {
-        /* wave582 Cap residual: enum/variant pattern names content ≤127. */
+        /* wave582 Cap residual: enum/variant pattern names content ≤255. */
         enum_len = r.tok.ident_len;
-        if (enum_len > 127)
+        if (enum_len > 255)
           enum_len = 127;
         enum_start = r.token_start;
         if (enum_start == 0)
@@ -1276,7 +1276,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
           if (r.tok.kind != (int32_t)TOKEN_IDENT)
             return;
           variant_len = r.tok.ident_len;
-          if (variant_len > 127)
+          if (variant_len > 255)
             variant_len = 127;
           variant_start = r.token_start;
           if (variant_start == 0)
@@ -1324,7 +1324,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
         if (r.tok.kind != (int32_t)TOKEN_IDENT)
           return;
         variant_len = r.tok.ident_len;
-        if (variant_len > 127)
+        if (variant_len > 255)
           variant_len = 127;
         variant_start = r.token_start;
         if (variant_start == 0)

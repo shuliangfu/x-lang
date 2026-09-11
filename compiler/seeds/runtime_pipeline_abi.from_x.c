@@ -15,7 +15,7 @@
  * wave275: arena/module/onefunc sidecar pool Cap residual pure leave cold twins under #ifndef FROM_X
  * wave266: struct_layout Cap residual pure leave cold twins under #ifndef FROM_X
  * wave264: module_enum Cap residual pure leave cold twins under #ifndef FROM_X
- *   (pipeline_module_enum_* + try_mark + storage_reset/release; 33932B ModuleEnumEntry LE map)
+ *   (pipeline_module_enum_* + try_mark + storage_reset/release; 66828B ModuleEnumEntry LE map)
  * wave263: module_import Cap residual pure leave cold twins under #ifndef FROM_X
  *   (pipeline_module_import_* full set + storage_release; 340B ImportEntry LE map)
  * wave262: type_alias Cap residual pure leave cold twins under #ifndef FROM_X
@@ -754,7 +754,7 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
         return;
     nf = pipeline_module_num_funcs(module);
     for (fi = 0; fi < nf; fi++) {
-        uint8_t raw_name[128];
+        uint8_t raw_name[256];
         char name[65];
         int32_t name_len;
         int32_t body_ref;
@@ -6737,7 +6737,7 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(void *arena, uint8_t *scrat
   int32_t w;
   int32_t h;
   int32_t name_len;
-  uint8_t nm[128];
+  uint8_t nm[256];
   int32_t sn;
   int32_t nt;
 
@@ -7100,7 +7100,7 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner_w110(void *arena, v
   int32_t lanes_v;
   int32_t nl;
   int32_t sn;
-  uint8_t nm[128];
+  uint8_t nm[256];
 
   ord = pipeline_type_kind_ord_at(arena, type_ref);
   if (!arena || type_ref <= 0 || ord < 0) {
@@ -10389,7 +10389,7 @@ int32_t pipeline_visibility_mode(void) {
 
 int32_t pipeline_visibility_allow_func(void *m, int32_t fi, int32_t cross_module) {
   int32_t mode;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen;
   if (!cross_module)
     return 1;
@@ -10409,8 +10409,8 @@ int32_t pipeline_visibility_allow_func(void *m, int32_t fi, int32_t cross_module
     nlen = pipeline_module_func_name_len_at(m, fi);
     if (nlen < 0)
       nlen = 0;
-    if (nlen > 127)
-      nlen = 127;
+    if (nlen > 255)
+    nlen = 255;
     pabi_trace( "warning: '%.*s' is not exported (XLANG_VISIBILITY=warn); "
                     "add `export` or it will error under strict\n",
             (int)nlen, (const char *)name);
@@ -10492,7 +10492,7 @@ static void wave121_report_unused_private(const uint8_t *name, int32_t nlen) {
   int nl = (nlen > 0) ? (int)nlen : 0;
   int line = 1;
   int col = 1;
-  if (nl > 127)
+  if (nl > 255)
     nl = 63;
   snprintf(msg, sizeof msg, "unused private function '%.*s' (not export, not reachable in module)",
            nl, (const char *)(name ? name : (const uint8_t *)""));
@@ -10517,7 +10517,7 @@ static void wave121_mark_local_call_names(void *a, uint8_t *used_flags, int32_t 
     if (ko == 48) { /* EXPR_CALL */
       int32_t callee_ref = pipeline_expr_call_callee_ref_at(a, er);
       int32_t clen;
-      uint8_t cname[128];
+      uint8_t cname[256];
       if (callee_ref <= 0)
         continue;
       if (pipeline_expr_kind_ord_at(a, callee_ref) != 3)
@@ -10532,7 +10532,7 @@ static void wave121_mark_local_call_names(void *a, uint8_t *used_flags, int32_t 
       }
     } else if (ko == 49) { /* EXPR_METHOD_CALL */
       int32_t mlen = pipeline_expr_method_call_name_len(a, er);
-      uint8_t mname[128];
+      uint8_t mname[256];
       if (mlen <= 0)
         continue;
       pipeline_expr_method_call_name_into(a, er, mname);
@@ -10549,7 +10549,7 @@ int32_t pipeline_typeck_unused_private_funcs(void *m, void *a) {
   int32_t fi;
   int32_t nwarn = 0;
   uint8_t *used = NULL;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen;
   if (!m || !a)
     return 0;
@@ -10663,7 +10663,7 @@ static int32_t wave_l6_binding_is_used(void *a, const uint8_t *name, int32_t nle
   int32_t er;
   int32_t ko;
   int32_t vlen;
-  uint8_t vbuf[128];
+  uint8_t vbuf[256];
   if (!a || !name || nlen <= 0)
     return 1;
   /* ASTArena.num_exprs @ offset 4 */
@@ -10697,7 +10697,7 @@ static int32_t wave_l6_scan_block(void *a, int32_t br) {
   int32_t n;
   int32_t i;
   int32_t nlen;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nh = 0;
   if (!a || br <= 0)
     return 0;
@@ -10796,7 +10796,7 @@ static void wpo_dump_mark_local_call_names_win(void *a, uint8_t *used_flags, int
     if (ko == 48) { /* EXPR_CALL */
       int32_t callee_ref = pipeline_expr_call_callee_ref_at(a, er);
       int32_t clen;
-      uint8_t cname[128];
+      uint8_t cname[256];
       if (callee_ref <= 0)
         continue;
       if (pipeline_expr_kind_ord_at(a, callee_ref) != 3)
@@ -10811,7 +10811,7 @@ static void wpo_dump_mark_local_call_names_win(void *a, uint8_t *used_flags, int
       }
     } else if (ko == 49) { /* EXPR_METHOD_CALL */
       int32_t mlen = pipeline_expr_method_call_name_len(a, er);
-      uint8_t mname[128];
+      uint8_t mname[256];
       if (mlen <= 0)
         continue;
       pipeline_expr_method_call_name_into(a, er, mname);
@@ -10831,7 +10831,7 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
   int32_t nfuncs, fi, root = -1, nlen, is_ext;
   uint8_t *reach = NULL;
   uint8_t *called = NULL;
-  uint8_t name[128];
+  uint8_t name[256];
   int first;
   (void)ctx;
   if (!m || !a) return 0;
@@ -10966,7 +10966,7 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
   int32_t nfuncs, fi, root = -1, nlen, is_ext;
   uint8_t *reach = NULL;
   uint8_t *called = NULL;
-  uint8_t name[128];
+  uint8_t name[256];
   int first;
   (void)ctx;
   if (!m || !a) return 0;
@@ -11389,7 +11389,7 @@ extern int32_t pipeline_asm_emit_func_index_c(void);
 
 /* GLUE_EXPR_KIND_VAR == 3 */
 int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t scope_br;
   int32_t tr;
@@ -11398,7 +11398,7 @@ int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_re
   if (!arena || !ctx || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != 3)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   scope_br = asm_ctx_scope_block_ref_at((uint8_t *)ctx);
@@ -11595,7 +11595,7 @@ int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(void *elf_ctx, int32_t ta) {
  * stay free of U xlang_panic_ (Stage 12.0.5). Darwin ARM64 sdiv #0 is 0.
  * PLATFORM: SHARED cold twin of runtime_pipeline_abi.x authority (G.7 same commit). */
 int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(void *elf_ctx, void *ctx, int32_t ta) {
-  uint8_t ok_lbl[128];
+  uint8_t ok_lbl[256];
   int32_t ok_len;
   const char *pe;
   if (elf_ctx == 0 || ctx == 0)
@@ -11636,8 +11636,8 @@ extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name
 int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t left_ref;
   int32_t right_ref;
-  uint8_t false_lbl[128];
-  uint8_t end_lbl[128];
+  uint8_t false_lbl[256];
+  uint8_t end_lbl[256];
   int32_t false_len;
   int32_t end_len;
   left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -11676,8 +11676,8 @@ int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t ex
 int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t left_ref;
   int32_t right_ref;
-  uint8_t true_lbl[128];
-  uint8_t end_lbl[128];
+  uint8_t true_lbl[256];
+  uint8_t end_lbl[256];
   int32_t true_len;
   int32_t end_len;
   left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -11759,8 +11759,8 @@ int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t 
   int32_t cond_if;
   int32_t then_ref;
   int32_t else_ref;
-  uint8_t else_lbl[128];
-  uint8_t done_lbl[128];
+  uint8_t else_lbl[256];
+  uint8_t done_lbl[256];
   int32_t else_len;
   int32_t done_len;
   uint8_t then_live[136];
@@ -11968,17 +11968,17 @@ int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *entry, struct
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 #define WAVE131_ASYNC_LIVE_MAX 64
-#define WAVE131_ASYNC_LIVE_VAR_SZ 140
-#define WAVE131_ASYNC_LAYOUT_SZ 8976
-#define WAVE131_ASYNC_STATE_SZ 9124
+#define WAVE131_ASYNC_LIVE_VAR_SZ 268
+#define WAVE131_ASYNC_LAYOUT_SZ 17168
+#define WAVE131_ASYNC_STATE_SZ 17316
 #define WAVE131_ASYNC_OFF_LAYOUT 16
-#define WAVE131_ASYNC_OFF_RESUME 8992
-#define WAVE131_ASYNC_OFF_RESUME_LEN 9120
+#define WAVE131_ASYNC_OFF_RESUME 17184
+#define WAVE131_ASYNC_OFF_RESUME_LEN 17312
 #define WAVE131_TAIL_JOIN_LBL 1392
 #define WAVE131_TAIL_JOIN_LEN 1520
 
 typedef struct Wave131AsyncAsmPoolLiveVar {
-  char name[128];
+  char name[256];
   int32_t name_len;
   int32_t size_bytes;
   int32_t frame_data_off;
@@ -12707,7 +12707,7 @@ int32_t pipeline_asm_emit_neg_elf_c(void *arena, void *elf_ctx, int32_t expr_ref
       return pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)and_eax_ff, 5);
     }
     if (k_n == 8) {
-      uint8_t nm[128];
+      uint8_t nm[256];
       int32_t nlen = pipeline_type_named_name_into(arena, tr_n, nm);
       if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6' && ta == 0) {
         static const uint8_t and_eax_ffff[5] = {0x25, 0xff, 0xff, 0x00, 0x00};
@@ -12845,8 +12845,8 @@ int32_t pipeline_codegen_match_name_is_subject_field_c(void *module, void *arena
   int32_t nf;
   int32_t fl;
   int32_t j;
-  uint8_t tnm[128];
-  uint8_t fnm[128];
+  uint8_t tnm[256];
+  uint8_t fnm[256];
   int32_t tnl;
   if (!module || !arena || !name || name_len <= 0)
     return 0;
@@ -13086,9 +13086,9 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
   int32_t then_last_peel;
   int32_t dest_park_if;
   int32_t then_skip;
-  uint8_t name_buf[128];
-  uint8_t else_lbl[128];
-  uint8_t done_lbl[128];
+  uint8_t name_buf[256];
+  uint8_t else_lbl[256];
+  uint8_t done_lbl[256];
   if (!arena || !elf_ctx || !ctx || br <= 0)
     return -1;
   parked = 0;
@@ -13474,7 +13474,7 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
       if (is_g != 0) {
         pipeline_block_labeled_goto_target_copy32(arena, br, idx, name_buf);
         nlen = pipeline_block_labeled_goto_target_len(arena, br, idx);
-        if (nlen > 0 && nlen <= 127) {
+        if (nlen > 0 && nlen <= 255) {
           if (backend_enc_jmp_arch(elf_ctx, name_buf, nlen, ta) != 0)
             return -1;
         }
@@ -13482,7 +13482,7 @@ static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void
       }
       pipeline_block_labeled_label_copy32(arena, br, idx, name_buf);
       nlen = pipeline_block_labeled_label_len(arena, br, idx);
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
           return -1;
       }
@@ -13787,8 +13787,8 @@ static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, 
     int32_t cond;
     int32_t then_ref;
     int32_t else_ref;
-    uint8_t else_lbl[128];
-    uint8_t done_lbl[128];
+    uint8_t else_lbl[256];
+    uint8_t done_lbl[256];
     int32_t else_len;
     int32_t done_len;
     cond = pipeline_expr_if_cond_ref_at(arena, result_ref);
@@ -13982,7 +13982,7 @@ int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   int32_t cmp_val;
   int32_t is_wild;
   int32_t guard_ref;
-  uint8_t done_lbl[128];
+  uint8_t done_lbl[256];
   uint8_t next_lbl[128];
   int32_t done_len;
   int32_t next_len;
@@ -14097,8 +14097,8 @@ int32_t pipeline_asm_emit_expr_if_elf_c(void *arena, void *elf_ctx, int32_t expr
   int32_t cond;
   int32_t then_ref;
   int32_t else_ref;
-  uint8_t else_lbl[128];
-  uint8_t done_lbl[128];
+  uint8_t else_lbl[256];
+  uint8_t done_lbl[256];
   int32_t else_len;
   int32_t done_len;
   cond = pipeline_expr_if_cond_ref_at(arena, expr_ref);
@@ -14539,7 +14539,7 @@ int32_t glue_fold_expr_var_refs_same_c(struct ast_ASTArena *arena, int32_t a_ref
     return 0;
   alen = pipeline_expr_var_name_len(arena, a_ref);
   blen = pipeline_expr_var_name_len(arena, b_ref);
-  if (alen <= 0 || blen <= 0 || alen != blen || alen > 127)
+  if (alen <= 0 || blen <= 0 || alen != blen || alen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, a_ref, abuf);
   pipeline_expr_var_name_into(arena, b_ref, bbuf);
@@ -14594,11 +14594,11 @@ int32_t glue_fold_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block
   int32_t vlen;
   int32_t nlet;
   int32_t li;
-  uint8_t vbuf[128];
+  uint8_t vbuf[256];
   if (!arena || block_ref <= 0 || var_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_ref) != 3)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, var_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, var_ref, vbuf);
   nlet = ast_ast_block_num_lets(arena, block_ref);
@@ -14795,7 +14795,7 @@ int32_t glue_is_assign_s_plus_pair_field_sum_call_c(struct ast_ASTArena *arena, 
   int32_t inner;
   int32_t callee_ref;
   int32_t arg0;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t clen;
   if (!arena || !mod || er <= 0 || pair_ref <= 0 || pipeline_expr_kind_ord_at(arena, er) != 28)
     return 0;
@@ -14890,8 +14890,8 @@ int32_t glue_is_assign_sum_plus_u8_index_cast_c(struct ast_ASTArena *arena, int3
 /** Whether VAR expr name equals the name of body's let_idx-th let. */
 int32_t glue_expr_var_name_eq_let_idx_c(struct ast_ASTArena *arena, int32_t var_expr_ref,
                                                int32_t body_ref, int32_t let_idx) {
-  uint8_t vname[128];
-  uint8_t lname[128];
+  uint8_t vname[256];
+  uint8_t lname[256];
   int32_t vlen;
   int32_t llen;
   int32_t k;
@@ -14901,7 +14901,7 @@ int32_t glue_expr_var_name_eq_let_idx_c(struct ast_ASTArena *arena, int32_t var_
     return 0;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   llen = pipeline_block_let_name_len(arena, body_ref, let_idx);
-  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 127)
+  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   pipeline_block_let_name_copy64(arena, body_ref, let_idx, lname);
@@ -15047,7 +15047,7 @@ static int32_t glue_emit_rex_w_if_64bit_seed(void *elf_ctx, int32_t is_64bit, in
 
 static int32_t pipeline_asm_cmp_enum_rhs_tag_seed(void *arena, int32_t expr_ref) {
   uint8_t base_buf[32];
-  uint8_t field_buf[128];
+  uint8_t field_buf[256];
   int32_t blen, flen, tag, base_ref;
   if (!arena || expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 44)
     return -1;
@@ -15059,7 +15059,7 @@ static int32_t pipeline_asm_cmp_enum_rhs_tag_seed(void *arena, int32_t expr_ref)
     return -1;
   pipeline_expr_var_name_into(arena, base_ref, base_buf);
   flen = pipeline_expr_field_access_name_len(arena, expr_ref);
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return -1;
   pipeline_expr_field_access_name_into(arena, expr_ref, field_buf);
   if (memcmp(base_buf, "TypeKind", 8) == 0)
@@ -15403,7 +15403,7 @@ int32_t pipeline_asm_emit_await_sync_elf_impl(void *arena, void *elf_ctx, int32_
 
 int32_t pipeline_asm_emit_try_propagate_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op, ok_len, tj_len, i;
-  uint8_t ok_lbl[128];
+  uint8_t ok_lbl[256];
   uint8_t tj_lbl[128];
   uint8_t *ly;
   op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -15649,7 +15649,7 @@ int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_r
       if (fnptr_off < 0) {
         int32_t fnptr_vlen = pipeline_expr_var_name_len(arena, op);
         if (fnptr_vlen > 0 && fnptr_vlen < 128) {
-          uint8_t fnptr_vname[128];
+          uint8_t fnptr_vname[256];
           int32_t fnptr_fi = 0;
           void *fnptr_mod = 0;
           pipeline_expr_var_name_into(arena, op, fnptr_vname);
@@ -15706,9 +15706,9 @@ mp_finish_seed(arena, ctx, elf_ctx, left_ref, right_ref, is_cmp_64bit, cc, ta);
 int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
-  uint8_t fb[128];
+  uint8_t fb[256];
   int32_t k;
-  if (!mod || !name || name_len <= 0 || name_len > 127)
+  if (!mod || !name || name_len <= 0 || name_len > 255)
     return -1;
   for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
     flen = pipeline_module_func_name_len_at(mod, fi);
@@ -15915,7 +15915,7 @@ int32_t glue_fold_func_return_operand_ref_c(void *arena, void *mod, int32_t func
 int32_t glue_expr_is_func_param_at_c(void *arena, void *mod, int32_t func_idx,
                                     int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[128];
-  uint8_t vbuf[128];
+  uint8_t vbuf[256];
   int32_t plen;
   int32_t vlen;
   int32_t k;
@@ -16695,7 +16695,7 @@ int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, i
 static int32_t pipe_modlet_fn_sym_spell_into_cold(uint8_t *elf_ctx, uint8_t *name, int32_t name_len,
                                                    uint8_t *dst) {
   int32_t macho = 0, k = 0;
-  if (!elf_ctx || !name || !dst || name_len <= 0 || name_len > 127)
+  if (!elf_ctx || !name || !dst || name_len <= 0 || name_len > 255)
     return -1;
   macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
   if (macho != 0) {
@@ -16712,7 +16712,7 @@ static int32_t pipe_modlet_fn_sym_spell_into_cold(uint8_t *elf_ctx, uint8_t *nam
 static int32_t pipe_modlet_lea_fn_sym_to_rax_cold(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
   uint8_t sym[130];
   int32_t len = 0, rc = 0;
-  if (!elf_ctx || !name || name_len <= 0 || name_len > 127 || (ta != 0 && ta != 1))
+  if (!elf_ctx || !name || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1))
     return -1;
   len = pipe_modlet_fn_sym_spell_into_cold((uint8_t *)elf_ctx, name, name_len, sym);
   if (len <= 0)
@@ -16724,7 +16724,7 @@ static int32_t pipe_modlet_lea_fn_sym_to_rax_cold(void *elf_ctx, uint8_t *name, 
 static int32_t pipe_modlet_lea_named_binding_addr_to_rax_cold(void *elf_ctx, void *m, uint8_t *name,
                                                               int32_t name_len, int32_t ta) {
   int32_t idx = 0, fi = 0;
-  if (!elf_ctx || !name || name_len <= 0 || name_len > 127 || (ta != 0 && ta != 1))
+  if (!elf_ctx || !name || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1))
     return -1;
   idx = pipeline_asm_modlet_find_cold(name, name_len);
   if (idx >= 0)
@@ -16891,7 +16891,7 @@ static int32_t pipe_modlet_bake_string_lit_elem_to_data_cold(void *arena, uint8_
     memset(sbuf, 0, sizeof(sbuf));
     pipeline_expr_var_name_into(arena, cur, sbuf);
     if (cur == eref)
-      n = slen < 127 ? slen : 127;
+      n = slen < 255 ? slen : 255;
     else
       n = glue_asm_string_lit_len(arena, cur);
     if (n < 0)
@@ -16941,7 +16941,7 @@ static int32_t pipe_modlet_bake_string_lit_elem_to_data_cold(void *arena, uint8_
 static int32_t pipe_modlet_bake_ptr_addr_elem_to_data_cold(void *arena, uint8_t *elf_ctx, void *m,
                                                             int32_t eref, int32_t esz, int32_t slot_off) {
   int32_t ek = 0, is_addr_of = 0, nref = 0, vlen = 0, fi = 0, idx = 0, slen = 0;
-  uint8_t name[128];
+  uint8_t name[256];
   uint8_t sym[130];
   if (!arena || !elf_ctx || eref <= 0 || slot_off < 0)
     return 1;
@@ -16962,7 +16962,7 @@ static int32_t pipe_modlet_bake_ptr_addr_elem_to_data_cold(void *arena, uint8_t 
   if (ek != 3)
     return 1;
   vlen = pipeline_expr_var_name_len(arena, nref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return -1;
   pipeline_expr_var_name_into(arena, nref, name);
   if (esz != 8)
@@ -17012,7 +17012,7 @@ static int32_t pipe_modlet_bake_ptr_addr_elem_to_data_cold(void *arena, uint8_t 
 static int32_t pipe_modlet_scalar_init_is_ptr_addr_cold(void *arena, void *m, int32_t init_ref) {
   int32_t ek = 0, is_addr_of = 0, nref = 0, vlen = 0, fi = 0;
   int32_t nlets, tl, nlen, k, nexprs;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!arena || !m || init_ref <= 0)
     return 0;
   ek = pipeline_expr_kind_ord_at(arena, init_ref);
@@ -17032,7 +17032,7 @@ static int32_t pipe_modlet_scalar_init_is_ptr_addr_cold(void *arena, void *m, in
   if (ek != 3)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, nref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, nref, name);
   fi = glue_module_func_index_by_name_c(m, name, vlen);
@@ -17146,7 +17146,7 @@ static int32_t pipe_modlet_array_lit_has_ptr_addr_elem_cold(void *arena, int32_t
 static int32_t pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(void *arena, uint8_t *elf_ctx, void *m, int32_t eref,
                                                           int32_t esz, int32_t off, int32_t ta) {
   int32_t ek = 0, is_addr_of = 0, nref = 0, vlen = 0, fi = 0, rc = 0;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!arena || !elf_ctx || eref <= 0)
     return 1;
   ek = pipeline_expr_kind_ord_at(arena, eref);
@@ -17166,7 +17166,7 @@ static int32_t pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(void *arena, uint8_t *
   if (ek != 3)
     return 1;
   vlen = pipeline_expr_var_name_len(arena, nref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return -1;
   pipeline_expr_var_name_into(arena, nref, name);
   if (is_addr_of) {
@@ -17381,7 +17381,7 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     /* Const TYPE_ARRAY + ARRAY_LIT also needs COMMON (non-main INDEX).
      * Gate after tk / init_kind. Other const still skip. */
     name_len = pipeline_module_top_level_let_name_len(m, tl);
-    if (name_len <= 0 || name_len > 127)
+    if (name_len <= 0 || name_len > 255)
       continue;
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
     if (init_ref <= 0 || init_ref > cold_arena_num_exprs(a))
@@ -17588,9 +17588,9 @@ int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) 
     nexprs = cold_arena_num_exprs(arena);
     for (tl = 0; tl < nlets; tl++) {
       int32_t nlen = pipeline_module_top_level_let_name_len(mod, tl);
-      uint8_t name_buf[128];
+      uint8_t name_buf[256];
       int32_t k, idx, csz, init_ref, type_ref, ik, tk, et, rc2;
-      if (nlen <= 0 || nlen > 127)
+      if (nlen <= 0 || nlen > 255)
         continue;
       for (k = 0; k < nlen; k++)
         name_buf[k] = (uint8_t)pipeline_module_top_level_let_name_byte_at(mod, tl, k);
@@ -17623,7 +17623,7 @@ int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) 
 
 void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, int32_t func_index) {
   int32_t tl, n, off, k;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   uint8_t *ly;
   if (!ctx || !m || !a || cold_mod_num_top_level_lets(m) <= 0)
     return;
@@ -17638,7 +17638,7 @@ void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, 
   for (tl = 0; tl < n; tl++) {
     int32_t name_len, type_ref, init_ref, slot_off, is_const;
     name_len = pipeline_module_top_level_let_name_len(m, tl);
-    if (name_len <= 0 || name_len > 127)
+    if (name_len <= 0 || name_len > 255)
       continue;
     for (k = 0; k < name_len; k++)
       name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
@@ -17675,7 +17675,7 @@ void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, 
 int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void *elf_ctx, void *ctx, void *m,
                                                                    int32_t func_index, int32_t ta) {
   int32_t tl, n, k;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   if (!a || !elf_ctx || !ctx || !m || cold_mod_num_top_level_lets(m) <= 0)
     return 0;
   if (func_index == pipeline_asm_hoist_target_func_index(m))
@@ -17686,7 +17686,7 @@ int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void
     if (pipeline_module_top_level_let_is_const(m, tl) != 0)
       continue;
     name_len = pipeline_module_top_level_let_name_len(m, tl);
-    if (name_len <= 0 || name_len > 127)
+    if (name_len <= 0 || name_len > 255)
       continue;
     for (k = 0; k < name_len; k++)
       name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
@@ -17782,7 +17782,7 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
       int32_t flen = pipeline_expr_field_access_name_len(arena, base_ref);
       if (flen == 3) {
-        uint8_t fname[128];
+        uint8_t fname[256];
         pipeline_expr_field_access_name_into(arena, base_ref, fname);
         if (fname[0] == (uint8_t)'p' && fname[1] == (uint8_t)'t' && fname[2] == (uint8_t)'r') {
           int32_t vref = pipeline_expr_field_access_base_ref(arena, base_ref);
@@ -17946,10 +17946,10 @@ int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
   if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
     int32_t off;
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen;
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
     pipeline_expr_var_name_into(arena, base_ref, vname);
     off = asm_ctx_local_find_offset(ctx, vname, vlen);
@@ -17996,7 +17996,7 @@ extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int
 int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op;
   int32_t ok;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t off;
   void *gmod;
@@ -18006,7 +18006,7 @@ int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr
   ok = pipeline_expr_kind_ord_at(arena, op);
   if (ok == 3) {
     vlen = pipeline_expr_var_name_len(arena, op);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return -1;
     pipeline_expr_var_name_into(arena, op, vname);
     off = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
@@ -18218,7 +18218,7 @@ int32_t pipeline_asm_emit_func_param_is_ptr_by_name_c(void *arena, void *mod, ui
   int32_t fi;
   int32_t param_ty;
   int32_t kind;
-  if (!arena || !mod || !vname || vlen <= 0 || vlen > 127)
+  if (!arena || !mod || !vname || vlen <= 0 || vlen > 255)
     return 0;
   fi = pipeline_asm_emit_ctx_func_index_get();
   if (fi < 0)
@@ -18230,7 +18230,7 @@ int32_t pipeline_asm_emit_func_param_is_ptr_by_name_c(void *arena, void *mod, ui
   return (kind == 9) ? 1 : 0;
 }
 int32_t pipeline_asm_var_is_emit_func_param_ptr_c(void *arena, void *mod, uint8_t *asm_ctx, int32_t var_expr_ref) {
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   (void)asm_ctx;
   if (!arena || !mod || var_expr_ref <= 0)
@@ -18238,7 +18238,7 @@ int32_t pipeline_asm_var_is_emit_func_param_ptr_c(void *arena, void *mod, uint8_
   if (pipeline_expr_kind_ord_at(arena, var_expr_ref) != 3)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   return pipeline_asm_emit_func_param_is_ptr_by_name_c(arena, mod, vname, vlen);
@@ -18331,7 +18331,7 @@ void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   int32_t off;
   int32_t np;
   int32_t i;
-  uint8_t pname_buf[128];
+  uint8_t pname_buf[256];
   int32_t plen;
   int32_t slot_off;
   if (!ctx || !mod)
@@ -18440,7 +18440,7 @@ void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
   int32_t i;
   int32_t nconst;
   int32_t nlet;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   int32_t nlen;
   int32_t init_ref;
   int32_t slot_base;
@@ -18878,11 +18878,11 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
     }
     if (base_ref > 0 && walk_cur > 0 && chain_n > 0 &&
         pipeline_expr_kind_ord_at(arena, walk_cur) == 3) {
-      uint8_t vname[128];
+      uint8_t vname[256];
       int32_t vlen;
       int32_t var_off;
       vlen = pipeline_expr_var_name_len(arena, walk_cur);
-      if (vlen <= 0 || vlen > 127)
+      if (vlen <= 0 || vlen > 255)
         return -1;
       pipeline_expr_var_name_into(arena, walk_cur, vname);
       var_off = asm_ctx_local_find_offset_scoped(ctx, arena, vname, vlen);
@@ -18916,7 +18916,7 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
         base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
         vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
         typed_off = -1;
-        if (vlen > 0 && vlen <= 127) {
+        if (vlen > 0 && vlen <= 255) {
           pipeline_expr_field_access_name_into(arena, fa_ref, vname);
           typed_off = glue_field_layout_offset_for_base_field(arena, mod, base_ref, vname, vlen);
         }
@@ -19296,7 +19296,7 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
     return glue_index_assign_finish_store_elf_c(arena, elf_ctx, ctx, base_ref, idx_ref, esz, ta);
   }
   if (lko == 3) {
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen;
     int32_t off;
     int32_t is_modlet;
@@ -19304,7 +19304,7 @@ int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_
     int32_t ltk_pre;
     int32_t rko_pre;
     vlen = pipeline_expr_var_name_len(arena, left_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return -1;
     pipeline_expr_var_name_into(arena, left_ref, vname);
     glue_index_scratch_spill_invalidate_var(arena, elf_ctx, ctx, left_ref, ta);
@@ -20849,7 +20849,7 @@ int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *arena, int3
     int32_t nlen = pipeline_block_let_name_len(arena, block_ref, li);
     int32_t match = 1;
     int32_t ci;
-    uint8_t nb[128];
+    uint8_t nb[256];
     int32_t tr;
     int32_t init_ref;
     int32_t lj;
@@ -20884,8 +20884,8 @@ int32_t glue_match_slice_escape_lets_in_block_c(struct ast_ASTArena *arena, int3
     }
     if (arr_sz <= 0 && init_ko == 3) {
       int32_t avlen = pipeline_expr_var_name_len(arena, init_ref);
-      uint8_t aname[128];
-      if (avlen <= 0 || avlen > 127)
+      uint8_t aname[256];
+      if (avlen <= 0 || avlen > 255)
         continue;
       pipeline_expr_var_name_into(arena, init_ref, aname);
       for (lj = 0; lj < nlet; lj++) {
@@ -21057,7 +21057,7 @@ int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
   int32_t di;
   int32_t llen;
   int32_t end_len;
-  uint8_t vname[128];
+  uint8_t vname[256];
   uint8_t label[24];
   uint8_t end_lbl[32];
   uint8_t digs[8];
@@ -21088,7 +21088,7 @@ int32_t glue_try_return_slice_escape_from_fixed_array_elf_c(
     return 0;
 
   vlen = pipeline_expr_var_name_len(arena, ret_op);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, ret_op, vname);
   body_ref = pipeline_module_func_body_ref_at(((struct ast_Module *)pipeline_asm_emit_module_ref_c()), pipeline_asm_emit_func_index_c());
@@ -21508,7 +21508,7 @@ int32_t glue_emit_sret_memcpy_rbx_to_home_elf_c(struct platform_elf_ElfCodegenCt
 int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t var_expr_ref,
                                                     struct backend_AsmFuncCtx *ctx, int32_t ta) {
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t off;
   int32_t tr;
@@ -21516,7 +21516,7 @@ int32_t glue_emit_sret_return_from_var_elf_c(struct ast_ASTArena *arena,
   if (!arena || !elf_ctx || !ctx || var_expr_ref <= 0 || !pipeline_asm_emit_ctx_sret_active_get())
     return -1;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return -1;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -21657,7 +21657,7 @@ int32_t glue_maybe_demote_f64_to_f32_eax_elf_c(struct ast_ASTArena *arena,
  */
 int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t tr;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   if (!arena || expr_ref <= 0)
     return 0;
@@ -21982,7 +21982,7 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
   int32_t vlen;
   int32_t arr_off;
   int32_t init_ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
 
   if (!arena || !elf_ctx || !ctx || block_ref <= 0 || let_type_ref <= 0 || init_ref <= 0)
     return 0;
@@ -22051,7 +22051,7 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
    */
   if (init_ko == GLUE_EXPR_KIND_VAR) {
     vlen = pipeline_expr_var_name_len(arena, init_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return 0;
     pipeline_expr_var_name_into(arena, init_ref, vname);
     for (li = 0; li < let_idx; li++) {
@@ -22059,7 +22059,7 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
       if (nlen == vlen && nlen > 0) {
         int32_t match = 1;
         int32_t ci;
-        uint8_t nb[128];
+        uint8_t nb[256];
         pipeline_block_let_name_copy64(arena, block_ref, li, nb);
         for (ci = 0; ci < nlen; ci++) {
           if (nb[ci] != vname[ci]) {
@@ -22537,10 +22537,10 @@ void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_A
         int32_t np = pipeline_module_func_num_params_at(m, f);
         int32_t pi;
         for (pi = 0; pi < np; pi++) {
-          uint8_t nm[128];
+          uint8_t nm[256];
           int32_t nlen = pipeline_module_func_param_name_len_at(m, f, pi);
           int32_t tref;
-          if (nlen <= 0 || nlen > 127)
+          if (nlen <= 0 || nlen > 255)
             continue;
           pipeline_module_func_param_name_copy32(m, f, pi, nm);
           tref = pipeline_module_func_param_type_ref_at(m, f, pi);
@@ -22594,12 +22594,12 @@ void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t 
       int found = 0;
       for (li = 0; li < nlet; li++) {
         int32_t tref = pipeline_block_let_type_ref(arena, cur, li);
-        uint8_t nm[128];
+        uint8_t nm[256];
         int32_t nlen;
         if (tref <= 0)
           continue;
         nlen = pipeline_block_let_name_len(arena, cur, li);
-        if (nlen <= 0 || nlen > 127)
+        if (nlen <= 0 || nlen > 255)
           continue;
         pipeline_block_let_name_copy64(arena, cur, li, nm);
         if (glue_let_name_matches_var(arena, ei, nm, nlen)) {
@@ -24013,10 +24013,10 @@ int32_t glue_finish_index_base_rax_index_rbx_slow_elf_c(void *arena,
   base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
   if (base_ko == 3) {
     int32_t off;
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen;
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return -1;
     pipeline_expr_var_name_into(arena, base_ref, vname);
     off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
@@ -24056,7 +24056,7 @@ int32_t glue_emit_slice_length_to_rbx_elf_c(void *arena,
                                                     void *elf_ctx,
                                                     void *ctx, int32_t ta, int32_t base_ref) {
   int32_t base_ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t off;
   int32_t bty;
@@ -24064,7 +24064,7 @@ int32_t glue_emit_slice_length_to_rbx_elf_c(void *arena,
   base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
   if (base_ko == 3) {
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return -1;
     pipeline_expr_var_name_into(arena, base_ref, vname);
     off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -24611,11 +24611,11 @@ int32_t glue_emit_index_eff_addr_base_elf_c(void *arena,
     fb_ref = pipeline_expr_field_access_base_ref(arena, base_ref);
     field_off = glue_field_access_effective_offset_c(arena, pipeline_asm_emit_module_ref_c(), base_ref);
     if (fb_ref > 0 && pipeline_expr_kind_ord_at(arena, fb_ref) == 3) {
-      uint8_t vname[128];
+      uint8_t vname[256];
       int32_t vlen;
       int32_t off;
       vlen = pipeline_expr_var_name_len(arena, fb_ref);
-      if (vlen <= 0 || vlen > 127)
+      if (vlen <= 0 || vlen > 255)
         return -1;
       pipeline_expr_var_name_into(arena, fb_ref, vname);
       off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -24634,11 +24634,11 @@ int32_t glue_emit_index_eff_addr_base_elf_c(void *arena,
     if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0)
       return -1;
   } else if (base_ko == 3) {
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen;
     int32_t off;
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return -1;
     pipeline_expr_var_name_into(arena, base_ref, vname);
     off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -24680,11 +24680,11 @@ int32_t glue_emit_index_eff_addr_base_text_c(void *arena, void *out,
     fb_ref = pipeline_expr_field_access_base_ref(arena, base_ref);
     field_off = glue_field_access_effective_offset_c(arena, pipeline_asm_emit_module_ref_c(), base_ref);
     if (fb_ref > 0 && pipeline_expr_kind_ord_at(arena, fb_ref) == 3) {
-      uint8_t vname[128];
+      uint8_t vname[256];
       int32_t vlen;
       int32_t off;
       vlen = pipeline_expr_var_name_len(arena, fb_ref);
-      if (vlen <= 0 || vlen > 127)
+      if (vlen <= 0 || vlen > 255)
         return -1;
       pipeline_expr_var_name_into(arena, fb_ref, vname);
       off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -24701,11 +24701,11 @@ int32_t glue_emit_index_eff_addr_base_text_c(void *arena, void *out,
     if (field_off != 0 && backend_arch_emit_add_imm_to_rax(out, field_off, ta) != 0)
       return -1;
   } else if (base_ko == 3) {
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen;
     int32_t off;
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return -1;
     pipeline_expr_var_name_into(arena, base_ref, vname);
     off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -24956,13 +24956,13 @@ int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx, int32_t var_
 /** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
 int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx,
                                                    int32_t var_expr_ref) {
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t off;
   if (!arena || !ctx || var_expr_ref <= 0)
     return -1;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return -1;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -25514,7 +25514,7 @@ int32_t glue_peel_comptime_array_lit_mask_c(void *arena, void *ctx, int32_t mask
   int32_t is_match;
   int32_t init_ref;
   int32_t depth;
-  uint8_t vbuf[128];
+  uint8_t vbuf[256];
   uint8_t lb[128];
 
   if (!arena || mask_ref <= 0)
@@ -25528,7 +25528,7 @@ int32_t glue_peel_comptime_array_lit_mask_c(void *arena, void *ctx, int32_t mask
   if (br <= 0)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, mask_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, mask_ref, vbuf);
   depth = 0;
@@ -25575,7 +25575,7 @@ int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(void *arena,
                                                        int32_t stack_slot_off, int32_t type_ref) {
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t expect_lanes;
   int32_t arg0;
   int32_t arg1;
@@ -25744,7 +25744,7 @@ static int32_t glue_simd_expr_splat_int_imm_c(void *arena, int32_t expr_ref, int
   int32_t arg0;
   int32_t clen;
   int32_t callee_ref;
-  uint8_t cname[128];
+  uint8_t cname[256];
 
   if (!arena || expr_ref <= 0)
     return 0;
@@ -25840,7 +25840,7 @@ int32_t pipeline_asm_simd_try_inline_splat_call_elf_c(void *arena, void *elf_ctx
                                                      int32_t type_ref) {
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t arg0;
   int32_t lanes;
   int32_t esz;
@@ -25968,7 +25968,7 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena,
                                                       int32_t stack_slot_off, int32_t type_ref) {
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t expect_lanes;
   int32_t arg_m;
   int32_t arg_a;
@@ -26172,7 +26172,7 @@ int32_t glue_fold_func_return_operand_ref_c(void *arena, void *mod,
 int32_t glue_expr_is_func_param_at_c(void *arena, void *mod, int32_t func_idx,
                                             int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[128];
-  uint8_t vbuf[128];
+  uint8_t vbuf[256];
   int32_t plen;
   int32_t vlen;
   int32_t k;
@@ -26544,7 +26544,7 @@ int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(void *arena,
                                                      int32_t type_ref) {
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t arg0;
   int32_t arg1;
   int32_t arg2;
@@ -26629,7 +26629,7 @@ int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(void *arena,
   void *mod_ref;
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t fi;
   int32_t binop_ko;
   int32_t arg0;
@@ -26666,7 +26666,7 @@ int32_t pipeline_asm_simd_try_inline_binop2_call_elf_c(void *arena,
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3)
       return 0;
     clen = pipeline_expr_var_name_len(arena, callee_ref);
-    if (clen <= 0 || clen > 127)
+    if (clen <= 0 || clen > 255)
       return 0;
     pipeline_expr_var_name_into(arena, callee_ref, cname);
   }
@@ -27046,7 +27046,7 @@ int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ex
        * materialize top-level const lit as imm into rax/rbx.
        * PLATFORM: SHARED freestanding emit.
        */
-      uint8_t vname[128];
+      uint8_t vname[256];
       int32_t vlen;
       int32_t mod_imm;
       void *mod;
@@ -28918,7 +28918,7 @@ typedef struct w151_ExprMirror {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -28931,7 +28931,7 @@ typedef struct w151_ExprMirror {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -28944,14 +28944,14 @@ typedef struct w151_ExprMirror {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -28964,7 +28964,7 @@ typedef struct w151_ExprMirror {
 
 typedef struct w151_TypeMirror {
   int32_t kind;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t elem_type_ref;
 } w151_TypeMirror;
@@ -29017,7 +29017,7 @@ int32_t glue_field_access_layout_field_type_ref_by_name_c(void *arena,
                                                                   void *mod, int32_t fa_ref) {
   w151_ExprMirror *ex;
   int32_t flen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t k;
   int32_t j;
   if (!arena || !mod || fa_ref <= 0)
@@ -29026,7 +29026,7 @@ int32_t glue_field_access_layout_field_type_ref_by_name_c(void *arena,
   if (!ex)
     return 0;
   flen = ex->field_access_field_len;
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return 0;
   memcpy(field_name, ex->field_access_field_name, (size_t)flen);
   for (k = 0; k < pipeline_module_num_struct_layouts_at(mod); k++) {
@@ -29037,7 +29037,7 @@ int32_t glue_field_access_layout_field_type_ref_by_name_c(void *arena,
       if (fnlen != flen)
         continue;
       for (fi = 0; fi < fnlen; fi++) {
-        uint8_t fb[128];
+        uint8_t fb[256];
         pipeline_module_struct_layout_field_name_into(mod, k, j, fb);
         if (fb[fi] != field_name[fi]) {
           feq = 0;
@@ -29388,13 +29388,13 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena,
   int32_t var_off;
   int32_t field_off;
   int32_t load_sz;
-  uint8_t vname[128];
+  uint8_t vname[256];
 
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
   if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   vlen = pipeline_expr_var_name_len(arena, base_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   pipeline_expr_var_name_into(arena, base_ref, vname);
   var_off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -29531,8 +29531,8 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena,
   if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 3) {
     blen2 = pipeline_expr_var_name_len(arena, fa_base2);
     if (blen2 >= 9) {
-      uint8_t bn[128];
-      uint8_t fb[128];
+      uint8_t bn[256];
+      uint8_t fb[256];
       int32_t flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
       int32_t tk;
       pipeline_expr_var_name_into(arena, fa_base2, bn);
@@ -29550,8 +29550,8 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena,
       }
     }
     if (blen2 >= 8) {
-      uint8_t bn[128];
-      uint8_t fb[128];
+      uint8_t bn[256];
+      uint8_t fb[256];
       int32_t flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
       int32_t ev_tag;
       pipeline_expr_var_name_into(arena, fa_base2, bn);
@@ -29649,7 +29649,7 @@ int32_t glue_dep_layout_field_offset_by_name_c(void *ctx, uint8_t *field_name,
           if (fnlen != flen)
             continue;
           for (fi = 0; fi < fnlen; fi++) {
-            uint8_t fb[128];
+            uint8_t fb[256];
             pipeline_module_struct_layout_field_name_into(dm, k, j, fb);
             if (fb[fi] != field_name[fi]) {
               feq = 0;
@@ -29691,14 +29691,14 @@ int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
                                                            int32_t flen) {
   int32_t base_ty;
   int32_t fi;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   w151_TypeMirror *tp;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t k;
   int32_t j;
-  if (!a || !m || base_var_ref <= 0 || !field_name || flen <= 0 || flen > 127)
+  if (!a || !m || base_var_ref <= 0 || !field_name || flen <= 0 || flen > 255)
     return -1;
   base_ty = 0;
   /** emit 中 VAR 形参：优先当前函数 param 表，勿信 fill 误写的 resolved_type（同名 v 跨函数覆盖）。 */
@@ -29749,7 +29749,7 @@ int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
   if (!tp || tp->kind != ast_TypeKind_TYPE_NAMED)
     return -1;
   nlen = tp->name_len;
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return -1;
   memcpy(struct_name, tp->name, (size_t)nlen);
   k = glue_struct_layout_index_by_type_name_c(m, struct_name, nlen);
@@ -29799,10 +29799,10 @@ int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_r
                                                 uint8_t *field_name, int32_t flen) {
   int32_t base_ty;
   w151_TypeMirror *tp;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t k;
-  if (!a || !m || base_ref <= 0 || !field_name || flen <= 0 || flen > 127)
+  if (!a || !m || base_ref <= 0 || !field_name || flen <= 0 || flen > 255)
     return -1;
   if (pipeline_expr_kind_ord_at(a, base_ref) == 3)
     return glue_field_layout_offset_for_var_base_field(a, m, base_ref, field_name, flen);
@@ -29821,7 +29821,7 @@ int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_r
   if (!tp || tp->kind != ast_TypeKind_TYPE_NAMED)
     return -1;
   nlen = tp->name_len;
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return -1;
   memcpy(struct_name, tp->name, (size_t)nlen);
   k = glue_struct_layout_index_by_type_name_c(m, struct_name, nlen);
@@ -29875,7 +29875,7 @@ int32_t glue_field_access_effective_offset_c(void *arena, void *mod,
 int32_t pipeline_expr_field_access_layout_offset(void *a, void *m, int32_t expr_ref) {
   w151_ExprMirror *ex;
   int32_t flen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t stored;
   int32_t typed_off;
   if (!a || expr_ref <= 0)
@@ -29885,7 +29885,7 @@ int32_t pipeline_expr_field_access_layout_offset(void *a, void *m, int32_t expr_
     return 0;
   stored = ex->field_access_offset;
   flen = ex->field_access_field_len;
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return stored;
   memcpy(field_name, ex->field_access_field_name, (size_t)flen);
   /** import 入口无本地 layout：dep 池按字段名查 Pair.a/b 等（cross_ret final_expr）。 */
@@ -29954,10 +29954,10 @@ int32_t pipeline_expr_field_access_load_byte_sz(void *a, void *m, int32_t expr_r
   w151_ExprMirror *ex;
   int32_t tr;
   int32_t base_tr;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t flen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t k;
   int32_t j;
   int32_t ftr;
@@ -29970,7 +29970,7 @@ int32_t pipeline_expr_field_access_load_byte_sz(void *a, void *m, int32_t expr_r
   if (!ex || ex->field_access_base_ref <= 0)
     return 8;
   flen = ex->field_access_field_len;
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return 8;
   memcpy(field_name, ex->field_access_field_name, (size_t)flen);
   /* TYPE_FN=18 / TYPE_PTR=9 field load is pointer-sized. Consult FIELD
@@ -29995,7 +29995,7 @@ int32_t pipeline_expr_field_access_load_byte_sz(void *a, void *m, int32_t expr_r
         if (fnlen != flen)
           continue;
         for (fi = 0; fi < fnlen; fi++) {
-          uint8_t fb[128];
+          uint8_t fb[256];
           pipeline_module_struct_layout_field_name_into(m, k, j, fb);
           if (fb[fi] != field_name[fi]) {
             feq = 0;
@@ -30040,7 +30040,7 @@ int32_t pipeline_expr_field_access_load_byte_sz(void *a, void *m, int32_t expr_r
           if (fnlen != flen)
             continue;
           for (fi = 0; fi < fnlen; fi++) {
-            uint8_t fb[128];
+            uint8_t fb[256];
             pipeline_module_struct_layout_field_name_into(m, k, j, fb);
             if (fb[fi] != field_name[fi]) {
               feq = 0;
@@ -30111,7 +30111,7 @@ int32_t glue_struct_layout_field_offset_by_name_c(void *m, void *a, int32_t li,
     if (fnlen != flen)
       continue;
     for (fi = 0; fi < fnlen; fi++) {
-      uint8_t fb[128];
+      uint8_t fb[256];
       pipeline_module_struct_layout_field_name_into(m, li, j, fb);
       if (fb[fi] != field_name[fi]) {
         feq = 0;
@@ -30243,7 +30243,7 @@ int32_t pipeline_expr_field_access_is_enum_variant(void *a, int32_t expr_ref) {
 int32_t pipeline_expr_enum_namespace_field_tag(void *a, int32_t expr_ref) {
   w151_ExprMirror *ex;
   uint8_t base_buf[32];
-  uint8_t field_buf[128];
+  uint8_t field_buf[256];
   int32_t blen, flen;
   if (!a || expr_ref <= 0 || pipeline_expr_kind_ord_at(a, expr_ref) != 44)
     return -1;
@@ -30259,7 +30259,7 @@ int32_t pipeline_expr_enum_namespace_field_tag(void *a, int32_t expr_ref) {
     return -1;
   pipeline_expr_var_name_into(a, ex->field_access_base_ref, base_buf);
   flen = pipeline_expr_field_access_name_len(a, expr_ref);
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return -1;
   pipeline_expr_field_access_name_into(a, expr_ref, field_buf);
   if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
@@ -30627,7 +30627,7 @@ int32_t glue_try_emit_match_subject_field_var_elf_c(void *arena, void *elf_ctx, 
   {
     int32_t subj_ty = pipeline_codegen_match_subject_ty_c();
     if (subj_ty > 0 && pipeline_type_kind_ord_at(arena, subj_ty) == 8) {
-      uint8_t tnm[128];
+      uint8_t tnm[256];
       int32_t tnl = pipeline_type_named_name_into(arena, subj_ty, tnm);
       int32_t k;
       if (tnl > 0) {
@@ -30640,7 +30640,7 @@ int32_t glue_try_emit_match_subject_field_var_elf_c(void *arena, void *elf_ctx, 
             if (fnl != vlen)
               continue;
             {
-              uint8_t fnm[128];
+              uint8_t fnm[256];
               int32_t j;
               int32_t match = 1;
               pipeline_module_struct_layout_field_name_into(mod, k, fi, fnm);
@@ -32996,9 +32996,9 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
        * or same-module fn link symbol; shared resolver authority, twin of
        * the .x lvalue fallback. Loud -1 only when the name is neither. */
       void *gmod = 0;
-      uint8_t vname[128];
+      uint8_t vname[256];
       int32_t vlen = pipeline_expr_var_name_len(arena, lval_ref);
-      if (vlen > 0 && vlen <= 127) {
+      if (vlen > 0 && vlen <= 255) {
         pipeline_expr_var_name_into(arena, lval_ref, vname);
         gmod = pipeline_asm_emit_module_ref_c();
         if (gmod && pipe_modlet_lea_named_binding_addr_to_rax_cold(elf_ctx, gmod, vname, vlen, ta) == 0)
@@ -33418,7 +33418,7 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
       if (cfold_k == 3)
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
       if (cfold_k == 8) {
-        uint8_t nm[128];
+        uint8_t nm[256];
         int32_t nlen = pipeline_type_named_name_into(arena, cfold_tr, nm);
         if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6')
           return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffffu), ta);
@@ -33472,7 +33472,7 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
   if (ko == 44)
     return pipeline_asm_emit_field_access_elf_fast_c(arena, elf_ctx, expr_ref, ctx, ta);
   if (ko == 3) {
-    uint8_t vname[128];
+    uint8_t vname[256];
     int32_t vlen = pipeline_expr_var_name_len(arena, expr_ref);
     int32_t off;
     if (vlen <= 0)
@@ -33687,9 +33687,9 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   int32_t done_len;
   void *mod;
   uint8_t *ly;
-  uint8_t name_buf[128];
-  uint8_t else_lbl[128];
-  uint8_t done_lbl[128];
+  uint8_t name_buf[256];
+  uint8_t else_lbl[256];
+  uint8_t done_lbl[256];
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return -1;
   /* SAT glue_block_body_bind_module_dep_from_ctx / glue_asm_ctx_set_scope_block
@@ -33857,7 +33857,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
       if (is_g != 0) {
         pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, name_buf);
         nlen = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
-        if (nlen > 0 && nlen <= 127) {
+        if (nlen > 0 && nlen <= 255) {
           if (backend_enc_jmp_arch(elf_ctx, name_buf, nlen, ta) != 0)
             return -1;
         }
@@ -33865,7 +33865,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
       }
       pipeline_block_labeled_label_copy32(arena, block_ref, idx, name_buf);
       nlen = pipeline_block_labeled_label_len(arena, block_ref, idx);
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
           return -1;
       }
@@ -33895,7 +33895,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
         if (!ly)
           return -1;
         tj_len = *(int32_t *)(ly + 1520);
-        if (tj_len > 0 && tj_len <= 127) {
+        if (tj_len > 0 && tj_len <= 255) {
           if (backend_enc_jmp_arch(elf_ctx, ly + 1392, tj_len, ta) != 0)
             return -1;
         }
@@ -34125,8 +34125,8 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, in
   int32_t ci;
   int32_t tr;
   int32_t arr_off;
-  uint8_t vname[128];
-  uint8_t nb[128];
+  uint8_t vname[256];
+  uint8_t nb[256];
   if (!arena || !elf_ctx || !ctx || let_type_ref <= 0 || init_ref <= 0)
     return 0;
   if (pipeline_type_kind_ord_at(arena, let_type_ref) != 11)
@@ -34170,7 +34170,7 @@ int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, in
    * modlet. PLATFORM: WINDOWS leftover-PE. */
   if (init_ko == 3) {
     vlen = pipeline_expr_var_name_len(arena, init_ref);
-    if (vlen <= 0 || vlen > 127)
+    if (vlen <= 0 || vlen > 255)
       return 0;
     pipeline_expr_var_name_into(arena, init_ref, vname);
     arr_sz = 0;
@@ -35998,9 +35998,9 @@ extern int32_t glue_vector_type_lanes_esz_c(void *a, int32_t ty_ref, int32_t *ou
                                            int32_t *out_esz);
 
 /* LP64 Expr peels matching pure */
-#define W154_EXPR_OFF_SL_NAME 536
-#define W154_EXPR_OFF_SL_NAME_LEN 664
-#define W154_EXPR_OFF_SL_NUM_FIELDS 672
+#define W154_EXPR_OFF_SL_NAME 920
+#define W154_EXPR_OFF_SL_NAME_LEN 1176
+#define W154_EXPR_OFF_SL_NUM_FIELDS 1184
 
 static int32_t w154_layout_name_eq(void *m, int32_t k, uint8_t *name, int32_t nlen) {
   int32_t ln, j;
@@ -36013,14 +36013,14 @@ static int32_t w154_layout_name_eq(void *m, int32_t k, uint8_t *name, int32_t nl
 }
 
 int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, int32_t depth) {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen, k, nf, fi, ftr, nlayouts, nt, ko;
   if (!module || !arena || ty_ref <= 0 || depth > 64) return 0;
   nt = pipeline_arena_num_types(arena);
   if (ty_ref > nt) return 0;
   if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) return 0;
   nlen = pipeline_type_named_name_into(arena, ty_ref, name);
-  if (nlen <= 0 || nlen > 127) return 0;
+  if (nlen <= 0 || nlen > 255) return 0;
   nlayouts = pipeline_module_num_struct_layouts_at(module);
   for (k = 0; k < nlayouts; k++) {
     if (!w154_layout_name_eq(module, k, name, nlen)) continue;
@@ -36038,7 +36038,7 @@ int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, i
 int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
   int32_t kind_ord, nt, elem_ref, asz, es, soa_sz, nlen, k, nlayouts, di, nd, sz;
   int32_t vl, ves;
-  uint8_t name[128];
+  uint8_t name[256];
   void *dep, *dm, *da;
   if (!a || ty_ref <= 0 || depth > 64) return 0;
   nt = pipeline_arena_num_types(a);
@@ -36069,7 +36069,7 @@ int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
   }
   if (kind_ord == 8) {
     nlen = pipeline_type_named_name_into(a, ty_ref, name);
-    if (nlen <= 0 || nlen > 127) return 4;
+    if (nlen <= 0 || nlen > 255) return 4;
     if (m) {
       nlayouts = pipeline_module_num_struct_layouts_at(m);
       for (k = 0; k < nlayouts; k++) {
@@ -36107,7 +36107,7 @@ int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 
 int32_t glue_struct_layout_metrics_c(void *module, void *arena, int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
   int32_t nf, allow, layout_nlen, current, max_align, j, packed, nlayouts;
-  uint8_t layout_nm[128], field_nm[128];
+  uint8_t layout_nm[256], field_nm[128];
   if (!module || !arena || !out_sz || !out_al) return -1;
   nlayouts = pipeline_module_num_struct_layouts_at(module);
   if (li < 0 || li >= nlayouts || depth > 64) return -1;
@@ -36170,7 +36170,7 @@ int32_t glue_struct_layout_metrics_c(void *module, void *arena, int32_t li, int3
 
 int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
   int32_t kind_ord, nt, elem_ref, nlen, k, nlayouts, sz_out, al_out;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!a || ty_ref <= 0 || depth > 64) return 1;
   nt = pipeline_arena_num_types(a);
   if (ty_ref > nt) return 1;
@@ -36186,7 +36186,7 @@ int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) 
   }
   if (kind_ord == 8) {
     nlen = pipeline_type_named_name_into(a, ty_ref, name);
-    if (nlen <= 0 || nlen > 127) return 4;
+    if (nlen <= 0 || nlen > 255) return 4;
     if (m) {
       nlayouts = pipeline_module_num_struct_layouts_at(m);
       for (k = 0; k < nlayouts; k++) {
@@ -36252,7 +36252,7 @@ int32_t glue_struct_layout_compute_field_offset_c(void *m, void *a, int32_t li, 
 
 int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen) {
   int32_t k, nlayouts;
-  if (!m || !struct_name || nlen <= 0 || nlen > 127) return -1;
+  if (!m || !struct_name || nlen <= 0 || nlen > 255) return -1;
   nlayouts = pipeline_module_num_struct_layouts_at(m);
   for (k = 0; k < nlayouts; k++)
     if (w154_layout_name_eq(m, k, struct_name, nlen)) return k;
@@ -36335,7 +36335,7 @@ int32_t glue_struct_layout_field_offset_by_name_c(void *m, void *a, int32_t li,
     if (fnlen != flen)
       continue;
     for (fi = 0; fi < fnlen; fi++) {
-      uint8_t fb[128];
+      uint8_t fb[256];
       pipeline_module_struct_layout_field_name_into(m, li, j, fb);
       if (fb[fi] != field_name[fi]) {
         feq = 0;
@@ -36366,9 +36366,9 @@ int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
                                                            int32_t flen) {
   int32_t base_ty;
   int32_t fi;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t k;
   int32_t ko;
@@ -36379,7 +36379,7 @@ int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
   int32_t dep_off;
   int32_t kord;
   int32_t off;
-  if (!a || !m || base_var_ref <= 0 || !field_name || flen <= 0 || flen > 127)
+  if (!a || !m || base_var_ref <= 0 || !field_name || flen <= 0 || flen > 255)
     return -1;
   base_ty = 0;
   ko = pipeline_expr_kind_ord_at(a, base_var_ref);
@@ -36428,7 +36428,7 @@ int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
   if (kord != 8)
     return -1;
   nlen = pipeline_type_named_name_into(a, base_ty, struct_name);
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return -1;
   k = glue_struct_layout_index_by_type_name_c(m, struct_name, nlen);
   if (k >= 0) {
@@ -36464,7 +36464,7 @@ int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m,
 int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_ref,
                                                 uint8_t *field_name, int32_t flen) {
   int32_t base_ty;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t k;
   int32_t off;
@@ -36473,7 +36473,7 @@ int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_r
   int32_t kord;
   void *dep;
   int32_t dep_off;
-  if (!a || !m || base_ref <= 0 || !field_name || flen <= 0 || flen > 127)
+  if (!a || !m || base_ref <= 0 || !field_name || flen <= 0 || flen > 255)
     return -1;
   ko = pipeline_expr_kind_ord_at(a, base_ref);
   if (ko == 3)
@@ -36494,7 +36494,7 @@ int32_t glue_field_layout_offset_for_base_field(void *a, void *m, int32_t base_r
   if (kord != 8)
     return -1;
   nlen = pipeline_type_named_name_into(a, base_ty, struct_name);
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return -1;
   k = glue_struct_layout_index_by_type_name_c(m, struct_name, nlen);
   if (k >= 0) {
@@ -36661,10 +36661,10 @@ void glue_fill_var_types_from_params_for_func(void *m, void *arena, int32_t func
         int32_t np = pipeline_module_func_num_params_at(m, f);
         int32_t pi;
         for (pi = 0; pi < np; pi++) {
-          uint8_t nm[128];
+          uint8_t nm[256];
           int32_t nlen = pipeline_module_func_param_name_len_at(m, f, pi);
           int32_t tref;
-          if (nlen <= 0 || nlen > 127)
+          if (nlen <= 0 || nlen > 255)
             continue;
           pipeline_module_func_param_name_copy32(m, f, pi, nm);
           tref = pipeline_module_func_param_type_ref_at(m, f, pi);
@@ -36717,12 +36717,12 @@ void glue_fill_var_types_from_lets_in_block(void *arena, int32_t block_ref) {
       int found = 0;
       for (li = 0; li < nlet; li++) {
         int32_t tref = pipeline_block_let_type_ref(arena, cur, li);
-        uint8_t nm[128];
+        uint8_t nm[256];
         int32_t nlen;
         if (tref <= 0)
           continue;
         nlen = pipeline_block_let_name_len(arena, cur, li);
-        if (nlen <= 0 || nlen > 127)
+        if (nlen <= 0 || nlen > 255)
           continue;
         pipeline_block_let_name_copy64(arena, cur, li, nm);
         if (glue_let_name_matches_var(arena, ei, nm, nlen)) {
@@ -36856,7 +36856,7 @@ int32_t glue_struct_layout_compute_field_offset_c(void *m, void *a, int32_t li, 
 
 int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen) {
   int32_t k, nlayouts;
-  if (!m || !struct_name || nlen <= 0 || nlen > 127) return -1;
+  if (!m || !struct_name || nlen <= 0 || nlen > 255) return -1;
   nlayouts = pipeline_module_num_struct_layouts_at(m);
   for (k = 0; k < nlayouts; k++)
     if (w154_layout_name_eq(m, k, struct_name, nlen)) return k;
@@ -36897,30 +36897,30 @@ void pipeline_expr_struct_lit_type_name_into(void *a, int32_t expr_ref, uint8_t 
   uint8_t *ex;
   if (!out64) return;
   ex = (uint8_t *)glue_arena_expr_at_ref(a, expr_ref);
-  if (!ex) { memset(out64, 0, 128); return; }
-  memcpy(out64, ex + W154_EXPR_OFF_SL_NAME, 128);
+  if (!ex) { memset(out64, 0, 256); return; }
+  memcpy(out64, ex + W154_EXPR_OFF_SL_NAME, 256);
 }
 
 void pipeline_expr_struct_lit_type_name_set(void *a, int32_t expr_ref, uint8_t *name, int32_t name_len) {
   uint8_t *ex;
   int32_t nexprs;
-  if (!a || !name || expr_ref <= 0 || name_len < 0 || name_len > 127) return;
+  if (!a || !name || expr_ref <= 0 || name_len < 0 || name_len > 255) return;
   nexprs = *(int32_t *)((uint8_t *)a + 4); /* num_exprs@4 */
   if (expr_ref > nexprs) return;
   ex = (uint8_t *)glue_arena_expr_at_ref(a, expr_ref);
   if (!ex) return;
-  memset(ex + W154_EXPR_OFF_SL_NAME, 0, 128);
+  memset(ex + W154_EXPR_OFF_SL_NAME, 0, 256);
   if (name_len > 0) memcpy(ex + W154_EXPR_OFF_SL_NAME, name, (size_t)name_len);
   *(int32_t *)(ex + W154_EXPR_OFF_SL_NAME_LEN) = name_len;
 }
 
 int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
   int32_t nlen, k, nf, nlayouts;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!a || !m || expr_ref <= 0 || field_ix < 0) return field_ix * 8;
   if (pipeline_expr_kind_ord_at(a, expr_ref) != 45) return field_ix * 8;
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     nlayouts = pipeline_module_num_struct_layouts_at(m);
     nf = pipeline_module_struct_layout_num_fields(m, 0);
     if (nlayouts == 1 && field_ix < nf)
@@ -36938,11 +36938,11 @@ int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_
 
 int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
   int32_t nlen, k, nlayouts, nf;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!a || !m || expr_ref <= 0 || field_ix < 0) return 0;
   if (pipeline_expr_kind_ord_at(a, expr_ref) != 45) return 0;
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) return 0;
+  if (nlen <= 0 || nlen > 255) return 0;
   pipeline_expr_struct_lit_type_name_into(a, expr_ref, name);
   nlayouts = pipeline_module_num_struct_layouts_at(m);
   for (k = 0; k < nlayouts; k++) {
@@ -36956,11 +36956,11 @@ int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *m, int32_t exp
 
 int32_t pipeline_expr_struct_lit_value_bytes(void *a, void *m, int32_t expr_ref) {
   int32_t nlen, k, nlayouts, sz_out, al_out;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!a || !m || expr_ref <= 0) return 0;
   if (pipeline_expr_kind_ord_at(a, expr_ref) != 45) return 0;
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) return 0;
+  if (nlen <= 0 || nlen > 255) return 0;
   pipeline_expr_struct_lit_type_name_into(a, expr_ref, name);
   nlayouts = pipeline_module_num_struct_layouts_at(m);
   for (k = 0; k < nlayouts; k++) {
@@ -37019,12 +37019,12 @@ int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t e
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
 int32_t typeck_type_is_named_struct_c(void *m, void *a, int32_t ty_ref) {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen, k, nlayouts;
   if (!m || !a || ty_ref <= 0) return 0;
   if (pipeline_type_kind_ord_at(a, ty_ref) != 8) return 0;
   nlen = pipeline_type_named_name_into(a, ty_ref, name);
-  if (nlen <= 0 || nlen > 127) return 0;
+  if (nlen <= 0 || nlen > 255) return 0;
   nlayouts = pipeline_module_num_struct_layouts_at(m);
   for (k = 0; k < nlayouts; k++)
     if (w154_layout_name_eq(m, k, name, nlen)) return 1;
@@ -37032,12 +37032,12 @@ int32_t typeck_type_is_named_struct_c(void *m, void *a, int32_t ty_ref) {
 }
 
 int32_t typeck_layout_index_for_named_type_c(void *m, void *a, int32_t ty_ref) {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen, k, nlayouts;
   if (!m || !a || ty_ref <= 0) return -1;
   if (pipeline_type_kind_ord_at(a, ty_ref) != 8) return -1;
   nlen = pipeline_type_named_name_into(a, ty_ref, name);
-  if (nlen <= 0 || nlen > 127) return -1;
+  if (nlen <= 0 || nlen > 255) return -1;
   nlayouts = pipeline_module_num_struct_layouts_at(m);
   for (k = 0; k < nlayouts; k++)
     if (w154_layout_name_eq(m, k, name, nlen)) return k;
@@ -37125,7 +37125,7 @@ static int w154_atomic(void *m, void *a, int32_t ftr) {
 
 void pipeline_typeck_pad_fields_warn_layout(void *module, void *arena, int32_t li) {
   int32_t nf, j, layout_nlen;
-  uint8_t layout_nm[128];
+  uint8_t layout_nm[256];
   if (!w154_pad_enabled() || !module || !arena || li < 0) return;
   nf = pipeline_module_struct_layout_num_fields(module, li);
   if (nf < 2) return;
@@ -37153,7 +37153,7 @@ void pipeline_typeck_pad_fields_warn_layout(void *module, void *arena, int32_t l
 
 void pipeline_typeck_hot_reorder_warn_layout(void *module, void *arena, int32_t li) {
   int32_t nf, j, i, layout_nlen;
-  uint8_t layout_nm[128];
+  uint8_t layout_nm[256];
   if (!w154_hot_enabled() || !module || !arena || li < 0) return;
   nf = pipeline_module_struct_layout_num_fields(module, li);
   if (nf < 2) return;
@@ -38394,7 +38394,7 @@ int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref
  * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED sizing contract.
  */
 int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref) {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen;
   int32_t base_off;
   int32_t base_len;
@@ -38424,7 +38424,7 @@ int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref
   if (sz > 8)
     return sz;
   nlen = pipeline_type_named_name_into(arena, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return sz;
   base_off = 0;
   k = 0;
@@ -40019,12 +40019,12 @@ extern int32_t pipeline_asm_emit_ctx_call_param_ty_get(void);
  */
 static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, void *ctx, int32_t fa_ref) {
   int32_t flen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t base_ref;
   int32_t base_ko;
   int32_t base_ty;
   int32_t kord;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t k;
   int32_t j;
@@ -40032,11 +40032,11 @@ static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, void *ctx, 
   int32_t fnlen;
   int32_t feq;
   int32_t fi;
-  uint8_t fb[128];
+  uint8_t fb[256];
   if (!arena || !mod || fa_ref <= 0)
     return 0;
   flen = pipeline_expr_field_access_name_len(arena, fa_ref);
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return 0;
   pipeline_expr_field_access_name_into(arena, fa_ref, field_name);
   base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
@@ -40678,8 +40678,8 @@ extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name
 int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t left_ref;
   int32_t right_ref;
-  uint8_t false_lbl[128];
-  uint8_t end_lbl[128];
+  uint8_t false_lbl[256];
+  uint8_t end_lbl[256];
   int32_t false_len;
   int32_t end_len;
   left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -40718,8 +40718,8 @@ int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t ex
 int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t left_ref;
   int32_t right_ref;
-  uint8_t true_lbl[128];
-  uint8_t end_lbl[128];
+  uint8_t true_lbl[256];
+  uint8_t end_lbl[256];
   int32_t true_len;
   int32_t end_len;
   left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -40816,7 +40816,7 @@ int32_t pipeline_asm_host_is_arm64_c(void) {
 }
 
 int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, int32_t var_expr_ref) {
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t fi;
   int32_t pty;
@@ -40832,7 +40832,7 @@ int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, in
   if (fi < 0 || fi >= nf)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   pty = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
@@ -40898,7 +40898,7 @@ int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_r
   int32_t holds;
   int32_t fi;
   int32_t ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t pty;
   int32_t tk;
@@ -40922,7 +40922,7 @@ int32_t glue_local_var_slot_needs_ptr_load_elf_c(void *arena, int32_t var_expr_r
         atr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
       if (atr <= 0) {
         vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-        if (vlen > 0 && vlen <= 127) {
+        if (vlen > 0 && vlen <= 255) {
           pipeline_expr_var_name_into(arena, var_expr_ref, vname);
           atr = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
         }
@@ -41236,7 +41236,7 @@ extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int
 extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
 
 int32_t glue_sysv_dual_gp_byte_size_c(void *arena, int32_t ty_ref) {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen;
   int32_t sz;
   int32_t base_off;
@@ -41253,7 +41253,7 @@ int32_t glue_sysv_dual_gp_byte_size_c(void *arena, int32_t ty_ref) {
   if (tk != 8)
     return 0;
   nlen = pipeline_type_named_name_into(arena, ty_ref, name);
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return 0;
   base_off = 0;
   i = 0;
@@ -41501,7 +41501,7 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
   int32_t body_ref;
   int32_t li;
   int32_t nlet;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t ko;
   void *mod;
@@ -41525,7 +41525,7 @@ int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_
   if (!mod || fi < 0)
     return -1;
   vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return -1;
   pipeline_expr_var_name_into(arena, var_expr_ref, vname);
   body_ref = pipeline_module_func_body_ref_at(mod, fi);
@@ -41721,9 +41721,9 @@ int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref
   int32_t call_ord;
   int32_t callee_ord;
   int32_t base_ref;
-  uint8_t base_name[128];
+  uint8_t base_name[256];
   int32_t base_len;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t field_len;
   int32_t j;
   void *dm;
@@ -41735,7 +41735,7 @@ int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref
   int32_t ndep;
   void *dep_pipe;
   int32_t rty;
-  uint8_t cv_nm[128];
+  uint8_t cv_nm[256];
   int32_t cv_len;
   int32_t import_binding;
   int32_t import_select;
@@ -42253,12 +42253,12 @@ extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_
  */
 int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref) {
   int32_t flen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t base_ref;
   int32_t base_ko;
   int32_t base_ty;
   int32_t kord;
-  uint8_t struct_name[128];
+  uint8_t struct_name[256];
   int32_t nlen;
   int32_t nsl;
   int32_t k;
@@ -42267,7 +42267,7 @@ int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_re
   int32_t fnlen;
   int32_t feq;
   int32_t fi;
-  uint8_t fb[128];
+  uint8_t fb[256];
   int32_t tr;
   int32_t ln;
   int32_t eq;
@@ -42275,7 +42275,7 @@ int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_re
   if (!arena || fa_ref <= 0)
     return 0;
   flen = pipeline_expr_field_access_name_len(arena, fa_ref);
-  if (flen <= 0 || flen > 127)
+  if (flen <= 0 || flen > 255)
     return 0;
   pipeline_expr_field_access_name_into(arena, fa_ref, field_name);
   base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
@@ -42450,7 +42450,7 @@ int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ex
        * materialize top-level const lit as imm into rax/rbx.
        * PLATFORM: SHARED freestanding emit.
        */
-      uint8_t vname[128];
+      uint8_t vname[256];
       int32_t vlen;
       int32_t mod_imm;
       void *mod;
@@ -43420,7 +43420,7 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
       int32_t flen = pipeline_expr_field_access_name_len(arena, base_ref);
       if (flen == 3) {
-        uint8_t fname[128];
+        uint8_t fname[256];
         pipeline_expr_field_access_name_into(arena, base_ref, fname);
         if (fname[0] == (uint8_t)'p' && fname[1] == (uint8_t)'t' && fname[2] == (uint8_t)'r') {
           int32_t vref = pipeline_expr_field_access_base_ref(arena, base_ref);
@@ -43653,7 +43653,7 @@ int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref
   int32_t scope_br;
   int32_t body_ref;
   void *mod;
-  uint8_t vname[128];
+  uint8_t vname[256];
   if (!arena || var_ref <= 0)
     return 0;
   tr = pipeline_expr_resolved_type_ref(arena, var_ref);
@@ -43665,7 +43665,7 @@ int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref
   if (ko != 3 || !mod)
     return 0;
   vlen = pipeline_expr_var_name_len(arena, var_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return 0;
   pipeline_expr_var_name_into(arena, var_ref, vname);
   fi = pipeline_asm_emit_func_index_c();
@@ -44184,7 +44184,7 @@ int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(void *elf_ctx, int32_t ta) {
  * PLATFORM: WINDOWS leftover-PE · SHARED freestanding.
  */
 int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(void *elf_ctx, void *ctx, int32_t ta) {
-  uint8_t ok_lbl[128];
+  uint8_t ok_lbl[256];
   int32_t ok_len;
   const char *pe;
   if (elf_ctx == 0 || ctx == 0)
@@ -44849,14 +44849,14 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena, void *elf_ctx, int
   int32_t var_off;
   int32_t field_off;
   int32_t load_sz;
-  uint8_t vname[128];
+  uint8_t vname[256];
   void *mod;
 
   base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
   if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3)
     return -99;
   vlen = pipeline_expr_var_name_len(arena, base_ref);
-  if (vlen <= 0 || vlen > 127)
+  if (vlen <= 0 || vlen > 255)
     return -99;
   pipeline_expr_var_name_into(arena, base_ref, vname);
   var_off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
@@ -45178,8 +45178,8 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
   if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 3) {
     blen2 = pipeline_expr_var_name_len(arena, fa_base2);
     if (blen2 >= 9) {
-      uint8_t bn[128];
-      uint8_t fb[128];
+      uint8_t bn[256];
+      uint8_t fb[256];
       int32_t flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
       int32_t tk;
       pipeline_expr_var_name_into(arena, fa_base2, bn);
@@ -45196,8 +45196,8 @@ int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, in
       }
     }
     if (blen2 >= 8) {
-      uint8_t bn[128];
-      uint8_t fb[128];
+      uint8_t bn[256];
+      uint8_t fb[256];
       int32_t flen2 = pipeline_expr_field_access_name_len(arena, expr_ref);
       int32_t ev_tag;
       pipeline_expr_var_name_into(arena, fa_base2, bn);
@@ -45690,7 +45690,7 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE262_TA_SLOTS 128
-#define WAVE262_TA_ENTRY_SZ 136
+#define WAVE262_TA_ENTRY_SZ 264
 static void *g_wave262_ta_mod[WAVE262_TA_SLOTS];
 static int32_t g_wave262_ta_n[WAVE262_TA_SLOTS];
 static int32_t g_wave262_ta_cap[WAVE262_TA_SLOTS];
@@ -45746,7 +45746,7 @@ void pipeline_module_type_alias_storage_release(void *module) {
  * does not compile remaining alloc/set/getters (not unique). Hybrid product
  * links pure. Cold full seed compiles BSS in the OR then these helpers in
  * the same TU.
- * Layout ≡ C TypeAliasEntry: name[128]@0 | name_len@128 | target@132.
+ * Layout ≡ C TypeAliasEntry: name[256]@0 | name_len@256 | target@260.
  * PLATFORM: SHARED freestanding type_alias Cap leave.
  */
 
@@ -45833,7 +45833,7 @@ void pipeline_module_type_alias_set(void *module, int32_t idx, uint8_t *name, in
   int s;
   uint8_t *e;
   int32_t i;
-  if (!module || !name || name_len <= 0 || name_len > 127)
+  if (!module || !name || name_len <= 0 || name_len > 255)
     return;
   s = wave262_ta_find_slot(module);
   if (s < 0)
@@ -45845,8 +45845,8 @@ void pipeline_module_type_alias_set(void *module, int32_t idx, uint8_t *name, in
     e[i] = name[i];
   for (i = name_len; i < 128; i++)
     e[i] = 0;
-  memcpy(e + 128, &name_len, 4);
-  memcpy(e + 132, &target_type_ref, 4);
+  memcpy(e + 256, &name_len, 4);
+  memcpy(e + 260, &target_type_ref, 4);
 }
 
 int32_t pipeline_module_type_alias_name_len(void *module, int32_t idx) {
@@ -45859,14 +45859,14 @@ int32_t pipeline_module_type_alias_name_len(void *module, int32_t idx) {
   e = wave262_ta_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&n, e + 128, 4);
+  memcpy(&n, e + 256, 4);
   return n;
 }
 
 uint8_t pipeline_module_type_alias_name_byte_at(void *module, int32_t idx, int32_t off) {
   int s;
   uint8_t *e;
-  if (off < 0 || off >= 128)
+  if (off < 0 || off >= 256)
     return 0;
   s = wave262_ta_find_slot(module);
   if (s < 0)
@@ -45887,7 +45887,7 @@ int32_t pipeline_module_type_alias_target_ref(void *module, int32_t idx) {
   e = wave262_ta_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&t, e + 132, 4);
+  memcpy(&t, e + 260, 4);
   return t;
 }
 
@@ -46318,7 +46318,7 @@ int32_t pipeline_module_import_append_select_name(void *module, int32_t idx, uin
   if (!rows || !lens)
     return -1;
   memset(rows + (size_t)vi * (size_t)WAVE263_IMP_SEL_ROW, 0, (size_t)WAVE263_IMP_SEL_ROW);
-  n = len > 127 ? 127 : len;
+  n = len > 255 ? 255 : len;
   if (n > WAVE263_IMP_SEL_ROW)
     n = WAVE263_IMP_SEL_ROW;
   for (i = 0; i < n; i++)
@@ -46386,7 +46386,7 @@ void pipeline_module_import_set_select_name(void *module, int32_t idx, int32_t s
   if (!rows || !lens || abs < 0 || abs >= g_wave263_imp_sel_n[s])
     return;
   memset(rows + (size_t)abs * (size_t)WAVE263_IMP_SEL_ROW, 0, (size_t)WAVE263_IMP_SEL_ROW);
-  n = len > 127 ? 127 : len;
+  n = len > 255 ? 255 : len;
   if (n > WAVE263_IMP_SEL_ROW)
     n = WAVE263_IMP_SEL_ROW;
   for (i = 0; i < n; i++)
@@ -46504,7 +46504,7 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE264_EN_SLOTS 128
-#define WAVE264_EN_ENTRY_SZ 33932
+#define WAVE264_EN_ENTRY_SZ 66828
 static void *g_wave264_en_mod[WAVE264_EN_SLOTS];
 static int32_t g_wave264_en_n[WAVE264_EN_SLOTS];
 static int32_t g_wave264_en_cap[WAVE264_EN_SLOTS];
@@ -46586,8 +46586,8 @@ void pipeline_module_enum_storage_release(void *module) {
  * product links pure. Cold full seed compiles BSS in the OR then these
  * helpers in the same TU.
  * Layout ≡ C ModuleEnumEntry LE:
- *   name[128]@0 | name_len@128 | num_variants@132 | variant_name[256][128]@136
- *   | variant_name_len[256]@32904 | is_export@33928
+ *   name[256]@0 | name_len@256 | num_variants@260 | variant_name[256][256]@264
+ *   | variant_name_len[256]@65800 | is_export@66824
  * Soft-sync when header num_module_enums@64 == 0.
  * Mark helpers: freestanding no-ops (need Cap expr faces); product pure owns mark.
  * PLATFORM: SHARED freestanding module_enum Cap leave.
@@ -46689,7 +46689,7 @@ void pipeline_module_enum_set_name(void *module, int32_t idx, uint8_t *bytes, in
   int s;
   uint8_t *e;
   int32_t i;
-  if (!module || !bytes || len <= 0 || len > 127)
+  if (!module || !bytes || len <= 0 || len > 255)
     return;
   wave264_en_soft_sync(module);
   s = wave264_en_find_slot(module);
@@ -46698,14 +46698,14 @@ void pipeline_module_enum_set_name(void *module, int32_t idx, uint8_t *bytes, in
   e = wave264_en_at(s, idx);
   if (!e)
     return;
-  memset(e, 0, 128);
+  memset(e, 0, 256);
   for (i = 0; i < len; i++)
     e[i] = bytes[i];
-  memcpy(e + 128, &len, 4);
+  memcpy(e + 256, &len, 4);
   {
     int32_t z = 0;
-    memcpy(e + 132, &z, 4);
-    memcpy(e + 33928, &z, 4);
+    memcpy(e + 260, &z, 4);
+    memcpy(e + 66824, &z, 4);
   }
 }
 
@@ -46721,7 +46721,7 @@ void pipeline_module_enum_set_is_export(void *module, int32_t idx, int32_t v) {
   e = wave264_en_at(s, idx);
   if (!e)
     return;
-  memcpy(e + 33928, &v, 4);
+  memcpy(e + 66824, &v, 4);
 }
 
 int32_t pipeline_module_enum_is_export_at(void *module, int32_t idx) {
@@ -46737,7 +46737,7 @@ int32_t pipeline_module_enum_is_export_at(void *module, int32_t idx) {
   e = wave264_en_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&v, e + 33928, 4);
+  memcpy(&v, e + 66824, 4);
   return v;
 }
 
@@ -46746,7 +46746,7 @@ int32_t pipeline_module_enum_append_variant(void *module, int32_t idx, uint8_t *
   uint8_t *e;
   int32_t nv;
   int32_t i;
-  if (!module || !bytes || len <= 0 || len > 127)
+  if (!module || !bytes || len <= 0 || len > 255)
     return -1;
   wave264_en_soft_sync(module);
   s = wave264_en_find_slot(module);
@@ -46755,16 +46755,16 @@ int32_t pipeline_module_enum_append_variant(void *module, int32_t idx, uint8_t *
   e = wave264_en_at(s, idx);
   if (!e)
     return -1;
-  memcpy(&nv, e + 132, 4);
+  memcpy(&nv, e + 260, 4);
   if (nv >= WAVE264_EN_MAX_VAR)
     return -1;
-  memset(e + 136 + nv * 128, 0, 128);
+  memset(e + 264 + nv * 256, 0, 256);
   for (i = 0; i < len; i++)
-    e[136 + nv * 128 + i] = bytes[i];
-  memcpy(e + 32904 + nv * 4, &len, 4);
+    e[264 + nv * 256 + i] = bytes[i];
+  memcpy(e + 65800 + nv * 4, &len, 4);
   {
     int32_t nn = nv + 1;
-    memcpy(e + 132, &nn, 4);
+    memcpy(e + 260, &nn, 4);
   }
   return nv;
 }
@@ -46785,7 +46785,7 @@ static int32_t wave264_en_tag_in_module(void *module, uint8_t *enum_name, int32_
     e = wave264_en_at(s, ei);
     if (!e)
       continue;
-    memcpy(&nlen, e + 128, 4);
+    memcpy(&nlen, e + 256, 4);
     if (nlen != enum_len)
       continue;
     {
@@ -46799,15 +46799,15 @@ static int32_t wave264_en_tag_in_module(void *module, uint8_t *enum_name, int32_
       if (!match)
         continue;
     }
-    memcpy(&nv, e + 132, 4);
+    memcpy(&nv, e + 260, 4);
     for (vi = 0; vi < nv; vi++) {
-      memcpy(&vlen, e + 32904 + vi * 4, 4);
+      memcpy(&vlen, e + 65800 + vi * 4, 4);
       if (vlen != variant_len)
         continue;
       {
         int match = 1;
         for (j = 0; j < variant_len; j++) {
-          if (e[136 + vi * 128 + j] != variant_name[j]) {
+          if (e[264 + vi * 256 + j] != variant_name[j]) {
             match = 0;
             break;
           }
@@ -46840,7 +46840,7 @@ int32_t pipeline_module_enum_name_len(void *module, int32_t idx) {
   e = wave264_en_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nlen, e + 128, 4);
+  memcpy(&nlen, e + 256, 4);
   return nlen;
 }
 
@@ -46848,7 +46848,7 @@ uint8_t pipeline_module_enum_name_byte_at(void *module, int32_t idx, int32_t off
   int s;
   uint8_t *e;
   int32_t nlen;
-  if (!module || off < 0 || off >= 128)
+  if (!module || off < 0 || off >= 256)
     return 0;
   wave264_en_soft_sync(module);
   s = wave264_en_find_slot(module);
@@ -46857,7 +46857,7 @@ uint8_t pipeline_module_enum_name_byte_at(void *module, int32_t idx, int32_t off
   e = wave264_en_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nlen, e + 128, 4);
+  memcpy(&nlen, e + 256, 4);
   if (off >= nlen)
     return 0;
   return e[off];
@@ -46876,7 +46876,7 @@ int32_t pipeline_module_enum_num_variants(void *module, int32_t idx) {
   e = wave264_en_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nv, e + 132, 4);
+  memcpy(&nv, e + 260, 4);
   return nv;
 }
 
@@ -46893,10 +46893,10 @@ int32_t pipeline_module_enum_variant_name_len(void *module, int32_t idx, int32_t
   e = wave264_en_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nv, e + 132, 4);
+  memcpy(&nv, e + 260, 4);
   if (variant_idx >= nv)
     return 0;
-  memcpy(&vlen, e + 32904 + variant_idx * 4, 4);
+  memcpy(&vlen, e + 65800 + variant_idx * 4, 4);
   return vlen;
 }
 
@@ -46905,7 +46905,7 @@ uint8_t pipeline_module_enum_variant_name_byte_at(void *module, int32_t idx, int
   int s;
   uint8_t *e;
   int32_t nv, vlen;
-  if (!module || variant_idx < 0 || off < 0 || off >= 128)
+  if (!module || variant_idx < 0 || off < 0 || off >= 256)
     return 0;
   wave264_en_soft_sync(module);
   s = wave264_en_find_slot(module);
@@ -46914,13 +46914,13 @@ uint8_t pipeline_module_enum_variant_name_byte_at(void *module, int32_t idx, int
   e = wave264_en_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nv, e + 132, 4);
+  memcpy(&nv, e + 260, 4);
   if (variant_idx >= nv)
     return 0;
-  memcpy(&vlen, e + 32904 + variant_idx * 4, 4);
+  memcpy(&vlen, e + 65800 + variant_idx * 4, 4);
   if (off >= vlen)
     return 0;
-  return e[136 + variant_idx * 128 + off];
+  return e[264 + variant_idx * 256 + off];
 }
 
 /* Cold freestanding: mark helpers no-op (product pure owns full mark path). */
@@ -46981,7 +46981,7 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE265_TL_SLOTS 128
-#define WAVE265_TL_ENTRY_SZ 148
+#define WAVE265_TL_ENTRY_SZ 276
 static void *g_wave265_tl_mod[WAVE265_TL_SLOTS];
 static int32_t g_wave265_tl_n[WAVE265_TL_SLOTS];
 static int32_t g_wave265_tl_cap[WAVE265_TL_SLOTS];
@@ -47063,7 +47063,7 @@ void pipeline_module_top_level_let_storage_release(void *module) {
  * product links pure. Cold full seed compiles BSS in the OR then these
  * helpers in the same TU.
  * Layout ≡ C TopLevelLetEntry LE:
- *   name[128]@0 | name_len@128 | type_ref@132 | init_ref@136 | is_const@140 | is_export@144
+ *   name[256]@0 | name_len@256 | type_ref@260 | init_ref@264 | is_const@268 | is_export@272
  * Soft-sync when header num_top_level_lets@12 == 0.
  * Hoist/sum/hoist_target: freestanding no-ops or minimal (need Cap block/asm faces);
  * product pure owns full hoist/sum path.
@@ -47167,7 +47167,7 @@ void pipeline_module_top_level_let_set(void *module, int32_t idx, uint8_t *name,
   uint8_t *e;
   int32_t i;
   int32_t n;
-  if (!module || !name || name_len <= 0 || name_len > 127)
+  if (!module || !name || name_len <= 0 || name_len > 255)
     return;
   wave265_tl_soft_sync(module);
   s = wave265_tl_find_slot(module);
@@ -47177,13 +47177,13 @@ void pipeline_module_top_level_let_set(void *module, int32_t idx, uint8_t *name,
   if (!e)
     return;
   n = name_len;
-  memset(e, 0, 128);
+  memset(e, 0, 256);
   for (i = 0; i < n; i++)
     e[i] = name[i];
-  memcpy(e + 128, &n, 4);
-  memcpy(e + 132, &type_ref, 4);
-  memcpy(e + 136, &init_ref, 4);
-  memcpy(e + 140, &is_const, 4);
+  memcpy(e + 256, &n, 4);
+  memcpy(e + 260, &type_ref, 4);
+  memcpy(e + 264, &init_ref, 4);
+  memcpy(e + 268, &is_const, 4);
 }
 
 void pipeline_module_top_level_let_set_type_ref(void *module, int32_t idx, int32_t type_ref) {
@@ -47198,7 +47198,7 @@ void pipeline_module_top_level_let_set_type_ref(void *module, int32_t idx, int32
   e = wave265_tl_at(s, idx);
   if (!e)
     return;
-  memcpy(e + 132, &type_ref, 4);
+  memcpy(e + 260, &type_ref, 4);
 }
 
 int32_t pipeline_module_top_level_let_name_len(void *module, int32_t idx) {
@@ -47214,7 +47214,7 @@ int32_t pipeline_module_top_level_let_name_len(void *module, int32_t idx) {
   e = wave265_tl_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nlen, e + 128, 4);
+  memcpy(&nlen, e + 256, 4);
   return nlen;
 }
 
@@ -47222,7 +47222,7 @@ uint8_t pipeline_module_top_level_let_name_byte_at(void *module, int32_t idx, in
   int s;
   uint8_t *e;
   int32_t nlen;
-  if (!module || off < 0 || off >= 127)
+  if (!module || off < 0 || off >= 255)
     return 0;
   wave265_tl_soft_sync(module);
   s = wave265_tl_find_slot(module);
@@ -47231,7 +47231,7 @@ uint8_t pipeline_module_top_level_let_name_byte_at(void *module, int32_t idx, in
   e = wave265_tl_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&nlen, e + 128, 4);
+  memcpy(&nlen, e + 256, 4);
   if (off >= nlen)
     return 0;
   return e[off];
@@ -47250,7 +47250,7 @@ int32_t pipeline_module_top_level_let_type_ref(void *module, int32_t idx) {
   e = wave265_tl_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&v, e + 132, 4);
+  memcpy(&v, e + 260, 4);
   return v;
 }
 
@@ -47267,7 +47267,7 @@ int32_t pipeline_module_top_level_let_init_ref(void *module, int32_t idx) {
   e = wave265_tl_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&v, e + 136, 4);
+  memcpy(&v, e + 264, 4);
   return v;
 }
 
@@ -47284,7 +47284,7 @@ int32_t pipeline_module_top_level_let_is_const(void *module, int32_t idx) {
   e = wave265_tl_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&v, e + 140, 4);
+  memcpy(&v, e + 268, 4);
   return v;
 }
 
@@ -47300,7 +47300,7 @@ void pipeline_module_top_level_let_set_is_export(void *module, int32_t idx, int3
   e = wave265_tl_at(s, idx);
   if (!e)
     return;
-  memcpy(e + 144, &is_export, 4);
+  memcpy(e + 272, &is_export, 4);
 }
 
 int32_t pipeline_module_top_level_let_is_export_at(void *module, int32_t idx) {
@@ -47316,7 +47316,7 @@ int32_t pipeline_module_top_level_let_is_export_at(void *module, int32_t idx) {
   e = wave265_tl_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&v, e + 144, 4);
+  memcpy(&v, e + 272, 4);
   return v;
 }
 
@@ -47335,7 +47335,7 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
     e = wave265_tl_at(s, i);
     if (!e)
       continue;
-    memcpy(&nl, e + 128, 4);
+    memcpy(&nl, e + 256, 4);
     if (nl != vlen)
       continue;
     for (k = 0; k < vlen; k++) {
@@ -47344,7 +47344,7 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
     }
     if (k == vlen) {
       int32_t is_c;
-      memcpy(&is_c, e + 140, 4);
+      memcpy(&is_c, e + 268, 4);
       return is_c != 0 ? 1 : 0;
     }
   }
@@ -47367,7 +47367,7 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
 void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
   int32_t n, mi, br, let_start_idx, tl, hoisted, nexprs, name_len, type_ref, init_ref;
   int32_t tk, ik, k;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   if (!module || !arena)
     return;
   n = cold_mod_num_top_level_lets(module);
@@ -47397,7 +47397,7 @@ void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
   hoisted = 0;
   for (tl = 0; tl < n; tl++) {
     name_len = pipeline_module_top_level_let_name_len(module, tl);
-    if (name_len <= 0 || name_len > 127)
+    if (name_len <= 0 || name_len > 255)
       continue;
     type_ref = pipeline_module_top_level_let_type_ref(module, tl);
     init_ref = pipeline_module_top_level_let_init_ref(module, tl);
@@ -47533,9 +47533,9 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #define WAVE266_SL_SLOTS 128
-#define WAVE266_SL_LAYOUT_SZ 168
-#define WAVE266_SL_FIELD_SZ 144
-#define WAVE266_SL_TP_SZ 132
+#define WAVE266_SL_LAYOUT_SZ 296
+#define WAVE266_SL_FIELD_SZ 272
+#define WAVE266_SL_TP_SZ 260
 static void *g_wave266_sl_mod[WAVE266_SL_SLOTS];
 static int32_t g_wave266_sl_n[WAVE266_SL_SLOTS];
 static int32_t g_wave266_sl_cap[WAVE266_SL_SLOTS];
@@ -47635,11 +47635,11 @@ void pipeline_module_struct_layout_storage_release(void *module) {
  * product links pure. Cold full seed compiles BSS in the OR then these
  * helpers in the same TU.
  * Layout entry pure 168B LE:
- *   name[128]@0 | name_len@128 | field_base@132 | num_fields@136
+ *   name[256]@0 | name_len@256 | field_base@260 | num_fields@264
  *   | allow_padding@140 | soa@144 | packed@148 | repr_compatible@152
  *   | is_export@156 | tp_base@160 | tp_count@164
- * Field 144B: name[128]|name_len|offset|type_ref|align
- * TP 132B: name[128]|name_len
+ * Field 268B: name[256]|name_len|offset|type_ref|align
+ * TP 260B: name[256]|name_len
  * Soft-sync when header num_struct_layouts@16 == 0.
  * next_field_offset / type_ref_byte_size: freestanding minimal (need pure glue_type);
  * product pure owns full sizing path.
@@ -47804,8 +47804,8 @@ static uint8_t *wave266_sl_field_entry(void *module, int32_t li, int32_t j, int 
   sl = wave266_sl_layout_at(s, li);
   if (!sl)
     return NULL;
-  memcpy(&fb, sl + 132, 4);
-  memcpy(&nf, sl + 136, 4);
+  memcpy(&fb, sl + 260, 4);
+  memcpy(&nf, sl + 264, 4);
   if (!create) {
     if (j >= nf || fb < 0)
       return NULL;
@@ -47813,7 +47813,7 @@ static uint8_t *wave266_sl_field_entry(void *module, int32_t li, int32_t j, int 
   }
   if (fb < 0) {
     fb = g_wave266_sl_fn[s];
-    memcpy(sl + 132, &fb, 4);
+    memcpy(sl + 260, &fb, 4);
   }
   abs = fb + j;
   while (g_wave266_sl_fn[s] <= abs) {
@@ -47825,7 +47825,7 @@ static uint8_t *wave266_sl_field_entry(void *module, int32_t li, int32_t j, int 
   }
   if (j + 1 > nf) {
     nf = j + 1;
-    memcpy(sl + 136, &nf, 4);
+    memcpy(sl + 264, &nf, 4);
   }
   return wave266_sl_field_abs(s, abs);
 }
@@ -47845,8 +47845,8 @@ int32_t pipeline_module_struct_layout_alloc(void *module) {
     return -1;
   sl = g_wave266_sl_layouts[s] + (size_t)n * (size_t)WAVE266_SL_LAYOUT_SZ;
   memset(sl, 0, WAVE266_SL_LAYOUT_SZ);
-  memcpy(sl + 132, &m1, 4);
-  memcpy(sl + 160, &m1, 4);
+  memcpy(sl + 260, &m1, 4);
+  memcpy(sl + 288, &m1, 4);
   g_wave266_sl_n[s] = n + 1;
   wave266_sl_set_header_n(module, n + 1);
   return n;
@@ -47866,15 +47866,15 @@ void pipeline_module_struct_layout_reset_slot(void *module, int32_t idx) {
   if (!sl)
     return;
   memset(sl, 0, WAVE266_SL_LAYOUT_SZ);
-  memcpy(sl + 132, &m1, 4);
-  memcpy(sl + 160, &m1, 4);
+  memcpy(sl + 260, &m1, 4);
+  memcpy(sl + 288, &m1, 4);
 }
 
 void pipeline_module_struct_layout_set_name(void *module, int32_t idx, uint8_t *bytes, int32_t len) {
   int s;
   uint8_t *sl;
   int32_t i;
-  if (!module || !bytes || len <= 0 || len > 127)
+  if (!module || !bytes || len <= 0 || len > 255)
     return;
   wave266_sl_soft_sync(module);
   s = wave266_sl_find_slot(module);
@@ -47883,8 +47883,8 @@ void pipeline_module_struct_layout_set_name(void *module, int32_t idx, uint8_t *
   sl = wave266_sl_layout_at(s, idx);
   if (!sl)
     return;
-  memcpy(sl + 128, &len, 4);
-  memset(sl, 0, 128);
+  memcpy(sl + 256, &len, 4);
+  memset(sl, 0, 256);
   for (i = 0; i < len; i++)
     sl[i] = bytes[i];
 }
@@ -47894,20 +47894,20 @@ void pipeline_module_struct_layout_set_field(void *module, int32_t li, int32_t j
   uint8_t *fe;
   int32_t i;
   int32_t zero = 0;
-  if (fname_len <= 0 || fname_len > 127 || j < 0)
+  if (fname_len <= 0 || fname_len > 255 || j < 0)
     return;
   fe = wave266_sl_field_entry(module, li, j, 1);
   if (!fe)
     return;
-  memcpy(fe + 128, &fname_len, 4);
-  memcpy(fe + 136, &ftype_ref, 4);
-  memcpy(fe + 132, &foff, 4);
-  memcpy(fe + 140, &zero, 4);
-  memset(fe, 0, 128);
+  memset(fe, 0, 256);
   if (fname_bytes) {
     for (i = 0; i < fname_len; i++)
       fe[i] = fname_bytes[i];
   }
+  memcpy(fe + 256, &fname_len, 4);
+  memcpy(fe + 260, &foff, 4);
+  memcpy(fe + 264, &ftype_ref, 4);
+  memcpy(fe + 268, &zero, 4);
 }
 
 int32_t pipeline_module_struct_layout_name_len(void *module, int32_t idx) {
@@ -47923,7 +47923,7 @@ int32_t pipeline_module_struct_layout_name_len(void *module, int32_t idx) {
   sl = wave266_sl_layout_at(s, idx);
   if (!sl)
     return 0;
-  memcpy(&nlen, sl + 128, 4);
+  memcpy(&nlen, sl + 256, 4);
   return nlen;
 }
 
@@ -47933,28 +47933,28 @@ void pipeline_module_struct_layout_name_into(void *module, int32_t idx, uint8_t 
   if (!out64)
     return;
   if (!module) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
   wave266_sl_soft_sync(module);
   s = wave266_sl_find_slot(module);
   if (s < 0) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
   sl = wave266_sl_layout_at(s, idx);
   if (!sl) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
-  memcpy(out64, sl, 128);
+  memcpy(out64, sl, 256);
 }
 
 uint8_t pipeline_module_struct_layout_name_byte_at(void *module, int32_t idx, int32_t off) {
   int s;
   uint8_t *sl;
   int32_t nlen;
-  if (!module || off < 0 || off >= 128)
+  if (!module || off < 0 || off >= 256)
     return 0;
   wave266_sl_soft_sync(module);
   s = wave266_sl_find_slot(module);
@@ -47963,7 +47963,7 @@ uint8_t pipeline_module_struct_layout_name_byte_at(void *module, int32_t idx, in
   sl = wave266_sl_layout_at(s, idx);
   if (!sl)
     return 0;
-  memcpy(&nlen, sl + 128, 4);
+  memcpy(&nlen, sl + 256, 4);
   if (off >= nlen)
     return 0;
   return sl[off];
@@ -47982,7 +47982,7 @@ int32_t pipeline_module_struct_layout_num_fields(void *module, int32_t idx) {
   sl = wave266_sl_layout_at(s, idx);
   if (!sl)
     return 0;
-  memcpy(&nf, sl + 136, 4);
+  memcpy(&nf, sl + 264, 4);
   return nf;
 }
 
@@ -47998,7 +47998,7 @@ void pipeline_module_struct_layout_set_num_fields(void *module, int32_t idx, int
   sl = wave266_sl_layout_at(s, idx);
   if (!sl)
     return;
-  memcpy(sl + 136, &nf, 4);
+  memcpy(sl + 264, &nf, 4);
 }
 
 int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, int32_t j) {
@@ -48009,7 +48009,7 @@ int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, i
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (!fe)
     return 0;
-  memcpy(&v, fe + 136, 4);
+  memcpy(&v, fe + 264, 4);
   return v;
 }
 
@@ -48021,7 +48021,7 @@ int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t li, i
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (!fe)
     return 0;
-  memcpy(&fl, fe + 128, 4);
+  memcpy(&fl, fe + 256, 4);
   return (fl > 0 && fl <= 127) ? fl : 0;
 }
 
@@ -48030,15 +48030,15 @@ void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int
   if (!out64)
     return;
   if (j < 0) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (!fe) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
-  memcpy(out64, fe, 128);
+  memcpy(out64, fe, 256);
 }
 
 void pipeline_module_struct_layout_set_field_offset(void *module, int32_t li, int32_t j, int32_t foff) {
@@ -48047,7 +48047,7 @@ void pipeline_module_struct_layout_set_field_offset(void *module, int32_t li, in
     return;
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (fe)
-    memcpy(fe + 132, &foff, 4);
+    memcpy(fe + 260, &foff, 4);
 }
 
 int32_t pipeline_module_struct_layout_field_offset_at(void *module, int32_t li, int32_t j) {
@@ -48058,7 +48058,7 @@ int32_t pipeline_module_struct_layout_field_offset_at(void *module, int32_t li, 
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (!fe)
     return 0;
-  memcpy(&v, fe + 132, 4);
+  memcpy(&v, fe + 260, 4);
   return v;
 }
 
@@ -48070,7 +48070,7 @@ int32_t pipeline_module_struct_layout_field_align_at(void *module, int32_t li, i
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (!fe)
     return 0;
-  memcpy(&v, fe + 140, 4);
+  memcpy(&v, fe + 268, 4);
   return v;
 }
 
@@ -48080,7 +48080,7 @@ void pipeline_module_struct_layout_set_field_align(void *module, int32_t li, int
     return;
   fe = wave266_sl_field_entry(module, li, j, 0);
   if (fe)
-    memcpy(fe + 140, &al, 4);
+    memcpy(fe + 268, &al, 4);
 }
 
 int32_t pipeline_module_struct_layout_append_type_param(void *module, int32_t li, uint8_t *name, int32_t name_len) {
@@ -48088,7 +48088,7 @@ int32_t pipeline_module_struct_layout_append_type_param(void *module, int32_t li
   uint8_t *sl;
   int32_t tp_base, tp_count, abs, i;
   uint8_t *ent;
-  if (!module || li < 0 || !name || name_len <= 0 || name_len > 127)
+  if (!module || li < 0 || !name || name_len <= 0 || name_len > 255)
     return -1;
   wave266_sl_soft_sync(module);
   s = wave266_sl_find_or_create(module);
@@ -48097,13 +48097,13 @@ int32_t pipeline_module_struct_layout_append_type_param(void *module, int32_t li
   sl = wave266_sl_layout_at(s, li);
   if (!sl)
     return -1;
-  memcpy(&tp_base, sl + 160, 4);
-  memcpy(&tp_count, sl + 164, 4);
+  memcpy(&tp_base, sl + 288, 4);
+  memcpy(&tp_count, sl + 292, 4);
   if (tp_base < 0) {
     tp_base = g_wave266_sl_tpn[s];
     tp_count = 0;
-    memcpy(sl + 160, &tp_base, 4);
-    memcpy(sl + 164, &tp_count, 4);
+    memcpy(sl + 288, &tp_base, 4);
+    memcpy(sl + 292, &tp_count, 4);
   }
   abs = tp_base + tp_count;
   while (g_wave266_sl_tpn[s] <= abs) {
@@ -48115,11 +48115,11 @@ int32_t pipeline_module_struct_layout_append_type_param(void *module, int32_t li
   }
   ent = g_wave266_sl_tp[s] + (size_t)abs * (size_t)WAVE266_SL_TP_SZ;
   memset(ent, 0, WAVE266_SL_TP_SZ);
-  memcpy(ent + 128, &name_len, 4);
+  memcpy(ent + 256, &name_len, 4);
   for (i = 0; i < name_len; i++)
     ent[i] = name[i];
   tp_count = tp_count + 1;
-  memcpy(sl + 164, &tp_count, 4);
+  memcpy(sl + 292, &tp_count, 4);
   return 0;
 }
 
@@ -48136,7 +48136,7 @@ int32_t pipeline_module_struct_layout_num_type_params_at(void *module, int32_t l
   sl = wave266_sl_layout_at(s, li);
   if (!sl)
     return 0;
-  memcpy(&c, sl + 164, 4);
+  memcpy(&c, sl + 292, 4);
   return c;
 }
 
@@ -48153,8 +48153,8 @@ int32_t pipeline_module_struct_layout_type_param_name_len(void *module, int32_t 
   sl = wave266_sl_layout_at(s, li);
   if (!sl)
     return 0;
-  memcpy(&tp_base, sl + 160, 4);
-  memcpy(&tp_count, sl + 164, 4);
+  memcpy(&tp_base, sl + 288, 4);
+  memcpy(&tp_count, sl + 292, 4);
   if (tp_base < 0 || j >= tp_count)
     return 0;
   abs = tp_base + j;
@@ -48162,7 +48162,7 @@ int32_t pipeline_module_struct_layout_type_param_name_len(void *module, int32_t 
     return 0;
   ent = g_wave266_sl_tp[s] + (size_t)abs * (size_t)WAVE266_SL_TP_SZ;
   memcpy(&nl, ent + 128, 4);
-  return (nl > 0 && nl <= 127) ? nl : 0;
+  return (nl > 0 && nl <= 255) ? nl : 0;
 }
 
 void pipeline_module_struct_layout_type_param_name_into(void *module, int32_t li, int32_t j, uint8_t *out64) {
@@ -48171,7 +48171,7 @@ void pipeline_module_struct_layout_type_param_name_into(void *module, int32_t li
   int32_t tp_base, tp_count, abs, nl;
   if (!out64)
     return;
-  memset(out64, 0, 128);
+  memset(out64, 0, 256);
   if (!module || li < 0 || j < 0)
     return;
   wave266_sl_soft_sync(module);
@@ -48181,8 +48181,8 @@ void pipeline_module_struct_layout_type_param_name_into(void *module, int32_t li
   sl = wave266_sl_layout_at(s, li);
   if (!sl)
     return;
-  memcpy(&tp_base, sl + 160, 4);
-  memcpy(&tp_count, sl + 164, 4);
+  memcpy(&tp_base, sl + 288, 4);
+  memcpy(&tp_count, sl + 292, 4);
   if (tp_base < 0 || j >= tp_count)
     return;
   abs = tp_base + j;
@@ -48192,7 +48192,7 @@ void pipeline_module_struct_layout_type_param_name_into(void *module, int32_t li
   memcpy(&nl, ent + 128, 4);
   if (nl <= 0)
     return;
-  memcpy(out64, ent, 128);
+  memcpy(out64, ent, 256);
 }
 
 #define WAVE266_SL_FLAG_SET(off) \
@@ -48293,7 +48293,7 @@ int32_t pipeline_struct_layout_next_field_offset(void *m, void *a, int32_t layou
  * PLATFORM: SHARED freestanding asm_locals Cap leave.
  * ============================================================================ */
 #define WAVE267_AL_SLOTS 64
-#define WAVE267_AL_ENTRY_SZ 136
+#define WAVE267_AL_ENTRY_SZ 264
 static void *g_wave267_al_ctx[WAVE267_AL_SLOTS];
 static int g_wave267_al_used[WAVE267_AL_SLOTS];
 static int32_t g_wave267_al_n[WAVE267_AL_SLOTS];
@@ -48442,10 +48442,10 @@ int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int3
   if (!ent)
     return -1;
   memset(ent, 0, WAVE267_AL_ENTRY_SZ);
-  n = name_len > 127 ? 127 : name_len;
+  n = name_len > 255 ? 255 : name_len;
   for (k = 0; k < n; k++)
     ent[k] = name[k];
-  memcpy(ent + 128, &name_len, 4);
+  memcpy(ent + 256, &name_len, 4);
   memcpy(ent + 132, &offset, 4);
   g_wave267_al_n[s] = idx + 1;
   return idx;
@@ -48485,7 +48485,7 @@ void asm_ctx_local_name_copy64(uint8_t *ctx, int32_t idx, uint8_t *dst) {
   int32_t nlen, n, k;
   if (!dst)
     return;
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   s = wave267_al_find(ctx, 0);
   if (s < 0)
     return;
@@ -48493,7 +48493,7 @@ void asm_ctx_local_name_copy64(uint8_t *ctx, int32_t idx, uint8_t *dst) {
   if (!ent)
     return;
   memcpy(&nlen, ent + 128, 4);
-  n = nlen > 127 ? 127 : nlen;
+  n = nlen > 255 ? 255 : nlen;
   for (k = 0; k < n; k++)
     dst[k] = ent[k];
 }
@@ -48662,12 +48662,12 @@ extern int32_t ast_pipeline_block_let_init_ref(void *arena, int32_t block_ref, i
 static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void *mod);
 
 static int32_t wave268_slot_bytes_named_in_mod(void *arena, int32_t type_ref, void *mod) {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t nlen, k, nlayouts, ln, j, eq, b, sz, al, mrc, nf, last, foff, fty, fsz, dot, base_off, base_len;
   if (!arena || type_ref <= 0 || !mod)
     return 0;
   nlen = pipeline_type_named_name_into(arena, type_ref, name);
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return 0;
   dot = -1;
   for (j = 0; j < nlen; j++) {
@@ -48742,7 +48742,7 @@ static int32_t wave268_slot_bytes_named_in_mod(void *arena, int32_t type_ref, vo
 
 int32_t asm_fixed_array_total_bytes_mod(void *arena, int32_t type_ref, void *mod) {
   int32_t nt, asz, elem_ref, ek, soa_sz, elen, nlayouts, lk, ln, j, eq, b, es;
-  uint8_t ename[128];
+  uint8_t ename[256];
   if (!arena || type_ref <= 0)
     return 0;
   nt = pipeline_arena_num_types(arena);
@@ -48793,7 +48793,7 @@ static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void 
   int32_t nt, ko, sz, nd, di, elem_ref, arr_sz, asz, esz, ek, bytes, lanes, nlen;
   int32_t cur, prod, d, leaf_esz, cn, ce, lek, ssz, simd;
   void *dep, *dm;
-  uint8_t name[128];
+  uint8_t name[256];
   if (!arena || type_ref <= 0)
     return 8;
   nt = pipeline_arena_num_types(arena);
@@ -48815,7 +48815,7 @@ static int32_t wave268_local_slot_bytes_mod(void *arena, int32_t type_ref, void 
     if (dep) {
       nd = pipeline_dep_ctx_ndep(dep);
       nlen = pipeline_type_named_name_into(arena, type_ref, name);
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         dot2 = -1;
         for (ji = 0; ji < nlen; ji++) {
           if (name[ji] == '.')
@@ -48974,7 +48974,7 @@ int32_t asm_local_slot_bytes(void *arena, int32_t type_ref) {
 void asm_ctx_ensure_block_locals(uint8_t *ctx, void *arena, int32_t block_ref, int32_t *inout_next_offset,
                                  int32_t *inout_num_locals) {
   int32_t i, off, base, nlen, type_ref, init_ref, nconst, nlet, prev, slot_off, ap;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   if (!ctx || !arena || !inout_next_offset || !inout_num_locals || block_ref <= 0)
     return;
   prev = asm_ctx_block_slot_get(ctx, block_ref);
@@ -49292,7 +49292,7 @@ extern int32_t pipeline_arena_num_types(void *arena);
 
 enum {
   W270_TY_PTR_WIN = 9,
-  W270_TY_SIZE_WIN = 276
+  W270_TY_SIZE_WIN = 532
 };
 
 static void wave270_zero_slot_win(uint8_t *t) {
@@ -49340,7 +49340,7 @@ static uint8_t *wave270_slot_at_win(void *arena, int32_t ref) {
 int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
   int32_t nt, k;
   uint8_t *t;
-  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 127)
+  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 255)
     return 0;
   if (region_len > 0 && !region)
     return 0;
@@ -49390,8 +49390,8 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
  * WAVE270: ast_pool_type pure-owned leave cold twins
  * (pipeline_type_* pool accessors + find_or_alloc + init/ensure + region label).
  * Only compiled when product pure is NOT linked (-U FROM_X cold path).
- * Type LE matches pure: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
- * region_label[128]@144 region_label_len@272 size 276.
+ * Type LE matches pure: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
+ * region_label[256]@272 region_label_len@528 size 532.
  * Cap residual: pipeline_arena_type_ptr / pipeline_arena_type_alloc.
  * PLATFORM: SHARED freestanding type pool Cap leave.
  */
@@ -49404,7 +49404,7 @@ enum {
   W270_TY_NAMED = 8,
   W270_TY_PTR = 9,
   W270_TY_SLICE = 11,
-  W270_TY_SIZE = 276
+  W270_TY_SIZE = 532
 };
 
 static int32_t wave270_kind_from_ord(int32_t ord) {
@@ -49499,7 +49499,7 @@ int32_t pipeline_type_region_label_len_at(void *arena, int32_t ref) {
 int32_t pipeline_type_set_region_label_at(void *arena, int32_t ref, uint8_t *label, int32_t label_len) {
   uint8_t *t;
   int32_t kind, i;
-  if (!label || label_len <= 0 || label_len > 127)
+  if (!label || label_len <= 0 || label_len > 255)
     return 0;
   t = wave270_slot_at(arena, ref);
   if (!t)
@@ -49518,7 +49518,7 @@ int32_t pipeline_type_set_region_label_at(void *arena, int32_t ref, uint8_t *lab
 int32_t pipeline_type_find_or_alloc_slice(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
   int32_t nt, k;
   uint8_t *t;
-  if (!a || region_len < 0 || region_len > 127)
+  if (!a || region_len < 0 || region_len > 255)
     return 0;
   if (region_len > 0 && !region)
     return 0;
@@ -49554,7 +49554,7 @@ int32_t pipeline_type_find_or_alloc_slice(void *a, int32_t elem_ref, uint8_t *re
 int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
   int32_t nt, k;
   uint8_t *t;
-  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 127)
+  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 255)
     return 0;
   if (region_len > 0 && !region)
     return 0;
@@ -49658,7 +49658,7 @@ int32_t pipeline_type_init_primitive_kind_at(void *a, int32_t ref, int32_t kind_
 int32_t pipeline_type_init_named_at(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
   uint8_t *t;
   int32_t i;
-  if (!a || ref <= 0 || !name || name_len <= 0 || name_len > 127)
+  if (!a || ref <= 0 || !name || name_len <= 0 || name_len > 255)
     return 0;
   if (ref > pipeline_arena_num_types(a))
     return 0;
@@ -49693,7 +49693,7 @@ int32_t pipeline_type_init_compound_kind_at(void *a, int32_t ref, int32_t kind_o
 int32_t pipeline_type_find_or_alloc_named(void *a, uint8_t *name, int32_t name_len) {
   int32_t nt, k, i;
   uint8_t *t;
-  if (!a || !name || name_len <= 0 || name_len > 127)
+  if (!a || !name || name_len <= 0 || name_len > 255)
     return 0;
   nt = pipeline_arena_num_types(a);
   for (k = 1; k <= nt; k++) {
@@ -50019,7 +50019,7 @@ static Wave272DepCtxSidecar *wave272_depctx_get(struct ast_PipelineDepCtx *ctx, 
         return NULL;
       if (!grow_vec_init(&sc->dep_arenas, sizeof(void *), AST_POOL_INIT_CAP))
         return NULL;
-      if (!grow_vec_init(&sc->dep_path_rows, 128, AST_POOL_INIT_CAP))
+      if (!grow_vec_init(&sc->dep_path_rows, 256, AST_POOL_INIT_CAP))
         return NULL;
       if (!grow_vec_init(&sc->dep_path_lens, sizeof(int32_t), AST_POOL_INIT_CAP))
         return NULL;
@@ -50061,7 +50061,7 @@ static int wave272_depctx_ensure_slot(Wave272DepCtxSidecar *sc, int32_t idx) {
       return 0;
     row = (uint8_t *)grow_vec_at(&sc->dep_path_rows, sc->dep_path_rows.len - 1);
     if (row)
-      memset(row, 0, 128);
+      memset(row, 0, 256);
     if (grow_vec_push(&sc->dep_path_lens) < 0)
       return 0;
     pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, sc->dep_path_lens.len - 1);
@@ -50178,8 +50178,8 @@ void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t id
   if (!row || !pl)
     return;
   /* wave579 Cap: row is 128 bytes; allow up to 127 path bytes + NUL. */
-  n = len > 127 ? 127 : len;
-  memset(row, 0, 128);
+  n = len > 255 ? 255 : len;
+  memset(row, 0, 256);
   memcpy(row, bytes, (size_t)n);
   row[n] = 0;
   *pl = n;
@@ -50221,7 +50221,7 @@ void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   if (!ctx || idx < 0 || !(sc = wave272_depctx_get(ctx, 0)) || idx >= sc->dep_path_rows.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->dep_path_lens, idx);
@@ -50280,7 +50280,7 @@ void pipeline_dep_ctx_set_codegen_prefix_mirror(struct ast_PipelineDepCtx *ctx, 
   int32_t k, n;
   if (!ctx)
     return;
-  n = len > 127 ? 127 : (len > 0 ? len : 0);
+  n = len > 255 ? 255 : (len > 0 ? len : 0);
   ctx->current_codegen_prefix_len = 0;
   for (k = 0; k < n; k++)
     ctx->current_codegen_prefix_mirror[k] = bytes[k];
@@ -50670,7 +50670,7 @@ struct codegen_CodegenOutBuf;
  */
 /** 与 elf.x ElfLabelEntry 布局一致（无 code_shndx；PGO 段索引见 sidecar）。 */
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t offset;
 } PipelineElfLabelEntry;
@@ -50678,7 +50678,7 @@ typedef struct {
 /** 与 elf.x ElfPatchEntry 布局一致。 */
 typedef struct {
   int32_t rel32_offset;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t patch_imm_bits;
 } PipelineElfPatchEntry;
@@ -50697,7 +50697,7 @@ typedef struct {
 } PipelineElfRelocHeapEntry;
 
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t offset;
   /** 符号所属段：1=.text，2=.text.hot，3=.text.unlikely。 */
@@ -50705,7 +50705,7 @@ typedef struct {
 } PipelineElfSymEntry;
 
 typedef struct {
-  uint8_t bytes[128];
+  uint8_t bytes[256];
 } PipelineElfRelocSymName64;
 
 /** code_data 之前的完整前缀；glue 用 offsetof 取 e_machine / code_data，避免手算偏移漂移。 */
@@ -50747,10 +50747,10 @@ enum {
 };
 
 /** 与 elf.x ElfCodegenCtx 前缀一致；漂移会导致 append_bytes 写穿 malloc 区。 */
-_Static_assert(sizeof(PipelineElfLabelEntry) == 136, "PipelineElfLabelEntry must match elf.x ElfLabelEntry (wave577 Cap: name[64]→[128])");
-_Static_assert(sizeof(PipelineElfPatchEntry) == 140, "PipelineElfPatchEntry must match elf.x ElfPatchEntry (wave577 Cap: name[64]→[128])");
+_Static_assert(sizeof(PipelineElfLabelEntry) == 264, "PipelineElfLabelEntry must match elf.x ElfLabelEntry (Cap 4.2.8: name[128]→[256])");
+_Static_assert(sizeof(PipelineElfPatchEntry) == 268, "PipelineElfPatchEntry must match elf.x ElfPatchEntry (wave577 Cap: name[64]→[128])");
 _Static_assert(sizeof(PipelineElfRelocEntry) == 8, "PipelineElfRelocEntry must match elf.x ElfRelocEntry");
-_Static_assert(sizeof(PipelineElfSymEntry) == 140, "PipelineElfSymEntry must match elf.x ElfSymEntry (wave577 Cap: name[64]→[128])");
+_Static_assert(sizeof(PipelineElfSymEntry) == 268, "PipelineElfSymEntry must match elf.x ElfSymEntry (wave577 Cap: name[64]→[128])");
 _Static_assert(kPipelineElfCtxCodeDataOff == (int)sizeof(PipelineElfCtxAccess),
                "PipelineElfCtxAccess prefix size drift vs elf.x");
 
@@ -51347,7 +51347,7 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   num_undef = 0;
   r0 = 0;
   while (r0 < ctx->num_relocs) {
-    uint8_t rname[128];
+    uint8_t rname[256];
     int32_t rlen;
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, rname);
     rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r0);
@@ -51877,7 +51877,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   nu = 0;
   rx = 0;
   while (rx < ctx->num_relocs) {
-    uint8_t rname[128];
+    uint8_t rname[256];
     int32_t rlen;
     int32_t us;
     int32_t dup;
@@ -51890,7 +51890,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     dup = -1;
     us = 0;
     while (us < nu) {
-      uint8_t srname[128];
+      uint8_t srname[256];
       int32_t sr = und_src_reloc[us];
       pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr, srname);
       if (pipeline_macho_name_eq(rname, rlen, srname, und_lens[us]) != 0) {
@@ -52521,7 +52521,7 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
   num_unlikely_rela = 0;
   r0 = 0;
   while (r0 < ctx->num_relocs) {
-    uint8_t rname[128];
+    uint8_t rname[256];
     int32_t rlen;
     int32_t rsh;
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r0, rname);
@@ -53554,7 +53554,7 @@ int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_
   }
   pipeline_elf_reloc_shndx_set(ctx_bytes, ri, pipeline_elf_ctx_current_shndx(ctx));
   /* wave580 Cap: reloc_sym_names.bytes is u8[128]; clamp to full row ('_'+127 ok). */
-  memset(sym_row, 0, 128);
+  memset(sym_row, 0, 256);
   n = name_len > 128 ? 128 : name_len;
   if (n < 0)
     n = 0;
@@ -53673,7 +53673,7 @@ uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
   return g_pipeline_elf_reloc_sym_heap[hi];
 }
 
-/** Copy reloc_sym_names[idx] into dst (u8[128] content cap 127 + trailing zero region).
+/** Copy reloc_sym_names[idx] into dst (u8[128] content cap 255 + trailing zero region).
  * Name kept as *copy64 for ABI stability; wave580 Cap raised payload 64→128.
  * PLATFORM: SHARED — heap sidecar + inline reloc rows.
  */
@@ -53683,7 +53683,7 @@ void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uin
   uint8_t *src;
   if (!dst)
     return;
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   src = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
   if (!src)
     return;
@@ -54077,7 +54077,7 @@ static int32_t asm_wpo_call_callee_name(struct ast_ASTArena *a, int32_t callee_r
     pipeline_expr_var_name_into(a, callee_ref, cname);
     return clen;
   }
-  if (!callee_ex || callee_ex->var_name_len <= 0 || callee_ex->var_name_len > 127)
+  if (!callee_ex || callee_ex->var_name_len <= 0 || callee_ex->var_name_len > 255)
     return 0;
   clen = callee_ex->var_name_len;
   memcpy(cname, callee_ex->var_name, (size_t)clen);
@@ -54093,7 +54093,7 @@ static int32_t asm_wpo_call_callee_id(struct ast_ASTArena *a, int32_t call_expr_
   int32_t callee_ref;
   int32_t cid;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   if (!a || call_expr_ref <= 0)
     return -1;
   callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
@@ -55674,28 +55674,28 @@ void *arena_sidecar_get(void *key, int create) {
     if (w275_load_i32(sc, 8) == 0) {
       w275_store_ptr(sc, 0, key);
       w275_store_i32(sc, 8, 1);
-      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)276, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)532, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)712, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)1224, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)92, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)196, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)324, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)140, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)268, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)140, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)268, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)12, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)140, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)268, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)8, W275_GV_INIT_CAP)) {
@@ -55740,13 +55740,13 @@ void *arena_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 688), (size_t)24, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)136, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)264, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 752), (size_t)4, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)136, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)264, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
       w275_sidecar_remember(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
@@ -55778,25 +55778,25 @@ void *module_sidecar_get(void *key, int create) {
     if (w275_load_i32(sc, 8) == 0) {
       w275_store_ptr(sc, 0, key);
       w275_store_i32(sc, 8, 1);
-      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)196, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)324, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)4, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)404, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)532, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)160, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)288, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)148, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)276, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)136, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)264, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)33932, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)66828, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)128, W275_GV_INIT_CAP)) {
@@ -55959,7 +55959,7 @@ void *onefunc_sidecar_get(void *key, int create) {
 #ifndef WAVE276_ARENA_VALUE_ABI_ALWAYS
 #define WAVE276_ARENA_VALUE_ABI_ALWAYS 1
 
-enum { W276_TY = 276, W276_EX = 712, W276_BL = 92, W276_FN = 196 };
+enum { W276_TY = 532, W276_EX = 1224, W276_BL = 92, W276_FN = 324 };
 
 struct w276_Type { uint8_t _b[W276_TY]; };
 struct w276_Expr { uint8_t _b[W276_EX]; };
@@ -56242,7 +56242,7 @@ int32_t ast_pipeline_block_append_labeled(void *a, int32_t br, int32_t label_len
                                           int32_t goto_target_len, int32_t return_expr_ref);
 
 enum {
-  W276C_TY = 276, W276C_EX = 712, W276C_BL = 92, W276C_FN = 196,
+  W276C_TY = 532, W276C_EX = 1224, W276C_BL = 92, W276C_FN = 324,
   W276C_NO_LIMIT = 2147483647
 };
 
@@ -56639,7 +56639,7 @@ int32_t pipeline_parser_extern_init_arena_func_and_register_c(void *arena, void 
   int32_t fi;
   if (!arena || !module || func_ref <= 0)
     return -1;
-  if (name_len < 0 || name_len > 127)
+  if (name_len < 0 || name_len > 255)
     return -1;
   fp = (uint8_t *)pipeline_arena_func_ptr(arena, func_ref);
   if (!fp)
@@ -56750,14 +56750,14 @@ typedef struct {
 } W277_Block;
 
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
 } W277_ConstDecl;
 
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -56787,16 +56787,16 @@ typedef struct {
 } W277_StmtOrderItem;
 
 typedef struct {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[128];
+  uint8_t goto_target[256];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 } W277_LabeledStmt;
 
 typedef struct {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t body_ref;
   int32_t with_arena_cap_ref;
@@ -56930,10 +56930,10 @@ int32_t pipeline_block_append_const(void *a, int32_t br, uint8_t *name, int32_t 
     return -1;
   cd = (W277_ConstDecl *)grow_vec_at(&sc->consts, idx);
   memset(cd, 0, sizeof(*cd));
-  /* wave581 Cap residual: ConstDecl.name is u8[128]; copy up to 127 content bytes. */
+  /* wave581 Cap residual: ConstDecl.name is u8[128]; copy up to 255 content bytes. */
   if (name_len > 0 && name)
-    memcpy(cd->name, name, (size_t)(name_len > 127 ? 127 : name_len));
-  cd->name_len = name_len > 127 ? 127 : name_len;
+    memcpy(cd->name, name, (size_t)(name_len > 255 ? 255 : name_len));
+  cd->name_len = name_len > 255 ? 255 : name_len;
   cd->type_ref = type_ref;
   cd->init_ref = init_ref;
   b->num_consts++;
@@ -56955,10 +56955,10 @@ int32_t pipeline_block_append_let(void *a, int32_t br, uint8_t *name, int32_t na
     return -1;
   ld = (W277_LetDecl *)grow_vec_at(&sc->lets, idx);
   memset(ld, 0, sizeof(*ld));
-  /* wave581 Cap residual: LetDecl.name is u8[128]; copy up to 127 content bytes (was 64 truncate). */
+  /* wave581 Cap residual: LetDecl.name is u8[128]; copy up to 255 content bytes (was 64 truncate). */
   if (name_len > 0 && name)
-    memcpy(ld->name, name, (size_t)(name_len > 127 ? 127 : name_len));
-  ld->name_len = name_len > 127 ? 127 : name_len;
+    memcpy(ld->name, name, (size_t)(name_len > 255 ? 255 : name_len));
+  ld->name_len = name_len > 255 ? 255 : name_len;
   ld->type_ref = type_ref;
   ld->init_ref = init_ref;
   if (dbg_append_block && dbg_append_block[0] && atoi(dbg_append_block) == br) {
@@ -56997,7 +56997,7 @@ int32_t pipeline_block_append_region(void *a, int32_t br, uint8_t *label, int32_
   W277_Block *b;
   W277_Region *rb;
   int32_t idx;
-  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = w277_block_at(a, br)) || !label || label_len <= 0 || label_len > 127)
+  if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = w277_block_at(a, br)) || !label || label_len <= 0 || label_len > 255)
     return -1;
   idx = block_pool_append_pos(a, br, &sc->regions, offsetof(W277_Block, region_base), b->num_regions);
   if (idx < 0)
@@ -57382,13 +57382,13 @@ int32_t pipeline_block_labeled_label_len(void *a, int32_t br, int32_t li) {
   return ls ? ls->label_len : 0;
 }
 
-/** wave379/wave586: copy label name into dst (ABI *copy32; payload 128, content ≤127). */
+/** wave379/wave586: copy label name into dst (ABI *copy32; payload 128, content ≤255). */
 void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LabeledStmt *ls;
   if (!dst)
     return;
   /* wave586 Cap residual: ABI name *copy32; payload 128 (match LabeledStmt.label[128]). */
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   ls = pipeline_block_labeled_ptr(a, br, li);
   if (!ls || ls->label_len <= 0)
     return;
@@ -57412,7 +57412,7 @@ void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, 
   if (!dst)
     return;
   /* wave586 Cap residual: ABI name *copy32; payload 128 (match LabeledStmt.goto_target[128]). */
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   ls = pipeline_block_labeled_ptr(a, br, li);
   if (!ls || ls->goto_target_len <= 0)
     return;
@@ -57445,15 +57445,15 @@ void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *
   if (!dst)
     return;
   cd = block_const_at(a, br, ci);
-  /* wave581 Cap residual: ABI name *copy64; payload 128 (match LetDecl / AST name[128]). */
-  memset(dst, 0, 128);
+  /* Cap 4.2.8: ABI name *copy64; payload 256 (match LetDecl / AST name[256]). */
+  memset(dst, 0, 256);
   if (!cd)
     return;
   nlen = cd->name_len;
   if (nlen < 0)
     nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
+  if (nlen > 255)
+    nlen = 255;
   if (nlen > 0)
     memcpy(dst, cd->name, (size_t)nlen);
 }
@@ -57503,16 +57503,16 @@ void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *ds
     return;
   ld = block_let_at(a, br, li);
   if (!ld) {
-    memset(dst, 0, 128);
+    memset(dst, 0, 256);
     return;
   }
-  /* wave577 Cap: 拷贝 name_len 字节（≤127），余下清零；与 AST name[128] 对齐避免截断。 */
+  /* Cap 4.2.8: copy name_len bytes (≤255), zero-pad; AST name[256]. */
   nlen = ld->name_len;
   if (nlen < 0)
     nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(dst, 0, 128);
+  if (nlen > 255)
+    nlen = 255;
+  memset(dst, 0, 256);
   if (nlen > 0)
     memcpy(dst, ld->name, (size_t)nlen);
 }
@@ -57621,14 +57621,14 @@ void glue_stamp_return_lits_in_block_c(void *a, int32_t block_ref, int32_t rty) 
   int32_t ne;
   int32_t er;
   int32_t nlen;
-  uint8_t nbuf[128];
+  uint8_t nbuf[256];
   W277_Block *b;
   if (!a || block_ref <= 0 || rty <= 0)
     return;
   if (pipeline_type_kind_ord_at(a, rty) != 8)
     return;
   nlen = pipeline_type_named_name_into(a, rty, nbuf);
-  if (nlen <= 0 || nlen > 127)
+  if (nlen <= 0 || nlen > 255)
     return;
   sp = 0;
   stack_blk[sp] = block_ref;
@@ -58011,7 +58011,7 @@ int32_t pipeline_block_local_name_redecl_c(void *a, int32_t block_ref, uint8_t *
           /* wave585: copy32 ABI buffer is 128 bytes. */
           uint8_t pbuf[128];
           int32_t k;
-          if (nl > 127)
+          if (nl > 255)
             nl = 127;
           pipeline_module_func_param_name_copy32((void *)m, func_index, pi, pbuf);
           for (k = 0; k < nl; k++) {
@@ -58637,7 +58637,7 @@ typedef struct {
 #endif
 #endif
 
-/* Product LE sizeof(ast_Expr)=712 — match pipeline_gen / pure Cap (var_name[128]). */
+/* Product LE sizeof(ast_Expr)=1224 — match pipeline_gen / pure Cap (var_name[256]). */
 typedef struct W278_Expr {
   int32_t kind;
   int32_t resolved_type_ref;
@@ -58645,7 +58645,7 @@ typedef struct W278_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -58658,7 +58658,7 @@ typedef struct W278_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -58671,14 +58671,14 @@ typedef struct W278_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -58703,7 +58703,7 @@ typedef struct {
 } W278_MatchArm;
 
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t init_ref;
 } W278_StructLitField;
@@ -59520,10 +59520,10 @@ void pipeline_expr_method_call_name_into(void *a, int32_t expr_ref, uint8_t *out
     return;
   ex = w278_expr_ptr(a, expr_ref);
   if (!ex) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
-  memcpy(out64, ex->method_call_name, 128);
+  memcpy(out64, ex->method_call_name, 256);
 }
 
 int32_t pipeline_expr_append_match_arm(void *a, int32_t expr_ref, int32_t result_ref,
@@ -59645,7 +59645,7 @@ int32_t pipeline_expr_append_struct_lit_field(void *a, int32_t expr_ref, uint8_t
   fe = expr_struct_lit_field_at(a, expr_ref, ex->struct_lit_num_fields, 1);
   if (!fe)
     return -1;
-  n = name_len > 127 ? 127 : name_len;
+  n = name_len > 255 ? 255 : name_len;
   memset(fe->name, 0, sizeof(fe->name));
   memcpy(fe->name, name_bytes, (size_t)n);
   fe->name_len = n;
@@ -59667,10 +59667,10 @@ void pipeline_expr_struct_lit_field_name_into(void *a, int32_t expr_ref, int32_t
   }
   fe = expr_struct_lit_field_at(a, expr_ref, j, 0);
   if (!fe) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
-  memcpy(out64, fe->name, 128); /* wave577 Cap */
+  memcpy(out64, fe->name, 256); /* wave577 Cap */
 }
 
 int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t expr_ref, int32_t j) {
@@ -59707,15 +59707,15 @@ void pipeline_expr_struct_lit_type_name_into(void *a, int32_t expr_ref, uint8_t 
     return;
   ex = w278_expr_ptr(a, expr_ref);
   if (!ex) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
   nlen = ex->struct_lit_struct_name_len;
   if (nlen < 0)
     nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(out64, 0, 128);
+  if (nlen > 255)
+    nlen = 255;
+  memset(out64, 0, 256);
   if (nlen > 0)
     memcpy(out64, ex->struct_lit_struct_name, (size_t)nlen);
 }
@@ -59729,7 +59729,7 @@ void pipeline_expr_struct_lit_type_name_set(void *a, int32_t expr_ref, uint8_t *
   ex = w278_expr_ptr(a, expr_ref);
   if (!ex)
     return;
-  n = name_len > 127 ? 127 : name_len;
+  n = name_len > 255 ? 255 : name_len;
   memset(ex->struct_lit_struct_name, 0, sizeof(ex->struct_lit_struct_name));
   if (n > 0)
     memcpy(ex->struct_lit_struct_name, name, (size_t)n);
@@ -60182,15 +60182,15 @@ void pipeline_expr_field_access_name_into(void *a, int32_t expr_ref, uint8_t *ou
     return;
   ex = w278_expr_ptr(a, expr_ref);
   if (!ex) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
   nlen = ex->field_access_field_len;
   if (nlen < 0)
     nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(out64, 0, 128);
+  if (nlen > 255)
+    nlen = 255;
+  memset(out64, 0, 256);
   if (nlen > 0)
     memcpy(out64, ex->field_access_field_name, (size_t)nlen);
 }
@@ -60228,15 +60228,15 @@ void pipeline_expr_var_name_into(void *a, int32_t expr_ref, uint8_t *out64) {
     return;
   ex = w278_expr_ptr(a, expr_ref);
   if (!ex) {
-    memset(out64, 0, 128);
+    memset(out64, 0, 256);
     return;
   }
   nlen = ex->var_name_len;
   if (nlen < 0)
     nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(out64, 0, 128);
+  if (nlen > 255)
+    nlen = 255;
+  memset(out64, 0, 256);
   if (nlen > 0)
     memcpy(out64, ex->var_name, (size_t)nlen);
 }
@@ -60590,7 +60590,7 @@ typedef struct {
 #endif
 
 /* Product LE: ArenaSidecar 816 / ModuleSidecar 432 / OneFuncSidecar 944 /
- * Block 92 / Func 196 / Arena header 16 / Module header num_funcs@0. */
+ * Block 92 / Func 324 / Arena header 16 / Module header num_funcs@0. */
 typedef struct {
   void *arena_key;
   int used;
@@ -60710,9 +60710,9 @@ typedef struct {
   int32_t parent_block_ref;
 } W279_Block;
 
-/* Func LE 196: name[128]@0 … body_ref@148 body_expr_ref@152. */
+/* Func LE 324: name[256]@0 … body_ref@276 body_expr_ref@280. */
 enum {
-  W279_FUNC_SZ = 196,
+  W279_FUNC_SZ = 324,
   W279_FUNC_BODY_REF_OFF = 148,
   W279_FUNC_BODY_EXPR_REF_OFF = 152
 };
@@ -61083,12 +61083,12 @@ typedef struct {
 #endif
 #endif
 
-/* Product LE: Func 196 / FuncParam 136 / ModuleSidecar 432 / ArenaSidecar 816.
- * Func: name[128]@0 name_len@128 param_base@132 num_params@136
+/* Product LE: Func 324 / FuncParam 264 / ModuleSidecar 432 / ArenaSidecar 816.
+ * Func: name[256]@0 name_len@256 param_base@260 num_params@264
  * num_generic_params@140 return_type_ref@144 body_ref@148 body_expr_ref@152
  * is_extern@156 … is_export@192 (matches pipeline_gen / pure Cap). */
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -61109,7 +61109,7 @@ typedef struct {
 } W280_Func;
 
 typedef struct {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
 } W280_FuncParam;
@@ -61538,8 +61538,8 @@ int32_t pipeline_module_func_param_type_ref_for_name(void *m, int32_t func_index
   W280_FuncParam *pe;
   if (!m || !var_name || func_index < 0 || func_index >= ((W280_ModuleHdr *)m)->num_funcs)
     return 0;
-  /* wave585 Cap residual: param content ≤127 (W280_FuncParam.name[128]). */
-  if (var_name_len <= 0 || var_name_len > 127)
+  /* wave585 Cap residual: param content ≤255 (W280_FuncParam.name[256]). */
+  if (var_name_len <= 0 || var_name_len > 255)
     return 0;
   f = module_func_at(m, func_index);
   if (!f)
@@ -61551,7 +61551,7 @@ int32_t pipeline_module_func_param_type_ref_for_name(void *m, int32_t func_index
       continue;
     if ((int32_t)pe->name_len != var_name_len)
       continue;
-    if (pe->name_len <= 0 || pe->name_len > 127)
+    if (pe->name_len <= 0 || pe->name_len > 255)
       continue;
     if (memcmp(pe->name, var_name, (size_t)var_name_len) != 0)
       continue;
@@ -61573,8 +61573,8 @@ void pipeline_module_func_param_write(void *m, int32_t func_index, int32_t param
   W280_FuncParam *pe;
   if (!m || !name_bytes || func_index < 0 || param_index < 0)
     return;
-  /* wave585 Cap residual: content ≤127 (name[128]). */
-  if (name_len < 0 || name_len > 127)
+  /* wave585 Cap residual: content ≤255 (name[256]). */
+  if (name_len < 0 || name_len > 255)
     return;
   pe = module_func_param_entry(m, func_index, param_index, 1);
   if (!pe)
@@ -61592,12 +61592,12 @@ int32_t pipeline_module_func_param_name_len_at(void *m, int32_t func_index, int3
     return 0;
   pe = module_func_param_entry(m, func_index, param_index, 0);
   /* wave585: return only legal content lengths (≤127). */
-  return pe && pe->name_len > 0 && pe->name_len <= 127 ? (int32_t)pe->name_len : 0;
+  return pe && pe->name_len > 0 && pe->name_len <= 255 ? (int32_t)pe->name_len : 0;
 }
 
 /**
- * ABI name kept as *copy32; wave585 Cap residual raised payload 32→128.
- * Callers must pass a dst buffer of at least 128 bytes.
+ * ABI name kept as *copy32; Cap 4.2.8 raised payload 32→128→256.
+ * Callers must pass a dst buffer of at least 256 bytes.
  * PLATFORM: SHARED
  */
 void pipeline_module_func_param_name_copy32(void *m, int32_t func_index, int32_t param_index,
@@ -61607,10 +61607,10 @@ void pipeline_module_func_param_name_copy32(void *m, int32_t func_index, int32_t
     return;
   pe = module_func_param_entry(m, func_index, param_index, 0);
   if (!pe) {
-    memset(dst, 0, 128);
+    memset(dst, 0, 256);
     return;
   }
-  memcpy(dst, pe->name, (size_t)128);
+  memcpy(dst, pe->name, (size_t)256);
 }
 
 void pipeline_arena_func_param_write(void *arena, int32_t func_ref, int32_t param_index,
@@ -61618,8 +61618,8 @@ void pipeline_arena_func_param_write(void *arena, int32_t func_ref, int32_t para
   W280_FuncParam *pe;
   if (!arena || !name_bytes || func_ref <= 0 || func_ref > ((W280_ArenaHdr *)arena)->num_funcs || param_index < 0)
     return;
-  /* wave585 Cap residual: content ≤127 (name[128]). */
-  if (name_len < 0 || name_len > 127)
+  /* wave585 Cap residual: content ≤255 (name[256]). */
+  if (name_len < 0 || name_len > 255)
     return;
   pe = arena_func_param_entry(arena, func_ref, param_index, 1);
   if (!pe)
@@ -61661,8 +61661,8 @@ int32_t pipeline_module_func_return_type_at(void *m, int32_t fi) {
 /** 比较 module 函数名与外部 name 字节序列；相等返回 1。 */
 int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, int32_t name_len) {
   W280_Func *f;
-  /* wave577 Cap: name slots u8[128] → accept name_len <= 127 */
-  if (!m || !name || name_len <= 0 || name_len > 127)
+  /* wave577 Cap: name slots u8[128] → accept name_len <= 255 */
+  if (!m || !name || name_len <= 0 || name_len > 255)
     return 0;
   f = module_func_at(m, fi);
   if (!f || (int32_t)f->name_len != name_len)
@@ -61695,7 +61695,7 @@ int32_t pipeline_module_func_body_expr_ref_at(void *m, int32_t fi) {
  */
 
 /**
- * Write func name bytes into Func.name[128] (Cap: ≤127 bytes + NUL pad).
+ * Write func name bytes into Func.name[256] (Cap: ≤255 bytes + NUL pad).
  * Called by codegen name-write path and parse-time func registration.
  * Contract: null m / OOB func_index / name_len outside [0,127] → no-op.
  */
@@ -61705,7 +61705,7 @@ void pipeline_module_func_name_write(void *m, int32_t func_index, uint8_t *name_
   if (!m || func_index < 0)
     return;
   /* wave577 Cap: AST Func.name is u8[128]; allow up to 127 bytes */
-  if (name_len < 0 || name_len > 127)
+  if (name_len < 0 || name_len > 255)
     return;
   if (name_len > 0 && !name_bytes)
     return;
@@ -61719,9 +61719,9 @@ void pipeline_module_func_name_write(void *m, int32_t func_index, uint8_t *name_
 }
 
 /**
- * Copy Func.name[128] into dst (128 bytes, NUL-padded).
+ * Copy Func.name[256] into dst (256 bytes, NUL-padded).
  * Used by codegen to avoid .x nested array GEP typeck/asm failures.
- * Contract: null m/dst / OOB func_index → no-op; copies ≤127 bytes + zero-pad.
+ * Contract: null m/dst / OOB func_index → no-op; copies ≤255 bytes + zero-pad.
  */
 void pipeline_module_func_name_copy64(void *m, int32_t func_index, uint8_t *dst) {
   W280_Func *f;
@@ -61733,14 +61733,14 @@ void pipeline_module_func_name_copy64(void *m, int32_t func_index, uint8_t *dst)
   f = pipeline_module_func_ptr(m, func_index);
   if (!f)
     return;
-  /* wave577 Cap: copy name_len bytes (≤127), zero-pad rest; aligns with
-   * AST name[128] to avoid truncation. */
+  /* Cap 4.2.8: copy name_len bytes (≤255), zero-pad rest; aligns with
+   * AST name[256] to avoid truncation. */
   nlen = f->name_len;
   if (nlen < 0)
     nlen = 0;
-  if (nlen > 127)
-    nlen = 127;
-  memset(dst, 0, 128);
+  if (nlen > 255)
+    nlen = 255;
+  memset(dst, 0, 256);
   if (nlen > 0)
     memcpy(dst, f->name, (size_t)nlen);
 }
@@ -61935,17 +61935,17 @@ typedef struct {
 } W281_OneFuncSc;
 
 typedef struct {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t body_ref;
   int32_t with_arena_cap_ref;
 } W281_RegionEntry;
 
 typedef struct {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[128];
+  uint8_t goto_target[256];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 } W281_LabeledEntry;
@@ -61978,10 +61978,10 @@ typedef struct {
 } W281_Block;
 
 typedef struct {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[128];
+  uint8_t goto_target[256];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 } W281_LabeledStmt;
@@ -62024,8 +62024,8 @@ int32_t pipeline_onefunc_append_const(uint8_t *out, uint8_t *name, int32_t name_
   int32_t *pv;
   int32_t *pr;
   int32_t *pt;
-  /* wave581 Cap residual: OneFunc const name rows are 128B; content cap 127. */
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 127)
+  /* wave581 Cap residual: OneFunc const name rows are 128B; content cap 255. */
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 255)
     return -1;
   if (grow_vec_push(&sc->const_names) < 0 || grow_vec_push(&sc->const_name_lens) < 0 ||
       grow_vec_push(&sc->const_init_vals) < 0 || grow_vec_push(&sc->const_init_refs) < 0 ||
@@ -62038,7 +62038,7 @@ int32_t pipeline_onefunc_append_const(uint8_t *out, uint8_t *name, int32_t name_
   pt = (int32_t *)grow_vec_at(&sc->const_type_refs, sc->const_type_refs.len - 1);
   if (!row || !pl || !pv || !pr || !pt)
     return -1;
-  memset(row, 0, 128);
+  memset(row, 0, 256);
   memcpy(row, name, (size_t)name_len);
   *pl = name_len;
   *pv = init_val;
@@ -62083,7 +62083,7 @@ uint8_t pipeline_onefunc_const_name_byte_at(uint8_t *out, int32_t i, int32_t off
   uint8_t *row;
   int32_t *pl;
   /* wave581 Cap residual: content index 0..126. */
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->const_names.len || off < 0 || off >= 127)
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->const_names.len || off < 0 || off >= 255)
     return 0;
   pl = (int32_t *)grow_vec_at(&sc->const_name_lens, i);
   row = (uint8_t *)grow_vec_at(&sc->const_names, i);
@@ -62114,11 +62114,11 @@ int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_le
   W281_OneFuncSc *sc;
   uint8_t *row;
   /*
-   * wave581 Cap residual (body let long name): parser accepts name_len<=127 but this
+   * wave581 Cap residual (body let long name): parser accepts name_len<=255 but this
    * gate was still >64 → append fails → parse_body_lets returns false → no main (BLD001).
    * PLATFORM: SHARED — OneFunc sidecar row width 128.
    */
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 127)
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 255)
     return -1;
   if (grow_vec_push(&sc->let_names) < 0 || grow_vec_push(&sc->let_name_lens) < 0 ||
       grow_vec_push(&sc->let_init_vals) < 0 || grow_vec_push(&sc->let_init_refs) < 0 ||
@@ -62127,7 +62127,7 @@ int32_t pipeline_onefunc_append_let(uint8_t *out, uint8_t *name, int32_t name_le
   row = (uint8_t *)grow_vec_at(&sc->let_names, sc->let_names.len - 1);
   if (!row)
     return -1;
-  memset(row, 0, 128);
+  memset(row, 0, 256);
   memcpy(row, name, (size_t)name_len);
   *((int32_t *)grow_vec_at(&sc->let_name_lens, sc->let_name_lens.len - 1)) = name_len;
   *((int32_t *)grow_vec_at(&sc->let_init_vals, sc->let_init_vals.len - 1)) = init_val;
@@ -62150,7 +62150,7 @@ uint8_t pipeline_onefunc_let_name_byte_at(uint8_t *out, int32_t i, int32_t off) 
   uint8_t *row;
   int32_t *pl;
   /* wave581 Cap residual: content index 0..126. */
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->let_names.len || off < 0 || off >= 127)
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->let_names.len || off < 0 || off >= 255)
     return 0;
   pl = (int32_t *)grow_vec_at(&sc->let_name_lens, i);
   row = (uint8_t *)grow_vec_at(&sc->let_names, i);
@@ -62193,7 +62193,7 @@ int32_t pipeline_onefunc_num_lets(uint8_t *out) {
 
 /**
  * Append one parse-scratch param name into OneFunc sidecar.
- * wave585 Cap residual: content ≤127; row width 128 (was 31/32).
+ * wave585 Cap residual: content ≤255; row width 128 (was 31/32).
  * @return new index, or -1 on failure
  * PLATFORM: SHARED
  */
@@ -62204,7 +62204,7 @@ int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_
   int32_t *pt;
   int32_t n;
   int32_t k;
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 127)
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !name || name_len <= 0 || name_len > 255)
     return -1;
   if (grow_vec_push(&sc->param_names) < 0 || grow_vec_push(&sc->param_name_lens) < 0 ||
       grow_vec_push(&sc->param_type_refs) < 0)
@@ -62214,7 +62214,7 @@ int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_
   pt = (int32_t *)grow_vec_at(&sc->param_type_refs, sc->param_type_refs.len - 1);
   if (!row || !pl || !pt)
     return -1;
-  memset(row, 0, 128);
+  memset(row, 0, 256);
   n = name_len;
   for (k = 0; k < n; k++)
     row[k] = name[k];
@@ -62247,7 +62247,7 @@ uint8_t pipeline_onefunc_param_name_byte_at(uint8_t *out, int32_t i, int32_t off
   uint8_t *row;
   int32_t *pl;
   /* wave585 Cap residual: off bound 32→128 (param row[128]). */
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->param_names.len || off < 0 || off >= 128)
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->param_names.len || off < 0 || off >= 256)
     return 0;
   pl = (int32_t *)grow_vec_at(&sc->param_name_lens, i);
   row = (uint8_t *)grow_vec_at(&sc->param_names, i);
@@ -62257,8 +62257,8 @@ uint8_t pipeline_onefunc_param_name_byte_at(uint8_t *out, int32_t i, int32_t off
 }
 
 /**
- * ABI name kept as *copy32; wave585 Cap residual raised payload 32→128.
- * Callers must pass a dst buffer of at least 128 bytes.
+ * ABI name kept as *copy32; Cap 4.2.8 raised payload 32→128→256.
+ * Callers must pass a dst buffer of at least 256 bytes.
  * PLATFORM: SHARED
  */
 void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst) {
@@ -62269,7 +62269,7 @@ void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->param_names.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->param_name_lens, i);
@@ -62277,8 +62277,8 @@ void pipeline_onefunc_param_name_copy32(uint8_t *out, int32_t i, uint8_t *dst) {
   if (!pl || !row)
     return;
   n = *pl;
-  if (n > 127)
-    n = 127;
+  if (n > 255)
+    n = 255;
   for (k = 0; k < n; k++)
     dst[k] = row[k];
 }
@@ -62384,7 +62384,7 @@ void pipeline_onefunc_const_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->const_names.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->const_name_lens, i);
@@ -62414,7 +62414,7 @@ void pipeline_onefunc_let_name_copy64(uint8_t *out, int32_t i, uint8_t *dst) {
   int32_t k;
   if (!dst)
     return;
-  memset(dst, 0, 128);
+  memset(dst, 0, 256);
   if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 0)) || i < 0 || i >= sc->let_names.len)
     return;
   pl = (int32_t *)grow_vec_at(&sc->let_name_lens, i);
@@ -62602,15 +62602,15 @@ int32_t pipeline_onefunc_append_labeled(uint8_t *out, uint8_t *label, int32_t la
   le->is_goto = is_goto;
   le->return_expr_ref = return_expr_ref;
   if (label && label_len > 0) {
-    /* wave586 Cap residual: label content ≤127 (W281_LabeledEntry.label[128]). */
-    if (label_len > 127)
+    /* wave586 Cap residual: label content ≤255 (W281_LabeledEntry.label[128]). */
+    if (label_len > 255)
       label_len = 127;
     memcpy(le->label, label, (size_t)label_len);
     le->label_len = label_len;
   }
   if (goto_target && goto_target_len > 0) {
-    /* wave586 Cap residual: goto target content ≤127. */
-    if (goto_target_len > 127)
+    /* wave586 Cap residual: goto target content ≤255. */
+    if (goto_target_len > 255)
       goto_target_len = 127;
     memcpy(le->goto_target, goto_target, (size_t)goto_target_len);
     le->goto_target_len = goto_target_len;
@@ -62743,7 +62743,7 @@ int32_t pipeline_onefunc_num_if_stmts(uint8_t *out) {
 int32_t pipeline_onefunc_append_region(uint8_t *out, uint8_t *label, int32_t label_len, int32_t body_ref) {
   W281_OneFuncSc *sc;
   W281_RegionEntry *re;
-  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !label || label_len <= 0 || label_len > 127)
+  if (!out || !(sc = (W281_OneFuncSc *)onefunc_sidecar_get(out, 1)) || !label || label_len <= 0 || label_len > 255)
     return -1;
   if (grow_vec_push(&sc->regions) < 0)
     return -1;
@@ -63124,7 +63124,7 @@ int32_t asm_type_is_simd_vector(void *arena, int32_t type_ref) {
 }
 
 int32_t asm_type_is_simd_vector_spelling(void *arena, int32_t type_ref) {
-  /* Type LE (wave270): kind@0 name[128]@4 name_len@132. */
+  /* Type LE (Cap 4.2.8): kind@0 name[256]@4 name_len@260. */
   uint8_t *t;
   int32_t kind;
   int32_t nlen;
@@ -63252,7 +63252,7 @@ int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, void *arena, uint8_t *nam
     int32_t i;
     int32_t off;
     for (i = end_slot - 1; i >= min_slot; i--) {
-      uint8_t nb[128];
+      uint8_t nb[256];
       int32_t nlen;
       int32_t k;
       nlen = asm_ctx_local_name_len(ctx, i);
@@ -64600,7 +64600,7 @@ struct std_io_driver_Buffer;
 #ifndef W284_ARENA_SZ
 #define W284_ARENA_SZ ((size_t)16)
 #define W284_MODULE_SZ ((size_t)68)
-#define W284_DEP_CTX_SZ ((size_t)8390216)
+#define W284_DEP_CTX_SZ ((size_t)8390600)
 #define W284_ONEFUNC_RESULT_SZ ((size_t)8192)
 #define W284_ARENA_OFF_NUM_TYPES ((size_t)0)
 #define W284_ARENA_OFF_NUM_EXPRS 4
@@ -65104,13 +65104,15 @@ void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
   driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
 }
 
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 size_t pipeline_sizeof_dep_ctx(void) { return W284_DEP_CTX_SZ; }
+#endif
 size_t pipeline_sizeof_onefunc_result(void) { return W284_ONEFUNC_RESULT_SZ; }
 size_t pipeline_arena_offset_num_types(void) { return W284_ARENA_OFF_NUM_TYPES; }
 
 void pipeline_debug_module_funcs(void *m) {
   int i, n, len;
-  uint8_t nm[128];
+  uint8_t nm[256];
   if (!m)
     return;
   n = (int)pipeline_module_num_funcs(m);
@@ -65137,7 +65139,7 @@ void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena 
   if (list_env && list_env[0] != '\0' && list_env[0] != '0' && mod) {
     n = pipeline_module_num_funcs(mod);
     for (i = 0; i < n; i++) {
-      uint8_t nm[128];
+      uint8_t nm[256];
       int32_t nl = pipeline_module_func_name_len_at(mod, i);
       int32_t body_ref = pipeline_module_func_body_ref_at(mod, i);
       int32_t nlet = 0, nso = 0, nreg = 0;
@@ -65989,7 +65991,7 @@ struct parser_CollectImportsResult {
 struct parser_OneFuncResult {
   int ok;
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t num_params;
   int32_t num_generic_params;
@@ -66009,9 +66011,9 @@ struct parser_OneFuncResult {
   int has_unary_neg;
   int32_t return_val;
   int has_call_expr;
-  uint8_t call_callee_name[128];
+  uint8_t call_callee_name[256];
   int32_t call_callee_len;
-  uint8_t return_var_name[128];
+  uint8_t return_var_name[256];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
   int has_final_expr;
@@ -66028,7 +66030,7 @@ struct parser_OneFuncResult {
 };
 struct parser_ExternParseResult {
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
@@ -66044,7 +66046,7 @@ struct parser_LibraryParseResult {
   int ok;
   uint8_t _pad[4];
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   uint8_t _pad_tail[4];
 };
@@ -66496,7 +66498,7 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
  *     frame_size@0 next_offset@4 num_locals@8 label_counter@12 module_ref@16
  *     break_len@1240 continue_len@1372 loop_label_depth@1376 dep_pipe@1384
  *     tail_join_label@1392 tail_join_label_len@1520 (sizeof 1528 w/ trailing pad)
- *   Elf e_machine@9043992 reloc_type_r_pc32@9043996 (pure pipe_elf_off_*)
+ *   Elf e_machine@17432600 reloc_type_r_pc32@17432604 (pure pipe_elf_off_*)
  *   DepCtx.target_arch via pipeline_dep_ctx_target_arch pure/seed face
  *   TypeKind f32=14 f64=15 (GLUE_TYPE_KIND_*_ORD)
  *
@@ -66518,8 +66520,8 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
 
 /* LP64 SHARED — match pure pipe_elf_off_e_machine / reloc_type_r_pc32. */
 enum {
-  W290_ELF_E_MACHINE_OFF = 9043992,
-  W290_ELF_RELOC_R_PC32_OFF = 9043996
+  W290_ELF_E_MACHINE_OFF = 17432600,
+  W290_ELF_RELOC_R_PC32_OFF = 17432604
 };
 
 #ifndef W290_GLUE_TYPE_KIND_F32_ORD
@@ -66665,7 +66667,7 @@ void pipeline_asm_ctx_reset_for_func_c(void *ctx, void *mod) {
 int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, void *elf_ctx, void *pipeline_ctx) {
   int32_t ta;
   W290_AsmFuncCtxLayout ctx;
-  uint8_t fname_buf[128];
+  uint8_t fname_buf[256];
   int32_t start_skip;
   int32_t emit_n;
   int32_t k;
@@ -66737,7 +66739,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
       int32_t np_dbg = pipeline_asm_module_func_num_params_at(m, i);
       int32_t plen0 = (np_dbg > 0) ? pipeline_asm_module_func_param_name_len_at(m, i, 0) : -1;
       int32_t nloc = asm_ctx_local_count((uint8_t *)bctx);
-      uint8_t p0[128];
+      uint8_t p0[256];
       int32_t off0 = -2;
       memset(p0, 0, sizeof(p0));
       if (np_dbg > 0 && plen0 > 0) {
@@ -67018,11 +67020,11 @@ extern uint8_t *pipeline_scratch_buf64_slot(int32_t slot);
 /*
  * LP64 sizeof(struct platform_elf_ElfCodegenCtx) matching pipeline_gen /
  * platform/elf.x layout (labels/patches/relocs/syms ×16384 + code buffers).
- * Measured 18939952 on host; keep in lockstep with ElfCodegenCtx field set.
+ * Measured 27328560 on host; keep in lockstep with ElfCodegenCtx field set.
  * PLATFORM: SHARED LP64 — not host sizeof() (struct incomplete in freestanding).
  */
 #ifndef WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE
-#define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)18939952)
+#define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)27328560)
 #endif
 
 /* --- platform.elf prefix forwarders (12) --- */

@@ -504,7 +504,7 @@ export function codegen_find_seeded_global_dep_slot_by_path(path: *u8, path_len:
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    if (path == 0 as *u8 || path_len <= 0 || path_len > 127) {
+    if (path == 0 as *u8 || path_len <= 0 || path_len > 255) {
       return -1;
     }
     let path_buf: u8[128] = [];
@@ -639,7 +639,7 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
   unsafe {
 
     let sched_prefix: u8[18] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
-    let fn_name: u8[128] = [];
+    let fn_name: u8[256] = [];
     let fn_len: i32 = 0;
     if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
       return -1;
@@ -702,7 +702,7 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
 
     let submit_name: u8[23] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
     let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
-    let fn_name: u8[128] = [];
+    let fn_name: u8[256] = [];
     let fn_len: i32 = 0;
     if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
       return -1;
@@ -786,7 +786,7 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
     let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
     let dep_path: u8[128] = [];
-    let prefix_buf: u8[128] = [];
+    let prefix_buf: u8[256] = [];
     let dep_ix: i32 = -1;
     let n_args: i32 = 0;
     let ai: i32 = 0;
@@ -997,7 +997,7 @@ export function codegen_find_module_func_index_by_name(module: *Module, nm: *u8,
     while (fi < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len == nm_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
@@ -1041,7 +1041,7 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
       return -1;
     }
     let base_e: Expr = ast.ast_arena_expr_get(arena, callee_e.field_access_base_ref);
-    if ((base_e.kind as i32) != (ExprKind.EXPR_VAR as i32) || base_e.var_name_len <= 0 || base_e.var_name_len > 127) {
+    if ((base_e.kind as i32) != (ExprKind.EXPR_VAR as i32) || base_e.var_name_len <= 0 || base_e.var_name_len > 255) {
       return -1;
     }
     let cur_mod: *Module = ctx.current_codegen_module;
@@ -1063,7 +1063,7 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
             }
           }
           if (matched != 0) {
-            let import_path: u8[128] = [];
+            let import_path: u8[256] = [];
             let import_path_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &import_path[0]);
             if (import_path_len <= 0) {
               return -1;
@@ -1112,7 +1112,7 @@ call_expr_ref: i32, nm: *u8, nm_len: i32): i32 {
     while (fi < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len == nm_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
@@ -1250,7 +1250,7 @@ export function expr_var_matches_func_param_index(arena: *ASTArena, var_ref: i32
     }
     let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, param_idx);
     if (p_name_len > 0) {
-      let pname_buf: u8[128] = [];
+      let pname_buf: u8[256] = [];
       pipeline_module_func_param_name_copy32(mod, func_index, param_idx, &pname_buf[0]);
       if (pname_buf[0] > 32) {
         if (base.var_name_len != p_name_len) {
@@ -1631,10 +1631,10 @@ export function codegen_should_skip_later_same_name_body(arena: *ASTArena, modul
       return 0;
     }
     let nlen: i32 = pipeline_module_func_name_len_at(module, fi);
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return 0;
     }
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     pipeline_module_func_name_copy64(module, fi, &name[0]);
     let np: i32 = pipeline_module_func_num_params_at(module, fi);
     let ret_fi: i32 = pipeline_module_func_return_type_at(module, fi);
@@ -1643,7 +1643,7 @@ export function codegen_should_skip_later_same_name_body(arena: *ASTArena, modul
       if (pipeline_module_func_is_extern_at(module, j) == 0) {
         let jlen: i32 = pipeline_module_func_name_len_at(module, j);
         if (jlen == nlen && pipeline_module_func_num_params_at(module, j) == np) {
-          let jname: u8[128] = [];
+          let jname: u8[256] = [];
           pipeline_module_func_name_copy64(module, j, &jname[0]);
           let eq: i32 = 1;
           let k: i32 = 0;
@@ -2082,12 +2082,12 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     let fn_len: i32 = 0;
     let nparams: i32 = 0;
     /* wave585 Cap residual: param name scratch 32→128 for *copy32 payload. */
-    let p0: u8[128] = [];
-    let p1: u8[128] = [];
+    let p0: u8[256] = [];
+    let p1: u8[256] = [];
     let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
     let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
     let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
@@ -2218,7 +2218,7 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     let callee: Expr = e;
     let path: u8[128] = [];
     let path_len: i32 = 0;
-    let pre: u8[128] = [];
+    let pre: u8[256] = [];
     let pre_len: i32 = 0;
     let name_ptr: *u8 = 0 as *u8;
     let name_len: i32 = 0;
@@ -2977,7 +2977,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           while (pi < np) {
             let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
             if (p_name_len > 0 && p_name_len == base.var_name_len) {
-              let pname_buf: u8[128] = [];
+              let pname_buf: u8[256] = [];
               pipeline_module_func_param_name_copy32(mod, fi, pi, &pname_buf[0]);
               let matched: bool = true;
               let j: i32 = 0;
@@ -3092,7 +3092,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             while (li < nlets) {
               let nl: i32 = pipeline_block_let_name_len(arena, br, li);
               if (nl == arg.var_name_len && nl > 0) {
-                let nb: u8[128] = [];
+                let nb: u8[256] = [];
                 pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
                 let eq: bool = true;
                 let j2: i32 = 0;
@@ -3308,7 +3308,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           while (li < nlets) {
             let nl: i32 = pipeline_block_let_name_len(arena, br, li);
             if (nl == arg.var_name_len && nl > 0) {
-              let nb: u8[128] = [];
+              let nb: u8[256] = [];
               pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
               let eq: bool = true;
               let j2: i32 = 0;
@@ -3673,7 +3673,7 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
     while (pi < np) {
       let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (p_name_len > 0 && p_name_len == base.var_name_len) {
-        let pname_buf: u8[128] = [];
+        let pname_buf: u8[256] = [];
         pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
         let matched: bool = true;
         let j: i32 = 0;
@@ -3732,7 +3732,7 @@ export function field_access_base_is_pointer_local(arena: *ASTArena, base_ref: i
     while (li < nlets) {
       let nl: i32 = pipeline_block_let_name_len(arena, br, li);
       if (nl == base.var_name_len && nl > 0) {
-        let nb: u8[128] = [];
+        let nb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
         let eq: bool = true;
         let j: i32 = 0;
@@ -3783,7 +3783,7 @@ export function field_access_base_param_type_known(arena: *ASTArena, base_ref: i
     while (pi < np) {
       let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (p_name_len > 0 && p_name_len == base.var_name_len) {
-        let pname_buf: u8[128] = [];
+        let pname_buf: u8[256] = [];
         pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
         let matched: bool = true;
         let j: i32 = 0;
@@ -4961,7 +4961,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     let arr_sz: i32 = 0;
     let elem_kind: i32 = 0;
     let name_len: i32 = 0;
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
 
     if (ast.ref_is_null(type_ref)) {
       let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
@@ -5016,14 +5016,14 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
        * equality. Mirrors codegen_find_impl_method_for_type C6 name-match fallback.
        * wave447: also skip when concrete == type_ref (self-map).
        */
-      let fb_nm: u8[128] = [];
+      let fb_nm: u8[256] = [];
       let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
       if (fb_len > 0) {
         let mi2: i32 = 0;
         while (mi2 < ctx.mono_num_types && mi2 < 8) {
           let conc2: i32 = ctx.mono_concrete_type_refs[mi2];
           if (conc2 > 0 && conc2 != type_ref) {
-            let gnm: u8[128] = [];
+            let gnm: u8[256] = [];
             let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
             if (gname_len == fb_len && gname_len > 0) {
               let names_eq: i32 = 1;
@@ -5078,7 +5078,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     }
     name_len = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
     if (tk == TypeKind.TYPE_NAMED as i32 && name_len > 0) {
-      let dep_prefix_buf: u8[128] = [];
+      let dep_prefix_buf: u8[256] = [];
       let dep_prefix_len: i32 = 0;
       /* Cap 10.7.1 slice7: VaList → xlang_va_list (header from emit_header). */
       if (name_len == 6 && nm[0] == 86 && nm[1] == 97 && nm[2] == 76
@@ -5248,7 +5248,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx) {
-        let dep_enum_prefix: u8[128] = [];
+        let dep_enum_prefix: u8[256] = [];
         let dep_enum_prefix_len: i32 = codegen_type_dep_enum_prefix_into(ctx, arena, type_ref, &dep_enum_prefix[0], 128);
         if (dep_enum_prefix_len > 0) {
           let e: u8[8] = [101, 110, 117, 109, 32, 0, 0, 0];
@@ -5294,7 +5294,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
           qi = qi + 1;
         }
         if (qhas_dot && qmod_end > 0 && qmod_end < 64) {
-          let mod_path: u8[128] = [];
+          let mod_path: u8[256] = [];
           let mi: i32 = 0;
           while (mi < qmod_end) {
             mod_path[mi] = nm[mi];
@@ -5320,7 +5320,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
           && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, type_ref) != 0) {
         /* See implementation. */
-        let cur_pre: u8[128] = [];
+        let cur_pre: u8[256] = [];
         let cur_pre_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
         if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
           return -1;
@@ -5428,7 +5428,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     if (tk == TypeKind.TYPE_SLICE as i32 && !ast.ref_is_null(elem_ref)) {
       if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
         if (pipeline_type_kind_ord_at(arena, elem_ref) == (TypeKind.TYPE_NAMED as i32)) {
-          let cur_sl_nm: u8[128] = [];
+          let cur_sl_nm: u8[256] = [];
           let cur_sl_nl: i32 = pipeline_type_named_name_into(arena, elem_ref, &cur_sl_nm[0]);
           if (cur_sl_nl > 0) {
             let mi_sl: i32 = 0;
@@ -5441,7 +5441,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
                 let e_gen_sl: i32 = pipeline_type_elem_ref_at(arena, g_sl);
                 if (e_gen_sl > 0
                     && pipeline_type_kind_ord_at(arena, e_gen_sl) == (TypeKind.TYPE_NAMED as i32)) {
-                  let g_sl_nm: u8[128] = [];
+                  let g_sl_nm: u8[256] = [];
                   let g_sl_nl: i32 = pipeline_type_named_name_into(arena, e_gen_sl, &g_sl_nm[0]);
                   if (g_sl_nl == cur_sl_nl && g_sl_nl > 0) {
                     let eq_sl: i32 = 1;
@@ -5472,7 +5472,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
               let c_bt: i32 = ctx.mono_concrete_type_refs[mi_bt];
               if (c_bt > 0 && c_bt != type_ref && g_bt > 0
                   && pipeline_type_kind_ord_at(arena, g_bt) == (TypeKind.TYPE_NAMED as i32)) {
-                let g_bt_nm: u8[128] = [];
+                let g_bt_nm: u8[256] = [];
                 let g_bt_nl: i32 = pipeline_type_named_name_into(arena, g_bt, &g_bt_nm[0]);
                 if (g_bt_nl == cur_sl_nl && g_bt_nl > 0) {
                   let eq_bt: i32 = 1;
@@ -5529,7 +5529,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       let ek: i32 = pipeline_type_kind_ord_at(arena, elem_ref);
       if (ek == (TypeKind.TYPE_NAMED as i32)) {
-        let enm: u8[128] = [];
+        let enm: u8[256] = [];
         let enl: i32 = pipeline_type_named_name_into(arena, elem_ref, &enm[0]);
         /* wave619: short int aliases → stdint slice tags via type_to_c_repr. */
         let is_short_int: i32 = 0;
@@ -5550,7 +5550,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
             return -1;
           }
           /* Mirror TYPE_NAMED prefix resolution for the element tag. */
-          let dep_prefix_buf2: u8[128] = [];
+          let dep_prefix_buf2: u8[256] = [];
           let dep_prefix_len2: i32 = codegen_type_dep_struct_prefix_into(ctx, arena, elem_ref, &dep_prefix_buf2[0], 128);
           if (dep_prefix_len2 == 0) {
             let qmod_end2: i32 = 0;
@@ -5564,7 +5564,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
               qi2 = qi2 + 1;
             }
             if (qhas_dot2 && qmod_end2 > 0 && qmod_end2 < 64) {
-              let mod_path2: u8[128] = [];
+              let mod_path2: u8[256] = [];
               let mi2: i32 = 0;
               while (mi2 < qmod_end2) {
                 mod_path2[mi2] = enm[mi2];
@@ -5588,7 +5588,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
             }
           } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
               && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, elem_ref) != 0) {
-            let cur_pre2: u8[128] = [];
+            let cur_pre2: u8[256] = [];
             let cur_pre_len2: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre2[0], 128);
             if (cur_pre_len2 > 0 && emit_bytes_from_ptr(out, &cur_pre2[0], cur_pre_len2) != 0) {
               return -1;
@@ -5630,7 +5630,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
        */
       let pfx_use: *u8 = struct_prefix;
       let pfx_len_use: i32 = struct_prefix_len;
-      let cur_pre_sl: u8[128] = [];
+      let cur_pre_sl: u8[256] = [];
       if ((pfx_use == 0 as *u8 || pfx_len_use <= 0) && ctx != 0 as *PipelineDepCtx) {
         let pl_sl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre_sl[0], 128);
         if (pl_sl > 0) {
@@ -5716,7 +5716,7 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
         while (li < dep_mod.num_struct_layouts) {
           let dep_name_len: i32 = pipeline_module_struct_layout_name_len(dep_mod, li);
           if (dep_name_len == bare_len) {
-            let dep_nm: u8[128] = [];
+            let dep_nm: u8[256] = [];
             let eq: bool = true;
             let j: i32 = 0;
             pipeline_module_struct_layout_name_into(dep_mod, li, &dep_nm[0]);
@@ -5788,7 +5788,7 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     let owner: i32 = -1;
     if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || dst == 0 as *u8 || dst_cap <= 0 || ast.ref_is_null(type_ref)) {
       return 0;
@@ -6678,7 +6678,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
         if (nlen == init_e.var_name_len && nlen > 0) {
           let matched: i32 = 1;
-          let nb: u8[128] = [];
+          let nb: u8[256] = [];
           pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
           let ci: i32 = 0;
           while (ci < nlen) {
@@ -6725,7 +6725,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
                 let nlen_w: i32 = pipeline_block_let_name_len(arena, brw, liw);
                 if (nlen_w == init_e.var_name_len && nlen_w > 0) {
                   let matched_w: i32 = 1;
-                  let nbw: u8[128] = [];
+                  let nbw: u8[256] = [];
                   pipeline_block_let_name_copy64(arena, brw, liw, &nbw[0]);
                   let ciw: i32 = 0;
                   while (ciw < nlen_w) {
@@ -6752,7 +6752,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
               let clen: i32 = pipeline_block_const_name_len(arena, brw, ci_c);
               if (clen == init_e.var_name_len && clen > 0) {
                 let matched_c: i32 = 1;
-                let nbc: u8[128] = [];
+                let nbc: u8[256] = [];
                 pipeline_block_const_name_copy64(arena, brw, ci_c, &nbc[0]);
                 let cic: i32 = 0;
                 while (cic < clen) {
@@ -6801,7 +6801,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         }
       }
       if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         let snl: i32 = 0;
         if (field_base_ko == 45 && base_e.struct_lit_struct_name_len > 0) {
           snl = base_e.struct_lit_struct_name_len;
@@ -7511,9 +7511,9 @@ export function codegen_stamp_anon_struct_lit_dest(arena: *ASTArena, expr_ref: i
     if (ast.ref_is_null(dest_n) || dest_n <= 0) {
       return 0;
     }
-    let dnm: u8[128] = [];
+    let dnm: u8[256] = [];
     let dnl: i32 = pipeline_type_named_name_into(arena, dest_n, &dnm[0]);
-    if (dnl <= 0 || dnl > 127) {
+    if (dnl <= 0 || dnl > 255) {
       return 0;
     }
     pipeline_expr_struct_lit_type_name_set(arena, expr_ref, &dnm[0], dnl);
@@ -7723,7 +7723,7 @@ export function codegen_lookup_struct_field_type_ref(
     if (bare_len <= 0) {
       return 0;
     }
-    /* wave588 Cap residual: field name content ≤127 (StructLitFieldEntry / layout name[128]). */
+    /* wave588 Cap residual: field name content ≤255 (StructLitFieldEntry / layout name[256]). */
     let flen_use: i32 = field_name_len;
     if (flen_use > 127) {
       flen_use = 127;
@@ -7754,7 +7754,7 @@ export function codegen_lookup_struct_field_type_ref(
           while (k < try_mod.num_struct_layouts) {
             let snl: i32 = pipeline_module_struct_layout_name_len(try_mod, k);
             if (snl == bare_len && snl > 0) {
-              let snm: u8[128] = [];
+              let snm: u8[256] = [];
               pipeline_module_struct_layout_name_into(try_mod, k, &snm[0]);
               let eq: bool = true;
               let sj: i32 = 0;
@@ -7771,7 +7771,7 @@ export function codegen_lookup_struct_field_type_ref(
                 while (j < nf) {
                   let fnl: i32 = pipeline_module_struct_layout_field_name_len(try_mod, k, j);
                   if (fnl == flen_use && fnl > 0) {
-                    let fnm: u8[128] = [];
+                    let fnm: u8[256] = [];
                     pipeline_module_struct_layout_field_name_into(try_mod, k, j, &fnm[0]);
                     let feq: bool = true;
                     let fj: i32 = 0;
@@ -7942,7 +7942,7 @@ export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTA
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(type_ref)) {
       return 0;
     }
@@ -7957,7 +7957,7 @@ export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTA
     while (k < module.num_struct_layouts) {
       let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
       if (nl == name_len) {
-        let lay_nm: u8[128] = [];
+        let lay_nm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, k, &lay_nm[0]);
         let eq: bool = true;
         let j: i32 = 0;
@@ -7990,7 +7990,7 @@ export function codegen_type_is_module_user_enum(module: *Module, arena: *ASTAre
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(type_ref)) {
       return 0;
     }
@@ -8038,7 +8038,7 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     let di: i32 = 0;
     if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || dst == 0 as *u8 || dst_cap <= 0 || ast.ref_is_null(type_ref)) {
       return 0;
@@ -8137,7 +8137,7 @@ export function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTAr
     if (k != (TypeKind.TYPE_NAMED as i32)) {
       return 1;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nl: i32 = pipeline_type_named_name_into(arena, ty, &nm[0]);
     if (nl <= 0) {
       return 0;
@@ -8146,7 +8146,7 @@ export function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTAr
     while (sk < module.num_struct_layouts) {
       let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl == nl) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let bi: i32 = 0;
         /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
@@ -8221,7 +8221,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     if (pipeline_type_kind_ord_at(arena, ftr) != (TypeKind.TYPE_NAMED as i32)) {
       return ftr;
     }
-    let ftn: u8[128] = [];
+    let ftn: u8[256] = [];
     let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
     if (ftnl <= 0) {
       return ftr;
@@ -8231,7 +8231,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     while (sk < module.num_struct_layouts) {
       let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl == ftnl) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let bi: i32 = 0;
         /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
@@ -8254,7 +8254,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     while (sk < module.num_struct_layouts) {
       let sl2: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl2 == layout_nl && layout_nl > 0) {
-        let snm2: u8[128] = [];
+        let snm2: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm2[0]);
         let eq2: i32 = 1;
         let bi2: i32 = 0;
@@ -8272,7 +8272,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
             while (tj < ntp) {
               let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
               if (tpl == ftnl) {
-                let tpn: u8[128] = [];
+                let tpn: u8[256] = [];
                 pipeline_module_struct_layout_type_param_name_into(module, sk, tj, &tpn[0]);
                 let peq: i32 = 1;
                 let pi: i32 = 0;
@@ -8302,7 +8302,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     let ti: i32 = 1;
     while (ti <= arena.num_types) {
       if (pipeline_type_kind_ord_at(arena, ti) == (TypeKind.TYPE_NAMED as i32)) {
-        let tnm: u8[128] = [];
+        let tnm: u8[256] = [];
         let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
         if (tnl == layout_nl && tnl > 0) {
           let eq: i32 = 1;
@@ -8349,7 +8349,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
             while (fj < nf) {
               let fl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
               if (fl == field_nl) {
-                let fnb: u8[128] = [];
+                let fnb: u8[256] = [];
                 pipeline_expr_struct_lit_field_name_into(arena, ei, fj, &fnb[0]);
                 let feq: i32 = 1;
                 let fi: i32 = 0;
@@ -8398,7 +8398,7 @@ export function codegen_module_struct_layout_index_by_name(module: *Module, layo
     while (sk < module.num_struct_layouts) {
       let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl == layout_nl) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let eq: i32 = 1;
         let bi: i32 = 0;
@@ -8450,7 +8450,7 @@ function codegen_generic_struct_resolve_arg_via_ctx(module: *Module, arena: *AST
       }
       mi = mi + 1;
     }
-    let fb_nm: u8[128] = [];
+    let fb_nm: u8[256] = [];
     let fb_len: i32 = pipeline_type_named_name_into(arena, ty, &fb_nm[0]);
     if (fb_len <= 0) {
       return 0;
@@ -8460,7 +8460,7 @@ function codegen_generic_struct_resolve_arg_via_ctx(module: *Module, arena: *AST
       let gen2: i32 = ctx.mono_generic_type_refs[mi];
       let conc2: i32 = ctx.mono_concrete_type_refs[mi];
       if (gen2 > 0 && conc2 > 0 && conc2 != ty) {
-        let gnm: u8[128] = [];
+        let gnm: u8[256] = [];
         let gnl: i32 = pipeline_type_named_name_into(arena, gen2, &gnm[0]);
         if (gnl == fb_len && gnl > 0) {
           let eq: i32 = 1;
@@ -8511,7 +8511,7 @@ function codegen_generic_struct_resolve_arg_via_map(module: *Module, arena: *AST
       }
       mi = mi + 1;
     }
-    let fb_nm: u8[128] = [];
+    let fb_nm: u8[256] = [];
     let fb_len: i32 = pipeline_type_named_name_into(arena, ty, &fb_nm[0]);
     if (fb_len <= 0) {
       return 0;
@@ -8519,7 +8519,7 @@ function codegen_generic_struct_resolve_arg_via_map(module: *Module, arena: *AST
     mi = 0;
     while (mi < nmono && mi < 8) {
       if (mono_gen[mi] > 0 && mono_conc[mi] > 0 && mono_conc[mi] != ty) {
-        let gnm: u8[128] = [];
+        let gnm: u8[256] = [];
         let gnl: i32 = pipeline_type_named_name_into(arena, mono_gen[mi], &gnm[0]);
         if (gnl == fb_len && gnl > 0) {
           let eq: i32 = 1;
@@ -8631,7 +8631,7 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
         out_nm[o] = 95;
         o = o + 1;
       }
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let sl: i32 = codegen_type_ref_to_suffix(arena, mono_tys[mi], &suf[0], 64);
       if (sl <= 0) {
         return 0;
@@ -8695,7 +8695,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
       let tj: i32 = 0;
       while (tj < ntp && tj < 4) {
         let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-        let tpn: u8[128] = [];
+        let tpn: u8[256] = [];
         pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
         let found: i32 = 0;
         let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
@@ -8703,7 +8703,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
         while (fj < nf) {
           let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
           if (pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_NAMED as i32)) {
-            let ftn: u8[128] = [];
+            let ftn: u8[256] = [];
             let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
             if (ftnl == tpl && ftnl > 0) {
               let peq: i32 = 1;
@@ -8716,14 +8716,14 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
               }
               if (peq != 0) {
                 let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
-                let fnm: u8[128] = [];
+                let fnm: u8[256] = [];
                 pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
                 let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, init_ref);
                 let li: i32 = 0;
                 while (li < lit_nf) {
                   let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, init_ref, li);
                   if (lfl == flen && flen > 0) {
-                    let lfn: u8[128] = [];
+                    let lfn: u8[256] = [];
                     pipeline_expr_struct_lit_field_name_into(arena, init_ref, li, &lfn[0]);
                     let feq: i32 = 1;
                     let fi: i32 = 0;
@@ -8735,7 +8735,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
                     }
                     if (feq != 0) {
                       let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
-                      let asuf: u8[128] = [];
+                      let asuf: u8[256] = [];
                       let al: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64, ctx);
                       // wave485: leaf may lack resolved_type under mono body; map layout T via mono.
                       if (al <= 0 && ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
@@ -8744,7 +8744,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
                           let gtr_f: i32 = ctx.mono_generic_type_refs[mi_f];
                           let ctr_f: i32 = ctx.mono_concrete_type_refs[mi_f];
                           if (gtr_f > 0 && ctr_f > 0) {
-                            let gnm_f: u8[128] = [];
+                            let gnm_f: u8[256] = [];
                             let gnl_f: i32 = pipeline_type_named_name_into(arena, gtr_f, &gnm_f[0]);
                             if (gnl_f == tpl && gnl_f > 0) {
                               let geq_f: i32 = 1;
@@ -8841,10 +8841,10 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
     // Probe fillable.
     let tj: i32 = 0;
     while (tj < ntp) {
-      let asuf: u8[128] = [];
+      let asuf: u8[256] = [];
       let al: i32 = 0;
       let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-      let tpn: u8[128] = [];
+      let tpn: u8[256] = [];
       pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
       let found: i32 = 0;
       let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
@@ -8852,7 +8852,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
       while (fj < nf) {
         let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
         if (pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_NAMED as i32)) {
-          let ftn: u8[128] = [];
+          let ftn: u8[256] = [];
           let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
           if (ftnl == tpl && ftnl > 0) {
             let peq: i32 = 1;
@@ -8865,14 +8865,14 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
             }
             if (peq != 0) {
               let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
-              let fnm: u8[128] = [];
+              let fnm: u8[256] = [];
               pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
               let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
               let li: i32 = 0;
               while (li < lit_nf) {
                 let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
                 if (lfl == flen && flen > 0) {
-                  let lfn: u8[128] = [];
+                  let lfn: u8[256] = [];
                   pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, &lfn[0]);
                   let feq: i32 = 1;
                   let fi: i32 = 0;
@@ -8913,7 +8913,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
     tj = 0;
     while (tj < ntp) {
       let tpl2: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-      let tpn2: u8[128] = [];
+      let tpn2: u8[256] = [];
       pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn2[0]);
       let done: i32 = 0;
       let nf2: i32 = pipeline_module_struct_layout_num_fields(module, lk);
@@ -8921,7 +8921,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
       while (fj2 < nf2) {
         let ftr2: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj2);
         if (pipeline_type_kind_ord_at(arena, ftr2) == (TypeKind.TYPE_NAMED as i32)) {
-          let ftn2: u8[128] = [];
+          let ftn2: u8[256] = [];
           let ftnl2: i32 = pipeline_type_named_name_into(arena, ftr2, &ftn2[0]);
           if (ftnl2 == tpl2 && ftnl2 > 0) {
             let peq2: i32 = 1;
@@ -8934,14 +8934,14 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
             }
             if (peq2 != 0) {
               let flen2: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj2);
-              let fnm2: u8[128] = [];
+              let fnm2: u8[256] = [];
               pipeline_module_struct_layout_field_name_into(module, lk, fj2, &fnm2[0]);
               let lit_nf2: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
               let li2: i32 = 0;
               while (li2 < lit_nf2) {
                 let lfl2: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li2);
                 if (lfl2 == flen2 && flen2 > 0) {
-                  let lfn2: u8[128] = [];
+                  let lfn2: u8[256] = [];
                   pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li2, &lfn2[0]);
                   let feq2: i32 = 1;
                   let fi2: i32 = 0;
@@ -8953,7 +8953,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
                   }
                   if (feq2 != 0) {
                     let iref2: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li2);
-                    let asuf2: u8[128] = [];
+                    let asuf2: u8[256] = [];
                     let al2: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref2, &asuf2[0], 64, ctx);
                     if (al2 <= 0) {
                       return -1;
@@ -9015,7 +9015,7 @@ export function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, are
           return -1;
         }
       }
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let sl: i32 = codegen_type_ref_to_suffix(arena, mono_tys[mi], &suf[0], 64);
       if (sl <= 0) {
         return -1;
@@ -9050,7 +9050,7 @@ function codegen_generic_struct_field_type_from_mono(module: *Module, arena: *AS
     if (pipeline_type_kind_ord_at(arena, ftr) != (TypeKind.TYPE_NAMED as i32)) {
       return ftr;
     }
-    let ftn: u8[128] = [];
+    let ftn: u8[256] = [];
     let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
     if (ftnl <= 0) {
       return ftr;
@@ -9059,7 +9059,7 @@ function codegen_generic_struct_field_type_from_mono(module: *Module, arena: *AS
     while (tj < ntp) {
       let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, tj);
       if (tpl == ftnl) {
-        let tpn: u8[128] = [];
+        let tpn: u8[256] = [];
         pipeline_module_struct_layout_type_param_name_into(module, layout_k, tj, &tpn[0]);
         let peq: i32 = 1;
         let pi: i32 = 0;
@@ -9104,8 +9104,8 @@ export function codegen_type_refs_same_for_mono(arena: *ASTArena, a: i32, b: i32
       return 0;
     }
     if (ka == (TypeKind.TYPE_NAMED as i32)) {
-      let nma: u8[128] = [];
-      let nmb: u8[128] = [];
+      let nma: u8[256] = [];
+      let nmb: u8[256] = [];
       let nla: i32 = pipeline_type_named_name_into(arena, a, &nma[0]);
       let nlb: i32 = pipeline_type_named_name_into(arena, b, &nmb[0]);
       if (nla <= 0 || nla != nlb) {
@@ -9262,7 +9262,7 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
     let ti: i32 = 1;
     while (ti <= arena.num_types) {
       if (pipeline_type_kind_ord_at(arena, ti) == (TypeKind.TYPE_NAMED as i32)) {
-        let tnm: u8[128] = [];
+        let tnm: u8[256] = [];
         let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
         if (tnl == layout_nl && tnl > 0) {
           let eq: i32 = 1;
@@ -9340,14 +9340,14 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
             while (fj < nf) {
               let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, layout_k, fj);
               if (pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_NAMED as i32)) {
-                let ftn: u8[128] = [];
+                let ftn: u8[256] = [];
                 let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
                 let slot: i32 = -1;
                 let pj: i32 = 0;
                 while (pj < ntp) {
                   let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, pj);
                   if (tpl == ftnl && ftnl > 0) {
-                    let tpn: u8[128] = [];
+                    let tpn: u8[256] = [];
                     pipeline_module_struct_layout_type_param_name_into(module, layout_k, pj, &tpn[0]);
                     let peq: i32 = 1;
                     let pi: i32 = 0;
@@ -9367,14 +9367,14 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
                 if (slot >= 0) {
                   // Match STRUCT_LIT field by layout field name.
                   let flen: i32 = pipeline_module_struct_layout_field_name_len(module, layout_k, fj);
-                  let fnm: u8[128] = [];
+                  let fnm: u8[256] = [];
                   pipeline_module_struct_layout_field_name_into(module, layout_k, fj, &fnm[0]);
                   let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, ei);
                   let li: i32 = 0;
                   while (li < lit_nf) {
                     let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, li);
                     if (lfl == flen && flen > 0) {
-                      let lfn: u8[128] = [];
+                      let lfn: u8[256] = [];
                       pipeline_expr_struct_lit_field_name_into(arena, ei, li, &lfn[0]);
                       let feq: i32 = 1;
                       let fi: i32 = 0;
@@ -9492,7 +9492,7 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
                   try_tr = pipeline_module_func_param_type_ref_at(module, fi_h, tr_i);
                 }
                 if (try_tr > 0 && pipeline_type_kind_ord_at(arena, try_tr) == (TypeKind.TYPE_NAMED as i32)) {
-                  let tnm_r: u8[128] = [];
+                  let tnm_r: u8[256] = [];
                   let tnl_r: i32 = pipeline_type_named_name_into(arena, try_tr, &tnm_r[0]);
                   if (tnl_r == layout_nl && tnl_r > 0) {
                     let eq_r: i32 = 1;
@@ -9531,13 +9531,13 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
                         si_r = 0;
                         while (si_r < ntp) {
                           let tpl_h: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, si_r);
-                          let tpn_h: u8[128] = [];
+                          let tpn_h: u8[256] = [];
                           pipeline_module_struct_layout_type_param_name_into(module, layout_k, si_r, &tpn_h[0]);
                           let found_slot: i32 = 0;
                           let mi_m: i32 = 0;
                           while (mi_m < nmono && mi_m < 8) {
                             if (mono_gen[mi_m] > 0 && mono_conc[mi_m] > 0) {
-                              let gnm_h: u8[128] = [];
+                              let gnm_h: u8[256] = [];
                               let gnl_h: i32 = pipeline_type_named_name_into(arena, mono_gen[mi_m], &gnm_h[0]);
                               if (gnl_h == tpl_h && gnl_h > 0) {
                                 let geq_h: i32 = 1;
@@ -9628,7 +9628,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
     if (pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_NAMED as i32)) {
       return 0;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nl: i32 = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
     if (nl <= 0) {
       return 0;
@@ -9667,7 +9667,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
       let ok: i32 = 1;
       while (tj < ntp) {
         let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-        let tpn: u8[128] = [];
+        let tpn: u8[256] = [];
         pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
         mono[tj] = 0;
         let found: i32 = 0;
@@ -9676,7 +9676,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
           let gtr: i32 = ctx.mono_generic_type_refs[mi_m];
           let ctr: i32 = ctx.mono_concrete_type_refs[mi_m];
           if (gtr > 0 && ctr > 0) {
-            let gnm: u8[128] = [];
+            let gnm: u8[256] = [];
             let gnl: i32 = pipeline_type_named_name_into(arena, gtr, &gnm[0]);
             if (gnl == tpl && gnl > 0) {
               let geq: i32 = 1;
@@ -9815,7 +9815,7 @@ function codegen_build_func_param_mono_map(module: *Module, arena: *ASTArena, fi
         p = p + 1;
         continue;
       }
-      let nm: u8[128] = [];
+      let nm: u8[256] = [];
       let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
       if (nl <= 0) {
         p = p + 1;
@@ -10610,7 +10610,7 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
     }
     let pfx_use: *u8 = 0 as *u8;
     let pfx_len_use: i32 = 0;
-    let cur_pre: u8[128] = [];
+    let cur_pre: u8[256] = [];
     if (ctx != 0 as *PipelineDepCtx) {
       let pl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
       if (pl > 0) {
@@ -10830,7 +10830,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           k = k + 1;
           continue;
         }
-        let ty_nm: u8[128] = [];
+        let ty_nm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
         if (ctx != 0 as *PipelineDepCtx) {
           let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
@@ -10843,11 +10843,11 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           k = k + 1;
           continue;
         }
-        let claim_pfx: u8[128] = [];
+        let claim_pfx: u8[256] = [];
         let claim_plen: i32 = 0;
         if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
           claim_plen = struct_prefix_len;
-          if (claim_plen > 127) {
+          if (claim_plen > 255) {
             claim_plen = 127;
           }
           let ci: i32 = 0;
@@ -10912,7 +10912,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             if (emit_indent(out, 2) != 0) {
               return -1;
             }
-            let fnm: u8[128] = [];
+            let fnm: u8[256] = [];
             pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
             ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
             if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
@@ -11001,7 +11001,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             ji = ji + 1;
             continue;
           }
-          let jty: u8[128] = [];
+          let jty: u8[256] = [];
           pipeline_module_struct_layout_name_into(module, jk, &jty[0]);
           let mono_c: i32[4] = [];
           let ms: i32 = 0;
@@ -11009,7 +11009,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             mono_c[ms] = job_mono[ji * 4 + ms];
             ms = ms + 1;
           }
-          let claim_pfx2: u8[128] = [];
+          let claim_pfx2: u8[256] = [];
           let claim_plen2: i32 = 0;
           if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
             claim_plen2 = struct_prefix_len;
@@ -11072,7 +11072,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             if (emit_indent(out, 2) != 0) {
               return -1;
             }
-            let fnm_m: u8[128] = [];
+            let fnm_m: u8[256] = [];
             pipeline_module_struct_layout_field_name_into(module, jk, j_m, &fnm_m[0]);
             ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, jk, ftr_m, &mono_c[0], jntp);
             if (codegen_emit_struct_field_decl_x(arena, out, ftr_m, &fnm_m[0], flen_m, 0 as *u8, 0, ctx) != 0) {
@@ -11138,7 +11138,7 @@ export function codegen_emit_module_struct_forward_declarations_ctx(module: *Mod
         k = k + 1;
         continue;
       }
-      let ty_nm: u8[128] = [];
+      let ty_nm: u8[256] = [];
       pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
       /* PLATFORM: SHARED — same owner skip as codegen_emit_module_struct_definitions (entry + dep). */
       if (ctx != 0 as *PipelineDepCtx) {
@@ -11187,7 +11187,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
         ei = ei + 1;
         continue;
       }
-      let enm: u8[128] = [];
+      let enm: u8[256] = [];
       let hdr: u8[8] = [101, 110, 117, 109, 32, 0, 0, 0];
       let open: u8[4] = [32, 123, 32, 0];
       let close: u8[6] = [32, 125, 59, 10, 0, 0];
@@ -11199,7 +11199,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
         nk = nk + 1;
       }
       /* See implementation. */
-      let claim_pfx: u8[128] = [];
+      let claim_pfx: u8[256] = [];
       let claim_plen: i32 = 0;
       claim_pfx[0] = 101;
       claim_plen = 1;
@@ -11237,7 +11237,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
       let vi: i32 = 0;
       while (vi < nv) {
         let vlen: i32 = pipeline_module_enum_variant_name_len(module, ei, vi);
-        let vnm: u8[128] = [];
+        let vnm: u8[256] = [];
         let vk: i32 = 0;
         if (vi > 0) {
           if (emit_bytes_3(out, &comma[0], 2) != 0) {
@@ -11296,7 +11296,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
     let saved_arena: *ASTArena = ctx.current_codegen_arena;
     let saved_dep_index: i32 = ctx.current_codegen_dep_index;
     let saved_prefix_len: i32 = ctx.current_codegen_prefix_len;
-    let saved_prefix: u8[128] = [];
+    let saved_prefix: u8[256] = [];
     let sp: i32 = 0;
     while (sp < 64) {
       saved_prefix[sp] = ctx.current_codegen_prefix_mirror[sp];
@@ -11315,7 +11315,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
     while (di_count < nd) {
       let dep_mod0: *Module = pipeline_dep_ctx_module_at(ctx, di_count);
       let dep_arena0: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di_count);
-      let dep_path0: u8[128] = [];
+      let dep_path0: u8[256] = [];
       let plen0: i32 = codegen_dep_import_path_len_at(ctx, di_count, &dep_path0[0]);
       if (dep_mod0 != 0 as *Module && dep_arena0 != 0 as *ASTArena && plen0 > 0) {
         remaining = remaining + 1;
@@ -11348,7 +11348,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
         let n_imp: i32 = codegen_module_num_imports(dep_mod);
         let ii: i32 = 0;
         while (ii < n_imp) {
-          let ipath: u8[128] = [];
+          let ipath: u8[256] = [];
           let ilen: i32 = codegen_module_import_path_len_at(dep_mod, ii, &ipath[0]);
           if (ilen > 0) {
             let idi: i32 = codegen_find_dep_index_by_path(ctx, &ipath[0], ilen);
@@ -11372,7 +11372,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
         let seen_before: i32 = 0;
         let pj: i32 = 0;
         while (pj < di) {
-          let prev_path: u8[128] = [];
+          let prev_path: u8[256] = [];
           let prev_len: i32 = codegen_dep_import_path_len_at(ctx, pj, &prev_path[0]);
           if (prev_len == dep_path_len) {
             let eq_prev: bool = true;
@@ -11395,7 +11395,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
           pj = pj + 1;
         }
         if (seen_before == 0) {
-          let prefix_buf: u8[128] = [];
+          let prefix_buf: u8[256] = [];
           let prefix_len: i32 = 0;
           if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
             codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
@@ -11433,10 +11433,10 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
           if (done[dj] == 0) {
             let dep_mod2: *Module = pipeline_dep_ctx_module_at(ctx, dj);
             let dep_arena2: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dj);
-            let dep_path2: u8[128] = [];
+            let dep_path2: u8[256] = [];
             let plen2: i32 = codegen_dep_import_path_len_at(ctx, dj, &dep_path2[0]);
             if (dep_mod2 != 0 as *Module && dep_arena2 != 0 as *ASTArena && plen2 > 0) {
-              let prefix_buf2: u8[128] = [];
+              let prefix_buf2: u8[256] = [];
               let prefix_len2: i32 = 0;
               if (codegen_path_is_std_io_core_bytes(&dep_path2[0]) == 0) {
                 codegen_import_path_to_c_prefix_into(&dep_path2[0], &prefix_buf2[0], 128);
@@ -11503,7 +11503,7 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
       if (dep_mod != 0 as *Module) {
         let dep_path: u8[128] = [];
         let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
-        let prefix_buf: u8[128] = [];
+        let prefix_buf: u8[256] = [];
         let prefix_len: i32 = 0;
         if (dep_path_len > 0 && codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
           codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
@@ -11529,13 +11529,13 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
           let nl: i32 = pipeline_module_struct_layout_name_len(dep_mod2, k);
           let nf: i32 = pipeline_module_struct_layout_num_fields(dep_mod2, k);
           if (nl > 0 && nf > 0) {
-            let ty_nm: u8[128] = [];
+            let ty_nm: u8[256] = [];
             pipeline_module_struct_layout_name_into(dep_mod2, k, &ty_nm[0]);
             let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
             if (owner >= 0) {
-              let opath: u8[128] = [];
+              let opath: u8[256] = [];
               let oplen: i32 = codegen_dep_import_path_len_at(ctx, owner, &opath[0]);
-              let opfx: u8[128] = [];
+              let opfx: u8[256] = [];
               let opfx_len: i32 = 0;
               if (oplen > 0 && codegen_path_is_std_io_core_bytes(&opath[0]) == 0) {
                 codegen_import_path_to_c_prefix_into(&opath[0], &opfx[0], 128);
@@ -11709,7 +11709,7 @@ export function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenO
     if ((e.kind as i32) != (ExprKind.EXPR_FIELD_ACCESS as i32) || dep_path_len <= 0) {
       return -1;
     }
-    let pre: u8[128] = [];
+    let pre: u8[256] = [];
     codegen_import_path_to_c_prefix_into(&dep_path[0], &pre[0], 128);
     let plen: i32 = 0;
     while (plen < 128 && pre[plen] != 0) {
@@ -13468,7 +13468,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       /* See implementation. */
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
-        let sym_buf: u8[128] = [];
+        let sym_buf: u8[256] = [];
         let imp_j: i32 = -1;
         let sym_len: i32 = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, ctx.current_codegen_module, callee_ref, &sym_buf[0], &imp_j);
         if (sym_len > 0 && sym_len < 128) {
@@ -13546,7 +13546,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             while (fi_c < dep_mod_chk.num_funcs) {
               let fl: i32 = pipeline_module_func_name_len_at(dep_mod_chk, fi_c);
               if (fl == callee_fast.field_access_field_len && fl > 0) {
-                let fnc: u8[128] = [];
+                let fnc: u8[256] = [];
                 pipeline_module_func_name_copy64(dep_mod_chk, fi_c, &fnc[0]);
                 let eqc: i32 = 1;
                 let ic: i32 = 0;
@@ -13570,9 +13570,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             }
           }
           if (field_in_dep != 0) {
-          let dep_path_fast: u8[128] = [];
+          let dep_path_fast: u8[256] = [];
           pipeline_dep_ctx_import_path_copy64(ctx, dep_ix_fast, &dep_path_fast[0]);
-          let pre_fast: u8[128] = [];
+          let pre_fast: u8[256] = [];
           codegen_import_path_to_c_prefix_into(&dep_path_fast[0], &pre_fast[0], 128);
           let pre_fast_len: i32 = 0;
           while (pre_fast_len < 128 && pre_fast[pre_fast_len] != 0) {
@@ -13659,7 +13659,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   kk = kk + 1;
                 }
                 if (eq) {
-                  let dep_path_bind: u8[128] = [];
+                  let dep_path_bind: u8[256] = [];
                   let dep_path_bind_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &dep_path_bind[0]);
                   if (dep_path_bind_len <= 0) {
                     j = j + 1;
@@ -13695,7 +13695,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       while (fi_b < dep_mod_bind.num_funcs) {
                         let fl: i32 = pipeline_module_func_name_len_at(dep_mod_bind, fi_b);
                         if (fl == callee.field_access_field_len && fl > 0) {
-                          let fnb: u8[128] = [];
+                          let fnb: u8[256] = [];
                           pipeline_module_func_name_copy64(dep_mod_bind, fi_b, &fnb[0]);
                           let eqb: i32 = 1;
                           let bi_b: i32 = 0;
@@ -13784,7 +13784,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     kk = kk + 1;
                   }
                   if (eq) {
-                    let dep_path_sel: u8[128] = [];
+                    let dep_path_sel: u8[256] = [];
                     let dep_path_sel_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &dep_path_sel[0]);
                     if (dep_path_sel_len <= 0) {
                       k = k + 1;
@@ -13852,7 +13852,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             while (lfi < cur_mod.num_funcs) {
               let lnl: i32 = pipeline_module_func_name_len_at(cur_mod, lfi);
               if (lnl == callee.var_name_len) {
-                let lnm: u8[128] = [];
+                let lnm: u8[256] = [];
                 pipeline_module_func_name_copy64(cur_mod, lfi, &lnm[0]);
                 let leq: i32 = 1;
                 let li: i32 = 0;
@@ -13877,17 +13877,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_mod.num_funcs > 0) {
               let fi: i32 = 0;
               while (fi < dep_mod.num_funcs) {
-                let func_ref: i32 = pipeline_module_func_ref_at(dep_mod, fi);
-                if (ast.ref_is_null(func_ref) || func_ref <= 0 || func_ref > dep_arena.num_funcs) {
-                  fi = fi + 1;
-                  continue;
-                }
-                let df: Func = ast.ast_arena_func_get(dep_arena, func_ref);
-                if (df.name_len == callee.var_name_len) {
+                /* Cap 4.2.8: compare via module name faces (not arena Func by-value).
+                 * Arena Func get can tear name_len after layout raise; module faces are
+                 * the same authority as local_has_name above (G.7 single path). */
+                let dnl: i32 = pipeline_module_func_name_len_at(dep_mod, fi);
+                if (dnl == callee.var_name_len && dnl > 0) {
+                  let dnm: u8[256] = [];
+                  pipeline_module_func_name_copy64(dep_mod, fi, &dnm[0]);
                   let eq: bool = true;
                   let k: i32 = 0;
-                  while (k < callee.var_name_len && k < 64) {
-                    if (callee.var_name[k] != df.name[k]) {
+                  while (k < callee.var_name_len) {
+                    if (callee.var_name[k] != dnm[k]) {
                       eq = false;
                       break;
                     }
@@ -13919,7 +13919,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       if (pre_len > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], pre_len, callee.var_name, callee.var_name_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], pre_len) != 0) {
                         return -1;
                       }
-                      if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, cur_mod, &callee.var_name[0], callee.var_name_len) != 0) {
+                      /* Pass dep_mod (not cur_mod): emit_call_func_name rejects
+                       * call_resolved when res_mod != current_module, which dropped the
+                       * bare name after the prefix → link `_core_option_` (empty fn). */
+                      if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, dep_mod, &callee.var_name[0], callee.var_name_len) != 0) {
                         return -1;
                       }
                       if (codegen_path_is_std_io_core_bytes(&dep_path_call[0]) != 0 && codegen_use_buf_wrapper(&callee.var_name[0], callee.var_name_len, e.call_num_args) != 0) {
@@ -14047,7 +14050,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   k = k + 1;
                 }
                 if (eq) {
-                  let cur_pre: u8[128] = [];
+                  let cur_pre: u8[256] = [];
                   /*
                    * Same-module bare call prefix (align pin seed CALL callee2 path).
                    * Purpose: prefer path of current_codegen_module in the dep pool
@@ -14058,7 +14061,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                    * Authority: seeds/codegen_gen.linux.x86_64.c same-module VAR CALL.
                    * PLATFORM: SHARED — Cap force si (result→result, not option).
                    */
-                  let cur_dep_path_buf: u8[128] = [];
+                  let cur_dep_path_buf: u8[256] = [];
                   let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
                   let pl: i32 = 0;
                   if (cur_dep_plen > 0) {
@@ -14221,10 +14224,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (append_byte(out, 40) != 0) {
         return -1;
       }
-      let fallback_pre: u8[128] = [];
+      let fallback_pre: u8[256] = [];
       let fallback_pl: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx) {
-        let fb_dep_path_buf: u8[128] = [];
+        let fb_dep_path_buf: u8[256] = [];
         let fb_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &fb_dep_path_buf[0]);
         if (fb_dep_plen > 0) {
           codegen_import_path_to_c_prefix_into(&fb_dep_path_buf[0], &fallback_pre[0], 64);
@@ -14732,9 +14735,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         let mod: *Module = ctx.current_codegen_module;
         if (ctx.current_func_index < mod.num_funcs) {
           let cfi: i32 = ctx.current_func_index;
-          let pref: u8[128] = [];
+          let pref: u8[256] = [];
           let plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &pref[0], 128);
-          let cfn: u8[128] = [];
+          let cfn: u8[256] = [];
           pipeline_module_func_name_copy64(mod, cfi, &cfn[0]);
           let cfn_len: i32 = pipeline_module_func_name_len_at(mod, cfi);
           if (codegen_force_param_ptrdiff_t(&pref[0], plen, &cfn[0], cfn_len, 0) != 0) {
@@ -15073,7 +15076,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let parm_i: i32 = 0;
           let nparm: i32 = pipeline_module_func_num_params_at(mono_mod, mono_fi);
           while (parm_i < nparm) {
-            let pname: u8[128] = [];
+            let pname: u8[256] = [];
             let pnl: i32 = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
             pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &pname[0]);
             if (pnl == base_mono.var_name_len && pnl > 0) {
@@ -15110,7 +15113,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let nlets: i32 = ast.ast_block_num_lets(arena, blk);
           let li: i32 = 0;
           while (li < nlets) {
-            let lname: u8[128] = [];
+            let lname: u8[256] = [];
             let lnl: i32 = pipeline_block_let_name_len(arena, blk, li);
             pipeline_block_let_name_copy64(arena, blk, li, &lname[0]);
             if (lnl == base_mono.var_name_len && lnl > 0) {
@@ -15225,7 +15228,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (dep_ix >= 0 && func_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
           let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
           if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
-            let fn_name: u8[128] = [];
+            let fn_name: u8[256] = [];
             let fn_len: i32 = pipeline_module_func_name_len_at(dep_mod, func_ix);
             let name_ok: i32 = 0;
             if (fn_len > 0) {
@@ -15256,7 +15259,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (mc_resolved_ok != 0) {
               let bind_path: u8[128] = [];
               let bind_plen: i32 = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &bind_path[0]);
-              let dep_path_chk: u8[128] = [];
+              let dep_path_chk: u8[256] = [];
               pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path_chk[0]);
               let dep_plen_chk: i32 = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
               if (bind_plen > 0) {
@@ -15386,7 +15389,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             let fb_dep_mod: *Module = 0 as *Module;
             let dj: i32 = 0;
             while (dj < pipeline_dep_ctx_ndep(ctx)) {
-              let dj_path: u8[128] = [];
+              let dj_path: u8[256] = [];
               pipeline_dep_ctx_import_path_copy64(ctx, dj, &dj_path[0]);
               let dj_plen: i32 = pipeline_dep_ctx_import_path_len(ctx, dj);
               if (dj_plen == dep_path_fb_len && dj_plen > 0) {
@@ -15461,8 +15464,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
            * method_call_num_args (no receiver) and rejects UFCS (nparams=nargs+1),
            * then falls back to bare name without file prefix → host-cc BLD001.
            */
-          let cur_pre: u8[128] = [];
-          let cur_dep_path_buf: u8[128] = [];
+          let cur_pre: u8[256] = [];
+          let cur_dep_path_buf: u8[256] = [];
           let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
           let pl: i32 = 0;
           if (cur_dep_plen > 0) {
@@ -15666,9 +15669,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         if (!ast.ref_is_null(rec_ty)
             && pipeline_type_kind_ord_at(arena, rec_ty) == (TypeKind.TYPE_NAMED as i32)) {
-          let rec_nm: u8[128] = [];
+          let rec_nm: u8[256] = [];
           let rec_nl: i32 = pipeline_type_named_name_into(arena, rec_ty, &rec_nm[0]);
-          if (rec_nl > 0 && rec_nl <= 127) {
+          if (rec_nl > 0 && rec_nl <= 255) {
             let rec_i: i32 = 0;
             while (rec_i < rec_nl) {
               e.struct_lit_struct_name[rec_i] = rec_nm[rec_i];
@@ -15678,7 +15681,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
       }
-      let sl_pfx: u8[128] = [];
+      let sl_pfx: u8[256] = [];
       let sl_plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &sl_pfx[0], 128);
       let bare_user_lit: i32 = 0;
       /*
@@ -15700,7 +15703,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (lit_bare_len > 0) {
           let lit_owner: i32 = codegen_type_dep_struct_owner_index(ctx, &e.struct_lit_struct_name[lit_bare_off], lit_bare_len);
           if (lit_owner >= 0) {
-            let lit_path: u8[128] = [];
+            let lit_path: u8[256] = [];
             let lit_plen: i32 = codegen_dep_import_path_len_at(ctx, lit_owner, &lit_path[0]);
             if (lit_plen > 0) {
               codegen_import_path_to_c_prefix_into(&lit_path[0], &sl_pfx[0], 128);
@@ -15718,7 +15721,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         while (sk < modu.num_struct_layouts) {
           let snl: i32 = pipeline_module_struct_layout_name_len(modu, sk);
           if (snl == e.struct_lit_struct_name_len && snl > 0) {
-            let snm: u8[128] = [];
+            let snm: u8[256] = [];
             pipeline_module_struct_layout_name_into(modu, sk, &snm[0]);
             let eq2: bool = true;
             let sj: i32 = 0;
@@ -15867,10 +15870,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (!ast.ref_is_null(iref_s)) {
           let ie_s: Expr = ast.ast_arena_expr_get(arena, iref_s);
           if ((ie_s.kind as i32) == (ExprKind.EXPR_CALL as i32) || (ie_s.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)) {
-            let fnbuf_s: u8[128] = [];
+            let fnbuf_s: u8[256] = [];
             pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &fnbuf_s[0]);
             let flen_s: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
-            /* wave588 Cap residual: content ≤127 (name[128]); do not clamp designator lookup to 64. */
+            /* wave588 Cap residual: content ≤255 (name[256]); do not clamp designator lookup to 64. */
             if (flen_s > 127) {
               flen_s = 127;
             }
@@ -15912,10 +15915,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             mi = mi + 1;
             continue;
           }
-          let fnbuf_m: u8[128] = [];
+          let fnbuf_m: u8[256] = [];
           pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &fnbuf_m[0]);
           let flen_m: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
-          /* wave588 Cap residual: content ≤127 (name[128]). */
+          /* wave588 Cap residual: content ≤255 (name[256]). */
           if (flen_m > 127) {
             flen_m = 127;
           }
@@ -16048,7 +16051,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
        * (and keep module prefix) so host C gets `struct …_A` not incomplete T.
        * PLATFORM: SHARED — G.7 same mono map as emit_type C5.
        */
-      let sl_emit_name: u8[128] = [];
+      let sl_emit_name: u8[256] = [];
       let sl_emit_nlen: i32 = e.struct_lit_struct_name_len;
       let sl_ni: i32 = 0;
       while (sl_ni < sl_emit_nlen && sl_ni < 64) {
@@ -16062,7 +16065,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let gtr_sl: i32 = ctx.mono_generic_type_refs[mi_sl];
           let ctr_sl: i32 = ctx.mono_concrete_type_refs[mi_sl];
           if (gtr_sl > 0 && ctr_sl > 0 && ctr_sl != gtr_sl) {
-            let gnm_sl: u8[128] = [];
+            let gnm_sl: u8[256] = [];
             let gnl_sl: i32 = pipeline_type_named_name_into(arena, gtr_sl, &gnm_sl[0]);
             if (gnl_sl == sl_emit_nlen && gnl_sl > 0) {
               let eq_sl: i32 = 1;
@@ -16076,7 +16079,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 }
               }
               if (eq_sl != 0) {
-                let cnm_sl: u8[128] = [];
+                let cnm_sl: u8[256] = [];
                 let cnl_sl: i32 = pipeline_type_named_name_into(arena, ctr_sl, &cnm_sl[0]);
                 if (cnl_sl > 0 && cnl_sl <= 64) {
                   let ci_sl: i32 = 0;
@@ -16140,14 +16143,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               while (fj_sl < nf_lay) {
                 let ftr_sl: i32 = pipeline_module_struct_layout_field_type_ref(mod_sl, lk2, fj_sl);
                 if (pipeline_type_kind_ord_at(arena, ftr_sl) == (TypeKind.TYPE_NAMED as i32)) {
-                  let ftn_sl: u8[128] = [];
+                  let ftn_sl: u8[256] = [];
                   let ftnl_sl: i32 = pipeline_type_named_name_into(arena, ftr_sl, &ftn_sl[0]);
                   let slot_sl: i32 = -1;
                   let pj_sl: i32 = 0;
                   while (pj_sl < ntp2) {
                     let tpl_sl: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk2, pj_sl);
                     if (tpl_sl == ftnl_sl && ftnl_sl > 0) {
-                      let tpn_sl: u8[128] = [];
+                      let tpn_sl: u8[256] = [];
                       pipeline_module_struct_layout_type_param_name_into(mod_sl, lk2, pj_sl, &tpn_sl[0]);
                       let peq_sl: i32 = 1;
                       let pi_sl: i32 = 0;
@@ -16166,14 +16169,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   }
                   if (slot_sl >= 0) {
                     let flen_sl: i32 = pipeline_module_struct_layout_field_name_len(mod_sl, lk2, fj_sl);
-                    let fnm_sl: u8[128] = [];
+                    let fnm_sl: u8[256] = [];
                     pipeline_module_struct_layout_field_name_into(mod_sl, lk2, fj_sl, &fnm_sl[0]);
                     let lit_nf_sl: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
                     let li_sl: i32 = 0;
                     while (li_sl < lit_nf_sl) {
                       let lfl_sl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li_sl);
                       if (lfl_sl == flen_sl && flen_sl > 0) {
-                        let lfn_sl: u8[128] = [];
+                        let lfn_sl: u8[256] = [];
                         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li_sl, &lfn_sl[0]);
                         let feq_sl: i32 = 1;
                         let fi_sl: i32 = 0;
@@ -16249,14 +16252,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               while (tj_m < ntp_m) {
                 combo_m[tj_m] = 0;
                 let tpl_m: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
-                let tpn_m: u8[128] = [];
+                let tpn_m: u8[256] = [];
                 pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, &tpn_m[0]);
                 let mi_m: i32 = 0;
                 while (mi_m < ctx.mono_num_types && mi_m < 8) {
                   let gtr_m: i32 = ctx.mono_generic_type_refs[mi_m];
                   let ctr_m: i32 = ctx.mono_concrete_type_refs[mi_m];
                   if (gtr_m > 0 && ctr_m > 0) {
-                    let gnm_m: u8[128] = [];
+                    let gnm_m: u8[256] = [];
                     let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr_m, &gnm_m[0]);
                     if (gnl_m == tpl_m && gnl_m > 0) {
                       let geq: i32 = 1;
@@ -16305,13 +16308,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (append_byte(out, 46) != 0) {
           return -1;
         }
-        let sl_fnbuf: u8[128] = [];
+        let sl_fnbuf: u8[256] = [];
         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, fi, &sl_fnbuf[0]);
         let flen: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, fi);
-        /* wave588 Cap residual: host-C field designator content ≤127 (StructLitFieldEntry.name[128]).
+        /* wave588 Cap residual: host-C field designator content ≤255 (StructLitFieldEntry.name[256]).
          * Prior flen>64 trunc to 64 → designator mismatch vs layout field decl (fldh 75/127 BLD001).
          * PLATFORM: SHARED host-C; seed pin same commit. */
-        if (flen > 127) {
+        if (flen > 255) {
           flen = 127;
         }
         if (flen > 0 && emit_bytes_from_ptr(out, &sl_fnbuf[0], flen) != 0) {
@@ -17206,7 +17209,7 @@ export function codegen_current_func_is_named_main(ctx: *PipelineDepCtx): i32 {
     if (nlen != 4) {
       return 0;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     codegen_copy_func_name64_from_module(mod, ctx.current_func_index, &nm[0]);
     if (nm[0] == 109 && nm[1] == 97 && nm[2] == 105 && nm[3] == 110) {
       return 1;
@@ -17723,7 +17726,7 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
               return -1;
             }
             /* ){ .data = __xlang_esc, .length = __xlang_esc_n }; })\n */
-            let end1: u8[128] = [
+            let end1: u8[256] = [
               41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0
             ];
             if (emit_bytes_from_ptr(out, &end1[0], 55) != 0) {
@@ -17890,7 +17893,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     let skip_wrap_dest: i32 = g_codegen_skip_wrap_dest;
     g_codegen_skip_wrap_dest = 0;
 
-    let blk_prefix: u8[128] = [];
+    let blk_prefix: u8[256] = [];
     let blk_prefix_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &blk_prefix[0], 128);
     let fn_ret_void: i32 = codegen_current_func_returns_void(arena, ctx);
     if (ast.ref_is_null(block_ref)) {
@@ -17924,7 +17927,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       let pre_li: i32 = 0;
       while (pre_li < ast.ast_block_num_lets(arena, block_ref)) {
         if (block_stmt_order_has_let(arena, block_ref, pre_li) == 0) {
-          let lname_pre: u8[128] = [];
+          let lname_pre: u8[256] = [];
           pipeline_block_let_name_copy64(arena, block_ref, pre_li, &lname_pre[0]);
           let lname_len_pre: i32 = pipeline_block_let_name_len(arena, block_ref, pre_li);
           let let_type_pre: i32 = pipeline_block_let_type_ref(arena, block_ref, pre_li);
@@ -17952,7 +17955,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             return -1;
           }
           /* Emit C local name into emit_nm_pre so memcpy finish can reuse it. */
-          let emit_nm_pre: u8[128] = [];
+          let emit_nm_pre: u8[256] = [];
           let emit_nml_pre: i32 = 0;
           if (lname_len_pre > 0 && (lname_pre[0] > 32)) {
             let ci: i32 = 0;
@@ -18115,7 +18118,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
         if (k == 0) {
           if (idx >= 0 && idx < ast.ast_block_num_consts(arena, block_ref)) {
-            let cname_buf: u8[128] = [];
+            let cname_buf: u8[256] = [];
             pipeline_block_const_name_copy64(arena, block_ref, idx, &cname_buf[0]);
             let cname_len: i32 = pipeline_block_const_name_len(arena, block_ref, idx);
             let ctype_ref: i32 = pipeline_block_const_type_ref(arena, block_ref, idx);
@@ -18177,7 +18180,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         } else if (k == 1) {
           if (idx >= 0 && idx < ast.ast_block_num_lets(arena, block_ref)) {
-            let lname_buf: u8[128] = [];
+            let lname_buf: u8[256] = [];
             pipeline_block_let_name_copy64(arena, block_ref, idx, &lname_buf[0]);
             let lname_len: i32 = pipeline_block_let_name_len(arena, block_ref, idx);
             let let_type_ref: i32 = pipeline_block_let_type_ref(arena, block_ref, idx);
@@ -18288,7 +18291,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
             }
             /* Emit C local name into emit_nm so wave353 memcpy finish can reuse it. */
-            let emit_nm: u8[128] = [];
+            let emit_nm: u8[256] = [];
             let emit_nml: i32 = 0;
             if (lname_len > 0 && (lname_buf[0] > 32)) {
               let ci2: i32 = 0;
@@ -18484,7 +18487,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                   if (tk_z == TypeKind.TYPE_VECTOR as i32) {
                     is_vec_ty = 1;
                   } else if (tk_z == TypeKind.TYPE_NAMED as i32) {
-                    let vzn: u8[128] = [];
+                    let vzn: u8[256] = [];
                     let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
                     let vi: i32 = 0;
                     while (vi < vzn_l) {
@@ -18825,11 +18828,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               if (emit_bytes_from_ptr(out, &gkw[0], 5) != 0) {
                 return -1;
               }
-              /* wave586 Cap residual: label/goto name scratch 128 (content ≤127). */
-              let gt_buf: u8[128] = [];
+              /* wave586 Cap residual: label/goto name scratch 128 (content ≤255). */
+              let gt_buf: u8[256] = [];
               pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
               let gt_len: i32 = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
-              if (gt_len > 0 && gt_len <= 127) {
+              if (gt_len > 0 && gt_len <= 255) {
                 if (emit_bytes_from_ptr(out, &gt_buf[0], gt_len) != 0) {
                   return -1;
                 }
@@ -18839,11 +18842,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
             } else {
-              /* wave586 Cap residual: label name scratch 128 (content ≤127). */
-              let lb_buf: u8[128] = [];
+              /* wave586 Cap residual: label name scratch 128 (content ≤255). */
+              let lb_buf: u8[256] = [];
               pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
               let lb_len: i32 = pipeline_block_labeled_label_len(arena, block_ref, idx);
-              if (lb_len > 0 && lb_len <= 127) {
+              if (lb_len > 0 && lb_len <= 255) {
                 if (emit_indent(out, indent) != 0) {
                   return -1;
                 }
@@ -18884,7 +18887,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     /* See implementation. */
     let i: i32 = 0;
     while (i < ast.ast_block_num_consts(arena, block_ref)) {
-      let cname_fb: u8[128] = [];
+      let cname_fb: u8[256] = [];
       pipeline_block_const_name_copy64(arena, block_ref, i, &cname_fb[0]);
       let cname_len_fb: i32 = pipeline_block_const_name_len(arena, block_ref, i);
       let ctype_fb: i32 = pipeline_block_const_type_ref(arena, block_ref, i);
@@ -18928,7 +18931,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     }
     i = 0;
     while (i < ast.ast_block_num_lets(arena, block_ref)) {
-      let lname_fb: u8[128] = [];
+      let lname_fb: u8[256] = [];
       pipeline_block_let_name_copy64(arena, block_ref, i, &lname_fb[0]);
       let lname_len_fb: i32 = pipeline_block_let_name_len(arena, block_ref, i);
       let let_type_ref: i32 = pipeline_block_let_type_ref(arena, block_ref, i);
@@ -19020,7 +19023,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
       }
       /* Build local name before type emit (fnptr embeds name in declarator). */
-      let emit_nm_fb: u8[128] = [];
+      let emit_nm_fb: u8[256] = [];
       let emit_nml_fb: i32 = 0;
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
         let ci3: i32 = 0;
@@ -19372,7 +19375,7 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
         if (arg <= 0) {
           ai = 4;
         } else {
-          let asuf: u8[128] = [];
+          let asuf: u8[256] = [];
           let al: i32 = codegen_type_ref_to_suffix(arena, arg, &asuf[0], 64);
           if (al <= 0) {
             ai = 4;
@@ -19566,7 +19569,7 @@ export function codegen_module_func_overload_count(module: *Module, name_ptr: *u
     while (i < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, i);
       if (fn_len == name_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, i, &fn_name[0]);
@@ -19603,8 +19606,8 @@ export function codegen_func_param_sig_equal(arena: *ASTArena, mod_a: *Module, f
     }
     let pi: i32 = 0;
     while (pi < np_a) {
-      let sa: u8[128] = [];
-      let sb: u8[128] = [];
+      let sa: u8[256] = [];
+      let sb: u8[256] = [];
       let na: i32 = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(mod_a, fi_a, pi), &sa[0], 64);
       let nb: i32 = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(mod_b, fi_b, pi), &sb[0], 64);
       if (na != nb) {
@@ -19635,7 +19638,7 @@ export function codegen_module_overload_param_sig_count(arena: *ASTArena, module
     if (module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
@@ -19645,7 +19648,7 @@ export function codegen_module_overload_param_sig_count(arena: *ASTArena, module
     while (i < module.num_funcs) {
       let g_len: i32 = pipeline_module_func_name_len_at(module, i);
       if (g_len == fn_len && g_len > 0) {
-        let g_name: u8[128] = [];
+        let g_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, i, &g_name[0]);
@@ -19812,7 +19815,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
   unsafe {
 
     /* Hoist-safe: zero locals first; fill via statements after the early-return gate. */
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     let fn_len: i32 = 0;
     let overload_count: i32 = 0;
     let np: i32 = 0;
@@ -19842,7 +19845,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     np = pipeline_module_func_num_params_at(module, fi);
     pi = 0;
     while (pi < np) {
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let param_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
       /*
        * PLATFORM: SHARED — param type_ref is indexed in the function's module arena.
@@ -19867,7 +19870,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     sig_count = codegen_module_overload_param_sig_count(arena, module, fi);
     if (sig_count > 1) {
       let ret_ref: i32 = pipeline_module_func_return_type_at(module, fi);
-      let rs: u8[128] = [];
+      let rs: u8[256] = [];
       let rsl: i32 = codegen_type_ref_to_suffix(arena, ret_ref, &rs[0], 64);
       if (rsl > 0) {
         /* "_ret_" */
@@ -19910,7 +19913,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (pi < np) {
         let pl: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
         if (pl == name_len && pl > 0) {
-          let pb: u8[128] = [];
+          let pb: u8[256] = [];
           let ok: i32 = 1;
           let j: i32 = 0;
           pipeline_module_func_param_name_copy32(mod, fi, pi, &pb[0]);
@@ -19937,7 +19940,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (li < nlets) {
         let nl: i32 = pipeline_block_let_name_len(arena, br, li);
         if (nl == name_len && nl > 0) {
-          let nb: u8[128] = [];
+          let nb: u8[256] = [];
           let ok2: i32 = 1;
           let j2: i32 = 0;
           pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
@@ -19960,7 +19963,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (ci < nconsts) {
         let cl: i32 = pipeline_block_const_name_len(arena, br, ci);
         if (cl == name_len && cl > 0) {
-          let cb: u8[128] = [];
+          let cb: u8[256] = [];
           let ok3: i32 = 1;
           let j3: i32 = 0;
           pipeline_block_const_name_copy64(arena, br, ci, &cb[0]);
@@ -20106,7 +20109,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
             if (rlen != fallback_len) {
               ok_res = 0;
             } else {
-              let rnm: u8[128] = [];
+              let rnm: u8[256] = [];
               pipeline_module_func_name_copy64(res_mod, func_ix, &rnm[0]);
               let ri: i32 = 0;
               while (ri < rlen) {
@@ -20212,7 +20215,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         while (fi_s < search_mod.num_funcs) {
           let fn_len: i32 = pipeline_module_func_name_len_at(search_mod, fi_s);
           if (fn_len == fallback_len && fn_len > 0) {
-            let fn_name: u8[128] = [];
+            let fn_name: u8[256] = [];
             pipeline_module_func_name_copy64(search_mod, fi_s, &fn_name[0]);
             let matched: i32 = 1;
             let bi: i32 = 0;
@@ -20252,7 +20255,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                         && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
                       let av_len: i32 = pipeline_expr_var_name_len(arena, arg_ref);
                       if (av_len > 0 && av_len <= 63) {
-                        let av_buf: u8[128] = [];
+                        let av_buf: u8[256] = [];
                         pipeline_expr_var_name_into(arena, arg_ref, &av_buf[0]);
                         let apt: i32 = pipeline_module_func_param_type_ref_for_name(
                             ctx.current_codegen_module, ctx.current_func_index, &av_buf[0], av_len);
@@ -20274,8 +20277,8 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                       is_str_lit = 1;
                     }
                     let param_ty: i32 = pipeline_module_func_param_type_ref_at(search_mod, fi_s, pi);
-                    let sa: u8[128] = [];
-                    let sb: u8[128] = [];
+                    let sa: u8[256] = [];
+                    let sb: u8[256] = [];
                     let na: i32 = 0;
                     let nb: i32 = 0;
                     /* See implementation. */
@@ -20369,7 +20372,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
             while (fi_p < search_mod.num_funcs) {
               let fl: i32 = pipeline_module_func_name_len_at(search_mod, fi_p);
               if (fl == fallback_len && fl > 0 && pipeline_module_func_num_params_at(search_mod, fi_p) == 1) {
-                let fnm_p: u8[128] = [];
+                let fnm_p: u8[256] = [];
                 pipeline_module_func_name_copy64(search_mod, fi_p, &fnm_p[0]);
                 let me: i32 = 1;
                 let bi: i32 = 0;
@@ -20423,7 +20426,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           while (fi_a < search_mod.num_funcs) {
             let fn_len_a: i32 = pipeline_module_func_name_len_at(search_mod, fi_a);
             if (fn_len_a == fallback_len && fn_len_a > 0) {
-              let fn_name_a: u8[128] = [];
+              let fn_name_a: u8[256] = [];
               pipeline_module_func_name_copy64(search_mod, fi_a, &fn_name_a[0]);
               let matched_a: i32 = 1;
               let bi_a: i32 = 0;
@@ -20478,7 +20481,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           while (fi_x < dm.num_funcs) {
             let fn_x: i32 = pipeline_module_func_name_len_at(dm, fi_x);
             if (fn_x == fallback_len && fn_x > 0) {
-              let fnm: u8[128] = [];
+              let fnm: u8[256] = [];
               pipeline_module_func_name_copy64(dm, fi_x, &fnm[0]);
               let mx: i32 = 1;
               let bx: i32 = 0;
@@ -20605,7 +20608,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
   unsafe {
 
     /* Hoist-safe name locals: fill via statements before any name-dependent test. */
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     let fn_len: i32 = 0;
     let name_is_main: bool = false;
     let force_entry_main: bool = false;
@@ -20786,7 +20789,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
            * (`int32_t (*a)[2]`), not emit_type peel `int32_t ** a`.
            * PLATFORM: SHARED host-C.
            */
-          let pta_nm: u8[128] = [];
+          let pta_nm: u8[256] = [];
           let pta_nl: i32 = 0;
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
             codegen_copy_param_name32_from_module(module, fi, p, &pta_nm[0]);
@@ -20836,7 +20839,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         } else if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p))
             == (TypeKind.TYPE_FN as i32)) {
           /* 10.3.1: param `f: function(T): R` → `R (*f)(T)`. PLATFORM: SHARED. */
-          let pfn_nm: u8[128] = [];
+          let pfn_nm: u8[256] = [];
           let pfn_nl: i32 = 0;
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
             codegen_copy_param_name32_from_module(module, fi, p, &pfn_nm[0]);
@@ -20885,7 +20888,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             return -1;
           }
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-            let plocal: u8[128] = [];
+            let plocal: u8[256] = [];
             codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
             if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
               return -1;
@@ -21336,7 +21339,7 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
     if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
@@ -21485,7 +21488,7 @@ function codegen_func_ret_type_param_extra(arena: *ASTArena, module: *Module, fi
     if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != (TypeKind.TYPE_NAMED as i32)) {
       return 0;
     }
-    let ret_nm: u8[128] = [];
+    let ret_nm: u8[256] = [];
     let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
     if (ret_nl <= 0) {
       return 0;
@@ -21495,7 +21498,7 @@ function codegen_func_ret_type_param_extra(arena: *ASTArena, module: *Module, fi
     while (pi < np) {
       let pty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
       if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (TypeKind.TYPE_NAMED as i32)) {
-        let pnm: u8[128] = [];
+        let pnm: u8[256] = [];
         let pnl: i32 = pipeline_type_named_name_into(arena, pty, &pnm[0]);
         if (pnl == ret_nl && pnl > 0) {
           let eq: i32 = 1;
@@ -21595,7 +21598,7 @@ function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: 
     if (num_params < 0 || ret_extra < 0 || ret_extra > 1) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
@@ -21731,7 +21734,7 @@ export function codegen_try_emit_impl_method_mono_call_name(out: *CodegenOutBuf,
     if (pipeline_type_kind_ord_at(arena, p0_ty) != (TypeKind.TYPE_NAMED as i32)) {
       return 0;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &nm[0]);
     if (nl <= 0) {
       return 0;
@@ -21817,7 +21820,7 @@ function codegen_emit_mono_mangled_name(out: *CodegenOutBuf, arena: *ASTArena, m
     }
     let mi: i32 = 0;
     while (mi < num_mono) {
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let ty: i32 = mono_tys[mi];
       let sl: i32 = codegen_type_ref_to_suffix(arena, ty, &suf[0], 64);
       if (sl <= 0) {
@@ -21869,13 +21872,13 @@ function codegen_mono_subst_type(ctx: *PipelineDepCtx, arena: *ASTArena, type_re
      * Single authority: emit_type C5 and C6 both rely on this name match.
      * PLATFORM: SHARED — mirrors codegen_gen.linux.x86_64.c.
      */
-    let fb_nm: u8[128] = [];
+    let fb_nm: u8[256] = [];
     let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
     if (fb_len > 0) {
       let mi2: i32 = 0;
       while (mi2 < ctx.mono_num_types && mi2 < 8) {
         if (ctx.mono_concrete_type_refs[mi2] > 0) {
-          let gnm: u8[128] = [];
+          let gnm: u8[256] = [];
           let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
           if (gname_len == fb_len && gname_len > 0) {
             let names_eq: i32 = 1;
@@ -21926,7 +21929,7 @@ export function codegen_find_impl_method_for_type(module: *Module, arena: *ASTAr
     while (fi < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len == method_name_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
         let matched: i32 = 1;
         let bi: i32 = 0;
@@ -21958,9 +21961,9 @@ export function codegen_find_impl_method_for_type(module: *Module, arena: *ASTAr
               if (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) != 0) {
                 return fi;
               }
-              let p0_nm: u8[128] = [];
+              let p0_nm: u8[256] = [];
               let p0_nlen: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
-              let recv_nm: u8[128] = [];
+              let recv_nm: u8[256] = [];
               let recv_nlen: i32 = pipeline_type_named_name_into(arena, receiver_type_ref, &recv_nm[0]);
               if (p0_nlen > 0 && p0_nlen == recv_nlen) {
                 let neq: i32 = 1;
@@ -22958,7 +22961,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       if (ret_ty <= 0) {
         return 0;
       }
-      let fn_local0: u8[128] = [];
+      let fn_local0: u8[256] = [];
       codegen_copy_func_name64_from_module(module, fi, &fn_local0[0]);
       let fn_len0: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len0 <= 0) {
@@ -23215,8 +23218,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     if (num_params > 0
         && pipeline_type_kind_ord_at(arena, ret_ty) == (TypeKind.TYPE_NAMED as i32)
         && pipeline_type_kind_ord_at(arena, p0_ty) == (TypeKind.TYPE_NAMED as i32)) {
-      let ret_nm: u8[128] = [];
-      let p0_nm: u8[128] = [];
+      let ret_nm: u8[256] = [];
+      let p0_nm: u8[256] = [];
       let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
       let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
       if (ret_nl > 0 && ret_nl == p0_nl) {
@@ -23253,7 +23256,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       return 0;
     }
     let pn_len: i32 = 1;
-    let pn: u8[128] = [];
+    let pn: u8[256] = [];
     pn[0] = 120;
     if (num_params > 0) {
       pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
@@ -23263,7 +23266,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         pn_len = 1;
       }
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -23560,7 +23563,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           return -1;
         }
         let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
-        let pni: u8[128] = [];
+        let pni: u8[256] = [];
         pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
         if (pni_len <= 0) {
           pni[0] = 120;
@@ -23750,7 +23753,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
     let found_lk: i32 = -1;
     let found_pty: i32 = 0;
     let found_ntp: i32 = 0;
-    let found_nm: u8[128] = [];
+    let found_nm: u8[256] = [];
     let found_bare_off: i32 = 0;
     let found_bare_len: i32 = 0;
     while (p < num_params) {
@@ -23768,7 +23771,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
         p = p + 1;
         continue;
       }
-      let nm: u8[128] = [];
+      let nm: u8[256] = [];
       let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
       if (nl <= 0) {
         p = p + 1;
@@ -23825,7 +23828,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
     if (nc <= 1) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -23944,7 +23947,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
           }
           return -1;
         }
-        let pname: u8[128] = [];
+        let pname: u8[256] = [];
         let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
         pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
         if (plen <= 0) {
@@ -24077,7 +24080,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
     let found_lk: i32 = -1;
     let found_pty: i32 = 0;
     let found_ntp: i32 = 0;
-    let found_nm: u8[128] = [];
+    let found_nm: u8[256] = [];
     let found_bare_off: i32 = 0;
     let found_bare_len: i32 = 0;
     while (p < num_params) {
@@ -24095,7 +24098,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
         p = p + 1;
         continue;
       }
-      let nm: u8[128] = [];
+      let nm: u8[256] = [];
       let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
       if (nl <= 0) {
         p = p + 1;
@@ -24152,7 +24155,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
     if (nc <= 1) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -24303,7 +24306,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
           }
           return -1;
         }
-        let pname: u8[128] = [];
+        let pname: u8[256] = [];
         let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
         pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
         if (plen <= 0) {
@@ -24382,7 +24385,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (w498_ext_rc > 0) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     /* See implementation. */
@@ -24553,7 +24556,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           }
         } else if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
           /* Proto twin of emit_func: `*[N]T` / `[K][N]T` → `E (*name)[N]`. */
-          let pta_nm: u8[128] = [];
+          let pta_nm: u8[256] = [];
           let pta_nl: i32 = 0;
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
             codegen_copy_param_name32_from_module(module, fi, p, &pta_nm[0]);
@@ -24581,7 +24584,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
         } else if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p))
             == (TypeKind.TYPE_FN as i32)) {
           /* Proto twin: `function(T): R` param → `R (*name)(T)`. PLATFORM: SHARED. */
-          let pfn_nm: u8[128] = [];
+          let pfn_nm: u8[256] = [];
           let pfn_nl: i32 = 0;
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
             codegen_copy_param_name32_from_module(module, fi, p, &pfn_nm[0]);
@@ -24627,7 +24630,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           return -1;
         }
         if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-          let plocal: u8[128] = [];
+          let plocal: u8[256] = [];
           codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
           if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
             return -1;
@@ -24680,7 +24683,7 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
     let saved_arena: *ASTArena = ctx.current_codegen_arena;
     let saved_dep_index: i32 = ctx.current_codegen_dep_index;
     let saved_prefix_len: i32 = ctx.current_codegen_prefix_len;
-    let saved_prefix: u8[128] = [];
+    let saved_prefix: u8[256] = [];
     let sp: i32 = 0;
     while (sp < 64) {
       saved_prefix[sp] = ctx.current_codegen_prefix_mirror[sp];
@@ -24695,7 +24698,7 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
         let seen_before: i32 = 0;
         let prev_i: i32 = 0;
         while (prev_i < imp_i) {
-          let prev_path: u8[128] = [];
+          let prev_path: u8[256] = [];
           let prev_len: i32 = codegen_module_import_path_len_at(module, prev_i, &prev_path[0]);
           if (prev_len == dep_path_len) {
             let eq_prev: bool = true;
@@ -24732,7 +24735,7 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
             }
           }
           if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_mod.num_funcs > 0) {
-              let prefix_buf: u8[128] = [];
+              let prefix_buf: u8[256] = [];
               let prefix_len: i32 = 0;
               if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
                 codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
@@ -26307,9 +26310,9 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       ctx.current_codegen_dep_index = dep_index;
     }
     /* See implementation. */
-    let prefix_buf: u8[128] = [];
+    let prefix_buf: u8[256] = [];
     let prefix_len: i32 = 0;
-    let dep_path_prefix: u8[128] = [];
+    let dep_path_prefix: u8[256] = [];
     let dep_path_prefix_len: i32 = 0;
     if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx) {
       dep_path_prefix_len = codegen_dep_import_path_len_at(ctx, dep_index, &dep_path_prefix[0]);
@@ -26499,11 +26502,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           while (ti < module.num_top_level_lets) {
             let is_const: i32 = pipeline_module_top_level_let_is_const(module, ti);
             let name_len: i32 = pipeline_module_top_level_let_name_len(module, ti);
-            if (name_len <= 0 || name_len > 127) {
+            if (name_len <= 0 || name_len > 255) {
               ti = ti + 1;
               continue;
             }
-            let tl_name_buf: u8[128] = [];
+            let tl_name_buf: u8[256] = [];
             let tni: i32 = 0;
             while (tni < name_len && tni < 64) {
               tl_name_buf[tni] = pipeline_module_top_level_let_name_byte_at(module, ti, tni);
@@ -26737,7 +26740,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             let dep_scan_i: i32 = 0;
             let dep_ndep: i32 = pipeline_dep_ctx_ndep(ctx);
             while (dep_scan_i < dep_ndep) {
-              let scan_path: u8[128] = [];
+              let scan_path: u8[256] = [];
               let scan_plen: i32 = codegen_dep_import_path_len_at(ctx, dep_scan_i, &scan_path[0]);
               if (scan_plen > 0 && pipeline_codegen_std_dep_link_only(&scan_path[0]) != 0) {
                 dep_scan_i = dep_scan_i + 1;
@@ -26788,7 +26791,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               }
               let nlen: i32 = pipeline_module_top_level_let_name_len(module, ti);
               if (nlen > 0 && nlen <= 63) {
-                let tl_init_name: u8[128] = [];
+                let tl_init_name: u8[256] = [];
                 let tni2: i32 = 0;
                 while (tni2 < nlen && tni2 < 64) {
                   tl_init_name[tni2] = pipeline_module_top_level_let_name_byte_at(module, ti, tni2);
@@ -26840,7 +26843,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               ndep = pipeline_dep_ctx_ndep(ctx);
             }
             while (dep_i < ndep) {
-              let lo_path: u8[128] = [];
+              let lo_path: u8[256] = [];
               let lo_plen: i32 = codegen_dep_import_path_len_at(ctx, dep_i, &lo_path[0]);
               if (lo_plen > 0 && pipeline_codegen_std_dep_link_only(&lo_path[0]) != 0) {
                 dep_i = dep_i + 1;
@@ -26863,7 +26866,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                     }
                     let dnlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, dti);
                     if (dnlen > 0 && dnlen <= 63) {
-                      let dtl_name: u8[128] = [];
+                      let dtl_name: u8[256] = [];
                       let dtni: i32 = 0;
                       while (dtni < dnlen && dtni < 64) {
                         dtl_name[dtni] = pipeline_module_top_level_let_name_byte_at(dep_mod, dti, dtni);
@@ -26929,7 +26932,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         break;
       }
       /* See implementation. */
-      let skip_name: u8[128] = [];
+      let skip_name: u8[256] = [];
       codegen_copy_func_name64_from_module(module, i, &skip_name[0]);
       let skip_nl: i32 = pipeline_module_func_name_len_at(module, i);
       /* See implementation. */

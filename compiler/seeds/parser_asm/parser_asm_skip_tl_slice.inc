@@ -2663,7 +2663,7 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   pipeline_module_func_set_is_async(module, fi_mod, 0);
   pool = parser_asm_onefunc_result_pool_ptr_c(res);
   for (p_copy = 0; p_copy < res->num_params; p_copy++) {
-    uint8_t pname32[128];
+    uint8_t pname32[256];
     int32_t pty;
     memset(pname32, 0, sizeof(pname32));
     if (pool)
@@ -7737,7 +7737,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   uint8_t name_buf[64];
-  uint8_t pname_ex[128];
+  uint8_t pname_ex[256];
   uint8_t *ex_pool;
   int32_t name_len;
   int32_t n_ex;
@@ -8019,7 +8019,7 @@ void parser_asm_write_extern_params_to_pools_c(void *arena, void *module, int32_
                                                struct parser_asm_extern_parse_result *res) {
   uint8_t *pool;
   int32_t p;
-  uint8_t pname32[128];
+  uint8_t pname32[256];
   int32_t plen;
   int32_t pty;
   if (!res)
@@ -8144,10 +8144,10 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
     } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == (int32_t)TOKEN_IDENT) {
       int32_t vlen;
       size_t vstart;
-      /* wave582 Cap residual: variant name content ≤127 (variant_name[][128]). */
+      /* wave582 Cap residual: variant name content ≤255 (variant_name[][128]). */
       uint8_t vb[128];
       vlen = r.tok.ident_len;
-      if (vlen > 127)
+      if (vlen > 255)
         vlen = 127;
       vstart = r.token_start;
       if (vstart == 0)
@@ -8168,7 +8168,7 @@ void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
  */
 /**
  * Register enum name and skip whole enum definition.
- * wave582 Cap residual: enum name content ≤127 (nb[128]). PLATFORM: SHARED
+ * wave582 Cap residual: enum name content ≤255 (nb[128]). PLATFORM: SHARED
  */
 void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_asm_lexer *out,
                                                     struct parser_asm_lexer lex,
@@ -8194,7 +8194,7 @@ void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_
     out->col = lex.col;
     return;
   }
-  if (r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
+  if (r.tok.ident_len > 0 && r.tok.ident_len <= 255) {
     parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, nb);
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_bind_audit_c(nb, r.tok.ident_len));
     enum_idx = parser_asm_module_try_register_enum_name_c(module, nb, r.tok.ident_len);

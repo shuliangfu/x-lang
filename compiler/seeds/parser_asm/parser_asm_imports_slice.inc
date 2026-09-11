@@ -94,7 +94,7 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
 
 /**
  * Copy source[token_start..+tok_len) into a 128-byte buffer (zero-pad remainder).
- * wave584 Cap residual: binding-name content ≤127 (ImportEntry.binding_name[128]).
+ * wave584 Cap residual: binding-name content ≤255 (ImportEntry.binding_name[256]).
  * Historical name kept for symbol stability; width is 128.
  * PLATFORM: SHARED — product import collect path (this .inc → thin glue).
  */
@@ -133,10 +133,10 @@ int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_import
   parser_asm_lex_from_result_val_into(&out->lex, r);
   lexer_next_into(&r, out->lex, source);
   /* wave584 Cap residual: import path content ≤127 (dep_path_rows[128] + typeck plen). */
-  if (r.tok.kind == (int32_t)TOKEN_STRING && r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
+  if (r.tok.kind == (int32_t)TOKEN_STRING && r.tok.ident_len > 0 && r.tok.ident_len <= 255) {
     parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, path_buf);
     *path_len = r.tok.ident_len;
-  } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 127
+  } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 255
       && source->data && r.token_start < source->length && source->data[r.token_start] == (uint8_t)'"') {
     /* Compat: when lexer did not emit TOKEN_STRING, copy bytes between quotes. */
     size_t q0 = r.token_start + 1;
@@ -974,8 +974,8 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
     }
     if (r.tok.kind == (int32_t)TOKEN_CONST) {
       lexer_next_into(&r2, r.next_lex, source);
-      /* wave584 Cap residual: binding name content ≤127 (binding_name[128]). */
-      if (r2.tok.kind == (int32_t)TOKEN_IDENT && r2.tok.ident_len > 0 && r2.tok.ident_len <= 127) {
+      /* wave584 Cap residual: binding name content ≤255 (binding_name[256]). */
+      if (r2.tok.kind == (int32_t)TOKEN_IDENT && r2.tok.ident_len > 0 && r2.tok.ident_len <= 255) {
         lexer_next_into(&r3, r2.next_lex, source);
         if (r3.tok.kind == (int32_t)TOKEN_ASSIGN) {
           /*

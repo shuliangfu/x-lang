@@ -368,7 +368,7 @@ int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, i
   uint8_t fb[128];
   int32_t k;
 
-  if (!mod || !name || name_len <= 0 || name_len > 127)
+  if (!mod || !name || name_len <= 0 || name_len > 255)
     return -1;
   for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
     flen = pipeline_asm_module_func_name_len_at(mod, fi);
@@ -428,7 +428,7 @@ int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, in
   int32_t arg0;
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t inner_fi;
   int32_t inner_k;
   int32_t addend;

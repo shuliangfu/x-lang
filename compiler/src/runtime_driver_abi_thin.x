@@ -2683,16 +2683,14 @@ function driver_abi_pctx_off_entry_already_parsed(): i32 {
 
 /**
  * offsetof(ast_PipelineDepCtx, asm_entry_module_only) on LP64.
- * G.7: must equal `pipe_pctx_off_asm_entry_module_only` (8389872) and
+ * G.7: must equal `pipe_pctx_off_asm_entry_module_only` (8390000) and
  * `offsetof` on `runtime_pipeline_abi.h` / `ast.x`.
- * `current_codegen_prefix_mirror` is u8[128] (wave577); the stale 8389808
- * value was the [64] layout (mirror@8389740 + 64 + prefix_len i32) and
- * stored ENTRY_MODULE_ONLY into the mirror buffer. seed_bridge then read
- * the real field as 0 and co-emitted codegen.x → Ubuntu WPO main.o CG002.
+ * Cap 4.2.8: `current_codegen_prefix_mirror` is u8[256] (was [128] @ wave577);
+ * asm_entry sits at mirror@8389740 + 256 + prefix_len i32 = 8390000.
  * PLATFORM: SHARED LP64 — keep lockstep with the header / ast.x / pipe off.
  */
 function driver_abi_pctx_off_asm_entry_module_only(): i32 {
-  return 8389872;
+  return 8390000;
 }
 
 /** Store pctx->use_asm_backend = v. Null ctx is a no-op.

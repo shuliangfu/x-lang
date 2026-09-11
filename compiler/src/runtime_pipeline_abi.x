@@ -29,8 +29,8 @@
 // wave270: ast_pool_type.c pure-owned leave (pipeline_type_* pool accessors +
 //   find_or_alloc slice/ptr/named/compound + init/ensure + region label).
 //   wave276: pipeline_arena_type_ptr/alloc pure-owned leave (ast_pool_arena host leaf deleted).
-//   Type LE: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
-//   region_label[128]@144 region_label_len@272 (size 276). Seed cold twins
+//   Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
+//   region_label[256]@272 region_label_len@528 (size 532). Seed cold twins
 //   under #ifndef FROM_X. Extern Cap calls via unsafe wrappers.
 // wave269: pipeline_asm_block_tree.c pure-owned leave (asm_sum_block_local_slot_bytes +
 //   asm_count_block_stack_slots + asm_sum_block_array_temp_bytes +
@@ -63,7 +63,7 @@
 //   pipeline_module_enum_* full set + try_mark_enum field-access + storage_reset|release).
 //   Cap residual GrowVec module_enums still init/free in sidecar_pool (unused for product
 //   enums after leave). Soft-reset hooked from ast_pool_module_reset; header num_module_enums@64.
-//   Seed cold twins under #ifndef FROM_X. Entry size 33932 LE (name[128]+lens+256×var[128]+lens+export).
+//   Seed cold twins under #ifndef FROM_X. Entry size 66828 LE (name[256]+lens+256×var[256]+lens+export).
 // wave263: ast_pool_module_import.c pure-owned leave (ImportEntry multi-module map +
 //   pipeline_module_import_* full set + storage_release; wave110 pure authority).
 //   Cap residual XLANG_WEAK GrowVec twins deleted; ModuleSidecar.imports /
@@ -3935,7 +3935,7 @@ export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i
   if (dep_i < 0) {
     return 0 - 1;
   }
-  let sync_path: u8[128] = [];
+  let sync_path: u8[256] = [];
   unsafe {
     memset(&sync_path[0], 0, 64 as usize);
     let _pl: i32 = parser_copy_module_import_path64(module, dep_i, &sync_path[0]);
@@ -4306,7 +4306,7 @@ export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: 
               let reg_path: *u8 = driver_dep_path_registry_at(i);
               if (reg_path != 0 as *u8) {
                 let rpl: i32 = pipe_cstr_len(reg_path);
-                if (rpl > 127) {
+                if (rpl > 255) {
                   rpl = 127;
                 }
                 if (rpl > 0) {
@@ -5881,7 +5881,7 @@ let g_pipe_entry_lib_kw6: u8[7] = [112, 97, 114, 115, 101, 114, 0];
 let g_pipe_entry_lib_kw7: u8[6] = [116, 111, 107, 101, 110, 0];
 let g_pipe_entry_lib_kw8: u8[6] = [108, 101, 120, 101, 114, 0];
 let g_pipe_entry_lib_kw9: u8[4] = [97, 115, 116, 0];
-let g_pipe_entry_lib_stem_buf: u8[128] = [];
+let g_pipe_entry_lib_stem_buf: u8[256] = [];
 
 /**
  * Clear the pure -D define table (ndefines -> 0; slot bytes left stale until overwrite).
@@ -8432,7 +8432,7 @@ export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: 
     let nf: i32 = pipeline_module_num_funcs(module);
     let fi: i32 = 0;
     while (fi < nf) {
-      let raw_name: u8[128] = [];
+      let raw_name: u8[256] = [];
       let name: u8[65] = [];
       let ni: i32 = 0;
       while (ni < 64) {
@@ -8835,7 +8835,7 @@ export function pipeline_diag_merge_dep_missing(import_path: *u8): void {
   let code: u8[8] = [];
   let msg: u8[48] = [];
   let note_k: u8[8] = [];
-  let note_m: u8[128] = [];
+  let note_m: u8[256] = [];
   // "import error"
   kind[0]=105;kind[1]=109;kind[2]=112;kind[3]=111;kind[4]=114;kind[5]=116;kind[6]=32;kind[7]=101;
   kind[8]=114;kind[9]=114;kind[10]=111;kind[11]=114;kind[12]=0;
@@ -10454,9 +10454,9 @@ export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
 // PLATFORM: SHARED LP64 - multi-module pointer-keyed map + malloc grow for entries
 // and select name rows. Mirrors ast_pool ModuleSidecar.imports + import_select_* .
 // Product hybrid: pure strong pipeline_module_import_* override Cap XLANG_WEAK cold.
-// Layout of one ImportEntry (340 bytes, packed LE, ≡ C typedef ImportEntry):
-//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[128] @264
-//   | binding_name_len i32 @328 | select_base i32 @332 | select_count i32 @336
+// Layout of one ImportEntry (532 bytes, packed LE, ≡ C typedef ImportEntry):
+//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[256] @264
+//   | binding_name_len i32 @520 | select_base i32 @524 | select_count i32 @528
 // Module.num_imports lives at LP64 offsetof 8 (header field; parser authority read).
 // Soft-reset: when header num_imports==0, pure slot n_imports/sel_n forced 0 so
 // parse reset / module reset does not leave stale pure rows (Cap grow len cleared
@@ -10475,12 +10475,12 @@ let g_pipe_imp_sel_rows: u8[1024] = [];
 let g_pipe_imp_sel_lens: u8[1024] = [];
 
 /**
- * Byte size of one ImportEntry (path 256 + 4 i32 fields + binding 64).
- * @return i32 - 340
+ * Byte size of one ImportEntry (path 256 + binding 256 + 4 i32 fields).
+ * @return i32 - 532
  * PLATFORM: SHARED LP64 - must match C sizeof(ImportEntry).
  */
 function pipe_imp_entry_size(): i32 {
-  return 340;
+  return 532;
 }
 
 /**
@@ -11153,7 +11153,7 @@ export function pipeline_module_import_set_binding_name(module: *u8, idx: i32, b
     }
     i = i + 1;
   }
-  pipe_store_i32_le(base, eoff + 328, len);
+  pipe_store_i32_le(base, eoff + 520, len);
 }
 
 /**
@@ -11183,7 +11183,7 @@ export function pipeline_module_import_binding_name_len(module: *u8, idx: i32): 
   if (base == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 328);
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 520);
 }
 
 /**
@@ -11221,7 +11221,7 @@ export function pipeline_module_import_binding_name_byte_at(module: *u8, idx: i3
     return 0 as u8;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let bl: i32 = pipe_load_i32_le(base, eoff + 328);
+  let bl: i32 = pipe_load_i32_le(base, eoff + 520);
   if (off >= bl) {
     return 0 as u8;
   }
@@ -11260,7 +11260,7 @@ export function pipeline_module_import_set_select_count(module: *u8, idx: i32, n
   if (base == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 336, n);
+  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 528, n);
 }
 
 /**
@@ -11299,9 +11299,9 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
     return 0 - 1;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
   if (scount == 0) {
-    pipe_store_i32_le(base, eoff + 332, g_pipe_imp_sel_n[s]);
+    pipe_store_i32_le(base, eoff + 524, g_pipe_imp_sel_n[s]);
   }
   let vi: i32 = g_pipe_imp_sel_n[s];
   if (pipe_imp_ensure_select(s, vi + 1) == 0) {
@@ -11324,8 +11324,8 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
     z = z + 1;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let i: i32 = 0;
   while (i < n) {
@@ -11336,7 +11336,7 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
   }
   pipe_store_i32_le(lens, vi * 4, n);
   g_pipe_imp_sel_n[s] = vi + 1;
-  pipe_store_i32_le(base, eoff + 336, scount + 1);
+  pipe_store_i32_le(base, eoff + 528, scount + 1);
   return scount;
 }
 
@@ -11367,7 +11367,7 @@ export function pipeline_module_import_select_count_at(module: *u8, idx: i32): i
   if (base == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 336);
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 528);
 }
 
 /**
@@ -11411,7 +11411,7 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
   while (1 == 1) {
-    let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+    let scount: i32 = pipe_load_i32_le(base, eoff + 528);
     if (scount > sel) {
       break;
     }
@@ -11420,12 +11420,12 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
       return;
     }
     // Cap: if sel < scount-1 after append return - only last append fills target.
-    scount = pipe_load_i32_le(base, eoff + 336);
+    scount = pipe_load_i32_le(base, eoff + 528);
     if (sel < scount - 1) {
       return;
     }
   }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
   let abs: i32 = sbase + sel;
   let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
   let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
@@ -11450,8 +11450,8 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
     z = z + 1;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let i: i32 = 0;
   while (i < n) {
@@ -11495,11 +11495,11 @@ export function pipeline_module_import_select_name_len(module: *u8, idx: i32, se
     return 0;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
   if (sel >= scount) {
     return 0;
   }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
   let abs: i32 = sbase + sel;
   if (abs < 0) {
     return 0;
@@ -11550,11 +11550,11 @@ export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32
     return 0 as u8;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
   if (sel >= scount) {
     return 0 as u8;
   }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
   let abs: i32 = sbase + sel;
   if (abs < 0) {
     return 0 as u8;
@@ -11856,7 +11856,7 @@ export function asm_diag_trace_func_idx(func_idx: i32, name: *u8, name_len: i32)
   if (asm_diag_env_truthy(trace) == 0) {
     return;
   }
-  let msg: u8[128];
+  let msg: u8[256];
   let at: i32 = 0;
   if (func_idx >= 0) {
     at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "asm_trace: #");
@@ -15269,7 +15269,7 @@ export function pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w: i32
 export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   let inner: u8[896] = [];
   let eb: u8[896] = [];
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   if (cap < 16) {
     return -1;
   }
@@ -15718,7 +15718,7 @@ export function pipeline_codegen_struct_tag_try_claim(prefix: *u8, prefix_len: i
   if (tlen >= 128) {
     return -1;
   }
-  let tag: u8[128] = [];
+  let tag: u8[256] = [];
   let i: i32 = 0;
   while (i < plen) {
     unsafe {
@@ -15871,7 +15871,7 @@ function cg_se_out_format_int(out: *u8, val: i32): i32 {
  */
 function pipeline_codegen_emit_struct_field_type_inner(arena: *u8, out: *u8, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   let scratch: u8[896] = [];
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let ord: i32 = -1;
   if (arena != 0 as *u8 && type_ref > 0) {
     unsafe {
@@ -16103,7 +16103,7 @@ function cg_dep_path_len127(path_buf: *u8): i32 {
     return 0;
   }
   let path_len: i32 = 0;
-  while (path_len < 127) {
+  while (path_len < 255) {
     let b: u8 = 0 as u8;
     unsafe {
       b = path_buf[path_len];
@@ -22101,7 +22101,7 @@ export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i3
     nlen = pipeline_module_func_name_len_at(m, fi);
   }
   if (nlen == 4) {
-    let name: u8[128];
+    let name: u8[256];
     unsafe {
       pipeline_module_func_name_copy64(m, fi, &name[0]);
     }
@@ -22110,7 +22110,7 @@ export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i3
     }
   }
   if (mode == 1) {
-    let namew: u8[128];
+    let namew: u8[256];
     unsafe {
       pipeline_module_func_name_copy64(m, fi, &namew[0]);
       nlen = pipeline_module_func_name_len_at(m, fi);
@@ -22118,8 +22118,8 @@ export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i3
     if (nlen < 0) {
       nlen = 0;
     }
-    if (nlen > 127) {
-      nlen = 127;
+    if (nlen > 255) {
+      nlen = 255;
     }
     // warning: 'NAME' is not exported ...
     let msg: u8[256];
@@ -22274,7 +22274,7 @@ function pipeline_report_unused_private(name: *u8, nlen: i32): void {
   if (nl < 0) {
     nl = 0;
   }
-  if (nl > 127) {
+  if (nl > 255) {
     nl = 63;
   }
   let msg: u8[192];
@@ -22357,7 +22357,7 @@ function pipeline_mark_local_call_names(a: *u8, used_flags: *u8, nfuncs: i32, m:
             clen = pipeline_expr_var_name_len(a, callee_ref);
           }
           if (clen > 0) {
-            let cname: u8[128];
+            let cname: u8[256];
             unsafe {
               pipeline_expr_var_name_into(a, callee_ref, &cname[0]);
             }
@@ -22384,7 +22384,7 @@ function pipeline_mark_local_call_names(a: *u8, used_flags: *u8, nfuncs: i32, m:
         mlen = pipeline_expr_method_call_name_len(a, er);
       }
       if (mlen > 0) {
-        let mname: u8[128];
+        let mname: u8[256];
         unsafe {
           pipeline_expr_method_call_name_into(a, er, &mname[0]);
         }
@@ -22495,7 +22495,7 @@ export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
         nlen = pipeline_module_func_name_len_at(m, fi);
       }
       if (nlen == 4) {
-        let nm: u8[128];
+        let nm: u8[256];
         unsafe {
           pipeline_module_func_name_copy64(m, fi, &nm[0]);
         }
@@ -22527,7 +22527,7 @@ export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
         }
       }
       if (skip == 0) {
-        let name: u8[128];
+        let name: u8[256];
         unsafe {
           pipeline_module_func_name_copy64(m, fi, &name[0]);
         }
@@ -22601,7 +22601,7 @@ function pipeline_l6_binding_is_used(a: *u8, name: *u8, nlen: i32): i32 {
   let er: i32 = 1;
   let ko: i32 = 0;
   let vlen: i32 = 0;
-  let vbuf: u8[128];
+  let vbuf: u8[256];
   if (a == 0 as *u8 || name == 0 as *u8 || nlen <= 0) {
     return 1;
   }
@@ -22667,7 +22667,7 @@ function pipeline_l6_scan_block(a: *u8, br: i32): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
   let nlen: i32 = 0;
-  let name: u8[128];
+  let name: u8[256];
   let nh: i32 = 0;
   if (a == 0 as *u8 || br <= 0) {
     return 0;
@@ -22904,7 +22904,7 @@ function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
   let callee_ref: i32 = 0;
   let cko: i32 = 0;
   let clen: i32 = 0;
-  let cname: u8[128];
+  let cname: u8[256];
   let fi: i32 = 0;
   let eq: i32 = 0;
   let mlen: i32 = 0;
@@ -23335,7 +23335,7 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
   let ber: i32 = 0;
   let ei: i32 = 0;
   let to: i32 = 0;
-  let name: u8[128];
+  let name: u8[256];
   let nlen: i32 = 0;
   let is_ext: i32 = 0;
   let buf: u8[512];
@@ -23511,7 +23511,7 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
       nlen = 0;
     }
     if (nlen >= 128) {
-      nlen = 127;
+      nlen = 255;
     }
     if (nlen > 0) {
       unsafe {
@@ -24328,10 +24328,10 @@ export function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref:
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   unsafe {
     pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
   }
@@ -24787,7 +24787,7 @@ export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx
       return 0;
     }
   }
-  let ok_lbl: u8[128] = [];
+  let ok_lbl: u8[256] = [];
   let ok_len: i32 = 0;
   unsafe {
     ok_len = pipeline_asm_emit_next_label_c(ctx, &ok_lbl[0], 64);
@@ -24849,8 +24849,8 @@ export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx
 export function pipeline_asm_emit_logand_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let false_lbl: u8[128] = [];
-  let end_lbl: u8[128] = [];
+  let false_lbl: u8[256] = [];
+  let end_lbl: u8[256] = [];
   let false_len: i32 = 0;
   let end_len: i32 = 0;
   let rc: i32 = 0;
@@ -24954,8 +24954,8 @@ export function pipeline_asm_emit_logand_elf_impl(arena: *u8, elf_ctx: *u8, expr
 export function pipeline_asm_emit_logor_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let true_lbl: u8[128] = [];
-  let end_lbl: u8[128] = [];
+  let true_lbl: u8[256] = [];
+  let end_lbl: u8[256] = [];
   let true_len: i32 = 0;
   let end_len: i32 = 0;
   let rc: i32 = 0;
@@ -25075,8 +25075,8 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   let cond_if: i32 = 0;
   let then_ref: i32 = 0;
   let else_ref: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let then_live: u8[136] = [];
@@ -25347,7 +25347,7 @@ export function glue_wpo_mono_register_thunk_n(base: *u8, nargs: i32, args: *i32
   if (nn > 8) {
     nn = 8;
   }
-  let sym: u8[128] = [];
+  let sym: u8[256] = [];
   let sym_len: i32 = 0;
   unsafe {
     sym_len = codegen_wpo_mono_sym_format(base, nn, args, &sym[0], 128);
@@ -25439,7 +25439,7 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
       if (sym_len <= 0 || sym_len >= 128) {
         return 0 - 1;
       }
-      let sym: u8[128] = [];
+      let sym: u8[256] = [];
       let k: i32 = 0;
       while (k < sym_len) {
         unsafe {
@@ -25491,10 +25491,10 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
 //   glue_async_cps_emit_phase_reset  (preserve rax; reset frame phase)
 //   pipeline_asm_emit_async_cps_entry_elf_c  (phase==1 → resume label)
 //   pipeline_asm_emit_async_cps_end_func_elf_c  (clear CPS bag)
-// Pure-owned bag: GlueAsyncCpsEmitState = 9124B BSS
-//   active@0 ta@4 fn_id@8 next_phase@12 layout@16 (AsyncAsmPoolLayout 8976)
-//   resume_label@8992 resume_label_len@9120
-// LiveVar = 140 (name[128]@0 name_len@128 size@132 frame_data_off@136)
+// Pure-owned bag: GlueAsyncCpsEmitState = 17316B BSS
+//   active@0 ta@4 fn_id@8 next_phase@12 layout@16 (AsyncAsmPoolLayout 17168)
+//   resume_label@17184 resume_label_len@17312
+// LiveVar = 268 (name[256]@0 name_len@256 size@260 frame_data_off@264)
 // Cap residual: async_asm_pool_build_layout + asm_ctx_local_find_offset +
 //   pipeline_asm_ctx_layout + next_label + glue_enc_jz_after_bool_in_eax +
 //   backend_enc_* (mov_imm64/arg/call/lea/push/pop/load32/mov_rbx/cmp/jeq/
@@ -25504,8 +25504,8 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
 // PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
 // ---------------------------------------------------------------------------
 
-// wave131: async CPS emit bag (GlueAsyncCpsEmitState = 9124).
-let g_async_cps_emit: u8[9124] = [];
+// wave131: async CPS emit bag (GlueAsyncCpsEmitState = 17316; Cap 4.2.8).
+let g_async_cps_emit: u8[17316] = [];
 
 /**
  * Load imm32 into rax/x0 via Cap residual mov_imm64 (hi=0).
@@ -25654,10 +25654,10 @@ function glue_async_cps_save_live(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
   let fn_id: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 8);
   let i: i32 = 0;
   while (i < num_live) {
-    let live_off: i32 = 28 + i * 140;
-    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 128);
-    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 132);
-    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 136);
+    let live_off: i32 = 28 + i * 268;
+    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 256);
+    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 260);
+    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 264);
     let stack_off: i32 = 0;
     unsafe {
       stack_off = asm_ctx_local_find_offset(ctx, &g_async_cps_emit[live_off], name_len);
@@ -25697,10 +25697,10 @@ function glue_async_cps_restore_live(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
   let fn_id: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 8);
   let i: i32 = 0;
   while (i < num_live) {
-    let live_off: i32 = 28 + i * 140;
-    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 128);
-    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 132);
-    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 136);
+    let live_off: i32 = 28 + i * 268;
+    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 256);
+    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 260);
+    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 264);
     let stack_off: i32 = 0;
     unsafe {
       stack_off = asm_ctx_local_find_offset(ctx, &g_async_cps_emit[live_off], name_len);
@@ -25780,9 +25780,9 @@ export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *
   if (rc != 0) {
     return 0 - 1;
   }
-  resume_len = pipe_load_i32_le(&g_async_cps_emit[0], 9120);
+  resume_len = pipe_load_i32_le(&g_async_cps_emit[0], 17312);
   unsafe {
-    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &g_async_cps_emit[8992], resume_len, ta);
+    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &g_async_cps_emit[17184], resume_len, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -25796,7 +25796,7 @@ export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *
     return 0 - 1;
   }
   // Copy AsmFuncCtxLayout.tail_join_label@1392 into local (opaque *u8 has no &ly[off]).
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   while (tk < tj_len && tk < 128) {
     unsafe {
@@ -25818,7 +25818,7 @@ export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_label_arch(elf_ctx, &g_async_cps_emit[8992], resume_len, 0, ta);
+    rc = backend_enc_label_arch(elf_ctx, &g_async_cps_emit[17184], resume_len, 0, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -25904,7 +25904,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
   let fn_id: i32 = 0;
   let rc: i32 = 0;
   unsafe {
-    memset(&g_async_cps_emit[0], 0, 9124 as usize);
+    memset(&g_async_cps_emit[0], 0, 17316 as usize);
   }
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || mod == 0 as *u8 || func_index < 0) {
     return 0;
@@ -25912,7 +25912,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
   if (ta < 0 || ta > 2) {
     return 0;
   }
-  // layout overlay at bag+16 (8976 bytes)
+  // layout overlay at bag+16 (17168 bytes)
   unsafe {
     lr = async_asm_pool_build_layout(arena, mod, func_index, &g_async_cps_emit[16]);
   }
@@ -25925,12 +25925,12 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
   pipe_store_i32_le(&g_async_cps_emit[0], 8, fn_id);
   pipe_store_i32_le(&g_async_cps_emit[0], 12, 1);
   unsafe {
-    resume_len = pipeline_asm_emit_next_label_c(ctx, &g_async_cps_emit[8992], 64);
+    resume_len = pipeline_asm_emit_next_label_c(ctx, &g_async_cps_emit[17184], 64);
   }
   if (resume_len <= 0) {
     return 0 - 1;
   }
-  pipe_store_i32_le(&g_async_cps_emit[0], 9120, resume_len);
+  pipe_store_i32_le(&g_async_cps_emit[0], 17312, resume_len);
   if (glue_async_cps_emit_frame_phase_ptr(elf_ctx, fn_id, ta) != 0) {
     return 0 - 1;
   }
@@ -25956,7 +25956,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_jeq_arch(elf_ctx, &g_async_cps_emit[8992], resume_len, ta);
+    rc = backend_enc_jeq_arch(elf_ctx, &g_async_cps_emit[17184], resume_len, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -25973,7 +25973,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
 #[no_mangle]
 export function pipeline_asm_emit_async_cps_end_func_elf_c(): void {
   unsafe {
-    memset(&g_async_cps_emit[0], 0, 9124 as usize);
+    memset(&g_async_cps_emit[0], 0, 17316 as usize);
   }
 }
 
@@ -26224,8 +26224,8 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let mid_brs: i32[8] = [];
   let mid_n: i32 = 0;
   let mid_i: i32 = 0;
-  let gt_buf: u8[128] = [];
-  let lb_buf: u8[128] = [];
+  let gt_buf: u8[256] = [];
+  let lb_buf: u8[256] = [];
   let gt_len: i32 = 0;
   let lb_len: i32 = 0;
   let is_g: i32 = 0;
@@ -26454,7 +26454,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
                 pipeline_block_labeled_goto_target_copy32(arena, br, so_idx, &gt_buf[0]);
                 gt_len = pipeline_block_labeled_goto_target_len(arena, br, so_idx);
               }
-              if (gt_len > 0 && gt_len <= 127) {
+              if (gt_len > 0 && gt_len <= 255) {
                 unsafe {
                   extra = backend_enc_jmp_arch(elf_ctx, &gt_buf[0], gt_len, ta);
                 }
@@ -26467,7 +26467,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
                 pipeline_block_labeled_label_copy32(arena, br, so_idx, &lb_buf[0]);
                 lb_len = pipeline_block_labeled_label_len(arena, br, so_idx);
               }
-              if (lb_len > 0 && lb_len <= 127) {
+              if (lb_len > 0 && lb_len <= 255) {
                 unsafe {
                   extra = backend_enc_label_arch(elf_ctx, &lb_buf[0], lb_len, 0, ta);
                 }
@@ -26843,8 +26843,8 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
   let cmp_val: i32 = 0;
   let is_wild: i32 = 0;
   let guard_ref: i32 = 0;
-  let done_lbl: u8[128] = [];
-  let next_lbl: u8[128] = [];
+  let done_lbl: u8[256] = [];
+  let next_lbl: u8[256] = [];
   let done_len: i32 = 0;
   let next_len: i32 = 0;
   let result_ref: i32 = 0;
@@ -26858,7 +26858,7 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
   let emit_mod: *u8 = 0 as *u8;
   let emit_fi: i32 = 0 - 1;
   let subj_ty: i32 = 0;
-  let mn: u8[128] = [];
+  let mn: u8[256] = [];
   let mln: i32 = 0;
   let ko_m: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0 || dest_spill < 0) {
@@ -26896,7 +26896,7 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
         unsafe {
           mln = pipeline_expr_var_name_len(arena, matched_ref);
         }
-        if (mln > 0 && mln <= 127) {
+        if (mln > 0 && mln <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, matched_ref, &mn[0]);
             subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, &mn[0], mln);
@@ -27115,7 +27115,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let dest_spill: i32 = 0;
   let src_spill: i32 = 0;
   let parked: i32 = 0;
-  let bind_name: u8[128] = [];
+  let bind_name: u8[256] = [];
   let bind_len: i32 = 0;
   let bind_mref: i32 = 0;
   let bind_foff: i32 = 0;
@@ -27125,8 +27125,8 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let if_cond: i32 = 0;
   let if_then: i32 = 0;
   let if_else: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let arm_rc: i32 = 0;
@@ -27642,7 +27642,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       unsafe {
         bind_len = pipeline_expr_var_name_len(arena, init_ref);
       }
-      if (bind_len <= 0 || bind_len > 127) {
+      if (bind_len <= 0 || bind_len > 255) {
         return 0 - 2;
       }
       unsafe {
@@ -28208,7 +28208,7 @@ export function pipeline_asm_emit_neg_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: 
   let tr_n: i32 = 0;
   let k_n: i32 = 0 - 1;
   let nlen: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let btc32: u8[4] = [];
   let btc64: u8[5] = [];
   let neg_rax: u8[3] = [];
@@ -28650,8 +28650,8 @@ export function pipeline_codegen_match_name_is_subject_field_c(module: *u8, aren
   let nf: i32 = 0;
   let fl: i32 = 0;
   let j: i32 = 0;
-  let tnm: u8[128] = [];
-  let fnm: u8[128] = [];
+  let tnm: u8[256] = [];
+  let fnm: u8[256] = [];
   let tnl: i32 = 0;
   let bi: i32 = 0;
   let same: i32 = 0;
@@ -28754,8 +28754,8 @@ export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   let cmp_val: i32 = 0;
   let is_wild: i32 = 0;
   let guard_ref: i32 = 0;
-  let done_lbl: u8[128] = [];
-  let next_lbl: u8[128] = [];
+  let done_lbl: u8[256] = [];
+  let next_lbl: u8[256] = [];
   let done_len: i32 = 0;
   let next_len: i32 = 0;
   let result_ref: i32 = 0;
@@ -28767,7 +28767,7 @@ export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   let emit_mod: *u8 = 0 as *u8;
   let emit_fi: i32 = 0 - 1;
   let subj_ty: i32 = 0;
-  let mn: u8[128] = [];
+  let mn: u8[256] = [];
   let mln: i32 = 0;
   let arm_ok: i32 = 1;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0) {
@@ -28802,7 +28802,7 @@ export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
         unsafe {
           mln = pipeline_expr_var_name_len(arena, matched_ref);
         }
-        if (mln > 0 && mln <= 127) {
+        if (mln > 0 && mln <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, matched_ref, &mn[0]);
             subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, &mn[0], mln);
@@ -29025,8 +29025,8 @@ export function pipeline_asm_emit_expr_if_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   let cond: i32 = 0;
   let then_ref: i32 = 0;
   let else_ref: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let rc: i32 = 0;
@@ -29909,8 +29909,8 @@ export function glue_enc_x86_imul_eax_eax(elf_ctx: *u8): i32 {
 export function glue_fold_expr_var_refs_same_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   let alen: i32 = 0;
   let blen: i32 = 0;
-  let abuf: u8[128] = [];
-  let bbuf: u8[128] = [];
+  let abuf: u8[256] = [];
+  let bbuf: u8[256] = [];
   let k: i32 = 0;
   let ko_a: i32 = 0;
   let ko_b: i32 = 0;
@@ -29928,7 +29928,7 @@ export function glue_fold_expr_var_refs_same_c(arena: *u8, a_ref: i32, b_ref: i3
     alen = pipeline_expr_var_name_len(arena, a_ref);
     blen = pipeline_expr_var_name_len(arena, b_ref);
   }
-  if (alen <= 0 || blen <= 0 || alen != blen || alen > 127) {
+  if (alen <= 0 || blen <= 0 || alen != blen || alen > 255) {
     return 0;
   }
   unsafe {
@@ -30047,11 +30047,11 @@ export function glue_fold_block_let_init_lit_c(arena: *u8, block_ref: i32, var_r
   let vlen: i32 = 0;
   let nlet: i32 = 0;
   let li: i32 = 0;
-  let vbuf: u8[128] = [];
+  let vbuf: u8[256] = [];
   let ko_v: i32 = 0;
   let llen: i32 = 0;
   let is_match: i32 = 0;
-  let lb: u8[128] = [];
+  let lb: u8[256] = [];
   let kk: i32 = 0;
   let init_ref: i32 = 0;
   let ko_init: i32 = 0;
@@ -30068,7 +30068,7 @@ export function glue_fold_block_let_init_lit_c(arena: *u8, block_ref: i32, var_r
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -30398,7 +30398,7 @@ export function glue_fold_func_returns_param0_field_sum_c(arena: *u8, mod: *u8, 
 export function glue_is_field_assign_from_var_c(arena: *u8, er: i32, pair_ref: i32, field_ch: u8, src_ref: i32): i32 {
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let fn: u8[128] = [];
+  let fn: u8[256] = [];
   let ko: i32 = 0;
   let ko_l: i32 = 0;
   let base: i32 = 0;
@@ -30461,7 +30461,7 @@ export function glue_is_field_assign_i_plus_one_c(arena: *u8, er: i32, pair_ref:
   let right_ref: i32 = 0;
   let add_l: i32 = 0;
   let add_r: i32 = 0;
-  let fn: u8[128] = [];
+  let fn: u8[256] = [];
   let ko: i32 = 0;
   let ko_l: i32 = 0;
   let ko_r: i32 = 0;
@@ -30545,7 +30545,7 @@ export function glue_is_assign_s_plus_pair_field_sum_call_c(arena: *u8, mod: *u8
   let inner: i32 = 0;
   let callee_ref: i32 = 0;
   let arg0: i32 = 0;
-  let cname: u8[128] = [];
+  let cname: u8[256] = [];
   let clen: i32 = 0;
   let ko: i32 = 0;
   let ko_r: i32 = 0;
@@ -30779,8 +30779,8 @@ export function glue_is_assign_sum_plus_u8_index_cast_c(arena: *u8, er: i32, out
  */
 #[no_mangle]
 export function glue_expr_var_name_eq_let_idx_c(arena: *u8, var_expr_ref: i32, body_ref: i32, let_idx: i32): i32 {
-  let vname: u8[128] = [];
-  let lname: u8[128] = [];
+  let vname: u8[256] = [];
+  let lname: u8[256] = [];
   let vlen: i32 = 0;
   let llen: i32 = 0;
   let k: i32 = 0;
@@ -30798,7 +30798,7 @@ export function glue_expr_var_name_eq_let_idx_c(arena: *u8, var_expr_ref: i32, b
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
     llen = pipeline_block_let_name_len(arena, body_ref, let_idx);
   }
-  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 127) {
+  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -31052,7 +31052,7 @@ export function pipeline_asm_typekind_variant_tag(field_buf: *u8, flen: i32): i3
  */
 function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
   let base_buf: u8[32] = [];
-  let field_buf: u8[128] = [];
+  let field_buf: u8[256] = [];
   let blen: i32 = 0;
   let flen: i32 = 0;
   let tag: i32 = 0;
@@ -31092,7 +31092,7 @@ function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
     pipeline_expr_var_name_into(arena, base_ref, &base_buf[0]);
     flen = pipeline_expr_field_access_name_len(arena, expr_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -31807,12 +31807,12 @@ export function pipeline_asm_emit_await_sync_elf_impl(arena: *u8, elf_ctx: *u8, 
 #[no_mangle]
 export function pipeline_asm_emit_try_propagate_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let op: i32 = 0;
-  let ok_lbl: u8[128] = [];
+  let ok_lbl: u8[256] = [];
   let ok_len: i32 = 0;
   let rc: i32 = 0;
   let ly: *u8 = 0 as *u8;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -32056,7 +32056,7 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
   let fnptr_vlen: i32 = 0;
   let fnptr_fi: i32 = 0;
   let fnptr_mod: *u8 = 0 as *u8;
-  let fnptr_vname: u8[128] = [];
+  let fnptr_vname: u8[256] = [];
   if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
     return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   }
@@ -32404,7 +32404,7 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 // Table BSS layout ≡ C pipeline_asm_modlet_table_t (XLANG_ASM_MODLET_MAX=256):
 //   n@0 (i32)
 //   name_len[256]@4 (1024B)
-//   name[256][128]@1028 (32768B)
+//   name[256][256]@1028 (32768B)
 //   label_len[256]@33796 (1024B)
 //   label[256][24]@34820 (6144B)
 //   init_imm[256]@40964 (1024B)
@@ -32990,7 +32990,7 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
  * and .data absolute64 relocs share one authority.
  * @param elf_ctx *u8 - ElfCodegenCtx (reads macho_leading_underscore)
  * @param name *u8 - source-level function name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @param dst *u8 - caller buffer; capacity >= name_len+1 (typically 130)
  * @return i32 - spelled length; -1 bad args
  * PLATFORM: SHARED · MACOS Mach-O '_' · LINUX ELF bare name.
@@ -33000,7 +33000,7 @@ function pipe_modlet_fn_sym_spell_into(
 ): i32 {
   let macho: i32 = 0;
   let k: i32 = 0;
-  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || dst == (0 as *u8) || name_len <= 0 || name_len > 127) {
+  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || dst == (0 as *u8) || name_len <= 0 || name_len > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -33039,7 +33039,7 @@ function pipe_modlet_fn_sym_spell_into(
  * bounds only. Spelling is pipe_modlet_fn_sym_spell_into.
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param name *u8 - source-level function name
- * @param name_len i32 - name length (1..127)
+ * @param name_len i32 - name length (1..255)
  * @param ta i32 - target arch (0=x86_64 1=arm64)
  * @return i32 - 0 ok; -1 bad args / encode fail
  * Exported for the first-wins fnptr_as thin (same spell, one authority).
@@ -33050,7 +33050,7 @@ export function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len:
   let sym: u8[130] = [];
   let len: i32 = 0;
   let rc: i32 = 0;
-  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 127 || (ta != 0 && ta != 1)) {
+  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1)) {
     return 0 - 1;
   }
   len = pipe_modlet_fn_sym_spell_into(elf_ctx, name, name_len, &sym[0]);
@@ -33072,7 +33072,7 @@ export function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len:
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param m *u8 - Module* (fn lookup; null skips the fn branch)
  * @param name *u8 - source-level name
- * @param name_len i32 - name length (1..127)
+ * @param name_len i32 - name length (1..255)
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 not a modlet cell / not a same-module fn
  * Exported: the FROM_X seed rest lvalue fallback (Ubuntu hybrid) resolves
@@ -33083,7 +33083,7 @@ export function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len:
 export function pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx: *u8, m: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   let idx: i32 = 0;
   let fi: i32 = 0;
-  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 127 || (ta != 0 && ta != 1)) {
+  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1)) {
     return 0 - 1;
   }
   idx = pipeline_asm_modlet_find(name, name_len);
@@ -33270,7 +33270,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       tl = tl + 1;
       continue;
     }
@@ -33898,7 +33898,7 @@ function pipe_modlet_bake_string_lit_elem_to_data(
   let shift: i32 = 0;
   let nib: i32 = 0;
   let ch: u8 = 0 as u8;
-  let sbuf: u8[128] = [];
+  let sbuf: u8[256] = [];
   let cur: i32 = 0;
   let n: i32 = 0;
   let copied: i32 = 0;
@@ -33931,8 +33931,8 @@ function pipe_modlet_bake_string_lit_elem_to_data(
     }
     if (cur == eref) {
       n = slen;
-      if (n > 127) {
-        n = 127;
+      if (n > 255) {
+        n = 255;
       }
     } else {
       unsafe {
@@ -34054,7 +34054,7 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
   let is_addr_of: i32 = 0;
   let nref: i32 = 0;
   let vlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let sym: u8[130] = [];
   let slen: i32 = 0;
   let fi: i32 = 0;
@@ -34097,7 +34097,7 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, nref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -34256,7 +34256,7 @@ function pipe_modlet_scalar_init_is_ptr_addr(
   let is_addr_of: i32 = 0;
   let nref: i32 = 0;
   let vlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let fi: i32 = 0;
   let nlets: i32 = 0;
   let tl: i32 = 0;
@@ -34305,7 +34305,7 @@ function pipe_modlet_scalar_init_is_ptr_addr(
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, nref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -34462,7 +34462,7 @@ function pipe_modlet_seed_ptr_addr_elem_to_rbx(
   let is_addr_of: i32 = 0;
   let nref: i32 = 0;
   let vlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let fi: i32 = 0;
   let rc: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || eref <= 0) {
@@ -34500,7 +34500,7 @@ function pipe_modlet_seed_ptr_addr_elem_to_rbx(
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, nref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -34769,12 +34769,12 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
       let csz: i32 = 0;
       let et: i32 = 0;
       let rc2: i32 = 0;
-      let name_buf: u8[128] = [];
+      let name_buf: u8[256] = [];
       let k: i32 = 0;
       unsafe {
         nlen = pipeline_module_top_level_let_name_len(mod, tl);
       }
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         k = 0;
         while (k < nlen) {
           unsafe {
@@ -34859,11 +34859,11 @@ export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, 
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       tl = tl + 1;
       continue;
     }
-    let name_buf: u8[128] = [];
+    let name_buf: u8[256] = [];
     let k: i32 = 0;
     while (k < name_len) {
       let b: i32 = 0;
@@ -34991,11 +34991,11 @@ export function pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a: *u
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       tl = tl + 1;
       continue;
     }
-    let name_buf: u8[128] = [];
+    let name_buf: u8[256] = [];
     let k: i32 = 0;
     while (k < name_len) {
       let b: i32 = 0;
@@ -35111,7 +35111,7 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
         flen = pipeline_expr_field_access_name_len(arena, base_ref);
       }
       if (flen == 3) {
-        let fname: u8[128] = [];
+        let fname: u8[256] = [];
         unsafe {
           pipeline_expr_field_access_name_into(arena, base_ref, &fname[0]);
         }
@@ -35129,7 +35129,7 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
             }
           }
           if (vref > 0 && mod != (0 as *u8) && vkind == 3) {
-            let vn: u8[128] = [];
+            let vn: u8[256] = [];
             let vl: i32 = 0;
             let pty: i32 = 0;
             unsafe {
@@ -35149,7 +35149,7 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
             }
             if (pty > 0 && pty_kind == 9) {
               let st: i32 = 0;
-              let sn: u8[128] = [];
+              let sn: u8[256] = [];
               let sl: i32 = 0;
               unsafe {
                 st = pipeline_type_elem_ref_at(arena, pty);
@@ -35488,12 +35488,12 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   }
   if (base_kind == 3) {
     let off: i32 = 0;
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     let vlen: i32 = 0;
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, base_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 99;
     }
     unsafe {
@@ -35610,7 +35610,7 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let op: i32 = 0;
   let ok: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let rc: i32 = 0;
@@ -35628,7 +35628,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, op);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -36055,7 +36055,7 @@ export function pipeline_asm_emit_func_index_c(): i32 {
  * @param arena *u8 - ASTArena*
  * @param mod *u8 - Module*
  * @param vname *u8 - param name bytes
- * @param vlen i32 - name length in [1,127]
+ * @param vlen i32 - name length in [1,255]
  * @return i32 - 1 if *T formal, else 0
  * wave141 pure: G.7 authority (was pipeline_asm_emit_func_param_is_ptr_by_name_c).
  * PLATFORM: SHARED freestanding.
@@ -36065,7 +36065,7 @@ export function pipeline_asm_emit_func_param_is_ptr_by_name_c(arena: *u8, mod: *
   let fi: i32 = 0;
   let param_ty: i32 = 0;
   let kind: i32 = 0;
-  if (arena == (0 as *u8) || mod == (0 as *u8) || vname == (0 as *u8) || vlen <= 0 || vlen > 127) {
+  if (arena == (0 as *u8) || mod == (0 as *u8) || vname == (0 as *u8) || vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -36102,7 +36102,7 @@ export function pipeline_asm_emit_func_param_is_ptr_by_name_c(arena: *u8, mod: *
  */
 #[no_mangle]
 export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, asm_ctx: *u8, var_expr_ref: i32): i32 {
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ek: i32 = 0;
   let rc: i32 = 0;
@@ -36122,7 +36122,7 @@ export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, 
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -36149,7 +36149,7 @@ export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, 
  */
 #[no_mangle]
 export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, func_index: i32): i32 {
-  let ctx_buf: u8[128] = [];
+  let ctx_buf: u8[256] = [];
   let next_off: i32 = 16;
   let num_loc: i32 = 0;
   let size: i32 = 0;
@@ -36266,7 +36266,7 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
   let off: i32 = 16;
   let np: i32 = 0;
   let i: i32 = 0;
-  let pname_buf: u8[128] = [];
+  let pname_buf: u8[256] = [];
   let plen: i32 = 0;
   let arena: *u8 = 0 as *u8;
   let width: i32 = 0;
@@ -36777,7 +36777,7 @@ export function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i
   let i: i32 = 0;
   let nconst: i32 = 0;
   let nlet: i32 = 0;
-  let name_buf: u8[128] = [];
+  let name_buf: u8[256] = [];
   let nlen: i32 = 0;
   let init_ref: i32 = 0;
   let slot_base: i32 = 0;
@@ -37237,7 +37237,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
   let mod: *u8 = 0 as *u8;
   let base_ref: i32 = 0;
   let field_off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let var_off: i32 = 0;
   let idx_ref: i32 = 0;
@@ -37341,7 +37341,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
             unsafe {
               vlen = pipeline_expr_var_name_len(arena, walk_cur);
             }
-            if (vlen <= 0 || vlen > 127) {
+            if (vlen <= 0 || vlen > 255) {
               return -1;
             }
             unsafe {
@@ -37408,7 +37408,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                 vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
               }
               rty = 0 - 1;
-              if (vlen > 0 && vlen <= 127) {
+              if (vlen > 0 && vlen <= 255) {
                 unsafe {
                   pipeline_expr_field_access_name_into(arena, fa_ref, &vname[0]);
                   rty = glue_field_layout_offset_for_base_field(
@@ -38459,7 +38459,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, left_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return -1;
     }
     unsafe {
@@ -40831,7 +40831,7 @@ export function glue_try_return_slice_escape_from_fixed_array_elf_c(arena: *u8, 
   let di: i32 = 0;
   let llen: i32 = 0;
   let end_len: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let label: u8[24] = [];
   let end_lbl: u8[32] = [];
   let digs: u8[8] = [];
@@ -40892,7 +40892,7 @@ export function glue_try_return_slice_escape_from_fixed_array_elf_c(arena: *u8, 
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, ret_op);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -41333,7 +41333,7 @@ export function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, t
  */
 #[no_mangle]
 export function glue_emit_sret_return_from_var_elf_c(arena: *u8, elf_ctx: *u8, var_expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let tr: i32 = 0;
@@ -41353,7 +41353,7 @@ export function glue_emit_sret_return_from_var_elf_c(arena: *u8, elf_ctx: *u8, v
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -41474,7 +41474,7 @@ export function glue_maybe_demote_f64_to_f32_eax_elf_c(arena: *u8, elf_ctx: *u8,
 #[no_mangle]
 export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 {
   let tr: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ko: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -41574,7 +41574,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   let len_arg: i32 = 0;
   let rc: i32 = 0;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let ti: i32 = 0;
   let handled: i32 = 0;
   let ret_off: i32 = 0;
@@ -42177,7 +42177,7 @@ export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
   if (a == (0 as *u8) || f == (0 as *u8)) {
     return 0;
   }
-  body_ref = pipe_load_i32_le(f, 148);
+  body_ref = pipe_load_i32_le(f, 276);
   nblocks = pipe_load_i32_le(a, 8);
   nexprs = pipe_load_i32_le(a, 4);
   if (body_ref <= 0 || body_ref > nblocks) {
@@ -42289,7 +42289,7 @@ export function pipeline_arm64_get_return_lit_ref(a: *u8, f: *u8): i32 {
   if (a == (0 as *u8) || f == (0 as *u8)) {
     return 0;
   }
-  body_ref = pipe_load_i32_le(f, 148);
+  body_ref = pipe_load_i32_le(f, 276);
   nblocks = pipe_load_i32_le(a, 8);
   nexprs = pipe_load_i32_le(a, 4);
   if (body_ref <= 0 || body_ref > nblocks) {
@@ -42403,8 +42403,8 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
   let nlen: i32 = 0;
   let is_match: i32 = 0;
   let ci: i32 = 0;
-  let nb: u8[128] = [];
-  let vn: u8[128] = [];
+  let nb: u8[256] = [];
+  let vn: u8[256] = [];
   let tr: i32 = 0;
   let init_ref: i32 = 0;
   let lj: i32 = 0;
@@ -42414,17 +42414,17 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
   let irty: i32 = 0;
   let tk: i32 = 0;
   let avlen: i32 = 0;
-  let aname: u8[128] = [];
+  let aname: u8[256] = [];
   let alen: i32 = 0;
   let am: i32 = 0;
   let ac: i32 = 0;
-  let ab: u8[128] = [];
+  let ab: u8[256] = [];
   let atr: i32 = 0;
   let elem: i32 = 0;
   if (arena == (0 as *u8) || block_ref <= 0 || vname == (0 as *u8) || vlen <= 0 || out_arr_sz == (0 as *i32) || out_elem_tr == (0 as *i32)) {
     return 0;
   }
-  if (vlen > 127) {
+  if (vlen > 255) {
     return 0;
   }
   ci = 0;
@@ -42488,7 +42488,7 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
                 unsafe {
                   avlen = pipeline_expr_var_name_len(arena, init_ref);
                 }
-                if (avlen > 0 && avlen <= 127) {
+                if (avlen > 0 && avlen <= 255) {
                   unsafe {
                     pipeline_expr_var_name_into(arena, init_ref, &aname[0]);
                   }
@@ -42715,8 +42715,8 @@ export function glue_emit_import_module_const_field_to_rax_elf_c(
   let dep_pipe: *u8 = 0 as *u8;
   let dep_mod: *u8 = 0 as *u8;
   let dep_ar: *u8 = 0 as *u8;
-  let base_name: u8[128] = [];
-  let field_name: u8[128] = [];
+  let base_name: u8[256] = [];
+  let field_name: u8[256] = [];
   if (arr_sz_out != (0 as *i32)) {
     arr_sz_out[0] = 0;
   }
@@ -42748,7 +42748,7 @@ export function glue_emit_import_module_const_field_to_rax_elf_c(
     base_len = pipeline_expr_var_name_len(arena, base_ref);
     field_len = pipeline_expr_field_access_name_len(arena, expr_ref);
   }
-  if (base_len <= 0 || base_len > 127 || field_len <= 0 || field_len > 127) {
+  if (base_len <= 0 || base_len > 255 || field_len <= 0 || field_len > 255) {
     return 1;
   }
   unsafe {
@@ -42915,7 +42915,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let vlen: i32 = 0;
   let arr_off: i32 = 0;
   let init_ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let n_arr: i32 = 0;
   let durable: i32 = 0;
   let force_esz: i32 = 0;
@@ -42924,7 +42924,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let nlen: i32 = 0;
   let matched: i32 = 0;
   let ci: i32 = 0;
-  let nb: u8[128] = [];
+  let nb: u8[256] = [];
   let tr: i32 = 0;
   let init_tr: i32 = 0;
   let ftr: i32 = 0;
@@ -43033,7 +43033,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, src);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0;
     }
     unsafe {
@@ -43406,7 +43406,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         unsafe {
           vlen = pipeline_expr_var_name_len(arena, base_ref);
         }
-        if (vlen > 0 && vlen <= 127) {
+        if (vlen > 0 && vlen <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
           }
@@ -43588,7 +43588,7 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
   let init_ref: i32 = 0;
   let slot: i32 = 0;
   let type_ref: i32 = 0;
-  let lnb: u8[128] = [];
+  let lnb: u8[256] = [];
   let llen: i32 = 0;
   let slice_st: i32 = 0;
   let vst: i32 = 0;
@@ -43883,13 +43883,13 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
  */
 #[no_mangle]
 export function glue_let_name_matches_var(arena: *u8, expr_ref: i32, let_nm: *u8, let_nlen: i32): i32 {
-  let vn: u8[128] = [];
-  let ln: u8[128] = [];
+  let vn: u8[256] = [];
+  let ln: u8[256] = [];
   let vlen: i32 = 0;
   let j: i32 = 0;
   let ko: i32 = 0;
   if (arena == (0 as *u8) || let_nm == (0 as *u8) || let_nlen <= 0 || expr_ref <= 0) { return 0; }
-  if (let_nlen > 127) { return 0; }
+  if (let_nlen > 255) { return 0; }
   unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
   if (ko != 3) { return 0; }
   unsafe { vlen = pipeline_expr_var_name_len(arena, expr_ref); }
@@ -44039,7 +44039,7 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
   let ei: i32 = 0;
   let fi: i32 = 0;
   let body_ref: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let tref: i32 = 0;
   let nfuncs: i32 = 0;
@@ -44087,7 +44087,7 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
       while (pi < np) {
         unsafe {
           nlen = pipeline_asm_module_func_param_name_len_at(m, func_index, pi);
-          if (nlen > 0 && nlen <= 127) {
+          if (nlen > 0 && nlen <= 255) {
             pipeline_asm_module_func_param_name_copy32(m, func_index, pi, &nm[0]);
             tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
             if (tref > 0 && glue_let_name_matches_var(arena, ei, &nm[0], nlen) != 0) {
@@ -44132,7 +44132,7 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
         while (pi < np) {
           unsafe {
             nlen = pipeline_asm_module_func_param_name_len_at(m, fi, pi);
-            if (nlen > 0 && nlen <= 127) {
+            if (nlen > 0 && nlen <= 255) {
               pipeline_asm_module_func_param_name_copy32(m, fi, pi, &nm[0]);
               tref = pipeline_module_func_param_type_ref_at(m, fi, pi);
               if (tref > 0) {
@@ -44187,7 +44187,7 @@ export function glue_fill_var_types_from_lets_in_block(arena: *u8, block_ref: i3
   let li: i32 = 0;
   let ei: i32 = 0;
   let tref: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let nblocks: i32 = 0;
   let nexprs: i32 = 0;
@@ -44228,7 +44228,7 @@ export function glue_fill_var_types_from_lets_in_block(arena: *u8, block_ref: i3
         unsafe { tref = pipeline_block_let_type_ref(arena, cur, li); }
         if (tref > 0) {
           unsafe { nlen = pipeline_block_let_name_len(arena, cur, li); }
-          if (nlen > 0 && nlen <= 127) {
+          if (nlen > 0 && nlen <= 255) {
             unsafe { pipeline_block_let_name_copy64(arena, cur, li, &nm[0]); }
             matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
             if (matched != 0) {
@@ -45746,8 +45746,8 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
   let if_cond: i32 = 0;
   let if_then: i32 = 0;
   let if_else: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let arm_rc: i32 = 0;
@@ -46546,7 +46546,7 @@ export function glue_try_index_base_rax_index_rbx_elf_c(arena: *u8, elf_ctx: *u8
 export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32): i32 {
   let base_ko: i32 = 0;
   let off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let rc: i32 = 0;
   unsafe {
@@ -46556,7 +46556,7 @@ export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, base_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -46618,7 +46618,7 @@ export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_
 #[no_mangle]
 export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, base_ref: i32): i32 {
   let base_ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let bty: i32 = 0;
@@ -46634,7 +46634,7 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, base_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -46853,8 +46853,8 @@ export function glue_emit_index_bounds_guard_elf_c(arena: *u8, elf_ctx: *u8, ctx
   let lit_idx: i32 = 0;
   let lit_slot: i32[1] = [];
   let array_sz: i32 = 0;
-  let ok_lo: u8[128] = [];
-  let ok_hi: u8[128] = [];
+  let ok_lo: u8[256] = [];
+  let ok_hi: u8[256] = [];
   let ok_lo_len: i32 = 0;
   let ok_hi_len: i32 = 0;
   let proven: i32 = 0;
@@ -47028,8 +47028,8 @@ export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8,
   let lit_slot: i32[1] = [];
   let ok_lo_len: i32 = 0;
   let ok_hi_len: i32 = 0;
-  let ok_lo: u8[128] = [];
-  let ok_hi: u8[128] = [];
+  let ok_lo: u8[256] = [];
+  let ok_hi: u8[256] = [];
   let is_lit: i32 = 0;
   let off: i32 = 0;
   let nd: i32 = 0;
@@ -47569,7 +47569,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
   let trk: i32 = 0;
   let fb_ref: i32 = 0;
   let field_off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let is_enum: i32 = 0;
@@ -47607,7 +47607,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, fb_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -47653,7 +47653,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -47734,7 +47734,7 @@ export function glue_emit_index_eff_addr_base_text_c(arena: *u8, out: *u8, ix_re
   let trk: i32 = 0;
   let fb_ref: i32 = 0;
   let field_off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let is_enum: i32 = 0;
@@ -47772,7 +47772,7 @@ export function glue_emit_index_eff_addr_base_text_c(arena: *u8, out: *u8, ix_re
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, fb_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -47810,7 +47810,7 @@ export function glue_emit_index_eff_addr_base_text_c(arena: *u8, out: *u8, ix_re
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -48005,13 +48005,13 @@ export extern "C" function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, m: i3
 export extern "C" function pipeline_asm_emit_vector_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 
 // BSS scratch for callee names / labels (avoid large stack locals typeck debt).
-let g_wave148_cname: u8[128] = [];
-let g_wave148_vname: u8[128] = [];
-let g_wave148_pbuf: u8[128] = [];
-let g_wave148_vbuf: u8[128] = [];
-let g_wave148_fb: u8[128] = [];
-let g_wave148_lbl_a: u8[128] = [];
-let g_wave148_lbl_b: u8[128] = [];
+let g_wave148_cname: u8[256] = [];
+let g_wave148_vname: u8[256] = [];
+let g_wave148_pbuf: u8[256] = [];
+let g_wave148_vbuf: u8[256] = [];
+let g_wave148_fb: u8[256] = [];
+let g_wave148_lbl_a: u8[256] = [];
+let g_wave148_lbl_b: u8[256] = [];
 let g_wave148_tname: u8[64] = [];
 
 /**
@@ -48278,7 +48278,7 @@ export function glue_asm_local_var_stack_off_scoped(arena: *u8, ctx: *u8, var_ex
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -48308,7 +48308,7 @@ export function glue_module_func_index_by_name_c(mod: *u8, name: *u8, name_len: 
   let flen: i32 = 0;
   let nfuncs: i32 = 0;
   let k: i32 = 0;
-  if (mod == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 127) {
+  if (mod == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -48582,7 +48582,7 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
   let walk_cur: i32 = 0;
   let walk_i: i32 = 0;
   let fa_ref: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0 || lane < 0 || esz <= 0) {
     return 0 - 1;
@@ -48684,7 +48684,7 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
         vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
       }
       field_off = 0 - 1;
-      if (vlen > 0 && vlen <= 127) {
+      if (vlen > 0 && vlen <= 255) {
         unsafe {
           pipeline_expr_field_access_name_into(arena, fa_ref, &vname[0]);
           field_off = glue_field_layout_offset_for_base_field(
@@ -49769,8 +49769,8 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   let is_match: i32 = 0;
   let init_ref: i32 = 0;
   let depth: i32 = 0;
-  let vbuf: u8[128] = [];
-  let lb: u8[128] = [];
+  let vbuf: u8[256] = [];
+  let lb: u8[256] = [];
   if (arena == (0 as *u8) || mask_ref <= 0) {
     return 0;
   }
@@ -49792,7 +49792,7 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, mask_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -50977,7 +50977,7 @@ export function pipeline_asm_simd_try_inline_identity_call_elf_c(arena: *u8, elf
   unsafe {
     clen = pipeline_expr_var_name_len(arena, callee_ref);
   }
-  if (clen <= 0 || clen > 127) {
+  if (clen <= 0 || clen > 255) {
     return 0;
   }
   unsafe {
@@ -51106,7 +51106,7 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
     unsafe {
       clen = pipeline_expr_var_name_len(arena, callee_ref);
     }
-    if (clen <= 0 || clen > 127) {
+    if (clen <= 0 || clen > 255) {
       return 0;
     }
     unsafe {
@@ -51999,7 +51999,7 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
          * emit_expr_elf_fast VAR path: top-level const lit → imm into rax/rbx.
          * PLATFORM: SHARED freestanding emit.
          */
-        let vname: u8[128] = [];
+        let vname: u8[256] = [];
         let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
         let mod_imm: i32 = 0;
         let mod: *u8 = 0 as *u8;
@@ -54960,7 +54960,7 @@ function glue_enum_field_name_equal(field_buf: *u8, flen: i32, expect: *u8, elen
  * PLATFORM: SHARED LP64 Expr layout (pipeline_gen product).
  */
 function pipe_expr_off_fa_is_enum(): i32 {
-  return 340;
+  return 596;
 }
 
 /**
@@ -54968,7 +54968,7 @@ function pipe_expr_off_fa_is_enum(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_expr_off_fa_offset(): i32 {
-  return 344;
+  return 600;
 }
 
 /**
@@ -54976,7 +54976,7 @@ function pipe_expr_off_fa_offset(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_expr_off_fa_soa_stride(): i32 {
-  return 348;
+  return 604;
 }
 
 /**
@@ -54984,7 +54984,7 @@ function pipe_expr_off_fa_soa_stride(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_expr_off_enum_variant_tag(): i32 {
-  return 692;
+  return 1204;
 }
 
 /**
@@ -55582,7 +55582,7 @@ export function pipeline_token_kind_variant_tag(variant_name: *u8, variant_len: 
 #[no_mangle]
 export function glue_field_access_layout_field_type_ref_by_name_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let k: i32 = 0;
   let j: i32 = 0;
   let nsl: i32 = 0;
@@ -55590,14 +55590,14 @@ export function glue_field_access_layout_field_type_ref_by_name_c(arena: *u8, mo
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   if (arena == (0 as *u8) || mod == (0 as *u8) || fa_ref <= 0) {
     return 0;
   }
   unsafe {
     flen = pipeline_expr_field_access_name_len(arena, fa_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return 0;
   }
   unsafe {
@@ -55807,7 +55807,7 @@ export function glue_struct_layout_field_offset_by_name_c(m: *u8, a: *u8, li: i3
   let fi: i32 = 0;
   let stored: i32 = 0;
   let computed: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   if (m == (0 as *u8) || a == (0 as *u8) || li < 0 || field_name == (0 as *u8) || flen <= 0) {
     return 0 - 1;
   }
@@ -55879,7 +55879,7 @@ export function glue_dep_layout_field_offset_by_name_c(ctx: *u8, field_name: *u8
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   let da: *u8 = 0 as *u8;
   let stored: i32 = 0;
   let computed: i32 = 0;
@@ -55973,9 +55973,9 @@ export function glue_dep_layout_field_offset_by_name_c(ctx: *u8, field_name: *u8
 export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32 {
   let base_ty: i32 = 0;
   let fi: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let off: i32 = 0;
@@ -55992,7 +55992,7 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
   let dm: *u8 = 0 as *u8;
   let da: *u8 = 0 as *u8;
   let k2: i32 = 0;
-  if (a == (0 as *u8) || m == (0 as *u8) || base_var_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 127) {
+  if (a == (0 as *u8) || m == (0 as *u8) || base_var_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 255) {
     return 0 - 1;
   }
   base_ty = 0;
@@ -56082,7 +56082,7 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
   unsafe {
     nlen = pipeline_type_named_name_into(a, base_ty, &struct_name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -56151,7 +56151,7 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
 #[no_mangle]
 export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref: i32, field_name: *u8, flen: i32): i32 {
   let base_ty: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let off: i32 = 0;
@@ -56165,7 +56165,7 @@ export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref
   let dm: *u8 = 0 as *u8;
   let da: *u8 = 0 as *u8;
   let k2: i32 = 0;
-  if (a == (0 as *u8) || m == (0 as *u8) || base_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 127) {
+  if (a == (0 as *u8) || m == (0 as *u8) || base_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -56204,7 +56204,7 @@ export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref
   unsafe {
     nlen = pipeline_type_named_name_into(a, base_ty, &struct_name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -56282,7 +56282,7 @@ export function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_re
 #[no_mangle]
 export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_ref: i32): i32 {
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let stored: i32 = 0;
   let typed_off: i32 = 0;
   let base_ref: i32 = 0;
@@ -56300,7 +56300,7 @@ export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_re
     stored = pipeline_expr_field_access_offset(a, expr_ref);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return stored;
   }
   unsafe {
@@ -56385,10 +56385,10 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let tr: i32 = 0;
   let base_tr: i32 = 0;
   let base_ref: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let k: i32 = 0;
   let j: i32 = 0;
   let ftr: i32 = 0;
@@ -56399,7 +56399,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   let ln: i32 = 0;
   let eq: i32 = 0;
   let nm_is_some: u8[7] = [105, 115, 95, 115, 111, 109, 101];
@@ -56411,7 +56411,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
   }
-  if (base_ref <= 0 || flen <= 0 || flen > 127) {
+  if (base_ref <= 0 || flen <= 0 || flen > 255) {
     return 8;
   }
   unsafe {
@@ -56642,7 +56642,7 @@ export function pipeline_expr_enum_field_tag_via_module(enum_name: *u8, enum_len
 #[no_mangle]
 export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i32 {
   let base_buf: u8[32] = [];
-  let field_buf: u8[128] = [];
+  let field_buf: u8[256] = [];
   let blen: i32 = 0;
   let flen: i32 = 0;
   let base_ref: i32 = 0;
@@ -56695,7 +56695,7 @@ export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i
     }
     pipeline_expr_var_name_into(a, base_ref, &base_buf[0]);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
-    if (flen <= 0 || flen > 127) {
+    if (flen <= 0 || flen > 255) {
       return 0 - 1;
     }
     pipeline_expr_field_access_name_into(a, expr_ref, &field_buf[0]);
@@ -56756,10 +56756,10 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
   let var_off: i32 = 0;
   let field_off: i32 = 0;
   let load_sz: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let base_ty_sl: i32 = 0;
   let flen_sl: i32 = 0;
-  let fn_sl: u8[128] = [];
+  let fn_sl: u8[256] = [];
   let nm_length: u8[6] = [108, 101, 110, 103, 116, 104];
   let nm_data: u8[4] = [100, 97, 116, 97];
   let agg: i32 = 0;
@@ -56771,7 +56771,7 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
       return 0 - 99;
     }
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 99;
     }
     pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
@@ -57134,7 +57134,7 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
   let fa_base2: i32 = 0;
   let blen2: i32 = 0;
   let flen_arr: i32 = 0;
-  let fn_arr: u8[128] = [];
+  let fn_arr: u8[256] = [];
   let base_ref_arr: i32 = 0;
   let base_ty_arr: i32 = 0;
   let bk_arr: i32 = 0;
@@ -57143,8 +57143,8 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
   let load_sz: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let call_fa: i32 = 0;
-  let bn: u8[128] = [];
-  let fb: u8[128] = [];
+  let bn: u8[256] = [];
+  let fb: u8[256] = [];
   let flen2: i32 = 0;
   let tk: i32 = 0;
   let sl: i32 = 0;
@@ -57232,7 +57232,7 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
           if (tk < 0) {
             // strlen fallback for trailing NUL in field_len
             sl = 0;
-            while (sl < flen2 && sl < 127) {
+            while (sl < flen2 && sl < 255) {
               if (fb[sl] == (0 as u8)) {
                 break;
               }
@@ -57369,13 +57369,13 @@ export function glue_try_emit_match_subject_field_var_elf_c(arena: *u8, elf_ctx:
   let load_sz: i32 = 4;
   let mod: *u8 = 0 as *u8;
   let subj_ty: i32 = 0;
-  let tnm: u8[128] = [];
+  let tnm: u8[256] = [];
   let tnl: i32 = 0;
   let k: i32 = 0;
   let nf: i32 = 0;
   let fi: i32 = 0;
   let fnl: i32 = 0;
-  let fnm: u8[128] = [];
+  let fnm: u8[256] = [];
   let j: i32 = 0;
   let matchb: i32 = 1;
   let ftr: i32 = 0;
@@ -57485,7 +57485,7 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
   let wpo_nofold: *u8 = 0 as *u8;
   let cfold_tr: i32 = 0;
   let cfold_k: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let fb: i32 = 0;
   let flo: i32 = 0;
@@ -57495,7 +57495,7 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
   let rk: i32 = 0;
   let lo: i32 = 0;
   let hi: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -58696,7 +58696,7 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
   let init_ko: i32 = 0;
   let let_ty2: i32 = 0;
   let src_ty: i32 = 0;
-  let vn: u8[128] = [];
+  let vn: u8[256] = [];
   let vl: i32 = 0;
   let bt: i32 = 0;
   let vtype_ref: i32 = 0;
@@ -58952,7 +58952,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let init_ref: i32 = 0;
   let ix_ko: i32 = 0;
   let slot: i32 = 0;
-  let lnb: u8[128] = [];
+  let lnb: u8[256] = [];
   let llen: i32 = 0;
   let tref_empty: i32 = 0;
   let slice_st: i32 = 0;
@@ -58964,7 +58964,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let init_ko: i32 = 0;
   let let_ty2: i32 = 0;
   let src_ty: i32 = 0;
-  let vn: u8[128] = [];
+  let vn: u8[256] = [];
   let vl: i32 = 0;
   let bt: i32 = 0;
   let expr_ref: i32 = 0;
@@ -58973,16 +58973,16 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let wa_cap: i32 = 0;
   let wa_off: i32 = 0;
   let is_g: i32 = 0;
-  let gt_buf: u8[128] = [];
+  let gt_buf: u8[256] = [];
   let gt_len: i32 = 0;
-  let lb_buf: u8[128] = [];
+  let lb_buf: u8[256] = [];
   let lb_len: i32 = 0;
   let ret_ref_lab: i32 = 0;
   let ly: *u8 = 0 as *u8;
   let rty_lab: i32 = 0;
   let sty_lab: i32 = 0;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   let rc: i32 = 0;
   let n_ex: i32 = 0;
@@ -59488,7 +59488,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                               pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
                               gt_len = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
                             }
-                            if (gt_len > 0 && gt_len <= 127) {
+                            if (gt_len > 0 && gt_len <= 255) {
                               unsafe {
                                 rc = backend_enc_jmp_arch(elf_ctx, &gt_buf[0], gt_len, ta);
                               }
@@ -59501,7 +59501,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                               pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
                               lb_len = pipeline_block_labeled_label_len(arena, block_ref, idx);
                             }
-                            if (lb_len > 0 && lb_len <= 127) {
+                            if (lb_len > 0 && lb_len <= 255) {
                               unsafe {
                                 rc = backend_enc_label_arch(elf_ctx, &lb_buf[0], lb_len, 0, ta);
                               }
@@ -59700,7 +59700,7 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
   let fb: i32 = 0;
   let ly: *u8 = 0 as *u8;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || block_ref <= 0) {
     return 0;
@@ -59853,7 +59853,7 @@ export function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block
 //   typeck_struct_layouts_same_shape_c
 //   pipeline_typeck_pad_fields_warn_layout / hot_reorder_warn_layout
 // Sentinels: GLUE_ASM_MAX_STRUCT_LIT_FIELDS=64, DEST_IN_RBX=-3, REHOME_CPU_STACK=-4
-// LP64 Expr peels: struct_lit_struct_name@536 name_len@664 num_fields@672
+// LP64 Expr peels: struct_lit_struct_name@920 name_len@1176 num_fields@1184
 // Omits XLANG_ASM_EMIT_TRACE / XLANG_ASM_DEBUG fprintf (wave soft OK).
 // Cap residual: typeck_soa_array_storage_size_glue / typeck_x_type_size_from_layout_glue
 //   + dual_gp/named_layout size + backend_enc_* + driver_diagnostic_* + layout pool
@@ -59876,17 +59876,17 @@ function glue_struct_lit_rehome_cpu_stack(): i32 {
 
 /** LP64 offsetof(struct ast_Expr, struct_lit_struct_name). PLATFORM: SHARED. */
 function pipe_expr_off_struct_lit_name(): i32 {
-  return 536;
+  return 920;
 }
 
 /** LP64 offsetof(struct ast_Expr, struct_lit_struct_name_len). PLATFORM: SHARED. */
 function pipe_expr_off_struct_lit_name_len(): i32 {
-  return 664;
+  return 1176;
 }
 
 /** LP64 offsetof(struct ast_Expr, struct_lit_num_fields). PLATFORM: SHARED. */
 function pipe_expr_off_struct_lit_num_fields(): i32 {
-  return 672;
+  return 1184;
 }
 
 /**
@@ -59932,7 +59932,7 @@ function glue_struct_layout_name_eq_c(m: *u8, k: i32, name: *u8, nlen: i32): i32
  */
 #[no_mangle]
 export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32, depth: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nf: i32 = 0;
@@ -59960,7 +59960,7 @@ export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   unsafe {
@@ -60018,7 +60018,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let soa_sz: i32 = 0;
   let vl: i32 = 0;
   let ves: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -60100,7 +60100,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     unsafe {
       nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
     }
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return 4;
     }
     if (m != (0 as *u8)) {
@@ -60176,7 +60176,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   let kind_ord: i32 = 0;
   let nt: i32 = 0;
   let elem_ref: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let vl: i32 = 0;
@@ -60225,7 +60225,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
     unsafe {
       nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
     }
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return 4;
     }
     if (m == (0 as *u8)) {
@@ -60291,8 +60291,8 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
   let current: i32 = 0;
   let max_align: i32 = 1;
   let j: i32 = 0;
-  let layout_nm: u8[128] = [];
-  let field_nm: u8[128] = [];
+  let layout_nm: u8[256] = [];
+  let field_nm: u8[256] = [];
   let is_pk: i32 = 0;
   let nlayouts: i32 = 0;
   let ftr: i32 = 0;
@@ -60504,7 +60504,7 @@ export function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i3
 export function glue_struct_layout_index_by_type_name_c(m: *u8, struct_name: *u8, nlen: i32): i32 {
   let k: i32 = 0;
   let nlayouts: i32 = 0;
-  if (m == (0 as *u8) || struct_name == (0 as *u8) || nlen <= 0 || nlen > 127) {
+  if (m == (0 as *u8) || struct_name == (0 as *u8) || nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -60613,7 +60613,7 @@ export function pipeline_expr_struct_lit_type_name_into(a: *u8, expr_ref: i32, o
   unsafe {
     ex = glue_arena_expr_at_ref(a, expr_ref);
     if (ex == (0 as *u8)) {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
       return;
     }
     base = pipe_expr_off_struct_lit_name();
@@ -60627,7 +60627,7 @@ export function pipeline_expr_struct_lit_type_name_into(a: *u8, expr_ref: i32, o
 
 /**
  * Backfill struct_lit_struct_name on anonymous STRUCT_LIT.
- * Contract: name_len in [0,127]; no-op on invalid.
+ * Contract: name_len in [0,255]; no-op on invalid.
  * wave154 pure: G.7 authority. PLATFORM: SHARED typeck contextual backfill.
  */
 #[no_mangle]
@@ -60639,7 +60639,7 @@ export function pipeline_expr_struct_lit_type_name_set(a: *u8, expr_ref: i32, na
   if (a == (0 as *u8) || name == (0 as *u8) || expr_ref <= 0) {
     return;
   }
-  if (name_len < 0 || name_len > 127) {
+  if (name_len < 0 || name_len > 255) {
     return;
   }
   unsafe {
@@ -60673,7 +60673,7 @@ export function pipeline_expr_struct_lit_type_name_set(a: *u8, expr_ref: i32, na
 #[no_mangle]
 export function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let k: i32 = 0;
   let nf: i32 = 0;
   let nlayouts: i32 = 0;
@@ -60688,7 +60688,7 @@ export function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_re
     return field_ix * 8;
   }
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     unsafe {
       nlayouts = pipeline_module_num_struct_layouts_at(m);
       nf = pipeline_module_struct_layout_num_fields(m, 0);
@@ -60718,7 +60718,7 @@ export function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_re
 #[no_mangle]
 export function pipeline_expr_struct_lit_field_type_ref_at(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let k: i32 = 0;
   let nlayouts: i32 = 0;
   let nf: i32 = 0;
@@ -60733,7 +60733,7 @@ export function pipeline_expr_struct_lit_field_type_ref_at(a: *u8, m: *u8, expr_
     return 0;
   }
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   pipeline_expr_struct_lit_type_name_into(a, expr_ref, &name[0]);
@@ -60765,7 +60765,7 @@ export function pipeline_expr_struct_lit_field_type_ref_at(a: *u8, m: *u8, expr_
 #[no_mangle]
 export function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i32): i32 {
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let k: i32 = 0;
   let nlayouts: i32 = 0;
   let sz_out: i32 = 0;
@@ -60781,7 +60781,7 @@ export function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i
     return 0;
   }
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   pipeline_expr_struct_lit_type_name_into(a, expr_ref, &name[0]);
@@ -61749,7 +61749,7 @@ function glue_field_type_atomic_sized(m: *u8, a: *u8, ftr: i32): i32 {
  */
 #[no_mangle]
 export function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -61766,7 +61766,7 @@ export function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32 
   unsafe {
     nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   unsafe {
@@ -61789,7 +61789,7 @@ export function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32 
  */
 #[no_mangle]
 export function typeck_layout_index_for_named_type_c(m: *u8, a: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -61806,7 +61806,7 @@ export function typeck_layout_index_for_named_type_c(m: *u8, a: *u8, ty_ref: i32
   unsafe {
     nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -61878,7 +61878,7 @@ export function typeck_struct_layouts_same_shape_c(m: *u8, a: *u8, la: i32, lb: 
 export function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, li: i32): void {
   let nf: i32 = 0;
   let j: i32 = 0;
-  let layout_nm: u8[128] = [];
+  let layout_nm: u8[256] = [];
   let layout_nlen: i32 = 0;
   let off0: i32 = 0;
   let off1: i32 = 0;
@@ -61886,8 +61886,8 @@ export function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, 
   let ftr1: i32 = 0;
   let al0: i32 = 0;
   let al1: i32 = 0;
-  let fn0: u8[128] = [];
-  let fn1: u8[128] = [];
+  let fn0: u8[256] = [];
+  let fn1: u8[256] = [];
   let fl0: i32 = 0;
   let fl1: i32 = 0;
   if (glue_pad_fields_warn_enabled() == 0 || module == (0 as *u8) || arena == (0 as *u8) || li < 0) {
@@ -61945,15 +61945,15 @@ export function pipeline_typeck_hot_reorder_warn_layout(module: *u8, arena: *u8,
   let nf: i32 = 0;
   let j: i32 = 0;
   let i: i32 = 0;
-  let layout_nm: u8[128] = [];
+  let layout_nm: u8[256] = [];
   let layout_nlen: i32 = 0;
   let ftr: i32 = 0;
   let sz: i32 = 0;
-  let hot_nm: u8[128] = [];
+  let hot_nm: u8[256] = [];
   let hot_len: i32 = 0;
   let ftr_c: i32 = 0;
   let sz_c: i32 = 0;
-  let cold_nm: u8[128] = [];
+  let cold_nm: u8[256] = [];
   let cold_len: i32 = 0;
   if (glue_hot_reorder_warn_enabled() == 0 || module == (0 as *u8) || arena == (0 as *u8) || li < 0) {
     return;
@@ -62387,8 +62387,8 @@ function glue_try_fold_u8_fill_index_while_elf_c(arena: *u8, elf_ctx: *u8, block
   let si: i32 = 0;
   let found_store: i32 = 0;
   let found_inc: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let i_slot: i32[1] = [];
@@ -62511,8 +62511,8 @@ function glue_try_fold_u8_sum_index_while_elf_c(arena: *u8, elf_ctx: *u8, block_
   let si: i32 = 0;
   let found_sum: i32 = 0;
   let found_inc: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let i_slot: i32[1] = [];
@@ -62988,7 +62988,7 @@ function glue_try_fold_lcg_xor_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: 
   let found_t: i32 = 0;
   let found_xor: i32 = 0;
   let found_i: i32 = 0;
-  let loop_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let n_cmp: i32 = 0;
   let unroll: i32 = 1;
@@ -63150,8 +63150,8 @@ function glue_fold_expr_is_func_param0_c(arena: *u8, mod: *u8, func_idx: i32, ex
   let plen: i32 = 0;
   let vlen: i32 = 0;
   let k: i32 = 0;
-  let pbuf: u8[128] = [];
-  let vbuf: u8[128] = [];
+  let pbuf: u8[256] = [];
+  let vbuf: u8[256] = [];
   let ko: i32 = 0;
   let np: i32 = 0;
   if (arena == (0 as *u8) || mod == (0 as *u8) || expr_ref <= 0) { return 0; }
@@ -63195,7 +63195,7 @@ function glue_fold_func_x_plus_k_chain_c(arena: *u8, mod: *u8, func_idx: i32, de
   let inner_k: i32 = 0;
   let clen: i32 = 0;
   let rk: i32 = 0;
-  let cname: u8[128] = [];
+  let cname: u8[256] = [];
   let is_ext: i32 = 0;
   let np: i32 = 0;
   let ko: i32 = 0;
@@ -63242,7 +63242,7 @@ function glue_fold_func_x_plus_k_chain_c(arena: *u8, mod: *u8, func_idx: i32, de
   unsafe {
     clen = pipeline_expr_var_name_len(arena, callee_ref);
   }
-  if (clen <= 0 || clen > 127) { return 0 - 1; }
+  if (clen <= 0 || clen > 255) { return 0 - 1; }
   unsafe {
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
   }
@@ -63269,7 +63269,7 @@ function glue_fold_affine_i_plus_k_expr_c(arena: *u8, mod: *u8, expr_ref: i32, i
   let kk: i32 = 0;
   let callee_ref: i32 = 0;
   let arg0: i32 = 0;
-  let cname: u8[128] = [];
+  let cname: u8[256] = [];
   let ko: i32 = 0;
   if (arena == (0 as *u8) || expr_ref <= 0) { return 0; }
   unsafe { rk = pipeline_expr_kind_ord_at(arena, expr_ref); }
@@ -63284,7 +63284,7 @@ function glue_fold_affine_i_plus_k_expr_c(arena: *u8, mod: *u8, expr_ref: i32, i
     unsafe { ko = pipeline_expr_kind_ord_at(arena, callee_ref); }
     if (ko != 3) { return 0; }
     unsafe { clen = pipeline_expr_var_name_len(arena, callee_ref); }
-    if (clen <= 0 || clen > 127) { return 0; }
+    if (clen <= 0 || clen > 255) { return 0; }
     unsafe { pipeline_expr_var_name_into(arena, callee_ref, &cname[0]); }
     fi = glue_module_func_index_by_name_c(mod, &cname[0], clen);
     if (fi < 0) { return 0; }
@@ -63556,8 +63556,8 @@ export function backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block
   let fold_rc: i32 = 0;
   let cond_ref: i32 = 0;
   let body_ref: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -63650,9 +63650,9 @@ export function backend_emit_for_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_r
   let cond_ref: i32 = 0;
   let step_ref: i32 = 0;
   let body_ref: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
-  let step_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
+  let step_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let step_len: i32 = 0;
@@ -63966,7 +63966,7 @@ export function glue_index_expr_struct_key_elf_c(arena: *u8, ref: i32): i64 {
   let ko: i32 = 0;
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let i: i32 = 0;
   let h: i64 = 0;
@@ -63988,7 +63988,7 @@ export function glue_index_expr_struct_key_elf_c(arena: *u8, ref: i32): i64 {
     unsafe {
       nlen = pipeline_expr_var_name_len(arena, ref);
     }
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return h;
     }
     unsafe {
@@ -65836,7 +65836,7 @@ export function pipeline_asm_emit_break_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8
   let ly: *u8 = 0 as *u8;
   let break_len: i32 = 0;
   let n: i32 = 0;
-  let lbl: u8[128] = [];
+  let lbl: u8[256] = [];
   let rc: i32 = 0;
   // Touch arena for ABI parity with residual (void)arena.
   if (arena == (0 as *u8) && elf_ctx == (0 as *u8)) {
@@ -65882,7 +65882,7 @@ export function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: 
   let ly: *u8 = 0 as *u8;
   let cont_len: i32 = 0;
   let n: i32 = 0;
-  let lbl: u8[128] = [];
+  let lbl: u8[256] = [];
   let rc: i32 = 0;
   if (arena == (0 as *u8) && elf_ctx == (0 as *u8)) {
     // no-op: ABI parity with residual (void)arena
@@ -69265,7 +69265,7 @@ export function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref:
   let scope_br: i32 = 0;
   let body_ref: i32 = 0;
   let mod: *u8 = 0 as *u8;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   if (arena == (0 as *u8) || var_ref <= 0) {
     return 0;
   }
@@ -69286,7 +69286,7 @@ export function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref:
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -69978,12 +69978,12 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
     // Stage 12.0.5: module fixed arrays → SHN_COMMON modlet (no stack).
     // LEA address into rax for INDEX base (load_to_rax decays arrays).
     if (boff < 0) {
-      let vn: u8[128] = [];
+      let vn: u8[256] = [];
       let vnlen: i32 = 0;
       unsafe {
         vnlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vnlen <= 0 || vnlen > 127) {
+      if (vnlen <= 0 || vnlen > 255) {
         return 0 - 2;
       }
       unsafe {
@@ -73285,7 +73285,7 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
 #[no_mangle]
 export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let base_ref: i32 = 0;
@@ -73309,7 +73309,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, lval_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -73356,7 +73356,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -73485,7 +73485,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
 #[no_mangle]
 export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let base_ref: i32 = 0;
@@ -73507,7 +73507,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, lval_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -73536,7 +73536,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -73825,17 +73825,17 @@ function glue_struct_layout_name_matches_type_name_c(mod: *u8, li: i32, type_nam
 #[no_mangle]
 export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let base_ref: i32 = 0;
   let base_ko: i32 = 0;
   let base_ty: i32 = 0;
   let fi: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let nfuncs: i32 = 0;
   let scope_br: i32 = 0;
   let kord: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let nsl: i32 = 0;
   let k: i32 = 0;
@@ -73844,7 +73844,7 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi2: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   let tr: i32 = 0;
   if (arena == (0 as *u8) || fa_ref <= 0) {
     return 0;
@@ -73852,7 +73852,7 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
   unsafe {
     flen = pipeline_expr_field_access_name_len(arena, fa_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return 0;
   }
   unsafe {
@@ -74195,7 +74195,7 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
  */
 #[no_mangle]
 export function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *u8, var_expr_ref: i32): i32 {
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let fi: i32 = 0;
   let pty: i32 = 0;
@@ -74221,7 +74221,7 @@ export function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -74278,7 +74278,7 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
   let holds: i32 = 0;
   let fi: i32 = 0;
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let pty: i32 = 0;
   let tk: i32 = 0;
@@ -74362,7 +74362,7 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
  */
 #[no_mangle]
 export function glue_type_ref_is_named_struct_layout_elf_c(arena: *u8, mod: *u8, ty_ref: i32): i32 {
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let ln: i32 = 0;
@@ -74437,7 +74437,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   let mod: *u8 = 0 as *u8;
   let holds: i32 = 0;
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let fi: i32 = 0;
   let nf: i32 = 0;
@@ -74466,7 +74466,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -74574,7 +74574,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
  */
 #[no_mangle]
 export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let base_off: i32 = 0;
   let base_len: i32 = 0;
@@ -74611,7 +74611,7 @@ export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref:
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return sz;
   }
   base_off = 0;
@@ -74747,7 +74747,7 @@ export function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i3
  */
 #[no_mangle]
 export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let sz: i32 = 0;
   let base_off: i32 = 0;
@@ -74771,7 +74771,7 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   base_off = 0;
@@ -75935,9 +75935,9 @@ export function glue_asm_resolve_call_target_module_c(
   let call_ord: i32 = 0;
   let callee_ord: i32 = 0;
   let base_ref: i32 = 0;
-  let base_name: u8[128] = [];
+  let base_name: u8[256] = [];
   let base_len: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let field_len: i32 = 0;
   let j: i32 = 0;
   let dm: *u8 = 0 as *u8;
@@ -75949,7 +75949,7 @@ export function glue_asm_resolve_call_target_module_c(
   let ndep: i32 = 0;
   let dep_pipe: *u8 = 0 as *u8;
   let rty: i32 = 0;
-  let cv_nm: u8[128] = [];
+  let cv_nm: u8[256] = [];
   let cv_len: i32 = 0;
   // Import kind constants (glue residual GLUE_TYPECK_IMPORT_* single authority).
   let import_binding: i32 = 1;
@@ -77116,7 +77116,7 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
  * Such names must not be used for sidecar matching; fall back to anon let path.
  * @param name_buf *u8 — name bytes; null → unusable (1)
  * @param name_len i32 — declared length; <=0 → unusable (1)
- * @return i32 — 1 if unusable; 0 if any non-zero byte in [0,min(name_len,127))
+ * @return i32 — 1 if unusable; 0 if any non-zero byte in [0,min(name_len,255))
  *
  * wave203 pure: private G.7 helper for resolve_var_stack_off (was Cap residual static).
  * PLATFORM: SHARED freestanding SKIP_TYPECK name gate.
@@ -77127,7 +77127,7 @@ function glue_block_let_name_is_unusable_c(name_buf: *u8, name_len: i32): i32 {
     return 1;
   }
   k = 0;
-  while (k < name_len && k < 127) {
+  while (k < name_len && k < 255) {
     if (name_buf[k] != 0) {
       return 0;
     }
@@ -77232,12 +77232,12 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
   let body_ref: i32 = 0;
   let li: i32 = 0;
   let nlet: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ko: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let fi: i32 = 0 - 1;
-  let lb: u8[128] = [];
+  let lb: u8[256] = [];
   let llen: i32 = 0;
   let k: i32 = 0;
   let eq: i32 = 0;
@@ -77265,7 +77265,7 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -81393,7 +81393,7 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   let ko: i32 = 0;
   let off: i32 = 0;
   let vlen: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let want_slice: i32 = 0;
   let arg_ty: i32 = 0;
   let decl_ty: i32 = 0;
@@ -82032,14 +82032,14 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
 // Why stack copy (not live arena ptr): match historical get_copy snapshot so a
 //   partial that mutates e cannot corrupt the arena row (same as Cap residual).
 // ABI: LP64 large-struct-by-value ≡ pointer-to-temp; pure passes *u8 snapshot.
-// sizeof(struct ast_Expr) = 712 (mac arm64 + Ubuntu x86_64 dual-end; seed layout).
+// sizeof(struct ast_Expr) = 1224 (Cap 4.2.8 name[256]; mac+Ubuntu dual-end).
 // Deferred: pipeline_x mega host-cc.
 // PLATFORM: SHARED — pure delegation, no arch branch.
 // ===========================================================================
 
 /** LP64 byte size of struct ast_Expr (seed/parser layout). PLATFORM: SHARED. */
 function pipeline_ast_expr_sizeof_c(): i32 {
-  return 712;
+  return 1224;
 }
 
 /**
@@ -82097,7 +82097,7 @@ export extern "C" function backend_emit_expr_method_call(arena: *u8, out: *u8, e
 #[no_mangle]
 export function pipeline_asm_emit_expr_call_c(
     arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32 {
-  // Stack snapshot of C-layout Expr (sizeof 712); matches Cap get_copy temp.
+  // Stack snapshot of C-layout Expr (sizeof 1224); matches Cap get_copy temp.
   let ebuf: u8[712] = [];
   let ep: *u8 = 0 as *u8;
   let esz: i32 = 0;
@@ -82769,7 +82769,7 @@ export function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void {
 // module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
 // keyed by Module* (same pattern as wave110 ImportEntry storage).
 // Layout of one TypeAliasEntry (136 bytes LE, ≡ C typedef TypeAliasEntry):
-//   name[128] @0 | name_len i32 @128 | target_type_ref i32 @132
+//   name[256] @0 | name_len i32 @256 | target_type_ref i32 @260
 // Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
 // Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
 // Cold twins under seed #ifndef FROM_X (malloc map, freestanding).
@@ -82784,11 +82784,11 @@ let g_pipe_ta_entries: u8[1024] = [];
 
 /**
  * Byte size of one TypeAliasEntry (name[128] + name_len + target_type_ref).
- * @return i32 - 136
+ * @return i32 - 264
  * PLATFORM: SHARED LP64 - must match C sizeof(TypeAliasEntry).
  */
 function pipe_ta_entry_size(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
@@ -82797,16 +82797,16 @@ function pipe_ta_entry_size(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_ta_off_name_len(): i32 {
-  return 128;
+  return 256;
 }
 
 /**
  * Byte offset of target_type_ref within TypeAliasEntry.
- * @return i32 - 132
+ * @return i32 - 260
  * PLATFORM: SHARED LP64.
  */
 function pipe_ta_off_target(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
@@ -83035,10 +83035,10 @@ export function pipeline_module_type_alias_alloc(module: *u8): i32 {
  * @param module *u8 - module
  * @param idx i32 - alias index
  * @param name *u8 - alias name bytes
- * @param name_len i32 - content length 1..127 (storage name[128])
+ * @param name_len i32 - content length 1..255 (storage name[256])
  * @param target_type_ref i32 - target type ref
  * @return void
- * wave582 Cap residual: name content max 127 (match AST / TypeAliasEntry).
+ * wave582 Cap residual: name content max 255 (match AST / TypeAliasEntry).
  * PLATFORM: SHARED - ≡ Cap pipeline_module_type_alias_set; DEBUG_PIPE notes cold-only.
  */
 #[no_mangle]
@@ -83053,7 +83053,7 @@ export function pipeline_module_type_alias_set(module: *u8, idx: i32, name: *u8,
   if (name_len <= 0) {
     return;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return;
   }
   let s: i32 = pipe_ta_find_slot(module);
@@ -83195,10 +83195,10 @@ export function pipeline_module_num_type_aliases_at(module: *u8): i32 {
 // Historical Cap residual grew ModuleSidecar.module_enums GrowVec (static
 // module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
 // keyed by Module* (same pattern as wave110 ImportEntry / wave262 TypeAlias).
-// Layout of one ModuleEnumEntry (33932 bytes LE, ≡ C typedef ModuleEnumEntry):
-//   name[128] @0 | name_len i32 @128 | num_variants i32 @132
-//   | variant_name[256][128] @136 | variant_name_len[256] i32 @32904
-//   | is_export i32 @33928
+// Layout of one ModuleEnumEntry (66828 bytes LE, ≡ C typedef ModuleEnumEntry):
+//   name[256] @0 | name_len i32 @256 | num_variants i32 @260
+//   | variant_name[256][256] @264 | variant_name_len[256] i32 @65800
+//   | is_export i32 @66824
 // Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
 // Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
 // Soft-sync: when header num_module_enums@64 == 0, pure n forced 0 (parse/module reset).
@@ -83215,11 +83215,11 @@ let g_pipe_en_entries: u8[1024] = [];
 
 /**
  * Byte size of one ModuleEnumEntry (name + lens + 256 variant rows + lens + export).
- * @return i32 - 33932
+ * @return i32 - 66828
  * PLATFORM: SHARED LP64 - must match C sizeof(ModuleEnumEntry).
  */
 function pipe_en_entry_size(): i32 {
-  return 33932;
+  return 66828;
 }
 
 /**
@@ -83233,42 +83233,42 @@ function pipe_en_max_variants(): i32 {
 
 /**
  * Byte offset of name_len within ModuleEnumEntry.
- * @return i32 - 128
+ * @return i32 - 256
  */
 function pipe_en_off_name_len(): i32 {
-  return 128;
+  return 256;
 }
 
 /**
  * Byte offset of num_variants within ModuleEnumEntry.
- * @return i32 - 132
+ * @return i32 - 260
  */
 function pipe_en_off_num_variants(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
  * Byte offset of variant_name[0][0] within ModuleEnumEntry.
- * @return i32 - 136
+ * @return i32 - 264
  */
 function pipe_en_off_variant_name0(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
  * Byte offset of variant_name_len[0] within ModuleEnumEntry.
- * @return i32 - 32904
+ * @return i32 - 65800
  */
 function pipe_en_off_variant_name_len0(): i32 {
-  return 32904;
+  return 65800;
 }
 
 /**
  * Byte offset of is_export within ModuleEnumEntry.
- * @return i32 - 33928
+ * @return i32 - 66824
  */
 function pipe_en_off_is_export(): i32 {
-  return 33928;
+  return 66824;
 }
 
 /**
@@ -83557,9 +83557,9 @@ export function pipeline_module_enum_alloc(module: *u8): i32 {
  * @param module *u8 - module
  * @param idx i32 - enum index
  * @param bytes *u8 - name bytes
- * @param len i32 - content length 1..127 (storage name[128])
+ * @param len i32 - content length 1..255 (storage name[256])
  * @return void
- * wave582 Cap residual: name content max 127. PLATFORM: SHARED.
+ * wave582 Cap residual: name content max 255. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_set_name(module: *u8, idx: i32, bytes: *u8, len: i32): void {
@@ -83572,7 +83572,7 @@ export function pipeline_module_enum_set_name(module: *u8, idx: i32, bytes: *u8,
   if (len <= 0) {
     return;
   }
-  if (len > 127) {
+  if (len > 255) {
     return;
   }
   pipe_en_soft_sync(module);
@@ -83658,7 +83658,7 @@ export function pipeline_module_enum_is_export_at(module: *u8, idx: i32): i32 {
  * @param bytes *u8 - variant name bytes
  * @param len i32 - content length 1..127
  * @return i32 - variant tag or -1 (full / OOB / null)
- * wave582 Cap residual: variant rows u8[128]; content cap 127. PLATFORM: SHARED.
+ * wave582 Cap residual: variant rows u8[128]; content cap 255. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes: *u8, len: i32): i32 {
@@ -83671,7 +83671,7 @@ export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes
   if (len <= 0) {
     return 0 - 1;
   }
-  if (len > 127) {
+  if (len > 255) {
     return 0 - 1;
   }
   pipe_en_soft_sync(module);
@@ -83760,7 +83760,7 @@ function pipe_en_variant_tag_in_entry(e: *u8, variant_name: *u8, variant_len: i3
     let loff: i32 = pipe_en_off_variant_name_len0() + vi * 4;
     let vlen: i32 = pipe_load_i32_le(e, loff);
     if (vlen == variant_len) {
-      let voff: i32 = pipe_en_off_variant_name0() + vi * 128;
+      let voff: i32 = pipe_en_off_variant_name0() + vi * 256;
       let j: i32 = 0;
       let ok: i32 = 1;
       while (j < variant_len) {
@@ -84038,7 +84038,7 @@ export function pipeline_module_enum_variant_name_byte_at(module: *u8, idx: i32,
   if (off >= vlen) {
     return 0 as u8;
   }
-  let voff: i32 = pipe_en_off_variant_name0() + variant_idx * 128;
+  let voff: i32 = pipe_en_off_variant_name0() + variant_idx * 256;
   let b: u8 = 0 as u8;
   unsafe {
     b = e[voff + off];
@@ -84078,10 +84078,10 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
     if (elen <= 0) {
       return 0;
     }
-    if (elen > 127) {
+    if (elen > 255) {
       elen = 127;
     }
-    let tmp: u8[128] = [];
+    let tmp: u8[256] = [];
     unsafe {
       pipeline_expr_var_name_into(arena, base_ref, &tmp[0]);
     }
@@ -84103,10 +84103,10 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
     if (elen2 <= 0) {
       return 0;
     }
-    if (elen2 > 127) {
-      elen2 = 127;
+    if (elen2 > 255) {
+      elen2 = 255;
     }
-    let tmp2: u8[128] = [];
+    let tmp2: u8[256] = [];
     unsafe {
       pipeline_expr_field_access_name_into(arena, base_ref, &tmp2[0]);
     }
@@ -84156,7 +84156,7 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   unsafe {
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
   }
-  let ename: u8[128] = [];
+  let ename: u8[256] = [];
   let elen: i32 = pipe_en_name_from_fa_base(a, base_ref, &ename[0]);
   if (elen <= 0) {
     return;
@@ -84168,10 +84168,10 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   if (vlen <= 0) {
     return;
   }
-  if (vlen > 127) {
+  if (vlen > 255) {
     return;
   }
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &vname[0]);
   }
@@ -84217,7 +84217,7 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   unsafe {
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
   }
-  let ename: u8[128] = [];
+  let ename: u8[256] = [];
   let elen: i32 = pipe_en_name_from_fa_base(a, base_ref, &ename[0]);
   if (elen <= 0) {
     return;
@@ -84229,10 +84229,10 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   if (vlen <= 0) {
     return;
   }
-  if (vlen > 127) {
+  if (vlen > 255) {
     return;
   }
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &vname[0]);
   }
@@ -84288,8 +84288,8 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
 // module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
 // keyed by Module* (same pattern as wave110 Import / wave262 TypeAlias / wave264 Enum).
 // Layout of one TopLevelLetEntry (148 bytes LE, ≡ C typedef TopLevelLetEntry):
-//   name[128] @0 | name_len i32 @128 | type_ref i32 @132 | init_ref i32 @136
-//   | is_const i32 @140 | is_export i32 @144
+//   name[256] @0 | name_len i32 @256 | type_ref i32 @260 | init_ref i32 @264
+//   | is_const i32 @268 | is_export i32 @272
 // Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
 // Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
 // Soft-sync: when header num_top_level_lets@12 == 0, pure n forced 0.
@@ -84309,11 +84309,11 @@ let g_pipe_tl_entries: u8[1024] = [];
 
 /**
  * Byte size of one TopLevelLetEntry (name + 5 i32 fields).
- * @return i32 - 148
+ * @return i32 - 276
  * PLATFORM: SHARED LP64 - must match C sizeof(TopLevelLetEntry).
  */
 function pipe_tl_entry_size(): i32 {
-  return 148;
+  return 276;
 }
 
 /**
@@ -84321,23 +84321,23 @@ function pipe_tl_entry_size(): i32 {
  * @return i32 - 128
  */
 function pipe_tl_off_name_len(): i32 {
-  return 128;
+  return 256;
 }
 
 /**
  * Byte offset of type_ref within TopLevelLetEntry.
- * @return i32 - 132
+ * @return i32 - 260
  */
 function pipe_tl_off_type_ref(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
  * Byte offset of init_ref within TopLevelLetEntry.
- * @return i32 - 136
+ * @return i32 - 264
  */
 function pipe_tl_off_init_ref(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
@@ -84345,15 +84345,15 @@ function pipe_tl_off_init_ref(): i32 {
  * @return i32 - 140
  */
 function pipe_tl_off_is_const(): i32 {
-  return 140;
+  return 268;
 }
 
 /**
  * Byte offset of is_export within TopLevelLetEntry.
- * @return i32 - 144
+ * @return i32 - 272
  */
 function pipe_tl_off_is_export(): i32 {
-  return 144;
+  return 272;
 }
 
 /**
@@ -84641,12 +84641,12 @@ export function pipeline_module_top_level_let_alloc(module: *u8): i32 {
  * @param module *u8 - module
  * @param idx i32 - let index
  * @param name *u8 - name bytes
- * @param name_len i32 - content length 1..127
+ * @param name_len i32 - content length 1..255
  * @param type_ref i32 - type ref
  * @param init_ref i32 - init expr ref
  * @param is_const i32 - 0/1 const
  * @return void
- * wave581 Cap residual: name content max 127. PLATFORM: SHARED.
+ * wave581 Cap residual: name content max 255. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_top_level_let_set(module: *u8, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void {
@@ -84659,7 +84659,7 @@ export function pipeline_module_top_level_let_set(module: *u8, idx: i32, name: *
   if (name_len <= 0) {
     return;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return;
   }
   pipe_tl_soft_sync(module);
@@ -85094,7 +85094,7 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
   while (tl < n) {
     let name_len: i32 = pipeline_module_top_level_let_name_len(module, tl);
     if (name_len > 0) {
-      if (name_len <= 127) {
+      if (name_len <= 255) {
         let type_ref: i32 = pipeline_module_top_level_let_type_ref(module, tl);
         let init_ref: i32 = pipeline_module_top_level_let_init_ref(module, tl);
         // Skip COMMON-bound fixed arrays (match prepare/sum/register).
@@ -85174,7 +85174,7 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
           }
         }
         if (skip_common_arr == 0) {
-          let name_buf: u8[128] = [];
+          let name_buf: u8[256] = [];
           let k: i32 = 0;
           while (k < name_len) {
             name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
@@ -85244,7 +85244,7 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
       }
       let name_len: i32 = pipeline_module_top_level_let_name_len(mod, tl);
       if (skip == 0 && name_len > 0) {
-        let name_buf: u8[128] = [];
+        let name_buf: u8[256] = [];
         let k: i32 = 0;
         while (k < name_len) {
           name_buf[k] = pipeline_module_top_level_let_name_byte_at(mod, tl, k) as u8;
@@ -85292,15 +85292,15 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
 //   keyed by Module* (same pattern as wave110 Import / wave262 TypeAlias /
 //   wave264 Enum / wave265 TopLevelLet).
 // Layout entry pure (168 bytes LE):
-//   name[128]@0 | name_len@128 | field_base@132 | num_fields@136
-//   | allow_padding@140 | soa@144 | packed@148 | repr_compatible@152
+//   name[256]@0 | name_len@256 | field_base@260 | num_fields@264
+//   | allow_padding@268 | soa@272 | packed@276 | repr_compatible@280
 //   | is_export@156 | tp_base@160 | tp_count@164
 //   (C ast_StructLayout is 160B; pure extends +8 for type-param meta formerly
 //    in LayoutTypeParamMeta GrowVec; Cap GrowVec residual unused for product.)
 // Field entry (144 bytes LE ≡ StructLayoutFieldEntry):
-//   name[128]@0 | name_len@128 | field_offset@132 | type_ref@136 | field_align@140
+//   name[256]@0 | name_len@256 | field_offset@260 | type_ref@264 | field_align@268
 // Type-param entry (132 bytes LE ≡ LayoutTypeParamEntry):
-//   name[128]@0 | name_len@128
+//   name[256]@0 | name_len@256
 // Soft-reset: ast_pool_module_reset -> storage_reset (zero live n for layouts/
 //   fields/tp, keep caps). Soft-sync: header num_struct_layouts@16 == 0 -> pure n=0.
 // Sizing: next_field_offset uses pure glue_type_size_simple / align_simple /
@@ -85322,52 +85322,52 @@ let g_pipe_sl_tp: u8[1024] = [];
 
 /**
  * Byte size of one pure StructLayout entry (C 160 + tp meta 8).
- * @return i32 - 168
+ * @return i32 - 296
  * PLATFORM: SHARED LP64.
  */
 function pipe_sl_layout_size(): i32 {
-  return 168;
+  return 296;
 }
 
 /**
  * Byte size of one StructLayoutFieldEntry.
- * @return i32 - 144
+ * @return i32 - 272
  * PLATFORM: SHARED LP64 - must match C sizeof(StructLayoutFieldEntry).
  */
 function pipe_sl_field_size(): i32 {
-  return 144;
+  return 272;
 }
 
 /**
  * Byte size of one LayoutTypeParamEntry.
- * @return i32 - 132
+ * @return i32 - 260
  * PLATFORM: SHARED LP64 - must match C sizeof(LayoutTypeParamEntry).
  */
 function pipe_sl_tp_size(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
  * Offsets within pure layout entry.
  */
-function pipe_sl_off_name_len(): i32 { return 128; }
-function pipe_sl_off_field_base(): i32 { return 132; }
-function pipe_sl_off_num_fields(): i32 { return 136; }
-function pipe_sl_off_allow_padding(): i32 { return 140; }
-function pipe_sl_off_soa(): i32 { return 144; }
-function pipe_sl_off_packed(): i32 { return 148; }
-function pipe_sl_off_repr_compatible(): i32 { return 152; }
-function pipe_sl_off_is_export(): i32 { return 156; }
-function pipe_sl_off_tp_base(): i32 { return 160; }
-function pipe_sl_off_tp_count(): i32 { return 164; }
+function pipe_sl_off_name_len(): i32 { return 256; }
+function pipe_sl_off_field_base(): i32 { return 260; }
+function pipe_sl_off_num_fields(): i32 { return 264; }
+function pipe_sl_off_allow_padding(): i32 { return 268; }
+function pipe_sl_off_soa(): i32 { return 272; }
+function pipe_sl_off_packed(): i32 { return 276; }
+function pipe_sl_off_repr_compatible(): i32 { return 280; }
+function pipe_sl_off_is_export(): i32 { return 284; }
+function pipe_sl_off_tp_base(): i32 { return 288; }
+function pipe_sl_off_tp_count(): i32 { return 292; }
 
 /**
  * Offsets within field entry.
  */
-function pipe_sl_foff_name_len(): i32 { return 128; }
-function pipe_sl_foff_offset(): i32 { return 132; }
-function pipe_sl_foff_type_ref(): i32 { return 136; }
-function pipe_sl_foff_align(): i32 { return 140; }
+function pipe_sl_foff_name_len(): i32 { return 256; }
+function pipe_sl_foff_offset(): i32 { return 260; }
+function pipe_sl_foff_type_ref(): i32 { return 264; }
+function pipe_sl_foff_align(): i32 { return 268; }
 
 /**
  * LP64 offsetof(struct ast_Module, num_struct_layouts) == 16.
@@ -85905,7 +85905,7 @@ export function pipeline_module_struct_layout_reset_slot(module: *u8, idx: i32):
 }
 
 /**
- * Set layout name (content 1..127).
+ * Set layout name (content 1..255).
  * @param module *u8 - module
  * @param idx i32 - layout index
  * @param bytes *u8 - name bytes
@@ -85924,7 +85924,7 @@ export function pipeline_module_struct_layout_set_name(module: *u8, idx: i32, by
   if (len <= 0) {
     return;
   }
-  if (len > 127) {
+  if (len > 255) {
     return;
   }
   pipe_sl_soft_sync(module);
@@ -85969,7 +85969,7 @@ export function pipeline_module_struct_layout_set_field(module: *u8, li: i32, j:
   if (fname_len <= 0) {
     return;
   }
-  if (fname_len > 127) {
+  if (fname_len > 255) {
     return;
   }
   if (j < 0) {
@@ -86038,7 +86038,7 @@ export function pipeline_module_struct_layout_name_into(module: *u8, idx: i32, o
   }
   if (module == 0 as *u8) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
@@ -86046,19 +86046,19 @@ export function pipeline_module_struct_layout_name_into(module: *u8, idx: i32, o
   let s: i32 = pipe_sl_find_slot(module);
   if (s < 0) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   let sl: *u8 = pipe_sl_layout_at(s, idx);
   if (sl == 0 as *u8) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   unsafe {
-    memcpy(out64, sl, 128 as usize);
+    memcpy(out64, sl, 256 as usize);
   }
 }
 
@@ -86165,7 +86165,7 @@ export function pipeline_module_struct_layout_field_type_ref(module: *u8, li: i3
 }
 
 /**
- * Read field name length (content 1..127 valid).
+ * Read field name length (content 1..255 valid).
  * @param module *u8 - module
  * @param li i32 - layout index
  * @param j i32 - field index
@@ -86182,7 +86182,7 @@ export function pipeline_module_struct_layout_field_name_len(module: *u8, li: i3
   }
   let fl: i32 = pipe_load_i32_le(fe, pipe_sl_foff_name_len());
   if (fl > 0) {
-    if (fl <= 127) {
+    if (fl <= 255) {
       return fl;
     }
   }
@@ -86204,19 +86204,19 @@ export function pipeline_module_struct_layout_field_name_into(module: *u8, li: i
   }
   if (j < 0) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   let fe: *u8 = pipe_sl_field_entry(module, li, j, 0);
   if (fe == 0 as *u8) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   unsafe {
-    memcpy(out64, fe, 128 as usize);
+    memcpy(out64, fe, 256 as usize);
   }
 }
 
@@ -86306,7 +86306,7 @@ export function pipeline_module_struct_layout_set_field_align(module: *u8, li: i
  * @param module *u8 - module
  * @param li i32 - layout index
  * @param name *u8 - param name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @return i32 - 0 ok, -1 fail
  * PLATFORM: SHARED.
  */
@@ -86324,7 +86324,7 @@ export function pipeline_module_struct_layout_append_type_param(module: *u8, li:
   if (name_len <= 0) {
     return 0 - 1;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0 - 1;
   }
   pipe_sl_soft_sync(module);
@@ -86452,7 +86452,7 @@ export function pipeline_module_struct_layout_type_param_name_len(module: *u8, l
   let ent: *u8 = tbase + (abs * pipe_sl_tp_size());
   let nl: i32 = pipe_load_i32_le(ent, 128);
   if (nl > 0) {
-    if (nl <= 127) {
+    if (nl <= 255) {
       return nl;
     }
   }
@@ -86473,7 +86473,7 @@ export function pipeline_module_struct_layout_type_param_name_into(module: *u8, 
     return;
   }
   unsafe {
-    memset(out64, 0, 128 as usize);
+    memset(out64, 0, 256 as usize);
   }
   if (module == 0 as *u8) {
     return;
@@ -86518,7 +86518,7 @@ export function pipeline_module_struct_layout_type_param_name_into(module: *u8, 
     return;
   }
   unsafe {
-    memcpy(out64, ent, 128 as usize);
+    memcpy(out64, ent, 256 as usize);
   }
 }
 
@@ -86830,7 +86830,7 @@ export function pipeline_struct_layout_next_field_offset(m: *u8, a: *u8, layout_
 //   block_refs/slot_bases). Product pure owns 64-slot maps keyed by AsmFuncCtx*
 //   (same pattern as wave114 asm_ctx_loop_*).
 // Local entry pure (136 bytes LE ≡ C AsmLocalSlotEntry):
-//   name[128]@0 | name_len@128 | offset@132
+//   name[256]@0 | name_len@256 | offset@132
 // Block tables: parallel i32 arrays (block_ref, slot_base).
 // Reset zeros live n (keeps malloc capacity); local_reset also clears block slots.
 // Cap residual: asm_ctx_local_find_offset_scoped (bootstrap_glue) still host-cc;
@@ -86850,11 +86850,11 @@ let g_pipe_al_bbases: u8[512] = [];
 
 /**
  * Byte size of one pure AsmLocalSlotEntry.
- * @return i32 - 136
+ * @return i32 - 264
  * PLATFORM: SHARED LP64 - must match C sizeof(AsmLocalSlotEntry).
  */
 function pipe_al_entry_size(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
@@ -86868,8 +86868,8 @@ function pipe_al_max_slots(): i32 {
 /**
  * Offsets within local entry.
  */
-function pipe_al_off_name_len(): i32 { return 128; }
-function pipe_al_off_offset(): i32 { return 132; }
+function pipe_al_off_name_len(): i32 { return 256; }
+function pipe_al_off_offset(): i32 { return 260; }
 
 /**
  * Find map slot for AsmFuncCtx key (create optional).
@@ -87143,8 +87143,8 @@ export function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset:
     memset(base, 0, pipe_al_entry_size() as usize);
   }
   let n: i32 = name_len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let k: i32 = 0;
   while (k < n) {
@@ -87163,7 +87163,7 @@ export function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset:
  * Name length of local slot idx (0 if OOB).
  * @param ctx *u8 - AsmFuncCtx* key
  * @param idx i32 - local index
- * @return i32 - stored name_len (may exceed 127 if historical clamp only on bytes)
+ * @return i32 - stored name_len (may exceed 255 if historical clamp only on bytes)
  * wave267 pure: G.7 single product authority.
  * PLATFORM: SHARED.
  */
@@ -87232,7 +87232,7 @@ export function asm_ctx_local_name_copy64(ctx: *u8, idx: i32, dst: *u8): void {
     return;
   }
   unsafe {
-    memset(dst, 0, 128 as usize);
+    memset(dst, 0, 256 as usize);
   }
   let s: i32 = pipe_al_find(ctx, 0);
   if (s < 0) {
@@ -87244,8 +87244,8 @@ export function asm_ctx_local_name_copy64(ctx: *u8, idx: i32, dst: *u8): void {
   }
   let nlen: i32 = pipe_load_i32_le(ent, pipe_al_off_name_len());
   let n: i32 = nlen;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let k: i32 = 0;
   while (k < n) {
@@ -87304,7 +87304,7 @@ export function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i
         let k: i32 = 0;
         let ok: i32 = 1;
         while (k < name_len) {
-          // Compare against stored bytes (clamp 127); beyond clamp must be zero names only if name_len>127 rare.
+          // Compare against stored bytes (clamp 255); beyond clamp must be zero names only if name_len>255 rare.
           let eb: u8 = 0 as u8;
           if (k < 127) {
             unsafe { eb = ent[k]; }
@@ -87507,7 +87507,7 @@ function pipe_asm_ctx_module_ref(ctx: *u8): *u8 {
  * PLATFORM: SHARED freestanding nest ZST · LINUX gold.
  */
 function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -87534,7 +87534,7 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
   unsafe {
     nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   // Strip module prefix: "heap.PageMmapHeap" -> "PageMmapHeap".
@@ -87664,7 +87664,7 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
   let elem_ref: i32 = 0;
   let ek: i32 = 0;
   let soa_sz: i32 = 0;
-  let ename: u8[128] = [];
+  let ename: u8[256] = [];
   let elen: i32 = 0;
   let nlayouts: i32 = 0;
   let lk: i32 = 0;
@@ -87777,7 +87777,7 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let ek: i32 = 0;
   let bytes: i32 = 0;
   let lanes: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let cur: i32 = 0;
   let prod: i32 = 0;
@@ -87836,7 +87836,7 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
         nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
       }
       // Strip one module prefix so "heap.PageMmapHeap" matches dep "PageMmapHeap".
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         dot2 = 0 - 1;
         ji = 0;
         while (ji < nlen) {
@@ -88172,7 +88172,7 @@ export function asm_ctx_ensure_block_locals(ctx: *u8, arena: *u8, block_ref: i32
   let nlen: i32 = 0;
   let type_ref: i32 = 0;
   let init_ref: i32 = 0;
-  let name_buf: u8[128] = [];
+  let name_buf: u8[256] = [];
   let nconst: i32 = 0;
   let nlet: i32 = 0;
   let prev: i32 = 0;
@@ -88701,8 +88701,8 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
 // =============================================================================
 // G.7 product authority for type pool cold accessors (was host-cc residual
 // ast_pool_type.c ~416 LOC). dual-export ban: pure T; pipeline_x U.
-// Type LE: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
-//   region_label[128]@144 region_label_len@272 size=276
+// Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
+//   region_label[256]@272 region_label_len@528 size=532
 // Cap residual: pipeline_arena_type_ptr/alloc via unsafe wrappers only.
 // PLATFORM: SHARED freestanding type pool · LINUX gold · MACOS co-path.
 // =============================================================================
@@ -88710,7 +88710,7 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
 function pipe_ty_ord_named(): i32 { return 8; }
 function pipe_ty_ord_ptr(): i32 { return 9; }
 function pipe_ty_ord_slice(): i32 { return 11; }
-function pipe_ty_slot_size(): i32 { return 276; }
+function pipe_ty_slot_size(): i32 { return 532; }
 
 /**
  * Clamp kind ordinal to TypeKind range; invalid -> TYPE_I32 (0).
@@ -88729,7 +88729,7 @@ function pipe_ty_kind_from_ord(ord: i32): i32 {
 }
 
 /**
- * Zero one Type slot (276 bytes).
+ * Zero one Type slot (532 bytes).
  * @param t *u8 - Type*; null -> no-op
  * PLATFORM: SHARED.
  */
@@ -88885,10 +88885,10 @@ export function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8):
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 132);
+  let n: i32 = pipe_load_i32_le(t, pipe_ar_ty_name_len());
   let cn: i32 = n;
-  if (cn > 64) {
-    cn = 64;
+  if (cn > 255) {
+    cn = 255;
   }
   if (cn > 0) {
     pipe_ty_copy_bytes(out64, t + 4, cn);
@@ -88914,16 +88914,16 @@ export function pipeline_type_region_label_into(arena: *u8, ref: i32, out64: *u8
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 272);
+  let n: i32 = pipe_load_i32_le(t, 528);
   if (n <= 0) {
     return 0;
   }
   let cn: i32 = n;
-  if (cn > 64) {
-    cn = 64;
+  if (cn > 255) {
+    cn = 255;
   }
   if (cn > 0) {
-    pipe_ty_copy_bytes(out64, t + 144, cn);
+    pipe_ty_copy_bytes(out64, t + 272, cn);
   }
   return n;
 }
@@ -88942,7 +88942,7 @@ export function pipeline_type_region_label_len_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 272);
+  let n: i32 = pipe_load_i32_le(t, 528);
   if (n > 0) {
     return n;
   }
@@ -88967,7 +88967,7 @@ export function pipeline_type_set_region_label_at(arena: *u8, ref: i32, label: *
   if (label_len <= 0) {
     return 0;
   }
-  if (label_len > 127) {
+  if (label_len > 255) {
     return 0;
   }
   let t: *u8 = pipe_ty_slot_at(arena, ref);
@@ -88987,8 +88987,8 @@ export function pipeline_type_set_region_label_at(arena: *u8, ref: i32, label: *
     }
     z = z + 1;
   }
-  pipe_ty_copy_bytes(t + 144, label, label_len);
-  pipe_store_i32_le(t, 272, label_len);
+  pipe_ty_copy_bytes(t + 272, label, label_len);
+  pipe_store_i32_le(t, 528, label_len);
   return 1;
 }
 
@@ -89011,7 +89011,7 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
   if (region_len < 0) {
     return 0;
   }
-  if (region_len > 127) {
+  if (region_len > 255) {
     return 0;
   }
   if (region_len > 0) {
@@ -89031,26 +89031,26 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 136) != elem_ref) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_elem()) != elem_ref) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 140) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_arr()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 132) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 272) != region_len) {
+    if (pipe_load_i32_le(t, 528) != region_len) {
       k = k + 1;
       continue;
     }
     if (region_len == 0) {
       return k;
     }
-    if (pipe_ty_bytes_eq(t + 144, reg_lab, region_len) != 0) {
+    if (pipe_ty_bytes_eq(t + 272, reg_lab, region_len) != 0) {
       return k;
     }
     k = k + 1;
@@ -89065,11 +89065,11 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, pipe_ty_ord_slice());
-  pipe_store_i32_le(t2, 136, elem_ref);
+  pipe_store_i32_le(t2, pipe_ar_ty_elem(), elem_ref);
   if (region_len > 0) {
     if (reg_lab != 0 as *u8) {
-      pipe_ty_copy_bytes(t2 + 144, reg_lab, region_len);
-      pipe_store_i32_le(t2, 272, region_len);
+      pipe_ty_copy_bytes(t2 + 272, reg_lab, region_len);
+      pipe_store_i32_le(t2, 528, region_len);
     }
   }
   return k;
@@ -89097,7 +89097,7 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
   if (region_len < 0) {
     return 0;
   }
-  if (region_len > 127) {
+  if (region_len > 255) {
     return 0;
   }
   if (region_len > 0) {
@@ -89117,26 +89117,26 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 136) != elem_ref) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_elem()) != elem_ref) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 140) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_arr()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 132) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 272) != region_len) {
+    if (pipe_load_i32_le(t, 528) != region_len) {
       k = k + 1;
       continue;
     }
     if (region_len == 0) {
       return k;
     }
-    if (pipe_ty_bytes_eq(t + 144, reg_lab, region_len) != 0) {
+    if (pipe_ty_bytes_eq(t + 272, reg_lab, region_len) != 0) {
       return k;
     }
     k = k + 1;
@@ -89151,11 +89151,11 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, pipe_ty_ord_ptr());
-  pipe_store_i32_le(t2, 136, elem_ref);
+  pipe_store_i32_le(t2, pipe_ar_ty_elem(), elem_ref);
   if (region_len > 0) {
     if (reg_lab != 0 as *u8) {
-      pipe_ty_copy_bytes(t2 + 144, reg_lab, region_len);
-      pipe_store_i32_le(t2, 272, region_len);
+      pipe_ty_copy_bytes(t2 + 272, reg_lab, region_len);
+      pipe_store_i32_le(t2, 528, region_len);
     }
   }
   return k;
@@ -89192,7 +89192,7 @@ export function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(t, 136);
+  return pipe_load_i32_le(t, pipe_ar_ty_elem());
 }
 
 /**
@@ -89211,8 +89211,8 @@ export function pipeline_type_set_elem_array_size_at(arena: *u8, ref: i32, elem_
   if (t == 0 as *u8) {
     return 0;
   }
-  pipe_store_i32_le(t, 136, elem_ref);
-  pipe_store_i32_le(t, 140, array_size);
+  pipe_store_i32_le(t, pipe_ar_ty_elem(), elem_ref);
+  pipe_store_i32_le(t, pipe_ar_ty_arr(), array_size);
   return 1;
 }
 
@@ -89230,7 +89230,7 @@ export function pipeline_type_array_size_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(t, 140);
+  return pipe_load_i32_le(t, pipe_ar_ty_arr());
 }
 
 /**
@@ -89259,9 +89259,9 @@ export function pipeline_type_ensure_by_kind_ord(a: *u8, kind_ord: i32): i32 {
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
       if (pipe_load_i32_le(t, 0) == kind) {
-        if (pipe_load_i32_le(t, 132) == 0) {
-          if (pipe_load_i32_le(t, 136) == 0) {
-            if (pipe_load_i32_le(t, 140) == 0) {
+        if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) == 0) {
+          if (pipe_load_i32_le(t, pipe_ar_ty_elem()) == 0) {
+            if (pipe_load_i32_le(t, pipe_ar_ty_arr()) == 0) {
               return k;
             }
           }
@@ -89324,7 +89324,7 @@ export function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32, kind_ord:
  * @param a *u8 - ASTArena*
  * @param ref i32 - type ref
  * @param name *u8 - name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @return i32 - 1 ok, 0 fail
  * wave270 pure Cap leave.
  * PLATFORM: SHARED.
@@ -89343,7 +89343,7 @@ export function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_le
   if (name_len <= 0) {
     return 0;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0;
   }
   let nt: i32 = pipe_ty_num_types(a);
@@ -89356,7 +89356,7 @@ export function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_le
   }
   pipe_ty_zero_slot(t);
   pipe_store_i32_le(t, 0, pipe_ty_ord_named());
-  pipe_store_i32_le(t, 132, name_len);
+  pipe_store_i32_le(t, pipe_ar_ty_name_len(), name_len);
   pipe_ty_copy_bytes(t + 4, name, name_len);
   return 1;
 }
@@ -89397,8 +89397,8 @@ export function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: 
   }
   pipe_ty_zero_slot(t);
   pipe_store_i32_le(t, 0, pipe_ty_kind_from_ord(kind_ord));
-  pipe_store_i32_le(t, 136, elem_ref);
-  pipe_store_i32_le(t, 140, array_size);
+  pipe_store_i32_le(t, pipe_ar_ty_elem(), elem_ref);
+  pipe_store_i32_le(t, pipe_ar_ty_arr(), array_size);
   return 1;
 }
 
@@ -89406,7 +89406,7 @@ export function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: 
  * Find or allocate TYPE_NAMED by name.
  * @param a *u8 - ASTArena*
  * @param name *u8 - name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @return i32 - type ref or 0
  * wave270 pure Cap leave.
  * PLATFORM: SHARED.
@@ -89422,7 +89422,7 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
   if (name_len <= 0) {
     return 0;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0;
   }
   let nt: i32 = pipe_ty_num_types(a);
@@ -89431,7 +89431,7 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
       if (pipe_load_i32_le(t, 0) == pipe_ty_ord_named()) {
-        if (pipe_load_i32_le(t, 132) == name_len) {
+        if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) == name_len) {
           if (pipe_ty_bytes_eq(t + 4, name, name_len) != 0) {
             return k;
           }
@@ -89450,7 +89450,7 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, pipe_ty_ord_named());
-  pipe_store_i32_le(t2, 132, name_len);
+  pipe_store_i32_le(t2, pipe_ar_ty_name_len(), name_len);
   pipe_ty_copy_bytes(t2 + 4, name, name_len);
   return k;
 }
@@ -89484,10 +89484,10 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
       if (pipe_load_i32_le(t, 0) == kind) {
-        if (pipe_load_i32_le(t, 136) == elem_ref) {
-          if (pipe_load_i32_le(t, 140) == array_size) {
-            if (pipe_load_i32_le(t, 132) == 0) {
-              if (pipe_load_i32_le(t, 272) == 0) {
+        if (pipe_load_i32_le(t, pipe_ar_ty_elem()) == elem_ref) {
+          if (pipe_load_i32_le(t, pipe_ar_ty_arr()) == array_size) {
+            if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) == 0) {
+              if (pipe_load_i32_le(t, 528) == 0) {
                 return k;
               }
             }
@@ -89507,8 +89507,8 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, kind);
-  pipe_store_i32_le(t2, 136, elem_ref);
-  pipe_store_i32_le(t2, 140, array_size);
+  pipe_store_i32_le(t2, pipe_ar_ty_elem(), elem_ref);
+  pipe_store_i32_le(t2, pipe_ar_ty_arr(), array_size);
   return k;
 }
 
@@ -90061,8 +90061,14 @@ function pipe_pctx_off_current_codegen_module(): i32 { return 8389720; }
 function pipe_pctx_off_current_codegen_arena(): i32 { return 8389728; }
 function pipe_pctx_off_current_codegen_dep_index(): i32 { return 8389736; }
 function pipe_pctx_off_current_codegen_prefix_mirror(): i32 { return 8389740; }
-function pipe_pctx_off_current_codegen_prefix_len(): i32 { return 8389868; }
-function pipe_pctx_off_asm_entry_module_only(): i32 { return 8389872; }
+function pipe_pctx_off_current_codegen_prefix_len(): i32 { return 8389996; }
+function pipe_pctx_off_asm_entry_module_only(): i32 { return 8390000; }
+
+/** Byte size of PipelineDepCtx (Cap 4.2.8 name mirrors [256]). PLATFORM: SHARED LP64. */
+export function pipeline_sizeof_dep_ctx(): usize {
+  return 8390600 as usize;
+}
+
 
 // Flat BSS table: 64 * 272 = 17408 bytes. Zero-initialized; used flags start 0.
 let g_pipe_dep_sc_blob: u8[17408] = [];
@@ -90167,7 +90173,7 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
         return 0 as *u8;
       }
       // path rows: 128-byte elems (wave579)
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 128, ic) == 0) {
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 256, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
@@ -90452,8 +90458,8 @@ export function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8,
     return;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   unsafe {
     memset(row, 0, 128 as usize);
@@ -90541,7 +90547,7 @@ export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8
     return;
   }
   unsafe {
-    memset(dst, 0, 128 as usize);
+    memset(dst, 0, 256 as usize);
   }
   if (ctx == 0 as *u8 || idx < 0) {
     return;
@@ -90561,8 +90567,8 @@ export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8
     return;
   }
   let n: i32 = pipe_load_i32_le(pl, 0);
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let k: i32 = 0;
   while (k < n) {
@@ -90694,8 +90700,8 @@ export function pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: *u8,
     return;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -91497,7 +91503,7 @@ export function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *u8): i32 {
 // live here (#[no_mangle]). Residual host-cc leaves deleted; seed cold twins under
 // #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PipelineElfCtxAccess LE layout (match elf.x ElfCodegenCtx prefix + glue offsetof):
-//   code_len@0 labels[16384]@4 num_labels@2228228 patches@2228232 num_patches@4521992
+//   code_len@0 labels[16384]@4 num_labels@4325380 patches@4325384 num_patches@8716296
 //   relocs@4521996 reloc_sym_names@4653068 num_relocs@6750220 syms@6750224
 //   num_syms@9043984 sym_name_len@9043988 e_machine@9043992 reloc_type_r_pc32@9043996
 //   current_frame_size@9044000 macho_leading_underscore@9044004 code_hot_len@9044008
@@ -91529,53 +91535,53 @@ function pipe_elf_pgo_undef_cap(): i32 { return 32; }
 function pipe_elf_codegen_out_cap(): i32 { return 9437184; }
 
 // Entry sizes
-function pipe_elf_label_esz(): i32 { return 136; }
-function pipe_elf_patch_esz(): i32 { return 140; }
+function pipe_elf_label_esz(): i32 { return 264; }
+function pipe_elf_patch_esz(): i32 { return 268; }
 function pipe_elf_reloc_esz(): i32 { return 8; }
-function pipe_elf_reloc_name_esz(): i32 { return 128; }
-function pipe_elf_sym_esz(): i32 { return 140; }
+function pipe_elf_reloc_name_esz(): i32 { return 256; }
+function pipe_elf_sym_esz(): i32 { return 268; }
 function pipe_elf_reloc_heap_esz(): i32 { return 12; }
 
 // Field offsets inside PipelineElfCtxAccess
 function pipe_elf_off_code_len(): i32 { return 0; }
 function pipe_elf_off_labels(): i32 { return 4; }
-function pipe_elf_off_num_labels(): i32 { return 2228228; }
-function pipe_elf_off_patches(): i32 { return 2228232; }
-function pipe_elf_off_num_patches(): i32 { return 4521992; }
-function pipe_elf_off_relocs(): i32 { return 4521996; }
-function pipe_elf_off_reloc_sym_names(): i32 { return 4653068; }
-function pipe_elf_off_num_relocs(): i32 { return 6750220; }
-function pipe_elf_off_syms(): i32 { return 6750224; }
-function pipe_elf_off_num_syms(): i32 { return 9043984; }
-function pipe_elf_off_sym_name_len(): i32 { return 9043988; }
-function pipe_elf_off_e_machine(): i32 { return 9043992; }
-function pipe_elf_off_reloc_type_r_pc32(): i32 { return 9043996; }
-function pipe_elf_off_current_frame_size(): i32 { return 9044000; }
-function pipe_elf_off_macho_uscore(): i32 { return 9044004; }
-function pipe_elf_off_code_hot_len(): i32 { return 9044008; }
-function pipe_elf_off_emit_hot(): i32 { return 9044012; }
-function pipe_elf_sizeof_access(): i32 { return 9044016; }
-function pipe_elf_off_code_data(): i32 { return 9044016; }
-function pipe_elf_off_code_hot_data(): i32 { return 17760304; }
-function pipe_elf_off_sym_name_data(): i32 { return 18808880; }
+function pipe_elf_off_num_labels(): i32 { return 4325380; }
+function pipe_elf_off_patches(): i32 { return 4325384; }
+function pipe_elf_off_num_patches(): i32 { return 8716296; }
+function pipe_elf_off_relocs(): i32 { return 8716300; }
+function pipe_elf_off_reloc_sym_names(): i32 { return 8847372; }
+function pipe_elf_off_num_relocs(): i32 { return 13041676; }
+function pipe_elf_off_syms(): i32 { return 13041680; }
+function pipe_elf_off_num_syms(): i32 { return 17432592; }
+function pipe_elf_off_sym_name_len(): i32 { return 17432596; }
+function pipe_elf_off_e_machine(): i32 { return 17432600; }
+function pipe_elf_off_reloc_type_r_pc32(): i32 { return 17432604; }
+function pipe_elf_off_current_frame_size(): i32 { return 17432608; }
+function pipe_elf_off_macho_uscore(): i32 { return 17432612; }
+function pipe_elf_off_code_hot_len(): i32 { return 17432616; }
+function pipe_elf_off_emit_hot(): i32 { return 17432620; }
+function pipe_elf_sizeof_access(): i32 { return 17432624; }
+function pipe_elf_off_code_data(): i32 { return 17432624; }
+function pipe_elf_off_code_hot_data(): i32 { return 26148912; }
+function pipe_elf_off_sym_name_data(): i32 { return 27197488; }
 
 // Label entry sub-offsets
 function pipe_elf_lab_off_name(): i32 { return 0; }
-function pipe_elf_lab_off_name_len(): i32 { return 128; }
-function pipe_elf_lab_off_offset(): i32 { return 132; }
+function pipe_elf_lab_off_name_len(): i32 { return 256; }
+function pipe_elf_lab_off_offset(): i32 { return 260; }
 // Patch entry
 function pipe_elf_pat_off_rel32(): i32 { return 0; }
 function pipe_elf_pat_off_name(): i32 { return 4; }
-function pipe_elf_pat_off_name_len(): i32 { return 132; }
-function pipe_elf_pat_off_imm_bits(): i32 { return 136; }
+function pipe_elf_pat_off_name_len(): i32 { return 260; }
+function pipe_elf_pat_off_imm_bits(): i32 { return 264; }
 // Reloc entry
 function pipe_elf_rel_off_offset(): i32 { return 0; }
 function pipe_elf_rel_off_name_len(): i32 { return 4; }
 // Sym entry
 function pipe_elf_sym_off_name(): i32 { return 0; }
-function pipe_elf_sym_off_name_len(): i32 { return 128; }
-function pipe_elf_sym_off_offset(): i32 { return 132; }
-function pipe_elf_sym_off_shndx(): i32 { return 136; }
+function pipe_elf_sym_off_name_len(): i32 { return 256; }
+function pipe_elf_sym_off_offset(): i32 { return 260; }
+function pipe_elf_sym_off_shndx(): i32 { return 264; }
 // Heap reloc entry
 function pipe_elf_rh_off_offset(): i32 { return 0; }
 function pipe_elf_rh_off_name_len(): i32 { return 4; }
@@ -91611,15 +91617,15 @@ let g_pipe_elf_ws_undef_lens: u8[1024] = [];
 let g_pipe_elf_ws_und_src: u8[1024] = [];
 let g_pipe_elf_ws_und_lens: u8[1024] = [];
 let g_pipe_elf_ws_pgo_undef_names: u8[4096] = [];
-let g_pipe_elf_ws_pgo_undef_lens: u8[128] = [];
-let g_pipe_elf_ws_ehdr: u8[128] = [];
+let g_pipe_elf_ws_pgo_undef_lens: u8[256] = [];
+let g_pipe_elf_ws_ehdr: u8[256] = [];
 let g_pipe_elf_ws_shdr: u8[1280] = [];
 let g_pipe_elf_ws_ent: u8[256] = [];
 let g_pipe_elf_ws_seg: u8[152] = [];
 let g_pipe_elf_ws_hdr32: u8[32] = [];
 let g_pipe_elf_ws_lc: u8[48] = [];
-let g_pipe_elf_ws_name: u8[128] = [];
-let g_pipe_elf_ws_name2: u8[128] = [];
+let g_pipe_elf_ws_name: u8[256] = [];
+let g_pipe_elf_ws_name2: u8[256] = [];
 let g_pipe_elf_ws_rela: u8[24] = [];
 /* F7: shstrtab is 63 bytes once .data + .rela.data are appended after the
  * historic 46-byte ".text.symtab.strtab.shstrtab.rela.text" blob.
@@ -92938,7 +92944,7 @@ export function pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes: *u8, idx: i32,
     return;
   }
   unsafe {
-    memset(dst, 0, 128 as usize);
+    memset(dst, 0, 256 as usize);
   }
   let src: *u8 = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
   if (src == 0 as *u8) {
@@ -94962,7 +94968,7 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
       return -1;
     }
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     let clen: i32 = asm_wpo_call_callee_name(a, callee_ref, &cname[0]);
     if (clen > 0 && caller_mod != 0 as *u8) {
       let ov_n: i32 = 0;
@@ -95258,7 +95264,7 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
       let mlen: i32 = pipeline_expr_method_call_name_len(a, expr_ref);
       let mbase: i32 = pipeline_expr_method_call_base_ref_at(a, expr_ref);
       let mnargs: i32 = pipeline_expr_method_call_num_args_at(a, expr_ref);
-      let mnm: u8[128] = [];
+      let mnm: u8[256] = [];
       if (r_fn >= 0 && r_dep < 0 && caller_mod != 0 as *u8) {
         mcid = asm_wpo_func_id_of(caller_mod, r_fn);
       }
@@ -95541,7 +95547,7 @@ function asm_wpo_user_pgo_force_main_callee_edge(entry: *u8, a: *u8): i32 {
       let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(a, er);
       let r_dep: i32 = pipeline_expr_call_resolved_dep_index_at(a, er);
       let nlen: i32 = pipeline_expr_method_call_name_len(a, er);
-      let mnm: u8[128] = [];
+      let mnm: u8[256] = [];
       let cid: i32 = -1;
       if (r_fn >= 0 && r_dep < 0) {
         cid = asm_wpo_func_id_of(entry, r_fn);
@@ -96978,11 +96984,11 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
       pipe_store_ptr_slot(sc2, 0, key);
       pipe_store_i32_le(sc2, 8, 1);
       let ic: i32 = pipe_gv_init_cap();
-      if (grow_vec_init(sc2 + (16 as usize), 276, ic) == 0) {
+      if (grow_vec_init(sc2 + (16 as usize), 532, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (48 as usize), 712, ic) == 0) {
+      if (grow_vec_init(sc2 + (48 as usize), 1224, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -96990,15 +96996,15 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (112 as usize), 196, ic) == 0) {
+      if (grow_vec_init(sc2 + (112 as usize), 324, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (144 as usize), 140, ic) == 0) {
+      if (grow_vec_init(sc2 + (144 as usize), 268, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (176 as usize), 140, ic) == 0) {
+      if (grow_vec_init(sc2 + (176 as usize), 268, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97006,7 +97012,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (240 as usize), 140, ic) == 0) {
+      if (grow_vec_init(sc2 + (240 as usize), 268, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97066,7 +97072,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (720 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (720 as usize), 264, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97074,7 +97080,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (784 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (784 as usize), 264, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97128,7 +97134,7 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
       pipe_store_ptr_slot(sc2, 0, key);
       pipe_store_i32_le(sc2, 8, 1);
       let ic: i32 = pipe_gv_init_cap();
-      if (grow_vec_init(sc2 + (16 as usize), 196, ic) == 0) {
+      if (grow_vec_init(sc2 + (16 as usize), 324, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97136,27 +97142,27 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (80 as usize), 404, ic) == 0) {
+      if (grow_vec_init(sc2 + (80 as usize), 532, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (112 as usize), 160, ic) == 0) {
+      if (grow_vec_init(sc2 + (112 as usize), 288, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (144 as usize), 148, ic) == 0) {
+      if (grow_vec_init(sc2 + (144 as usize), 276, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (176 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (176 as usize), 264, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (208 as usize), 33932, ic) == 0) {
+      if (grow_vec_init(sc2 + (208 as usize), 66828, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (240 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (240 as usize), 256, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97164,15 +97170,15 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (304 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (304 as usize), 264, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (336 as usize), 144, ic) == 0) {
+      if (grow_vec_init(sc2 + (336 as usize), 272, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (368 as usize), 132, ic) == 0) {
+      if (grow_vec_init(sc2 + (368 as usize), 260, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97247,7 +97253,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (112 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (112 as usize), 256, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97267,7 +97273,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (272 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (272 as usize), 256, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97323,7 +97329,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (720 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (720 as usize), 256, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97375,15 +97381,15 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
 // Layout LE (match product seeds / wave275 GrowVec elem sizes):
 //   ASTArena: num_types@0 num_exprs@4 num_blocks@8 num_funcs@12 (16B)
 //   ArenaSidecar: types@16 exprs@48 blocks@80 funcs@112 (GrowVec 32 each)
-//   Type 276 · Expr 712 · Block 92 · Func 196
+//   Type 532 · Expr 1224 · Block 92 · Func 324
 // Cap: AST_POOL_NO_LIMIT = 2147483647
 // G.7 single authority — residual host leaf deleted; dual-export ban.
 // =============================================================================
 
-function pipe_ar_ty_sz(): i32 { return 276; }
-function pipe_ar_ex_sz(): i32 { return 712; }
+function pipe_ar_ty_sz(): i32 { return 532; }
+function pipe_ar_ex_sz(): i32 { return 1224; }
 function pipe_ar_bl_sz(): i32 { return 92; }
-function pipe_ar_fn_sz(): i32 { return 196; }
+function pipe_ar_fn_sz(): i32 { return 324; }
 function pipe_ar_no_limit(): i32 { return 2147483647; }
 function pipe_ar_off_num_types(): i32 { return 0; }
 function pipe_ar_off_num_exprs(): i32 { return 4; }
@@ -97396,32 +97402,32 @@ function pipe_ar_sc_funcs(): i32 { return 112; }
 function pipe_ar_ex_kind(): i32 { return 0; }
 function pipe_ar_ex_resolved_ty(): i32 { return 4; }
 function pipe_ar_ex_var_name(): i32 { return 32; }
-function pipe_ar_ex_var_name_len(): i32 { return 160; }
-function pipe_ar_ex_binop_l(): i32 { return 164; }
-function pipe_ar_ex_binop_r(): i32 { return 168; }
-function pipe_ar_ex_match_arm_base(): i32 { return 196; }
-function pipe_ar_ex_fa_base(): i32 { return 204; }
-function pipe_ar_ex_fa_name(): i32 { return 208; }
-function pipe_ar_ex_fa_len(): i32 { return 336; }
-function pipe_ar_ex_fa_is_enum(): i32 { return 340; }
-function pipe_ar_ex_fa_off(): i32 { return 344; }
-function pipe_ar_ex_call_res_fi(): i32 { return 704; }
-function pipe_ar_ex_call_res_di(): i32 { return 708; }
-function pipe_ar_ex_enum_tag(): i32 { return 692; }
+function pipe_ar_ex_var_name_len(): i32 { return 288; }
+function pipe_ar_ex_binop_l(): i32 { return 292; }
+function pipe_ar_ex_binop_r(): i32 { return 296; }
+function pipe_ar_ex_match_arm_base(): i32 { return 324; }
+function pipe_ar_ex_fa_base(): i32 { return 332; }
+function pipe_ar_ex_fa_name(): i32 { return 336; }
+function pipe_ar_ex_fa_len(): i32 { return 592; }
+function pipe_ar_ex_fa_is_enum(): i32 { return 596; }
+function pipe_ar_ex_fa_off(): i32 { return 600; }
+function pipe_ar_ex_call_res_fi(): i32 { return 1216; }
+function pipe_ar_ex_call_res_di(): i32 { return 1220; }
+function pipe_ar_ex_enum_tag(): i32 { return 1204; }
 function pipe_ar_ty_kind(): i32 { return 0; }
 function pipe_ar_ty_name(): i32 { return 4; }
-function pipe_ar_ty_name_len(): i32 { return 132; }
-function pipe_ar_ty_elem(): i32 { return 136; }
-function pipe_ar_ty_arr(): i32 { return 140; }
+function pipe_ar_ty_name_len(): i32 { return 260; }
+function pipe_ar_ty_elem(): i32 { return 264; }
+function pipe_ar_ty_arr(): i32 { return 268; }
 function pipe_ar_fn_name(): i32 { return 0; }
-function pipe_ar_fn_name_len(): i32 { return 128; }
-function pipe_ar_fn_param_base(): i32 { return 132; }
-function pipe_ar_fn_num_params(): i32 { return 136; }
-function pipe_ar_fn_ret(): i32 { return 144; }
-function pipe_ar_fn_body(): i32 { return 148; }
-function pipe_ar_fn_body_expr(): i32 { return 152; }
-function pipe_ar_fn_is_extern(): i32 { return 156; }
-function pipe_ar_fn_is_async(): i32 { return 160; }
+function pipe_ar_fn_name_len(): i32 { return 256; }
+function pipe_ar_fn_param_base(): i32 { return 260; }
+function pipe_ar_fn_num_params(): i32 { return 264; }
+function pipe_ar_fn_ret(): i32 { return 272; }
+function pipe_ar_fn_body(): i32 { return 276; }
+function pipe_ar_fn_body_expr(): i32 { return 280; }
+function pipe_ar_fn_is_extern(): i32 { return 284; }
+function pipe_ar_fn_is_async(): i32 { return 288; }
 function pipe_ar_bl_num_consts(): i32 { return 4; }
 function pipe_ar_bl_num_lets(): i32 { return 12; }
 function pipe_ar_bl_num_early_lets(): i32 { return 16; }
@@ -97811,7 +97817,7 @@ export function pipeline_arena_expr_write_var(a: *u8, ref: i32, name: *u8, name_
   pipe_ar_zero(ep, pipe_ar_ex_sz());
   pipe_ar_store_i32(ep, pipe_ar_ex_kind(), pipe_ar_ek_var());
   let n: i32 = name_len;
-  if (n > 127) {
+  if (n > 255) {
     n = 63;
   }
   pipe_ar_store_i32(ep, pipe_ar_ex_var_name_len(), n);
@@ -98311,7 +98317,7 @@ export function pipeline_parser_extern_init_arena_func_and_register_c(arena: *u8
   if (name_len < 0) {
     return 0 - 1;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0 - 1;
   }
   let fp: *u8 = pipeline_arena_func_ptr(arena, func_ref);

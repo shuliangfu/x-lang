@@ -199,7 +199,7 @@ function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
   let callee_ref: i32 = 0;
   let cko: i32 = 0;
   let clen: i32 = 0;
-  let cname: u8[128];
+  let cname: u8[256];
   let fi: i32 = 0;
   let eq: i32 = 0;
   let mlen: i32 = 0;
@@ -630,7 +630,7 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
   let ber: i32 = 0;
   let ei: i32 = 0;
   let to: i32 = 0;
-  let name: u8[128];
+  let name: u8[256];
   let nlen: i32 = 0;
   let is_ext: i32 = 0;
   let buf: u8[512];

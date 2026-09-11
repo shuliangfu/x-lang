@@ -270,7 +270,7 @@ out_cap: i32): i32 {
   }
   /* See implementation. */
   if (ko == 8 && out_cap > 0) {
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
     if (nlen > 0 && nlen <= 64 && out_cap > nlen) {
       let i: i32 = 0;
@@ -491,7 +491,7 @@ out_line: *i32, out_col: *i32): i32 {
   if (nl <= 0 || nl > 64) {
     return 0;
   }
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   pipeline_module_func_name_copy64(module, func_index, &nm[0]);
   return lsp_source_find_function_def(source, sl, &nm[0], nl, out_line, out_col);
   }

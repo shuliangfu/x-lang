@@ -77,13 +77,13 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 struct platform_elf_ElfLabelEntry {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t offset;
 };
 struct platform_elf_ElfPatchEntry {
   int32_t rel32_offset;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t patch_imm_bits;
 };
@@ -95,7 +95,7 @@ struct platform_elf_ElfRelocSymName64 {
   uint8_t bytes[128];
 };
 struct platform_elf_ElfSymEntry {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t offset;
   int32_t sym_shndx;

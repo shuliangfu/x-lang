@@ -56,7 +56,7 @@ void parser_asm_copy_slice_to_name64_at_end_buf_c(uint8_t *source, int32_t sourc
 
 /**
  * copy_slice_to_param32 (slice path).
- * wave585 Cap residual: ABI name *param32; payload row 32→128 (content ≤127).
+ * wave585 Cap residual: ABI name *param32; payload row 32→128 (content ≤255).
  * Callers must pass dst of at least 128 bytes. PLATFORM: SHARED
  */
 void parser_asm_copy_slice_to_param32_slice_c(struct parser_asm_slice_u8 *source, size_t start, int32_t nlen,

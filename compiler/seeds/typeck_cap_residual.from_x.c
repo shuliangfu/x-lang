@@ -22,7 +22,7 @@ uint8_t *typeck_named_scratch64(void) {
 }
 
 /** typeck.x: multi-slot 128B scratch (wave577 Cap: 64->128). */
-static uint8_t g_typeck_scratch64[16][128];
+static uint8_t g_typeck_scratch64[16][256];
 
 uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0 || slot >= 16)
@@ -912,7 +912,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     int32_t av0;
     int32_t av1;
     int32_t folded;
-    uint8_t cname[128];
+    uint8_t cname[256];
     struct ast_Module *mod;
     struct ast_Expr *ea0;
     struct ast_Expr *ea1;
@@ -942,7 +942,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(a, callee_ref) != 3)
       return;
     clen = pipeline_expr_var_name_len(a, callee_ref);
-    if (clen <= 0 || clen > 127)
+    if (clen <= 0 || clen > 255)
       return;
     pipeline_expr_var_name_into(a, callee_ref, cname);
     /* PLATFORM: SHARED — prefer typeck call_resolved_func_index for overloads.
@@ -1014,7 +1014,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       int32_t inner_callee_ref;
       int32_t ilen;
       int32_t inner_fi;
-      uint8_t iname[128];
+      uint8_t iname[256];
 
       arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
       if (arg0 <= 0)
@@ -1053,7 +1053,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       if (inner_callee_ref <= 0 || pipeline_expr_kind_ord_at(a, inner_callee_ref) != 3)
         return;
       ilen = pipeline_expr_var_name_len(a, inner_callee_ref);
-      if (ilen <= 0 || ilen > 127)
+      if (ilen <= 0 || ilen > 255)
         return;
       pipeline_expr_var_name_into(a, inner_callee_ref, iname);
       /* PLATFORM: SHARED — same overload rule as outer CALL fold above. */

@@ -545,7 +545,7 @@ export function glue_asm_import_segment_at(mod: *u8, ix: i32, want_seg: i32, ost
     if (ix >= parser_get_module_num_imports(mod)) { return 0; }
     let pl: i32 = pipeline_module_import_path_len(mod, ix);
     if (pl <= 0) { return 0; }
-    if (pl > 127) { return 0; }
+    if (pl > 255) { return 0; }
     let ci: i32 = 0;
     let ss: i32 = 0;
     let k: i32 = 0;
@@ -1356,8 +1356,8 @@ export function glue_asm_build_call_export_sym_c(
   unsafe {
     let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
     if (clen <= 0) { return 0 - 1; }
-    if (clen > 127) { return 0 - 1; }
-    let cname: u8[128] = [];
+    if (clen > 255) { return 0 - 1; }
+    let cname: u8[256] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
     /* Heap redirect: skip for std.heap.libc FFI and when a local body exists. */
     {
@@ -1470,9 +1470,11 @@ export function glue_asm_build_call_export_sym_c(
             }
           }
         }
-        let path: u8[128] = [];
+        /* Cap 4.2.8: import_path_copy64 memset(dst,0,256). path[128] smashed
+         * adjacent cname → prefix-only `_core_option_` on bare import CALL. */
+        let path: u8[256] = [];
         let zi: i32 = 0;
-        while (zi < 64) {
+        while (zi < 256) {
           path[zi] = 0;
           zi = zi + 1;
         }
@@ -1483,7 +1485,7 @@ export function glue_asm_build_call_export_sym_c(
             let use_fi: i32 = 0 - 1;
             let r_func: i32 = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
             let r_dep: i32 = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
-            let mid: u8[128] = [];
+            let mid: u8[256] = [];
             let mid_len: i32 = 0 - 1;
             let da: *u8 = dep_arena;
             if (da == 0 as *u8) { da = arena; }
@@ -1532,13 +1534,13 @@ export function glue_asm_build_call_export_sym_c(
             let prefix: u8[128] = [];
             glue_codegen_import_path_to_c_prefix_into(&path[0], &prefix[0], 128);
             let plen: i32 = 0;
-            while (plen < 127) {
+            while (plen < 255) {
               if (prefix[plen] == 0) { break; }
               plen = plen + 1;
             }
             if (plen > 0) {
               if (use_fi >= 0) {
-                mid_len = glue_asm_build_func_overload_mid_c(dep_mod, da, use_fi, &mid[0], 64);
+                mid_len = glue_asm_build_func_overload_mid_c(dep_mod, da, use_fi, &mid[0], 256);
                 if (mid_len > 0) {
                   return glue_asm_build_import_binding_call_sym(&prefix[0], plen, &mid[0], mid_len, out);
                 }
@@ -1611,7 +1613,7 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
         let prefix: u8[128] = [];
         glue_codegen_import_path_to_c_prefix_into(dep_path, &prefix[0], 128);
         let plen: i32 = 0;
-        while (plen < 127) {
+        while (plen < 255) {
           if (prefix[plen] == 0) { break; }
           plen = plen + 1;
         }
@@ -1666,8 +1668,8 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
   unsafe {
     let fname_len: i32 = pipeline_asm_module_func_name_len_at(m, func_ix);
     if (fname_len <= 0) { return 0 - 1; }
-    if (fname_len > 127) { return 0 - 1; }
-    let fname: u8[128] = [];
+    if (fname_len > 255) { return 0 - 1; }
+    let fname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
     if (glue_module_func_overload_count_c(m, &fname[0], fname_len) <= 1) {
       let pos0: i32 = glue_asm_build_dep_export_sym_c(&fname[0], fname_len, out, out_cap);
@@ -1815,7 +1817,7 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
     let copied: i32 = 0;
     let cur: i32 = arg_ref;
     while (copied < slen && cur > 0) {
-      let chunk: u8[128] = [];
+      let chunk: u8[256] = [];
       let n: i32 = 0;
       let i: i32 = 0;
       pipeline_expr_var_name_into(arena, cur, &chunk[0]);
@@ -1835,7 +1837,7 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
       cur = pipeline_expr_int_val_at(arena, cur);
     }
     if (copied != slen) { return 0 - 1; }
-    let sym_flat: u8[128] = [];
+    let sym_flat: u8[256] = [];
     // Bare std_fmt_println — not overload mid println_i32_reti32.
     let sym_len: i32 = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, &sym_flat[0]);
     if (sym_len <= 0) { return 0 - 1; }
@@ -1896,7 +1898,7 @@ function glue_asm_fmt_any_find_layout(m: *u8, nm: *u8, nlen: i32): i32 {
   let n: i32 = 0;
   let k: i32 = 0;
   let ln: i32 = 0;
-  let buf: u8[128] = [];
+  let buf: u8[256] = [];
   let i: i32 = 0;
   if (m == 0 as *u8 || nm == 0 as *u8 || nlen <= 0) { return 0 - 1; }
   n = pipeline_module_num_struct_layouts_at(m);
@@ -1930,7 +1932,7 @@ base_off: i32, depth: i32): i32 {
   let elem: i32 = 0;
   let asz: i32 = 0;
   let etk: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let li: i32 = 0;
   let nf: i32 = 0;
@@ -2019,7 +2021,7 @@ base_off: i32, depth: i32): i32 {
   /* TYPE_NAMED=8 */
   if (tk != 8) { return 0 - 1; }
   nlen = pipeline_type_named_name_into(arena, ty, &nm[0]);
-  if (nlen <= 0 || nlen > 127) { return 0 - 1; }
+  if (nlen <= 0 || nlen > 255) { return 0 - 1; }
   li = glue_asm_fmt_any_find_layout(m, &nm[0], nlen);
   if (li < 0) { return 0 - 1; }
   nf = pipeline_module_struct_layout_num_fields(m, li);
@@ -2061,7 +2063,7 @@ base_off: i32, depth: i32): i32 {
       fty = pipeline_module_struct_layout_field_type_ref(m, li, value_j);
       foff = pipeline_module_struct_layout_field_offset_at(m, li, value_j);
       {
-        let scratch: u8[128] = [];
+        let scratch: u8[256] = [];
         let si: i32 = 0;
         sub = glue_asm_fmt_any_build_schema(m, arena, fty, &scratch[0], 128,
           base_off + foff, depth + 1);
@@ -2103,7 +2105,7 @@ base_off: i32, depth: i32): i32 {
     foff = pipeline_module_struct_layout_field_offset_at(m, li, j);
     ftk = pipeline_type_kind_ord_at(arena, fty);
     if (ftk == 0 || ftk == 1 || ftk == 8 || ftk == 10 || ftk == 11) {
-      let scratch2: u8[128] = [];
+      let scratch2: u8[256] = [];
       let sj: i32 = 0;
       sub = glue_asm_fmt_any_build_schema(m, arena, fty, &scratch2[0], 128,
         base_off + foff, depth + 1);
@@ -2192,7 +2194,7 @@ export function glue_asm_try_emit_fmt_any_import_call_elf_c(
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     if (mod_ref == 0 as *u8) { return 0; }
-    let sch: u8[128] = [];
+    let sch: u8[256] = [];
     let slen: i32 = glue_asm_fmt_any_build_schema(mod_ref, arena, arg_ty, &sch[0], 126, 0, 0);
     if (slen <= 0) { return 0; }
     if (slen > 126) { return 0; }
@@ -2267,7 +2269,7 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
   if (name == 0 as *u8) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
   unsafe {
-    let redir: u8[128] = [];
+    let redir: u8[256] = [];
     let rlen: i32 = glue_try_std_heap_redirect_sym_local(name, name_len, &redir[0], 64);
     if (rlen <= 0) {
       rlen = glue_try_std_string_xlang_redirect_sym_local(name, name_len, &redir[0], 64);
@@ -2647,7 +2649,7 @@ export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8,
     let copied: i32 = 0;
     let cur: i32 = str_expr_ref;
     while (copied < slen && cur > 0) {
-      let chunk: u8[128] = [];
+      let chunk: u8[256] = [];
       let n: i32 = 0;
       let i: i32 = 0;
       pipeline_expr_var_name_into(arena, cur, &chunk[0]);
@@ -2864,8 +2866,8 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
       let falen: i32 = pipeline_expr_field_access_name_len(arena, cur_ref);
       if (pipeline_expr_kind_ord_at(arena, cur_ref) != 44) { break; }
       if (falen <= 0) { break; }
-      if (falen > 127) { break; }
-      let layer_buf: u8[128] = [];
+      if (falen > 255) { break; }
+      let layer_buf: u8[256] = [];
       pipeline_expr_field_access_name_into(arena, cur_ref, &layer_buf[0]);
       if (asm_qual_sym_layer_push(&layer_buf[0], falen) < 0) { return 0 - 1; }
       cur_ref = pipeline_expr_field_access_base_ref(arena, cur_ref);
@@ -2875,8 +2877,8 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
     let vnlen: i32 = pipeline_expr_var_name_len(arena, cur_ref);
     if (pipeline_expr_kind_ord_at(arena, cur_ref) != 3) { return 0 - 1; }
     if (vnlen <= 0) { return 0 - 1; }
-    if (vnlen > 127) { return 0 - 1; }
-    let vname_buf: u8[128] = [];
+    if (vnlen > 255) { return 0 - 1; }
+    let vname_buf: u8[256] = [];
     pipeline_expr_var_name_into(arena, cur_ref, &vname_buf[0]);
     let dep_j: i32 = 0;
     let nimp: i32 = parser_get_module_num_imports(cur_mod);
@@ -2886,7 +2888,7 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
         dep_j = dep_j + 1;
         continue;
       }
-      if (plen > 127) {
+      if (plen > 255) {
         dep_j = dep_j + 1;
         continue;
       }
@@ -2926,7 +2928,7 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
           break;
         }
         let lay_ix: i32 = pseg - sm;
-        let layer_mid: u8[128] = [];
+        let layer_mid: u8[256] = [];
         asm_qual_sym_layer_copy(lay_ix, &layer_mid[0], 64);
         if (glue_asm_import_path_slice_equal(cur_mod, dep_j, srv, slv, &layer_mid[0], asm_qual_sym_layer_len(lay_ix)) == 0) {
           bad_mid = 1;
@@ -2944,7 +2946,7 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
         dep_j = dep_j + 1;
         continue;
       }
-      let layer0: u8[128] = [];
+      let layer0: u8[256] = [];
       asm_qual_sym_layer_copy(0, &layer0[0], 64);
       let blt: i32 = glue_asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &layer0[0], asm_qual_sym_layer_len(0), sym_flat);
       if (out_match_imp_j != 0) {
@@ -3046,8 +3048,8 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
     if (name_len <= 0) { return 0 - 1; }
-    if (name_len > 127) { return 0 - 1; }
-    let name: u8[128] = [];
+    if (name_len > 255) { return 0 - 1; }
+    let name: u8[256] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
     /* stage10 S3.1 slice2 (10.1.1): dot-call raw_syscall0..6 shape
      * (linux.raw_syscall3(...) parses here; before dyn/UFCS/try_inline). */
@@ -3100,9 +3102,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       let ff_fi: i32 = 0;
       let ff_spill: i32 = 0;
       let ff_reg_max: i32 = 0;
-      let ff_nm: u8[128] = [];
-      let ff_fnm: u8[128] = [];
-      let ff_lnm: u8[128] = [];
+      let ff_nm: u8[256] = [];
+      let ff_fnm: u8[256] = [];
+      let ff_lnm: u8[256] = [];
       ff_base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
       if (ff_base_ty > 0) {
         ff_ty = ff_base_ty;
@@ -3116,7 +3118,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         }
         if (ff_ko == 8 && mod_ref != 0 as *u8) {
           ff_nlen = pipeline_type_named_name_into(arena, ff_ty, &ff_nm[0]);
-          if (ff_nlen > 0 && ff_nlen <= 127) {
+          if (ff_nlen > 0 && ff_nlen <= 255) {
             ff_nlays = pipeline_module_num_struct_layouts_at(mod_ref);
             ff_li = 0;
             while (ff_li < ff_nlays && ff_hit == 0) {
@@ -3139,7 +3141,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                 ff_j = 0;
                 while (ff_j < ff_nf && ff_hit == 0) {
                   ff_fnl = pipeline_module_struct_layout_field_name_len(mod_ref, ff_li, ff_j);
-                  if (ff_fnl == name_len && ff_fnl > 0 && ff_fnl <= 127) {
+                  if (ff_fnl == name_len && ff_fnl > 0 && ff_fnl <= 255) {
                     pipeline_module_struct_layout_field_name_into(mod_ref, ff_li, ff_j, &ff_fnm[0]);
                     ff_eq = 1;
                     ff_k = 0;
@@ -3481,9 +3483,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
           let base_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
           if (base_len > 0) {
-            // wave580 Cap: import binding name content cap 127.
-            if (base_len <= 127) {
-              let base_name: u8[128] = [];
+            // wave580 Cap: import binding name content cap 255.
+            if (base_len <= 255) {
+              let base_name: u8[256] = [];
               pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
               let j: i32 = 0;
               let nimp: i32 = parser_get_module_num_imports(mod_ref);
@@ -3503,7 +3505,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
                     if (fmt_any < 0) { return 0 - 1; }
                     if (fmt_any > 0) { return 0; }
-                    let sym_flat: u8[128] = [];
+                    let sym_flat: u8[256] = [];
                     /*
                      * PLATFORM: SHARED — import METHOD mangle (G.7 ≡ seed).
                      * Bare pre+name → U std_string_length / std_string_is_empty while
@@ -4206,12 +4208,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       {
         let r_fn_call: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
         let r_dep_call: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-        let call_sym: u8[128] = [];
+        let call_sym: u8[256] = [];
         let call_sym_len: i32 = 0 - 1;
         if (r_fn_call >= 0) {
           if (r_dep_call < 0) {
             if (mod_ref != 0) {
-              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, &call_sym[0], 128);
+              call_sym_len = glue_asm_build_func_export_sym_c(mod_ref, arena, r_fn_call, &call_sym[0], 256);
             }
           } else {
             let dep_pipe_u: *u8 = pipeline_asm_emit_dep_pipe_c();
@@ -4220,7 +4222,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
               let da_u: *u8 = pipeline_dep_ctx_arena_at(dep_pipe_u, r_dep_call);
               if (dm_u != 0 as *u8) {
                 if (da_u == 0 as *u8) { da_u = arena; }
-                call_sym_len = glue_asm_build_func_export_sym_c(dm_u, da_u, r_fn_call, &call_sym[0], 128);
+                call_sym_len = glue_asm_build_func_export_sym_c(dm_u, da_u, r_fn_call, &call_sym[0], 256);
               }
             }
           }
@@ -4273,7 +4275,7 @@ function try_fold_size_align_of_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32
     let is_align: i32 = 0;
     let nlen: i32 = 0;
     let val: i32 = 0;
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     let i: i32 = 0;
     if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || expr_ref <= 0) {
       return 0;
@@ -4298,12 +4300,12 @@ function try_fold_size_align_of_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32
     if (callee_ko == 44) {
       nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
       if (nlen <= 0) { return 0; }
-      if (nlen > 127) { return 0; }
+      if (nlen > 255) { return 0; }
       pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
     } else if (callee_ko == 3) {
       nlen = pipeline_expr_var_name_len(arena, callee_ref);
       if (nlen <= 0) { return 0; }
-      if (nlen > 127) { return 0; }
+      if (nlen > 255) { return 0; }
       pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
     } else {
       return 0;
@@ -4384,7 +4386,7 @@ function try_emit_raw_syscall_call_elf_c(
       if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0) { return 0; }
     }
     let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     let nlen: i32 = 0;
     let n_args: i32 = 0;
     let is_method: i32 = 0;
@@ -4624,7 +4626,7 @@ function try_emit_va_cap_builtin_call_elf_c(
   }
   unsafe {
     let ko: i32 = 0;
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     let nlen: i32 = 0;
     let n_args: i32 = 0;
     let is_method: i32 = 0;
@@ -4663,7 +4665,7 @@ function try_emit_va_cap_builtin_call_elf_c(
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 49) {
       nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-      if (nlen <= 0 || nlen > 127) { return 0; }
+      if (nlen <= 0 || nlen > 255) { return 0; }
       pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
       n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
       is_method = 1;
@@ -4674,11 +4676,11 @@ function try_emit_va_cap_builtin_call_elf_c(
       cko = pipeline_expr_kind_ord_at(arena, callee_ref);
       if (cko == 44) {
         nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
-        if (nlen <= 0 || nlen > 127) { return 0; }
+        if (nlen <= 0 || nlen > 255) { return 0; }
         pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
       } else if (cko == 3) {
         nlen = pipeline_expr_var_name_len(arena, callee_ref);
-        if (nlen <= 0 || nlen > 127) { return 0; }
+        if (nlen <= 0 || nlen > 255) { return 0; }
         pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
       } else {
         return 0;
@@ -5003,7 +5005,7 @@ function try_emit_atomic_builtin_call_elf_c(
   }
   unsafe {
     let ko: i32 = 0;
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     let nlen: i32 = 0;
     let n_args: i32 = 0;
     let is_method: i32 = 0;
@@ -5033,7 +5035,7 @@ function try_emit_atomic_builtin_call_elf_c(
     ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if (ko == 49) {
       nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-      if (nlen <= 0 || nlen > 127) { return 0; }
+      if (nlen <= 0 || nlen > 255) { return 0; }
       pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
       n_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
       is_method = 1;
@@ -5044,11 +5046,11 @@ function try_emit_atomic_builtin_call_elf_c(
       cko = pipeline_expr_kind_ord_at(arena, callee_ref);
       if (cko == 44) {
         nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
-        if (nlen <= 0 || nlen > 127) { return 0; }
+        if (nlen <= 0 || nlen > 255) { return 0; }
         pipeline_expr_field_access_name_into(arena, callee_ref, &name[0]);
       } else if (cko == 3) {
         nlen = pipeline_expr_var_name_len(arena, callee_ref);
-        if (nlen <= 0 || nlen > 127) { return 0; }
+        if (nlen <= 0 || nlen > 255) { return 0; }
         pipeline_expr_var_name_into(arena, callee_ref, &name[0]);
       } else {
         return 0;
@@ -5416,7 +5418,7 @@ function try_emit_simd_lang_builtin_call_elf_c(
   }
   unsafe {
     let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     let nlen: i32 = 0;
     let n_args: i32 = 0;
     let is_method: i32 = 0;
@@ -6072,15 +6074,15 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
   }
   unsafe {
     let ko: i32 = 0;
-    let tmpl: u8[128] = [];
+    let tmpl: u8[256] = [];
     let nop1: u8 = 144 as u8;
     let a64: u8[4] = [];
     let nargs: i32 = 0;
     let num_in: i32 = 0;
     let arg_ref: i32 = 0;
-    let pack: u8[128] = [];
+    let pack: u8[256] = [];
     let reg: u8[32] = [];
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     let i: i32 = 0;
     let mk: i32 = 0;
     let erc: i32 = 0;
@@ -6227,7 +6229,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
             return 0 - 1;
           }
           vlen = pipeline_expr_var_name_len(arena, arg_ref);
-          if (vlen <= 0 || vlen > 127) {
+          if (vlen <= 0 || vlen > 255) {
             return 0 - 1;
           }
           pipeline_expr_var_name_into(arena, arg_ref, &vname[0]);
@@ -6339,7 +6341,7 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
         return 0 - 1;
       }
       vlen = pipeline_expr_var_name_len(arena, arg_ref);
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       pipeline_expr_var_name_into(arena, arg_ref, &vname[0]);
@@ -6589,14 +6591,14 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
           if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
             let base_len: i32 = pipeline_expr_var_name_len(arena, base_ref);
             if (base_len > 0) {
-              // wave580 Cap: binding/field name content cap 127 (AST u8[128]).
-              if (base_len <= 127) {
-                let base_name: u8[128] = [];
+              // wave580 Cap: binding/field name content cap 255 (AST u8[256]).
+              if (base_len <= 255) {
+                let base_name: u8[256] = [];
                 pipeline_expr_var_name_into(arena, base_ref, &base_name[0]);
                 let field_len: i32 = pipeline_expr_field_access_name_len(arena, callee_ref);
                 if (field_len > 0) {
-                  if (field_len <= 127) {
-                    let field_name: u8[128] = [];
+                  if (field_len <= 255) {
+                    let field_name: u8[256] = [];
                     pipeline_expr_field_access_name_into(arena, callee_ref, &field_name[0]);
                     let j: i32 = 0;
                     let nimp: i32 = parser_get_module_num_imports(mod_ref);
@@ -6606,7 +6608,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
                           let pre_buf: u8[128] = [];
                           let pre_len: i32 = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, &pre_buf[0]);
                           if (pre_len <= 0) { return 0 - 1; }
-                          let sym_flat: u8[128] = [];
+                          let sym_flat: u8[256] = [];
                           /* PLATFORM: SHARED — G.7 import-binding CALL mangle (same as METHOD). */
                           let sym_len: i32 = glue_asm_mangle_import_binding_call_sym_c(
                             arena, ctx, expr_ref, mod_ref, j, &pre_buf[0], pre_len,
@@ -6653,7 +6655,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     if (mod_ref != 0) {
       if (callee_ko == 44) {
         let imp_elt: i32 = 0;
-        let sym_eh: u8[128] = [];
+        let sym_eh: u8[256] = [];
         let elen: i32 = pipeline_asm_resolve_whole_import_qualified_symbol_c(
           arena, mod_ref, callee_ref, &sym_eh[0], &imp_elt
         );
@@ -6663,7 +6665,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
               let field_len2: i32 = pipeline_expr_field_access_name_len(arena, callee_ref);
               if (field_len2 <= 0) { return 0 - 1; }
               if (field_len2 > 127) { return 0 - 1; }
-              let field_name2: u8[128] = [];
+              let field_name2: u8[256] = [];
               pipeline_expr_field_access_name_into(arena, callee_ref, &field_name2[0]);
               let pre_eb: u8[128] = [];
               let pre_el: i32 = glue_asm_fill_c_prefix_from_module_import(mod_ref, imp_elt, &pre_eb[0]);
@@ -6744,8 +6746,8 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     let clen0: i32 = pipeline_expr_var_name_len(arena, callee_ref);
     if (clen0 <= 0) { return 0 - 1; }
     if (clen0 > 127) { return 0 - 1; }
-    let cname: u8[128] = [];
-    // wave580 Cap residual: out_cap must match cname[128] / AST name content cap 127.
+    let cname: u8[256] = [];
+    // wave580 Cap residual: out_cap must match cname[256] / AST name content cap 255.
     let clen: i32 = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, dep_pipe, &cname[0], 128);
     if (clen <= 0) { return 0 - 1; }
     return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, &cname[0], clen);
@@ -7209,8 +7211,8 @@ export function glue_asm_overload_param_sig_count_c(a: *u8, m: *u8, func_ix: i32
   unsafe {
     let fname_len: i32 = pipeline_asm_module_func_name_len_at(m, func_ix);
     if (fname_len <= 0) { return 0; }
-    if (fname_len > 127) { return 0; }
-    let fname: u8[128] = [];
+    if (fname_len > 255) { return 0; }
+    let fname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
     let np0: i32 = pipeline_module_func_num_params_at(m, func_ix);
     let c: i32 = 0;
@@ -7284,8 +7286,8 @@ export function glue_asm_build_func_overload_mid_c(m: *u8, a: *u8, func_ix: i32,
     let fname_len: i32 = pipeline_asm_module_func_name_len_at(m, func_ix);
     if (fname_len <= 0) { return 0 - 1; }
     if (fname_len >= out_cap) { return 0 - 1; }
-    if (fname_len > 127) { return 0 - 1; }
-    let fname: u8[128] = [];
+    if (fname_len > 255) { return 0 - 1; }
+    let fname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
     let pos: i32 = 0;
     while (pos < fname_len) {
@@ -7410,8 +7412,8 @@ export function glue_asm_score_import_binding_func_ix_c(
                   if (pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
                     let vn_len: i32 = pipeline_expr_var_name_len(arena, arg_ref);
                     if (vn_len > 0) {
-                      if (vn_len <= 127) {
-                        let vn: u8[128] = [];
+                      if (vn_len <= 255) {
+                        let vn: u8[256] = [];
                         pipeline_expr_var_name_into(arena, arg_ref, &vn[0]);
                         let dp_sc: *u8 = pipeline_asm_emit_dep_pipe_c();
                         if (dp_sc != 0 as *u8) {
@@ -7423,7 +7425,7 @@ export function glue_asm_score_import_binding_func_ix_c(
                               let plen: i32 = pipeline_module_func_param_name_len_at(res_mod, cur_fi, pj);
                               if (plen == vn_len) {
                                 if (plen > 0) {
-                                  let pn: u8[128] = [];
+                                  let pn: u8[256] = [];
                                   pipeline_module_func_param_name_copy32(res_mod, cur_fi, pj, &pn[0]);
                                   let eqn: i32 = 1;
                                   let vk: i32 = 0;
@@ -7549,7 +7551,8 @@ export function glue_asm_res_mod_for_import_binding_c(
     while (di < nd) {
       let dplen: i32 = pipeline_dep_ctx_import_path_len(dp, di);
       if (dplen == iplen) {
-        let dpath: u8[128] = [];
+        /* Cap 4.2.8: import_path_copy64 writes 256 bytes — dst must be ≥256. */
+        let dpath: u8[256] = [];
         pipeline_dep_ctx_import_path_copy64(dp, di, &dpath[0]);
         let eq: i32 = 1;
         let k: i32 = 0;
@@ -7617,7 +7620,7 @@ export function glue_asm_mangle_import_binding_call_sym_c(
     } else {
       want_np = pipeline_expr_call_num_args_at(arena, expr_ref);
     }
-    let mid: u8[128] = [];
+    let mid: u8[256] = [];
     let mid_len: i32 = 0 - 1;
     let sym_len: i32 = 0 - 1;
     let use_fi: i32 = 0 - 1;
@@ -7950,7 +7953,11 @@ export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {
  */
 #[no_mangle]
 export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32 {
+  /* Cap 4.2.8: reject empty field — prefix-only yields link names like `_core_option_`
+   * (bare import free-fn mangling). Sym buffer cap raised 63→255 with name[256]. */
   if (out == 0 as *u8) { return 0 - 1; }
+  if (field == 0 as *u8) { return 0 - 1; }
+  if (flen <= 0) { return 0 - 1; }
   let pos: i32 = 0;
   let skip_pre: i32 = 0;
   if (plen > 0) {
@@ -7962,7 +7969,7 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, fiel
     if (plen > 0) {
       let pi: i32 = 0;
       while (pi < plen) {
-        if (pos >= 63) { break; }
+        if (pos >= 255) { break; }
         out[pos] = pre[pi];
         pos = pos + 1;
         pi = pi + 1;
@@ -7971,7 +7978,7 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, fiel
   }
   let pi2: i32 = 0;
   while (pi2 < flen) {
-    if (pos >= 63) { break; }
+    if (pos >= 255) { break; }
     out[pos] = field[pi2];
     pos = pos + 1;
     pi2 = pi2 + 1;
@@ -9129,8 +9136,8 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
     /* Keep the impl in WPO emit-order: dyn wrappers are not call-graph edges. */
     pipeline_module_func_set_is_used(module, impl_fi, 1);
     /* Link name (overload suffix clone_A / clone_B), not the source name. */
-    let impl_nm: u8[128] = [];
-    let impl_nlen: i32 = glue_asm_build_func_export_sym_c(module, arena, impl_fi, &impl_nm[0], 128);
+    let impl_nm: u8[256] = [];
+    let impl_nlen: i32 = glue_asm_build_func_export_sym_c(module, arena, impl_fi, &impl_nm[0], 256);
     if (impl_nlen <= 0) { return 0 - 1; }
     let wrap_nm: u8[168] = [];
     let wrap_nlen: i32 = pipeline_asm_emit_vtable_wrapper_name_into(trait_nm, trait_nlen,

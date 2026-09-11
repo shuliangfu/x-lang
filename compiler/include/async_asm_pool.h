@@ -18,9 +18,9 @@ struct ast_ASTArena;
 struct ast_Module;
 
 /** 单帧 live 变量描述（栈槽由 emit 时按名解析）。
- * wave577 Cap: name[64]→[128] 与 AST name slot 128 对齐（避免 nlen∈(63,127] 时栈溢出）。 */
+ * Cap 4.2.8: name[128]→[256] aligned with AST name slots (content ≤255). */
 typedef struct AsyncAsmPoolLiveVar {
-    char name[128];
+    char name[256];
     int32_t name_len;
     int32_t size_bytes;
     int32_t frame_data_off;

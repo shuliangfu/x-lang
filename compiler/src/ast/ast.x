@@ -138,12 +138,12 @@ export enum ExprKind {
 /* See implementation. */
 export struct Type {
   kind: TypeKind;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   elem_type_ref: i32;
   array_size: i32;
   /* See implementation. */
-  region_label: u8[128];
+  region_label: u8[256];
   region_label_len: i32;
 }
 
@@ -156,7 +156,7 @@ allow(padding) struct Expr {
   /* See implementation. */
   int_val: i64;
   float_val: f64;
-  var_name: u8[128];
+  var_name: u8[256];
   var_name_len: i32;
   binop_left_ref: i32;
   binop_right_ref: i32;
@@ -170,7 +170,7 @@ allow(padding) struct Expr {
   match_arm_base: i32;
   match_num_arms: i32;
   field_access_base_ref: i32;
-  field_access_field_name: u8[128];
+  field_access_field_name: u8[256];
   field_access_field_len: i32;
   field_access_is_enum_variant: i32;
   /* See implementation. */
@@ -187,7 +187,7 @@ allow(padding) struct Expr {
   /* See implementation. */
   call_num_type_args: i32;
   method_call_base_ref: i32;
-  method_call_name: u8[128];
+  method_call_name: u8[256];
   method_call_name_len: i32;
   /* See implementation. */
   method_call_arg_base: i32;
@@ -196,7 +196,7 @@ allow(padding) struct Expr {
   const_folded_valid: i32;
   index_proven_in_bounds: i32;
   /* See implementation. */
-  struct_lit_struct_name: u8[128];
+  struct_lit_struct_name: u8[256];
   struct_lit_struct_name_len: i32;
   struct_lit_field_base: i32;
   struct_lit_num_fields: i32;
@@ -219,7 +219,7 @@ allow(padding) struct Expr {
 
 /* See implementation. */
 export struct ConstDecl {
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   type_ref: i32;
   init_ref: i32;
@@ -227,7 +227,7 @@ export struct ConstDecl {
 
 /* See implementation. */
 export struct LetDecl {
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   type_ref: i32;
   init_ref: i32;
@@ -263,10 +263,10 @@ allow(padding) struct StmtOrderItem {
 
 /* See implementation. */
 export struct LabeledStmt {
-  label: u8[128];
+  label: u8[256];
   label_len: i32;
   is_goto: i32;
-  goto_target: u8[128];
+  goto_target: u8[256];
   goto_target_len: i32;
   return_expr_ref: i32;
 }
@@ -303,14 +303,14 @@ export struct Block {
 
 /* See implementation. */
 export struct Param {
-  name: u8[32];
+  name: u8[256];
   name_len: i32;
   type_ref: i32;
 }
 
 /* See implementation. */
 export struct Func {
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   /* See implementation. */
   param_base: i32;
@@ -344,7 +344,7 @@ export struct Func {
 
 /* See implementation. */
 export struct StructLayout {
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   /* See implementation. */
   field_base: i32;
@@ -451,16 +451,16 @@ allow(padding) struct PipelineDepCtx {
   /* See implementation. */
   current_codegen_dep_index: i32;
   /* See implementation. */
-  current_codegen_prefix_mirror: u8[128];
+  current_codegen_prefix_mirror: u8[256];
   current_codegen_prefix_len: i32;
   /* See implementation. */
   asm_entry_module_only: i32;
   /* See implementation. */
-  entry_module_import_path_mirror: u8[128];
+  entry_module_import_path_mirror: u8[256];
   entry_module_import_path_len: i32;
   /* See implementation. */
   typeck_scope_region_len: i32;
-  typeck_scope_region_label: u8[128];
+  typeck_scope_region_label: u8[256];
   /*
    * wave445 C5: monomorphization type-substitution state for generic function
    * body emit. When mono_active=1, emit_type replaces any type_ref matching
@@ -688,7 +688,7 @@ export function expr_layout_prime_call_resolved(): void {
  * @return void
  */
 export function func_layout_prime_generic_params(): void {
-  let name0: u8[128] = [];
+  let name0: u8[256] = [];
   let f0: Func = {
     name: name0,
     name_len: 0,

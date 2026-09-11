@@ -381,11 +381,11 @@ enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_Expr
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
 struct ast_Type {
   int32_t kind;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[128];
+  uint8_t region_label[256];
   int32_t region_label_len;
 };
 
@@ -396,7 +396,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -409,7 +409,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -422,14 +422,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -445,14 +445,14 @@ struct ast_Expr {
 };
 
 struct ast_ConstDecl {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
 };
 
 struct ast_LetDecl {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -482,10 +482,10 @@ struct ast_StmtOrderItem {
 };
 
 struct ast_LabeledStmt {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[128];
+  uint8_t goto_target[256];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 };
@@ -523,7 +523,7 @@ struct ast_Param {
 };
 
 struct ast_Func {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -544,7 +544,7 @@ struct ast_Func {
 };
 
 struct ast_StructLayout {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t field_base;
   int32_t num_fields;
@@ -928,7 +928,7 @@ extern void ast_ast_arena_func_set(struct ast_ASTArena * arena, int32_t ref, str
 struct parser_OneFuncResult {
   int ok;
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t num_params;
   int32_t num_generic_params;
@@ -948,9 +948,9 @@ struct parser_OneFuncResult {
   int has_unary_neg;
   int32_t return_val;
   int has_call_expr;
-  uint8_t call_callee_name[128];
+  uint8_t call_callee_name[256];
   int32_t call_callee_len;
-  uint8_t return_var_name[128];
+  uint8_t return_var_name[256];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
   int has_final_expr;
@@ -1004,7 +1004,7 @@ struct parser_ParseBlockResult {
 
 struct parser_ExternParseResult {
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
@@ -1022,7 +1022,7 @@ struct parser_LibraryParseResult {
   int ok;
   uint8_t _pad[4];
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   uint8_t _pad_tail[4];
 };
@@ -1031,13 +1031,13 @@ struct parser_LibraryParseScanResult {
   int ok;
   uint8_t _pad[4];
   struct lexer_Lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
-  uint8_t param_name[128];
+  uint8_t param_name[256];
   int32_t param_name_len;
-  uint8_t param_type_name[128];
+  uint8_t param_type_name[256];
   int32_t param_type_len;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t field_len;
   uint8_t _pad_tail[4];
   uint8_t _pad_tail2[4];
@@ -2946,7 +2946,7 @@ static void parser_parse_block_into_with_scratch(struct ast_ASTArena * arena, st
                 int32_t i32ty = 0;
                 int32_t let_i = 0;
                 struct ast_Expr ve;
-                if (rf_nlen > 127) rf_nlen = 127;
+                if (rf_nlen > 255) rf_nlen = 255;
                 for (rf_ni = 0; rf_ni < 128; rf_ni++) rf_name[rf_ni] = 0;
                 for (rf_ni = 0; rf_ni < rf_nlen && rf_nstart + (size_t)rf_ni < (source->length); rf_ni++)
                   rf_name[rf_ni] = (source->data)[rf_nstart + rf_ni];
@@ -3865,7 +3865,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           (void)((name_len = 4));
         }
       }
-      if (((name_len <=0) || (name_len > 127))) {
+      if (((name_len <=0) || (name_len > 255))) {
         (void)(((lex_out->pos) = (lex.pos)));
         (void)(((lex_out->line) = (lex.line)));
         (void)(((lex_out->col) = (lex.col)));
@@ -4900,7 +4900,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     int32_t plen_param = 0;
     int32_t param_idx = 0;
     uint8_t * param_pool = ((uint8_t *)(0));
-    uint8_t pname_row[128] = {};
+    uint8_t pname_row[256] = {};
     int32_t zi_param = 0;
     struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     (void)(lexer_next_into(&(r), lex, source));
@@ -4935,7 +4935,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             return;
           } else {
             (void)(((func_name_len_storage)[0] = ((r.tok).ident_len)));
-            if ((((func_name_len_storage)[0] <=0) || ((func_name_len_storage)[0] > 127))) {
+            if ((((func_name_len_storage)[0] <=0) || ((func_name_len_storage)[0] > 255))) {
               (void)(parser_set_onefunc_fail(out, lex));
               return;
             }
@@ -4952,7 +4952,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         return;
       }
       (void)(((func_name_len_storage)[0] = ((r.tok).ident_len)));
-      if ((((func_name_len_storage)[0] <=0) || ((func_name_len_storage)[0] > 127))) {
+      if ((((func_name_len_storage)[0] <=0) || ((func_name_len_storage)[0] > 255))) {
         (void)(parser_set_onefunc_fail(out, lex));
         return;
       }
@@ -5018,7 +5018,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         } else {
           (void)((plen_param = ((r.tok).ident_len)));
         }
-        if (((plen_param <=0) || (plen_param > 127))) {
+        if (((plen_param <=0) || (plen_param > 255))) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
         }
@@ -5763,7 +5763,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
                   int32_t i32ty = 0;
                   int32_t let_i = 0;
                   struct ast_Expr ve;
-                  if (rf_nlen > 127) rf_nlen = 127;
+                  if (rf_nlen > 255) rf_nlen = 255;
                   for (rf_ni = 0; rf_ni < 128; rf_ni++) rf_name[rf_ni] = 0;
                   for (rf_ni = 0; rf_ni < rf_nlen && rf_nstart + (size_t)rf_ni < (source->length); rf_ni++)
                     rf_name[rf_ni] = (source->data)[rf_nstart + rf_ni];
@@ -6739,7 +6739,7 @@ struct lexer_Lexer parser_skip_one_struct(struct lexer_Lexer lex, struct xlang_s
 extern int32_t parser_module_try_register_enum_name_glue(struct ast_Module * module, uint8_t * name, int32_t name_len);
 int32_t parser_module_try_register_enum_name(struct ast_Module * module, uint8_t * name, int32_t name_len) {
   {
-    if (((((module ==((struct ast_Module *)(0))) || (name ==((uint8_t *)(0)))) || (name_len <=0)) || (name_len > 127))) {
+    if (((((module ==((struct ast_Module *)(0))) || (name ==((uint8_t *)(0)))) || (name_len <=0)) || (name_len > 255))) {
       return -(1);
     }
     int32_t ei = 0;
@@ -6791,7 +6791,7 @@ void parser_module_append_enum_variants_and_skip_body_into_buf(struct ast_Module
         } else {
           if ((((depth ==1) && (enum_idx >=0)) && (((r.tok).kind) ==59))) {
             int32_t vlen = ((r.tok).ident_len);
-            if ((vlen > 127)) {
+            if ((vlen > 255)) {
               (void)((vlen = 127));
             }
             size_t vstart = (r.token_start);
@@ -6908,7 +6908,7 @@ void parser_write_extern_params_to_pools(struct ast_ASTArena * arena, struct ast
     uint8_t * pool = parser_extern_parse_pool_ptr(res);
     int32_t p = 0;
     while ((p < (res->num_params))) {
-      uint8_t pname32[128] = {};
+      uint8_t pname32[256] = {};
       (void)(pipeline_onefunc_param_name_copy32(pool, p, &((pname32)[0])));
       int32_t plen = pipeline_onefunc_param_name_len(pool, p);
       int32_t pty = pipeline_onefunc_param_type_ref(pool, p);
@@ -8257,7 +8257,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         (void)(ast_ast_arena_expr_set(arena, neg_ref, ne));
         (void)((final_expr_ref = neg_ref));
       }
-      if (((((res.has_call_expr) && ((res.return_expr_ref) ==0)) && ((res.call_callee_len) > 0)) && ((res.call_callee_len) <=127))) {
+      if (((((res.has_call_expr) && ((res.return_expr_ref) ==0)) && ((res.call_callee_len) > 0)) && ((res.call_callee_len) <= 255))) {
         uint8_t * call_pool = parser_onefunc_result_pool_ptr(&(res));
         int32_t callee_ref = ast_ast_arena_expr_alloc(arena);
         if ((callee_ref !=0)) {
@@ -8497,7 +8497,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       uint8_t * mod_pool = parser_onefunc_result_pool_ptr(&(res));
       int32_t p = 0;
       while ((p < (res.num_params))) {
-        uint8_t pname32[128] = {};
+        uint8_t pname32[256] = {};
         (void)(pipeline_onefunc_param_name_copy32(mod_pool, p, &((pname32)[0])));
         (void)(pipeline_module_func_param_write(module, fi, p, &((pname32)[0]), pipeline_onefunc_param_name_len(mod_pool, p), pipeline_onefunc_param_type_ref(mod_pool, p)));
         (void)((p = (p + 1)));
@@ -9712,7 +9712,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
           (void)((final_expr_ref = add_ref_buf));
         }
       }
-      if (((((res.has_call_expr) && ((res.return_expr_ref) ==0)) && ((res.call_callee_len) > 0)) && ((res.call_callee_len) <=127))) {
+      if (((((res.has_call_expr) && ((res.return_expr_ref) ==0)) && ((res.call_callee_len) > 0)) && ((res.call_callee_len) <= 255))) {
         uint8_t * call_pool_buf = parser_onefunc_result_pool_ptr(&(res));
         int32_t callee_ref = ast_ast_arena_expr_alloc(arena);
         if ((callee_ref !=0)) {
@@ -9986,7 +9986,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       int32_t p_copy = 0;
       uint8_t * mod_pool_buf = parser_onefunc_result_pool_ptr(&(res));
       while ((p_copy < (res.num_params))) {
-        uint8_t pname32b[128] = {};
+        uint8_t pname32b[256] = {};
         (void)(pipeline_onefunc_param_name_copy32(mod_pool_buf, p_copy, &((pname32b)[0])));
         (void)(pipeline_module_func_param_write(module, fi_mod, p_copy, &((pname32b)[0]), pipeline_onefunc_param_name_len(mod_pool_buf, p_copy), pipeline_onefunc_param_type_ref(mod_pool_buf, p_copy)));
         (void)((p_copy = (p_copy + 1)));
