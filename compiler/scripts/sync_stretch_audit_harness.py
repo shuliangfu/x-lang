@@ -305,6 +305,13 @@ SUITE_HELPER_SIGS = [
 # into leftover-to-audit. Do not daily *vx* / summit / peak / zenith /
 # versal. Eq gate: FORCE smoke deep_off=0 /
 # EQ_ONLY=ultra_mega,skip_allow EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.62: leftover_helpers 0. Second deep-chain batch (not a new leftover
+# TU): exact super_mega layer is already lex-first k_cases (25 rows;
+# super_mega is not a HARD BAN substring and is not in
+# is_deep_climb_name). Do not copy classify / score into leftover-to-audit.
+# Do not daily *vx* / summit / peak / zenith / versal. Eq gate: FORCE
+# smoke deep_off=0 / EQ_ONLY=super_mega,skip_allow EQ_SKIP_SYNTH=1
+# EQ_FILE_STRIDE=4.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

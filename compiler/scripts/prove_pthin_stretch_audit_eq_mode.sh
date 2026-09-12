@@ -19,8 +19,11 @@
 #         EQ_FORCE_DEEP_DAILY=1 (explicit, never default).
 #         v5.61 深链分批: leftover_helpers 0, so daily may smoke the first
 #         already-T lex-first layer that is NOT HARD BAN. Exact ultra_mega
-#         (25 k_cases) is that layer; super_mega is next. Those daily runs
-#         default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4 (score-chain wall-clock).
+#         (25 k_cases) closed v5.61.
+#         v5.62: exact super_mega (25 k_cases; no HARD BAN substring).
+#         Those daily runs default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4
+#         (score-chain wall-clock). Do not add super_mega to
+#         is_deep_climb_name without measurement.
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -201,7 +204,7 @@ case "$MODE" in
     # close already covers the full table at OFF=24×parallel. Override with
     # EQ_MAX_FILE_OFF=128 when deliberately deepening a delta smoke.
     export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-24}"
-    # v5.61: ultra_mega / super_mega are daily-legal (not HARD BAN) but
+    # v5.61/v5.62: ultra_mega / super_mega are daily-legal (not HARD BAN) but
     # still score-chains. Default skip-synth + stride so Darwin stays ≤5 min.
     # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
     case ",$EQ_ONLY," in
