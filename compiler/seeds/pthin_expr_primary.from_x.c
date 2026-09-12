@@ -5,6 +5,10 @@
  * Bodies: finish_struct_lit_slice.inc + primary_slice.inc
  * (primary calls static parse_struct_lit_fields — same TU required)
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
+ *
+ * Hybrid P4b (XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X): portable IDENT
+ * spelling / asm-option-bit bodies come from pthin_expr_primary.x; this
+ * TU keeps slice trampolines. Cold: no BODIES define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -258,6 +262,76 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
 
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
+
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+/* PLATFORM: SHARED — 7.2.1 P4b Route C (2026-09-13).
+ * Slice ABI stays in this TU; buf-path bodies live in pthin_expr_primary.x. */
+extern int32_t parser_asm_primary_ident_is_unsafe_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                       int32_t ident_len);
+extern int32_t parser_asm_primary_ident_is_asm_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                    int32_t ident_len);
+extern int32_t parser_asm_primary_ident_is_in_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                   int32_t ident_len);
+extern int32_t parser_asm_primary_ident_is_out_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                    int32_t ident_len);
+extern int32_t parser_asm_primary_ident_is_lateout_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                        int32_t ident_len);
+extern int32_t parser_asm_primary_ident_is_options_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                        int32_t ident_len);
+extern int32_t parser_asm_primary_asm_option_bit_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                      int32_t ident_len);
+extern int32_t parser_asm_primary_ident_is_asm_option_name_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                                int32_t ident_len);
+
+static int32_t parser_asm_primary_ident_is_unsafe_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                    int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_unsafe_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_ident_is_asm_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                 int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_asm_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_ident_is_in_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_in_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_ident_is_out_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                 int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_out_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_ident_is_lateout_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_lateout_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_ident_is_options_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_options_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_asm_option_bit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                    int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_asm_option_bit_buf_c(source->data, source->length, token_start, ident_len);
+}
+static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                             int32_t ident_len) {
+  if (!source)
+    return 0;
+  return parser_asm_primary_ident_is_asm_option_name_buf_c(source->data, source->length, token_start, ident_len);
+}
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X */
 
 /* struct_lit first: primary uses static parse_struct_lit_fields_c from this slice. */
 #include "parser_asm_finish_struct_lit_slice.inc"

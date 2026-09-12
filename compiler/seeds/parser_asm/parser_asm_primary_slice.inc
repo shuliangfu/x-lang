@@ -3,6 +3,12 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * INT/FLOAT/BOOL/break/continue/IDENT 后缀/paren/array/if/match/panic/@simd 与 parser.x 一致。
+ *
+ * Hybrid P4b: XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips the portable
+ * IDENT spelling / asm-option-bit region (bodies in src/asm/pthin_expr_primary.x
+ * + slice trampolines in the seed TU). parse_primary AUDIT_CALL padding is
+ * compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
+ * Cold: no BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_PRIMARY_SLICE_INCLUDED
 #define PARSER_ASM_PRIMARY_SLICE_INCLUDED
@@ -346,6 +352,7 @@ static int32_t parser_asm_string_lit_decode_span_c(void *arena, int32_t head_ref
   return 0;
 }
 
+#ifndef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
 static int32_t parser_asm_primary_ident_is_unsafe_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                     int32_t ident_len) {
   if (!source || !source->data || ident_len != 6)
@@ -493,6 +500,7 @@ static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_s
                                                              size_t token_start, int32_t ident_len) {
   return parser_asm_primary_asm_option_bit_c(source, token_start, ident_len) != 0;
 }
+#endif /* !XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X */
 
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
                                                    struct parser_asm_slice_u8 *source,
@@ -1803,6 +1811,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
 
   if (!out || !source)
     return;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_head_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_call_deep_audit_c(&lex, source));
@@ -2577,6 +2586,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_STRING) {
     size_t q0;
