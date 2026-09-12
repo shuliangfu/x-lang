@@ -212,8 +212,11 @@ void parser_skip_one_extern_into_glue(struct parser_asm_lexer *out, struct parse
   parser_asm_skip_one_extern_into_slice_c(out, lex, source);
 }
 
+#ifndef XLANG_PTHIN_GLUE_BODIES_FROM_X
 /**
  * skip_one_function_full_into：跳过整条 function 定义（签名+体），结果写入 *out。
+ * Hybrid P10b: body in src/asm/pthin_glue.x; this C twin is cold fallback.
+ * Do not reuse XLANG_PTHIN_GLUE_FROM_X for P10b bodies.
  */
 void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                     struct parser_asm_slice_u8 *source) {
@@ -1083,6 +1086,8 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
       if (_dn > 0) (void)xlang_io_write(2, _db, (size_t)_dn); }
   }
 }
+
+#endif /* !XLANG_PTHIN_GLUE_BODIES_FROM_X skip_one_function_full */
 
 /**
  * skip_one_function_full_into_glue：extern bl 白名单 / thin delegate 共用 C 实现。

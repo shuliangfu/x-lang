@@ -3,6 +3,13 @@
  * Hybrid: XLANG_PTHIN_GLUE_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_glue_tail_slice.inc (~6.5k)
+ * skip_one_function_full + glue wrappers / parse glue
+ *
+ * Hybrid P10b (XLANG_PTHIN_GLUE_BODIES_FROM_X): portable skip_one_function_full
+ * walk comes from pthin_glue.x; this TU keeps the by-value trampoline plus
+ * remaining glue wrappers. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_GLUE_FROM_X for P10b bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -18,6 +25,19 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 #include "ast.h"
+
+/* PLATFORM: SHARED — 7.2.1 P10b B-minus (2026-09-13).
+ * pthin_glue.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_EOF == 0, "glue.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_FUNCTION == 1, "glue.x TOKEN_FUNCTION pin");
+_Static_assert((int)TOKEN_EXTERN == 54, "glue.x TOKEN_EXTERN pin");
+_Static_assert((int)TOKEN_ASYNC == 55, "glue.x TOKEN_ASYNC pin");
+_Static_assert((int)TOKEN_IDENT == 59, "glue.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "glue.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "glue.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_COLON == 91, "glue.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_EXPORT == 131, "glue.x TOKEN_EXPORT pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -730,6 +750,21 @@ extern void pipeline_module_set_main_func_index(void *m, int32_t idx);
 extern void pipeline_parser_set_match_module(void *module);
 extern void pipeline_strict_parse_into_init(void *arena, void *module);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+
+#ifdef XLANG_PTHIN_GLUE_BODIES_FROM_X
+/* .x product body (pointer ABI). C name stays on the trampoline. */
+extern int32_t parser_asm_skip_one_function_full_into_c(void *lex_inout, void *source);
+
+void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  cur = lex;
+  (void)parser_asm_skip_one_function_full_into_c(&cur, source);
+  *out = cur;
+}
+#endif /* XLANG_PTHIN_GLUE_BODIES_FROM_X */
 
 #include "parser_asm_glue_tail_slice.inc"
 
