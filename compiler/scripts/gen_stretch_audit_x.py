@@ -173,6 +173,20 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.68: leftover_helpers 0 / leftover-to-audit unique 0. crown_pinnacle
+#   25/270 closed v5.67. Next already-T lex-first layer = exact
+#   supreme_crown (25 k_cases; EQ_ONLY string is not HARD BAN;
+#   crown IS in is_deep_climb_name). Skipped HARD BAN rungs
+#   summit / peak / zenith / pinnacle_zenith. EQ_ONLY=
+#   supreme_crown must exact-filter (strstr swallows 350
+#   ultimate_supreme+). Case names still contain zenith/peak/summit.
+#   classify/score stay stretch.x (not leftover-to-audit).
+#   Do not daily *vx* / summit / peak / zenith / versal. Do not
+#   remove hyper_mega / ultra_hyper / max_ultra / apex_max /
+#   crown / pinnacle from is_deep_climb_name without measurement.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=supreme_crown
+#   EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+#
 # v5.67: leftover_helpers 0 / leftover-to-audit unique 0. apex_max
 #   25/270 closed v5.66. Next already-T lex-first layer = exact
 #   crown_pinnacle (25 k_cases; EQ_ONLY string is not HARD BAN;
