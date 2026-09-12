@@ -23,19 +23,25 @@
 // different authority from P1b token skip_balanced_braces (raw bytes
 // must ignore braces inside //, block comments, and quotes — the
 // lexer path already does this; scan_sync historically counted raw
-// bytes and mis-closed large if then-bodies). parse_if_stmt / arena
-// / scan_sync / realign / match / if_expr stay C. Contiguous already-T
-// AUDIT_CALL padding on parse_if_stmt is compiled only under
-// XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already ((void)0)).
-// Do not wrap the leftover else-if AUDIT after TOKEN_ELSE (scattered;
-// same leftover rule as unary's leftover between two lexer_next_into).
-// Do not wrap skip_one_trait/impl (trait-reg). Do not duplicate P1b
-// token skip_balanced. skip_ws_and_comments is P9b authority.
+// bytes and mis-closed large if then-bodies).
 //
-// Hybrid P5b: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// 7.2.1 P5c Route C (2026-09-13): 有则补全 this file with scan_sync.
+// The C twin returned lexer by value; language has no struct-by-value
+// so the .x export is pos-only (usize). C trampoline rebuilds the
+// lexer (same line/col, new pos). else-if recursion becomes a loop
+// (same fail-leave: a nested miss returns the nested `if` pos).
+// parse_if_stmt / arena / realign / match / if_expr stay C.
+// sync_lex_after_if_cond_paren stays C (dead after wave650 inclusive
+// parens; do not port). Do not wrap leftover else-if AUDIT. Do not
+// wrap skip_one_trait/impl. Do not duplicate P1b token skip_balanced.
+// skip_ws_and_comments is P9b authority. kw_at_pos_buf_c stays the
+// general C-callable export; scan_sync uses file-local if/else
+// probes (language has no address-of for a kw literal).
+//
+// Hybrid P5b/P5c: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
 // skips the portable .inc region. No lexer-step bridge (buf-path only).
 // Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for
-// P5b bodies.
+// P5b/P5c bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
@@ -309,4 +315,255 @@ export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: 
     }
   }
   return 1;
+}
+
+/**
+ * True when `data[i..]` is a standalone `if` (same next-char rules as
+ * `parser_asm_kw_at_pos_buf_c` with kw=`if`). File-local: language has
+ * no address-of for a keyword literal.
+ * @param data *u8 — source bytes; null is 0
+ * @param len usize — source length
+ * @param i usize — first keyword byte
+ * @return i32 — 1 if standalone `if`
+ */
+function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
+  let a: u8 = 0;
+  let b: u8 = 0;
+  if (data == 0 as *u8 || i + 2 > len) {
+    return 0;
+  }
+  unsafe {
+    a = data[i];
+    b = data[i + 1];
+  }
+  if (a != 105 || b != 102) {
+    return 0;
+  }
+  return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 2);
+}
+
+/**
+ * True when `data[i..]` is a standalone `else` (same next-char rules as
+ * `parser_asm_kw_at_pos_buf_c` with kw=`else`).
+ * @param data *u8 — source bytes; null is 0
+ * @param len usize — source length
+ * @param i usize — first keyword byte
+ * @return i32 — 1 if standalone `else`
+ */
+function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
+  let a: u8 = 0;
+  let b: u8 = 0;
+  let c: u8 = 0;
+  let d: u8 = 0;
+  if (data == 0 as *u8 || i + 4 > len) {
+    return 0;
+  }
+  unsafe {
+    a = data[i];
+    b = data[i + 1];
+    c = data[i + 2];
+    d = data[i + 3];
+  }
+  if (a != 101 || b != 108 || c != 115 || d != 101) {
+    return 0;
+  }
+  return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 4);
+}
+
+/**
+ * If data[i] starts a line comment, block comment, or quoted span,
+ * return one-past that construct (or len). Otherwise return i
+ * unchanged. A line comment leaves the cursor on the newline,
+ * matching the C scan_sync loop.
+ * @param data *u8 — source bytes (non-null; caller checked)
+ * @param len usize — source length
+ * @param i usize — current byte
+ * @return usize — advanced cursor, or i if not a comment/quote
+ */
+function parser_asm_ctrl_skip_comment_or_quote(data: *u8, len: usize, i: usize): usize {
+  let c: u8 = 0;
+  let n: u8 = 0;
+  let q: u8 = 0;
+  unsafe { c = data[i]; }
+  if (c == 47 && i + 1 < len) {
+    unsafe { n = data[i + 1]; }
+    if (n == 47) {
+      i = i + 2;
+      while (i < len) {
+        unsafe { c = data[i]; }
+        if (c == 10) {
+          break;
+        }
+        i = i + 1;
+      }
+      return i;
+    }
+    if (n == 42) {
+      i = i + 2;
+      while (i + 1 < len) {
+        unsafe {
+          c = data[i];
+          n = data[i + 1];
+        }
+        if (c == 42 && n == 47) {
+          break;
+        }
+        i = i + 1;
+      }
+      if (i + 1 < len) {
+        i = i + 2;
+      } else {
+        i = len;
+      }
+      return i;
+    }
+  }
+  if (c == 34 || c == 39) {
+    q = c;
+    i = i + 1;
+    while (i < len) {
+      unsafe { c = data[i]; }
+      if (c == q) {
+        break;
+      }
+      if (c == 92 && i + 1 < len) {
+        i = i + 2;
+        continue;
+      }
+      i = i + 1;
+    }
+    if (i < len) {
+      i = i + 1;
+    }
+    return i;
+  }
+  return i;
+}
+
+/**
+ * First `{` at parenthesis-depth 0 after `start`, comment/string aware.
+ * @param data *u8 — source bytes (non-null; caller checked)
+ * @param len usize — source length
+ * @param start usize — first byte of the condition
+ * @return usize — index of `{`, or `len` if none
+ */
+function parser_asm_ctrl_find_then_lbrace(data: *u8, len: usize, start: usize): usize {
+  let i: usize = start;
+  let par: i32 = 0;
+  let c: u8 = 0;
+  let skipped: usize = 0;
+  while (i < len) {
+    skipped = parser_asm_ctrl_skip_comment_or_quote(data, len, i);
+    if (skipped != i) {
+      i = skipped;
+      continue;
+    }
+    unsafe { c = data[i]; }
+    if (c == 40) {
+      par = par + 1;
+    } else {
+      if (c == 41 && par > 0) {
+        par = par - 1;
+      } else {
+        if (c == 123 && par == 0) {
+          break;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+/**
+ * Byte position of the first token after the whole `if` / `else` /
+ * `else if` statement that contains `start_pos`. Backscans up to 512
+ * bytes for a standalone `if`, finds the then-body `{` at parenthesis
+ * depth 0, skips that group, then optional `else {…}` or `else if …`
+ * (loop, not recursion). Fail-leave returns `start_pos` on the first
+ * call and the nested `if` pos on a nested miss (same as C).
+ * @param data *u8 — source bytes; null returns `start_pos`
+ * @param len usize — source length
+ * @param start_pos usize — lexer pos near the `if` keyword
+ * @return usize — pos after the statement, or `start_pos` / nested
+ *   `if` pos on fail-leave
+ * PLATFORM: SHARED — scan_sync authority; C trampoline rebuilds lexer.
+ */
+#[no_mangle]
+export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, start_pos: usize): usize {
+  let cur: usize = start_pos;
+  let if_pos: usize = 0;
+  let lo: usize = 0;
+  let found: i32 = 0;
+  let cond_start: usize = 0;
+  let probe: usize = 0;
+  let i: usize = 0;
+  let c: u8 = 0;
+  if (data == 0 as *u8) {
+    return start_pos;
+  }
+  while (true) {
+    if_pos = cur;
+    lo = 0;
+    if (if_pos > 512 as usize) {
+      lo = if_pos - 512 as usize;
+    }
+    found = 0;
+    cond_start = 0;
+    while (true) {
+      if (parser_asm_ctrl_kw_if_at(data, len, if_pos) != 0) {
+        unsafe {
+          probe = parser_asm_stretch_skip_ws_and_comments_c(data, len, if_pos + 2);
+        }
+        if (probe < len) {
+          found = 1;
+          cond_start = probe;
+          break;
+        }
+      }
+      if (if_pos == lo) {
+        break;
+      }
+      if_pos = if_pos - 1;
+    }
+    if (found == 0) {
+      return cur;
+    }
+    i = parser_asm_ctrl_find_then_lbrace(data, len, cond_start);
+    unsafe {
+      i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
+    }
+    if (i >= len) {
+      return cur;
+    }
+    unsafe { c = data[i]; }
+    if (c != 123) {
+      return cur;
+    }
+    i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+    unsafe {
+      i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
+    }
+    if (i + 4 <= len && parser_asm_ctrl_kw_else_at(data, len, i) != 0) {
+      unsafe {
+        i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i + 4);
+      }
+      if (i < len) {
+        unsafe { c = data[i]; }
+        if (c == 123) {
+          i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+        } else {
+          if (i + 2 <= len && parser_asm_ctrl_kw_if_at(data, len, i) != 0) {
+            cur = i;
+            continue;
+          }
+        }
+      }
+    }
+    unsafe {
+      i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
+    }
+    return i;
+  }
+  return cur;
 }

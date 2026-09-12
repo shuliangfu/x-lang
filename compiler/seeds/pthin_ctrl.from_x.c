@@ -4,11 +4,11 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
- * comment-aware brace skip + kw_at_pos come from pthin_ctrl.x; this TU
- * keeps the slice trampoline plus parse / scan_sync / match / if_expr.
- * Cold: no BODIES define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
- * for P5b bodies.
+ * Hybrid P5b/P5c (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * comment-aware brace skip + kw_at_pos + scan_sync pos come from
+ * pthin_ctrl.x; this TU keeps the slice trampolines plus parse /
+ * realign / match / if_expr. Cold: no BODIES define, full .inc. Do
+ * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -117,17 +117,28 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *data);
 
 #ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
-/* .x product bodies (buf-path brace skip + kw_at_pos). Same C name for
- * skip_braces; kw_at_pos keeps the slice+const char* trampoline because
- * language has no C string type. */
+/* .x product bodies (buf-path brace skip + kw_at_pos + scan_sync pos).
+ * Same C name for skip_braces; kw_at_pos keeps the slice+const char*
+ * trampoline because language has no C string type; scan_sync keeps
+ * the by-value lexer trampoline because language has no struct-by-value. */
 extern size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_t *data, size_t len,
                                                                     size_t start);
 extern int32_t parser_asm_kw_at_pos_buf_c(uint8_t *data, size_t len, size_t i, uint8_t *kw, int32_t klen);
+extern size_t parser_asm_scan_sync_after_if_stmt_pos_c(uint8_t *data, size_t len, size_t start_pos);
 
 static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t i, const char *kw, int32_t klen) {
   if (!source || !kw)
     return 0;
   return parser_asm_kw_at_pos_buf_c(source->data, source->length, i, (uint8_t *)(uintptr_t)kw, klen);
+}
+
+static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parser_asm_lexer lex_cur,
+                                                                    struct parser_asm_slice_u8 *source) {
+  size_t pos;
+  if (!source || !source->data)
+    return lex_cur;
+  pos = parser_asm_scan_sync_after_if_stmt_pos_c(source->data, source->length, (size_t)lex_cur.pos);
+  return (struct parser_asm_lexer){.pos = (size_t)(int32_t)pos, .line = lex_cur.line, .col = lex_cur.col};
 }
 #endif
 

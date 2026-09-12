@@ -1068,7 +1068,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o"; then
             _pthin_p5b_ok=1
             _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
-            echo "g05_ensure: P5b ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C)"
+            echo "g05_ensure: P5b/P5c ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync)"
           else
             echo "g05_ensure: P5b ctrl .x thin failed; P5 C twin stays full" >&2
           fi

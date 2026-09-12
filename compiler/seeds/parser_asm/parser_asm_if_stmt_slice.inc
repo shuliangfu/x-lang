@@ -4,13 +4,13 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block X mega，勿 X emit 本函数体。
  *
- * Hybrid P5b: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the portable buf-path
- * region (comment-aware brace skip + kw_at_pos; bodies in
- * src/asm/pthin_ctrl.x + slice trampoline in the seed TU). parse / arena
- * / scan_sync / realign stay here. Contiguous already-T AUDIT_CALL
+ * Hybrid P5b/P5c: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the portable
+ * buf-path region (comment-aware brace skip + kw_at_pos + scan_sync;
+ * bodies in src/asm/pthin_ctrl.x + slice trampolines in the seed TU).
+ * parse / arena / realign stay here. Contiguous already-T AUDIT_CALL
  * padding on parse_if_stmt is compiled only under
  * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
- * define, full twin. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b
+ * define, full twin. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c
  * bodies. Do not wrap leftover else-if AUDIT.
  */
 #ifndef PARSER_ASM_IF_STMT_SLICE_INCLUDED
@@ -1303,9 +1303,12 @@ static size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_
 }
 #endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X skip_braces_bytes */
 
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
 /**
  * Scan from the `if` near lex and return the lexer at the first token after
  * the whole if/else statement.
+ * Hybrid P5c: body in src/asm/pthin_ctrl.x (pos-only); seed TU trampoline
+ * rebuilds the by-value lexer.
  *
  * Produce: byte scan of `if <cond> { then } [else …]`.
  * Store: returned Lexer.pos is the byte after the last `}` (or else-if tail).
@@ -1413,6 +1416,7 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
   i = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i);
   return (struct parser_asm_lexer){ .pos = (int32_t)i, .line = lex_cur.line, .col = lex_cur.col };
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X scan_sync */
 
 /**
  * if 条件含 struct.field 时 cond_res.next_lex 可能被污染；自 if 关键字扫描至 cond 的 ')' 之后。
