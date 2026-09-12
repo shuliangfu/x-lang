@@ -173,6 +173,19 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.59: leftover_helpers collect_imports_preamble three-kind wrap eq
+#   (collect_imports_preamble). Already .x T in audit.x; no k_cases row
+#   because first param is kind: not lex:. twins.h has no static C copy,
+#   but the first-kind ABI still cannot be a k_cases row, so eq lives in
+#   a sibling TU (pthin_stretch_audit_eq_leftover_preamble.c) that links
+#   audit_x.o and compares exhaustive TokenKind on each slot + a small
+#   cartesian of classify-hit kinds against the gated C twin (thin wrap
+#   of classify_toplevel; tables stay stretch.x). Honest flatten is
+#   live source → 1 / null → 0 (classify discarded). classify/score
+#   stay stretch.x (not leftover-to-audit). Do not mix from_at
+#   lex_after_ident. Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=collect_imports_preamble,skip_allow.
+#
 # v5.58: leftover_helpers import_path_post validate-wrap eq
 #   (import_path_post). Already .x T in audit.x; no k_cases row because
 #   first param is path_buf: *u8 not lex:. twins.h has no static C copy,
