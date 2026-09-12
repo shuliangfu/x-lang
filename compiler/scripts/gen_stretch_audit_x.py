@@ -173,6 +173,20 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.60: leftover_helpers simd_builtin_deep_from_at lex_after_ident eq
+#   (simd_builtin_deep_from_at). Already .x T in audit.x; no k_cases row
+#   because first param is at_kind: not lex:. twins.h keeps a static C
+#   copy that shadows the .x T in the harness TU, so eq lives in a
+#   sibling TU (pthin_stretch_audit_eq_leftover_fromat.c) that links
+#   audit_x.o and compares exhaustive TokenKind on each slot (null lex)
+#   + AT+IDENT ident corners + short live-lex snippets against the
+#   gated C twin (thin combinator of simd_builtin / vector_type_ident /
+#   paren_expr_head / builtin_vec_token; tables stay stretch.x). Honest
+#   flatten: C skips paren on null lex; .x paren returns 0 on null lex;
+#   any sub-score > 0 → 1. classify/score stay stretch.x (not
+#   leftover-to-audit). Last leftover_helper. Eq gate: FORCE smoke
+#   deep_off=0 / EQ_ONLY=simd_builtin_deep_from_at,skip_allow.
+#
 # v5.59: leftover_helpers collect_imports_preamble three-kind wrap eq
 #   (collect_imports_preamble). Already .x T in audit.x; no k_cases row
 #   because first param is kind: not lex:. twins.h has no static C copy,

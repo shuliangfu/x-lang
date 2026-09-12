@@ -291,6 +291,14 @@ SUITE_HELPER_SIGS = [
 # C twin is a thin wrap of classify_toplevel (extern; do not copy
 # classify tables). Honest flatten is live source → 1 / null → 0.
 # classify / score stay stretch.x. Do not mix from_at lex_after_ident.
+# v5.60: simd_builtin_deep_from_at leftover_helpers stay leftover_helpers
+# (not lex-first k_cases). from_at + lex_after_ident eq is
+# scripts/pthin_stretch_audit_eq_leftover_fromat.c (sibling TU;
+# twins.h static shadows .x T; first-at_kind ABI cannot be a k_cases
+# row). C twin is a thin combinator of simd_builtin / vector_type_ident
+# / paren_expr_head / builtin_vec_token (do not copy classify / score
+# tables). Honest flatten: C skips paren on null lex; .x paren returns
+# 0 on null lex. Last leftover_helper. classify / score stay stretch.x.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

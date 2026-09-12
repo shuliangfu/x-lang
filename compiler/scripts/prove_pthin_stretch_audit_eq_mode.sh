@@ -113,12 +113,15 @@ build_harness() {
   $CC -c -I. -Iinclude -o "$OUT/leftover_preamble.o" \
     scripts/pthin_stretch_audit_eq_leftover_preamble.c 2>"$OUT/leftover_preamble_cc.err" || {
     cat "$OUT/leftover_preamble_cc.err" >&2; return 1; }
+  $CC -c -I. -Iinclude -o "$OUT/leftover_fromat.o" \
+    scripts/pthin_stretch_audit_eq_leftover_fromat.c 2>"$OUT/leftover_fromat_cc.err" || {
+    cat "$OUT/leftover_fromat_cc.err" >&2; return 1; }
   $CC -I. -Iinclude -o "$HARNESS" \
     scripts/pthin_stretch_audit_eq_harness.c "$OUT/audit_x.o" "$OUT/bridge.o" "$OUT/lexer_pin.o" \
     "$OUT/leftover_kind.o" "$OUT/leftover_namelen.o" "$OUT/leftover_sourceoff.o" \
     "$OUT/leftover_kindsrc.o" "$OUT/leftover_twokind.o" "$OUT/leftover_asbind.o" \
     "$OUT/leftover_kindarr.o" "$OUT/leftover_validate.o" "$OUT/leftover_pathpost.o" \
-    "$OUT/leftover_preamble.o" \
+    "$OUT/leftover_preamble.o" "$OUT/leftover_fromat.o" \
     2>"$OUT/harness_cc.err" || { cat "$OUT/harness_cc.err" >&2; return 1; }
 }
 
