@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.55 leftover_asbind eq 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.56 leftover_kindarr eq 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.55 leftover_asbind eq 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；classify／score 留 stretch.x）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.56 leftover_kindarr eq 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；classify／score 留 stretch.x）  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -139,6 +139,7 @@
   - [x] leftover_helpers kind+source+off eq（v5.53：2／30；独立 TU 穷尽 TokenKind＋IDENT ident 字节类／长度／token_start 角，避开 twins.h static 阴影；C twin 薄包 bind_name_validate on data+off；import_dot_segment 加 I32／ASYNC 恒 1；classify／score 留 stretch.x；余 8＝复合 ABI）
   - [x] leftover_helpers two-kind+source+off eq（v5.54：1／30；独立 TU 穷尽 TokenKind at／ident 各一维＋AT+IDENT shuffle／select 拼写／长度／token_start 角，避开 twins.h static 阴影；C twin 拼写检查非 bind_name_validate；classify／score 留 stretch.x；余 7＝复合 ABI）
   - [x] leftover_helpers 7-param as-bind eq（v5.55：1／30；独立 TU 穷尽 TokenKind kind／next_kind 各一维＋IDENT+"as" 拼写／长度／token_start 角＋next-ident 字节类／长度／next_start 角；7 参 first-kind ABI 不能进 k_cases；C twin 拼写检查＋bind_name_validate on data+next_start；classify／score 留 stretch.x；余 6＝复合 ABI）
+  - [x] leftover_helpers kinds-array eq（v5.56：2／30；独立 TU 短 snippet＋guard／max_peek／num_kinds 角＋若干 start-pos，避开 twins.h static 阴影；C twin 拷 *lex＋lexer_next_into；.x peek/step/restore；peek_kind_chain_buf 仍是 lex-first k_cases；classify／score 留 stretch.x；余 4＝复合 ABI 单件）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -295,7 +296,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（1977／2,007；leftover_asbind eq 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；续＝leftover_helpers 余 6 复合 ABI；classify／score 留 stretch.x；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b** B-minus 续（1977／2,007；leftover_kindarr eq 2／30；asbind 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；续＝leftover_helpers 余 4 复合 ABI 单件；classify／score 留 stretch.x；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  

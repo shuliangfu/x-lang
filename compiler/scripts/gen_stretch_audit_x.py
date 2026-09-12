@@ -173,6 +173,18 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.56: leftover_helpers kinds-array eq (peek_kind_chain /
+#   expr_binop_kinds_probe). Already .x T in audit.x; no k_cases row
+#   because first param is kinds: not lex:. twins.h static C copies
+#   shadow both names in the harness TU, so eq lives in a sibling TU
+#   (pthin_stretch_audit_eq_leftover_kindarr.c) that links audit_x.o
+#   and compares short snippets + guard / max_peek / num_kinds corners
+#   + a few start-pos landings against the gated C twins (copy *lex +
+#   lexer_next_into; .x peek/step/restore). peek_kind_chain_buf stays
+#   a lex-first k_cases wrap. classify/score stay stretch.x (not
+#   leftover-to-audit). Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=peek_kind_chain,expr_binop_kinds_probe,skip_allow.
+#
 # v5.55: leftover_helpers 7-param as-bind eq (import_as_bind). Already
 #   .x T in audit.x; no k_cases row because first param is not lex:.
 #   twins.h has no static C copy of import_as_bind, but the 7-param
