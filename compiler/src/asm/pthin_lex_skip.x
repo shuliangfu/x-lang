@@ -22,12 +22,21 @@
 // generic-angle walks are B-minus (opaque lexer + lexer-step bridge),
 // matching leftover skip_balanced_brackets_into. By-value lexer returns
 // stay as C trampolines in seeds/pthin_lex_skip.from_x.c (language has
-// no struct-by-value). skip_generic_angle_list_count (static pending-name
-// tables) stays C in the .inc.
+// no struct-by-value).
 //
-// Hybrid P1b: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+// 7.2.1 P1c B-minus (2026-09-13): 有则补全 this file with
+// skip_generic_angle_list_count. The walk is the into skip plus
+// top-level arg counting and IDENT capture at declaration position.
+// Language has no global u8[8][64]; dest buffers carry the 8 name
+// rows and lens, and the C trampoline writes g_gp_pending_*.
+// register_pending stays C (reads those statics). Do not duplicate
+// skip_generic_angle_list_into (this export inspects tokens the
+// into skip does not). Do not open a new P-lane.
+//
+// Hybrid P1b/P1c: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
 // skips the portable .inc region. token.h remains the TOKEN_* authority
 // via P1 C _Static_assert pins. Cold: no define, full .inc stays.
+// Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -41,6 +50,14 @@ export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
 export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
 export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
 export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
+/** Peek the next token's ident_len without advancing. */
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+/** Peek the next token's token_start without advancing. */
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+/** Source slice data pointer (for IDENT capture copy). */
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+/** Source slice length. */
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P1 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -97,6 +114,8 @@ const TOKEN_RSHIFT_EQ: i32 = 115;
 const TOKEN_LT: i32 = 120;
 const TOKEN_GT: i32 = 121;
 const TOKEN_EXPORT: i32 = 131;
+const GP_PENDING_MAX: i32 = 8;
+const GP_NAME_CAP: i32 = 64;
 
 /**
  * True when `kind` is a compound-assign token (`+=` … `>>=`).
@@ -387,7 +406,7 @@ export function parser_asm_skip_balanced_braces_into_c(lex_inout: *u8, source: *
  * @param lex_inout *u8 — opaque lexer
  * @param source *u8 — opaque slice
  * @return i32 — 1 on either success or restore; 0 on null
- * PLATFORM: SHARED — product P1 B-minus; count+pending capture stays C.
+ * PLATFORM: SHARED — product P1 B-minus; P1c count is a sibling export.
  */
 #[no_mangle]
 export function parser_asm_skip_generic_angle_list_into_c(lex_inout: *u8, source: *u8): i32 {
@@ -436,6 +455,165 @@ export function parser_asm_skip_generic_angle_list_into_c(lex_inout: *u8, source
         parser_asm_lex_set_line_c(lex_inout, line0);
         parser_asm_lex_set_col_c(lex_inout, col0);
         return 1;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    }
+  }
+  return 1;
+}
+
+/**
+ * Skip `<T>` / `<T, E, ...>` and count top-level type args, capturing
+ * declaration-position IDENT names into dest buffers (wave455).
+ * Entry is the start of `<`. Success leaves the lexer past the matching
+ * `>`. Abort (EOF / statement boundary / depth-1 `)`) restores the
+ * entry cursor, writes count=0 and pending_n=0, so the caller leaves
+ * `<` for relcompare. count is 0 for empty `<>`; otherwise top-level
+ * comma-count plus one. IDENT at depth 1 while expecting a type-param
+ * name is copied (cap 63) into names[i*64..]; a following `:` bound
+ * clears the expect flag so the trait name is not captured.
+ * @param lex_inout *u8 — opaque lexer
+ * @param source *u8 — opaque slice
+ * @param count *i32 — out slot; 0 on abort / empty list
+ * @param names *u8 — dest 8*64 name rows; trampoline owns the buffer
+ * @param lenses *i32 — dest 8 lens slots
+ * @param pending_n *i32 — out slot; number of captured names (0..8)
+ * @return i32 — 1 on success or restore; 0 on null
+ * PLATFORM: SHARED — product P1c B-minus; C trampoline keeps
+ * `parser_asm_skip_generic_angle_list_count_into_slice_c` and writes
+ * g_gp_pending_*. Do not duplicate skip_generic_angle_list_into_c.
+ */
+#[no_mangle]
+export function parser_asm_skip_generic_angle_list_count_into_c(lex_inout: *u8, source: *u8, count: *i32, names: *u8, lenses: *i32, pending_n: *i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let depth: i32 = 0;
+  let kind: i32 = 0;
+  let top_count: i32 = 0;
+  let saw_any: i32 = 0;
+  let expect_tp: i32 = 0;
+  let pn: i32 = 0;
+  let pl: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen_us: usize = 0;
+  let slen: i32 = 0;
+  let zi: i32 = 0;
+  let slot_off: usize = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || count == 0 as *i32 || names == 0 as *u8 || lenses == 0 as *i32 || pending_n == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    count[0] = 0;
+    pending_n[0] = 0;
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    data = parser_asm_lex_source_data_c(source);
+    slen_us = parser_asm_lex_source_length_c(source);
+    if (slen_us > 2147483647 as usize) {
+      slen = 2147483647;
+    } else {
+      slen = slen_us as i32;
+    }
+    depth = 0;
+    top_count = 0;
+    saw_any = 0;
+    expect_tp = 0;
+    pn = 0;
+    while (true) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_LT) {
+        depth = depth + 1;
+        if (depth == 1) {
+          expect_tp = 1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_GT) {
+        depth = depth - 1;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        if (depth <= 0) {
+          if (saw_any != 0) {
+            count[0] = top_count + 1;
+          } else {
+            count[0] = 0;
+          }
+          pending_n[0] = pn;
+          return 1;
+        }
+        continue;
+      }
+      if (kind == TOKEN_COMMA) {
+        if (depth == 1) {
+          top_count = top_count + 1;
+          expect_tp = 1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_COLON) {
+        if (depth == 1) {
+          expect_tp = 0;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_IDENT && depth == 1 && expect_tp != 0) {
+        if (pn < GP_PENDING_MAX) {
+          pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+          if (pl > 63) {
+            pl = 63;
+          }
+          ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+          if (ts == 0 as usize) {
+            ts = parser_asm_lex_pos_c(lex_inout);
+          }
+          slot_off = (pn as usize) * (GP_NAME_CAP as usize);
+          zi = 0;
+          while (zi < GP_NAME_CAP) {
+            names[slot_off + zi as usize] = 0;
+            zi = zi + 1;
+          }
+          if (pl > 0 && data != 0 as *u8) {
+            parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, names + slot_off);
+          }
+          lenses[pn] = pl;
+          pn = pn + 1;
+        }
+        expect_tp = 0;
+        saw_any = 1;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_EOF) {
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        count[0] = 0;
+        pending_n[0] = 0;
+        return 1;
+      }
+      if (parser_asm_angle_list_token_is_stmt_boundary_c(kind) != 0) {
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        count[0] = 0;
+        pending_n[0] = 0;
+        return 1;
+      }
+      if (depth == 1 && kind == TOKEN_RPAREN) {
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        count[0] = 0;
+        pending_n[0] = 0;
+        return 1;
+      }
+      if (depth == 1) {
+        saw_any = 1;
       }
       parser_asm_lex_step_kind_c(lex_inout, source);
     }

@@ -2,10 +2,12 @@
  * parser_asm_lex_skip_slice.inc — P1 lex/skip pure helpers (G-02f-281).
  * Included by parser_asm_thin_c.from_x.c or pthin_lex_skip.from_x.c.
  *
- * Hybrid P1b: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
- * kind/copy/skip-walk region (bodies in src/asm/pthin_lex_skip.x +
- * by-value trampolines in the seed TU). Count+pending C stays here.
- * Cold: no define, this file is the full twin.
+ * Hybrid P1b/P1c: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
+ * kind/copy/skip-walk region and the count walk (bodies in
+ * src/asm/pthin_lex_skip.x + by-value trampolines in the seed TU).
+ * g_gp_pending_* statics + register_pending stay here. Cold: no define,
+ * this file is the full twin. Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X
+ * for P1b/P1c bodies.
  */
 #ifndef PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 #define PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
@@ -342,6 +344,36 @@ static uint8_t g_gp_pending_names[XLANG_GP_PENDING_MAX][64];
 static int32_t g_gp_pending_lens[XLANG_GP_PENDING_MAX];
 static int32_t g_gp_pending_n;
 
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+extern int32_t parser_asm_skip_generic_angle_list_count_into_c(void *lex_inout, void *source, int32_t *count,
+                                                              uint8_t *names, int32_t *lenses, int32_t *pending_n);
+
+void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
+                                                           struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t cnt = 0;
+  int32_t pn = 0;
+  int32_t lenses[XLANG_GP_PENDING_MAX];
+  uint8_t names[XLANG_GP_PENDING_MAX][64];
+  int32_t i;
+  if (!out || !count || !source)
+    return;
+  cur = lex;
+  memset(lenses, 0, sizeof(lenses));
+  memset(names, 0, sizeof(names));
+  (void)parser_asm_skip_generic_angle_list_count_into_c(&cur, source, &cnt, (uint8_t *)names, lenses, &pn);
+  *out = cur;
+  *count = cnt;
+  g_gp_pending_n = pn < 0 ? 0 : (pn > XLANG_GP_PENDING_MAX ? XLANG_GP_PENDING_MAX : pn);
+  memset(g_gp_pending_lens, 0, sizeof(g_gp_pending_lens));
+  memset(g_gp_pending_names, 0, sizeof(g_gp_pending_names));
+  for (i = 0; i < g_gp_pending_n; i++) {
+    g_gp_pending_lens[i] = lenses[i];
+    memcpy(g_gp_pending_names[i], names[i], 64);
+  }
+}
+#else
 void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
                                                            struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source) {
@@ -416,6 +448,7 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
     lex = r.next_lex;
   }
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X count walk */
 
 /**
  * wave455: register pending type-param names under a function name into the

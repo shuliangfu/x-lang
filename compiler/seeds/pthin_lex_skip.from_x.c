@@ -3,9 +3,11 @@
  * Hybrid: XLANG_PTHIN_LEX_SKIP_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_lex_skip_slice.inc
- * Hybrid P1b (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
- * bodies come from pthin_lex_skip.x; this TU keeps by-value trampolines
- * plus the count+pending C region. Cold: no BODIES define, full .inc.
+ * Hybrid P1b/P1c (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
+ * bodies and the count walk come from pthin_lex_skip.x; this TU keeps
+ * by-value trampolines plus g_gp_pending_* / register_pending C. Cold: no
+ * BODIES define, full .inc. Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for
+ * P1b/P1c bodies.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -59,7 +61,7 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *data);
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 
-/* PLATFORM: SHARED — 7.2.1 P1b Route C + B-minus (2026-09-12).
+/* PLATFORM: SHARED — 7.2.1 P1b/P1c Route C + B-minus (2026-09-13).
  * pthin_lex_skip.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "lex_skip.x TOKEN_EOF pin");
@@ -70,6 +72,8 @@ _Static_assert((int)TOKEN_LPAREN == 82, "lex_skip.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_RPAREN == 83, "lex_skip.x TOKEN_RPAREN pin");
 _Static_assert((int)TOKEN_LBRACE == 84, "lex_skip.x TOKEN_LBRACE pin");
 _Static_assert((int)TOKEN_RBRACE == 85, "lex_skip.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_COMMA == 90, "lex_skip.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "lex_skip.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_PLUS_EQ == 106, "lex_skip.x TOKEN_PLUS_EQ pin");
 _Static_assert((int)TOKEN_RSHIFT_EQ == 115, "lex_skip.x TOKEN_RSHIFT_EQ pin");
 _Static_assert((int)TOKEN_LT == 120, "lex_skip.x TOKEN_LT pin");
