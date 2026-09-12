@@ -2,22 +2,25 @@
  * parser_asm_imports_slice.inc — P11 skip/collect imports (G-02f-320).
  * Included by parser_asm_thin_c.from_x.c or pthin_imports.from_x.c.
  *
- * Hybrid P11b: XLANG_PTHIN_IMPORTS_BODIES_FROM_X skips the portable
- * skip_imports walks (bodies in src/asm/pthin_imports.x + by-value
- * trampolines in the seed TU). try_skip_const_import / consume_path /
- * collect_imports stay here. Contiguous already-T AUDIT_CALL padding
- * on collect_imports is compiled only under XLANG_PARSER_STRETCH_AUDIT
- * (product AUDIT_CALL is nop). Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for P11b bodies.
+ * Hybrid P11b/P11c: XLANG_PTHIN_IMPORTS_BODIES_FROM_X skips the portable
+ * skip_imports / consume_path / try_skip walks (bodies in
+ * src/asm/pthin_imports.x + by-value trampolines in the seed TU).
+ * collect_imports stays here (void* module). Contiguous already-T
+ * AUDIT_CALL padding on collect_imports is compiled only under
+ * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
+ * define, full twin. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for
+ * P11b/P11c bodies.
  */
 /* Forward decl: defined later in this file (G-02f-422 Ubuntu gcc fix) */
 int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
                                                       struct parser_asm_slice_u8 *source, uint8_t *path_buf,
                                                       int32_t *path_len);
 
+#ifndef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
 /**
  * 若 lex 位于 const 之后，尝试跳过整条 const [=|{]= import("path"); 语句。
  * 成功返回 1 并更新 *lex；否则返回 0。
+ * Hybrid P11c: body in src/asm/pthin_imports.x; this C twin is cold fallback.
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
@@ -51,9 +54,7 @@ int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
   (void)i;
   return 0;
 }
-
-
-
+#endif /* !XLANG_PTHIN_IMPORTS_BODIES_FROM_X try_skip_const_import */
 
 #ifndef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
 /**
@@ -131,8 +132,10 @@ void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, si
 
 
 
+#ifndef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
 /**
  * 从 out.lex 当前位解析 import("path"); 成功更新 out.lex 并返回 1。
+ * Hybrid P11c: body in src/asm/pthin_imports.x; this C twin is cold fallback.
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
@@ -193,9 +196,7 @@ int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_import
   parser_asm_lex_from_result_val_into(&out->lex, r);
   return 1;
 }
-
-
-
+#endif /* !XLANG_PTHIN_IMPORTS_BODIES_FROM_X consume_path */
 
 /**
  * collect_imports：收集顶层 import 路径到 module，并写出跳过 import 后的 lex。

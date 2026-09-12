@@ -5,11 +5,11 @@
  * Body: seeds/parser_asm/parser_asm_imports_slice.inc (~1.8k)
  * skip_imports + try_skip_const_import + consume_path + collect_imports
  *
- * Hybrid P11b (XLANG_PTHIN_IMPORTS_BODIES_FROM_X): portable skip_imports
- * walk comes from pthin_imports.x; this TU keeps the by-value trampolines
- * plus try_skip / consume_path / collect_imports C. Cold: no BODIES
- * define, full .inc. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for P11b
- * bodies.
+ * Hybrid P11b/P11c (XLANG_PTHIN_IMPORTS_BODIES_FROM_X): portable
+ * skip_imports / consume_path / try_skip walks come from
+ * pthin_imports.x; this TU keeps the by-value trampolines plus
+ * collect_imports C (void* module). Cold: no BODIES define, full
+ * .inc. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for P11b/P11c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -21,11 +21,18 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
-/* PLATFORM: SHARED — 7.2.1 P11b B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P11b/P11c B-minus (2026-09-13).
  * pthin_imports.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_CONST == 3, "imports.x TOKEN_CONST pin");
 _Static_assert((int)TOKEN_ATTR_CFG == 24, "imports.x TOKEN_ATTR_CFG pin");
+_Static_assert((int)TOKEN_IMPORT == 53, "imports.x TOKEN_IMPORT pin");
+_Static_assert((int)TOKEN_IDENT == 59, "imports.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "imports.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "imports.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "imports.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_ASSIGN == 117, "imports.x TOKEN_ASSIGN pin");
+_Static_assert((int)TOKEN_STRING == 130, "imports.x TOKEN_STRING pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -193,6 +200,10 @@ extern void pipeline_module_import_set_select_count(void *module, int32_t idx, i
 #ifdef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
 /* .x product body (pointer ABI). C names stay on the trampolines. */
 extern int32_t parser_asm_skip_imports_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_collect_imports_consume_path_into_c(void *lex_inout, void *source,
+                                                             uint8_t *path_buf, int32_t *path_len);
+extern int32_t parser_asm_try_skip_const_import_into_c(void *lex_inout, void *source,
+                                                      uint8_t *path_buf, int32_t *path_len);
 
 /* Thin ABI adapter over P18 cfg_skip_pending (int32 pending in/out).
  * G.7: zero business logic; language has no address-of for a local i32. */
@@ -222,6 +233,25 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_skip_imports_slice_c(lex, &source);
+}
+
+/* Language has no local u8[128]; this trampoline owns the path scratch
+ * and restores the C name. Null lex/source: 0, lexer unmoved. */
+int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
+                                             struct parser_asm_slice_u8 *source) {
+  uint8_t path_buf[128];
+  int32_t path_len = 0;
+  if (!lex || !source)
+    return 0;
+  return parser_asm_try_skip_const_import_into_c(lex, source, path_buf, &path_len);
+}
+
+int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
+                                               struct parser_asm_slice_u8 *source, uint8_t *path_buf,
+                                               int32_t *path_len) {
+  if (!out || !source || !path_buf || !path_len)
+    return 0;
+  return parser_asm_collect_imports_consume_path_into_c(&out->lex, source, path_buf, path_len);
 }
 #endif /* XLANG_PTHIN_IMPORTS_BODIES_FROM_X */
 
