@@ -273,6 +273,27 @@ int32_t parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(uint8_t *data, i
   score += parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(data, len);
   return score > 0 ? 1 : 0;
 }
+
+/* v5.33: diag_fn_mega_buf still-C (pointer ABI widen; no .x port yet). */
+int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(struct parser_asm_lexer lex,
+                                                          struct parser_asm_slice_u8 *source) {
+  int32_t score;
+  score = c_ref_diag_fn_deep_audit(&lex, source);
+  score += c_ref_fn_sig_full_deep_audit(&lex, source);
+  score += c_ref_diag_after_collect_preamble_audit(&lex, source);
+  score += parser_asm_stretch_function_name_audit_c((const uint8_t *)"main", 4);
+  return score > 0 ? 1 : 0;
+}
+int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  struct parser_asm_slice_u8 sl;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  sl.data = data;
+  sl.length = (size_t)len;
+  return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(lex, &sl);
+}
 '''
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
@@ -405,8 +426,13 @@ def main():
     twins = []
     fwds = []
     have = set()
+    # v5.33: require the FROM_X gate immediately above the twin. Ungated
+    # void*-ABI still-C roots (e.g. diag_fn_mega_buf widened for .x callers
+    # but not yet migrated) previously matched this regex and swallowed the
+    # next function's #endif, dropping that twin (block_stmt_mega non-buf).
     for m in re.finditer(
-        r"^int32_t (parser_asm_stretch_\w+_c)\(void \*lex_inout([^\n]*)\) \{$(.*?)^\}$\n#endif",
+        r"^#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X\n"
+        r"int32_t (parser_asm_stretch_\w+_c)\(void \*lex_inout([^\n]*)\) \{$(.*?)^\}$\n#endif",
         suite, re.S | re.M,
     ):
         name, extra, body = m.group(1), m.group(2), m.group(3)

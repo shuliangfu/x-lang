@@ -76,6 +76,7 @@ export extern "C" function parser_asm_stretch_classify_toplevel_c(kind: i32, nex
 export extern "C" function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32;
 export extern "C" function parser_asm_stretch_struct_field_name_kind_c(kind: i32): i32;
 export extern "C" function parser_asm_stretch_spawn_kw_audit_c(kind: i32): i32;
+export extern "C" function parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32;
 
 // Lexer canonical TokenKind values (enum token_TokenKind indices; authority
 // include/token.h == seeds/lexer_gen.linux.x86_64.c, verified identical 133
@@ -13286,6 +13287,93 @@ export function parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(lex: *u8
     score = parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(data, len);
     score = score + parser_asm_stretch_diag_after_imports_structs_deep_buf_audit_c(lex, data, len);
     score = score + parser_asm_stretch_collect_imports_post_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_parse_ultra mega full buf
+ * chain (diag_parse_one mega + diag_fn mega + import_path mega). C historically
+ * took `(data,len)` and built a fresh `lexer_init` local. Caller lex is
+ * snapshotted, reset to init (pos=0,line=1,col=1), then restored — net effect
+ * on the caller's cursor is zero (same as C's by-value fresh local).
+ * Port of `parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 no-lex ultra root; unlocks parse_preamble_mega.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    /* C: lex = lexer_init_c(); — snap caller, reset to init, restore after. */
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(lex, data, len);
+    /* Still-C pointer-ABI leaf (v5.33 widen); by-value net on lex. */
+    score = score + parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_path_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_ultra2 mega full buf chain
+ * (diag_parse_ultra mega + diag_skip_let mega + diag_fn mega). C historically
+ * took `(data,len)` and built a fresh `lexer_init` local. Caller lex is
+ * snapshotted, reset to init, then restored — net zero on caller cursor.
+ * Port of `parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33; unlocks parse_into_max_mega climb.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_skip_let_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex, data, len);
     parser_asm_lex_set_pos_c(lex, pos0);
     parser_asm_lex_set_line_c(lex, line0);
     parser_asm_lex_set_col_c(lex, col0);
@@ -28342,6 +28430,1342 @@ export function parser_asm_stretch_parse_into_entry_mega_full_deep_buf_audit_c(l
     score = parser_asm_stretch_parse_into_entry_full_deep_buf_audit_c(lex, data, len);
     score = score + parser_asm_stretch_parse_into_mega_full_deep_buf_audit_c(lex, data, len);
     score = score + parser_asm_stretch_parse_into_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_preamble_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_collect_imports_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_super_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_super_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_into_entry_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_into_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_max_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_max_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_super_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_ultra_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_super mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper mega full buf.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * Port of `parser_asm_stretch_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — 1 if any sub-audit scores, else 0
+ * PLATFORM: SHARED — B-minus v5.33 batch ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (score > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_max_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_super_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated thick-buf port of `parser_asm_stretch_parse_into_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c`: wraps (data,len) via the bridge ring,
+ * then runs the translated audit body over the opaque slice.
+ * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_into_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(lex, data, len);
       if (score > 0) {
         parser_asm_lex_set_pos_c(lex, pos0);
         parser_asm_lex_set_line_c(lex, line0);

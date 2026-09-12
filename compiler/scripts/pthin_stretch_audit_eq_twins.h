@@ -451,6 +451,7 @@ static int32_t c_ref_balanced_delim_mega_full_deep_audit(void *lex_inout, void *
 static int32_t c_ref_balanced_delim_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_async_fn_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_async_fn_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_parse_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_loop_control_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_stmt_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_expr_stmt_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
@@ -482,12 +483,14 @@ static int32_t c_ref_fn_sig_mega_full_deep_buf_audit(void *lex_inout, uint8_t *d
 static int32_t c_ref_match_arms_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_arms_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_trait_impl_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_preamble_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_expr_ultra_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_expr_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_primary_ultra_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_primary_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_ultra_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_ultra_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_ultra_mega_full_deep_audit(void *lex_inout, void *source);
@@ -497,6 +500,7 @@ static int32_t c_ref_fn_ultra_mega_full_deep_audit(void *lex_inout, void *source
 static int32_t c_ref_fn_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_ultra_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_ultra2_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_ultra_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_ultra_mega_full_deep_audit(void *lex_inout, void *source);
@@ -509,6 +513,7 @@ static int32_t c_ref_primary_super_mega_full_deep_audit(void *lex_inout, void *s
 static int32_t c_ref_primary_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_super_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_max_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_super_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_super_mega_full_deep_audit(void *lex_inout, void *source);
@@ -518,6 +523,7 @@ static int32_t c_ref_fn_super_mega_full_deep_audit(void *lex_inout, void *source
 static int32_t c_ref_fn_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_super_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_super_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_super_mega_full_deep_audit(void *lex_inout, void *source);
@@ -530,6 +536,7 @@ static int32_t c_ref_primary_hyper_mega_full_deep_audit(void *lex_inout, void *s
 static int32_t c_ref_primary_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -539,6 +546,7 @@ static int32_t c_ref_fn_hyper_mega_full_deep_audit(void *lex_inout, void *source
 static int32_t c_ref_fn_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -551,6 +559,7 @@ static int32_t c_ref_primary_ultra_hyper_mega_full_deep_audit(void *lex_inout, v
 static int32_t c_ref_primary_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -560,6 +569,7 @@ static int32_t c_ref_fn_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *
 static int32_t c_ref_fn_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -572,6 +582,7 @@ static int32_t c_ref_primary_max_ultra_hyper_mega_full_deep_audit(void *lex_inou
 static int32_t c_ref_primary_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -581,6 +592,7 @@ static int32_t c_ref_fn_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, vo
 static int32_t c_ref_fn_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -593,6 +605,7 @@ static int32_t c_ref_primary_apex_max_ultra_hyper_mega_full_deep_audit(void *lex
 static int32_t c_ref_primary_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -602,6 +615,7 @@ static int32_t c_ref_fn_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inou
 static int32_t c_ref_fn_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -614,6 +628,7 @@ static int32_t c_ref_primary_summit_apex_max_ultra_hyper_mega_full_deep_audit(vo
 static int32_t c_ref_primary_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -623,6 +638,7 @@ static int32_t c_ref_fn_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *l
 static int32_t c_ref_fn_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -635,6 +651,7 @@ static int32_t c_ref_primary_peak_summit_apex_max_ultra_hyper_mega_full_deep_aud
 static int32_t c_ref_primary_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -644,6 +661,7 @@ static int32_t c_ref_fn_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(vo
 static int32_t c_ref_fn_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -656,6 +674,7 @@ static int32_t c_ref_primary_zenith_peak_summit_apex_max_ultra_hyper_mega_full_d
 static int32_t c_ref_primary_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -665,6 +684,7 @@ static int32_t c_ref_fn_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_a
 static int32_t c_ref_fn_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -677,6 +697,7 @@ static int32_t c_ref_primary_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_me
 static int32_t c_ref_primary_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -686,6 +707,7 @@ static int32_t c_ref_fn_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_fu
 static int32_t c_ref_fn_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -698,6 +720,7 @@ static int32_t c_ref_primary_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hy
 static int32_t c_ref_primary_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -707,6 +730,7 @@ static int32_t c_ref_fn_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_m
 static int32_t c_ref_fn_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -719,6 +743,7 @@ static int32_t c_ref_primary_supreme_crown_pinnacle_zenith_peak_summit_apex_max_
 static int32_t c_ref_primary_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -728,6 +753,7 @@ static int32_t c_ref_fn_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra
 static int32_t c_ref_fn_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -740,6 +766,7 @@ static int32_t c_ref_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_
 static int32_t c_ref_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -749,6 +776,7 @@ static int32_t c_ref_fn_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_
 static int32_t c_ref_fn_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -761,6 +789,7 @@ static int32_t c_ref_primary_absolute_ultimate_supreme_crown_pinnacle_zenith_pea
 static int32_t c_ref_primary_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -770,6 +799,7 @@ static int32_t c_ref_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_sum
 static int32_t c_ref_fn_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -782,6 +812,7 @@ static int32_t c_ref_primary_transcendent_absolute_ultimate_supreme_crown_pinnac
 static int32_t c_ref_primary_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_import_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_import_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_parse_into_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_match_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -791,6 +822,7 @@ static int32_t c_ref_fn_transcendent_absolute_ultimate_supreme_crown_pinnacle_ze
 static int32_t c_ref_fn_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_control_flow_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_control_flow_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_body_skip_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_body_skip_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_library_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source);
@@ -1334,6 +1366,27 @@ int32_t parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(uint8_t *data, i
   score += c_ref_parse_one_function_buf_deep_audit(&lex, data, len);
   score += parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(data, len);
   return score > 0 ? 1 : 0;
+}
+
+/* v5.33: diag_fn_mega_buf still-C (pointer ABI widen; no .x port yet). */
+int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(struct parser_asm_lexer lex,
+                                                          struct parser_asm_slice_u8 *source) {
+  int32_t score;
+  score = c_ref_diag_fn_deep_audit(&lex, source);
+  score += c_ref_fn_sig_full_deep_audit(&lex, source);
+  score += c_ref_diag_after_collect_preamble_audit(&lex, source);
+  score += parser_asm_stretch_function_name_audit_c((const uint8_t *)"main", 4);
+  return score > 0 ? 1 : 0;
+}
+int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
+  struct parser_asm_lexer lex;
+  struct parser_asm_slice_u8 sl;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  sl.data = data;
+  sl.length = (size_t)len;
+  return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(lex, &sl);
 }
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_fn_param_list_audit_c. */
 static int32_t c_ref_fn_param_list_audit(void *lex_inout, void *source) {
@@ -7160,6 +7213,25 @@ static int32_t c_ref_async_fn_mega_full_deep_buf_audit(void *lex_inout, uint8_t 
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_parse_ultra_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  /* v5.32: diag_parse_one mega widened to (lex, data, len). */
+  score = c_ref_diag_parse_one_mega_full_buf_audit(&lex, data, len);
+  /* v5.33: diag_fn_mega_buf widened to pointer ABI. */
+  score += parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += c_ref_import_path_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_loop_control_mega_full_deep_buf_audit_c. */
 static int32_t c_ref_loop_control_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
 
@@ -7679,6 +7751,24 @@ static int32_t c_ref_trait_impl_mega_full_deep_buf_audit(void *lex_inout, uint8_
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_preamble_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_preamble_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_preamble_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_collect_imports_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_parse_ultra_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_expr_ultra_mega_full_deep_audit_c. */
 static int32_t c_ref_expr_ultra_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -7776,6 +7866,24 @@ static int32_t c_ref_import_ultra_mega_full_deep_buf_audit(void *lex_inout, uint
   sl.data = data;
   sl.length = (size_t)len;
   return c_ref_import_ultra_mega_full_deep_audit(&lex, &sl);
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_super_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_into_entry_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_into_ultra_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
 
 }
 
@@ -7929,6 +8037,23 @@ static int32_t c_ref_control_flow_ultra_mega_full_deep_buf_audit(void *lex_inout
   score += c_ref_stmt_control_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_loop_control_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_control_flow_ultra_mega_full_deep_audit(&lex, &sl);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_ultra2_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_parse_ultra_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_skip_let_mega_full_deep_buf_audit(&lex, data, len);
+  score += parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -8135,6 +8260,24 @@ static int32_t c_ref_import_super_mega_full_deep_buf_audit(void *lex_inout, uint
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_max_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_max_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_super_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_ultra_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_ultra2_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_super_mega_full_deep_audit_c. */
 static int32_t c_ref_match_super_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -8282,6 +8425,23 @@ static int32_t c_ref_control_flow_super_mega_full_deep_buf_audit(void *lex_inout
   score = c_ref_control_flow_ultra_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_ultra_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_ultra_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_super_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_ultra2_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_super_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -8484,6 +8644,24 @@ static int32_t c_ref_import_hyper_mega_full_deep_buf_audit(void *lex_inout, uint
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_max_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_super_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_super_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -8631,6 +8809,23 @@ static int32_t c_ref_control_flow_hyper_mega_full_deep_buf_audit(void *lex_inout
   score = c_ref_control_flow_super_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_super_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_super_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_super_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_super_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -8834,6 +9029,24 @@ static int32_t c_ref_import_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -8981,6 +9194,23 @@ static int32_t c_ref_control_flow_ultra_hyper_mega_full_deep_buf_audit(void *lex
   score = c_ref_control_flow_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -9184,6 +9414,24 @@ static int32_t c_ref_import_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_i
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -9331,6 +9579,23 @@ static int32_t c_ref_control_flow_max_ultra_hyper_mega_full_deep_buf_audit(void 
   score = c_ref_control_flow_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -9534,6 +9799,24 @@ static int32_t c_ref_import_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -9681,6 +9964,23 @@ static int32_t c_ref_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit(
   score = c_ref_control_flow_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -9884,6 +10184,24 @@ static int32_t c_ref_import_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -10031,6 +10349,23 @@ static int32_t c_ref_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_buf
   score = c_ref_control_flow_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -10234,6 +10569,24 @@ static int32_t c_ref_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -10381,6 +10734,23 @@ static int32_t c_ref_control_flow_peak_summit_apex_max_ultra_hyper_mega_full_dee
   score = c_ref_control_flow_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -10584,6 +10954,24 @@ static int32_t c_ref_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_de
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -10731,6 +11119,23 @@ static int32_t c_ref_control_flow_zenith_peak_summit_apex_max_ultra_hyper_mega_f
   score = c_ref_control_flow_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -10934,6 +11339,24 @@ static int32_t c_ref_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_meg
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -11081,6 +11504,23 @@ static int32_t c_ref_control_flow_pinnacle_zenith_peak_summit_apex_max_ultra_hyp
   score = c_ref_control_flow_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -11284,6 +11724,24 @@ static int32_t c_ref_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyp
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -11431,6 +11889,23 @@ static int32_t c_ref_control_flow_crown_pinnacle_zenith_peak_summit_apex_max_ult
   score = c_ref_control_flow_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -11634,6 +12109,24 @@ static int32_t c_ref_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_u
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -11781,6 +12274,23 @@ static int32_t c_ref_control_flow_supreme_crown_pinnacle_zenith_peak_summit_apex
   score = c_ref_control_flow_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -11984,6 +12494,24 @@ static int32_t c_ref_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_a
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -12131,6 +12659,23 @@ static int32_t c_ref_control_flow_ultimate_supreme_crown_pinnacle_zenith_peak_su
   score = c_ref_control_flow_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -12334,6 +12879,24 @@ static int32_t c_ref_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -12481,6 +13044,23 @@ static int32_t c_ref_control_flow_absolute_ultimate_supreme_crown_pinnacle_zenit
   score = c_ref_control_flow_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }
@@ -12684,6 +13264,24 @@ static int32_t c_ref_import_transcendent_absolute_ultimate_supreme_crown_pinnacl
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_parse_into_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_parse_into_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  score = c_ref_parse_into_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_match_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c. */
 static int32_t c_ref_match_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -12831,6 +13429,23 @@ static int32_t c_ref_control_flow_transcendent_absolute_ultimate_supreme_crown_p
   score = c_ref_control_flow_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_body_skip_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_match_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  int32_t score;
+  struct parser_asm_lexer lex;
+  (void)lex_inout;
+
+  if (!data || len <= 0)
+    return 0;
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_import_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit(&lex, data, len);
+  score += c_ref_parse_preamble_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }

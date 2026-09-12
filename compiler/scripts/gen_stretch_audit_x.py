@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.32 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.33 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.33: diag_parse_ultra / preamble / ultra2 / diag_super→transcendent ABI
+#   widen + parse_into super→transcendent climb (提速波) —
+#   Hand-port no-lex roots: diag_parse_ultra + diag_ultra2 + diag_super→
+#   transcendent (data,len→(lex,data,len) snap+reset-to-init+restore);
+#   prereq diag_fn_mega_buf byval→pointer. Soft-FP: parse_preamble_mega +
+#   parse_into_super→…→transcendent (14 layers). Root-fix suite self-recursive
+#   first-callee bugs on summit→transcendent (copy-paste). Refuse infinite+/
+#   versal. Eq gate: FORCE smoke deep_off=0 / Darwin-first (提速纪律).
 #
 # v5.32: diag_parse_one_mega no-lex root (ABI widen) + parse_into_mega climb —
 #   Hand-port `diag_parse_one_mega_full_buf` widened from (data,len) to
