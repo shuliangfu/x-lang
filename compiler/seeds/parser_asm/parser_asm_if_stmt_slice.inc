@@ -3,6 +3,15 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block X mega，勿 X emit 本函数体。
+ *
+ * Hybrid P5b: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the portable buf-path
+ * region (comment-aware brace skip + kw_at_pos; bodies in
+ * src/asm/pthin_ctrl.x + slice trampoline in the seed TU). parse / arena
+ * / scan_sync / realign stay here. Contiguous already-T AUDIT_CALL
+ * padding on parse_if_stmt is compiled only under
+ * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
+ * define, full twin. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b
+ * bodies. Do not wrap leftover else-if AUDIT.
  */
 #ifndef PARSER_ASM_IF_STMT_SLICE_INCLUDED
 #define PARSER_ASM_IF_STMT_SLICE_INCLUDED
@@ -275,6 +284,7 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   struct parser_asm_lexer elif_lex;
   if (!arena || !source || !out_cond || !out_then || !out_else || !lex_out)
     return 0;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_branch_audit_c(&lex_at_if, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_audit_c(&lex_at_if, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_else_mega_full_deep_audit_c(&lex_at_if, source));
@@ -1046,6 +1056,7 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_control_flow_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex_at_if, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_control_flow_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex_at_if, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_control_flow_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex_at_if, source));
+#endif /* XLANG_PARSER_STRETCH_AUDIT parse_if_stmt prefix */
   lex_cur = lex_at_if;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_control_flow_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex_at_if, source));
   lex_cur = lex_at_if;
@@ -1164,7 +1175,8 @@ static int32_t parser_asm_is_ws_byte_c(uint8_t c) {
   return c == (uint8_t)' ' || c == (uint8_t)'\t' || c == (uint8_t)'\n' || c == (uint8_t)'\r';
 }
 
-/** 判断 source[i..] 是否为独立关键字 kw。 */
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/** 判断 source[i..] 是否为独立关键字 kw。 Hybrid P5b: body in pthin_ctrl.x. */
 static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t i, const char *kw, int32_t klen) {
   size_t next_pos;
   if (!source || !source->data || klen <= 0)
@@ -1206,7 +1218,9 @@ static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t
   }
   return 1;
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X kw_at_pos */
 
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
 /**
  * Skip one balanced `{...}` starting at data[start] which must be '{'.
  * Returns the index immediately after the matching '}'.
@@ -1217,6 +1231,7 @@ static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t
  * then-bodies when a comment contained a lone `{` (e.g. codegen.x note about
  * illegal `void {` C). That overshoot made outer while siblings (per-func emit)
  * nest under if (i==0), so Cap force-regen only co-emitted the first dep body.
+ * Hybrid P5b: body in src/asm/pthin_ctrl.x (same C name).
  */
 static size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_t *data, size_t len,
                                                                      size_t start) {
@@ -1286,6 +1301,7 @@ static size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_
   }
   return i;
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X skip_braces_bytes */
 
 /**
  * Scan from the `if` near lex and return the lexer at the first token after

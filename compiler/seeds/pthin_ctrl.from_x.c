@@ -3,6 +3,13 @@
  * Hybrid: XLANG_PTHIN_CTRL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
+ *
+ * Hybrid P5b (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * comment-aware brace skip + kw_at_pos come from pthin_ctrl.x; this TU
+ * keeps the slice trampoline plus parse / scan_sync / match / if_expr.
+ * Cold: no BODIES define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
+ * for P5b bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -108,6 +115,21 @@ struct ast_Module; /* opaque pointer only */
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
+
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/* .x product bodies (buf-path brace skip + kw_at_pos). Same C name for
+ * skip_braces; kw_at_pos keeps the slice+const char* trampoline because
+ * language has no C string type. */
+extern size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_t *data, size_t len,
+                                                                    size_t start);
+extern int32_t parser_asm_kw_at_pos_buf_c(uint8_t *data, size_t len, size_t i, uint8_t *kw, int32_t klen);
+
+static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t i, const char *kw, int32_t klen) {
+  if (!source || !kw)
+    return 0;
+  return parser_asm_kw_at_pos_buf_c(source->data, source->length, i, (uint8_t *)(uintptr_t)kw, klen);
+}
+#endif
 
 #include "parser_asm_if_stmt_slice.inc"
 #include "parser_asm_match_subject_slice.inc"
