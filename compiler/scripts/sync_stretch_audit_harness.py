@@ -271,6 +271,12 @@ SUITE_HELPER_SIGS = [
 # *lex + lexer_next_into; .x peek/step/restore. peek_kind_chain_buf is
 # already a lex-first k_cases wrap. Do not copy classify / score into
 # leftover-to-audit.
+# v5.57: validate_toplevel leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Span/bounds eq is
+# scripts/pthin_stretch_audit_eq_leftover_validate.c (sibling TU;
+# first-kind ABI cannot be a k_cases row; twins.h has no static). C twin
+# is EOF / ident_len<=0 / span — do not copy token_run_len / verify_kw
+# tables into leftover-to-audit. classify / score stay stretch.x.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

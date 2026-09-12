@@ -173,6 +173,18 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.57: leftover_helpers validate_toplevel span/bounds eq
+#   (validate_toplevel_token). Already .x T in audit.x; no k_cases row
+#   because first param is kind: not lex:. twins.h has no static C copy,
+#   but the first-kind ABI still cannot be a k_cases row, so eq lives in
+#   a sibling TU (pthin_stretch_audit_eq_leftover_validate.c) that links
+#   audit_x.o and compares exhaustive TokenKind (ident_len<=0 / in-span
+#   / overflow) + ident_len / token_start / slen corners including
+#   unsigned-add wrap against the gated C twin (EOF / ident_len<=0 /
+#   span; tables stay stretch.x). classify/score stay stretch.x (not
+#   leftover-to-audit). Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=validate_toplevel_token,skip_allow.
+#
 # v5.56: leftover_helpers kinds-array eq (peek_kind_chain /
 #   expr_binop_kinds_probe). Already .x T in audit.x; no k_cases row
 #   because first param is kinds: not lex:. twins.h static C copies
