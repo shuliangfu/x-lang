@@ -8431,23 +8431,31 @@ int32_t parser_asm_stretch_parse_cond_expr_deep_buf_audit_c(void *lex_inout, uin
 
 /**
  * tier34：SIMD 内建深探（r0 位于 @ token；向量类型 + 括号头）。
+ * v5.42: flattened from lexer-result-by-val (one-token lookahead →
+ * scalars + lex_after_ident for the paren_expr_head walk).
  */
-int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_lexer_result r_at,
-                                                             struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r;
+/* B-minus leftover helper (v5.42): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                             struct parser_asm_slice_u8 *source,
+                                                             size_t ident_start, int32_t ident_len,
+                                                             void *lex_after_ident) {
+  struct parser_asm_lexer lex_after;
   int32_t score;
-
-  if (!source || r_at.tok.kind != (int32_t)TOKEN_AT)
+  if (!source || at_kind != (int32_t)TOKEN_AT)
     return 0;
-  lexer_next_into(&r, r_at.next_lex, source);
-  score = parser_asm_stretch_simd_builtin_audit_c((int32_t)r_at.tok.kind, (int32_t)r.tok.kind, source,
-                                                 r.token_start, r.tok.ident_len);
-  if (r.tok.kind == (int32_t)TOKEN_IDENT)
-    score += parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, r.tok.ident_len);
-  score += parser_asm_stretch_paren_expr_head_audit_c(&r.next_lex, source);
-  score += parser_asm_stretch_builtin_vec_token_audit_c((int32_t)r.tok.kind);
+  score = parser_asm_stretch_simd_builtin_audit_c(at_kind, ident_kind, source, ident_start, ident_len);
+  if (ident_kind == (int32_t)TOKEN_IDENT)
+    score += parser_asm_stretch_vector_type_ident_audit_c(source, ident_start, ident_len);
+  if (lex_after_ident) {
+    lex_after = *(struct parser_asm_lexer *)lex_after_ident;
+    score += parser_asm_stretch_paren_expr_head_audit_c(&lex_after, source);
+  }
+  score += parser_asm_stretch_builtin_vec_token_audit_c(ident_kind);
   return score > 0 ? 1 : 0;
 }
+#endif
 
 /**
  * tier34：SIMD 内建 slice 深探（自 lex 扫描 @ 名 + 向量类型 + 括号头）。
@@ -8462,9 +8470,13 @@ int32_t parser_asm_stretch_simd_builtin_deep_audit_c(void *lex_inout, void *sour
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_lexer_result r_at;
+  struct parser_asm_lexer_result r;
 
   lexer_next_into(&r_at, lex, (struct parser_asm_slice_u8 *)source);
-  return parser_asm_stretch_simd_builtin_deep_from_at_audit_c(r_at, source);
+  lexer_next_into(&r, r_at.next_lex, (struct parser_asm_slice_u8 *)source);
+  return parser_asm_stretch_simd_builtin_deep_from_at_audit_c((int32_t)r_at.tok.kind, (int32_t)r.tok.kind,
+                                                             (struct parser_asm_slice_u8 *)source, r.token_start,
+                                                             r.tok.ident_len, &r.next_lex);
 }
 #endif
 

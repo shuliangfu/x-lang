@@ -272,6 +272,10 @@ int32_t parser_asm_stretch_if_expr_branch_audit_c(void *lex_inout, void *source)
 int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t ident_kind,
                                                 struct parser_asm_slice_u8 *source,
                                                 size_t ident_start, int32_t ident_len);
+int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                             struct parser_asm_slice_u8 *source,
+                                                             size_t ident_start, int32_t ident_len,
+                                                             void *lex_after_ident);
 int32_t parser_asm_stretch_struct_lit_fields_probe_c(void *lex_inout, void *source, int32_t *out_field_count);
 int32_t parser_asm_stretch_array_lit_head_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_primary_suffix_chain_probe_c(void *lex_inout, void *source);

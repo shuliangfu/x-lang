@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.40 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.42 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.42: leftover helper Route C flatten from_at (lookahead + lex_after_ident).
+#   from_at's one next_lex walk only extracted ident kind/start/len; the
+#   remaining paren_expr_head walk is the already-migrated (lex, source)
+#   audit. Flatten onto scalars + lex_after_ident; caller peeks. Generator
+#   still inlines from_at (eq-honest v5.36); leftover helper is the new
+#   authority. Still refuse peek_kind out-array, validate_toplevel,
+#   import_path_post (finalize not in eq TU), advance_to secondary-cursor.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=simd_builtin,library_scan,match_subject,skip_allow.
 #
 # v5.41: leftover helper Route C flatten (simd_builtin / import_as).
 #   One-token lookahead leftovers: next_lex was only used to read the next
@@ -2322,6 +2331,10 @@ PURE_HELPERS = {
     "parser_asm_stretch_import_as_bind_audit_c": (
         "kind: i32, source: *u8, token_start: usize, ident_len: i32, next_kind: i32, next_start: usize, next_len: i32",
         "i32"),
+    # v5.42 leftover Route C flatten from_at (lookahead + lex_after_ident)
+    "parser_asm_stretch_simd_builtin_deep_from_at_audit_c": (
+        "at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32, lex_after_ident: *u8",
+        "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
     "parser_asm_stretch_enum_discriminant_kind_audit_c": ("kind: i32", "i32"),
@@ -3178,6 +3191,10 @@ PURE_HELPERS = {
         "i32"),
     "parser_asm_stretch_import_as_bind_audit_c": (
         "kind: i32, source: *u8, token_start: usize, ident_len: i32, next_kind: i32, next_start: usize, next_len: i32",
+        "i32"),
+    # v5.42 leftover Route C flatten from_at (lookahead + lex_after_ident)
+    "parser_asm_stretch_simd_builtin_deep_from_at_audit_c": (
+        "at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32, lex_after_ident: *u8",
         "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),

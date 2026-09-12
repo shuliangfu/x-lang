@@ -83281,3 +83281,40 @@ export function parser_asm_stretch_import_as_bind_audit_c(kind: i32, source: *u8
   }
   return parser_asm_stretch_bind_name_validate_c(data + next_start, next_len);
 }
+
+/* ── leftover helpers (v5.42 Route C flatten: from_at lookahead + lex_after_ident) ── */
+
+/**
+ * SIMD builtin deep probe starting at `@`. Flattened from leftover from_at
+ * (lexer-result-by-val): the one next_lex walk only extracted the ident's
+ * kind / token_start / ident_len; the remaining paren_expr_head walk is
+ * the already-migrated (lex, source) audit. Caller peeks the ident after
+ * `@` and passes those scalars plus the lexer cursor after that ident.
+ * G.7 thin combinator of simd_builtin + vector_type_ident +
+ * paren_expr_head + builtin_vec_token.
+ * @param at_kind i32 — token kind at `@` (must be TOKEN_AT)
+ * @param ident_kind i32 — token kind after `@`
+ * @param source *u8 — opaque slice
+ * @param ident_start usize — byte offset of the ident
+ * @param ident_len i32 — ident length
+ * @param lex_after_ident *u8 — opaque lexer at the token after the ident
+ * @return i32 — 1 if any sub-audit scored; 0 otherwise
+ * PLATFORM: SHARED — leftover helper port (v5.42).
+ */
+#[no_mangle]
+export function parser_asm_stretch_simd_builtin_deep_from_at_audit_c(at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32, lex_after_ident: *u8): i32 {
+  let score: i32 = 0;
+  if (source == 0 as *u8 || at_kind != TOKEN_AT) {
+    return 0;
+  }
+  score = parser_asm_stretch_simd_builtin_audit_c(at_kind, ident_kind, source, ident_start, ident_len);
+  if (ident_kind == TOKEN_IDENT) {
+    score = score + parser_asm_stretch_vector_type_ident_audit_c(source, ident_start, ident_len);
+  }
+  score = score + parser_asm_stretch_paren_expr_head_audit_c(lex_after_ident, source);
+  score = score + parser_asm_stretch_builtin_vec_token_audit_c(ident_kind);
+  if (score > 0) {
+    return 1;
+  }
+  return 0;
+}

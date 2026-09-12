@@ -2547,20 +2547,22 @@ static int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind) {
          || kind == (int32_t)TOKEN_F32X4 ? 1 : 0;
 }
 
-int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_lexer_result r_at,
-                                                             struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r;
+static int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                             struct parser_asm_slice_u8 *source,
+                                                             size_t ident_start, int32_t ident_len,
+                                                             void *lex_after_ident) {
+  struct parser_asm_lexer lex_after;
   int32_t score;
-
-  if (!source || r_at.tok.kind != (int32_t)TOKEN_AT)
+  if (!source || at_kind != (int32_t)TOKEN_AT)
     return 0;
-  lexer_next_into(&r, r_at.next_lex, source);
-  score = parser_asm_stretch_simd_builtin_audit_c((int32_t)r_at.tok.kind, (int32_t)r.tok.kind, source,
-                                                 r.token_start, r.tok.ident_len);
-  if (r.tok.kind == (int32_t)TOKEN_IDENT)
-    score += parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, r.tok.ident_len);
-  score += c_ref_paren_expr_head_audit(&r.next_lex, source);
-  score += parser_asm_stretch_builtin_vec_token_audit_c((int32_t)r.tok.kind);
+  score = parser_asm_stretch_simd_builtin_audit_c(at_kind, ident_kind, source, ident_start, ident_len);
+  if (ident_kind == (int32_t)TOKEN_IDENT)
+    score += parser_asm_stretch_vector_type_ident_audit_c(source, ident_start, ident_len);
+  if (lex_after_ident) {
+    lex_after = *(struct parser_asm_lexer *)lex_after_ident;
+    score += c_ref_paren_expr_head_audit(&lex_after, source);
+  }
+  score += parser_asm_stretch_builtin_vec_token_audit_c(ident_kind);
   return score > 0 ? 1 : 0;
 }
 
@@ -7217,9 +7219,13 @@ static int32_t c_ref_simd_builtin_deep_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   struct parser_asm_lexer_result r_at;
+  struct parser_asm_lexer_result r;
 
   lexer_next_into(&r_at, lex, (struct parser_asm_slice_u8 *)source);
-  return parser_asm_stretch_simd_builtin_deep_from_at_audit_c(r_at, source);
+  lexer_next_into(&r, r_at.next_lex, (struct parser_asm_slice_u8 *)source);
+  return parser_asm_stretch_simd_builtin_deep_from_at_audit_c((int32_t)r_at.tok.kind, (int32_t)r.tok.kind,
+                                                             (struct parser_asm_slice_u8 *)source, r.token_start,
+                                                             r.tok.ident_len, &r.next_lex);
 
 }
 
