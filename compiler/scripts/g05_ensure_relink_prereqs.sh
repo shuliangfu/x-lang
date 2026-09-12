@@ -789,6 +789,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p15b_x=src/asm/pthin_library.x
   _pthin_p16_seed=seeds/pthin_diag_pipeline.from_x.c
   _pthin_p17_seed=seeds/pthin_diag_late.from_x.c
+  # 7.2.1 P17b B-minus: diag_late .x bodies (after_structs + fail walk)
+  _pthin_p17b_x=src/asm/pthin_diag_late.x
   _pthin_p18_seed=seeds/pthin_body_tl.from_x.c
   # 7.2.1 P18b Route C + B-minus: body_tl .x bodies (scalar table + skip walks)
   _pthin_p18b_x=src/asm/pthin_body_tl.x
@@ -835,6 +837,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p15b_x" ] && [ "$_pthin_p15b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p16_seed" ] && [ "$_pthin_p16_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p17_seed" ] && [ "$_pthin_p17_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p17b_x" ] && [ "$_pthin_p17b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p18_seed" ] && [ "$_pthin_p18_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p18b_x" ] && [ "$_pthin_p18b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p19_seed" ] && [ "$_pthin_p19_seed" -nt parser_asm_thin_glue.o ]; } \
@@ -896,6 +899,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p15b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p15b_thin.XXXXXX") || true
         _pthin_p16_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p16.XXXXXX") || true
         _pthin_p17_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p17.XXXXXX") || true
+        _pthin_p17b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p17b_thin.XXXXXX") || true
         _pthin_p18_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p18.XXXXXX") || true
         _pthin_p18b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p18b_thin.XXXXXX") || true
         _pthin_p19_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p19.XXXXXX") || true
@@ -937,6 +941,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p15b_ok=0
         _pthin_p16_ok=0
         _pthin_p17_ok=0
+        _pthin_p17b_ok=0
         _pthin_p18_ok=0
         _pthin_p18b_ok=0
         _pthin_p19_ok=0
@@ -1355,15 +1360,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P16 diag_pipeline ← $_pthin_p16_seed (G-02f-325 seed slice)"
           fi
         fi
-        if [ -n "$_pthin_p17_o" ] && [ -f "$_pthin_p17_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p17_o" "$_pthin_p17_seed"; then
-            _pthin_p17_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_DIAG_LATE_FROM_X"
-            echo "g05_ensure: P17 diag_late ← $_pthin_p17_seed (G-02f-326 seed slice)"
-          fi
-        fi
         # PLATFORM: SHARED — 7.2.1 P18b Route C + B-minus (2026-09-13).
         # pthin_body_tl.x holds is_fn_sig_scalar + diag/body skip walks +
         # skip_one_top_level let/const. Requires P9a lexer-step bridge AND
@@ -1388,6 +1384,33 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             _pthin_p18_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_BODY_TL_FROM_X"
             echo "g05_ensure: P18 body_tl ← $_pthin_p18_seed (G-02f-327 seed slice)"
+          fi
+        fi
+        # PLATFORM: SHARED — 7.2.1 P17b B-minus (2026-09-13).
+        # pthin_diag_late.x holds after_structs + fail_at_token_kind.
+        # Requires P9a + P1b + P12b + P18b (peek/step, is_pointee,
+        # skip_one_struct, is_fn_sig/body_skip). Moved after P18b so
+        # _pthin_p18b_ok is set before BODIES_FROM_X. Cold: no define,
+        # full .inc. Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X.
+        _pthin_p17_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p18b_ok" = "1" ] \
+          && [ -n "$_pthin_p17b_thin_o" ] && [ -f "$_pthin_p17b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p17b_x" "$_pthin_p17b_thin_o"; then
+            _pthin_p17b_ok=1
+            _pthin_p17_extra="-DXLANG_PTHIN_DIAG_LATE_BODIES_FROM_X"
+            echo "g05_ensure: P17b diag_late bodies ← $_pthin_p17b_x (7.2.1 B-minus after_structs/fail)"
+          else
+            echo "g05_ensure: P17b diag_late .x thin failed; P17 C twin stays full" >&2
+          fi
+        fi
+        if [ -n "$_pthin_p17_o" ] && [ -f "$_pthin_p17_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_pthin_p17_extra -c -o "$_pthin_p17_o" "$_pthin_p17_seed"; then
+            _pthin_p17_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_DIAG_LATE_FROM_X"
+            echo "g05_ensure: P17 diag_late ← $_pthin_p17_seed (G-02f-326 seed slice)"
           fi
         fi
         # PLATFORM: SHARED — 7.2.1 P19b Route C (2026-09-12).
@@ -1531,6 +1554,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p17_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p17_o"
         fi
+        if [ "$_pthin_p17b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p17b_thin_o"
+        fi
         if [ "$_pthin_p18_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p18_o"
         fi
@@ -1597,7 +1623,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_done" = "0" ]; then
           echo "g05_ensure: parser thin P1–P7+P9–P20 hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
+        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"

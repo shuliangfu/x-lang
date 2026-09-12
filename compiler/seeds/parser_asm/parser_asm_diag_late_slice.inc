@@ -1,5 +1,20 @@
 /**
+ * parser_asm_diag_late_slice.inc — after_structs / fail_at_token_kind / buf
+ * skip trampolines (G-02f-326).
+ *
+ * Hybrid P17b: XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X skips the portable
+ * after_structs + fail_at_token_kind walks (bodies in
+ * src/asm/pthin_diag_late.x + by-value trampolines in the seed TU).
+ * diag_skip_let_const_buf / body_skip_buf stay C (P18b owns the
+ * pointer-ABI walks). Contiguous already-T AUDIT prefixes on the buf
+ * wrappers are compiled only under XLANG_PARSER_STRETCH_AUDIT.
+ * Cold: no BODIES define, this file is the full twin.
+ * Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X for P17b bodies.
+ */
+#ifndef XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X
+/**
  * diag_after_imports_then_structs：peek 首 token 并跳过连续 struct，返回首个非 struct 的 LexerResult。
+ * Hybrid P17b: body in src/asm/pthin_diag_late.x; this C twin is cold fallback.
  */
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source) {
@@ -20,6 +35,7 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_toplevel_after_imports_audit_c(&lex, source));
   return r;
 }
+#endif /* !XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X after_structs slice */
 
 /**
  * diag_after_imports_then_structs_buf：buf 路径跳过连续 struct 后 peek 首 token。
@@ -35,15 +51,19 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_buf_c(
     fail.tok.kind = (int32_t)TOKEN_EOF;
     return fail;
   }
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_imports_then_structs_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_imports_structs_deep_buf_audit_c(&lex, data, len));
+#endif
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_diag_after_imports_then_structs_slice_c(lex, &source);
 }
 
+#ifndef XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X
 /**
  * diag_fail_at_token_kind：模拟 parse_one_function 顺序检查，返回首次失败 token kind（成功 -1）。
+ * Hybrid P17b: body in src/asm/pthin_diag_late.x; this C twin is cold fallback.
  */
 int32_t parser_asm_diag_fail_at_token_kind_slice_c(struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer lex;
@@ -173,6 +193,7 @@ int32_t parser_asm_diag_fail_at_token_kind_slice_c(struct parser_asm_slice_u8 *s
   }
   return r.tok.kind;
 }
+#endif /* !XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X fail_at_token_kind slice */
 
 /**
  * diag_fail_at_token_kind_buf：buf 路径模拟 parse_one_function 顺序检查。
@@ -182,11 +203,13 @@ int32_t parser_asm_diag_fail_at_token_kind_buf_c(uint8_t *data, int32_t len) {
 
   if (!data || len <= 0)
     return (int32_t)TOKEN_EOF;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   {
   struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_fail_at_token_kind_buf_audit_c(&lex_init, data, len));
 }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_fn_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+#endif
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_diag_fail_at_token_kind_slice_c(&source);
