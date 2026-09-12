@@ -3199,6 +3199,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
@@ -3229,6 +3230,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || return 1
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       return 0
     fi
   fi
@@ -3628,6 +3630,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm_expr_thin "$o" || true
     pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     pipeline_abi_inject_assign_thin "$o" || true
+    pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     return 0
   fi
 
@@ -3661,6 +3664,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm_expr_thin "$o" || true
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         pipeline_abi_inject_assign_thin "$o" || true
+        pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         return 0
       fi
     else
@@ -3678,6 +3682,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       return 0
     fi
   fi
@@ -3703,6 +3708,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm_expr_thin "$o" || true
   pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   pipeline_abi_inject_assign_thin "$o" || true
+  pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   return 0
 }
 
@@ -3840,6 +3846,42 @@ pipeline_abi_inject_thin_leaf() {
 }
 
 # 4.2.7 nested TYPE_SLICE reent deep-copy inject.
+# PP002 heap scratch overlay: C thin (matches runtime_pipeline_abi.x).
+# Mega malloc_impl is WEAK; Darwin ld -r of two strong T fails, so only
+# overlay while the pabi symbol is still weak. PLATFORM: SHARED.
+pipeline_abi_inject_preprocess_malloc_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_preprocess_malloc_thin.c"
+  local thin_o base_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi pp-malloc inject skip: $o is libtool archive"
+    return 1
+  fi
+  if nm -m "$o" 2>/dev/null | grep -E 'xlang_preprocess_raw_to_malloc_impl' | grep -vq 'weak'; then
+    log "pipeline_abi pp-malloc inject skip: already strong in $o"
+    return 0
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pp_malloc.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pp_malloc_base.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi pp-malloc inject: cc thin failed"
+    rm -f "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  if ld -r -o "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi pp-malloc inject OK (ld -r strong over weak)"
+    rm -f "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi pp-malloc inject: ld -r failed; restored base"
+  rm -f "$thin_o" "$base_o"
+  return 1
+}
+
 pipeline_abi_inject_reent_deep_copy_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_reent_deep_copy_thin.x" "reent-thin"
 }

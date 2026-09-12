@@ -31,8 +31,7 @@ extern void pipeline_module_top_level_let_set(void *module, int32_t idx, uint8_t
 /* 9.6.3: pure module top-level-let name scan (thin .x authority in
  * runtime_pipeline_abi.x, seed twin in runtime_pipeline_abi.from_x.c). */
 extern int32_t asm_module_top_level_let_name_exists(void *module, uint8_t *name, int32_t name_len);
-extern int32_t parser_asm_stretch_top_level_let_probe_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
-                                                        int32_t is_const);
+extern int32_t parser_asm_stretch_top_level_let_probe_c(void *lex_inout, void *source, int32_t is_const);
 extern int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len);
 extern int32_t parser_asm_stretch_type_ref_deep_audit_c(void *lex_inout, void *source);
 /** 与 function/struct 字段共用：支持 u8[N]、*T、slice 等完整类型语法。 */

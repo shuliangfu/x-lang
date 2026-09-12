@@ -81,6 +81,9 @@ export extern function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i3
 export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function fs_posix_close_c(fd: i32): i32;
+/* PLATFORM: SHARED — entry -E heap source/prep (PP002 8MiB); libc. */
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
 /* See implementation. */
 export extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8,
 out_cap: i32): i32;
@@ -174,6 +177,31 @@ export extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, pa
  * Track-L: #[no_mangle] keeps surface short name ew_* (not driver_ew_*).
  * PLATFORM: SHARED — link-name contract; dual-host prove.
  */
+
+/**
+ * Thin unsafe wrap of libc malloc.
+ * @param size usize — byte count; 0 is passed through
+ * @return *u8 — heap block or null on OOM
+ * PLATFORM: SHARED — keeps run_x_emit_x to a single unsafe (pipeline_run).
+ */
+#[no_mangle]
+export function ew_malloc(size: usize): *u8 {
+  unsafe { return malloc(size); }
+  return 0 as *u8;
+}
+
+/**
+ * Thin unsafe wrap of libc free.
+ * @param ptr *u8 — heap block; null is a no-op
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ew_free(ptr: *u8): void {
+  if (ptr != 0 as *u8) {
+    unsafe { free(ptr); }
+  }
+}
 
 /** Thin unsafe wrap of std_sys_read_file_into. Returns bytes read or <0 on error. */
 #[no_mangle]
@@ -338,10 +366,28 @@ export function ew_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i
 }
 
 /**
-* See implementation.
-* See implementation.
-* See implementation.
-*/
+ * Release entry-file heap source/prep plus ctx sidecar lens.
+ * @param loaded *u8 — malloc'd raw bytes; null-safe
+ * @param prep *u8 — malloc'd preprocess out; null-safe
+ * @param ctx *PipelineDepCtx — may be null (sidecar free is itself null-safe)
+ * @return void
+ * PLATFORM: SHARED — pairs with run_x_emit_x heap cap.
+ */
+function emit_release_entry_heaps(loaded: *u8, prep: *u8, ctx: *PipelineDepCtx): void {
+  ew_free(loaded);
+  ew_free(prep);
+  ew_free_source_buffers(ctx);
+}
+
+/**
+ * Single-file -E / smoke emit: read entry, preprocess, run pipeline, write C.
+ * Entry source uses an 8MiB heap (PP002 raise) rather than PipelineDepCtx's
+ * embedded 4MiB arrays — those stay pin-layout. n >= heap_cap is treated as
+ * truncated / too large (honest fail, no silent clip).
+ * @param state *DriverXEmitState — path / -L / -o / backend flags
+ * @return i32 — 0 ok, 1 fail
+ * PLATFORM: SHARED — mac + Ubuntu product matrix after cap changes.
+ */
 export function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
     state.path_buf[state.path_len] = 0 as u8;
@@ -361,17 +407,24 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (ew_ensure_source_buffers(&ctx) != 0) {
     return 1;
   }
-  let cap_i: i32 = 4194304;
-  let n: i32 = ew_std_sys_read_file_into(&state.path_buf[0], ew_loaded_buf_ptr(&ctx), cap_i);
-  if (n < 0) {
-    ew_free_source_buffers(&ctx);
+  // 8MiB = 2× PipelineDepCtx embed. Pin layout stays 4MiB; this heap is entry-only.
+  let heap_cap: i32 = 8388608;
+  let loaded_heap: *u8 = ew_malloc(heap_cap as usize);
+  let prep_heap: *u8 = ew_malloc(heap_cap as usize);
+  if (loaded_heap == 0 as *u8 || prep_heap == 0 as *u8) {
+    emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
+    return 1;
+  }
+  let n: i32 = ew_std_sys_read_file_into(&state.path_buf[0], loaded_heap, heap_cap);
+  // n == heap_cap: read filled the buffer; file may be larger (no NUL/EOF proof).
+  if (n < 0 || n >= heap_cap) {
+    emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
     return 1;
   }
   ew_set_loaded_len(&ctx, n as isize);
-  let out_len: i32 = ew_preprocess_x_buf(ew_loaded_buf_ptr(&ctx), n,
-  ew_preprocess_buf_ptr(&ctx), 4194304);
+  let out_len: i32 = ew_preprocess_x_buf(loaded_heap, n as isize, prep_heap, heap_cap);
   if (out_len < 0) {
-    ew_free_source_buffers(&ctx);
+    emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
     return 1;
   }
   ctx.preprocess_len = out_len;
@@ -405,7 +458,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   let out: CodegenOutBuf;
   out.length = 0;
   let source_len: usize = out_len as usize;
-  let prep_src: *u8 = ew_preprocess_buf_ptr(&ctx);
+  let prep_src: *u8 = prep_heap;
   let rc: i32 = 0;
   /* See implementation. */
   unsafe {
@@ -413,7 +466,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   }
   if (rc != 0) {
     ew_pipeline_fail_code(rc, &ctx.path_buf[0]);
-    ew_free_source_buffers(&ctx);
+    emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
     return 1;
   }
   let len: i32 = out.length;
@@ -423,21 +476,21 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.out_path_len > 0) {
     let wfd: i32 = ew_fs_open_write(state.out_path_buf, state.out_path_len);
     if (wfd < 0) {
-      ew_free_source_buffers(&ctx);
+      emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
       return 1;
     }
     if (len > 262144) {
       let written: isize = ew_fs_posix_write_c(wfd, &out.data[0], 262144);
       ew_fs_posix_close_c(wfd);
       if (written < 0 || (written as i32) != 262144) {
-        ew_free_source_buffers(&ctx);
+        emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
         return 1;
       }
     } else {
       let written: isize = ew_fs_posix_write_c(wfd, &out.data[0], len as usize);
       ew_fs_posix_close_c(wfd);
       if (written < 0 || (written as i32) != len) {
-        ew_free_source_buffers(&ctx);
+        emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
         return 1;
       }
     }
@@ -445,18 +498,18 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
     if (len > 262144) {
       let written: isize = ew_fs_posix_write_c(1, &out.data[0], 262144);
       if (written < 0 || (written as i32) != 262144) {
-        ew_free_source_buffers(&ctx);
+        emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
         return 1;
       }
     } else {
       let written: isize = ew_fs_posix_write_c(1, &out.data[0], len as usize);
       if (written < 0 || (written as i32) != len) {
-        ew_free_source_buffers(&ctx);
+        emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
         return 1;
       }
     }
   }
-  ew_free_source_buffers(&ctx);
+  emit_release_entry_heaps(loaded_heap, prep_heap, &ctx);
   return 0;
 }
 

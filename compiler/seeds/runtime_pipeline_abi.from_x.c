@@ -863,17 +863,22 @@ int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len
         *out_src = NULL;
     if (out_src_len)
         *out_src_len = 0;
-    if (raw_len > (size_t)XLANG_PIPELINE_CTX_BUF_SIZE) {
+    /* PLATFORM: SHARED — heap scratch: 4MiB floor, grow to raw_len (i32-fit).
+     * PipelineDepCtx embed stays 4MiB (pin). PP002 is OOM / i32 overflow. */
+    if (raw_len > (size_t)2147483647) {
         if (emit_diag) {
             diag_reportf_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                          "entry file too large for .x preprocessor (%zu > %d): '%s'",
                          raw_len,
-                         XLANG_PIPELINE_CTX_BUF_SIZE,
+                         2147483647,
                          path_diag ? path_diag : "?");
         }
         return -1;
     }
-    uint8_t *scratch = (uint8_t *)malloc((size_t)XLANG_PIPELINE_CTX_BUF_SIZE);
+    size_t scratch_cap = (size_t)XLANG_PIPELINE_CTX_BUF_SIZE;
+    if (raw_len > scratch_cap)
+        scratch_cap = raw_len;
+    uint8_t *scratch = (uint8_t *)malloc(scratch_cap);
     if (!scratch) {
         if (emit_diag)
             pipeline_diag_preprocess_alloc_fail(path_diag, "scratch buffer");
@@ -883,7 +888,7 @@ int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len
     for (di = 0; di < ndefines; di++)
         if (defines && defines[di])
             preprocess_define_add(defines[di]);
-    int32_t n = preprocess_x_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)XLANG_PIPELINE_CTX_BUF_SIZE);
+    int32_t n = preprocess_x_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)scratch_cap);
     if (n < 0) {
         free(scratch);
         if (emit_diag) {

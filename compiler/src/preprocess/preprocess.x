@@ -792,16 +792,29 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
 
 /**
  * Buf+len entry for preprocess (same semantics as preprocess_x).
+ * Pointer ABI: callers own both buffers; this engine does not embed 4MiB arrays.
+ * Walk bound is source_len (i32-fit); write bound is out_cap. The historical
+ * `pos >= 4194304` break silently truncated entry files at the PipelineDepCtx
+ * embed size — that is the wrong layer (pin layout stays 4MiB; heap callers
+ * pass a larger out_cap).
  * PLATFORM: SHARED — flushes partial last line when source_len has no trailing LF.
  *
- * @param source_buf Fixed-cap input array (read only [0..source_len))
- * @param source_len Logical input length
- * @param out_buf Fixed-cap output array
- * @param out_cap Capacity of out_buf
- * @return Written byte count, or negative error
+ * @param source_buf *u8 — raw source bytes; read only [0..source_len)
+ * @param source_len isize — logical input length; must fit i32 (else -1)
+ * @param out_buf *u8 — destination bytes; caller-owned, capacity out_cap
+ * @param out_cap i32 — capacity of out_buf; <=0 → -1
+ * @return i32 — written byte count, or negative directive/overflow error
  */
-export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out_buf: u8[4194304], out_cap: i32): i32 {
+export function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32 {
   if (out_cap <= 0) {
+    return -1;
+  }
+  if (source_len < 0) {
+    return -1;
+  }
+  // out_cap / pos are i32; reject lengths that would wrap the walk bound.
+  let slen: i32 = source_len as i32;
+  if ((slen as isize) != source_len) {
     return -1;
   }
   let _r: i32 = pp_reset_i32();
@@ -810,10 +823,7 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
   /* 0 = buffering; 1 = body stream; 2 = directive drain (mirror preprocess_x / wave267). */
   let line_stream: i32 = 0;
   let pos: i32 = 0;
-  while (pos < (source_len as i32)) {
-    if (pos >= 4194304) {
-      break;
-    }
+  while (pos < slen) {
     let ch: u8 = source_buf[pos];
     if (ch == 10) {
       if (line_stream == 2) {

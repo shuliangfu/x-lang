@@ -32,7 +32,7 @@ typedef struct {
 
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_parse_into_buf_preamble_peek_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
-extern int32_t parser_asm_stretch_top_level_let_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+extern int32_t parser_asm_stretch_top_level_let_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len,
                                                             int32_t is_const);
 extern int32_t parser_asm_stretch_struct_record_layout_body_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_type_ref_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);

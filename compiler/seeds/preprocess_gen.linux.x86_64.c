@@ -60,7 +60,7 @@ int preprocess_line_keeping();
 int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[4096], uint8_t line_buf[4096], int32_t pos, int32_t line_len);
 void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[4096]);
 int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uint8_t * out_buf);
-int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
+int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 /* 失败码：-2 else without #if；-3 endif without；-4 elseif without；-5 elseif after else；-6 duplicate else；-7 nesting */
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val) {
   int32_t depth = preprocess_if_stack_len();
@@ -389,9 +389,18 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
   return out_len;
 }
 
-/* PLATFORM: SHARED — buf+len entry; ≡ preprocess_x (wave267). */
-int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
+/* PLATFORM: SHARED — buf+len entry; ≡ preprocess_x (wave267).
+ * Pointer ABI: walk bound is source_len (i32-fit); write bound is out_cap.
+ * Historical `pos < 4194304` silently truncated heap callers. */
+int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
   if (out_cap <= 0) {
+    return (-1);
+  }
+  if (source_len < 0) {
+    return (-1);
+  }
+  int32_t slen = (int32_t)source_len;
+  if ((ptrdiff_t)slen != source_len) {
     return (-1);
   }
   (void)(preprocess_if_stack_reset());
@@ -401,7 +410,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
   int32_t line_stream = 0;
   uint8_t line_buf[4096] = { 0 };
   int32_t pos = 0;
-  while (pos < source_len && pos < 4194304) {
+  while (pos < slen) {
     uint8_t ch = source_buf[pos];
     if (ch == 10) {
       if (line_stream == 2) {

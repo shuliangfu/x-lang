@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <sys/types.h>
 void xlang_panic_(int has_msg, int msg_val);
 struct PipelineDepCtx {
@@ -29,18 +30,18 @@ struct PipelineDepCtx {
   uint8_t * current_codegen_module;
   uint8_t * current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[256];
+  uint8_t current_codegen_prefix_mirror[64];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[256];
+  uint8_t entry_module_import_path_mirror[64];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[256];
+  uint8_t typeck_scope_region_label[64];
 };
 
 struct CodegenOutBuf {
   uint8_t data[9437184];
-  int32_t length;
+  int32_t len;
 };
 
 struct DriverXEmitState {
@@ -134,6 +135,18 @@ extern int32_t driver_run_x_emit_c_set_n_lib_roots(int32_t n);
 extern int32_t driver_run_x_emit_c_set_emit_extern(int32_t v);
 extern int32_t driver_run_x_emit_c(void);
 extern int32_t ast_pipeline_ctx_append_lib_root(struct PipelineDepCtx * ctx, uint8_t * path, int32_t len);
+uint8_t * ew_malloc(size_t size) {
+  return (uint8_t *)malloc(size);
+}
+void ew_free(uint8_t * ptr) {
+  if (ptr)
+    free(ptr);
+}
+void emit_release_entry_heaps(uint8_t * loaded, uint8_t * prep, struct PipelineDepCtx * ctx) {
+  ew_free(loaded);
+  ew_free(prep);
+  ew_free_source_buffers(ctx);
+}
 int32_t ew_std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap) {
   return std_sys_read_file_into(path, buf, cap);
   return 0;
@@ -240,16 +253,23 @@ int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
   if ((ew_ensure_source_buffers(&(ctx)) !=0)) {
     return 1;
   }
-  int32_t cap_i = 4194304;
-  int32_t n = ew_std_sys_read_file_into(&(((state->path_buf))[0]), ew_loaded_buf_ptr(&(ctx)), cap_i);
-  if ((n < 0)) {
-    (void)(ew_free_source_buffers(&(ctx)));
+  /* PLATFORM: SHARED — entry -E heap 8MiB (PP002). Ctx embed stays 4MiB pin. */
+  int32_t heap_cap = 8388608;
+  uint8_t * loaded_heap = ew_malloc((size_t)heap_cap);
+  uint8_t * prep_heap = ew_malloc((size_t)heap_cap);
+  if (loaded_heap == 0 || prep_heap == 0) {
+    (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
+    return 1;
+  }
+  int32_t n = ew_std_sys_read_file_into(&(((state->path_buf))[0]), loaded_heap, heap_cap);
+  if ((n < 0) || (n >= heap_cap)) {
+    (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
     return 1;
   }
   (void)(ew_set_loaded_len(&(ctx), ((ssize_t)(n))));
-  int32_t out_len = ew_preprocess_x_buf(ew_loaded_buf_ptr(&(ctx)), n, ew_preprocess_buf_ptr(&(ctx)), 4194304);
+  int32_t out_len = ew_preprocess_x_buf(loaded_heap, (ssize_t)n, prep_heap, heap_cap);
   if ((out_len < 0)) {
-    (void)(ew_free_source_buffers(&(ctx)));
+    (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
     return 1;
   }
   (void)(((ctx.preprocess_len) = out_len));
@@ -278,38 +298,38 @@ int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
   }
   (void)(((ctx.num_lib_roots) = 0));
   (void)(driver_emit_copy_lib_roots_to_ctx(driver_emit_state_key(state), &(ctx)));
-  struct CodegenOutBuf out = (struct CodegenOutBuf){ .data = { 0 }, .length = 0 };
+  struct CodegenOutBuf out = (struct CodegenOutBuf){ .data = { 0 }, .len = 0 };
   size_t source_len = ((size_t)(out_len));
-  uint8_t * prep_src = ew_preprocess_buf_ptr(&(ctx));
+  uint8_t * prep_src = prep_heap;
   int32_t rc = 0;
   (void)((rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, prep_src, source_len, &(out), &(ctx))));
   if ((rc !=0)) {
     (void)(ew_pipeline_fail_code(rc, &(((ctx.path_buf))[0])));
-    (void)(ew_free_source_buffers(&(ctx)));
+    (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
     return 1;
   }
-  int32_t len = (out.length);
+  int32_t len = (out.len);
   if (((state->out_path_len) ==0)) {
     (void)(ew_print_x_smoke_summary(module_buf, ((size_t)(len))));
   }
   if (((state->out_path_len) > 0)) {
     int32_t wfd = ew_fs_open_write((state->out_path_buf), (state->out_path_len));
     if ((wfd < 0)) {
-      (void)(ew_free_source_buffers(&(ctx)));
+      (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
       return 1;
     }
     if ((len > 262144)) {
       ssize_t written = ew_fs_posix_write_c(wfd, &(((out.data))[0]), 262144);
       (void)(ew_fs_posix_close_c(wfd));
       if (((written < 0) || (((int32_t)(written)) !=262144))) {
-        (void)(ew_free_source_buffers(&(ctx)));
+        (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
         return 1;
       }
     } else {
       ssize_t written = ew_fs_posix_write_c(wfd, &(((out.data))[0]), ((size_t)(len)));
       (void)(ew_fs_posix_close_c(wfd));
       if (((written < 0) || (((int32_t)(written)) !=len))) {
-        (void)(ew_free_source_buffers(&(ctx)));
+        (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
         return 1;
       }
     }
@@ -317,18 +337,18 @@ int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
     if ((len > 262144)) {
       ssize_t written = ew_fs_posix_write_c(1, &(((out.data))[0]), 262144);
       if (((written < 0) || (((int32_t)(written)) !=262144))) {
-        (void)(ew_free_source_buffers(&(ctx)));
+        (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
         return 1;
       }
     } else {
       ssize_t written = ew_fs_posix_write_c(1, &(((out.data))[0]), ((size_t)(len)));
       if (((written < 0) || (((int32_t)(written)) !=len))) {
-        (void)(ew_free_source_buffers(&(ctx)));
+        (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
         return 1;
       }
     }
   }
-  (void)(ew_free_source_buffers(&(ctx)));
+  (void)(emit_release_entry_heaps(loaded_heap, prep_heap, &(ctx)));
   return 0;
 }
 int32_t driver_dispatch_x_emit_to_c(struct DriverXEmitState * state) {

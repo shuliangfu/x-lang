@@ -2749,7 +2749,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
 /**
  * Preprocess raw source into an owned NUL-terminated malloc buffer.
  * @param raw *u8 - source bytes; null only allowed when raw_len == 0
- * @param raw_len i64 - byte count; must fit XLANG_PIPELINE_CTX_BUF_SIZE (4MiB)
+ * @param raw_len i64 - byte count; must fit i32 out_cap (not the 4MiB ctx embed)
  * @param out_src *u8 - char** base as bytes; slot 0 set to owned prep (or null on fail)
  * @param out_src_len *u8 - size_t* base as bytes; slot 0 set to output length (0 on fail)
  * @param path_diag *u8 - path for preprocess diags; may be null
@@ -2765,7 +2765,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  *   G.7 pure preprocess_eval_condition_c (simple) + Cap residual cfg_eval_expr_c (complex);
  *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
  *   G.7 xlang_ptr_slot_set / xlang_size_slot_set for out slots (char** / size_t*);
- *   oversized raw -> pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
+ *   i32-overflow raw -> pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
  * PLATFORM: SHARED - same control flow as historical seed _impl.
  */
 #[no_mangle]
@@ -2777,15 +2777,24 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
   if (out_src_len != 0 as *u8) {
     xlang_size_slot_set(out_src_len, 0, 0);
   }
-  // XLANG_PIPELINE_CTX_BUF_SIZE - fixed 4MiB pipeline ctx buffer (runtime_pipeline_abi.h).
-  let buf_cap: i32 = 4194304;
-  let buf_cap_i64: i64 = buf_cap as i64;
-  if (raw_len > buf_cap_i64) {
+  // Heap scratch: keep 4MiB floor (ctx embed / small-file include headroom) but
+  // size up to raw_len when the entry is larger. out_cap is i32 so reject
+  // lengths that would wrap. PipelineDepCtx loaded_buf stays 4MiB (pin layout).
+  // PLATFORM: SHARED — PP002 is OOM / i32 overflow, not a 4MiB file-size wall.
+  if (raw_len < 0) {
+    return 0 - 1;
+  }
+  let i32_max: i32 = 2147483647;
+  if (raw_len > (i32_max as i64)) {
     if (emit_diag != 0) {
-      // Cold twin uses reportf with sizes; pure keeps fixed PP002 fail (no va_list).
       pipeline_diag_preprocess_fail(path_diag);
     }
     return 0 - 1;
+  }
+  let need: i32 = raw_len as i32;
+  let buf_cap: i32 = 4194304;
+  if (need > buf_cap) {
+    buf_cap = need;
   }
   let scratch: *u8 = 0 as *u8;
   unsafe {
