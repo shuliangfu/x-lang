@@ -2505,27 +2505,22 @@ static int32_t parser_asm_stretch_match_subject_ident_audit_c(int32_t kind, stru
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
 
-int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
-                                                struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r;
-  int32_t nlen;
-  size_t start;
-  if (!source)
+static int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                struct parser_asm_slice_u8 *source,
+                                                size_t ident_start, int32_t ident_len) {
+  if (!source || !source->data)
     return 0;
-  if (r_at.tok.kind != (int32_t)TOKEN_AT)
+  if (at_kind != (int32_t)TOKEN_AT || ident_kind != (int32_t)TOKEN_IDENT || ident_len <= 0)
     return 0;
-  lexer_next_into(&r, r_at.next_lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_IDENT)
-    return 0;
-  nlen = r.tok.ident_len;
-  start = r.token_start;
-  if (nlen == 7 && start + 6 < source->length && source->data[start] == 115 && source->data[start + 1] == 104
-      && source->data[start + 2] == 117 && source->data[start + 3] == 102 && source->data[start + 4] == 102
-      && source->data[start + 5] == 108 && source->data[start + 6] == 101)
+  if (ident_len == 7 && ident_start + 6 < source->length && source->data[ident_start] == 115
+      && source->data[ident_start + 1] == 104 && source->data[ident_start + 2] == 117
+      && source->data[ident_start + 3] == 102 && source->data[ident_start + 4] == 102
+      && source->data[ident_start + 5] == 108 && source->data[ident_start + 6] == 101)
     return 1;
-  if (nlen == 6 && start + 5 < source->length && source->data[start] == 115 && source->data[start + 1] == 101
-      && source->data[start + 2] == 108 && source->data[start + 3] == 101 && source->data[start + 4] == 99
-      && source->data[start + 5] == 116)
+  if (ident_len == 6 && ident_start + 5 < source->length && source->data[ident_start] == 115
+      && source->data[ident_start + 1] == 101 && source->data[ident_start + 2] == 108
+      && source->data[ident_start + 3] == 101 && source->data[ident_start + 4] == 99
+      && source->data[ident_start + 5] == 116)
     return 1;
   return 0;
 }
@@ -2559,8 +2554,9 @@ int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_l
 
   if (!source || r_at.tok.kind != (int32_t)TOKEN_AT)
     return 0;
-  score = parser_asm_stretch_simd_builtin_audit_c(r_at, source);
   lexer_next_into(&r, r_at.next_lex, source);
+  score = parser_asm_stretch_simd_builtin_audit_c((int32_t)r_at.tok.kind, (int32_t)r.tok.kind, source,
+                                                 r.token_start, r.tok.ident_len);
   if (r.tok.kind == (int32_t)TOKEN_IDENT)
     score += parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, r.tok.ident_len);
   score += c_ref_paren_expr_head_audit(&r.next_lex, source);

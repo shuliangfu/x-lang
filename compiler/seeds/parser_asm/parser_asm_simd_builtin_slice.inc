@@ -18,8 +18,9 @@ extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int3
 extern int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_lexer_result r_at,
                                                                   struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_simd_builtin_deep_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
-                                                       struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                       struct parser_asm_slice_u8 *source,
+                                                       size_t ident_start, int32_t ident_len);
 
 /** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
 static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
@@ -110,10 +111,11 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   if (!arena || !source || !out)
     return;
   out->ok = 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_audit_c(r0, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_deep_from_at_audit_c(r0, source));
   lex = r0.next_lex;
   lexer_next_into(&r, lex, source);
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_audit_c((int32_t)r0.tok.kind, (int32_t)r.tok.kind,
+                                                                       source, r.token_start, r.tok.ident_len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_deep_from_at_audit_c(r0, source));
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   if (!parser_asm_simd_builtin_kind_c(&r, source, &need_args, &is_shuffle))

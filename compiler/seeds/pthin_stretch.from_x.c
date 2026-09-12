@@ -133,8 +133,9 @@ int32_t parser_asm_stretch_expr_logor_binop_audit_c(void *lex_inout, void *sourc
 int32_t parser_asm_stretch_as_suffix_chain_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_unary_prefix_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_if_expr_branch_audit_c(void *lex_inout, void *source);
-int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
-                                                struct parser_asm_slice_u8 *source);
+int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                struct parser_asm_slice_u8 *source,
+                                                size_t ident_start, int32_t ident_len);
 int32_t parser_asm_stretch_struct_lit_fields_probe_c(void *lex_inout, void *source, int32_t *out_field_count);
 int32_t parser_asm_stretch_array_lit_head_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_primary_suffix_chain_probe_c(void *lex_inout, void *source);
@@ -177,7 +178,9 @@ int32_t parser_asm_stretch_library_field_bind_audit_c(const uint8_t *name, int32
 int32_t parser_asm_stretch_trait_method_return_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_impl_type_for_trait_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_extern_return_type_audit_c(void *lex_inout, void *source);
-int32_t parser_asm_stretch_import_as_bind_audit_c(struct parser_asm_lexer_result r, struct parser_asm_slice_u8 *source);
+int32_t parser_asm_stretch_import_as_bind_audit_c(int32_t kind, struct parser_asm_slice_u8 *source,
+                                                 size_t token_start, int32_t ident_len,
+                                                 int32_t next_kind, size_t next_start, int32_t next_len);
 int32_t parser_asm_stretch_diag_skip_let_const_type_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_diag_skip_let_const_type_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 int32_t parser_asm_stretch_impl_fn_return_audit_c(void *lex_inout, void *source);

@@ -187,6 +187,8 @@ HELPERS_PORTED_TO_X = {
     # C authority for c_ref twins without duplicate T vs audit_x.o.
     "parser_asm_stretch_spawn_kw_audit_c",
     "parser_asm_stretch_match_subject_ident_audit_c",
+    # v5.41 leftover Route C flatten (one-token lookahead → scalars).
+    "parser_asm_stretch_simd_builtin_audit_c",
 }
 
 SUITE_HELPER_SIGS = [

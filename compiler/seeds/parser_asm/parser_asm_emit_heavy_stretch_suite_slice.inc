@@ -4016,31 +4016,31 @@ int32_t parser_asm_stretch_if_expr_branch_audit_c(void *lex_inout, void *source)
 
 /**
  * tier13：@shuffle/@select SIMD 内建名审计。
+ * v5.41: flattened from lexer-result-by-val (one-token lookahead → scalars).
  */
-int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
-                                                struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r;
-  int32_t nlen;
-  size_t start;
-  if (!source)
+/* B-minus leftover helper (v5.41): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                struct parser_asm_slice_u8 *source,
+                                                size_t ident_start, int32_t ident_len) {
+  if (!source || !source->data)
     return 0;
-  if (r_at.tok.kind != (int32_t)TOKEN_AT)
+  if (at_kind != (int32_t)TOKEN_AT || ident_kind != (int32_t)TOKEN_IDENT || ident_len <= 0)
     return 0;
-  lexer_next_into(&r, r_at.next_lex, source);
-  if (r.tok.kind != (int32_t)TOKEN_IDENT)
-    return 0;
-  nlen = r.tok.ident_len;
-  start = r.token_start;
-  if (nlen == 7 && start + 6 < source->length && source->data[start] == 115 && source->data[start + 1] == 104
-      && source->data[start + 2] == 117 && source->data[start + 3] == 102 && source->data[start + 4] == 102
-      && source->data[start + 5] == 108 && source->data[start + 6] == 101)
+  if (ident_len == 7 && ident_start + 6 < source->length && source->data[ident_start] == 115
+      && source->data[ident_start + 1] == 104 && source->data[ident_start + 2] == 117
+      && source->data[ident_start + 3] == 102 && source->data[ident_start + 4] == 102
+      && source->data[ident_start + 5] == 108 && source->data[ident_start + 6] == 101)
     return 1;
-  if (nlen == 6 && start + 5 < source->length && source->data[start] == 115 && source->data[start + 1] == 101
-      && source->data[start + 2] == 108 && source->data[start + 3] == 101 && source->data[start + 4] == 99
-      && source->data[start + 5] == 116)
+  if (ident_len == 6 && ident_start + 5 < source->length && source->data[ident_start] == 115
+      && source->data[ident_start + 1] == 101 && source->data[ident_start + 2] == 108
+      && source->data[ident_start + 3] == 101 && source->data[ident_start + 4] == 99
+      && source->data[ident_start + 5] == 116)
     return 1;
   return 0;
 }
+#endif
 
 /**
  * tier13：struct literal 字段 ident : 形态粗探。
@@ -4845,22 +4845,27 @@ int32_t parser_asm_stretch_extern_return_type_audit_c(void *lex_inout, void *sou
 
 /**
  * tier18：import path as bind 子句审计（'as' + bind 名合法性）。
+ * v5.41: flattened from lexer-result-by-val (one-token lookahead → scalars).
  */
-int32_t parser_asm_stretch_import_as_bind_audit_c(struct parser_asm_lexer_result r, struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r2;
-  if (!source)
+/* B-minus leftover helper (v5.41): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_as_bind_audit_c(int32_t kind, struct parser_asm_slice_u8 *source,
+                                                 size_t token_start, int32_t ident_len,
+                                                 int32_t next_kind, size_t next_start, int32_t next_len) {
+  if (!source || !source->data)
     return 0;
-  if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len != 2)
+  if (kind != (int32_t)TOKEN_IDENT || ident_len != 2)
     return 0;
-  if (!source->data || r.token_start + 1 >= source->length)
+  if (token_start + 1 >= source->length)
     return 0;
-  if (source->data[r.token_start] != (uint8_t)'a' || source->data[r.token_start + 1] != (uint8_t)'s')
+  if (source->data[token_start] != (uint8_t)'a' || source->data[token_start + 1] != (uint8_t)'s')
     return 0;
-  lexer_next_into(&r2, r.next_lex, source);
-  if (r2.tok.kind != (int32_t)TOKEN_IDENT || r2.tok.ident_len <= 0)
+  if (next_kind != (int32_t)TOKEN_IDENT || next_len <= 0)
     return 0;
-  return parser_asm_stretch_bind_name_validate_c(source->data + r2.token_start, r2.tok.ident_len);
+  return parser_asm_stretch_bind_name_validate_c(source->data + next_start, next_len);
 }
+#endif
 
 /**
  * tier18：diag_skip_let_const slice 路径类型 token 审计（':' 后首 token）。
@@ -8434,8 +8439,9 @@ int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_l
 
   if (!source || r_at.tok.kind != (int32_t)TOKEN_AT)
     return 0;
-  score = parser_asm_stretch_simd_builtin_audit_c(r_at, source);
   lexer_next_into(&r, r_at.next_lex, source);
+  score = parser_asm_stretch_simd_builtin_audit_c((int32_t)r_at.tok.kind, (int32_t)r.tok.kind, source,
+                                                 r.token_start, r.tok.ident_len);
   if (r.tok.kind == (int32_t)TOKEN_IDENT)
     score += parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, r.tok.ident_len);
   score += parser_asm_stretch_paren_expr_head_audit_c(&r.next_lex, source);

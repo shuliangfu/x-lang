@@ -83205,3 +83205,79 @@ export function parser_asm_stretch_match_subject_ident_audit_c(kind: i32, source
   }
   return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
 }
+
+/* ── leftover helpers (v5.41 Route C flatten: one-token lookahead) ── */
+
+/**
+ * SIMD builtin name after `@`: IDENT must spell `shuffle` or `select`.
+ * Flattened from lexer-result-by-val leftover (one next_lex walk only
+ * to read the ident's kind / token_start / ident_len). Caller peeks the
+ * token after `@` and passes those scalars; this helper does not walk.
+ * @param at_kind i32 — token kind at `@` (must be TOKEN_AT)
+ * @param ident_kind i32 — token kind after `@`
+ * @param source *u8 — opaque slice
+ * @param ident_start usize — byte offset of the ident
+ * @param ident_len i32 — ident length
+ * @return i32 — 1 if `@` + shuffle/select spelling; 0 otherwise
+ * PLATFORM: SHARED — leftover helper port (v5.41).
+ */
+#[no_mangle]
+export function parser_asm_stretch_simd_builtin_audit_c(at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (at_kind != TOKEN_AT || ident_kind != TOKEN_IDENT || source == 0 as *u8 || ident_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+  }
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  if (ident_len == 7 && ident_start + 6 < slen && data[ident_start] == 115 && data[ident_start + 1] == 104 && data[ident_start + 2] == 117 && data[ident_start + 3] == 102 && data[ident_start + 4] == 102 && data[ident_start + 5] == 108 && data[ident_start + 6] == 101) {
+    return 1;
+  }
+  if (ident_len == 6 && ident_start + 5 < slen && data[ident_start] == 115 && data[ident_start + 1] == 101 && data[ident_start + 2] == 108 && data[ident_start + 3] == 101 && data[ident_start + 4] == 99 && data[ident_start + 5] == 116) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Import `as` bind: current token spells `as`, next token is a valid bind ident.
+ * Flattened from lexer-result-by-val leftover (one next_lex walk only to
+ * read the bind ident's kind / token_start / ident_len). G.7 thin wrap of
+ * bind_name_validate on the next ident.
+ * @param kind i32 — token kind of `as`
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of `as`
+ * @param ident_len i32 — length of `as` (must be 2)
+ * @param next_kind i32 — token kind of the bind ident
+ * @param next_start usize — byte offset of the bind ident
+ * @param next_len i32 — bind ident length
+ * @return i32 — 1 if `as` + valid bind; 0 otherwise
+ * PLATFORM: SHARED — leftover helper port (v5.41).
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_as_bind_audit_c(kind: i32, source: *u8, token_start: usize, ident_len: i32, next_kind: i32, next_start: usize, next_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (source == 0 as *u8 || kind != TOKEN_IDENT || ident_len != 2) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+  }
+  if (data == 0 as *u8 || token_start + 1 >= slen) {
+    return 0;
+  }
+  if (data[token_start] != 97 || data[token_start + 1] != 115) {
+    return 0;
+  }
+  if (next_kind != TOKEN_IDENT || next_len <= 0) {
+    return 0;
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + next_start, next_len);
+}

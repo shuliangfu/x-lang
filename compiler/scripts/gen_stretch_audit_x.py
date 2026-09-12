@@ -173,6 +173,14 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.41: leftover helper Route C flatten (simd_builtin / import_as).
+#   One-token lookahead leftovers: next_lex was only used to read the next
+#   token's kind / token_start / ident_len. Flatten onto extra scalars;
+#   caller peeks. Still refuse from_at (paren_expr_head walk), peek_kind
+#   out-array, validate_toplevel (verify_kw_spelling), import_path_post
+#   (finalize not in eq TU), advance_to secondary-cursor.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=simd_builtin,library_scan,match_subject,skip_allow.
+#
 # v5.40: leftover helper Route C flatten (spawn_kw / brace_head / import_dot
 #   / match_subject_ident). Flatten lexer-result-by-val leftovers that only
 #   read tok.kind / ident_len / token_start (no next_lex walk) onto
@@ -2307,6 +2315,13 @@ PURE_HELPERS = {
         "kind: i32, source: *u8, token_start: usize, name_len: i32", "i32"),
     "parser_asm_stretch_match_subject_ident_audit_c": (
         "kind: i32, source: *u8, token_start: usize, name_len: i32", "i32"),
+    # v5.41 leftover Route C flatten (one-token lookahead → scalars)
+    "parser_asm_stretch_simd_builtin_audit_c": (
+        "at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32",
+        "i32"),
+    "parser_asm_stretch_import_as_bind_audit_c": (
+        "kind: i32, source: *u8, token_start: usize, ident_len: i32, next_kind: i32, next_start: usize, next_len: i32",
+        "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
     "parser_asm_stretch_enum_discriminant_kind_audit_c": ("kind: i32", "i32"),
@@ -3157,6 +3172,13 @@ PURE_HELPERS = {
         "kind: i32, source: *u8, token_start: usize, name_len: i32", "i32"),
     "parser_asm_stretch_match_subject_ident_audit_c": (
         "kind: i32, source: *u8, token_start: usize, name_len: i32", "i32"),
+    # v5.41 leftover Route C flatten (one-token lookahead → scalars)
+    "parser_asm_stretch_simd_builtin_audit_c": (
+        "at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32",
+        "i32"),
+    "parser_asm_stretch_import_as_bind_audit_c": (
+        "kind: i32, source: *u8, token_start: usize, ident_len: i32, next_kind: i32, next_start: usize, next_len: i32",
+        "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
     "parser_asm_stretch_enum_discriminant_kind_audit_c": ("kind: i32", "i32"),
