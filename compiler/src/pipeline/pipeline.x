@@ -443,7 +443,8 @@ export extern function pipeline_load_import_resolve_read(module: *Module, ctx: *
 
 /**
  * load_import_from_disk — pure leave wave307.
- * Live authority: runtime_pipeline_abi pure `pipeline_load_import_from_disk`.
+ * Live authority: runtime_pipeline_abi pure `pipeline_load_import_from_disk`
+ * (thin→_c heap orch: view + PP002 malloc; ctx embed stays 4MiB pin).
  * G.7 dual-export ban.
  * @param module *Module
  * @param arena *ASTArena

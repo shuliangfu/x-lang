@@ -4038,17 +4038,23 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  * @param ctx *u8 - PipelineDepCtx; null -> -1
  * @param import_idx i32 - entry import index / ctx slot; <0 -> -1
  * @return i32 - 0 ok; -1 null; -7 resolve fail; -8 read fail; -9 preprocess fail; -10 parse fail
- * Steps (match historical pipeline_load_import_from_disk_impl_c):
+ * Steps:
  *   1) same-TU pure parser_copy_module_import_path64 (wave99)
- *   2) same-TU pure pipeline_resolve_path_x (wave95)
- *   3) same-TU pure pipeline_read_file_x (wave95)
- *   4) same-TU pure pipeline_preprocess_loaded_into_ctx (wave95)
+ *   2) same-TU pure pipeline_resolve_path_x (wave95) — writes ctx.path_buf
+ *   3) G.7 runtime_read_file_view of resolved path (whole file; no 4MiB cap)
+ *   4) G.7 xlang_preprocess_raw_to_malloc (PP002 heap scratch; i32-fit)
  *   5) pin import path on same slot (path authority for later sync)
  *   6) same-TU pure pipeline_bind_import_dep_buffers
- *   7) same-TU pure pipeline_parse_into_buf (wave96)
- * wave94 pure Cap residual: G.7 single product authority for pipeline_load_import_from_disk_c
- * (historical glue strong _c -> X thin / impl_c). Product pure load_and_sync calls this name.
- * PLATFORM: SHARED - glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ *   7) same-TU pure pipeline_parse_into_buf from the owned heap prep (wave96)
+ *   8) free the heap prep (recursion-safe; does not use ctx embed)
+ * Historical wave94 used pipeline_read_file_x + pipeline_preprocess_loaded_into_ctx
+ * which copy into PipelineDepCtx loaded_buf/preprocess_buf (PIN 4MiB). That
+ * silently truncated imports > 4MiB. Product import orch now reuses the heap
+ * path already owned by pipeline_read_file_stage_prep. Ctx embed stays 4MiB
+ * (pin layout). pipeline_read_file_x remains the 4MiB resolve_read helper.
+ * G.7 single product authority for pipeline_load_import_from_disk_c
+ * (historical glue strong _c -> X thin / impl_c). Product load_and_sync calls this name.
+ * PLATFORM: SHARED — LINUX gold · MACOS co-path. C thin overlays WEAK mega.
  */
 #[no_mangle]
 export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
@@ -4077,18 +4083,61 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   if (rr != 0) {
     return 0 - 7;
   }
+  // Whole-file view of ctx.path_buf (resolved). ABI: data@0 length@8 (32B pad).
+  let path: *u8 = 0 as *u8;
   unsafe {
-    rr = pipeline_read_file_x(ctx);
+    path = pipeline_dep_ctx_path_buf_ptr(ctx);
   }
-  if (rr != 0) {
+  if (path == 0 as *u8) {
     return 0 - 8;
   }
-  unsafe {
-    rr = pipeline_preprocess_loaded_into_ctx(ctx);
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
   }
-  if (rr != 0) {
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(path, &view[0]);
+  }
+  if (view_rc != 0) {
+    return 0 - 8;
+  }
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&out_len[0], 0, 0);
+  let prep_rc: i32 = 0;
+  unsafe {
+    prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, &out_prep[0], &out_len[0], path, 0 as *u8, 0);
+    runtime_release_file_view(&view[0]);
+  }
+  if (prep_rc != 0) {
     return 0 - 9;
   }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let prep_len64: i64 = xlang_size_slot_get(&out_len[0], 0);
+  // parse_into_buf takes i32 len; malloc_impl already rejects > INT32_MAX raw.
+  let i32_max: i64 = 2147483647;
+  if (prep == 0 as *u8) {
+    return 0 - 9;
+  }
+  if (prep_len64 < 0) {
+    unsafe {
+      free(prep);
+    }
+    return 0 - 9;
+  }
+  if (prep_len64 > i32_max) {
+    unsafe {
+      free(prep);
+    }
+    return 0 - 9;
+  }
+  let prep_len: i32 = prep_len64 as i32;
   // Pin path on the same slot we parse into (authority for path de-dupe / sync).
   if (path_len > 0) {
     unsafe {
@@ -4100,14 +4149,11 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   }
   let dep_arena: *u8 = 0 as *u8;
   let dep_module: *u8 = 0 as *u8;
-  let prep_buf: *u8 = 0 as *u8;
-  let prep_len: i32 = 0;
   unsafe {
     dep_arena = pipeline_dep_ctx_arena_at(ctx, import_idx);
     dep_module = ast_pipeline_dep_ctx_module_at(ctx, import_idx);
-    prep_buf = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
-    prep_len = pipeline_dep_ctx_preprocess_len_get(ctx);
-    rr = pipeline_parse_into_buf(dep_arena, dep_module, prep_buf, prep_len);
+    rr = pipeline_parse_into_buf(dep_arena, dep_module, prep, prep_len);
+    free(prep);
   }
   if (rr != 0) {
     return 0 - 10;
@@ -5408,6 +5454,9 @@ export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i3
  *   1) Cap residual path_buf_ptr + loaded_buf_ptr
  *   2) G.7 pure xlang_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
  *   3) Cap residual pipeline_dep_ctx_set_loaded_len(n) on n>=0
+ * Product import orch (pipeline_load_import_from_disk_c) no longer uses this
+ * helper — it heap-reads via runtime_read_file_view (import ctx 4MiB wall).
+ * resolve_read still copies into the pin embed.
  * wave95 pure Cap residual: G.7 product authority for pipeline_read_file_x
  * (historical glue weak -> impl_c). PLATFORM: SHARED - glue XLANG_WEAK cold twin.
  */

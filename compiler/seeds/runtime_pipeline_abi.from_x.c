@@ -64666,6 +64666,7 @@ struct std_io_driver_Buffer;
 /* Pure void* callees under prefer rest. */
 extern void *pipeline_dep_ctx_arena_at(void *ctx, int32_t idx);
 extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t idx);
+extern uint8_t *pipeline_dep_ctx_path_buf_ptr(void *ctx);
 extern void pipeline_dep_ctx_set_import_path(void *ctx, int32_t idx, uint8_t *path, int32_t len);
 extern uint8_t *pipeline_dep_ctx_preprocess_buf_ptr(void *ctx);
 extern int32_t pipeline_dep_ctx_preprocess_len_get(void *ctx);
@@ -64830,6 +64831,11 @@ int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct 
   int32_t path_len;
   void *dep_arena;
   void *dep_module;
+  uint8_t *path;
+  XlangRuntimeFileView raw_view;
+  char *prep = NULL;
+  size_t prep_len = 0;
+  int32_t parse_rc;
 
   if (!module || !arena || !ctx || import_idx < 0)
     return -1;
@@ -64837,17 +64843,33 @@ int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct 
   path_len = parser_copy_module_import_path64(module, import_idx, path_buf);
   if (pipeline_resolve_path_x(ctx, path_buf, path_len) != 0)
     return -7;
-  if (pipeline_read_file_x(ctx) != 0)
+  /* PLATFORM: SHARED — import orch heap (PP002). Ctx embed stays 4MiB pin.
+   * G.7 reuse runtime_read_file_view + xlang_preprocess_raw_to_malloc.
+   * Historical read_file_x + preprocess_loaded_into_ctx truncated at 4MiB. */
+  memset(&raw_view, 0, sizeof(raw_view));
+  path = pipeline_dep_ctx_path_buf_ptr(ctx);
+  if (!path)
     return -8;
-  if (pipeline_preprocess_loaded_into_ctx(ctx) != 0)
+  if (runtime_read_file_view((const char *)path, &raw_view) != 0)
+    return -8;
+  if (xlang_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+          (const char *)path, NULL, 0) != 0) {
+    runtime_release_file_view(&raw_view);
     return -9;
+  }
+  runtime_release_file_view(&raw_view);
+  if (!prep || prep_len > (size_t)2147483647) {
+    free(prep);
+    return -9;
+  }
   if (path_len > 0)
     pipeline_dep_ctx_set_import_path(ctx, import_idx, path_buf, path_len);
   pipeline_bind_import_dep_buffers(ctx, import_idx);
   dep_arena = pipeline_dep_ctx_arena_at(ctx, import_idx);
   dep_module = pipeline_dep_ctx_module_at(ctx, import_idx);
-  if (pipeline_parse_into_buf(dep_arena, dep_module, pipeline_dep_ctx_preprocess_buf_ptr(ctx),
-                              pipeline_dep_ctx_preprocess_len_get(ctx)) != 0)
+  parse_rc = pipeline_parse_into_buf(dep_arena, dep_module, (uint8_t *)prep, (int32_t)prep_len);
+  free(prep);
+  if (parse_rc != 0)
     return -10;
   return 0;
 }
