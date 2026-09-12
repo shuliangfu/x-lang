@@ -69,7 +69,7 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   out->ok = 0;
   if (!arena || !module || !source)
     return;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_top_level_let_probe_c(lex, source, is_const));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_top_level_let_probe_c(&lex, source, is_const));
   memset(&r, 0, sizeof(r));
   memset(&expr_res, 0, sizeof(expr_res));
   memset(name_buf, 0, sizeof(name_buf));

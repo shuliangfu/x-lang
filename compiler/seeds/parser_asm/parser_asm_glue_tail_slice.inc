@@ -1411,7 +1411,7 @@ void parser_parse_cond_expr_into_glue(void *arena, struct parser_asm_lexer lex_s
 void parser_parse_one_top_level_let_into_glue(void *arena, void *module, struct parser_asm_lexer lex,
                                               struct parser_asm_slice_u8 *source, int32_t is_const,
                                               struct parser_asm_top_level_let_result *out) {
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_top_level_let_probe_c(lex, source, is_const));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_top_level_let_probe_c(&lex, source, is_const));
   parser_asm_parse_one_top_level_let_into_slice_c(arena, module, lex, source, is_const, out);
 }
 

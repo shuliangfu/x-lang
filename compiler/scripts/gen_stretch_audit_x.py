@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.36 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.37 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,16 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.37: extra-flag family (top_level_let is_const) —
+#   parse_suite did not ingest `(lex, source, is_const)` / `(lex, data, len,
+#   is_const)` (2- and 3-line), so the leaf probe + buf shim + prefix tower
+#   were "not found / non-byval". Complete the family (G.7): flag_sigs,
+#   emit extra `is_const: i32`, C-twin/decl pointer ABI, skip `(void)is_const`,
+#   skip_one_param_type dest=`lex` (cursor, same as v5.35 skip_imports).
+#   Soft-FP climbs deep_buf + full/mega + toplevel ultra→intergalactic
+#   (≤255). Still refuse L012>255 (versal infix) / heap preprocess.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=top_level_let (提速纪律).
 #
 # v5.36: leftover cluster (diag_fail lexer_result + simd from_at + name-lit) —
 #   Three ≤255 leftover roots share incomplete statement handlers, not a
@@ -430,6 +440,7 @@ def parse_suite():
     buf_sigs = {}
     out_sigs = {}  # name -> out param ident (int32_t *out_*)
     noles_sigs = {}  # (data,len)-only roots widened to pointer ABI
+    flag_sigs = {}  # extra trailing is_const (top_level_let family)
     order = []
     i = 0
     while i < len(lines):
@@ -439,9 +450,11 @@ def parse_suite():
         sig_extra = 0
         is_buf = False
         is_noles = False
+        has_flag = False
         out_name = None
         if not m:
             m2 = (re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+),$", l)
+                  or re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+), uint8_t \*data, int32_t len,$", l)
                   or re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+), uint8_t \*data,$", l)
                   or re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+), "
                               r"struct parser_asm_slice_u8 \*source,$", l))
@@ -449,6 +462,19 @@ def parse_suite():
                 if re.match(r"^\s*struct parser_asm_slice_u8 \*source\) \{$", lines[i + 1]):
                     m = m2
                     sig_extra = 1
+                elif re.match(r"^\s*int32_t is_const\) \{$", lines[i + 1]):
+                    # v5.37: (lex, source,\n is_const) or (lex, data, len,\n is_const)
+                    m = m2
+                    sig_extra = 1
+                    has_flag = True
+                    if "uint8_t *data" in l:
+                        is_buf = True
+                elif re.match(r"^\s*int32_t len, int32_t is_const\) \{$", lines[i + 1]):
+                    # v5.37: (lex, data,\n len, is_const)
+                    m = m2
+                    sig_extra = 1
+                    is_buf = True
+                    has_flag = True
                 elif re.match(r"^\s*uint8_t \*data, int32_t len\) \{$", lines[i + 1]):
                     m = m2
                     sig_extra = 1
@@ -457,6 +483,14 @@ def parse_suite():
                     m = m2
                     sig_extra = 1
                     is_buf = True
+                elif (re.match(r"^\s*uint8_t \*data, int32_t len,$", lines[i + 1])
+                      and i + 2 < len(lines)
+                      and re.match(r"^\s*int32_t is_const\) \{$", lines[i + 2])):
+                    # v5.37: (lex,\n data, len,\n is_const)
+                    m = m2
+                    sig_extra = 2
+                    is_buf = True
+                    has_flag = True
                 elif (re.match(r"^\s*uint8_t \*data,$", lines[i + 1])
                       and i + 2 < len(lines)
                       and re.match(r"^\s*int32_t len\) \{$", lines[i + 2])):
@@ -476,6 +510,20 @@ def parse_suite():
             if m3:
                 m = m3
                 is_buf = True
+        if not m:
+            # v5.37: single-line extra-flag
+            m3f = re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+), "
+                           r"uint8_t \*data, int32_t len, int32_t is_const\) \{$", l)
+            if m3f:
+                m = m3f
+                is_buf = True
+                has_flag = True
+        if not m:
+            m3s = re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+), "
+                           r"struct parser_asm_slice_u8 \*source, int32_t is_const\) \{$", l)
+            if m3s:
+                m = m3s
+                has_flag = True
         if not m:
             # single-line out-param: (lex, source, int32_t *out_xxx) {
             m4 = re.match(r"^int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer (\w+), "
@@ -500,13 +548,15 @@ def parse_suite():
             buf_sigs[m.group(1)] = is_buf
             if is_noles:
                 noles_sigs[m.group(1)] = True
+            if has_flag:
+                flag_sigs[m.group(1)] = True
             if out_name:
                 out_sigs[m.group(1)] = out_name
             order.append((i, j))
             i = j + 1
         else:
             i += 1
-    return src, lines, funcs, buf_sigs, out_sigs, order, noles_sigs
+    return src, lines, funcs, buf_sigs, out_sigs, order, noles_sigs, flag_sigs
 
 
 def token_enum():
@@ -999,6 +1049,10 @@ def translate(name, body, tokvals):
         m = re.match(r"(\w+) = 0;$", st)
         if m and m.group(1) in int_vars:
             emit(f"{m.group(1)} = 0;")
+            si += 1
+            continue
+        # v5.37: unused extra-flag (top_level_let probe; polarity is the caller's)
+        if st in ("(void)is_const;", "(void)is_const ;"):
             si += 1
             continue
         # null source guard (template covers it)
@@ -1505,7 +1559,7 @@ def translate(name, body, tokvals):
         # v2/v5.2: score arithmetic from sub-audit calls or literals.
         # Buf form accepts &lex (C by-value take-address) + optional trailing flag.
         # Slice form third arg may be a digit flag OR &out_local (→ null 0).
-        m = re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\);$", st) or \
+        m = re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&?\w+))?\);$", st) or \
         re.match(r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\);$", st)
         if m and m.group(1) in int_vars:
             var, op, callee, arg = m.group(1), m.group(2), m.group(3), m.group(4)
@@ -1677,16 +1731,22 @@ def translate(name, body, tokvals):
             alias_current = {m.group(1)}
             si += 1
             continue
-        # v3.1: alias assigned from a helper's return (skip_type_suffix etc.)
+        # v3.1/v5.37: alias assigned from a helper's return (skip_type_suffix etc.).
+        # v5.37: dest `lex` is the primary cursor (probe assigns back onto lex;
+        # same leftover as v5.35 skip_imports dest `lex`).
         m = re.match(r"(\w+) = parser_asm_stretch_(skip_type_suffix|skip_one_param_type)_c\((r\w*)\.next_lex, source\);$", st)
-        if m and m.group(3) in cur_results and m.group(1) in lexer_locals:
+        if m and m.group(3) in cur_results and (m.group(1) in lexer_locals
+                                                or m.group(1) in cursor_names
+                                                or m.group(1) == "lex"):
             emit("parser_asm_lex_step_kind_c(lex, source);")
             emit("adv0 = parser_asm_lex_pos_c(lex);")
             int_vars.add("adv0_us")
             emit(f"parser_asm_lex_{m.group(2)}_inplace_c(lex, source);")
-            alias_current = {m.group(1)}
+            alias_current = {m.group(1)} | set(cursor_names)
             helper_alias = (m.group(1), m.group(3))
             cur_results = set()
+            lex_rebased = True
+            first_step_done = True
             si += 1
             continue
         # v3.1: after.pos != lex.pos compare (helper advanced past start?)
@@ -2244,7 +2304,7 @@ def translate_return(expr, cur_results):
             ],
             used,
         )
-    m = re.match(r"(\w+) \+ (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\)$", e)
+    m = re.match(r"(\w+) \+ (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&?\w+))?\)$", e)
     if m:
         x2, ntok = translate_call(m.group(2), m.group(3), m.group(4))
         used |= ntok
@@ -2320,6 +2380,9 @@ def translate_block(block, cur_results, indent=2):
         st = lines[si].strip()
         # v4.9: local lexer_result decl (look-ahead holder) — no emit
         if st.startswith("struct parser_asm_lexer_result "):
+            si += 1
+            continue
+        if st in ("(void)is_const;", "(void)is_const ;"):
             si += 1
             continue
         # v4.9: local lexer decl / copy (probe alias) — tracked but no emit yet
@@ -2504,7 +2567,7 @@ def translate_block(block, cur_results, indent=2):
         # v5.6: score += / = sub-audit (callee restore-trio; no outer pos0 —
         # loop bodies that skip_one_struct must keep the advanced cursor).
         m = re.match(
-            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\);$",
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&?\w+))?\);$",
             st) or re.match(
             r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\);$",
             st)
@@ -2706,7 +2769,7 @@ def translate_block(block, cur_results, indent=2):
         if m:
             si += 1
             continue
-        m = re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&\w+))?\);$", st) or \
+        m = re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((&?\w+), source(?:, (\d+|&?\w+))?\);$", st) or \
         re.match(r"\(void\)(parser_asm_stretch_\w+_c)\((&?\w+), data, len(?:, (\d+|\w+))?\);$", st)
         if m:
             is_buf = "data, len" in st
@@ -3290,11 +3353,17 @@ def gen_buf_function(name, body, tokvals, existing_consts):
     """buf-signature audit: strip the sl-construction prologue, translate the
     rest with source = wrap(data,len). Pure shims return (…, buftail=callee)."""
     txt = "\n".join(body)
-    # pure shim: sl decl + guard + assigns + return CALLEE(&lex, &sl);
+    # pure shim: sl decl + guard + assigns + return CALLEE(&lex, &sl[, is_const]);
     m = re.fullmatch(
         r"\s*struct parser_asm_slice_u8 sl;\s*if \(!data \|\| len <= 0\)\s*return 0;\s*"
         r"sl\.data = data;\s*sl\.length = \(size_t\)len;\s*"
-        r"return (parser_asm_stretch_\w+_c)\(&?\w+, &sl\);\s*", txt)
+        r"return (parser_asm_stretch_\w+_c)\(&?\w+, &sl(?:, is_const)?\);\s*", txt)
+    if m:
+        raise Delegation(m.group(1))
+    # v5.37: buf→buf pure shim with optional extra flag
+    m = re.fullmatch(
+        r"\s*(?:int32_t score;\s*)?if \(!data \|\| len <= 0\)\s*return 0;\s*"
+        r"return (parser_asm_stretch_\w+_c)\(&?\w+, data, len(?:, is_const)?\);\s*", txt)
     if m:
         raise Delegation(m.group(1))
     # thick: strip the standard prologue then translate the remainder with
@@ -3392,7 +3461,11 @@ export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
 """
 
 
-def emit_buf_x(name, callee, docline, callee_is_buf=False):
+def emit_buf_x(name, callee, docline, callee_is_buf=False, has_flag=False):
+    flag_param = ", is_const: i32" if has_flag else ""
+    flag_doc = (" * @param is_const i32 — let vs const polarity (0/1); forwarded\n"
+                if has_flag else "")
+    flag_call = ", is_const" if has_flag else ""
     if callee_is_buf:
         return f"""/**
  * {docline}
@@ -3400,16 +3473,16 @@ def emit_buf_x(name, callee, docline, callee_is_buf=False):
  * @param lex *u8 — opaque lexer (read-only net effect)
  * @param data *u8 — source bytes
  * @param len i32 — byte length; <=0 returns 0
- * @return i32 — callee verdict
+{flag_doc} * @return i32 — callee verdict
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
+export function {name}(lex: *u8, data: *u8, len: i32{flag_param}): i32 {{
   unsafe {{
     if (data == 0 as *u8 || len <= 0) {{
       return 0;
     }}
-    return {callee}(lex, data, len);
+    return {callee}(lex, data, len{flag_call});
   }}
   return 0;
 }}
@@ -3421,24 +3494,24 @@ export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
  * @param lex *u8 — opaque lexer (read-only net effect)
  * @param data *u8 — source bytes
  * @param len i32 — byte length; <=0 returns 0
- * @return i32 — callee verdict
+{flag_doc} * @return i32 — callee verdict
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
+export function {name}(lex: *u8, data: *u8, len: i32{flag_param}): i32 {{
   let source: *u8 = 0 as *u8;
   unsafe {{
     source = parser_asm_lex_wrap_buf_c(data, len);
     if (source == 0 as *u8) {{
       return 0;
     }}
-    return {callee}(lex, source);
+    return {callee}(lex, source{flag_call});
   }}
   return 0;
 }}
 """
 
-def emit_buf_thick_x(name, x_lines, int_vars=()):
+def emit_buf_thick_x(name, x_lines, int_vars=(), has_flag=False):
     int_lets = "".join(f"  let {v}: i32 = 0;\n" for v in sorted(int_vars) if not v.endswith("_us"))
     int_lets = "  let rc: i32 = 0;\n" + int_lets
     if "adv0_us" in int_vars:
@@ -3451,17 +3524,20 @@ def emit_buf_thick_x(name, x_lines, int_vars=()):
     if "bhit_us" in int_vars:
         int_lets = ("  let data2: *u8 = 0 as *u8;\n  let ts2: usize = 0;\n"
                     "  let sln2: usize = 0;\n  let bhit: i32 = 0;\n") + int_lets
+    flag_param = ", is_const: i32" if has_flag else ""
+    flag_doc = (" * @param is_const i32 — let vs const polarity (0/1); forwarded to callees\n"
+                if has_flag else "")
     return f"""/**
  * Generated thick-buf port of `{name}`: wraps (data,len) via the bridge ring,
  * then runs the translated audit body over the opaque slice.
  * @param lex *u8 — opaque lexer (read-only net effect via restore trio)
  * @param data *u8 — source bytes
  * @param len i32 — byte length; <=0 returns 0
- * @return i32 — audit verdict (≡ suite twin)
+{flag_doc} * @return i32 — audit verdict (≡ suite twin)
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
+export function {name}(lex: *u8, data: *u8, len: i32{flag_param}): i32 {{
   let pos0: usize = 0;
   let line0: i32 = 0;
   let col0: i32 = 0;
@@ -3487,7 +3563,7 @@ export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
 """
 
 
-def emit_x(name, x_lines, docline, int_vars=()):
+def emit_x(name, x_lines, docline, int_vars=(), has_flag=False):
     int_lets = "".join(f"  let {v}: i32 = 0;\n" for v in sorted(int_vars) if not v.endswith("_us"))
     int_lets = "  let idptr: *u8 = 0 as *u8;\n  let rc: i32 = 0;\n" + int_lets
     if "adv0_us" in int_vars:
@@ -3500,6 +3576,9 @@ def emit_x(name, x_lines, docline, int_vars=()):
     if "bhit_us" in int_vars:
         int_lets = ("  let data2: *u8 = 0 as *u8;\n  let ts2: usize = 0;\n"
                     "  let sln2: usize = 0;\n  let bhit: i32 = 0;\n") + int_lets
+    flag_param = ", is_const: i32" if has_flag else ""
+    flag_doc = (" * @param is_const i32 — let vs const polarity (0/1); unused on probe\n"
+                if has_flag else "")
     doc = f"""/**
  * {docline}
  * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
@@ -3507,11 +3586,11 @@ def emit_x(name, x_lines, docline, int_vars=()):
  * linear peek/step chain over the opaque lexer.
  * @param lex *u8 — opaque lexer (read-only net effect)
  * @param source *u8 — opaque slice
- * @return i32 — audit verdict (≡ suite twin)
+{flag_doc} * @return i32 — audit verdict (≡ suite twin)
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function {name}(lex: *u8, source: *u8): i32 {{
+export function {name}(lex: *u8, source: *u8{flag_param}): i32 {{
   let pos0: usize = 0;
   let line0: i32 = 0;
   let col0: i32 = 0;
@@ -3634,6 +3713,18 @@ def _sync_callsites(ok, buf_sigs, noles_sigs, out_sigs):
                 f"extern int32_t {n}(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);",
                 f"extern int32_t {n}(void *lex_inout, void *source);")
             t = t.replace(
+                f"int32_t {n}(struct parser_asm_lexer lex, uint8_t *data, int32_t len, int32_t is_const);",
+                f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);")
+            t = t.replace(
+                f"extern int32_t {n}(struct parser_asm_lexer lex, uint8_t *data, int32_t len, int32_t is_const);",
+                f"extern int32_t {n}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);")
+            t = t.replace(
+                f"int32_t {n}(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t is_const);",
+                f"int32_t {n}(void *lex_inout, void *source, int32_t is_const);")
+            t = t.replace(
+                f"extern int32_t {n}(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t is_const);",
+                f"extern int32_t {n}(void *lex_inout, void *source, int32_t is_const);")
+            t = t.replace(
                 f"int32_t {n}(struct parser_asm_lexer lex, uint8_t *data, int32_t len);",
                 f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len);")
             t = t.replace(
@@ -3673,6 +3764,8 @@ def _sync_callsites(ok, buf_sigs, noles_sigs, out_sigs):
             name = m.group(2)
             rest = m.group(3)
             if "slice_u8" in rest:
+                if "is_const" in rest:
+                    return f"{ext}int32_t {name}(void *lex_inout, void *source, int32_t is_const);"
                 return f"{ext}int32_t {name}(void *lex_inout, void *source);"
             if "is_const" in rest:
                 return f"{ext}int32_t {name}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);"
@@ -3682,6 +3775,15 @@ def _sync_callsites(ok, buf_sigs, noles_sigs, out_sigs):
             r"\s*\n\s*((?:struct parser_asm_slice_u8 \*source|uint8_t \*data, int32_t len)"
             r"(?:,\s*\n\s*int32_t is_const)?)\);",
             _decl_ptr,
+            t,
+        )
+        t = re.sub(
+            r"(extern\s+)?int32_t (parser_asm_stretch_\w+_c)\(struct parser_asm_lexer \w+,"
+            r" uint8_t \*data,\s*\n\s*int32_t len, int32_t is_const\);",
+            lambda m: (
+                m.group(0) if m.group(2) not in okset
+                else f"{m.group(1) or ''}int32_t {m.group(2)}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);"
+            ),
             t,
         )
         t = re.sub(
@@ -3723,7 +3825,7 @@ def main():
         print(f"callsites-only: {len(ok)} migrated exports")
         _sync_callsites(ok, buf_sigs, noles_sigs, out_sigs)
         return 0
-    src, lines, funcs, buf_sigs, out_sigs, order, noles_sigs = parse_suite()
+    src, lines, funcs, buf_sigs, out_sigs, order, noles_sigs, flag_sigs = parse_suite()
     tokvals = token_enum()
     xsrc = open(XFILE).read()
     existing = set(re.findall(r"const (TOKEN_\w+):", xsrc))
@@ -3813,6 +3915,8 @@ def main():
         print(f"DRY-RUN generated: {len(gen)} deleg: {len(deleg)} refused: {len(refused)}")
         for n in ok:
             tag = "noles" if noles_sigs.get(n) else ("buf" if buf_sigs.get(n) else "slice")
+            if flag_sigs.get(n):
+                tag = tag + "+flag"
             print(f"  OK {tag} {n}")
         for n, why in refused:
             print(f"  REFUSED {n}: {why}")
@@ -3871,33 +3975,41 @@ def main():
     docmap = {}
     for n, x_lines, ivars, buftail in gen:
         docmap[n] = f"Generated audit port {n}."
+        hf = bool(flag_sigs.get(n))
         if buftail == ("NOLES",):
             frags.append(emit_noles_x(n, x_lines, ivars))
         elif buftail == ("THICK",):
-            frags.append(emit_buf_thick_x(n, x_lines, ivars))
+            frags.append(emit_buf_thick_x(n, x_lines, ivars, has_flag=hf))
         elif buftail:
-            frags.append(emit_buf_x(n, buftail, docmap[n]))
+            frags.append(emit_buf_x(n, buftail, docmap[n], has_flag=hf))
         elif n in out_sigs:
             frags.append(emit_out_x(n, x_lines, docmap[n], out_sigs[n], ivars))
         else:
-            frags.append(emit_x(n, x_lines, docmap[n], ivars))
+            frags.append(emit_x(n, x_lines, docmap[n], ivars, has_flag=hf))
     for n, callee, is_b in list(deleg):
+        hf = bool(flag_sigs.get(n))
         if is_b:
-            frags.append(emit_buf_x(n, callee, f"Generated buf-shim port {n}.", callee_is_buf=("_buf_" in callee or callee.endswith("_buf_c"))))
+            frags.append(emit_buf_x(n, callee, f"Generated buf-shim port {n}.",
+                                    callee_is_buf=("_buf_" in callee or callee.endswith("_buf_c")),
+                                    has_flag=hf))
             continue
+        flag_param = ", is_const: i32" if hf else ""
+        flag_doc = (" * @param is_const i32 — let vs const polarity (0/1); forwarded\n" if hf else "")
+        flag_call = ", is_const" if hf else ""
         frags.append(
             f"/**\n"
             f" * Generated delegation port: {n} forwards to {callee}.\n"
             f" * Pointer ABI + by-value net semantics (callee restores).\n"
             f" * @param lex *u8 — opaque lexer (read-only net effect)\n"
             f" * @param source *u8 — opaque slice\n"
+            f"{flag_doc}"
             f" * @return i32 — callee verdict\n"
             f" * PLATFORM: SHARED.\n"
             f" */\n"
             f"#[no_mangle]\n"
-            f"export function {n}(lex: *u8, source: *u8): i32 {{\n"
+            f"export function {n}(lex: *u8, source: *u8{flag_param}): i32 {{\n"
             f"  unsafe {{\n"
-            f"    return {callee}(lex, source);\n"
+            f"    return {callee}(lex, source{flag_call});\n"
             f"  }}\n"
             f"  return 0;\n"
             f"}}\n"
@@ -3935,7 +4047,7 @@ def main():
             )
             lines_s[si_l:ei_l + 1] = shim.split("\n")
             continue
-        # locate def block (single- or multi-line signature)
+        # locate def block (single- or multi-line signature; v5.37: 3-line flag)
         si_l = sig_extra = None
         for i2, l in enumerate(lines_s):
             if l.startswith(f"int32_t {n}(struct parser_asm_lexer "):
@@ -3945,6 +4057,10 @@ def main():
                       and lines_s[i2 + 1].rstrip().endswith("{")
                       and not l.rstrip().endswith(";")):
                     si_l, sig_extra = i2, 1
+                elif (i2 + 2 < len(lines_s)
+                      and lines_s[i2 + 2].rstrip().endswith("{")
+                      and not l.rstrip().endswith(";")):
+                    si_l, sig_extra = i2, 2
                 if si_l is not None:
                     break
         is_buf_def = n in buf_sigs and buf_sigs[n]
@@ -3983,11 +4099,18 @@ def main():
             "parser_asm_stretch_allow_kw_paren_audit_c(&lex, source)",
             nb_txt)
         outn = out_sigs.get(n)
-        if is_buf_def:
+        hf = bool(flag_sigs.get(n))
+        if is_buf_def and hf:
+            sig_h = f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const) {{\n"
+            guard = "  if (!lex_inout || !data || len <= 0)\n    return 0;\n"
+        elif is_buf_def:
             sig_h = f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len) {{\n"
             guard = "  if (!lex_inout || !data || len <= 0)\n    return 0;\n"
         elif outn:
             sig_h = f"int32_t {n}(void *lex_inout, void *source, int32_t *{outn}) {{\n"
+            guard = "  if (!lex_inout || !source)\n    return 0;\n"
+        elif hf:
+            sig_h = f"int32_t {n}(void *lex_inout, void *source, int32_t is_const) {{\n"
             guard = "  if (!lex_inout || !source)\n    return 0;\n"
         else:
             sig_h = f"int32_t {n}(void *lex_inout, void *source) {{\n"
@@ -4007,10 +4130,14 @@ def main():
     # 3b) ensure fwd decls exist for every generated function (hybrid callers)
     need = []
     for n, *_rest in list(gen) + list(deleg):
-        if buf_sigs.get(n):
+        if buf_sigs.get(n) and flag_sigs.get(n):
+            decl = f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);"
+        elif buf_sigs.get(n):
             decl = f"int32_t {n}(void *lex_inout, uint8_t *data, int32_t len);"
         elif n in out_sigs:
             decl = f"int32_t {n}(void *lex_inout, void *source, int32_t *{out_sigs[n]});"
+        elif flag_sigs.get(n):
+            decl = f"int32_t {n}(void *lex_inout, void *source, int32_t is_const);"
         else:
             decl = f"int32_t {n}(void *lex_inout, void *source);"
         if decl not in "\n".join(lines_s):
