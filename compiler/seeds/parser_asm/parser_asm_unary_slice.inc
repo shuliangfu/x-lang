@@ -4,6 +4,11 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 与 parser.x parse_unary_into 一致：await/run/spawn/-/~/!/&/star 前缀 + primary 回落。
  * PLATFORM: SHARED — unary authority; TOKEN_TILDE must map to EXPR_BITNOT (LANG-006).
+ *
+ * Hybrid P4ub: XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X skips the portable
+ * TOKEN→ExprKind table (body in pthin_expr_unary.x). wrap / parse / arena
+ * stay here. Contiguous already-T AUDIT_CALL padding is compiled only
+ * under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
  */
 #ifndef PARSER_ASM_UNARY_SLICE_INCLUDED
 #define PARSER_ASM_UNARY_SLICE_INCLUDED
@@ -19,6 +24,16 @@ enum {
   PARSER_ASM_EXPR_RUN = 56,
   PARSER_ASM_EXPR_SPAWN = 57
 };
+
+/* PLATFORM: SHARED — 7.2.1 P4ub. pthin_expr_unary.x EXPR_* pins. */
+_Static_assert(PARSER_ASM_EXPR_NEG == 22, "unary.x EXPR_NEG pin");
+_Static_assert(PARSER_ASM_EXPR_BITNOT == 23, "unary.x EXPR_BITNOT pin");
+_Static_assert(PARSER_ASM_EXPR_LOGNOT == 24, "unary.x EXPR_LOGNOT pin");
+_Static_assert(PARSER_ASM_EXPR_ADDR_OF == 51, "unary.x EXPR_ADDR_OF pin");
+_Static_assert(PARSER_ASM_EXPR_DEREF == 52, "unary.x EXPR_DEREF pin");
+_Static_assert(PARSER_ASM_EXPR_AWAIT == 55, "unary.x EXPR_AWAIT pin");
+_Static_assert(PARSER_ASM_EXPR_RUN == 56, "unary.x EXPR_RUN pin");
+_Static_assert(PARSER_ASM_EXPR_SPAWN == 57, "unary.x EXPR_SPAWN pin");
 
 extern void parser_parse_unary_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                     struct parser_asm_parse_expr_result *out);
@@ -102,14 +117,43 @@ static int32_t parser_asm_unary_wrap_operand_c(void *arena, struct parser_asm_pa
   return op_ref;
 }
 
+#ifndef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
+/**
+ * Map unary prefix token → ExprKind ordinal, or -1.
+ * PLATFORM: SHARED — G.7 single TOKEN→ExprKind table for unary prefixes.
+ */
+int32_t parser_asm_unary_token_to_expr_kind_c(int32_t kind) {
+  if (kind == (int32_t)TOKEN_AWAIT)
+    return PARSER_ASM_EXPR_AWAIT;
+  if (kind == (int32_t)TOKEN_RUN)
+    return PARSER_ASM_EXPR_RUN;
+  if (kind == (int32_t)TOKEN_SPAWN)
+    return PARSER_ASM_EXPR_SPAWN;
+  if (kind == (int32_t)TOKEN_MINUS)
+    return PARSER_ASM_EXPR_NEG;
+  /* PLATFORM: SHARED — `~x` BITNOT (LANG-006 CTFE / unary residual). */
+  if (kind == (int32_t)TOKEN_TILDE)
+    return PARSER_ASM_EXPR_BITNOT;
+  if (kind == (int32_t)TOKEN_BANG)
+    return PARSER_ASM_EXPR_LOGNOT;
+  if (kind == (int32_t)TOKEN_AMP)
+    return PARSER_ASM_EXPR_ADDR_OF;
+  if (kind == (int32_t)TOKEN_STAR)
+    return PARSER_ASM_EXPR_DEREF;
+  return -1;
+}
+#endif /* !XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X */
+
 /**
  * parse_unary_into：(-|!|&|await|run|spawn) unary | primary。
  */
 void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                          struct parser_asm_parse_expr_result *out) {
   struct parser_asm_lexer_result r;
+  int32_t expr_kind;
   if (!out || !source)
     return;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_unary_prefix_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_expr_prefix_chain_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_cast_unary_mega_full_deep_audit_c(&lex, source));
@@ -809,95 +853,19 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   lexer_next_into(&r, lex, source);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   lexer_next_into(&r, lex, source);
-  if (r.tok.kind == (int32_t)TOKEN_AWAIT) {
+  expr_kind = parser_asm_unary_token_to_expr_kind_c(r.tok.kind);
+  if (expr_kind >= 0) {
     int32_t kw_line = r.tok.line;
     int32_t kw_col = r.tok.col;
     parser_asm_lex_from_result_val_into(&lex, r);
     parser_parse_unary_into(arena, lex, source, out);
     if (!out->ok)
       return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_AWAIT, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  if (r.tok.kind == (int32_t)TOKEN_RUN) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_RUN, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  if (r.tok.kind == (int32_t)TOKEN_SPAWN) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_SPAWN, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  if (r.tok.kind == (int32_t)TOKEN_MINUS) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_NEG, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  /* PLATFORM: SHARED — `~x` BITNOT (LANG-006 CTFE / unary residual). Lexer emits TOKEN_TILDE. */
-  if (r.tok.kind == (int32_t)TOKEN_TILDE) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_BITNOT, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  if (r.tok.kind == (int32_t)TOKEN_BANG) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_LOGNOT, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  if (r.tok.kind == (int32_t)TOKEN_AMP) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_ADDR_OF, out->expr_ref, kw_line, kw_col) == 0)
-      out->ok = 0;
-    return;
-  }
-  if (r.tok.kind == (int32_t)TOKEN_STAR) {
-    int32_t kw_line = r.tok.line;
-    int32_t kw_col = r.tok.col;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_parse_unary_into(arena, lex, source, out);
-    if (!out->ok)
-      return;
-    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_DEREF, out->expr_ref, kw_line, kw_col) == 0)
+    if (parser_asm_unary_wrap_operand_c(arena, out, expr_kind, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }

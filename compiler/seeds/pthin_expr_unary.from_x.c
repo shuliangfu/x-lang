@@ -4,6 +4,11 @@
  *
  * Body: seeds/parser_asm/parser_asm_unary_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
+ *
+ * Hybrid P4ub (XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X): portable
+ * TOKEN→ExprKind comes from pthin_expr_unary.x; this TU keeps wrap
+ * plus arena parse. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_UNARY_FROM_X for P4ub bodies.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -13,6 +18,23 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P4ub Route C (2026-09-13).
+ * pthin_expr_unary.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_AWAIT == 56, "unary.x TOKEN_AWAIT pin");
+_Static_assert((int)TOKEN_RUN == 57, "unary.x TOKEN_RUN pin");
+_Static_assert((int)TOKEN_SPAWN == 58, "unary.x TOKEN_SPAWN pin");
+_Static_assert((int)TOKEN_MINUS == 97, "unary.x TOKEN_MINUS pin");
+_Static_assert((int)TOKEN_STAR == 98, "unary.x TOKEN_STAR pin");
+_Static_assert((int)TOKEN_AMP == 101, "unary.x TOKEN_AMP pin");
+_Static_assert((int)TOKEN_TILDE == 116, "unary.x TOKEN_TILDE pin");
+_Static_assert((int)TOKEN_BANG == 126, "unary.x TOKEN_BANG pin");
+
+#ifdef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
+/* .x product body (same C name for Route C scalar table). */
+extern int32_t parser_asm_unary_token_to_expr_kind_c(int32_t kind);
+#endif
 
 struct parser_asm_token {
   int32_t kind;
