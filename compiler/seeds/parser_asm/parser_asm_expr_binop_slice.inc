@@ -7,6 +7,11 @@
  * P2 Darwin -o: parse_logor had two identical || chains from the same start
  * lex (stretch padding → every expr parsed twice). Product keeps one.
  * single_tok_chain audit_fn uses PARSER_ASM_STRETCH_AUDIT_CALL (was un-gated).
+ *
+ * Hybrid P4bb: XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X skips the portable
+ * TOKEN→ExprKind table (body in pthin_expr_binop.x). wrap / parse / arena
+ * stay here. Contiguous already-T AUDIT_CALL padding on parse_logor is
+ * compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
  * PLATFORM: SHARED. Do not assemble parser.x.
  */
 #ifndef PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
@@ -32,6 +37,28 @@ enum {
   PARSER_ASM_EXPR_LOGAND = 20,
   PARSER_ASM_EXPR_LOGOR = 21
 };
+
+/* PLATFORM: SHARED — 7.2.1 P4bb. pthin_expr_binop.x EXPR_* pins. */
+_Static_assert(PARSER_ASM_EXPR_ADD == 4, "binop.x EXPR_ADD pin");
+_Static_assert(PARSER_ASM_EXPR_SUB == 5, "binop.x EXPR_SUB pin");
+_Static_assert(PARSER_ASM_EXPR_MUL == 6, "binop.x EXPR_MUL pin");
+_Static_assert(PARSER_ASM_EXPR_DIV == 7, "binop.x EXPR_DIV pin");
+_Static_assert(PARSER_ASM_EXPR_MOD == 8, "binop.x EXPR_MOD pin");
+_Static_assert(PARSER_ASM_EXPR_SHL == 9, "binop.x EXPR_SHL pin");
+_Static_assert(PARSER_ASM_EXPR_SHR == 10, "binop.x EXPR_SHR pin");
+_Static_assert(PARSER_ASM_EXPR_BITAND == 11, "binop.x EXPR_BITAND pin");
+_Static_assert(PARSER_ASM_EXPR_BITOR == 12, "binop.x EXPR_BITOR pin");
+_Static_assert(PARSER_ASM_EXPR_BITXOR == 13, "binop.x EXPR_BITXOR pin");
+_Static_assert(PARSER_ASM_EXPR_EQ == 14, "binop.x EXPR_EQ pin");
+_Static_assert(PARSER_ASM_EXPR_NE == 15, "binop.x EXPR_NE pin");
+_Static_assert(PARSER_ASM_EXPR_LT == 16, "binop.x EXPR_LT pin");
+_Static_assert(PARSER_ASM_EXPR_LE == 17, "binop.x EXPR_LE pin");
+_Static_assert(PARSER_ASM_EXPR_GT == 18, "binop.x EXPR_GT pin");
+_Static_assert(PARSER_ASM_EXPR_GE == 19, "binop.x EXPR_GE pin");
+_Static_assert(PARSER_ASM_EXPR_LOGAND == 20, "binop.x EXPR_LOGAND pin");
+_Static_assert(PARSER_ASM_EXPR_LOGOR == 21, "binop.x EXPR_LOGOR pin");
+
+int32_t parser_asm_binop_token_to_expr_kind_c(int32_t kind);
 
 extern void parser_parse_cast_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out);
@@ -192,6 +219,54 @@ static void parser_asm_binop_lex_advance_from_peek(struct parser_asm_lexer *lex_
   g_pipe_binop_peek_ok = 0;
 }
 
+
+#ifndef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+/**
+ * Map binary-operator token → ExprKind ordinal, or -1.
+ * PLATFORM: SHARED — G.7 single TOKEN→ExprKind table for binary ops.
+ * Do not merge with unary_token_to_expr_kind (STAR/AMP/MINUS differ).
+ */
+int32_t parser_asm_binop_token_to_expr_kind_c(int32_t kind) {
+  if (kind == (int32_t)TOKEN_STAR)
+    return PARSER_ASM_EXPR_MUL;
+  if (kind == (int32_t)TOKEN_SLASH)
+    return PARSER_ASM_EXPR_DIV;
+  if (kind == (int32_t)TOKEN_PERCENT)
+    return PARSER_ASM_EXPR_MOD;
+  if (kind == (int32_t)TOKEN_PLUS)
+    return PARSER_ASM_EXPR_ADD;
+  if (kind == (int32_t)TOKEN_MINUS)
+    return PARSER_ASM_EXPR_SUB;
+  if (kind == (int32_t)TOKEN_LSHIFT)
+    return PARSER_ASM_EXPR_SHL;
+  if (kind == (int32_t)TOKEN_RSHIFT)
+    return PARSER_ASM_EXPR_SHR;
+  if (kind == (int32_t)TOKEN_AMP)
+    return PARSER_ASM_EXPR_BITAND;
+  if (kind == (int32_t)TOKEN_PIPE)
+    return PARSER_ASM_EXPR_BITOR;
+  if (kind == (int32_t)TOKEN_CARET)
+    return PARSER_ASM_EXPR_BITXOR;
+  if (kind == (int32_t)TOKEN_EQ)
+    return PARSER_ASM_EXPR_EQ;
+  if (kind == (int32_t)TOKEN_NE)
+    return PARSER_ASM_EXPR_NE;
+  if (kind == (int32_t)TOKEN_LT)
+    return PARSER_ASM_EXPR_LT;
+  if (kind == (int32_t)TOKEN_LE)
+    return PARSER_ASM_EXPR_LE;
+  if (kind == (int32_t)TOKEN_GT)
+    return PARSER_ASM_EXPR_GT;
+  if (kind == (int32_t)TOKEN_GE)
+    return PARSER_ASM_EXPR_GE;
+  if (kind == (int32_t)TOKEN_AMPAMP)
+    return PARSER_ASM_EXPR_LOGAND;
+  if (kind == (int32_t)TOKEN_PIPEPIPE)
+    return PARSER_ASM_EXPR_LOGOR;
+  return -1;
+}
+#endif /* !XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X */
+
 /** parse_term_into：cast ( (*|/|%) cast )*。 */
 void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                         struct parser_asm_parse_expr_result *out) {
@@ -209,14 +284,8 @@ void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex
   lex_cur = out->next_lex;
   for (;;) {
     parser_asm_binop_lex_peek_into(&r, lex_cur, source);
-    kind = -1;
-    if (r.tok.kind == (int32_t)TOKEN_STAR)
-      kind = PARSER_ASM_EXPR_MUL;
-    else if (r.tok.kind == (int32_t)TOKEN_SLASH)
-      kind = PARSER_ASM_EXPR_DIV;
-    else if (r.tok.kind == (int32_t)TOKEN_PERCENT)
-      kind = PARSER_ASM_EXPR_MOD;
-    else {
+    kind = parser_asm_binop_token_to_expr_kind_c(r.tok.kind);
+    if (kind != PARSER_ASM_EXPR_MUL && kind != PARSER_ASM_EXPR_DIV && kind != PARSER_ASM_EXPR_MOD) {
       out->next_lex = lex_cur;
       return;
     }
@@ -247,12 +316,8 @@ void parser_asm_parse_addsub_into_slice_c(void *arena, struct parser_asm_lexer l
   lex_cur = out->next_lex;
   for (;;) {
     parser_asm_binop_lex_peek_into(&r, lex_cur, source);
-    kind = -1;
-    if (r.tok.kind == (int32_t)TOKEN_PLUS)
-      kind = PARSER_ASM_EXPR_ADD;
-    else if (r.tok.kind == (int32_t)TOKEN_MINUS)
-      kind = PARSER_ASM_EXPR_SUB;
-    else {
+    kind = parser_asm_binop_token_to_expr_kind_c(r.tok.kind);
+    if (kind != PARSER_ASM_EXPR_ADD && kind != PARSER_ASM_EXPR_SUB) {
       out->next_lex = lex_cur;
       return;
     }
@@ -283,12 +348,8 @@ void parser_asm_parse_shift_into_slice_c(void *arena, struct parser_asm_lexer le
   lex_cur = out->next_lex;
   for (;;) {
     parser_asm_binop_lex_peek_into(&r, lex_cur, source);
-    kind = -1;
-    if (r.tok.kind == (int32_t)TOKEN_LSHIFT)
-      kind = PARSER_ASM_EXPR_SHL;
-    else if (r.tok.kind == (int32_t)TOKEN_RSHIFT)
-      kind = PARSER_ASM_EXPR_SHR;
-    else {
+    kind = parser_asm_binop_token_to_expr_kind_c(r.tok.kind);
+    if (kind != PARSER_ASM_EXPR_SHL && kind != PARSER_ASM_EXPR_SHR) {
       out->next_lex = lex_cur;
       return;
     }
@@ -321,16 +382,9 @@ void parser_asm_parse_relcompare_into_slice_c(void *arena, struct parser_asm_lex
   lex_cur = out->next_lex;
   for (;;) {
     parser_asm_binop_lex_peek_into(&r, lex_cur, source);
-    kind = -1;
-    if (r.tok.kind == (int32_t)TOKEN_LT)
-      kind = PARSER_ASM_EXPR_LT;
-    else if (r.tok.kind == (int32_t)TOKEN_LE)
-      kind = PARSER_ASM_EXPR_LE;
-    else if (r.tok.kind == (int32_t)TOKEN_GT)
-      kind = PARSER_ASM_EXPR_GT;
-    else if (r.tok.kind == (int32_t)TOKEN_GE)
-      kind = PARSER_ASM_EXPR_GE;
-    else {
+    kind = parser_asm_binop_token_to_expr_kind_c(r.tok.kind);
+    if (kind != PARSER_ASM_EXPR_LT && kind != PARSER_ASM_EXPR_LE && kind != PARSER_ASM_EXPR_GT
+        && kind != PARSER_ASM_EXPR_GE) {
       out->next_lex = lex_cur;
       return;
     }
@@ -361,12 +415,8 @@ void parser_asm_parse_compare_into_slice_c(void *arena, struct parser_asm_lexer 
   lex_cur = out->next_lex;
   for (;;) {
     parser_asm_binop_lex_peek_into(&r, lex_cur, source);
-    kind = -1;
-    if (r.tok.kind == (int32_t)TOKEN_EQ)
-      kind = PARSER_ASM_EXPR_EQ;
-    else if (r.tok.kind == (int32_t)TOKEN_NE)
-      kind = PARSER_ASM_EXPR_NE;
-    else {
+    kind = parser_asm_binop_token_to_expr_kind_c(r.tok.kind);
+    if (kind != PARSER_ASM_EXPR_EQ && kind != PARSER_ASM_EXPR_NE) {
       out->next_lex = lex_cur;
       return;
     }
@@ -455,6 +505,7 @@ void parser_asm_parse_logand_into_slice_c(void *arena, struct parser_asm_lexer l
 /** parse_logor_into：logand ( || logand )*。 */
 void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                          struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_binop_full_chain_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_binop_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_stmt_mega_full_deep_audit_c(&lex, source));
@@ -1154,6 +1205,7 @@ void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer le
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   /* One || chain from the original lex. A second identical call was stretch
    * padding: it re-parsed every expression from the same start (logor is the
    * top of parse_expr) and overwrote out. Product hello -o sample was then
