@@ -1,4 +1,14 @@
 /**
+ * parser_asm_skip_if_slice.inc — P14 skip_if (G-02f-323).
+ * Included by parser_asm_thin_c.from_x.c or pthin_skip_if.from_x.c.
+ *
+ * Hybrid P14b: XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skips the portable skip
+ * walks (bodies in src/asm/pthin_skip_if.x + by-value trampolines in the
+ * seed TU). module_try_register_enum stays here. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_SKIP_IF_FROM_X for P14b bodies.
+ */
+#ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
+/**
  * 从 trait/impl 等顶层块关键字位置扫描至匹配 `}` 之后。
  * 使用 lexer 跳过空白/注释，再以 token 级大括号配对，避免 `{`/`}` 落在注释里时错位。
  */
@@ -30,10 +40,13 @@ void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct
 
 
 
+#endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skip_trait */
+
 /* G-02f-281: moved to parser_asm_lex_skip_slice.inc (was L4504-L4625) */
 
 /* G-02f-281: moved to parser_asm_lex_skip_slice.inc (was L4627-L4673) */
 
+#ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 /**
  * skip_one_if_core_into：跳过 if (cond) { ... } / if (cond) stmt; 的核心 lex 推进（slice 路径）。
  */
@@ -63,6 +76,9 @@ void parser_asm_skip_one_if_core_into_slice_c(struct parser_asm_lexer_result *ou
   }
 }
 
+#endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skip_one_if_core_into */
+
+#ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 /**
  * skip_one_if_core_buf：与 skip_one_if_core_into 等价，buf 路径 + LexerResult 按值返回。
  */
@@ -93,6 +109,8 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_core_buf_c(struct parser_a
   }
   return r;
 }
+
+#endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skip_one_if_core_buf */
 
 /**
  * Register top-level enum name (dedupe); returns sidecar index or -1.
@@ -133,6 +151,7 @@ int32_t parser_asm_module_try_register_enum_name_c(void *module, uint8_t *name, 
   return slot;
 }
 
+#ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 /**
  * skip_one_if_statement_into：跳过整条 if（含 else / else if），slice 路径写入 *out。
  */
@@ -919,6 +938,9 @@ void parser_asm_skip_one_if_statement_into_slice_c(struct parser_asm_lexer_resul
   }
 }
 
+#endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skip_one_if_statement_into */
+
+#ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 /**
  * skip_one_if_statement_buf：与 skip_one_if_statement_into 等价，buf 路径。
  */
@@ -955,3 +977,4 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_statement_buf_c(struct par
   }
   return r;
 }
+#endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skip_one_if_statement_buf */

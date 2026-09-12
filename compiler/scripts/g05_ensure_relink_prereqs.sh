@@ -772,6 +772,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p12_seed=seeds/pthin_skip_tl.from_x.c
   _pthin_p13_seed=seeds/pthin_try_skip_allow.from_x.c
   _pthin_p14_seed=seeds/pthin_skip_if.from_x.c
+  # 7.2.1 P14b B-minus: skip_if .x bodies (trait/impl + if-core/statement walks)
+  _pthin_p14b_x=src/asm/pthin_skip_if.x
   _pthin_p15_seed=seeds/pthin_library.from_x.c
   _pthin_p16_seed=seeds/pthin_diag_pipeline.from_x.c
   _pthin_p17_seed=seeds/pthin_diag_late.from_x.c
@@ -809,6 +811,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p12_seed" ] && [ "$_pthin_p12_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p13_seed" ] && [ "$_pthin_p13_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p14_seed" ] && [ "$_pthin_p14_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p14b_x" ] && [ "$_pthin_p14b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p15_seed" ] && [ "$_pthin_p15_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p16_seed" ] && [ "$_pthin_p16_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p17_seed" ] && [ "$_pthin_p17_seed" -nt parser_asm_thin_glue.o ]; } \
@@ -862,6 +865,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p12_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p12.XXXXXX") || true
         _pthin_p13_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p13.XXXXXX") || true
         _pthin_p14_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p14.XXXXXX") || true
+        _pthin_p14b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p14b_thin.XXXXXX") || true
         _pthin_p15_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p15.XXXXXX") || true
         _pthin_p16_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p16.XXXXXX") || true
         _pthin_p17_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p17.XXXXXX") || true
@@ -895,6 +899,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p12_ok=0
         _pthin_p13_ok=0
         _pthin_p14_ok=0
+        _pthin_p14b_ok=0
         _pthin_p15_ok=0
         _pthin_p16_ok=0
         _pthin_p17_ok=0
@@ -1169,10 +1174,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P13 try_skip_allow ← $_pthin_p13_seed (G-02f-322 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P14b B-minus (2026-09-13).
+        # pthin_skip_if.x holds trait/impl + if-core/statement walks.
+        # Requires P9a lexer-step bridge AND P1b skip_balanced (otherwise
+        # skip_balanced would UNDEF). Runs before P14 C so BODIES_FROM_X
+        # skips the portable .inc region. Cold: no define, full .inc.
+        _pthin_p14_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ -n "$_pthin_p14b_thin_o" ] && [ -f "$_pthin_p14b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p14b_x" "$_pthin_p14b_thin_o"; then
+            _pthin_p14b_ok=1
+            _pthin_p14_extra="-DXLANG_PTHIN_SKIP_IF_BODIES_FROM_X"
+            echo "g05_ensure: P14b skip_if bodies ← $_pthin_p14b_x (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P14b skip_if .x thin failed; P14 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p14_o" ] && [ -f "$_pthin_p14_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p14_o" "$_pthin_p14_seed"; then
+               $_pthin_p14_extra -c -o "$_pthin_p14_o" "$_pthin_p14_seed"; then
             _pthin_p14_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_SKIP_IF_FROM_X"
             echo "g05_ensure: P14 skip_if ← $_pthin_p14_seed (G-02f-323 seed slice)"
@@ -1333,6 +1354,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p14_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p14_o"
         fi
+        if [ "$_pthin_p14b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p14b_thin_o"
+        fi
         if [ "$_pthin_p15_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p15_o"
         fi
@@ -1399,7 +1423,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_done" = "0" ]; then
           echo "g05_ensure: parser thin P1–P7+P9–P20 hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p11_o" "$_pthin_p12_o" "$_pthin_p13_o" "$_pthin_p14_o" "$_pthin_p15_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p18_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
+        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p11_o" "$_pthin_p12_o" "$_pthin_p13_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p18_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"

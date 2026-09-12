@@ -4,6 +4,12 @@
  *
  * Body: seeds/parser_asm/parser_asm_skip_if_slice.inc (~955)
  * skip_trait_impl_block_raw + skip_one_if_core/statement + module_try_register_enum
+ *
+ * Hybrid P14b (XLANG_PTHIN_SKIP_IF_BODIES_FROM_X): portable skip walks
+ * come from pthin_skip_if.x; this TU keeps by-value trampolines plus
+ * enum-register C. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_IF_FROM_X for P14b bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -13,6 +19,18 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P14b B-minus (2026-09-13).
+ * pthin_skip_if.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_EOF == 0, "skip_if.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_IF == 4, "skip_if.x TOKEN_IF pin");
+_Static_assert((int)TOKEN_ELSE == 5, "skip_if.x TOKEN_ELSE pin");
+_Static_assert((int)TOKEN_TRAIT == 49, "skip_if.x TOKEN_TRAIT pin");
+_Static_assert((int)TOKEN_IMPL == 50, "skip_if.x TOKEN_IMPL pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "skip_if.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "skip_if.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "skip_if.x TOKEN_SEMICOLON pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -118,6 +136,63 @@ extern int32_t pipeline_module_enum_alloc(void *module);
 extern uint8_t pipeline_module_enum_name_byte_at(void *module, int32_t idx, int32_t off);
 extern int32_t pipeline_module_enum_name_len(void *module, int32_t idx);
 extern void pipeline_module_enum_set_name(void *module, int32_t idx, uint8_t *bytes, int32_t len);
+
+#ifdef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
+/* .x product bodies (pointer ABI). C names stay on the trampolines. */
+extern int32_t parser_asm_skip_trait_impl_block_raw_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_skip_one_if_core_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_skip_one_if_statement_into_c(void *lex_inout, void *source);
+
+void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start,
+                                            struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source || !source->data)
+    return;
+  cur = start;
+  (void)parser_asm_skip_trait_impl_block_raw_into_c(&cur, source);
+  *out = cur;
+}
+
+void parser_asm_skip_one_if_core_into_slice_c(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  cur = lex;
+  (void)parser_asm_skip_one_if_core_into_c(&cur, source);
+  lexer_next_into(out, cur, source);
+}
+
+struct parser_asm_lexer_result parser_asm_skip_one_if_core_buf_c(struct parser_asm_lexer lex, uint8_t *data,
+                                                                int32_t len) {
+  struct parser_asm_slice_u8 sl;
+  struct parser_asm_lexer_result r;
+  sl.data = data;
+  sl.length = len >= 0 ? (size_t)len : 0;
+  parser_asm_skip_one_if_core_into_slice_c(&r, lex, &sl);
+  return r;
+}
+
+void parser_asm_skip_one_if_statement_into_slice_c(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
+                                                  struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  cur = lex;
+  (void)parser_asm_skip_one_if_statement_into_c(&cur, source);
+  lexer_next_into(out, cur, source);
+}
+
+struct parser_asm_lexer_result parser_asm_skip_one_if_statement_buf_c(struct parser_asm_lexer lex, uint8_t *data,
+                                                                     int32_t len) {
+  struct parser_asm_slice_u8 sl;
+  struct parser_asm_lexer_result r;
+  sl.data = data;
+  sl.length = len >= 0 ? (size_t)len : 0;
+  parser_asm_skip_one_if_statement_into_slice_c(&r, lex, &sl);
+  return r;
+}
+#endif /* XLANG_PTHIN_SKIP_IF_BODIES_FROM_X */
 
 #include "parser_asm_skip_if_slice.inc"
 
