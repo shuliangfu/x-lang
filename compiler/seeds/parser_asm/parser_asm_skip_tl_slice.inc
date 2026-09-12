@@ -1,8 +1,19 @@
+/**
+ * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
+ * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
+ *
+ * Hybrid P12b: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable skip
+ * walks (bodies in src/asm/pthin_skip_tl.x + by-value trampolines in the
+ * seed TU). trait-reg / enum_register / parse_one_extern stay here.
+ * Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b bodies.
+ */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
  * PLATFORM: SHARED parse. */
 void xlang_generic_bound_stash_source_c(struct parser_asm_slice_u8 *source);
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * skip_one_struct_into：跳过一条顶层 struct 定义，结果写入 *out。
  */
@@ -809,6 +820,9 @@ void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struc
   parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
 }
 
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_one_struct */
+
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * skip_one_enum_into：跳过一条顶层 enum 定义，结果写入 *out。
  */
@@ -852,6 +866,8 @@ void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_enum_variants_probe_c(&r.next_lex, source, 0));
   parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
 }
+
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_one_enum */
 /*
  * wave421 Cap residual pure — product-path trait registry (LANG-004 missing method).
  * Root: parser.x skip_one_trait/impl never stored trait signatures → incomplete
@@ -8014,6 +8030,7 @@ void parser_asm_write_extern_params_to_pools_c(void *arena, void *module, int32_
   }
 }
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * skip_one_extern_into：跳过一条顶层 extern function 声明，结果写入 *out。
  *
@@ -8096,6 +8113,8 @@ void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struc
   out->line = lex_cur.line;
   out->col = lex_cur.col;
 }
+
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_one_extern */
 
 /**
  * module_append_enum_variants_and_skip_body_into：扫描 enum 体变体名并 skip 至 `}`，结果写入 *out。
@@ -8188,6 +8207,7 @@ void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_
   parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(module, enum_idx, out, r.next_lex, source);
 }
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * skip_one_struct：与 skip_one_struct_into 等价，Lexer 按值返回。
  */
@@ -8197,3 +8217,4 @@ struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lex
   parser_asm_skip_one_struct_into_slice_c(&out, lex, source);
   return out;
 }
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_one_struct_slice */

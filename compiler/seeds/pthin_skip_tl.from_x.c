@@ -2,8 +2,15 @@
  * Logic source: src/asm/pthin_skip_tl.x
  * Hybrid: XLANG_PTHIN_SKIP_TL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~1.4k)
+ * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
+ *
+ * Hybrid P12b (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip walks
+ * (struct / enum / extern) come from pthin_skip_tl.x; this TU keeps
+ * by-value trampolines plus stash_source / trait-reg / enum_register C.
+ * Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -16,6 +23,22 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 #include "ast.h"
+
+/* PLATFORM: SHARED — 7.2.1 P12b B-minus (2026-09-13).
+ * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_FUNCTION == 1, "skip_tl.x TOKEN_FUNCTION pin");
+_Static_assert((int)TOKEN_STRUCT == 19, "skip_tl.x TOKEN_STRUCT pin");
+_Static_assert((int)TOKEN_ENUM == 47, "skip_tl.x TOKEN_ENUM pin");
+_Static_assert((int)TOKEN_EXTERN == 54, "skip_tl.x TOKEN_EXTERN pin");
+_Static_assert((int)TOKEN_IDENT == 59, "skip_tl.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "skip_tl.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "skip_tl.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_COLON == 91, "skip_tl.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "skip_tl.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_LT == 120, "skip_tl.x TOKEN_LT pin");
+_Static_assert((int)TOKEN_STRING == 130, "skip_tl.x TOKEN_STRING pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -347,6 +370,54 @@ extern int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t b
 /* lex_skip family (P1 lane provides the definition). */
 void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                      struct parser_asm_slice_u8 *source);
+
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* .x product bodies (pointer ABI). C names stay on the trampolines.
+ * stash_source stays C (file-global generic-bound scan); defined in the .inc. */
+extern int32_t parser_asm_skip_one_struct_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_skip_one_enum_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_skip_one_extern_into_c(void *lex_inout, void *source);
+void xlang_generic_bound_stash_source_c(struct parser_asm_slice_u8 *source);
+
+void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  xlang_generic_bound_stash_source_c(source);
+  cur = lex;
+  (void)parser_asm_skip_one_struct_into_c(&cur, source);
+  *out = cur;
+}
+
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer out;
+  parser_asm_skip_one_struct_into_slice_c(&out, lex, source);
+  return out;
+}
+
+void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                          struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  xlang_generic_bound_stash_source_c(source);
+  cur = lex;
+  (void)parser_asm_skip_one_enum_into_c(&cur, source);
+  *out = cur;
+}
+
+void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  cur = lex;
+  (void)parser_asm_skip_one_extern_into_c(&cur, source);
+  *out = cur;
+}
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
 
 #include "parser_asm_skip_tl_slice.inc"
 
