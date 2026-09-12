@@ -1,3 +1,12 @@
+/**
+ * parser_asm_try_skip_allow_slice.inc — write_result / padding / parse_into.
+ *
+ * Hybrid P13b: XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X skips the portable
+ * padding_struct walk (body in src/asm/pthin_try_skip_allow.x + slice/buf
+ * trampolines in the seed TU). write_result and parse_into stay C.
+ * Cold: no BODIES define, this file is the full twin.
+ * Do not reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X for P13b bodies.
+ */
 /** 写入 TrySkipAllowResult 三字段（_pad 清零）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
@@ -12,6 +21,9 @@ void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_res
 
 
 
+#ifndef XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X
+/* Hybrid P13b: padding walk in src/asm/pthin_try_skip_allow.x; this C twin
+ * is cold fallback. Do not reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X. */
 /**
  * try_skip_allow_padding_struct（slice 路径）：allow(padding) 前缀跳过 `( ... )`。
  */
@@ -1543,6 +1555,7 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
   parser_asm_write_try_skip_allow_result(&out, parser_asm_skip_balanced_parens_buf_c(lr.next_lex, data, len), 1);
   return out;
 }
+#endif /* !XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X */
 
 /**
  * parse_into_try_skip_allow_into：主循环 allow(padding) 包装；结果写入 *out。
