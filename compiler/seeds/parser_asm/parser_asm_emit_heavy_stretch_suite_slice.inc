@@ -2422,35 +2422,43 @@ int32_t parser_asm_stretch_enum_variants_probe_c(void *lex_inout, void *source, 
 #endif
 
 /**
- * collect_imports 主循环入口：粗分类 + 拼写校验（扩面接线，不改变成功路径语义）。
+ * collect_imports 主循环入口：粗分类（扩面接线，不改变成功路径语义）。
+ * v5.48: leftover flatten — lexer_result-by-val → kind scalars; wrap
+ * classify_toplevel (discarded, same as historical). validate/skip_ws
+ * tables stay in stretch.x. Return widened void→i32.
  */
-void parser_asm_stretch_collect_imports_preamble_audit_c(struct parser_asm_lexer_result r,
-                                                         struct parser_asm_lexer_result r2,
-                                                         struct parser_asm_lexer_result r3,
-                                                         struct parser_asm_slice_u8 *source) {
-  int32_t cls;
+/* B-minus leftover (v5.48): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (kind scalars + classify wrap). PLATFORM: SHARED */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_collect_imports_preamble_audit_c(int32_t kind, int32_t next_kind,
+                                                           int32_t third_kind, void *source) {
   if (!source)
-    return;
-  (void)parser_asm_stretch_validate_toplevel_token_c(r, source);
-  cls = parser_asm_stretch_classify_toplevel_c((int32_t)r.tok.kind, (int32_t)r2.tok.kind, (int32_t)r3.tok.kind);
-  if (cls == STRETCH_TOP_IMPORT)
-    (void)parser_asm_stretch_diag_after_imports_kind_c((int32_t)r2.tok.kind);
-  if (source->data && source->length > 0)
-    (void)parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, r.token_start);
+    return 0;
+  (void)parser_asm_stretch_classify_toplevel_c(kind, next_kind, third_kind);
+  return 1;
 }
+#endif
 
 /**
- * import path 消费后审计：规范化 + 源缓冲空白跳过。
+ * import path 消费后审计：validate-only（调用方已 finalize）。
+ * v5.48: leftover flatten — still-C finalize wrap → import_path_validate
+ * (finalize / skip_ws not in eq TU). source kept for ABI, unused.
  */
+/* B-minus leftover (v5.48): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (validate wrap). PLATFORM: SHARED */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_import_path_post_audit_c(uint8_t *path_buf, int32_t path_len,
                                                     struct parser_asm_slice_u8 *source) {
-  int32_t nlen;
   if (!path_buf || path_len <= 0)
     return 0;
-  nlen = parser_asm_stretch_import_path_finalize_c(path_buf, path_len, source ? source->data : 0,
-                                                   source ? source->length : 0);
-  return nlen;
+  (void)source;
+  if (parser_asm_stretch_import_path_validate_c(path_buf, path_len) == 0)
+    return 0;
+  return path_len;
 }
+#endif
 
 /**
  * Non-mutating lookahead: write up to max_peek token kinds into kinds[].

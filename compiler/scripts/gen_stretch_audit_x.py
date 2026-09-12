@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.47 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.48 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.48: leftover helper Route C flatten import leftover chain
+#   (import_path_post + collect_imports_preamble). post was a still-C
+#   wrap of finalize (not in eq TU); flatten onto import_path_validate
+#   (already an audit.x extern / eq HELPERS). collect was 3 lexer_result
+#   by-val + discarded validate/classify/skip_ws; flatten onto kind
+#   scalars + classify wrap (already extern). Still refuse
+#   validate_toplevel (verify_kw_spelling / token_run_len tables).
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=library_scan,match_subject,skip_allow.
 #
 # v5.47: leftover helper Route C flatten diag_fn_mega_full_deep_buf
 #   (wrap_buf shim). Non-buf slice audit is already a restore-trio .x

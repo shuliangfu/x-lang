@@ -226,6 +226,9 @@ SUITE_HELPER_SIGS = [
 
 # v5.47: mega_buf is a real wrap_buf .x port (c_ref from gated suite).
 # Do not keep a still-C wrapper — that would duplicate T vs audit_x.o.
+# v5.48: import_path_post / collect_imports_preamble are leftover_helpers
+# (first param is not lex:); no eq-table row. C twins gated; do not copy
+# leftover by-val / finalize bodies into HELPERS (duplicate T vs audit_x.o).
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

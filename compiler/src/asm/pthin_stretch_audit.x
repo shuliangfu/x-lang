@@ -84000,3 +84000,64 @@ export function parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex: *u8, 
   }
   return 0;
 }
+
+/* ── leftover helpers (v5.48 Route C flatten: import leftover chain) ── */
+
+/**
+ * Post-consume import-path leftover: the product caller already ran
+ * `import_path_finalize_c` (normalize + validate) and then invoked this
+ * symbol only via `PARSER_ASM_STRETCH_AUDIT_CALL` (no-op unless
+ * `XLANG_PARSER_STRETCH_AUDIT`). Flattened from a still-C wrap of
+ * finalize (not in the eq TU) onto `import_path_validate_c`, which is
+ * already an audit.x extern (authority: pthin_stretch.x / P9 C; eq
+ * HELPERS copy). After a successful finalize the second normalize is
+ * identity, so validate-only matches the historical second finalize.
+ * `source` is kept for ABI; the flatten does not read it.
+ * @param path_buf *u8 — in/out path bytes (already finalized by caller)
+ * @param path_len i32 — byte length; <=0 returns 0
+ * @param source *u8 — opaque slice (unused; historical finalize skip_ws)
+ * @return i32 — path_len when valid; 0 otherwise
+ * PLATFORM: SHARED — leftover helper port (v5.48).
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_path_post_audit_c(path_buf: *u8, path_len: i32, source: *u8): i32 {
+  if (path_buf == 0 as *u8 || path_len <= 0) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    source = 0 as *u8;
+  }
+  if (parser_asm_stretch_import_path_validate_c(path_buf, path_len) == 0) {
+    return 0;
+  }
+  return path_len;
+}
+
+/**
+ * collect_imports main-loop leftover: historical body called
+ * validate_toplevel / classify / diag_after_imports / skip_ws and
+ * discarded every result (pure reads; product return unused). Flattened
+ * off lexer_result-by-val onto (kind, next_kind, third_kind, source)
+ * wrapping `classify_toplevel_c` (already an audit.x extern; authority
+ * pthin_stretch.x / ungated suite C; eq helper copy). validate /
+ * skip_ws / verify_kw tables stay in stretch.x — not copied into this
+ * TU (G.7). Return widened void→i32 so leftover_helpers stay i32.
+ * @param kind i32 — current token kind (was r.tok.kind)
+ * @param next_kind i32 — lookahead kind (was r2.tok.kind)
+ * @param third_kind i32 — third kind (was r3.tok.kind)
+ * @param source *u8 — opaque slice; null returns 0
+ * @return i32 — 1 when source is live; 0 on null
+ * PLATFORM: SHARED — leftover helper port (v5.48).
+ */
+#[no_mangle]
+export function parser_asm_stretch_collect_imports_preamble_audit_c(kind: i32, next_kind: i32, third_kind: i32, source: *u8): i32 {
+  let cls: i32 = 0;
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  cls = parser_asm_stretch_classify_toplevel_c(kind, next_kind, third_kind);
+  if (cls < 0) {
+    return 1;
+  }
+  return 1;
+}

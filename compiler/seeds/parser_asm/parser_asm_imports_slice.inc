@@ -959,7 +959,8 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
     lexer_next_into(&r, out->lex, source);
     lexer_next_into(&r2, r.next_lex, source);
     lexer_next_into(&r3, r2.next_lex, source);
-    parser_asm_stretch_collect_imports_preamble_audit_c(r, r2, r3, source);
+    (void)parser_asm_stretch_collect_imports_preamble_audit_c((int32_t)r.tok.kind, (int32_t)r2.tok.kind,
+                                                             (int32_t)r3.tok.kind, source);
     /** B-01/B-19：`#[cfg]` 不匹配 host 时跳过紧随其后的 const import 绑定。 */
     if (r.tok.kind == (int32_t)TOKEN_ATTR_CFG) {
       pending_cfg_skip_import = (r.tok.int_val == 0) ? 1 : 0;
