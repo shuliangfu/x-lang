@@ -6,11 +6,13 @@
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into
  * + skip_one_top_level_{let,const} + cfg_skip_pending_top_level
  *
- * Hybrid P18b (XLANG_PTHIN_BODY_TL_BODIES_FROM_X): portable skip walks
- * and the scalar TOKEN table come from pthin_body_tl.x; this TU keeps
- * by-value trampolines plus P010–P014 / diag_first_ident / cfg_skip C.
+ * Hybrid P18b/P18c (XLANG_PTHIN_BODY_TL_BODIES_FROM_X): portable skip
+ * walks, the scalar TOKEN table, cfg_skip, and diag_first_ident come
+ * from pthin_body_tl.x; this TU keeps by-value trampolines plus
+ * P010–P014 / onefunc_param_name_dup C. Language has no lexer_init /
+ * struct-by-value; the diag_first_ident trampoline inits the lexer.
  * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b bodies.
+ * Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -22,13 +24,17 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
-/* PLATFORM: SHARED — 7.2.1 P18b Route C + B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P18b/P18c Route C + B-minus (2026-09-13).
  * pthin_body_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "body_tl.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_FUNCTION == 1, "body_tl.x TOKEN_FUNCTION pin");
 _Static_assert((int)TOKEN_LET == 2, "body_tl.x TOKEN_LET pin");
 _Static_assert((int)TOKEN_CONST == 3, "body_tl.x TOKEN_CONST pin");
 _Static_assert((int)TOKEN_IF == 4, "body_tl.x TOKEN_IF pin");
+_Static_assert((int)TOKEN_STRUCT == 19, "body_tl.x TOKEN_STRUCT pin");
+_Static_assert((int)TOKEN_EXTERN == 54, "body_tl.x TOKEN_EXTERN pin");
+_Static_assert((int)TOKEN_ASYNC == 55, "body_tl.x TOKEN_ASYNC pin");
 _Static_assert((int)TOKEN_IDENT == 59, "body_tl.x TOKEN_IDENT pin");
 _Static_assert((int)TOKEN_I32 == 60, "body_tl.x TOKEN_I32 pin");
 _Static_assert((int)TOKEN_BOOL == 61, "body_tl.x TOKEN_BOOL pin");
@@ -93,6 +99,8 @@ extern int32_t parser_asm_diag_skip_let_const_into_c(void *lex_inout, void *sour
 extern int32_t parser_asm_body_skip_let_const_then_if_into_c(void *lex_inout, void *source);
 extern int32_t parser_asm_skip_one_top_level_let_into_c(void *lex_inout, void *source);
 extern int32_t parser_asm_skip_one_top_level_const_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_cfg_skip_pending_top_level_into_c(void *lex_inout, void *source, int32_t *pending);
+extern int32_t parser_asm_diag_first_ident_len_into_c(void *lex_inout, void *source);
 
 void parser_asm_diag_skip_let_const_into_slice_c(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                                                  struct parser_asm_slice_u8 *source) {
@@ -141,6 +149,22 @@ void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_lexer *o
   cur = lex;
   (void)parser_asm_skip_one_top_level_const_into_c(&cur, source);
   *out = cur;
+}
+
+void parser_asm_cfg_skip_pending_top_level_into_slice_c(struct parser_asm_lexer *lex,
+                                                                struct parser_asm_slice_u8 *source,
+                                                                int32_t *pending) {
+  if (!lex || !source || !pending || !*pending)
+    return;
+  (void)parser_asm_cfg_skip_pending_top_level_into_c(lex, source, pending);
+}
+
+int32_t parser_asm_diag_first_ident_len_slice_c(struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer lex;
+  if (!source)
+    return -2;
+  lex = parser_asm_lexer_init_c();
+  return parser_asm_diag_first_ident_len_into_c(&lex, source);
 }
 #endif /* XLANG_PTHIN_BODY_TL_BODIES_FROM_X */
 

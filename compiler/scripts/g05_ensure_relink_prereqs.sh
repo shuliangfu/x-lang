@@ -1362,19 +1362,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P16 diag_pipeline ← $_pthin_p16_seed (G-02f-325 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P18b Route C + B-minus (2026-09-13).
+        # PLATFORM: SHARED — 7.2.1 P18b/P18c Route C + B-minus (2026-09-13).
         # pthin_body_tl.x holds is_fn_sig_scalar + diag/body skip walks +
-        # skip_one_top_level let/const. Requires P9a lexer-step bridge AND
-        # P14b skip_one_if_statement (otherwise that would UNDEF). Runs
-        # before P18 C so BODIES_FROM_X skips the portable .inc region.
-        # Cold: no define, full .inc. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X.
+        # skip_one_top_level let/const + cfg_skip + diag_first_ident.
+        # Requires P9a lexer-step bridge AND P14b skip_one_if_statement
+        # AND P12b skip_one_struct AND P10b skip_one_function_full
+        # (otherwise those would UNDEF). Runs after P10b/P12b/P14b so
+        # those ok flags are set; before P18 C so BODIES_FROM_X skips
+        # the portable .inc region. Cold: no define, full .inc. Do not
+        # reuse XLANG_PTHIN_BODY_TL_FROM_X. 有则补全 P18b, no new P-lane.
         _pthin_p18_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p14b_ok" = "1" ] \
+          && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p10b_ok" = "1" ] \
           && [ -n "$_pthin_p18b_thin_o" ] && [ -f "$_pthin_p18b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p18b_x" "$_pthin_p18b_thin_o"; then
             _pthin_p18b_ok=1
             _pthin_p18_extra="-DXLANG_PTHIN_BODY_TL_BODIES_FROM_X"
-            echo "g05_ensure: P18b body_tl bodies ← $_pthin_p18b_x (7.2.1 Route C + B-minus)"
+            echo "g05_ensure: P18b/P18c body_tl bodies ← $_pthin_p18b_x (7.2.1 B-minus cfg_skip/diag_first_ident)"
           else
             echo "g05_ensure: P18b body_tl .x thin failed; P18 C twin stays full" >&2
           fi

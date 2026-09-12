@@ -3,11 +3,11 @@
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into
  * + skip_one_top_level_{let,const} + cfg_skip_pending_top_level
  *
- * Hybrid P18b: XLANG_PTHIN_BODY_TL_BODIES_FROM_X skips the portable skip
- * walks and the scalar TOKEN table (bodies in src/asm/pthin_body_tl.x +
- * by-value trampolines in the seed TU). P010–P014 / diag_first_ident /
- * cfg_skip_pending stay here. Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b bodies.
+ * Hybrid P18b/P18c: XLANG_PTHIN_BODY_TL_BODIES_FROM_X skips the portable
+ * skip walks, the scalar TOKEN table, cfg_skip, and diag_first_ident
+ * (bodies in src/asm/pthin_body_tl.x + by-value trampolines in the seed
+ * TU). P010–P014 / onefunc_param_name_dup stay here. Cold: no define,
+ * full twin. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c bodies.
  */
 #ifndef PARSER_ASM_BODY_TL_SLICE_INC
 #define PARSER_ASM_BODY_TL_SLICE_INC
@@ -221,6 +221,7 @@ int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
 
 
 
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
  * diag_first_ident_len：诊断用，返回 function 后首 IDENT 的 ident_len（失败负值）。
  */
@@ -240,6 +241,7 @@ int32_t parser_asm_diag_first_ident_len_slice_c(struct parser_asm_slice_u8 *sour
     return -3;
   return r.tok.ident_len;
 }
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X diag_first_ident_len */
 
 #ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
@@ -1144,6 +1146,7 @@ void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_lexer *o
 
 #endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X skip_one_top_level_const */
 
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
  * B-02/B-19：import/collect 区段 `#[cfg]` 不匹配时跳过紧随其后的顶层 const/struct/function。
  * lex 位于待跳过项之前；*pending 置 0 后 *lex 写出跳过后的位置。
@@ -1185,8 +1188,6 @@ void parser_asm_cfg_skip_pending_top_level_into_slice_c(struct parser_asm_lexer 
   }
   *pending = 0;
 }
-
-
-
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X cfg_skip_pending */
 
 #endif /* PARSER_ASM_BODY_TL_SLICE_INC */

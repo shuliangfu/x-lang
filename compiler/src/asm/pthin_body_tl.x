@@ -24,20 +24,26 @@
 // skip_one_top_level_{let,const} are B-minus (opaque lexer + P9a
 // lexer-step). body_skip reuses P14b skip_one_if_statement; do not
 // duplicate that walk. By-value lexer_result returns stay as C
-// trampolines in seeds/pthin_body_tl.from_x.c. P010–P014 diag reports,
-// sticky globals, onefunc_param_name_dup, diag_first_ident_len
-// (lexer_init + ident_len), and cfg_skip_pending (calls glue_tail
-// skip_one_function_full) stay C.
+// trampolines in seeds/pthin_body_tl.from_x.c.
+// 7.2.1 P18c B-minus (2026-09-13): 有则补全 this file — cfg_skip_pending
+// (peek CONST/LET/STRUCT/FUNCTION|EXTERN|ASYNC then the matching skip)
+// and diag_first_ident_len (FUNCTION then IDENT ident_len). Language
+// has no lexer_init / struct-by-value; the C trampoline inits the
+// lexer then calls diag_first_ident_into. Do not duplicate
+// skip_one_struct (P12b) or skip_one_function_full (P10b). P010–P014
+// diag reports, sticky globals, and onefunc_param_name_dup stay C.
 // Product AUDIT_CALL is already ((void)0); the C twins keep the huge
 // already-T combinator probes as cold fallback only.
 // Do not wrap glue_tail scattered AUDIT as a side effect.
 // Do not compile this file as a skip-include stub without bodies.
+// Do not open a new P-lane (有则补全 P18b).
 //
-// Hybrid P18b: g05_try_x_to_o this file; XLANG_PTHIN_BODY_TL_BODIES_FROM_X
+// Hybrid P18b/P18c: g05_try_x_to_o this file; XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 // skips the portable .inc region. Requires P9a bridge + P14b
-// skip_one_if_statement (otherwise that would UNDEF). token.h remains
+// skip_one_if_statement + P12b skip_one_struct + P10b
+// skip_one_function_full (otherwise those would UNDEF). token.h remains
 // the TOKEN_* authority via P18 C _Static_assert pins. Cold: no define,
-// full .inc. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b bodies.
+// full .inc. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c bodies.
 // G.7: hybrid authority for is_fn_sig_scalar is this file; mega rest
 // (parser_asm_thin_c.x) is omitted on full hybrid (G-02f-330); cold
 // authority is the .inc twin. Do not compile thin_c.x as a second table.
@@ -47,15 +53,29 @@
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
 /** Peek the next token kind without advancing. */
 export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** Peek the next token's ident_len without advancing. */
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+/** Read the lexer pos (cfg_skip EOF-at-end early out). */
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+/** Source slice length. */
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
 /** P14b authority: skip `if` / `else if` / `else`; entry is the `(` after `if`. */
 export extern "C" function parser_asm_skip_one_if_statement_into_c(lex_inout: *u8, source: *u8): i32;
+/** P12b authority: skip one `struct Name <…> {…}`; entry is the start of `struct`. */
+export extern "C" function parser_asm_skip_one_struct_into_c(lex_inout: *u8, source: *u8): i32;
+/** P10b authority: skip one `function` / `extern` / `async function` item. */
+export extern "C" function parser_asm_skip_one_function_full_into_c(lex_inout: *u8, source: *u8): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P18 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
 const TOKEN_EOF: i32 = 0;
+const TOKEN_FUNCTION: i32 = 1;
 const TOKEN_LET: i32 = 2;
 const TOKEN_CONST: i32 = 3;
 const TOKEN_IF: i32 = 4;
+const TOKEN_STRUCT: i32 = 19;
+const TOKEN_EXTERN: i32 = 54;
+const TOKEN_ASYNC: i32 = 55;
 const TOKEN_IDENT: i32 = 59;
 const TOKEN_I32: i32 = 60;
 const TOKEN_BOOL: i32 = 61;
@@ -282,4 +302,97 @@ export function parser_asm_skip_one_top_level_const_into_c(lex_inout: *u8, sourc
     }
   }
   return 1;
+}
+
+/**
+ * Skip the next top-level item after an unmatched `#[cfg]`.
+ * Entry is the start of that item. Peek CONST/LET/STRUCT then the
+ * matching skip (same-file top-level let/const, P12b struct, P10b
+ * function_full for FUNCTION/EXTERN/ASYNC). Any other kind, or
+ * cursor at EOF, just clears pending. Always writes pending[0]=0.
+ * @param lex_inout *u8 — opaque lexer (advanced past the skipped
+ *   item, or unmoved when the peek is not a skippable head)
+ * @param source *u8 — opaque slice
+ * @param pending *i32 — in/out flag; 0 on entry is a no-op
+ * @return i32 — 1 on the success / fail-leave path; 0 on null
+ * PLATFORM: SHARED — product P18c B-minus; C trampoline keeps
+ * `parser_asm_cfg_skip_pending_top_level_into_slice_c`. Do not
+ * duplicate skip_one_struct / skip_one_function_full.
+ */
+#[no_mangle]
+export function parser_asm_cfg_skip_pending_top_level_into_c(lex_inout: *u8, source: *u8, pending: *i32): i32 {
+  let kind: i32 = 0;
+  let pos: usize = 0;
+  let slen: usize = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || pending == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    if (pending[0] == 0) {
+      return 1;
+    }
+    pos = parser_asm_lex_pos_c(lex_inout);
+    slen = parser_asm_lex_source_length_c(source);
+    if (pos >= slen) {
+      pending[0] = 0;
+      return 1;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_CONST) {
+      parser_asm_skip_one_top_level_const_into_c(lex_inout, source);
+      pending[0] = 0;
+      return 1;
+    }
+    if (kind == TOKEN_LET) {
+      parser_asm_skip_one_top_level_let_into_c(lex_inout, source);
+      pending[0] = 0;
+      return 1;
+    }
+    if (kind == TOKEN_STRUCT) {
+      parser_asm_skip_one_struct_into_c(lex_inout, source);
+      pending[0] = 0;
+      return 1;
+    }
+    if (kind == TOKEN_FUNCTION || kind == TOKEN_EXTERN || kind == TOKEN_ASYNC) {
+      parser_asm_skip_one_function_full_into_c(lex_inout, source);
+      pending[0] = 0;
+      return 1;
+    }
+    pending[0] = 0;
+  }
+  return 1;
+}
+
+/**
+ * Diagnostic: ident_len of the IDENT after the first `function`
+ * keyword. Entry is a freshly inited lexer at source start (C
+ * trampoline owns lexer_init; language has no struct-by-value).
+ * Non-FUNCTION first token → -2. FUNCTION then non-IDENT → -3.
+ * @param lex_inout *u8 — opaque lexer (advanced to the IDENT start
+ *   on the success path; left after FUNCTION on -3)
+ * @param source *u8 — opaque slice
+ * @return i32 — IDENT ident_len, or -2/-3 as above; 0 on null
+ * PLATFORM: SHARED — product P18c B-minus; C trampoline keeps
+ * `parser_asm_diag_first_ident_len_slice_c`.
+ */
+#[no_mangle]
+export function parser_asm_diag_first_ident_len_into_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let n: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_FUNCTION) {
+      return -2;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return -3;
+    }
+    n = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+  }
+  return n;
 }
