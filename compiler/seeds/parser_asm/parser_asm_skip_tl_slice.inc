@@ -2,11 +2,12 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable skip
- * walks (bodies in src/asm/pthin_skip_tl.x + by-value trampolines in the
- * seed TU). trait-reg / enum_register / parse_one_extern stay here.
- * Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b bodies.
+ * Hybrid P12b/P12c: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * skip walks (struct/enum/extern + impl header; bodies in
+ * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl
+ * trampoline lives here (needs file-static impl-seen tables). skip_one_trait
+ * / enum_register / parse_one_extern stay C. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -7570,6 +7571,59 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  *   early-return on TOKEN_LT (methods leaked as unconstrained free fns).
  * PLATFORM: SHARED parse.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+extern int32_t parser_asm_skip_one_impl_into_c(void *lex_inout, void *source, uint8_t *first_nm,
+                                               int32_t *first_nlen, int32_t *impl_line, int32_t *impl_col,
+                                               int32_t *saw_for, int32_t *for_is_ptr, int32_t *for_tok_kind,
+                                               uint8_t *for_nm, int32_t *for_nlen);
+
+void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  uint8_t first_nm[64];
+  uint8_t for_nm[64];
+  int32_t first_nlen = 0;
+  int32_t impl_line = 0;
+  int32_t impl_col = 0;
+  int32_t saw_for = 0;
+  int32_t for_is_ptr = 0;
+  int32_t for_tok_kind = 0;
+  int32_t for_nlen = 0;
+  int32_t si;
+  if (!out || !source)
+    return;
+  /* wave439: stash full-file source for generic-bound scan. */
+  xlang_generic_bound_stash_source_c(source);
+  memset(first_nm, 0, sizeof(first_nm));
+  memset(for_nm, 0, sizeof(for_nm));
+  cur = lex;
+  (void)parser_asm_skip_one_impl_into_c(&cur, source, first_nm, &first_nlen, &impl_line, &impl_col, &saw_for,
+                                        &for_is_ptr, &for_tok_kind, for_nm, &for_nlen);
+  *out = cur;
+  /* File-local tables stay C (P1c dest-buffer pattern). Record on `for`
+   * even if the for-type later fail-leaves, matching the C twin. */
+  if (saw_for && first_nlen > 0 && g_xlang_skip_impl_seen_n < XLANG_SKIP_IMPL_SEEN_MAX) {
+    si = g_xlang_skip_impl_seen_n;
+    memcpy(g_xlang_skip_impl_trait[si], first_nm, 64);
+    g_xlang_skip_impl_trait_len[si] = first_nlen;
+    g_xlang_skip_impl_line[si] = impl_line;
+    g_xlang_skip_impl_col[si] = impl_col;
+    g_xlang_skip_impl_for_kinds[si] = -1;
+    g_xlang_skip_impl_for_is_ptr[si] = 0;
+    g_xlang_skip_impl_for_name_lens[si] = 0;
+    memset(g_xlang_skip_impl_for_names[si], 0, 64);
+    g_xlang_skip_impl_seen_n++;
+    if (for_tok_kind == (int32_t)TOKEN_IDENT) {
+      g_xlang_skip_impl_for_kinds[si] = XLANG_TRAIT_TY_NAMED;
+      memcpy(g_xlang_skip_impl_for_names[si], for_nm, 64);
+      g_xlang_skip_impl_for_name_lens[si] = for_nlen;
+    } else if (for_tok_kind != 0) {
+      g_xlang_skip_impl_for_kinds[si] = xlang_trait_token_to_type_kind_c(for_tok_kind);
+    }
+    g_xlang_skip_impl_for_is_ptr[si] = for_is_ptr;
+  }
+}
+#else
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                            struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
@@ -7702,6 +7756,7 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   out->line = r.next_lex.line;
   out->col = r.next_lex.col;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_one_impl */
 
 /** 将 extern 解析失败快照写入 out（name_len=-1）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */

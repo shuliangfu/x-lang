@@ -5,11 +5,12 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip walks
- * (struct / enum / extern) come from pthin_skip_tl.x; this TU keeps
- * by-value trampolines plus stash_source / trait-reg / enum_register C.
- * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b bodies.
+ * Hybrid P12b/P12c (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip
+ * walks (struct / enum / extern + impl header) come from pthin_skip_tl.x;
+ * this TU keeps by-value trampolines plus stash_source / trait-reg /
+ * enum_register C. skip_one_impl trampoline lives in the .inc (needs
+ * file-static impl-seen tables). Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -24,19 +25,32 @@
 #include "token.h"
 #include "ast.h"
 
-/* PLATFORM: SHARED — 7.2.1 P12b B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P12b/P12c B-minus (2026-09-13).
  * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
 _Static_assert((int)TOKEN_FUNCTION == 1, "skip_tl.x TOKEN_FUNCTION pin");
+_Static_assert((int)TOKEN_FOR == 8, "skip_tl.x TOKEN_FOR pin");
 _Static_assert((int)TOKEN_STRUCT == 19, "skip_tl.x TOKEN_STRUCT pin");
 _Static_assert((int)TOKEN_ENUM == 47, "skip_tl.x TOKEN_ENUM pin");
+_Static_assert((int)TOKEN_IMPL == 50, "skip_tl.x TOKEN_IMPL pin");
 _Static_assert((int)TOKEN_EXTERN == 54, "skip_tl.x TOKEN_EXTERN pin");
 _Static_assert((int)TOKEN_IDENT == 59, "skip_tl.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_I32 == 60, "skip_tl.x TOKEN_I32 pin");
+_Static_assert((int)TOKEN_BOOL == 61, "skip_tl.x TOKEN_BOOL pin");
+_Static_assert((int)TOKEN_U8 == 62, "skip_tl.x TOKEN_U8 pin");
+_Static_assert((int)TOKEN_U32 == 63, "skip_tl.x TOKEN_U32 pin");
+_Static_assert((int)TOKEN_U64 == 64, "skip_tl.x TOKEN_U64 pin");
+_Static_assert((int)TOKEN_I64 == 65, "skip_tl.x TOKEN_I64 pin");
+_Static_assert((int)TOKEN_USIZE == 66, "skip_tl.x TOKEN_USIZE pin");
+_Static_assert((int)TOKEN_ISIZE == 67, "skip_tl.x TOKEN_ISIZE pin");
+_Static_assert((int)TOKEN_F32 == 77, "skip_tl.x TOKEN_F32 pin");
+_Static_assert((int)TOKEN_F64 == 78, "skip_tl.x TOKEN_F64 pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "skip_tl.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_LBRACE == 84, "skip_tl.x TOKEN_LBRACE pin");
 _Static_assert((int)TOKEN_COLON == 91, "skip_tl.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_SEMICOLON == 95, "skip_tl.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_STAR == 98, "skip_tl.x TOKEN_STAR pin");
 _Static_assert((int)TOKEN_LT == 120, "skip_tl.x TOKEN_LT pin");
 _Static_assert((int)TOKEN_STRING == 130, "skip_tl.x TOKEN_STRING pin");
 
@@ -373,7 +387,8 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
 
 #ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /* .x product bodies (pointer ABI). C names stay on the trampolines.
- * stash_source stays C (file-global generic-bound scan); defined in the .inc. */
+ * stash_source stays C (file-global generic-bound scan); defined in the .inc.
+ * skip_one_impl trampoline lives in the .inc (file-static tables). */
 extern int32_t parser_asm_skip_one_struct_into_c(void *lex_inout, void *source);
 extern int32_t parser_asm_skip_one_enum_into_c(void *lex_inout, void *source);
 extern int32_t parser_asm_skip_one_extern_into_c(void *lex_inout, void *source);
