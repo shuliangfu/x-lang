@@ -173,6 +173,19 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.52: leftover_helpers source+off eq (struct_field_bind / enum_variant_bind /
+#   field_access_name / import_select_bind / import_select_item_bind /
+#   vector_type_ident). Already .x T in audit.x; no k_cases row because
+#   first param is not lex:. twins.h static C copies shadow some product
+#   names in the harness TU, so eq lives in a sibling TU
+#   (pthin_stretch_audit_eq_leftover_sourceoff.c) that links audit_x.o and
+#   compares ident byte-class + length + token_start corners against gated
+#   C twins (G.7 thin wraps of bind_name_validate on source->data+off;
+#   vector_type_ident adds i3x*/Vec* then the same wrap). classify/score
+#   stay stretch.x (not leftover-to-audit). Eq gate: FORCE smoke
+#   deep_off=0 / EQ_ONLY=struct_field_bind,enum_variant_bind,field_access_name,
+#   import_select_bind,import_select_item_bind,vector_type_ident,skip_allow.
+#
 # v5.51: leftover_helpers name/len eq (function_name / struct_layout_name /
 #   block_bind_name / collect_imports_bind / library_field_bind /
 #   library_param_bind / onefunc_buf_name / extern_param_bind). Already .x

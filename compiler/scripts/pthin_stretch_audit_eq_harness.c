@@ -93,6 +93,8 @@ typedef struct {
 extern int leftover_kind_eq_run(long *checks, int *fail);
 /* v5.51: leftover_helpers name/len eq — same sibling-TU reason. */
 extern int leftover_namelen_eq_run(long *checks, int *fail);
+/* v5.52: leftover_helpers source+off eq — same sibling-TU reason. */
+extern int leftover_sourceoff_eq_run(long *checks, int *fail);
 
 static int g_fail = 0;
 static long g_checks = 0;
@@ -348,12 +350,13 @@ int main(int argc, char **argv) {
                 : "(none)",
             g_shard_i, g_shard_n, g_file_stride);
   }
-  /* v5.50 leftover_kind / v5.51 leftover_namelen: sibling TUs so twins.h
-   * static C copies do not shadow the .x T from audit_x.o. Shard 0 only
-   * so parallel workers do not double-count. */
+  /* v5.50 leftover_kind / v5.51 leftover_namelen / v5.52 leftover_sourceoff:
+   * sibling TUs so twins.h static C copies do not shadow the .x T from
+   * audit_x.o. Shard 0 only so parallel workers do not double-count. */
   if (g_shard_i == 0) {
     leftover_kind_eq_run(&g_checks, &g_fail);
     leftover_namelen_eq_run(&g_checks, &g_fail);
+    leftover_sourceoff_eq_run(&g_checks, &g_fail);
   }
   /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain.
    * Soft-knife close always keeps a short smoke battery so deep-climb twins
