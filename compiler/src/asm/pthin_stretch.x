@@ -25,9 +25,11 @@
 // struct-by-value params, zero struct field access, zero Cap-header
 // inline / memcpy / getenv — a pure byte/integer domain, the ideal first
 // proof that .inc C parser logic can live as real .x function bodies.
-// Hybrid position P9: XLANG_PTHIN_STRETCH_FROM_X + ld -r into
-// parser_asm_thin_glue.o; the cold twin (seeds/pthin_stretch.from_x.c)
-// keeps the .inc fallback for no-PREFER cold builds.
+// Hybrid position P9b: g05_try_x_to_o this file + ld -r into
+// parser_asm_thin_glue.o (XLANG_PTHIN_STRETCH_LITE_FROM_X skips the lite
+// .inc). classify TOKEN_* below are pin copies of include/token.h;
+// P9 C _Static_assert is the drift gate (token.h stays the enum authority).
+// Cold twin (seeds/pthin_stretch.from_x.c) keeps the .inc fallback.
 // PLATFORM: SHARED freestanding.
 
 // --- TokenKind metadata tables (indices align with the lexer's TOKEN_*). ---

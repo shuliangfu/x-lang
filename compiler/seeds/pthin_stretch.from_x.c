@@ -2,7 +2,9 @@
  * Logic source: src/asm/pthin_stretch.x
  * Hybrid: XLANG_PTHIN_STRETCH_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: emit_heavy_stretch_slice.inc (lite, including classify/score).
+ * Body: emit_heavy_stretch_slice.inc (lite, including classify/score) only
+ * when P9b is off (no XLANG_PTHIN_STRETCH_LITE_FROM_X). Hybrid P9b compiles
+ * src/asm/pthin_stretch.x for those 13 scalar-table symbols.
  * suite_slice.inc (~46k already-T combinator twins) only when P9a is off
  * (no XLANG_PTHIN_STRETCH_AUDIT_FROM_X). Hybrid skips that include.
  */
@@ -14,6 +16,22 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 Route C productize (2026-09-12).
+ * pthin_stretch.x classify TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_EOF == 0, "stretch.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_FUNCTION == 1, "stretch.x TOKEN_FUNCTION pin");
+_Static_assert((int)TOKEN_LET == 2, "stretch.x TOKEN_LET pin");
+_Static_assert((int)TOKEN_CONST == 3, "stretch.x TOKEN_CONST pin");
+_Static_assert((int)TOKEN_STRUCT == 19, "stretch.x TOKEN_STRUCT pin");
+_Static_assert((int)TOKEN_ENUM == 47, "stretch.x TOKEN_ENUM pin");
+_Static_assert((int)TOKEN_TRAIT == 49, "stretch.x TOKEN_TRAIT pin");
+_Static_assert((int)TOKEN_IMPL == 50, "stretch.x TOKEN_IMPL pin");
+_Static_assert((int)TOKEN_IMPORT == 53, "stretch.x TOKEN_IMPORT pin");
+_Static_assert((int)TOKEN_EXTERN == 54, "stretch.x TOKEN_EXTERN pin");
+_Static_assert((int)TOKEN_IDENT == 59, "stretch.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_ASSIGN == 117, "stretch.x TOKEN_ASSIGN pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -221,14 +239,21 @@ int32_t parser_asm_stretch_skip_one_extern_buf_audit_c(void *lex_inout, uint8_t 
 int32_t parser_asm_stretch_try_skip_allow_paren_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 
+/* PLATFORM: SHARED — 7.2.1 Route C productize (2026-09-12).
+ * Hybrid P9b (XLANG_PTHIN_STRETCH_LITE_FROM_X) already provides the 13
+ * scalar-table symbols from pthin_stretch.x. Skip the lite include so
+ * host-cc does not compile a second authority. Cold (no P9b): lite C
+ * stays. classify TOKEN_* pins are asserted above against token.h. */
+#ifndef XLANG_PTHIN_STRETCH_LITE_FROM_X
 #include "parser_asm_emit_heavy_stretch_slice.inc"
+#endif
 /* PLATFORM: SHARED — 7.2.1 already-T shrink (2026-09-12).
  * Hybrid P9a (XLANG_PTHIN_STRETCH_AUDIT_FROM_X) already provides the 1978
  * combinator symbols from pthin_stretch_audit.x. Including suite_slice.inc
  * here still forced host-cc to preprocess ~46k lines / 2.6MiB of #ifndef
  * bodies + vx forward decls. Skip the include on the hybrid lane.
- * classify_toplevel / import_path_score live in the lite slice above.
- * Cold (no P9a): keep the suite C twins as the fallback authority. */
+ * classify_toplevel / import_path_score live in P9b .x (hybrid) or lite
+ * (cold). Cold (no P9a): keep the suite C twins as the fallback authority. */
 #ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 #include "parser_asm_emit_heavy_stretch_suite_slice.inc"
 #endif

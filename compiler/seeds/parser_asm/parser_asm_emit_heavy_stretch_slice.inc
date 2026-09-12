@@ -489,10 +489,11 @@ int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len
 
 /* PLATFORM: SHARED — classify / import_path_score used to live ungated in
  * suite_slice.inc. 7.2.1 already-T shrink (2026-09-12): P9a audit.x owns the
- * 1978 combinator twins, so hybrid skips suite_slice.inc; these two scalar
- * tables stay in the lite TU (token.h TOKEN_* authority, not stretch.x pin
- * copies). Cold rest includes lite then suite, so suite no longer defines
- * them (G.7 single C def). */
+ * 1978 combinator twins, so hybrid skips suite_slice.inc. 7.2.1 Route C
+ * productize: hybrid P9b compiles pthin_stretch.x for these 13 symbols and
+ * skips this lite include; cold keeps this C twin. token.h remains the
+ * classify-enum authority (P9 C _Static_assert vs stretch.x pins). Suite
+ * no longer defines them (G.7 single C def on the cold lane). */
 enum {
   STRETCH_TOP_UNKNOWN = 0,
   STRETCH_TOP_IMPORT = 1,
