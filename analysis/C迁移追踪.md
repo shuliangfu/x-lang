@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1974/2004（v5.46 leftover flatten advance_to 族）；PP002 heap entry ✅；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1975/2004（v5.47 leftover flatten mega_buf wrap_buf）；PP002 heap entry ✅；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1974／2,004**（v5.46 leftover flatten advance_to 族；parse_suite leftover 0；PP002 heap entry 已抬；余 import_path_post／validate_toplevel／collect_imports_preamble／diag_fn_mega_full_deep_buf）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1975／2,004**（v5.47 leftover flatten mega_buf wrap_buf；parse_suite leftover 0；PP002 heap entry 已抬；余 import_path_post／validate_toplevel／collect_imports_preamble）  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -127,7 +127,8 @@
   - [x] leftover helper Route C flatten peek_kind_chain（v5.43：kinds 数组＋指针游标；诚实＋1；拒 validate／path_post／advance_to）
   - [x] leftover helper Route C flatten expr_binop_kinds_probe（v5.44：kinds 匹配集＋指针游标；诚实＋1；拒 validate／path_post／advance_to）  
   - [x] leftover helper Route C flatten skip_* 链（v5.45：skip_balanced／skip_type_suffix／skip_one_param_type 指针 ABI；诚实＋3；拒 validate／path_post／advance_to）
-  - [x] leftover helper Route C flatten advance_to 族（v5.46：struct／enum／trait／impl／if／function／match 指针 ABI；诚实＋7；拒 validate／path_post／collect_imports／mega_buf）  
+  - [x] leftover helper Route C flatten advance_to 族（v5.46：struct／enum／trait／impl／if／function／match 指针 ABI；诚实＋7；拒 validate／path_post／collect_imports／mega_buf）
+  - [x] leftover helper Route C flatten mega_buf wrap_buf（v5.47：diag_fn_mega_full_deep_buf 薄包装；诚实＋1；拒 validate／path_post／collect_imports）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -284,7 +285,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（1974／2,004；parse_suite leftover 0；PP002 heap entry ✅；v5.46 leftover flatten advance_to 族；续＝import_path_post／validate_toplevel／collect_imports／mega_buf；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b** B-minus 续（1975／2,004；parse_suite leftover 0；PP002 heap entry ✅；v5.47 leftover flatten mega_buf wrap_buf；续＝import_path_post／validate_toplevel／collect_imports；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  

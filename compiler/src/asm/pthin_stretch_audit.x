@@ -75,7 +75,6 @@ export extern "C" function parser_asm_stretch_import_path_validate_c(path: *u8, 
 export extern "C" function parser_asm_stretch_classify_toplevel_c(kind: i32, next_kind: i32, third_kind: i32): i32;
 export extern "C" function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32;
 export extern "C" function parser_asm_stretch_struct_field_name_kind_c(kind: i32): i32;
-export extern "C" function parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32;
 
 // Lexer canonical TokenKind values (enum token_TokenKind indices; authority
 // include/token.h == seeds/lexer_gen.linux.x86_64.c, verified identical 133
@@ -83967,6 +83966,37 @@ export function parser_asm_stretch_match_advance_to_arms_lex_c(lex_inout: *u8, s
     parser_asm_lex_set_pos_c(lex_inout, pos0);
     parser_asm_lex_set_line_c(lex_inout, line0);
     parser_asm_lex_set_col_c(lex_inout, col0);
+  }
+  return 0;
+}
+
+/* ── leftover helpers (v5.47 Route C flatten: diag_fn mega_buf wrap_buf) ── */
+
+/**
+ * Buf-shim leftover: wrap raw `(data,len)` via the bridge ring and
+ * delegate to the already-ported slice audit
+ * `parser_asm_stretch_diag_fn_mega_full_deep_audit_c` (restore-trio,
+ * by-value net-zero on the caller lexer). Flattened from the still-C
+ * wrapper that copied `*lex` into a local slice; wrap_buf is the same
+ * ring-16 scratch used by every other generated buf shim (G.7).
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — callee verdict
+ * PLATFORM: SHARED — leftover helper port (v5.47).
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let source: *u8 = 0 as *u8;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(lex, source);
   }
   return 0;
 }

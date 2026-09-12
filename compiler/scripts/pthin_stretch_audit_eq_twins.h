@@ -126,8 +126,8 @@ struct parser_asm_lexer parser_asm_lexer_init_c(void) {
   return lex;
 }
 /* v5.32: diag_parse_one_mega(+full_deep chain) are real .x ports (ABI-widened
- * no-lex roots). Still-C (data,len) leaves they call are provided after c_ref
- * fwds as HARNESS_MEGA_STILL_C (product suite remains authority). */
+ * no-lex roots). v5.47: mega_buf wrap_buf is a real .x port too; c_ref twin
+ * comes from the gated suite via sync (no HARNESS_MEGA_STILL_C). */
 static int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                            int32_t name_len) {
   if (!source || name_len <= 0)
@@ -465,6 +465,7 @@ static int32_t c_ref_match_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_skip_one_function_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_diag_fn_mega_full_deep_audit(void *lex_inout, void *source);
+static int32_t c_ref_diag_fn_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_block_stmt_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_block_stmt_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_skip_mega_full_deep_audit(void *lex_inout, void *source);
@@ -2389,18 +2390,6 @@ struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer 
       }
     }
   }
-}
-
-/* v5.36: mega_buf still-C wrapper → c_ref slice (pointer ABI). */
-int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
-  struct parser_asm_lexer lex;
-  struct parser_asm_slice_u8 sl;
-  if (!lex_inout || !data || len <= 0)
-    return 0;
-  lex = *(struct parser_asm_lexer *)lex_inout;
-  sl.data = data;
-  sl.length = (size_t)len;
-  return c_ref_diag_fn_mega_full_deep_audit(&lex, &sl);
 }
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_balanced_brackets_into_c. */
 static int32_t c_ref_skip_balanced_brackets_into(void *lex_inout, void *source) {
@@ -8603,6 +8592,21 @@ static int32_t c_ref_diag_fn_mega_full_deep_audit(void *lex_inout, void *source)
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c. */
+static int32_t c_ref_diag_fn_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  struct parser_asm_slice_u8 sl;
+
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  sl.data = data;
+  sl.length = (size_t)len;
+  return c_ref_diag_fn_mega_full_deep_audit(&lex, &sl);
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_block_stmt_mega_full_deep_audit_c. */
 static int32_t c_ref_block_stmt_mega_full_deep_audit(void *lex_inout, void *source) {
 
@@ -8921,7 +8925,7 @@ static int32_t c_ref_diag_parse_ultra_mega_full_deep_buf_audit(void *lex_inout, 
   /* v5.32: diag_parse_one mega widened to (lex, data, len). */
   score = c_ref_diag_parse_one_mega_full_buf_audit(&lex, data, len);
   /* v5.33: diag_fn_mega_buf widened to pointer ABI. */
-  score += parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += c_ref_diag_fn_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_import_path_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
@@ -9748,7 +9752,7 @@ static int32_t c_ref_diag_ultra2_mega_full_deep_buf_audit(void *lex_inout, uint8
   lex = parser_asm_lexer_init_c();
   score = c_ref_diag_parse_ultra_mega_full_deep_buf_audit(&lex, data, len);
   score += c_ref_diag_skip_let_mega_full_deep_buf_audit(&lex, data, len);
-  score += parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(&lex, data, len);
+  score += c_ref_diag_fn_mega_full_deep_buf_audit(&lex, data, len);
   return score > 0 ? 1 : 0;
 
 }

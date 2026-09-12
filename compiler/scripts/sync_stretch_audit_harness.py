@@ -150,8 +150,8 @@ struct parser_asm_lexer parser_asm_lexer_init_c(void) {
   return lex;
 }
 /* v5.32: diag_parse_one_mega(+full_deep chain) are real .x ports (ABI-widened
- * no-lex roots). Still-C (data,len) leaves they call are provided after c_ref
- * fwds as HARNESS_MEGA_STILL_C (product suite remains authority). */
+ * no-lex roots). v5.47: mega_buf wrap_buf is a real .x port too; c_ref twin
+ * comes from the gated suite via sync (no HARNESS_MEGA_STILL_C). */
 static int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                            int32_t name_len) {
   if (!source || name_len <= 0)
@@ -224,22 +224,8 @@ SUITE_HELPER_SIGS = [
     "struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(",
 ]
 
-# v5.36: slice mega_full_deep is a real .x port (c_ref from gated suite).
-# Buf wrapper stays still-C and forwards to the C reference (parents that
-# score+= mega_buf must not observe the .x slice). Must follow HARNESS_SKIP_STUBS.
-HARNESS_MEGA_STILL_C = r'''
-/* v5.36: mega_buf still-C wrapper → c_ref slice (pointer ABI). */
-int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
-  struct parser_asm_lexer lex;
-  struct parser_asm_slice_u8 sl;
-  if (!lex_inout || !data || len <= 0)
-    return 0;
-  lex = *(struct parser_asm_lexer *)lex_inout;
-  sl.data = data;
-  sl.length = (size_t)len;
-  return c_ref_diag_fn_mega_full_deep_audit(&lex, &sl);
-}
-'''
+# v5.47: mega_buf is a real wrap_buf .x port (c_ref from gated suite).
+# Do not keep a still-C wrapper — that would duplicate T vs audit_x.o.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit
@@ -459,8 +445,6 @@ def main():
         + "\n".join(fwds) + "\n\n"
         + suite_helper_defs(suite, audit_exports)
         + HARNESS_SKIP_STUBS
-        # v5.32: still-C leaves for mega/full_deep after skip stubs + c_ref fwds
-        + HARNESS_MEGA_STILL_C
         + "\n".join(twins)
     )
 

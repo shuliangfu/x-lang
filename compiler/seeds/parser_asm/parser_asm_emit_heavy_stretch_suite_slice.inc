@@ -10267,12 +10267,12 @@ int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(void *lex_inout, void 
 /**
  * tier37：diag 函数 mega 全链 buf 深探。
  */
-/* B-minus v5.33: widened from by-value lex to (lex_inout, data, len) so .x
- * callers (diag_parse_ultra) can pass an opaque pointer. Cold twin copies
- * *lex_inout into a by-value local for the still-C non-buf audit (net-zero
- * on caller — same as historical by-value). No FROM_X yet — C remains
- * authority until soft-FP migrates the non-buf root.
- * PLATFORM: SHARED */
+/* B-minus leftover wrap_buf (v5.47): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides wrap_buf + the already
+ * ported slice mega_full_deep (restore-trio net-zero). Cold twin copies
+ * *lex_inout into a by-value local + stack slice (same as historical
+ * still-C wrapper). PLATFORM: SHARED */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
   struct parser_asm_lexer lex;
   struct parser_asm_slice_u8 sl;
@@ -10284,6 +10284,7 @@ int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, u
   sl.length = (size_t)len;
   return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(&lex, &sl);
 }
+#endif
 
 /**
  * tier37：block 语句 mega 全链 slice 深探（block full + stmt kind + let/assign）。

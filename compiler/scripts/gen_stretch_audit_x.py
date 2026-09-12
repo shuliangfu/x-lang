@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.46 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.47 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.47: leftover helper Route C flatten diag_fn_mega_full_deep_buf
+#   (wrap_buf shim). Non-buf slice audit is already a restore-trio .x
+#   port; the leftover was the still-C (data,len) wrapper. Flatten onto
+#   wrap_buf + slice callee (same pattern as generated buf shims). C twin
+#   copies *lex + stack slice (by-value net-zero). Still refuse
+#   validate_toplevel (verify_kw_spelling), import_path_post (finalize
+#   not in eq TU), collect_imports_preamble (3 lexer_results + skip_ws).
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=diag_fn_mega_full_deep_buf,diag_parse_ultra,diag_ultra2,skip_allow.
 #
 # v5.46: leftover helper Route C flatten advance_to family (struct / enum /
 #   trait / impl / if / function / match). Secondary-cursor by-val +

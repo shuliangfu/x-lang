@@ -169,6 +169,7 @@ extern int32_t parser_asm_stretch_diag_fn_deep_audit_c(void *lex_inout, void *so
 extern int32_t parser_asm_stretch_diag_fn_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_diag_fn_header_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_diag_fn_param_sig_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_diag_fn_return_type_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_diag_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
@@ -2286,6 +2287,8 @@ static int32_t x_diag_fn_header_audit(void *l, void *s, int32_t f) { (void)f; re
 static int32_t r_diag_fn_header_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_diag_fn_header_audit(l, s); }
 static int32_t x_diag_fn_mega_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(l, s); }
 static int32_t r_diag_fn_mega_full_deep_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_diag_fn_mega_full_deep_audit(l, s); }
+static int32_t x_diag_fn_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(l, sl_->data, (int32_t)sl_->length); }
+static int32_t r_diag_fn_mega_full_deep_buf_audit(void *l, void *s, int32_t f) { (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_diag_fn_mega_full_deep_buf_audit(l, sl_->data, (int32_t)sl_->length); }
 static int32_t x_diag_fn_param_sig_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_diag_fn_param_sig_audit_c(l, s); }
 static int32_t r_diag_fn_param_sig_audit(void *l, void *s, int32_t f) { (void)f; return c_ref_diag_fn_param_sig_audit(l, s); }
 static int32_t x_diag_fn_return_type_audit(void *l, void *s, int32_t f) { (void)f; return parser_asm_stretch_diag_fn_return_type_audit_c(l, s); }
@@ -6011,6 +6014,7 @@ static const audit_case k_cases[] = {
     {"diag_fn_deep_buf_audit", r_diag_fn_deep_buf_audit, x_diag_fn_deep_buf_audit, 0, 0},
     {"diag_fn_header_audit", r_diag_fn_header_audit, x_diag_fn_header_audit, 0, 0},
     {"diag_fn_mega_full_deep_audit", r_diag_fn_mega_full_deep_audit, x_diag_fn_mega_full_deep_audit, 0, 0},
+    {"diag_fn_mega_full_deep_buf_audit", r_diag_fn_mega_full_deep_buf_audit, x_diag_fn_mega_full_deep_buf_audit, 0, 0},
     {"diag_fn_param_sig_audit", r_diag_fn_param_sig_audit, x_diag_fn_param_sig_audit, 0, 0},
     {"diag_fn_return_type_audit", r_diag_fn_return_type_audit, x_diag_fn_return_type_audit, 0, 0},
     {"diag_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit", r_diag_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit, x_diag_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit, 0, 0},
