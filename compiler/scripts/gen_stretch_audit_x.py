@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.37 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.38 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,16 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.38: leftover ident compress (L012-fit; not a product Cap raise) —
+#   All remaining unmigrated audits were ident 256..656 (versal-infix tower).
+#   Raising AST name[256] for test combinators is the wrong layer (Cap 4.2.8
+#   already unlocked real 128..255 idents). Compress leftover C idents only
+#   (longest-first full-name replace; migrated ≤255 English names untouched)
+#   and tag `_vx_` so eq deep-climb skip still matches. Soft-FP then climbs
+#   every newly-≤255 leftover. Heap preprocess / product Cap stay parked.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=_vx_ first layer; daily still
+#   refuses *versal*/*vx* hour-scale (提速纪律).
 #
 # v5.37: extra-flag family (top_level_let is_const) —
 #   parse_suite did not ingest `(lex, source, is_const)` / `(lex, data, len,
@@ -425,12 +435,134 @@
 #
 # PLATFORM: SHARED (generator runs on the host; output is SHARED freestanding).
 
+import os
 import re
 import sys
 
 SUITE = "seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc"
 XFILE = "src/asm/pthin_stretch_audit.x"
 TOKEN_H = "include/token.h"
+
+# v5.38: longest-first prefix map for leftover (len>255) stretch idents only.
+# Never applied globally — that would smash already-migrated English names.
+# Order: longer tokens before their substrings (hyperversal before hyper).
+L012_PREFIX_MAP = (
+    ("completeversal", "cv"),
+    ("everyversal", "ev"),
+    ("wholeversal", "wv"),
+    ("fullversal", "fv"),
+    ("hyperversal", "hv"),
+    ("metaversal", "mv"),
+    ("multiversal", "uv"),
+    ("omniversal", "ov"),
+    ("panversal", "pv"),
+    ("allversal", "av"),
+    ("totversal", "tv"),
+    ("apexversal", "xv"),
+    ("maxversal", "nv"),
+    ("intergalactic", "ig"),
+    ("transcendent", "tr"),
+    ("omnipotent", "om"),
+    ("celestial", "ce"),
+    ("sovereign", "sv"),
+    ("imperial", "im"),
+    ("universal", "un"),
+    ("galactic", "ga"),
+    ("pinnacle", "pi"),
+    ("absolute", "ab"),
+    ("ultimate", "ul"),
+    ("infinite", "ifn"),
+    ("eternal", "et"),
+    ("supreme", "su"),
+    ("cosmic", "co"),
+    ("divine", "dv"),
+    ("zenith", "ze"),
+    ("summit", "sm"),
+    ("crown", "cr"),
+    ("peak", "pk"),
+    ("apex", "ax"),
+    ("ultra", "ut"),
+    ("hyper", "hy"),
+    ("mega", "mg"),
+    ("max", "mx"),
+)
+
+
+def compress_l012_ident(name):
+    """Return a Cap-256-safe ident for one leftover stretch symbol.
+
+    Inserts `_vx_` after the stretch prefix so eq deep-climb skip still
+    matches (English `versal`/`peak`/… tokens are gone after the map).
+    """
+    s = name
+    for a, b in L012_PREFIX_MAP:
+        s = s.replace(a, b)
+    if not s.startswith("parser_asm_stretch_vx_"):
+        s = s.replace("parser_asm_stretch_", "parser_asm_stretch_vx_", 1)
+    return s
+
+
+def compress_l012_names():
+    """Rename leftover (len>255) stretch idents in C/call-site files.
+
+    PLATFORM: SHARED — host-side one-shot; suite remains the C-name authority.
+    Migrated ≤255 English names are not rewritten.
+    """
+    src = open(SUITE).read()
+    names = sorted(set(re.findall(r"\b(parser_asm_stretch_\w+_c)\b", src)))
+    leftover = [n for n in names if len(n) > 255]
+    if not leftover:
+        print("compress-l012-names: no leftover idents >255")
+        return 0
+    mapping = {}
+    new_set = set(n for n in names if len(n) <= 255)
+    for n in leftover:
+        nn = compress_l012_ident(n)
+        if len(nn) > 255:
+            print(f"FATAL: compressed ident still >255 ({len(nn)}): {nn}")
+            return 1
+        if nn in new_set or nn in mapping.values():
+            print(f"FATAL: compressed ident collision: {nn}")
+            return 1
+        mapping[n] = nn
+        new_set.add(nn)
+    # Longest original first so suffix-of-longer leftover names cannot
+    # be partially replaced inside a still-uncompressed longer ident.
+    ordered = sorted(mapping.items(), key=lambda kv: (-len(kv[0]), kv[0]))
+    skip_dirs = {".git", "build", "build_asm", "__pycache__"}
+    skip_suffix = {".o", ".a", ".so", ".dylib", ".pyc"}
+    nfiles = 0
+    nrepl = 0
+    for dirpath, dirnames, filenames in os.walk("."):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for fn in filenames:
+            if os.path.splitext(fn)[1] in skip_suffix:
+                continue
+            if not fn.endswith((".c", ".h", ".inc", ".x")):
+                continue
+            fp = os.path.join(dirpath, fn)
+            try:
+                t = open(fp).read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if "parser_asm_stretch_" not in t:
+                continue
+            orig = t
+            hits = 0
+            for old, new in ordered:
+                c = t.count(old)
+                if c:
+                    t = t.replace(old, new)
+                    hits += c
+            if t != orig:
+                open(fp, "w").write(t)
+                nfiles += 1
+                nrepl += hits
+                print(f"compress-l012-names: {fp} ({hits} replacements)")
+    print(f"compress-l012-names: leftover={len(leftover)} files={nfiles} "
+          f"replacements={nrepl} max_new={max(len(v) for v in mapping.values())}")
+    return 0
+
 
 
 def parse_suite():
@@ -3816,8 +3948,10 @@ def main():
         dry = True
         args = args[1:]
     if not args or args[0] in ("-h", "--help"):
-        print("usage: gen_stretch_audit_x.py [--dry-run] [--unmigrated | --callsites-only | name1 name2 ...]")
+        print("usage: gen_stretch_audit_x.py [--dry-run] [--unmigrated | --callsites-only | --compress-l012-names | name1 name2 ...]")
         return 2
+    if args == ["--compress-l012-names"]:
+        return compress_l012_names()
     if args == ["--callsites-only"]:
         xsrc = open(XFILE).read()
         ok = re.findall(r"export function (parser_asm_stretch_\w+_c)", xsrc)

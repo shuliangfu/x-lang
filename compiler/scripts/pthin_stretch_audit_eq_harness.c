@@ -193,6 +193,7 @@ static int is_deep_climb_name(const char *name) {
     return 0;
   return strstr(name, "peak") != 0 || strstr(name, "summit") != 0 ||
          strstr(name, "zenith") != 0 || strstr(name, "versal") != 0 ||
+         strstr(name, "_vx_") != 0 ||
          strstr(name, "pinnacle") != 0 || strstr(name, "crown") != 0 ||
          strstr(name, "apex_max") != 0 || strstr(name, "max_ultra") != 0 ||
          strstr(name, "ultra_hyper") != 0 || strstr(name, "hyper_mega") != 0;

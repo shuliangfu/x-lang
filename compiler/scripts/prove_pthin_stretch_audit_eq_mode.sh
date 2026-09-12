@@ -12,7 +12,7 @@
 #
 # daily — EQ_ONLY delta on this wave's new symbols. Typical ~1 min.
 #         HARD BAN (2026-09-11): do NOT use daily for deep climb substrings
-#         (summit / peak / zenith / versal / apex_max_ultra… score chains).
+#         (summit / peak / zenith / versal / vx / apex_max_ultra… score chains).
 #         Measured: exact-summit daily OFF=24 ≈65 min for 21 symbols — burns
 #         a whole soft-knife slot. Soft-knife gate for deep climbs = **close
 #         only** (matrix+drift+compress+close). Override only with
@@ -148,7 +148,7 @@ case "$MODE" in
       # ultra_hyper/max/apex) may still use daily when <~15 min; apex already
       # stretched the soft budget — prefer close when in doubt.
       case ",$EQ_ONLY," in
-        *,*summit*|*,*peak*|*,*zenith*|*,*versal*)
+        *,*summit*|*,*peak*|*,*zenith*|*,*versal*|*,*vx*)
           echo "eq_mode=daily REFUSED: deep-climb EQ_ONLY='$EQ_ONLY' is hour-scale." >&2
           echo "  Soft-knife gate = close (matrix+drift+compress+close)." >&2
           echo "  Override only with EQ_FORCE_DEEP_DAILY=1 (never default)." >&2
