@@ -31,11 +31,17 @@
 #         max_ultra_hyper_mega (550 extra). Harness eq_tok_hits_name rejects
 #         hits preceded by max_. Daily defaults same as hyper_mega
 #         (SKIP_SYNTH=1 + STRIDE=4 + DEEP_MAX_FILE_OFF=0).
+#         v5.65: exact max_ultra (25 k_cases; no HARD BAN substring; IS in
+#         is_deep_climb_name). EQ_ONLY=max_ultra must NOT strstr-swallow
+#         apex_max_ultra_hyper_mega (525 extra). Harness eq_tok_hits_name
+#         rejects hits preceded by apex_. Daily defaults same as
+#         hyper_mega / ultra_hyper (SKIP_SYNTH=1 + STRIDE=4 +
+#         DEEP_MAX_FILE_OFF=0).
 #         Those daily runs default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4
 #         (score-chain wall-clock). Do not add super_mega to
 #         is_deep_climb_name without measurement. Do not remove
-#         hyper_mega / ultra_hyper from is_deep_climb_name without
-#         measurement.
+#         hyper_mega / ultra_hyper / max_ultra from is_deep_climb_name
+#         without measurement.
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -224,13 +230,16 @@ case "$MODE" in
     # v5.64: exact ultra_hyper token (comma-wrapped, so max_ultra_hyper
     # does not match). ultra_hyper IS in is_deep_climb_name — same
     # DEEP_MAX_FILE_OFF=0 default.
+    # v5.65: exact max_ultra token (comma-wrapped, so apex_max_ultra
+    # does not match). max_ultra IS in is_deep_climb_name — same
+    # DEEP_MAX_FILE_OFF=0 default.
     # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
     case ",$EQ_ONLY," in
       *,*ultra_mega*|*,*super_mega*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         ;;
-      *,hyper_mega,*|*,ultra_hyper,*)
+      *,hyper_mega,*|*,ultra_hyper,*|*,max_ultra,*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         export EQ_DEEP_MAX_FILE_OFF="${EQ_DEEP_MAX_FILE_OFF:-0}"

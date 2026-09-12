@@ -136,11 +136,13 @@ static size_t g_deep_max_src_len = 512;
 
 /**
  * Nested climb rungs stack as a suffix chain:
- *   hyper_mega ⊂ ultra_hyper_mega ⊂ max_ultra_hyper_mega ⊂ …
+ *   hyper_mega ⊂ ultra_hyper_mega ⊂ max_ultra_hyper_mega ⊂
+ *   apex_max_ultra_hyper_mega ⊂ …
  * Naive strstr("hyper_mega") swallows every longer rung (measured
  * 2026-09-12: 25 exact k_cases vs 600 strstr hits). A hit is this rung
  * iff it is not immediately preceded by the next-inner prefix
- * (`ultra_` before `hyper_mega`).
+ * (`ultra_` before `hyper_mega`, `max_` before `ultra_hyper`,
+ * `apex_` before `max_ultra`).
  * PLATFORM: SHARED — filter only; twins / k_cases unchanged.
  */
 static int eq_tok_hits_name(const char *name, const char *tok) {
@@ -156,6 +158,10 @@ static int eq_tok_hits_name(const char *name, const char *tok) {
     if (strcmp(tok, "ultra_hyper") == 0 && hit >= name + 4 &&
         memcmp(hit - 4, "max_", 4) == 0)
       continue;
+    /* v5.65: exact max_ultra must not swallow apex_max_ultra_hyper_mega+. */
+    if (strcmp(tok, "max_ultra") == 0 && hit >= name + 5 &&
+        memcmp(hit - 5, "apex_", 5) == 0)
+      continue;
     return 1;
   }
   return 0;
@@ -164,7 +170,8 @@ static int eq_tok_hits_name(const char *name, const char *tok) {
 /**
  * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
  * A case runs iff its name contains any substring (nested-rung exact
- * for hyper_mega / ultra_hyper — see eq_tok_hits_name). Empty/unset = all cases.
+ * for hyper_mega / ultra_hyper / max_ultra — see eq_tok_hits_name).
+ * Empty/unset = all cases.
  * PLATFORM: SHARED — used to prove only this wave's new exports in minutes
  * instead of re-scoring the full 400+ table (~50 min at OFF=128).
  */
