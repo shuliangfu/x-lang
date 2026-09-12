@@ -1,3 +1,15 @@
+/**
+ * parser_asm_imports_slice.inc — P11 skip/collect imports (G-02f-320).
+ * Included by parser_asm_thin_c.from_x.c or pthin_imports.from_x.c.
+ *
+ * Hybrid P11b: XLANG_PTHIN_IMPORTS_BODIES_FROM_X skips the portable
+ * skip_imports walks (bodies in src/asm/pthin_imports.x + by-value
+ * trampolines in the seed TU). try_skip_const_import / consume_path /
+ * collect_imports stay here. Contiguous already-T AUDIT_CALL padding
+ * on collect_imports is compiled only under XLANG_PARSER_STRETCH_AUDIT
+ * (product AUDIT_CALL is nop). Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for P11b bodies.
+ */
 /* Forward decl: defined later in this file (G-02f-422 Ubuntu gcc fix) */
 int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
                                                       struct parser_asm_slice_u8 *source, uint8_t *path_buf,
@@ -43,8 +55,11 @@ int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
 
 
 
+#ifndef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
 /**
  * skip_imports：跳过顶层 const import 语句，返回首个非 import 的 lex。
+ * Hybrid P11b: body in src/asm/pthin_imports.x; this C twin is cold fallback.
+ * Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for P11b bodies.
  */
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
                                                       struct parser_asm_slice_u8 *source) {
@@ -91,6 +106,7 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
   source.length = (size_t)len;
   return parser_asm_skip_imports_slice_c(lex, &source);
 }
+#endif /* !XLANG_PTHIN_IMPORTS_BODIES_FROM_X skip_imports slice/buf */
 
 /**
  * Copy source[token_start..+tok_len) into a 128-byte buffer (zero-pad remainder).
@@ -199,6 +215,7 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
 
   if (!source || !out || !module)
     return;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_path_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_stmt_mega_full_deep_audit_c(&lex, source));
@@ -948,6 +965,7 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_import_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
+#endif /* XLANG_PARSER_STRETCH_AUDIT collect_imports slice prefix */
   memset(path_buf, 0, sizeof(path_buf));
   out->lex.pos = lex.pos;
   out->lex.line = lex.line;
@@ -1023,6 +1041,7 @@ void parser_asm_collect_imports_buf_c(struct parser_asm_lexer lex, uint8_t *data
   struct parser_asm_slice_u8 source;
   if (!data || !out)
     return;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_collect_imports_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_select_deep_buf_audit_c(&lex, data, len));
@@ -1780,6 +1799,7 @@ void parser_asm_collect_imports_buf_c(struct parser_asm_lexer lex, uint8_t *data
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_import_path_full_deep_buf_audit_c(&lex, data, len));
   /* v5.10: diag_lex buf widened to (lex, data, len). */
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_lex_after_imports_buf_audit_c(&lex, data, len));
+#endif /* XLANG_PARSER_STRETCH_AUDIT collect_imports buf prefix */
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
   parser_asm_collect_imports_slice_c(lex, &source, module, out);

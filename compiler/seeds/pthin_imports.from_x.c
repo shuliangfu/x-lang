@@ -3,6 +3,14 @@
  * Hybrid: XLANG_PTHIN_IMPORTS_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_imports_slice.inc (~1.8k)
+ * skip_imports + try_skip_const_import + consume_path + collect_imports
+ *
+ * Hybrid P11b (XLANG_PTHIN_IMPORTS_BODIES_FROM_X): portable skip_imports
+ * walk comes from pthin_imports.x; this TU keeps the by-value trampolines
+ * plus try_skip / consume_path / collect_imports C. Cold: no BODIES
+ * define, full .inc. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for P11b
+ * bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +20,12 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P11b B-minus (2026-09-13).
+ * pthin_imports.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_CONST == 3, "imports.x TOKEN_CONST pin");
+_Static_assert((int)TOKEN_ATTR_CFG == 24, "imports.x TOKEN_ATTR_CFG pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -175,6 +189,41 @@ extern void pipeline_module_import_set_binding_name(void *module, int32_t idx, u
 extern void pipeline_module_import_set_kind(void *module, int32_t idx, int32_t kind);
 extern void pipeline_module_import_set_path(void *module, int32_t idx, uint8_t *bytes, int32_t len);
 extern void pipeline_module_import_set_select_count(void *module, int32_t idx, int32_t n);
+
+#ifdef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
+/* .x product body (pointer ABI). C names stay on the trampolines. */
+extern int32_t parser_asm_skip_imports_into_c(void *lex_inout, void *source);
+
+/* Thin ABI adapter over P18 cfg_skip_pending (int32 pending in/out).
+ * G.7: zero business logic; language has no address-of for a local i32. */
+int32_t parser_asm_cfg_skip_pending_apply_c(void *lex, void *source, int32_t pending) {
+  int32_t p = pending;
+  if (!lex || !source || !p)
+    return 0;
+  parser_asm_cfg_skip_pending_top_level_into_slice_c((struct parser_asm_lexer *)lex,
+                                                     (struct parser_asm_slice_u8 *)source, &p);
+  return p;
+}
+
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                      struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  cur = lex;
+  if (source)
+    parser_asm_skip_imports_into_c(&cur, source);
+  return cur;
+}
+
+struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer lex, uint8_t *data,
+                                                    int32_t len) {
+  struct parser_asm_slice_u8 source;
+  if (!data || len <= 0)
+    return lex;
+  source.data = data;
+  source.length = (size_t)len;
+  return parser_asm_skip_imports_slice_c(lex, &source);
+}
+#endif /* XLANG_PTHIN_IMPORTS_BODIES_FROM_X */
 
 #include "parser_asm_imports_slice.inc"
 

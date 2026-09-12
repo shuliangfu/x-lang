@@ -186,6 +186,23 @@ int32_t parser_asm_lex_peek_kind_c(void *lex, void *source) {
 }
 
 /**
+ * Peek the NEXT token's int_val without advancing the caller's lexer.
+ * Completes the peek family (kind / ident_len / token_start / int_val).
+ * ATTR_CFG stores keep(1)/skip(0) in int_val; callers compare against 0.
+ * @param lex *u8 — opaque struct parser_asm_lexer* (read-only)
+ * @param source *u8 — opaque struct parser_asm_slice_u8*
+ * @return i32 — next token's int_val truncated to i32 (0 on null)
+ * PLATFORM: SHARED — peek-family completion; not a second lexer.
+ */
+int32_t parser_asm_lex_peek_int_val_c(void *lex, void *source) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source)
+    return 0;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  return (int32_t)r.tok.int_val;
+}
+
+/**
  * Peek the NEXT token's ident_len without advancing the caller's lexer.
  * .x audits that need several fields of one token call the peek family
  * back-to-back (each peeks the same token; pure, no hidden state).
