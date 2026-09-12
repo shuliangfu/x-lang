@@ -4051,7 +4051,8 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  * which copy into PipelineDepCtx loaded_buf/preprocess_buf (PIN 4MiB). That
  * silently truncated imports > 4MiB. Product import orch now reuses the heap
  * path already owned by pipeline_read_file_stage_prep. Ctx embed stays 4MiB
- * (pin layout). pipeline_read_file_x remains the 4MiB resolve_read helper.
+ * (pin layout). pipeline_read_file_x (resolve_read) still fills the embed
+ * but rejects files > 4MiB (view; no silent truncate).
  * G.7 single product authority for pipeline_load_import_from_disk_c
  * (historical glue strong _c -> X thin / impl_c). Product load_and_sync calls this name.
  * PLATFORM: SHARED — LINUX gold · MACOS co-path. C thin overlays WEAK mega.
@@ -5449,14 +5450,17 @@ export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i3
 /**
  * Read ctx.path_buf file into ctx.loaded_buf and set loaded_len.
  * @param ctx *u8 - PipelineDepCtx; null -> -1
- * @return i32 - 0 ok; -1 null / open-or-read fail
- * Steps (match historical pipeline_read_file_x_impl_c):
+ * @return i32 - 0 ok; -1 null / open-or-read fail / file larger than pin embed
+ * Steps:
  *   1) Cap residual path_buf_ptr + loaded_buf_ptr
- *   2) G.7 pure xlang_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
- *   3) Cap residual pipeline_dep_ctx_set_loaded_len(n) on n>=0
- * Product import orch (pipeline_load_import_from_disk_c) no longer uses this
- * helper — it heap-reads via runtime_read_file_view (import ctx 4MiB wall).
- * resolve_read still copies into the pin embed.
+ *   2) G.7 runtime_read_file_view (whole file; knows actual size)
+ *   3) reject length > 4194304 (pin embed; no silent truncate)
+ *   4) memcpy into loaded_buf; pipeline_dep_ctx_set_loaded_len
+ * Historical xlang_read_file_into_path truncated at cap without error
+ * (n==cap cannot tell exact-fit from overflow). Product import orch
+ * (pipeline_load_import_from_disk_c) heap-reads via view + PP002 malloc
+ * and does not use this helper. resolve_read still fills the pin embed
+ * and now fails honestly when the file does not fit.
  * wave95 pure Cap residual: G.7 product authority for pipeline_read_file_x
  * (historical glue weak -> impl_c). PLATFORM: SHARED - glue XLANG_WEAK cold twin.
  */
@@ -5477,17 +5481,49 @@ export function pipeline_read_file_x(ctx: *u8): i32 {
   if (buf == 0 as *u8) {
     return 0 - 1;
   }
-  // PIPELINE_SOURCE_BUF_CAP - same as historical C / pipeline_loaded_buf_cap.
-  let cap: i64 = 4194304;
-  let n: i32 = 0;
-  unsafe {
-    n = xlang_read_file_into_path(path, buf, cap);
+  // Whole-file view: data@0 length@8 (32B pad). Reject > pin embed.
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
   }
-  if (n < 0) {
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(path, &view[0]);
+  }
+  if (view_rc != 0) {
     return 0 - 1;
   }
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
+  let cap: i64 = 4194304;
+  if (raw_len < 0) {
+    unsafe {
+      runtime_release_file_view(&view[0]);
+    }
+    return 0 - 1;
+  }
+  if (raw_len > cap) {
+    unsafe {
+      runtime_release_file_view(&view[0]);
+    }
+    return 0 - 1;
+  }
+  if (raw_len > 0) {
+    if (raw_data == 0 as *u8) {
+      unsafe {
+        runtime_release_file_view(&view[0]);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      memcpy(buf, raw_data, raw_len as usize);
+    }
+  }
   unsafe {
-    pipeline_dep_ctx_set_loaded_len(ctx, n as i64);
+    runtime_release_file_view(&view[0]);
+    pipeline_dep_ctx_set_loaded_len(ctx, raw_len);
   }
   return 0;
 }
@@ -17144,7 +17180,10 @@ export function pipeline_typeck_entry_module_c(module: *u8, arena: *u8, ctx: *u8
  * @param ctx *u8 - PipelineDepCtx*
  * @param import_idx i32 - import index
  * @return i32 - 0 ok; -1 null/bad idx; -7 resolve fail; -8 read fail
+ *   (read fail includes file larger than pin embed 4MiB)
  * wave112 pure: G.7 single product authority.
+ * pipeline_read_file_x now views the whole file and rejects length > 4MiB
+ * (no silent truncate). Product disk-load uses heap orch instead.
  * PLATFORM: SHARED - Cap residual path64 + pure resolve/read.
  */
 #[no_mangle]

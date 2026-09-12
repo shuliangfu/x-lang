@@ -3201,6 +3201,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
+      pipeline_abi_inject_read_file_x_view_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
@@ -3233,6 +3234,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
+      pipeline_abi_inject_read_file_x_view_thin "$o" || true
       return 0
     fi
   fi
@@ -3634,6 +3636,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_assign_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
+    pipeline_abi_inject_read_file_x_view_thin "$o" || true
     return 0
   fi
 
@@ -3669,6 +3672,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_assign_thin "$o" || true
         pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
+        pipeline_abi_inject_read_file_x_view_thin "$o" || true
         return 0
       fi
     else
@@ -3688,6 +3692,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
+      pipeline_abi_inject_read_file_x_view_thin "$o" || true
       return 0
     fi
   fi
@@ -3715,6 +3720,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_assign_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
+  pipeline_abi_inject_read_file_x_view_thin "$o" || true
   return 0
 }
 
@@ -3925,6 +3931,45 @@ pipeline_abi_inject_import_heap_thin() {
   fi
   cp -f "$base_o" "$o"
   log "pipeline_abi import-heap inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o"
+  return 1
+}
+
+# resolve_read 4MiB wall: overlay pipeline_read_file_x with view+reject>cap.
+# Mega symbol is WEAK; Darwin ld -r of two strong T fails, so only overlay
+# while the pabi symbol is still weak. Pin embed stays 4MiB.
+# PLATFORM: SHARED — LINUX gold · MACOS co-path.
+pipeline_abi_inject_read_file_x_view_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_read_file_x_view_thin.c"
+  local thin_o base_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi read-file-x-view inject skip: $o is libtool archive"
+    return 1
+  fi
+  if nm -m "$o" 2>/dev/null | grep -E 'pipeline_read_file_x$' | grep -vq 'weak'; then
+    log "pipeline_abi read-file-x-view inject skip: already strong in $o"
+    return 0
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_read_file_x_view.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_read_file_x_view_base.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi read-file-x-view inject: cc thin failed"
+    rm -f "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  # PLATFORM: SHARED — GNU ld -r needs --allow-multiple-definition (pure_ld_partial_merge);
+  # Darwin ld -r first-wins weak without the flag. Do not call bare `ld -r`.
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi read-file-x-view inject OK (strong over weak)"
+    rm -f "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi read-file-x-view inject: merge failed; restored base"
   rm -f "$thin_o" "$base_o"
   return 1
 }

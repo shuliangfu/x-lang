@@ -4825,17 +4825,31 @@ int32_t pipeline_dep_ctx_preprocess_len_get(void *ctx) {
 int32_t pipeline_read_file_x(void *ctx) {
   uint8_t *path;
   uint8_t *buf;
-  int n;
+  XlangRuntimeFileView raw_view;
   if (!ctx)
     return -1;
   path = pipeline_dep_ctx_path_buf_ptr(ctx);
   buf = pipeline_dep_ctx_loaded_buf_ptr(ctx);
   if (!path || !buf)
     return -1;
-  n = xlang_read_file_into_path((const char *)path, buf, (size_t)4194304);
-  if (n < 0)
+  /* PLATFORM: SHARED — view whole file; reject > pin embed (no silent truncate).
+   * Product import orch heap-reads; this helper still fills ctx.loaded_buf. */
+  memset(&raw_view, 0, sizeof(raw_view));
+  if (runtime_read_file_view((const char *)path, &raw_view) != 0)
     return -1;
-  pipeline_dep_ctx_set_loaded_len(ctx, (int64_t)n);
+  if (raw_view.length > (size_t)4194304) {
+    runtime_release_file_view(&raw_view);
+    return -1;
+  }
+  if (raw_view.length > 0) {
+    if (!raw_view.data) {
+      runtime_release_file_view(&raw_view);
+      return -1;
+    }
+    memcpy(buf, raw_view.data, raw_view.length);
+  }
+  pipeline_dep_ctx_set_loaded_len(ctx, (int64_t)raw_view.length);
+  runtime_release_file_view(&raw_view);
   return 0;
 }
 

@@ -350,11 +350,12 @@ export extern function pipeline_read_file_x_impl_c(ctx: *PipelineDepCtx): i32;
 
 /**
  * Read path_buf into loaded_buf — dual-export leave wave305.
- * Live authority: runtime_pipeline_abi pure `pipeline_read_file_x` (xlang_read_file_into_path;
- * cap 4194304). Historical pipeline.x body was XLANG_LIB_WEAK thin→pipeline_read_file_x_impl_c
+ * Live authority: runtime_pipeline_abi pure `pipeline_read_file_x`
+ * (runtime_read_file_view + memcpy into pin embed; reject length > 4194304).
+ * Historical pipeline.x body was XLANG_LIB_WEAK thin→pipeline_read_file_x_impl_c
  * (pure also owns impl_c as alias). G.7 dual-export ban.
  * @param ctx *PipelineDepCtx — dep ctx with path_buf + loaded_buf
- * @return i32 — 0 ok; -1 fail
+ * @return i32 — 0 ok; -1 fail (including file larger than pin embed)
  * PLATFORM: SHARED freestanding 8.3 pipeline.x thin residual dual leave.
  */
 export extern function read_file_x(ctx: *PipelineDepCtx): i32;
