@@ -2,6 +2,12 @@
  * Hybrid: XLANG_PTHIN_BODY_TL_FROM_X via seeds/pthin_body_tl.from_x.c
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into
  * + skip_one_top_level_{let,const} + cfg_skip_pending_top_level
+ *
+ * Hybrid P18b: XLANG_PTHIN_BODY_TL_BODIES_FROM_X skips the portable skip
+ * walks and the scalar TOKEN table (bodies in src/asm/pthin_body_tl.x +
+ * by-value trampolines in the seed TU). P010–P014 / diag_first_ident /
+ * cfg_skip_pending stay here. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b bodies.
  */
 #ifndef PARSER_ASM_BODY_TL_SLICE_INC
 #define PARSER_ASM_BODY_TL_SLICE_INC
@@ -203,12 +209,14 @@ int32_t parser_onefunc_param_name_dup_c(uint8_t *pool, int32_t nparams, uint8_t 
   return 0;
 }
 
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
       || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64
       || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_IDENT;
 }
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X is_fn_sig_scalar */
 
 
 
@@ -233,6 +241,7 @@ int32_t parser_asm_diag_first_ident_len_slice_c(struct parser_asm_slice_u8 *sour
   return r.tok.ident_len;
 }
 
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
  * diag_skip_let_const_into：从 body 首 token 起跳过 let/const 声明，写入 *out。
  */
@@ -294,6 +303,9 @@ void parser_asm_diag_skip_let_const_into_slice_c(struct parser_asm_lexer_result 
   }
 }
 
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X diag_skip_let_const */
+
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
  * body_skip_let_const_then_if_into：跳过 body 内 let/const 后连续 if 语句。
  */
@@ -1061,6 +1073,9 @@ void parser_asm_body_skip_let_const_then_if_into_slice_c(struct parser_asm_lexer
   }
 }
 
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X body_skip_let_const_then_if */
+
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
  * B-01/B-19：跳过一条顶层 `let ... ;`（与 const 跳过对称；cfg 不匹配时须跳过 let 而非仅 const）。
  */
@@ -1092,9 +1107,9 @@ void parser_asm_skip_one_top_level_let_into_slice_c(struct parser_asm_lexer *out
   *out = lex;
 }
 
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X skip_one_top_level_let */
 
-
-
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /**
  * B-01/B-19：跳过一条顶层 `const ... ;`（含 const x = import("path");），不建 AST。
  * lex 位于 const 之前；*out 写出跳过后的 lex。
@@ -1127,8 +1142,7 @@ void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_lexer *o
   *out = lex;
 }
 
-
-
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X skip_one_top_level_const */
 
 /**
  * B-02/B-19：import/collect 区段 `#[cfg]` 不匹配时跳过紧随其后的顶层 const/struct/function。

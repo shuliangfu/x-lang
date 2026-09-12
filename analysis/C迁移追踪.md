@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b leftover flatten 完**；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b stretch lite＋P1b lex_skip＋P19b helpers＋P4b primary ident＋P3b type_ref＋P7b simd ident pack／callee 名＋P4ub unary TOKEN→ExprKind＋P4bb binop TOKEN→ExprKind＋P14b skip_if 走查＋**P12b skip_tl struct／enum／extern 走查**（trait-reg／enum register 仍 C；pure-asm 过）；残＝产品 `.inc` 切片仍 host-cc（含 primary parse、P19 rewind／run_len、P1 count、skip_tl trait-reg）、lite／suite／lex_skip／helpers／primary ident／type_ref／simd／unary／binop／skip_if walks／skip_tl struct／enum／extern portable 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b leftover flatten 完**；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b stretch lite＋P1b lex_skip＋P19b helpers＋P4b primary ident＋P3b type_ref＋P7b simd ident pack／callee 名＋P4ub unary TOKEN→ExprKind＋P4bb binop TOKEN→ExprKind＋P14b skip_if 走查＋P12b skip_tl struct／enum／extern 走查＋**P18b body_tl scalar 表＋let／const／if skip 走查**（P010–P014／cfg_skip 仍 C；pure-asm 过）；残＝产品 `.inc` 切片仍 host-cc（含 primary parse、P19 rewind／run_len、P1 count、skip_tl trait-reg）、lite／suite／lex_skip／helpers／primary ident／type_ref／simd／unary／binop／skip_if walks／skip_tl struct／enum／extern／body_tl skip portable 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — leftover flatten **完**（unique 0／helpers 0）；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b 编 `pthin_stretch.x` 跳过 lite；P1b 编 `pthin_lex_skip.x` 跳过 kind／copy／skip_walk；P19b 编 `pthin_helpers.x` 跳过 kind／copy／pos／match-kw；P4b 编 `pthin_expr_primary.x` 跳过 ident 拼写／asm-option-bit；P3b 编 `pthin_type_ref.x` 跳过 token_starts_type／ident_is_dyn／builtin TypeKind／vector IDENT pack；P7b 编 `pthin_simd.x` 跳过 shuffle／select ident pack／callee 名填充；P4ub 编 `pthin_expr_unary.x` 跳过 TOKEN→ExprKind；P4bb 编 `pthin_expr_binop.x` 跳过 TOKEN→ExprKind；P14b 编 `pthin_skip_if.x` 跳过 trait／impl＋if-core／statement 走查；**P12b** 编 `pthin_skip_tl.x` 跳过 skip_one_struct／enum／extern 走查（trait-reg／enum register／parse_one_extern 仍 C；pure-asm 过）；残＝产品 `.inc` 切片仍 host-cc、lite／suite／lex_skip／helpers／primary ident／type_ref／simd／unary／binop／skip_if walks／skip_tl struct／enum／extern portable 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退（G-02f-330 omit rest）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — leftover flatten **完**（unique 0／helpers 0）；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b 编 `pthin_stretch.x` 跳过 lite；P1b 编 `pthin_lex_skip.x` 跳过 kind／copy／skip_walk；P19b 编 `pthin_helpers.x` 跳过 kind／copy／pos／match-kw；P4b 编 `pthin_expr_primary.x` 跳过 ident 拼写／asm-option-bit；P3b 编 `pthin_type_ref.x` 跳过 token_starts_type／ident_is_dyn／builtin TypeKind／vector IDENT pack；P7b 编 `pthin_simd.x` 跳过 shuffle／select ident pack／callee 名填充；P4ub 编 `pthin_expr_unary.x` 跳过 TOKEN→ExprKind；P4bb 编 `pthin_expr_binop.x` 跳过 TOKEN→ExprKind；P14b 编 `pthin_skip_if.x` 跳过 trait／impl＋if-core／statement 走查；P12b 编 `pthin_skip_tl.x` 跳过 skip_one_struct／enum／extern 走查；**P18b** 编 `pthin_body_tl.x` 跳过 is_fn_sig_scalar＋diag／body skip 走查＋skip_one_top_level let／const（P010–P014／diag_first_ident／cfg_skip 仍 C；pure-asm 过）；残＝产品 `.inc` 切片仍 host-cc、lite／suite／lex_skip／helpers／primary ident／type_ref／simd／unary／binop／skip_if walks／skip_tl struct／enum／extern／body_tl skip portable 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退（G-02f-330 omit rest）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -164,6 +164,7 @@
   - [x] P4bb Route C（编 `pthin_expr_binop.x`；hybrid 跳过 TOKEN→ExprKind；parse／wrap／peek／single_tok_chain 仍 C；parse_logor 已 T AUDIT 探针仅 audit 宏；pure-asm 过；冷 lane 仍 full .inc；禁再 eq 已 T combinator；禁与 unary 表合并）
   - [x] P14b B-minus（编 `pthin_skip_if.x`；hybrid 跳过 trait／impl＋if-core／statement 走查；enum register 仍 C；依赖 P9a 桥＋P1b skip_balanced；pure-asm 过；冷 lane 仍 full .inc；禁再 eq 已 T combinator；禁再抄 skip_balanced）
   - [x] P12b B-minus（编 `pthin_skip_tl.x`；hybrid 跳过 skip_one_struct／enum／extern 走查；trait-reg／enum register／parse_one_extern 仍 C；依赖 P9a 桥＋P1b skip_balanced／skip_generic_angle；pure-asm 过；冷 lane 仍 full .inc；禁再 eq 已 T combinator；禁再抄 skip_balanced／skip_generic_angle）
+  - [x] P18b Route C＋B-minus（编 `pthin_body_tl.x`；hybrid 跳过 is_fn_sig_scalar＋diag_skip／body_skip＋skip_one_top_level let／const；P010–P014／diag_first_ident／cfg_skip 仍 C；依赖 P9a 桥＋P14b skip_one_if；pure-asm 过；冷 lane 仍 full .inc；禁再 eq 已 T combinator；禁再抄 skip_one_if）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -186,7 +187,7 @@
 - 🟡 **8.3.1** `pipeline_glue` → .x／域 thin — 父项未离 host-cc  
 - 🟡 **8.3.2** `ast_pool` → .x — 父项仍 host-cc 入 `pipeline_x`  
 - 🟡 **8.3.3** field_access／soa — 叶 leave ✅；父项因 `pipeline_x` 仍 host-cc  
-- 🟡 **8.3.6** from_x 全表退役策略终稿 — 残：有引用冷孪生三分处置（pthin suite 46k、lite 564、lex_skip portable、helpers kind／copy／pos／match-kw、primary ident、type_ref kind／dyn／builtin／vector IDENT、simd ident／callee 名、unary TOKEN→ExprKind、binop TOKEN→ExprKind、skip_if walks、skip_tl struct／enum／extern walks 已从 hybrid 预处理拿掉，文件仍留作冷回退；primary parse、P19 rewind／run_len、P1 count、skip_tl trait-reg 仍 host-cc）  
+- 🟡 **8.3.6** from_x 全表退役策略终稿 — 残：有引用冷孪生三分处置（pthin suite 46k、lite 564、lex_skip portable、helpers kind／copy／pos／match-kw、primary ident、type_ref kind／dyn／builtin／vector IDENT、simd ident／callee 名、unary TOKEN→ExprKind、binop TOKEN→ExprKind、skip_if walks、skip_tl struct／enum／extern walks、body_tl scalar／skip walks 已从 hybrid 预处理拿掉，文件仍留作冷回退；primary parse、P19 rewind／run_len、P1 count、skip_tl trait-reg 仍 host-cc）  
 - 🟡 **8.3.8** `build_asm/gen_driver/*.c` — 确认 `pipeline_gen.c` 残留  
 - ⬜ **8.3.10** `editors/tree-sitter-xlang/` 第三方 .c  
 - ⬜ **BC 终局** `pipeline_x` 整 TU 离 host-cc  
@@ -320,7 +321,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b leftover flatten 完**＋**8.3.6 有引用冷孪生三分**（P9 suite 46k＋lite 564＋P1b lex_skip portable＋P19b helpers kind／copy／pos／match-kw＋P4b primary ident＋P3b type_ref kind／dyn／builtin／vector IDENT＋P7b simd ident／callee 名＋P4ub unary TOKEN→ExprKind＋P4bb binop TOKEN→ExprKind＋P14b skip_if walks＋P12b skip_tl struct／enum／extern walks hybrid 已跳过；残＝产品 `.inc` 切片仍 host-cc含 P19 rewind／run_len、P1 count、skip_tl trait-reg；**禁**再深链分批 eq；pipeline_x mega 须点名）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b leftover flatten 完**＋**8.3.6 有引用冷孪生三分**（P9 suite 46k＋lite 564＋P1b lex_skip portable＋P19b helpers kind／copy／pos／match-kw＋P4b primary ident＋P3b type_ref kind／dyn／builtin／vector IDENT＋P7b simd ident／callee 名＋P4ub unary TOKEN→ExprKind＋P4bb binop TOKEN→ExprKind＋P14b skip_if walks＋P12b skip_tl struct／enum／extern walks＋P18b body_tl scalar／skip walks hybrid 已跳过；残＝产品 `.inc` 切片仍 host-cc含 P19 rewind／run_len、P1 count、skip_tl trait-reg；**禁**再深链分批 eq；pipeline_x mega 须点名）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
