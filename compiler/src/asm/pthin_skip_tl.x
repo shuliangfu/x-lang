@@ -49,13 +49,22 @@
 // Do not duplicate skip_generic_angle_list or copy_slice. Do not open
 // a new P-lane. Check / register / stash stay C.
 //
-// Hybrid P12b/P12c/P12d: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+// 7.2.1 P12e B-minus (2026-09-13): 有则补全 this file with
+// skip_one_enum_register + append_enum_variants. The token walk is
+// B-minus (opaque lexer + P1b copy_slice). Language has no local
+// u8[N]; dest 128-byte name/variant scratches are C-stack-owned.
+// Module writes stay in the existing C helpers (try_register +
+// pipeline_module_enum_append_variant) called as externs. Do not
+// wrap skip_one_trait. Do not call skip_one_enum (opaque brace skip
+// would drop variant capture). Do not open a new P-lane.
+//
+// Hybrid P12b/P12c/P12d/P12e: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 // skips the portable .inc region (struct/enum/extern + impl header +
-// generic_bound_scan). Requires P9a bridge + P1b skip walks (otherwise
-// skip_balanced / skip_generic_angle / copy_slice would UNDEF). token.h
-// remains the TOKEN_* authority via P12 C _Static_assert pins. Cold: no
-// define, full .inc. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for
-// P12b/P12c/P12d bodies.
+// generic_bound_scan + enum_register). Requires P9a bridge + P1b skip
+// walks (otherwise skip_balanced / skip_generic_angle / copy_slice
+// would UNDEF). token.h remains the TOKEN_* authority via P12 C
+// _Static_assert pins. Cold: no define, full .inc. Do not reuse
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -78,8 +87,12 @@ export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, sourc
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
 export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
 export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
-/** P1b authority: copy IDENT bytes into a 64-byte dest. */
+/** P1b authority: copy IDENT bytes into a dest (nlen bytes; caller sizes it). */
 export extern "C" function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void;
+/** P14 skip_if authority: register enum name on the opaque module; -1 on fail. */
+export extern "C" function parser_asm_module_try_register_enum_name_c(module: *u8, name: *u8, name_len: i32): i32;
+/** Pipeline sidecar: append one variant name to enum slot `idx`. */
+export extern "C" function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes: *u8, len: i32): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P12 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -104,6 +117,7 @@ const TOKEN_F64: i32 = 78;
 const TOKEN_LPAREN: i32 = 82;
 const TOKEN_RPAREN: i32 = 83;
 const TOKEN_LBRACE: i32 = 84;
+const TOKEN_RBRACE: i32 = 85;
 const TOKEN_COMMA: i32 = 90;
 const TOKEN_COLON: i32 = 91;
 const TOKEN_DOT: i32 = 92;
@@ -120,6 +134,7 @@ const GENERIC_CALL_MAX: i32 = 32;
 const GENERIC_CALL_MAX_ARGS: i32 = 4;
 const FN_GP_MAX: i32 = 32;
 const BOUND_NAME_CAP: i32 = 64;
+const ENUM_NAME_CAP: i32 = 128;
 
 /**
  * Skip a top-level `struct Name[<T…>] { … }` to just after the matching `}`.
@@ -176,7 +191,7 @@ export function parser_asm_skip_one_struct_into_c(lex_inout: *u8, source: *u8): 
  * @param source *u8 — opaque slice
  * @return i32 — 1 on the success / fail-leave path; 0 on null
  * PLATFORM: SHARED — product P12 B-minus; C trampoline stashes source
- * then calls this. enum_register (void* module) stays C.
+ * then calls this. enum_register is P12e (module writes stay C helpers).
  */
 #[no_mangle]
 export function parser_asm_skip_one_enum_into_c(lex_inout: *u8, source: *u8): i32 {
@@ -940,6 +955,164 @@ export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8
       }
       parser_asm_lex_step_kind_c(lex_inout, source);
     }
+  }
+  return 1;
+}
+
+/**
+ * Scan an enum body after the caller consumed `{`, record depth-1 IDENT
+ * variants onto the opaque module, and leave the lexer just after the
+ * matching `}`. Nested `{...}` raise depth so inner IDENTs are not
+ * variants. `enum_idx < 0` or a null module still skip the body (no
+ * append). Language has no local u8[N]; `var_buf` is a 128-byte dest
+ * the C trampoline owns. EOF or a 4096-step guard leaves the lexer on
+ * the unconsumed token (C twin had no EOF guard; hang on malformed
+ * input is not a product path).
+ * @param lex_inout *u8 — opaque lexer; entry is the first token after `{`
+ * @param source *u8 — opaque slice
+ * @param module *u8 — opaque Module; null skips appends
+ * @param enum_idx i32 — sidecar slot from try_register; <0 skips appends
+ * @param var_buf *u8 — dest 128-byte variant spelling; trampoline owns it
+ * @return i32 — 1 on the success / fail-leave path; 0 on null lex/source/var_buf
+ * PLATFORM: SHARED — product P12e B-minus. Do not duplicate skip_one_enum
+ * (opaque brace skip would drop variant capture). Do not wrap skip_one_trait.
+ */
+#[no_mangle]
+export function parser_asm_module_append_enum_variants_and_skip_body_into_c(lex_inout: *u8, source: *u8, module: *u8, enum_idx: i32, var_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let depth: i32 = 0;
+  let guard: i32 = 0;
+  let pl: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen_us: usize = 0;
+  let slen: i32 = 0;
+  let zi: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || var_buf == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    depth = 1;
+    data = parser_asm_lex_source_data_c(source);
+    slen_us = parser_asm_lex_source_length_c(source);
+    slen = slen_us as i32;
+    while (depth > 0 && guard < 4096) {
+      guard = guard + 1;
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_EOF) {
+        break;
+      }
+      if (kind == TOKEN_RBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        depth = depth - 1;
+        continue;
+      }
+      if (kind == TOKEN_LBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        depth = depth + 1;
+        continue;
+      }
+      if (depth == 1 && enum_idx >= 0 && module != 0 as *u8 && kind == TOKEN_IDENT) {
+        pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        if (pl > 127) {
+          pl = 127;
+        }
+        ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+        if (ts == 0 as usize) {
+          ts = parser_asm_lex_pos_c(lex_inout);
+        }
+        zi = 0;
+        while (zi < ENUM_NAME_CAP) {
+          var_buf[zi as usize] = 0;
+          zi = zi + 1;
+        }
+        if (pl > 0 && data != 0 as *u8) {
+          parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, var_buf);
+        }
+        if (pl > 0) {
+          pipeline_module_enum_append_variant(module, enum_idx, var_buf, pl);
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    }
+  }
+  return 1;
+}
+
+/**
+ * Register a top-level `enum Name { variants }` onto the opaque module
+ * and skip to just after the matching `}`. Entry cursor is the start of
+ * `enum`. Non-ENUM first token: lexer unmoved. After consuming ENUM, a
+ * non-IDENT leaves the lexer after `enum`. After IDENT, a non-LBRACE
+ * leaves the lexer after the name. Language has no local u8[N]; dest
+ * 128-byte name/variant scratches are C-stack-owned. Module writes go
+ * through P14 try_register and pipeline_module_enum_append_variant
+ * (not a second walk). Do not call skip_one_enum (would drop variants).
+ * @param lex_inout *u8 — opaque lexer (advanced past `}`, or left on the
+ *   fail cursor described above)
+ * @param source *u8 — opaque slice
+ * @param module *u8 — opaque Module; null still skips the body
+ * @param name_buf *u8 — dest 128-byte enum name; trampoline owns it
+ * @param var_buf *u8 — dest 128-byte variant scratch; trampoline owns it
+ * @return i32 — 1 on the success / fail-leave path; 0 on null lex/source/bufs
+ * PLATFORM: SHARED — product P12e B-minus. Do not wrap skip_one_trait.
+ * Do not open a new P-lane.
+ */
+#[no_mangle]
+export function parser_asm_skip_one_enum_register_into_c(lex_inout: *u8, source: *u8, module: *u8, name_buf: *u8, var_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let pl: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen_us: usize = 0;
+  let slen: i32 = 0;
+  let zi: i32 = 0;
+  let enum_idx: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || name_buf == 0 as *u8 || var_buf == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_ENUM) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 1;
+    }
+    pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (pl > 127) {
+      pl = 127;
+    }
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    if (ts == 0 as usize) {
+      ts = parser_asm_lex_pos_c(lex_inout);
+    }
+    zi = 0;
+    while (zi < ENUM_NAME_CAP) {
+      name_buf[zi as usize] = 0;
+      zi = zi + 1;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen_us = parser_asm_lex_source_length_c(source);
+    slen = slen_us as i32;
+    if (pl > 0 && data != 0 as *u8) {
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, name_buf);
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    enum_idx = -1;
+    if (module != 0 as *u8 && pl > 0) {
+      enum_idx = parser_asm_module_try_register_enum_name_c(module, name_buf, pl);
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    parser_asm_module_append_enum_variants_and_skip_body_into_c(lex_inout, source, module, enum_idx, var_buf);
   }
   return 1;
 }

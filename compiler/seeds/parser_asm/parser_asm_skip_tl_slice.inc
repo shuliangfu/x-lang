@@ -2,13 +2,13 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b/P12c/P12d: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
- * skip walks (struct/enum/extern + impl header + generic_bound_scan; bodies
- * in src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl and
- * generic_bound_scan trampolines live here (need file-static tables).
- * skip_one_trait / enum_register / parse_one_extern stay C. Cold: no
+ * Hybrid P12b/P12c/P12d/P12e: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * skip walks (struct/enum/extern + impl header + generic_bound_scan +
+ * enum_register; bodies in src/asm/pthin_skip_tl.x + by-value trampolines).
+ * skip_one_impl and generic_bound_scan trampolines live here (need
+ * file-static tables). skip_one_trait / parse_one_extern stay C. Cold: no
  * define, full twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for
- * P12b/P12c/P12d bodies.
+ * P12b/P12c/P12d/P12e bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -8223,6 +8223,7 @@ void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struc
 
 #endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_one_extern */
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * module_append_enum_variants_and_skip_body_into：扫描 enum 体变体名并 skip 至 `}`，结果写入 *out。
  */
@@ -8313,6 +8314,8 @@ void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_
   }
   parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(module, enum_idx, out, r.next_lex, source);
 }
+
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X enum_register */
 
 #ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**

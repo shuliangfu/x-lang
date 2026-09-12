@@ -5,13 +5,14 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b/P12c/P12d (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip
- * walks (struct / enum / extern + impl header + generic_bound_scan) come
- * from pthin_skip_tl.x; this TU keeps by-value trampolines plus
- * stash_source / trait-reg / enum_register C. skip_one_impl and
+ * Hybrid P12b/P12c/P12d/P12e (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip
+ * walks (struct / enum / extern + impl header + generic_bound_scan +
+ * enum_register) come from pthin_skip_tl.x; this TU keeps by-value
+ * trampolines plus stash_source / trait-reg C. skip_one_impl and
  * generic_bound_scan trampolines live in the .inc (need file-static
- * tables). Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d bodies.
+ * tables). enum_register trampolines live here (opaque module, no
+ * file-static). Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -26,7 +27,7 @@
 #include "token.h"
 #include "ast.h"
 
-/* PLATFORM: SHARED — 7.2.1 P12b/P12c/P12d B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P12b/P12c/P12d/P12e B-minus (2026-09-13).
  * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
@@ -50,6 +51,7 @@ _Static_assert((int)TOKEN_F64 == 78, "skip_tl.x TOKEN_F64 pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "skip_tl.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_RPAREN == 83, "skip_tl.x TOKEN_RPAREN pin");
 _Static_assert((int)TOKEN_LBRACE == 84, "skip_tl.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "skip_tl.x TOKEN_RBRACE pin");
 _Static_assert((int)TOKEN_COMMA == 90, "skip_tl.x TOKEN_COMMA pin");
 _Static_assert((int)TOKEN_COLON == 91, "skip_tl.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_DOT == 92, "skip_tl.x TOKEN_DOT pin");
@@ -437,6 +439,40 @@ void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struc
     return;
   cur = lex;
   (void)parser_asm_skip_one_extern_into_c(&cur, source);
+  *out = cur;
+}
+
+extern int32_t parser_asm_module_append_enum_variants_and_skip_body_into_c(void *lex_inout, void *source,
+                                                                          void *module, int32_t enum_idx,
+                                                                          uint8_t *var_buf);
+extern int32_t parser_asm_skip_one_enum_register_into_c(void *lex_inout, void *source, void *module,
+                                                       uint8_t *name_buf, uint8_t *var_buf);
+
+void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
+    void *module, int32_t enum_idx, struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+    struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  uint8_t var_buf[128];
+  if (!out || !source)
+    return;
+  memset(var_buf, 0, sizeof(var_buf));
+  cur = lex;
+  (void)parser_asm_module_append_enum_variants_and_skip_body_into_c(&cur, source, module, enum_idx, var_buf);
+  *out = cur;
+}
+
+void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_asm_lexer *out,
+                                                    struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  uint8_t name_buf[128];
+  uint8_t var_buf[128];
+  if (!out || !source)
+    return;
+  memset(name_buf, 0, sizeof(name_buf));
+  memset(var_buf, 0, sizeof(var_buf));
+  cur = lex;
+  (void)parser_asm_skip_one_enum_register_into_c(&cur, source, module, name_buf, var_buf);
   *out = cur;
 }
 #endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
