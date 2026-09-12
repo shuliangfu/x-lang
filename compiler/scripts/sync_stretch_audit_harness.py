@@ -336,6 +336,14 @@ SUITE_HELPER_SIGS = [
 # *vx* / summit / peak / zenith / versal. Do not remove max_ultra
 # from is_deep_climb_name without measurement. Eq gate: FORCE smoke
 # deep_off=0 / EQ_ONLY=max_ultra EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.66: leftover_helpers 0. Sixth deep-chain batch (not a new leftover
+# TU): exact apex_max layer is already lex-first k_cases (25 rows;
+# apex_max is not a HARD BAN substring but IS in is_deep_climb_name).
+# Harness eq_tok_hits_name rejects summit_apex swallow (500 extra).
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove apex_max
+# from is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=apex_max EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit
