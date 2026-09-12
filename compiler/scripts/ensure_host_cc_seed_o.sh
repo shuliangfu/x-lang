@@ -3871,13 +3871,15 @@ pipeline_abi_inject_preprocess_malloc_thin() {
     return 1
   fi
   cp -f "$o" "$base_o"
-  if ld -r -o "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi pp-malloc inject OK (ld -r strong over weak)"
+  # PLATFORM: SHARED — GNU ld -r needs --allow-multiple-definition (pure_ld_partial_merge);
+  # Darwin ld -r first-wins weak without the flag. Do not call bare `ld -r`.
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi pp-malloc inject OK (strong over weak)"
     rm -f "$thin_o" "$base_o"
     return 0
   fi
   cp -f "$base_o" "$o"
-  log "pipeline_abi pp-malloc inject: ld -r failed; restored base"
+  log "pipeline_abi pp-malloc inject: merge failed; restored base"
   rm -f "$thin_o" "$base_o"
   return 1
 }
