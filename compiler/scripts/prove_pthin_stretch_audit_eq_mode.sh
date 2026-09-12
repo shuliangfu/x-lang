@@ -21,9 +21,15 @@
 #         already-T lex-first layer that is NOT HARD BAN. Exact ultra_mega
 #         (25 k_cases) closed v5.61.
 #         v5.62: exact super_mega (25 k_cases; no HARD BAN substring).
+#         v5.63: exact hyper_mega (25 k_cases; no HARD BAN substring; IS in
+#         is_deep_climb_name). EQ_ONLY=hyper_mega must NOT strstr-swallow
+#         ultra_hyper_mega (575 extra). Harness eq_tok_hits_name rejects
+#         hits preceded by ultra_. Daily defaults SKIP_SYNTH=1 + STRIDE=4
+#         + DEEP_MAX_FILE_OFF=0 (large product files skip deep).
 #         Those daily runs default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4
 #         (score-chain wall-clock). Do not add super_mega to
-#         is_deep_climb_name without measurement.
+#         is_deep_climb_name without measurement. Do not remove
+#         hyper_mega from is_deep_climb_name without measurement.
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -206,11 +212,19 @@ case "$MODE" in
     export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-24}"
     # v5.61/v5.62: ultra_mega / super_mega are daily-legal (not HARD BAN) but
     # still score-chains. Default skip-synth + stride so Darwin stays ≤5 min.
+    # v5.63: exact hyper_mega token (comma-wrapped, so ultra_hyper_mega
+    # does not match). hyper_mega IS in is_deep_climb_name — default
+    # DEEP_MAX_FILE_OFF=0 so large product files skip this rung.
     # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
     case ",$EQ_ONLY," in
       *,*ultra_mega*|*,*super_mega*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
+        ;;
+      *,hyper_mega,*)
+        export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
+        export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
+        export EQ_DEEP_MAX_FILE_OFF="${EQ_DEEP_MAX_FILE_OFF:-0}"
         ;;
     esac
     unset EQ_SHARD || true

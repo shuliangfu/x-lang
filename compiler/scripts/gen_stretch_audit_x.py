@@ -173,6 +173,16 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.63: leftover_helpers 0 / leftover-to-audit unique 0. super_mega
+#   25/270 closed v5.62. Next already-T lex-first layer = exact hyper_mega
+#   (25 k_cases; no HARD BAN substring; IS in is_deep_climb_name).
+#   EQ_ONLY=hyper_mega must exact-filter (strstr swallows 575
+#   ultra_hyper+). classify/score stay stretch.x (not leftover-to-audit).
+#   Do not daily *vx* / summit / peak / zenith / versal. Do not remove
+#   hyper_mega from is_deep_climb_name without measurement. Eq gate:
+#   FORCE smoke deep_off=0 / EQ_ONLY=hyper_mega EQ_SKIP_SYNTH=1
+#   EQ_FILE_STRIDE=4.
+#
 # v5.62: leftover_helpers 0 / leftover-to-audit unique 0. ultra_mega
 #   25/270 closed v5.61. Next already-T lex-first layer = exact super_mega
 #   (25 k_cases; no HARD BAN substring; not in is_deep_climb_name).

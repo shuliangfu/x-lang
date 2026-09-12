@@ -135,8 +135,32 @@ static int g_deep_max_file_off = -1;
 static size_t g_deep_max_src_len = 512;
 
 /**
+ * Nested climb rungs stack as a suffix chain:
+ *   hyper_mega ⊂ ultra_hyper_mega ⊂ max_ultra_hyper_mega ⊂ …
+ * Naive strstr("hyper_mega") swallows every longer rung (measured
+ * 2026-09-12: 25 exact k_cases vs 600 strstr hits). A hit is this rung
+ * iff it is not immediately preceded by the next-inner prefix
+ * (`ultra_` before `hyper_mega`).
+ * PLATFORM: SHARED — filter only; twins / k_cases unchanged.
+ */
+static int eq_tok_hits_name(const char *name, const char *tok) {
+  const char *hit;
+  if (!name || !tok || !tok[0])
+    return 0;
+  for (hit = strstr(name, tok); hit; hit = strstr(hit + 1, tok)) {
+    /* v5.63: exact hyper_mega must not swallow ultra_hyper_mega+. */
+    if (strcmp(tok, "hyper_mega") == 0 && hit >= name + 6 &&
+        memcmp(hit - 6, "ultra_", 6) == 0)
+      continue;
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
- * A case runs iff its name contains any substring. Empty/unset = all cases.
+ * A case runs iff its name contains any substring (nested-rung exact
+ * for hyper_mega — see eq_tok_hits_name). Empty/unset = all cases.
  * PLATFORM: SHARED — used to prove only this wave's new exports in minutes
  * instead of re-scoring the full 400+ table (~50 min at OFF=128).
  */
@@ -158,7 +182,7 @@ static int case_selected(const audit_case *ac) {
       tok++;
     if (!*tok)
       continue;
-    if (strstr(ac->name, tok))
+    if (eq_tok_hits_name(ac->name, tok))
       return 1;
   }
   return 0;
