@@ -88,6 +88,10 @@ typedef struct {
 
 #include "pthin_stretch_audit_eq_table.h"
 
+/* v5.50: leftover_helpers kind-scalar eq lives in a sibling TU so twins.h
+ * static C copies do not shadow the .x T from audit_x.o. */
+extern int leftover_kind_eq_run(long *checks, int *fail);
+
 static int g_fail = 0;
 static long g_checks = 0;
 static long g_checks_at_progress = 0;
@@ -341,6 +345,11 @@ int main(int argc, char **argv) {
                 ? getenv("EQ_DEEP_MAX_FILE_OFF")
                 : "(none)",
             g_shard_i, g_shard_n, g_file_stride);
+  }
+  /* v5.50 leftover_kind: exhaustive TokenKind eq for 6 kind-scalar leftover
+   * helpers. Shard 0 only so parallel workers do not double-count. */
+  if (g_shard_i == 0) {
+    leftover_kind_eq_run(&g_checks, &g_fail);
   }
   /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain.
    * Soft-knife close always keeps a short smoke battery so deep-climb twins

@@ -83,8 +83,12 @@ build_harness() {
     cat "$OUT/bridge_cc.err" >&2; return 1; }
   $CC -c -I. -Iinclude -Isrc -o "$OUT/lexer_pin.o" seeds/lexer_gen.linux.x86_64.c \
     2>"$OUT/lexer_pin_cc.err" || { cat "$OUT/lexer_pin_cc.err" >&2; return 1; }
+  $CC -c -I. -Iinclude -o "$OUT/leftover_kind.o" \
+    scripts/pthin_stretch_audit_eq_leftover_kind.c 2>"$OUT/leftover_kind_cc.err" || {
+    cat "$OUT/leftover_kind_cc.err" >&2; return 1; }
   $CC -I. -Iinclude -o "$HARNESS" \
     scripts/pthin_stretch_audit_eq_harness.c "$OUT/audit_x.o" "$OUT/bridge.o" "$OUT/lexer_pin.o" \
+    "$OUT/leftover_kind.o" \
     2>"$OUT/harness_cc.err" || { cat "$OUT/harness_cc.err" >&2; return 1; }
 }
 

@@ -232,6 +232,10 @@ SUITE_HELPER_SIGS = [
 # v5.49: validate_toplevel_token is leftover_helpers (kind/ident_len first);
 # no eq-table row. C twin gated; do not copy token_run_len / verify_kw
 # tables into HELPERS (G.7 stretch.x authority; duplicate T vs audit_x.o).
+# v5.50: kind-scalar leftover_helpers stay leftover_helpers (not lex-first
+# k_cases). Exhaustive TokenKind eq is scripts/pthin_stretch_audit_eq_leftover_kind.c
+# (sibling TU; twins.h statics would shadow .x T). Do not copy classify /
+# score tables into leftover-to-audit.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

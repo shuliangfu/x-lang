@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.48 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.50 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,16 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.50: leftover_helpers kind-scalar eq (is_type_start / enum_discriminant /
+#   const_import_kw / builtin_vec_token / spawn_kw / brace_head). Already .x
+#   T in audit.x; no k_cases row because first param is not lex:. twins.h
+#   static C copies shadow the .x T in the harness TU, so eq lives in a
+#   sibling TU (pthin_stretch_audit_eq_leftover_kind.c) that links
+#   audit_x.o and compares exhaustive TokenKind space against gated C
+#   twin bodies. classify/score stay stretch.x (not leftover-to-audit).
+#   Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=is_type_start,enum_discriminant,const_import,builtin_vec,spawn_kw,brace_head,skip_allow.
 #
 # v5.49: leftover helper Route C flatten validate_toplevel. Historical
 #   body called token_run_len + verify_kw_spelling (tables in stretch.x,
