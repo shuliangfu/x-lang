@@ -44,13 +44,16 @@ $CC -c -I. -Iinclude -Isrc -Iseeds/parser_asm -o "$OUT/bridge.o" \
 $CC -c -I. -Iinclude -Isrc -o "$OUT/lexer_pin.o" seeds/lexer_gen.linux.x86_64.c 2>"$OUT/lexer_pin_cc.err" || {
   cat "$OUT/lexer_pin_cc.err" >&2; exit 1; }
 
-# 4) leftover_kind sibling TU + harness + link
+# 4) leftover_kind + leftover_namelen sibling TUs + harness + link
 $CC -c -I. -Iinclude -o "$OUT/leftover_kind.o" \
   scripts/pthin_stretch_audit_eq_leftover_kind.c 2>"$OUT/leftover_kind_cc.err" || {
   cat "$OUT/leftover_kind_cc.err" >&2; exit 1; }
+$CC -c -I. -Iinclude -o "$OUT/leftover_namelen.o" \
+  scripts/pthin_stretch_audit_eq_leftover_namelen.c 2>"$OUT/leftover_namelen_cc.err" || {
+  cat "$OUT/leftover_namelen_cc.err" >&2; exit 1; }
 $CC -I. -Iinclude -o "$OUT/eq_harness" \
   scripts/pthin_stretch_audit_eq_harness.c "$OUT/audit_x.o" "$OUT/bridge.o" "$OUT/lexer_pin.o" \
-  "$OUT/leftover_kind.o" \
+  "$OUT/leftover_kind.o" "$OUT/leftover_namelen.o" \
   2>"$OUT/harness_cc.err" || { cat "$OUT/harness_cc.err" >&2; exit 1; }
 
 # 5) run（默认真实语料：试点自身 + lite .x + 主入口 .x）

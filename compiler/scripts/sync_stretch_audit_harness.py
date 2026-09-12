@@ -236,6 +236,10 @@ SUITE_HELPER_SIGS = [
 # k_cases). Exhaustive TokenKind eq is scripts/pthin_stretch_audit_eq_leftover_kind.c
 # (sibling TU; twins.h statics would shadow .x T). Do not copy classify /
 # score tables into leftover-to-audit.
+# v5.51: name/len leftover_helpers stay leftover_helpers (not lex-first
+# k_cases). Ident byte-class eq is scripts/pthin_stretch_audit_eq_leftover_namelen.c
+# (sibling TU; same twins.h shadow). C twins remain G.7 thin wraps of
+# bind_name_validate. Do not copy classify / score into leftover-to-audit.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

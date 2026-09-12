@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.50 leftover_kind eq 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.51 leftover_namelen eq 8/30；kind 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.50 leftover_kind eq 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；classify／score 留 stretch.x）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.51 leftover_namelen eq 8/30；kind 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；classify／score 留 stretch.x）  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -134,6 +134,7 @@
   - [x] import ctx 4MiB heap orch（pin-safe：load_import_from_disk_c 改 view＋PP002 malloc；seed impl_c 同语义；C thin overlay WEAK `_c`；PipelineDepCtx embed 4MiB 不动）
   - [x] resolve_read embed 诚实拒（pipeline_read_file_x 改 view＋拒 length>4MiB；seed 同语义；C thin overlay WEAK `pipeline_read_file_x`；pin embed 不动；产品 import 仍走 heap orch）
   - [x] leftover_helpers kind-scalar eq（v5.50：6／30；独立 TU 穷尽 TokenKind，避开 twins.h static 阴影；classify／score 留 stretch.x；余 24＝name/len／source+off／复合 ABI）
+  - [x] leftover_helpers name/len eq（v5.51：8／30；独立 TU ident 字节类＋长度角，避开 twins.h static 阴影；C twin 薄包 bind_name_validate；classify／score 留 stretch.x；余 16＝source+off／复合 ABI）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -290,7 +291,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（1977／2,007；leftover_kind eq 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；续＝leftover_helpers 余 24 name/len／source+off；classify／score 留 stretch.x；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b** B-minus 续（1977／2,007；leftover_namelen eq 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；续＝leftover_helpers 余 16 source+off／复合 ABI；classify／score 留 stretch.x；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
