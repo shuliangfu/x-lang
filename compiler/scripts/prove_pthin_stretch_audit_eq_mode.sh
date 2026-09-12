@@ -42,13 +42,21 @@
 #         summit_apex_max_ultra_hyper_mega (500 extra). Harness
 #         eq_tok_hits_name rejects hits preceded by summit_. Daily
 #         defaults same as hyper_mega / ultra_hyper / max_ultra
-#         (SKIP_SYNTH=1 + STRIDE=4 + DEEP_MAX_FILE_OFF=0). Next stacked
-#         rung summit is HARD BAN — do not daily *summit*.
+#         (SKIP_SYNTH=1 + STRIDE=4 + DEEP_MAX_FILE_OFF=0).
+#         v5.67: exact crown_pinnacle (25 k_cases; EQ_ONLY string is not
+#         HARD BAN; pinnacle/crown ARE in is_deep_climb_name). Skipped
+#         HARD BAN rungs summit / peak / zenith / pinnacle_zenith.
+#         EQ_ONLY=crown_pinnacle must NOT strstr-swallow
+#         supreme_crown_pinnacle+ (375 extra). Case names still contain
+#         zenith/peak/summit — DEEP_MAX_FILE_OFF=0 keeps smoke in budget.
+#         Harness eq_tok_hits_name rejects hits preceded by supreme_.
+#         Daily defaults same as hyper_mega / ultra_hyper / max_ultra /
+#         apex_max (SKIP_SYNTH=1 + STRIDE=4 + DEEP_MAX_FILE_OFF=0).
 #         Those daily runs default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4
 #         (score-chain wall-clock). Do not add super_mega to
 #         is_deep_climb_name without measurement. Do not remove
-#         hyper_mega / ultra_hyper / max_ultra / apex_max from
-#         is_deep_climb_name without measurement.
+#         hyper_mega / ultra_hyper / max_ultra / apex_max / crown /
+#         pinnacle from is_deep_climb_name without measurement.
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -243,15 +251,20 @@ case "$MODE" in
     # v5.66: exact apex_max token (comma-wrapped, so summit_apex_max
     # is intended not to match; HARD BAN already refuses *summit*).
     # apex_max IS in is_deep_climb_name — same DEEP_MAX_FILE_OFF=0
-    # default. Combined arm is G.7 有则补全 of the same daily-defaults
-    # case (all four in is_deep_climb_name).
+    # default.
+    # v5.67: exact crown_pinnacle token (comma-wrapped). HARD BAN
+    # skipped *summit*/*peak*/*zenith*/*pinnacle_zenith*. pinnacle
+    # and crown ARE in is_deep_climb_name — same DEEP_MAX_FILE_OFF=0.
+    # Combined arm is G.7 有则补全 of the same daily-defaults case
+    # (all five in is_deep_climb_name). C harness is the real exact
+    # filter (bash glob still substring-capable).
     # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
     case ",$EQ_ONLY," in
       *,*ultra_mega*|*,*super_mega*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         ;;
-      *,hyper_mega,*|*,ultra_hyper,*|*,max_ultra,*|*,apex_max,*)
+      *,hyper_mega,*|*,ultra_hyper,*|*,max_ultra,*|*,apex_max,*|*,crown_pinnacle,*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         export EQ_DEEP_MAX_FILE_OFF="${EQ_DEEP_MAX_FILE_OFF:-0}"

@@ -344,6 +344,17 @@ SUITE_HELPER_SIGS = [
 # *vx* / summit / peak / zenith / versal. Do not remove apex_max
 # from is_deep_climb_name without measurement. Eq gate: FORCE smoke
 # deep_off=0 / EQ_ONLY=apex_max EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.67: leftover_helpers 0. Seventh deep-chain batch (not a new leftover
+# TU): exact crown_pinnacle layer is already lex-first k_cases (25 rows;
+# EQ_ONLY string is not HARD BAN; pinnacle/crown ARE in
+# is_deep_climb_name). Skipped HARD BAN rungs summit / peak / zenith /
+# pinnacle_zenith. Harness eq_tok_hits_name rejects supreme_crown
+# swallow (375 extra). Case names still contain zenith/peak/summit.
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove crown /
+# pinnacle from is_deep_climb_name without measurement. Eq gate:
+# FORCE smoke deep_off=0 / EQ_ONLY=crown_pinnacle EQ_SKIP_SYNTH=1
+# EQ_FILE_STRIDE=4.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit
