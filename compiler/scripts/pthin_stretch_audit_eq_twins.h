@@ -2091,17 +2091,17 @@ static int32_t c_ref_vx_try_skip_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co
 static int32_t c_ref_vx_try_skip_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_vx_toplevel_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);
 
-static int32_t parser_asm_stretch_expr_binop_kinds_probe_c(struct parser_asm_lexer lex,
-                                                             struct parser_asm_slice_u8 *source,
-                                                             const int32_t *kinds, int32_t num_kinds) {
+static int32_t parser_asm_stretch_expr_binop_kinds_probe_c(const int32_t *kinds, int32_t num_kinds, void *lex, void *source) {
+  struct parser_asm_lexer local;
   struct parser_asm_lexer_result r;
   int32_t n;
   int32_t i;
   int32_t hit;
-  if (!source || !kinds || num_kinds <= 0)
+  if (!kinds || num_kinds <= 0 || !lex || !source)
     return 0;
+  local = *(struct parser_asm_lexer *)lex;
   n = 0;
-  lexer_next_into(&r, lex, source);
+  lexer_next_into(&r, local, (struct parser_asm_slice_u8 *)source);
   for (;;) {
     hit = 0;
     for (i = 0; i < num_kinds; i++) {
@@ -2115,8 +2115,8 @@ static int32_t parser_asm_stretch_expr_binop_kinds_probe_c(struct parser_asm_lex
     n++;
     if (n > 32)
       return n;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    lexer_next_into(&r, lex, source);
+    parser_asm_lex_from_result_val_into(&local, r);
+    lexer_next_into(&r, local, (struct parser_asm_slice_u8 *)source);
   }
 }
 
@@ -3968,7 +3968,7 @@ static int32_t c_ref_expr_shift_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[2] = {(int32_t)TOKEN_LSHIFT, (int32_t)TOKEN_RSHIFT};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 2);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 2, &lex, source);
 
 }
 
@@ -3980,7 +3980,7 @@ static int32_t c_ref_expr_rel_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[4] = {(int32_t)TOKEN_LT, (int32_t)TOKEN_LE, (int32_t)TOKEN_GT, (int32_t)TOKEN_GE};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 4);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 4, &lex, source);
 
 }
 
@@ -3992,7 +3992,7 @@ static int32_t c_ref_expr_eq_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[2] = {(int32_t)TOKEN_EQ, (int32_t)TOKEN_NE};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 2);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 2, &lex, source);
 
 }
 
@@ -4004,7 +4004,7 @@ static int32_t c_ref_expr_bitand_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[1] = {(int32_t)TOKEN_AMP};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 1);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 1, &lex, source);
 
 }
 
@@ -4016,7 +4016,7 @@ static int32_t c_ref_expr_bitxor_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[1] = {(int32_t)TOKEN_CARET};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 1);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 1, &lex, source);
 
 }
 
@@ -4028,7 +4028,7 @@ static int32_t c_ref_expr_bitor_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[1] = {(int32_t)TOKEN_PIPE};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 1);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 1, &lex, source);
 
 }
 
@@ -4040,7 +4040,7 @@ static int32_t c_ref_expr_logand_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[1] = {(int32_t)TOKEN_AMPAMP};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 1);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 1, &lex, source);
 
 }
 
@@ -4052,7 +4052,7 @@ static int32_t c_ref_expr_logor_binop_audit(void *lex_inout, void *source) {
     return 0;
   lex = *(struct parser_asm_lexer *)lex_inout;
   static const int32_t kinds[1] = {(int32_t)TOKEN_PIPEPIPE};
-  return parser_asm_stretch_expr_binop_kinds_probe_c(lex, source, kinds, 1);
+  return parser_asm_stretch_expr_binop_kinds_probe_c(kinds, 1, &lex, source);
 
 }
 

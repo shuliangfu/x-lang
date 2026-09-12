@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.43 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.44 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.44: leftover helper Route C flatten expr_binop_kinds_probe (match-set).
+#   probe's walk only reads each token's kind against kinds[]; caller lex
+#   is net-zero (by-val copy / restore trio). Flatten onto
+#   (kinds, num_kinds, lex, source); C twin copies *lex. Generator still
+#   inlines the kinds-array delegator (eq-honest v2.1); leftover helper is
+#   the new authority. Still refuse validate_toplevel (verify_kw_spelling),
+#   import_path_post (finalize not in eq TU), advance_to secondary-cursor.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=expr_shift,expr_rel,expr_eq,expr_bit,expr_log,library_scan,match_subject,skip_allow.
 #
 # v5.43: leftover helper Route C flatten peek_kind_chain (out-array).
 #   peek_kind_chain's walk only reads each token's kind into kinds[];
@@ -1887,6 +1896,12 @@ def translate(name, body, tokvals):
             if si + 1 < len(stmts):
                 nxt = stmts[si + 1].strip()
                 m2 = re.match(r"return parser_asm_stretch_expr_binop_kinds_probe_c\(lex, source, kinds, \d+\);$", nxt)
+                if not m2:
+                    # v5.44: flattened ABI (kinds, N, &lex, source)
+                    m2 = re.match(
+                        r"return parser_asm_stretch_expr_binop_kinds_probe_c\(kinds, \d+, (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), (?:source|&sl)\);$",
+                        nxt,
+                    )
                 if m2:
                     used |= set(kinds)
                     cond = " || ".join(f"kind == {k}" for k in kinds)
@@ -2380,6 +2395,10 @@ PURE_HELPERS = {
     # v5.43 leftover Route C flatten peek_kind_chain (out-array)
     "parser_asm_stretch_peek_kind_chain_c": (
         "kinds: *i32, max_peek: i32, lex: *u8, source: *u8",
+        "i32"),
+    # v5.44 leftover Route C flatten expr_binop_kinds_probe (match-set)
+    "parser_asm_stretch_expr_binop_kinds_probe_c": (
+        "kinds: *i32, num_kinds: i32, lex: *u8, source: *u8",
         "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
@@ -3245,6 +3264,10 @@ PURE_HELPERS = {
     # v5.43 leftover Route C flatten peek_kind_chain (out-array)
     "parser_asm_stretch_peek_kind_chain_c": (
         "kinds: *i32, max_peek: i32, lex: *u8, source: *u8",
+        "i32"),
+    # v5.44 leftover Route C flatten expr_binop_kinds_probe (match-set)
+    "parser_asm_stretch_expr_binop_kinds_probe_c": (
+        "kinds: *i32, num_kinds: i32, lex: *u8, source: *u8",
         "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),

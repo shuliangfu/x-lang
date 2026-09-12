@@ -83368,3 +83368,63 @@ export function parser_asm_stretch_peek_kind_chain_c(kinds: *i32, max_peek: i32,
   }
   return n;
 }
+
+/* ── leftover helpers (v5.44 Route C flatten: expr_binop_kinds_probe) ── */
+
+/**
+ * Non-mutating binop-kind chain probe: count how many consecutive tokens
+ * match any of `kinds[0 .. num_kinds)`. Flattened from leftover
+ * lexer-by-val `expr_binop_kinds_probe_c`: the walk only reads each
+ * token's `kind` against the match set (no ident / start). Caller lex
+ * is restored (net-zero, matching the historical by-val copy). Cap 32
+ * matches then one extra (`n > 32`) mirrors the C twin.
+ * @param kinds *i32 — match-set array; caller-owned; length >= num_kinds
+ * @param num_kinds i32 — match-set length; <=0 → 0
+ * @param lex *u8 — opaque lexer (restored; not advanced)
+ * @param source *u8 — opaque slice
+ * @return i32 — consecutive match count; 0 on null / num_kinds<=0
+ * PLATFORM: SHARED — leftover helper port (v5.44).
+ */
+#[no_mangle]
+export function parser_asm_stretch_expr_binop_kinds_probe_c(kinds: *i32, num_kinds: i32, lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let hit: i32 = 0;
+  if (kinds == 0 as *i32 || num_kinds <= 0 || lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    n = 0;
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    while (n <= 32) {
+      hit = 0;
+      i = 0;
+      while (i < num_kinds) {
+        if (kinds[i] == kind) {
+          hit = 1;
+        }
+        i = i + 1;
+      }
+      if (hit == 0) {
+        break;
+      }
+      n = n + 1;
+      if (n > 32) {
+        break;
+      }
+      parser_asm_lex_step_kind_c(lex, source);
+      kind = parser_asm_lex_peek_kind_c(lex, source);
+    }
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+  }
+  return n;
+}

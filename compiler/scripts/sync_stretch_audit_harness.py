@@ -193,10 +193,12 @@ HELPERS_PORTED_TO_X = {
     "parser_asm_stretch_simd_builtin_deep_from_at_audit_c",
     # v5.43 leftover Route C flatten peek_kind_chain (out-array).
     "parser_asm_stretch_peek_kind_chain_c",
+    # v5.44 leftover Route C flatten expr_binop_kinds_probe (match-set).
+    "parser_asm_stretch_expr_binop_kinds_probe_c",
 }
 
 SUITE_HELPER_SIGS = [
-    "static int32_t parser_asm_stretch_expr_binop_kinds_probe_c(",
+    "int32_t parser_asm_stretch_expr_binop_kinds_probe_c(",
     "void parser_asm_skip_balanced_parens_into_slice_c(",
     "void parser_asm_skip_balanced_braces_into_slice_c(",
     "void parser_asm_stretch_skip_balanced_brackets_into_c(",
