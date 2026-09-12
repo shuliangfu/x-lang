@@ -1144,21 +1144,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P9a stretch_audit .x thin failed; seed C twin stays" >&2
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P1b/P1c/P1d Route C + B-minus (2026-09-13).
+        # PLATFORM: SHARED — 7.2.1 P1b/P1c/P1d/P1e Route C + B-minus (2026-09-13).
         # pthin_lex_skip.x holds kind predicates, buf copies, B-minus
         # skip_balanced/generic_into, P1c generic_count (peek+step via
-        # P9a bridge; dest buffers for pending names), and P1d ASI
-        # advance_past_stmt_semicolon / advance_past_cond_rparen (C twins
-        # in helpers.inc trampoline when this define is set on P19).
+        # P9a bridge; dest buffers for pending names), P1d ASI
+        # advance_past_stmt_semicolon / advance_past_cond_rparen, and P1e
+        # parse_peek_function_name / first_token_kind (C twins in
+        # helpers.inc trampoline when this define is set on P19).
         # Runs after P9a so BODIES_FROM_X is only set when the bridge
-        # will be linked (otherwise skip_balanced/count/ASI would UNDEF).
+        # will be linked (otherwise skip_balanced/count/ASI/peek would UNDEF).
         # Cold: no define, full .inc. Do not add P9a as a hard gate to P19.
         _pthin_p1_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p1b_thin_o" ] && [ -f "$_pthin_p1b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_pthin_p1b_thin_o"; then
             _pthin_p1b_ok=1
             _pthin_p1_extra="-DXLANG_PTHIN_LEX_SKIP_BODIES_FROM_X"
-            echo "g05_ensure: P1b/P1c/P1d lex_skip bodies ← $_pthin_p1b_x (7.2.1 B-minus count/ASI)"
+            echo "g05_ensure: P1b/P1c/P1d/P1e lex_skip bodies ← $_pthin_p1b_x (7.2.1 B-minus count/ASI/peek)"
           else
             echo "g05_ensure: P1b lex_skip .x thin failed; P1 C twin stays full" >&2
           fi

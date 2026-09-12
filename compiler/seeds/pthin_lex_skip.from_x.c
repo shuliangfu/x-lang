@@ -3,12 +3,12 @@
  * Hybrid: XLANG_PTHIN_LEX_SKIP_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_lex_skip_slice.inc
- * Hybrid P1b/P1c/P1d (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
- * bodies, the count walk, and ASI advance_past_* come from pthin_lex_skip.x;
- * this TU keeps by-value trampolines plus g_gp_pending_* / register_pending C.
- * P1d C trampolines live in helpers.inc (original twins). Cold: no BODIES
- * define, full .inc. Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for
- * P1b/P1c/P1d bodies.
+ * Hybrid P1b/P1c/P1d/P1e (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
+ * bodies, the count walk, ASI advance_past_*, parse_peek_function_name, and
+ * first_token_kind come from pthin_lex_skip.x; this TU keeps by-value
+ * trampolines plus g_gp_pending_* / register_pending C. P1d/P1e C trampolines
+ * live in helpers.inc (original twins). Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e bodies.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -71,6 +71,7 @@ _Static_assert((int)TOKEN_LET == 2, "lex_skip.x TOKEN_LET pin");
 _Static_assert((int)TOKEN_PANIC == 12, "lex_skip.x TOKEN_PANIC pin");
 _Static_assert((int)TOKEN_DEFER == 13, "lex_skip.x TOKEN_DEFER pin");
 _Static_assert((int)TOKEN_SELF == 51, "lex_skip.x TOKEN_SELF pin");
+_Static_assert((int)TOKEN_SPAWN == 58, "lex_skip.x TOKEN_SPAWN pin");
 _Static_assert((int)TOKEN_IDENT == 59, "lex_skip.x TOKEN_IDENT pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "lex_skip.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_RPAREN == 83, "lex_skip.x TOKEN_RPAREN pin");

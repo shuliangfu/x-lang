@@ -2,13 +2,13 @@
  * parser_asm_lex_skip_slice.inc — P1 lex/skip pure helpers (G-02f-281).
  * Included by parser_asm_thin_c.from_x.c or pthin_lex_skip.from_x.c.
  *
- * Hybrid P1b/P1c/P1d: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
+ * Hybrid P1b/P1c/P1d/P1e: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
  * kind/copy/skip-walk region and the count walk (bodies in
  * src/asm/pthin_lex_skip.x + by-value trampolines in the seed TU).
- * P1d ASI advance_past_* C twins live in helpers.inc (trampoline there).
- * g_gp_pending_* statics + register_pending stay here. Cold: no define,
- * this file is the full twin. Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X
- * for P1b/P1c/P1d bodies.
+ * P1d ASI and P1e peek-name / first_token C twins live in helpers.inc
+ * (trampoline there). g_gp_pending_* statics + register_pending stay here.
+ * Cold: no define, this file is the full twin. Do not reuse
+ * XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e bodies.
  */
 #ifndef PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 #define PARSER_ASM_LEX_SKIP_SLICE_INCLUDED

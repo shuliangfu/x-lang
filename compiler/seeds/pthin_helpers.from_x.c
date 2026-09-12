@@ -5,10 +5,10 @@
  * Body: seeds/parser_asm/parser_asm_helpers_slice.inc
  * Hybrid P19b (XLANG_PTHIN_HELPERS_BODIES_FROM_X): portable kind/copy/pos/
  * match-kw bodies come from pthin_helpers.x; this TU keeps by-value
- * trampolines plus rewind/align/first_token. P1d ASI advance_past_*
- * trampoline when XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X (g05 passes P1 extra
- * onto this TU; do not add P9a as a hard gate to P19). Cold: no BODIES
- * define, full .inc.
+ * trampolines plus rewind/align. P1d ASI advance_past_* and P1e
+ * parse_peek_function_name / first_token_kind trampoline when
+ * XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X (g05 passes P1 extra onto this TU;
+ * do not add P9a as a hard gate to P19). Cold: no BODIES define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>

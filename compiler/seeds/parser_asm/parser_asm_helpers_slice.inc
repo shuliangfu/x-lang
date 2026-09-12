@@ -5,13 +5,12 @@
  *
  * Hybrid P19b: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
  * kind/copy/pos/match-kw region (bodies in src/asm/pthin_helpers.x +
- * by-value trampolines in the seed TU). Rewind/align/first_token stay
- * here. P1d ASI advance_past_* twins skip under
- * XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X (bodies in pthin_lex_skip.x;
- * trampolines replay lexer_next_into into *r_out). first_token_kind_buf
- * AUDIT_CALL padding is compiled only under XLANG_PARSER_STRETCH_AUDIT
- * (product AUDIT_CALL is already nop). Cold: no BODIES define, this
- * file is the full twin.
+ * by-value trampolines in the seed TU). Rewind/align stay here.
+ * P1d ASI advance_past_* and P1e parse_peek_function_name /
+ * first_token_kind twins skip under XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+ * (bodies in pthin_lex_skip.x). first_token_kind_buf AUDIT_CALL padding
+ * is compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL
+ * is already nop). Cold: no BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_HELPERS_SLICE_INC
 #define PARSER_ASM_HELPERS_SLICE_INC
@@ -455,6 +454,23 @@ int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer
  * parse_peek_function_name_buf 的 C 实现；EMIT_HEAVY 桩 bl 目标。
  * lex 位于 function 关键字；成功返回 name_len，失败返回 0。
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1e trampoline. Wrap (data,len) as a slice; caller
+ * lex is by-value and is not written back. Leftover AUDIT stays in the
+ * cold twin only. */
+extern int32_t parser_asm_parse_peek_function_name_into_c(void *lex_inout, void *source, uint8_t *out);
+int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+                                                  uint8_t *out) {
+  struct parser_asm_slice_u8 source;
+  struct parser_asm_lexer cur;
+  if (!data || !out)
+    return 0;
+  source.data = data;
+  source.length = len >= 0 ? (size_t)len : 0;
+  cur = lex;
+  return parser_asm_parse_peek_function_name_into_c(&cur, &source, out);
+}
+#else
 int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
                                                   uint8_t *out) {
   struct parser_asm_lexer_result r;
@@ -484,6 +500,7 @@ int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, u
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(out, r.tok.ident_len));
   return r.tok.ident_len;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X parse_peek_function_name */
 
 /* G-02f-281: moved to parser_asm_lex_skip_slice.inc (was L4320-L4447) */
 
@@ -515,6 +532,18 @@ struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_a
 /**
  * first_token_kind：诊断用，返回 source 首 token 的 kind（整型）。
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1e trampoline. Language has no lexer_init; this
+ * inits then calls .x (one step, return kind). buf stays a wrap over slice. */
+extern int32_t parser_asm_first_token_kind_into_c(void *lex_inout, void *source);
+int32_t parser_asm_first_token_kind_slice_c(struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer lex;
+  if (!source)
+    return (int32_t)TOKEN_EOF;
+  lex = parser_asm_lexer_init_c();
+  return parser_asm_first_token_kind_into_c(&lex, source);
+}
+#else
 int32_t parser_asm_first_token_kind_slice_c(struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
@@ -524,6 +553,7 @@ int32_t parser_asm_first_token_kind_slice_c(struct parser_asm_slice_u8 *source) 
   lexer_next_into(&r, lex, source);
   return r.tok.kind;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X first_token_kind */
 
 /**
  * first_token_kind_buf：buf 路径诊断首 token kind。

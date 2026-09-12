@@ -44,11 +44,20 @@
 // C trampolines in helpers.inc replay lexer_next_into to fill
 // *r_out (language has no struct-by-value lexer_result).
 //
-// Hybrid P1b/P1c/P1d: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
-// skips the portable .inc region and the helpers.inc ASI twins.
+// 7.2.1 P1e B-minus (2026-09-13): 有则补全 this file with
+// parse_peek_function_name + first_token_kind. Both are helpers.inc
+// leftovers (buf peek-name dest-buffer; init+one-step kind). Do not
+// add P9a as a hard gate to P19. Do not wrap leftover peek-name
+// AUDIT (stays in the cold twin). Do not open a new P-lane.
+// Language has no lexer_init; the first_token C trampoline inits
+// then calls .x. parse_peek dest `out` is C-owned (no local u8[N]).
+// SPAWN writes four bytes `spaw` and returns 5 (match the C twin).
+//
+// Hybrid P1b/P1c/P1d/P1e: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+// skips the portable .inc region and the helpers.inc ASI/peek twins.
 // token.h remains the TOKEN_* authority via P1 C _Static_assert pins.
 // Cold: no define, full .inc stays. Do not reuse
-// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d bodies.
+// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -97,6 +106,7 @@ const TOKEN_IMPL: i32 = 50;
 const TOKEN_SELF: i32 = 51;
 const TOKEN_IMPORT: i32 = 53;
 const TOKEN_EXTERN: i32 = 54;
+const TOKEN_SPAWN: i32 = 58;
 const TOKEN_IDENT: i32 = 59;
 const TOKEN_I32: i32 = 60;
 const TOKEN_BOOL: i32 = 61;
@@ -787,4 +797,78 @@ export function parser_asm_advance_past_cond_rparen_into_c(lex_inout: *u8, sourc
     }
   }
   return 0;
+}
+
+/**
+ * Peek `function name` / `function spawn` from the entry cursor.
+ * Entry is the start of `function` (C `lex` by value). Non-FUNCTION
+ * first token: return 0 with `out` untouched. After consuming
+ * FUNCTION, SPAWN writes four bytes `spaw` and returns 5 (C twin
+ * does not write the fifth byte). IDENT copies `ident_len` bytes
+ * via P1b copy_slice (cap 1..63). The C trampoline in helpers.inc
+ * keeps `parser_asm_parse_peek_function_name_buf_c` (wraps data/len
+ * as a slice; caller lex is by-value and is not written back).
+ * @param lex_inout *u8 — opaque lexer (local copy; caller lex unmoved)
+ * @param source *u8 — opaque slice
+ * @param out *u8 — dest name bytes; caller owns; null is 0
+ * @return i32 — name length (5 for spawn, ident_len for IDENT), or 0
+ * PLATFORM: SHARED — product P1e B-minus; leftover AUDIT stays cold.
+ */
+#[no_mangle]
+export function parser_asm_parse_peek_function_name_into_c(lex_inout: *u8, source: *u8, out: *u8): i32 {
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let tstart: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || out == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_FUNCTION) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_SPAWN) {
+      out[0] = 115;
+      out[1] = 112;
+      out[2] = 97;
+      out[3] = 119;
+      return 5;
+    }
+    idlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (kind != TOKEN_IDENT || idlen <= 0 || idlen > 63) {
+      return 0;
+    }
+    tstart = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    if (tstart == 0 as usize) {
+      tstart = parser_asm_lex_pos_c(lex_inout);
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    parser_asm_copy_slice_to_name64_buf_c(data, slen as i32, tstart, idlen, out);
+  }
+  return idlen;
+}
+
+/**
+ * Return the kind of the first token at the entry cursor.
+ * The C trampoline inits a fresh lexer (language has no lexer_init)
+ * then calls this; a null source is TOKEN_EOF without a call.
+ * @param lex_inout *u8 — opaque lexer at file start
+ * @param source *u8 — opaque slice
+ * @return i32 — first token kind, or TOKEN_EOF on null
+ * PLATFORM: SHARED — product P1e B-minus; C trampoline keeps
+ * `parser_asm_first_token_kind_slice_c`. buf stays a wrap over slice.
+ */
+#[no_mangle]
+export function parser_asm_first_token_kind_into_c(lex_inout: *u8, source: *u8): i32 {
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return TOKEN_EOF;
+  }
+  unsafe {
+    return parser_asm_lex_step_kind_c(lex_inout, source);
+  }
 }
