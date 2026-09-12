@@ -201,9 +201,9 @@ SUITE_HELPER_SIGS = [
     "int32_t parser_asm_stretch_expr_binop_kinds_probe_c(",
     "void parser_asm_skip_balanced_parens_into_slice_c(",
     "void parser_asm_skip_balanced_braces_into_slice_c(",
-    "void parser_asm_stretch_skip_balanced_brackets_into_c(",
-    "struct parser_asm_lexer parser_asm_stretch_skip_type_suffix_c(",
-    "struct parser_asm_lexer parser_asm_stretch_skip_one_param_type_c(",
+    # v5.45: skip_balanced / skip_type_suffix / skip_one_param_type are
+    # pointer-ABI eq audits (gated C twins). Do not copy leftover by-val
+    # bodies — c_ref twins come from the gated suite via the twin regex.
     # v4.6: kinds[] audit c_ref twins call these suite helpers by name
     "int32_t parser_asm_stretch_classify_toplevel_c(",
     "int32_t parser_asm_stretch_peek_kind_chain_c(",
@@ -554,6 +554,10 @@ INOUT_SET = {
     "parser_asm_stretch_import_select_list_audit_c",
     # v5.39: leftover inout helper — skip allow(...) groups in front of struct
     "parser_asm_stretch_skip_allow_modifiers_c",
+    # v5.45: leftover inout skip chain (brackets / type suffix / one param type)
+    "parser_asm_stretch_skip_balanced_brackets_into_c",
+    "parser_asm_stretch_skip_type_suffix_c",
+    "parser_asm_stretch_skip_one_param_type_c",
 }
 
 

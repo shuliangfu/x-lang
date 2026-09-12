@@ -83428,3 +83428,125 @@ export function parser_asm_stretch_expr_binop_kinds_probe_c(kinds: *i32, num_kin
   }
   return n;
 }
+
+/* ── leftover helpers (v5.45 Route C flatten: skip_balanced / skip_type_suffix / skip_one_param_type) ── */
+
+/**
+ * In-place skip of a balanced `[..]` group. Caller has already consumed
+ * the opening '[' (depth starts at 1). Flattened from leftover
+ * lexer-by-val `skip_balanced_brackets_into_c(out, lex, source)`: the
+ * walk only peeks each token's kind and advances the opaque cursor.
+ * Matching ']' leaves the lexer after that token; EOF leaves it at the
+ * pre-EOF walk cursor (C twin copies `*lex` then writes back).
+ * @param lex_inout *u8 — opaque lexer (advanced past the matching ']')
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 on the success path (including EOF); 0 on null
+ * PLATFORM: SHARED — leftover helper port (v5.45).
+ */
+#[no_mangle]
+export function parser_asm_stretch_skip_balanced_brackets_into_c(lex_inout: *u8, source: *u8): i32 {
+  let depth: i32 = 0;
+  let kind: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    depth = 1;
+    while (depth > 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_LBRACKET) {
+        depth = depth + 1;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_RBRACKET) {
+        depth = depth - 1;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        if (depth == 0) {
+          return 1;
+        }
+        continue;
+      }
+      if (kind == TOKEN_EOF) {
+        return 1;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    }
+  }
+  return 1;
+}
+
+/**
+ * Skip a type suffix: zero or more `*` and nested `[..]` groups.
+ * Flattened from leftover lexer-by-val `skip_type_suffix_c`. A peek that
+ * is neither `*` nor `[` is a no-op (cursor stays). Guard is post-increment
+ * `guard++ > 64` (65 successful bodies max). Calls the leftover
+ * `skip_balanced_brackets_into_c` after consuming `[`.
+ * @param lex_inout *u8 — opaque lexer (advanced past the suffix)
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 on the success path; 0 on null
+ * PLATFORM: SHARED — leftover helper port (v5.45).
+ */
+#[no_mangle]
+export function parser_asm_stretch_skip_type_suffix_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let guard: i32 = 0;
+  let oldg: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    guard = 0;
+    while (guard < 128) {
+      oldg = guard;
+      guard = guard + 1;
+      if (oldg > 64) {
+        break;
+      }
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_STAR) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_LBRACKET) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        parser_asm_stretch_skip_balanced_brackets_into_c(lex_inout, source);
+        continue;
+      }
+      break;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Skip one parameter's type part (from the type-start token). Flattened
+ * from leftover lexer-by-val `skip_one_param_type_c`. A leading `*` or a
+ * type-start kind consumes that token then runs `skip_type_suffix_c`; any
+ * other peek is a no-op (cursor stays).
+ * @param lex_inout *u8 — opaque lexer (advanced past the type)
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 on the success path; 0 on null
+ * PLATFORM: SHARED — leftover helper port (v5.45).
+ */
+#[no_mangle]
+export function parser_asm_stretch_skip_one_param_type_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_STAR) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      parser_asm_stretch_skip_type_suffix_c(lex_inout, source);
+      return 1;
+    }
+    if (parser_asm_stretch_is_type_start_kind_c(kind) == 0) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    parser_asm_stretch_skip_type_suffix_c(lex_inout, source);
+  }
+  return 1;
+}

@@ -173,6 +173,16 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.45: leftover helper Route C flatten skip_balanced / skip_type_suffix /
+#   skip_one_param_type (one skip chain). Walk only peeks kind and advances
+#   the opaque cursor; flattened onto (lex_inout, source) pointer ABI.
+#   C twin copies *lex then writes back. Bridge inplace adapters become
+#   G.7 thin wraps. Generator still inlines skip via inplace adapters
+#   (eq-honest v2/v3.1); leftover helper is the new authority. Still refuse
+#   validate_toplevel (verify_kw_spelling), import_path_post (finalize not
+#   in eq TU), advance_to secondary-cursor.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=skip_type_suffix,skip_one_param_type,skip_balanced_brackets,skip_allow.
+#
 # v5.44: leftover helper Route C flatten expr_binop_kinds_probe (match-set).
 #   probe's walk only reads each token's kind against kinds[]; caller lex
 #   is net-zero (by-val copy / restore trio). Flatten onto

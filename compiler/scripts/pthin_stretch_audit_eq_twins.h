@@ -153,6 +153,9 @@ int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t p
 }
 
 /* Forward decls so twins / advance_to helpers may call each other. */
+static int32_t c_ref_skip_balanced_brackets_into(void *lex_inout, void *source);
+static int32_t c_ref_skip_type_suffix(void *lex_inout, void *source);
+static int32_t c_ref_skip_one_param_type(void *lex_inout, void *source);
 static int32_t c_ref_fn_param_list_audit(void *lex_inout, void *source);
 static int32_t c_ref_skip_return_type_audit(void *lex_inout, void *source);
 static int32_t c_ref_fn_sig_audit(void *lex_inout, void *source);
@@ -2190,77 +2193,6 @@ void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer *out, 
   out->col = lex.col;
 }
 
-void parser_asm_stretch_skip_balanced_brackets_into_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
-                                                             struct parser_asm_slice_u8 *source) {
-  int32_t depth;
-  struct parser_asm_lexer_result r;
-  if (!out || !source)
-    return;
-  depth = 1;
-  while (depth > 0) {
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind == (int32_t)TOKEN_LBRACKET)
-      depth++;
-    else if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-      depth--;
-      if (depth == 0) {
-        out->pos = r.next_lex.pos;
-        out->line = r.next_lex.line;
-        out->col = r.next_lex.col;
-        return;
-      }
-    }
-    if (r.tok.kind == (int32_t)TOKEN_EOF) {
-      out->pos = lex.pos;
-      out->line = lex.line;
-      out->col = lex.col;
-      return;
-    }
-    parser_asm_lex_from_result_val_into(&lex, r);
-  }
-  out->pos = lex.pos;
-  out->line = lex.line;
-  out->col = lex.col;
-}
-
-struct parser_asm_lexer parser_asm_stretch_skip_type_suffix_c(struct parser_asm_lexer lex,
-                                                                     struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r;
-  struct parser_asm_lexer after;
-  int32_t guard;
-  guard = 0;
-  for (;;) {
-    if (guard++ > 64)
-      break;
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind == (int32_t)TOKEN_STAR) {
-      lex = r.next_lex;
-      continue;
-    }
-    if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
-      parser_asm_stretch_skip_balanced_brackets_into_c(&after, r.next_lex, source);
-      lex = after;
-      continue;
-    }
-    break;
-  }
-  return lex;
-}
-
-struct parser_asm_lexer parser_asm_stretch_skip_one_param_type_c(struct parser_asm_lexer lex,
-                                                                        struct parser_asm_slice_u8 *source) {
-  struct parser_asm_lexer_result r;
-  lexer_next_into(&r, lex, source);
-  if (r.tok.kind == (int32_t)TOKEN_STAR) {
-    lex = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
-    return lex;
-  }
-  if (!parser_asm_stretch_is_type_start_kind_c(r.tok.kind))
-    return lex;
-  lex = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
-  return lex;
-}
-
 int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, int32_t third_kind) {
   if (kind == (int32_t)TOKEN_IMPORT)
     return STRETCH_TOP_IMPORT;
@@ -2655,6 +2587,92 @@ int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, u
   sl.length = (size_t)len;
   return c_ref_diag_fn_mega_full_deep_audit(&lex, &sl);
 }
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_balanced_brackets_into_c. */
+static int32_t c_ref_skip_balanced_brackets_into(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  int32_t depth;
+  struct parser_asm_lexer_result r;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  depth = 1;
+  while (depth > 0) {
+    lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
+    if (r.tok.kind == (int32_t)TOKEN_LBRACKET)
+      depth++;
+    else if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+      depth--;
+      if (depth == 0) {
+        *(struct parser_asm_lexer *)lex_inout = r.next_lex;
+        return 1;
+      }
+    }
+    if (r.tok.kind == (int32_t)TOKEN_EOF) {
+      *(struct parser_asm_lexer *)lex_inout = lex;
+      return 1;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
+  }
+  *(struct parser_asm_lexer *)lex_inout = lex;
+  return 1;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_type_suffix_c. */
+static int32_t c_ref_skip_type_suffix(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r;
+  int32_t guard;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  guard = 0;
+  for (;;) {
+    if (guard++ > 64)
+      break;
+    lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
+    if (r.tok.kind == (int32_t)TOKEN_STAR) {
+      lex = r.next_lex;
+      continue;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+      lex = r.next_lex;
+      c_ref_skip_balanced_brackets_into(&lex, source);
+      continue;
+    }
+    break;
+  }
+  *(struct parser_asm_lexer *)lex_inout = lex;
+  return 1;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_one_param_type_c. */
+static int32_t c_ref_skip_one_param_type(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
+  if (r.tok.kind == (int32_t)TOKEN_STAR) {
+    lex = r.next_lex;
+    c_ref_skip_type_suffix(&lex, source);
+    *(struct parser_asm_lexer *)lex_inout = lex;
+    return 1;
+  }
+  if (!parser_asm_stretch_is_type_start_kind_c(r.tok.kind))
+    return 1;
+  lex = r.next_lex;
+  c_ref_skip_type_suffix(&lex, source);
+  *(struct parser_asm_lexer *)lex_inout = lex;
+  return 1;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_fn_param_list_audit_c. */
 static int32_t c_ref_fn_param_list_audit(void *lex_inout, void *source) {
 
@@ -2681,7 +2699,8 @@ static int32_t c_ref_fn_param_list_audit(void *lex_inout, void *source) {
     lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind != (int32_t)TOKEN_COLON)
       return 0;
-    lex = parser_asm_stretch_skip_one_param_type_c(r.next_lex, source);
+    lex = r.next_lex;
+    c_ref_skip_one_param_type(&lex, source);
     nparams++;
     lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
@@ -2717,13 +2736,15 @@ static int32_t c_ref_skip_return_type_audit(void *lex_inout, void *source) {
       continue;
     }
     if (parser_asm_stretch_is_type_start_kind_c(r.tok.kind)) {
-      lex = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
+      lex = r.next_lex;
+      c_ref_skip_type_suffix(&lex, source);
       lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
       struct parser_asm_lexer after;
-      parser_asm_stretch_skip_balanced_brackets_into_c(&after, r.next_lex, source);
+      after = r.next_lex;
+      c_ref_skip_balanced_brackets_into(&after, source);
       lex = after;
       lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
       continue;
@@ -2892,7 +2913,8 @@ static int32_t c_ref_struct_fields_probe(void *lex_inout, void *source, int32_t 
     lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind != (int32_t)TOKEN_COLON)
       return 0;
-    lex = parser_asm_stretch_skip_one_param_type_c(r.next_lex, source);
+    lex = r.next_lex;
+    c_ref_skip_one_param_type(&lex, source);
     lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_COMMA
         && r.tok.kind != (int32_t)TOKEN_RBRACE)
@@ -2997,7 +3019,8 @@ static int32_t c_ref_trait_methods_probe(void *lex_inout, void *source, int32_t 
     lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     while (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_EOF) {
       if (parser_asm_stretch_is_type_start_kind_c(r.tok.kind)) {
-        lex = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
+        lex = r.next_lex;
+        c_ref_skip_type_suffix(&lex, source);
         lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
         continue;
       }
@@ -3119,7 +3142,8 @@ static int32_t c_ref_extern_fn_audit(void *lex_inout, void *source) {
       continue;
     }
     if (parser_asm_stretch_is_type_start_kind_c(r.tok.kind)) {
-      lex_cur = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
+      lex_cur = r.next_lex;
+      c_ref_skip_type_suffix(&lex_cur, source);
       lexer_next_into(&r, lex_cur, (struct parser_asm_slice_u8 *)source);
       continue;
     }
@@ -3151,7 +3175,8 @@ static int32_t c_ref_top_level_let_probe(void *lex_inout, void *source, int32_t 
   lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
   if (r.tok.kind != (int32_t)TOKEN_COLON)
     return 0;
-  lex = parser_asm_stretch_skip_one_param_type_c(r.next_lex, source);
+  lex = r.next_lex;
+  c_ref_skip_one_param_type(&lex, source);
   lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
   if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
     return 0;
@@ -3491,7 +3516,8 @@ static int32_t c_ref_extern_param_count_audit(void *lex_inout, void *source, int
     lexer_next_into(&r, lex_cur, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind != (int32_t)TOKEN_COLON)
       return 0;
-    lex_cur = parser_asm_stretch_skip_one_param_type_c(r.next_lex, source);
+    lex_cur = r.next_lex;
+    c_ref_skip_one_param_type(&lex_cur, source);
     nparams++;
     lexer_next_into(&r, lex_cur, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
@@ -3662,7 +3688,8 @@ static int32_t c_ref_type_ref_peek_audit(void *lex_inout, void *source) {
     return 1;
   if (!parser_asm_stretch_is_type_start_kind_c(r.tok.kind))
     return 0;
-  after = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
+  after = r.next_lex;
+  c_ref_skip_type_suffix(&after, source);
   return after.pos != lex.pos ? 1 : 0;
 
 }
@@ -4081,7 +4108,8 @@ static int32_t c_ref_as_suffix_chain_audit(void *lex_inout, void *source) {
     }
     if (!parser_asm_stretch_is_type_start_kind_c(r.tok.kind))
       return n;
-    lex = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
+    lex = r.next_lex;
+    c_ref_skip_type_suffix(&lex, source);
     lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
   }
   return n;
@@ -4222,7 +4250,8 @@ static int32_t c_ref_primary_suffix_chain_probe(void *lex_inout, void *source) {
       lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     } else if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
       score += 2;
-      parser_asm_stretch_skip_balanced_brackets_into_c(&lex, r.next_lex, source);
+      lex = r.next_lex;
+      c_ref_skip_balanced_brackets_into(&lex, source);
       lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
     } else if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
       score += 3;
@@ -4290,11 +4319,13 @@ static int32_t c_ref_type_ref_deep_audit(void *lex_inout, void *source) {
   if (r.tok.kind == (int32_t)TOKEN_STAR)
     return score + 1;
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
-    parser_asm_stretch_skip_balanced_brackets_into_c(&after, r.next_lex, source);
+    after = r.next_lex;
+    c_ref_skip_balanced_brackets_into(&after, source);
     return score + 2;
   }
   if (parser_asm_stretch_is_type_start_kind_c(r.tok.kind)) {
-    after = parser_asm_stretch_skip_type_suffix_c(r.next_lex, source);
+    after = r.next_lex;
+    c_ref_skip_type_suffix(&after, source);
     if (after.pos != r.next_lex.pos)
       score += 2;
   }

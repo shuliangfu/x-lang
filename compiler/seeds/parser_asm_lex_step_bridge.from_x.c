@@ -220,16 +220,15 @@ size_t parser_asm_lex_peek_token_start_c(void *lex, void *source) {
 }
 
 /* --- in-place adapters over the suite skip helpers (7.2.1 B-minus wave 3) ---
- * The helpers keep C authority (their many not-yet-ported C callers stay);
- * these adapters give .x the in-place face: advance the caller's opaque lexer
- * by the helper's result. Single implementation per helper (G.7). */
+ * v5.45: skip_balanced / skip_type_suffix / skip_one_param_type are pointer
+ * ABI leftover helpers (audit.x in hybrid; C twin when AUDIT_FROM_X is off).
+ * These adapters stay as G.7 thin wraps so generated .x audits keep calling
+ * the inplace names (eq-honest generator still inlines them).
+ * PLATFORM: SHARED. */
 extern int32_t parser_asm_stretch_is_type_start_kind_c(int32_t kind);
-extern void parser_asm_stretch_skip_balanced_brackets_into_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
-                                                             struct parser_asm_slice_u8 *source);
-extern struct parser_asm_lexer parser_asm_stretch_skip_type_suffix_c(struct parser_asm_lexer lex,
-                                                                     struct parser_asm_slice_u8 *source);
-extern struct parser_asm_lexer parser_asm_stretch_skip_one_param_type_c(struct parser_asm_lexer lex,
-                                                                        struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_skip_balanced_brackets_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_skip_type_suffix_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_skip_one_param_type_c(void *lex_inout, void *source);
 
 /**
  * Forward the suite's scalar/ident type-start predicate (single authority).
@@ -248,12 +247,9 @@ int32_t parser_asm_lex_is_type_start_kind_c(int32_t kind) {
  * PLATFORM: SHARED.
  */
 void parser_asm_lex_skip_balanced_brackets_inplace_c(void *lex_inout, void *source) {
-  struct parser_asm_lexer after;
   if (!lex_inout || !source)
     return;
-  parser_asm_stretch_skip_balanced_brackets_into_c(&after, *(struct parser_asm_lexer *)lex_inout,
-                                                   (struct parser_asm_slice_u8 *)source);
-  *(struct parser_asm_lexer *)lex_inout = after;
+  (void)parser_asm_stretch_skip_balanced_brackets_into_c(lex_inout, source);
 }
 
 /**
@@ -265,8 +261,7 @@ void parser_asm_lex_skip_balanced_brackets_inplace_c(void *lex_inout, void *sour
 void parser_asm_lex_skip_type_suffix_inplace_c(void *lex_inout, void *source) {
   if (!lex_inout || !source)
     return;
-  *(struct parser_asm_lexer *)lex_inout = parser_asm_stretch_skip_type_suffix_c(
-      *(struct parser_asm_lexer *)lex_inout, (struct parser_asm_slice_u8 *)source);
+  (void)parser_asm_stretch_skip_type_suffix_c(lex_inout, source);
 }
 
 /**
@@ -278,8 +273,7 @@ void parser_asm_lex_skip_type_suffix_inplace_c(void *lex_inout, void *source) {
 void parser_asm_lex_skip_one_param_type_inplace_c(void *lex_inout, void *source) {
   if (!lex_inout || !source)
     return;
-  *(struct parser_asm_lexer *)lex_inout = parser_asm_stretch_skip_one_param_type_c(
-      *(struct parser_asm_lexer *)lex_inout, (struct parser_asm_slice_u8 *)source);
+  (void)parser_asm_stretch_skip_one_param_type_c(lex_inout, source);
 }
 
 /**
