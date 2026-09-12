@@ -191,6 +191,8 @@ HELPERS_PORTED_TO_X = {
     "parser_asm_stretch_simd_builtin_audit_c",
     # v5.42 leftover Route C flatten from_at (lookahead + lex_after_ident).
     "parser_asm_stretch_simd_builtin_deep_from_at_audit_c",
+    # v5.43 leftover Route C flatten peek_kind_chain (out-array).
+    "parser_asm_stretch_peek_kind_chain_c",
 }
 
 SUITE_HELPER_SIGS = [

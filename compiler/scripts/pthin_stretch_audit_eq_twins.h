@@ -2283,20 +2283,21 @@ int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, 
   return STRETCH_TOP_UNKNOWN;
 }
 
-int32_t parser_asm_stretch_peek_kind_chain_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
-                                             int32_t *kinds, int32_t max_peek) {
+static int32_t parser_asm_stretch_peek_kind_chain_c(int32_t *kinds, int32_t max_peek, void *lex, void *source) {
+  struct parser_asm_lexer local;
   struct parser_asm_lexer_result r;
   int32_t n;
   int32_t i;
-  if (!source || !kinds || max_peek <= 0)
+  if (!kinds || max_peek <= 0 || !lex || !source)
     return 0;
+  local = *(struct parser_asm_lexer *)lex;
   n = 0;
-  lexer_next_into(&r, lex, source);
+  lexer_next_into(&r, local, (struct parser_asm_slice_u8 *)source);
   kinds[n++] = r.tok.kind;
   for (i = 1; i < max_peek; i++) {
     if (r.tok.kind == (int32_t)TOKEN_EOF)
       break;
-    lexer_next_into(&r, r.next_lex, source);
+    lexer_next_into(&r, r.next_lex, (struct parser_asm_slice_u8 *)source);
     kinds[n++] = r.tok.kind;
   }
   return n;
@@ -3676,7 +3677,7 @@ static int32_t c_ref_toplevel_kind_peek_audit(void *lex_inout, void *source) {
   int32_t kinds[4];
   int32_t n;
   int32_t score;
-  n = parser_asm_stretch_peek_kind_chain_c(lex, source, kinds, 4);
+  n = parser_asm_stretch_peek_kind_chain_c(kinds, 4, &lex, source);
   if (n <= 0)
     return 0;
   score = kinds[0];
@@ -4511,7 +4512,7 @@ static int32_t c_ref_diag_after_collect_preamble_audit(void *lex_inout, void *so
   int32_t kinds[4];
   int32_t score;
   score = c_ref_diag_toplevel_after_imports_audit(&lex, source);
-  if (parser_asm_stretch_peek_kind_chain_c(lex, source, kinds, 4) > 0)
+  if (parser_asm_stretch_peek_kind_chain_c(kinds, 4, &lex, source) > 0)
     score += kinds[0];
   return score;
 
@@ -5497,7 +5498,7 @@ static int32_t c_ref_diag_token_after_collect_imports_buf_audit(void *lex_inout,
   lex = parser_asm_lexer_init_c();
   score = c_ref_collect_imports_deep_buf_audit(&lex, data, len);
   lex = parser_asm_skip_imports_slice_c(parser_asm_lexer_init_c(), &sl);
-  if (parser_asm_stretch_peek_kind_chain_c(lex, &sl, peek_kinds, 6) > 0)
+  if (parser_asm_stretch_peek_kind_chain_c(peek_kinds, 6, &lex, &sl) > 0)
     score++;
   score += c_ref_diag_toplevel_after_imports_audit(&lex, &sl);
   return score > 0 ? 1 : 0;
@@ -5677,7 +5678,7 @@ static int32_t c_ref_parse_into_buf_loop_toplevel_buf_audit(void *lex_inout, uin
   score = c_ref_toplevel_kind_peek_audit(&lex, &sl);
   lexer_next_into(&r, lex, &sl);
   /* elide void validate_toplevel (v5.6; matches .x) */
-  if (parser_asm_stretch_peek_kind_chain_c(lex, &sl, kinds, 4) >= 2)
+  if (parser_asm_stretch_peek_kind_chain_c(kinds, 4, &lex, &sl) >= 2)
     score += parser_asm_stretch_classify_toplevel_c(kinds[0], kinds[1], kinds[2]);
   return score > 0 ? 1 : 0;
 
@@ -5759,7 +5760,7 @@ static int32_t c_ref_peek_kind_chain_buf_audit(void *lex_inout, uint8_t *data, i
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_peek_kind_chain_c(lex, &sl, kinds, 6) > 0 ? 1 : 0;
+  return parser_asm_stretch_peek_kind_chain_c(kinds, 6, &lex, &sl) > 0 ? 1 : 0;
 
 }
 
@@ -5799,7 +5800,10 @@ static int32_t c_ref_first_token_kind_buf_audit(void *lex_inout, uint8_t *data, 
     return 0;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_peek_kind_chain_c(parser_asm_lexer_init_c(), &sl, kinds, 4) > 0 ? 1 : 0;
+  {
+    struct parser_asm_lexer init_lex = parser_asm_lexer_init_c();
+    return parser_asm_stretch_peek_kind_chain_c(kinds, 4, &init_lex, &sl) > 0 ? 1 : 0;
+  }
 
 }
 
@@ -7538,7 +7542,7 @@ static int32_t c_ref_import_stmt_full_deep_audit(void *lex_inout, void *source) 
   sel_lex = lex;
   score = c_ref_import_stmt_audit(&lex, source);
   score += c_ref_import_select_list_audit(&sel_lex, source, 32);
-  score += parser_asm_stretch_peek_kind_chain_c(lex, source, peek_kinds, 6);
+  score += parser_asm_stretch_peek_kind_chain_c(peek_kinds, 6, &lex, source);
   return score > 0 ? 1 : 0;
 
 }
@@ -8304,7 +8308,7 @@ static int32_t c_ref_collect_imports_mega_full_deep_audit(void *lex_inout, void 
   score = c_ref_import_stmt_full_deep_audit(&lex, source);
   score += c_ref_diag_after_collect_preamble_audit(&lex, source);
   score += c_ref_diag_toplevel_after_imports_audit(&lex, source);
-  score += parser_asm_stretch_peek_kind_chain_c(lex, source, peek_kinds, 6);
+  score += parser_asm_stretch_peek_kind_chain_c(peek_kinds, 6, &lex, source);
   return score > 0 ? 1 : 0;
 
 }

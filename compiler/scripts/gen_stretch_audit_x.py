@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.42 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.43 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,15 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.43: leftover helper Route C flatten peek_kind_chain (out-array).
+#   peek_kind_chain's walk only reads each token's kind into kinds[];
+#   caller lex is net-zero (by-val copy / restore trio). Flatten onto
+#   (kinds, max_peek, lex, source); C twin copies *lex. Generator still
+#   inlines peek_kind_chain (eq-honest v4.6); leftover helper is the new
+#   authority. Still refuse validate_toplevel (verify_kw_spelling),
+#   import_path_post (finalize not in eq TU), advance_to secondary-cursor.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=peek_kind,toplevel_kind_peek,library_scan,match_subject,skip_allow.
 #
 # v5.42: leftover helper Route C flatten from_at (lookahead + lex_after_ident).
 #   from_at's one next_lex walk only extracted ident kind/start/len; the
@@ -1256,9 +1265,14 @@ def translate(name, body, tokvals):
             si += 1
             continue
         # v4.6: VAR = peek_kind_chain_c(lex, source, ARR, N);
+        # v5.43: VAR = peek_kind_chain_c(ARR, N, &lex, source);
         m = re.match(
             r"(\w+) = parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\);$",
             st)
+        if not m:
+            m = re.match(
+                r"(\w+) = parser_asm_stretch_peek_kind_chain_c\((\w+), (\d+), (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), (?:source|&sl)\);$",
+                st)
         if m and m.group(2) in kind_arrays:
             var, arr, nmax = m.group(1), m.group(2), int(m.group(3))
             if nmax != kind_arrays[arr]:
@@ -1269,9 +1283,14 @@ def translate(name, body, tokvals):
             si += 1
             continue
         # v4.6: score += peek_kind_chain_c(...);  (return count)
+        # v5.43: score += peek_kind_chain_c(ARR, N, &lex, source);
         m = re.match(
             r"(\w+) (\+=|=) parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\);$",
             st)
+        if not m:
+            m = re.match(
+                r"(\w+) (\+=|=) parser_asm_stretch_peek_kind_chain_c\((\w+), (\d+), (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), (?:source|&sl)\);$",
+                st)
         if m and m.group(3) in kind_arrays:
             var, op, arr, nmax = m.group(1), m.group(2), m.group(3), int(m.group(4))
             if nmax != kind_arrays[arr]:
@@ -1285,10 +1304,16 @@ def translate(name, body, tokvals):
             si += 1
             continue
         # v5.35: if (peek_kind_chain_c(...) > 0) score++;  (joined)
+        # v5.43: if (peek_kind_chain_c(ARR, N, &lex, source) > 0) score++;
         m = re.match(
             r"if \(parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\) > 0\) "
             r"(\w+)\+\+;$",
             st)
+        if not m:
+            m = re.match(
+                r"if \(parser_asm_stretch_peek_kind_chain_c\((\w+), (\d+), (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), (?:source|&sl)\) > 0\) "
+                r"(\w+)\+\+;$",
+                st)
         if m and m.group(1) in kind_arrays:
             arr, nmax, var = m.group(1), int(m.group(2)), m.group(3)
             if nmax != kind_arrays[arr]:
@@ -1301,10 +1326,16 @@ def translate(name, body, tokvals):
             si += 1
             continue
         # v4.6: if (peek_kind_chain_c(...) > 0) score += kinds[0];  (joined)
+        # v5.43: if (peek_kind_chain_c(ARR, N, &lex, source) > 0) score += kinds[0];
         m = re.match(
             r"if \(parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\) > 0\) "
             r"(\w+) \+= (\w+)\[(\d+)\];$",
             st)
+        if not m:
+            m = re.match(
+                r"if \(parser_asm_stretch_peek_kind_chain_c\((\w+), (\d+), (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), (?:source|&sl)\) > 0\) "
+                r"(\w+) \+= (\w+)\[(\d+)\];$",
+                st)
         if m and m.group(1) in kind_arrays:
             arr, nmax, var, arr2, idx = m.group(1), int(m.group(2)), m.group(3), m.group(4), int(m.group(5))
             if arr != arr2 or nmax != kind_arrays[arr]:
@@ -1317,10 +1348,16 @@ def translate(name, body, tokvals):
             si += 1
             continue
         # v4.6: if (peek_kind_chain_c(...) >= K) score += classify(...); (joined)
+        # v5.43: if (peek_kind_chain_c(ARR, N, &lex, source) >= K) score += classify(...);
         m = re.match(
             r"if \(parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\) >= (\d+)\) "
             r"(\w+) \+= parser_asm_stretch_classify_toplevel_c\((.+)\);$",
             st)
+        if not m:
+            m = re.match(
+                r"if \(parser_asm_stretch_peek_kind_chain_c\((\w+), (\d+), (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), (?:source|&sl)\) >= (\d+)\) "
+                r"(\w+) \+= parser_asm_stretch_classify_toplevel_c\((.+)\);$",
+                st)
         if m and m.group(1) in kind_arrays:
             arr, nmax, thresh, var, args = (
                 m.group(1), int(m.group(2)), m.group(3), m.group(4), m.group(5))
@@ -2069,6 +2106,11 @@ def translate(name, body, tokvals):
                 r"parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+|parser_asm_lexer_init_c\(\)), "
                 r"(?:source|&sl), (\w+), (\d+)\) > 0 \? 1 : 0$",
                 expr)
+            if not mpk:
+                mpk = re.match(
+                    r"parser_asm_stretch_peek_kind_chain_c\((\w+), (\d+), (?:&lex|&?\w+|parser_asm_lexer_init_c\(\)), "
+                    r"(?:source|&sl)\) > 0 \? 1 : 0$",
+                    expr)
             if mpk and mpk.group(1) in kind_arrays:
                 arr, nmax = mpk.group(1), int(mpk.group(2))
                 if nmax != kind_arrays[arr]:
@@ -2334,6 +2376,10 @@ PURE_HELPERS = {
     # v5.42 leftover Route C flatten from_at (lookahead + lex_after_ident)
     "parser_asm_stretch_simd_builtin_deep_from_at_audit_c": (
         "at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32, lex_after_ident: *u8",
+        "i32"),
+    # v5.43 leftover Route C flatten peek_kind_chain (out-array)
+    "parser_asm_stretch_peek_kind_chain_c": (
+        "kinds: *i32, max_peek: i32, lex: *u8, source: *u8",
         "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
@@ -3195,6 +3241,10 @@ PURE_HELPERS = {
     # v5.42 leftover Route C flatten from_at (lookahead + lex_after_ident)
     "parser_asm_stretch_simd_builtin_deep_from_at_audit_c": (
         "at_kind: i32, ident_kind: i32, source: *u8, ident_start: usize, ident_len: i32, lex_after_ident: *u8",
+        "i32"),
+    # v5.43 leftover Route C flatten peek_kind_chain (out-array)
+    "parser_asm_stretch_peek_kind_chain_c": (
+        "kinds: *i32, max_peek: i32, lex: *u8, source: *u8",
         "i32"),
     # v5.39 leftover Route C kind classifiers / bind wraps
     "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),

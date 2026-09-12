@@ -83318,3 +83318,53 @@ export function parser_asm_stretch_simd_builtin_deep_from_at_audit_c(at_kind: i3
   }
   return 0;
 }
+
+/* ── leftover helpers (v5.43 Route C flatten: peek_kind_chain out-array) ── */
+
+/**
+ * Non-mutating lookahead: write up to `max_peek` token kinds into `kinds[]`
+ * and return the count actually written. Flattened from leftover
+ * lexer-by-val `peek_kind_chain_c`: the walk only reads each token's
+ * `kind` (no ident / start). Caller lex is restored (net-zero, matching
+ * the historical by-val copy). EOF is written and then stops.
+ * @param kinds *i32 — out array; caller-owned; capacity >= max_peek
+ * @param max_peek i32 — max kinds to write; <=0 → 0
+ * @param lex *u8 — opaque lexer (restored; not advanced)
+ * @param source *u8 — opaque slice
+ * @return i32 — number of kinds written; 0 on null / max_peek<=0
+ * PLATFORM: SHARED — leftover helper port (v5.43).
+ */
+#[no_mangle]
+export function parser_asm_stretch_peek_kind_chain_c(kinds: *i32, max_peek: i32, lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let n: i32 = 0;
+  if (kinds == 0 as *i32 || max_peek <= 0 || lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    n = 0;
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    while (n < max_peek) {
+      kinds[n] = kind;
+      n = n + 1;
+      if (kind == TOKEN_EOF) {
+        break;
+      }
+      if (n >= max_peek) {
+        break;
+      }
+      parser_asm_lex_step_kind_c(lex, source);
+      kind = parser_asm_lex_peek_kind_c(lex, source);
+    }
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+  }
+  return n;
+}

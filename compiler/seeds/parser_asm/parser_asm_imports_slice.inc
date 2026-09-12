@@ -1800,7 +1800,7 @@ int32_t parser_asm_diag_token_after_collect_imports_slice_c(struct parser_asm_sl
   lex = import_res.lex;
   {
     int32_t peek_kinds[6];
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_peek_kind_chain_c(lex, source, peek_kinds, 6));
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_peek_kind_chain_c(peek_kinds, 6, &lex, source));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_toplevel_after_imports_audit_c(&lex, source));
   }
   lexer_next_into(&r, lex, source);

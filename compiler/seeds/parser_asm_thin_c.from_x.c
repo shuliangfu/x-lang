@@ -231,8 +231,7 @@ int32_t parser_asm_stretch_function_header_audit_c(void *lex_inout, void *source
 int32_t parser_asm_stretch_skip_allow_modifiers_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_import_path_post_audit_c(uint8_t *path_buf, int32_t path_len,
                                                     struct parser_asm_slice_u8 *source);
-int32_t parser_asm_stretch_peek_kind_chain_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
-                                             int32_t *kinds, int32_t max_peek);
+int32_t parser_asm_stretch_peek_kind_chain_c(int32_t *kinds, int32_t max_peek, void *lex, void *source);
 int32_t parser_asm_stretch_toplevel_kind_peek_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_match_kw_audit_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_else_if_chain_audit_c(void *lex_inout, void *source);
