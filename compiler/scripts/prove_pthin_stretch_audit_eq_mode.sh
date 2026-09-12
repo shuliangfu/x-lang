@@ -17,6 +17,10 @@
 #         a whole soft-knife slot. Soft-knife gate for deep climbs = **close
 #         only** (matrix+drift+compress+close). Override only with
 #         EQ_FORCE_DEEP_DAILY=1 (explicit, never default).
+#         v5.61 深链分批: leftover_helpers 0, so daily may smoke the first
+#         already-T lex-first layer that is NOT HARD BAN. Exact ultra_mega
+#         (25 k_cases) is that layer; super_mega is next. Those daily runs
+#         default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4 (score-chain wall-clock).
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -197,8 +201,17 @@ case "$MODE" in
     # close already covers the full table at OFF=24×parallel. Override with
     # EQ_MAX_FILE_OFF=128 when deliberately deepening a delta smoke.
     export EQ_MAX_FILE_OFF="${EQ_MAX_FILE_OFF:-24}"
+    # v5.61: ultra_mega / super_mega are daily-legal (not HARD BAN) but
+    # still score-chains. Default skip-synth + stride so Darwin stays ≤5 min.
+    # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
+    case ",$EQ_ONLY," in
+      *,*ultra_mega*|*,*super_mega*)
+        export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
+        export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
+        ;;
+    esac
     unset EQ_SHARD || true
-    echo "eq_mode=daily EQ_ONLY=$EQ_ONLY OFF=$EQ_MAX_FILE_OFF (target <2min)"
+    echo "eq_mode=daily EQ_ONLY=$EQ_ONLY OFF=$EQ_MAX_FILE_OFF SKIP_SYNTH=${EQ_SKIP_SYNTH:-0} STRIDE=${EQ_FILE_STRIDE:-1} (target <2min / 深链分批 ≤5min)"
     build_harness
     export EQ_SHARD=0/1
     "$HARNESS" "${FILES[@]}"

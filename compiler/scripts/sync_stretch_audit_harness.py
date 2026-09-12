@@ -299,6 +299,12 @@ SUITE_HELPER_SIGS = [
 # / paren_expr_head / builtin_vec_token (do not copy classify / score
 # tables). Honest flatten: C skips paren on null lex; .x paren returns
 # 0 on null lex. Last leftover_helper. classify / score stay stretch.x.
+# v5.61: leftover_helpers 0. Deep-chain batch smoke (not a new leftover
+# TU): exact ultra_mega layer is already lex-first k_cases (25 rows;
+# ultra_mega is not a HARD BAN substring). Do not copy classify / score
+# into leftover-to-audit. Do not daily *vx* / summit / peak / zenith /
+# versal. Eq gate: FORCE smoke deep_off=0 /
+# EQ_ONLY=ultra_mega,skip_allow EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

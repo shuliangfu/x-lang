@@ -173,6 +173,13 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.61: leftover_helpers 0 / leftover-to-audit unique 0. Next surface is
+#   already-T lex-first deep combinators (soft-deep 270; HARD BAN daily
+#   still vx/summit/peak/zenith/versal). First 深链分批 = exact ultra_mega
+#   layer (25 k_cases; no HARD BAN substring). classify/score stay
+#   stretch.x (not leftover-to-audit). Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=ultra_mega,skip_allow EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+#
 # v5.60: leftover_helpers simd_builtin_deep_from_at lex_after_ident eq
 #   (simd_builtin_deep_from_at). Already .x T in audit.x; no k_cases row
 #   because first param is at_kind: not lex:. twins.h keeps a static C
