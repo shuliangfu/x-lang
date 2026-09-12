@@ -14,19 +14,12 @@ extern void parser_asm_skip_balanced_parens_into_slice_c(struct parser_asm_lexer
                                                          struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_is_compound_assign_token_c(int32_t kind);
 
-/** 顶层声明粗分类（collect_imports / parse_into 主循环用）。 */
-enum {
-  STRETCH_TOP_UNKNOWN = 0,
-  STRETCH_TOP_IMPORT = 1,
-  STRETCH_TOP_CONST_BIND = 2,
-  STRETCH_TOP_FUNCTION = 3,
-  STRETCH_TOP_STRUCT = 4,
-  STRETCH_TOP_ENUM = 5,
-  STRETCH_TOP_EXTERN = 6,
-  STRETCH_TOP_LET = 7,
-  STRETCH_TOP_TRAIT = 8,
-  STRETCH_TOP_IMPL = 9
-};
+/* STRETCH_TOP_* enum + classify_toplevel_c + import_path_score_c moved to
+ * parser_asm_emit_heavy_stretch_slice.inc (7.2.1 already-T shrink, 2026-09-12).
+ * Hybrid P9 skips this file; lite is always in the P9 TU. G.7: one C def.
+ * Cold leftover bodies below still call classify; lite include precedes this file. */
+extern int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, int32_t third_kind);
+extern int32_t parser_asm_stretch_import_path_score_c(const uint8_t *path, int32_t path_len);
 
 /** block_stmt 内嵌审计前向声明（定义在本文件后部）。 */
 int32_t parser_asm_stretch_if_header_audit_c(void *lex_inout, void *source);
@@ -2167,31 +2160,6 @@ int32_t parser_asm_stretch_fn_sig_audit_c(void *lex_inout, void *source) {
 #endif
 
 /**
- * 顶层 token 分类（import 收集循环入口用）。
- */
-int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, int32_t third_kind) {
-  if (kind == (int32_t)TOKEN_IMPORT)
-    return STRETCH_TOP_IMPORT;
-  if (kind == (int32_t)TOKEN_FUNCTION)
-    return STRETCH_TOP_FUNCTION;
-  if (kind == (int32_t)TOKEN_STRUCT)
-    return STRETCH_TOP_STRUCT;
-  if (kind == (int32_t)TOKEN_ENUM)
-    return STRETCH_TOP_ENUM;
-  if (kind == (int32_t)TOKEN_EXTERN)
-    return STRETCH_TOP_EXTERN;
-  if (kind == (int32_t)TOKEN_LET)
-    return STRETCH_TOP_LET;
-  if (kind == (int32_t)TOKEN_TRAIT)
-    return STRETCH_TOP_TRAIT;
-  if (kind == (int32_t)TOKEN_IMPL)
-    return STRETCH_TOP_IMPL;
-  if (kind == (int32_t)TOKEN_CONST && next_kind == (int32_t)TOKEN_IDENT && third_kind == (int32_t)TOKEN_ASSIGN)
-    return STRETCH_TOP_CONST_BIND;
-  return STRETCH_TOP_UNKNOWN;
-}
-
-/**
  * Top-level token leftover: historical body called token_run_len +
  * verify_kw_spelling (tables live in stretch.x, not eq TU). Flattened
  * off lexer_result-by-val onto (kind, ident_len, token_start, source).
@@ -2741,42 +2709,6 @@ int32_t parser_asm_stretch_top_level_let_probe_c(void *lex_inout, void *source, 
   return r.tok.kind == (int32_t)TOKEN_SEMICOLON ? 1 : 0;
 }
 #endif
-
-/**
- * import 路径评分：段数 + 每段长度校验（collect_imports 成功后扩面审计）。
- */
-int32_t parser_asm_stretch_import_path_score_c(const uint8_t *path, int32_t path_len) {
-  int32_t i;
-  int32_t seg;
-  int32_t score;
-  int32_t seg_len;
-  if (!path || path_len <= 0)
-    return 0;
-  score = 0;
-  seg = 0;
-  seg_len = 0;
-  for (i = 0; i < path_len; i++) {
-    uint8_t c = path[i];
-    if (c == (uint8_t)'.') {
-      if (seg_len <= 0)
-        return 0;
-      score += seg_len;
-      seg++;
-      seg_len = 0;
-      continue;
-    }
-    if (parser_asm_stretch_import_path_validate_c(path, path_len) == 0)
-      return 0;
-    seg_len++;
-    if (seg_len > 63)
-      return 0;
-  }
-  if (seg_len <= 0)
-    return 0;
-  score += seg_len;
-  seg++;
-  return score + seg * 4;
-}
 
 /**
  * struct 定义前修饰符审计：packed / soa / align(N) / allow(...)（只读扫描，不改 lex）。

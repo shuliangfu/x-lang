@@ -2,7 +2,9 @@
  * Logic source: src/asm/pthin_stretch.x
  * Hybrid: XLANG_PTHIN_STRETCH_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: emit_heavy_stretch_slice.inc (lite) + suite_slice.inc (~28k) — G-02f-318
+ * Body: emit_heavy_stretch_slice.inc (lite, including classify/score).
+ * suite_slice.inc (~46k already-T combinator twins) only when P9a is off
+ * (no XLANG_PTHIN_STRETCH_AUDIT_FROM_X). Hybrid skips that include.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -220,7 +222,16 @@ int32_t parser_asm_stretch_try_skip_allow_paren_buf_audit_c(void *lex_inout, uin
 int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 
 #include "parser_asm_emit_heavy_stretch_slice.inc"
+/* PLATFORM: SHARED — 7.2.1 already-T shrink (2026-09-12).
+ * Hybrid P9a (XLANG_PTHIN_STRETCH_AUDIT_FROM_X) already provides the 1978
+ * combinator symbols from pthin_stretch_audit.x. Including suite_slice.inc
+ * here still forced host-cc to preprocess ~46k lines / 2.6MiB of #ifndef
+ * bodies + vx forward decls. Skip the include on the hybrid lane.
+ * classify_toplevel / import_path_score live in the lite slice above.
+ * Cold (no P9a): keep the suite C twins as the fallback authority. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 #include "parser_asm_emit_heavy_stretch_suite_slice.inc"
+#endif
 
 int labi_pthin_stretch_slice_marker(void) {
   return 1;

@@ -487,4 +487,78 @@ int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len
   return 1;
 }
 
+/* PLATFORM: SHARED — classify / import_path_score used to live ungated in
+ * suite_slice.inc. 7.2.1 already-T shrink (2026-09-12): P9a audit.x owns the
+ * 1978 combinator twins, so hybrid skips suite_slice.inc; these two scalar
+ * tables stay in the lite TU (token.h TOKEN_* authority, not stretch.x pin
+ * copies). Cold rest includes lite then suite, so suite no longer defines
+ * them (G.7 single C def). */
+enum {
+  STRETCH_TOP_UNKNOWN = 0,
+  STRETCH_TOP_IMPORT = 1,
+  STRETCH_TOP_CONST_BIND = 2,
+  STRETCH_TOP_FUNCTION = 3,
+  STRETCH_TOP_STRUCT = 4,
+  STRETCH_TOP_ENUM = 5,
+  STRETCH_TOP_EXTERN = 6,
+  STRETCH_TOP_LET = 7,
+  STRETCH_TOP_TRAIT = 8,
+  STRETCH_TOP_IMPL = 9
+};
+
+int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, int32_t third_kind) {
+  if (kind == (int32_t)TOKEN_IMPORT)
+    return STRETCH_TOP_IMPORT;
+  if (kind == (int32_t)TOKEN_FUNCTION)
+    return STRETCH_TOP_FUNCTION;
+  if (kind == (int32_t)TOKEN_STRUCT)
+    return STRETCH_TOP_STRUCT;
+  if (kind == (int32_t)TOKEN_ENUM)
+    return STRETCH_TOP_ENUM;
+  if (kind == (int32_t)TOKEN_EXTERN)
+    return STRETCH_TOP_EXTERN;
+  if (kind == (int32_t)TOKEN_LET)
+    return STRETCH_TOP_LET;
+  if (kind == (int32_t)TOKEN_TRAIT)
+    return STRETCH_TOP_TRAIT;
+  if (kind == (int32_t)TOKEN_IMPL)
+    return STRETCH_TOP_IMPL;
+  if (kind == (int32_t)TOKEN_CONST && next_kind == (int32_t)TOKEN_IDENT && third_kind == (int32_t)TOKEN_ASSIGN)
+    return STRETCH_TOP_CONST_BIND;
+  return STRETCH_TOP_UNKNOWN;
+}
+
+int32_t parser_asm_stretch_import_path_score_c(const uint8_t *path, int32_t path_len) {
+  int32_t i;
+  int32_t seg;
+  int32_t score;
+  int32_t seg_len;
+  if (!path || path_len <= 0)
+    return 0;
+  score = 0;
+  seg = 0;
+  seg_len = 0;
+  for (i = 0; i < path_len; i++) {
+    uint8_t c = path[i];
+    if (c == (uint8_t)'.') {
+      if (seg_len <= 0)
+        return 0;
+      score += seg_len;
+      seg++;
+      seg_len = 0;
+      continue;
+    }
+    if (parser_asm_stretch_import_path_validate_c(path, path_len) == 0)
+      return 0;
+    seg_len++;
+    if (seg_len > 63)
+      return 0;
+  }
+  if (seg_len <= 0)
+    return 0;
+  score += seg_len;
+  seg++;
+  return score + seg * 4;
+}
+
 #endif /* PARSER_ASM_EMIT_HEAVY_STRETCH_SLICE_INCLUDED */
