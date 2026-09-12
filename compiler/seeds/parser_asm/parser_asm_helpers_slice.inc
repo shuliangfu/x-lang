@@ -5,10 +5,13 @@
  *
  * Hybrid P19b: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
  * kind/copy/pos/match-kw region (bodies in src/asm/pthin_helpers.x +
- * by-value trampolines in the seed TU). Rewind/advance/align/first_token
- * stay here. first_token_kind_buf AUDIT_CALL padding is compiled only
- * under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already nop).
- * Cold: no BODIES define, this file is the full twin.
+ * by-value trampolines in the seed TU). Rewind/align/first_token stay
+ * here. P1d ASI advance_past_* twins skip under
+ * XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X (bodies in pthin_lex_skip.x;
+ * trampolines replay lexer_next_into into *r_out). first_token_kind_buf
+ * AUDIT_CALL padding is compiled only under XLANG_PARSER_STRETCH_AUDIT
+ * (product AUDIT_CALL is already nop). Cold: no BODIES define, this
+ * file is the full twin.
  */
 #ifndef PARSER_ASM_HELPERS_SLICE_INC
 #define PARSER_ASM_HELPERS_SLICE_INC
@@ -361,6 +364,26 @@ void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
  * PLATFORM: SHARED — parse ASI; docs/08 still recommends `;` mid-block;
  * product accepts keyword ASI (wave361+) and IDENT/control heads here.
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1d trampoline. *r_out is the consumed following
+ * token (C lexer_next_into from the entry cursor). .x already stepped
+ * once; replay next_into so callers still read r_out->tok. Do not add
+ * P9a as a hard gate to P19 (this define comes from P1b try_x_to_o). */
+extern int32_t parser_asm_advance_past_stmt_semicolon_into_c(void *lex_inout, void *source);
+int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_lexer_result *r_out,
+                                                            struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!r_out || !source)
+    return 0;
+  cur = lex;
+  rc = parser_asm_advance_past_stmt_semicolon_into_c(&cur, source);
+  lexer_next_into(r_out, lex, source);
+  (void)cur;
+  return rc;
+}
+#else
 int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                             struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source) {
@@ -382,11 +405,32 @@ int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_le
     return 1;
   return 0;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X advance_past_stmt_semicolon */
 
 /**
  * advance_past_cond_rparen_into：if/while 条件后同步到 ) 之后（或已见 {）。
  * PLATFORM: SHARED — paren form `if (cond) {` and bare form `if cond {` (docs/03; wave361).
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1d trampoline. Replay C's next_into (+ extra next
+ * after `)`) so *r_out is the token callers inspect. .x already stepped. */
+extern int32_t parser_asm_advance_past_cond_rparen_into_c(void *lex_inout, void *source);
+int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer_result *r_out,
+                                                         struct parser_asm_lexer lex,
+                                                         struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!r_out || !source)
+    return 0;
+  cur = lex;
+  rc = parser_asm_advance_past_cond_rparen_into_c(&cur, source);
+  lexer_next_into(r_out, lex, source);
+  if (rc && r_out->tok.kind == (int32_t)TOKEN_RPAREN)
+    lexer_next_into(r_out, r_out->next_lex, source);
+  (void)cur;
+  return rc;
+}
+#else
 int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                          struct parser_asm_lexer lex,
                                                          struct parser_asm_slice_u8 *source) {
@@ -405,6 +449,7 @@ int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer
     return 1;
   return 0;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X advance_past_cond_rparen */
 
 /**
  * parse_peek_function_name_buf 的 C 实现；EMIT_HEAVY 桩 bl 目标。

@@ -33,10 +33,22 @@
 // skip_generic_angle_list_into (this export inspects tokens the
 // into skip does not). Do not open a new P-lane.
 //
-// Hybrid P1b/P1c: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
-// skips the portable .inc region. token.h remains the TOKEN_* authority
-// via P1 C _Static_assert pins. Cold: no define, full .inc stays.
-// Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c bodies.
+// 7.2.1 P1d B-minus (2026-09-13): 有则补全 this file with
+// advance_past_stmt_semicolon + advance_past_cond_rparen. The C
+// twins live in helpers.inc (P19); this file is the skip/ASI
+// authority (P1 already has the P9a lexer-step bridge). Do not add
+// P9a as a hard gate to P19 (portable kind/copy stay independent).
+// Do not merge helpers ident_is_unsafe_stmt into P4b buf probes
+// (by-value lexer_result vs buf-path); the 6-byte `unsafe` check
+// here is file-local for ASI only. Do not open a new P-lane.
+// C trampolines in helpers.inc replay lexer_next_into to fill
+// *r_out (language has no struct-by-value lexer_result).
+//
+// Hybrid P1b/P1c/P1d: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+// skips the portable .inc region and the helpers.inc ASI twins.
+// token.h remains the TOKEN_* authority via P1 C _Static_assert pins.
+// Cold: no define, full .inc stays. Do not reuse
+// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -73,6 +85,8 @@ const TOKEN_FOR: i32 = 8;
 const TOKEN_BREAK: i32 = 9;
 const TOKEN_CONTINUE: i32 = 10;
 const TOKEN_RETURN: i32 = 11;
+const TOKEN_PANIC: i32 = 12;
+const TOKEN_DEFER: i32 = 13;
 const TOKEN_MATCH: i32 = 18;
 const TOKEN_STRUCT: i32 = 19;
 const TOKEN_TYPE: i32 = 20;
@@ -80,6 +94,7 @@ const TOKEN_ENUM: i32 = 47;
 const TOKEN_GOTO: i32 = 48;
 const TOKEN_TRAIT: i32 = 49;
 const TOKEN_IMPL: i32 = 50;
+const TOKEN_SELF: i32 = 51;
 const TOKEN_IMPORT: i32 = 53;
 const TOKEN_EXTERN: i32 = 54;
 const TOKEN_IDENT: i32 = 59;
@@ -101,6 +116,7 @@ const TOKEN_RBRACE: i32 = 85;
 const TOKEN_COMMA: i32 = 90;
 const TOKEN_COLON: i32 = 91;
 const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_STAR: i32 = 98;
 const TOKEN_PLUS_EQ: i32 = 106;
 const TOKEN_MINUS_EQ: i32 = 107;
 const TOKEN_STAR_EQ: i32 = 108;
@@ -619,4 +635,156 @@ export function parser_asm_skip_generic_angle_list_count_into_c(lex_inout: *u8, 
     }
   }
   return 1;
+}
+
+/**
+ * True when IDENT spelling at `token_start` is the six bytes `unsafe`.
+ * File-local: ASI stmt-head only. Do not export (P4b buf remains the
+ * primary-parse ident-spelling authority; helpers ident_is_unsafe_stmt
+ * stays the by-value lexer_result wrapper).
+ * @param data *u8 — source bytes; null is 0
+ * @param length usize — source length
+ * @param token_start usize — first IDENT byte
+ * @param ident_len i32 — IDENT length; must be 6
+ * @return i32 — 1 if the span is `unsafe`; 0 otherwise
+ * PLATFORM: SHARED — ASI helper; not a second ident-probe table.
+ */
+function parser_asm_lex_skip_ident_is_unsafe_stmt(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
+  if (data == 0 as *u8 || ident_len != 6) {
+    return 0;
+  }
+  if (token_start + 6 as usize > length) {
+    return 0;
+  }
+  unsafe {
+    if (data[token_start] != 117) {
+      return 0;
+    }
+    if (data[token_start + 1 as usize] != 110) {
+      return 0;
+    }
+    if (data[token_start + 2 as usize] != 115) {
+      return 0;
+    }
+    if (data[token_start + 3 as usize] != 97) {
+      return 0;
+    }
+    if (data[token_start + 4 as usize] != 102) {
+      return 0;
+    }
+    if (data[token_start + 5 as usize] != 101) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * True when `k` is a wave654 ASI following-stmt head (not `;`).
+ * IDENT is included: expr parse already finished, so a following IDENT
+ * cannot continue the prior expr.
+ * @param k i32 — lexer token kind
+ * @return i32 — 1 if ASI-legal stmt head; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+function parser_asm_lex_skip_is_asi_stmt_head_kind(k: i32): i32 {
+  if (k == TOKEN_LET || k == TOKEN_CONST || k == TOKEN_RETURN) {
+    return 1;
+  }
+  if (k == TOKEN_IF || k == TOKEN_WHILE || k == TOKEN_FOR) {
+    return 1;
+  }
+  if (k == TOKEN_RBRACE || k == TOKEN_IDENT || k == TOKEN_BREAK) {
+    return 1;
+  }
+  if (k == TOKEN_CONTINUE || k == TOKEN_MATCH || k == TOKEN_LOOP) {
+    return 1;
+  }
+  if (k == TOKEN_PANIC || k == TOKEN_DEFER || k == TOKEN_GOTO) {
+    return 1;
+  }
+  if (k == TOKEN_STAR || k == TOKEN_SELF) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Consume the next token and accept it as `;` or an ASI stmt head.
+ * Entry cursor is the start of the following token (C `lex` by value).
+ * Always steps once. Returns 1 for `;`, `unsafe`, or the wave654
+ * allowlist (LET/CONST/RETURN/IF/WHILE/FOR/RBRACE/IDENT/BREAK/
+ * CONTINUE/MATCH/LOOP/PANIC/DEFER/GOTO/STAR/SELF). The C trampoline
+ * in helpers.inc keeps the original name
+ * `parser_asm_advance_past_stmt_semicolon_into_slice_c` and
+ * materializes `*r_out` via lexer_next_into from the entry cursor.
+ * @param lex_inout *u8 — opaque lexer (advanced past the following token)
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 if the token is `;` or an ASI stmt head; 0 on null / other
+ * PLATFORM: SHARED — product P1d B-minus; C twin stays in helpers.inc.
+ */
+#[no_mangle]
+export function parser_asm_advance_past_stmt_semicolon_into_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let tstart: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    idlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    tstart = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (tstart == 0 as usize) {
+      tstart = parser_asm_lex_pos_c(lex_inout);
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    if (kind == TOKEN_SEMICOLON) {
+      return 1;
+    }
+    if (parser_asm_lex_skip_ident_is_unsafe_stmt(data, slen, tstart, idlen) != 0) {
+      return 1;
+    }
+    if (parser_asm_lex_skip_is_asi_stmt_head_kind(kind) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Consume the next token after an if/while condition: accept `)` (and
+ * step the token after it) or `{` (bare `if cond {`).
+ * Entry cursor is the start of the token after the condition expr.
+ * Fail-leave still consumes that one token (C filled `*r_out` then
+ * returned 0). Success on `)` steps a second token (C extra
+ * lexer_next_into). Success on `{` leaves the lexer after `{`.
+ * @param lex_inout *u8 — opaque lexer
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 if `)` or `{`; 0 on null / other
+ * PLATFORM: SHARED — product P1d B-minus; C trampoline keeps
+ * `parser_asm_advance_past_cond_rparen_into_slice_c`.
+ */
+#[no_mangle]
+export function parser_asm_advance_past_cond_rparen_into_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      return 1;
+    }
+    if (kind == TOKEN_LBRACE) {
+      return 1;
+    }
+  }
+  return 0;
 }

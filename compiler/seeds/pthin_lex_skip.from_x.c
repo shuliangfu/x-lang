@@ -3,11 +3,12 @@
  * Hybrid: XLANG_PTHIN_LEX_SKIP_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_lex_skip_slice.inc
- * Hybrid P1b/P1c (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
- * bodies and the count walk come from pthin_lex_skip.x; this TU keeps
- * by-value trampolines plus g_gp_pending_* / register_pending C. Cold: no
- * BODIES define, full .inc. Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for
- * P1b/P1c bodies.
+ * Hybrid P1b/P1c/P1d (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
+ * bodies, the count walk, and ASI advance_past_* come from pthin_lex_skip.x;
+ * this TU keeps by-value trampolines plus g_gp_pending_* / register_pending C.
+ * P1d C trampolines live in helpers.inc (original twins). Cold: no BODIES
+ * define, full .inc. Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for
+ * P1b/P1c/P1d bodies.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -67,6 +68,9 @@ extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex
 _Static_assert((int)TOKEN_EOF == 0, "lex_skip.x TOKEN_EOF pin");
 _Static_assert((int)TOKEN_FUNCTION == 1, "lex_skip.x TOKEN_FUNCTION pin");
 _Static_assert((int)TOKEN_LET == 2, "lex_skip.x TOKEN_LET pin");
+_Static_assert((int)TOKEN_PANIC == 12, "lex_skip.x TOKEN_PANIC pin");
+_Static_assert((int)TOKEN_DEFER == 13, "lex_skip.x TOKEN_DEFER pin");
+_Static_assert((int)TOKEN_SELF == 51, "lex_skip.x TOKEN_SELF pin");
 _Static_assert((int)TOKEN_IDENT == 59, "lex_skip.x TOKEN_IDENT pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "lex_skip.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_RPAREN == 83, "lex_skip.x TOKEN_RPAREN pin");
@@ -74,6 +78,8 @@ _Static_assert((int)TOKEN_LBRACE == 84, "lex_skip.x TOKEN_LBRACE pin");
 _Static_assert((int)TOKEN_RBRACE == 85, "lex_skip.x TOKEN_RBRACE pin");
 _Static_assert((int)TOKEN_COMMA == 90, "lex_skip.x TOKEN_COMMA pin");
 _Static_assert((int)TOKEN_COLON == 91, "lex_skip.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "lex_skip.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_STAR == 98, "lex_skip.x TOKEN_STAR pin");
 _Static_assert((int)TOKEN_PLUS_EQ == 106, "lex_skip.x TOKEN_PLUS_EQ pin");
 _Static_assert((int)TOKEN_RSHIFT_EQ == 115, "lex_skip.x TOKEN_RSHIFT_EQ pin");
 _Static_assert((int)TOKEN_LT == 120, "lex_skip.x TOKEN_LT pin");
