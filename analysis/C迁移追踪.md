@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.69 深链分批 3 层 75／150 表驱动；v5.68 supreme_crown 25／270；v5.67 crown_pinnacle 25／270；v5.66 apex_max 25／270；v5.65 max_ultra 25／270；v5.64 ultra_hyper 25／270；v5.63 hyper_mega 25／270；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；v5.60 leftover_fromat eq 1/30；preamble 1/30；pathpost 1/30；validate 1/30；kindarr 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b leftover flatten 完**（unique 0／helpers 0；classify／score 留 stretch.x）；深链分批覆盖戏停（v5.69 收口后不再 eq 已 T combinator）；残＝已 T 冷孪生 `parser_asm_thin_c.from_x.c` 仍 host-cc 443KiB；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.69 深链分批 3 层 75／150 表驱动精确过滤禁吞下一外层；v5.68 supreme_crown 25／270；v5.67 crown_pinnacle 25／270；v5.66 apex_max 25／270；v5.65 max_ultra 25／270；v5.64 ultra_hyper 25／270；v5.63 hyper_mega 25／270；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；v5.60 leftover_fromat eq 1/30；preamble 1/30；pathpost 1/30；validate 1/30；kindarr 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；leftover_helpers 0；classify／score 留 stretch.x）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — leftover flatten **完**（unique 0／helpers 0；classify／score 留 stretch.x）；深链分批覆盖戏停；残＝已 T 冷孪生 `parser_asm_thin_c.from_x.c` 仍 host-cc → `parser_asm_thin_glue.o`（443KiB）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -152,7 +152,7 @@
   - [x] 深链分批 smoke apex_max 层（v5.66：25／270 soft-deep；exact apex_max 非 HARD BAN 子串、在 is_deep_climb_name；harness eq_tok_hits_name 拒 summit_ 前缀吞 500；daily 默认 SKIP_SYNTH=1＋STRIDE=4＋DEEP_MAX_FILE_OFF=0；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝summit 仍 HARD BAN 禁 daily）
   - [x] 深链分批 smoke crown_pinnacle 层（v5.67：25／270 soft-deep；EQ_ONLY 非 HARD BAN 子串、pinnacle／crown 在 is_deep_climb_name；跳过 HARD BAN 层 summit／peak／zenith／pinnacle_zenith；harness eq_tok_hits_name 拒 supreme_ 前缀吞 375；daily 默认 SKIP_SYNTH=1＋STRIDE=4＋DEEP_MAX_FILE_OFF=0；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝supreme_crown 须精确过滤禁吞 ultimate_supreme）
   - [x] 深链分批 smoke supreme_crown 层（v5.68：25／270 soft-deep；EQ_ONLY 非 HARD BAN 子串、crown 在 is_deep_climb_name；跳过 HARD BAN 层 summit／peak／zenith／pinnacle_zenith；harness eq_tok_hits_name 拒 ultimate_ 前缀吞 350；daily 默认 SKIP_SYNTH=1＋STRIDE=4＋DEEP_MAX_FILE_OFF=0；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝ultimate_supreme 须精确过滤禁吞 absolute_ultimate）
-  - [x] 深链分批 smoke 3 层 75／150（v5.69：表驱动 k_eq_nest_skip 全链权威；禁一层 exact 一波；ultimate_supreme＋absolute_ultimate＋transcendent_absolute exact 75；实测 6 层 JOBS=4＞15 min 故一批 3 层；JOBS=4；universal_* 因 *versal* HARD BAN；vx／summit／peak／zenith 仍立卡；classify／score 留 stretch.x；续＝infinite_transcendent＋eternal_infinite＋cosmic_eternal）
+  - [x] 深链分批 smoke 3 层 75／150（v5.69 收口后 **停**：覆盖戏不减 host-cc；续＝8.3.6／已 T 冷孪生缩壳，禁再 eq 已 T combinator）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -309,7 +309,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（1977／2,007；v5.69 深链分批 3 层 75／150 表驱动；v5.68 supreme_crown 25／270；v5.67 crown_pinnacle 25／270；v5.66 apex_max 25／270；v5.65 max_ultra 25／270；v5.64 ultra_hyper 25／270；v5.63 hyper_mega 25／270；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；leftover_fromat eq 1／30；preamble 1／30；pathpost 1／30；validate 1／30；kindarr 2／30；asbind 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；leftover_helpers 0；classify／score 留 stretch.x；**续 infinite_transcendent＋eternal_infinite＋cosmic_eternal；summit／peak／zenith／pinnacle_zenith／universal_* 仍 HARD BAN 禁 daily**）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b leftover flatten 完**＋**8.3.6 有引用冷孪生三分**（已 T 的 `parser_asm_thin_c.from_x.c` 仍 host-cc 443KiB；classify／score 留 stretch.x；**禁**再深链分批 eq；pipeline_x mega 须点名）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
