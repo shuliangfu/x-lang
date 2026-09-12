@@ -2,14 +2,16 @@
  * parser_asm_imports_slice.inc — P11 skip/collect imports (G-02f-320).
  * Included by parser_asm_thin_c.from_x.c or pthin_imports.from_x.c.
  *
- * Hybrid P11b/P11c: XLANG_PTHIN_IMPORTS_BODIES_FROM_X skips the portable
- * skip_imports / consume_path / try_skip walks (bodies in
- * src/asm/pthin_imports.x + by-value trampolines in the seed TU).
- * collect_imports stays here (void* module). Contiguous already-T
- * AUDIT_CALL padding on collect_imports is compiled only under
- * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
- * define, full twin. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for
- * P11b/P11c bodies.
+ * Hybrid P11b/P11c/P11d: XLANG_PTHIN_IMPORTS_BODIES_FROM_X skips the
+ * portable skip_imports / consume_path / try_skip / collect_imports
+ * walks (bodies in src/asm/pthin_imports.x + by-value trampolines
+ * in the seed TU). collect_imports dest-buffers path/bind on the C
+ * trampoline (no file-statics); module writes stay in
+ * pipeline_module_import_*. Contiguous already-T AUDIT_CALL padding
+ * on collect_imports is compiled only under XLANG_PARSER_STRETCH_AUDIT
+ * (product AUDIT_CALL is nop; hybrid trampoline has no AUDIT). Cold:
+ * no define, full twin. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for
+ * P11b/P11c/P11d bodies.
  */
 /* Forward decl: defined later in this file (G-02f-422 Ubuntu gcc fix) */
 int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
@@ -198,8 +200,10 @@ int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_import
 }
 #endif /* !XLANG_PTHIN_IMPORTS_BODIES_FROM_X consume_path */
 
+#ifndef XLANG_PTHIN_IMPORTS_BODIES_FROM_X
 /**
  * collect_imports：收集顶层 import 路径到 module，并写出跳过 import 后的 lex。
+ * Hybrid P11d: body in src/asm/pthin_imports.x; this C twin is cold fallback.
  */
 void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, void *module,
                                         struct parser_asm_collect_imports_result *out) {
@@ -1033,6 +1037,7 @@ void parser_asm_collect_imports_slice_c(struct parser_asm_lexer lex, struct pars
   }
   }
 }
+#endif /* !XLANG_PTHIN_IMPORTS_BODIES_FROM_X collect_imports */
 
 /**
  * collect_imports_buf：(data,len) 路径委托 slice collect_imports。

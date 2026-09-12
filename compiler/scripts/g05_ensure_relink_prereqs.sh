@@ -773,7 +773,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P10b B-minus: glue .x bodies (skip_one_function_full walk)
   _pthin_p10b_x=src/asm/pthin_glue.x
   _pthin_p11_seed=seeds/pthin_imports.from_x.c
-  # 7.2.1 P11b/P11c B-minus: imports .x bodies (skip_imports + consume_path/try_skip)
+  # 7.2.1 P11b/P11c/P11d B-minus: imports .x bodies (skip_imports + consume_path/try_skip + collect_imports)
   _pthin_p11b_x=src/asm/pthin_imports.x
   _pthin_p12_seed=seeds/pthin_skip_tl.from_x.c
   # 7.2.1 P12b/P12c/P12d/P12e B-minus: skip_tl .x bodies (struct/enum/extern + impl header + generic_bound_scan + enum_register)
@@ -1197,20 +1197,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         # P10 C is compiled after P12b (skip_one_function_full .x calls
         # P12b skip_one_extern). See P10b block below.
-        # PLATFORM: SHARED — 7.2.1 P11b/P11c B-minus (2026-09-13).
-        # pthin_imports.x holds skip_imports + consume_path/try_skip.
-        # Requires P9a lexer-step bridge (otherwise peek/step would
-        # UNDEF). copy_slice / stretch validate resolve from P1b / P9b
-        # (or their cold C twins). Runs before P11 C so BODIES_FROM_X
-        # skips the portable .inc region. Cold: no define, full .inc.
-        # Do not reuse XLANG_PTHIN_IMPORTS_FROM_X.
+        # PLATFORM: SHARED — 7.2.1 P11b/P11c/P11d B-minus (2026-09-13).
+        # pthin_imports.x holds skip_imports + consume_path/try_skip +
+        # collect_imports. Requires P9a lexer-step bridge (otherwise
+        # peek/step would UNDEF). copy_slice / stretch validate resolve
+        # from P1b / P9b (or their cold C twins). Runs before P11 C so
+        # BODIES_FROM_X skips the portable .inc region. Cold: no define,
+        # full .inc. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X.
         _pthin_p11_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] \
           && [ -n "$_pthin_p11b_thin_o" ] && [ -f "$_pthin_p11b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p11b_x" "$_pthin_p11b_thin_o"; then
             _pthin_p11b_ok=1
             _pthin_p11_extra="-DXLANG_PTHIN_IMPORTS_BODIES_FROM_X"
-            echo "g05_ensure: P11b/P11c imports bodies ← $_pthin_p11b_x (7.2.1 B-minus skip_imports/consume_path/try_skip)"
+            echo "g05_ensure: P11b/P11c/P11d imports bodies ← $_pthin_p11b_x (7.2.1 B-minus skip_imports/consume_path/try_skip/collect_imports)"
           else
             echo "g05_ensure: P11b imports .x thin failed; P11 C twin stays full" >&2
           fi
