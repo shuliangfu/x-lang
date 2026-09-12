@@ -75,7 +75,6 @@ export extern "C" function parser_asm_stretch_import_path_validate_c(path: *u8, 
 export extern "C" function parser_asm_stretch_classify_toplevel_c(kind: i32, next_kind: i32, third_kind: i32): i32;
 export extern "C" function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32;
 export extern "C" function parser_asm_stretch_struct_field_name_kind_c(kind: i32): i32;
-export extern "C" function parser_asm_stretch_spawn_kw_audit_c(kind: i32): i32;
 export extern "C" function parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32;
 
 // Lexer canonical TokenKind values (enum token_TokenKind indices; authority
@@ -83121,4 +83120,88 @@ export function parser_asm_stretch_builtin_vec_token_audit_c(kind: i32): i32 {
     return 1;
   }
   return 0;
+}
+
+/* ── leftover helpers (v5.40 Route C flatten) ── */
+
+/**
+ * Kind classifier: token after `function` is SPAWN.
+ * @param kind i32 — token kind
+ * @return i32 — 1 iff SPAWN
+ * PLATFORM: SHARED — leftover helper port (v5.40).
+ */
+#[no_mangle]
+export function parser_asm_stretch_spawn_kw_audit_c(kind: i32): i32 {
+  if (kind == TOKEN_SPAWN) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Kind classifier: import-select list opens with `{`.
+ * Flattened from lexer-result-by-val leftover (only `tok.kind` was read).
+ * @param kind i32 — token kind
+ * @return i32 — 1 iff LBRACE
+ * PLATFORM: SHARED — leftover helper port (v5.40).
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_select_brace_head_audit_c(kind: i32): i32 {
+  if (kind == TOKEN_LBRACE) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Import path dotted segment: i32/async keywords pass; IDENT goes through
+ * bind_name_validate (G.7 thin wrap). Flattened from lexer-result-by-val.
+ * @param kind i32 — token kind
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 if a legal segment; 0 otherwise
+ * PLATFORM: SHARED — leftover helper port (v5.40).
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_dot_segment_audit_c(kind: i32, source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (kind == TOKEN_I32 || kind == TOKEN_ASYNC) {
+    return 1;
+  }
+  if (source == 0 as *u8 || kind != TOKEN_IDENT || name_len <= 0 || name_len > 63) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
+}
+
+/**
+ * Match-subject bare IDENT: IDENT + bind_name_validate on source bytes.
+ * Flattened from lexer-result-by-val leftover (no next_lex walk).
+ * @param kind i32 — token kind
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 if IDENT and a valid bind name; 0 otherwise
+ * PLATFORM: SHARED — leftover helper port (v5.40).
+ */
+#[no_mangle]
+export function parser_asm_stretch_match_subject_ident_audit_c(kind: i32, source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (source == 0 as *u8 || kind != TOKEN_IDENT || name_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
 }

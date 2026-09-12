@@ -183,6 +183,10 @@ int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t p
 HELPERS_PORTED_TO_X = {
     "parser_asm_stretch_vector_type_ident_audit_c",
     "parser_asm_stretch_builtin_vec_token_audit_c",
+    # v5.40 leftover Route C flatten (kind / source+off); static copies keep
+    # C authority for c_ref twins without duplicate T vs audit_x.o.
+    "parser_asm_stretch_spawn_kw_audit_c",
+    "parser_asm_stretch_match_subject_ident_audit_c",
 }
 
 SUITE_HELPER_SIGS = [

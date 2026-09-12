@@ -3416,28 +3416,24 @@ int32_t parser_asm_stretch_else_stmt_audit_c(void *lex_inout, void *source) {
 
 /**
  * tier10：import 路径点分 segment 名审计（IDENT 段须合法 ident）。
+ * v5.40: flattened from lexer-result-by-val (kind + source + off + len).
  */
-int32_t parser_asm_stretch_import_dot_segment_audit_c(struct parser_asm_lexer_result r,
-                                                      struct parser_asm_slice_u8 *source) {
-  uint8_t seg_buf[64];
-  int32_t seg_len;
-  int32_t bi;
+/* B-minus leftover helper (v5.40): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_dot_segment_audit_c(int32_t kind, struct parser_asm_slice_u8 *source,
+                                                      size_t token_start, int32_t name_len) {
+  if (kind == (int32_t)TOKEN_I32)
+    return 1;
+  if (kind == (int32_t)TOKEN_ASYNC)
+    return 1;
   if (!source || !source->data)
     return 0;
-  if (r.tok.kind == (int32_t)TOKEN_I32)
-    return 1;
-  if (r.tok.kind == (int32_t)TOKEN_ASYNC)
-    return 1;
-  if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63)
+  if (kind != (int32_t)TOKEN_IDENT || name_len <= 0 || name_len > 63)
     return 0;
-  seg_len = r.tok.ident_len;
-  for (bi = 0; bi < seg_len && bi < 63; bi++) {
-    if (r.token_start + (size_t)bi < source->length)
-      seg_buf[bi] = source->data[r.token_start + (size_t)bi];
-  }
-  seg_buf[bi < 63 ? bi : 63] = 0;
-  return parser_asm_stretch_bind_name_validate_c(seg_buf, seg_len);
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier10：if/while 条件 int as T 粗审计。
@@ -3544,9 +3540,13 @@ int32_t parser_asm_stretch_const_import_kw_audit_c(int32_t after_assign_kind) {
 /**
  * tier11：library spawn 前缀审计 — function 后 spawn 关键字。
  */
+/* B-minus leftover helper (v5.40): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_spawn_kw_audit_c(int32_t after_function_kind) {
   return after_function_kind == (int32_t)TOKEN_SPAWN ? 1 : 0;
 }
+#endif
 
 /**
  * tier11：library 单参 bool 返回形态审计 — function name ( params ) 粗校验。
@@ -3648,13 +3648,18 @@ int32_t parser_asm_stretch_primary_head_audit_c(void *lex_inout, void *source) {
 
 /**
  * tier12：match subject 裸 IDENT 名审计。
+ * v5.40: flattened from lexer-result-by-val (kind + source + off + len).
  */
-int32_t parser_asm_stretch_match_subject_ident_audit_c(struct parser_asm_lexer_result r,
-                                                       struct parser_asm_slice_u8 *source) {
-  if (!source || r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0)
+/* B-minus leftover helper (v5.40): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_match_subject_ident_audit_c(int32_t kind, struct parser_asm_slice_u8 *source,
+                                                       size_t token_start, int32_t name_len) {
+  if (!source || kind != (int32_t)TOKEN_IDENT || name_len <= 0)
     return 0;
-  return parser_asm_stretch_bind_name_validate_c(source->data + r.token_start, r.tok.ident_len);
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier12：struct layout 名 ident 审计（layout 解析入口）。
@@ -5051,10 +5056,15 @@ int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_sli
 
 /**
  * tier19：const { ... } = import 选择列表括号头审计。
+ * v5.40: flattened from lexer-result-by-val (only tok.kind was read).
  */
-int32_t parser_asm_stretch_import_select_brace_head_audit_c(struct parser_asm_lexer_result r) {
-  return r.tok.kind == (int32_t)TOKEN_LBRACE ? 1 : 0;
+/* B-minus leftover helper (v5.40): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_import_select_brace_head_audit_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_LBRACE ? 1 : 0;
 }
+#endif
 
 /**
  * tier20：平衡括号 buf 路径深度粗探。
@@ -6896,7 +6906,9 @@ int32_t parser_asm_stretch_match_subject_deep_audit_c(void *lex_inout, void *sou
   lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
   if (r.tok.kind == (int32_t)TOKEN_MATCH)
     lexer_next_into(&r, r.next_lex, (struct parser_asm_slice_u8 *)source);
-  score += parser_asm_stretch_match_subject_ident_audit_c(r, source);
+  score += parser_asm_stretch_match_subject_ident_audit_c((int32_t)r.tok.kind,
+                                                         (struct parser_asm_slice_u8 *)source,
+                                                         r.token_start, r.tok.ident_len);
   score += parser_asm_stretch_match_arms_body_audit_c(&lex, source);
   return score > 0 ? 1 : 0;
 }

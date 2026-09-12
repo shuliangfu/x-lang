@@ -67,8 +67,8 @@ extern int32_t parser_asm_stretch_vx_match_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_m
 extern int32_t parser_asm_stretch_vx_match_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_match_subject_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_match_block_deep_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_match_subject_ident_audit_c(struct parser_asm_lexer_result r,
-                                                              struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_match_subject_ident_audit_c(int32_t kind, struct parser_asm_slice_u8 *source,
+                                                              size_t token_start, int32_t name_len);
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
 extern struct ast_Expr ast_ast_arena_expr_get(void *arena, int32_t ref);
 extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
@@ -168,7 +168,8 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
       parse_expr_into(arena, lex, source, out);
       return;
     }
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_subject_ident_audit_c(r, source));
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_subject_ident_audit_c((int32_t)r.tok.kind, source,
+                                                                               r.token_start, r.tok.ident_len));
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0)
       return;

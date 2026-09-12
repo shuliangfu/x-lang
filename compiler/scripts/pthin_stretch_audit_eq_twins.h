@@ -2494,15 +2494,15 @@ static int32_t parser_asm_stretch_if_advance_to_body_lex_c(struct parser_asm_lex
   return 1;
 }
 
-int32_t parser_asm_stretch_spawn_kw_audit_c(int32_t after_function_kind) {
+static int32_t parser_asm_stretch_spawn_kw_audit_c(int32_t after_function_kind) {
   return after_function_kind == (int32_t)TOKEN_SPAWN ? 1 : 0;
 }
 
-int32_t parser_asm_stretch_match_subject_ident_audit_c(struct parser_asm_lexer_result r,
-                                                       struct parser_asm_slice_u8 *source) {
-  if (!source || r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0)
+static int32_t parser_asm_stretch_match_subject_ident_audit_c(int32_t kind, struct parser_asm_slice_u8 *source,
+                                                       size_t token_start, int32_t name_len) {
+  if (!source || kind != (int32_t)TOKEN_IDENT || name_len <= 0)
     return 0;
-  return parser_asm_stretch_bind_name_validate_c(source->data + r.token_start, r.tok.ident_len);
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
 
 int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
@@ -6036,7 +6036,9 @@ static int32_t c_ref_match_subject_deep_audit(void *lex_inout, void *source) {
   lexer_next_into(&r, lex, (struct parser_asm_slice_u8 *)source);
   if (r.tok.kind == (int32_t)TOKEN_MATCH)
     lexer_next_into(&r, r.next_lex, (struct parser_asm_slice_u8 *)source);
-  score += parser_asm_stretch_match_subject_ident_audit_c(r, source);
+  score += parser_asm_stretch_match_subject_ident_audit_c((int32_t)r.tok.kind,
+                                                         (struct parser_asm_slice_u8 *)source,
+                                                         r.token_start, r.tok.ident_len);
   score += c_ref_match_arms_body_audit(&lex, source);
   return score > 0 ? 1 : 0;
 
