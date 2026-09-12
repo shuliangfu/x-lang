@@ -2,8 +2,11 @@
  * Logic source: src/asm/pthin_helpers.x
  * Hybrid: XLANG_PTHIN_HELPERS_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: seeds/parser_asm/parser_asm_helpers_slice.inc (~1170)
- * import_path/label/struct_field + lex rewind/advance/peek + align_lex + first_token
+ * Body: seeds/parser_asm/parser_asm_helpers_slice.inc
+ * Hybrid P19b (XLANG_PTHIN_HELPERS_BODIES_FROM_X): portable kind/copy/pos/
+ * match-kw bodies come from pthin_helpers.x; this TU keeps by-value
+ * trampolines plus rewind/advance/align/first_token. Cold: no BODIES
+ * define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -56,9 +59,49 @@ extern int32_t parser_asm_stretch_struct_field_name_kind_c(int32_t kind);
 extern int32_t parser_asm_stretch_struct_field_continues_kind_c(int32_t kind);
 extern int32_t parser_asm_stretch_token_is_label_start_c(int32_t cur_kind, int32_t next_kind);
 
+/* PLATFORM: SHARED — 7.2.1 P19b Route C (2026-09-12).
+ * pthin_helpers.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_LET == 2, "helpers.x TOKEN_LET pin");
+_Static_assert((int)TOKEN_CONST == 3, "helpers.x TOKEN_CONST pin");
+_Static_assert((int)TOKEN_TYPE == 20, "helpers.x TOKEN_TYPE pin");
+_Static_assert((int)TOKEN_PACKED == 21, "helpers.x TOKEN_PACKED pin");
+_Static_assert((int)TOKEN_SOA == 22, "helpers.x TOKEN_SOA pin");
+_Static_assert((int)TOKEN_ALIGN == 46, "helpers.x TOKEN_ALIGN pin");
+_Static_assert((int)TOKEN_ASYNC == 55, "helpers.x TOKEN_ASYNC pin");
+_Static_assert((int)TOKEN_IDENT == 59, "helpers.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_I32 == 60, "helpers.x TOKEN_I32 pin");
+
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+/* .x product bodies (same C names for Route C; kind/buf split for by-value). */
+extern int32_t parser_asm_import_path_dot_segment_len_kind_c(int32_t kind, int32_t ident_len);
+extern void parser_asm_import_path_dot_segment_copy_buf_c(uint8_t *data, size_t length, size_t token_start,
+                                                          int32_t seg_len, uint8_t *path_buf, int32_t path_len);
+extern int32_t parser_asm_parser_match_kw_immediately_before_buf_c(uint8_t *data, size_t length, size_t ident_start);
+
+int32_t parser_asm_import_path_dot_segment_len_c(struct parser_asm_token tok) {
+  return parser_asm_import_path_dot_segment_len_kind_c(tok.kind, tok.ident_len);
+}
+
+void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t seg_len, uint8_t *path_buf, int32_t path_len) {
+  parser_asm_import_path_dot_segment_copy_buf_c(source ? source->data : (uint8_t *)0,
+                                                source ? source->length : (size_t)0, token_start, seg_len,
+                                                path_buf, path_len);
+}
+
+int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_slice_u8 *source,
+                                                              size_t ident_start) {
+  if (!source || !source->data)
+    return 0;
+  return parser_asm_parser_match_kw_immediately_before_buf_c(source->data, source->length, ident_start);
+}
+#else
 /* slice 内 glue 先于实现定义调用 */
 void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t seg_len, uint8_t *path_buf, int32_t path_len);
+#endif
+
 int32_t parser_asm_parser_token_is_label_start_slice_c(struct parser_asm_lexer_result r,
                                                         struct parser_asm_slice_u8 *source);
 

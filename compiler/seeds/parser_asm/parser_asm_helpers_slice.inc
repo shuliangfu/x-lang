@@ -2,11 +2,19 @@
  * Hybrid: XLANG_PTHIN_HELPERS_FROM_X via seeds/pthin_helpers.from_x.c
  * import_path/label/struct_field, lex rewind/advance/peek, align_lex, first_token_kind
  * (lexer_init + expr zeros stay in thin rest for shared foundation)
+ *
+ * Hybrid P19b: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
+ * kind/copy/pos/match-kw region (bodies in src/asm/pthin_helpers.x +
+ * by-value trampolines in the seed TU). Rewind/advance/align/first_token
+ * stay here. first_token_kind_buf AUDIT_CALL padding is compiled only
+ * under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already nop).
+ * Cold: no BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_HELPERS_SLICE_INC
 #define PARSER_ASM_HELPERS_SLICE_INC
 
 /* ---- thin L3908-4287 ---- */
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * import_path_dot_segment_len：import 路径段长度（IDENT/I32/ASYNC），非法 token 返回 -1。
  */
@@ -19,6 +27,7 @@ int32_t parser_asm_import_path_dot_segment_len_c(struct parser_asm_token tok) {
     return 5;
   return -1;
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * import_path_dot_segment_len_glue：thin delegate / extern bl 共用 C 实现。
@@ -42,6 +51,7 @@ int32_t parser_token_is_label_start_glue(struct parser_asm_lexer_result r, struc
   return parser_asm_parser_token_is_label_start_slice_c(r, source);
 }
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * import_path_dot_segment_copy：将 source[token_start..+seg_len) 写入 path_buf[path_len..]。
  */
@@ -55,6 +65,7 @@ void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 
       path_buf[path_len + i] = source->data[token_start + (size_t)i];
   }
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * struct_field_name_from_tok：结构体字段名（ident / keyword-as-ident）。
@@ -97,6 +108,7 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
   return -1;
 }
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * struct_field_name_tok_kind：token kind 是否为合法字段名起点。
  * PLATFORM: SHARED — include TOKEN_TYPE (keyword-as-field-name).
@@ -119,6 +131,7 @@ int32_t parser_asm_struct_field_continues_tok_kind_c(int32_t k) {
     return 1;
   return parser_asm_struct_field_name_tok_kind_c(k) != 0 || k == (int32_t)TOKEN_ALIGN;
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * parser_token_is_label_start：当前 IDENT 且下一 token 为 COLON（标号语句 label:）。
@@ -134,12 +147,16 @@ int32_t parser_asm_parser_token_is_label_start_slice_c(struct parser_asm_lexer_r
   return parser_asm_stretch_token_is_label_start_c((int32_t)r.tok.kind, (int32_t)nx.tok.kind);
 }
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * lexer_pos_before_run：由 token 结束位置与 run_len 反推起点。
  */
 size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len) {
   return end_pos - (size_t)run_len;
 }
+#else
+extern size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * lexer_token_run_len：token_start==0 时按 kind 推断关键字/字面量字节长度。
@@ -211,6 +228,7 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
   }
 }
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * parser_match_kw_immediately_before：ident 前是否为 "match "（6 字节）。
  */
@@ -224,6 +242,7 @@ int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_
          source->data[p + 2] == (uint8_t)'t' && source->data[p + 3] == (uint8_t)'c' &&
          source->data[p + 4] == (uint8_t)'h' && source->data[p + 5] == (uint8_t)' ';
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * ident 是否为语句关键字 unsafe。
@@ -469,6 +488,7 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
   if (!data || len <= 0)
     return (int32_t)TOKEN_EOF;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   {
   struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_first_token_kind_buf_audit_c(&lex_init, data, len));
@@ -1354,6 +1374,7 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
     struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_expr_deep_buf_audit_c(&lex_init, data, len));
   }
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_first_token_kind_slice_c(&source);
