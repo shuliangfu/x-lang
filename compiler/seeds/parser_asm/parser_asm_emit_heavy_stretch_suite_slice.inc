@@ -2192,24 +2192,34 @@ int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, 
 }
 
 /**
- * 校验顶层关键字拼写（结合 stretch kw 表）；失败返回 0。
+ * Top-level token leftover: historical body called token_run_len +
+ * verify_kw_spelling (tables live in stretch.x, not eq TU). Flattened
+ * off lexer_result-by-val onto (kind, ident_len, token_start, source).
+ * verify_kw is a bounds check (kw match always returns 1). Keywords
+ * have ident_len=0 so the table path is skipped (return 1) — product
+ * caller discards the return; generated .x audits elide the call (v5.6).
  */
-int32_t parser_asm_stretch_validate_toplevel_token_c(struct parser_asm_lexer_result r,
-                                                     struct parser_asm_slice_u8 *source) {
-  int32_t run_len;
-  if (!source || !source->data)
+/* B-minus leftover (v5.49): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (kind/ident_len/token_start scalars + source bounds). PLATFORM: SHARED */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_validate_toplevel_token_c(int32_t kind, int32_t ident_len,
+                                                     size_t token_start, void *source) {
+  struct parser_asm_slice_u8 *sl;
+  if (!source)
     return 0;
-  if (r.tok.kind == (int32_t)TOKEN_EOF)
+  sl = (struct parser_asm_slice_u8 *)source;
+  if (!sl->data)
+    return 0;
+  if (kind == (int32_t)TOKEN_EOF)
     return 1;
-  run_len = parser_asm_stretch_token_run_len_c(r.tok.kind);
-  if (r.tok.ident_len > 0)
-    run_len = r.tok.ident_len;
-  if (run_len <= 0)
+  if (ident_len <= 0)
     return 1;
-  if (parser_asm_stretch_verify_kw_spelling_c(source->data, source->length, r.token_start, r.tok.kind, run_len) == 0)
+  if (token_start + (size_t)ident_len > sl->length)
     return 0;
   return 1;
 }
+#endif
 
 /**
  * import 选择列表 `{ a, b }` 形态审计（collect_imports const { } = import 路径）。
@@ -6540,7 +6550,7 @@ int32_t parser_asm_stretch_parse_into_buf_loop_toplevel_buf_audit_c(void *lex_in
   sl.length = (size_t)len;
   score = parser_asm_stretch_toplevel_kind_peek_audit_c(&lex, &sl);
   lexer_next_into(&r, lex, &sl);
-  (void)parser_asm_stretch_validate_toplevel_token_c(r, &sl);
+  (void)parser_asm_stretch_validate_toplevel_token_c((int32_t)r.tok.kind, r.tok.ident_len, r.token_start, &sl);
   if (parser_asm_stretch_peek_kind_chain_c(kinds, 4, &lex, &sl) >= 2)
     score += parser_asm_stretch_classify_toplevel_c(kinds[0], kinds[1], kinds[2]);
   return score > 0 ? 1 : 0;

@@ -229,6 +229,9 @@ SUITE_HELPER_SIGS = [
 # v5.48: import_path_post / collect_imports_preamble are leftover_helpers
 # (first param is not lex:); no eq-table row. C twins gated; do not copy
 # leftover by-val / finalize bodies into HELPERS (duplicate T vs audit_x.o).
+# v5.49: validate_toplevel_token is leftover_helpers (kind/ident_len first);
+# no eq-table row. C twin gated; do not copy token_run_len / verify_kw
+# tables into HELPERS (G.7 stretch.x authority; duplicate T vs audit_x.o).
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

@@ -173,6 +173,16 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.49: leftover helper Route C flatten validate_toplevel. Historical
+#   body called token_run_len + verify_kw_spelling (tables in stretch.x,
+#   not eq TU — G.7, do not copy). Flatten off lexer_result-by-val onto
+#   (kind, ident_len, token_start, source); verify_kw is a bounds check
+#   (kw match always returns 1). Keywords have ident_len=0 so the table
+#   path is skipped (return 1). Product caller discards the return;
+#   generated .x audits elide the call (v5.6). classify/score stay
+#   stretch.x (not leftover-to-audit). Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=parse_into_buf,library_scan,match_subject,skip_allow.
+#
 # v5.48: leftover helper Route C flatten import leftover chain
 #   (import_path_post + collect_imports_preamble). post was a still-C
 #   wrap of finalize (not in eq TU); flatten onto import_path_validate
@@ -1713,11 +1723,12 @@ def translate(name, body, tokvals):
                 emit(f"{var} = {call};")
             si += 1
             continue
-        # v5.6: elide void validate_toplevel_token_c(r, source) — peek-only
+        # v5.6 / v5.49: elide void validate_toplevel_token_c(…) — peek-only
+        # (v5.49 flattened ABI still discarded at every generated call site).
         m = re.match(
-            r"\(void\)parser_asm_stretch_validate_toplevel_token_c\((r\w*), source\);$",
+            r"\(void\)parser_asm_stretch_validate_toplevel_token_c\([^;]*\);$",
             st)
-        if m and m.group(1) in cur_results:
+        if m:
             si += 1
             continue
         # v5.16: score += allow_kw_paren(r, source) — hand-ported pointer ABI

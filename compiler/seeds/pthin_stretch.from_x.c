@@ -69,6 +69,8 @@ int32_t parser_asm_stretch_verify_kw_spelling_c(const uint8_t *data, size_t len,
 size_t parser_asm_stretch_skip_ws_and_comments_c(const uint8_t *data, size_t len, size_t pos);
 int32_t parser_asm_stretch_collect_imports_preamble_audit_c(int32_t kind, int32_t next_kind,
                                                            int32_t third_kind, void *source);
+int32_t parser_asm_stretch_validate_toplevel_token_c(int32_t kind, int32_t ident_len,
+                                                     size_t token_start, void *source);
 int32_t parser_asm_stretch_struct_fields_probe_c(void *lex_inout, void *source, int32_t *out_field_count);
 int32_t parser_asm_stretch_enum_variants_probe_c(void *lex_inout, void *source, int32_t *out_variant_count);
 int32_t parser_asm_stretch_fn_sig_audit_c(void *lex_inout, void *source);

@@ -84061,3 +84061,47 @@ export function parser_asm_stretch_collect_imports_preamble_audit_c(kind: i32, n
   }
   return 1;
 }
+
+/* ── leftover helpers (v5.49 Route C flatten: validate_toplevel) ── */
+
+/**
+ * Top-level token leftover: historical body called `token_run_len_c` +
+ * `verify_kw_spelling_c` (tables live in pthin_stretch.x; not in the eq
+ * TU — G.7, do not copy). Flattened off lexer_result-by-val onto
+ * (kind, ident_len, token_start, source). verify_kw is a bounds check
+ * (keyword match always returns 1). Keywords have ident_len=0, so the
+ * table path is skipped (return 1). Product caller discards the return;
+ * generated .x audits elide the call (v5.6). IDENT path (ident_len>0)
+ * keeps the span check via the lexer-step bridge.
+ * @param kind i32 — token kind (was r.tok.kind)
+ * @param ident_len i32 — ident byte length (was r.tok.ident_len); <=0 skips span
+ * @param token_start usize — token byte offset (was r.token_start)
+ * @param source *u8 — opaque slice; null returns 0
+ * @return i32 — 1 coarse-ok; 0 on null source or IDENT span overflow
+ * PLATFORM: SHARED — leftover helper port (v5.49).
+ */
+#[no_mangle]
+export function parser_asm_stretch_validate_toplevel_token_c(kind: i32, ident_len: i32, token_start: usize, source: *u8): i32 {
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+  }
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  if (kind == TOKEN_EOF) {
+    return 1;
+  }
+  if (ident_len <= 0) {
+    return 1;
+  }
+  if (token_start + (ident_len as usize) > slen) {
+    return 0;
+  }
+  return 1;
+}

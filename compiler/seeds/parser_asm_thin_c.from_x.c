@@ -205,6 +205,8 @@ int32_t parser_asm_stretch_verify_kw_spelling_c(const uint8_t *data, size_t len,
 size_t parser_asm_stretch_skip_ws_and_comments_c(const uint8_t *data, size_t len, size_t pos);
 int32_t parser_asm_stretch_collect_imports_preamble_audit_c(int32_t kind, int32_t next_kind,
                                                            int32_t third_kind, void *source);
+int32_t parser_asm_stretch_validate_toplevel_token_c(int32_t kind, int32_t ident_len,
+                                                     size_t token_start, void *source);
 int32_t parser_asm_stretch_struct_fields_probe_c(void *lex_inout, void *source, int32_t *out_field_count);
 int32_t parser_asm_stretch_enum_variants_probe_c(void *lex_inout, void *source, int32_t *out_variant_count);
 int32_t parser_asm_stretch_fn_sig_audit_c(void *lex_inout, void *source);
@@ -2336,8 +2338,8 @@ int32_t parser_asm_stretch_vx_try_skip_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om
 int32_t parser_asm_stretch_vx_try_skip_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 
 int32_t parser_asm_stretch_classify_toplevel_c(int32_t kind, int32_t next_kind, int32_t third_kind);
-int32_t parser_asm_stretch_validate_toplevel_token_c(struct parser_asm_lexer_result r,
-                                                     struct parser_asm_slice_u8 *source);
+int32_t parser_asm_stretch_validate_toplevel_token_c(int32_t kind, int32_t ident_len,
+                                                     size_t token_start, void *source);
 extern void parser_lex_from_lexer_result_ptr_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result *r);
 extern int32_t pipeline_module_import_alloc(void *module);
 extern void pipeline_module_import_set_path(void *module, int32_t idx, uint8_t *bytes, int32_t len);
