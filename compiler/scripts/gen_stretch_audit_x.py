@@ -173,6 +173,17 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.54: leftover_helpers two-kind+source+off eq (simd_builtin). Already
+#   .x T in audit.x; no k_cases row because first param is not lex:.
+#   twins.h static C copy shadows simd_builtin in the harness TU, so eq
+#   lives in a sibling TU (pthin_stretch_audit_eq_leftover_twokind.c)
+#   that links audit_x.o and compares exhaustive TokenKind on each kind
+#   slot + AT+IDENT shuffle/select spelling / length / token_start
+#   corners against the gated C twin (spelling check, not
+#   bind_name_validate). classify/score stay stretch.x (not
+#   leftover-to-audit). Eq gate: FORCE smoke deep_off=0 /
+#   EQ_ONLY=simd_builtin,skip_allow.
+#
 # v5.53: leftover_helpers kind+source+off eq (import_dot_segment /
 #   match_subject_ident). Already .x T in audit.x; no k_cases row because
 #   first param is not lex:. twins.h static C copy shadows
