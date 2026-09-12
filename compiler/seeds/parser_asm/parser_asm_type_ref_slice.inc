@@ -2,6 +2,12 @@
  * parser_asm_type_ref_slice.inc — parse_type_ref_for_arena_into / alloc_pointee C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
+ *
+ * Hybrid P3b: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
+ * region (bodies in src/asm/pthin_type_ref.x + slice trampolines in the
+ * seed TU). Arena alloc and parse_type_ref_impl stay C.
+ * Cold: no BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -155,6 +161,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
                                                 struct parser_asm_slice_u8 *source,
                                                 struct parser_asm_lexer *out_lex);
 
+#ifndef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 /**
  * True when IDENT spelling is contextual prefix `dyn` (docs/01 does not list
  * dyn as a keyword; same TOKEN_IDENT shape as `mut`). Used only to reject
@@ -172,6 +179,7 @@ static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *so
   parser_asm_copy_slice_to_name64_slice_c(source, r->token_start, 3, n);
   return n[0] == 100 && n[1] == 121 && n[2] == 110; /* d y n */
 }
+#endif /* !XLANG_PTHIN_TYPE_REF_BODIES_FROM_X */
 
 /*
  * Skip-trait registry: defined in parser_asm_skip_tl_slice.inc (same product
@@ -239,6 +247,7 @@ static int32_t parser_asm_wrap_registered_trait_as_dyn_c(void *arena, int32_t na
   return parser_asm_alloc_dyn_type_ref_c(arena, named_tr);
 }
 
+#ifndef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 /**
  * Token that may start a type after a peeled `dyn` / `impl` prefix.
  * PLATFORM: SHARED type grammar.
@@ -268,6 +277,77 @@ static int32_t parser_asm_type_ref_token_starts_type_c(int32_t kind) {
   return 0;
 }
 
+/**
+ * Map builtin scalar/void type token → TypeKind ordinal.
+ * PLATFORM: SHARED — G.7 single table; skip_tl trampolines to this export.
+ */
+int32_t parser_asm_type_ref_builtin_kind_ord_c(int32_t tok_kind) {
+  switch (tok_kind) {
+  case (int32_t)TOKEN_I32:
+    return 0;
+  case (int32_t)TOKEN_BOOL:
+    return 1;
+  case (int32_t)TOKEN_U8:
+    return 2;
+  case (int32_t)TOKEN_U32:
+    return 3;
+  case (int32_t)TOKEN_U64:
+    return 4;
+  case (int32_t)TOKEN_I64:
+    return 5;
+  case (int32_t)TOKEN_USIZE:
+    return 6;
+  case (int32_t)TOKEN_ISIZE:
+    return 7;
+  case (int32_t)TOKEN_F32:
+    return 14;
+  case (int32_t)TOKEN_F64:
+    return 15;
+  case (int32_t)TOKEN_VOID:
+    return 16;
+  default:
+    return -1;
+  }
+}
+
+/**
+ * Pack vector IDENT spelling into (elem_ord << 8) | lanes, or 0.
+ * PLATFORM: SHARED — byte probes match the historical C twin.
+ */
+int32_t parser_asm_vector_type_ident_pack_c(uint8_t *data, size_t length, size_t token_start,
+                                            int32_t ident_len) {
+  uint8_t name_buf[64];
+  int32_t i;
+  int32_t nlen;
+  nlen = ident_len;
+  if (!data || nlen <= 0 || nlen > 63)
+    return 0;
+  if (token_start + (size_t)nlen > length)
+    return 0;
+  for (i = 0; i < nlen; i++)
+    name_buf[i] = data[token_start + (size_t)i];
+  if (nlen == 5 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 52)
+    return (0 << 8) | 4;
+  if (nlen == 5 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 56)
+    return (0 << 8) | 8;
+  if (nlen == 6 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 49 && name_buf[4] == 54)
+    return (0 << 8) | 16;
+  if (nlen == 5 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 52)
+    return (3 << 8) | 4;
+  if (nlen == 5 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 56)
+    return (3 << 8) | 8;
+  if (nlen == 6 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 49 && name_buf[4] == 54)
+    return (3 << 8) | 16;
+  if (nlen == 5 && name_buf[0] == 102 && name_buf[1] == 51 && name_buf[2] == 50 && name_buf[3] == 120 && name_buf[4] == 52)
+    return (14 << 8) | 4;
+  if (nlen == 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99 && name_buf[3] == 52 && name_buf[4] == 102)
+    return (14 << 8) | 4;
+  if (nlen == 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99 && name_buf[3] == 56 && name_buf[4] == 105)
+    return (0 << 8) | 8;
+  return 0;
+}
+#endif /* !XLANG_PTHIN_TYPE_REF_BODIES_FROM_X */
+
 /** 将 lex 写入 out_lex（parse_type_ref 失败/成功路径共用）。 */
 static void parser_asm_write_out_lex_c(struct parser_asm_lexer *out_lex, struct parser_asm_lexer lex) {
   if (!out_lex)
@@ -296,32 +376,11 @@ static int32_t parser_asm_arena_alloc_scalar_type_c(void *arena, int32_t type_ki
 
 /** 内建标量/void token → arena type ref。 */
 static int32_t parser_asm_type_ref_from_builtin_token_c(void *arena, int32_t tok_kind) {
-  switch (tok_kind) {
-  case TOKEN_I32:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_I32);
-  case TOKEN_I64:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_I64);
-  case TOKEN_BOOL:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_BOOL);
-  case TOKEN_U8:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_U8);
-  case TOKEN_U32:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_U32);
-  case TOKEN_U64:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_U64);
-  case TOKEN_USIZE:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_USIZE);
-  case TOKEN_ISIZE:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_ISIZE);
-  case TOKEN_VOID:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_VOID);
-  case TOKEN_F32:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_F32);
-  case TOKEN_F64:
-    return parser_asm_arena_alloc_scalar_type_c(arena, PARSER_ASM_TYPE_F64);
-  default:
+  int32_t ord;
+  ord = parser_asm_type_ref_builtin_kind_ord_c(tok_kind);
+  if (ord < 0)
     return 0;
-  }
+  return parser_asm_arena_alloc_scalar_type_c(arena, ord);
 }
 
 /**
@@ -353,34 +412,20 @@ int32_t parser_asm_alloc_vector_type_ref_c(void *arena, int32_t elem_ord, int32_
 int32_t parser_asm_vector_type_ref_from_ident_spelling_c(void *arena, struct parser_asm_slice_u8 *source,
                                                          struct parser_asm_lexer_result r) {
   int32_t nlen;
-  uint8_t name_buf[64];
+  int32_t pack;
+  size_t start;
   nlen = r.tok.ident_len;
   if (nlen <= 0 || nlen > 63)
     return 0;
-  parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, nlen, name_buf);
+  start = r.token_start;
+  if (start == 0 && r.next_lex.pos >= (size_t)nlen)
+    start = r.next_lex.pos - (size_t)nlen;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, nlen));
-  if (nlen == 5 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 52)
-    return parser_asm_alloc_vector_type_ref_c(arena, 0, 4);
-  if (nlen == 5 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 56)
-    return parser_asm_alloc_vector_type_ref_c(arena, 0, 8);
-  if (nlen == 6 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 49 && name_buf[4] == 54)
-    return parser_asm_alloc_vector_type_ref_c(arena, 0, 16);
-  if (nlen == 5 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 52)
-    return parser_asm_alloc_vector_type_ref_c(arena, 3, 4);
-  if (nlen == 5 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 56)
-    return parser_asm_alloc_vector_type_ref_c(arena, 3, 8);
-  if (nlen == 6 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 49 && name_buf[4] == 54)
-    return parser_asm_alloc_vector_type_ref_c(arena, 3, 16);
-  /* f32x4: elem_ord=14 (TYPE_F32), NOT 13 (TYPE_VECTOR). 13 made elem a
-   * nonsensical TYPE_VECTOR so codegen fell back to int32_t. PLATFORM: SHARED. */
-  if (nlen == 5 && name_buf[0] == 102 && name_buf[1] == 51 && name_buf[2] == 50 && name_buf[3] == 120 && name_buf[4] == 52)
-    return parser_asm_alloc_vector_type_ref_c(arena, 14, 4);
-  /* Vec4f: elem_ord=14 (TYPE_F32). Was 13 (TYPE_VECTOR) — same bug as f32x4. */
-  if (nlen == 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99 && name_buf[3] == 52 && name_buf[4] == 102)
-    return parser_asm_alloc_vector_type_ref_c(arena, 14, 4);
-  if (nlen == 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99 && name_buf[3] == 56 && name_buf[4] == 105)
-    return parser_asm_alloc_vector_type_ref_c(arena, 0, 8);
-  return 0;
+  pack = parser_asm_vector_type_ident_pack_c(source ? source->data : (uint8_t *)0,
+                                            source ? source->length : (size_t)0, start, nlen);
+  if (pack == 0)
+    return 0;
+  return parser_asm_alloc_vector_type_ref_c(arena, pack >> 8, pack & 255);
 }
 
 /**

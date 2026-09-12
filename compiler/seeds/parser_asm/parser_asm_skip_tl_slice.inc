@@ -952,34 +952,12 @@ static void *g_xlang_trait_check_arena;
  * Map builtin type token → TypeKind ordinal (align PARSER_ASM_TYPE_* / ast TypeKind).
  * @return kind ord >=0; -1 if not a scalar/void builtin (IDENT handled separately as NAMED).
  * PLATFORM: SHARED parse.
+ * G.7: thin trampoline — authority is parser_asm_type_ref_builtin_kind_ord_c
+ * (P3b .x on hybrid; type_ref.inc export on cold).
  */
+extern int32_t parser_asm_type_ref_builtin_kind_ord_c(int32_t tok_kind);
 static int32_t xlang_trait_token_to_type_kind_c(int32_t tok_kind) {
-  switch (tok_kind) {
-  case (int32_t)TOKEN_I32:
-    return 0;
-  case (int32_t)TOKEN_BOOL:
-    return 1;
-  case (int32_t)TOKEN_U8:
-    return 2;
-  case (int32_t)TOKEN_U32:
-    return 3;
-  case (int32_t)TOKEN_U64:
-    return 4;
-  case (int32_t)TOKEN_I64:
-    return 5;
-  case (int32_t)TOKEN_USIZE:
-    return 6;
-  case (int32_t)TOKEN_ISIZE:
-    return 7;
-  case (int32_t)TOKEN_F32:
-    return 14;
-  case (int32_t)TOKEN_F64:
-    return 15;
-  case (int32_t)TOKEN_VOID:
-    return 16;
-  default:
-    return -1;
-  }
+  return parser_asm_type_ref_builtin_kind_ord_c(tok_kind);
 }
 
 /* Align PARSER_ASM_TYPE_* / ast TypeKind for wave427/430 ret shape checks. */
