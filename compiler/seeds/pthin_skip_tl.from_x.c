@@ -110,7 +110,7 @@ extern int32_t parser_asm_stretch_impl_header_audit_c(void *lex_inout, void *sou
 extern int32_t parser_asm_stretch_impl_items_body_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_impl_items_probe_c(void *lex_inout, void *source, int32_t *out_item_count);
 extern int32_t parser_asm_stretch_impl_type_for_trait_audit_c(void *lex_inout, void *source);
-extern int32_t parser_asm_stretch_skip_allow_modifiers_c(struct parser_asm_lexer *inout_lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_skip_allow_modifiers_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_skip_one_extern_body_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_skip_return_type_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_struct_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);

@@ -82778,3 +82778,347 @@ export function parser_asm_stretch_vx_try_skip_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_
   }
   return 0;
 }
+
+
+/* ── leftover helpers (v5.39 Route C) ── */
+
+/**
+ * Skip `allow(...)` modifier groups in front of a struct definition.
+ * Inout: a matching `allow (` group leaves the lexer after the closing `)`;
+ * a non-allow peek is a no-op. Always returns 1 (null → 0). Guard cap = 8
+ * post-increment (`guard++ > 8`). Port of the suite twin
+ * `parser_asm_stretch_skip_allow_modifiers_c`.
+ * @param lex_inout *u8 — opaque lexer (advanced only on allow hits)
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 on success path (including zero groups); 0 on null
+ * PLATFORM: SHARED — leftover helper port (v5.39).
+ */
+#[no_mangle]
+export function parser_asm_stretch_skip_allow_modifiers_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let guard: i32 = 0;
+  let oldg: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let ts: usize = 0;
+  let slen: usize = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    guard = 0;
+    while (guard < 16) {
+      oldg = guard;
+      guard = guard + 1;
+      if (oldg > 8) {
+        break;
+      }
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      idlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (kind != TOKEN_IDENT || idlen != 5) {
+        break;
+      }
+      data = parser_asm_lex_source_data_c(source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      slen = parser_asm_lex_source_length_c(source);
+      if (data != 0 as *u8 && ts + 4 < slen && data[ts] == 97 && data[ts + 1] == 108 && data[ts + 2] == 108 && data[ts + 3] == 111 && data[ts + 4] == 119) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_LPAREN) {
+          break;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        parser_asm_lex_skip_balanced_parens_inplace_c(lex_inout, source);
+        continue;
+      }
+      break;
+    }
+  }
+  return 1;
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate (function ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_function_name_audit_c(name: *u8, name_len: i32): i32 {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate (struct layout ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_struct_layout_name_audit_c(name: *u8, name_len: i32): i32 {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate (block bind ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_block_bind_name_audit_c(name: *u8, name_len: i32): i32 {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate (collect_imports bind ident).
+ * @param bind *u8 — ident bytes
+ * @param bind_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_collect_imports_bind_audit_c(bind: *u8, bind_len: i32): i32 {
+  return parser_asm_stretch_bind_name_validate_c(bind, bind_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate (library field ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_library_field_bind_audit_c(name: *u8, name_len: i32): i32 {
+  if (name == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate (library param ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_library_param_bind_audit_c(name: *u8, name_len: i32): i32 {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of function_name_audit (onefunc buf ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_onefunc_buf_name_audit_c(name: *u8, name_len: i32): i32 {
+  return parser_asm_stretch_function_name_audit_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of library_param_bind (extern param ident).
+ * @param name *u8 — ident bytes
+ * @param name_len i32 — byte count
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_extern_param_bind_audit_c(name: *u8, name_len: i32): i32 {
+  return parser_asm_stretch_library_param_bind_audit_c(name, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate on source[token_start .. +name_len).
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_struct_field_bind_audit_c(source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (source == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate on source[token_start .. +name_len).
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_enum_variant_bind_audit_c(source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (source == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate on source[token_start .. +name_len).
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_field_access_name_audit_c(source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (source == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate on source[token_start .. +name_len).
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_select_bind_audit_c(source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (source == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
+}
+
+/**
+ * G.7 thin wrap of bind_name_validate on source[token_start .. +name_len).
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param name_len i32 — ident length
+ * @return i32 — 1 valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_import_select_item_bind_audit_c(source: *u8, token_start: usize, name_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  if (source == 0 as *u8 || name_len <= 0) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, name_len);
+}
+
+/**
+ * Vector-type ident: `i3x*` / `Vec*` special-case, else bind_name_validate.
+ * @param source *u8 — opaque slice
+ * @param token_start usize — byte offset of the ident
+ * @param nlen i32 — ident length
+ * @return i32 — 1 if a vector-type spelling or a valid ident; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_vector_type_ident_audit_c(source: *u8, token_start: usize, nlen: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (source == 0 as *u8 || nlen <= 0 || nlen > 63) {
+    return 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (data == 0 as *u8) {
+      return 0;
+    }
+    if (nlen == 5 && token_start + 2 < slen && data[token_start] == 105 && data[token_start + 1] == 51 && data[token_start + 2] == 120) {
+      return 1;
+    }
+    if (nlen >= 5 && token_start + 2 < slen && data[token_start] == 86 && data[token_start + 1] == 101 && data[token_start + 2] == 99) {
+      return 1;
+    }
+  }
+  return parser_asm_stretch_bind_name_validate_c(data + token_start, nlen);
+}
+
+/**
+ * Kind classifier: i32 / i64 / bool / u8 / u32 / u64 / usize / void / ident.
+ * @param kind i32 — token kind
+ * @return i32 — 1 if the kind may start a type (excl. * and [])
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_is_type_start_kind_c(kind: i32): i32 {
+  if (kind == TOKEN_I32 || kind == TOKEN_I64 || kind == TOKEN_BOOL || kind == TOKEN_U8 || kind == TOKEN_U32 || kind == TOKEN_U64 || kind == TOKEN_USIZE || kind == TOKEN_VOID || kind == TOKEN_IDENT) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Kind classifier: i32 / i64 / INT discriminant.
+ * @param kind i32 — token kind
+ * @return i32 — 1 if the kind is an enum discriminant type
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_enum_discriminant_kind_audit_c(kind: i32): i32 {
+  if (kind == TOKEN_I32 || kind == TOKEN_I64 || kind == TOKEN_INT) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Kind classifier: token after `=` is IMPORT.
+ * @param after_assign_kind i32 — token kind
+ * @return i32 — 1 iff IMPORT
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_const_import_kw_audit_c(after_assign_kind: i32): i32 {
+  if (after_assign_kind == TOKEN_IMPORT) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Kind classifier: SIMD vector type tokens (i32x4/8/16, u32x4/8/16, f32x4).
+ * @param kind i32 — token kind
+ * @return i32 — 1 if a vector type token
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_builtin_vec_token_audit_c(kind: i32): i32 {
+  if (kind == TOKEN_I32X4 || kind == TOKEN_I32X8 || kind == TOKEN_I32X16 || kind == TOKEN_U32X4 || kind == TOKEN_U32X8 || kind == TOKEN_U32X16 || kind == TOKEN_F32X4) {
+    return 1;
+  }
+  return 0;
+}

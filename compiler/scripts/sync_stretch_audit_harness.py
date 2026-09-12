@@ -39,7 +39,7 @@ void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct pa
   out->line = r.next_lex.line;
   out->col = r.next_lex.col;
 }
-int32_t parser_asm_stretch_is_type_start_kind_c(int32_t kind) {
+static int32_t parser_asm_stretch_is_type_start_kind_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
       || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64
       || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_IDENT;
@@ -108,27 +108,27 @@ int32_t parser_asm_stretch_struct_field_name_kind_c(int32_t kind) {
 int32_t parser_asm_stretch_struct_field_continues_kind_c(int32_t kind) {
   return parser_asm_stretch_struct_field_name_kind_c(kind) != 0 || kind == STRETCH_TOKEN_ALIGN;
 }
-int32_t parser_asm_stretch_struct_field_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+static int32_t parser_asm_stretch_struct_field_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
-int32_t parser_asm_stretch_enum_variant_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+static int32_t parser_asm_stretch_enum_variant_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
-int32_t parser_asm_stretch_enum_discriminant_kind_audit_c(int32_t kind) {
+static int32_t parser_asm_stretch_enum_discriminant_kind_audit_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_INT ? 1 : 0;
 }
 /* v4.9: function_name_audit is a thin wrap of bind_name_validate (G.7). */
-int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len) {
+static int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
 /* v5.7: struct_layout_name_audit is the same thin wrap (G.7). */
-int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len) {
+static int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
 /* v5.8: loop_stmt_body is a real flag3 .x port; c_ref twin comes from the
@@ -152,7 +152,7 @@ struct parser_asm_lexer parser_asm_lexer_init_c(void) {
 /* v5.32: diag_parse_one_mega(+full_deep chain) are real .x ports (ABI-widened
  * no-lex roots). Still-C (data,len) leaves they call are provided after c_ref
  * fwds as HARNESS_MEGA_STILL_C (product suite remains authority). */
-int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+static int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                            int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
@@ -177,6 +177,13 @@ int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t p
 }
 '''
 
+
+# v5.39: leftover helpers now defined by audit_x.o. suite_helper_defs must
+# emit `static` copies so c_ref twins keep C authority without duplicate T.
+HELPERS_PORTED_TO_X = {
+    "parser_asm_stretch_vector_type_ident_audit_c",
+    "parser_asm_stretch_builtin_vec_token_audit_c",
+}
 
 SUITE_HELPER_SIGS = [
     "static int32_t parser_asm_stretch_expr_binop_kinds_probe_c(",
@@ -325,6 +332,11 @@ def suite_helper_defs(suite, exports=None):
         if not m:
             raise SystemExit(f"helper def not found: {sig}")
         body = m.group(0)
+        for n in HELPERS_PORTED_TO_X:
+            if body.startswith("int32_t " + n) or body.startswith("static int32_t " + n):
+                if not body.startswith("static "):
+                    body = "static " + body
+                break
         # strip audit-gate macros (daily no-op semantics) and their inner calls
         body = re.sub(r"PARSER_ASM_STRETCH_AUDIT_CALL\([^;]*\);", "(void)0;", body)
         for other in exports:
@@ -352,8 +364,15 @@ def main():
     buf3 = set()
     buf4 = set()  # v5.37: (lex, data, len, is_const)
     out3 = {}  # name -> out param ident
+    # v5.39: leftover Route C helpers (kind / name,len / source+off) are
+    # exported from the same .x but are NOT (lex, source) eq audits.
+    leftover_helpers = set()
     for m in re.finditer(r"export function (parser_asm_stretch_\w+_c)\(([^)]*)\): i32 \{", xsrc):
         params = m.group(2)
+        p0 = params.strip()
+        if not (p0.startswith("lex:") or p0.startswith("lex_inout:")):
+            leftover_helpers.add(m.group(1))
+            continue
         ncomma = params.count(",")
         if ncomma == 3 and "data: *u8" in params and "len: i32" in params:
             buf4.add(m.group(1))
@@ -366,6 +385,7 @@ def main():
                     out3[m.group(1)] = mo.group(1)
                 else:
                     flag3.add(m.group(1))
+    audit_exports = [n for n in exports if n not in leftover_helpers]
 
     # 2) twins from the suite (gated pointer-ABI bodies)
     twins = []
@@ -381,7 +401,7 @@ def main():
         suite, re.S | re.M,
     ):
         name, extra, body = m.group(1), m.group(2), m.group(3)
-        if name not in exports or name in have:
+        if name not in audit_exports or name in have:
             continue
         have.add(name)
         base = name[len("parser_asm_stretch_"):-2]  # strip prefix and _c
@@ -400,7 +420,7 @@ def main():
             twin_extra = ""
         body = body.replace(f"{name}(", f"c_ref_{base}(", 0)  # no self-calls
         # internal calls to other migrated audits → c_ref_ forms
-        for other in exports:
+        for other in audit_exports:
             if other != name:
                 body = body.replace(f"{other}(", f"c_ref_{other[len('parser_asm_stretch_'):-2]}(")
         # v5.6: .x elides void validate_toplevel_token_c(r,…) — keep c_ref in sync
@@ -422,9 +442,11 @@ def main():
             + sig_line
             + f"{body}\n}}\n"
         )
-    missing = [n for n in exports if n not in have]
+    missing = [n for n in audit_exports if n not in have]
     if missing:
         print("WARN: no gated twin found for:", ", ".join(missing))
+    if leftover_helpers:
+        print(f"leftover helpers (not eq-table): {len(leftover_helpers)}")
 
     open(TWINS, "w").write(
         "/* AUTO-GENERATED by sync_stretch_audit_harness.py — do not edit.\n"
@@ -433,7 +455,7 @@ def main():
         + "\n/* Forward decls so twins / advance_to helpers may call each other. */\n"
         + "\n".join(fwds) + "\n\n"
         # advance_to helpers after fwds so they can call c_ref_* (v5.3)
-        + suite_helper_defs(suite, exports)
+        + suite_helper_defs(suite, audit_exports)
         + HARNESS_SKIP_STUBS
         # v5.32: still-C leaves for mega/full_deep after skip stubs + c_ref fwds
         + HARNESS_MEGA_STILL_C
@@ -442,7 +464,7 @@ def main():
 
     # 3) table: shims + rows
     rows = []
-    for name in sorted(exports):
+    for name in sorted(audit_exports):
         base = name[len("parser_asm_stretch_"):-2]
         if name in buf4:
             rows.append(f'    {{"{base}/1", r_{base}, x_{base}, 1, 0}},')
@@ -462,7 +484,7 @@ def main():
             inout = 1 if name in INOUT_SET else 0
             rows.append(f'    {{"{base}", r_{base}, x_{base}, 0, {inout}}},')
     shims = []
-    for name in sorted(exports):
+    for name in sorted(audit_exports):
         base = name[len("parser_asm_stretch_"):-2]
         if name in buf4:
             shims.append(
@@ -489,7 +511,7 @@ def main():
             shims.append(
                 f"static int32_t r_{base}(void *l, void *s, int32_t f) {{ (void)f; return c_ref_{base}(l, s); }}")
     externs = []
-    for name in sorted(exports):
+    for name in sorted(audit_exports):
         if name in buf4:
             externs.append(f"extern int32_t {name}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);")
         elif name in buf3:
@@ -508,7 +530,7 @@ def main():
         + "\n".join(rows)
         + "\n};\n"
     )
-    print(f"twins: {len(twins)}, table rows: {len(rows)} (exports {len(exports)})")
+    print(f"twins: {len(twins)}, table rows: {len(rows)} (exports {len(audit_exports)} leftover_helpers {len(leftover_helpers)})")
     return 0
 
 
@@ -518,6 +540,8 @@ INOUT_SET = {
     "parser_asm_stretch_skip_return_type_audit_c",
     # v5.9: import select-list advances past `}` (and mid-fail past last IDENT)
     "parser_asm_stretch_import_select_list_audit_c",
+    # v5.39: leftover inout helper — skip allow(...) groups in front of struct
+    "parser_asm_stretch_skip_allow_modifiers_c",
 }
 
 

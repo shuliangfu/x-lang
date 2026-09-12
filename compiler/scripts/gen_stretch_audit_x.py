@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.38 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.39 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,14 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.39: leftover helper Route C cluster (bind wraps / kind classifiers /
+#   skip_allow_modifiers inout). parse_suite leftover is already 0; remaining
+#   C is non-byval helpers still compiled into hybrid P9. Hand-port the
+#   pointer/scalar leftovers onto existing authorities (G.7 thin wrap of
+#   bind_name_validate; kind tables; skip_allow via lex-step bridge). Refuse
+#   advance_to secondary-cursor and lexer_result-by-val this wave.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=skip_allow (提速纪律).
 #
 # v5.38: leftover ident compress (L012-fit; not a product Cap raise) —
 #   All remaining unmigrated audits were ident 256..656 (versal-infix tower).
@@ -2284,6 +2292,12 @@ PURE_HELPERS = {
         "kind: i32, next_kind: i32, third_kind: i32", "i32"),
     # v5.6: kind-only classifier (library_scan_deep after FUNCTION peek)
     "parser_asm_stretch_spawn_kw_audit_c": ("kind: i32", "i32"),
+    # v5.39 leftover Route C kind classifiers / bind wraps
+    "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
+    "parser_asm_stretch_enum_discriminant_kind_audit_c": ("kind: i32", "i32"),
+    "parser_asm_stretch_const_import_kw_audit_c": ("after_assign_kind: i32", "i32"),
+    "parser_asm_stretch_builtin_vec_token_audit_c": ("kind: i32", "i32"),
+    "parser_asm_stretch_function_name_audit_c": ("name: *u8, name_len: i32", "i32"),
 }
 
 
@@ -3122,6 +3136,12 @@ PURE_HELPERS = {
     "parser_asm_stretch_struct_field_continues_kind_c": ("kind: i32", "i32"),
     # v5.6: kind-only classifier (library_scan_deep after FUNCTION peek)
     "parser_asm_stretch_spawn_kw_audit_c": ("kind: i32", "i32"),
+    # v5.39 leftover Route C kind classifiers / bind wraps
+    "parser_asm_stretch_is_type_start_kind_c": ("kind: i32", "i32"),
+    "parser_asm_stretch_enum_discriminant_kind_audit_c": ("kind: i32", "i32"),
+    "parser_asm_stretch_const_import_kw_audit_c": ("after_assign_kind: i32", "i32"),
+    "parser_asm_stretch_builtin_vec_token_audit_c": ("kind: i32", "i32"),
+    "parser_asm_stretch_function_name_audit_c": ("name: *u8, name_len: i32", "i32"),
 }
 
 

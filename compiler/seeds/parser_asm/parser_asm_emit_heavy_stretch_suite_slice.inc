@@ -1921,6 +1921,9 @@ int32_t parser_asm_stretch_balanced_brackets_depth_probe_c(void *lex_inout, void
 /**
  * 标量/命名类型 token 是否为函数签名中的类型起点（不含 * 与 []）。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_is_type_start_kind_c(int32_t kind) {
   if (kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
       || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64
@@ -1928,6 +1931,7 @@ int32_t parser_asm_stretch_is_type_start_kind_c(int32_t kind) {
     return 1;
   return 0;
 }
+#endif
 
 /**
  * 从已消费 '[' 的 lex 起跳过匹配方括号，结果写入 *out。
@@ -2241,34 +2245,45 @@ int32_t parser_asm_stretch_import_select_list_audit_c(void *lex_inout, void *sou
 /**
  * 跳过 allow(padding) / allow(soa) 修饰（struct 定义前）；返回更新 lex。
  */
-int32_t parser_asm_stretch_skip_allow_modifiers_c(struct parser_asm_lexer *inout_lex,
-                                                  struct parser_asm_slice_u8 *source) {
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol
+ * (inout pointer ABI; C twin widened lexer-ptr/slice-ptr to void*). */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+int32_t parser_asm_stretch_skip_allow_modifiers_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer *inout_lex;
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer_result r2;
   int32_t guard;
-  if (!inout_lex || !source)
+  if (!lex_inout || !source)
     return 0;
+  inout_lex = (struct parser_asm_lexer *)lex_inout;
   guard = 0;
   for (;;) {
     if (guard++ > 8)
       break;
-    lexer_next_into(&r, *inout_lex, source);
+    lexer_next_into(&r, *inout_lex, (struct parser_asm_slice_u8 *)source);
     if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len != 5)
       break;
-    if (source->data && r.token_start + 4 < source->length && source->data[r.token_start] == (uint8_t)'a'
-        && source->data[r.token_start + 1] == (uint8_t)'l' && source->data[r.token_start + 2] == (uint8_t)'l'
-        && source->data[r.token_start + 3] == (uint8_t)'o' && source->data[r.token_start + 4] == (uint8_t)'w') {
+    if (((struct parser_asm_slice_u8 *)source)->data
+        && r.token_start + 4 < ((struct parser_asm_slice_u8 *)source)->length
+        && ((struct parser_asm_slice_u8 *)source)->data[r.token_start] == (uint8_t)'a'
+        && ((struct parser_asm_slice_u8 *)source)->data[r.token_start + 1] == (uint8_t)'l'
+        && ((struct parser_asm_slice_u8 *)source)->data[r.token_start + 2] == (uint8_t)'l'
+        && ((struct parser_asm_slice_u8 *)source)->data[r.token_start + 3] == (uint8_t)'o'
+        && ((struct parser_asm_slice_u8 *)source)->data[r.token_start + 4] == (uint8_t)'w') {
       parser_asm_lex_from_result_val_into(inout_lex, r);
-      lexer_next_into(&r2, *inout_lex, source);
+      lexer_next_into(&r2, *inout_lex, (struct parser_asm_slice_u8 *)source);
       if (r2.tok.kind != (int32_t)TOKEN_LPAREN)
         break;
-      parser_asm_skip_balanced_parens_into_slice_c(inout_lex, r2.next_lex, source);
+      parser_asm_skip_balanced_parens_into_slice_c(inout_lex, r2.next_lex,
+                                                  (struct parser_asm_slice_u8 *)source);
       continue;
     }
     break;
   }
   return 1;
 }
+#endif
 
 /**
  * struct 字段列表探测：从 '{' 之后扫描字段名/类型/colon 形态（不写 module）。
@@ -3003,9 +3018,13 @@ int32_t parser_asm_stretch_import_stmt_audit_c(void *lex_inout, void *source) {
 /**
  * tier7：collect_imports 中 const bind = import 的 bind 名合法性审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_collect_imports_bind_audit_c(const uint8_t *bind, int32_t bind_len) {
   return parser_asm_stretch_bind_name_validate_c(bind, bind_len);
 }
+#endif
 
 /**
  * tier7：enum 头审计 — enum Name { 基本形态。
@@ -3445,9 +3464,13 @@ int32_t parser_asm_stretch_cond_int_as_audit_c(void *lex_inout, void *source) {
 /**
  * tier10：函数名 ident 审计（peek / 签名共用）。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
+#endif
 
 /**
  * tier11：块内 let/const 声明审计（复用顶层 let/const 形态）。
@@ -3510,9 +3533,13 @@ int32_t parser_asm_stretch_assign_stmt_audit_c(void *lex_inout, void *source) {
 /**
  * tier11：const bind = import 关键字审计（第三 token 须为 import）。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_const_import_kw_audit_c(int32_t after_assign_kind) {
   return after_assign_kind == (int32_t)TOKEN_IMPORT ? 1 : 0;
 }
+#endif
 
 /**
  * tier11：library spawn 前缀审计 — function 后 spawn 关键字。
@@ -3632,9 +3659,13 @@ int32_t parser_asm_stretch_match_subject_ident_audit_c(struct parser_asm_lexer_r
 /**
  * tier12：struct layout 名 ident 审计（layout 解析入口）。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
+#endif
 
 /**
  * tier12：term 层 mul/div/mod 二元链首 token 粗探（不消费 lex）。
@@ -3694,9 +3725,13 @@ int32_t parser_asm_stretch_expr_addsub_binop_audit_c(void *lex_inout, void *sour
 /**
  * tier12：onefunc buf function 名审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_onefunc_buf_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_function_name_audit_c(name, name_len);
 }
+#endif
 
 /**
  * tier12：panic 前缀审计 — panic 后须 '(' 或 ';'。
@@ -4128,12 +4163,16 @@ int32_t parser_asm_stretch_primary_suffix_chain_probe_c(void *lex_inout, void *s
 /**
  * tier14：field access 字段名 bind 审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_field_access_name_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier14：三元 `?` 运算符粗探。
@@ -4224,9 +4263,13 @@ int32_t parser_asm_stretch_type_ref_deep_audit_c(void *lex_inout, void *source) 
 /**
  * tier14：block const/let 绑定名审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_block_bind_name_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
+#endif
 
 /**
  * tier14：call 实参列表形态粗探 — 统计 '(' 后顶层逗号分隔段数。
@@ -4303,9 +4346,13 @@ int32_t parser_asm_stretch_diag_fn_header_audit_c(void *lex_inout, void *source)
 /**
  * tier15：library 单参 bind 名审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_library_param_bind_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
+#endif
 
 /**
  * tier15：括号表达式 ( expr ) 头粗探。
@@ -4331,6 +4378,9 @@ int32_t parser_asm_stretch_paren_expr_head_audit_c(void *lex_inout, void *source
 /**
  * tier15：vector type IDENT 拼写审计（i32x4 / Vec4f 等）。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_vector_type_ident_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t nlen) {
   uint8_t name_buf[64];
@@ -4346,16 +4396,21 @@ int32_t parser_asm_stretch_vector_type_ident_audit_c(struct parser_asm_slice_u8 
     return 1;
   return parser_asm_stretch_bind_name_validate_c(name_buf, nlen);
 }
+#endif
 
 /**
  * tier15：enum variant 名 bind 审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_enum_variant_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier15：diag collect_imports 后顶层 kind 审计。
@@ -4520,28 +4575,40 @@ int32_t parser_asm_stretch_slice_type_bracket_audit_c(void *lex_inout, void *sou
 /**
  * tier16：内置 vector token（I32X4 等）审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32X4 || kind == (int32_t)TOKEN_I32X8 || kind == (int32_t)TOKEN_I32X16
          || kind == (int32_t)TOKEN_U32X4 || kind == (int32_t)TOKEN_U32X8 || kind == (int32_t)TOKEN_U32X16
          || kind == (int32_t)TOKEN_F32X4 ? 1 : 0;
 }
+#endif
 
 /**
  * tier16：import 选择列表项 bind 名审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_import_select_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                       int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier16：extern 形参名 bind 审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_extern_param_bind_audit_c(const uint8_t *name, int32_t name_len) {
   return parser_asm_stretch_library_param_bind_audit_c(name, name_len);
 }
+#endif
 
 /**
  * tier16：collect_imports 后 diag parse_one 前导审计。
@@ -4637,19 +4704,27 @@ int32_t parser_asm_stretch_library_return_type_audit_c(void *lex_inout, void *so
 /**
  * tier17：struct 字段名 bind 审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_struct_field_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                      int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier17：enum 变体显式判别式 token 审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_enum_discriminant_kind_audit_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_INT ? 1 : 0;
 }
+#endif
 
 /**
  * tier17：struct align(N) 前缀括号审计。
@@ -4697,11 +4772,15 @@ int32_t parser_asm_stretch_body_skip_let_const_buf_audit_c(void *lex_inout, uint
 /**
  * tier17：library return 字段访问名 bind 审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_library_field_bind_audit_c(const uint8_t *name, int32_t name_len) {
   if (!name || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(name, name_len);
 }
+#endif
 
 /**
  * tier18：trait 方法 return 类型头审计（')' 后期望 ':' + 类型头）。
@@ -4959,12 +5038,16 @@ int32_t parser_asm_stretch_parse_one_extern_buf_audit_c(void *lex_inout, uint8_t
 /**
  * tier19：import 选择列表单项 bind 名审计。
  */
+/* B-minus leftover helper (v5.39): hybrid lane compiles this out; .x
+ * authority src/asm/pthin_stretch_audit.x provides the same symbol. */
+#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
 int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
                                                            int32_t name_len) {
   if (!source || name_len <= 0)
     return 0;
   return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
 }
+#endif
 
 /**
  * tier19：const { ... } = import 选择列表括号头审计。
