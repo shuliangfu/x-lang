@@ -5,10 +5,13 @@
  * Hybrid P17b: XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X skips the portable
  * after_structs + fail_at_token_kind walks (bodies in
  * src/asm/pthin_diag_late.x + by-value trampolines in the seed TU).
- * diag_skip_let_const_buf / body_skip_buf stay C (P18b owns the
- * pointer-ABI walks). Contiguous already-T AUDIT prefixes on the buf
- * wrappers are compiled only under XLANG_PARSER_STRETCH_AUDIT.
- * Cold: no BODIES define, this file is the full twin.
+ * P17c G.7: diag_skip_let_const_buf is a trampoline over P18b
+ * diag_skip_let_const_into (same pattern as body_skip_buf). The old
+ * buf C walk was a dual-authority twin that missed U8/U32/U64/USIZE
+ * and the `[]` suffix after a scalar. Contiguous already-T AUDIT
+ * prefixes on the remaining buf wrappers are compiled only under
+ * XLANG_PARSER_STRETCH_AUDIT. Cold: no BODIES define, this file is
+ * the full twin for after_structs/fail; buf skip always trampolines.
  * Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X for P17b bodies.
  */
 #ifndef XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X
@@ -216,59 +219,32 @@ int32_t parser_asm_diag_fail_at_token_kind_buf_c(uint8_t *data, int32_t len) {
 }
 
 /**
- * diag_skip_let_const_buf：与 diag_skip_let_const_into 等价，buf 路径 + LexerResult 按值返回。
+ * diag_skip_let_const_buf：buf 路径跳过 let/const。P17c G.7 trampoline over
+ * P18b diag_skip_let_const_into (same pattern as body_skip_buf). The old
+ * C walk was a dual-authority twin: it omitted U8/U32/U64/USIZE and the
+ * `[]` suffix after a scalar that into already skips.
+ * PLATFORM: SHARED — do not reimplement the skip walk here.
  */
 struct parser_asm_lexer_result parser_asm_diag_skip_let_const_buf_c(struct parser_asm_lexer lex, uint8_t *data,
                                                                    int32_t len) {
+  struct parser_asm_slice_u8 source;
   struct parser_asm_lexer_result r;
+  struct parser_asm_lexer_result fail;
+
+  if (!data || len <= 0) {
+    memset(&fail, 0, sizeof(fail));
+    fail.next_lex = lex;
+    fail.tok.kind = (int32_t)TOKEN_EOF;
+    return fail;
+  }
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_const_type_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_const_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_full_deep_buf_audit_c(&lex, data, len));
-  r = lexer_next_buf(lex, data, len);
-  while (r.tok.kind == (int32_t)TOKEN_LET || r.tok.kind == (int32_t)TOKEN_CONST) {
-    parser_asm_lex_from_result_val_into(&lex, r);
-    r = lexer_next_buf(lex, data, len);
-    if (r.tok.kind != (int32_t)TOKEN_IDENT)
-      return r;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    r = lexer_next_buf(lex, data, len);
-    if (r.tok.kind != (int32_t)TOKEN_COLON)
-      return r;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_const_type_buf_audit_c(&lex, data, len));
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_const_deep_buf_audit_c(&lex, data, len));
-    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_skip_let_full_deep_buf_audit_c(&lex, data, len));
-    r = lexer_next_buf(lex, data, len);
-    if (r.tok.kind == (int32_t)TOKEN_STAR) {
-      parser_asm_lex_from_result_val_into(&lex, r);
-      r = lexer_next_buf(lex, data, len);
-      if (r.tok.kind != (int32_t)TOKEN_IDENT)
-        return r;
-      parser_asm_lex_from_result_val_into(&lex, r);
-      r = lexer_next_buf(lex, data, len);
-    } else if (r.tok.kind == (int32_t)TOKEN_I32 || r.tok.kind == (int32_t)TOKEN_BOOL ||
-               r.tok.kind == (int32_t)TOKEN_I64 || r.tok.kind == (int32_t)TOKEN_VOID ||
-               r.tok.kind == (int32_t)TOKEN_IDENT) {
-      parser_asm_lex_from_result_val_into(&lex, r);
-      r = lexer_next_buf(lex, data, len);
-    } else {
-      return r;
-    }
-    if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
-      return r;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    r = lexer_next_buf(lex, data, len);
-    while (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_EOF) {
-      if (r.tok.kind == (int32_t)TOKEN_STRING)
-        return r;
-      parser_asm_lex_from_result_val_into(&lex, r);
-      r = lexer_next_buf(lex, data, len);
-    }
-    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON)
-      return r;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    r = lexer_next_buf(lex, data, len);
-  }
+#endif
+  source.data = data;
+  source.length = (size_t)len;
+  parser_asm_diag_skip_let_const_into_slice_c(&r, lex, &source);
   return r;
 }
 

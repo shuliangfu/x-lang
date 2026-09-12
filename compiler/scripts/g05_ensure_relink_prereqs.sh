@@ -789,7 +789,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p15b_x=src/asm/pthin_library.x
   _pthin_p16_seed=seeds/pthin_diag_pipeline.from_x.c
   _pthin_p17_seed=seeds/pthin_diag_late.from_x.c
-  # 7.2.1 P17b B-minus: diag_late .x bodies (after_structs + fail walk)
+  # 7.2.1 P17b/P17c B-minus: diag_late .x bodies (after_structs + fail)
+  # + G.7 diag_skip_let_const_buf trampoline over P18b into
   _pthin_p17b_x=src/asm/pthin_diag_late.x
   _pthin_p18_seed=seeds/pthin_body_tl.from_x.c
   # 7.2.1 P18b Route C + B-minus: body_tl .x bodies (scalar table + skip walks)
@@ -1394,12 +1395,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P18 body_tl ← $_pthin_p18_seed (G-02f-327 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P17b B-minus (2026-09-13).
+        # PLATFORM: SHARED — 7.2.1 P17b B-minus + P17c G.7 (2026-09-13).
         # pthin_diag_late.x holds after_structs + fail_at_token_kind.
+        # P17c: diag_skip_let_const_buf trampolines over P18b into
+        # (no new .x export; G.7 kill of the buf C walk twin).
         # Requires P9a + P1b + P12b + P18b (peek/step, is_pointee,
-        # skip_one_struct, is_fn_sig/body_skip). Moved after P18b so
-        # _pthin_p18b_ok is set before BODIES_FROM_X. Cold: no define,
-        # full .inc. Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X.
+        # skip_one_struct, is_fn_sig/body_skip/diag_skip). Moved after
+        # P18b so _pthin_p18b_ok is set before BODIES_FROM_X. Cold: no
+        # define, full .inc. Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X.
         _pthin_p17_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p18b_ok" = "1" ] \
@@ -1407,7 +1410,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p17b_x" "$_pthin_p17b_thin_o"; then
             _pthin_p17b_ok=1
             _pthin_p17_extra="-DXLANG_PTHIN_DIAG_LATE_BODIES_FROM_X"
-            echo "g05_ensure: P17b diag_late bodies ← $_pthin_p17b_x (7.2.1 B-minus after_structs/fail)"
+            echo "g05_ensure: P17b/P17c diag_late bodies ← $_pthin_p17b_x (7.2.1 B-minus after_structs/fail + G.7 buf trampoline)"
           else
             echo "g05_ensure: P17b diag_late .x thin failed; P17 C twin stays full" >&2
           fi

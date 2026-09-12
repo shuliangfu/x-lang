@@ -2,13 +2,16 @@
  * Logic source: src/asm/pthin_diag_late.x
  * Hybrid: XLANG_PTHIN_DIAG_LATE_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: seeds/parser_asm/parser_asm_diag_late_slice.inc (~269)
- * diag_after_imports_then_structs + diag_fail_at_token_kind + diag_skip_let_const_buf + body_skip_buf
+ * Body: seeds/parser_asm/parser_asm_diag_late_slice.inc
+ * diag_after_imports_then_structs + diag_fail_at_token_kind +
+ * diag_skip_let_const_buf (P17c G.7 trampoline) + body_skip_buf
  *
  * Hybrid P17b (XLANG_PTHIN_DIAG_LATE_BODIES_FROM_X): portable after_structs
  * + fail_at_token_kind walks come from pthin_diag_late.x; this TU keeps
- * the by-value trampolines plus buf skip. Cold: no BODIES define, full
- * .inc. Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X for P17b bodies.
+ * the by-value trampolines. P17c G.7: diag_skip_let_const_buf trampolines
+ * over P18b into (body_skip_buf already did). Cold: no BODIES define,
+ * full .inc for after_structs/fail; buf skip always trampolines.
+ * Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X for P17b bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -71,8 +74,8 @@ struct parser_asm_slice_u8 {
 
 
 
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *data);
+extern void parser_asm_diag_skip_let_const_into_slice_c(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern void parser_asm_body_skip_let_const_then_if_into_slice_c(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern struct parser_asm_lexer parser_asm_diag_lex_after_imports_slice_c(struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind);

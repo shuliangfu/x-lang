@@ -24,8 +24,9 @@
 // header/body using P18b is_fn_sig_scalar + body_skip and P1b is_pointee.
 // Reuse the P9a lexer-step bridge. diag_lex_after_imports stays C
 // (lexer_init + skip_imports; language has no struct-by-value init).
-// diag_skip_let_const_buf / body_skip_buf stay C (P18b already owns
-// the pointer-ABI walks; these are by-value buf trampolines).
+// P17c G.7: diag_skip_let_const_buf is a C trampoline over P18b
+// diag_skip_let_const_into (same pattern as body_skip_buf). Do not
+// add a second .x export for the buf path (would be dual-authority).
 // Product AUDIT_CALL is already ((void)0); the C twins keep the
 // already-T combinator probes as cold fallback only. Contiguous
 // already-T AUDIT prefixes on the buf wrappers are compiled only
