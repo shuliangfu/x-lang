@@ -17,8 +17,7 @@ extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
 extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
 extern int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_lexer_result r_at,
                                                                   struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_simd_builtin_deep_audit_c(struct parser_asm_lexer lex,
-                                                          struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_simd_builtin_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
                                                        struct parser_asm_slice_u8 *source);
 

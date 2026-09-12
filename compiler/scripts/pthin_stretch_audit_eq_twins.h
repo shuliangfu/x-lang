@@ -3,6 +3,11 @@
 
 /* ── helper authority copies (verbatim from their slices; refresh together) ── */
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
+/* v5.36: skip stubs live after suite helpers; diag_after_imports calls these. */
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source);
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                        struct parser_asm_slice_u8 *source);
 void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r) {
   if (!out)
     return;
@@ -260,6 +265,7 @@ static int32_t c_ref_impl_items_body_audit(void *lex_inout, void *source);
 static int32_t c_ref_impl_items_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_record_layout_body_audit(void *lex_inout, void *source);
 static int32_t c_ref_struct_record_layout_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_fail_at_token_kind_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_skip_one_function_full_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_if_stmt_body_audit(void *lex_inout, void *source);
 static int32_t c_ref_if_stmt_body_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
@@ -369,6 +375,8 @@ static int32_t c_ref_if_stmt_deep_buf_audit(void *lex_inout, uint8_t *data, int3
 static int32_t c_ref_if_expr_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_parse_cond_expr_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_parse_cond_expr_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_simd_builtin_deep_audit(void *lex_inout, void *source);
+static int32_t c_ref_simd_builtin_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_lit_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_struct_lit_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_extern_skip_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
@@ -441,6 +449,7 @@ static int32_t c_ref_parse_into_ultra_mega_full_deep_buf_audit(void *lex_inout, 
 static int32_t c_ref_match_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_match_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_skip_one_function_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
+static int32_t c_ref_diag_fn_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_block_stmt_mega_full_deep_audit(void *lex_inout, void *source);
 static int32_t c_ref_block_stmt_mega_full_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len);
 static int32_t c_ref_struct_skip_mega_full_deep_audit(void *lex_inout, void *source);
@@ -1504,6 +1513,89 @@ int32_t parser_asm_stretch_match_subject_ident_audit_c(struct parser_asm_lexer_r
   return parser_asm_stretch_bind_name_validate_c(source->data + r.token_start, r.tok.ident_len);
 }
 
+int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
+                                                struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  int32_t nlen;
+  size_t start;
+  if (!source)
+    return 0;
+  if (r_at.tok.kind != (int32_t)TOKEN_AT)
+    return 0;
+  lexer_next_into(&r, r_at.next_lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_IDENT)
+    return 0;
+  nlen = r.tok.ident_len;
+  start = r.token_start;
+  if (nlen == 7 && start + 6 < source->length && source->data[start] == 115 && source->data[start + 1] == 104
+      && source->data[start + 2] == 117 && source->data[start + 3] == 102 && source->data[start + 4] == 102
+      && source->data[start + 5] == 108 && source->data[start + 6] == 101)
+    return 1;
+  if (nlen == 6 && start + 5 < source->length && source->data[start] == 115 && source->data[start + 1] == 101
+      && source->data[start + 2] == 108 && source->data[start + 3] == 101 && source->data[start + 4] == 99
+      && source->data[start + 5] == 116)
+    return 1;
+  return 0;
+}
+
+int32_t parser_asm_stretch_vector_type_ident_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t nlen) {
+  uint8_t name_buf[64];
+  int32_t i;
+  if (!source || nlen <= 0 || nlen > 63)
+    return 0;
+  for (i = 0; i < nlen && token_start + (size_t)i < source->length; i++)
+    name_buf[i] = source->data[token_start + (size_t)i];
+  name_buf[i < 63 ? i : 63] = 0;
+  if (nlen == 5 && name_buf[0] == 105 && name_buf[1] == 51 && name_buf[2] == 120)
+    return 1;
+  if (nlen >= 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99)
+    return 1;
+  return parser_asm_stretch_bind_name_validate_c(name_buf, nlen);
+}
+
+int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_I32X4 || kind == (int32_t)TOKEN_I32X8 || kind == (int32_t)TOKEN_I32X16
+         || kind == (int32_t)TOKEN_U32X4 || kind == (int32_t)TOKEN_U32X8 || kind == (int32_t)TOKEN_U32X16
+         || kind == (int32_t)TOKEN_F32X4 ? 1 : 0;
+}
+
+int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_lexer_result r_at,
+                                                             struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  int32_t score;
+
+  if (!source || r_at.tok.kind != (int32_t)TOKEN_AT)
+    return 0;
+  score = parser_asm_stretch_simd_builtin_audit_c(r_at, source);
+  lexer_next_into(&r, r_at.next_lex, source);
+  if (r.tok.kind == (int32_t)TOKEN_IDENT)
+    score += parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, r.tok.ident_len);
+  score += c_ref_paren_expr_head_audit(&r.next_lex, source);
+  score += parser_asm_stretch_builtin_vec_token_audit_c((int32_t)r.tok.kind);
+  return score > 0 ? 1 : 0;
+}
+
+struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
+    struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  if (!source) {
+    memset(&r, 0, sizeof(r));
+    r.next_lex = lex;
+    r.tok.kind = (int32_t)TOKEN_EOF;
+    return r;
+  }
+  lexer_next_into(&r, lex, source);
+  while (r.tok.kind == (int32_t)TOKEN_STRUCT) {
+    (void)0;
+    (void)0;
+    lex = parser_asm_skip_one_struct_slice_c(lex, source);
+    lexer_next_into(&r, lex, source);
+  }
+  (void)0;
+  return r;
+}
+
 /* v5.6 harness stub — G.7 product authority remains suite skip_one_struct_slice. */
 struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source) {
@@ -1561,16 +1653,7 @@ struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer 
   }
 }
 
-/* v5.33: diag_fn_mega_buf still-C (pointer ABI widen; no .x port yet). */
-int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                          struct parser_asm_slice_u8 *source) {
-  int32_t score;
-  score = c_ref_diag_fn_deep_audit(&lex, source);
-  score += c_ref_fn_sig_full_deep_audit(&lex, source);
-  score += c_ref_diag_after_collect_preamble_audit(&lex, source);
-  score += parser_asm_stretch_function_name_audit_c((const uint8_t *)"main", 4);
-  return score > 0 ? 1 : 0;
-}
+/* v5.36: mega_buf still-C wrapper → c_ref slice (pointer ABI). */
 int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
   struct parser_asm_lexer lex;
   struct parser_asm_slice_u8 sl;
@@ -1579,7 +1662,7 @@ int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, u
   lex = *(struct parser_asm_lexer *)lex_inout;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(lex, &sl);
+  return c_ref_diag_fn_mega_full_deep_audit(&lex, &sl);
 }
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_fn_param_list_audit_c. */
 static int32_t c_ref_fn_param_list_audit(void *lex_inout, void *source) {
@@ -4062,6 +4145,35 @@ static int32_t c_ref_struct_record_layout_body_buf_audit(void *lex_inout, uint8_
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_fail_at_token_kind_buf_audit_c. */
+static int32_t c_ref_diag_fail_at_token_kind_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  (void)lex_inout;
+  struct parser_asm_slice_u8 sl;
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r;
+  int32_t score;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  /* v5.10: diag_lex root widened to (lex, source); init before call. */
+  lex = parser_asm_lexer_init_c();
+  score = c_ref_diag_lex_after_imports_audit(&lex, &sl);
+  score += c_ref_skip_imports_buf_audit(&lex, data, len);
+  lex = parser_asm_skip_imports_slice_c(lex, &sl);
+  score += c_ref_diag_after_imports_then_structs_buf_audit(&lex, data, len);
+  r = parser_asm_diag_after_imports_then_structs_slice_c(lex, &sl);
+  if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    score += c_ref_diag_fn_header_audit(&lex, &sl);
+    score += c_ref_diag_fn_param_sig_audit(&lex, &sl);
+  }
+  return score > 0 ? 1 : 0;
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_skip_one_function_full_buf_audit_c. */
 static int32_t c_ref_skip_one_function_full_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
 
@@ -5986,6 +6098,37 @@ static int32_t c_ref_parse_cond_expr_deep_buf_audit(void *lex_inout, uint8_t *da
 
 }
 
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_simd_builtin_deep_audit_c. */
+static int32_t c_ref_simd_builtin_deep_audit(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_lexer_result r_at;
+
+  lexer_next_into(&r_at, lex, (struct parser_asm_slice_u8 *)source);
+  return parser_asm_stretch_simd_builtin_deep_from_at_audit_c(r_at, source);
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_simd_builtin_deep_buf_audit_c. */
+static int32_t c_ref_simd_builtin_deep_buf_audit(void *lex_inout, uint8_t *data, int32_t len) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !data || len <= 0)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  struct parser_asm_slice_u8 sl;
+
+  if (!data || len <= 0)
+    return 0;
+  sl.data = data;
+  sl.length = (size_t)len;
+  return c_ref_simd_builtin_deep_audit(&lex, &sl);
+
+}
+
 /* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_struct_lit_deep_audit_c. */
 static int32_t c_ref_struct_lit_deep_audit(void *lex_inout, void *source) {
 
@@ -7247,6 +7390,23 @@ static int32_t c_ref_skip_one_function_mega_full_deep_buf_audit(void *lex_inout,
   score = c_ref_skip_one_function_full_deep_buf_audit(&lex, data, len);
   score += c_ref_block_stmt_full_deep_buf_audit(&lex, data, len);
   score += c_ref_onefunc_mega_full_deep_buf_audit(&lex, data, len);
+  return score > 0 ? 1 : 0;
+
+}
+
+/* Reference twin — verbatim copy of the gated C authority for parser_asm_stretch_diag_fn_mega_full_deep_audit_c. */
+static int32_t c_ref_diag_fn_mega_full_deep_audit(void *lex_inout, void *source) {
+
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  int32_t score;
+
+  score = c_ref_diag_fn_deep_audit(&lex, source);
+  score += c_ref_fn_sig_full_deep_audit(&lex, source);
+  score += c_ref_diag_after_collect_preamble_audit(&lex, source);
+  score += parser_asm_stretch_function_name_audit_c((const uint8_t *)"main", 4);
   return score > 0 ? 1 : 0;
 
 }

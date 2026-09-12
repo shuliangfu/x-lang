@@ -27,6 +27,11 @@ TABLE = "scripts/pthin_stretch_audit_eq_table.h"
 HELPERS = '''
 /* ── helper authority copies (verbatim from their slices; refresh together) ── */
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
+/* v5.36: skip stubs live after suite helpers; diag_after_imports calls these. */
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source);
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                        struct parser_asm_slice_u8 *source);
 void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r) {
   if (!out)
     return;
@@ -200,24 +205,21 @@ SUITE_HELPER_SIGS = [
     # v5.6: deep-scan / library_scan / match_subject helpers (small suite defs)
     "int32_t parser_asm_stretch_spawn_kw_audit_c(",
     "int32_t parser_asm_stretch_match_subject_ident_audit_c(",
+    # v5.36: simd from_at leftover (lexer_result by-val; .x inlines). Callees
+    # first so from_at can call them without a forward decl.
+    "int32_t parser_asm_stretch_simd_builtin_audit_c(",
+    "int32_t parser_asm_stretch_vector_type_ident_audit_c(",
+    "int32_t parser_asm_stretch_builtin_vec_token_audit_c(",
+    "int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(",
+    # v5.36: diag_fail leftover — product helper returns lexer_result.
+    "struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(",
 ]
 
-# v5.32 still-C (data,len) leaves: v5.35 migrated the pipeline/collect/full_deep
-# cluster into .x (pointer ABI). Harness copies of those five product symbols
-# are retired — c_ref_* twins from the gated suite are the C reference.
-# Remaining still-C: diag_fn_mega (function_name_audit string-lit leftover).
-# Must follow HARNESS_SKIP_STUBS (uses skip_imports_slice stub).
+# v5.36: slice mega_full_deep is a real .x port (c_ref from gated suite).
+# Buf wrapper stays still-C and forwards to the C reference (parents that
+# score+= mega_buf must not observe the .x slice). Must follow HARNESS_SKIP_STUBS.
 HARNESS_MEGA_STILL_C = r'''
-/* v5.33: diag_fn_mega_buf still-C (pointer ABI widen; no .x port yet). */
-int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(struct parser_asm_lexer lex,
-                                                          struct parser_asm_slice_u8 *source) {
-  int32_t score;
-  score = c_ref_diag_fn_deep_audit(&lex, source);
-  score += c_ref_fn_sig_full_deep_audit(&lex, source);
-  score += c_ref_diag_after_collect_preamble_audit(&lex, source);
-  score += parser_asm_stretch_function_name_audit_c((const uint8_t *)"main", 4);
-  return score > 0 ? 1 : 0;
-}
+/* v5.36: mega_buf still-C wrapper → c_ref slice (pointer ABI). */
 int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len) {
   struct parser_asm_lexer lex;
   struct parser_asm_slice_u8 sl;
@@ -226,7 +228,7 @@ int32_t parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(void *lex_inout, u
   lex = *(struct parser_asm_lexer *)lex_inout;
   sl.data = data;
   sl.length = (size_t)len;
-  return parser_asm_stretch_diag_fn_mega_full_deep_audit_c(lex, &sl);
+  return c_ref_diag_fn_mega_full_deep_audit(&lex, &sl);
 }
 '''
 
@@ -309,11 +311,16 @@ def suite_helper_defs(suite, exports=None):
     for sig in SUITE_HELPER_SIGS:
         m = re.search(r"^" + re.escape(sig) + r"[^\n]*$(.*?)^}$", suite, re.S | re.M)
         if not m:
-            # try the lex_skip slice for non-static helpers living there
-            try:
-                extra_src = open("seeds/parser_asm/parser_asm_lex_skip_slice.inc").read()
-            except FileNotFoundError:
-                extra_src = ""
+            # try lex_skip / diag_late for helpers that do not live in the suite.
+            extra_src = ""
+            for extra_fp in (
+                "seeds/parser_asm/parser_asm_lex_skip_slice.inc",
+                "seeds/parser_asm/parser_asm_diag_late_slice.inc",
+            ):
+                try:
+                    extra_src += open(extra_fp).read() + "\n"
+                except FileNotFoundError:
+                    pass
             m = re.search(r"^" + re.escape(sig) + r"[^\n]*$(.*?)^}$", extra_src, re.S | re.M)
         if not m:
             raise SystemExit(f"helper def not found: {sig}")

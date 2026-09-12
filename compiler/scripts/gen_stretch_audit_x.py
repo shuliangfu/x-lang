@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.35 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.36 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,20 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.36: leftover cluster (diag_fail lexer_result + simd from_at + name-lit) —
+#   Three ≤255 leftover roots share incomplete statement handlers, not a
+#   new ABI family. (1) `r = diag_after_imports_then_structs_slice_c(lex,
+#   source)` → peek + while STRUCT skip_one_struct_inplace + peek (product
+#   helper returns lexer_result; B-minus never materializes that struct).
+#   (2) `return simd_builtin_deep_from_at_audit_c(r_at, source)` inlines
+#   the lexer_result-first from_at body (simd_builtin_audit shuffle/select
+#   bytes + vector_type_ident + paren_expr_head + builtin_vec kinds) at
+#   the current peek. (3) `score += function_name_audit_c("main", 4)`
+#   folds onto bind_name_validate (G.7 thin wrap) → compile-time 1/0.
+#   Soft-FP climbs the unlocked buf/deleg twins. Still refuse L012>255
+#   (920 versal) / top_level_let_buf (extra is_const; non-parse_suite sig).
+#   Eq gate: FORCE smoke deep_off=0 / Darwin-first (提速纪律).
 #
 # v5.35: skip_imports leftover (noles dest `lex` + lexer_init form) —
 #   v5.6 only rewrote `after_imports = skip_imports_slice_c(lex, source)`
@@ -514,6 +528,129 @@ class Refuse(Exception):
 class Delegation(Exception):
     """Body is a pure delegation to another (already .x-migrated) audit."""
 
+
+def _is_valid_bind_ident(s):
+    """Same rules as parser_asm_stretch_bind_name_validate_c (G.7 authority)."""
+    if not s or len(s) > 63:
+        return False
+    def ok(c, first):
+        alpha = ("a" <= c <= "z") or ("A" <= c <= "Z") or c == "_"
+        return alpha if first else (alpha or ("0" <= c <= "9"))
+    if not ok(s[0], True):
+        return False
+    return all(ok(c, False) for c in s[1:])
+
+
+def fold_name_audit_lit(st):
+    """Fold function_name / struct_layout_name_audit string-lit onto bind_name_validate.
+
+    C helpers are thin wraps of bind_name_validate (G.7). A compile-time
+    ident literal is therefore a constant 1/0. Returns (var, op, addend) or None.
+    PLATFORM: SHARED — host-side generator only.
+    """
+    m = re.match(
+        r'(\w+) (\+=|=) parser_asm_stretch_(?:function_name_audit|struct_layout_name_audit)_c'
+        r'\(\(const uint8_t \*\)"([^"]*)", (\d+)\);$',
+        st)
+    if not m:
+        return None
+    var, op, lit, nlen = m.group(1), m.group(2), m.group(3), int(m.group(4))
+    if nlen != len(lit):
+        raise Refuse(f"name-audit lit length mismatch {nlen} vs {len(lit)}")
+    return var, op, (1 if _is_valid_bind_ident(lit) else 0)
+
+
+# SIMD from_at kind-set (builtin_vec_token_audit_c). Inlined so the .x port
+# does not grow a new link symbol; constants are appended from token.h.
+_SIMD_VEC_KINDS = (
+    "TOKEN_I32X4", "TOKEN_I32X8", "TOKEN_I32X16",
+    "TOKEN_U32X4", "TOKEN_U32X8", "TOKEN_U32X16",
+    "TOKEN_F32X4",
+)
+
+
+def emit_simd_from_at_return():
+    """Inline simd_builtin_deep_from_at at the current peek (r_at).
+
+    C takes lexer_result by-val. B-minus never materializes that struct:
+    the caller already peeked r_at (kind == token at cursor). Body ≡
+    simd_builtin_audit (by-val shuffle/select) + step to the ident after
+    `@` + vector_type_ident + paren_expr_head(&next_lex) + builtin_vec.
+    PLATFORM: SHARED — host-side generator; output is freestanding.
+    """
+    vec_or = " || ".join(f"kind == {t}" for t in _SIMD_VEC_KINDS)
+    lines = [
+        "      if (kind != TOKEN_AT) {",
+        "        parser_asm_lex_set_pos_c(lex, pos0);",
+        "        parser_asm_lex_set_line_c(lex, line0);",
+        "        parser_asm_lex_set_col_c(lex, col0);",
+        "        return 0;",
+        "      }",
+        # simd_builtin_audit_c(r_at, source) is by-val: snap, step to ident
+        # after `@`, score shuffle/select, restore to `@`.
+        "      la_pos = parser_asm_lex_pos_c(lex);",
+        "      la_line = parser_asm_lex_line_c(lex);",
+        "      la_col = parser_asm_lex_col_c(lex);",
+        "      parser_asm_lex_step_kind_c(lex, source);",
+        "      kind = parser_asm_lex_peek_kind_c(lex, source);",
+        "      idlen = parser_asm_lex_peek_ident_len_c(lex, source);",
+        "      idptr = parser_asm_lex_peek_ident_ptr_c(lex, source);",
+        "      score = 0;",
+        "      if (kind == TOKEN_IDENT && idptr != 0 as *u8) {",
+        "        if (idlen == 7 && idptr[0] == 115 && idptr[1] == 104 && idptr[2] == 117 && idptr[3] == 102 && idptr[4] == 102 && idptr[5] == 108 && idptr[6] == 101) {",
+        "          score = 1;",
+        "        }",
+        "        if (idlen == 6 && idptr[0] == 115 && idptr[1] == 101 && idptr[2] == 108 && idptr[3] == 101 && idptr[4] == 99 && idptr[5] == 116) {",
+        "          score = 1;",
+        "        }",
+        "      }",
+        "      parser_asm_lex_set_pos_c(lex, la_pos);",
+        "      parser_asm_lex_set_line_c(lex, la_line);",
+        "      parser_asm_lex_set_col_c(lex, la_col);",
+        # lexer_next_into(&r, r_at.next_lex, source) — ident after `@`.
+        "      parser_asm_lex_step_kind_c(lex, source);",
+        "      kind = parser_asm_lex_peek_kind_c(lex, source);",
+        "      idlen = parser_asm_lex_peek_ident_len_c(lex, source);",
+        "      idptr = parser_asm_lex_peek_ident_ptr_c(lex, source);",
+        # vector_type_ident_audit_c(source, token_start, ident_len)
+        "      if (kind == TOKEN_IDENT && idptr != 0 as *u8) {",
+        "        if (idlen == 5 && idptr[0] == 105 && idptr[1] == 51 && idptr[2] == 120) {",
+        "          score = score + 1;",
+        "        } else {",
+        "          if (idlen >= 5 && idptr[0] == 86 && idptr[1] == 101 && idptr[2] == 99) {",
+        "            score = score + 1;",
+        "          } else {",
+        "            score = score + parser_asm_stretch_bind_name_validate_c(idptr, idlen);",
+        "          }",
+        "        }",
+        "      }",
+        # paren_expr_head_audit_c(&r.next_lex, source) — snap/step/call/restore.
+        "      la_pos = parser_asm_lex_pos_c(lex);",
+        "      la_line = parser_asm_lex_line_c(lex);",
+        "      la_col = parser_asm_lex_col_c(lex);",
+        "      parser_asm_lex_step_kind_c(lex, source);",
+        "      score = score + parser_asm_stretch_paren_expr_head_audit_c(lex, source);",
+        "      parser_asm_lex_set_pos_c(lex, la_pos);",
+        "      parser_asm_lex_set_line_c(lex, la_line);",
+        "      parser_asm_lex_set_col_c(lex, la_col);",
+        # builtin_vec_token_audit_c(r.tok.kind) — ident kind, still in `kind`.
+        f"      if ({vec_or}) {{",
+        "        score = score + 1;",
+        "      }",
+        "      if (score > 0) {",
+        "        parser_asm_lex_set_pos_c(lex, pos0);",
+        "        parser_asm_lex_set_line_c(lex, line0);",
+        "        parser_asm_lex_set_col_c(lex, col0);",
+        "        return 1;",
+        "      }",
+        "      parser_asm_lex_set_pos_c(lex, pos0);",
+        "      parser_asm_lex_set_line_c(lex, line0);",
+        "      parser_asm_lex_set_col_c(lex, col0);",
+        "      return 0;",
+    ]
+    used = {"TOKEN_AT", "TOKEN_IDENT"} | set(_SIMD_VEC_KINDS)
+    BLOCK_HOIST_USED.update({"la_pos", "la_line", "la_col", "need_score"})
+    return lines, used
 
 
 MIGRATED_EXPORTS_CACHE = set()
@@ -1219,6 +1356,27 @@ def translate(name, body, tokvals):
             first_step_done = True
             si += 1
             continue
+        # v5.36: r = diag_after_imports_then_structs_slice_c(lex, source)
+        # Product helper returns lexer_result (peek first non-STRUCT after
+        # skipping consecutive structs). B-minus never materializes that
+        # struct: peek + while STRUCT inplace-skip + peek. Subsequent
+        # `r.tok.kind` reads `kind`; `from_result_val_into` is a step.
+        m = re.match(
+            r"(r\w*) = parser_asm_diag_after_imports_then_structs_slice_c\(lex, source\);$",
+            st)
+        if m:
+            used.add("TOKEN_STRUCT")
+            emit("kind = parser_asm_lex_peek_kind_c(lex, source);")
+            emit("while (kind == TOKEN_STRUCT) {")
+            emit("  parser_asm_lex_skip_one_struct_inplace_c(lex, source);")
+            emit("  kind = parser_asm_lex_peek_kind_c(lex, source);")
+            emit("}")
+            lex_rebased = True
+            alias_current = set(cursor_names)
+            first_step_done = True
+            cur_results = {m.group(1)}
+            si += 1
+            continue
         # v5.6: fold match_subject_ident_audit_c(r, source) → peek+bind
         m = re.match(
             r"(\w+) (\+=|=) parser_asm_stretch_match_subject_ident_audit_c\((r\w*), source\);$",
@@ -1316,6 +1474,17 @@ def translate(name, body, tokvals):
             # la_line/la_col emitted via la_pos_us special lets in emit_x.
             int_vars.add("la_pos_us")
             BLOCK_HOIST_USED.update({"la_pos", "la_line", "la_col"})
+            si += 1
+            continue
+        # v5.36: score += function_name_audit_c("lit", N) — G.7 thin wrap of
+        # bind_name_validate; compile-time ident → constant 1/0.
+        lit = fold_name_audit_lit(st)
+        if lit and lit[0] in int_vars:
+            var, op, addend = lit
+            if op == "+=":
+                emit(f"{var} = {var} + {addend};")
+            else:
+                emit(f"{var} = {addend};")
             si += 1
             continue
         # v5.7: score += CALLEE(data, len) — buf helper with no lex arg (e.g.
@@ -1772,6 +1941,10 @@ def translate(name, body, tokvals):
         if "la_pos" in BLOCK_HOIST_USED:
             # la_line/la_col emitted via la_pos_us special lets (not plain i32)
             int_vars.add("la_pos_us")
+        # v5.36: simd from_at inline uses `score` even when the C leaf
+        # never declared it (return-only from_at wrapper).
+        if "need_score" in BLOCK_HOIST_USED:
+            int_vars.add("score")
     return x, used, int_vars
 
 
@@ -1926,6 +2099,17 @@ def translate_return(expr, cur_results):
     """return EXPR → restore trio + computed return (2-4 lines)."""
     used = set()
     e = expr.strip()
+    # v5.36: return simd_builtin_deep_from_at_audit_c(r_at, source)
+    # Caller already peeked r_at (kind at cursor). Inline the by-val body.
+    m = re.match(
+        r"parser_asm_stretch_simd_builtin_deep_from_at_audit_c\((r\w*), source\)$",
+        e)
+    if m and m.group(1) in cur_results:
+        if "parser_asm_stretch_paren_expr_head_audit_c" not in MIGRATED_EXPORTS_CACHE:
+            raise Refuse("simd from_at needs migrated paren_expr_head")
+        rlines, ntok = emit_simd_from_at_return()
+        used |= ntok
+        return rlines, used
     # return CALLEE(&?r.next_lex, source, flag?) — step onto next_lex, call at
     # the stepped cursor, then restore entry (by-value net). v5.7: accept `&`
     # and strip __INOUT__ so the marker never leaks into .x.
@@ -2265,6 +2449,31 @@ def translate_block(block, cur_results, indent=2):
         if m:
             out.append(f"{pad}parser_asm_lex_skip_imports_inplace_c(lex, source);")
             BLOCK_HOIST_USED.add("lex_rebased")
+            si += 1
+            continue
+        # v5.36: r = diag_after_imports_then_structs_slice_c (same as top-level)
+        m = re.match(
+            r"(r\w*) = parser_asm_diag_after_imports_then_structs_slice_c\(lex, source\);$",
+            st)
+        if m:
+            used.add("TOKEN_STRUCT")
+            out.append(f"{pad}kind = parser_asm_lex_peek_kind_c(lex, source);")
+            out.append(f"{pad}while (kind == TOKEN_STRUCT) {{")
+            out.append(f"{pad}  parser_asm_lex_skip_one_struct_inplace_c(lex, source);")
+            out.append(f"{pad}  kind = parser_asm_lex_peek_kind_c(lex, source);")
+            out.append(f"{pad}}}")
+            BLOCK_HOIST_USED.add("lex_rebased")
+            cur_results = {m.group(1)}
+            si += 1
+            continue
+        # v5.36: function_name / layout_name string-lit fold (G.7).
+        lit = fold_name_audit_lit(st)
+        if lit:
+            var, op, addend = lit
+            if op == "+=":
+                out.append(f"{pad}{var} = {var} + {addend};")
+            else:
+                out.append(f"{pad}{var} = {addend};")
             si += 1
             continue
         # v5.7: score += CALLEE(&r.next_lex, source) inside if-block (same as
