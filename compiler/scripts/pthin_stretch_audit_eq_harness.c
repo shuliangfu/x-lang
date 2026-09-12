@@ -107,6 +107,9 @@ extern int leftover_kindarr_eq_run(long *checks, int *fail);
 /* v5.57: leftover_helpers validate_toplevel span/bounds eq — same
  * sibling-TU reason (first-kind ABI cannot be a k_cases row). */
 extern int leftover_validate_eq_run(long *checks, int *fail);
+/* v5.58: leftover_helpers import_path_post validate-wrap eq — same
+ * sibling-TU reason (first-path_buf ABI cannot be a k_cases row). */
+extern int leftover_pathpost_eq_run(long *checks, int *fail);
 
 static int g_fail = 0;
 static long g_checks = 0;
@@ -364,10 +367,11 @@ int main(int argc, char **argv) {
   }
   /* v5.50 leftover_kind / v5.51 leftover_namelen / v5.52 leftover_sourceoff
    * / v5.53 leftover_kindsrc / v5.54 leftover_twokind / v5.55 leftover_asbind
-   * / v5.56 leftover_kindarr / v5.57 leftover_validate: sibling TUs so twins.h
-   * static C copies do not shadow the .x T from audit_x.o (validate_toplevel
-   * has no twins.h static, but first-kind ABI still cannot be a k_cases row).
-   * Shard 0 only so parallel workers do not double-count. */
+   * / v5.56 leftover_kindarr / v5.57 leftover_validate / v5.58 leftover_pathpost:
+   * sibling TUs so twins.h static C copies do not shadow the .x T from
+   * audit_x.o (import_path_post has no twins.h static, but first-path_buf
+   * ABI still cannot be a k_cases row). Shard 0 only so parallel workers
+   * do not double-count. */
   if (g_shard_i == 0) {
     leftover_kind_eq_run(&g_checks, &g_fail);
     leftover_namelen_eq_run(&g_checks, &g_fail);
@@ -377,6 +381,7 @@ int main(int argc, char **argv) {
     leftover_asbind_eq_run(&g_checks, &g_fail);
     leftover_kindarr_eq_run(&g_checks, &g_fail);
     leftover_validate_eq_run(&g_checks, &g_fail);
+    leftover_pathpost_eq_run(&g_checks, &g_fail);
   }
   /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain.
    * Soft-knife close always keeps a short smoke battery so deep-climb twins

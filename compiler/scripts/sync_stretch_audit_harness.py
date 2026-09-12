@@ -277,6 +277,13 @@ SUITE_HELPER_SIGS = [
 # first-kind ABI cannot be a k_cases row; twins.h has no static). C twin
 # is EOF / ident_len<=0 / span — do not copy token_run_len / verify_kw
 # tables into leftover-to-audit. classify / score stay stretch.x.
+# v5.58: import_path_post leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Path-buf + validate-wrap eq is
+# scripts/pthin_stretch_audit_eq_leftover_pathpost.c (sibling TU;
+# first-path_buf ABI cannot be a k_cases row; twins.h has no static).
+# C twin is a thin wrap of import_path_validate (extern; do not copy
+# ident_continue tables). classify / score stay stretch.x. Do not mix
+# from_at lex_after_ident or collect_imports_preamble.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

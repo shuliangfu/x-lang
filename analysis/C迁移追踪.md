@@ -141,6 +141,7 @@
   - [x] leftover_helpers 7-param as-bind eq（v5.55：1／30；独立 TU 穷尽 TokenKind kind／next_kind 各一维＋IDENT+"as" 拼写／长度／token_start 角＋next-ident 字节类／长度／next_start 角；7 参 first-kind ABI 不能进 k_cases；C twin 拼写检查＋bind_name_validate on data+next_start；classify／score 留 stretch.x；余 6＝复合 ABI）
   - [x] leftover_helpers kinds-array eq（v5.56：2／30；独立 TU 短 snippet＋guard／max_peek／num_kinds 角＋若干 start-pos，避开 twins.h static 阴影；C twin 拷 *lex＋lexer_next_into；.x peek/step/restore；peek_kind_chain_buf 仍是 lex-first k_cases；classify／score 留 stretch.x；余 4＝复合 ABI 单件）
   - [x] leftover_helpers validate_toplevel eq（v5.57：1／30；独立 TU 穷尽 TokenKind ident_len≤0／in-span／overflow＋ident_len／token_start／slen 角含 wrap；无 twins.h static；first-kind ABI 不能进 k_cases；C twin EOF／ident_len≤0／span；不抄 token_run_len／verify_kw 表；classify／score 留 stretch.x；余 3＝复合 ABI 单件）
+  - [x] leftover_helpers import_path_post eq（v5.58：1／30；独立 TU ident 字节／点／非法字节／长度角含 path_len>63 cap；无 twins.h static；first-path_buf ABI 不能进 k_cases；C twin 薄包 import_path_validate；不抄 ident_continue 表；classify／score 留 stretch.x；余 2＝preamble／from_at）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -297,7 +298,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（1977／2,007；leftover_validate eq 1／30；kindarr 2／30；asbind 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；续＝leftover_helpers 余 3 复合 ABI 单件；classify／score 留 stretch.x；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b** B-minus 续（1977／2,007；leftover_pathpost eq 1／30；leftover_validate eq 1／30；kindarr 2／30；asbind 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；续＝leftover_helpers 余 2 复合 ABI 单件；classify／score 留 stretch.x；**深链分批 smoke／deep_off=0**）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  

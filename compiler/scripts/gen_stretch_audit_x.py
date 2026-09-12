@@ -173,6 +173,18 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.58: leftover_helpers import_path_post validate-wrap eq
+#   (import_path_post). Already .x T in audit.x; no k_cases row because
+#   first param is path_buf: *u8 not lex:. twins.h has no static C copy,
+#   but the first-path_buf ABI still cannot be a k_cases row, so eq lives
+#   in a sibling TU (pthin_stretch_audit_eq_leftover_pathpost.c) that
+#   links audit_x.o and compares ident-byte / dot / invalid-byte / length
+#   corners (including the shared path_len>63 cap) against the gated C
+#   twin (thin wrap of import_path_validate; tables stay stretch.x).
+#   classify/score stay stretch.x (not leftover-to-audit). Do not mix
+#   from_at lex_after_ident or collect_imports_preamble. Eq gate: FORCE
+#   smoke deep_off=0 / EQ_ONLY=import_path_post,skip_allow.
+#
 # v5.57: leftover_helpers validate_toplevel span/bounds eq
 #   (validate_toplevel_token). Already .x T in audit.x; no k_cases row
 #   because first param is kind: not lex:. twins.h has no static C copy,
