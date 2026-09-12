@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b leftover flatten 完**；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b 编 `pthin_stretch.x` 跳过 lite；残＝产品 `.inc` 切片仍 host-cc、lite／suite 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b leftover flatten 完**；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b stretch lite＋**P1b lex_skip** kind／copy／skip_walk；残＝产品 `.inc` 切片仍 host-cc（含 P1 count）、lite／suite／lex_skip 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — leftover flatten **完**（unique 0／helpers 0）；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b 编 `pthin_stretch.x` 跳过 lite（classify TOKEN_* `_Static_assert` 钉 token.h）；残＝产品 `.inc` 切片仍 host-cc、lite／suite 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退（G-02f-330 omit rest）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — leftover flatten **完**（unique 0／helpers 0）；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b 编 `pthin_stretch.x` 跳过 lite；**P1b** 编 `pthin_lex_skip.x` 跳过 kind／copy／skip_walk（TOKEN_* `_Static_assert` 钉 token.h；count＋pending 仍 C）；残＝产品 `.inc` 切片仍 host-cc、lite／suite／lex_skip 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退（G-02f-330 omit rest）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -155,6 +155,7 @@
   - [x] 深链分批 smoke 3 层 75／150（v5.69 收口后 **停**：覆盖戏不减 host-cc；续＝8.3.6／已 T 冷孪生缩壳，禁再 eq 已 T combinator）
   - [x] 已 T 冷孪生缩壳起步（P9 hybrid 跳过 suite 46k 预处理；classify／score 迁 lite；冷 lane 仍 include suite；禁再 eq 已 T combinator）
   - [x] Route C 产品化（P9b 编 `pthin_stretch.x`；hybrid 跳过 lite 564 行；token.h `_Static_assert` 钉 classify 针；冷 lane 仍 include lite；禁再 eq 已 T combinator）
+  - [x] P1b Route C＋B-minus（编 `pthin_lex_skip.x`；hybrid 跳过 kind／copy／skip_balanced／generic_into；count＋pending 仍 C；token.h `_Static_assert`；冷 lane 仍 full .inc；禁再 eq 已 T combinator）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -177,7 +178,7 @@
 - 🟡 **8.3.1** `pipeline_glue` → .x／域 thin — 父项未离 host-cc  
 - 🟡 **8.3.2** `ast_pool` → .x — 父项仍 host-cc 入 `pipeline_x`  
 - 🟡 **8.3.3** field_access／soa — 叶 leave ✅；父项因 `pipeline_x` 仍 host-cc  
-- 🟡 **8.3.6** from_x 全表退役策略终稿 — 残：有引用冷孪生三分处置（pthin suite 46k 与 lite 564 行已从 hybrid P9 预处理拿掉，文件仍留作冷回退）  
+- 🟡 **8.3.6** from_x 全表退役策略终稿 — 残：有引用冷孪生三分处置（pthin suite 46k、lite 564、lex_skip portable 已从 hybrid 预处理拿掉，文件仍留作冷回退；P1 count 仍 host-cc）  
 - 🟡 **8.3.8** `build_asm/gen_driver/*.c` — 确认 `pipeline_gen.c` 残留  
 - ⬜ **8.3.10** `editors/tree-sitter-xlang/` 第三方 .c  
 - ⬜ **BC 终局** `pipeline_x` 整 TU 离 host-cc  
@@ -311,7 +312,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b leftover flatten 完**＋**8.3.6 有引用冷孪生三分**（P9 suite 46k＋lite 564 hybrid 已跳过；残＝产品 `.inc` 切片仍 host-cc；**禁**再深链分批 eq；pipeline_x mega 须点名）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b leftover flatten 完**＋**8.3.6 有引用冷孪生三分**（P9 suite 46k＋lite 564＋P1b lex_skip portable hybrid 已跳过；残＝产品 `.inc` 切片仍 host-cc含 P1 count；**禁**再深链分批 eq；pipeline_x mega 须点名）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  

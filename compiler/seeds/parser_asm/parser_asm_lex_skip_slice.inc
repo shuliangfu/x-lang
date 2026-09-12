@@ -1,10 +1,16 @@
 /**
  * parser_asm_lex_skip_slice.inc — P1 lex/skip pure helpers (G-02f-281).
  * Included by parser_asm_thin_c.from_x.c or pthin_lex_skip.from_x.c.
+ *
+ * Hybrid P1b: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
+ * kind/copy/skip-walk region (bodies in src/asm/pthin_lex_skip.x +
+ * by-value trampolines in the seed TU). Count+pending C stays here.
+ * Cold: no define, this file is the full twin.
  */
 #ifndef PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 #define PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 
+#ifndef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
 /* extracted lines 3873-3963 */
 void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r) {
   if (!out)
@@ -312,6 +318,12 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
     lex = r.next_lex;
   }
 }
+#endif /* !XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X */
+
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* Hybrid P1b: stmt-boundary authority is pthin_lex_skip.x (was static here). */
+extern int32_t parser_asm_angle_list_token_is_stmt_boundary_c(int32_t k);
+#endif
 
 /**
  * Same as skip_generic_angle_list_into, also counts top-level type args.
@@ -473,6 +485,7 @@ void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer *out, struct le
   out->col = aout.col;
 }
 
+#ifndef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
 /* extracted lines 4627-4673 */
 /**
  * skip_balanced_braces_into（u8[] slice 路径）：结果写入 *out。
@@ -550,5 +563,6 @@ int32_t parser_asm_is_pointee_type_token_c(int32_t kind) {
     return 1;
   return 0;
 }
+#endif /* !XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X */
 
 #endif /* PARSER_ASM_LEX_SKIP_SLICE_INCLUDED */
