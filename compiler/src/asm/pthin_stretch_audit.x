@@ -13283,8 +13283,8 @@ export function parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(lex: *u8
     parser_asm_lex_set_pos_c(lex, 0 as usize);
     parser_asm_lex_set_line_c(lex, 1);
     parser_asm_lex_set_col_c(lex, 1);
-    /* Still-C (data,len) leaf — own fresh cursor; does not touch `lex`. */
-    score = parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(data, len);
+    /* v5.35: full_deep is pointer-ABI noles (lex, data, len); still a fresh-start probe. */
+    score = parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(lex, data, len);
     score = score + parser_asm_stretch_diag_after_imports_structs_deep_buf_audit_c(lex, data, len);
     score = score + parser_asm_stretch_collect_imports_post_deep_buf_audit_c(lex, data, len);
     parser_asm_lex_set_pos_c(lex, pos0);
@@ -40202,6 +40202,525 @@ export function parser_asm_stretch_try_skip_intergalactic_galactic_celestial_div
       return 0;
     }
     return parser_asm_stretch_try_skip_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+  }
+  return 0;
+}
+
+/* ── generated (gen_stretch_audit_x.py) ── */
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_diag_token_after_collect_imports_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_token_after_collect_imports_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let chain_pos: usize = 0;
+  let rc: i32 = 0;
+  let chain_col: i32 = 0;
+  let chain_line: i32 = 0;
+  let peek_kinds_0: i32 = 0;
+  let peek_kinds_1: i32 = 0;
+  let peek_kinds_2: i32 = 0;
+  let peek_kinds_3: i32 = 0;
+  let peek_kinds_4: i32 = 0;
+  let peek_kinds_5: i32 = 0;
+  let peek_kinds_n: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_collect_imports_deep_buf_audit_c(lex, data, len);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_skip_imports_inplace_c(lex, source);
+    chain_pos = parser_asm_lex_pos_c(lex);
+    chain_line = parser_asm_lex_line_c(lex);
+    chain_col = parser_asm_lex_col_c(lex);
+    peek_kinds_0 = 0;
+    peek_kinds_1 = 0;
+    peek_kinds_2 = 0;
+    peek_kinds_3 = 0;
+    peek_kinds_4 = 0;
+    peek_kinds_5 = 0;
+    peek_kinds_0 = parser_asm_lex_peek_kind_c(lex, source);
+    peek_kinds_n = 1;
+    parser_asm_lex_step_kind_c(lex, source);
+    if (peek_kinds_0 != TOKEN_EOF) {
+      peek_kinds_1 = parser_asm_lex_peek_kind_c(lex, source);
+      peek_kinds_n = peek_kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    if (peek_kinds_1 != TOKEN_EOF) {
+      peek_kinds_2 = parser_asm_lex_peek_kind_c(lex, source);
+      peek_kinds_n = peek_kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    if (peek_kinds_2 != TOKEN_EOF) {
+      peek_kinds_3 = parser_asm_lex_peek_kind_c(lex, source);
+      peek_kinds_n = peek_kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    if (peek_kinds_3 != TOKEN_EOF) {
+      peek_kinds_4 = parser_asm_lex_peek_kind_c(lex, source);
+      peek_kinds_n = peek_kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    if (peek_kinds_4 != TOKEN_EOF) {
+      peek_kinds_5 = parser_asm_lex_peek_kind_c(lex, source);
+      peek_kinds_n = peek_kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    parser_asm_lex_set_pos_c(lex, chain_pos);
+    parser_asm_lex_set_line_c(lex, chain_line);
+    parser_asm_lex_set_col_c(lex, chain_col);
+    if (peek_kinds_n > 0) {
+      score = score + 1;
+    }
+    score = score + parser_asm_stretch_diag_toplevel_after_imports_audit_c(lex, source);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let data2: *u8 = 0 as *u8;
+  let ts2: usize = 0;
+  let sln2: usize = 0;
+  let bhit: i32 = 0;
+  let la_pos: usize = 0;
+  let la_line: i32 = 0;
+  let la_col: i32 = 0;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_skip_imports_inplace_c(lex, source);
+        la_pos = parser_asm_lex_pos_c(lex);
+        la_line = parser_asm_lex_line_c(lex);
+        la_col = parser_asm_lex_col_c(lex);
+        parser_asm_lex_set_pos_c(lex, 0 as usize);
+        parser_asm_lex_set_line_c(lex, 1);
+        parser_asm_lex_set_col_c(lex, 1);
+        score = parser_asm_stretch_collect_imports_deep_buf_audit_c(lex, data, len);
+        parser_asm_lex_set_pos_c(lex, la_pos);
+        parser_asm_lex_set_line_c(lex, la_line);
+        parser_asm_lex_set_col_c(lex, la_col);
+    score = score + parser_asm_stretch_diag_after_collect_preamble_audit_c(lex, source);
+    score = score + parser_asm_stretch_function_header_audit_c(lex, source);
+    score = score + parser_asm_stretch_fn_sig_audit_c(lex, source);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_first_token_kind_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_first_token_kind_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let chain_pos: usize = 0;
+  let rc: i32 = 0;
+  let chain_col: i32 = 0;
+  let chain_line: i32 = 0;
+  let kinds_0: i32 = 0;
+  let kinds_1: i32 = 0;
+  let kinds_2: i32 = 0;
+  let kinds_3: i32 = 0;
+  let kinds_n: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    chain_pos = parser_asm_lex_pos_c(lex);
+    chain_line = parser_asm_lex_line_c(lex);
+    chain_col = parser_asm_lex_col_c(lex);
+    kinds_0 = 0;
+    kinds_1 = 0;
+    kinds_2 = 0;
+    kinds_3 = 0;
+    kinds_0 = parser_asm_lex_peek_kind_c(lex, source);
+    kinds_n = 1;
+    parser_asm_lex_step_kind_c(lex, source);
+    if (kinds_0 != TOKEN_EOF) {
+      kinds_1 = parser_asm_lex_peek_kind_c(lex, source);
+      kinds_n = kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    if (kinds_1 != TOKEN_EOF) {
+      kinds_2 = parser_asm_lex_peek_kind_c(lex, source);
+      kinds_n = kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    if (kinds_2 != TOKEN_EOF) {
+      kinds_3 = parser_asm_lex_peek_kind_c(lex, source);
+      kinds_n = kinds_n + 1;
+      parser_asm_lex_step_kind_c(lex, source);
+    }
+    parser_asm_lex_set_pos_c(lex, chain_pos);
+    parser_asm_lex_set_line_c(lex, chain_line);
+    parser_asm_lex_set_col_c(lex, chain_col);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (kinds_n > 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_skip_imports_inplace_c(lex, source);
+      rc = parser_asm_stretch_parse_one_function_ok_for_pipeline_audit_c(lex, source);
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return rc;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_skip_imports_inplace_c(lex, source);
+    score = parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_function_body_block_stmt_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    score = parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * No-lex suite root widened to pointer ABI: `parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c`.
+ * C historically took `(data,len)` + fresh lexer_init. Snap+reset-to-init+restore.
+ * @param lex *u8 — opaque lexer (unused net; reset/restore scratch)
+ * @param data *u8 — source bytes
+ * @param len i32 — byte length; <=0 returns 0
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
+ */
+#[no_mangle]
+export function parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(lex: *u8, data: *u8, len: i32): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  unsafe {
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {
+      return 0;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_set_pos_c(lex, 0 as usize);
+    parser_asm_lex_set_line_c(lex, 1);
+    parser_asm_lex_set_col_c(lex, 1);
+    parser_asm_lex_skip_imports_inplace_c(lex, source);
+    score = parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_one_function_buf_deep_audit_c(lex, data, len);
+    score = score + parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(lex, data, len);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+  }
+  return 0;
+}
+
+/**
+ * Generated audit port parser_asm_stretch_fn_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c.
+ * B-minus generated port (gen_stretch_audit_x.py v1) of the suite twin
+ * `parser_asm_stretch_fn_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c` — pointer ABI + by-value net semantics via the restore trio;
+ * linear peek/step chain over the opaque lexer.
+ * @param lex *u8 — opaque lexer (read-only net effect)
+ * @param source *u8 — opaque slice
+ * @return i32 — audit verdict (≡ suite twin)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_stretch_fn_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let idlen: i32 = 0;
+  let idptr: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  let score: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    score = parser_asm_stretch_fn_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_library_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    score = score + parser_asm_stretch_body_skip_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source);
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+      if (score > 0) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 1;
+      }
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
   }
   return 0;
 }

@@ -202,78 +202,12 @@ SUITE_HELPER_SIGS = [
     "int32_t parser_asm_stretch_match_subject_ident_audit_c(",
 ]
 
-# v5.32: still-C (data,len) leaves under diag_parse_one_mega / full_deep.
-# Product suite remains authority; harness copies resolve audit_x.o UNDEF and
-# c_ref_mega calls. Migrated callees → c_ref_* (fwds above). Must follow
-# HARNESS_SKIP_STUBS (uses skip_imports_slice stub).
+# v5.32 still-C (data,len) leaves: v5.35 migrated the pipeline/collect/full_deep
+# cluster into .x (pointer ABI). Harness copies of those five product symbols
+# are retired — c_ref_* twins from the gated suite are the C reference.
+# Remaining still-C: diag_fn_mega (function_name_audit string-lit leftover).
+# Must follow HARNESS_SKIP_STUBS (uses skip_imports_slice stub).
 HARNESS_MEGA_STILL_C = r'''
-/* v5.32 harness copy — G.7 product authority remains suite (data,len) leaves. */
-int32_t parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(uint8_t *data, int32_t len) {
-  struct parser_asm_slice_u8 sl;
-  struct parser_asm_lexer lex;
-  if (!data || len <= 0)
-    return 0;
-  sl.data = data;
-  sl.length = (size_t)len;
-  lex = parser_asm_skip_imports_slice_c(parser_asm_lexer_init_c(), &sl);
-  return c_ref_parse_one_function_ok_for_pipeline_audit(&lex, &sl);
-}
-
-int32_t parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(uint8_t *data, int32_t len) {
-  struct parser_asm_slice_u8 sl;
-  struct parser_asm_lexer lex;
-  int32_t score;
-  if (!data || len <= 0)
-    return 0;
-  sl.data = data;
-  sl.length = (size_t)len;
-  lex = parser_asm_skip_imports_slice_c(parser_asm_lexer_init_c(), &sl);
-  {
-    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
-    score = c_ref_collect_imports_deep_buf_audit(&lex_init, data, len);
-  }
-  score += c_ref_diag_after_collect_preamble_audit(&lex, &sl);
-  score += c_ref_function_header_audit(&lex, &sl);
-  score += c_ref_fn_sig_audit(&lex, &sl);
-  return score > 0 ? 1 : 0;
-}
-
-int32_t parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(uint8_t *data, int32_t len) {
-  struct parser_asm_slice_u8 sl;
-  struct parser_asm_lexer lex;
-  int32_t score;
-  if (!data || len <= 0)
-    return 0;
-  sl.data = data;
-  sl.length = (size_t)len;
-  lex = parser_asm_skip_imports_slice_c(parser_asm_lexer_init_c(), &sl);
-  score = parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(data, len);
-  score += c_ref_function_body_block_stmt_buf_audit(&lex, data, len);
-  return score > 0 ? 1 : 0;
-}
-
-int32_t parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(uint8_t *data, int32_t len) {
-  int32_t score;
-  score = parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(data, len);
-  score += parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(data, len);
-  return score > 0 ? 1 : 0;
-}
-
-int32_t parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(uint8_t *data, int32_t len) {
-  struct parser_asm_slice_u8 sl;
-  struct parser_asm_lexer lex;
-  int32_t score;
-  if (!data || len <= 0)
-    return 0;
-  sl.data = data;
-  sl.length = (size_t)len;
-  lex = parser_asm_skip_imports_slice_c(parser_asm_lexer_init_c(), &sl);
-  score = parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(data, len);
-  score += c_ref_parse_one_function_buf_deep_audit(&lex, data, len);
-  score += parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(data, len);
-  return score > 0 ? 1 : 0;
-}
-
 /* v5.33: diag_fn_mega_buf still-C (pointer ABI widen; no .x port yet). */
 int32_t parser_asm_stretch_diag_fn_mega_full_deep_audit_c(struct parser_asm_lexer lex,
                                                           struct parser_asm_slice_u8 *source) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.34 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.35 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,19 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.35: skip_imports leftover (noles dest `lex` + lexer_init form) —
+#   v5.6 only rewrote `after_imports = skip_imports_slice_c(lex, source)`
+#   when dest ∈ lexer_locals. Noles strips `struct lexer lex`, so dest
+#   `lex` (primary cursor) fell through as unhandled; buf `&sl` already
+#   rewrites to `source`. Complete the same handler: dest `lex` / cursor
+#   + `skip_imports_slice_c(lexer_init_c(), source)` → reset-to-init +
+#   inplace. Also: peek_kind_chain `if (…>0) score++`; anonymous `{`
+#   probe block with `lex_init = lexer_init_c()` (snap+reset+call+restore).
+#   Soft-FP climbs the ≤255 leftover cluster. Versal-infix remaining is
+#   L012 ident>255 (920 names) — NOT the 4 MiB preprocess cap. Still
+#   refuse simd from_at / function_name_audit string-lit / ident>255.
+#   Eq gate: FORCE smoke deep_off=0 / Darwin-first (提速纪律).
 #
 # v5.34: noles (data,len) ABI widen in-generator + infinite→intergalactic climb —
 #   parse_suite now hosts `(uint8_t *data, int32_t len)` roots (diag infinite
@@ -514,6 +527,10 @@ LOOKAHEAD_KIND = {}
 # Lexer locals that are by-value copies of the cursor (probe-only; must not
 # permanently advance the shared opaque lex). Cleared per translate().
 PROBE_LEX_COPIES = set()
+# Fresh lexer_init() probe locals (not copies of the current cursor).
+# Call sites must reset-to-init, invoke, then restore the primary cursor.
+# Cleared per translate().
+INIT_PROBE_LEXES = set()
 
 
 def lines_strip(l):
@@ -785,6 +802,7 @@ def translate(name, body, tokvals):
     BLOCK_HOIST_USED.clear()
     LOOKAHEAD_KIND.clear()
     PROBE_LEX_COPIES.clear()
+    INIT_PROBE_LEXES.clear()
 
     def emit(s):
         x.append("    " + s)
@@ -906,6 +924,22 @@ def translate(name, body, tokvals):
                 emit(f"{var} = {var} + {arr}_n;")
             else:
                 emit(f"{var} = {arr}_n;")
+            int_vars.add(var)
+            si += 1
+            continue
+        # v5.35: if (peek_kind_chain_c(...) > 0) score++;  (joined)
+        m = re.match(
+            r"if \(parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\) > 0\) "
+            r"(\w+)\+\+;$",
+            st)
+        if m and m.group(1) in kind_arrays:
+            arr, nmax, var = m.group(1), int(m.group(2)), m.group(3)
+            if nmax != kind_arrays[arr]:
+                raise Refuse(f"peek_kind_chain N mismatch {nmax} vs {kind_arrays[arr]}")
+            emit_peek_kind_chain_fill(emit, arr, nmax, int_vars, used)
+            emit(f"if ({arr}_n > 0) {{")
+            emit(f"  {var} = {var} + 1;")
+            emit("}")
             int_vars.add(var)
             si += 1
             continue
@@ -1154,10 +1188,30 @@ def translate(name, body, tokvals):
             first_step_done = True
             si += 1
             continue
-        # v5.6: after_imports = skip_imports_slice_c(lex, source) → inplace + alias
+        # v5.35: dest = skip_imports_slice_c(lexer_init_c(), source)
+        # → reset-to-init + inplace (noles/buf roots that rebuild from file start).
+        m = re.match(
+            r"(\w+) = parser_asm_skip_imports_slice_c\(parser_asm_lexer_init_c\(\), source\);$",
+            st)
+        if m and (m.group(1) in lexer_locals or m.group(1) in cursor_names
+                  or m.group(1) in ("after_imports", "after", "lex")):
+            emit("parser_asm_lex_set_pos_c(lex, 0 as usize);")
+            emit("parser_asm_lex_set_line_c(lex, 1);")
+            emit("parser_asm_lex_set_col_c(lex, 1);")
+            emit("parser_asm_lex_skip_imports_inplace_c(lex, source);")
+            lex_rebased = True
+            alias_current = {m.group(1)} | set(cursor_names)
+            cur_results = set()
+            first_step_done = True
+            si += 1
+            continue
+        # v5.6/v5.35: dest = skip_imports_slice_c(lex, source) → inplace + alias.
+        # v5.35: dest `lex` is the primary cursor (noles strips `struct lexer lex`,
+        # so dest is not in lexer_locals). Buf `&sl` already rewrites to `source`.
         m = re.match(
             r"(\w+) = parser_asm_skip_imports_slice_c\(lex, source\);$", st)
-        if m and (m.group(1) in lexer_locals or m.group(1) in ("after_imports", "after")):
+        if m and (m.group(1) in lexer_locals or m.group(1) in cursor_names
+                  or m.group(1) in ("after_imports", "after", "lex")):
             emit("parser_asm_lex_skip_imports_inplace_c(lex, source);")
             lex_rebased = True
             alias_current = {m.group(1)} | set(cursor_names)
@@ -1614,9 +1668,11 @@ def translate(name, body, tokvals):
         m = re.match(r"return (.+);$", st)
         if m:
             expr = m.group(1)
-            # v4.6: return peek_kind_chain_c(...) > 0 ? 1 : 0;
+            # v4.6/v5.35: return peek_kind_chain_c(...) > 0 ? 1 : 0;
+            # v5.35: first arg may be parser_asm_lexer_init_c() (noles file-start).
             mpk = re.match(
-                r"parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+), (?:source|&sl), (\w+), (\d+)\) > 0 \? 1 : 0$",
+                r"parser_asm_stretch_peek_kind_chain_c\((?:lex|&?\w+|parser_asm_lexer_init_c\(\)), "
+                r"(?:source|&sl), (\w+), (\d+)\) > 0 \? 1 : 0$",
                 expr)
             if mpk and mpk.group(1) in kind_arrays:
                 arr, nmax = mpk.group(1), int(mpk.group(2))
@@ -1683,6 +1739,27 @@ def translate(name, body, tokvals):
             alias_current = set(cursor_names)
             first_step_done = True
             si += 1
+            continue
+        # v5.35: anonymous `{ … }` probe block (lex_init = lexer_init_c(); call).
+        if st == "{":
+            j = si + 1
+            depth = 1
+            body_l = []
+            while j < len(stmts) and depth > 0:
+                t = stmts[j].strip()
+                depth += t.count("{") - t.count("}")
+                if depth == 0:
+                    break
+                body_l.append(stmts[j])
+                j += 1
+            body_x, ntok2 = translate_block(body_l, cur_results, indent=2)
+            used |= ntok2
+            x.extend(body_x)
+            if "lex_rebased" in BLOCK_HOIST_USED:
+                lex_rebased = True
+                alias_current = set(cursor_names)
+                first_step_done = True
+            si = j + 1
             continue
         raise Refuse(f"unhandled statement: {st[:60]}")
     if BLOCK_HOIST_USED:
@@ -2068,8 +2145,43 @@ def translate_block(block, cur_results, indent=2):
             PROBE_LEX_COPIES.add(m.group(1))
             si += 1
             continue
+        # v5.35: fresh lexer_init() probe — not a copy of the current cursor.
+        m = re.match(
+            r"struct parser_asm_lexer (\w+) = parser_asm_lexer_init_c\(\);$", st)
+        if m:
+            INIT_PROBE_LEXES.add(m.group(1))
+            si += 1
+            continue
         m = re.match(r"struct parser_asm_lexer (\w+);$", st)
         if m:
+            si += 1
+            continue
+        if st.startswith("/*"):
+            si += 1
+            continue
+        # v5.35: score += CALLEE(&lex_init, data, len) — probe from file start
+        # without moving the primary cursor (snap + reset-to-init + call + restore).
+        m = re.match(
+            r"(\w+) (\+=|=) (parser_asm_stretch_\w+_c)\(&(\w+), data, len\);$", st)
+        if m and m.group(4) in INIT_PROBE_LEXES:
+            var, op, callee = m.group(1), m.group(2), m.group(3)
+            x2, ntok = translate_call(callee, "lex", buf=True)
+            used |= ntok
+            call = strip_inout(x2)
+            out.append(f"{pad}la_pos = parser_asm_lex_pos_c(lex);")
+            out.append(f"{pad}la_line = parser_asm_lex_line_c(lex);")
+            out.append(f"{pad}la_col = parser_asm_lex_col_c(lex);")
+            out.append(f"{pad}parser_asm_lex_set_pos_c(lex, 0 as usize);")
+            out.append(f"{pad}parser_asm_lex_set_line_c(lex, 1);")
+            out.append(f"{pad}parser_asm_lex_set_col_c(lex, 1);")
+            if op == "+=":
+                out.append(f"{pad}{var} = {var} + {call};")
+            else:
+                out.append(f"{pad}{var} = {call};")
+            out.append(f"{pad}parser_asm_lex_set_pos_c(lex, la_pos);")
+            out.append(f"{pad}parser_asm_lex_set_line_c(lex, la_line);")
+            out.append(f"{pad}parser_asm_lex_set_col_c(lex, la_col);")
+            BLOCK_HOIST_USED.update({"la_pos", "la_line", "la_col"})
             si += 1
             continue
         # v4.9: if (!CALLEE(&probe_copy, source)) return N;
@@ -2132,6 +2244,18 @@ def translate_block(block, cur_results, indent=2):
         if m:
             out.append(f"{pad}parser_asm_lex_skip_one_struct_inplace_c(lex, source);")
             # Mark that subsequent peeks from lex are refresh (not backtrack).
+            BLOCK_HOIST_USED.add("lex_rebased")
+            si += 1
+            continue
+        # v5.35: dest = skip_imports_slice_c(lexer_init_c(), source)
+        m = re.match(
+            r"(\w+) = parser_asm_skip_imports_slice_c\(parser_asm_lexer_init_c\(\), source\);$",
+            st)
+        if m:
+            out.append(f"{pad}parser_asm_lex_set_pos_c(lex, 0 as usize);")
+            out.append(f"{pad}parser_asm_lex_set_line_c(lex, 1);")
+            out.append(f"{pad}parser_asm_lex_set_col_c(lex, 1);")
+            out.append(f"{pad}parser_asm_lex_skip_imports_inplace_c(lex, source);")
             BLOCK_HOIST_USED.add("lex_rebased")
             si += 1
             continue
@@ -3027,7 +3151,7 @@ def emit_noles_x(name, x_lines, int_vars=()):
  * @param data *u8 — source bytes
  * @param len i32 — byte length; <=0 returns 0
  * @return i32 — audit verdict (≡ suite twin)
- * PLATFORM: SHARED — B-minus v5.34 noles ABI widen.
+ * PLATFORM: SHARED — B-minus v5.35 noles ABI widen.
  */
 #[no_mangle]
 export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
@@ -3037,10 +3161,15 @@ export function {name}(lex: *u8, data: *u8, len: i32): i32 {{
   let kind: i32 = 0;
   let idlen: i32 = 0;
   let idptr: *u8 = 0 as *u8;
+  let source: *u8 = 0 as *u8;
 {int_lets}  if (lex == 0 as *u8 || data == 0 as *u8 || len <= 0) {{
     return 0;
   }}
   unsafe {{
+    source = parser_asm_lex_wrap_buf_c(data, len);
+    if (source == 0 as *u8) {{
+      return 0;
+    }}
     pos0 = parser_asm_lex_pos_c(lex);
     line0 = parser_asm_lex_line_c(lex);
     col0 = parser_asm_lex_col_c(lex);
@@ -3244,6 +3373,18 @@ export function {name}(lex: *u8, source: *u8, {out_name}: *i32): i32 {{
 def _sync_callsites(ok, buf_sigs, noles_sigs, out_sigs):
     """Rewrite decls/call sites to pointer ABI. String-replace hot path (v5.34)."""
     import glob
+    # v5.35: existing .x ports may still call newly-widened noles as (data,len).
+    try:
+        xt = open(XFILE).read()
+        xorig = xt
+        for n in ok:
+            if noles_sigs.get(n) and f"{n}(data, len)" in xt:
+                xt = xt.replace(f"{n}(data, len)", f"{n}(lex, data, len)")
+        if xt != xorig:
+            open(XFILE, "w").write(xt)
+            print("callsites updated:", XFILE)
+    except FileNotFoundError:
+        pass
     files = ["seeds/parser_asm_thin_c.from_x.c", "seeds/pthin_stretch.from_x.c"] \
             + glob.glob("seeds/pthin_*.from_x.c") + glob.glob("seeds/parser_asm/*.inc")
     for fp in files:

@@ -469,7 +469,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
   if (!data || len <= 0)
     return (int32_t)TOKEN_EOF;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_first_token_kind_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_first_token_kind_buf_audit_c(&lex_init, data, len));
+}
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_call_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));

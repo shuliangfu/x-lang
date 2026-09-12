@@ -1815,7 +1815,10 @@ int32_t parser_asm_diag_token_after_collect_imports_buf_c(uint8_t *data, int32_t
 
   if (!data || len <= 0 || !module)
     return (int32_t)TOKEN_EOF;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_token_after_collect_imports_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_token_after_collect_imports_buf_audit_c(&lex_init, data, len));
+}
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_diag_token_after_collect_imports_slice_c(&source, module);

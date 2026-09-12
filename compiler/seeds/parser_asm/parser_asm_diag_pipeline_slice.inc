@@ -47,9 +47,18 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
   if (!data || len <= 0 || !module || !arena)
     return 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(&lex_init, data, len));
+}
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(&lex_init, data, len));
+}
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(&lex_init, data, len));
+}
   /* v5.32: diag_parse_one mega widened to (lex, data, len); scratch init for AUDIT_CALL. */
   {
     struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
@@ -917,8 +926,14 @@ int32_t parser_asm_parse_one_function_ok_for_pipeline_buf_c(void *arena, uint8_t
 
   if (!data || len <= 0 || !arena)
     return 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(&lex_init, data, len));
+}
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(&lex_init, data, len));
+}
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_parse_one_function_ok_for_pipeline_slice_c(arena, &source);
