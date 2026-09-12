@@ -245,6 +245,13 @@ SUITE_HELPER_SIGS = [
 # (sibling TU; same twins.h shadow). C twins remain G.7 thin wraps of
 # bind_name_validate on source->data+token_start (vector_type_ident adds
 # i3x*/Vec*). Do not copy classify / score into leftover-to-audit.
+# v5.53: kind+source+off leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Kind+slice+offset eq is
+# scripts/pthin_stretch_audit_eq_leftover_kindsrc.c (sibling TU; same
+# twins.h shadow of match_subject_ident). C twins remain G.7 thin wraps
+# of bind_name_validate on source->data+token_start (import_dot_segment
+# adds I32/ASYNC always-1). Do not copy classify / score into
+# leftover-to-audit.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit
