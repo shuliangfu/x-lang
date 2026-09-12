@@ -2,6 +2,18 @@
 #define PARSER_ASM_LIBRARY_WRAP_SLICE_INCLUDED
 
 /**
+ * parser_asm_library_wrap_slice.inc — library into/buf/scan C.
+ *
+ * Hybrid P15b: XLANG_PTHIN_LIBRARY_BODIES_FROM_X skips the portable
+ * library_scan walk (body in src/asm/pthin_library.x + slice trampoline
+ * in the seed TU). into / buf parse / lex_from_* stay here. Contiguous
+ * already-T AUDIT_CALL padding on into/buf is compiled only under
+ * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
+ * define, full twin. Do not reuse XLANG_PTHIN_LIBRARY_FROM_X for P15b
+ * bodies.
+ */
+
+/**
  * parse_one_function_library_into：slice 路径，结果写入 *out（避免 LibraryParseResult 按值返回 ABI）。
  */
 void parser_asm_parse_one_function_library_into_slice_c(struct parser_asm_library_parse_result *out, void *arena,
@@ -9,6 +21,7 @@ void parser_asm_parse_one_function_library_into_slice_c(struct parser_asm_librar
                                                         struct parser_asm_slice_u8 *source) {
   if (!out)
     return;
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_fn_shape_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_mega_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_ultra_mega_full_deep_audit_c(&lex, source));
@@ -757,6 +770,7 @@ void parser_asm_parse_one_function_library_into_slice_c(struct parser_asm_librar
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_library_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   *out = parser_asm_parse_one_function_library_slice_c(arena, module, lex, source);
 }
 
@@ -769,6 +783,7 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf
   struct parser_asm_slice_u8 source;
   if (!data)
     return (struct parser_asm_library_parse_result){0};
+#ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_fn_shape_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_scan_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_library_scan_deep_buf_audit_c(&lex, data, len));
@@ -1521,6 +1536,7 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_library_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex, data, len));
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   source.data = data;
   source.length = len >= 0 ? (size_t)len : 0;
   return parser_asm_parse_one_function_library_slice_c(arena, module, lex, &source);
@@ -1536,6 +1552,9 @@ void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct parser_a
 
 
 
+#ifndef XLANG_PTHIN_LIBRARY_BODIES_FROM_X
+/* Hybrid P15b: scan walk in src/asm/pthin_library.x; this C twin is
+ * cold fallback. Do not reuse XLANG_PTHIN_LIBRARY_FROM_X. */
 /**
  * parse_one_function_library_scan：库函数 token 序列扫描（不建 AST），结果写入 *result。
  * 与 parser.x 逐步写 result 语义一致，避免 X EMIT_HEAVY 深 LexerResult 循环 emit 失败。
@@ -1730,6 +1749,7 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
   result->next_lex = r.next_lex;
   return 1;
 }
+#endif /* !XLANG_PTHIN_LIBRARY_BODIES_FROM_X */
 
 /**
  * lex_from_try_skip_into：从 TrySkipAllowResult.lex 写入 *out（避免 X emit 结构体字段链）。
