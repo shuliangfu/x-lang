@@ -3,6 +3,10 @@
  * Hybrid: XLANG_PTHIN_SIMD_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_simd_builtin_slice.inc
+ *
+ * Hybrid P7b (XLANG_PTHIN_SIMD_BODIES_FROM_X): portable ident pack /
+ * callee-name fill come from pthin_simd.x; this TU keeps the slice
+ * trampoline plus arena parse. Cold: no BODIES define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -103,6 +107,26 @@ struct ast_Expr {
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
+
+#ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
+/* .x product bodies (buf-path ident pack + callee name fill). */
+extern int32_t parser_asm_simd_builtin_ident_pack_c(uint8_t *data, size_t length, size_t token_start,
+                                                    int32_t ident_len);
+extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
+
+static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r, struct parser_asm_slice_u8 *source,
+                                              int32_t *need_args_out, int32_t *is_shuffle_out) {
+  int32_t pack;
+  if (!r || !source || !need_args_out || !is_shuffle_out)
+    return 0;
+  pack = parser_asm_simd_builtin_ident_pack_c(source->data, source->length, r->token_start, r->tok.ident_len);
+  if (pack == 0)
+    return 0;
+  *is_shuffle_out = pack >> 8;
+  *need_args_out = pack & 255;
+  return 1;
+}
+#endif
 
 #include "parser_asm_simd_builtin_slice.inc"
 

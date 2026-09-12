@@ -3,6 +3,11 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select。
+ *
+ * Hybrid P7b: XLANG_PTHIN_SIMD_BODIES_FROM_X skips the portable ident pack /
+ * callee-name fill region (bodies in src/asm/pthin_simd.x + slice trampoline
+ * in the seed TU). Parse / arena stay here. Cold: no define, full twin.
+ * PLATFORM: SHARED
  */
 #ifndef PARSER_ASM_SIMD_BUILTIN_SLICE_INCLUDED
 #define PARSER_ASM_SIMD_BUILTIN_SLICE_INCLUDED
@@ -67,6 +72,7 @@ static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
   e->call_resolved_dep_index = -1;
 }
 
+#ifndef XLANG_PTHIN_SIMD_BODIES_FROM_X
 /** 判断 ident 是否为 shuffle / select（与 parser.x 字节比较一致）。 */
 static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r, struct parser_asm_slice_u8 *source,
                                               int32_t *need_args_out, int32_t *is_shuffle_out) {
@@ -94,6 +100,53 @@ static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r,
 }
 
 /**
+ * Write lowered callee name (`simd_shuffle` / `simd_select`) into out[0..64).
+ * PLATFORM: SHARED — cold twin of pthin_simd.x parser_asm_simd_callee_name_fill_c.
+ */
+int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out) {
+  int32_t nlen;
+  int32_t i;
+  if (!out)
+    return 0;
+  if (is_shuffle) {
+    out[0] = 115;
+    out[1] = 105;
+    out[2] = 109;
+    out[3] = 100;
+    out[4] = 95;
+    out[5] = 115;
+    out[6] = 104;
+    out[7] = 117;
+    out[8] = 102;
+    out[9] = 102;
+    out[10] = 108;
+    out[11] = 101;
+    nlen = 12;
+  } else {
+    out[0] = 115;
+    out[1] = 105;
+    out[2] = 109;
+    out[3] = 100;
+    out[4] = 95;
+    out[5] = 115;
+    out[6] = 101;
+    out[7] = 108;
+    out[8] = 101;
+    out[9] = 99;
+    out[10] = 116;
+    nlen = 11;
+  }
+  for (i = nlen; i < 64; i++)
+    out[i] = 0;
+  return nlen;
+}
+#endif /* !XLANG_PTHIN_SIMD_BODIES_FROM_X */
+
+#ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
+extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
+#endif
+
+/**
  * parse_at_simd_builtin_into：r0 为 @ 后 LexerResult；成功写 out.expr_ref / out.next_lex。
  */
 void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexer_result r0,
@@ -105,7 +158,6 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   int32_t need_args;
   int32_t is_shuffle;
   struct ast_Expr ce;
-  int32_t ci;
   int32_t call_ref;
   struct ast_Expr call_e;
   int32_t got;
@@ -134,36 +186,7 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   ce = ast_ast_arena_expr_get(arena, callee_ref);
   ce.kind = 3; /* EXPR_VAR */
   parser_asm_simd_expr_common_zeros_c(&ce);
-  if (is_shuffle) {
-    ce.var_name[0] = 115;
-    ce.var_name[1] = 105;
-    ce.var_name[2] = 109;
-    ce.var_name[3] = 100;
-    ce.var_name[4] = 95;
-    ce.var_name[5] = 115;
-    ce.var_name[6] = 104;
-    ce.var_name[7] = 117;
-    ce.var_name[8] = 102;
-    ce.var_name[9] = 102;
-    ce.var_name[10] = 108;
-    ce.var_name[11] = 101;
-    ce.var_name_len = 12;
-  } else {
-    ce.var_name[0] = 115;
-    ce.var_name[1] = 105;
-    ce.var_name[2] = 109;
-    ce.var_name[3] = 100;
-    ce.var_name[4] = 95;
-    ce.var_name[5] = 115;
-    ce.var_name[6] = 101;
-    ce.var_name[7] = 108;
-    ce.var_name[8] = 101;
-    ce.var_name[9] = 99;
-    ce.var_name[10] = 116;
-    ce.var_name_len = 11;
-  }
-  for (ci = ce.var_name_len; ci < 64; ci++)
-    ce.var_name[ci] = 0;
+  ce.var_name_len = parser_asm_simd_callee_name_fill_c(is_shuffle, ce.var_name);
   ast_ast_arena_expr_set(arena, callee_ref, ce);
   call_ref = ast_ast_arena_expr_alloc(arena);
   if (call_ref == 0)
