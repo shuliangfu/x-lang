@@ -2,12 +2,13 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b/P12c: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
- * skip walks (struct/enum/extern + impl header; bodies in
- * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl
- * trampoline lives here (needs file-static impl-seen tables). skip_one_trait
- * / enum_register / parse_one_extern stay C. Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c bodies.
+ * Hybrid P12b/P12c/P12d: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * skip walks (struct/enum/extern + impl header + generic_bound_scan; bodies
+ * in src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl and
+ * generic_bound_scan trampolines live here (need file-static tables).
+ * skip_one_trait / enum_register / parse_one_extern stay C. Cold: no
+ * define, full twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for
+ * P12b/P12c/P12d bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -4729,6 +4730,56 @@ extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_le
                                                             struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source);
 
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — 7.2.1 P12d B-minus. Dest-buffer trampoline: .x walks
+ * the file; file-local g_fn_bound_* / g_call_* / g_fn_gp_* stay C.
+ * Language has no local u8[N] / file-local statics. last_ident scratch
+ * is stack-owned here. Do not wrap skip_one_trait. */
+extern int32_t parser_asm_generic_bound_scan_into_c(void *lex_inout, void *source, uint8_t *last_nm,
+                                                    uint8_t *bound_name, int32_t *bound_name_len,
+                                                    uint8_t *bound_trait, int32_t *bound_trait_len,
+                                                    int32_t *bound_pos, int32_t *bound_n,
+                                                    uint8_t *call_callee, int32_t *call_callee_len,
+                                                    uint8_t *call_typearg, int32_t *call_typearg_len,
+                                                    uint8_t *call_typeargs, int32_t *call_typearg_lens,
+                                                    int32_t *call_nargs, int32_t *call_line, int32_t *call_col,
+                                                    int32_t *call_n, uint8_t *gp_fname, int32_t *gp_fname_len,
+                                                    uint8_t *gp_names, int32_t *gp_lens, int32_t *gp_nargs,
+                                                    int32_t *gp_n);
+
+void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
+  struct parser_asm_slice_u8 source;
+  struct parser_asm_lexer lex;
+  uint8_t last_ident[64];
+  if (!data || len <= 0)
+    return;
+  /* reset before each file scan — same as the C twin. Invalid data/len
+   * returns above without wiping (wave455 stash-empty keep g_fn_gp_*). */
+  g_fn_bound_n = 0;
+  g_call_n = 0;
+  g_fn_gp_n = 0;
+  memset(g_call_nargs, 0, sizeof(g_call_nargs));
+  memset(g_fn_bound_pos, 0, sizeof(g_fn_bound_pos));
+  memset(g_fn_gp_nargs, 0, sizeof(g_fn_gp_nargs));
+  source.data = data;
+  source.length = (size_t)len;
+  memset(&lex, 0, sizeof(lex));
+  lex.line = 1;
+  lex.col = 1;
+  memset(last_ident, 0, 64);
+  (void)parser_asm_generic_bound_scan_into_c(&lex, &source, last_ident,
+                                             (uint8_t *)g_fn_bound_name, g_fn_bound_name_len,
+                                             (uint8_t *)g_fn_bound_trait, g_fn_bound_trait_len,
+                                             g_fn_bound_pos, &g_fn_bound_n,
+                                             (uint8_t *)g_call_callee, g_call_callee_len,
+                                             (uint8_t *)g_call_typearg, g_call_typearg_len,
+                                             (uint8_t *)g_call_typeargs, (int32_t *)g_call_typearg_lens,
+                                             g_call_nargs, g_call_line, g_call_col, &g_call_n,
+                                             (uint8_t *)g_fn_gp_fname, g_fn_gp_fname_len,
+                                             (uint8_t *)g_fn_gp_names, (int32_t *)g_fn_gp_lens,
+                                             g_fn_gp_nargs, &g_fn_gp_n);
+}
+#else
 /*
  * Peek the for-type IDENT after `impl<...>`.
  * `lex` must sit at the `<` of `impl<`. Does not mutate caller lex.
@@ -5053,6 +5104,7 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
     lex = r.next_lex;
   }
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X generic_bound_scan */
 
 /**
  * wave455: register declaration-order type-param names for a function.

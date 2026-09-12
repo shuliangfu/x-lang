@@ -25,7 +25,8 @@
 // trampolines in seeds/pthin_skip_tl.from_x.c. stash_source (file-global
 // generic-bound scan) stays in those trampolines. skip_one_trait
 // (method-recording state machine + globals), enum_register (void* module),
-// parse_one_extern (arena), and generic_bound_* stay C.
+// parse_one_extern (arena) stay C. generic_bound_scan walk is P12d;
+// check / register / stash stay C.
 //
 // 7.2.1 P12c B-minus (2026-09-13): 有则补全 this file with skip_one_impl.
 // The header walk is B-minus (opaque lexer + P1b skip_generic_angle +
@@ -40,13 +41,21 @@
 // pthin_lex_skip.x). Do not wrap glue_tail scattered AUDIT as a side
 // effect. Do not compile this file as a skip-include stub without bodies.
 //
-// Hybrid P12b/P12c: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
-// skips the portable .inc region (struct/enum/extern + impl header).
-// Requires P9a bridge + P1b skip walks (otherwise skip_balanced /
-// skip_generic_angle / copy_slice would UNDEF). token.h remains the
-// TOKEN_* authority via P12 C _Static_assert pins. Cold: no define,
-// full .inc. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c
-// bodies.
+// 7.2.1 P12d B-minus (2026-09-13): 有则补全 this file with
+// generic_bound_scan. The full-file token walk is B-minus (opaque lexer
+// + P1b skip_generic_angle + P1b copy_slice). Language has no file-local
+// static tables; dest buffers are the C g_fn_bound_* / g_call_* /
+// g_fn_gp_* arrays (flat *u8 / *i32). Do not wrap skip_one_trait.
+// Do not duplicate skip_generic_angle_list or copy_slice. Do not open
+// a new P-lane. Check / register / stash stay C.
+//
+// Hybrid P12b/P12c/P12d: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+// skips the portable .inc region (struct/enum/extern + impl header +
+// generic_bound_scan). Requires P9a bridge + P1b skip walks (otherwise
+// skip_balanced / skip_generic_angle / copy_slice would UNDEF). token.h
+// remains the TOKEN_* authority via P12 C _Static_assert pins. Cold: no
+// define, full .inc. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for
+// P12b/P12c/P12d bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -60,8 +69,11 @@ export extern "C" function parser_asm_skip_balanced_braces_into_c(lex_inout: *u8
 export extern "C" function parser_asm_skip_generic_angle_list_into_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: restore-trio + IDENT capture (P1c pattern). */
 export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
 export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
 export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
 export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
@@ -90,13 +102,24 @@ const TOKEN_ISIZE: i32 = 67;
 const TOKEN_F32: i32 = 77;
 const TOKEN_F64: i32 = 78;
 const TOKEN_LPAREN: i32 = 82;
+const TOKEN_RPAREN: i32 = 83;
 const TOKEN_LBRACE: i32 = 84;
+const TOKEN_COMMA: i32 = 90;
 const TOKEN_COLON: i32 = 91;
+const TOKEN_DOT: i32 = 92;
 const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_PLUS: i32 = 96;
 const TOKEN_STAR: i32 = 98;
+const TOKEN_ASSIGN: i32 = 117;
 const TOKEN_LT: i32 = 120;
+const TOKEN_GT: i32 = 121;
 const TOKEN_STRING: i32 = 130;
 const IMPL_NAME_CAP: i32 = 64;
+const FN_BOUND_MAX: i32 = 16;
+const GENERIC_CALL_MAX: i32 = 32;
+const GENERIC_CALL_MAX_ARGS: i32 = 4;
+const FN_GP_MAX: i32 = 32;
+const BOUND_NAME_CAP: i32 = 64;
 
 /**
  * Skip a top-level `struct Name[<T…>] { … }` to just after the matching `}`.
@@ -388,6 +411,535 @@ export function parser_asm_skip_one_impl_into_c(lex_inout: *u8, source: *u8, fir
       return 1;
     }
     parser_asm_lex_step_kind_c(lex_inout, source);
+  }
+  return 1;
+}
+
+/**
+ * Peek `impl[<T>] Type [for Type]` without moving the caller's lexer.
+ * Entry cursor is the start of `<` (C used a local lexer copy). Restore
+ * trio always snaps back before return. On `impl<T> Foo` the captured
+ * name is Foo; on `impl<T> Foo for Bar` it is Bar (for-type).
+ * @param lex *u8 — opaque lexer; restored on every path
+ * @param source *u8 — opaque slice
+ * @param name64 *u8 — dest 64-byte IDENT; caller owns it
+ * @return i32 — captured IDENT length (1..63) on success; 0 on fail / null
+ * PLATFORM: SHARED — P12d helper; not a second skip_generic_angle.
+ * Language has no address-of for local i32; length is the return value.
+ */
+function parser_asm_skip_tl_peek_impl_for_type(lex: *u8, source: *u8, name64: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let pl: i32 = 0;
+  let n1: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen_us: usize = 0;
+  let slen: i32 = 0;
+  let zi: i32 = 0;
+  if (lex == 0 as *u8 || source == 0 as *u8 || name64 == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    zi = 0;
+    while (zi < BOUND_NAME_CAP) {
+      name64[zi as usize] = 0;
+      zi = zi + 1;
+    }
+    pos0 = parser_asm_lex_pos_c(lex);
+    line0 = parser_asm_lex_line_c(lex);
+    col0 = parser_asm_lex_col_c(lex);
+    data = parser_asm_lex_source_data_c(source);
+    slen_us = parser_asm_lex_source_length_c(source);
+    if (slen_us > 2147483647 as usize) {
+      slen = 2147483647;
+    } else {
+      slen = slen_us as i32;
+    }
+    parser_asm_skip_generic_angle_list_into_c(lex, source);
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    if (kind != TOKEN_IDENT) {
+      parser_asm_lex_set_pos_c(lex, pos0);
+      parser_asm_lex_set_line_c(lex, line0);
+      parser_asm_lex_set_col_c(lex, col0);
+      return 0;
+    }
+    pl = parser_asm_lex_peek_ident_len_c(lex, source);
+    if (pl > 63) {
+      pl = 63;
+    }
+    ts = parser_asm_lex_peek_token_start_c(lex, source);
+    if (ts == 0 as usize) {
+      ts = parser_asm_lex_pos_c(lex);
+    }
+    if (pl > 0 && data != 0 as *u8) {
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, name64);
+      n1 = pl;
+    }
+    parser_asm_lex_step_kind_c(lex, source);
+    kind = parser_asm_lex_peek_kind_c(lex, source);
+    if (kind == TOKEN_LT) {
+      parser_asm_skip_generic_angle_list_into_c(lex, source);
+      kind = parser_asm_lex_peek_kind_c(lex, source);
+    }
+    if (kind == TOKEN_FOR) {
+      parser_asm_lex_step_kind_c(lex, source);
+      kind = parser_asm_lex_peek_kind_c(lex, source);
+      if (kind == TOKEN_STAR) {
+        parser_asm_lex_step_kind_c(lex, source);
+        kind = parser_asm_lex_peek_kind_c(lex, source);
+      }
+      if (kind != TOKEN_IDENT) {
+        parser_asm_lex_set_pos_c(lex, pos0);
+        parser_asm_lex_set_line_c(lex, line0);
+        parser_asm_lex_set_col_c(lex, col0);
+        return 0;
+      }
+      pl = parser_asm_lex_peek_ident_len_c(lex, source);
+      if (pl > 63) {
+        pl = 63;
+      }
+      ts = parser_asm_lex_peek_token_start_c(lex, source);
+      if (ts == 0 as usize) {
+        ts = parser_asm_lex_pos_c(lex);
+      }
+      zi = 0;
+      while (zi < BOUND_NAME_CAP) {
+        name64[zi as usize] = 0;
+        zi = zi + 1;
+      }
+      n1 = 0;
+      if (pl > 0 && data != 0 as *u8) {
+        parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, name64);
+        n1 = pl;
+      }
+    }
+    parser_asm_lex_set_pos_c(lex, pos0);
+    parser_asm_lex_set_line_c(lex, line0);
+    parser_asm_lex_set_col_c(lex, col0);
+    if (n1 <= 0) {
+      return 0;
+    }
+  }
+  return n1;
+}
+
+/**
+ * Full-file generic-bound scan: record `Name<T: Trait>` bounds, declaration
+ * type-param names, and simple `callee<A,B>` instantiations into dest
+ * tables. Entry lexer is a freshly inited cursor (line=1 col=1 pos=0).
+ * C trampoline owns the file-local g_fn_bound_* / g_call_* / g_fn_gp_*
+ * arrays and passes them as flat dest buffers. last_nm is 64-byte scratch
+ * for the most recent IDENT (language has no local u8[N]).
+ * Table caps match the C twin: bound 16, call 32, gp 32, args 4, name 64.
+ * @param lex_inout *u8 — opaque lexer; trampoline inits it
+ * @param source *u8 — opaque slice wrapping the file bytes
+ * @param last_nm *u8 — dest 64-byte last IDENT scratch; trampoline owns it
+ * @param bound_name *u8 — dest bound callee names, stride 64, cap 16
+ * @param bound_name_len *i32 — dest bound callee lens, cap 16
+ * @param bound_trait *u8 — dest bound trait names, stride 64, cap 16
+ * @param bound_trait_len *i32 — dest bound trait lens, cap 16
+ * @param bound_pos *i32 — dest bound type-param positions, cap 16
+ * @param bound_n *i32 — out slot; number of bound rows written
+ * @param call_callee *u8 — dest call callee names, stride 64, cap 32
+ * @param call_callee_len *i32 — dest call callee lens, cap 32
+ * @param call_typearg *u8 — dest first type-arg names, stride 64, cap 32
+ * @param call_typearg_len *i32 — dest first type-arg lens, cap 32
+ * @param call_typeargs *u8 — dest all type-args, stride 64, 32 x 4
+ * @param call_typearg_lens *i32 — dest all type-arg lens, 32 x 4
+ * @param call_nargs *i32 — dest type-arg counts, cap 32
+ * @param call_line *i32 — dest following-token lines, cap 32
+ * @param call_col *i32 — dest following-token cols, cap 32
+ * @param call_n *i32 — out slot; number of call rows written
+ * @param gp_fname *u8 — dest generic-fn names, stride 64, cap 32
+ * @param gp_fname_len *i32 — dest generic-fn name lens, cap 32
+ * @param gp_names *u8 — dest type-param names, stride 64, 32 x 4
+ * @param gp_lens *i32 — dest type-param lens, 32 x 4
+ * @param gp_nargs *i32 — dest type-param counts, cap 32
+ * @param gp_n *i32 — out slot; number of gp rows written
+ * @return i32 — 1 on a completed scan; 0 on null
+ * PLATFORM: SHARED — product P12d B-minus; C trampoline keeps
+ * `xlang_generic_bound_scan_c` and owns the file-local tables.
+ * Do not wrap skip_one_trait. Do not duplicate skip_generic_angle_list
+ * or copy_slice (authority = pthin_lex_skip.x).
+ */
+#[no_mangle]
+export function parser_asm_generic_bound_scan_into_c(lex_inout: *u8, source: *u8, last_nm: *u8, bound_name: *u8, bound_name_len: *i32, bound_trait: *u8, bound_trait_len: *i32, bound_pos: *i32, bound_n: *i32, call_callee: *u8, call_callee_len: *i32, call_typearg: *u8, call_typearg_len: *i32, call_typeargs: *u8, call_typearg_lens: *i32, call_nargs: *i32, call_line: *i32, call_col: *i32, call_n: *i32, gp_fname: *u8, gp_fname_len: *i32, gp_names: *u8, gp_lens: *i32, gp_nargs: *i32, gp_n: *i32): i32 {
+  let kind: i32 = 0;
+  let nk: i32 = 0;
+  let pl: i32 = 0;
+  let tl: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen_us: usize = 0;
+  let slen: i32 = 0;
+  let zi: i32 = 0;
+  let last_nlen: i32 = 0;
+  let last_is_fn: i32 = 0;
+  let last_is_struct: i32 = 0;
+  let last_is_impl: i32 = 0;
+  let prev_function: i32 = 0;
+  let prev_struct: i32 = 0;
+  let prev_impl: i32 = 0;
+  let angle_depth: i32 = 0;
+  let expect_trait: i32 = 0;
+  let expect_tp: i32 = 0;
+  let after_bound: i32 = 0;
+  let pos: i32 = 0;
+  let gp_slot: i32 = 0;
+  let bn: i32 = 0;
+  let cn: i32 = 0;
+  let gn: i32 = 0;
+  let pi: i32 = 0;
+  let k: i32 = 0;
+  let simple: i32 = 0;
+  let nargs: i32 = 0;
+  let expect_arg: i32 = 0;
+  let slot_off: usize = 0;
+  let row: *u8 = 0 as *u8;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || last_nm == 0 as *u8 || bound_name == 0 as *u8 || bound_name_len == 0 as *i32 || bound_trait == 0 as *u8 || bound_trait_len == 0 as *i32 || bound_pos == 0 as *i32 || bound_n == 0 as *i32 || call_callee == 0 as *u8 || call_callee_len == 0 as *i32 || call_typearg == 0 as *u8 || call_typearg_len == 0 as *i32 || call_typeargs == 0 as *u8 || call_typearg_lens == 0 as *i32 || call_nargs == 0 as *i32 || call_line == 0 as *i32 || call_col == 0 as *i32 || call_n == 0 as *i32 || gp_fname == 0 as *u8 || gp_fname_len == 0 as *i32 || gp_names == 0 as *u8 || gp_lens == 0 as *i32 || gp_nargs == 0 as *i32 || gp_n == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    bound_n[0] = 0;
+    call_n[0] = 0;
+    gp_n[0] = 0;
+    last_nlen = 0;
+    last_is_fn = 0;
+    last_is_struct = 0;
+    last_is_impl = 0;
+    prev_function = 0;
+    prev_struct = 0;
+    prev_impl = 0;
+    zi = 0;
+    while (zi < BOUND_NAME_CAP) {
+      last_nm[zi as usize] = 0;
+      zi = zi + 1;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen_us = parser_asm_lex_source_length_c(source);
+    if (slen_us > 2147483647 as usize) {
+      slen = 2147483647;
+    } else {
+      slen = slen_us as i32;
+    }
+    while (true) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_EOF) {
+        break;
+      }
+      if (kind == TOKEN_FUNCTION) {
+        prev_function = 1;
+        prev_struct = 0;
+        prev_impl = 0;
+        last_nlen = 0;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_STRUCT) {
+        prev_struct = 1;
+        prev_function = 0;
+        prev_impl = 0;
+        last_nlen = 0;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_IMPL) {
+        prev_impl = 1;
+        prev_function = 0;
+        prev_struct = 0;
+        last_nlen = 0;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_IDENT) {
+        pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        if (pl > 63) {
+          pl = 63;
+        }
+        last_nlen = pl;
+        ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+        if (ts == 0 as usize) {
+          ts = parser_asm_lex_pos_c(lex_inout);
+        }
+        zi = 0;
+        while (zi < BOUND_NAME_CAP) {
+          last_nm[zi as usize] = 0;
+          zi = zi + 1;
+        }
+        if (pl > 0 && data != 0 as *u8) {
+          parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, last_nm);
+        }
+        last_is_fn = prev_function;
+        last_is_struct = prev_struct;
+        last_is_impl = prev_impl;
+        prev_function = 0;
+        prev_struct = 0;
+        prev_impl = 0;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        continue;
+      }
+      if (kind == TOKEN_LT && (last_nlen > 0 || prev_impl != 0)) {
+        if (prev_impl != 0 && last_nlen == 0) {
+          pl = parser_asm_skip_tl_peek_impl_for_type(lex_inout, source, last_nm);
+          if (pl > 0) {
+            last_nlen = pl;
+            last_is_impl = 1;
+          }
+          prev_impl = 0;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        if (last_nlen > 0 && (last_is_fn != 0 || last_is_struct != 0 || last_is_impl != 0)) {
+          angle_depth = 1;
+          expect_trait = 0;
+          expect_tp = 1;
+          after_bound = 0;
+          pos = 0;
+          gp_slot = -1;
+          gn = gp_n[0];
+          if (gn < FN_GP_MAX) {
+            gp_slot = gn;
+            slot_off = (gn as usize) * (BOUND_NAME_CAP as usize);
+            zi = 0;
+            while (zi < BOUND_NAME_CAP) {
+              gp_fname[slot_off + zi as usize] = 0;
+              zi = zi + 1;
+            }
+            zi = 0;
+            while (zi < last_nlen) {
+              gp_fname[slot_off + zi as usize] = last_nm[zi as usize];
+              zi = zi + 1;
+            }
+            gp_fname_len[gn] = last_nlen;
+            gp_nargs[gn] = 0;
+            k = 0;
+            while (k < GENERIC_CALL_MAX_ARGS) {
+              gp_lens[(gn as usize) * (GENERIC_CALL_MAX_ARGS as usize) + k as usize] = 0;
+              k = k + 1;
+            }
+            gp_n[0] = gn + 1;
+          }
+          while (angle_depth > 0) {
+            kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (kind == TOKEN_EOF) {
+              break;
+            }
+            if (kind == TOKEN_LT) {
+              angle_depth = angle_depth + 1;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_GT) {
+              angle_depth = angle_depth - 1;
+              if (angle_depth == 0) {
+                break;
+              }
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_COLON && angle_depth == 1) {
+              expect_trait = 1;
+              expect_tp = 0;
+              after_bound = 0;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_PLUS && angle_depth == 1 && after_bound != 0) {
+              expect_trait = 1;
+              expect_tp = 0;
+              after_bound = 0;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_IDENT && angle_depth == 1 && expect_trait != 0) {
+              bn = bound_n[0];
+              if (bn < FN_BOUND_MAX) {
+                slot_off = (bn as usize) * (BOUND_NAME_CAP as usize);
+                zi = 0;
+                while (zi < BOUND_NAME_CAP) {
+                  bound_name[slot_off + zi as usize] = 0;
+                  bound_trait[slot_off + zi as usize] = 0;
+                  zi = zi + 1;
+                }
+                zi = 0;
+                while (zi < last_nlen) {
+                  bound_name[slot_off + zi as usize] = last_nm[zi as usize];
+                  zi = zi + 1;
+                }
+                bound_name_len[bn] = last_nlen;
+                tl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+                if (tl > 63) {
+                  tl = 63;
+                }
+                ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+                if (ts == 0 as usize) {
+                  ts = parser_asm_lex_pos_c(lex_inout);
+                }
+                if (tl > 0 && data != 0 as *u8) {
+                  parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, tl, bound_trait + slot_off);
+                }
+                bound_trait_len[bn] = tl;
+                bound_pos[bn] = pos;
+                bound_n[0] = bn + 1;
+              }
+              expect_trait = 0;
+              after_bound = 1;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_IDENT && angle_depth == 1 && expect_tp != 0 && expect_trait == 0) {
+              if (gp_slot >= 0 && gp_nargs[gp_slot] < GENERIC_CALL_MAX_ARGS) {
+                pi = gp_nargs[gp_slot];
+                pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+                if (pl > 63) {
+                  pl = 63;
+                }
+                ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+                if (ts == 0 as usize) {
+                  ts = parser_asm_lex_pos_c(lex_inout);
+                }
+                slot_off = ((gp_slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize) * (BOUND_NAME_CAP as usize);
+                zi = 0;
+                while (zi < BOUND_NAME_CAP) {
+                  gp_names[slot_off + zi as usize] = 0;
+                  zi = zi + 1;
+                }
+                if (pl > 0 && data != 0 as *u8) {
+                  parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, gp_names + slot_off);
+                }
+                gp_lens[(gp_slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize] = pl;
+                gp_nargs[gp_slot] = pi + 1;
+              }
+              expect_tp = 0;
+              after_bound = 0;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_COMMA && angle_depth == 1) {
+              expect_trait = 0;
+              expect_tp = 1;
+              after_bound = 0;
+              pos = pos + 1;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          }
+          parser_asm_lex_step_kind_c(lex_inout, source);
+        } else if (last_is_fn == 0 && last_nlen > 0 && call_n[0] < GENERIC_CALL_MAX) {
+          cn = call_n[0];
+          angle_depth = 1;
+          simple = 1;
+          nargs = 0;
+          expect_arg = 1;
+          k = 0;
+          while (k < GENERIC_CALL_MAX_ARGS) {
+            call_typearg_lens[(cn as usize) * (GENERIC_CALL_MAX_ARGS as usize) + k as usize] = 0;
+            k = k + 1;
+          }
+          while (angle_depth > 0) {
+            kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (kind == TOKEN_EOF) {
+              break;
+            }
+            if (kind == TOKEN_LT) {
+              angle_depth = angle_depth + 1;
+              simple = 0;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_GT) {
+              angle_depth = angle_depth - 1;
+              if (angle_depth == 0) {
+                break;
+              }
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_IDENT && angle_depth == 1 && expect_arg != 0 && nargs < GENERIC_CALL_MAX_ARGS) {
+              pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+              if (pl > 63) {
+                pl = 63;
+              }
+              ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+              if (ts == 0 as usize) {
+                ts = parser_asm_lex_pos_c(lex_inout);
+              }
+              slot_off = ((cn as usize) * (GENERIC_CALL_MAX_ARGS as usize) + nargs as usize) * (BOUND_NAME_CAP as usize);
+              zi = 0;
+              while (zi < BOUND_NAME_CAP) {
+                call_typeargs[slot_off + zi as usize] = 0;
+                zi = zi + 1;
+              }
+              if (pl > 0 && data != 0 as *u8) {
+                parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, call_typeargs + slot_off);
+              }
+              call_typearg_lens[(cn as usize) * (GENERIC_CALL_MAX_ARGS as usize) + nargs as usize] = pl;
+              nargs = nargs + 1;
+              expect_arg = 0;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (kind == TOKEN_COMMA && angle_depth == 1) {
+              expect_arg = 1;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          }
+          if (nargs > 0 && simple != 0) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            nk = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (nk == TOKEN_LPAREN || nk == TOKEN_LBRACE || nk == TOKEN_ASSIGN || nk == TOKEN_SEMICOLON || nk == TOKEN_COMMA || nk == TOKEN_RPAREN) {
+              slot_off = (cn as usize) * (BOUND_NAME_CAP as usize);
+              zi = 0;
+              while (zi < BOUND_NAME_CAP) {
+                call_callee[slot_off + zi as usize] = 0;
+                call_typearg[slot_off + zi as usize] = 0;
+                zi = zi + 1;
+              }
+              zi = 0;
+              while (zi < last_nlen) {
+                call_callee[slot_off + zi as usize] = last_nm[zi as usize];
+                zi = zi + 1;
+              }
+              call_callee_len[cn] = last_nlen;
+              row = call_typeargs + ((cn as usize) * (GENERIC_CALL_MAX_ARGS as usize) * (BOUND_NAME_CAP as usize));
+              zi = 0;
+              while (zi < BOUND_NAME_CAP) {
+                call_typearg[slot_off + zi as usize] = row[zi as usize];
+                zi = zi + 1;
+              }
+              call_typearg_len[cn] = call_typearg_lens[(cn as usize) * (GENERIC_CALL_MAX_ARGS as usize)];
+              call_nargs[cn] = nargs;
+              call_line[cn] = parser_asm_lex_line_c(lex_inout);
+              call_col[cn] = parser_asm_lex_col_c(lex_inout);
+              call_n[0] = cn + 1;
+            }
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          } else {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          }
+        }
+        last_nlen = 0;
+        last_is_fn = 0;
+        last_is_struct = 0;
+        last_is_impl = 0;
+        prev_function = 0;
+        prev_struct = 0;
+        prev_impl = 0;
+        continue;
+      }
+      prev_function = 0;
+      prev_struct = 0;
+      prev_impl = 0;
+      if (kind != TOKEN_DOT && kind != TOKEN_COLON) {
+        last_nlen = 0;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    }
   }
   return 1;
 }
