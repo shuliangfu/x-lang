@@ -258,6 +258,12 @@ SUITE_HELPER_SIGS = [
 # twins.h shadow of simd_builtin). C twin is a shuffle/select spelling
 # check (not bind_name_validate). Do not copy classify / score into
 # leftover-to-audit.
+# v5.55: 7-param as-bind leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Kind-pair+slice+two-off eq is
+# scripts/pthin_stretch_audit_eq_leftover_asbind.c (sibling TU; 7-param
+# first-kind ABI cannot be a k_cases row). C twin is "as" spelling plus
+# bind_name_validate on data+next_start. Do not copy classify / score
+# into leftover-to-audit.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

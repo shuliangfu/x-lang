@@ -99,6 +99,8 @@ extern int leftover_sourceoff_eq_run(long *checks, int *fail);
 extern int leftover_kindsrc_eq_run(long *checks, int *fail);
 /* v5.54: leftover_helpers two-kind+source+off eq — same sibling-TU reason. */
 extern int leftover_twokind_eq_run(long *checks, int *fail);
+/* v5.55: leftover_helpers 7-param as-bind eq — same sibling-TU reason. */
+extern int leftover_asbind_eq_run(long *checks, int *fail);
 
 static int g_fail = 0;
 static long g_checks = 0;
@@ -355,15 +357,16 @@ int main(int argc, char **argv) {
             g_shard_i, g_shard_n, g_file_stride);
   }
   /* v5.50 leftover_kind / v5.51 leftover_namelen / v5.52 leftover_sourceoff
-   * / v5.53 leftover_kindsrc / v5.54 leftover_twokind: sibling TUs so
-   * twins.h static C copies do not shadow the .x T from audit_x.o.
-   * Shard 0 only so parallel workers do not double-count. */
+   * / v5.53 leftover_kindsrc / v5.54 leftover_twokind / v5.55 leftover_asbind:
+   * sibling TUs so twins.h static C copies do not shadow the .x T from
+   * audit_x.o. Shard 0 only so parallel workers do not double-count. */
   if (g_shard_i == 0) {
     leftover_kind_eq_run(&g_checks, &g_fail);
     leftover_namelen_eq_run(&g_checks, &g_fail);
     leftover_sourceoff_eq_run(&g_checks, &g_fail);
     leftover_kindsrc_eq_run(&g_checks, &g_fail);
     leftover_twokind_eq_run(&g_checks, &g_fail);
+    leftover_asbind_eq_run(&g_checks, &g_fail);
   }
   /* EQ_SKIP_SYNTH=1: skip synthetic corpus (daily delta); files + null remain.
    * Soft-knife close always keeps a short smoke battery so deep-climb twins

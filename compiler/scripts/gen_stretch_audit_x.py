@@ -173,6 +173,18 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.55: leftover_helpers 7-param as-bind eq (import_as_bind). Already
+#   .x T in audit.x; no k_cases row because first param is not lex:.
+#   twins.h has no static C copy of import_as_bind, but the 7-param
+#   first-kind ABI still cannot be a k_cases row, so eq lives in a
+#   sibling TU (pthin_stretch_audit_eq_leftover_asbind.c) that links
+#   audit_x.o and compares exhaustive TokenKind on each kind slot +
+#   IDENT+"as" spelling / length / token_start corners + next-ident
+#   byte-class / length / next_start corners against the gated C twin
+#   (spelling check plus bind_name_validate on data+next_start).
+#   classify/score stay stretch.x (not leftover-to-audit). Eq gate:
+#   FORCE smoke deep_off=0 / EQ_ONLY=import_as_bind,skip_allow.
+#
 # v5.54: leftover_helpers two-kind+source+off eq (simd_builtin). Already
 #   .x T in audit.x; no k_cases row because first param is not lex:.
 #   twins.h static C copy shadows simd_builtin in the harness TU, so eq
