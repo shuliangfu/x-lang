@@ -365,6 +365,20 @@ SUITE_HELPER_SIGS = [
 # zenith / versal. Do not remove crown / pinnacle from
 # is_deep_climb_name without measurement. Eq gate: FORCE smoke
 # deep_off=0 / EQ_ONLY=supreme_crown EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.69: leftover_helpers 0. Ninth deep-chain batch (not a new leftover
+# TU): 提速纪律 item 2 — ban 一层 exact 一波. k_eq_nest_skip is the
+# single nested-rung authority (full chain). Remaining until *versal*
+# wall = 6×25=150. Measured 6-rung JOBS=4 >15 min Darwin. This wave
+# = first 3 rungs (75 k_cases): ultimate_supreme / absolute_ultimate /
+# transcendent_absolute. Next = infinite_transcendent /
+# eternal_infinite / cosmic_eternal. universal_* stay HARD BAN
+# (*versal*). Multi-token daily JOBS=4. Case names still contain
+# zenith/peak/summit. Do not copy classify / score into
+# leftover-to-audit. Do not daily *vx* / summit / peak / zenith /
+# versal. Do not remove crown / pinnacle from is_deep_climb_name
+# without measurement. Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=
+# ultimate_supreme,absolute_ultimate,transcendent_absolute
+# EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

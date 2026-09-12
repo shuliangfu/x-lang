@@ -135,52 +135,73 @@ static int g_deep_max_file_off = -1;
 static size_t g_deep_max_src_len = 512;
 
 /**
- * Nested climb rungs stack as a suffix chain:
- *   hyper_mega ⊂ ultra_hyper_mega ⊂ max_ultra_hyper_mega ⊂
- *   apex_max_ultra_hyper_mega ⊂ summit_apex_max_ultra_hyper_mega ⊂
- *   … ⊂ crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega ⊂
- *   supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega ⊂
- *   ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega ⊂ …
+ * Nested climb rungs stack as a suffix chain (inner ⊂ outer):
+ *   hyper_mega ⊂ ultra_hyper ⊂ max_ultra ⊂ apex_max ⊂
+ *   summit_apex ⊂ peak_summit ⊂ zenith_peak ⊂ pinnacle_zenith ⊂
+ *   crown_pinnacle ⊂ supreme_crown ⊂ ultimate_supreme ⊂
+ *   absolute_ultimate ⊂ transcendent_absolute ⊂ infinite_transcendent ⊂
+ *   eternal_infinite ⊂ cosmic_eternal ⊂ universal_cosmic ⊂
+ *   omnipotent_universal ⊂ sovereign_omnipotent ⊂ imperial_sovereign ⊂
+ *   divine_imperial ⊂ celestial_divine ⊂ galactic_celestial ⊂
+ *   intergalactic_galactic.
  * Naive strstr("hyper_mega") swallows every longer rung (measured
  * 2026-09-12: 25 exact k_cases vs 600 strstr hits). A hit is this rung
- * iff it is not immediately preceded by the next-inner prefix
- * (`ultra_` before `hyper_mega`, `max_` before `ultra_hyper`,
- * `apex_` before `max_ultra`, `summit_` before `apex_max`,
- * `supreme_` before `crown_pinnacle`, `ultimate_` before
- * `supreme_crown`). Summit / peak / zenith / pinnacle_zenith stay
- * HARD BAN as EQ_ONLY strings — skip those rungs.
+ * iff it is not immediately preceded by the next-outer prefix listed
+ * in k_eq_nest_skip (single authority; v5.69 table replaces per-wave
+ * if/continue). HARD BAN as EQ_ONLY strings: summit / peak / zenith /
+ * pinnacle_zenith / *versal* (catches universal_*) / *vx*. Those rows
+ * stay in the table so EQ_FORCE_DEEP_DAILY still exact-filters.
  * PLATFORM: SHARED — filter only; twins / k_cases unchanged.
  */
+struct eq_nest_skip {
+  const char *tok;
+  const char *prev; /* NULL = outermost; otherwise skip hit preceded by prev */
+};
+
+static const struct eq_nest_skip k_eq_nest_skip[] = {
+    {"hyper_mega", "ultra_"},
+    {"ultra_hyper", "max_"},
+    {"max_ultra", "apex_"},
+    {"apex_max", "summit_"},
+    {"summit_apex", "peak_"},
+    {"peak_summit", "zenith_"},
+    {"zenith_peak", "pinnacle_"},
+    {"pinnacle_zenith", "crown_"},
+    {"crown_pinnacle", "supreme_"},
+    {"supreme_crown", "ultimate_"},
+    {"ultimate_supreme", "absolute_"},
+    {"absolute_ultimate", "transcendent_"},
+    {"transcendent_absolute", "infinite_"},
+    {"infinite_transcendent", "eternal_"},
+    {"eternal_infinite", "cosmic_"},
+    {"cosmic_eternal", "universal_"},
+    {"universal_cosmic", "omnipotent_"},
+    {"omnipotent_universal", "sovereign_"},
+    {"sovereign_omnipotent", "imperial_"},
+    {"imperial_sovereign", "divine_"},
+    {"divine_imperial", "celestial_"},
+    {"celestial_divine", "galactic_"},
+    {"galactic_celestial", "intergalactic_"},
+    {"intergalactic_galactic", 0},
+};
+
 static int eq_tok_hits_name(const char *name, const char *tok) {
   const char *hit;
+  const char *prev = 0;
+  size_t prev_len = 0;
+  size_t i;
   if (!name || !tok || !tok[0])
     return 0;
+  for (i = 0; i < sizeof(k_eq_nest_skip) / sizeof(k_eq_nest_skip[0]); i++) {
+    if (strcmp(tok, k_eq_nest_skip[i].tok) == 0) {
+      prev = k_eq_nest_skip[i].prev;
+      prev_len = prev ? strlen(prev) : 0;
+      break;
+    }
+  }
   for (hit = strstr(name, tok); hit; hit = strstr(hit + 1, tok)) {
-    /* v5.63: exact hyper_mega must not swallow ultra_hyper_mega+. */
-    if (strcmp(tok, "hyper_mega") == 0 && hit >= name + 6 &&
-        memcmp(hit - 6, "ultra_", 6) == 0)
-      continue;
-    /* v5.64: exact ultra_hyper must not swallow max_ultra_hyper_mega+. */
-    if (strcmp(tok, "ultra_hyper") == 0 && hit >= name + 4 &&
-        memcmp(hit - 4, "max_", 4) == 0)
-      continue;
-    /* v5.65: exact max_ultra must not swallow apex_max_ultra_hyper_mega+. */
-    if (strcmp(tok, "max_ultra") == 0 && hit >= name + 5 &&
-        memcmp(hit - 5, "apex_", 5) == 0)
-      continue;
-    /* v5.66: exact apex_max must not swallow summit_apex_max_ultra_hyper_mega+. */
-    if (strcmp(tok, "apex_max") == 0 && hit >= name + 7 &&
-        memcmp(hit - 7, "summit_", 7) == 0)
-      continue;
-    /* v5.67: exact crown_pinnacle must not swallow supreme_crown_pinnacle+.
-     * HARD BAN skipped summit / peak / zenith / pinnacle_zenith as EQ_ONLY. */
-    if (strcmp(tok, "crown_pinnacle") == 0 && hit >= name + 8 &&
-        memcmp(hit - 8, "supreme_", 8) == 0)
-      continue;
-    /* v5.68: exact supreme_crown must not swallow ultimate_supreme_crown+.
-     * HARD BAN skipped summit / peak / zenith / pinnacle_zenith as EQ_ONLY. */
-    if (strcmp(tok, "supreme_crown") == 0 && hit >= name + 9 &&
-        memcmp(hit - 9, "ultimate_", 9) == 0)
+    if (prev && prev_len && hit >= name + prev_len &&
+        memcmp(hit - prev_len, prev, prev_len) == 0)
       continue;
     return 1;
   }
@@ -190,7 +211,7 @@ static int eq_tok_hits_name(const char *name, const char *tok) {
 /**
  * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
  * A case runs iff its name contains any substring (nested-rung exact
- * for hyper_mega / ultra_hyper / max_ultra / apex_max / crown_pinnacle / supreme_crown — see eq_tok_hits_name).
+ * via k_eq_nest_skip — see eq_tok_hits_name).
  * Empty/unset = all cases.
  * PLATFORM: SHARED — used to prove only this wave's new exports in minutes
  * instead of re-scoring the full 400+ table (~50 min at OFF=128).

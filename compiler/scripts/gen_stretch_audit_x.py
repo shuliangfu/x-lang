@@ -173,6 +173,24 @@
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
 #
+# v5.69: leftover_helpers 0 / leftover-to-audit unique 0. 提速纪律
+#   item 2 — ban 一层 exact 一波. k_eq_nest_skip is the single
+#   nested-rung authority (full chain). Remaining until *versal*
+#   wall = 6×25=150. Measured 6-rung JOBS=4 >15 min Darwin
+#   (deeper zenith/peak/summit bodies). This wave = first 3
+#   rungs (75 k_cases): ultimate_supreme + absolute_ultimate +
+#   transcendent_absolute. Next = infinite_transcendent +
+#   eternal_infinite + cosmic_eternal. universal_* stay HARD BAN
+#   (*versal*). Skipped HARD BAN summit / peak / zenith /
+#   pinnacle_zenith. Multi-token daily JOBS=4. Case names still
+#   contain zenith/peak/summit. classify/score stay stretch.x.
+#   Do not daily *vx* / summit / peak / zenith / versal. Do not
+#   remove hyper_mega / ultra_hyper / max_ultra / apex_max /
+#   crown / pinnacle from is_deep_climb_name without measurement.
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=ultimate_supreme,
+#   absolute_ultimate,transcendent_absolute EQ_SKIP_SYNTH=1
+#   EQ_FILE_STRIDE=4.
+#
 # v5.68: leftover_helpers 0 / leftover-to-audit unique 0. crown_pinnacle
 #   25/270 closed v5.67. Next already-T lex-first layer = exact
 #   supreme_crown (25 k_cases; EQ_ONLY string is not HARD BAN;

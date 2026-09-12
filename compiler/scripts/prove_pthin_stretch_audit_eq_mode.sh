@@ -62,11 +62,24 @@
 #         Daily defaults same as hyper_mega / ultra_hyper / max_ultra /
 #         apex_max / crown_pinnacle (SKIP_SYNTH=1 + STRIDE=4 +
 #         DEEP_MAX_FILE_OFF=0).
-#         Those daily runs default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4
-#         (score-chain wall-clock). Do not add super_mega to
-#         is_deep_climb_name without measurement. Do not remove
-#         hyper_mega / ultra_hyper / max_ultra / apex_max / crown /
-#         pinnacle from is_deep_climb_name without measurement.
+#         v5.69: 提速纪律 item 2 — ban 一层 exact 一波. Nested-rung
+#         authority is k_eq_nest_skip (full chain in one table).
+#         Remaining daily-legal until *versal* wall = 6×25=150
+#         (ultimate_supreme … cosmic_eternal). Measured: 6-rung
+#         JOBS=4 still >15 min Darwin (deeper zenith/peak/summit
+#         bodies). Daily batch = first 3 rungs (75 k_cases)
+#         ultimate_supreme,absolute_ultimate,transcendent_absolute
+#         with JOBS=4. Next batch = infinite_transcendent,
+#         eternal_infinite,cosmic_eternal. universal_* stay HARD
+#         BAN (*versal*). Skipped HARD BAN summit / peak / zenith /
+#         pinnacle_zenith. Multi-token EQ_ONLY uses parallel shards.
+#         Case names still contain zenith/peak/summit —
+#         DEEP_MAX_FILE_OFF=0 keeps large files skipped. Do not
+#         daily *vx* / summit / peak / zenith / versal. Do not add
+#         ultra_mega / super_mega to is_deep_climb_name without
+#         measurement. Do not remove hyper_mega / ultra_hyper /
+#         max_ultra / apex_max / crown / pinnacle from
+#         is_deep_climb_name without measurement.
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -273,13 +286,17 @@ case "$MODE" in
     # C harness is the real exact filter (bash glob still
     # substring-capable). HARD BAN does not refuse supreme_crown
     # (unlike summit_apex_max which *summit* already refuses).
+    # v5.69: comma-wrapped remaining daily-legal rungs until the
+    # *versal* HARD BAN wall (universal_*). Combined arm is G.7
+    # 有则补全. Multi-token EQ_ONLY uses parallel shards (JOBS=4)
+    # so one wave can climb 6×25 without serial 18 min Darwin.
     # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
     case ",$EQ_ONLY," in
       *,*ultra_mega*|*,*super_mega*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         ;;
-      *,hyper_mega,*|*,ultra_hyper,*|*,max_ultra,*|*,apex_max,*|*,crown_pinnacle,*|*,supreme_crown,*)
+      *,hyper_mega,*|*,ultra_hyper,*|*,max_ultra,*|*,apex_max,*|*,crown_pinnacle,*|*,supreme_crown,*|*,ultimate_supreme,*|*,absolute_ultimate,*|*,transcendent_absolute,*|*,infinite_transcendent,*|*,eternal_infinite,*|*,cosmic_eternal,*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         export EQ_DEEP_MAX_FILE_OFF="${EQ_DEEP_MAX_FILE_OFF:-0}"
@@ -288,8 +305,20 @@ case "$MODE" in
     unset EQ_SHARD || true
     echo "eq_mode=daily EQ_ONLY=$EQ_ONLY OFF=$EQ_MAX_FILE_OFF SKIP_SYNTH=${EQ_SKIP_SYNTH:-0} STRIDE=${EQ_FILE_STRIDE:-1} (target <2min / 深链分批 ≤5min)"
     build_harness
-    export EQ_SHARD=0/1
-    "$HARNESS" "${FILES[@]}"
+    # v5.69: multi-token EQ_ONLY = 攀尽; parallel shards like close.
+    # Single-token stays serial (historical 25-case waves).
+    # PLATFORM: SHARED — Darwin + Ubuntu same-seq.
+    case "$EQ_ONLY" in
+      *,*)
+        JOBS="${EQ_JOBS:-4}"
+        echo "eq_mode=daily multi-token JOBS=$JOBS (攀尽; target Darwin ≤5min)"
+        run_shards "$JOBS" "${FILES[@]}"
+        ;;
+      *)
+        export EQ_SHARD=0/1
+        "$HARNESS" "${FILES[@]}"
+        ;;
+    esac
     ;;
   close)
     # Soft-knife wave close: all symbols, thinned offsets, parallel shards.
