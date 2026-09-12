@@ -320,6 +320,14 @@ SUITE_HELPER_SIGS = [
 # *vx* / summit / peak / zenith / versal. Do not remove hyper_mega
 # from is_deep_climb_name without measurement. Eq gate: FORCE smoke
 # deep_off=0 / EQ_ONLY=hyper_mega EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.64: leftover_helpers 0. Fourth deep-chain batch (not a new leftover
+# TU): exact ultra_hyper layer is already lex-first k_cases (25 rows;
+# ultra_hyper is not a HARD BAN substring but IS in is_deep_climb_name).
+# Harness eq_tok_hits_name rejects max_ultra swallow (550 extra).
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove ultra_hyper
+# from is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=ultra_hyper EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
 
 # v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
 # generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit

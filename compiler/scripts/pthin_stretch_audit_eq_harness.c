@@ -152,6 +152,10 @@ static int eq_tok_hits_name(const char *name, const char *tok) {
     if (strcmp(tok, "hyper_mega") == 0 && hit >= name + 6 &&
         memcmp(hit - 6, "ultra_", 6) == 0)
       continue;
+    /* v5.64: exact ultra_hyper must not swallow max_ultra_hyper_mega+. */
+    if (strcmp(tok, "ultra_hyper") == 0 && hit >= name + 4 &&
+        memcmp(hit - 4, "max_", 4) == 0)
+      continue;
     return 1;
   }
   return 0;
@@ -160,7 +164,7 @@ static int eq_tok_hits_name(const char *name, const char *tok) {
 /**
  * Daily-delta filter (wall-clock): EQ_ONLY=comma-separated substrings.
  * A case runs iff its name contains any substring (nested-rung exact
- * for hyper_mega — see eq_tok_hits_name). Empty/unset = all cases.
+ * for hyper_mega / ultra_hyper — see eq_tok_hits_name). Empty/unset = all cases.
  * PLATFORM: SHARED — used to prove only this wave's new exports in minutes
  * instead of re-scoring the full 400+ table (~50 min at OFF=128).
  */

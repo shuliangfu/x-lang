@@ -24,7 +24,7 @@
 | Cap 能力解锁（阶段 4） | 🟡 | 3 leave-off ⬜ |
 | R2 真迁（阶段 5） | 🟡 | ~120/128；余绑平台债 |
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
-| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.63 深链分批 hyper_mega 25／270 精确过滤；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；v5.60 leftover_fromat eq 1/30；preamble 1/30；pathpost 1/30；validate 1/30；kindarr 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
+| Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b** 1977/2007（v5.64 深链分批 ultra_hyper 25／270 精确过滤；v5.63 hyper_mega 25／270；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；v5.60 leftover_fromat eq 1/30；preamble 1/30；pathpost 1/30；validate 1/30；kindarr 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30）；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
@@ -105,7 +105,7 @@
 
 ### 开项
 
-- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.63 深链分批 hyper_mega 25／270 精确过滤禁吞 ultra_hyper；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；v5.60 leftover_fromat eq 1/30；preamble 1/30；pathpost 1/30；validate 1/30；kindarr 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；leftover_helpers 0；classify／score 留 stretch.x）  
+- 🟡 **7.2.1b** parser_asm suite audit B-minus — **1977／2,007**（v5.64 深链分批 ultra_hyper 25／270 精确过滤禁吞 max_ultra；v5.63 hyper_mega 25／270；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；v5.60 leftover_fromat eq 1/30；preamble 1/30；pathpost 1/30；validate 1/30；kindarr 2/30；asbind 1/30；twokind 1/30；kindsrc 2/30；sourceoff 6/30；namelen 8/30；kind 6/30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；leftover_helpers 0；classify／score 留 stretch.x）  
   - [x] ABI＝B-minus（opaque＋lexer-step 桥；RFC §5）  
   - [x] 桥面／P9a／三契约／生成器 v1→v5.7／等价 harness  
   - [x] 栈 kinds[]／peek_kind_chain 根（toplevel_kind_peek 族）  
@@ -147,6 +147,7 @@
   - [x] 深链分批 smoke ultra_mega 层（v5.61：25／270 soft-deep；exact ultra_mega 非 HARD BAN 子串；daily 默认 SKIP_SYNTH=1＋STRIDE=4；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝super_mega 25／270）
   - [x] 深链分批 smoke super_mega 层（v5.62：25／270 soft-deep；exact super_mega 非 HARD BAN 子串、不在 is_deep_climb_name；daily 默认 SKIP_SYNTH=1＋STRIDE=4；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝hyper_mega 须精确过滤禁吞 ultra_hyper）
   - [x] 深链分批 smoke hyper_mega 层（v5.63：25／270 soft-deep；exact hyper_mega 非 HARD BAN 子串、在 is_deep_climb_name；harness eq_tok_hits_name 拒 ultra_ 前缀吞 575；daily 默认 SKIP_SYNTH=1＋STRIDE=4＋DEEP_MAX_FILE_OFF=0；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝ultra_hyper 须精确过滤禁吞 max_ultra）
+  - [x] 深链分批 smoke ultra_hyper 层（v5.64：25／270 soft-deep；exact ultra_hyper 非 HARD BAN 子串、在 is_deep_climb_name；harness eq_tok_hits_name 拒 max_ 前缀吞 550；daily 默认 SKIP_SYNTH=1＋STRIDE=4＋DEEP_MAX_FILE_OFF=0；vx／summit／peak／zenith／versal 仍立卡；classify／score 留 stretch.x；续＝max_ultra 须精确过滤禁吞 apex_max）
   - 机制 → [`7.2.1-parser-inc-port-ABI-RFC.md`](7.2.1-parser-inc-port-ABI-RFC.md)；逐波 → 自举进度 §6 
 - 🟡 **7.2.2** parser_gen 去 pin — 产品默认 pin-first；`FROM_X=1` 仅显式 assemble  
 - ⬜ **7.2.1** parser seed 物理删（史诗；依赖 7.2.1b／8.3）  
@@ -303,7 +304,7 @@
 ### 推荐推进序（非流水）
 
 1. 日常软刀／PC 底盘（非 mega；须点名才动 check／mega）  
-2. 🟡 **7.2.1b** B-minus 续（1977／2,007；v5.63 深链分批 hyper_mega 25／270 精确过滤；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；leftover_fromat eq 1／30；preamble 1／30；pathpost 1／30；validate 1／30；kindarr 2／30；asbind 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；leftover_helpers 0；classify／score 留 stretch.x；**续 ultra_hyper 须精确过滤禁吞 max_ultra**）＋ **BC + 8.3** 
+2. 🟡 **7.2.1b** B-minus 续（1977／2,007；v5.64 深链分批 ultra_hyper 25／270 精确过滤；v5.63 hyper_mega 25／270；v5.62 super_mega 25／270；v5.61 ultra_mega 25／270；leftover_fromat eq 1／30；preamble 1／30；pathpost 1／30；validate 1／30；kindarr 2／30；asbind 1／30；twokind 1／30；kindsrc 2／30；sourceoff 6／30；namelen 8／30；kind 6／30；parse_suite leftover 0；PP002 heap entry ✅；import ctx 4MiB heap orch ✅；resolve_read embed 诚实拒 ✅；leftover-to-audit unique 0；leftover_helpers 0；classify／score 留 stretch.x；**续 max_ultra 须精确过滤禁吞 apex_max**）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  

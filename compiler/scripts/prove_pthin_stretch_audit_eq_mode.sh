@@ -26,10 +26,16 @@
 #         ultra_hyper_mega (575 extra). Harness eq_tok_hits_name rejects
 #         hits preceded by ultra_. Daily defaults SKIP_SYNTH=1 + STRIDE=4
 #         + DEEP_MAX_FILE_OFF=0 (large product files skip deep).
+#         v5.64: exact ultra_hyper (25 k_cases; no HARD BAN substring; IS in
+#         is_deep_climb_name). EQ_ONLY=ultra_hyper must NOT strstr-swallow
+#         max_ultra_hyper_mega (550 extra). Harness eq_tok_hits_name rejects
+#         hits preceded by max_. Daily defaults same as hyper_mega
+#         (SKIP_SYNTH=1 + STRIDE=4 + DEEP_MAX_FILE_OFF=0).
 #         Those daily runs default EQ_SKIP_SYNTH=1 + EQ_FILE_STRIDE=4
 #         (score-chain wall-clock). Do not add super_mega to
 #         is_deep_climb_name without measurement. Do not remove
-#         hyper_mega from is_deep_climb_name without measurement.
+#         hyper_mega / ultra_hyper from is_deep_climb_name without
+#         measurement.
 # close — ALL symbols, OFF=24, parallel shards (default JOBS=min(4,ncpu)).
 #         Soft-knife wave gate. Defaults tuned 2026-09-11 after peak×OFF=24
 #         burned 25+ min with no live logs:
@@ -215,13 +221,16 @@ case "$MODE" in
     # v5.63: exact hyper_mega token (comma-wrapped, so ultra_hyper_mega
     # does not match). hyper_mega IS in is_deep_climb_name — default
     # DEEP_MAX_FILE_OFF=0 so large product files skip this rung.
+    # v5.64: exact ultra_hyper token (comma-wrapped, so max_ultra_hyper
+    # does not match). ultra_hyper IS in is_deep_climb_name — same
+    # DEEP_MAX_FILE_OFF=0 default.
     # PLATFORM: SHARED — same defaults on Ubuntu same-seq L2.
     case ",$EQ_ONLY," in
       *,*ultra_mega*|*,*super_mega*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         ;;
-      *,hyper_mega,*)
+      *,hyper_mega,*|*,ultra_hyper,*)
         export EQ_SKIP_SYNTH="${EQ_SKIP_SYNTH:-1}"
         export EQ_FILE_STRIDE="${EQ_FILE_STRIDE:-4}"
         export EQ_DEEP_MAX_FILE_OFF="${EQ_DEEP_MAX_FILE_OFF:-0}"
