@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.44 (RFC §5a/§5c/§5d)
+# gen_stretch_audit_x.py — 7.2.1 B-minus generator v5.46 (RFC §5a/§5c/§5d)
 #
 # Translates LINEAR LEAF audit functions from the suite slice into B-minus
 # .x ports (in-place cursor model: peek reads the current token, step
@@ -172,6 +172,16 @@
 #   (need import chain roots / library_hyper). Still refused: simd from_at,
 #   peek_kind_chain out-array, import_path_full_deep / allow_kw_paren
 #   lexer_result by-val roots.
+#
+# v5.46: leftover helper Route C flatten advance_to family (struct / enum /
+#   trait / impl / if / function / match). Secondary-cursor by-val +
+#   out_body_lex flattened onto (lex_inout, source) pointer ABI: walk only
+#   peeks kind and steps (header audits are restore-trio net-zero). C twin
+#   copies *lex and writes back only on success. Generator still inlines
+#   advance via restore-trio (eq-honest); leftover helper is the new
+#   authority. Still refuse validate_toplevel (verify_kw_spelling),
+#   import_path_post (finalize not in eq TU).
+#   Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=advance_to,struct_fields_body,if_stmt_body,function_body,match_arms,skip_allow.
 #
 # v5.45: leftover helper Route C flatten skip_balanced / skip_type_suffix /
 #   skip_one_param_type (one skip chain). Walk only peeks kind and advances

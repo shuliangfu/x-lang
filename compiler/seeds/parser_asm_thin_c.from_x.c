@@ -232,6 +232,13 @@ int32_t parser_asm_stretch_skip_allow_modifiers_c(void *lex_inout, void *source)
 int32_t parser_asm_stretch_skip_balanced_brackets_into_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_skip_type_suffix_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_skip_one_param_type_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_struct_advance_to_body_lex_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_enum_advance_to_body_lex_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_trait_advance_to_body_lex_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_impl_advance_to_body_lex_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_if_advance_to_body_lex_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_function_advance_to_body_lex_c(void *lex_inout, void *source);
+int32_t parser_asm_stretch_match_advance_to_arms_lex_c(void *lex_inout, void *source);
 int32_t parser_asm_stretch_import_path_post_audit_c(uint8_t *path_buf, int32_t path_len,
                                                     struct parser_asm_slice_u8 *source);
 int32_t parser_asm_stretch_peek_kind_chain_c(int32_t *kinds, int32_t max_peek, void *lex, void *source);
