@@ -1,12 +1,25 @@
 /**
  * parser_asm_try_skip_allow_slice.inc — write_result / padding / parse_into.
  *
- * Hybrid P13b: XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X skips the portable
- * padding_struct walk (body in src/asm/pthin_try_skip_allow.x + slice/buf
- * trampolines in the seed TU). write_result and parse_into stay C.
- * Cold: no BODIES define, this file is the full twin.
- * Do not reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X for P13b bodies.
+ * Hybrid P13b/P13c: XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X skips the
+ * portable padding_struct walk plus the write_result / parse_into bodies
+ * (bodies in src/asm/pthin_try_skip_allow.x + by-value trampolines in the
+ * seed TU). Cold: no BODIES define, this file is the full twin.
+ * Do not reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X for P13b/P13c bodies.
  */
+#ifdef XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X
+/* Hybrid P13c: layout store body in pthin_try_skip_allow.x (byte-wise LE,
+ * offsetof pins in the seed TU). C name stays on this trampoline so the
+ * cold-twin call sites (padding twins below) keep one path. */
+extern void parser_asm_write_try_skip_allow_result_fields_c(void *out, size_t pos, int32_t line, int32_t col,
+                                                            int32_t skipped);
+void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
+                                                   struct parser_asm_lexer lex, int32_t skipped) {
+  if (!out)
+    return;
+  parser_asm_write_try_skip_allow_result_fields_c(out, lex.pos, lex.line, lex.col, skipped);
+}
+#else
 /** 写入 TrySkipAllowResult 三字段（_pad 清零）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
@@ -17,6 +30,7 @@ void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_res
   out->skipped = skipped;
   memset(out->_pad, 0, sizeof(out->_pad));
 }
+#endif /* !XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X write_result */
 
 
 
@@ -1559,7 +1573,30 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
 
 /**
  * parse_into_try_skip_allow_into：主循环 allow(padding) 包装；结果写入 *out。
+ * Hybrid P13c: gate + walk body in pthin_try_skip_allow.x (tri-state
+ * core_c over the pointer ABI); this trampoline only adapts the by-value
+ * lexer_result and writes the result via the P13c fields store.
  */
+#ifdef XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X
+extern int32_t parser_asm_parse_into_try_skip_allow_core_c(void *lex_inout, void *source, int32_t tok_kind,
+                                                           int32_t tok_ident_len);
+void parser_asm_parse_into_try_skip_allow_into_slice_c(struct parser_asm_try_skip_allow_result *out,
+                                                       struct parser_asm_lexer lex,
+                                                       struct parser_asm_lexer_result r,
+                                                       struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!out)
+    return;
+  cur = r.next_lex;
+  rc = parser_asm_parse_into_try_skip_allow_core_c(&cur, source, r.tok.kind, r.tok.ident_len);
+  if (rc < 0) {
+    parser_asm_write_try_skip_allow_result(out, lex, 0);
+    return;
+  }
+  parser_asm_write_try_skip_allow_result(out, cur, rc);
+}
+#else
 void parser_asm_parse_into_try_skip_allow_into_slice_c(struct parser_asm_try_skip_allow_result *out,
                                                        struct parser_asm_lexer lex,
                                                        struct parser_asm_lexer_result r,
@@ -1577,10 +1614,24 @@ void parser_asm_parse_into_try_skip_allow_into_slice_c(struct parser_asm_try_ski
   res = parser_asm_try_skip_allow_padding_struct_slice_c(r.next_lex, source);
   *out = res;
 }
+#endif /* XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X parse_into slice */
 
 /**
  * parse_into_try_skip_allow_into_buf：buf 路径；结果写入 *out。
+ * Hybrid P13c: wraps the slice trampoline over (data,len), same as the
+ * cold twin's padding_struct_buf_c delegation.
  */
+#ifdef XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X
+void parser_asm_parse_into_try_skip_allow_into_buf_c(struct parser_asm_try_skip_allow_result *out,
+                                                   struct parser_asm_lexer lex,
+                                                   struct parser_asm_lexer_result r, uint8_t *data,
+                                                   int32_t len) {
+  struct parser_asm_slice_u8 source;
+  source.data = data;
+  source.length = (len < 0) ? (size_t)0 : (size_t)len;
+  parser_asm_parse_into_try_skip_allow_into_slice_c(out, lex, r, &source);
+}
+#else
 void parser_asm_parse_into_try_skip_allow_into_buf_c(struct parser_asm_try_skip_allow_result *out,
                                                    struct parser_asm_lexer lex,
                                                    struct parser_asm_lexer_result r, uint8_t *data,
@@ -1598,3 +1649,4 @@ void parser_asm_parse_into_try_skip_allow_into_buf_c(struct parser_asm_try_skip_
   res = parser_asm_try_skip_allow_padding_struct_buf_c(r.next_lex, data, len);
   *out = res;
 }
+#endif /* XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X parse_into buf */

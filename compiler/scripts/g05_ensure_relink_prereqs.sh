@@ -1282,19 +1282,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P10 glue tail ← $_pthin_p10_seed (G-02f-319 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P13b B-minus (2026-09-13).
-        # pthin_try_skip_allow.x holds the padding paren walk.
+        # PLATFORM: SHARED — 7.2.1 P13b/P13c B-minus (2026-09-13).
+        # pthin_try_skip_allow.x holds the padding paren walk plus
+        # write_result fields store and parse_into core (tri-state gate).
         # Requires P9a lexer-step bridge AND P1b skip_balanced (otherwise
-        # those would UNDEF). Runs before P13 C so BODIES_FROM_X skips the
-        # portable .inc region. Cold: no define, full .inc. Do not reuse
-        # XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X.
+        # those would UNDEF). Runs before P13 C so BODIES_FROM_X skips
+        # the portable .inc region. Cold: no define, full .inc. Do not
+        # reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X.
         _pthin_p13_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ -n "$_pthin_p13b_thin_o" ] && [ -f "$_pthin_p13b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p13b_x" "$_pthin_p13b_thin_o"; then
             _pthin_p13b_ok=1
             _pthin_p13_extra="-DXLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X"
-            echo "g05_ensure: P13b try_skip_allow bodies ← $_pthin_p13b_x (7.2.1 B-minus)"
+            echo "g05_ensure: P13b/P13c try_skip_allow bodies ← $_pthin_p13b_x (7.2.1 B-minus padding + write_result/parse_into)"
           else
             echo "g05_ensure: P13b try_skip_allow .x thin failed; P13 C twin stays full" >&2
           fi

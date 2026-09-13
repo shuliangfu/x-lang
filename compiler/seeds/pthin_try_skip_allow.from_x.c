@@ -5,11 +5,11 @@
  * Body: seeds/parser_asm/parser_asm_try_skip_allow_slice.inc (~1.6k)
  * write_try_skip_allow_result + try_skip_allow_padding + parse_into_try_skip_allow
  *
- * Hybrid P13b (XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X): portable padding
- * walk comes from pthin_try_skip_allow.x; this TU keeps the by-value
- * trampolines plus write_result / parse_into C. Cold: no BODIES define,
- * full .inc. Do not reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X for P13b
- * bodies.
+ * Hybrid P13b/P13c (XLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X): portable
+ * padding walk plus write_result / parse_into bodies come from
+ * pthin_try_skip_allow.x; this TU keeps only the by-value trampolines.
+ * Cold: no BODIES define, full .inc. Do not reuse
+ * XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X for P13b/P13c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -21,10 +21,11 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
-/* PLATFORM: SHARED — 7.2.1 P13b B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P13b/P13c B-minus (2026-09-13).
  * pthin_try_skip_allow.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_LPAREN == 82, "try_skip_allow.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_IDENT == 59, "try_skip_allow.x TOKEN_IDENT pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -58,6 +59,17 @@ struct parser_asm_try_skip_allow_result {
   int32_t skipped;
   uint8_t _pad[4];
 };
+
+/* PLATFORM: SHARED — P13c layout pins for the byte-wise fields store in
+ * pthin_try_skip_allow.x (write_fields_c). The .x constants are copies of
+ * this C layout, not a second authority; fire if the struct drifts. */
+_Static_assert(offsetof(struct parser_asm_lexer, pos) == 0, "P13c lex.pos @0");
+_Static_assert(offsetof(struct parser_asm_lexer, line) == 8, "P13c lex.line @8");
+_Static_assert(offsetof(struct parser_asm_lexer, col) == 12, "P13c lex.col @12");
+_Static_assert(offsetof(struct parser_asm_try_skip_allow_result, lex) == 0, "P13c res.lex @0");
+_Static_assert(offsetof(struct parser_asm_try_skip_allow_result, skipped) == 16, "P13c res.skipped @16");
+_Static_assert(offsetof(struct parser_asm_try_skip_allow_result, _pad) == 20, "P13c res._pad @20");
+_Static_assert(sizeof(struct parser_asm_try_skip_allow_result) == 24, "P13c res sizeof 24");
 
 
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
