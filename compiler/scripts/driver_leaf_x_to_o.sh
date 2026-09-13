@@ -660,6 +660,23 @@ driver_leaf_build() {
         python3 scripts/post_E_fixup.py "$tmp" "$tmp_fix" \
           $SCRUB_INIT_GLOBALS_FLAG $APPEND_TYPECK_BODIES_FLAG ) \
       && mv "$tmp_fix" "$tmp"
+      # PLATFORM: SHARED — per-TU static panic stub (2026-09-13). The -E
+      # output references extern xlang_panic_ but no phase1/leaf link obj
+      # provides it (runtime_panic.o is a POST-link satellite, step 12).
+      # Cold _gen.c seeds always carried their own static inline
+      # xlang_panic_ (lexer_gen.c:61); the PREFER_X_O path used to fall
+      # back to cold seed (old egg -E of main.x took ~36s > the 30s leaf
+      # alarm), masking the gap. A faster egg makes -E succeed and the
+      # UNDEF surfaces. Mirror the cold twin: absorb the extern with a
+      # static per-TU definition (abort = panic semantics).
+      if grep -q "xlang_panic_(" "$tmp" 2>/dev/null; then
+        printf '%s\n' \
+          'static void xlang_panic_(int has_msg, long msg_val)' \
+          '    __attribute__((noreturn, cold, unused));' \
+          'static void xlang_panic_(int has_msg, long msg_val) {' \
+          '  (void)has_msg; (void)msg_val; abort();' \
+          '}' >> "$tmp"
+      fi
       # shellcheck disable=SC2086
       if $CC $BASE_CFLAGS -x c -c -o "$OUT_O" "$tmp" 2>/dev/null; then
         rm -f "$tmp"
