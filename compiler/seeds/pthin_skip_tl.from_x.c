@@ -498,6 +498,42 @@ int32_t parser_asm_skip_tl_parse_type_ref_into_c(void *arena, void *lex_inout, v
 
 #include "parser_asm_skip_tl_slice.inc"
 
+/* PLATFORM: SHARED — P12g ent stack-image offsets (2026-09-13 RFC route α).
+ * The .x preset (g-1/g-2) writes xlang_skip_trait_reg_ent_t fields at these
+ * fixed offsets; this C layout is the single authority. Fire if the struct
+ * drifts. Method arrays are indexed [m] (stride below); param arrays are
+ * [m][p] with param-row stride 8 * elem. */
+_Static_assert(sizeof(xlang_skip_trait_reg_ent_t) == 46792, "P12g ent sizeof");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, name) == 0, "P12g name@0");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, name_len) == 64, "P12g name_len@64");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, methods) == 68, "P12g methods@68");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_lens) == 2116, "P12g method_lens@2116");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_has_default) == 2244, "P12g mhd@2244");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_fn_pos) == 2372, "P12g fn_pos@2372");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_fn_line) == 2500, "P12g fn_line@2500");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_fn_col) == 2628, "P12g fn_col@2628");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_kinds) == 2756, "P12g ret_kinds@2756");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_names) == 2884, "P12g ret_names@2884");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_name_lens) == 4932, "P12g ret_name_lens@4932");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_kinds) == 5060, "P12g ret_elem_kinds@5060");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_array_sizes) == 5188, "P12g ret_arr_sz@5188");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_array_ndims) == 5316, "P12g ret_arr_nd@5316");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_array_dims) == 5444, "P12g ret_dims@5444");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_array_ndims) == 6468, "P12g ret_eand@6468");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_array_dims) == 6596, "P12g ret_ead@6596");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_elem_kinds) == 7620, "P12g ret_eek@7620");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_counts) == 7748, "P12g pc@7748");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_kinds) == 7876, "P12g pk@7876");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_names) == 8900, "P12g pn@8900");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_name_lens) == 25284, "P12g pnl@25284");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_kinds) == 26308, "P12g pek@26308");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_array_ndims) == 27332, "P12g pand@27332");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_array_dims) == 28356, "P12g pad@28356");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_array_ndims) == 36548, "P12g peand@36548");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_array_dims) == 37572, "P12g pead@37572");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_elem_kinds) == 45764, "P12g peek@45764");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, num_methods) == 46788, "P12g num_methods@46788");
+
 int labi_pthin_skip_tl_slice_marker(void) {
   return 1;
 }

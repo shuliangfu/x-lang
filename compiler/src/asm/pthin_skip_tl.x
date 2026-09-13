@@ -1352,3 +1352,159 @@ export function parser_asm_parse_one_extern_skip_into_c(lex_inout: *u8, source: 
   }
   return 1;
 }
+
+// ---------------------------------------------------------------------------
+// 7.2.1 P12g (2026-09-13 RFC route α): skip_one_trait via ent stack-image.
+// g-1 PRESET ONLY — this body is not linked into any gate yet (no caller,
+// no BODIES region covers it). C twin stays authoritative. g-2 grows the
+// signature machine here; g-3 flips XLANG_PTHIN_SKIP_TL_BODIES_FROM_X to
+// cover skip_one_trait and adds the stack-image trampoline in the seed TU.
+// Offsets mirror the C xlang_skip_trait_reg_ent_t layout pinned by 30
+// _Static_asserts in seeds/pthin_skip_tl.from_x.c — copies, not authority.
+// PLATFORM: SHARED freestanding.
+// ---------------------------------------------------------------------------
+
+/** P12g ent-image field offsets (see seed pins; C layout is authority). */
+const P12G_OFF_NAME: i32 = 0;
+const P12G_OFF_NAME_LEN: i32 = 64;
+const P12G_OFF_METHODS: i32 = 68;
+const P12G_OFF_METHOD_LENS: i32 = 2116;
+const P12G_OFF_METHOD_HAS_DEFAULT: i32 = 2244;
+const P12G_OFF_METHOD_FN_POS: i32 = 2372;
+const P12G_OFF_METHOD_FN_LINE: i32 = 2500;
+const P12G_OFF_METHOD_FN_COL: i32 = 2628;
+const P12G_OFF_METHOD_RET_KINDS: i32 = 2756;
+const P12G_OFF_METHOD_RET_NAMES: i32 = 2884;
+const P12G_OFF_METHOD_RET_NAME_LENS: i32 = 4932;
+const P12G_OFF_METHOD_RET_ELEM_KINDS: i32 = 5060;
+const P12G_OFF_METHOD_RET_ARRAY_SIZES: i32 = 5188;
+const P12G_OFF_METHOD_RET_ARRAY_NDIMS: i32 = 5316;
+const P12G_OFF_METHOD_RET_ARRAY_DIMS: i32 = 5444;
+const P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS: i32 = 6468;
+const P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS: i32 = 6596;
+const P12G_OFF_METHOD_RET_ELEM_ELEM_KINDS: i32 = 7620;
+const P12G_OFF_METHOD_PARAM_COUNTS: i32 = 7748;
+const P12G_OFF_METHOD_PARAM_KINDS: i32 = 7876;
+const P12G_OFF_METHOD_PARAM_NAMES: i32 = 8900;
+const P12G_OFF_METHOD_PARAM_NAME_LENS: i32 = 25284;
+const P12G_OFF_METHOD_PARAM_ELEM_KINDS: i32 = 26308;
+const P12G_OFF_METHOD_PARAM_ARRAY_NDIMS: i32 = 27332;
+const P12G_OFF_METHOD_PARAM_ARRAY_DIMS: i32 = 28356;
+const P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS: i32 = 36548;
+const P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS: i32 = 37572;
+const P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS: i32 = 45764;
+const P12G_OFF_NUM_METHODS: i32 = 46788;
+/** Row strides for the indexed method arrays (m row / [m][p] param row). */
+const P12G_METHOD_ROW: i32 = 128;
+const P12G_METHOD_NAME_ROW: i32 = 64;
+const P12G_RET_NAME_ROW: i32 = 64;
+const P12G_RET_DIMS_ROW: i32 = 32;
+const P12G_PARAM_KINDS_ROW: i32 = 32;
+const P12G_PARAM_NAME_ROW: i32 = 512;
+const P12G_PARAM_NAME_INNER: i32 = 64;
+const P12G_PARAM_LENS_ROW: i32 = 32;
+const P12G_PARAM_DIMS_ROW: i32 = 256;
+
+// TOKEN_* pins for the trait walk (P12g; C _Static_asserts fire on drift).
+const TOKEN_TRAIT: i32 = 49;
+const TOKEN_INT: i32 = 80;
+const TOKEN_LBRACKET: i32 = 86;
+const TOKEN_RBRACKET: i32 = 87;
+
+/** P12g local: store i32 at base+off (LE byte writes; mirror of P13c). */
+function p12g_store_i32(base: *u8, off: i32, v: i32): void {
+  let a: usize = 0;
+  unsafe {
+    a = v as usize;
+    base[off + 0] = (a & 255) as u8;
+    a = a >> 8;
+    base[off + 1] = (a & 255) as u8;
+    a = a >> 8;
+    base[off + 2] = (a & 255) as u8;
+    a = a >> 8;
+    base[off + 3] = (a & 255) as u8;
+  }
+}
+
+/**
+ * g-1 preset: walk the `trait Name {` header and record the trait name into
+ * the ent stack-image. Entry cursor at the `trait` keyword start. Returns 1
+ * with the cursor after `{` on success; 0 (cursor restored to entry) when
+ * the first token is not `trait`, the name is not IDENT, or `{` is absent.
+ * Fail-leave restores pos/line/col to the entry snapshot (the C twin's
+ * out = lex semantics; the trampoline materializes that in g-3).
+ * The 5-byte 't','r','a','i','t' raw fallback of the C twin is NOT part of
+ * g-1 (token path covers product input; fallback joins in g-2 with the
+ * method loop).
+ * @param lex_inout *u8 — opaque lexer cursor (restored on fail)
+ * @param source *u8 — opaque slice
+ * @param ent_img *u8 — ent stack-image (name/name_len only in g-1)
+ * @return i32 — 1 header walked (cursor after `{`); 0 not-a-trait
+ * PLATFORM: SHARED — PRESET (g-1); no caller until g-3.
+ */
+#[no_mangle]
+export function parser_asm_skip_one_trait_header_into_c(lex_inout: *u8, source: *u8, ent_img: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let kind: i32 = 0;
+  let nlen: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  let slen_us: usize = 0;
+  let k: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || ent_img == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source) as i32;
+    slen_us = parser_asm_lex_source_length_c(source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+  }
+  if (kind != TOKEN_TRAIT) {
+    return 0;
+  }
+  unsafe {
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    if (ts == 0 as usize) {
+      ts = pos0;
+    }
+    if (nlen > 64) {
+      nlen = 64;
+    }
+    k = 0;
+    while (k < 64) {
+      ent_img[P12G_OFF_NAME + k] = 0;
+      k = k + 1;
+    }
+    if (nlen > 0 && data != 0 as *u8) {
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, nlen, ent_img);
+    }
+    p12g_store_i32(ent_img, P12G_OFF_NAME_LEN, nlen);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+  }
+  return 1;
+}
+
