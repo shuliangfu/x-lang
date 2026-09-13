@@ -22,13 +22,14 @@
 // (int32 / usize). Import-path copy and "match " byte-probe are buf-path
 // Route C (*u8 + length). By-value token / lexer_result / Lexer returns
 // stay as C trampolines in seeds/pthin_helpers.from_x.c (language has no
-// struct-by-value). align_lex / parse_block_return_end_tail /
-// ident_is_unsafe_stmt stay C. first_token_kind_buf's already-T
+// struct-by-value). align_lex / parse_block_return_end_tail stay C.
+// ident_is_unsafe_stmt is P19d Route C (kind + buf bytes; do not merge
+// into P4b). first_token_kind_buf's already-T
 // AUDIT_CALL padding is gated in the .inc under XLANG_PARSER_STRETCH_AUDIT
 // (product AUDIT_CALL is already ((void)0); compiling 50 lexer_init nops
 // is not a host-cc reduction of combinators — it is dead preprocess).
 //
-// Hybrid P19b/P19c: g05_try_x_to_o this file; XLANG_PTHIN_HELPERS_BODIES_FROM_X
+// Hybrid P19b/P19c/P19d: g05_try_x_to_o this file; XLANG_PTHIN_HELPERS_BODIES_FROM_X
 // skips the portable .inc region. token.h remains the TOKEN_* authority
 // via P19 C _Static_assert pins. Cold: no define, full .inc stays.
 // Stretch field-name/continues tables live in pthin_stretch.x (P9b);
@@ -39,10 +40,14 @@
 // here — do not merge the extra cases into stretch run_len.
 // lex_at_token is pos arithmetic (STRING quote backup); C trampoline
 // copies line/col. rewind is a kind predicate; C trampoline calls
-// lex_at_token. align_lex stays C (skip_ws is P9b; peek would add
-// P9a as a hard gate to P19). ident_is_unsafe_stmt stays C (do not
-// merge into P4b buf probes). parse_block_return_end_tail stays C
-// (extra lexer_next; would add P9a). Do not open a new P-lane.
+// lex_at_token. 7.2.1 P19d Route C (2026-09-13): 有则补全
+// struct_field_name (IDENT via P1b at_end copy; SOA/PACKED/TYPE
+// literals) and ident_is_unsafe_stmt (6-byte `unsafe` at token_start
+// or pos_before_run). C trampolines keep by-value lexer_result.
+// align_lex stays C (skip_ws is P9b; peek would add P9a as a hard
+// gate to P19). parse_block_return_end_tail stays C (extra lexer_next;
+// would add P9a). Do not merge ident_is_unsafe into P4b buf probes.
+// Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 /** Stretch table: compact/mixed kind check for struct field-name start. */
@@ -51,6 +56,8 @@ export extern "C" function parser_asm_stretch_struct_field_name_kind_c(kind: i32
 export extern "C" function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32;
 /** Stretch compact run_len table; 0 means "not in the 64-slot table". */
 export extern "C" function parser_asm_stretch_token_run_len_c(kind: i32): i32;
+/** P1b: copy nlen bytes ending at end_pos into out (IDENT field-name path). */
+export extern "C" function parser_asm_copy_slice_to_name64_at_end_buf_c(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void;
 
 // TOKEN_* pin copies of include/token.h. P19 C _Static_assert fires if
 // the pin drifts; do not treat these as a second enum authority.
@@ -450,6 +457,104 @@ export function parser_asm_rewind_following_stmt_kind_c(kind: i32): i32 {
     return 1;
   }
   if (kind == TOKEN_RBRACE) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Fill `out` with a struct field name from the current token.
+ * IDENT (ident_len 1..255) copies via P1b at_end (next_pos - ident_len).
+ * SOA / PACKED / TYPE write the keyword spelling (keyword-as-ident).
+ * Anything else is -1. Null `out` is -1.
+ * @param kind i32 — lexer token kind (token.h)
+ * @param data *u8 — source bytes; IDENT copy no-ops if null
+ * @param length i32 — source length for the P1b copy
+ * @param next_pos usize — lexer pos after the token (IDENT end)
+ * @param ident_len i32 — IDENT payload length
+ * @param out *u8 — destination; caller owns (layout name[256])
+ * @return i32 — written byte count, or -1 if not a field-name token
+ * PLATFORM: SHARED — Route C split of the by-value lexer_result C twin.
+ * Do not duplicate P1b copy_slice (G.7: call at_end_buf).
+ */
+#[no_mangle]
+export function parser_asm_struct_field_name_from_kind_c(kind: i32, data: *u8, length: i32, next_pos: usize, ident_len: i32, out: *u8): i32 {
+  if (out == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    if (kind == TOKEN_IDENT && ident_len > 0 && ident_len <= 255) {
+      parser_asm_copy_slice_to_name64_at_end_buf_c(data, length, next_pos, ident_len, out);
+      return ident_len;
+    }
+    if (kind == TOKEN_SOA) {
+      out[0] = 115;
+      out[1] = 111;
+      out[2] = 97;
+      return 3;
+    }
+    if (kind == TOKEN_PACKED) {
+      out[0] = 112;
+      out[1] = 97;
+      out[2] = 99;
+      out[3] = 107;
+      out[4] = 101;
+      out[5] = 100;
+      return 6;
+    }
+    if (kind == TOKEN_TYPE) {
+      out[0] = 116;
+      out[1] = 121;
+      out[2] = 112;
+      out[3] = 101;
+      return 4;
+    }
+  }
+  return -1;
+}
+
+/**
+ * True when the current IDENT is the six-byte statement keyword `unsafe`.
+ * `token_start==0` reconstructs the start via pos_before_run(next_pos, 6)
+ * (the C twin passes ident_len, which is already required to be 6).
+ * @param kind i32 — lexer token kind
+ * @param ident_len i32 — IDENT payload length; must be 6
+ * @param token_start usize — recorded start, or 0
+ * @param next_pos usize — lexer pos after the token
+ * @param data *u8 — source bytes; null is 0
+ * @param length usize — source length (bounds the 6-byte window)
+ * @return i32 — 1 if the six bytes are `unsafe`; 0 otherwise
+ * PLATFORM: SHARED — Route C split of the by-value lexer_result C twin.
+ * Do not merge into P4b buf probes (different ABI).
+ */
+#[no_mangle]
+export function parser_asm_ident_is_unsafe_stmt_kind_c(kind: i32, ident_len: i32, token_start: usize, next_pos: usize, data: *u8, length: usize): i32 {
+  let start: usize = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  if (data == 0 as *u8 || kind != TOKEN_IDENT || ident_len != 6) {
+    return 0;
+  }
+  start = token_start;
+  if (start == 0) {
+    start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+  }
+  if (start + 6 > length) {
+    return 0;
+  }
+  unsafe {
+    c0 = data[start];
+    c1 = data[start + 1];
+    c2 = data[start + 2];
+    c3 = data[start + 3];
+    c4 = data[start + 4];
+    c5 = data[start + 5];
+  }
+  if (c0 == 117 && c1 == 110 && c2 == 115 && c3 == 97 && c4 == 102 && c5 == 101) {
     return 1;
   }
   return 0;

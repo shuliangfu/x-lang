@@ -3,10 +3,10 @@
  * import_path/label/struct_field, lex rewind/advance/peek, align_lex, first_token_kind
  * (lexer_init + expr zeros stay in thin rest for shared foundation)
  *
- * Hybrid P19b/P19c: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
- * kind/copy/pos/match-kw/run_len extra/lex_at_token/rewind region (bodies
- * in src/asm/pthin_helpers.x + by-value trampolines in the seed TU).
- * align_lex / ident_is_unsafe_stmt / parse_block_return_end_tail stay here.
+ * Hybrid P19b/P19c/P19d: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
+ * kind/copy/pos/match-kw/run_len extra/lex_at_token/rewind/struct_field_name/
+ * ident_is_unsafe region (bodies in src/asm/pthin_helpers.x + by-value
+ * trampolines in the seed TU). align_lex / parse_block_return_end_tail stay here.
  * P1d ASI advance_past_* and P1e parse_peek_function_name /
  * first_token_kind twins skip under XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
  * (bodies in pthin_lex_skip.x). first_token_kind_buf AUDIT_CALL padding
@@ -75,7 +75,23 @@ void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 
  * PLATFORM: SHARED — field names may reuse keyword tokens (soa/packed/type).
  * Root fix for std/schema: field `type: i32` was TOKEN_TYPE; prior code returned
  * -1 here → layout parse aborted mid-struct → later fields "unknown field".
+ * Hybrid P19d: body in pthin_helpers.x (kind + P1b at_end copy / literals).
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_struct_field_name_from_kind_c(int32_t kind, uint8_t *data, int32_t length, size_t next_pos,
+                                                        int32_t ident_len, uint8_t *out);
+int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_result r,
+                                                      struct parser_asm_slice_u8 *source, uint8_t *out) {
+  int32_t slen;
+  if (!out)
+    return -1;
+  slen = 0;
+  if (source && source->length > 0)
+    slen = source->length > (size_t)2147483647 ? 2147483647 : (int32_t)source->length;
+  return parser_asm_struct_field_name_from_kind_c(r.tok.kind, source ? source->data : (uint8_t *)0, slen,
+                                                  r.next_lex.pos, r.tok.ident_len, out);
+}
+#else
 int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_result r,
                                                       struct parser_asm_slice_u8 *source, uint8_t *out) {
   if (!out)
@@ -110,6 +126,7 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
   }
   return -1;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X struct_field_name */
 
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
@@ -258,7 +275,19 @@ int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_
 
 /**
  * ident 是否为语句关键字 unsafe。
+ * Hybrid P19d: body in pthin_helpers.x (kind + 6-byte probe). Do not merge into P4b.
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
+                                                      size_t next_pos, uint8_t *data, size_t length);
+int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r,
+                                                struct parser_asm_slice_u8 *source) {
+  if (!source)
+    return 0;
+  return parser_asm_ident_is_unsafe_stmt_kind_c(r.tok.kind, r.tok.ident_len, r.token_start, r.next_lex.pos,
+                                               source->data, source->length);
+}
+#else
 int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r,
                                                 struct parser_asm_slice_u8 *source) {
   size_t start;
@@ -273,6 +302,7 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
          source->data[start + 2] == (uint8_t)'s' && source->data[start + 3] == (uint8_t)'a' &&
          source->data[start + 4] == (uint8_t)'f' && source->data[start + 5] == (uint8_t)'e';
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X ident_is_unsafe */
 
 /**
  * lex_at_token_from_result 内部：从 LexerResult 构造指向当前 token 起点的 Lexer。

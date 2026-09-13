@@ -3,9 +3,10 @@
  * Hybrid: XLANG_PTHIN_HELPERS_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_helpers_slice.inc
- * Hybrid P19b/P19c (XLANG_PTHIN_HELPERS_BODIES_FROM_X): portable kind/copy/
- * pos/match-kw/run_len extra/lex_at_token/rewind bodies come from
- * pthin_helpers.x; this TU keeps by-value trampolines plus align.
+ * Hybrid P19b/P19c/P19d (XLANG_PTHIN_HELPERS_BODIES_FROM_X): portable kind/copy/
+ * pos/match-kw/run_len extra/lex_at_token/rewind/struct_field_name/
+ * ident_is_unsafe bodies come from pthin_helpers.x; this TU keeps by-value
+ * trampolines plus align / parse_block_return_end_tail.
  * P1d ASI advance_past_* and P1e parse_peek_function_name /
  * first_token_kind trampoline when XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
  * (g05 passes P1 extra onto this TU; do not add P9a as a hard gate to
@@ -119,6 +120,10 @@ extern int32_t parser_asm_parser_match_kw_immediately_before_buf_c(uint8_t *data
 extern int32_t parser_asm_lexer_token_run_len_kind_c(int32_t kind);
 extern size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos);
 extern int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind);
+extern int32_t parser_asm_struct_field_name_from_kind_c(int32_t kind, uint8_t *data, int32_t length, size_t next_pos,
+                                                       int32_t ident_len, uint8_t *out);
+extern int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
+                                                     size_t next_pos, uint8_t *data, size_t length);
 
 int32_t parser_asm_import_path_dot_segment_len_c(struct parser_asm_token tok) {
   return parser_asm_import_path_dot_segment_len_kind_c(tok.kind, tok.ident_len);
