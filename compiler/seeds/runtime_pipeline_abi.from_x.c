@@ -48475,7 +48475,8 @@ int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int3
   for (k = 0; k < n; k++)
     ent[k] = name[k];
   memcpy(ent + 256, &name_len, 4);
-  memcpy(ent + 132, &offset, 4);
+  /* Cap 4.2.8 sync: entry is name[256] -> offset@260 (was 132 on [128]). */
+  memcpy(ent + 260, &offset, 4);
   g_wave267_al_n[s] = idx + 1;
   return idx;
 }
@@ -48489,7 +48490,7 @@ int32_t asm_ctx_local_name_len(uint8_t *ctx, int32_t idx) {
   ent = wave267_al_at(s, idx);
   if (!ent)
     return 0;
-  memcpy(&n, ent + 128, 4);
+  memcpy(&n, ent + 256, 4);
   return n;
 }
 
@@ -48502,8 +48503,8 @@ uint8_t asm_ctx_local_name_byte_at(uint8_t *ctx, int32_t idx, int32_t off) {
   ent = wave267_al_at(s, idx);
   if (!ent)
     return 0;
-  memcpy(&nlen, ent + 128, 4);
-  if (off >= nlen || off >= 127)
+  memcpy(&nlen, ent + 256, 4);
+  if (off >= nlen || off >= 255)
     return 0;
   return ent[off];
 }
@@ -48521,7 +48522,7 @@ void asm_ctx_local_name_copy64(uint8_t *ctx, int32_t idx, uint8_t *dst) {
   ent = wave267_al_at(s, idx);
   if (!ent)
     return;
-  memcpy(&nlen, ent + 128, 4);
+  memcpy(&nlen, ent + 256, 4);
   n = nlen > 255 ? 255 : nlen;
   for (k = 0; k < n; k++)
     dst[k] = ent[k];
@@ -48536,7 +48537,7 @@ int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx) {
   ent = wave267_al_at(s, idx);
   if (!ent)
     return 0;
-  memcpy(&off, ent + 132, 4);
+  memcpy(&off, ent + 260, 4);
   return off;
 }
 
@@ -48553,17 +48554,17 @@ int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len)
     ent = wave267_al_at(s, i);
     if (!ent)
       continue;
-    memcpy(&elen, ent + 128, 4);
+    memcpy(&elen, ent + 256, 4);
     if (elen != name_len)
       continue;
     for (k = 0; k < name_len; k++) {
-      uint8_t eb = (k < 127) ? ent[k] : 0;
+      uint8_t eb = (k < 255) ? ent[k] : 0;
       if (eb != name[k])
         break;
     }
     if (k == name_len) {
       int32_t off;
-      memcpy(&off, ent + 132, 4);
+      memcpy(&off, ent + 260, 4);
       return off;
     }
   }
