@@ -97140,7 +97140,11 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (368 as usize), 272, ic) == 0) {
+      /* Cap 4.2.8 sync: W277_LabeledStmt is 528 (label[256]+goto_target[256]);
+       * the stale 272 (128-era) stride made the 2nd+ labeled stmt's 528-byte
+       * write smash the neighboring slot — same class as the onefunc region
+       * stride fix (2026-09-13). */
+      if (grow_vec_init(sc2 + (368 as usize), 528, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }

@@ -55737,7 +55737,8 @@ void *arena_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)4, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)272, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8 sync: W277_LabeledStmt is 528 (was 272 on 128-era names). */
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)528, W275_GV_INIT_CAP)) {
         arena_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)4, W275_GV_INIT_CAP)) {
