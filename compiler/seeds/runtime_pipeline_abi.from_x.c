@@ -19768,7 +19768,7 @@ extern int32_t pipeline_block_labeled_return_expr_ref(void *arena, int32_t block
 
 static int32_t g_w157_spill_total = 0;
 static int32_t g_w157_spill_visits = 0;
-static int32_t g_w157_walk_stack[256];
+static int32_t g_w157_walk_stack[8192];
 
 static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
   int32_t ko, n, i, arg_ref, op, as_op;
@@ -19902,11 +19902,11 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
       er = ast_pipeline_block_if_cond_ref(arena, cur, i);
       w157_sum_expr_call_spill_bytes(arena, er);
       ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp++] = ch;
       }
       ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp++] = ch;
       }
     }
@@ -19915,7 +19915,7 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
       er = ast_ast_block_while_cond_ref(arena, cur, i);
       w157_sum_expr_call_spill_bytes(arena, er);
       ch = pipeline_block_while_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp++] = ch;
       }
     }
@@ -19928,14 +19928,14 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
       er = ast_ast_block_for_step_ref(arena, cur, i);
       w157_sum_expr_call_spill_bytes(arena, er);
       ch = pipeline_block_for_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp++] = ch;
       }
     }
     n = ast_ast_block_num_regions(arena, cur);
     for (i = 0; i < n; i++) {
       ch = pipeline_block_region_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp++] = ch;
       }
     }
@@ -57718,21 +57718,21 @@ void glue_stamp_return_lits_in_block_c(void *a, int32_t block_ref, int32_t rty) 
     }
     for (i = 0; i < b->num_loops; i++) {
       int32_t wb = pipeline_block_while_body_ref(a, cur, i);
-      if (wb > 0 && sp < 256) { stack_blk[sp] = wb; sp++; }
+      if (wb > 0 && sp < 8192) { stack_blk[sp] = wb; sp++; }
     }
     for (i = 0; i < b->num_for_loops; i++) {
       int32_t fb = pipeline_block_for_body_ref(a, cur, i);
-      if (fb > 0 && sp < 256) { stack_blk[sp] = fb; sp++; }
+      if (fb > 0 && sp < 8192) { stack_blk[sp] = fb; sp++; }
     }
     for (i = 0; i < b->num_if_stmts; i++) {
       int32_t tb = pipeline_block_if_then_body_ref(a, cur, i);
-      if (tb > 0 && sp < 256) { stack_blk[sp] = tb; sp++; }
+      if (tb > 0 && sp < 8192) { stack_blk[sp] = tb; sp++; }
       int32_t eb = pipeline_block_if_else_body_ref(a, cur, i);
-      if (eb > 0 && sp < 256) { stack_blk[sp] = eb; sp++; }
+      if (eb > 0 && sp < 8192) { stack_blk[sp] = eb; sp++; }
     }
     for (i = 0; i < b->num_regions; i++) {
       int32_t rgb = pipeline_block_region_body_ref(a, cur, i);
-      if (rgb > 0 && sp < 256) { stack_blk[sp] = rgb; sp++; }
+      if (rgb > 0 && sp < 8192) { stack_blk[sp] = rgb; sp++; }
     }
   }
 }
@@ -57773,7 +57773,7 @@ void pipeline_patch_block_parent_links(void *a, int32_t block_ref, int32_t paren
       continue;
     for (i = 0; i < b->num_loops; i++) {
       wb = pipeline_block_while_body_ref(a, cur, i);
-      if (wb > 0 && sp < 256) {
+      if (wb > 0 && sp < 8192) {
         stack_blk[sp] = wb;
         stack_par[sp] = cur;
         sp++;
@@ -57781,7 +57781,7 @@ void pipeline_patch_block_parent_links(void *a, int32_t block_ref, int32_t paren
     }
     for (i = 0; i < b->num_for_loops; i++) {
       fb = pipeline_block_for_body_ref(a, cur, i);
-      if (fb > 0 && sp < 256) {
+      if (fb > 0 && sp < 8192) {
         stack_blk[sp] = fb;
         stack_par[sp] = cur;
         sp++;
@@ -57789,13 +57789,13 @@ void pipeline_patch_block_parent_links(void *a, int32_t block_ref, int32_t paren
     }
     for (i = 0; i < b->num_if_stmts; i++) {
       tb = pipeline_block_if_then_body_ref(a, cur, i);
-      if (tb > 0 && sp < 256) {
+      if (tb > 0 && sp < 8192) {
         stack_blk[sp] = tb;
         stack_par[sp] = cur;
         sp++;
       }
       eb = pipeline_block_if_else_body_ref(a, cur, i);
-      if (eb > 0 && sp < 256) {
+      if (eb > 0 && sp < 8192) {
         stack_blk[sp] = eb;
         stack_par[sp] = cur;
         sp++;
@@ -57804,7 +57804,7 @@ void pipeline_patch_block_parent_links(void *a, int32_t block_ref, int32_t paren
     /** M-3：region 体块须挂 parent，否则块内可访问外层 let（如 region_block_escape 的 outer）。 */
     for (i = 0; i < b->num_regions; i++) {
       rgb = pipeline_block_region_body_ref(a, cur, i);
-      if (rgb > 0 && sp < 256) {
+      if (rgb > 0 && sp < 8192) {
         stack_blk[sp] = rgb;
         stack_par[sp] = cur;
         sp++;
@@ -58982,21 +58982,21 @@ void glue_fill_var_block_refs_c(void *a, int32_t block_ref) {
       glue_var_blk_walk_expr(a, pipeline_block_const_init_ref(a, cur, i), cur);
     for (i = 0; i < b->num_loops; i++) {
       int32_t wb = pipeline_block_while_body_ref(a, cur, i);
-      if (wb > 0 && sp < 256) { stack_blk[sp] = wb; sp++; }
+      if (wb > 0 && sp < 8192) { stack_blk[sp] = wb; sp++; }
     }
     for (i = 0; i < b->num_for_loops; i++) {
       int32_t fb = pipeline_block_for_body_ref(a, cur, i);
-      if (fb > 0 && sp < 256) { stack_blk[sp] = fb; sp++; }
+      if (fb > 0 && sp < 8192) { stack_blk[sp] = fb; sp++; }
     }
     for (i = 0; i < b->num_if_stmts; i++) {
       int32_t tb = pipeline_block_if_then_body_ref(a, cur, i);
-      if (tb > 0 && sp < 256) { stack_blk[sp] = tb; sp++; }
+      if (tb > 0 && sp < 8192) { stack_blk[sp] = tb; sp++; }
       int32_t eb = pipeline_block_if_else_body_ref(a, cur, i);
-      if (eb > 0 && sp < 256) { stack_blk[sp] = eb; sp++; }
+      if (eb > 0 && sp < 8192) { stack_blk[sp] = eb; sp++; }
     }
     for (i = 0; i < b->num_regions; i++) {
       int32_t rgb = pipeline_block_region_body_ref(a, cur, i);
-      if (rgb > 0 && sp < 256) { stack_blk[sp] = rgb; sp++; }
+      if (rgb > 0 && sp < 8192) { stack_blk[sp] = rgb; sp++; }
     }
   }
 }

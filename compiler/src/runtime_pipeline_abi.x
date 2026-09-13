@@ -64727,7 +64727,7 @@ export function glue_binop_kill_assign_lhs_slots_elf_c(arena: *u8, ctx: *u8, ass
 // Last-wins reentrancy (matches historical Cap residual statics).
 let g_w157_spill_total: i32 = 0;
 let g_w157_spill_visits: i32 = 0;
-let g_w157_walk_stack: i32[256] = [];
+let g_w157_walk_stack: i32[8192] = [];
 
 /**
  * Recursive sum of permanent call-arg spill bytes under one expression.
@@ -65030,14 +65030,14 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
       unsafe {
         ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65051,7 +65051,7 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = pipeline_block_while_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65065,7 +65065,7 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = pipeline_block_for_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65079,7 +65079,7 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = pipeline_block_region_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65173,14 +65173,14 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
       unsafe {
         ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65198,7 +65198,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = pipeline_block_while_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65224,7 +65224,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = pipeline_block_for_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -65238,7 +65238,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = pipeline_block_region_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
