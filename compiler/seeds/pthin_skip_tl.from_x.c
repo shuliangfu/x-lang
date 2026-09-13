@@ -5,14 +5,15 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b/P12c/P12d/P12e (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip
+ * Hybrid P12b/P12c/P12d/P12e/P12f (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip
  * walks (struct / enum / extern + impl header + generic_bound_scan +
- * enum_register) come from pthin_skip_tl.x; this TU keeps by-value
- * trampolines plus stash_source / trait-reg C. skip_one_impl and
- * generic_bound_scan trampolines live in the .inc (need file-static
+ * enum_register + parse_one_extern_skip) come from pthin_skip_tl.x; this TU
+ * keeps by-value trampolines plus stash_source / trait-reg C. skip_one_impl
+ * and generic_bound_scan trampolines live in the .inc (need file-static
  * tables). enum_register trampolines live here (opaque module, no
- * file-static). Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e bodies.
+ * file-static). parse_one_extern_skip trampoline lives in the .inc.
+ * Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e/P12f bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -27,7 +28,7 @@
 #include "token.h"
 #include "ast.h"
 
-/* PLATFORM: SHARED — 7.2.1 P12b/P12c/P12d/P12e B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P12b/P12c/P12d/P12e/P12f B-minus (2026-09-13).
  * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
@@ -55,6 +56,7 @@ _Static_assert((int)TOKEN_RBRACE == 85, "skip_tl.x TOKEN_RBRACE pin");
 _Static_assert((int)TOKEN_COMMA == 90, "skip_tl.x TOKEN_COMMA pin");
 _Static_assert((int)TOKEN_COLON == 91, "skip_tl.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_DOT == 92, "skip_tl.x TOKEN_DOT pin");
+_Static_assert((int)TOKEN_ELLIPSIS == 94, "skip_tl.x TOKEN_ELLIPSIS pin");
 _Static_assert((int)TOKEN_SEMICOLON == 95, "skip_tl.x TOKEN_SEMICOLON pin");
 _Static_assert((int)TOKEN_PLUS == 96, "skip_tl.x TOKEN_PLUS pin");
 _Static_assert((int)TOKEN_STAR == 98, "skip_tl.x TOKEN_STAR pin");
@@ -474,6 +476,23 @@ void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_
   cur = lex;
   (void)parser_asm_skip_one_enum_register_into_c(&cur, source, module, name_buf, var_buf);
   *out = cur;
+}
+
+/* P12f: pointer-ABI wrap of the by-value type_ref parse. .x cannot pass
+ * lexer by value; this copies *lex_inout in, writes *lex_inout out.
+ * type_ref walk stays C (P3). Unique name: file-local helpers that call
+ * extern C emit as non-static T. PLATFORM: SHARED. */
+int32_t parser_asm_skip_tl_parse_type_ref_into_c(void *arena, void *lex_inout, void *source) {
+  struct parser_asm_lexer cur;
+  struct parser_asm_lexer outl;
+  int32_t ty;
+  if (!lex_inout || !source)
+    return 0;
+  cur = *(struct parser_asm_lexer *)lex_inout;
+  memset(&outl, 0, sizeof(outl));
+  ty = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, cur, (struct parser_asm_slice_u8 *)source, &outl);
+  *(struct parser_asm_lexer *)lex_inout = outl;
+  return ty;
 }
 #endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
 

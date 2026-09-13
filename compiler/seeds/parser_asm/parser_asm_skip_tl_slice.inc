@@ -2,13 +2,13 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b/P12c/P12d/P12e: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b/P12c/P12d/P12e/P12f: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
- * enum_register; bodies in src/asm/pthin_skip_tl.x + by-value trampolines).
- * skip_one_impl and generic_bound_scan trampolines live here (need
- * file-static tables). skip_one_trait / parse_one_extern stay C. Cold: no
- * define, full twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for
- * P12b/P12c/P12d/P12e bodies.
+ * enum_register + parse_one_extern_skip; bodies in src/asm/pthin_skip_tl.x +
+ * by-value trampolines). skip_one_impl and generic_bound_scan trampolines
+ * live here (need file-static tables). skip_one_trait /
+ * parse_one_extern_and_add stay C. Cold: no define, full twin. Do not
+ * reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e/P12f bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -7831,7 +7831,56 @@ void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_result *o
 
 /**
  * parse_one_extern_skip_into：解析 extern function 到分号，结果写入 *out；失败时 name_len=-1。
+ * Hybrid P12f: body in src/asm/pthin_skip_tl.x; this C twin is cold fallback.
+ * type_ref parse and onefunc append stay C (called from .x as externs).
+ * Do not wrap leftover AUDIT. Do not wrap skip_one_trait.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+extern int32_t parser_asm_parse_one_extern_skip_into_c(void *lex_inout, void *source, void *arena, void *pool,
+                                                      uint8_t *name_buf, uint8_t *pname_buf, int32_t *name_len,
+                                                      int32_t *return_ty, int32_t *num_params, int32_t *abi_kind,
+                                                      int32_t *is_variadic, int32_t *has_body);
+
+void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_parse_result *out, void *arena,
+                                                   struct parser_asm_lexer lex,
+                                                   struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  uint8_t name_buf[64];
+  uint8_t pname_ex[256];
+  int32_t name_len = 0;
+  int32_t ret_ty = 0;
+  int32_t n_ex = 0;
+  int32_t abi = 0;
+  int32_t variadic = 0;
+  int32_t has_body = 0;
+  int32_t rc;
+  int32_t nk;
+  if (!out || !source)
+    return;
+  /* C twin resets the onefunc pool before the walk; keep that here so
+   * .x append_param writes into a clean result. PLATFORM: SHARED. */
+  ast_pool_onefunc_reset((uint8_t *)out);
+  memset(name_buf, 0, sizeof(name_buf));
+  memset(pname_ex, 0, sizeof(pname_ex));
+  cur = lex;
+  rc = parser_asm_parse_one_extern_skip_into_c(&cur, source, arena, (uint8_t *)out, name_buf, pname_ex,
+                                              &name_len, &ret_ty, &n_ex, &abi, &variadic, &has_body);
+  if (rc <= 0) {
+    if (rc < 0)
+      parser_asm_extern_parse_set_fail_c(out, cur);
+    return;
+  }
+  out->next_lex = cur;
+  out->name_len = name_len;
+  out->return_ty_ref = ret_ty;
+  out->num_params = n_ex;
+  out->abi_kind = abi;
+  out->is_variadic = variadic;
+  out->has_body = has_body;
+  for (nk = 0; nk < 64; nk++)
+    out->name[nk] = name_buf[nk];
+}
+#else
 void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_parse_result *out, void *arena,
                                                    struct parser_asm_lexer lex,
                                                    struct parser_asm_slice_u8 *source) {
@@ -8014,6 +8063,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   for (nk = 0; nk < 64; nk++)
     out->name[nk] = name_buf[nk];
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X parse_one_extern_skip */
 
 /**
  * parse_one_extern_and_add_into：解析 extern 声明并登记 module；失败 fallback skip_one_extern_into。

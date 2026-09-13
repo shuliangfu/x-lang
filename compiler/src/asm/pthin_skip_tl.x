@@ -58,13 +58,23 @@
 // wrap skip_one_trait. Do not call skip_one_enum (opaque brace skip
 // would drop variant capture). Do not open a new P-lane.
 //
-// Hybrid P12b/P12c/P12d/P12e: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+// 7.2.1 P12f B-minus (2026-09-13): 有则补全 this file with
+// parse_one_extern_skip. The token walk is B-minus (opaque lexer +
+// P1b copy_slice). Language has no local u8[N]; dest 64-byte name and
+// 256-byte param scratches are C-stack-owned. type_ref parse and
+// onefunc append stay the existing C helpers called as externs
+// (pointer-ABI wrap for the by-value lexer IN). Do not wrap
+// skip_one_trait. Do not call skip_one_extern (opaque paren skip
+// would drop param/type capture). Do not open a new P-lane.
+// parse_one_extern_and_add (arena+module+ast_Func) stays C.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 // skips the portable .inc region (struct/enum/extern + impl header +
-// generic_bound_scan + enum_register). Requires P9a bridge + P1b skip
+// generic_bound_scan + enum_register + parse_one_extern_skip). Requires P9a bridge + P1b skip
 // walks (otherwise skip_balanced / skip_generic_angle / copy_slice
 // would UNDEF). token.h remains the TOKEN_* authority via P12 C
 // _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e bodies.
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e/P12f bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -89,6 +99,14 @@ export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
 export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
 /** P1b authority: copy IDENT bytes into a dest (nlen bytes; caller sizes it). */
 export extern "C" function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void;
+/** P1b authority: 256-byte param/name row (zeros past nlen). */
+export extern "C" function parser_asm_copy_slice_to_param32_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void;
+/** P12f: pointer-ABI wrap of parse_type_ref_for_arena (C still owns the walk). */
+export extern "C" function parser_asm_skip_tl_parse_type_ref_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
+/** Pipeline onefunc pool: append a param name; type_ref filled later. */
+export extern "C" function pipeline_onefunc_append_param(pool: *u8, name: *u8, name_len: i32, type_ref: i32): i32;
+/** Pipeline onefunc pool: write param i's type_ref. */
+export extern "C" function pipeline_onefunc_set_param_type_ref(pool: *u8, i: i32, type_ref: i32): void;
 /** P14 skip_if authority: register enum name on the opaque module; -1 on fail. */
 export extern "C" function parser_asm_module_try_register_enum_name_c(module: *u8, name: *u8, name_len: i32): i32;
 /** Pipeline sidecar: append one variant name to enum slot `idx`. */
@@ -121,6 +139,7 @@ const TOKEN_RBRACE: i32 = 85;
 const TOKEN_COMMA: i32 = 90;
 const TOKEN_COLON: i32 = 91;
 const TOKEN_DOT: i32 = 92;
+const TOKEN_ELLIPSIS: i32 = 94;
 const TOKEN_SEMICOLON: i32 = 95;
 const TOKEN_PLUS: i32 = 96;
 const TOKEN_STAR: i32 = 98;
@@ -135,6 +154,10 @@ const GENERIC_CALL_MAX_ARGS: i32 = 4;
 const FN_GP_MAX: i32 = 32;
 const BOUND_NAME_CAP: i32 = 64;
 const ENUM_NAME_CAP: i32 = 128;
+const EXTERN_NAME_CAP: i32 = 64;
+const PARAM_NAME_MAX: i32 = 127;
+const BYTE_ABI_C: u8 = 67;
+const BYTE_ABI_X: u8 = 88;
 
 /**
  * Skip a top-level `struct Name[<T…>] { … }` to just after the matching `}`.
@@ -230,7 +253,8 @@ export function parser_asm_skip_one_enum_into_c(lex_inout: *u8, source: *u8): i3
  * @param lex_inout *u8 — opaque lexer
  * @param source *u8 — opaque slice
  * @return i32 — 1 on the success / fail-leave path; 0 on null
- * PLATFORM: SHARED — product P12 B-minus; parse_one_extern (arena) stays C.
+ * PLATFORM: SHARED — product P12 B-minus; parse_one_extern_skip is P12f
+ * (different contract: captures types/params). Do not merge the two.
  */
 #[no_mangle]
 export function parser_asm_skip_one_extern_into_c(lex_inout: *u8, source: *u8): i32 {
@@ -1113,6 +1137,218 @@ export function parser_asm_skip_one_enum_register_into_c(lex_inout: *u8, source:
     }
     parser_asm_lex_step_kind_c(lex_inout, source);
     parser_asm_module_append_enum_variants_and_skip_body_into_c(lex_inout, source, module, enum_idx, var_buf);
+  }
+  return 1;
+}
+
+/**
+ * Parse `extern ["C"|"X"] function name(params): Ret ;` (or `{` body)
+ * into dest buffers. Entry cursor is the start of `extern`.
+ *
+ * Fail-leave (return -1) leaves the lexer at the start of the failing
+ * token (C `lexer_next_into` into `r` then `set_fail(out, lex)` without
+ * writing `r.next_lex` back). Success with `has_body=1` leaves the
+ * lexer BEFORE `{` so the caller can parse_block. Success with
+ * `has_body=0` consumes the trailing `;`.
+ *
+ * Optional ABI STRING is `"C"` (abi_kind=1) or `"X"` (abi_kind=0);
+ * any other spelling fails. Variadic `...` must be the last param
+ * token and is only recorded (C ABI check stays with the caller).
+ * Param names use P1b copy_slice_to_param32 (cap 127, 256-byte row).
+ * Function name uses P1b copy_slice_to_name64 (cap 63).
+ *
+ * type_ref parse stays the C arena walk via
+ * `parser_asm_skip_tl_parse_type_ref_into_c`. onefunc append/set stay
+ * pipeline helpers. Do not call skip_one_extern (would drop capture).
+ * Do not wrap leftover AUDIT. Do not wrap skip_one_trait.
+ *
+ * @param lex_inout *u8 — opaque lexer
+ * @param source *u8 — opaque slice
+ * @param arena *u8 — opaque ASTArena for type_ref; may be null (then
+ *   type_ref returns 0 → fail)
+ * @param pool *u8 — onefunc pool (the C `extern_parse_result`); trampoline
+ *   owns it and resets it before this call
+ * @param name_buf *u8 — dest 64-byte function name; trampoline owns it
+ * @param pname_buf *u8 — dest 256-byte param-name scratch; trampoline owns it
+ * @param name_len *i32 — out slot; 1..63 on success
+ * @param return_ty *i32 — out slot; type_ref of the return type
+ * @param num_params *i32 — out slot; onefunc param count
+ * @param abi_kind *i32 — out slot; 0=X ABI, 1=C ABI
+ * @param is_variadic *i32 — out slot; 1 if `...` was the last param
+ * @param has_body *i32 — out slot; 1 if the next token is `{` (unconsumed)
+ * @return i32 — 1 success; -1 fail-leave; 0 on null dests
+ * PLATFORM: SHARED — product P12f B-minus. C trampoline keeps
+ * `parser_asm_parse_one_extern_skip_into_slice_c` and calls set_fail
+ * on -1. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_one_extern_skip_into_c(lex_inout: *u8, source: *u8, arena: *u8, pool: *u8, name_buf: *u8, pname_buf: *u8, name_len: *i32, return_ty: *i32, num_params: *i32, abi_kind: *i32, is_variadic: *i32, has_body: *i32): i32 {
+  let kind: i32 = 0;
+  let pl: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen_us: usize = 0;
+  let slen: i32 = 0;
+  let zi: i32 = 0;
+  let abi_byte: u8 = 0;
+  let params_done: i32 = 0;
+  let pidx: i32 = 0;
+  let ty: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || pool == 0 as *u8 || name_buf == 0 as *u8 || pname_buf == 0 as *u8 || name_len == 0 as *i32 || return_ty == 0 as *i32 || num_params == 0 as *i32 || abi_kind == 0 as *i32 || is_variadic == 0 as *i32 || has_body == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    name_len[0] = 0;
+    return_ty[0] = 0;
+    num_params[0] = 0;
+    abi_kind[0] = 0;
+    is_variadic[0] = 0;
+    has_body[0] = 0;
+    zi = 0;
+    while (zi < EXTERN_NAME_CAP) {
+      name_buf[zi as usize] = 0;
+      zi = zi + 1;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen_us = parser_asm_lex_source_length_c(source);
+    if (slen_us > 2147483647 as usize) {
+      slen = 2147483647;
+    } else {
+      slen = slen_us as i32;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_EXTERN) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_STRING) {
+      pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      if (pl != 1 || data == 0 as *u8 || ts >= slen_us) {
+        return -1;
+      }
+      abi_byte = data[ts];
+      if (abi_byte == BYTE_ABI_C) {
+        abi_kind[0] = 1;
+      } else {
+        if (abi_byte == BYTE_ABI_X) {
+          abi_kind[0] = 0;
+        } else {
+          return -1;
+        }
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    }
+    if (kind != TOKEN_FUNCTION) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return -1;
+    }
+    pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (pl <= 0 || pl > 63) {
+      return -1;
+    }
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    if (ts == 0 as usize) {
+      ts = parser_asm_lex_pos_c(lex_inout);
+    }
+    if (pl > 0 && data != 0 as *u8) {
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, pl, name_buf);
+    }
+    name_len[0] = pl;
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      params_done = 1;
+    }
+    while (params_done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_ELLIPSIS) {
+        is_variadic[0] = 1;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_RPAREN) {
+          return -1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        params_done = 1;
+      } else {
+        if (kind != TOKEN_IDENT) {
+          return -1;
+        }
+        pl = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        if (pl <= 0 || pl > PARAM_NAME_MAX) {
+          return -1;
+        }
+        ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+        if (ts == 0 as usize) {
+          ts = parser_asm_lex_pos_c(lex_inout);
+        }
+        parser_asm_copy_slice_to_param32_buf_c(data, slen, ts, pl, pname_buf);
+        pidx = pipeline_onefunc_append_param(pool, pname_buf, pl, 0);
+        if (pidx < 0) {
+          return -1;
+        }
+        num_params[0] = pidx + 1;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_COLON) {
+          return -1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        ty = parser_asm_skip_tl_parse_type_ref_into_c(arena, lex_inout, source);
+        if (ty == 0) {
+          return -1;
+        }
+        pipeline_onefunc_set_param_type_ref(pool, pidx, ty);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_RPAREN) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          params_done = 1;
+        } else {
+          if (kind != TOKEN_COMMA) {
+            return -1;
+          }
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (kind == TOKEN_RPAREN) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            params_done = 1;
+          }
+        }
+      }
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_COLON) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ty = parser_asm_skip_tl_parse_type_ref_into_c(arena, lex_inout, source);
+    if (ty == 0) {
+      return -1;
+    }
+    return_ty[0] = ty;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_LBRACE) {
+      has_body[0] = 1;
+      return 1;
+    }
+    if (kind != TOKEN_SEMICOLON) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    has_body[0] = 0;
   }
   return 1;
 }
