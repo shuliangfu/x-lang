@@ -1524,6 +1524,8 @@ const P12G_TY_NAMED: i32 = 8;
 const P12G_TY_PTR: i32 = 9;
 const P12G_TY_ARRAY: i32 = 10;
 const P12G_TY_SLICE: i32 = 11;
+/** Sentinel elem_array_ndims: extra SLICE wrap count lives in dims[0..]. */
+const P12G_ELEM_PTR_TO_SLICE_NDIMS: i32 = 0 - 2;
 
 /** P12g local: load i32 at base+off (LE; mirror of p12g_store_i32). */
 function p12g_load_i32(base: *u8, off: i32): i32 {
@@ -1706,6 +1708,40 @@ function p12g_param_copy_name(ent_img: *u8, mi: i32, p: i32, source: *u8, lex_in
 }
 
 /**
+ * P12g local: copy the current IDENT bytes into the ent method ret name row
+ * [mi] via the P1b copy authority, zero-padded to 64, and store the length
+ * row. Mirrors xlang_skip_trait_copy_ident_c on the stack image.
+ */
+function p12g_ret_copy_name(ent_img: *u8, mi: i32, source: *u8, lex_inout: *u8): void {
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  let ts: usize = 0;
+  let n: i32 = 0;
+  let base: i32 = 0;
+  let k: i32 = 0;
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source) as i32;
+    n = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+  }
+  if (n > 64) {
+    n = 64;
+  }
+  base = P12G_OFF_METHOD_RET_NAMES + mi * P12G_PARAM_NAME_INNER;
+  unsafe {
+    while (k < 64) {
+      ent_img[base + k] = 0;
+      k = k + 1;
+    }
+    if (n > 0 && data != 0 as *u8) {
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, n, ent_img + (base as usize));
+    }
+    p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_NAME_LENS + mi * 4, n);
+  }
+}
+
+/**
  * g-2 preset: one method's `( params ) : Ret ;` / default-body signature
  * walk (waves 425–438 state machine). Faithful shape capture into the ent
  * image per method row mi: param kinds/names/elem/dims and ret kind/name/
@@ -1746,6 +1782,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
   let param_elem_arr_need_rb: i32 = 0;
   let param_elem_suffix_pending: i32 = 0;
   let param_elem_dim_n: i32 = 0;
+  let param_elem_elem_pending: i32 = 0;
+  let nd: i32 = 0;
+  let extra: i32 = 0;
   let di: i32 = 0;
   let param_dims: i32[8] = [];
   let leaf: i32 = 0;
@@ -1757,6 +1796,25 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
   let bk5: i32 = 0;
   let bk6: i32 = 0;
   let param_elem_dims: i32[8] = [];
+  let ret_slice_need_rb: i32 = 0;
+  let ret_prefix_arr_need_rb: i32 = 0;
+  let ret_prefix_arr_need_size: i32 = 0;
+  let ret_prefix_arr_elem_pending: i32 = 0;
+  let ret_suffix_pending: i32 = 0;
+  let ret_arr_need_size: i32 = 0;
+  let ret_arr_need_rb: i32 = 0;
+  let ret_dim_n: i32 = 0;
+  let ret_elem_pending: i32 = 0;
+  let ret_elem_slice_need_rb: i32 = 0;
+  let ret_elem_prefix_arr_need_rb: i32 = 0;
+  let ret_elem_prefix_arr_more: i32 = 0;
+  let ret_elem_arr_need_size: i32 = 0;
+  let ret_elem_arr_need_rb: i32 = 0;
+  let ret_elem_suffix_pending: i32 = 0;
+  let ret_elem_dim_n: i32 = 0;
+  let ret_elem_elem_pending: i32 = 0;
+  let ret_dims: i32[8] = [];
+  let ret_elem_dims: i32[8] = [];
   if (lex_inout == 0 as *u8 || source == 0 as *u8 || ent_img == 0 as *u8) {
     return;
   }
@@ -1777,6 +1835,39 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
       }
     } else if (kind == TOKEN_RPAREN) {
       if (paren == 1 && depth == 0 && saw_params_close == 0) {
+        if (param_suffix_pending != 0 && param_dim_n > 0) {
+          // wave433: finalize pending suffix T[N][M] before the count bump.
+          leaf = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, leaf);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_dim_n);
+          di = 0;
+          while (di < param_dim_n && di < P12G_DIM_MAX) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_dims[di]);
+            di = di + 1;
+          }
+        }
+        param_suffix_pending = 0;
+        param_dim_n = 0;
+        if (param_elem_dim_n > 0) {
+          // wave434: *T[N] postfix lift → top-level ARRAY of PTR (dims move to
+          // the top rows; the former elem kind becomes the leaf elem_elem).
+          bk2 = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk2);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_elem_dim_n);
+          di = 0;
+          while (di < param_elem_dim_n && di < P12G_DIM_MAX) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+            di = di + 1;
+          }
+        }
+        param_elem_suffix_pending = 0;
+        param_elem_dim_n = 0;
+        param_prefix_arr_need_rb = 0;
+        param_prefix_arr_need_size = 0;
+        param_prefix_arr_elem_pending = 0;
         if (saw_param_tok != 0) {
           param_count = param_count + 1;
         }
@@ -1828,39 +1919,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
       } else if (kind == TOKEN_COLON) {
         want_param_ty = 1;
       } else if (want_param_ty != 0 && param_count < P12G_PARAM_MAX) {
-if (param_slice_need_rb != 0) {
+        if (param_arr_need_rb != 0) {
           if (kind == TOKEN_RBRACKET) {
-            param_slice_need_rb = 0;
-            param_elem_pending = 1;
-          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
-            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
-            param_dim_n = 0;
-            if (param_dim_n < P12G_DIM_MAX) {
-              param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
-              param_dim_n = param_dim_n + 1;
-            }
-            param_slice_need_rb = 0;
-            param_prefix_arr_need_rb = 1;
-          } else {
-            want_param_ty = 0;
-            param_slice_need_rb = 0;
-          }
-        } else if (param_prefix_arr_need_rb != 0) {
-          if (kind == TOKEN_RBRACKET) {
-            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_dim_n);
-            di = 0;
-            while (di < param_dim_n && di < P12G_DIM_MAX) {
-              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_dims[di]);
-              di = di + 1;
-            }
-            param_prefix_arr_need_rb = 0;
-            param_prefix_arr_elem_pending = 1;
-          } else {
-            param_prefix_arr_need_rb = 0;
-            want_param_ty = 0;
-          }
-        } else if (param_arr_need_rb != 0) {
-          if (kind == TOKEN_RBRACKET) {
+            // wave433: after T[N], stay open for further [M] dims.
             param_arr_need_rb = 0;
             param_suffix_pending = 1;
           } else {
@@ -1869,6 +1930,7 @@ if (param_slice_need_rb != 0) {
           }
         } else if (param_arr_need_size != 0) {
           if (kind == TOKEN_RBRACKET) {
+            // Suffix T[] -> SLICE with the prior base as elem (no multi after).
             b0 = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, b0);
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
@@ -1878,6 +1940,7 @@ if (param_slice_need_rb != 0) {
             want_param_ty = 0;
             saw_param_tok = 1;
           } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            // Collect one dim; finalize on non-`[` after the closing `]`.
             if (param_dim_n < P12G_DIM_MAX) {
               param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
               param_dim_n = param_dim_n + 1;
@@ -1908,51 +1971,1156 @@ if (param_slice_need_rb != 0) {
             param_dim_n = 0;
             want_param_ty = 0;
           }
-        } else if (kind == TOKEN_STAR) {
-          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+        } else if (param_slice_need_rb != 0) {
+          // Prefix `[...`T after the opening `[` (kind tentatively SLICE):
+          // `]` -> []T (SLICE; capture pointee next); INT N -> [N]T ARRAY.
+          if (kind == TOKEN_RBRACKET) {
+            param_slice_need_rb = 0;
+            param_elem_pending = 1;
+          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+            param_dim_n = 0;
+            if (param_dim_n < P12G_DIM_MAX) {
+              param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+              param_dim_n = param_dim_n + 1;
+            }
+            param_slice_need_rb = 0;
+            param_prefix_arr_need_rb = 1;
+          } else {
+            want_param_ty = 0;
+            param_slice_need_rb = 0;
+          }
+        } else if (param_prefix_arr_need_rb != 0) {
+          // Prefix `[N` — want `]` then leaf T or another `[`.
+          if (kind == TOKEN_RBRACKET) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_dim_n);
+            di = 0;
+            while (di < param_dim_n && di < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_dims[di]);
+              di = di + 1;
+            }
+            param_prefix_arr_need_rb = 0;
+            param_prefix_arr_elem_pending = 1;
+          } else {
+            param_prefix_arr_need_rb = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_prefix_arr_need_size != 0) {
+          // Prefix `[N][` — next dim INT (`[N][M]T`) or `]` (`[N][]T` = ARRAY
+          // of SLICE of T; leaf T captured via param_elem_elem_pending).
+          if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            if (param_dim_n < P12G_DIM_MAX) {
+              param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+              param_dim_n = param_dim_n + 1;
+            }
+            param_prefix_arr_need_size = 0;
+            param_prefix_arr_need_rb = 1;
+          } else if (kind == TOKEN_RBRACKET) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
+            param_dim_n = 0;
+            param_prefix_arr_need_size = 0;
+            param_elem_elem_pending = 1;
+          } else {
+            param_prefix_arr_need_size = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_prefix_arr_elem_pending != 0) {
+          // After `[N]` / `[N][M]…` — capture the leaf T, or another `[`.
+          if (kind == TOKEN_LBRACKET) {
+            param_prefix_arr_elem_pending = 0;
+            param_prefix_arr_need_size = 1;
+          } else if (kind == TOKEN_STAR) {
+            // Prefix `[N]*T` — STAR is a PTR elem, not a scalar builtin kind.
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+            param_prefix_arr_elem_pending = 0;
+            param_elem_elem_pending = 1;
+            saw_param_tok = 1;
+          } else if (kind == TOKEN_IDENT) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_NAMED);
+            p12g_param_copy_name(ent_img, mi, param_count, source, lex_inout);
+            param_dim_n = 0;
+            param_prefix_arr_elem_pending = 0;
+            want_param_ty = 0;
+            saw_param_tok = 1;
+          } else {
+            bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            if (bk6 >= 0) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
+              param_dim_n = 0;
+              param_prefix_arr_elem_pending = 0;
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            } else {
+              param_prefix_arr_elem_pending = 0;
+              want_param_ty = 0;
+            }
+          }
+        } else if (param_elem_slice_need_rb != 0) {
+          // wave435/436: `*[...` — saw `[` after PTR. `]` -> *[]T (PTR to
+          // SLICE; capture base T next); INT N -> *[N]T (PTR to ARRAY).
+          if (kind == TOKEN_RBRACKET) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
+            param_elem_slice_need_rb = 0;
+            param_elem_elem_pending = 1;
+          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            // wave436: *[N]T -> PTR to ARRAY of N T. Capture N, expect `]`.
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+            if (param_elem_dim_n < P12G_DIM_MAX) {
+              param_elem_dims[param_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+              param_elem_dim_n = param_elem_dim_n + 1;
+            }
+            param_elem_slice_need_rb = 0;
+            param_elem_prefix_arr_need_rb = 1;
+          } else {
+            param_elem_slice_need_rb = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_elem_prefix_arr_need_rb != 0) {
+          // wave436/437: `*[N` — want `]` then base T. Dims stay in the local
+          // buffer until base T capture commits them (multi-dim *[N][M]T).
+          if (kind == TOKEN_RBRACKET) {
+            param_elem_prefix_arr_need_rb = 0;
+            param_elem_elem_pending = 1;
+          } else {
+            param_elem_prefix_arr_need_rb = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_elem_elem_pending != 0) {
+          // wave435/436/437: slice/array closed; capture base T (NAMED name
+          // or builtin) and commit accumulated ARRAY dims from the buffer.
+          if (kind == TOKEN_IDENT) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_NAMED);
+            p12g_param_copy_name(ent_img, mi, param_count, source, lex_inout);
+            // Commit accumulated dims (*[N] or *[N][M]…). Reset elem_dim_n so
+            // the wave434 *T[N] postfix lift at `,`/`)` does not re-fire and
+            // overwrite the PTR-of-ARRAY shape.
+            if (param_elem_dim_n > 0) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_elem_dim_n);
+              di = 0;
+              while (di < param_elem_dim_n && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                di = di + 1;
+              }
+              param_elem_dim_n = 0;
+            }
+            param_elem_elem_pending = 0;
+            want_param_ty = 0;
+            saw_param_tok = 1;
+          } else if (kind == TOKEN_LBRACKET) {
+            // wave437: *[N][M]T multi-dim — collect the next dim, return here.
+            param_elem_elem_pending = 0;
+            param_elem_prefix_arr_more = 1;
+            param_elem_arr_need_size = 1;
+          } else if (kind == TOKEN_STAR && p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_ARRAY || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
+            // Extra STAR after a PTR elem (`[]*[2]*T` / `[2]*[2]*T` / `**[2]*T`
+            // family and bare `***T`): commit pending dims first, then bump
+            // the extra-PTR wrap COUNT in the unused slot dims[nd+1] (ndims>=1
+            // or ndims staying 0 -> dims[1]). Stay pending to capture leaf T.
+            if (param_elem_dim_n > 0) {
+              nd = param_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                di = di + 1;
+              }
+              param_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
+            }
+            if (nd >= 0 && nd + 1 < P12G_DIM_MAX) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+              }
+              // stay param_elem_elem_pending to capture leaf T
+            } else {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, 0 - 1);
+              param_elem_elem_pending = 0;
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            }
+          } else if (kind == TOKEN_STAR && p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_ARRAY && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
+            // Extra STAR after an ARRAY elem (`[][2]*T` family; PTR-outer
+            // `*[2]*T`): same unused-slot encoding at dims[nd+1], nd>0.
+            if (param_elem_dim_n > 0) {
+              nd = param_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                di = di + 1;
+              }
+              param_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
+            }
+            if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+              }
+              // stay param_elem_elem_pending to capture leaf T
+            } else {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, 0 - 1);
+              param_elem_elem_pending = 0;
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            }
+          } else if (kind == TOKEN_STAR && p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_ARRAY || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
+            // Extra STAR after a SLICE elem (`[2][]*T` / `[][]*T` / `*[]*T`
+            // family): slot depends on nd — 0 -> dims[0]; -2 sentinel ->
+            // dims[1]; >0 -> dims[nd]. Stay pending to capture leaf T.
+            if (param_elem_dim_n > 0) {
+              nd = param_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                di = di + 1;
+              }
+              param_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
+            }
+            if (nd == 0) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
+              }
+              // stay param_elem_elem_pending to capture leaf T
+            } else if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 1 * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 1 * 4, extra);
+              }
+              // stay param_elem_elem_pending to capture leaf T
+            } else if (nd > 0 && nd < P12G_DIM_MAX) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd * 4, extra);
+              }
+              // stay param_elem_elem_pending to capture leaf T
+            } else {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, 0 - 1);
+              param_elem_elem_pending = 0;
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            }
+          } else {
+            bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            if (bk6 >= 0) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
+              // Commit accumulated dims (*[N] or *[N][M]…); same wave437 reset.
+              if (param_elem_dim_n > 0) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_elem_dim_n);
+                di = 0;
+                while (di < param_elem_dim_n && di < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                  di = di + 1;
+                }
+                param_elem_dim_n = 0;
+              }
+              param_elem_elem_pending = 0;
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            } else {
+              param_elem_elem_pending = 0;
+              want_param_ty = 0;
+            }
+          }
+        } else if (param_elem_arr_need_rb != 0) {
+          if (kind == TOKEN_RBRACKET) {
+            param_elem_arr_need_rb = 0;
+            if (param_elem_prefix_arr_more != 0) {
+              // wave437: *[N][M]T — return to base T capture for more dims.
+              param_elem_prefix_arr_more = 0;
+              param_elem_elem_pending = 1;
+            } else {
+              // wave434: after elem T[N], stay open for further [M] dims.
+              param_elem_suffix_pending = 1;
+            }
+          } else {
+            param_elem_arr_need_rb = 0;
+            param_elem_prefix_arr_more = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_elem_arr_need_size != 0) {
+          if (kind == TOKEN_RBRACKET) {
+            // Extra empty `[]` after a PTR/SLICE elem: three encodings — the
+            // ndims=-2 sentinel (dims[0] counts wraps), an unused-slot count
+            // at dims[nd], or dims[nd+1] for SLICE-elem with committed dims.
+            if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE) && param_elem_dim_n == 0 && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) == P12G_ELEM_PTR_TO_SLICE_NDIMS || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) <= 0) && !(p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR && p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
+              if (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4) == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+                if (extra <= 0) {
+                  extra = 1;
+                }
+                extra = extra + 1;
+                if (extra < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
+                }
+              } else {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+              }
+              param_elem_arr_need_size = 0;
+              param_elem_prefix_arr_more = 0;
+              param_elem_dim_n = 0;
+              param_elem_elem_pending = 1;
+            } else if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_ARRAY && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) || (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_ARRAY))) {
+              // ARRAY elem (SLICE/PTR outer) or PTR elem (any outer): extra
+              // wrap COUNT in the first unused dim slot dims[nd] (nd>=0).
+              if (param_elem_dim_n > 0) {
+                nd = param_elem_dim_n;
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, nd);
+                di = 0;
+                while (di < nd && di < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                  di = di + 1;
+                }
+                param_elem_dim_n = 0;
+              } else {
+                nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
+              }
+              if (nd >= 0 && nd < P12G_DIM_MAX) {
+                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd * 4);
+                if (extra < 0) {
+                  extra = 0;
+                }
+                extra = extra + 1;
+                if (extra < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd * 4, extra);
+                }
+                param_elem_arr_need_size = 0;
+                param_elem_prefix_arr_more = 0;
+                param_elem_elem_pending = 1;
+              } else {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, 0 - 1);
+                param_elem_arr_need_size = 0;
+                param_elem_prefix_arr_more = 0;
+                param_elem_dim_n = 0;
+                want_param_ty = 0;
+                saw_param_tok = 1;
+              }
+            } else if (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE && (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_ARRAY || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) == P12G_TY_PTR)) {
+              // SLICE elem with committed dims (`[2][][2][]T` family):
+              // extra wrap COUNT in the unused slot dims[nd+1] (nd>0).
+              if (param_elem_dim_n > 0) {
+                nd = param_elem_dim_n;
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, nd);
+                di = 0;
+                while (di < nd && di < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                  di = di + 1;
+                }
+                param_elem_dim_n = 0;
+              } else {
+                nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4);
+              }
+              if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
+                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+                if (extra < 0) {
+                  extra = 0;
+                }
+                extra = extra + 1;
+                if (extra < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+                }
+                param_elem_arr_need_size = 0;
+                param_elem_prefix_arr_more = 0;
+                param_elem_elem_pending = 1;
+              } else {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, 0 - 1);
+                param_elem_arr_need_size = 0;
+                param_elem_prefix_arr_more = 0;
+                param_elem_dim_n = 0;
+                want_param_ty = 0;
+                saw_param_tok = 1;
+              }
+            } else {
+              // wave434: elem T[] (3-layer) stays deferred; wave437 also
+              // clears prefix_arr_more if this came from *[N][]T.
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, 0 - 1);
+              param_elem_arr_need_size = 0;
+              param_elem_prefix_arr_more = 0;
+              param_elem_dim_n = 0;
+              want_param_ty = 0;
+              saw_param_tok = 1;
+            }
+          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            // Collect one elem dim; finalize on non-`[` after the closing `]`.
+            if (param_elem_dim_n < P12G_DIM_MAX) {
+              param_elem_dims[param_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+              param_elem_dim_n = param_elem_dim_n + 1;
+            }
+            param_elem_arr_need_size = 0;
+            param_elem_arr_need_rb = 1;
+          } else {
+            param_elem_arr_need_size = 0;
+            param_elem_prefix_arr_more = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_elem_suffix_pending != 0) {
+          if (kind == TOKEN_LBRACKET) {
+            param_elem_suffix_pending = 0;
+            param_elem_arr_need_size = 1;
+          } else {
+            // Finalize elem multi-dim (dims>0 -> elem=ARRAY) or leave scalar.
+            if (param_elem_dim_n > 0) {
+              leaf2 = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, leaf2);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_elem_dim_n);
+              di = 0;
+              while (di < param_elem_dim_n && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+                di = di + 1;
+              }
+            }
+            param_elem_suffix_pending = 0;
+            param_elem_dim_n = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_elem_pending != 0) {
+          if (kind == TOKEN_IDENT) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_NAMED);
+            p12g_param_copy_name(ent_img, mi, param_count, source, lex_inout);
+            // wave434: keep scanning for elem suffix [N]/[]/[N][M].
+            param_elem_suffix_pending = 1;
+          } else if (kind == TOKEN_LBRACKET) {
+            // wave435: `*[...` — elem opens with `[`; defer the elem kind
+            // decision to param_elem_slice_need_rb (`]` vs INT).
+            param_elem_slice_need_rb = 1;
+          } else if (kind == TOKEN_STAR) {
+            // After `[]` (or a top-level `*` for `**T`): STAR is a PTR elem.
+            // token_to_type_kind does not handle STAR, so store elem=PTR and
+            // capture the pointee via param_elem_elem_pending.
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+            param_elem_elem_pending = 1;
+          } else {
+            bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
+            // wave434: keep scanning for elem suffix [N]/[]/[N][M].
+            param_elem_suffix_pending = 1;
+          }
+          param_elem_pending = 0;
           saw_param_tok = 1;
-        } else if (kind == TOKEN_LBRACKET) {
-          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
-          param_slice_need_rb = 1;
+        } else if (p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4) < 0) {
+          if (kind == TOKEN_IDENT) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_NAMED);
+            p12g_param_copy_name(ent_img, mi, param_count, source, lex_inout);
+            // wave433: keep scanning for suffix T[N] / T[] / T[N][M].
+            param_suffix_pending = 1;
+            saw_param_tok = 1;
+          } else if (kind == TOKEN_STAR) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+            param_elem_pending = 1;
+          } else if (kind == TOKEN_LBRACKET) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
+            param_slice_need_rb = 1;
+          } else {
+            bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
+            // wave433: keep scanning for suffix T[N] / T[] / T[N][M].
+            param_suffix_pending = 1;
+            saw_param_tok = 1;
+          }
+        } else {
+          want_param_ty = 0;
+        }
+    } else if (saw_params_close == 1 && want_ret == 0 && depth == 0 && paren == 0 && kind == TOKEN_COLON) {
+      // Return-type gate: reset the whole ret shape machine (wave427-438).
+      want_ret = 1;
+      ret_elem_pending = 0;
+      ret_slice_need_rb = 0;
+      ret_suffix_pending = 0;
+      ret_arr_need_size = 0;
+      ret_arr_need_rb = 0;
+      ret_dim_n = 0;
+      ret_elem_suffix_pending = 0;
+      ret_elem_arr_need_size = 0;
+      ret_elem_arr_need_rb = 0;
+      ret_elem_slice_need_rb = 0;
+      ret_elem_elem_pending = 0;
+      ret_elem_prefix_arr_need_rb = 0;
+      ret_elem_prefix_arr_more = 0;
+      ret_elem_dim_n = 0;
+      ret_prefix_arr_need_rb = 0;
+      ret_prefix_arr_need_size = 0;
+      ret_prefix_arr_elem_pending = 0;
+    } else if (want_ret != 0) {
+      // Ret shape capture: builtin / NAMED / PTR / SLICE / ARRAY / multi-dim
+      // and the full PTR/SLICE-elem families (waves 427-438 + wave954 twins).
+      if (ret_arr_need_rb != 0) {
+        if (kind == TOKEN_RBRACKET) {
+          // wave431: after T[N], stay open for further [M] dims.
+          ret_arr_need_rb = 0;
+          ret_suffix_pending = 1;
+        } else {
+          ret_arr_need_rb = 0;
+          want_ret = 0;
+        }
+      } else if (ret_arr_need_size != 0) {
+        if (kind == TOKEN_RBRACKET) {
+          // Suffix T[] -> SLICE with the prior base as elem (no multi after).
+          leaf = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, leaf);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_SLICE);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_SIZES + mi * 4, 0 - 1);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_NDIMS + mi * 4, 0);
+          ret_arr_need_size = 0;
+          ret_dim_n = 0;
+          want_ret = 0;
+        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          // Collect one dim; finalize on non-`[` after the closing `]`.
+          if (ret_dim_n < P12G_DIM_MAX) {
+            ret_dims[ret_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+            ret_dim_n = ret_dim_n + 1;
+          }
+          ret_arr_need_size = 0;
+          ret_arr_need_rb = 1;
+        } else {
+          ret_arr_need_size = 0;
+          want_ret = 0;
+        }
+      } else if (ret_suffix_pending != 0) {
+        if (kind == TOKEN_LBRACKET) {
+          ret_suffix_pending = 0;
+          ret_arr_need_size = 1;
+        } else {
+          // Finalize multi-dim (or leave scalar/named base if no dims).
+          if (ret_dim_n > 0) {
+            leaf = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, leaf);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_ARRAY);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_NDIMS + mi * 4, ret_dim_n);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_SIZES + mi * 4, ret_dims[0]);
+            di = 0;
+            while (di < ret_dim_n && di < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_dims[di]);
+              di = di + 1;
+            }
+          }
+          ret_suffix_pending = 0;
+          want_ret = 0;
+        }
+      } else if (ret_slice_need_rb != 0) {
+        // Prefix array ret after the opening bracket (kind tentatively
+        // SLICE): RBRACKET -> []T (SLICE; capture pointee next); INT N ->
+        // [N]T ARRAY.
+        if (kind == TOKEN_RBRACKET) {
+          ret_slice_need_rb = 0;
+          ret_elem_pending = 1;
+        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_ARRAY);
+          ret_dim_n = 0;
+          if (ret_dim_n < P12G_DIM_MAX) {
+            ret_dims[ret_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+            ret_dim_n = ret_dim_n + 1;
+          }
+          ret_slice_need_rb = 0;
+          ret_prefix_arr_need_rb = 1;
+        } else {
+          want_ret = 0;
+          ret_slice_need_rb = 0;
+        }
+      } else if (ret_prefix_arr_need_rb != 0) {
+        // Prefix [N ret — want RBRACKET then leaf T or another bracket.
+        if (kind == TOKEN_RBRACKET) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_NDIMS + mi * 4, ret_dim_n);
+          if (ret_dim_n > 0) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_SIZES + mi * 4, ret_dims[0]);
+          } else {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_SIZES + mi * 4, 0 - 1);
+          }
+          di = 0;
+          while (di < ret_dim_n && di < P12G_DIM_MAX) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_dims[di]);
+            di = di + 1;
+          }
+          ret_prefix_arr_need_rb = 0;
+          ret_prefix_arr_elem_pending = 1;
+        } else {
+          ret_prefix_arr_need_rb = 0;
+          want_ret = 0;
+        }
+      } else if (ret_prefix_arr_need_size != 0) {
+        // Prefix [N][ ret — want the next dim INT.
+        if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          if (ret_dim_n < P12G_DIM_MAX) {
+            ret_dims[ret_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+            ret_dim_n = ret_dim_n + 1;
+          }
+          ret_prefix_arr_need_size = 0;
+          ret_prefix_arr_need_rb = 1;
+        } else {
+          ret_prefix_arr_need_size = 0;
+          want_ret = 0;
+        }
+      } else if (ret_prefix_arr_elem_pending != 0) {
+        // After [N] / [N][M]… ret — capture the leaf T, or another bracket.
+        if (kind == TOKEN_LBRACKET) {
+          ret_prefix_arr_elem_pending = 0;
+          ret_prefix_arr_need_size = 1;
         } else if (kind == TOKEN_IDENT) {
-          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_NAMED);
-          p12g_param_copy_name(ent_img, mi, param_count, source, lex_inout);
-          param_suffix_pending = 1;
-          saw_param_tok = 1;
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_NAMED);
+          p12g_ret_copy_name(ent_img, mi, source, lex_inout);
+          ret_dim_n = 0;
+          ret_prefix_arr_elem_pending = 0;
+          want_ret = 0;
         } else {
           bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
           if (bk6 >= 0) {
-            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
-            param_suffix_pending = 1;
-            saw_param_tok = 1;
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, bk6);
+            ret_dim_n = 0;
+            ret_prefix_arr_elem_pending = 0;
+            want_ret = 0;
           } else {
-            want_param_ty = 0;
+            ret_prefix_arr_elem_pending = 0;
+            want_ret = 0;
           }
         }
-    } else if (saw_params_close == 1 && depth == 0) {
-      // Return-shape / terminator region.
-      if (kind == TOKEN_SEMICOLON) {
-        unsafe {
-          parser_asm_lex_step_kind_c(lex_inout, source);
+      } else if (ret_elem_pending != 0) {
+        if (kind == TOKEN_IDENT) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_NAMED);
+          p12g_ret_copy_name(ent_img, mi, source, lex_inout);
+          // wave438: keep scanning for elem suffix dims.
+          ret_elem_suffix_pending = 1;
+        } else if (kind == TOKEN_LBRACKET) {
+          // wave438: elem opens with a bracket; defer the elem kind
+          // decision to ret_elem_slice_need_rb (RBRACKET vs INT).
+          ret_elem_slice_need_rb = 1;
+        } else if (kind == TOKEN_STAR) {
+          // Extra STAR (double-PTR ret family): STAR is a PTR elem; capture
+          // the pointee via ret_elem_elem_pending.
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_PTR);
+          ret_elem_elem_pending = 1;
+        } else {
+          bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, bk6);
+          // wave438: keep scanning for elem suffix dims.
+          ret_elem_suffix_pending = 1;
         }
-        return;
+        ret_elem_pending = 0;
+      } else if (ret_elem_slice_need_rb != 0) {
+        // wave438: bracket after PTR — RBRACKET -> PTR to SLICE (capture
+        // base T next); INT N -> PTR to ARRAY (capture N, expect RBRACKET).
+        if (kind == TOKEN_RBRACKET) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_SLICE);
+          ret_elem_slice_need_rb = 0;
+          ret_elem_elem_pending = 1;
+        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_ARRAY);
+          if (ret_elem_dim_n < P12G_DIM_MAX) {
+            ret_elem_dims[ret_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+            ret_elem_dim_n = ret_elem_dim_n + 1;
+          }
+          ret_elem_slice_need_rb = 0;
+          ret_elem_prefix_arr_need_rb = 1;
+        } else {
+          ret_elem_slice_need_rb = 0;
+          want_ret = 0;
+        }
+      } else if (ret_elem_prefix_arr_need_rb != 0) {
+        // wave438: PTR[N — want RBRACKET then base T. Dims stay in the
+        // local buffer until base T capture commits them (multi-dim).
+        if (kind == TOKEN_RBRACKET) {
+          ret_elem_prefix_arr_need_rb = 0;
+          ret_elem_elem_pending = 1;
+        } else {
+          ret_elem_prefix_arr_need_rb = 0;
+          want_ret = 0;
+        }
+      } else if (ret_elem_elem_pending != 0) {
+        // wave438: slice/array closed; capture base T and commit accumulated
+        // ARRAY dims from the local buffer. Multi-dim returns here via the
+        // prefix_arr_more flag. Extra-STAR arms bump the unused-slot wrap
+        // COUNT (per-elem-family slot selection).
+        if (kind == TOKEN_IDENT) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ELEM_KINDS + mi * 4, P12G_TY_NAMED);
+          p12g_ret_copy_name(ent_img, mi, source, lex_inout);
+          // Commit accumulated dims. Reset ret_elem_dim_n so the wave434
+          // *T[N] postfix lift at the terminator does not re-fire.
+          if (ret_elem_dim_n > 0) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, ret_elem_dim_n);
+            di = 0;
+            while (di < ret_elem_dim_n && di < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+              di = di + 1;
+            }
+            ret_elem_dim_n = 0;
+          }
+          ret_elem_elem_pending = 0;
+          want_ret = 0;
+        } else if (kind == TOKEN_LBRACKET) {
+          // wave438: multi-dim — collect the next dim, return here.
+          ret_elem_elem_pending = 0;
+          ret_elem_prefix_arr_more = 1;
+          ret_elem_arr_need_size = 1;
+        } else if (kind == TOKEN_STAR && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_PTR && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR) {
+          // Extra STAR, PTR elem + PTR outer: extra PTR wrap COUNT in
+          // dims[nd+1] (ndims>=1) or dims[1] (ndims 0).
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+          if (nd >= 0 && nd + 1 < P12G_DIM_MAX) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+            ret_elem_elem_pending = 0;
+            want_ret = 0;
+          }
+        } else if (kind == TOKEN_STAR && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_ARRAY && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR) {
+          // Extra STAR, ARRAY elem + PTR outer: dims[nd+1], nd>0.
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+          if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+            ret_elem_elem_pending = 0;
+            want_ret = 0;
+          }
+        } else if (kind == TOKEN_STAR && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR) {
+          // Extra STAR, SLICE elem + PTR outer: slot by nd — 0 -> dims[0];
+          // -2 sentinel -> dims[1]; >0 -> dims[nd].
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+          if (nd == 0) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 1 * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 1 * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else if (nd > 0 && nd < P12G_DIM_MAX) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+            ret_elem_elem_pending = 0;
+            want_ret = 0;
+          }
+
+        } else if (kind == TOKEN_STAR && (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_ARRAY) && (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_ARRAY)) {
+          // wave954: extra STAR with SLICE/ARRAY outer: same three-way slot
+          // selection as the PTR-outer arm.
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+          if (nd == 0) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 1 * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 1 * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else if (nd > 0 && nd < P12G_DIM_MAX) {
+            extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd * 4);
+            if (extra < 0) {
+              extra = 0;
+            }
+            extra = extra + 1;
+            if (extra < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd * 4, extra);
+            }
+            // stay ret_elem_elem_pending to capture leaf T
+          } else {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+            ret_elem_elem_pending = 0;
+            want_ret = 0;
+          }
+
+        } else {
+          bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          if (bk6 >= 0) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ELEM_KINDS + mi * 4, bk6);
+            // Commit accumulated dims; when none pending and elem is PTR or
+            // SLICE under a PTR/SLICE/ARRAY outer, stamp the PTR_TO_SLICE
+            // sentinel (ndims=-2) so the leftover walk can peel extra wraps.
+            if (ret_elem_dim_n > 0) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, ret_elem_dim_n);
+              di = 0;
+              while (di < ret_elem_dim_n && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE) && (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_ARRAY)) {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+              if (nd == 0) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+              }
+            }
+            ret_elem_elem_pending = 0;
+            ret_elem_suffix_pending = 1;
+          } else {
+            ret_elem_elem_pending = 0;
+            want_ret = 0;
+          }
+        }
+      } else if (ret_elem_arr_need_rb != 0) {
+        if (kind == TOKEN_RBRACKET) {
+          ret_elem_arr_need_rb = 0;
+          if (ret_elem_prefix_arr_more != 0) {
+            // wave438: multi-dim — return to base T capture for more dims.
+            ret_elem_prefix_arr_more = 0;
+            ret_elem_elem_pending = 1;
+          } else {
+            // wave438: after elem T[N], stay open for further [M] dims.
+            ret_elem_suffix_pending = 1;
+          }
+        } else {
+          ret_elem_arr_need_rb = 0;
+          ret_elem_prefix_arr_more = 0;
+          want_ret = 0;
+        }
+      } else if (ret_elem_arr_need_size != 0) {
+        if (kind == TOKEN_RBRACKET) {
+          // Extra empty bracket after PTR/SLICE/ARRAY elem: unused-slot wrap
+          // COUNT at dims[nd] (PTR outer, ARRAY/PTR elem), dims[nd+1]
+          // (committed dims), or the ndims=-2 sentinel family.
+          if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_ARRAY || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_PTR) && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR) {
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+            if (nd >= 0 && nd < P12G_DIM_MAX) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd * 4, extra);
+              }
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_elem_pending = 1;
+            } else {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_dim_n = 0;
+              want_ret = 0;
+            }
+          } else if (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE && p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_PTR) {
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+            if ((nd == P12G_ELEM_PTR_TO_SLICE_NDIMS || nd <= 0) && ret_elem_dim_n == 0) {
+              if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+                if (extra <= 0) {
+                  extra = 1;
+                }
+                extra = extra + 1;
+                if (extra < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
+                }
+              } else {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+              }
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_dim_n = 0;
+              ret_elem_elem_pending = 1;
+            } else if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+              }
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_elem_pending = 1;
+            } else {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_dim_n = 0;
+              want_ret = 0;
+            }
+
+          } else if ((p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_PTR || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4) == P12G_TY_ARRAY) && (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_SLICE || p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) == P12G_TY_ARRAY)) {
+            if (ret_elem_dim_n > 0) {
+              nd = ret_elem_dim_n;
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, nd);
+              di = 0;
+              while (di < nd && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+                di = di + 1;
+              }
+              ret_elem_dim_n = 0;
+            } else {
+              nd = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4);
+            }
+
+            if ((nd == P12G_ELEM_PTR_TO_SLICE_NDIMS || nd <= 0) && ret_elem_dim_n == 0) {
+              if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+                extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4);
+                if (extra <= 0) {
+                  extra = 1;
+                }
+                extra = extra + 1;
+                if (extra < P12G_DIM_MAX) {
+                  p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + 0 * 4, extra);
+                }
+              } else {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, P12G_ELEM_PTR_TO_SLICE_NDIMS);
+              }
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_dim_n = 0;
+              ret_elem_elem_pending = 1;
+            } else if (nd > 0 && nd + 1 < P12G_DIM_MAX) {
+              extra = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4);
+              if (extra < 0) {
+                extra = 0;
+              }
+              extra = extra + 1;
+              if (extra < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + nd + 1 * 4, extra);
+              }
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_elem_pending = 1;
+            } else {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+              ret_elem_arr_need_size = 0;
+              ret_elem_prefix_arr_more = 0;
+              ret_elem_dim_n = 0;
+              want_ret = 0;
+            }
+
+          } else {
+            // wave438: elem T[] (3-layer) stays deferred; also clears
+            // prefix_arr_more if this came from a multi-dim path.
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, 0 - 1);
+            ret_elem_arr_need_size = 0;
+            ret_elem_prefix_arr_more = 0;
+            ret_elem_dim_n = 0;
+            want_ret = 0;
+          }
+        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          // Collect one elem dim; finalize on non-`[` after the closing `]`.
+          if (ret_elem_dim_n < P12G_DIM_MAX) {
+            ret_elem_dims[ret_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+            ret_elem_dim_n = ret_elem_dim_n + 1;
+          }
+          ret_elem_arr_need_size = 0;
+          ret_elem_arr_need_rb = 1;
+        } else {
+          ret_elem_arr_need_size = 0;
+          ret_elem_prefix_arr_more = 0;
+          want_ret = 0;
+        }
+      } else if (ret_elem_suffix_pending != 0) {
+        if (kind == TOKEN_LBRACKET) {
+          ret_elem_suffix_pending = 0;
+          ret_elem_arr_need_size = 1;
+        } else {
+          // Finalize elem multi-dim (dims>0 -> elem=ARRAY) or leave scalar.
+          if (ret_elem_dim_n > 0) {
+            leaf = p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ELEM_KINDS + mi * 4, leaf);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_ARRAY);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + mi * 4, ret_elem_dim_n);
+            di = 0;
+            while (di < ret_elem_dim_n && di < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW_INNER + di * 4, ret_elem_dims[di]);
+              di = di + 1;
+            }
+          }
+          ret_elem_suffix_pending = 0;
+          ret_elem_dim_n = 0;
+          want_ret = 0;
+        }
+      } else if (p12g_load_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4) < 0) {
+        if (kind == TOKEN_IDENT) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_NAMED);
+          p12g_ret_copy_name(ent_img, mi, source, lex_inout);
+          // wave430/431: keep scanning for suffix dims.
+          ret_suffix_pending = 1;
+        } else if (kind == TOKEN_STAR) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_PTR);
+          ret_elem_pending = 1;
+        } else if (kind == TOKEN_LBRACKET) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_SLICE);
+          ret_slice_need_rb = 1;
+        } else {
+          bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, bk6);
+          if (bk6 >= 0) {
+            ret_suffix_pending = 1;
+          } else {
+            want_ret = 0;
+          }
+        }
+      } else {
+        want_ret = 0;
       }
-      if (kind == TOKEN_LBRACE) {
-        p12g_store_i32(ent_img, P12G_OFF_METHOD_HAS_DEFAULT + mi * 4, 1);
-        depth = 1;
-      }
-    } else if (depth >= 1) {
-      if (kind == TOKEN_LBRACE) {
-        depth = depth + 1;
-      } else if (kind == TOKEN_RBRACE) {
+    }
+    // Terminator (twin of the C sig-machine tail): LBRACE opens a default
+    // body (has_default stamps on close), RBRACE at depth 0 is the trait
+    // close (leave it for the outer body loop), SEMICOLON ends the
+    // signature, FUNCTION is the wave464 ASI case (leave for outer loop).
+    if (kind == TOKEN_LBRACE) {
+      depth = depth + 1;
+    } else if (kind == TOKEN_RBRACE) {
+      if (depth > 0) {
         depth = depth - 1;
         if (depth == 0) {
+          // wave468: method body closed -> default method eligible for hoist.
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_HAS_DEFAULT + mi * 4, 1);
           unsafe {
             parser_asm_lex_step_kind_c(lex_inout, source);
           }
           return;
         }
+      } else {
+        return;
       }
+    } else if (kind == TOKEN_SEMICOLON && depth == 0) {
+      unsafe {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+      }
+      return;
+    } else if (kind == TOKEN_FUNCTION && depth == 0 && paren == 0) {
+      return;
     }
     unsafe {
       parser_asm_lex_step_kind_c(lex_inout, source);
