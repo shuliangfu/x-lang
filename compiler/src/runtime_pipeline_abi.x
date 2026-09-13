@@ -65108,6 +65108,9 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
   let ch: i32 = 0;
   let fin: i32 = 0;
   let er: i32 = 0;
+  let nso: i32 = 0;
+  let sok: i32 = 0;
+  let soi: i32 = 0;
   if (arena == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
@@ -65120,6 +65123,123 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
     sp = sp - 1;
     cur = g_w157_walk_stack[sp];
     if (cur <= 0) {
+      continue;
+    }
+    // P12g root fix (2026-09-15): when a block carries a stmt_order it is the
+    // emitter's sequencing authority — deep else-chains are only fully visible
+    // there (the per-kind array view truncates with nesting depth, under-
+    // reserving call-spill scratch so big functions' spill peaks cross the
+    // frame top into the caller's frame). Dispatch kinds against the SAME
+    // pools the emitter reads (idx = pool index); the raw-array walk below
+    // stays for nso==0 blocks only, so nothing is double counted. Over-
+    // reserving is safe; under-reserving is the bug class.
+    // PLATFORM: SHARED — twin in seeds/runtime_pipeline_abi.from_x.c.
+    unsafe {
+      nso = ast_ast_block_num_stmt_order(arena, cur);
+    }
+    if (nso > 0) {
+      i = 0;
+      while (i < nso) {
+        unsafe {
+          sok = ast_ast_block_stmt_order_kind(arena, cur, i);
+          soi = ast_ast_block_stmt_order_idx(arena, cur, i);
+        }
+        if (soi >= 0) {
+          if (sok == 2) {
+            unsafe {
+              er = ast_pipeline_block_expr_stmt_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+          } else if (sok == 1) {
+            unsafe {
+              er = ast_pipeline_block_let_init_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+          } else if (sok == 0) {
+            unsafe {
+              er = ast_pipeline_block_const_init_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+          } else if (sok == 5) {
+            unsafe {
+              er = ast_pipeline_block_if_cond_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              ch = ast_pipeline_block_if_then_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+            unsafe {
+              ch = ast_pipeline_block_if_else_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 3) {
+            unsafe {
+              er = ast_ast_block_while_cond_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              ch = pipeline_block_while_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 4) {
+            unsafe {
+              er = ast_ast_block_for_init_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              er = ast_ast_block_for_cond_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              er = ast_ast_block_for_step_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              ch = pipeline_block_for_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 6) {
+            unsafe {
+              ch = pipeline_block_region_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 7) {
+            unsafe {
+              if (pipeline_block_labeled_is_goto(arena, cur, soi) == 0) {
+                er = pipeline_block_labeled_return_expr_ref(arena, cur, soi);
+                if (er > 0) {
+                  w157_sum_expr_call_spill_bytes(arena, er);
+                }
+              }
+            }
+          }
+        }
+        i = i + 1;
+      }
+      // final expr may not be a stmt_order item on every parse path; walking
+      // it unconditionally can only over-reserve (safe direction).
+      unsafe {
+        fin = ast_ast_block_final_expr_ref(arena, cur);
+      }
+      if (fin > 0) {
+        w157_sum_expr_call_spill_bytes(arena, fin);
+      }
       continue;
     }
     unsafe {

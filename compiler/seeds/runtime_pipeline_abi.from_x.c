@@ -19874,10 +19874,23 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
   g_w157_walk_stack[0] = block_ref;
   sp = 1;
   while (sp > 0 && seen < 65536) {
+    int32_t nso;
     seen++;
     sp--;
     cur = g_w157_walk_stack[sp];
     if (cur <= 0) continue;
+    /*
+     * P12g root fix (2026-09-15): when a block carries a stmt_order, it is
+     * the emitter's sequencing authority — deep else-chains are only fully
+     * visible there (the per-kind array view truncates with nesting depth,
+     * under-reserving call-spill scratch so big functions' spill peaks cross
+     * the frame top into the caller's frame). Dispatch kinds against the
+     * SAME pools the emitter reads (idx = pool index); the raw-array walk
+     * below stays for nso==0 blocks only, so nothing is double counted.
+     * Over-reserving is safe; under-reserving is the bug class.
+     * PLATFORM: SHARED — twin in runtime_pipeline_abi.x.
+     */
+    nso = ast_ast_block_num_stmt_order(arena, cur);
     n = ast_ast_block_num_consts(arena, cur);
     for (i = 0; i < n; i++) {
       er = ast_pipeline_block_const_init_ref(arena, cur, i);
