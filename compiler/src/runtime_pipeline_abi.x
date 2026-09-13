@@ -64811,6 +64811,41 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
     g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
     return;
   }
+  // P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind
+  // ordinals with the binop set — an else-if chain parses into a nested
+  // EXPR_IF chain whose arms are EXPR_BLOCK-wrapped blocks (parser
+  // if_stmt_parts_to_if_expr). Routing them through the binop branch loses
+  // the else arm, so every chain beyond the first arm vanished from the
+  // call-spill estimate (big-function frames under-reserved; spill peaks
+  // crossed the frame top into the caller). Try the if/block accessors
+  // first; fall through to binop when they read empty (shared ordinals
+  // stay honored). PLATFORM: SHARED — twin in seeds .c.
+  if (ko == 25) {
+    unsafe {
+      arg_ref = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+    }
+    if (arg_ref > 0) {
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      unsafe {
+        op = pipeline_expr_if_then_ref_at(arena, expr_ref);
+      }
+      w157_sum_expr_call_spill_bytes(arena, op);
+      unsafe {
+        op = pipeline_expr_if_else_ref_at(arena, expr_ref);
+      }
+      w157_sum_expr_call_spill_bytes(arena, op);
+      return;
+    }
+  }
+  if (ko == 26) {
+    unsafe {
+      op = pipeline_expr_block_ref_at(arena, expr_ref);
+    }
+    if (op > 0) {
+      w157_walk_block_rec_x(arena, op, 40);
+      return;
+    }
+  }
   // binops (4..21, 25, 26) + ASSIGN / *ASSIGN (28..38).
   // ASSIGN reuses binop left/right (ast.h AST_EXPR_ASSIGN). Without this walk,
   // pure-asm frame sizing under-counts sequential `x = f(g())` expr stmts:
@@ -65099,6 +65134,156 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
  * wave157 pure-owned. PLATFORM: SHARED freestanding frame layout.
  */
 #[no_mangle]
+function w157_walk_block_rec_x(arena: *u8, cur: i32, depth: i32): void {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let ch: i32 = 0;
+  let er: i32 = 0;
+  let fin: i32 = 0;
+  let nso: i32 = 0;
+  let sok: i32 = 0;
+  let soi: i32 = 0;
+  if (arena == (0 as *u8) || cur <= 0 || depth <= 0) {
+    return;
+  }
+  if (g_w157_spill_visits > 65536) {
+    return;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, cur);
+  }
+  if (nso > 0) {
+    i = 0;
+    while (i < nso) {
+      unsafe {
+        sok = ast_ast_block_stmt_order_kind(arena, cur, i);
+        soi = ast_ast_block_stmt_order_idx(arena, cur, i);
+      }
+      if (soi >= 0) {
+        if (sok == 2) {
+          unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+        } else if (sok == 1) {
+          unsafe { er = ast_pipeline_block_let_init_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+        } else if (sok == 0) {
+          unsafe { er = ast_pipeline_block_const_init_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+        } else if (sok == 5) {
+          unsafe { er = ast_pipeline_block_if_cond_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { ch = ast_pipeline_block_if_then_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+          unsafe { ch = ast_pipeline_block_if_else_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 3) {
+          unsafe { er = ast_ast_block_while_cond_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { ch = pipeline_block_while_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 4) {
+          unsafe { er = ast_ast_block_for_init_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { er = ast_ast_block_for_cond_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { er = ast_ast_block_for_step_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { ch = pipeline_block_for_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 6) {
+          unsafe { ch = pipeline_block_region_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 7) {
+          unsafe {
+            if (pipeline_block_labeled_is_goto(arena, cur, soi) == 0) {
+              er = pipeline_block_labeled_return_expr_ref(arena, cur, soi);
+              if (er > 0) { w157_sum_expr_call_spill_bytes(arena, er); }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+    unsafe { fin = ast_ast_block_final_expr_ref(arena, cur); }
+    if (fin > 0) { w157_sum_expr_call_spill_bytes(arena, fin); }
+    return;
+  }
+  unsafe {
+    n = ast_ast_block_num_consts(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_const_init_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    n = ast_ast_block_num_lets(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_let_init_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    n = ast_ast_block_num_expr_stmts(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    fin = ast_ast_block_final_expr_ref(arena, cur);
+    if (fin > 0) { w157_sum_expr_call_spill_bytes(arena, fin); }
+    n = ast_ast_block_num_if_stmts(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_if_cond_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = ast_ast_block_num_loops(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_ast_block_while_cond_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      ch = pipeline_block_while_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = ast_ast_block_num_for_loops(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_ast_block_for_init_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      er = ast_ast_block_for_cond_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      er = ast_ast_block_for_step_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      ch = pipeline_block_for_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = ast_ast_block_num_regions(arena, cur);
+    i = 0;
+    while (i < n) {
+      ch = pipeline_block_region_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = pipeline_block_num_labeled_stmts(arena, cur);
+    i = 0;
+    while (i < n) {
+      if (pipeline_block_labeled_is_goto(arena, cur, i) == 0) {
+        er = pipeline_block_labeled_return_expr_ref(arena, cur, i);
+        if (er > 0) { w157_sum_expr_call_spill_bytes(arena, er); }
+      }
+      i = i + 1;
+    }
+  }
+}
+
 export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32 {
   let sp: i32 = 0;
   let seen: i32 = 0;

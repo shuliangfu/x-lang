@@ -19801,6 +19801,36 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
     g_w157_spill_total += (n + 1) * 32;
     return;
   }
+  /*
+   * P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind ordinals
+   * with the binop set — an else-if chain parses into a nested EXPR_IF chain
+   * whose arms are EXPR_BLOCK-wrapped blocks (parser if_stmt_parts_to_if_expr).
+   * Routing them through the binop branch loses the else arm (binop has no
+   * third child), so every chain beyond the first arm vanished from the
+   * call-spill estimate. Try the if/block accessors first; fall through to
+   * the binop walk when they read empty (shared ordinals stay honored).
+   * PLATFORM: SHARED — twin in runtime_pipeline_abi.x.
+   */
+  if (ko == 25) {
+    arg_ref = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+    if (arg_ref > 0) {
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      op = pipeline_expr_if_then_ref_at(arena, expr_ref);
+      w157_sum_expr_call_spill_bytes(arena, op);
+      op = pipeline_expr_if_else_ref_at(arena, expr_ref);
+      w157_sum_expr_call_spill_bytes(arena, op);
+      return;
+    }
+  }
+  if (ko == 26) {
+    extern int32_t pipeline_expr_block_ref_at(void *a2, int32_t er2);
+    extern void w157_walk_block_rec(void *arena2, int32_t block_ref2, int32_t depth2);
+    int32_t wb26 = pipeline_expr_block_ref_at(arena, expr_ref);
+    if (wb26 > 0) {
+      w157_walk_block_rec(arena, wb26, 40);
+      return;
+    }
+  }
   if ((ko >= 4 && ko <= 21) || ko == 25 || ko == 26 || (ko >= 28 && ko <= 38)) {
     arg_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
     op = pipeline_expr_binop_right_ref_at(arena, expr_ref);
@@ -19863,105 +19893,151 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
   }
 }
 
-int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
-  int32_t sp = 0;
-  int32_t seen = 0;
-  int32_t cur = 0;
-  int32_t i, n, ch, fin, er;
-  if (!arena || block_ref <= 0) return 0;
-  g_w157_spill_total = 0;
-  g_w157_spill_visits = 0;
-  g_w157_walk_stack[0] = block_ref;
-  sp = 1;
-  while (sp > 0 && seen < 65536) {
-    int32_t nso;
-    seen++;
-    sp--;
-    cur = g_w157_walk_stack[sp];
-    if (cur <= 0) continue;
-    /*
-     * P12g root fix (2026-09-15): when a block carries a stmt_order, it is
-     * the emitter's sequencing authority — deep else-chains are only fully
-     * visible there (the per-kind array view truncates with nesting depth,
-     * under-reserving call-spill scratch so big functions' spill peaks cross
-     * the frame top into the caller's frame). Dispatch kinds against the
-     * SAME pools the emitter reads (idx = pool index); the raw-array walk
-     * below stays for nso==0 blocks only, so nothing is double counted.
-     * Over-reserving is safe; under-reserving is the bug class.
-     * PLATFORM: SHARED — twin in runtime_pipeline_abi.x.
-     */
-    nso = ast_ast_block_num_stmt_order(arena, cur);
-    n = ast_ast_block_num_consts(arena, cur);
-    for (i = 0; i < n; i++) {
-      er = ast_pipeline_block_const_init_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-    }
-    n = ast_ast_block_num_lets(arena, cur);
-    for (i = 0; i < n; i++) {
-      er = ast_pipeline_block_let_init_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-    }
-    n = ast_ast_block_num_expr_stmts(arena, cur);
-    for (i = 0; i < n; i++) {
-      er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-    }
-    fin = ast_ast_block_final_expr_ref(arena, cur);
-    if (fin > 0) {
-      w157_sum_expr_call_spill_bytes(arena, fin);
-    }
-    n = ast_ast_block_num_if_stmts(arena, cur);
-    for (i = 0; i < n; i++) {
-      er = ast_pipeline_block_if_cond_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 8192) {
-        g_w157_walk_stack[sp++] = ch;
-      }
-      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 8192) {
-        g_w157_walk_stack[sp++] = ch;
-      }
-    }
-    n = ast_ast_block_num_loops(arena, cur);
-    for (i = 0; i < n; i++) {
-      er = ast_ast_block_while_cond_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-      ch = pipeline_block_while_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 8192) {
-        g_w157_walk_stack[sp++] = ch;
-      }
-    }
-    n = ast_ast_block_num_for_loops(arena, cur);
-    for (i = 0; i < n; i++) {
-      er = ast_ast_block_for_init_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-      er = ast_ast_block_for_cond_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-      er = ast_ast_block_for_step_ref(arena, cur, i);
-      w157_sum_expr_call_spill_bytes(arena, er);
-      ch = pipeline_block_for_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 8192) {
-        g_w157_walk_stack[sp++] = ch;
-      }
-    }
-    n = ast_ast_block_num_regions(arena, cur);
-    for (i = 0; i < n; i++) {
-      ch = pipeline_block_region_body_ref(arena, cur, i);
-      if (ch > 0 && sp < 8192) {
-        g_w157_walk_stack[sp++] = ch;
-      }
-    }
-    n = pipeline_block_num_labeled_stmts(arena, cur);
-    for (i = 0; i < n; i++) {
-      if (pipeline_block_labeled_is_goto(arena, cur, i) == 0) {
-        er = pipeline_block_labeled_return_expr_ref(arena, cur, i);
-        if (er > 0) {
-          w157_sum_expr_call_spill_bytes(arena, er);
+/*
+ * P12g root fix (2026-09-15): recursive block walker shared by the outer
+ * driver and the EXPR_BLOCK unwrap above. else-if chains become EXPR_IF
+ * exprs whose arms are EXPR_BLOCK-wrapped blocks (parser
+ * if_stmt_parts_to_if_expr); without unwrapping them here the walk loses
+ * every arm body's calls and compute_frame_size under-reserves call-spill
+ * scratch (big functions' spill peaks cross the frame top into the caller).
+ * Depth-capped recursion (stmt_order authority when present; raw arrays
+ * otherwise). PLATFORM: SHARED — twin in runtime_pipeline_abi.x.
+ */
+void w157_walk_block_rec(void *arena, int32_t cur, int32_t depth) {
+  int32_t i, n, ch, er, fin, nso;
+  if (!arena || cur <= 0 || depth <= 0)
+    return;
+  if (g_w157_spill_visits > 32768)
+    return;
+  nso = ast_ast_block_num_stmt_order(arena, cur);
+  if (nso > 0) {
+    for (i = 0; i < nso; i++) {
+      int32_t sok = (int32_t)ast_ast_block_stmt_order_kind(arena, cur, i);
+      int32_t soi = ast_ast_block_stmt_order_idx(arena, cur, i);
+      if (soi < 0)
+        continue;
+      if (sok == 2) {
+        er = ast_pipeline_block_expr_stmt_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+      } else if (sok == 1) {
+        er = ast_pipeline_block_let_init_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+      } else if (sok == 0) {
+        er = ast_pipeline_block_const_init_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+      } else if (sok == 5) {
+        er = ast_pipeline_block_if_cond_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+        ch = ast_pipeline_block_if_then_body_ref(arena, cur, soi);
+        if (ch > 0)
+          w157_walk_block_rec(arena, ch, depth - 1);
+        ch = ast_pipeline_block_if_else_body_ref(arena, cur, soi);
+        if (ch > 0)
+          w157_walk_block_rec(arena, ch, depth - 1);
+      } else if (sok == 3) {
+        er = ast_ast_block_while_cond_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+        ch = pipeline_block_while_body_ref(arena, cur, soi);
+        if (ch > 0)
+          w157_walk_block_rec(arena, ch, depth - 1);
+      } else if (sok == 4) {
+        er = ast_ast_block_for_init_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+        er = ast_ast_block_for_cond_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+        er = ast_ast_block_for_step_ref(arena, cur, soi);
+        w157_sum_expr_call_spill_bytes(arena, er);
+        ch = pipeline_block_for_body_ref(arena, cur, soi);
+        if (ch > 0)
+          w157_walk_block_rec(arena, ch, depth - 1);
+      } else if (sok == 6) {
+        ch = pipeline_block_region_body_ref(arena, cur, soi);
+        if (ch > 0)
+          w157_walk_block_rec(arena, ch, depth - 1);
+      } else if (sok == 7) {
+        if (pipeline_block_labeled_is_goto(arena, cur, soi) == 0) {
+          er = pipeline_block_labeled_return_expr_ref(arena, cur, soi);
+          if (er > 0)
+            w157_sum_expr_call_spill_bytes(arena, er);
         }
       }
     }
+    fin = ast_ast_block_final_expr_ref(arena, cur);
+    if (fin > 0)
+      w157_sum_expr_call_spill_bytes(arena, fin);
+    return;
   }
+  n = ast_ast_block_num_consts(arena, cur);
+  for (i = 0; i < n; i++) {
+    er = ast_pipeline_block_const_init_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+  }
+  n = ast_ast_block_num_lets(arena, cur);
+  for (i = 0; i < n; i++) {
+    er = ast_pipeline_block_let_init_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+  }
+  n = ast_ast_block_num_expr_stmts(arena, cur);
+  for (i = 0; i < n; i++) {
+    er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+  }
+  fin = ast_ast_block_final_expr_ref(arena, cur);
+  if (fin > 0)
+    w157_sum_expr_call_spill_bytes(arena, fin);
+  n = ast_ast_block_num_if_stmts(arena, cur);
+  for (i = 0; i < n; i++) {
+    er = ast_pipeline_block_if_cond_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+    ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+    if (ch > 0)
+      w157_walk_block_rec(arena, ch, depth - 1);
+    ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+    if (ch > 0)
+      w157_walk_block_rec(arena, ch, depth - 1);
+  }
+  n = ast_ast_block_num_loops(arena, cur);
+  for (i = 0; i < n; i++) {
+    er = ast_ast_block_while_cond_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+    ch = pipeline_block_while_body_ref(arena, cur, i);
+    if (ch > 0)
+      w157_walk_block_rec(arena, ch, depth - 1);
+  }
+  n = ast_ast_block_num_for_loops(arena, cur);
+  for (i = 0; i < n; i++) {
+    er = ast_ast_block_for_init_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+    er = ast_ast_block_for_cond_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+    er = ast_ast_block_for_step_ref(arena, cur, i);
+    w157_sum_expr_call_spill_bytes(arena, er);
+    ch = pipeline_block_for_body_ref(arena, cur, i);
+    if (ch > 0)
+      w157_walk_block_rec(arena, ch, depth - 1);
+  }
+  n = ast_ast_block_num_regions(arena, cur);
+  for (i = 0; i < n; i++) {
+    ch = pipeline_block_region_body_ref(arena, cur, i);
+    if (ch > 0)
+      w157_walk_block_rec(arena, ch, depth - 1);
+  }
+  n = pipeline_block_num_labeled_stmts(arena, cur);
+  for (i = 0; i < n; i++) {
+    if (pipeline_block_labeled_is_goto(arena, cur, i) == 0) {
+      er = pipeline_block_labeled_return_expr_ref(arena, cur, i);
+      if (er > 0)
+        w157_sum_expr_call_spill_bytes(arena, er);
+    }
+  }
+}
+
+int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
+  if (!arena || block_ref <= 0)
+    return 0;
+  g_w157_spill_total = 0;
+  g_w157_spill_visits = 0;
+  w157_walk_block_rec(arena, block_ref, 256);
   return g_w157_spill_total;
 }
 /* XLANG_PABI_ASSIGN_THIN_END */
