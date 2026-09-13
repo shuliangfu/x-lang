@@ -3113,7 +3113,15 @@ int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *e
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+  /* P12g DIV root fix: rax+rbx var-slot cache invalidation at the CALL
+   * authority — see backend_enc_dispatch.x twin docblock (call clobbers both;
+   * stale rax belief dropped peek_ident_len's return value so the turbofish
+   * lens recorded 0 -> T001 copy<A>). */
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1)
     return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
   if (ta == 2)

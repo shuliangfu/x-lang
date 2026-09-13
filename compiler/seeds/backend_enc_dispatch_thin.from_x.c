@@ -1814,7 +1814,14 @@ int32_t backend_enc_rbx_index_mul_secondary_arch(uint8_t * elf_ctx, int32_t ta) 
   }
   return (0 - 1);
 }
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_call_arch(uint8_t * elf_ctx, uint8_t * name, int32_t name_len, int32_t ta) {
+  /* P12g DIV root fix: rax+rbx var-slot cache invalidation at the CALL authority
+   * (call clobbers both; stale rax belief dropped peek_ident_len's return value
+   * so the turbofish lens recorded 0 -> T001 copy<A>). See dispatch.x twin. */
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   if ((ta ==1)) {
     {
       return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);

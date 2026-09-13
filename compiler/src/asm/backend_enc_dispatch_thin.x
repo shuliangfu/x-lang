@@ -15,6 +15,8 @@
 export extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
 export extern "C" function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
@@ -2089,6 +2091,12 @@ export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32):
  */
 #[no_mangle]
 export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  // P12g DIV root fix: rax+rbx var-slot cache invalidation at the CALL
+  // authority — see backend_enc_dispatch.x twin docblock (call clobbers both;
+  // stale rax belief dropped peek_ident_len's return value so the turbofish
+  // lens recorded 0 -> T001 copy<A>).
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1) {
     unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
   }

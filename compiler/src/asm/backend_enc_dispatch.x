@@ -471,6 +471,8 @@ export extern "C" function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm
 export extern "C" function arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32;
@@ -1642,6 +1644,15 @@ export function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
 #[no_mangle]
 export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   // See implementation.
+  // P12g DIV root fix (2026-09-14): a CALL clobbers rax AND rbx (and every
+  // volatile); the binop var-slot cache beliefs for both are stale afterwards.
+  // The pure-asm scan's `pl = peek_ident_len(...)` kept a stale rax-belief so
+  // the return value never spilled to pl's home — turbofish lens recorded 0
+  // (T001 'requires type arguments' on copy<A>). Same family as BM5's rbx
+  // invalidation at mov_rax_to_rbx. Invalidate BOTH at the call authority.
+  // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   unsafe {
   if (ta == 1) { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
