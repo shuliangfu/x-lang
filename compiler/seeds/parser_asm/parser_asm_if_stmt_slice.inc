@@ -4,13 +4,15 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block X mega，勿 X emit 本函数体。
  *
- * Hybrid P5b/P5c: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the portable
+ * Hybrid P5b/P5c/P5d: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the portable
  * buf-path region (comment-aware brace skip + kw_at_pos + scan_sync;
- * bodies in src/asm/pthin_ctrl.x + slice trampolines in the seed TU).
- * parse / arena / realign stay here. Contiguous already-T AUDIT_CALL
+ * bodies in src/asm/pthin_ctrl.x + slice trampolines in the seed TU)
+ * and, since P5d, the six-stage realign walk (P9a bridge peek family).
+ * parse / arena stay here (callback into X mega parse_cond_expr /
+ * parse_block; do not X-emit that body). Contiguous already-T AUDIT_CALL
  * padding on parse_if_stmt is compiled only under
  * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
- * define, full twin. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c
+ * define, full twin. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d
  * bodies. Do not wrap leftover else-if AUDIT.
  */
 #ifndef PARSER_ASM_IF_STMT_SLICE_INCLUDED
@@ -62,7 +64,19 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
 /**
  * then/else 块结束后对齐 lex：parse_block 有时落在下一 if 的 `(`，回扫至 TOKEN_IF 或 stmt 关键字。
  * 非 static：供 parse_one_function_impl if 后 onefunc 回扫 glue 调用。
+ * Hybrid P5d: six-stage walk body in pthin_ctrl.x over the P9a bridge
+ * peek family; this trampoline keeps the by-value lexer ABI (language
+ * has no struct-by-value). Null source keeps lex_cur (safe superset).
  */
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+extern int32_t parser_asm_realign_lex_after_if_arm_into_c(void *lex_inout, void *source);
+struct parser_asm_lexer parser_asm_realign_lex_after_if_arm_c(struct parser_asm_lexer lex_cur,
+                                                                     struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer out = lex_cur;
+  parser_asm_realign_lex_after_if_arm_into_c(&out, source);
+  return out;
+}
+#else
 struct parser_asm_lexer parser_asm_realign_lex_after_if_arm_c(struct parser_asm_lexer lex_cur,
                                                                      struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result at_cur = {0};
@@ -209,6 +223,7 @@ struct parser_asm_lexer parser_asm_realign_lex_after_if_arm_c(struct parser_asm_
   }
   return parser_asm_parser_rewind_lex_for_following_stmt_c(lex_cur, peek);
 }
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X realign */
 
 extern int32_t parser_asm_stretch_if_stmt_branch_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_if_stmt_deep_audit_c(void *lex_inout, void *source);

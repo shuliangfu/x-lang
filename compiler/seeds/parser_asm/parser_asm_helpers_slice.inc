@@ -7,6 +7,9 @@
  * kind/copy/pos/match-kw/run_len extra/lex_at_token/rewind/struct_field_name/
  * ident_is_unsafe region (bodies in src/asm/pthin_helpers.x + by-value
  * trampolines in the seed TU). align_lex / parse_block_return_end_tail stay here.
+ * P5d (2026-09-13): lex_at_token_pos_c / ident_is_unsafe_stmt_kind_c /
+ * rewind_following_stmt_kind_c gained cold C twins (#ifndef gate) because
+ * pthin_ctrl.x realign references them cross-lane; cold must not UNDEF.
  * P1d ASI advance_past_* and P1e parse_peek_function_name /
  * first_token_kind twins skip under XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
  * (bodies in pthin_lex_skip.x). first_token_kind_buf AUDIT_CALL padding
@@ -274,12 +277,32 @@ int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
- * ident 是否为语句关键字 unsafe。
- * Hybrid P19d: body in pthin_helpers.x (kind + 6-byte probe). Do not merge into P4b.
+ * ident 是否为语句关键字 unsafe（标量体）。
+ * Hybrid P19d: body authority in pthin_helpers.x. Do not merge into P4b.
+ * P5d (2026-09-13): pthin_ctrl.x realign references this symbol cross-lane,
+ * so the cold twin must define it too (same #ifndef/#else-extern gate as
+ * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
-#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
+                                               size_t next_pos, uint8_t *data, size_t length) {
+  size_t start;
+  if (!data || kind != (int32_t)TOKEN_IDENT || ident_len != 6)
+    return 0;
+  start = token_start;
+  if (start == 0)
+    start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+  if (start + 6 > length)
+    return 0;
+  return data[start] == (uint8_t)'u' && data[start + 1] == (uint8_t)'n' &&
+         data[start + 2] == (uint8_t)'s' && data[start + 3] == (uint8_t)'a' &&
+         data[start + 4] == (uint8_t)'f' && data[start + 5] == (uint8_t)'e';
+}
+#else
 extern int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
                                                       size_t next_pos, uint8_t *data, size_t length);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X ident_is_unsafe kind */
+
 int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r,
                                                 struct parser_asm_slice_u8 *source) {
   if (!source)
@@ -287,22 +310,6 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
   return parser_asm_ident_is_unsafe_stmt_kind_c(r.tok.kind, r.tok.ident_len, r.token_start, r.next_lex.pos,
                                                source->data, source->length);
 }
-#else
-int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r,
-                                                struct parser_asm_slice_u8 *source) {
-  size_t start;
-  if (!source || !source->data || r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len != 6)
-    return 0;
-  start = r.token_start;
-  if (start == 0)
-    start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, r.tok.ident_len);
-  if (start + 6 > source->length)
-    return 0;
-  return source->data[start] == (uint8_t)'u' && source->data[start + 1] == (uint8_t)'n' &&
-         source->data[start + 2] == (uint8_t)'s' && source->data[start + 3] == (uint8_t)'a' &&
-         source->data[start + 4] == (uint8_t)'f' && source->data[start + 5] == (uint8_t)'e';
-}
-#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X ident_is_unsafe */
 
 /**
  * lex_at_token_from_result 内部：从 LexerResult 构造指向当前 token 起点的 Lexer。
@@ -319,43 +326,49 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
  * Fix: for TOKEN_STRING, back up one byte from content token_start to the `"`.
  * tok.line/col already name the opening quote (lexer line0/col0).
  */
-#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+/**
+ * lex_at_token_from_result 的标量 pos 体（token_start 优先；STRING 回退开引号；
+ * 0 时按 next_pos 回推 run）。
+ * Hybrid P19c: body authority in pthin_helpers.x.
+ * P5d (2026-09-13): pthin_ctrl.x realign references this symbol cross-lane,
+ * so the cold twin must define it too (same #ifndef/#else-extern gate as
+ * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
+ */
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos) {
+  struct parser_asm_token t;
+  int32_t span;
+  if (token_start == 0) {
+    if (kind == (int32_t)TOKEN_STRING) {
+      span = ident_len + 2;
+      if (span < 2)
+        span = 2;
+      return parser_asm_lexer_pos_before_run_c(next_pos, span);
+    }
+    if (kind == (int32_t)TOKEN_IDENT && ident_len > 0)
+      return parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+    memset(&t, 0, sizeof(t));
+    t.kind = kind;
+    t.ident_len = ident_len;
+    return parser_asm_lexer_pos_before_run_c(next_pos, parser_asm_lexer_token_run_len_c(t));
+  }
+  if (kind == (int32_t)TOKEN_STRING)
+    return token_start - (size_t)1;
+  return token_start;
+}
+#else
 extern size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X lex_at_token pos */
+
 static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct parser_asm_lexer_result r) {
   struct parser_asm_lexer lex;
-  /* PLATFORM: SHARED — P19c trampoline. .x owns pos; line/col stay here
+  /* PLATFORM: SHARED — P19c. .x owns pos in hybrid; line/col stay here
    * (language has no struct-by-value lexer). */
   lex.pos = parser_asm_lex_at_token_pos_c(r.tok.kind, r.token_start, r.tok.ident_len, r.next_lex.pos);
   lex.line = r.tok.line;
   lex.col = r.tok.col;
   return lex;
 }
-#else
-static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct parser_asm_lexer_result r) {
-  struct parser_asm_lexer lex;
-  size_t p;
-  p = r.token_start;
-  if (p == 0) {
-    if (r.tok.kind == (int32_t)TOKEN_STRING) {
-      /* content len + opening + closing quotes; next_lex is past closer. */
-      int32_t run = r.tok.ident_len + 2;
-      if (run < 2)
-        run = 2;
-      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, run);
-    } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0)
-      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, r.tok.ident_len);
-    else
-      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, parser_asm_lexer_token_run_len_c(r.tok));
-  } else if (r.tok.kind == (int32_t)TOKEN_STRING) {
-    /* token_start = first content byte; re-lex needs the opening quote. */
-    p = p - (size_t)1;
-  }
-  lex.pos = p;
-  lex.line = r.tok.line;
-  lex.col = r.tok.col;
-  return lex;
-}
-#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X lex_at_token */
 
 /**
  * lex_at_token_from_result：供 parse_expr / stmt 从 r.tok 重读（按值返回 Lexer）。
@@ -368,25 +381,25 @@ struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_
  * parser_rewind_lex_for_following_stmt：let/if 初值后若后继为 stmt 关键字则回绕 lex。
  * Hybrid P19c: kind predicate in pthin_helpers.x; this trampoline keeps
  * the by-value lexer ABI.
+ * P5d (2026-09-13): pthin_ctrl.x realign references this symbol cross-lane,
+ * so the cold twin must define it too (same #ifndef/#else-extern gate as
+ * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
-#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_RETURN || kind == (int32_t)TOKEN_IF || kind == (int32_t)TOKEN_WHILE ||
+         kind == (int32_t)TOKEN_FOR || kind == (int32_t)TOKEN_MATCH || kind == (int32_t)TOKEN_RBRACE;
+}
+#else
 extern int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X rewind kind */
+
 struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct parser_asm_lexer lex_in,
                                                                           struct parser_asm_lexer_result r) {
   if (parser_asm_rewind_following_stmt_kind_c(r.tok.kind) != 0)
     return parser_asm_lex_at_token_from_result_inner(r);
   return lex_in;
 }
-#else
-struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct parser_asm_lexer lex_in,
-                                                                          struct parser_asm_lexer_result r) {
-  if (r.tok.kind == (int32_t)TOKEN_RETURN || r.tok.kind == (int32_t)TOKEN_IF ||
-      r.tok.kind == (int32_t)TOKEN_WHILE || r.tok.kind == (int32_t)TOKEN_FOR ||
-      r.tok.kind == (int32_t)TOKEN_MATCH || r.tok.kind == (int32_t)TOKEN_RBRACE)
-    return parser_asm_lex_at_token_from_result_inner(r);
-  return lex_in;
-}
-#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X rewind */
 
 /**
  * parse_block return 语句尾：r 已在 RBRACE 时置 *block_break=1 结束块循环（勿 lexer_next 吞 sibling if）；

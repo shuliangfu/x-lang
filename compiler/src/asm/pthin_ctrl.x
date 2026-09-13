@@ -30,7 +30,7 @@
 // so the .x export is pos-only (usize). C trampoline rebuilds the
 // lexer (same line/col, new pos). else-if recursion becomes a loop
 // (same fail-leave: a nested miss returns the nested `if` pos).
-// parse_if_stmt / arena / realign / match / if_expr stay C.
+// parse_if_stmt / arena / match / if_expr stay C.
 // sync_lex_after_if_cond_paren stays C (dead after wave650 inclusive
 // parens; do not port). Do not wrap leftover else-if AUDIT. Do not
 // wrap skip_one_trait/impl. Do not duplicate P1b token skip_balanced.
@@ -38,14 +38,57 @@
 // general C-callable export; scan_sync uses file-local if/else
 // probes (language has no address-of for a kw literal).
 //
-// Hybrid P5b/P5c: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
-// skips the portable .inc region. No lexer-step bridge (buf-path only).
-// Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for
-// P5b/P5c bodies.
+// 7.2.1 P5d B-minus (2026-09-13): 有则补全 this file with
+// realign_lex_after_if_arm. All six C stages (entry stmt-kw gate,
+// LPAREN backscan for `if`, peek re-gate, IDENT "return" backtrace,
+// back_kw keyword scan, 512B depth-0 forward keyword scan, rewind
+// fallback) live here over the P9a lexer-step bridge peek family.
+// Cursor semantics preserved exactly: gate reject keeps the entry
+// cursor value; every success writes lex_at_token(token) (P19c pos
+// authority + tok.line/col) except the "return" backtrace which
+// writes ident_start-7 with the peeked token's line/col. The
+// backscan positions round-trip through i32 exactly like the C twin
+// (`lex_b.pos = (int32_t)pos_before_run(...)`). P19 scalars
+// (pos_before_run / lex_at_token_pos / ident_is_unsafe_kind /
+// rewind_kind) resolve from pthin_helpers.x in hybrid and from the
+// P19 cold C twins otherwise. parse_if_stmt / arena / match /
+// if_expr stay C. Do not open a new P-lane.
+//
+// Hybrid P5b/P5c/P5d: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// skips the portable .inc region. Requires the P9a lexer-step bridge
+// (P5d peeks; otherwise those would UNDEF — g05 gates this lane on
+// p9a ok). Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
+// for P5b/P5c/P5d bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
 export extern "C" function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize, pos: usize): usize;
+
+/* P9a lexer-step bridge (parser_asm_lex_step_bridge.from_x.c): peek family
+ * + cursor trio get/set + source accessors. Pure peeks re-lex the same
+ * token each call (no hidden state); the realign stages below chain them
+ * exactly like the C twin chained lexer_next_into results. */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_next_pos_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+
+/* P19 scalar authorities (pthin_helpers.x in hybrid; cold C twins in the
+ * P19 seed region — see parser_asm_helpers_slice.inc P5d note). */
+export extern "C" function parser_asm_lexer_pos_before_run_c(end_pos: usize, run_len: i32): usize;
+export extern "C" function parser_asm_lex_at_token_pos_c(kind: i32, token_start: usize, ident_len: i32, next_pos: usize): usize;
+export extern "C" function parser_asm_ident_is_unsafe_stmt_kind_c(kind: i32, ident_len: i32, token_start: usize, next_pos: usize, data: *u8, length: usize): i32;
+export extern "C" function parser_asm_rewind_following_stmt_kind_c(kind: i32): i32;
 
 /**
  * True when `c` continues an identifier (`[A-Za-z0-9_]`).
@@ -67,6 +110,20 @@ function parser_asm_ctrl_ident_continue(c: u8): i32 {
   }
   return 0;
 }
+
+// TOKEN_* pin copies of include/token.h (133 kinds). P5 C _Static_assert
+// pins in seeds/pthin_ctrl.from_x.c fire if these drift; do not treat the
+// copies as a second enum authority.
+const TOKEN_LET: i32 = 2;
+const TOKEN_CONST: i32 = 3;
+const TOKEN_IF: i32 = 4;
+const TOKEN_WHILE: i32 = 6;
+const TOKEN_FOR: i32 = 8;
+const TOKEN_RETURN: i32 = 11;
+const TOKEN_MATCH: i32 = 18;
+const TOKEN_IDENT: i32 = 59;
+const TOKEN_LPAREN: i32 = 82;
+const TOKEN_RBRACE: i32 = 85;
 
 /**
  * Compare `klen` bytes at `data[i..]` with `kw[0..klen)`.
@@ -566,4 +623,452 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     return i;
   }
   return cur;
+}
+
+/**
+ * Stage 1/3 predicate: the peeked token directly names a statement head
+ * (or `}`), so the cursor must stay ON it (the C twin's first gate list).
+ * @param kind i32 — peeked token kind
+ * @return i32 — 1 for RETURN/IF/WHILE/FOR/MATCH/RBRACE/LET/CONST
+ */
+function parser_asm_ctrl_realign_stmt_kw(kind: i32): i32 {
+  if (kind == TOKEN_RETURN || kind == TOKEN_IF || kind == TOKEN_WHILE || kind == TOKEN_FOR ||
+      kind == TOKEN_MATCH || kind == TOKEN_RBRACE || kind == TOKEN_LET || kind == TOKEN_CONST) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Stage 5 predicate: backscan accept set — the stage 1 list minus RBRACE
+ * (a stray `}` behind the cursor is not a statement head to rewind to).
+ * @param kind i32 — peeked token kind at a backscan offset
+ * @return i32 — 1 for RETURN/IF/WHILE/FOR/MATCH/LET/CONST
+ */
+function parser_asm_ctrl_realign_back_kw(kind: i32): i32 {
+  if (kind == TOKEN_RETURN || kind == TOKEN_IF || kind == TOKEN_WHILE || kind == TOKEN_FOR ||
+      kind == TOKEN_MATCH || kind == TOKEN_LET || kind == TOKEN_CONST) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Write the cursor for the token the lexer currently points at, using the
+ * P19c pos authority (token_start first, STRING quote backup, run-length
+ * fallback) plus the peeked token's own line/col — the .x equivalent of
+ * the C twin's `lex_at_token_from_result_c(r)`. Peeks are pure, so the
+ * five reads below all observe the same token.
+ * @param lex_inout *u8 — cursor; must already sit where the token was
+ *   materialized FROM (its pos is the pre-token cursor)
+ * @param source *u8 — opaque slice
+ * @param kind i32 — the peeked token kind (caller cached it)
+ * @return void
+ */
+function parser_asm_ctrl_realign_finish_peek(lex_inout: *u8, source: *u8, kind: i32): void {
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let np: usize = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  unsafe {
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    parser_asm_lex_set_pos_c(lex_inout, parser_asm_lex_at_token_pos_c(kind, ts, il, np));
+    parser_asm_lex_set_line_c(lex_inout, tl);
+    parser_asm_lex_set_col_c(lex_inout, tc);
+  }
+}
+
+/**
+ * Stage 6 keyword spell length by table id (0..7).
+ * 0=return 1=let 2=const 3=if 4=while 5=for 6=match 7=unsafe.
+ * @param kw_id i32 — table id
+ * @return i32 — keyword byte length
+ */
+function parser_asm_ctrl_realign_scan_kw_len(kw_id: i32): i32 {
+  if (kw_id == 0) {
+    return 6;
+  }
+  if (kw_id == 1) {
+    return 3;
+  }
+  if (kw_id == 2) {
+    return 5;
+  }
+  if (kw_id == 3) {
+    return 2;
+  }
+  if (kw_id == 4) {
+    return 5;
+  }
+  if (kw_id == 5) {
+    return 3;
+  }
+  if (kw_id == 6) {
+    return 5;
+  }
+  if (kw_id == 7) {
+    return 6;
+  }
+  return 0;
+}
+
+/**
+ * Stage 6 keyword spelling compare at data[scan] by table id. Caller has
+ * already bounded scan+klen inside the scan window. Language has no
+ * address-of for a kw literal, so each id is an explicit byte chain
+ * (same style as parser_asm_ctrl_kw_if_at).
+ * @param data *u8 — source bytes (non-null; caller checked)
+ * @param scan usize — first keyword byte
+ * @param kw_id i32 — table id (0..7)
+ * @return i32 — 1 if every byte matches
+ */
+function parser_asm_ctrl_realign_scan_kw_bytes_at(data: *u8, scan: usize, kw_id: i32): i32 {
+  unsafe {
+    if (kw_id == 0) {
+      if (data[scan] == 114 && data[scan + 1] == 101 && data[scan + 2] == 116 &&
+          data[scan + 3] == 117 && data[scan + 4] == 114 && data[scan + 5] == 110) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 1) {
+      if (data[scan] == 108 && data[scan + 1] == 101 && data[scan + 2] == 116) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 2) {
+      if (data[scan] == 99 && data[scan + 1] == 111 && data[scan + 2] == 110 &&
+          data[scan + 3] == 115 && data[scan + 4] == 116) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 3) {
+      if (data[scan] == 105 && data[scan + 1] == 102) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 4) {
+      if (data[scan] == 119 && data[scan + 1] == 104 && data[scan + 2] == 105 &&
+          data[scan + 3] == 108 && data[scan + 4] == 101) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 5) {
+      if (data[scan] == 102 && data[scan + 1] == 111 && data[scan + 2] == 114) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 6) {
+      if (data[scan] == 109 && data[scan + 1] == 97 && data[scan + 2] == 116 &&
+          data[scan + 3] == 99 && data[scan + 4] == 104) {
+        return 1;
+      }
+      return 0;
+    }
+    if (kw_id == 7) {
+      if (data[scan] == 117 && data[scan + 1] == 110 && data[scan + 2] == 115 &&
+          data[scan + 3] == 97 && data[scan + 4] == 102 && data[scan + 5] == 101) {
+        return 1;
+      }
+      return 0;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Stage 6 expected token kind by table id (`unsafe` re-lexes as IDENT,
+ * matching the C table's stmt_kws[].tok).
+ * @param kw_id i32 — table id (0..7)
+ * @return i32 — expected kind after the verify re-lex
+ */
+function parser_asm_ctrl_realign_scan_kw_kind(kw_id: i32): i32 {
+  if (kw_id == 0) {
+    return TOKEN_RETURN;
+  }
+  if (kw_id == 1) {
+    return TOKEN_LET;
+  }
+  if (kw_id == 2) {
+    return TOKEN_CONST;
+  }
+  if (kw_id == 3) {
+    return TOKEN_IF;
+  }
+  if (kw_id == 4) {
+    return TOKEN_WHILE;
+  }
+  if (kw_id == 5) {
+    return TOKEN_FOR;
+  }
+  if (kw_id == 6) {
+    return TOKEN_MATCH;
+  }
+  if (kw_id == 7) {
+    return TOKEN_IDENT;
+  }
+  return 0;
+}
+
+/**
+ * Stage 6 one-keyword pre-verify check at `scan`: window bounds, spelling,
+ * previous-byte identifier boundary, and next-byte separator (space/tab/
+ * CR/LF/`(`/`;`/`{`; when the keyword ends at EOF the separator check is
+ * skipped, same as the C twin). Full-source length (not the 512B window)
+ * gates the next-byte read, exactly like the C `scan + klen < length`.
+ * @param data *u8 — source bytes (non-null; caller checked)
+ * @param len usize — full source length
+ * @param scan usize — candidate keyword start
+ * @param scan_end usize — 512B window end (clamped to len)
+ * @param kw_id i32 — table id (0..7)
+ * @return i32 — 1 if the byte-level checks pass (caller then re-lexes)
+ */
+function parser_asm_ctrl_realign_scan_kw_at(data: *u8, len: usize, scan: usize, scan_end: usize, kw_id: i32): i32 {
+  let klen: usize = 0;
+  let prev: u8 = 0;
+  let nx: u8 = 0;
+  klen = parser_asm_ctrl_realign_scan_kw_len(kw_id) as usize;
+  if (scan + klen > scan_end) {
+    return 0;
+  }
+  if (parser_asm_ctrl_realign_scan_kw_bytes_at(data, scan, kw_id) == 0) {
+    return 0;
+  }
+  if (scan > 0) {
+    unsafe {
+      prev = data[scan - 1];
+    }
+    if (parser_asm_ctrl_ident_continue(prev) != 0) {
+      return 0;
+    }
+  }
+  if (scan + klen < len) {
+    unsafe {
+      nx = data[scan + klen];
+    }
+    if (nx != 32 && nx != 9 && nx != 10 && nx != 13 && nx != 40 && nx != 59 && nx != 123) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Realign the cursor after a then/else block: parse_block sometimes lands
+ * on the next if's `(`; backscan to TOKEN_IF or a statement keyword.
+ * Faithful .x port of parser_asm_realign_lex_after_if_arm_c (six stages,
+ * same order, same fail-leave): entry stmt-kw gate → LPAREN backscan for
+ * `if` (2..128) → peek re-gate (same token as the entry gate, so the
+ * cached check subsumes the C twin's second pass) → IDENT "return"
+ * backtrace (7-byte backprobe + separator) → back_kw keyword scan
+ * (2..160, no RBRACE) → 512B depth-0 forward keyword scan with re-lex
+ * verify → rewind_following_stmt fallback. Backscan positions round-trip
+ * through i32 exactly like the C twin (`(int32_t)pos_before_run(...)`).
+ * Null lex/source returns 0 with the cursor untouched (a safe superset:
+ * the C twin would dereference).
+ * @param lex_inout *u8 — cursor; IN holds lex_cur, OUT holds the aligned
+ *   lexer (pos/line/col written through the bridge trio setters)
+ * @param source *u8 — opaque slice
+ * @return i32 — 1 when the cursor was written (including the unchanged
+ *   fallback), 0 on null inputs
+ * PLATFORM: SHARED — product P5d B-minus; the by-value C name
+ * `parser_asm_realign_lex_after_if_arm_c` stays on the .inc trampoline.
+ */
+#[no_mangle]
+export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, source: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let p_kind: i32 = 0;
+  let p_il: i32 = 0;
+  let p_ts: usize = 0;
+  let p_np: usize = 0;
+  let p_tl: i32 = 0;
+  let p_tc: i32 = 0;
+  let back: i32 = 0;
+  let pb: i32 = 0;
+  let k: i32 = 0;
+  let ident_start: usize = 0;
+  let sep: u8 = 0;
+  let scan: usize = 0;
+  let scan_end: usize = 0;
+  let depth: i32 = 0;
+  let ch: u8 = 0;
+  let kw_id: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    data = parser_asm_lex_source_data_c(source);
+    len = parser_asm_lex_source_length_c(source);
+    p_kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    p_il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    p_ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    p_np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+    p_tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    p_tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+  }
+  /* Stage 1: cursor already on a statement keyword (or `}` / `unsafe`). */
+  unsafe {
+    if (parser_asm_ctrl_realign_stmt_kw(p_kind) != 0 ||
+        parser_asm_ident_is_unsafe_stmt_kind_c(p_kind, p_il, p_ts, p_np, data, len) != 0) {
+      parser_asm_ctrl_realign_finish_peek(lex_inout, source, p_kind);
+      return 1;
+    }
+  }
+  /* Stage 2: on `(` — backscan (2..128) for the owning `if`. */
+  if (p_kind == TOKEN_LPAREN) {
+    back = 2;
+    while (back <= 128) {
+      unsafe {
+        pb = parser_asm_lexer_pos_before_run_c(pos0, back) as i32;
+        parser_asm_lex_set_pos_c(lex_inout, pb as usize);
+        parser_asm_lex_set_line_c(lex_inout, p_tl);
+        parser_asm_lex_set_col_c(lex_inout, p_tc);
+        if (parser_asm_lex_peek_kind_c(lex_inout, source) == TOKEN_IF) {
+          parser_asm_ctrl_realign_finish_peek(lex_inout, source, TOKEN_IF);
+          return 1;
+        }
+      }
+      back = back + 1;
+    }
+    unsafe {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+    }
+  }
+  /* Stage 3 re-checks the SAME peeked token with the SAME predicate as
+   * stage 1 (peek = at_cur in the C twin), so the cached verdict above
+   * already decided it — no second pass needed. */
+  /* Stage 4: expr-head IDENT with a `return ` seven bytes behind it. */
+  if (p_kind == TOKEN_IDENT) {
+    ident_start = p_ts;
+    if (ident_start == 0 && p_il > 0) {
+      unsafe {
+        ident_start = parser_asm_lexer_pos_before_run_c(p_np, p_il);
+      }
+    }
+    if (ident_start >= 7 && data != 0 as *u8) {
+      unsafe {
+        if (data[ident_start - 7] == 114 && data[ident_start - 6] == 101 && data[ident_start - 5] == 116 &&
+            data[ident_start - 4] == 117 && data[ident_start - 3] == 114 && data[ident_start - 2] == 110) {
+          sep = data[ident_start - 1];
+          if (sep == 32 || sep == 9 || sep == 10 || sep == 13) {
+            parser_asm_lex_set_pos_c(lex_inout, ident_start - 7);
+            parser_asm_lex_set_line_c(lex_inout, p_tl);
+            parser_asm_lex_set_col_c(lex_inout, p_tc);
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  /* Stage 5: backscan (2..160) to a statement keyword (no RBRACE). */
+  back = 2;
+  while (back <= 160) {
+    unsafe {
+      pb = parser_asm_lexer_pos_before_run_c(pos0, back) as i32;
+      parser_asm_lex_set_pos_c(lex_inout, pb as usize);
+      parser_asm_lex_set_line_c(lex_inout, p_tl);
+      parser_asm_lex_set_col_c(lex_inout, p_tc);
+      k = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (parser_asm_ctrl_realign_back_kw(k) != 0) {
+        parser_asm_ctrl_realign_finish_peek(lex_inout, source, k);
+        return 1;
+      }
+      if (k == TOKEN_IDENT) {
+        if (parser_asm_ident_is_unsafe_stmt_kind_c(k, parser_asm_lex_peek_ident_len_c(lex_inout, source),
+                                                   parser_asm_lex_peek_token_start_c(lex_inout, source),
+                                                   parser_asm_lex_peek_next_pos_c(lex_inout, source), data, len) != 0) {
+          parser_asm_ctrl_realign_finish_peek(lex_inout, source, k);
+          return 1;
+        }
+      }
+    }
+    back = back + 1;
+  }
+  unsafe {
+    parser_asm_lex_set_pos_c(lex_inout, pos0);
+    parser_asm_lex_set_line_c(lex_inout, line0);
+    parser_asm_lex_set_col_c(lex_inout, col0);
+  }
+  /* Stage 6: forward scan (≤512B, paren/brace depth 0) for a statement
+   * keyword, verified by a re-lex from the scan offset. */
+  if (data != 0 as *u8) {
+    scan = pos0;
+    scan_end = scan + 512;
+    if (scan_end > len) {
+      scan_end = len;
+    }
+    depth = 0;
+    while (scan + 2 < scan_end) {
+      unsafe {
+        ch = data[scan];
+      }
+      if (ch == 40) {
+        depth = depth + 1;
+      } else {
+        if (ch == 41 && depth > 0) {
+          depth = depth - 1;
+        } else {
+          if (ch == 123) {
+            depth = depth + 1;
+          } else {
+            if (ch == 125 && depth > 0) {
+              depth = depth - 1;
+            }
+          }
+        }
+      }
+      if (depth == 0) {
+        kw_id = 0;
+        while (kw_id <= 7) {
+          if (parser_asm_ctrl_realign_scan_kw_at(data, len, scan, scan_end, kw_id) != 0) {
+            unsafe {
+              parser_asm_lex_set_pos_c(lex_inout, scan);
+              parser_asm_lex_set_line_c(lex_inout, line0);
+              parser_asm_lex_set_col_c(lex_inout, col0);
+              k = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (k == parser_asm_ctrl_realign_scan_kw_kind(kw_id)) {
+                parser_asm_ctrl_realign_finish_peek(lex_inout, source, k);
+                return 1;
+              }
+              parser_asm_lex_set_pos_c(lex_inout, pos0);
+              parser_asm_lex_set_line_c(lex_inout, line0);
+              parser_asm_lex_set_col_c(lex_inout, col0);
+            }
+          }
+          kw_id = kw_id + 1;
+        }
+      }
+      scan = scan + 1;
+    }
+  }
+  /* Fallback: rewind when the peeked token itself is a following-stmt head. */
+  unsafe {
+    if (parser_asm_rewind_following_stmt_kind_c(p_kind) != 0) {
+      parser_asm_ctrl_realign_finish_peek(lex_inout, source, p_kind);
+    } else {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+    }
+  }
+  return 1;
 }

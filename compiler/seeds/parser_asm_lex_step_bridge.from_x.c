@@ -1,12 +1,13 @@
 /* seeds/parser_asm_lex_step_bridge.from_x.c — 7.2.1 B-minus lexer-step bridge
  *
- * Minimal C bridge (~80 lines, one-time, never grows) that lets .x carry all
- * suite audit-probe logic. Every audit function's struct dependency funnels
- * through lexer_next_into (246 call sites in the 28k suite slice); these
- * externs encapsulate that single primitive + the few scalar field reads,
+ * Minimal C bridge (one per .x port lane, never duplicated) that lets .x
+ * carry all walk logic. Every port's struct dependency funnels through
+ * lexer_next_into; these externs encapsulate that single primitive plus
+ * the scalar field peeks (kind / ident_len / token_start / int_val /
+ * ident_ptr / tok.line / tok.col / next_pos — P5d completed the family),
  * so .x never sees struct lexer_result / lexer / token.
  *
- * Authority: the .x callers (src/asm/pthin_*.x) own the audit logic; this
+ * Authority: the .x callers (src/asm/pthin_*.x) own the walk logic; this
  * bridge owns only the lexer step and field peeks. G.7: single bridge face,
  * no second lexer implementation.
  * PLATFORM: SHARED freestanding.
@@ -234,6 +235,58 @@ size_t parser_asm_lex_peek_token_start_c(void *lex, void *source) {
     return 0;
   lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
   return r.token_start;
+}
+
+/**
+ * Peek the NEXT token's own line (tok.line, not the cursor's). P5d realign
+ * seeds backscan cursors and materializes lex_at_token results from the
+ * token's line/col; the cursor getters would be off by the whitespace the
+ * lexer skipped. Completes the peek family scalar reads.
+ * @param lex *u8 — opaque struct parser_asm_lexer* (read-only)
+ * @param source *u8 — opaque struct parser_asm_slice_u8*
+ * @return i32 — next token's tok.line (0 on null args)
+ * PLATFORM: SHARED — peek-family completion; not a second lexer.
+ */
+int32_t parser_asm_lex_peek_tok_line_c(void *lex, void *source) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source)
+    return 0;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  return r.tok.line;
+}
+
+/**
+ * Peek the NEXT token's own col (tok.col; see peek_tok_line_c for why the
+ * cursor's col is not the token's). Completes the peek family scalar reads.
+ * @param lex *u8 — opaque struct parser_asm_lexer* (read-only)
+ * @param source *u8 — opaque struct parser_asm_slice_u8*
+ * @return i32 — next token's tok.col (0 on null args)
+ * PLATFORM: SHARED — peek-family completion; not a second lexer.
+ */
+int32_t parser_asm_lex_peek_tok_col_c(void *lex, void *source) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source)
+    return 0;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  return r.tok.col;
+}
+
+/**
+ * Peek the cursor position AFTER the next token (r.next_lex.pos) without
+ * advancing the caller's lexer. lex_at_token's pos reconstruct (P19c) needs
+ * it when token_start is 0; ident_is_unsafe (P19d) needs it for the same
+ * fallback. Completes the peek family scalar reads.
+ * @param lex *u8 — opaque struct parser_asm_lexer* (read-only)
+ * @param source *u8 — opaque struct parser_asm_slice_u8*
+ * @return usize — next_lex.pos after the peeked token (0 on null args)
+ * PLATFORM: SHARED — peek-family completion; not a second lexer.
+ */
+size_t parser_asm_lex_peek_next_pos_c(void *lex, void *source) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source)
+    return 0;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  return r.next_lex.pos;
 }
 
 /* --- in-place adapters over the suite skip helpers (7.2.1 B-minus wave 3) ---

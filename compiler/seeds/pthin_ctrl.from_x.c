@@ -4,11 +4,12 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b/P5c (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
- * comment-aware brace skip + kw_at_pos + scan_sync pos come from
- * pthin_ctrl.x; this TU keeps the slice trampolines plus parse /
- * realign / match / if_expr. Cold: no BODIES define, full .inc. Do
- * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c bodies.
+ * Hybrid P5b/P5c/P5d (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * comment-aware brace skip + kw_at_pos + scan_sync pos plus the P5d
+ * six-stage realign walk come from pthin_ctrl.x (realign over the P9a
+ * bridge peek family); this TU keeps the slice trampolines plus parse /
+ * match / if_expr. Cold: no BODIES define, full .inc. Do
+ * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -19,6 +20,20 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P5d B-minus (2026-09-13).
+ * pthin_ctrl.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_LET == 2, "ctrl.x TOKEN_LET pin");
+_Static_assert((int)TOKEN_CONST == 3, "ctrl.x TOKEN_CONST pin");
+_Static_assert((int)TOKEN_IF == 4, "ctrl.x TOKEN_IF pin");
+_Static_assert((int)TOKEN_WHILE == 6, "ctrl.x TOKEN_WHILE pin");
+_Static_assert((int)TOKEN_FOR == 8, "ctrl.x TOKEN_FOR pin");
+_Static_assert((int)TOKEN_RETURN == 11, "ctrl.x TOKEN_RETURN pin");
+_Static_assert((int)TOKEN_MATCH == 18, "ctrl.x TOKEN_MATCH pin");
+_Static_assert((int)TOKEN_IDENT == 59, "ctrl.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "ctrl.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "ctrl.x TOKEN_RBRACE pin");
 
 struct parser_asm_token {
   int32_t kind;
