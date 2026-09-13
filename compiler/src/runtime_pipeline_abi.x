@@ -97457,7 +97457,12 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (848 as usize), 140, ic) == 0) {
+      /* Cap 4.2.8 missed mirror (live thin authority): W281_RegionEntry is
+       * 268 (label[256]) — the stale 140 stride made entry N+1's 268-byte
+       * write overlap entry N's tail, smashing body_ref/with_arena_cap_ref
+       * (offsets 260/264) with label bytes: consecutive unsafe/region
+       * statements lost all but the last (2026-09-13 L4 forensics m5/m9). */
+      if (grow_vec_init(sc2 + (848 as usize), 268, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -97465,7 +97470,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (912 as usize), 272, ic) == 0) {
+      if (grow_vec_init(sc2 + (912 as usize), 528, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }

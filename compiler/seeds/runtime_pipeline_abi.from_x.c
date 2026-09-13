@@ -55885,7 +55885,8 @@ void *onefunc_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)4, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)128, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8: name rows 128→256 (content ≤255; was [128]). */
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)256, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)4, W275_GV_INIT_CAP)) {
@@ -55900,7 +55901,7 @@ void *onefunc_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)4, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)128, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)256, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)4, W275_GV_INIT_CAP)) {
@@ -55942,7 +55943,7 @@ void *onefunc_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 688), (size_t)4, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)128, W275_GV_INIT_CAP)) {
+      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)256, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 752), (size_t)4, W275_GV_INIT_CAP)) {
@@ -55954,13 +55955,19 @@ void *onefunc_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 816), (size_t)4, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 848), (size_t)140, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8 missed mirror: W281_RegionEntry is 268 (label[256]); the
+       * stale 140 stride made entry N+1's 268-byte write overlap entry N's
+       * tail — body_ref/with_arena_cap_ref (offsets 260/264) were smashed by
+       * label bytes, so consecutive unsafe/region statements lost all but
+       * the last (2026-09-13 L4 m5/m6/m9 forensics). */
+      if (!grow_vec_init((GrowVec *)(sc + 848), (size_t)268, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 880), (size_t)4, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 912), (size_t)272, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8: W281_LabeledEntry 272→528 (label[256] + goto_target[256]). */
+      if (!grow_vec_init((GrowVec *)(sc + 912), (size_t)528, W275_GV_INIT_CAP)) {
         onefunc_sidecar_free_inner(sc); return NULL;
       }
       w275_onefunc_mru_remember(key, sc);
