@@ -1218,7 +1218,10 @@ int32_t glue_struct_lit_field_index_by_name_impl(struct ast_ASTArena *arena, int
                                                    int32_t fnlen) {
   int32_t nf;
   int32_t j;
-  uint8_t sb[128];
+  /* Cap 4.2.8 sync (.x twin is u8[256]): struct_lit_field_name_into
+   * zero-pads 256 bytes — a [128] row here smashed the canary
+   * (2026-09-13 L4 run-struct struct_mk_field_inline ec=6). */
+  uint8_t sb[256];
   int32_t slen;
   int32_t k;
   nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
