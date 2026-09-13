@@ -511,7 +511,11 @@ export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i3
     let vlen: i32 = pipeline_expr_var_name_len(arena, er);
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
-    let pbuf: u8[128] = [];
+    /* Cap 4.2.8 sync: copy32 zero-pads 256 bytes (seed twin is [256]);
+     * a [128] row here overflowed 128B into the saved rbp/rbx/retaddr —
+     * Ubuntu b5 `return { a: a, b: b }` SIGSEGV (2026-09-13 watchpoint
+     * proof: memcpy in pipeline_module_func_param_name_copy32). */
+    let pbuf: u8[256] = [];
     let vbuf: u8[256] = [];
     pipeline_asm_module_func_param_name_copy32(mod, fi, pix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, er, &vbuf[0]);
@@ -1203,7 +1207,9 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
     }
     // TYPE_NAMED=8
     if (kind != 8) { return 0 - 1; }
-    let struct_name: u8[128] = [];
+    /* Cap 4.2.8: named type names are ≤255 bytes; [128] overflows for
+     * names 128..255 (same class as the pbuf fix above). */
+    let struct_name: u8[256] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, base_ty, &struct_name[0]);
     if (pctx != 0) {
       let off2: i32 = typeck_get_field_offset_from_layout_deps(mod, pctx, &struct_name[0], nlen, &field_name[0], flen);
