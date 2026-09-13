@@ -407,16 +407,18 @@ void pipeline_load_and_sync_set_ndep_from_module_c(struct ast_Module *module, st
 
 /**
  * one_dep codegen prepare path prefix (C glue; X side u8[64] stack array issue).
- * Zeros a 128-byte scratch then calls pipeline_prepare_dep_codegen_path_c.
+ * Zeros a 256-byte scratch then calls pipeline_prepare_dep_codegen_path_c
+ * (import_path_copy64 clears 256 — AST name[256] world, Cap 4.2.8; a 128
+ * local gets its canary smashed, 2026-09-13 L4 std/string SIGABRT).
  */
 int32_t run_x_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
-  uint8_t dep_path_buf[128];
+  uint8_t dep_path_buf[256];
   int32_t i;
 
   if (!ctx || dep_j < 0)
     return -1;
   /* Avoid string.h memset macros in this seed (see codegen string.h clash notes). */
-  for (i = 0; i < 128; i++)
+  for (i = 0; i < 256; i++)
     dep_path_buf[i] = 0;
   return pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
 }

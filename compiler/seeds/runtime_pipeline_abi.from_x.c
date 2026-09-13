@@ -7422,7 +7422,9 @@ int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, void *out_buf) {
 int32_t run_x_pipeline_codegen_one_dep_c(void *module, void *out_buf, void *ctx_v, int32_t dep_j,
                                          int32_t skip_asm_dep_codegen) {
   struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_v;
-  uint8_t dep_path_buf[128];
+  /* >=256: import_path_copy64 clears 256 (AST name[256] world, Cap 4.2.8);
+   * 128 smashes the canary (2026-09-13 L4 std/string SIGABRT). */
+  uint8_t dep_path_buf[256];
   void *dep_mod;
   int32_t use_asm;
   if (!module || !out_buf || !ctx || dep_j < 0)

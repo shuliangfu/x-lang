@@ -16598,7 +16598,9 @@ export function run_x_pipeline_fill_dep_import_path_c(module: *u8, ctx: *u8, dep
  * Copy dep path into dst and set current dep path for codegen prefix.
  * @param ctx *u8 - PipelineDepCtx*
  * @param dep_j i32 - slot
- * @param dst *u8 - out path buf (>=128)
+ * @param dst *u8 - out path buf (>=256: import_path_copy64 clears 256 —
+ *   AST name[256] world since Cap 4.2.8; a 128 local gets its canary
+ *   smashed, see the 2026-09-13 L4 std/string SIGABRT)
  * @return i32 - 0 ok, -1 null
  * wave111 pure: G.7 single product authority.
  * PLATFORM: SHARED.
@@ -16680,9 +16682,9 @@ export function run_x_pipeline_codegen_one_dep_c(module: *u8, out_buf: *u8, ctx:
   if (run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j) != 0) {
     return 0 - 1;
   }
-  let dep_path_buf: u8[128] = [];
+  let dep_path_buf: u8[256] = [];
   unsafe {
-    memset(&dep_path_buf[0], 0, 128 as usize);
+    memset(&dep_path_buf[0], 0, 256 as usize);
   }
   if (pipeline_prepare_dep_codegen_path_c(ctx, dep_j, &dep_path_buf[0]) != 0) {
     return 0 - 1;
@@ -83755,9 +83757,14 @@ export function pipeline_module_enum_is_export_at(module: *u8, idx: i32): i32 {
  * @param module *u8 - module
  * @param idx i32 - enum index
  * @param bytes *u8 - variant name bytes
- * @param len i32 - content length 1..127
+ * @param len i32 - content length 1..255
  * @return i32 - variant tag or -1 (full / OOB / null)
- * wave582 Cap residual: variant rows u8[128]; content cap 255. PLATFORM: SHARED.
+ * wave582 Cap residual; rows are u8[256] since Cap 4.2.8 (name[256]
+ * world, variant_name_len@65800 ⇒ 256 stride — a 128 stride wrote
+ * variant #1+ into the middle of row 0's tail and readers at
+ * 264+vi*256 saw empty names: every multi-variant enum failed
+ * typeck T001; see the 2026-09-13 L4 std/http run).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes: *u8, len: i32): i32 {
@@ -83786,9 +83793,9 @@ export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes
   if (nv >= pipe_en_max_variants()) {
     return 0 - 1;
   }
-  let voff: i32 = pipe_en_off_variant_name0() + nv * 128;
+  let voff: i32 = pipe_en_off_variant_name0() + nv * 256;
   let k: i32 = 0;
-  while (k < 128) {
+  while (k < 256) {
     unsafe {
       e[voff + k] = 0;
     }
