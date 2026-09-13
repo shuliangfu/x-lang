@@ -3,9 +3,10 @@
  * import_path/label/struct_field, lex rewind/advance/peek, align_lex, first_token_kind
  * (lexer_init + expr zeros stay in thin rest for shared foundation)
  *
- * Hybrid P19b: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
- * kind/copy/pos/match-kw region (bodies in src/asm/pthin_helpers.x +
- * by-value trampolines in the seed TU). Rewind/align stay here.
+ * Hybrid P19b/P19c: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
+ * kind/copy/pos/match-kw/run_len extra/lex_at_token/rewind region (bodies
+ * in src/asm/pthin_helpers.x + by-value trampolines in the seed TU).
+ * align_lex / ident_is_unsafe_stmt / parse_block_return_end_tail stay here.
  * P1d ASI advance_past_* and P1e parse_peek_function_name /
  * first_token_kind twins skip under XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
  * (bodies in pthin_lex_skip.x). first_token_kind_buf AUDIT_CALL padding
@@ -162,7 +163,15 @@ extern size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len)
 
 /**
  * lexer_token_run_len：token_start==0 时按 kind 推断关键字/字面量字节长度。
+ * Hybrid P19c: body in pthin_helpers.x (kind split). Dual numbering stays:
+ * stretch compact table first, token.h extra cases in .x. Do not merge.
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_lexer_token_run_len_kind_c(int32_t kind);
+int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
+  return parser_asm_lexer_token_run_len_kind_c(tok.kind);
+}
+#else
 int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
   int32_t stretch = parser_asm_stretch_token_run_len_c(tok.kind);
   if (stretch > 0)
@@ -229,6 +238,7 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
     return 1;
   }
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X run_len */
 
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
@@ -279,6 +289,18 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
  * Fix: for TOKEN_STRING, back up one byte from content token_start to the `"`.
  * tok.line/col already name the opening quote (lexer line0/col0).
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos);
+static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct parser_asm_lexer_result r) {
+  struct parser_asm_lexer lex;
+  /* PLATFORM: SHARED — P19c trampoline. .x owns pos; line/col stay here
+   * (language has no struct-by-value lexer). */
+  lex.pos = parser_asm_lex_at_token_pos_c(r.tok.kind, r.token_start, r.tok.ident_len, r.next_lex.pos);
+  lex.line = r.tok.line;
+  lex.col = r.tok.col;
+  return lex;
+}
+#else
 static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct parser_asm_lexer_result r) {
   struct parser_asm_lexer lex;
   size_t p;
@@ -303,6 +325,7 @@ static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct 
   lex.col = r.tok.col;
   return lex;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X lex_at_token */
 
 /**
  * lex_at_token_from_result：供 parse_expr / stmt 从 r.tok 重读（按值返回 Lexer）。
@@ -313,7 +336,18 @@ struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_
 
 /**
  * parser_rewind_lex_for_following_stmt：let/if 初值后若后继为 stmt 关键字则回绕 lex。
+ * Hybrid P19c: kind predicate in pthin_helpers.x; this trampoline keeps
+ * the by-value lexer ABI.
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind);
+struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct parser_asm_lexer lex_in,
+                                                                          struct parser_asm_lexer_result r) {
+  if (parser_asm_rewind_following_stmt_kind_c(r.tok.kind) != 0)
+    return parser_asm_lex_at_token_from_result_inner(r);
+  return lex_in;
+}
+#else
 struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct parser_asm_lexer lex_in,
                                                                           struct parser_asm_lexer_result r) {
   if (r.tok.kind == (int32_t)TOKEN_RETURN || r.tok.kind == (int32_t)TOKEN_IF ||
@@ -322,6 +356,7 @@ struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct
     return parser_asm_lex_at_token_from_result_inner(r);
   return lex_in;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X rewind */
 
 /**
  * parse_block return 语句尾：r 已在 RBRACE 时置 *block_break=1 结束块循环（勿 lexer_next 吞 sibling if）；
