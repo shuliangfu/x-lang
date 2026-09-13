@@ -95,6 +95,10 @@ export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
 export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+/** P9a bridge: peek the NEXT token's int_val (array dims) without advancing. */
+export extern "C" function parser_asm_lex_peek_int_val_c(lex_inout: *u8, source: *u8): i32;
+/** P3b builtin TypeKind authority (token → builtin kind ord; -1 = not builtin). */
+export extern "C" function parser_asm_type_ref_builtin_kind_ord_c(kind: i32): i32;
 export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
 export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
 /** P1b authority: copy IDENT bytes into a dest (nlen bytes; caller sizes it). */
@@ -1404,6 +1408,7 @@ const P12G_PARAM_NAME_ROW: i32 = 512;
 const P12G_PARAM_NAME_INNER: i32 = 64;
 const P12G_PARAM_LENS_ROW: i32 = 32;
 const P12G_PARAM_DIMS_ROW: i32 = 256;
+const P12G_PARAM_DIMS_ROW_INNER: i32 = 32;
 
 // TOKEN_* pins for the trait walk (P12g; C _Static_asserts fire on drift).
 const TOKEN_TRAIT: i32 = 49;
@@ -1665,6 +1670,41 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
   return 0;
 }
 
+
+/**
+ * P12g local: copy the current IDENT bytes into ent method param name row
+ * [mi][p] via the P1b copy authority, zero-padded to 64, and store the
+ * length row. Mirrors xlang_skip_trait_copy_ident_c on the stack image.
+ */
+function p12g_param_copy_name(ent_img: *u8, mi: i32, p: i32, source: *u8, lex_inout: *u8): void {
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  let ts: usize = 0;
+  let n: i32 = 0;
+  let base: i32 = 0;
+  let k: i32 = 0;
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source) as i32;
+    n = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+  }
+  if (n > 64) {
+    n = 64;
+  }
+  base = P12G_OFF_METHOD_PARAM_NAMES + mi * P12G_PARAM_NAME_ROW + p * P12G_PARAM_NAME_INNER;
+  unsafe {
+    while (k < 64) {
+      ent_img[base + k] = 0;
+      k = k + 1;
+    }
+    if (n > 0 && data != 0 as *u8) {
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, n, ent_img + (base as usize));
+    }
+    p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_NAME_LENS + mi * P12G_PARAM_LENS_ROW + p * 4, n);
+  }
+}
+
 /**
  * g-2 preset: one method's `( params ) : Ret ;` / default-body signature
  * walk (waves 425–438 state machine). Faithful shape capture into the ent
@@ -1690,6 +1730,33 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
   let param_count: i32 = 0;
   let saw_param_tok: i32 = 0;
   let want_param_ty: i32 = 0;
+  let param_slice_need_rb: i32 = 0;
+  let param_prefix_arr_need_rb: i32 = 0;
+  let param_prefix_arr_need_size: i32 = 0;
+  let param_prefix_arr_elem_pending: i32 = 0;
+  let param_suffix_pending: i32 = 0;
+  let param_arr_need_size: i32 = 0;
+  let param_arr_need_rb: i32 = 0;
+  let param_dim_n: i32 = 0;
+  let param_elem_pending: i32 = 0;
+  let param_elem_slice_need_rb: i32 = 0;
+  let param_elem_prefix_arr_need_rb: i32 = 0;
+  let param_elem_prefix_arr_more: i32 = 0;
+  let param_elem_arr_need_size: i32 = 0;
+  let param_elem_arr_need_rb: i32 = 0;
+  let param_elem_suffix_pending: i32 = 0;
+  let param_elem_dim_n: i32 = 0;
+  let di: i32 = 0;
+  let param_dims: i32[8] = [];
+  let leaf: i32 = 0;
+  let bk2: i32 = 0;
+  let leaf2: i32 = 0;
+  let b0: i32 = 0;
+  let bk3: i32 = 0;
+  let bk4: i32 = 0;
+  let bk5: i32 = 0;
+  let bk6: i32 = 0;
+  let param_elem_dims: i32[8] = [];
   if (lex_inout == 0 as *u8 || source == 0 as *u8 || ent_img == 0 as *u8) {
     return;
   }
@@ -1721,6 +1788,38 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
       }
     } else if (saw_params_close == 0 && paren == 1 && depth == 0) {
       if (kind == TOKEN_COMMA) {
+        if (param_suffix_pending != 0 && param_dim_n > 0) {
+          // finalize multi-dim T[N][M] before the count bump (wave433)
+          leaf = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, leaf);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_dim_n);
+          di = 0;
+          while (di < param_dim_n && di < P12G_DIM_MAX) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_dims[di]);
+            di = di + 1;
+          }
+        }
+        param_suffix_pending = 0;
+        param_dim_n = 0;
+        param_prefix_arr_need_rb = 0;
+        param_prefix_arr_need_size = 0;
+        param_prefix_arr_elem_pending = 0;
+        if (param_elem_dim_n > 0) {
+          // wave434 *T[N] postfix lift: elem=PTR stays, dims move to elem rows
+          bk2 = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk2);
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_elem_dim_n);
+          di = 0;
+          while (di < param_elem_dim_n && di < P12G_DIM_MAX) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_elem_dims[di]);
+            di = di + 1;
+          }
+        }
+        param_elem_suffix_pending = 0;
+        param_elem_dim_n = 0;
         if (saw_param_tok != 0) {
           param_count = param_count + 1;
         }
@@ -1728,7 +1827,108 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
         want_param_ty = 0;
       } else if (kind == TOKEN_COLON) {
         want_param_ty = 1;
-      }
+      } else if (want_param_ty != 0 && param_count < P12G_PARAM_MAX) {
+if (param_slice_need_rb != 0) {
+          if (kind == TOKEN_RBRACKET) {
+            param_slice_need_rb = 0;
+            param_elem_pending = 1;
+          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+            param_dim_n = 0;
+            if (param_dim_n < P12G_DIM_MAX) {
+              param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+              param_dim_n = param_dim_n + 1;
+            }
+            param_slice_need_rb = 0;
+            param_prefix_arr_need_rb = 1;
+          } else {
+            want_param_ty = 0;
+            param_slice_need_rb = 0;
+          }
+        } else if (param_prefix_arr_need_rb != 0) {
+          if (kind == TOKEN_RBRACKET) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_dim_n);
+            di = 0;
+            while (di < param_dim_n && di < P12G_DIM_MAX) {
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_dims[di]);
+              di = di + 1;
+            }
+            param_prefix_arr_need_rb = 0;
+            param_prefix_arr_elem_pending = 1;
+          } else {
+            param_prefix_arr_need_rb = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_arr_need_rb != 0) {
+          if (kind == TOKEN_RBRACKET) {
+            param_arr_need_rb = 0;
+            param_suffix_pending = 1;
+          } else {
+            param_arr_need_rb = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_arr_need_size != 0) {
+          if (kind == TOKEN_RBRACKET) {
+            b0 = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, b0);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, 0);
+            param_arr_need_size = 0;
+            param_dim_n = 0;
+            want_param_ty = 0;
+            saw_param_tok = 1;
+          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+            if (param_dim_n < P12G_DIM_MAX) {
+              param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
+              param_dim_n = param_dim_n + 1;
+            }
+            param_arr_need_size = 0;
+            param_arr_need_rb = 1;
+          } else {
+            param_arr_need_size = 0;
+            want_param_ty = 0;
+          }
+        } else if (param_suffix_pending != 0) {
+          if (kind == TOKEN_LBRACKET) {
+            param_suffix_pending = 0;
+            param_arr_need_size = 1;
+          } else {
+            if (param_dim_n > 0) {
+              leaf2 = p12g_load_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, leaf2);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
+              p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_NDIMS + mi * P12G_PARAM_LENS_ROW + param_count * 4, param_dim_n);
+              di = 0;
+              while (di < param_dim_n && di < P12G_DIM_MAX) {
+                p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + mi * P12G_PARAM_DIMS_ROW + param_count * P12G_PARAM_DIMS_ROW_INNER + di * 4, param_dims[di]);
+                di = di + 1;
+              }
+            }
+            param_suffix_pending = 0;
+            param_dim_n = 0;
+            want_param_ty = 0;
+          }
+        } else if (kind == TOKEN_STAR) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
+          saw_param_tok = 1;
+        } else if (kind == TOKEN_LBRACKET) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
+          param_slice_need_rb = 1;
+        } else if (kind == TOKEN_IDENT) {
+          p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_NAMED);
+          p12g_param_copy_name(ent_img, mi, param_count, source, lex_inout);
+          param_suffix_pending = 1;
+          saw_param_tok = 1;
+        } else {
+          bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          if (bk6 >= 0) {
+            p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
+            param_suffix_pending = 1;
+            saw_param_tok = 1;
+          } else {
+            want_param_ty = 0;
+          }
+        }
     } else if (saw_params_close == 1 && depth == 0) {
       // Return-shape / terminator region.
       if (kind == TOKEN_SEMICOLON) {
