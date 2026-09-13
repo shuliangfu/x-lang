@@ -45932,14 +45932,18 @@ int32_t pipeline_module_num_type_aliases_at(void *module) {
  * Freestanding multi-module ImportEntry map (340-byte entries) + select rows.
  * Hybrid product links pure (wave110); cold seed keeps bodies under #ifndef FROM_X.
  * Layout ≡ pure / C ImportEntry LE:
- *   path[256]@0 | path_len@256 | kind@260 | binding[64]@264 | binding_len@328
- *   | select_base@332 | select_count@336
+ *   path[256]@0 | path_len@256 | kind@260 | binding[256]@264 | binding_len@520
+ *   | select_base@524 | select_count@528
+ *   (Cap 4.2.8 sync with pure ImportEntry 532 — 2026-09-13; was 340 with
+ *   binding[64], the pure side moved to binding[256] in 2efcc2b9e and this
+ *   cold twin kept the 64-byte layout: a 256-byte binding name smashed the
+ *   next entry.)
  * Select rows: 64B name + i32 lens (≡ pure, not Cap GrowVec 128B residual).
  * Soft-reset when module.num_imports@8 == 0 (parse / module reset).
  * PLATFORM: SHARED freestanding module_import Cap leave.
  */
 #define WAVE263_IMP_SLOTS 128
-#define WAVE263_IMP_ENTRY_SZ 340
+#define WAVE263_IMP_ENTRY_SZ 532
 #define WAVE263_IMP_SEL_ROW 64
 static void *g_wave263_imp_mod[WAVE263_IMP_SLOTS];
 static int32_t g_wave263_imp_n[WAVE263_IMP_SLOTS];
@@ -46249,7 +46253,7 @@ void pipeline_module_import_set_binding_name(void *module, int32_t idx, uint8_t 
   int s;
   uint8_t *e;
   int32_t i;
-  if (!module || !bytes || len <= 0 || len > 64)
+  if (!module || !bytes || len <= 0 || len > 256)
     return;
   wave263_imp_soft_sync(module);
   s = wave263_imp_find_slot(module);
@@ -46258,10 +46262,10 @@ void pipeline_module_import_set_binding_name(void *module, int32_t idx, uint8_t 
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return;
-  memset(e + 264, 0, 64);
+  memset(e + 264, 0, 256);
   for (i = 0; i < len; i++)
     e[264 + i] = bytes[i];
-  memcpy(e + 328, &len, 4);
+  memcpy(e + 520, &len, 4);
 }
 
 int32_t pipeline_module_import_binding_name_len(void *module, int32_t idx) {
@@ -46277,7 +46281,7 @@ int32_t pipeline_module_import_binding_name_len(void *module, int32_t idx) {
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&n, e + 328, 4);
+  memcpy(&n, e + 520, 4);
   return n;
 }
 
@@ -46285,7 +46289,7 @@ uint8_t pipeline_module_import_binding_name_byte_at(void *module, int32_t idx, i
   int s;
   uint8_t *e;
   int32_t bl;
-  if (!module || off < 0 || off >= 64)
+  if (!module || off < 0 || off >= 256)
     return 0;
   wave263_imp_soft_sync(module);
   s = wave263_imp_find_slot(module);
@@ -46294,7 +46298,7 @@ uint8_t pipeline_module_import_binding_name_byte_at(void *module, int32_t idx, i
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&bl, e + 328, 4);
+  memcpy(&bl, e + 520, 4);
   if (off >= bl)
     return 0;
   return e[264 + off];
@@ -46312,7 +46316,7 @@ void pipeline_module_import_set_select_count(void *module, int32_t idx, int32_t 
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return;
-  memcpy(e + 336, &n, 4);
+  memcpy(e + 528, &n, 4);
 }
 
 int32_t pipeline_module_import_append_select_name(void *module, int32_t idx, uint8_t *bytes, int32_t len) {
@@ -46334,10 +46338,10 @@ int32_t pipeline_module_import_append_select_name(void *module, int32_t idx, uin
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return -1;
-  memcpy(&scount, e + 336, 4);
+  memcpy(&scount, e + 528, 4);
   if (scount == 0) {
     sbase = g_wave263_imp_sel_n[s];
-    memcpy(e + 332, &sbase, 4);
+    memcpy(e + 524, &sbase, 4);
   }
   vi = g_wave263_imp_sel_n[s];
   if (!wave263_imp_ensure_select(s, vi + 1))
@@ -46355,7 +46359,7 @@ int32_t pipeline_module_import_append_select_name(void *module, int32_t idx, uin
   memcpy(lens + (size_t)vi * 4u, &n, 4);
   g_wave263_imp_sel_n[s] = vi + 1;
   scount = scount + 1;
-  memcpy(e + 336, &scount, 4);
+  memcpy(e + 528, &scount, 4);
   return scount - 1;
 }
 
@@ -46372,7 +46376,7 @@ int32_t pipeline_module_import_select_count_at(void *module, int32_t idx) {
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&n, e + 336, 4);
+  memcpy(&n, e + 528, 4);
   return n;
 }
 
@@ -46398,17 +46402,17 @@ void pipeline_module_import_set_select_name(void *module, int32_t idx, int32_t s
   if (!e)
     return;
   for (;;) {
-    memcpy(&scount, e + 336, 4);
+    memcpy(&scount, e + 528, 4);
     if (scount > sel)
       break;
     ap = pipeline_module_import_append_select_name(module, idx, bytes, len);
     if (ap < 0)
       return;
-    memcpy(&scount, e + 336, 4);
+    memcpy(&scount, e + 528, 4);
     if (sel < scount - 1)
       return;
   }
-  memcpy(&sbase, e + 332, 4);
+  memcpy(&sbase, e + 524, 4);
   abs = sbase + sel;
   rows = g_wave263_imp_sel_rows[s];
   lens = g_wave263_imp_sel_lens[s];
@@ -46440,10 +46444,10 @@ int32_t pipeline_module_import_select_name_len(void *module, int32_t idx, int32_
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&scount, e + 336, 4);
+  memcpy(&scount, e + 528, 4);
   if (sel >= scount)
     return 0;
-  memcpy(&sbase, e + 332, 4);
+  memcpy(&sbase, e + 524, 4);
   abs = sbase + sel;
   if (abs < 0 || abs >= g_wave263_imp_sel_n[s])
     return 0;
@@ -46471,10 +46475,10 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
   e = wave263_imp_entry_at(s, idx);
   if (!e)
     return 0;
-  memcpy(&scount, e + 336, 4);
+  memcpy(&scount, e + 528, 4);
   if (sel >= scount)
     return 0;
-  memcpy(&sbase, e + 332, 4);
+  memcpy(&sbase, e + 524, 4);
   abs = sbase + sel;
   if (abs < 0 || abs >= g_wave263_imp_sel_n[s])
     return 0;
