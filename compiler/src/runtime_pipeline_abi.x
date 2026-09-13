@@ -70133,7 +70133,10 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
       // params (16B dual-GP inline home, no let-init ptr store) keep the
       // generic LEA path below. PLATFORM: SHARED — x86_64 INDEX of local
       // SIMD vectors; arm64 consumers use lane helpers, not this path.
-      if (ko == 13) {
+      if (ko == 13 || (ko == 8 && asm_type_is_simd_vector_spelling(arena, tr) != 0)) {
+        /* TYPE_NAMED(8): source-level i32x4/etc resolve to a NAMED ref whose
+         * spelling IS a SIMD vector (gdb proof 2026-09-13: `a` -> tr=2,
+         * kind=8); kind==13 alone never fires for user vectors. */
         let vn2: u8[256] = [];
         let vn2len: i32 = 0;
         let pty2: i32 = 0;
