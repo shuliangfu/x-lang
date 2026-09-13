@@ -402,7 +402,11 @@ struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_a
 struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ast_Block { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_ast_Block *data; size_t length; };
 
 struct ast_Param {
-  uint8_t name[32];
+  /* Cap 4.2.8: Param.name u8[256] (was [32]); mirror of ast.x — a [32]
+   * mirror made typeck/codegen read+stamp 40-byte rows against the
+   * 264-byte-row arena pool, smashing neighbouring pools (unsafe-region
+   * statements dropped; only the last per block survived). */
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
 };
