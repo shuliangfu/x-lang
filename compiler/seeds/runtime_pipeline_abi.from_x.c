@@ -38172,7 +38172,12 @@ int32_t glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(void *arena, void *elf_
  * wave182 cold twins: INDEX base materialize → rax / rbx (G.7 pure leave).
  * Freestanding-safe stubs: return -2 (not applicable; force residual/fallback).
  * Hybrid product links pure. PLATFORM: SHARED freestanding INDEX base.
+ * 2026-09-13: guard under #ifndef FROM_X — as STRONG symbols these stubs beat
+ * the WEAK pure .x bodies in ld -r, so hybrid silently ran the stub (base
+ * helper always -2) and the .x TYPE_VECTOR(13) ptr-home deref fix (local SIMD
+ * vector INDEX) never linked. Cold full seed (no FROM_X) keeps the stubs.
  */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx, int32_t base_ref, void *ctx,
                                                      int32_t ta) {
   (void)arena;
@@ -38192,6 +38197,7 @@ int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(void *arena, void *elf_ctx
   (void)ta;
   return -2;
 }
+#endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X wave182 base twins */
 
 /*
  * wave183 cold twins: nested try_index assign-addr→rbx forest (G.7 pure leave).
