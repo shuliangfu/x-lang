@@ -454,6 +454,7 @@ export function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
 }
 
 // See implementation.
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
@@ -493,6 +494,10 @@ export extern "C" function arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
  */
 #[no_mangle]
 export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
+  // twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
+  // skipped the zi reload in consecutive same-index stores -> pointer+pointer).
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   }

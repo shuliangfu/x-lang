@@ -470,6 +470,7 @@ export extern "C" function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32;
@@ -865,6 +866,14 @@ export function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
 #[no_mangle]
 export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
+  // P12g BM4 root fix (2026-09-15): mov rax->rbx reparks x1/x19 with a NON-var
+  // value; any binop var-slot cache belief "rbx holds var at off" is stale
+  // afterwards. Store2 of bound_name/bound_trait consecutive same-index stores
+  // skipped the zi reload into x1 on a stale hit -> two pointers added (0x2_0292_
+  // 0fb0 write). Invalidate HERE — the single authority all emission sites call
+  // (125+ sites audited; only 32 had ad-hoc invalidations, 117 of 119 lacked it).
+  // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
+  glue_binop_var_slot_cache_invalidate_rbx();
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx); }

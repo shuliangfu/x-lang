@@ -1743,7 +1743,12 @@ int32_t backend_enc_imul_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
+   * twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
+   * skipped the zi reload in consecutive same-index stores -> pointer+pointer). */
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1)
     return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx);
   if (ta == 2)

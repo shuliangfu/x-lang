@@ -481,7 +481,12 @@ extern int32_t arch_x86_64_enc_enc_test_eax_eax(uint8_t * elf_ctx);
 extern int32_t arch_arm64_enc_enc_test_rbx_rbx(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_test_rbx_rbx(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_test_rbx_rbx(uint8_t * elf_ctx);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_mov_rax_to_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  /* P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
+   * twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
+   * skipped the zi reload in consecutive same-index stores -> pointer+pointer). */
+  glue_binop_var_slot_cache_invalidate_rbx();
   if ((ta ==1)) {
     {
       return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx);
