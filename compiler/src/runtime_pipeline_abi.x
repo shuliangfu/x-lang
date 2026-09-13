@@ -70125,47 +70125,6 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
           return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
         }
       }
-      // TYPE_VECTOR (13) base: a local let's home slot holds a POINTER to
-      // the inline lane data (vector let-init stores &data into the home;
-      // objdump proof 2026-09-13: lanes at -0x40, &lanes stored at -0x18,
-      // INDEX read the pointer bits as lane values on x86). Deref once so
-      // the caller's lit*esz add + esz load lands on real lanes. Formal
-      // params (16B dual-GP inline home, no let-init ptr store) keep the
-      // generic LEA path below. PLATFORM: SHARED — x86_64 INDEX of local
-      // SIMD vectors; arm64 consumers use lane helpers, not this path.
-      if (ko == 13 || (ko == 8 && asm_type_is_simd_vector_spelling(arena, tr) != 0)) {
-        /* TYPE_NAMED(8): source-level i32x4/etc resolve to a NAMED ref whose
-         * spelling IS a SIMD vector (gdb proof 2026-09-13: `a` -> tr=2,
-         * kind=8); kind==13 alone never fires for user vectors. */
-        let vn2: u8[256] = [];
-        let vn2len: i32 = 0;
-        let pty2: i32 = 0;
-        let is_param2: i32 = 0;
-        let fi2: i32 = 0;
-        unsafe {
-          mod = glue_emit_module_from_ctx(ctx);
-          fi2 = pipeline_asm_emit_func_index_c();
-        }
-        if (mod != (0 as *u8) && fi2 >= 0) {
-          unsafe {
-            vn2len = pipeline_expr_var_name_len(arena, base_ref);
-          }
-          if (vn2len > 0 && vn2len <= 63) {
-            unsafe {
-              pipeline_expr_var_name_into(arena, base_ref, &vn2[0]);
-              pty2 = pipeline_module_func_param_type_ref_for_name(mod, fi2, &vn2[0], vn2len);
-            }
-            if (pty2 > 0) {
-              is_param2 = 1;
-            }
-          }
-        }
-        if (is_param2 == 0) {
-          unsafe {
-            return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
-          }
-        }
-      }
     }
     unsafe {
       return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
