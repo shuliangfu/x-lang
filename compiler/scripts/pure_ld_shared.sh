@@ -657,17 +657,18 @@ pure_asm_x_to_o() {
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
-  # PLATFORM: SHARED — P12g g-3 (2026-09-14): asm-emitter call-arg marshaling
-  # bug on very large functions: the ~52KB sig machine reads its lex_inout
-  # argument home from a shared temp slot the reaching path never stores
-  # (uninit stack read; step(NULL) no-op -> 4096-iteration spin). Frame-slot
-  # evidence: peek marshals [x29,#0x10] (param slot) while the tail call
-  # loads [x29,#0xa18] (expression-temp slot). Ban pure-asm for this .x
-  # until the backend fixes big-function arg homes (sidecar lookup:
-  # asm_ctx_local_find_offset_scoped -> pipeline_asm_local_offset_c
-  # all-zero-name fallback); the -E transpile (clang-compiled) is the
-  # registry-verified correct path on all platforms. Opt-in bisect:
-  # XLANG_P12G_ALLOW_PURE_ASM=1.
+  # PLATFORM: SHARED — P12g (2026-09-14, CONFIRMED repro): asm-emitter
+  # call-arg marshaling bug on big functions. With the ban lifted the
+  # product link crashed every trait probe (rc=139): the .x callees
+  # receive garbage argument pointers (layout-dependent uninit temp slot
+  # in the marshal), and their 4-byte stores through the garbage pointer
+  # hammer the caller's frame — the trampoline's saved `out` was observed
+  # transitioning 0x100000001 -> partial 4-byte writes -> 0xb6c4 before
+  # the final *out store faulted. Isolation harnesses pass only because
+  # their link layout lands benign garbage (NULL guards / valid pointers).
+  # The pure-asm path stays banned for this .x until the backend fixes
+  # big-function call-arg homes; the -E transpile (clang-compiled) is the
+  # registry-verified correct path. Opt-in bisect: XLANG_P12G_ALLOW_PURE_ASM=1.
   if [ "$_bn" = "pthin_skip_tl.x" ] && [ "${XLANG_P12G_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
