@@ -657,6 +657,20 @@ pure_asm_x_to_o() {
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
+  # PLATFORM: SHARED — P12g g-3 (2026-09-14): asm-emitter call-arg marshaling
+  # bug on very large functions: the ~52KB sig machine reads its lex_inout
+  # argument home from a shared temp slot the reaching path never stores
+  # (uninit stack read; step(NULL) no-op -> 4096-iteration spin). Frame-slot
+  # evidence: peek marshals [x29,#0x10] (param slot) while the tail call
+  # loads [x29,#0xa18] (expression-temp slot). Ban pure-asm for this .x
+  # until the backend fixes big-function arg homes (sidecar lookup:
+  # asm_ctx_local_find_offset_scoped -> pipeline_asm_local_offset_c
+  # all-zero-name fallback); the -E transpile (clang-compiled) is the
+  # registry-verified correct path on all platforms. Opt-in bisect:
+  # XLANG_P12G_ALLOW_PURE_ASM=1.
+  if [ "$_bn" = "pthin_skip_tl.x" ] && [ "${XLANG_P12G_ALLOW_PURE_ASM:-0}" != "1" ]; then
+    return 1
+  fi
   # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default when the
   # emitting compiler has modlet lea→rax (tip). Pin egg / pre-lea compilers
   # still emit the (&n)>=n cmp bug → silent `xlang fmt` exit 1 (stderr newline

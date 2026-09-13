@@ -5414,6 +5414,10 @@ int32_t xlang_generic_bound_check_c(void) {
   return violated;
 }
 
+/* P12g g-3: cold-path only - the hybrid .x walkers copy names via the P1b
+ * authority (parser_asm_copy_slice_to_name64_buf_c), so this trait-local
+ * wrapper has no live caller under the gate. */
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 static void xlang_skip_trait_copy_ident_c(struct parser_asm_slice_u8 *source, size_t token_start, int32_t ident_len,
                                            uint8_t *out64, int32_t *out_len) {
   int32_t n = ident_len;
@@ -5430,7 +5434,9 @@ static void xlang_skip_trait_copy_ident_c(struct parser_asm_slice_u8 *source, si
   memcpy(out64, source->data + token_start, (size_t)n);
   *out_len = n;
 }
+#endif
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                             struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
@@ -7603,6 +7609,67 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
   out->line = lex.line;
   out->col = lex.col;
 }
+#else
+/*
+ * 7.2.1 P12g g-3 (2026-09-14): the .x product bodies (pointer ABI) own the
+ * trait header/body walk. This C trampoline keeps what must stay C: the
+ * file-static registry slot, the commit-on-success bump, the wave439
+ * source stash, and the 5-byte raw fallback. Slot semantics are identical
+ * to the cold path: the slot is written in place and the count only bumps
+ * on a closed trait with a name (a dirty slot on fail is never read - the
+ * next trait memsets it again). Registry-full walks a zeroed scratch ent
+ * so the .x writes stay in bounds (C twin: ent = 0 -> walk without
+ * capture). Stretch audits stay on the cold path (struct/enum precedent).
+ * NOTE: the lane must take the -E transpile for this .x (pure-asm emitter
+ * has a big-function call-arg slot bug; see the P12g RFC) - the
+ * pure_ld_shared ban routes it. PLATFORM: SHARED - G.7 authority pair.
+ */
+extern int32_t parser_asm_skip_one_trait_header_into_c(void *lex_inout, void *source, void *ent_img);
+extern int32_t parser_asm_skip_one_trait_body_into_c(void *lex_inout, void *source, void *ent_img);
+
+void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                            struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  xlang_skip_trait_reg_ent_t scratch;
+  xlang_skip_trait_reg_ent_t *ent;
+  int32_t hdr;
+  int32_t ok;
+  if (!out || !source)
+    return;
+  /* wave439: stash full-file source for generic-bound scan. */
+  xlang_generic_bound_stash_source_c(source);
+  ent = 0;
+  if (g_xlang_skip_trait_reg_n < XLANG_SKIP_TRAIT_REG_MAX) {
+    ent = &g_xlang_skip_trait_reg[g_xlang_skip_trait_reg_n];
+    memset(ent, 0, sizeof(*ent));
+  } else {
+    memset(&scratch, 0, sizeof(scratch));
+  }
+  cur = lex;
+  hdr = parser_asm_skip_one_trait_header_into_c(&cur, source, ent ? (void *)ent : (void *)&scratch);
+  if (hdr <= 0) {
+    /*
+     * hdr == 0: not a trait - cursor untouched, byte fallback may fire
+     * (twin of the cold path's non-token edge case). hdr == -1: trait
+     * keyword consumed but malformed - no fallback, out = cursor after
+     * the last consumed token (twin of out = lex).
+     */
+    if (hdr == 0 && cur.pos + 5 <= source->length
+        && source->data[cur.pos] == (uint8_t)'t' && source->data[cur.pos + 1] == (uint8_t)'r'
+        && source->data[cur.pos + 2] == (uint8_t)'a' && source->data[cur.pos + 3] == (uint8_t)'i'
+        && source->data[cur.pos + 4] == (uint8_t)'t') {
+      parser_asm_skip_trait_impl_block_raw_c(out, lex, source);
+      return;
+    }
+    *out = cur;
+    return;
+  }
+  ok = parser_asm_skip_one_trait_body_into_c(&cur, source, ent ? (void *)ent : (void *)&scratch);
+  *out = cur;
+  if (ok == 1 && ent && ent->name_len > 0)
+    g_xlang_skip_trait_reg_n++;
+}
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
 
 /**
  * skip_one_impl_into：consume impl header only; leave method bodies for outer parse_into.

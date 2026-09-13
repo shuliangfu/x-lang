@@ -95,6 +95,8 @@ export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
 export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
 /** P9a bridge: peek the NEXT token's int_val (array dims) without advancing. */
 export extern "C" function parser_asm_lex_peek_int_val_c(lex_inout: *u8, source: *u8): i32;
 /** P3b builtin TypeKind authority (token → builtin kind ord; -1 = not builtin). */
@@ -1435,17 +1437,20 @@ function p12g_store_i32(base: *u8, off: i32, v: i32): void {
  * g-1 preset: walk the `trait Name {` header and record the trait name into
  * the ent stack-image. Entry cursor at the `trait` keyword start. Returns 1
  * with the cursor after `{` on success; 0 (cursor restored to entry) when
- * the first token is not `trait`, the name is not IDENT, or `{` is absent.
- * Fail-leave restores pos/line/col to the entry snapshot (the C twin's
- * out = lex semantics; the trampoline materializes that in g-3).
- * The 5-byte 't','r','a','i','t' raw fallback of the C twin is NOT part of
- * g-1 (token path covers product input; fallback joins in g-2 with the
- * method loop).
- * @param lex_inout *u8 — opaque lexer cursor (restored on fail)
+ * 0 when the first token is not `trait` (cursor untouched), or -1 when the
+ * trait keyword was consumed but the name is not IDENT (cursor after
+ * `trait`) or `{` is absent (cursor after the name) — each fail leaves the
+ * cursor at the last consumed token, the C twin's out = lex semantics,
+ * which the g-3 trampoline materializes as *out. The distinct -1 keeps the
+ * trampoline's 5-byte 't','r','a','i','t' raw fallback (C, byte path) from
+ * firing on consumed-token fails.
+ * @param lex_inout *u8 — opaque lexer cursor (fail = last consumed token)
  * @param source *u8 — opaque slice
- * @param ent_img *u8 — ent stack-image (name/name_len only in g-1)
- * @return i32 — 1 header walked (cursor after `{`); 0 not-a-trait
- * PLATFORM: SHARED — PRESET (g-1); no caller until g-3.
+ * @param ent_img *u8 — ent image (name/name_len written on the token path)
+ * @return i32 — 1 header walked (cursor after `{`); 0 not-a-trait (cursor
+ *   untouched); -1 trait keyword consumed but malformed
+ * PLATFORM: SHARED — live via the g-3 C trampoline when
+ * XLANG_PTHIN_SKIP_TL_BODIES_FROM_X is on; cold C twin otherwise.
  */
 #[no_mangle]
 export function parser_asm_skip_one_trait_header_into_c(lex_inout: *u8, source: *u8, ent_img: *u8): i32 {
@@ -1478,10 +1483,7 @@ export function parser_asm_skip_one_trait_header_into_c(lex_inout: *u8, source: 
     parser_asm_lex_step_kind_c(lex_inout, source);
     kind = parser_asm_lex_peek_kind_c(lex_inout, source);
     if (kind != TOKEN_IDENT) {
-      parser_asm_lex_set_pos_c(lex_inout, pos0);
-      parser_asm_lex_set_line_c(lex_inout, line0);
-      parser_asm_lex_set_col_c(lex_inout, col0);
-      return 0;
+      return 0 - 1;
     }
     nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
     ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
@@ -1503,10 +1505,7 @@ export function parser_asm_skip_one_trait_header_into_c(lex_inout: *u8, source: 
     parser_asm_lex_step_kind_c(lex_inout, source);
     kind = parser_asm_lex_peek_kind_c(lex_inout, source);
     if (kind != TOKEN_LBRACE) {
-      parser_asm_lex_set_pos_c(lex_inout, pos0);
-      parser_asm_lex_set_line_c(lex_inout, line0);
-      parser_asm_lex_set_col_c(lex_inout, col0);
-      return 0;
+      return 0 - 1;
     }
     parser_asm_lex_step_kind_c(lex_inout, source);
   }
@@ -1551,13 +1550,16 @@ function p12g_load_i32(base: *u8, off: i32): i32 {
  * trampoline (an uncalled .x body cannot own the commit anyway).
  * Token-for-token faithful to the C twin incl. fail-leave (EOF/`}` mid
  * signature restores nothing — the C loop simply exits with out=lex).
- * PRESET ONLY (g-2): no caller until g-3; C twin stays authoritative.
+ * Live via the g-3 C trampoline (the registry commit-on-success bump and
+ * the raw byte fallback stay C — the registry global is .inc file-static).
  * @param lex_inout *u8 — cursor positioned AFTER the header `{`
  * @param source *u8 — opaque slice
- * @param ent_img *u8 — ent stack-image (header name already written)
+ * @param ent_img *u8 — ent image (header name already written)
  * @return i32 — 1 walked to the closing `}` (cursor after it); 0 EOF hit
  *   (cursor left at the EOF-time lex; the trampoline decides out)
- * PLATFORM: SHARED — PRESET (g-2).
+ * PLATFORM: SHARED — live via g-3 trampoline. This .x rides the -E
+ * transpile lane (pure-asm banned: asm-emitter big-function call-arg slot
+ * bug — see the P12g RFC).
  */
 #[no_mangle]
 export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u8, ent_img: *u8): i32 {
@@ -1602,8 +1604,8 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
       mi_reg = -1;
       unsafe {
         fn_pos = parser_asm_lex_peek_token_start_c(lex_inout, source) as i32;
-        fn_line = 0;
-        fn_col = 0;
+        fn_line = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+        fn_col = parser_asm_lex_peek_tok_col_c(lex_inout, source);
         parser_asm_lex_step_kind_c(lex_inout, source);
         kind = parser_asm_lex_peek_kind_c(lex_inout, source);
         if (kind == TOKEN_IDENT && num_methods < P12G_METH_MAX) {
@@ -1748,13 +1750,13 @@ function p12g_ret_copy_name(ent_img: *u8, mi: i32, source: *u8, lex_inout: *u8):
  * elem/sizes/dims, has_default on `{`. Terminates on `;` (or the token
  * after a default body's matching `}`) leaving the cursor on the next
  * body token the outer loop peeks.
- * PRESET ONLY (g-2).
+ * Live via the g-3 trampoline (called by the .x body walker per method).
  * @param lex_inout *u8 — cursor at the token after the method IDENT
  * @param source *u8 — opaque slice
- * @param ent_img *u8 — ent stack-image
+ * @param ent_img *u8 — ent image
  * @param mi i32 — method row index (already registered)
  * @return void
- * PLATFORM: SHARED — PRESET (g-2).
+ * PLATFORM: SHARED — live via g-3 trampoline.
  */
 function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8, ent_img: *u8, mi: i32): void {
   let kind: i32 = 0;
@@ -1815,6 +1817,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
   let ret_elem_elem_pending: i32 = 0;
   let ret_dims: i32[8] = [];
   let ret_elem_dims: i32[8] = [];
+  let iv: i32 = 0;
   if (lex_inout == 0 as *u8 || source == 0 as *u8 || ent_img == 0 as *u8) {
     return;
   }
@@ -1824,6 +1827,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
     steps = steps + 1;
     unsafe {
       kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      iv = parser_asm_lex_peek_int_val_c(lex_inout, source);
     }
     if (kind == TOKEN_EOF) {
       return;
@@ -1939,7 +1943,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             param_dim_n = 0;
             want_param_ty = 0;
             saw_param_tok = 1;
-          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          } else if (kind == TOKEN_INT && iv > 0) {
             // Collect one dim; finalize on non-`[` after the closing `]`.
             if (param_dim_n < P12G_DIM_MAX) {
               param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
@@ -1977,7 +1981,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           if (kind == TOKEN_RBRACKET) {
             param_slice_need_rb = 0;
             param_elem_pending = 1;
-          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          } else if (kind == TOKEN_INT && iv > 0) {
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
             param_dim_n = 0;
             if (param_dim_n < P12G_DIM_MAX) {
@@ -2008,7 +2012,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
         } else if (param_prefix_arr_need_size != 0) {
           // Prefix `[N][` — next dim INT (`[N][M]T`) or `]` (`[N][]T` = ARRAY
           // of SLICE of T; leaf T captured via param_elem_elem_pending).
-          if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          if (kind == TOKEN_INT && iv > 0) {
             if (param_dim_n < P12G_DIM_MAX) {
               param_dims[param_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
               param_dim_n = param_dim_n + 1;
@@ -2043,7 +2047,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             want_param_ty = 0;
             saw_param_tok = 1;
           } else {
+            unsafe {
             bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            }
             if (bk6 >= 0) {
               p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
               param_dim_n = 0;
@@ -2062,7 +2068,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
             param_elem_slice_need_rb = 0;
             param_elem_elem_pending = 1;
-          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          } else if (kind == TOKEN_INT && iv > 0) {
             // wave436: *[N]T -> PTR to ARRAY of N T. Capture N, expect `]`.
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_ARRAY);
             if (param_elem_dim_n < P12G_DIM_MAX) {
@@ -2228,7 +2234,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               saw_param_tok = 1;
             }
           } else {
+            unsafe {
             bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            }
             if (bk6 >= 0) {
               p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
               // Commit accumulated dims (*[N] or *[N][M]…); same wave437 reset.
@@ -2367,7 +2375,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
               want_param_ty = 0;
               saw_param_tok = 1;
             }
-          } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+          } else if (kind == TOKEN_INT && iv > 0) {
             // Collect one elem dim; finalize on non-`[` after the closing `]`.
             if (param_elem_dim_n < P12G_DIM_MAX) {
               param_elem_dims[param_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
@@ -2418,7 +2426,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_PTR);
             param_elem_elem_pending = 1;
           } else {
+            unsafe {
             bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            }
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_ELEM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
             // wave434: keep scanning for elem suffix [N]/[]/[N][M].
             param_elem_suffix_pending = 1;
@@ -2439,7 +2449,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, P12G_TY_SLICE);
             param_slice_need_rb = 1;
           } else {
+            unsafe {
             bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+            }
             p12g_store_i32(ent_img, P12G_OFF_METHOD_PARAM_KINDS + mi * P12G_PARAM_KINDS_ROW + param_count * 4, bk6);
             // wave433: keep scanning for suffix T[N] / T[] / T[N][M].
             param_suffix_pending = 1;
@@ -2448,6 +2460,12 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
         } else {
           want_param_ty = 0;
         }
+      } else {
+        // Twin of the C params-branch tail else: any other token in the
+        // param region (e.g. a bare `self` name before its type colon)
+        // marks the param present so the `)`/`,` close bumps the count.
+        saw_param_tok = 1;
+      }
     } else if (saw_params_close == 1 && want_ret == 0 && depth == 0 && paren == 0 && kind == TOKEN_COLON) {
       // Return-type gate: reset the whole ret shape machine (wave427-438).
       want_ret = 1;
@@ -2491,7 +2509,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           ret_arr_need_size = 0;
           ret_dim_n = 0;
           want_ret = 0;
-        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+        } else if (kind == TOKEN_INT && iv > 0) {
           // Collect one dim; finalize on non-`[` after the closing `]`.
           if (ret_dim_n < P12G_DIM_MAX) {
             ret_dims[ret_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
@@ -2531,7 +2549,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
         if (kind == TOKEN_RBRACKET) {
           ret_slice_need_rb = 0;
           ret_elem_pending = 1;
-        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+        } else if (kind == TOKEN_INT && iv > 0) {
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_ARRAY);
           ret_dim_n = 0;
           if (ret_dim_n < P12G_DIM_MAX) {
@@ -2566,7 +2584,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
         }
       } else if (ret_prefix_arr_need_size != 0) {
         // Prefix [N][ ret — want the next dim INT.
-        if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+        if (kind == TOKEN_INT && iv > 0) {
           if (ret_dim_n < P12G_DIM_MAX) {
             ret_dims[ret_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
             ret_dim_n = ret_dim_n + 1;
@@ -2589,7 +2607,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           ret_prefix_arr_elem_pending = 0;
           want_ret = 0;
         } else {
+          unsafe {
           bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          }
           if (bk6 >= 0) {
             p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, bk6);
             ret_dim_n = 0;
@@ -2616,7 +2636,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_PTR);
           ret_elem_elem_pending = 1;
         } else {
+          unsafe {
           bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          }
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, bk6);
           // wave438: keep scanning for elem suffix dims.
           ret_elem_suffix_pending = 1;
@@ -2629,7 +2651,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_SLICE);
           ret_elem_slice_need_rb = 0;
           ret_elem_elem_pending = 1;
-        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+        } else if (kind == TOKEN_INT && iv > 0) {
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_KINDS + mi * 4, P12G_TY_ARRAY);
           if (ret_elem_dim_n < P12G_DIM_MAX) {
             ret_elem_dims[ret_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
@@ -2843,7 +2865,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           }
 
         } else {
+          unsafe {
           bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          }
           if (bk6 >= 0) {
             p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_ELEM_ELEM_KINDS + mi * 4, bk6);
             // Commit accumulated dims; when none pending and elem is PTR or
@@ -3035,7 +3059,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
             ret_elem_dim_n = 0;
             want_ret = 0;
           }
-        } else if (kind == TOKEN_INT && parser_asm_lex_peek_int_val_c(lex_inout, source) > 0) {
+        } else if (kind == TOKEN_INT && iv > 0) {
           // Collect one elem dim; finalize on non-`[` after the closing `]`.
           if (ret_elem_dim_n < P12G_DIM_MAX) {
             ret_elem_dims[ret_elem_dim_n] = parser_asm_lex_peek_int_val_c(lex_inout, source);
@@ -3082,7 +3106,9 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, P12G_TY_SLICE);
           ret_slice_need_rb = 1;
         } else {
+          unsafe {
           bk6 = parser_asm_type_ref_builtin_kind_ord_c(kind);
+          }
           p12g_store_i32(ent_img, P12G_OFF_METHOD_RET_KINDS + mi * 4, bk6);
           if (bk6 >= 0) {
             ret_suffix_pending = 1;
