@@ -63188,7 +63188,12 @@ int32_t asm_type_is_simd_vector_spelling(void *arena, int32_t type_ref) {
   if (!t)
     return 0;
   memcpy(&kind, t + 0, 4);
-  memcpy(&nlen, t + 132, 4);
+  /* Cap 4.2.8 Type LE: name[256]@4 => name_len@260 (was 132 on name[128]).
+   * The stale +132 read garbage after the widen, so every NAMED SIMD
+   * spelling (i32x4/i32x8/u32x*/f32x4/Vec4f/Vec8i) compared against a
+   * garbage nlen and this predicate returned 0 — vector INDEX/let-init
+   * classification silently degraded (Ubuntu vec_add_verify, 2026-09-13). */
+  memcpy(&nlen, t + 260, 4);
   if (kind != 8 || nlen <= 0)
     return 0;
   name = t + 4;
