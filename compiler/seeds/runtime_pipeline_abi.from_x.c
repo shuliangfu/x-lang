@@ -55831,19 +55831,25 @@ void *module_sidecar_get(void *key, int create) {
       if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)66828, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)128, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8 sync: import_select_name_rows name[256] -> 256 (was 128;
+       * matches .x thin init; pool is vestigial — live select names use the
+       * wave263 legacy sidecar / g_pipe_imp_sel_rows tables). */
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)256, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)4, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)136, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8 sync: struct_layout_fields name[256] -> 264 (was 136). */
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)264, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)144, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8 sync: struct_layout_type_params name[256]+meta -> 272 (was 144). */
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)272, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
-      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)132, W275_GV_INIT_CAP)) {
+      /* Cap 4.2.8 sync: struct_layout_type_param_meta name[256]+len -> 260 (was 132). */
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)260, W275_GV_INIT_CAP)) {
         module_sidecar_free_inner(sc); return NULL;
       }
       if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)8, W275_GV_INIT_CAP)) {
