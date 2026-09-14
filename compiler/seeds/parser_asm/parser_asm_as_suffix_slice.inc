@@ -24,7 +24,7 @@ extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, str
 
 /** parser_asm_thin_c.c 在 #include 前定义（同 TU）。 */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
-static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
+void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 extern int32_t parser_asm_stretch_as_suffix_chain_audit_c(void *lex_inout, void *source);

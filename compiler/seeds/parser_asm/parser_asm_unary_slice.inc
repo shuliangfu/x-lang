@@ -86,7 +86,7 @@ extern int32_t parser_asm_stretch_vx_expr_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv
 extern int32_t parser_asm_stretch_vx_expr_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_vx_expr_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
 
-static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
+void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
