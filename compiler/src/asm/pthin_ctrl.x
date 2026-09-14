@@ -69,6 +69,14 @@ export extern "C" function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, 
  * token each call (no hidden state); the realign stages below chain them
  * exactly like the C twin chained lexer_next_into results. */
 export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_parse_cond_expr_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
+export extern "C" function parser_parse_block_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_block_ref: *i32): i32;
+export extern "C" function parser_if_stmt_scan_sync_from_pos_ptr_into_c(source: *u8, pos0: usize, line0: i32, col0: i32, lex_inout: *u8): i32;
+export extern "C" function parser_asm_advance_past_cond_rparen_into_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function ast_ast_arena_block_alloc(arena: *u8): i32;
+export extern "C" function pipeline_block_append_if(arena: *u8, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
+export extern "C" function pipeline_block_append_stmt_order(arena: *u8, br: i32, kind: i32, idx: i32): i32;
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
 export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
@@ -117,6 +125,8 @@ function parser_asm_ctrl_ident_continue(c: u8): i32 {
 const TOKEN_LET: i32 = 2;
 const TOKEN_CONST: i32 = 3;
 const TOKEN_IF: i32 = 4;
+const TOKEN_ELSE: i32 = 5;
+const TOKEN_LBRACE: i32 = 84;
 const TOKEN_WHILE: i32 = 6;
 const TOKEN_FOR: i32 = 8;
 const TOKEN_RETURN: i32 = 11;
@@ -1071,4 +1081,125 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
     }
   }
   return 1;
+}
+
+/**
+ * Parse one `if (cond) { then } [else {..} | else if ...]` chain (wave 2).
+ * .x mirror of parser_asm_parse_if_stmt_into_slice_c driving the wave-1
+ * pointer shims (cond/block callbacks), the P1b lex_skip rparen advance,
+ * the P5c scan-sync (full-cursor shim) and the P5d realign arm. else-if
+ * chains recurse: each else-if wraps its tail in a fresh arena block
+ * (kind-5 stmt_order row), exactly like the C twin.
+ * @param arena *u8 — opaque ASTArena
+ * @param lex_inout *u8 — cursor at `if`; on success parked at the first
+ *   token after the WHOLE statement (scan-sync then realign fallback)
+ * @param source *u8 — opaque slice
+ * @param type_ref i32 — enclosing function type (block parse context)
+ * @param out_cond *i32 — condition expr ref
+ * @param out_then *i32 — then block ref
+ * @param out_else *i32 — else/else-if wrap block ref (0 when no else)
+ * @return i32 — 1 success; 0 any failure (cursor state unspecified)
+ * PLATFORM: SHARED — product if_stmt wave 2; C trampoline keeps the
+ * by-value face (parser_asm_parse_if_stmt_into_c). Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32): i32 {
+  let kind: i32 = 0;
+  let cok: i32 = 0;
+  let cond_ref: i32 = 0;
+  let then_ref: i32 = 0;
+  let wrap_ref: i32 = 0;
+  let ncond: i32 = 0;
+  let nthen: i32 = 0;
+  let nelse: i32 = 0;
+  let bok: i32 = 0;
+  let bref: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_cond == 0 as *i32 || out_then == 0 as *i32 || out_else == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_cond[0] = 0;
+    out_then[0] = 0;
+    out_else[0] = 0;
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IF) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    /* Align the cursor to the condition's first token (C: lex_at_token). */
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    parser_asm_ctrl_realign_finish_peek(lex_inout, source, kind);
+    if (parser_parse_cond_expr_ptr_into_c(arena, lex_inout, source, &cok, &cond_ref) == 0) {
+      return 0;
+    }
+    if (cok == 0) {
+      return 0;
+    }
+    /* P1d contract: on success the cursor is ALREADY past the '{'
+     * (RPAREN branch steps over ')' then '{'; LBRACE branch over '{').
+     * Do NOT peek/step the brace again — that double-consumed it. */
+    if (parser_asm_advance_past_cond_rparen_into_c(lex_inout, source) == 0) {
+      return 0;
+    }
+    if (parser_parse_block_ptr_into_c(arena, lex_inout, source, type_ref, &bok, &bref) == 0) {
+      return 0;
+    }
+    if (bok == 0) {
+      return 0;
+    }
+    then_ref = bref;
+    out_cond[0] = cond_ref;
+    out_then[0] = then_ref;
+    out_else[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_ELSE) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_IF) {
+        /* else-if chain: wrap the tail in a fresh block, recurse. */
+        parser_asm_ctrl_realign_finish_peek(lex_inout, source, kind);
+        wrap_ref = ast_ast_arena_block_alloc(arena);
+        if (wrap_ref == 0) {
+          return 0;
+        }
+        ncond = 0;
+        nthen = 0;
+        nelse = 0;
+        if (parser_asm_parse_if_stmt_x_into_c(arena, lex_inout, source, type_ref, &ncond, &nthen, &nelse) == 0) {
+          return 0;
+        }
+        if (pipeline_block_append_if(arena, wrap_ref, ncond, nthen, nelse) < 0) {
+          return 0;
+        }
+        if (pipeline_block_append_stmt_order(arena, wrap_ref, 5, 0) < 0) {
+          return 0;
+        }
+        out_else[0] = wrap_ref;
+      } else if (kind == TOKEN_LBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        if (parser_parse_block_ptr_into_c(arena, lex_inout, source, type_ref, &bok, &bref) == 0) {
+          return 0;
+        }
+        if (bok == 0) {
+          return 0;
+        }
+        out_else[0] = bref;
+      } else {
+        return 0;
+      }
+    }
+    /* Final cursor sync (C tail): prefer the full-statement scan-sync
+     * (from the statement-start snapshot), else the P5d realign arm. */
+    if (parser_if_stmt_scan_sync_from_pos_ptr_into_c(source, pos0, line0, col0, lex_inout) == 0) {
+      parser_asm_realign_lex_after_if_arm_into_c(lex_inout, source);
+    }
+    return 1;
+  }
+  return 0;
 }

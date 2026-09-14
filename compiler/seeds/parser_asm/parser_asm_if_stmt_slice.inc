@@ -78,6 +78,31 @@ int32_t parser_parse_block_ptr_into_c(void *arena, void *lex_inout, void *source
   *(struct parser_asm_lexer *)lex_inout = res.next_lex;
   return 1;
 }
+
+/* if_stmt wave-2: scan-sync from the statement-start snapshot. The .x
+ * side keeps only scalars (pos/line/col of `if`), so rebuild the at-lexer
+ * here; on success replace the caller's walked cursor with the scanned
+ * one (full pos+line+col). Returns 1 when replaced, 0 to let the caller
+ * fall back to its realign arm (C tail semantics). */
+static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parser_asm_lexer lex_cur,
+                                                                    struct parser_asm_slice_u8 *source);
+int32_t parser_if_stmt_scan_sync_from_pos_ptr_into_c(void *source, size_t pos0, int32_t line0,
+                                                     int32_t col0, void *lex_inout) {
+  struct parser_asm_lexer at;
+  struct parser_asm_lexer scanned;
+  if (!source || !lex_inout)
+    return 0;
+  memset(&at, 0, sizeof(at));
+  at.pos = pos0;
+  at.line = line0;
+  at.col = col0;
+  scanned = parser_asm_scan_sync_after_if_stmt_c(at, source);
+  if (scanned.pos > at.pos) {
+    *(struct parser_asm_lexer *)lex_inout = scanned;
+    return 1;
+  }
+  return 0;
+}
 extern int32_t ast_ast_arena_block_alloc(void *arena);
 extern int32_t pipeline_block_append_if(void *arena, int32_t br, int32_t cond_ref, int32_t then_ref, int32_t else_ref);
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t br, uint8_t kind, int32_t idx);
@@ -1216,12 +1241,33 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
 }
 
 /** 非 static 导出供 glue 调用。 */
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/* if_stmt wave-2: body in pthin_ctrl.x (cond/block ptr shims + P1b rparen
+ * advance + scan-sync shim + P5d realign; else-if chains recurse). */
+extern int32_t parser_asm_parse_if_stmt_x_into_c(void *arena, void *lex_inout, void *source, int32_t type_ref,
+                                                 int32_t *out_cond, int32_t *out_then, int32_t *out_else);
+int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex_at_if,
+                                        struct parser_asm_slice_u8 *source, int32_t type_ref, int32_t *out_cond,
+                                        int32_t *out_then, int32_t *out_else, struct parser_asm_lexer *lex_out) {
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!lex_out)
+    return 0;
+  cur = lex_at_if;
+  rc = parser_asm_parse_if_stmt_x_into_c(arena, &cur, source, type_ref, out_cond, out_then, out_else);
+  lex_out->pos = cur.pos;
+  lex_out->line = cur.line;
+  lex_out->col = cur.col;
+  return rc;
+}
+#else
 int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex_at_if,
                                         struct parser_asm_slice_u8 *source, int32_t type_ref, int32_t *out_cond,
                                         int32_t *out_then, int32_t *out_else, struct parser_asm_lexer *lex_out) {
   return parser_asm_parse_if_stmt_into_slice_c(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else,
                                                lex_out);
 }
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X parse_if_stmt */
 
 /** 判断 c 是否为空白符。 */
 static int32_t parser_asm_is_ws_byte_c(uint8_t c) {
