@@ -989,13 +989,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # portable .inc region. No lexer-step bridge. Cold: no define, full .inc.
 
         _pthin_p4p_extra=""
-        # TEMP x86_64 guard (filed debt): the .x suffix-loop split emits a
-        # behavioral divergence on Linux (bare probes pass, chained suffix
-        # probes fail — emitter class, w157/rbx-park family). Lane stays .x
-        # on Darwin; Linux uses the C twin until the divergence is fixed.
-        case "$(uname -s)" in
-          Linux) _pthin_p4pb_thin_o="" ;;
-        esac
         if [ -n "$_pthin_p4pb_thin_o" ] && [ -f "$_pthin_p4pb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o"; then
             _pthin_p4pb_ok=1
