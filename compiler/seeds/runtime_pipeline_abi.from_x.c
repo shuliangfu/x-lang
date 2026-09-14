@@ -60263,6 +60263,42 @@ void pipeline_expr_set_float_val(void *a, int32_t er, double v) {
     ex->float_val = v;
 }
 
+/* primary wave-0 #6: arena-side twin of the parse-side common-zeros wipe
+ * (every ref/base/count field a fresh literal fill must clear; the .x lane
+ * cannot memcpy an Expr). Mirrors parser_asm_expr_set_common_zeros_c. */
+void pipeline_expr_set_common_zeros_c(void *a, int32_t er) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->resolved_type_ref = 0;
+  ex->binop_left_ref = 0;
+  ex->binop_right_ref = 0;
+  ex->unary_operand_ref = 0;
+  ex->if_cond_ref = 0;
+  ex->if_then_ref = 0;
+  ex->if_else_ref = 0;
+  ex->block_ref = 0;
+  ex->match_matched_ref = 0;
+  ex->match_arm_base = 0;
+  ex->match_num_arms = 0;
+  ex->enum_variant_tag = 0;
+  ex->field_access_base_ref = 0;
+  ex->field_access_field_len = 0;
+  ex->field_access_is_enum_variant = 0;
+  ex->field_access_offset = 0;
+  ex->index_base_ref = 0;
+  ex->index_index_ref = 0;
+  ex->index_base_is_slice = 0;
+  ex->call_callee_ref = 0;
+  ex->call_arg_base = 0;
+  ex->call_num_args = 0;
+  ex->call_num_type_args = 0;
+  ex->var_name_len = 0;
+}
+
 void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
   W278_Expr *ex;
   int32_t i;
