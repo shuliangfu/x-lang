@@ -37,6 +37,10 @@ export extern "C" function pipeline_expr_set_float_val(a: *u8, er: i32, v: f64):
 export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
 export extern "C" function pipeline_expr_tag_null_keyword_c(arena: *u8, er: i32): void;
 export extern "C" function parser_parse_expr_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
+export extern "C" function parser_finish_struct_lit_ptr_into_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
+export extern "C" function pipeline_expr_kind_ord_at(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_var_name_len(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_var_name_into(a: *u8, er: i32, dst: *u8): void;
 
 // pthin_expr_primary.x — G-02f-282 P4 parser thin primary product bodies.
 //

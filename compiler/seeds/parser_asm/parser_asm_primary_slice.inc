@@ -1823,6 +1823,27 @@ int32_t parser_parse_expr_ptr_into_c(void *arena, void *lex_inout, void *source,
 }
 
 
+/* =============================================================================
+ * Suffix enabler #4: struct-lit finish pointer shim. The turbofish struct
+ * instantiation branch (`foo<T>{...}`) finishes through this by-value glue;
+ * the .x suffix loop calls the pointer face (cursor in/out + result slots).
+ * PLATFORM: SHARED — additive, ungated.
+ * ============================================================================= */
+void parser_finish_struct_lit_ptr_into_c(void *arena, int32_t lit_ref, void *lex_inout, void *source,
+                                         int32_t *out_ok, int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_finish_struct_lit_from_type_ident_into_glue(arena, lit_ref, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+}
+
+
 /**
  * parse_primary_into：INT | FLOAT | BOOL | break | continue | IDENT 后缀 | (expr) | [] | if | match | panic | @simd。
  */
