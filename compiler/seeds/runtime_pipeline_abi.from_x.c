@@ -60218,6 +60218,69 @@ int32_t pipeline_expr_resolved_type_ref(void *a, int32_t expr_ref) {
   return ex ? ex->resolved_type_ref : 0;
 }
 
+/* =============================================================================
+ * primary-parse wave-0 expr writers (2026-09-14): scalar-field writes over
+ * W278_Expr for the upcoming pthin .x primary orchestration (same rationale
+ * as set_resolved_type_ref: no Expr by-value get/set on the asm backend).
+ * Literal+ident minimal family; more writers land with their consumer waves.
+ * PLATFORM: SHARED — always-domain, additive.
+ * ============================================================================= */
+void pipeline_expr_set_kind(void *a, int32_t er, int32_t kind) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (ex)
+    ex->kind = (int32_t)kind;
+}
+
+void pipeline_expr_set_line_col(void *a, int32_t er, int32_t line, int32_t col) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (ex) {
+    ex->line = line;
+    ex->col = col;
+  }
+}
+
+void pipeline_expr_set_int_val(void *a, int32_t er, int64_t v) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (ex)
+    ex->int_val = v;
+}
+
+void pipeline_expr_set_float_val(void *a, int32_t er, double v) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (ex)
+    ex->float_val = v;
+}
+
+void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
+  W278_Expr *ex;
+  int32_t i;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 255)
+    nlen = 255;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  memset(ex->var_name, 0, sizeof(ex->var_name));
+  for (i = 0; i < nlen; i++)
+    ex->var_name[i] = nm ? nm[i] : 0;
+  ex->var_name_len = nlen;
+}
+
 /**
  * Write resolved_type_ref on arena-pooled Expr. Called by typeck.x
  * EMIT_HEAVY emit path to stamp the inferred type without Expr
