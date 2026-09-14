@@ -4399,6 +4399,12 @@ pipeline_abi_inject_assign_thin() {
     oc=objcopy
   fi
   if [ -n "$oc" ]; then
+    # Every non-static def inside the XLANG_PABI_ASSIGN_THIN markers compiles
+    # into BOTH the thin member and the full-compile base member; it MUST be
+    # listed here or Darwin -force_load links fail with a duplicate symbol
+    # (Ubuntu archive member selection hides it — verify on BOTH ends).
+    # wave661: +w157_walk_block_rec (w157 wave added it inside the region
+    # without updating this list; Darwin cold L4 g05 link caught it).
     for s in \
       glue_assign_lhs_f32_type_ref_elf_c \
       glue_emit_assign_rhs_elf_c \
@@ -4406,7 +4412,8 @@ pipeline_abi_inject_assign_thin() {
       pipeline_asm_emit_assign_elf_c \
       glue_field_assign_pair_base_ref_c \
       glue_body_expr_stmt_at_c \
-      glue_asm_sum_block_call_spill_bytes
+      glue_asm_sum_block_call_spill_bytes \
+      w157_walk_block_rec
     do
       "$oc" --weaken-symbol="_$s" "$base_o" 2>/dev/null \
         || "$oc" --weaken-symbol="$s" "$base_o" 2>/dev/null \
