@@ -26,14 +26,14 @@
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
 | Mega 去 pin M4（阶段 7） | 🟡 | 冷链关 pin；**7.2.1b leftover flatten 完**；深链分批覆盖戏停；**已 T 缩壳**：P9 hybrid 跳过 suite 46k；**Route C 产品化**：P9b stretch lite＋P1b lex_skip＋P19b helpers＋**P19c run_len extra／lex_at_token／rewind**＋**P19d struct_field_name／ident_is_unsafe**＋**P19e align_lex（in-place _into_c；P9a 门同 P5d/P12b）**＋P4b primary ident＋P3b type_ref＋P7b simd ident pack／callee 名＋P4ub unary TOKEN→ExprKind＋P4bb binop TOKEN→ExprKind＋P14b skip_if 走查＋P12b skip_tl struct／enum／extern 走查＋**P12c skip_one_impl dest-buffer**＋**P12d generic_bound_scan dest-buffer**＋**P12e skip_one_enum_register／append_variants**＋P18b body_tl scalar 表＋let／const／if skip 走查＋P10b glue skip_one_function_full 走查＋P13b try_skip_allow padding 走查＋P11b skip_imports 走查＋P5b if_stmt 注释感知花括号字节扫描／kw_at_pos＋P5c scan_sync pos＋P15b library_scan＋P17b diag_late after_structs／fail＋**P11c consume_path／try_skip**（g05 `-E`+cc，pure-asm CG002）＋**P11d collect_imports dest-buffer**（copy_token_bytes 仍 C；g05 `-E`+cc，pure-asm CG002）＋**P18c cfg_skip／diag_first_ident**（P010–P014／onefunc_param_name_dup 仍 C；pure-asm 过）＋**P1c skip_generic_angle_list_count**（g_gp_pending_*／register_pending 仍 C；g05 `-E`+cc，pure-asm CG002）＋**P1d ASI advance_past_stmt_semicolon／cond_rparen**（rewind／run_len／align／first_token 仍 C；g05 `-E`+cc，pure-asm CG002）＋**P1e parse_peek_function_name／first_token_kind**（rewind／run_len／align 仍 C；g05 `-E`+cc，pure-asm CG002）＋**P17c G.7 diag_skip_let_const_buf trampoline over P18b into**；残＝产品 `.inc` 切片仍 host-cc（含 glue_tail 包装、primary parse、skip_tl skip_one_trait／parse_one_extern、try_skip_allow parse_into、if_stmt parse／realign；P12g 后 skip_one_trait 已纯 asm 默认）、lite／suite／lex_skip／helpers／primary ident／type_ref／simd／unary／binop／skip_if walks／skip_tl struct／enum／extern／impl header／body_tl skip／glue skip_one_function_full／try_skip_allow padding／skip_imports／consume_path／try_skip／collect_imports／ctrl brace-skip／scan_sync／library_scan／diag_late after_structs／fail／body_tl cfg_skip／diag_first_ident／lex_skip count portable 冷回退、`parser_asm_thin_c.from_x.c` 443KiB 仅冷 rest 回退；parser seed 物理删 ⬜ |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 FULLY CLOSED |
-| 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 仍 host-cc；from_x 全表策略 ⬜ |
+| 非 gen 产品 C／8.3 | ✅ | `pipeline_x` mega **已 wave309 从产品链退役**（g05 恒 skip；残留仅 .bak/mk）——旧表「仍 host-cc」系陈旧 |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 全系列 ✅ |
 | 语言能力 L2（阶段 10） | 🟡 | 主面多 ✅；残 NT／MSVC／qemu／Win 实机 |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；终局／零 cc CI 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
 | 产品 L4 钉盘 | ✅ | **`5cac88d00`**（双端 L4＋bstrict 129） |
-| BC（编译层零 host-cc） | 🟡 | `pipeline_x` 仍 host-cc mega |
+| BC（编译层零 host-cc） | ✅ | `pipeline_x` 已退役（wave309）——BC 面余量转 8.3.6 冷孪生三分 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
 | `pipeline_abi` mega pure-asm | ⬜ 硬禁 | 须点名 |
 | nest 冻帽 | ✅ 纪律 | **64** |
