@@ -52749,40 +52749,57 @@ export function glue_try_binop_commutative_rax_rbx_elf_c(arena: *u8, elf_ctx: *u
     if (cr == -1) {
       return -1;
     }
-    /*c*/
-    r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1);
-    if (r == 0) {
-      let save_rbx: i32 = 0;
-      save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, left_ref);
-      if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+    /*
+     * wave660 rbx-park guard: only take a simple-operand-first branch when the
+     * OPPOSITE side cannot stage temps into rbx while being emitted. Loading
+     * right->rbx first and then emitting a complex left (nested binop staging
+     * a literal through backend_enc_mov_imm32_to_rbx_arch, calls, INDEX/FIELD
+     * addressing) silently overwrites the parked operand: `(cn*4) + (nargs as
+     * usize)` emitted cn*4+4, shifting g_call_typearg_lens rows by
+     * GENERIC_CALL_MAX_ARGS (pure-asm bound_method T001; transpiled lane hid).
+     * wave338 fixed the ADD face for a bare-VAR right only; this is the shared
+     * commutative authority, so cast-wrapped VAR operands and every
+     * commutative op are covered here. Skipping a guard falls through to the
+     * left-first tail below, which emits left->rax before any rbx use.
+     * PLATFORM: SHARED freestanding emit.
+     */
+    if (glue_expr_emit_may_clobber_rbx_elf_c(arena, left_ref) == 0) {
+      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1);
+      if (r == 0) {
+        let save_rbx: i32 = 0;
+        save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, left_ref);
+        if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 0);
+        if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        if (r != -2) {
+          return r;
+        }
+      } else if (r == -1) {
         return -1;
       }
-      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 0);
-      if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
-        return -1;
-      }
-      if (r != -2) {
-        return r;
-      }
-    } else if (r == -1) {
-      return -1;
     }
-    r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 1);
-    if (r == 0) {
-      let save_rbx: i32 = 0;
-      save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, right_ref);
-      if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+    if (glue_expr_emit_may_clobber_rbx_elf_c(arena, right_ref) == 0) {
+      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 1);
+      if (r == 0) {
+        let save_rbx: i32 = 0;
+        save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, right_ref);
+        if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0);
+        if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        if (r != -2) {
+          return r;
+        }
+      } else if (r == -1) {
         return -1;
       }
-      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0);
-      if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
-        return -1;
-      }
-      if (r != -2) {
-        return r;
-      }
-    } else if (r == -1) {
-      return -1;
     }
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0) {
       return -1;
