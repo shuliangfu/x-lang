@@ -97967,6 +97967,8 @@ export extern "C" function pipeline_module_parse_impl_owner_set(nm: *u8, nlen: i
 export extern "C" function pipeline_module_parse_impl_owner_clear(): void;
 export extern "C" function pipeline_module_func_owner_from_impl(m: *u8, fi: i32): void;
 export extern "C" function pipeline_module_func_owner_binds_base_at(m: *u8, fi: i32, base: *u8, base_len: i32): i32;
+export extern "C" function pipeline_module_func_set_abi_kind(m: *u8, fi: i32, abi_kind: i32): void;
+export extern "C" function pipeline_module_func_abi_kind_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
 export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;
 export extern "C" function pipeline_module_func_set_body_ref(m: *u8, fi: i32, br: i32): void;

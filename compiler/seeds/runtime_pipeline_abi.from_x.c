@@ -61702,6 +61702,25 @@ void pipeline_module_func_set_is_variadic(void *m, int32_t fi, int32_t is_variad
   W280_Func *f = module_func_at(m, fi);
   if (f) f->is_variadic = is_variadic;
 }
+/* Set module func abi_kind (0=X ABI default, 1=C ABI `extern "C"`).
+ * P12h: the extern parse flow used to write abi only onto the arena Func
+ * via struct get/fill/set; the .x dest-buffer orchestration writes the
+ * module row first and copies to the arena via copy_slot_from_module,
+ * so the module row needs this setter (codegen reads abi for "C" faces). */
+void pipeline_module_func_set_abi_kind(void *m, int32_t fi, int32_t abi_kind) {
+  W280_Func *f = module_func_at(m, fi);
+  if (f)
+    f->abi_kind = abi_kind;
+}
+
+int32_t pipeline_module_func_abi_kind_at(void *m, int32_t func_index) {
+  W280_Func *f;
+  if (!m || func_index < 0 || func_index >= ((W280_ModuleHdr *)m)->num_funcs)
+    return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->abi_kind : 0;
+}
+
 int32_t pipeline_module_func_is_variadic_at(void *m, int32_t func_index) {
   W280_Func *f;
   if (!m || func_index < 0 || func_index >= ((W280_ModuleHdr *)m)->num_funcs) return 0;

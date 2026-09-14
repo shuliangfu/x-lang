@@ -8153,6 +8153,32 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
 /**
  * parse_one_extern_and_add_into：解析 extern 声明并登记 module；失败 fallback skip_one_extern_into。
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12h: body in pthin_skip_tl.x (P12f skip out-slots +
+ * scalar module setters + copy_slot_from_module + onefunc pool loop).
+ * By-value lexer face stays here; the .x mutates the local copy. */
+extern void parser_asm_parse_one_extern_and_add_into_c(void *lex_inout, void *source, void *arena,
+                                                       void *module, void *pool, uint8_t *name_buf,
+                                                       uint8_t *pname_buf);
+void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                       struct parser_asm_slice_u8 *source,
+                                                       struct parser_asm_lexer *lex_out) {
+  struct parser_asm_lexer cur;
+  struct parser_asm_extern_parse_result res;
+  uint8_t name_buf[64];
+  uint8_t pname_buf[256];
+  if (!lex_out || !source)
+    return;
+  memset(&res, 0, sizeof(res));
+  ast_pool_onefunc_reset((uint8_t *)&res);
+  memset(name_buf, 0, sizeof(name_buf));
+  memset(pname_buf, 0, sizeof(pname_buf));
+  cur = lex;
+  parser_asm_parse_one_extern_and_add_into_c(&cur, source, arena, module, (uint8_t *)&res,
+                                             name_buf, pname_buf);
+  *lex_out = cur;
+}
+#else
 void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                        struct parser_asm_slice_u8 *source,
                                                        struct parser_asm_lexer *lex_out) {
@@ -8225,6 +8251,7 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
   lex_out->line = res.next_lex.line;
   lex_out->col = res.next_lex.col;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X parse_one_extern_and_add */
 
 /**
  * module_register_arena_func：将 arena Func 登记到 module 动态池，返回 module 下标或 -1。
