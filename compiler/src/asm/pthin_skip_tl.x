@@ -1456,6 +1456,121 @@ function p12g_store_i32(base: *u8, off: i32, v: i32): void {
 }
 
 /**
+ * Parse one top-level extern declaration AND register it (P12h).
+ * Dest-buffer orchestration over the P12f skip: on a successful skip the
+ * function is allocated a module row, filled through the scalar setters,
+ * copied to the arena Func via copy_slot_from_module, and its params are
+ * written into both pools. On any failure path (skip fail, missing return
+ * type, alloc failure) this mirrors the C twin: emit the parse-skip
+ * diagnostic and fall back to the in-place extern skip so the module
+ * still parses.
+ * @param lex_inout *u8 — cursor at the start of `extern`; advanced in
+ *   place (next_lex semantics of the C twin's result struct)
+ * @param source *u8 — opaque slice
+ * @param arena *u8 — opaque ASTArena for the func row + type refs
+ * @param module *u8 — opaque module receiving the registered function
+ * @param pool *u8 — onefunc pool (the C extern_parse_result sidecar)
+ * @param name_buf *u8 — trampoline-owned 64-byte function name dest
+ * @param pname_buf *u8 — trampoline-owned 256-byte param-name scratch
+ * @return void — failures are reported via diagnostics + fallback skip
+ * PLATFORM: SHARED — product P12h B-minus; C trampoline keeps the
+ * by-value face (parser_asm_parse_one_extern_and_add_into_slice_c).
+ * Do not wrap skip_one_extern here (fallback uses the P12b lane body).
+ */
+#[no_mangle]
+export function parser_asm_parse_one_extern_and_add_into_c(lex_inout: *u8, source: *u8, arena: *u8, module: *u8, pool: *u8, name_buf: *u8, pname_buf: *u8): void {
+  let name_len: i32 = 0;
+  let return_ty: i32 = 0;
+  let num_params: i32 = 0;
+  let abi_kind: i32 = 0;
+  let is_variadic: i32 = 0;
+  let has_body: i32 = 0;
+  let rc: i32 = 0;
+  let func_ref: i32 = 0;
+  let fi: i32 = 0;
+  let p: i32 = 0;
+  let plen: i32 = 0;
+  let pty: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || arena == 0 as *u8 || module == 0 as *u8 || pool == 0 as *u8 || name_buf == 0 as *u8 || pname_buf == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    /* C twin fallback re-skips from the ORIGINAL lexer position; the
+     * in-place skip walk advances lex_inout, so snapshot and restore. */
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    rc = parser_asm_parse_one_extern_skip_into_c(lex_inout, source, arena, pool, name_buf, pname_buf, &name_len, &return_ty, &num_params, &abi_kind, &is_variadic, &has_body);
+    if (rc != 1 || name_len < 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
+      return;
+    }
+    if (rc != 1 || name_len < 0) {
+      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
+      return;
+    }
+    if (return_ty == 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      driver_diagnostic_parse_skip_function(parser_asm_lex_pos_c(lex_inout) as i32, pipeline_module_num_funcs(module), name_len, name_buf);
+      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
+      return;
+    }
+    func_ref = ast_ast_arena_func_alloc(arena);
+    if (func_ref == 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      driver_diagnostic_parse_skip_function(parser_asm_lex_pos_c(lex_inout) as i32, pipeline_module_num_funcs(module), name_len, name_buf);
+      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
+      return;
+    }
+    fi = pipeline_module_func_alloc_slot(module);
+    if (fi < 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      driver_diagnostic_parse_skip_function(parser_asm_lex_pos_c(lex_inout) as i32, pipeline_module_num_funcs(module), name_len, name_buf);
+      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
+      return;
+    }
+    pipeline_module_func_name_write(module, fi, name_buf, name_len);
+    pipeline_module_func_set_num_params(module, fi, num_params);
+    pipeline_module_func_set_return_type(module, fi, return_ty);
+    pipeline_module_func_set_body_ref(module, fi, 0);
+    pipeline_module_func_set_body_expr_ref(module, fi, 0);
+    /* Body-bearing extern parses the body via the caller: is_extern=0
+     * (C twin's has_body rule); pure declaration keeps is_extern=1. */
+    if (has_body == 1) {
+      pipeline_module_func_set_is_extern(module, fi, 0);
+    } else {
+      pipeline_module_func_set_is_extern(module, fi, 1);
+    }
+    pipeline_module_func_set_is_async(module, fi, 0);
+    pipeline_module_func_set_abi_kind(module, fi, abi_kind);
+    pipeline_module_func_set_is_variadic(module, fi, is_variadic);
+    pipeline_module_func_ref_set(module, fi, func_ref);
+    pipeline_arena_func_copy_slot_from_module(arena, func_ref, module, fi);
+    p = 0;
+    while (p < num_params) {
+      pipeline_onefunc_param_name_copy32(pool, p, pname_buf);
+      plen = pipeline_onefunc_param_name_len(pool, p);
+      pty = pipeline_onefunc_param_type_ref(pool, p);
+      pipeline_arena_func_param_write(arena, func_ref, p, pname_buf, plen, pty);
+      pipeline_module_func_param_write(module, fi, p, pname_buf, plen, pty);
+      p = p + 1;
+    }
+  }
+}
+
+/**
  * g-1 preset: walk the `trait Name {` header and record the trait name into
  * the ent stack-image. Entry cursor at the `trait` keyword start. Returns 1
  * with the cursor after `{` on success; 0 (cursor restored to entry) when
@@ -3176,117 +3291,3 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
   }
 }
 
-/**
- * Parse one top-level extern declaration AND register it (P12h).
- * Dest-buffer orchestration over the P12f skip: on a successful skip the
- * function is allocated a module row, filled through the scalar setters,
- * copied to the arena Func via copy_slot_from_module, and its params are
- * written into both pools. On any failure path (skip fail, missing return
- * type, alloc failure) this mirrors the C twin: emit the parse-skip
- * diagnostic and fall back to the in-place extern skip so the module
- * still parses.
- * @param lex_inout *u8 — cursor at the start of `extern`; advanced in
- *   place (next_lex semantics of the C twin's result struct)
- * @param source *u8 — opaque slice
- * @param arena *u8 — opaque ASTArena for the func row + type refs
- * @param module *u8 — opaque module receiving the registered function
- * @param pool *u8 — onefunc pool (the C extern_parse_result sidecar)
- * @param name_buf *u8 — trampoline-owned 64-byte function name dest
- * @param pname_buf *u8 — trampoline-owned 256-byte param-name scratch
- * @return void — failures are reported via diagnostics + fallback skip
- * PLATFORM: SHARED — product P12h B-minus; C trampoline keeps the
- * by-value face (parser_asm_parse_one_extern_and_add_into_slice_c).
- * Do not wrap skip_one_extern here (fallback uses the P12b lane body).
- */
-#[no_mangle]
-export function parser_asm_parse_one_extern_and_add_into_c(lex_inout: *u8, source: *u8, arena: *u8, module: *u8, pool: *u8, name_buf: *u8, pname_buf: *u8): void {
-  let name_len: i32 = 0;
-  let return_ty: i32 = 0;
-  let num_params: i32 = 0;
-  let abi_kind: i32 = 0;
-  let is_variadic: i32 = 0;
-  let has_body: i32 = 0;
-  let rc: i32 = 0;
-  let func_ref: i32 = 0;
-  let fi: i32 = 0;
-  let p: i32 = 0;
-  let plen: i32 = 0;
-  let pty: i32 = 0;
-  let pos0: usize = 0;
-  let line0: i32 = 0;
-  let col0: i32 = 0;
-  if (lex_inout == 0 as *u8 || source == 0 as *u8 || arena == 0 as *u8 || module == 0 as *u8 || pool == 0 as *u8 || name_buf == 0 as *u8 || pname_buf == 0 as *u8) {
-    return;
-  }
-  unsafe {
-    /* C twin fallback re-skips from the ORIGINAL lexer position; the
-     * in-place skip walk advances lex_inout, so snapshot and restore. */
-    pos0 = parser_asm_lex_pos_c(lex_inout);
-    line0 = parser_asm_lex_line_c(lex_inout);
-    col0 = parser_asm_lex_col_c(lex_inout);
-    rc = parser_asm_parse_one_extern_skip_into_c(lex_inout, source, arena, pool, name_buf, pname_buf, &name_len, &return_ty, &num_params, &abi_kind, &is_variadic, &has_body);
-    if (rc != 1 || name_len < 0) {
-      parser_asm_lex_set_pos_c(lex_inout, pos0);
-      parser_asm_lex_set_line_c(lex_inout, line0);
-      parser_asm_lex_set_col_c(lex_inout, col0);
-      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
-      return;
-    }
-    if (rc != 1 || name_len < 0) {
-      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
-      return;
-    }
-    if (return_ty == 0) {
-      parser_asm_lex_set_pos_c(lex_inout, pos0);
-      parser_asm_lex_set_line_c(lex_inout, line0);
-      parser_asm_lex_set_col_c(lex_inout, col0);
-      driver_diagnostic_parse_skip_function(parser_asm_lex_pos_c(lex_inout) as i32, pipeline_module_num_funcs(module), name_len, name_buf);
-      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
-      return;
-    }
-    func_ref = ast_ast_arena_func_alloc(arena);
-    if (func_ref == 0) {
-      parser_asm_lex_set_pos_c(lex_inout, pos0);
-      parser_asm_lex_set_line_c(lex_inout, line0);
-      parser_asm_lex_set_col_c(lex_inout, col0);
-      driver_diagnostic_parse_skip_function(parser_asm_lex_pos_c(lex_inout) as i32, pipeline_module_num_funcs(module), name_len, name_buf);
-      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
-      return;
-    }
-    fi = pipeline_module_func_alloc_slot(module);
-    if (fi < 0) {
-      parser_asm_lex_set_pos_c(lex_inout, pos0);
-      parser_asm_lex_set_line_c(lex_inout, line0);
-      parser_asm_lex_set_col_c(lex_inout, col0);
-      driver_diagnostic_parse_skip_function(parser_asm_lex_pos_c(lex_inout) as i32, pipeline_module_num_funcs(module), name_len, name_buf);
-      rc = parser_asm_skip_one_extern_into_c(lex_inout, source);
-      return;
-    }
-    pipeline_module_func_name_write(module, fi, name_buf, name_len);
-    pipeline_module_func_set_num_params(module, fi, num_params);
-    pipeline_module_func_set_return_type(module, fi, return_ty);
-    pipeline_module_func_set_body_ref(module, fi, 0);
-    pipeline_module_func_set_body_expr_ref(module, fi, 0);
-    /* Body-bearing extern parses the body via the caller: is_extern=0
-     * (C twin's has_body rule); pure declaration keeps is_extern=1. */
-    if (has_body == 1) {
-      pipeline_module_func_set_is_extern(module, fi, 0);
-    } else {
-      pipeline_module_func_set_is_extern(module, fi, 1);
-    }
-    pipeline_module_func_set_is_async(module, fi, 0);
-    pipeline_module_func_set_abi_kind(module, fi, abi_kind);
-    pipeline_module_func_set_is_variadic(module, fi, is_variadic);
-    pipeline_module_func_ref_set(module, fi, func_ref);
-    pipeline_arena_func_copy_slot_from_module(arena, func_ref, module, fi);
-    p = 0;
-    while (p < num_params) {
-      pipeline_onefunc_param_name_copy32(pool, p, pname_buf);
-      plen = pipeline_onefunc_param_name_len(pool, p);
-      pty = pipeline_onefunc_param_type_ref(pool, p);
-      pipeline_arena_func_param_write(arena, func_ref, p, pname_buf, plen, pty);
-      pipeline_module_func_param_write(module, fi, p, pname_buf, plen, pty);
-      p = p + 1;
-    }
-  }
-}
