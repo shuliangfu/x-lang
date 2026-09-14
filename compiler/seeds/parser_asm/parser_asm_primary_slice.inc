@@ -2773,6 +2773,42 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     parser_parse_at_simd_builtin_into(arena, r, source, out);
     return;
   }
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+  /* Primary literal+INT wave: INT/FLOAT/TRUE/FALSE/NULL heads run from
+   * pthin_expr_primary.x via the wave-0 writer family (no Expr by-value);
+   * the INT branch also drives the .x suffix loop (trampoline-owned
+   * buffers — the language has no local arrays). Returns 0 (not mine) so
+   * every other arm below stays C-authoritative (IDENT arm pending). */
+  {
+    extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
+                                                       int32_t *out_ok, int32_t *out_expr_ref,
+                                                       int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                       int32_t *parsed_refs, int32_t *pending_refs,
+                                                       uint8_t *mangled, uint8_t *name_buf);
+    struct parser_asm_lexer lit_lex;
+    int32_t lit_mc[256];
+    int32_t lit_args[256];
+    int32_t lit_pr[8];
+    int32_t lit_pend[8];
+    uint8_t lit_mangled[128];
+    uint8_t lit_name[256];
+    int32_t lit_ok = 0;
+    int32_t lit_ref = 0;
+    lit_lex = lex;
+    if (parser_asm_primary_literal_x_into_c(arena, &lit_lex, source, &lit_ok, &lit_ref,
+                                            lit_mc, lit_args, lit_pr, lit_pend,
+                                            lit_mangled, lit_name) != 0) {
+      if (lit_ok != 0) {
+        out->ok = 1;
+        out->expr_ref = lit_ref;
+        out->next_lex = lit_lex;
+        return;
+      }
+      out->ok = 0;
+      return;
+    }
+  }
+#endif
   if (r.tok.kind == (int32_t)TOKEN_INT) {
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0) {
@@ -2796,30 +2832,6 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->next_lex = lex;
     return;
   }
-#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
-  /* Primary literal wave: FLOAT/TRUE/FALSE/NULL arms run from
-   * pthin_expr_primary.x via the wave-0 writer family (no Expr by-value).
-   * Returns 0 (not a literal) so the C arms below stay authoritative for
-   * everything else, including the INT arm (suffix-chain wave pending). */
-  {
-    extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
-                                                       int32_t *out_ok, int32_t *out_expr_ref);
-    struct parser_asm_lexer lit_lex;
-    int32_t lit_ok = 0;
-    int32_t lit_ref = 0;
-    lit_lex = lex;
-    if (parser_asm_primary_literal_x_into_c(arena, &lit_lex, source, &lit_ok, &lit_ref) != 0) {
-      if (lit_ok != 0) {
-        out->ok = 1;
-        out->expr_ref = lit_ref;
-        out->next_lex = lit_lex;
-        return;
-      }
-      out->ok = 0;
-      return;
-    }
-  }
-#endif
   if (r.tok.kind == (int32_t)TOKEN_FLOAT) {
     fref = parser_asm_alloc_float_lit_c(arena, r.tok.float_val);
     if (fref == 0) {

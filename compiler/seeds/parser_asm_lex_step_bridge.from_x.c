@@ -211,6 +211,19 @@ void parser_asm_lex_peek_float_val_into_c(void *lex, void *source, double *out) 
   *out = r.tok.float_val;
 }
 
+/**
+ * Peek the NEXT token's FULL int64 payload into *out (TOKEN_INT literals
+ * use the complete i64 range; the i32 peek truncates large literals).
+ * Pointer-out face for the .x primary INT arm. PLATFORM: SHARED.
+ */
+void parser_asm_lex_peek_int64_val_into_c(void *lex, void *source, int64_t *out) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source || !out)
+    return;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  *out = r.tok.int_val;
+}
+
 int32_t parser_asm_lex_peek_int_val_c(void *lex, void *source) {
   struct parser_asm_lexer_result r;
   if (!lex || !source)

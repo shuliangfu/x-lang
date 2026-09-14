@@ -20,6 +20,7 @@ const TOKEN_TRUE: i32 = 75;
 const TOKEN_FALSE: i32 = 76;
 const TOKEN_NULL: i32 = 132;
 const TOKEN_FLOAT: i32 = 134;
+const TOKEN_INT: i32 = 133;
 const EXPR_LIT: i32 = 0;
 const EXPR_FLOAT_LIT: i32 = 1;
 const EXPR_BOOL_LIT: i32 = 2;
@@ -28,6 +29,7 @@ export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u
 export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_float_val_into_c(lex_inout: *u8, source: *u8, out: *f64): void;
+export extern "C" function parser_asm_lex_peek_int64_val_into_c(lex_inout: *u8, source: *u8, out: *i64): void;
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
 export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
@@ -367,7 +369,7 @@ export function parser_asm_primary_ident_is_asm_option_name_buf_c(data: *u8, len
  * pipeline_expr_tag_null_keyword_c (G.7 single primary path).
  */
 #[no_mangle]
-export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
   let fval: f64 = 0 as f64;
@@ -380,10 +382,13 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
     out_ok[0] = 0;
     out_expr_ref[0] = 0;
     kind = parser_asm_lex_peek_kind_c(lex_inout, source);
-    if (kind != TOKEN_FLOAT && kind != TOKEN_TRUE && kind != TOKEN_FALSE && kind != TOKEN_NULL) {
+    if (kind != TOKEN_FLOAT && kind != TOKEN_TRUE && kind != TOKEN_FALSE && kind != TOKEN_NULL && kind != TOKEN_INT) {
       return 0;
     }
-    if (kind == TOKEN_FLOAT) {
+    let iv: i64 = 0;
+    if (kind == TOKEN_INT) {
+      parser_asm_lex_peek_int64_val_into_c(lex_inout, source, &iv);
+    } else if (kind == TOKEN_FLOAT) {
       parser_asm_lex_peek_float_val_into_c(lex_inout, source, &fval);
     }
     tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
@@ -393,6 +398,20 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
       return 1;
     }
     parser_asm_lex_step_kind_c(lex_inout, source);
+    if (kind == TOKEN_INT) {
+      /* INT head + suffix chain (`.method()`/`[i]`/`<T>()`) — the C arm
+       * steps past the literal then enters the suffix loop; the .x loop
+       * re-peeks purely, so just step and call it. */
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      pipeline_expr_set_kind(arena, ref, EXPR_LIT);
+      pipeline_expr_set_line_col(arena, ref, tl, tc);
+      pipeline_expr_set_int_val(arena, ref, iv);
+      pipeline_expr_set_common_zeros_c(arena, ref);
+      out_ok[0] = 1;
+      out_expr_ref[0] = 0;
+      parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+      return 1;
+    }
     if (kind == TOKEN_FLOAT) {
       pipeline_expr_set_kind(arena, ref, EXPR_FLOAT_LIT);
       pipeline_expr_set_float_val(arena, ref, fval);
