@@ -40,6 +40,44 @@ extern int32_t parser_advance_past_cond_rparen_into_glue(struct parser_asm_lexer
 extern void parser_parse_block_into(void *arena, struct parser_asm_lexer lex_after_lbrace,
                                     struct parser_asm_slice_u8 *source, int32_t type_ref,
                                     struct parser_asm_parse_block_result *out);
+
+/* =============================================================================
+ * if_stmt wave-1 pointer-face shims (2026-09-14): the pthin self-compiled lane
+ * is pointer-only (no struct-by-value), so the future .x if_stmt orchestration
+ * calls these instead of the by-value glues. Each shim assembles the by-value
+ * lexer, drives the existing X-mega glue (single authority), and writes the
+ * result back through out-slots with next_lex applied to the caller-owned
+ * cursor in place. PLATFORM: SHARED — additive; both lanes link the glues.
+ * ============================================================================= */
+int32_t parser_parse_cond_expr_ptr_into_c(void *arena, void *lex_inout, void *source,
+                                          int32_t *out_ok, int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_parse_cond_expr_into_glue(arena, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+int32_t parser_parse_block_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t type_ref,
+                                      int32_t *out_ok, int32_t *out_block_ref) {
+  struct parser_asm_parse_block_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_block_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_parse_block_into(arena, lex, source, type_ref, &res);
+  *out_ok = res.ok;
+  *out_block_ref = res.block_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
 extern int32_t ast_ast_arena_block_alloc(void *arena);
 extern int32_t pipeline_block_append_if(void *arena, int32_t br, int32_t cond_ref, int32_t then_ref, int32_t else_ref);
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t br, uint8_t kind, int32_t idx);
