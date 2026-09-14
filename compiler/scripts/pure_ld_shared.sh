@@ -657,21 +657,19 @@ pure_asm_x_to_o() {
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
   fi
-  # PLATFORM: SHARED — P12g (2026-09-14, CONFIRMED repro): asm-emitter
-  # call-arg marshaling bug on big functions. With the ban lifted the
-  # product link crashed every trait probe (rc=139): the .x callees
-  # receive garbage argument pointers (layout-dependent uninit temp slot
-  # in the marshal), and their 4-byte stores through the garbage pointer
-  # hammer the caller's frame — the trampoline's saved `out` was observed
-  # transitioning 0x100000001 -> partial 4-byte writes -> 0xb6c4 before
-  # the final *out store faulted. Isolation harnesses pass only because
-  # their link layout lands benign garbage (NULL guards / valid pointers).
-  # The pure-asm path stays banned for this .x until the backend fixes
-  # big-function call-arg homes; the -E transpile (clang-compiled) is the
-  # registry-verified correct path. Opt-in bisect: XLANG_P12G_ALLOW_PURE_ASM=1.
-  if [ "$_bn" = "pthin_skip_tl.x" ] && [ "${XLANG_P12G_ALLOW_PURE_ASM:-0}" != "1" ]; then
-    return 1
-  fi
+  # PLATFORM: SHARED — P12g lift (2026-09-14, wave660 root fix): the former
+  # pure-asm ban for pthin_skip_tl.x is removed. Root cause of the rc=139
+  # trait-probe crashes was NOT big-function call-arg marshaling but the
+  # commutative-binop rbx-park bug: a complex left operand staged its literal
+  # into rbx over the parked simple right operand (`(cn*4) + (nargs as usize)`
+  # emitted cn*4+4, shifting g_call_typearg_lens rows → T001; earlier symptom
+  # was the frame-corruption crash). Fixed in glue_try_binop_commutative
+  # _rax_rbx_elf_c (.x + seed twins): simple-operand-first branches now gated
+  # on glue_expr_emit_may_clobber_rbx_elf_c of the opposite side. Verified:
+  # bound_method quartet + trait/array_lit probes 27/27 lane-identical, L2
+  # matrix 5/5 on Darwin; Ubuntu must re-verify (git pull --ff-only).
+  # Bisect opt-out if a new pure-asm regression appears: re-add a
+  # XLANG_P12G_DENY_PURE_ASM gate here.
   # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default when the
   # emitting compiler has modlet lea→rax (tip). Pin egg / pre-lea compilers
   # still emit the (&n)>=n cmp bug → silent `xlang fmt` exit 1 (stderr newline
