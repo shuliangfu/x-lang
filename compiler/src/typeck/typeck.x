@@ -815,6 +815,7 @@ export extern function pipeline_module_func_return_type_at(module: *Module, fi: 
 export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
 export extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
+export extern function pipeline_module_func_owner_binds_base_at(module: *Module, fi: i32, base: *u8, base_len: i32): i32;
 export extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8,
                                                          name_len: i32): i32;
 export extern function pipeline_module_func_set_is_used(module: *Module, fi: i32, is_used: i32): void;
@@ -17651,7 +17652,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           let assoc_nf: i32 = pipeline_module_num_funcs(module);
           while (assoc_uj < assoc_nf) {
             let assoc_np: i32 = 0;
-            if (pipeline_module_func_name_equal_at(module, assoc_uj, &method_nm[0], method_nlen) != 0) {
+            /* LANG-005: associated call binds only rows whose impl owner (if
+             * stamped) matches the base struct; empty owner stays eligible
+             * (free fn / UFCS). Stops cross-impl bleed (B.g() -> A's g). */
+            if (pipeline_module_func_name_equal_at(module, assoc_uj, &method_nm[0], method_nlen) != 0
+                && pipeline_module_func_owner_binds_base_at(module, assoc_uj, &base_nm[0], assoc_nlen) != 0) {
               assoc_np = pipeline_module_func_num_params_at(module, assoc_uj);
               if (assoc_np == num_args) {
                 let assoc_matched: i32 = 1;

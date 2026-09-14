@@ -97963,6 +97963,10 @@ function pipe_ar_load_i32(base: *u8, off: i32): i32 {
 export extern "C" function ast_pool_block_on_alloc(a: *u8, br: i32): void;
 export extern "C" function pipeline_module_func_alloc_slot(m: *u8): i32;
 export extern "C" function pipeline_module_func_name_write(m: *u8, fi: i32, name: *u8, name_len: i32): void;
+export extern "C" function pipeline_module_parse_impl_owner_set(nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_module_parse_impl_owner_clear(): void;
+export extern "C" function pipeline_module_func_owner_from_impl(m: *u8, fi: i32): void;
+export extern "C" function pipeline_module_func_owner_binds_base_at(m: *u8, fi: i32, base: *u8, base_len: i32): i32;
 export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
 export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;
 export extern "C" function pipeline_module_func_set_body_ref(m: *u8, fi: i32, br: i32): void;

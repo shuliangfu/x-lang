@@ -1362,6 +1362,8 @@ extern void pipeline_module_struct_layout_set_field_align(struct ast_Module * mo
 extern int32_t pipeline_module_struct_layout_field_align_at(struct ast_Module * module, int32_t li, int32_t j);
 extern void pipeline_module_func_param_write(struct ast_Module * module, int32_t func_index, int32_t param_index, uint8_t * name_bytes, int32_t name_len, int32_t type_ref);
 extern void pipeline_module_func_name_write(struct ast_Module * module, int32_t func_index, uint8_t * name_bytes, int32_t name_len);
+extern void pipeline_module_func_owner_from_impl(struct ast_Module * module, int32_t fi);
+extern void pipeline_module_parse_impl_owner_clear(void);
 extern void pipeline_arena_func_param_write(struct ast_ASTArena * arena, int32_t func_ref, int32_t param_index, uint8_t * name_bytes, int32_t name_len, int32_t type_ref);
 extern void pipeline_arena_func_copy_slot_from_module(struct ast_ASTArena * arena, int32_t func_ref, struct ast_Module * module, int32_t fi);
 extern void pipeline_module_reset_parse_counters_c(struct ast_Module * module);
@@ -6949,6 +6951,8 @@ int32_t parser_module_register_arena_func(struct ast_Module * module, int32_t fu
       return -(1);
     }
     (void)(pipeline_module_func_name_write(module, fi, &(((f.name))[0]), (f.name_len)));
+    /* LANG-005: stamp impl owner while the parse impl latch is armed. */
+    (void)(pipeline_module_func_owner_from_impl(module, fi));
     (void)(pipeline_module_func_set_num_params(module, fi, (f.num_params)));
     (void)(pipeline_module_func_set_num_generic_params(module, fi, (f.num_generic_params)));
     (void)(pipeline_module_func_set_return_type(module, fi, (f.return_type_ref)));
@@ -7494,6 +7498,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
        * PLATFORM: SHARED — must run before parse_strict unexpected-token. */
       if (((((r.tok).kind) ==85) && (impl_body_depth > 0))) {
         (void)((impl_body_depth = (impl_body_depth - 1)));
+        /* LANG-005: impl block closed — disarm the owner latch. */
+        pipeline_module_parse_impl_owner_clear();
         continue;
       }
       if ((((r.tok).kind) !=1)) {
@@ -8490,6 +8496,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1000) };
       }
       (void)(pipeline_module_func_name_write(module, fi, &(((res.name))[0]), (res.name_len)));
+      /* LANG-005: stamp impl owner while the parse latch is armed. */
+      (void)(pipeline_module_func_owner_from_impl(module, fi));
       (void)(pipeline_module_func_set_num_params(module, fi, (res.num_params)));
       (void)(pipeline_module_func_set_num_generic_params(module, fi, (res.num_generic_params)));
       /* Cap 10.7.1: OneFuncResult.is_variadic → module Func (≡ parser.x). */
@@ -9091,6 +9099,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
        * PLATFORM: SHARED parse. */
       if (((((r.tok).kind) ==85) && (impl_body_depth_buf > 0))) {
         (void)((impl_body_depth_buf = (impl_body_depth_buf - 1)));
+        /* LANG-005: impl block closed (buf path) — disarm the owner latch. */
+        pipeline_module_parse_impl_owner_clear();
         continue;
       }
       if ((((r.tok).kind) !=1)) {
@@ -9963,6 +9973,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         continue;
       }
       (void)(pipeline_module_func_name_write(module, fi_mod, &(((res.name))[0]), (res.name_len)));
+      /* LANG-005: stamp impl owner while the parse latch is armed (buf path). */
+      (void)(pipeline_module_func_owner_from_impl(module, fi_mod));
       (void)(pipeline_module_func_set_num_params(module, fi_mod, (res.num_params)));
       (void)(pipeline_module_func_set_num_generic_params(module, fi_mod, (res.num_generic_params)));
       /* Cap 10.7.1: OneFuncResult.is_variadic → module Func buf path (≡ parser.x). */

@@ -56407,6 +56407,67 @@ void pipeline_module_func_ref_set(void *m, int32_t fi, int32_t fr);
 int32_t ast_pipeline_block_append_labeled(void *a, int32_t br, int32_t label_len, int32_t is_goto,
                                           int32_t goto_target_len, int32_t return_expr_ref);
 
+
+/* =============================================================================
+ * LANG-005 impl-method owner sidecar (associated-call binding, 2026-09-14).
+ * Root fix for receiver-blind `X.g()` associated lookups: impl-body methods
+ * are registered as flat name rows, so a scan by name could bind ANY impl's
+ * method (cross-impl bleed: B.g() ran A's body; empty-impl structs passed).
+ * The parser impl glue latches the current impl owner (for-type for
+ * `impl T for X`, head ident for inherent `impl X`); func registration
+ * stamps it here; typeck rejects rows whose owner does not bind the base.
+ * Empty owner = free function / UFCS / pre-latch row (legacy accept).
+ * PLATFORM: SHARED — parse latch in skip_tl glue; clear on impl RBRACE.
+ * ============================================================================= */
+#define PMFO_MAX 4096
+static uint8_t g_pmfo_owner[PMFO_MAX][64];
+static int32_t g_pmfo_owner_len[PMFO_MAX];
+static uint8_t g_pmfo_cur_owner[64];
+static int32_t g_pmfo_cur_len = 0;
+
+void pipeline_module_parse_impl_owner_set(const uint8_t *nm, int32_t nlen) {
+  int32_t i;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 63)
+    nlen = 63;
+  g_pmfo_cur_len = nlen;
+  for (i = 0; i < 64; i++)
+    g_pmfo_cur_owner[i] = (nm && i < nlen) ? nm[i] : 0;
+}
+
+void pipeline_module_parse_impl_owner_clear(void) {
+  g_pmfo_cur_len = 0;
+}
+
+/* Stamp the latched owner onto func slot fi; no-op when no impl is active. */
+void pipeline_module_func_owner_from_impl(void *m, int32_t fi) {
+  if (!m || fi < 0 || fi >= PMFO_MAX)
+    return;
+  if (g_pmfo_cur_len <= 0)
+    return;
+  memcpy(g_pmfo_owner[fi], g_pmfo_cur_owner, 64);
+  g_pmfo_owner_len[fi] = g_pmfo_cur_len;
+}
+
+/* 1 when row fi may bind associated call on base struct name: empty owner
+ * (free fn / UFCS / legacy) or owner == base. 0 = foreign impl method. */
+int32_t pipeline_module_func_owner_binds_base_at(void *m, int32_t fi, const uint8_t *base, int32_t base_len) {
+  int32_t i;
+  if (!m || fi < 0 || fi >= PMFO_MAX)
+    return 1;
+  if (g_pmfo_owner_len[fi] <= 0)
+    return 1;
+  if (!base || base_len <= 0 || base_len > 63)
+    return 0;
+  if (g_pmfo_owner_len[fi] != base_len)
+    return 0;
+  for (i = 0; i < base_len; i++)
+    if (g_pmfo_owner[fi][i] != base[i])
+      return 0;
+  return 1;
+}
+
 enum {
   W276C_TY = 532, W276C_EX = 1224, W276C_BL = 92, W276C_FN = 324,
   W276C_NO_LIMIT = 2147483647
@@ -61827,6 +61888,67 @@ void pipeline_arena_func_copy_slot_from_module(void *arena, int32_t func_ref, vo
   *dst = *src;
   copy_func_params_between_sidecars(&asc->func_params, &dst->param_base, src->num_params, &msc->func_params,
                                     src->param_base);
+}
+
+
+/* =============================================================================
+ * LANG-005 impl-method owner sidecar (associated-call binding, 2026-09-14).
+ * Root fix for receiver-blind `X.g()` associated lookups: impl-body methods
+ * are registered as flat name rows, so a scan by name could bind ANY impl's
+ * method (cross-impl bleed: B.g() ran A's body; empty-impl structs passed).
+ * The parser impl glue latches the current impl owner (for-type for
+ * `impl T for X`, head ident for inherent `impl X`); func registration
+ * stamps it here; typeck rejects rows whose owner does not bind the base.
+ * Empty owner = free function / UFCS / pre-latch row (legacy accept).
+ * PLATFORM: SHARED — parse latch in skip_tl glue; clear on impl RBRACE.
+ * ============================================================================= */
+#define PMFO_MAX 4096
+static uint8_t g_pmfo_owner[PMFO_MAX][64];
+static int32_t g_pmfo_owner_len[PMFO_MAX];
+static uint8_t g_pmfo_cur_owner[64];
+static int32_t g_pmfo_cur_len = 0;
+
+void pipeline_module_parse_impl_owner_set(const uint8_t *nm, int32_t nlen) {
+  int32_t i;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 63)
+    nlen = 63;
+  g_pmfo_cur_len = nlen;
+  for (i = 0; i < 64; i++)
+    g_pmfo_cur_owner[i] = (nm && i < nlen) ? nm[i] : 0;
+}
+
+void pipeline_module_parse_impl_owner_clear(void) {
+  g_pmfo_cur_len = 0;
+}
+
+/* Stamp the latched owner onto func slot fi; no-op when no impl is active. */
+void pipeline_module_func_owner_from_impl(void *m, int32_t fi) {
+  if (!m || fi < 0 || fi >= PMFO_MAX)
+    return;
+  if (g_pmfo_cur_len <= 0)
+    return;
+  memcpy(g_pmfo_owner[fi], g_pmfo_cur_owner, 64);
+  g_pmfo_owner_len[fi] = g_pmfo_cur_len;
+}
+
+/* 1 when row fi may bind associated call on base struct name: empty owner
+ * (free fn / UFCS / legacy) or owner == base. 0 = foreign impl method. */
+int32_t pipeline_module_func_owner_binds_base_at(void *m, int32_t fi, const uint8_t *base, int32_t base_len) {
+  int32_t i;
+  if (!m || fi < 0 || fi >= PMFO_MAX)
+    return 1;
+  if (g_pmfo_owner_len[fi] <= 0)
+    return 1;
+  if (!base || base_len <= 0 || base_len > 63)
+    return 0;
+  if (g_pmfo_owner_len[fi] != base_len)
+    return 0;
+  for (i = 0; i < base_len; i++)
+    if (g_pmfo_owner[fi][i] != base[i])
+      return 0;
+  return 1;
 }
 
 int32_t pipeline_module_func_return_type_at(void *m, int32_t fi) {

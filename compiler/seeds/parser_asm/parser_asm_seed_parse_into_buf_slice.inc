@@ -243,6 +243,9 @@ extern int32_t pipeline_block_append_expr_stmt(void *arena, int32_t block_ref, i
 extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t block_ref, uint8_t kind, int32_t index);
 extern int32_t pipeline_module_func_alloc_slot(void *module);
 extern void pipeline_module_func_name_write(void *module, int32_t fi, uint8_t *name, int32_t name_len);
+extern void pipeline_module_parse_impl_owner_set(const uint8_t *nm, int32_t nlen);
+extern void pipeline_module_parse_impl_owner_clear(void);
+extern void pipeline_module_func_owner_from_impl(void *module, int32_t fi);
 extern void pipeline_module_func_set_num_params(void *module, int32_t fi, int32_t n);
 extern void pipeline_module_func_set_return_type(void *module, int32_t fi, int32_t type_ref);
 extern void pipeline_module_func_set_body_ref(void *module, int32_t fi, int32_t body_ref);
@@ -540,6 +543,9 @@ static int32_t parser_asm_seed_commit_onefunc_c(void *arena, void *module, struc
   if (fi_mod < 0)
     return -1;
   pipeline_module_func_name_write(module, fi_mod, res->name, res->name_len);
+  /* LANG-005: stamp impl owner while the parse impl latch is armed (no-op
+   * for top-level functions — the caller clears the latch at impl close). */
+  pipeline_module_func_owner_from_impl(module, fi_mod);
   pipeline_module_func_set_num_params(module, fi_mod, res->num_params);
   pipeline_module_func_set_return_type(module, fi_mod, type_ref);
   pipeline_module_func_set_body_ref(module, fi_mod, block_ref);
@@ -2749,6 +2755,13 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     struct parser_asm_onefunc_result res;
     struct parser_asm_library_parse_result lib;
 
+    /* LANG-005: arm the owner latch for the whole impl body walk — hoisted
+     * methods commit through commit_onefunc_c which stamps the sidecar.
+     * for-type for `impl T for X`; head ident for inherent `impl X`. */
+    if (for_nlen > 0)
+      pipeline_module_parse_impl_owner_set(for_nm, for_nlen);
+    else if (trait_nlen > 0)
+      pipeline_module_parse_impl_owner_set(trait_nm, trait_nlen);
     fn_start = body;
     r = lexer_next_buf(body, data, len);
     if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
@@ -3795,6 +3808,9 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
           if (lex.pos == iter_start.pos && lex.pos < (size_t)len)
             lex.pos++;
         }
+        /* LANG-005: impl block done (parsed or skipped) — disarm latch so
+         * later top-level functions do not inherit a stale owner. */
+        pipeline_module_parse_impl_owner_clear();
       }
       continue;
     }

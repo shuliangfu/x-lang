@@ -7695,6 +7695,9 @@ extern int32_t parser_asm_skip_one_impl_into_c(void *lex_inout, void *source, ui
                                                int32_t *first_nlen, int32_t *impl_line, int32_t *impl_col,
                                                int32_t *saw_for, int32_t *for_is_ptr, int32_t *for_tok_kind,
                                                uint8_t *for_nm, int32_t *for_nlen);
+/* LANG-005: latch the current impl owner so func registration can stamp the
+ * owner sidecar (for-type for `impl T for X`; head ident for inherent impls). */
+extern void pipeline_module_parse_impl_owner_set(const uint8_t *nm, int32_t nlen);
 
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                            struct parser_asm_slice_u8 *source) {
@@ -7719,6 +7722,8 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   (void)parser_asm_skip_one_impl_into_c(&cur, source, first_nm, &first_nlen, &impl_line, &impl_col, &saw_for,
                                         &for_is_ptr, &for_tok_kind, for_nm, &for_nlen);
   *out = cur;
+  pipeline_module_parse_impl_owner_set(saw_for != 0 ? for_nm : first_nm,
+                                       saw_for != 0 ? for_nlen : first_nlen);
   /* File-local tables stay C (P1c dest-buffer pattern). Record on `for`
    * even if the for-type later fail-leaves, matching the C twin. */
   if (saw_for && first_nlen > 0 && g_xlang_skip_impl_seen_n < XLANG_SKIP_IMPL_SEEN_MAX) {

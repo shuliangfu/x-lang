@@ -104,6 +104,8 @@ export extern function pipeline_module_struct_layout_field_align_at(module: *Mod
 export extern function pipeline_module_func_param_write(module: *Module, func_index: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
 /* See implementation. */
 export extern function pipeline_module_func_name_write(module: *Module, func_index: i32, name_bytes: *u8, name_len: i32): void;
+export extern function pipeline_module_func_owner_from_impl(module: *Module, fi: i32): void;
+export extern function pipeline_module_parse_impl_owner_clear(): void;
 /* See implementation. */
 export extern function pipeline_arena_func_param_write(arena: *ASTArena, func_ref: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
 /* See implementation. */
@@ -8461,6 +8463,8 @@ export function module_register_arena_func(module: *Module, func_ref: i32, f: Fu
     return -1;
   }
   pipeline_module_func_name_write(module, fi, &f.name[0], f.name_len);
+  /* LANG-005: stamp impl owner while the parse impl latch is armed. */
+  pipeline_module_func_owner_from_impl(module, fi);
   pipeline_module_func_set_num_params(module, fi, f.num_params);
   pipeline_module_func_set_num_generic_params(module, fi, f.num_generic_params);
   pipeline_module_func_set_return_type(module, fi, f.return_type_ref);
@@ -9482,6 +9486,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       if (impl_body_depth > 0) {
         impl_body_depth = impl_body_depth - 1;
+        /* LANG-005: impl block closed — disarm the owner latch. */
+        unsafe {
+        pipeline_module_parse_impl_owner_clear();
+        }
         continue;
       }
     }
@@ -10513,6 +10521,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       return { ok: -1, main_idx: -1000 }
     }
     pipeline_module_func_name_write(module, fi, &res.name[0], res.name_len);
+    /* LANG-005: stamp impl owner while the parse latch is armed. */
+    pipeline_module_func_owner_from_impl(module, fi);
     pipeline_module_func_set_num_params(module, fi, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi, res.num_generic_params);
     /* Cap 10.7.1: OneFuncResult.is_variadic → module Func for C prototype emit. */
@@ -11696,6 +11706,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       if (impl_body_depth_buf > 0) {
         impl_body_depth_buf = impl_body_depth_buf - 1;
+        /* LANG-005: impl block closed (buf path) — disarm the owner latch. */
+        unsafe {
+        pipeline_module_parse_impl_owner_clear();
+        }
         continue;
       }
     }
@@ -12614,6 +12628,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     pipeline_module_func_name_write(module, fi_mod, &res.name[0], res.name_len);
+    /* LANG-005: stamp impl owner while the parse latch is armed (buf path). */
+    pipeline_module_func_owner_from_impl(module, fi_mod);
     pipeline_module_func_set_num_params(module, fi_mod, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi_mod, res.num_generic_params);
     /* Cap 10.7.1: OneFuncResult.is_variadic → module Func (buf parse_into path). */
