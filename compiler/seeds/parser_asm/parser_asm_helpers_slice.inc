@@ -586,6 +586,23 @@ int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, u
  * 将 lex 对齐到 trait/impl 关键字起点；统一跳过空白与注释，并用 lexer 复核 token kind。
  * hybrid 跨 TU：P10 glue 以 extern 引用，故非 static（G-02f-326）。
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+/* PLATFORM: SHARED — P19e (2026-09-14): body lives in pthin_helpers.x
+ * (P9b ws skip + P9a peek family/cursor trio + P19c at_token_pos).
+ * By-value lexer face stays here; the .x mutates the local copy in
+ * place. Lane gates on _pthin_p9a_ok (see g05_ensure_relink_prereqs). */
+extern void parser_asm_align_lex_to_keyword_prefix_into_c(void *lex_inout, void *source,
+                                                          const uint8_t *kw, size_t kw_len);
+struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_asm_lexer lex,
+                                                                 struct parser_asm_slice_u8 *source,
+                                                                 const char *kw, size_t kw_len) {
+  struct parser_asm_lexer out = lex;
+  if (!source || !source->data || !kw || kw_len == 0)
+    return out;
+  parser_asm_align_lex_to_keyword_prefix_into_c(&out, source, (const uint8_t *)kw, kw_len);
+  return out;
+}
+#else
 struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_asm_lexer lex,
                                                                         struct parser_asm_slice_u8 *source,
                                                                         const char *kw, size_t kw_len) {
@@ -605,6 +622,7 @@ struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_a
     return parser_asm_lex_at_token_from_result_inner(r);
   return lex;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X align_lex */
 
 /* ---- thin L4303-5080 ---- */
 /**

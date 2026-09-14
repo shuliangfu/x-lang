@@ -1437,20 +1437,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P17 diag_late ← $_pthin_p17_seed (G-02f-326 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P19b/P19c/P19d Route C (2026-09-12/13).
-        # pthin_helpers.x holds kind predicates, pos-before-run, buf copy,
-        # match-kw byte probe, run_len extra cases, lex_at_token pos,
-        # rewind kind, struct_field_name, and ident_is_unsafe. Runs before
-        # P19 C so BODIES_FROM_X skips the portable .inc region. Stretch
+        # PLATFORM: SHARED — 7.2.1 P19b/P19c/P19d/P19e Route C
+        # (2026-09-12/13/14). pthin_helpers.x holds kind predicates,
+        # pos-before-run, buf copy, match-kw byte probe, run_len extra
+        # cases, lex_at_token pos, rewind kind, struct_field_name,
+        # ident_is_unsafe, and (P19e) align_lex in place. P19e needs the
+        # P9a peek family + cursor trio, so this lane gates on
+        # _pthin_p9a_ok exactly like the P5d/P12b lanes (cold or P9a
+        # failure keeps the full .inc twin). Runs before P19 C so
+        # BODIES_FROM_X skips the portable .inc region. Stretch
         # field-name / compact run_len tables come from P9b (or P9 lite C);
-        # no lexer-step bridge (do not add P9a). Cold: no define, full .inc.
-        # Do not open a new P-lane.
+        # do not add more bridges here. Do not open a new P-lane.
         _pthin_p19_extra=""
-        if [ -n "$_pthin_p19b_thin_o" ] && [ -f "$_pthin_p19b_x" ]; then
+        if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p19b_thin_o" ] && [ -f "$_pthin_p19b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p19b_x" "$_pthin_p19b_thin_o"; then
             _pthin_p19b_ok=1
             _pthin_p19_extra="-DXLANG_PTHIN_HELPERS_BODIES_FROM_X"
-            echo "g05_ensure: P19b/P19c/P19d helpers bodies ← $_pthin_p19b_x (7.2.1 Route C kind/copy/pos/match-kw + run_len extra/lex_at_token/rewind + struct_field_name/ident_is_unsafe)"
+            echo "g05_ensure: P19b/P19c/P19d/P19e helpers bodies ← $_pthin_p19b_x (7.2.1 Route C kind/copy/pos/match-kw + run_len extra/lex_at_token/rewind + struct_field_name/ident_is_unsafe + align_lex)"
           else
             echo "g05_ensure: P19b helpers .x thin failed; P19 C twin stays full" >&2
           fi

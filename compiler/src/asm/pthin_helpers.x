@@ -44,9 +44,14 @@
 // struct_field_name (IDENT via P1b at_end copy; SOA/PACKED/TYPE
 // literals) and ident_is_unsafe_stmt (6-byte `unsafe` at token_start
 // or pos_before_run). C trampolines keep by-value lexer_result.
-// align_lex stays C (skip_ws is P9b; peek would add P9a as a hard
-// gate to P19). parse_block_return_end_tail stays C (extra lexer_next;
-// would add P9a). Do not merge ident_is_unsafe into P4b buf probes.
+// 7.2.1 P19e Route C (2026-09-14): align_lex moved here as the
+// in-place _into_c body (P9b ws skip + P9a peek family/cursor trio +
+// P19c at_token_pos). The old "align stays C (P9a hard gate)" note is
+// superseded: P12b+ lanes already hard-gate on _pthin_p9a_ok, so the
+// P19 lane gates the same way. The at-token write stays inline (same
+// leaf idiom as ctrl realign_finish_peek) — no cross-thin .x edge.
+// parse_block_return_end_tail stays C (extra lexer_next; P9a).
+// Do not merge ident_is_unsafe into P4b buf probes.
 // Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
@@ -76,6 +81,8 @@ const TOKEN_PACKED: i32 = 21;
 const TOKEN_SOA: i32 = 22;
 const TOKEN_ALIGN: i32 = 46;
 const TOKEN_ENUM: i32 = 47;
+const TOKEN_TRAIT: i32 = 49;
+const TOKEN_IMPL: i32 = 50;
 const TOKEN_IMPORT: i32 = 53;
 const TOKEN_EXTERN: i32 = 54;
 const TOKEN_ASYNC: i32 = 55;
@@ -105,6 +112,24 @@ const TOKEN_AMPAMP: i32 = 124;
 const TOKEN_PIPEPIPE: i32 = 125;
 const TOKEN_STRING: i32 = 130;
 const TOKEN_NULL: i32 = 132;
+
+// P19e align_lex bridges — all resolve from seed C (P9a peek family /
+// cursor trio, P9b ws-comment skip) or from this file's own P19c
+// at_token_pos authority. No cross-thin .x references (a cross-file edge
+// would UNDEF when the peer .x thin fails while this one compiles).
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize, pos: usize): usize;
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_next_pos_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
 
 /**
  * Import-path segment length from token kind + ident_len.
@@ -558,4 +583,72 @@ export function parser_asm_ident_is_unsafe_stmt_kind_c(kind: i32, ident_len: i32
     return 1;
   }
   return 0;
+}
+
+/**
+ * Align a lexer cursor to a `trait`/`impl` keyword prefix (P19e).
+ * Mirrors the C twin parser_asm_align_lex_to_keyword_prefix_c: skip
+ * whitespace and comments from the cursor, then peek the next token.
+ * On a kind match, rewrite the cursor AT the token (P19c at_token_pos
+ * authority plus the token's own line/col). On mismatch, or when kw is
+ * neither "trait" nor "impl", leave the cursor at the post-whitespace
+ * position with line/col untouched — the C twin returns the lexer by
+ * value; this in-place variant is what the C trampoline drives.
+ * @param lex_inout *u8 — cursor, mutated in place; null is a no-op
+ * @param source *u8 — opaque slice; null source or null data is a no-op
+ * @param kw *u8 — keyword bytes; only "trait" (5) / "impl" (4) map kinds
+ * @param kw_len usize — keyword byte length; 0 is a no-op
+ * @return void
+ * PLATFORM: SHARED — Route C split of the by-value lexer C twin.
+ * The at-token write below is the same leaf idiom as pthin_ctrl.x
+ * realign_finish_peek (both wrap P19c at_token_pos); it stays inline
+ * here so a failing P5 .x thin can never UNDEF this lane.
+ */
+#[no_mangle]
+export function parser_asm_align_lex_to_keyword_prefix_into_c(lex_inout: *u8, source: *u8, kw: *u8, kw_len: usize): void {
+  let data: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let kind: i32 = 0;
+  let want_kind: i32 = 0;
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let np: usize = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || kw == 0 as *u8 || kw_len == 0 as usize) {
+    return;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  if (data == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    len = parser_asm_lex_source_length_c(source);
+    parser_asm_lex_set_pos_c(lex_inout, parser_asm_stretch_skip_ws_and_comments_c(data, len, parser_asm_lex_pos_c(lex_inout)));
+    if (kw_len == 5 as usize) {
+      if (kw[0 as usize] == 116 && kw[1 as usize] == 114 && kw[2 as usize] == 97 && kw[3 as usize] == 105 && kw[4 as usize] == 116) {
+        want_kind = TOKEN_TRAIT;
+      }
+    } else if (kw_len == 4 as usize) {
+      if (kw[0 as usize] == 105 && kw[1 as usize] == 109 && kw[2 as usize] == 112 && kw[3 as usize] == 108) {
+        want_kind = TOKEN_IMPL;
+      }
+    }
+    if (want_kind == 0) {
+      return;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == want_kind) {
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+      tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+      tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+      parser_asm_lex_set_pos_c(lex_inout, parser_asm_lex_at_token_pos_c(kind, ts, il, np));
+      parser_asm_lex_set_line_c(lex_inout, tl);
+      parser_asm_lex_set_col_c(lex_inout, tc);
+    }
+  }
 }
