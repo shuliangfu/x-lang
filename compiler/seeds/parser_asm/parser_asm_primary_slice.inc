@@ -1881,6 +1881,31 @@ void parser_asm_parse_struct_lit_fields_ptr_c(void *arena, int32_t lit_ref, void
   *(struct parser_asm_lexer *)lex_inout = res.next_lex;
 }
 
+/* Suffix LT(turbofish)-branch bridges: type_ref parse + count-only angle
+ * skip, pointer faces for the .x loop. The type_ref parse consumes the
+ * cursor (out lexer) and returns the ref; the count skip writes the
+ * post-angle cursor + count. PLATFORM: SHARED — additive, ungated. */
+int32_t parser_asm_parse_type_ref_ptr_into_c(void *arena, void *lex_inout, void *source) {
+  struct parser_asm_lexer out_lex;
+  int32_t tr;
+  if (!arena || !lex_inout || !source)
+    return 0;
+  tr = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, *(struct parser_asm_lexer *)lex_inout,
+                                                        source, &out_lex);
+  *(struct parser_asm_lexer *)lex_inout = out_lex;
+  return tr;
+}
+
+void parser_asm_skip_angle_count_ptr_into_c(void *lex_inout, void *source, int32_t *out_count) {
+  struct parser_asm_lexer after;
+  if (!lex_inout || !source || !out_count)
+    return;
+  *out_count = 0;
+  parser_asm_skip_generic_angle_list_count_into_slice_c(&after, out_count,
+                                                        *(struct parser_asm_lexer *)lex_inout, source);
+  *(struct parser_asm_lexer *)lex_inout = after;
+}
+
 /**
  * parse_primary_into：INT | FLOAT | BOOL | break | continue | IDENT 后缀 | (expr) | [] | if | match | panic | @simd。
  */

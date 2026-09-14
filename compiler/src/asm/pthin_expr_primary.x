@@ -48,6 +48,8 @@ export extern "C" function parser_asm_lbrace_looks_like_block_ptr_c(lex_inout: *
 export extern "C" function parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_parse_struct_lit_fields_ptr_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
 const EXPR_FIELD_ACCESS: i32 = 44;
+export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_skip_angle_count_ptr_into_c(lex_inout: *u8, source: *u8, out_count: *i32): void;
 const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 
 // pthin_expr_primary.x — G-02f-282 P4 parser thin primary product bodies.
