@@ -989,6 +989,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # portable .inc region. No lexer-step bridge. Cold: no define, full .inc.
 
         _pthin_p4p_extra=""
+        # x86_64 guard (RECONFIRMED on a healthy egg + clean single build:
+        # lane live (W symbol) and ladder 46->1 — a real emitter divergence
+        # in the split suffix codegen; Darwin arm64 fully green with the
+        # same tree). Linux uses the C twin until the detective wave.
+        case "$(uname -s)" in
+          Linux) _pthin_p4pb_thin_o="" ;;
+        esac
         if [ -n "$_pthin_p4pb_thin_o" ] && [ -f "$_pthin_p4pb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o"; then
             _pthin_p4pb_ok=1
