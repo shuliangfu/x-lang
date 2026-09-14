@@ -448,7 +448,12 @@ ensure_typeck_gen() {
     need_assemble=1
   elif [ ! -s typeck_gen.c ]; then
     need_assemble=1
-  elif [ "$XLANG_TYPECK_FROM_X" = "1" ] && typeck_x_sources_newer_than_gen; then
+  elif typeck_x_sources_newer_than_gen; then
+    # LANG-005 lesson (2026-09-14): source-newer MUST reassemble unconditionally.
+    # Gating this behind XLANG_TYPECK_FROM_X let a stale local gen survive .x
+    # edits in default builds (Ubuntu divergence: pin-derived typeck without
+    # the owner filter shipped silently). Assemble failure still falls back to
+    # local/pin (true cold, no -E binary) — only silent staleness closes.
     need_assemble=1
   elif [ "$XLANG_TYPECK_FROM_X" = "1" ] && ! typeck_gen_contract_ok typeck_gen.c; then
     need_assemble=1
@@ -598,7 +603,8 @@ ensure_codegen_gen() {
     need_assemble=1
   elif [ ! -s codegen_gen.c ]; then
     need_assemble=1
-  elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && codegen_x_sources_newer_than_gen; then
+  elif codegen_x_sources_newer_than_gen; then
+    # LANG-005 lesson: unconditional reassemble on source-newer (same as typeck).
     need_assemble=1
   elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! codegen_gen_contract_ok codegen_gen.c; then
     need_assemble=1
