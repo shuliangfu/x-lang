@@ -309,6 +309,8 @@ BSTRICT_SCRIPTS=(
   run-core-types.sh
   run-builtin.sh
   run-trait.sh
+  # LANG-005: associated-call owner binding + bound_method quartet regression.
+  run-lang-assoc-owner.sh
   run-generic.sh
   run-encoding.sh
   run-base64.sh
