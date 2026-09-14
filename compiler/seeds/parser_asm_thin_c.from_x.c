@@ -2638,6 +2638,7 @@ struct ast_Expr {
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 int labi_pthin_foundation_slice_marker(void);
+void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
 #endif
 
 /* G-02f-280 P3 type_ref：默认 #include；hybrid 时函数体在 pthin_type_ref.from_x.c */
