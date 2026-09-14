@@ -311,6 +311,8 @@ BSTRICT_SCRIPTS=(
   run-trait.sh
   # LANG-005: associated-call owner binding + bound_method quartet regression.
   run-lang-assoc-owner.sh
+  # primary-campaign regression (suffix ladder + ident/int heads).
+  run-primary-heads.sh
   run-generic.sh
   run-encoding.sh
   run-base64.sh
