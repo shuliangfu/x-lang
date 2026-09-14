@@ -15,10 +15,7 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
   return out;
 }
 
-/* Non-static: cross-member export - the P4b gated rest references it
- * via asm_bang/unsafe-expr while the definition lives in this (P20 lane
- * or rest) TU. Single definition either way. */
-void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae) {
+static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae) {
   struct ast_Expr e;
   const char *trace_name;
   const char *trace_type;

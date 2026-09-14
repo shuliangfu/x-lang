@@ -139,7 +139,7 @@ extern int32_t pipeline_expr_append_array_lit_elem(void *arena, int32_t expr_ref
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
 
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
-void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
+static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
@@ -786,7 +786,7 @@ static int32_t parser_asm_type_ref_mangle_suffix_c(void *arena, int32_t type_ref
  * @return mangled length, or 0 on failure
  * PLATFORM: SHARED — sole parse-time STRUCT_LIT type-inst mangle authority.
  */
-int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *base, int32_t base_len,
+static int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *base, int32_t base_len,
                                                      const int32_t *type_refs, int32_t nrefs, uint8_t *out,
                                                      int32_t out_cap) {
   int32_t pos;
@@ -2822,7 +2822,9 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   {
     extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
                                                        int32_t *out_ok, int32_t *out_expr_ref,
-                                                       int32_t *out_wants_suffix);
+                                                       int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                       int32_t *parsed_refs, int32_t *pending_refs,
+                                                       uint8_t *mangled, uint8_t *name_buf);
     struct parser_asm_lexer lit_lex;
     int32_t lit_mc[256];
     int32_t lit_args[256];
@@ -2833,57 +2835,33 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     int32_t lit_ok = 0;
     int32_t lit_ref = 0;
     lit_lex = lex;
-    {
-      int32_t lit_wants = 0;
-      if (parser_asm_primary_literal_x_into_c(arena, &lit_lex, source, &lit_ok, &lit_ref,
-                                              &lit_wants) != 0) {
-        if (lit_ok != 0) {
-          if (lit_wants != 0) {
-            extern void parser_asm_primary_suffix_loop_x_into_c(void *arena, void *source, void *lex_inout,
-                                                                int32_t *out_ok, int32_t *out_expr_ref,
-                                                                int32_t *mc_arg_buf, int32_t *arg_buf,
-                                                                int32_t *parsed_refs, int32_t *pending_refs,
-                                                                uint8_t *mangled, uint8_t *name_buf);
-            parser_asm_primary_suffix_loop_x_into_c(arena, source, &lit_lex, &lit_ok, &lit_ref,
-                                                    lit_mc, lit_args, lit_pr, lit_pend,
-                                                    lit_mangled, lit_name);
-          }
-          out->ok = lit_ok;
-          out->expr_ref = lit_ref;
-          out->next_lex = lit_lex;
-          return;
-        }
-        out->ok = 0;
+    if (parser_asm_primary_literal_x_into_c(arena, &lit_lex, source, &lit_ok, &lit_ref,
+                                            lit_mc, lit_args, lit_pr, lit_pend,
+                                            lit_mangled, lit_name) != 0) {
+      if (lit_ok != 0) {
+        out->ok = 1;
+        out->expr_ref = lit_ref;
+        out->next_lex = lit_lex;
         return;
       }
+      out->ok = 0;
+      return;
     }
-#if 0 /* P4b ident-handler isolation: the .x ident head breaks bare-VAR
- * primaries (typeck XT001 on `return v;`) — under investigation; the C
- * IDENT arm below serves meanwhile (equivalent semantics, all suites
- * green). Flip to 1 when the .x ident handler is fixed. */
     {
       extern int32_t parser_asm_primary_ident_x_into_c(void *arena, void *lex_inout, void *source,
                                                        int32_t *out_ok, int32_t *out_expr_ref,
-                                                       int32_t *out_wants_suffix);
+                                                       int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                       int32_t *parsed_refs, int32_t *pending_refs,
+                                                       uint8_t *mangled, uint8_t *name_buf);
       struct parser_asm_lexer id_lex;
       int32_t id_ok = 0;
       int32_t id_ref = 0;
-      int32_t id_wants = 0;
       id_lex = lex;
       if (parser_asm_primary_ident_x_into_c(arena, &id_lex, source, &id_ok, &id_ref,
-                                            &id_wants) != 0) {
+                                            lit_mc, lit_args, lit_pr, lit_pend,
+                                            lit_mangled, lit_name) != 0) {
         if (id_ok != 0) {
-          if (id_wants != 0) {
-            extern void parser_asm_primary_suffix_loop_x_into_c(void *arena, void *source, void *lex_inout,
-                                                                int32_t *out_ok, int32_t *out_expr_ref,
-                                                                int32_t *mc_arg_buf, int32_t *arg_buf,
-                                                                int32_t *parsed_refs, int32_t *pending_refs,
-                                                                uint8_t *mangled, uint8_t *name_buf);
-            parser_asm_primary_suffix_loop_x_into_c(arena, source, &id_lex, &id_ok, &id_ref,
-                                                    lit_mc, lit_args, lit_pr, lit_pend,
-                                                    lit_mangled, lit_name);
-          }
-          out->ok = id_ok;
+          out->ok = 1;
           out->expr_ref = id_ref;
           out->next_lex = id_lex;
           return;
@@ -2892,7 +2870,6 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         return;
       }
     }
-#endif /* TEMP-BISECT */
   }
 #endif
   if (r.tok.kind == (int32_t)TOKEN_INT) {
