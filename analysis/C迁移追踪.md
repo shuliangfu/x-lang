@@ -207,7 +207,7 @@
 - 🟡 **8.3.1** `pipeline_glue` → .x／域 thin — 父项未离 host-cc  
 - 🟡 **8.3.2** `ast_pool` → .x — 父项仍 host-cc 入 `pipeline_x`  
 - 🟡 **8.3.3** field_access／soa — 叶 leave ✅；父项因 `pipeline_x` 仍 host-cc  
-- 🟡 **8.3.6** from_x 全表退役策略终稿 — 残：有引用冷孪生三分处置（pthin suite 46k、lite 564、lex_skip portable／count、helpers kind／copy／pos／match-kw／run_len extra／lex_at_token／rewind／struct_field_name／ident_is_unsafe、primary ident、type_ref kind／dyn／builtin／vector IDENT、simd ident／callee 名、unary TOKEN→ExprKind、binop TOKEN→ExprKind、skip_if walks、skip_tl struct／enum／extern walks、body_tl scalar／skip walks／cfg_skip／diag_first_ident、glue skip_one_function_full、try_skip_allow padding／write_result／parse_into、skip_imports、consume_path／try_skip、ctrl brace-skip／kw_at_pos／scan_sync／realign、library_scan、diag_late after_structs／fail 已从 hybrid 预处理拿掉，文件仍留作冷回退；glue_tail 包装、primary parse、skip_tl parse_one_extern_and_add、if_stmt parse 仍 host-cc；P19e align_lex 已 Route C（2026-09-14）；ident_is_unsafe 不再双权威）  
+- ✅ **8.3.6 三分表定稿（2026-09-14）**：种子（pthin_*.from_x.c ~700K/19 件含 443K thin_c）＝**产品承重件全保留**（lane thin+rest 编译输入，非冷质量）；真正冷质量＝各 .inc 的 #else 分支＝保留至「L4 验证全 .x 冷引导」终局条件（与考古钉同波退役）。旧残项清单留档：
 - 🟡 **8.3.8** `build_asm/gen_driver/*.c` — 确认 `pipeline_gen.c` 残留  
 - ⬜ **8.3.10** `editors/tree-sitter-xlang/` 第三方 .c  
 - ⬜ **BC 终局** `pipeline_x` 整 TU 离 host-cc  
