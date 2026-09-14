@@ -60343,6 +60343,34 @@ void pipeline_expr_set_method_call_c(void *a, int32_t er, int32_t base_ref,
     ex->method_call_name[i] = nm ? nm[i] : 0;
 }
 
+/* Suffix final-census writers: index trio + call preset. Compose with
+ * kind/line_col/zeros (wave-0) exactly like the C struct fills. The call
+ * num_type_args preset covers the count-only turbofish fallback; the
+ * ref-carrying path appends via pipeline_expr_append_call_type_arg. */
+void pipeline_expr_set_index_c(void *a, int32_t er, int32_t base_ref, int32_t index_ref,
+                               int32_t is_slice) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->index_base_ref = base_ref;
+  ex->index_index_ref = index_ref;
+  ex->index_base_is_slice = is_slice;
+}
+
+void pipeline_expr_set_call_c(void *a, int32_t er, int32_t callee_ref, int32_t num_type_args) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->call_callee_ref = callee_ref;
+  ex->call_num_type_args = num_type_args;
+}
+
 void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
   W278_Expr *ex;
   int32_t i;
