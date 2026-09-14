@@ -2661,6 +2661,30 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->next_lex = lex;
     return;
   }
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+  /* Primary literal wave: FLOAT/TRUE/FALSE/NULL arms run from
+   * pthin_expr_primary.x via the wave-0 writer family (no Expr by-value).
+   * Returns 0 (not a literal) so the C arms below stay authoritative for
+   * everything else, including the INT arm (suffix-chain wave pending). */
+  {
+    extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
+                                                       int32_t *out_ok, int32_t *out_expr_ref);
+    struct parser_asm_lexer lit_lex;
+    int32_t lit_ok = 0;
+    int32_t lit_ref = 0;
+    lit_lex = lex;
+    if (parser_asm_primary_literal_x_into_c(arena, &lit_lex, source, &lit_ok, &lit_ref) != 0) {
+      if (lit_ok != 0) {
+        out->ok = 1;
+        out->expr_ref = lit_ref;
+        out->next_lex = lit_lex;
+        return;
+      }
+      out->ok = 0;
+      return;
+    }
+  }
+#endif
   if (r.tok.kind == (int32_t)TOKEN_FLOAT) {
     fref = parser_asm_alloc_float_lit_c(arena, r.tok.float_val);
     if (fref == 0) {

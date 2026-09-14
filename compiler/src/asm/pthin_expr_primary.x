@@ -14,6 +14,29 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/* Primary literal wave: token ordinals (token.h enum, validated
+ * ELSE=5/IF=4) and bridges. */
+const TOKEN_TRUE: i32 = 75;
+const TOKEN_FALSE: i32 = 76;
+const TOKEN_NULL: i32 = 132;
+const TOKEN_FLOAT: i32 = 134;
+const EXPR_LIT: i32 = 0;
+const EXPR_FLOAT_LIT: i32 = 1;
+const EXPR_BOOL_LIT: i32 = 2;
+
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_float_val_into_c(lex_inout: *u8, source: *u8, out: *f64): void;
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
+export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
+export extern "C" function pipeline_expr_set_int_val(a: *u8, er: i32, v: i64): void;
+export extern "C" function pipeline_expr_set_float_val(a: *u8, er: i32, v: f64): void;
+export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+export extern "C" function pipeline_expr_tag_null_keyword_c(arena: *u8, er: i32): void;
+
 // pthin_expr_primary.x — G-02f-282 P4 parser thin primary product bodies.
 //
 // 7.2.1 P4b Route C productize (2026-09-13): after P19b helpers, primary.inc
@@ -276,6 +299,81 @@ export function parser_asm_primary_asm_option_bit_buf_c(data: *u8, length: usize
 #[no_mangle]
 export function parser_asm_primary_ident_is_asm_option_name_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
   if (parser_asm_primary_asm_option_bit_buf_c(data, length, token_start, ident_len) != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Literal-arm handler (primary literal wave): FLOAT / TRUE / FALSE / NULL
+ * tokens fill a fresh arena Expr through the wave-0 writer family (no Expr
+ * by-value). Peeks the next token; when it is one of the four literal kinds
+ * the payload is read FIRST, the cursor is then advanced in place (step
+ * keeps pos+line+col exact), and the Expr is filled + common-zeroed.
+ * The INT arm is NOT handled here (it shares the ident suffix chain and
+ * migrates with that wave).
+ * @param arena *u8 — opaque ASTArena
+ * @param lex_inout *u8 — cursor; advanced only when the token is handled
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — 1 when handled (expr written), 0 otherwise
+ * @param out_expr_ref *i32 — fresh Expr ref on success
+ * @return i32 — 1 handled (check out_ok for alloc failure); 0 not a
+ *   literal token (caller falls through to the C arms)
+ * PLATFORM: SHARED — product primary literal wave; dispatched from
+ * parser_asm_parse_primary_into_slice_c under
+ * XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X. NULL keeps the keyword tag via
+ * pipeline_expr_tag_null_keyword_c (G.7 single primary path).
+ */
+#[no_mangle]
+export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let fval: f64 = 0 as f64;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_FLOAT && kind != TOKEN_TRUE && kind != TOKEN_FALSE && kind != TOKEN_NULL) {
+      return 0;
+    }
+    if (kind == TOKEN_FLOAT) {
+      parser_asm_lex_peek_float_val_into_c(lex_inout, source, &fval);
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    if (kind == TOKEN_FLOAT) {
+      pipeline_expr_set_kind(arena, ref, EXPR_FLOAT_LIT);
+      pipeline_expr_set_float_val(arena, ref, fval);
+      pipeline_expr_set_line_col(arena, ref, 0, 0);
+      pipeline_expr_set_common_zeros_c(arena, ref);
+    } else if (kind == TOKEN_TRUE || kind == TOKEN_FALSE) {
+      pipeline_expr_set_kind(arena, ref, EXPR_BOOL_LIT);
+      if (kind == TOKEN_TRUE) {
+        pipeline_expr_set_int_val(arena, ref, 1);
+      } else {
+        pipeline_expr_set_int_val(arena, ref, 0);
+      }
+      pipeline_expr_set_line_col(arena, ref, 0, 0);
+      pipeline_expr_set_common_zeros_c(arena, ref);
+    } else {
+      pipeline_expr_set_kind(arena, ref, EXPR_LIT);
+      pipeline_expr_set_line_col(arena, ref, tl, tc);
+      pipeline_expr_set_int_val(arena, ref, 0);
+      pipeline_expr_set_common_zeros_c(arena, ref);
+      pipeline_expr_tag_null_keyword_c(arena, ref);
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
     return 1;
   }
   return 0;

@@ -195,6 +195,22 @@ int32_t parser_asm_lex_peek_kind_c(void *lex, void *source) {
  * @return i32 — next token's int_val truncated to i32 (0 on null)
  * PLATFORM: SHARED — peek-family completion; not a second lexer.
  */
+/**
+ * Peek the NEXT token's float_val into *out without advancing the lexer.
+ * Pointer-out face keeps the .x lane clear of the f64 return ABI.
+ * @param lex *u8 — opaque struct parser_asm_lexer* (read-only)
+ * @param source *u8 — opaque struct parser_asm_slice_u8*
+ * @param out *f64-equivalent (double*) — receives r.tok.float_val
+ * PLATFORM: SHARED — peek-family completion (primary literal wave).
+ */
+void parser_asm_lex_peek_float_val_into_c(void *lex, void *source, double *out) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source || !out)
+    return;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  *out = r.tok.float_val;
+}
+
 int32_t parser_asm_lex_peek_int_val_c(void *lex, void *source) {
   struct parser_asm_lexer_result r;
   if (!lex || !source)
