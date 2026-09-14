@@ -60299,6 +60299,50 @@ void pipeline_expr_set_common_zeros_c(void *a, int32_t er) {
   ex->var_name_len = 0;
 }
 
+/* Suffix segment-2 (DOT suffix enabler): field_access + method_call
+ * combined writers. Name buffers cap 255 (u8[256] AST face; the parse-side
+ * [128] mirrors are content-equal). Kind/line/col/zeros stay with the
+ * wave-0 writers so each fill composes exactly like the C struct fill. */
+void pipeline_expr_set_field_access_c(void *a, int32_t er, int32_t base_ref,
+                                      const uint8_t *nm, int32_t nlen) {
+  W278_Expr *ex;
+  int32_t i;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 255)
+    nlen = 255;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->field_access_base_ref = base_ref;
+  ex->field_access_field_len = nlen;
+  memset(ex->field_access_field_name, 0, sizeof(ex->field_access_field_name));
+  for (i = 0; i < nlen; i++)
+    ex->field_access_field_name[i] = nm ? nm[i] : 0;
+}
+
+void pipeline_expr_set_method_call_c(void *a, int32_t er, int32_t base_ref,
+                                     const uint8_t *nm, int32_t nlen) {
+  W278_Expr *ex;
+  int32_t i;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 255)
+    nlen = 255;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->method_call_base_ref = base_ref;
+  ex->method_call_name_len = nlen;
+  memset(ex->method_call_name, 0, sizeof(ex->method_call_name));
+  for (i = 0; i < nlen; i++)
+    ex->method_call_name[i] = nm ? nm[i] : 0;
+}
+
 void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
   W278_Expr *ex;
   int32_t i;

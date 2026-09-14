@@ -97974,6 +97974,8 @@ export extern "C" function pipeline_expr_set_int_val(a: *u8, er: i32, v: i64): v
 export extern "C" function pipeline_expr_set_float_val(a: *u8, er: i32, v: f64): void;
 export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
 export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_method_call_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
 export extern "C" function pipeline_module_func_abi_kind_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
 export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;
