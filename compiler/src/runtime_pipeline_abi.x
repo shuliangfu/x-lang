@@ -97979,6 +97979,8 @@ export extern "C" function pipeline_expr_set_method_call_c(a: *u8, er: i32, base
 export extern "C" function pipeline_expr_set_index_c(a: *u8, er: i32, base_ref: i32, index_ref: i32, is_slice: i32): void;
 export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref: i32, num_type_args: i32): void;
 export extern "C" function pipeline_expr_set_struct_lit_finish_c(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_field_name_len_at(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_field_name_into(a: *u8, er: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_abi_kind_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
 export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;

@@ -50,6 +50,33 @@ export extern "C" function parser_asm_parse_struct_lit_fields_ptr_c(arena: *u8, 
 const EXPR_FIELD_ACCESS: i32 = 44;
 export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_skip_angle_count_ptr_into_c(lex_inout: *u8, source: *u8, out_count: *i32): void;
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_next_pos_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
+export extern "C" function parser_asm_lex_at_token_pos_c(kind: i32, token_start: usize, ident_len: i32, next_pos: usize): usize;
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+export extern "C" function pipeline_expr_append_method_call_arg(a: *u8, er: i32, arg: i32): i32;
+export extern "C" function pipeline_expr_append_call_arg(a: *u8, er: i32, arg: i32): i32;
+export extern "C" function pipeline_expr_append_call_type_arg(a: *u8, er: i32, tr: i32): i32;
+export extern "C" function parser_asm_append_type_inst_mangle_c(arena: *u8, nm: *u8, nlen: i32, refs: *i32, n: i32, out: *u8, cap: i32): i32;
+const TOKEN_DOT: i32 = 92;
+const TOKEN_LBRACKET: i32 = 86;
+const TOKEN_RBRACKET: i32 = 87;
+const TOKEN_COMMA: i32 = 90;
+const TOKEN_LT: i32 = 120;
+const TOKEN_GT: i32 = 121;
+const TOKEN_RSHIFT: i32 = 105;
+const TOKEN_SOA: i32 = 22;
+const TOKEN_PACKED: i32 = 21;
+const EXPR_VAR: i32 = 3;
+const EXPR_INDEX: i32 = 47;
+const EXPR_CALL: i32 = 48;
+const EXPR_METHOD_CALL: i32 = 49;
 const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 
 // pthin_expr_primary.x — G-02f-282 P4 parser thin primary product bodies.
@@ -392,4 +419,469 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
     return 1;
   }
   return 0;
+}
+
+/**
+ * The primary suffix chain loop (.x mirror of
+ * parser_asm_primary_ident_suffix_loop_c): repeatedly wraps out_expr_ref in
+ * FIELD_ACCESS / METHOD_CALL / INDEX / CALL / turbofish-pending /
+ * qualified-STRUCT_LIT nodes for `.name`, `name(`, `[i]`, `<T>(`, `{`
+ * followers. Shared by the INT and IDENT arms via the gated C wrapper.
+ *
+ * Cursor model: the C loop caches a peeked lexer_result in `r`; peeks are
+ * pure, so this body re-peeks at need and consumes with lex_step_kind
+ * (pos+line+col exact). The field path's `lex_at_token(*r)` realign maps to
+ * the five-peek + at_token_pos idiom.
+ *
+ * Buffers (trampoline-owned; the language has no local arrays):
+ *   mc_arg_buf[256] arg_buf[256] parsed_refs[8] pending_refs[8]
+ *   mangled[128] name_buf[256]
+ *
+ * Semantic invariants mirrored verbatim (see the C comments):
+ *   - args parse fully into staging, THEN append (nested-call slot safety)
+ *   - turbofish: real type_refs first; count-only fallback leaves refs empty
+ *   - LT with neither `{` nor `(` after the angles leaves `<` for relcompare
+ *   - LBRACE converts FIELD_ACCESS only, after the two block-pref checks
+ *   - wave607: qualified struct lit continues the chain
+ *   - stall guard: same pos+kind 4096 times -> hard fail
+ * @return void — failures write out_ok=0; stop leaves the cursor at the
+ *   first non-suffix token (the C arms set out->next_lex from the cursor)
+ * PLATFORM: SHARED — product primary suffix loop (EXPR_PRIMARY gate).
+ */
+#[no_mangle]
+export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8, lex_inout: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): void {
+  let kind: i32 = 0;
+  let k2: i32 = 0;
+  let k3: i32 = 0;
+  let prev_kind: i32 = -1;
+  let prev_pos: usize = 0;
+  let stall: i32 = 0;
+  let mname_len: i32 = 0;
+  let mname_start: usize = 0;
+  let mc_ref: i32 = 0;
+  let fa_ref: i32 = 0;
+  let idx_ref: i32 = 0;
+  let call_ref: i32 = 0;
+  let callee_ref: i32 = 0;
+  let base_ref: i32 = 0;
+  let n: i32 = 0;
+  let ai: i32 = 0;
+  let ok2: i32 = 0;
+  let eref2: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let pending_n: i32 = 0;
+  let pi: i32 = 0;
+  let parse_ok: i32 = 0;
+  let tr: i32 = 0;
+  let count: i32 = 0;
+  let tlen: i32 = 0;
+  let mlen: i32 = 0;
+  let prefer_block: i32 = 0;
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let np: usize = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  if (arena == 0 as *u8 || source == 0 as *u8 || lex_inout == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    pi = 0;
+    while (pi < 8) {
+      pending_refs[pi] = 0;
+      pi = pi + 1;
+    }
+    loop {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (parser_asm_lex_pos_c(lex_inout) == prev_pos && kind == prev_kind) {
+        stall = stall + 1;
+        if (stall >= 4096) {
+          out_ok[0] = 0;
+          return;
+        }
+      } else {
+        stall = 0;
+      }
+      prev_pos = parser_asm_lex_pos_c(lex_inout);
+      prev_kind = kind;
+      if (kind == TOKEN_DOT) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        mname_len = -1;
+        if (k2 == TOKEN_IDENT) {
+          mname_len = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+          if (mname_len <= 0) {
+            mname_len = -1;
+          }
+        } else if (k2 == TOKEN_TYPE) {
+          mname_len = 4;
+        } else if (k2 == TOKEN_SOA) {
+          mname_len = 3;
+        } else if (k2 == TOKEN_PACKED) {
+          mname_len = 6;
+        }
+        if (mname_len < 0) {
+          return;
+        }
+        if (mname_len > 255) {
+          mname_len = 127;
+        }
+        mname_start = parser_asm_lex_peek_token_start_c(lex_inout, source);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        k3 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (k3 == TOKEN_LPAREN) {
+          mc_ref = ast_ast_arena_expr_alloc(arena);
+          if (mc_ref == 0) {
+            out_ok[0] = 0;
+            return;
+          }
+          pipeline_expr_set_common_zeros_c(arena, mc_ref);
+          pipeline_expr_set_kind(arena, mc_ref, EXPR_METHOD_CALL);
+          pipeline_expr_set_method_call_c(arena, mc_ref, out_expr_ref[0], data + mname_start, mname_len);
+          pipeline_expr_set_line_col(arena, mc_ref, 0, 0);
+          out_expr_ref[0] = mc_ref;
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (k2 != TOKEN_RPAREN) {
+            n = 0;
+            loop {
+              if (n >= 256) {
+                out_ok[0] = 0;
+                return;
+              }
+              ok2 = 0;
+              eref2 = 0;
+              if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &ok2, &eref2) == 0) {
+                out_ok[0] = 0;
+                return;
+              }
+              if (ok2 == 0) {
+                out_ok[0] = 0;
+                return;
+              }
+              mc_arg_buf[n] = eref2;
+              n = n + 1;
+              k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (k2 == TOKEN_COMMA) {
+                parser_asm_lex_step_kind_c(lex_inout, source);
+                continue;
+              }
+              if (k2 == TOKEN_RPAREN) {
+                parser_asm_lex_step_kind_c(lex_inout, source);
+                ai = 0;
+                while (ai < n) {
+                  if (pipeline_expr_append_method_call_arg(arena, mc_ref, mc_arg_buf[ai]) < 0) {
+                    out_ok[0] = 0;
+                    return;
+                  }
+                  ai = ai + 1;
+                }
+                break;
+              }
+              out_ok[0] = 0;
+              return;
+            }
+          } else {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          }
+        } else {
+          fa_ref = ast_ast_arena_expr_alloc(arena);
+          if (fa_ref == 0) {
+            out_ok[0] = 0;
+            return;
+          }
+          pipeline_expr_set_common_zeros_c(arena, fa_ref);
+          pipeline_expr_set_kind(arena, fa_ref, EXPR_FIELD_ACCESS);
+          pipeline_expr_set_field_access_c(arena, fa_ref, out_expr_ref[0], data + mname_start, mname_len);
+          pipeline_expr_set_line_col(arena, fa_ref, 0, 0);
+          out_expr_ref[0] = fa_ref;
+          /* Field path realigns the cursor AT the follower token start
+           * (C: lex_at_token_from_result(*r)) — the five-peek idiom. */
+          k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+          ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+          il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+          np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+          tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+          tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+          parser_asm_lex_set_pos_c(lex_inout, parser_asm_lex_at_token_pos_c(k2, ts, il, np));
+          parser_asm_lex_set_line_c(lex_inout, tl);
+          parser_asm_lex_set_col_c(lex_inout, tc);
+        }
+      } else if (kind == TOKEN_LT) {
+        /* Turbofish: real type_refs first; on unparsable fall back count-only.
+         * Neither `{` nor `(` after the angles leaves `<` for relcompare. */
+        parse_ok = 1;
+        n = 0;
+        pi = 0;
+        while (pi < 8) {
+          parsed_refs[pi] = 0;
+          pi = pi + 1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        if (parser_asm_lex_peek_kind_c(lex_inout, source) == TOKEN_GT || parser_asm_lex_peek_kind_c(lex_inout, source) == TOKEN_RSHIFT) {
+          parse_ok = 0;
+        }
+        if (parse_ok != 0) {
+          loop {
+            if (n >= 8) {
+              parse_ok = 0;
+              break;
+            }
+            tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+            if (tr <= 0) {
+              parse_ok = 0;
+              break;
+            }
+            parsed_refs[n] = tr;
+            n = n + 1;
+            k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (k2 == TOKEN_COMMA) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (k2 == TOKEN_GT) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              break;
+            }
+            if (k2 == TOKEN_RSHIFT) {
+              /* Nested `>>`: close this level, leave one `>` — set cursor
+               * past the FIRST '>' only (C: lex.pos+1 style split). */
+              parser_asm_lex_set_pos_c(lex_inout, parser_asm_lex_pos_c(lex_inout) + 1);
+              break;
+            }
+            parse_ok = 0;
+            break;
+          }
+        }
+        if (parse_ok != 0) {
+          k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (k2 == TOKEN_LBRACE) {
+            /* Generic struct lit `Type<T>{...}` on a VAR head. */
+            if (pipeline_expr_kind_ord_at(arena, out_expr_ref[0]) != EXPR_VAR) {
+              return;
+            }
+            if (pipeline_expr_var_name_len(arena, out_expr_ref[0]) <= 0) {
+              return;
+            }
+            prefer_block = 0;
+            if (parser_asm_lbrace_looks_like_block_ptr_c(lex_inout, source) != 0) {
+              prefer_block = 1;
+            } else if (parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout, source) == 1) {
+              prefer_block = 1;
+            }
+            if (prefer_block != 0) {
+              return;
+            }
+            tlen = pipeline_expr_var_name_len(arena, out_expr_ref[0]);
+            pipeline_expr_var_name_into(arena, out_expr_ref[0], name_buf);
+            mlen = parser_asm_append_type_inst_mangle_c(arena, name_buf, tlen, parsed_refs, n, mangled, 128);
+            if (mlen <= 0 || mlen > 255) {
+              out_ok[0] = 0;
+              return;
+            }
+            pipeline_expr_set_var_name(arena, out_expr_ref[0], mangled, mlen);
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            ok2 = 0;
+            eref2 = 0;
+            parser_finish_struct_lit_ptr_into_c(arena, out_expr_ref[0], lex_inout, source, &ok2, &eref2);
+            if (ok2 == 0) {
+              out_ok[0] = 0;
+              return;
+            }
+            out_expr_ref[0] = eref2;
+            pending_n = 0;
+            pi = 0;
+            while (pi < 8) {
+              pending_refs[pi] = 0;
+              pi = pi + 1;
+            }
+            continue;
+          }
+          if (k2 != TOKEN_LPAREN) {
+            return;
+          }
+          pending_n = n;
+          pi = 0;
+          while (pi < n && pi < 8) {
+            pending_refs[pi] = parsed_refs[pi];
+            pi = pi + 1;
+          }
+          while (pi < 8) {
+            pending_refs[pi] = 0;
+            pi = pi + 1;
+          }
+          /* Cursor stays past the '>' (already consumed above). */
+        } else {
+          /* Count-only fallback: restart from '<'. */
+          parser_asm_lex_set_pos_c(lex_inout, prev_pos);
+          parser_asm_skip_angle_count_ptr_into_c(lex_inout, source, &count);
+          k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (k2 != TOKEN_LPAREN) {
+            return;
+          }
+          pending_n = count;
+          pi = 0;
+          while (pi < 8) {
+            pending_refs[pi] = 0;
+            pi = pi + 1;
+          }
+        }
+      } else if (kind == TOKEN_LBRACKET) {
+        base_ref = out_expr_ref[0];
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        ok2 = 0;
+        eref2 = 0;
+        if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &ok2, &eref2) == 0) {
+          out_ok[0] = 0;
+          return;
+        }
+        if (ok2 == 0) {
+          out_ok[0] = 0;
+          return;
+        }
+        k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (k2 != TOKEN_RBRACKET) {
+          out_ok[0] = 0;
+          return;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        idx_ref = ast_ast_arena_expr_alloc(arena);
+        if (idx_ref == 0) {
+          out_ok[0] = 0;
+          return;
+        }
+        pipeline_expr_set_common_zeros_c(arena, idx_ref);
+        pipeline_expr_set_kind(arena, idx_ref, EXPR_INDEX);
+        pipeline_expr_set_index_c(arena, idx_ref, base_ref, eref2, 0);
+        pipeline_expr_set_line_col(arena, idx_ref, 0, 0);
+        out_expr_ref[0] = idx_ref;
+      } else if (kind == TOKEN_LPAREN) {
+        callee_ref = out_expr_ref[0];
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        call_ref = ast_ast_arena_expr_alloc(arena);
+        if (call_ref == 0) {
+          out_ok[0] = 0;
+          return;
+        }
+        pipeline_expr_set_common_zeros_c(arena, call_ref);
+        pipeline_expr_set_kind(arena, call_ref, EXPR_CALL);
+        pipeline_expr_set_line_col(arena, call_ref, 0, 0);
+        pipeline_expr_set_call_c(arena, call_ref, callee_ref, pending_n);
+        if (pending_n > 0 && pending_refs[0] > 0) {
+          ai = 0;
+          while (ai < pending_n && ai < 8) {
+            if (pending_refs[ai] <= 0) {
+              break;
+            }
+            if (pipeline_expr_append_call_type_arg(arena, call_ref, pending_refs[ai]) < 0) {
+              out_ok[0] = 0;
+              return;
+            }
+            ai = ai + 1;
+          }
+        }
+        pending_n = 0;
+        pi = 0;
+        while (pi < 8) {
+          pending_refs[pi] = 0;
+          pi = pi + 1;
+        }
+        n = 0;
+        k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (k2 != TOKEN_RPAREN) {
+          loop {
+            if (n >= 256) {
+              out_ok[0] = 0;
+              return;
+            }
+            ok2 = 0;
+            eref2 = 0;
+            if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &ok2, &eref2) == 0) {
+              out_ok[0] = 0;
+              return;
+            }
+            if (ok2 == 0) {
+              out_ok[0] = 0;
+              return;
+            }
+            arg_buf[n] = eref2;
+            n = n + 1;
+            k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (k2 == TOKEN_COMMA) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              continue;
+            }
+            if (k2 == TOKEN_RPAREN) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              break;
+            }
+            out_ok[0] = 0;
+            return;
+          }
+        } else {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+        }
+        ai = 0;
+        while (ai < n) {
+          if (pipeline_expr_append_call_arg(arena, call_ref, arg_buf[ai]) < 0) {
+            out_ok[0] = 0;
+            return;
+          }
+          ai = ai + 1;
+        }
+        out_expr_ref[0] = call_ref;
+      } else if (kind == TOKEN_LBRACE) {
+        /* Qualified struct lit `Mod.Type { ... }` — FIELD_ACCESS heads only,
+         * after the two block-pref authorities; wave607 continues the chain. */
+        if (pipeline_expr_kind_ord_at(arena, out_expr_ref[0]) != EXPR_FIELD_ACCESS) {
+          return;
+        }
+        prefer_block = 0;
+        if (parser_asm_lbrace_looks_like_block_ptr_c(lex_inout, source) != 0) {
+          prefer_block = 1;
+        } else if (parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout, source) == 1) {
+          prefer_block = 1;
+        }
+        if (prefer_block != 0) {
+          return;
+        }
+        /* Convert: field name -> struct-lit head (kind 45 + name), then
+         * parse fields. Name source = the live field_access name buffer. */
+        tlen = 0;
+        /* field name length lives on the expr; read via the writer family's
+         * twin (no reader for field name) — reuse var_name reader is wrong;
+         * the C reads fae.field_access_field_name directly. Read bridge:
+         * none staged, so keep the conversion on the C side via the staged
+         * conversion writer taking the SOURCE bytes: rebuild from mname. */
+        /* The C copies fae.field_access_field_name[128] out then into
+         * struct_lit_struct_name. Without a field-name reader, mirror by
+         * re-deriving the name bytes is unsafe; instead call the arena-side
+         * conversion helper that reads in place. */
+        tlen = pipeline_expr_field_name_len_at(arena, out_expr_ref[0]);
+        if (tlen <= 0 || tlen > 255) {
+          out_ok[0] = 0;
+          return;
+        }
+        pipeline_expr_field_name_into(arena, out_expr_ref[0], name_buf);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        pipeline_expr_set_common_zeros_c(arena, out_expr_ref[0]);
+        pipeline_expr_set_struct_lit_finish_c(arena, out_expr_ref[0], name_buf, tlen);
+        pipeline_expr_set_line_col(arena, out_expr_ref[0], 0, 0);
+        ok2 = 0;
+        eref2 = 0;
+        parser_asm_parse_struct_lit_fields_ptr_c(arena, out_expr_ref[0], lex_inout, source, &ok2, &eref2);
+        if (ok2 == 0) {
+          out_ok[0] = 0;
+          return;
+        }
+        out_expr_ref[0] = eref2;
+        continue;
+      } else {
+        return;
+      }
+    }
+  }
 }

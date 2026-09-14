@@ -845,6 +845,32 @@ static int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *
 }
 
 /** IDENT 后 `.field` / `[idx]` / `(args)` 后缀链；失败时写 out.ok=0 或仅写 out.next_lex 后返回。 */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+/* Primary suffix loop: body in pthin_expr_primary.x (peek/step cursor model;
+ * peeks are pure so the C r-cache collapses away). Buffers are trampoline-
+ * owned (no local arrays in the language). The arms set out->next_lex from
+ * the cursor after the call, so exit-state next_lex handling is moot. */
+extern void parser_asm_primary_suffix_loop_x_into_c(void *arena, void *source, void *lex_inout,
+                                                    int32_t *out_ok, int32_t *out_expr_ref,
+                                                    int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                    int32_t *parsed_refs, int32_t *pending_refs,
+                                                    uint8_t *mangled, uint8_t *name_buf);
+static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_asm_slice_u8 *source,
+                                                   struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
+                                                   struct parser_asm_parse_expr_result *out, int32_t first_suffix) {
+  int32_t mc_arg_buf[256];
+  int32_t arg_buf[256];
+  int32_t parsed_refs[8];
+  int32_t pending_refs[8];
+  uint8_t mangled[128];
+  uint8_t name_buf[256];
+  (void)r;
+  (void)first_suffix;
+  parser_asm_primary_suffix_loop_x_into_c(arena, source, lex, &out->ok, &out->expr_ref,
+                                          mc_arg_buf, arg_buf, parsed_refs, pending_refs,
+                                          mangled, name_buf);
+}
+#else
 static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
                                                    struct parser_asm_parse_expr_result *out, int32_t first_suffix) {
@@ -1415,6 +1441,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
     }
   }
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X suffix loop */
 
 /** panic / panic(expr) primary。 */
 static void parser_asm_primary_parse_panic_c(void *arena, struct parser_asm_slice_u8 *source,

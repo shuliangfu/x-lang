@@ -60395,6 +60395,28 @@ void pipeline_expr_set_struct_lit_finish_c(void *a, int32_t er, const uint8_t *n
   ex->struct_lit_num_fields = 0;
 }
 
+/* Suffix LBRACE branch: field_access name readers (in-place conversion to
+ * a qualified struct-lit head needs the live field name bytes). */
+int32_t pipeline_expr_field_name_len_at(void *a, int32_t er) {
+  W278_Expr *ex;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return 0;
+  ex = w278_expr_ptr(a, er);
+  return ex ? (int32_t)ex->field_access_field_len : 0;
+}
+
+void pipeline_expr_field_name_into(void *a, int32_t er, uint8_t *dst) {
+  W278_Expr *ex;
+  int32_t i;
+  if (!a || !dst || er <= 0 || er > w278_num_exprs(a))
+    return;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  for (i = 0; i < 256; i++)
+    dst[i] = (i < ex->field_access_field_len) ? ex->field_access_field_name[i] : 0;
+}
+
 void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
   W278_Expr *ex;
   int32_t i;
