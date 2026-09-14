@@ -1798,6 +1798,31 @@ static void parser_asm_primary_parse_array_lit_c(void *arena, struct parser_asm_
   out->ok = 0;
 }
 
+/* =============================================================================
+ * Suffix-chain segment 1: expr-parse callback pointer shim. The suffix loop
+ * parses call/index sub-expressions through the X-mega parse_expr_into
+ * (by-value lexer + out struct); the .x suffix orchestration calls this
+ * pointer face instead. Cursor semantics: lex_inout is the loop's OWN
+ * cursor (the C loop passes *lex and writes back arg_res.next_lex — the
+ * .x caller owns the same slot through lex_inout).
+ * PLATFORM: SHARED — additive, ungated (both lanes carry it).
+ * ============================================================================= */
+int32_t parser_parse_expr_ptr_into_c(void *arena, void *lex_inout, void *source,
+                                     int32_t *out_ok, int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parse_expr_into(arena, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+
 /**
  * parse_primary_into：INT | FLOAT | BOOL | break | continue | IDENT 后缀 | (expr) | [] | if | match | panic | @simd。
  */

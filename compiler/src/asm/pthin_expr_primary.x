@@ -36,6 +36,7 @@ export extern "C" function pipeline_expr_set_int_val(a: *u8, er: i32, v: i64): v
 export extern "C" function pipeline_expr_set_float_val(a: *u8, er: i32, v: f64): void;
 export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
 export extern "C" function pipeline_expr_tag_null_keyword_c(arena: *u8, er: i32): void;
+export extern "C" function parser_parse_expr_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 
 // pthin_expr_primary.x — G-02f-282 P4 parser thin primary product bodies.
 //
