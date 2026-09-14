@@ -1635,6 +1635,7 @@ extern void pipeline_module_func_set_num_params(struct ast_Module * module, int3
 extern void pipeline_module_func_set_num_generic_params(struct ast_Module * module, int32_t fi, int32_t n);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_num_generic_params_at(struct ast_Module * module, int32_t fi);
+extern int32_t pipeline_module_func_owner_binds_base_at(struct ast_Module * module, int32_t fi, uint8_t * base, int32_t base_len);
 extern int32_t pipeline_module_func_name_equal_at(struct ast_Module * module, int32_t fi, uint8_t * name, int32_t name_len);
 extern void pipeline_module_func_set_is_used(struct ast_Module * module, int32_t fi, int32_t is_used);
 extern uint8_t pipeline_module_func_name_byte_at(struct ast_Module * module, int32_t fi, int32_t i);
@@ -13356,7 +13357,11 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           int32_t assoc_best_score = -1;
           int32_t assoc_nf = pipeline_module_num_funcs(module);
           while (assoc_uj < assoc_nf) {
-            if (pipeline_module_func_name_equal_at(module, assoc_uj, &((method_nm)[0]), method_nlen) != 0) {
+            /* LANG-005: associated call binds only rows whose impl owner (if
+             * stamped) matches the base struct; empty owner stays eligible
+             * (free fn / UFCS). Stops cross-impl bleed (B.g() -> A's g). */
+            if ((pipeline_module_func_name_equal_at(module, assoc_uj, &((method_nm)[0]), method_nlen) != 0)
+                && (pipeline_module_func_owner_binds_base_at(module, assoc_uj, &((base_nm)[0]), assoc_nlen) != 0)) {
               int32_t assoc_np = pipeline_module_func_num_params_at(module, assoc_uj);
               if (assoc_np == num_args) {
                 int32_t assoc_matched = 1;
