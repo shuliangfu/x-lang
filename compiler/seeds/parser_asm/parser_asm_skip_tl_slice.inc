@@ -7690,14 +7690,16 @@ void parser_asm_skip_one_trait_into_slice_c(struct parser_asm_lexer *out, struct
  *   early-return on TOKEN_LT (methods leaked as unconstrained free fns).
  * PLATFORM: SHARED parse.
  */
+/* LANG-005: latch the current impl owner so func registration can stamp the
+ * module func owner sidecar (for-type for `impl T for X`; head ident for
+ * inherent `impl X`). Both wrapper branches below call it. */
+extern void pipeline_module_parse_impl_owner_set(const uint8_t *nm, int32_t nlen);
+
 #ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 extern int32_t parser_asm_skip_one_impl_into_c(void *lex_inout, void *source, uint8_t *first_nm,
                                                int32_t *first_nlen, int32_t *impl_line, int32_t *impl_col,
                                                int32_t *saw_for, int32_t *for_is_ptr, int32_t *for_tok_kind,
                                                uint8_t *for_nm, int32_t *for_nlen);
-/* LANG-005: latch the current impl owner so func registration can stamp the
- * owner sidecar (for-type for `impl T for X`; head ident for inherent impls). */
-extern void pipeline_module_parse_impl_owner_set(const uint8_t *nm, int32_t nlen);
 
 void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                            struct parser_asm_slice_u8 *source) {
@@ -7755,6 +7757,7 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   int32_t first_nlen = 0;
   int32_t impl_line = 0;
   int32_t impl_col = 0;
+  int32_t did_for = 0;
   if (!out || !source)
     return;
   /* wave439: stash full-file source for generic-bound scan. */
@@ -7854,6 +7857,13 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
       g_xlang_skip_impl_for_kinds[si] = for_k;
       g_xlang_skip_impl_for_is_ptr[si] = for_is_ptr;
     }
+    did_for = 1;
+    /* LANG-005 (cold-C twin of the trampoline branch above): arm the
+     * owner latch with the for-type so hoisted methods stamp the
+     * module func owner sidecar. */
+    if (si >= 0 && g_xlang_skip_impl_for_name_lens[si] > 0)
+      pipeline_module_parse_impl_owner_set(g_xlang_skip_impl_for_names[si],
+                                           g_xlang_skip_impl_for_name_lens[si]);
     {
       uint8_t tname_audit[64];
       parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, tname_audit);
@@ -7875,6 +7885,9 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_body_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_impl_items_probe_c(&r.next_lex, source, 0));
+  /* LANG-005: inherent impl (`impl X {`) — latch the head ident. */
+  if (did_for == 0 && first_nlen > 0)
+    pipeline_module_parse_impl_owner_set(first_nm, first_nlen);
   /* wave390: do NOT skip_balanced_braces — leave methods for outer parse_into free-fn commit. */
   out->pos = r.next_lex.pos;
   out->line = r.next_lex.line;
