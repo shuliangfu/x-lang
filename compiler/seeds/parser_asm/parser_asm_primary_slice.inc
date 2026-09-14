@@ -1933,6 +1933,46 @@ void parser_asm_skip_angle_count_ptr_into_c(void *lex_inout, void *source, int32
   *(struct parser_asm_lexer *)lex_inout = after;
 }
 
+/* IDENT-arm pre-dispatch fat shim: the unsafe-expr and asm-bang checks
+ * plus their whole sub-parsers stay C (separate complex functions); the .x
+ * IDENT head calls this FIRST. Returns 1 when a sub-parser consumed the
+ * primary (out slots filled, cursor advanced); 0 = plain ident, caller
+ * proceeds with the VAR head. PLATFORM: SHARED — additive, ungated. */
+int32_t parser_asm_ident_pre_dispatch_ptr_c(void *arena, void *lex_inout, void *source,
+                                            int32_t *out_ok, int32_t *out_expr_ref) {
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r;
+  struct parser_asm_parse_expr_result res;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_IDENT)
+    return 0;
+  if (parser_asm_primary_ident_is_unsafe_c(source, r.token_start, r.tok.ident_len)) {
+    memset(&res, 0, sizeof(res));
+    parser_asm_primary_parse_unsafe_expr_c(arena, r.next_lex, source, &res);
+    *out_ok = res.ok;
+    *out_expr_ref = res.expr_ref;
+    *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+    return 1;
+  }
+  if (parser_asm_primary_ident_is_asm_c(source, r.token_start, r.tok.ident_len)) {
+    struct parser_asm_lexer peek_lex = r.next_lex;
+    struct parser_asm_lexer_result peek;
+    lexer_next_into(&peek, peek_lex, source);
+    if (peek.tok.kind == (int32_t)TOKEN_BANG) {
+      memset(&res, 0, sizeof(res));
+      parser_asm_primary_parse_asm_bang_c(arena, source, &peek_lex, &peek, &res);
+      *out_ok = res.ok;
+      *out_expr_ref = res.expr_ref;
+      *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+      return 1;
+    }
+  }
+  return 0;
+}
+
 /**
  * parse_primary_into：INT | FLOAT | BOOL | break | continue | IDENT 后缀 | (expr) | [] | if | match | panic | @simd。
  */
@@ -2806,6 +2846,29 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       }
       out->ok = 0;
       return;
+    }
+    {
+      extern int32_t parser_asm_primary_ident_x_into_c(void *arena, void *lex_inout, void *source,
+                                                       int32_t *out_ok, int32_t *out_expr_ref,
+                                                       int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                       int32_t *parsed_refs, int32_t *pending_refs,
+                                                       uint8_t *mangled, uint8_t *name_buf);
+      struct parser_asm_lexer id_lex;
+      int32_t id_ok = 0;
+      int32_t id_ref = 0;
+      id_lex = lex;
+      if (parser_asm_primary_ident_x_into_c(arena, &id_lex, source, &id_ok, &id_ref,
+                                            lit_mc, lit_args, lit_pr, lit_pend,
+                                            lit_mangled, lit_name) != 0) {
+        if (id_ok != 0) {
+          out->ok = 1;
+          out->expr_ref = id_ref;
+          out->next_lex = id_lex;
+          return;
+        }
+        out->ok = 0;
+        return;
+      }
     }
   }
 #endif

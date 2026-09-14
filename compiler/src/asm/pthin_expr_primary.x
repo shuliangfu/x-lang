@@ -21,6 +21,9 @@ const TOKEN_FALSE: i32 = 76;
 const TOKEN_NULL: i32 = 132;
 const TOKEN_FLOAT: i32 = 134;
 const TOKEN_INT: i32 = 133;
+const TOKEN_SELF: i32 = 51;
+const EXPR_VAR_LIT: i32 = 3;
+export extern "C" function parser_asm_ident_pre_dispatch_ptr_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 const EXPR_LIT: i32 = 0;
 const EXPR_FLOAT_LIT: i32 = 1;
 const EXPR_BOOL_LIT: i32 = 2;
@@ -903,4 +906,105 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
       }
     }
   }
+}
+
+/**
+ * IDENT/SELF primary head (.x mirror of the IDENT arm): pre-dispatch fat
+ * shim (unsafe-expr / asm-bang sub-parsers stay C), then the VAR fill
+ * (kind 3 + source name copy + token line/col + zeros), the Type{...}
+ * struct-lit LBRACE dance (two block-pref authorities; on prefer-block
+ * restore the cursor AT the '{' and stop), and the .x suffix loop
+ * (wave607 continuation). Keyword `self` skips the struct-lit path.
+ * @param buffers — the six suffix-loop trampoline buffers (dispatcher-owned)
+ * @return i32 — 1 handled (check out_ok for inner failures); 0 not IDENT/SELF
+ * PLATFORM: SHARED — product primary IDENT arm (EXPR_PRIMARY gate).
+ */
+#[no_mangle]
+export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let vlen: i32 = 0;
+  let name_was_self: i32 = 0;
+  let ref: i32 = 0;
+  let ts: usize = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let ok2: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT && kind != TOKEN_SELF) {
+      return 0;
+    }
+    /* unsafe-expr / asm! sub-parsers (whole-sale C via the fat shim). */
+    ok2 = 0;
+    ref = 0;
+    if (parser_asm_ident_pre_dispatch_ptr_c(arena, lex_inout, source, &ok2, &ref) != 0) {
+      out_ok[0] = ok2;
+      out_expr_ref[0] = ref;
+      return 1;
+    }
+    name_was_self = 0;
+    vlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (kind == TOKEN_SELF) {
+      name_was_self = 1;
+      vlen = 4;
+    }
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    data = parser_asm_lex_source_data_c(source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, ref, EXPR_VAR_LIT);
+    pipeline_expr_set_var_name(arena, ref, data + ts, vlen);
+    pipeline_expr_set_line_col(arena, ref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_LBRACE && name_was_self == 0) {
+      /* Type { ... } struct lit — but bare if/while bodies win per the two
+       * authorities. Snapshot, step past '{', predicate on the after-brace
+       * cursor; on prefer-block restore AT the '{' and stop (leave it). */
+      pos0 = parser_asm_lex_pos_c(lex_inout);
+      line0 = parser_asm_lex_line_c(lex_inout);
+      col0 = parser_asm_lex_col_c(lex_inout);
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      if (parser_asm_lbrace_looks_like_block_ptr_c(lex_inout, source) != 0) {
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        return 1;
+      }
+      if (parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout, source) == 1) {
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        return 1;
+      }
+      ok2 = 0;
+      ref = 0;
+      parser_finish_struct_lit_ptr_into_c(arena, out_expr_ref[0], lex_inout, source, &ok2, &ref);
+      if (ok2 == 0) {
+        out_ok[0] = 0;
+        return 1;
+      }
+      out_expr_ref[0] = ref;
+    }
+    parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    return 1;
+  }
+  return 0;
 }
