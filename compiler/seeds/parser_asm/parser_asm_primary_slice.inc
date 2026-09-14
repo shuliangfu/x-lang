@@ -1844,6 +1844,43 @@ void parser_finish_struct_lit_ptr_into_c(void *arena, int32_t lit_ref, void *lex
 }
 
 
+/* =============================================================================
+ * Suffix LBRACE-branch enablers (final blueprint pieces):
+ *  - two disambiguation predicate pointer faces (by-value lexer reads only)
+ *  - struct-lit fields parse shim (cursor + ok/expr slots)
+ * The statics live across sibling .inc slices in this TU (the C loop calls
+ * them the same way). PLATFORM: SHARED — additive, ungated.
+ * ============================================================================= */
+int32_t parser_asm_lbrace_looks_like_block_ptr_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  return parser_asm_primary_lbrace_looks_like_block_c(lex, source);
+}
+
+int32_t parser_asm_empty_ident_braces_prefer_block_ptr_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer lex;
+  if (!lex_inout || !source)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  return parser_asm_primary_empty_ident_braces_prefer_block_c(lex, source);
+}
+
+void parser_asm_parse_struct_lit_fields_ptr_c(void *arena, int32_t lit_ref, void *lex_inout,
+                                              void *source, int32_t *out_ok, int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_asm_parse_struct_lit_fields_c(arena, lit_ref, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+}
+
 /**
  * parse_primary_into：INT | FLOAT | BOOL | break | continue | IDENT 后缀 | (expr) | [] | if | match | panic | @simd。
  */

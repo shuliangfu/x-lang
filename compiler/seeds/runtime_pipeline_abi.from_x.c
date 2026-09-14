@@ -60371,6 +60371,30 @@ void pipeline_expr_set_call_c(void *a, int32_t er, int32_t callee_ref, int32_t n
   ex->call_num_type_args = num_type_args;
 }
 
+/* Suffix LBRACE branch: convert the live FIELD_ACCESS expr into a
+ * qualified struct-lit head (kind 45 + name + len; field_base/num zeroed).
+ * Caller composes common_zeros + line_col(0,0) like the C fill. */
+void pipeline_expr_set_struct_lit_finish_c(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
+  W278_Expr *ex;
+  int32_t i;
+  if (!a || er <= 0 || er > w278_num_exprs(a))
+    return;
+  if (nlen < 0)
+    nlen = 0;
+  if (nlen > 255)
+    nlen = 255;
+  ex = w278_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->kind = 45;
+  ex->struct_lit_struct_name_len = nlen;
+  memset(ex->struct_lit_struct_name, 0, sizeof(ex->struct_lit_struct_name));
+  for (i = 0; i < nlen; i++)
+    ex->struct_lit_struct_name[i] = nm ? nm[i] : 0;
+  ex->struct_lit_field_base = 0;
+  ex->struct_lit_num_fields = 0;
+}
+
 void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t nlen) {
   W278_Expr *ex;
   int32_t i;
