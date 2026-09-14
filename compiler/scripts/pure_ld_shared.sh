@@ -670,18 +670,6 @@ pure_asm_x_to_o() {
   # matrix 5/5 on Darwin; Ubuntu must re-verify (git pull --ff-only).
   # Bisect opt-out if a new pure-asm regression appears: re-add a
   # XLANG_P12G_DENY_PURE_ASM gate here.
-  # PLATFORM: SHARED — P12h-1 (2026-09-14): pthin_skip_tl.x prefers -E transpile
-  # again, scoped to this file only. The wave660 rbx-park fix stands (that root
-  # is verified dual-end); the NEW cause is a distinct Ubuntu x86_64 pure-asm
-  # CODEGEN drop: `-c` silently omits parse_one_extern_and_add_into_c from the
-  # object (rc 0, parse OK, typeck OK, symbol absent) in every tested file
-  # position, while `-E` emits it (Darwin arm64 `-c` emits it). Until that
-  # backend root is fixed, this scoped preference keeps the .x authority live
-  # on both ends via the verified transpile lane. Bisect opt-in env:
-  # XLANG_P12H_ALLOW_PURE_ASM=1.
-  if [ "$_bn" = "pthin_skip_tl.x" ] && [ "${XLANG_P12H_ALLOW_PURE_ASM:-0}" != "1" ]; then
-    return 1
-  fi
   # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default when the
   # emitting compiler has modlet lea→rax (tip). Pin egg / pre-lea compilers
   # still emit the (&n)>=n cmp bug → silent `xlang fmt` exit 1 (stderr newline
