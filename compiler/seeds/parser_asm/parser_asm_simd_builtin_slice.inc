@@ -4,9 +4,10 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select。
  *
- * Hybrid P7b: XLANG_PTHIN_SIMD_BODIES_FROM_X skips the portable ident pack /
- * callee-name fill region (bodies in src/asm/pthin_simd.x + slice trampoline
- * in the seed TU). Parse / arena stay here. Cold: no define, full twin.
+ * Hybrid P7b/P7c: XLANG_PTHIN_SIMD_BODIES_FROM_X skips the portable ident pack /
+ * callee-name fill region and the callee VAR + CALL wrap soup (bodies in
+ * src/asm/pthin_simd.x + slice trampoline in this .inc / the seed TU).
+ * Parse / lexer stay here (extra lexer_next). Cold: no define, full twin.
  * PLATFORM: SHARED
  */
 #ifndef PARSER_ASM_SIMD_BUILTIN_SLICE_INCLUDED
@@ -29,7 +30,11 @@ extern int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t 
                                                        struct parser_asm_slice_u8 *source,
                                                        size_t ident_start, int32_t ident_len);
 
-/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
+#ifndef XLANG_PTHIN_SIMD_BODIES_FROM_X
+/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。
+ * PLATFORM: SHARED — cold twin only; hybrid P7c dest-buffer wrap uses
+ * pabi set_common_zeros_c + init_call_resolve_at_ref. Gated so hybrid
+ * -Werror does not see an unused static. */
 static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -72,7 +77,6 @@ static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
   e->call_resolved_dep_index = -1;
 }
 
-#ifndef XLANG_PTHIN_SIMD_BODIES_FROM_X
 /** 判断 ident 是否为 shuffle / select（与 parser.x 字节比较一致）。 */
 static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r, struct parser_asm_slice_u8 *source,
                                               int32_t *need_args_out, int32_t *is_shuffle_out) {
@@ -144,6 +148,20 @@ int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out) {
 
 #ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
 extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
+extern int32_t parser_asm_simd_call_wrap_into_c(void *arena, uint8_t *name, int32_t nlen);
+
+/* PLATFORM: SHARED — 7.2.1 P7c B-minus. C trampoline holds name[256]
+ * (language has no local u8[N]), reuses callee_name_fill (G.7), and
+ * forwards to dest-buffer wrap. Parse stays C. */
+static int32_t parser_asm_simd_call_wrap_c(void *arena, int32_t is_shuffle) {
+  uint8_t name[256];
+  int32_t nlen;
+  if (!arena)
+    return 0;
+  memset(name, 0, sizeof(name));
+  nlen = parser_asm_simd_callee_name_fill_c(is_shuffle, name);
+  return parser_asm_simd_call_wrap_into_c(arena, name, nlen);
+}
 #endif
 
 /**
@@ -154,12 +172,14 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
                                            struct parser_asm_parse_expr_result *out) {
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
-  int32_t callee_ref;
   int32_t need_args;
   int32_t is_shuffle;
-  struct ast_Expr ce;
   int32_t call_ref;
+#ifndef XLANG_PTHIN_SIMD_BODIES_FROM_X
+  int32_t callee_ref;
+  struct ast_Expr ce;
   struct ast_Expr call_e;
+#endif
   int32_t got;
   struct parser_asm_parse_expr_result arg_res;
   if (!arena || !source || !out)
@@ -180,6 +200,11 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   if (r.tok.kind != (int32_t)TOKEN_LPAREN)
     return;
   lex = r.next_lex;
+#ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
+  call_ref = parser_asm_simd_call_wrap_c(arena, is_shuffle);
+  if (call_ref == 0)
+    return;
+#else
   callee_ref = ast_ast_arena_expr_alloc(arena);
   if (callee_ref == 0)
     return;
@@ -196,6 +221,7 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   parser_asm_simd_expr_common_zeros_c(&call_e);
   call_e.call_callee_ref = callee_ref;
   ast_ast_arena_expr_set(arena, call_ref, call_e);
+#endif
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
     got = 0;

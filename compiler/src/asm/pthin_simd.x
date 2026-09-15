@@ -24,10 +24,51 @@
 // parse_at_simd_builtin_into stay C. Do not wrap the two AUDIT_CALL sites
 // (not a contiguous already-T nop block).
 //
-// Hybrid P7b: g05_try_x_to_o this file; XLANG_PTHIN_SIMD_BODIES_FROM_X
+// 7.2.1 P7c B-minus (2026-09-15): 有则补全 this file with the always-
+// host-cc callee VAR + CALL wrap soup in simd_builtin_slice.inc.
+// Language has no Expr by-value / no local u8[N]; C trampoline holds
+// name[256], reuses parser_asm_simd_callee_name_fill_c (G.7 one fill),
+// and forwards the dest buffer. Sidecar writes reuse existing pabi
+// set_kind / set_common_zeros / set_line_col / set_var_name /
+// set_call_c plus pipeline_expr_init_call_resolve_at_ref (C twin zeros
+// stamp call_resolved_* = -1; pabi zeros does not). Do not FORCE pabi
+// mega. Do not dest-buffer parse_at_simd_builtin this wave (extra
+// lexer_next + parse_expr_into). Do not copy wrap into parse. Do not
+// merge with P4b suffix CALL wrap (that wrap takes pending_n type
+// args; simd builtins have none). Do not wrap the two AUDIT_CALL
+// sites. Do not open a new P-lane. Do not add bodies to
+// pthin_expr_primary.x.
+//
+// Hybrid P7b/P7c: g05_try_x_to_o this file; XLANG_PTHIN_SIMD_BODIES_FROM_X
 // skips the portable .inc region. Cold: no define, full .inc stays.
 // Pack encoding: (is_shuffle << 8) | need_args; 0 = no match.
 // PLATFORM: SHARED freestanding.
+
+/** Allocate a fresh Expr slot; 0 on failure. */
+export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
+/** Wave-0: wipe ref/base/count fields on a freshly allocated expr. */
+export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+/** Wave-0: write Expr.kind. */
+export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+/** Wave-0: write Expr.line / Expr.col. */
+export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
+/** Wave-0 pabi: write Expr.var_name / var_name_len (zeros the 256-byte slot). */
+export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+/**
+ * Suffix pabi: write call_callee_ref + call_num_type_args.
+ * G.7: one writer for those slots. Do not copy; do not FORCE pabi mega;
+ * do not merge with the P4b suffix CALL wrap (pending_n type args).
+ */
+export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref: i32, num_type_args: i32): void;
+/**
+ * Stamp call_resolved_func_index / call_resolved_dep_index = -1.
+ * C twin simd_expr_common_zeros_c writes this sentinel; pabi zeros does
+ * not. G.7: reuse the existing pabi writer.
+ */
+export extern "C" function pipeline_expr_init_call_resolve_at_ref(a: *u8, expr_ref: i32): void;
+
+const EXPR_VAR: i32 = 3;
+const EXPR_CALL: i32 = 48;
 
 /**
  * Bounds check shared by IDENT spelling probes in this file.
@@ -172,4 +213,76 @@ export function parser_asm_simd_callee_name_fill_c(is_shuffle: i32, out: *u8): i
     i = i + 1;
   }
   return nlen;
+}
+
+/**
+ * Shared alloc + zeros + kind + line/col=0 + call_resolve=-1 for P7c wraps.
+ * C twin writes kind then simd_expr_common_zeros_c (which stamps
+ * call_resolved_* = -1); pabi zeros does not touch kind/line/col or
+ * the resolve sentinel, so this order matches the dest-buffer family.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param kind i32 — ExprKind ordinal (EXPR_VAR or EXPR_CALL)
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — P7c helper. Not a second wrap authority.
+ */
+function skip_simd_wrap_prep(arena: *u8, kind: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_kind(arena, ref, kind);
+    pipeline_expr_set_line_col(arena, ref, 0, 0);
+    pipeline_expr_init_call_resolve_at_ref(arena, ref);
+  }
+  return ref;
+}
+
+/**
+ * Allocate EXPR_VAR callee + EXPR_CALL and wire call_callee_ref.
+ * Dest-buffer twin of the always-host-cc wrap soup in
+ * parser_asm_parse_at_simd_builtin_into_c. C trampoline holds name[256]
+ * and fills it via parser_asm_simd_callee_name_fill_c (language has no
+ * local u8[N]). Does not reject nlen<=0 (C twin only checks alloc).
+ * num_type_args is 0 (simd builtins are not turbofish).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param name *u8 — lowered callee spelling; null → 0
+ * @param nlen i32 — content length (11 or 12 from fill)
+ * @return i32 — new CALL expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P7c Route C. Authority for the simd
+ * callee+CALL wrap. parse_at_simd_builtin stays C; do not copy.
+ * Do not merge with P4b suffix CALL wrap.
+ */
+#[no_mangle]
+export function parser_asm_simd_call_wrap_into_c(arena: *u8, name: *u8, nlen: i32): i32 {
+  let callee_ref: i32 = 0;
+  let call_ref: i32 = 0;
+  let n: i32 = 0;
+  if (arena == 0 as *u8 || name == 0 as *u8) {
+    return 0;
+  }
+  n = nlen;
+  if (n < 0) {
+    n = 0;
+  }
+  callee_ref = skip_simd_wrap_prep(arena, EXPR_VAR);
+  if (callee_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_var_name(arena, callee_ref, name, n);
+  }
+  call_ref = skip_simd_wrap_prep(arena, EXPR_CALL);
+  if (call_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_call_c(arena, call_ref, callee_ref, 0);
+  }
+  return call_ref;
 }

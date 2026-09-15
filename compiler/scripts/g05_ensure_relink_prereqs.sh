@@ -1150,16 +1150,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P6 fn/block ← $_pthin_p6_seed (G-02f-287 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P7b Route C (2026-09-13).
-        # pthin_simd.x holds ident pack / callee name fill. Runs before P7 C
-        # so BODIES_FROM_X skips the portable .inc region. No lexer-step
-        # bridge. Cold: no define, full .inc.
+        # PLATFORM: SHARED — 7.2.1 P7b/P7c Route C (2026-09-13 / 2026-09-15).
+        # pthin_simd.x holds ident pack / callee name fill / callee+CALL wrap.
+        # Runs before P7 C so BODIES_FROM_X skips the portable .inc region.
+        # No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p7_extra=""
         if [ -n "$_pthin_p7b_thin_o" ] && [ -f "$_pthin_p7b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p7b_x" "$_pthin_p7b_thin_o"; then
             _pthin_p7b_ok=1
             _pthin_p7_extra="-DXLANG_PTHIN_SIMD_BODIES_FROM_X"
-            echo "g05_ensure: P7b simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
+            echo "g05_ensure: P7b/P7c simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P7b simd .x thin failed; P7 C twin stays full" >&2
           fi

@@ -4,9 +4,10 @@
  *
  * Body: seeds/parser_asm/parser_asm_simd_builtin_slice.inc
  *
- * Hybrid P7b (XLANG_PTHIN_SIMD_BODIES_FROM_X): portable ident pack /
- * callee-name fill come from pthin_simd.x; this TU keeps the slice
- * trampoline plus arena parse. Cold: no BODIES define, full .inc.
+ * Hybrid P7b/P7c (XLANG_PTHIN_SIMD_BODIES_FROM_X): portable ident pack /
+ * callee-name fill plus callee VAR + CALL wrap come from pthin_simd.x;
+ * this TU keeps the slice trampoline plus arena parse. Cold: no BODIES
+ * define, full .inc. Do not FORCE pabi mega (set_call_c already T).
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -109,7 +110,8 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *data);
 
 #ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
-/* .x product bodies (buf-path ident pack + callee name fill). */
+/* .x product bodies (buf-path ident pack + callee name fill + P7c
+ * callee VAR + CALL wrap dest-buffer). */
 extern int32_t parser_asm_simd_builtin_ident_pack_c(uint8_t *data, size_t length, size_t token_start,
                                                     int32_t ident_len);
 extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
