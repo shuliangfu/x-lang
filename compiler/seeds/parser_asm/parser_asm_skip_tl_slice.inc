@@ -2,17 +2,18 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b–P12s: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b–P12t: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
  * enum_register + parse_one_extern_skip + parse_one_extern_and_add +
  * skip_name_is_self + self_matches_for + named_eq_self + rewrite_self +
  * register_type_params + type_param_index + concrete_implements_trait +
  * bound_check_type_args + impl-seen accessors + bound_check + F3 lookup +
- * F3 simple getters + dest-extras elem_array_dim + method_on_param; bodies in
+ * F3 simple getters + dest-extras elem_array_dim + method_on_param +
+ * skip_hoist_default_methods; bodies in
  * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl and
  * generic_bound_scan trampolines live here (need file-static tables).
  * skip_one_trait stays C (P12g PRESET not linked). Cold: no define, full
- * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12s bodies.
+ * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12t bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -3009,15 +3010,79 @@ static int32_t xlang_skip_commit_default_onefunc_c(void *arena, void *module,
   return 0;
 }
 
+/**
+ * Parse+commit one default-method body for a for-type.
+ * Language has no local onefunc_result / no lexer by-value; this C
+ * helper holds those. Zero walk — the dest-buffer hoist in .x (P12t)
+ * decides which (impl, method) pairs to inject. Cold C hoist twin
+ * calls this too (G.7 single inject).
+ * @return 1 committed; 0 rejected (null / empty src / parse fail)
+ * PLATFORM: SHARED — P12t inject helper. Always compiled.
+ */
+int32_t xlang_skip_hoist_inject_one_c(void *module, void *arena,
+                                     uint8_t *src, int32_t src_len,
+                                     int32_t fn_pos, int32_t fn_line, int32_t fn_col,
+                                     const uint8_t *for_nm, int32_t for_nl, int32_t for_ptr) {
+  struct parser_asm_lexer fn_lex;
+  struct parser_asm_onefunc_result res;
+  extern void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
+                                                      struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+  extern struct parser_asm_onefunc_result
+  parser_asm_onefunc_alloc_wired_for_parse_c(struct parser_asm_lexer lex);
+  extern void parser_allow_bare_self_set_c(int32_t on);
+  if (!module || !arena || !src || src_len <= 0)
+    return 0;
+  memset(&fn_lex, 0, sizeof(fn_lex));
+  fn_lex.pos = (size_t)fn_pos;
+  fn_lex.line = fn_line;
+  fn_lex.col = fn_col;
+  if (fn_lex.line <= 0)
+    fn_lex.line = 1;
+  if (fn_lex.col <= 0)
+    fn_lex.col = 1;
+  res = parser_asm_onefunc_alloc_wired_for_parse_c(fn_lex);
+  parser_allow_bare_self_set_c(1);
+  parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, src, src_len);
+  parser_allow_bare_self_set_c(0);
+  if (!res.ok)
+    return 0;
+  (void)xlang_skip_commit_default_onefunc_c(arena, module, &res, for_nm, for_nl, for_ptr);
+  return 1;
+}
+
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12t trampoline. Language has no file-local
+ * statics / no fat-struct field access / no local onefunc_result;
+ * .x walks dest g_xlang_skip_impl_* (stride 64, cap 16) + fat
+ * trait-reg image and calls inject_one per candidate. Zero
+ * algorithm besides passing the tables and holding gnm[64].
+ * trait_check_impls_complete stays C. register_pending stays C. */
+extern int32_t xlang_skip_hoist_default_methods_into_c(void *module, void *arena,
+        uint8_t *src, int32_t src_len, uint8_t *impl_trait, int32_t *impl_trait_len,
+        int32_t *for_kinds, int32_t *for_is_ptr, uint8_t *for_names,
+        int32_t *for_name_lens, int32_t impl_n, uint8_t *table, int32_t stride,
+        int32_t n, uint8_t *gnm);
+static void xlang_skip_hoist_default_methods_c(void *module) {
+  uint8_t gnm[64];
+  if (!module || !g_xlang_trait_check_arena || !g_w439_src_data || g_w439_src_len <= 0)
+    return;
+  memset(gnm, 0, sizeof(gnm));
+  (void)xlang_skip_hoist_default_methods_into_c(
+      module, g_xlang_trait_check_arena, g_w439_src_data, g_w439_src_len,
+      (uint8_t *)g_xlang_skip_impl_trait, g_xlang_skip_impl_trait_len,
+      g_xlang_skip_impl_for_kinds, g_xlang_skip_impl_for_is_ptr,
+      (uint8_t *)g_xlang_skip_impl_for_names, g_xlang_skip_impl_for_name_lens,
+      g_xlang_skip_impl_seen_n,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n, gnm);
+}
+#else
 static void xlang_skip_hoist_default_methods_c(void *module) {
   int32_t si;
   int32_t ti;
   int32_t mi;
   void *arena = g_xlang_trait_check_arena;
-  extern void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
-                                                      struct parser_asm_lexer lex, uint8_t *data, int32_t len);
-  extern struct parser_asm_onefunc_result
-  parser_asm_onefunc_alloc_wired_for_parse_c(struct parser_asm_lexer lex);
   if (!module || !arena || !g_w439_src_data || g_w439_src_len <= 0) {
     return;
   }
@@ -3043,8 +3108,6 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
       int32_t fi;
       int32_t nf;
       int32_t exists;
-      struct parser_asm_lexer fn_lex;
-      struct parser_asm_onefunc_result res;
       if (g_xlang_skip_trait_reg[ti].method_has_default[mi] == 0)
         continue;
       mnm = g_xlang_skip_trait_reg[ti].methods[mi];
@@ -3074,30 +3137,18 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
       }
       if (exists)
         continue;
-      memset(&fn_lex, 0, sizeof(fn_lex));
-      fn_lex.pos = (size_t)g_xlang_skip_trait_reg[ti].method_fn_pos[mi];
-      fn_lex.line = g_xlang_skip_trait_reg[ti].method_fn_line[mi];
-      fn_lex.col = g_xlang_skip_trait_reg[ti].method_fn_col[mi];
-      if (fn_lex.line <= 0)
-        fn_lex.line = 1;
-      if (fn_lex.col <= 0)
-        fn_lex.col = 1;
-      res = parser_asm_onefunc_alloc_wired_for_parse_c(fn_lex);
-      {
-        extern void parser_allow_bare_self_set_c(int32_t on);
-        parser_allow_bare_self_set_c(1);
-        parser_asm_parse_one_function_buf_into_c(&res, arena, fn_lex, g_w439_src_data, g_w439_src_len);
-        parser_allow_bare_self_set_c(0);
-      }
-      if (!res.ok)
-        continue;
-      (void)xlang_skip_commit_default_onefunc_c(arena, module, &res,
-                                                g_xlang_skip_impl_for_names[si],
-                                                g_xlang_skip_impl_for_name_lens[si],
-                                                g_xlang_skip_impl_for_is_ptr[si]);
+      /* G.7: parse+commit is xlang_skip_hoist_inject_one_c (P12t). */
+      (void)xlang_skip_hoist_inject_one_c(module, arena, g_w439_src_data, g_w439_src_len,
+                                          g_xlang_skip_trait_reg[ti].method_fn_pos[mi],
+                                          g_xlang_skip_trait_reg[ti].method_fn_line[mi],
+                                          g_xlang_skip_trait_reg[ti].method_fn_col[mi],
+                                          g_xlang_skip_impl_for_names[si],
+                                          g_xlang_skip_impl_for_name_lens[si],
+                                          g_xlang_skip_impl_for_is_ptr[si]);
     }
   }
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X hoist */
 
 int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t si;

@@ -201,7 +201,20 @@
 // fill memset-64 + cap 63). Do not open a new P-lane. Do not
 // FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r/P12s: g05_try_x_to_o this
+// 7.2.1 P12t B-minus (2026-09-15): 有则补全 skip_hoist_default_methods
+// dest-buffer. Always host-cc (not behind BODIES). Walks dest
+// g_xlang_skip_impl_* (stride 64, cap 16) then the fat trait-reg
+// image (same table as P12p–P12s). Parse+commit of a default body
+// stays C (`xlang_skip_hoist_inject_one_c` holds onefunc_result by
+// value). self_matches_for is the P12i dest-buffer (C trampoline
+// holds gnm[64]). trait_check_impls_complete stays C (dest-SLICE
+// soup + varargs diag). register_pending stays C. Do not copy into
+// typeck / codegen. Do not merge with method_on_param (grant vs
+// hoist inject). Do not merge with F3 lookup (name→slot vs default
+// inject). Do not wrap trait_check as an extra. Do not open a new
+// P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r/P12s/P12t: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
@@ -209,11 +222,12 @@
 // rewrite_self + register_type_params + type_param_index +
 // concrete_implements_trait + bound_check_type_args +
 // impl-seen accessors + bound_check + F3 lookup + F3 simple
-// getters + dest-extras elem_array_dim + method_on_param). Requires P9a
+// getters + dest-extras elem_array_dim + method_on_param +
+// skip_hoist_default_methods). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12s bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12t bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -254,6 +268,17 @@ export extern "C" function parser_asm_skip_tl_parse_type_ref_into_c(arena: *u8, 
  * seed C (diagnostics, module func row setters, arena copy, onefunc pool). */
 export extern "C" function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
 export extern "C" function pipeline_module_num_funcs(m: *u8): i32;
+/** Sidecar: 1 if func `fi` name equals `nm[0..nlen)`. */
+export extern "C" function pipeline_module_func_name_equal_at(m: *u8, fi: i32, nm: *u8, nlen: i32): i32;
+/** Sidecar: param `pi` type_ref at func `fi`; 0 if missing. */
+export extern "C" function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
+/** Sidecar: param count at func `fi`. */
+export extern "C" function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
+/**
+ * P12t C helper: parse+commit one default-method body.
+ * Language has no local onefunc_result; C holds it. Zero walk.
+ */
+export extern "C" function xlang_skip_hoist_inject_one_c(module: *u8, arena: *u8, src: *u8, src_len: i32, fn_pos: i32, fn_line: i32, fn_col: i32, for_nm: *u8, for_nl: i32, for_ptr: i32): i32;
 export extern "C" function ast_ast_arena_func_alloc(arena: *u8): i32;
 export extern "C" function pipeline_module_func_alloc_slot(m: *u8): i32;
 export extern "C" function pipeline_module_func_name_write(m: *u8, fi: i32, name: *u8, name_len: i32): void;
@@ -5469,6 +5494,264 @@ export function xlang_generic_bound_method_on_param_into_c(fn_name: *u8, fn_name
     }
   }
   return 0;
+}
+
+/**
+ * True when module already has a same-name method for this for-type
+ * (self-matched) or a static (0-param) same-name def. Matches the C
+ * hoist twin's override / free-def skip.
+ * @param module *u8 — opaque ast_Module; null → 0
+ * @param arena *u8 — opaque ASTArena for self_matches_for
+ * @param mnm *u8 — method spelling; null / empty → 0
+ * @param mlen i32 — byte count; <=0 → 0
+ * @param for_k i32 — impl for-type TypeKind
+ * @param for_ptr i32 — 1 if for-type is *T
+ * @param for_nm *u8 — for-type spelling; may be null
+ * @param for_nl i32 — for-type length
+ * @param gnm *u8 — dest 64 for self_matches_for; C trampoline holds it
+ * @return i32 — 1 exists (skip inject), 0 inject
+ * PLATFORM: SHARED — P12t helper.
+ */
+function skip_hoist_method_exists(module: *u8, arena: *u8, mnm: *u8, mlen: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, gnm: *u8): i32 {
+  let fi: i32 = 0;
+  let nf: i32 = 0;
+  let pty0: i32 = 0;
+  let skip: i32 = 0;
+  let np: i32 = 0;
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  if (mnm == 0 as *u8) {
+    return 0;
+  }
+  if (mlen <= 0) {
+    return 0;
+  }
+  nf = pipeline_module_num_funcs(module);
+  unsafe {
+    fi = 0;
+    while (fi < nf) {
+      skip = 0;
+      if (pipeline_module_func_name_equal_at(module, fi, mnm, mlen) == 0) {
+        skip = 1;
+      }
+      if (skip == 0) {
+        pty0 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+        if (xlang_skip_impl_self_matches_for_into_c(arena, pty0, for_k, for_ptr, for_nm, for_nl, gnm) != 0) {
+          return 1;
+        }
+        np = pipeline_module_func_num_params_at(module, fi);
+        if (np == 0) {
+          return 1;
+        }
+      }
+      fi = fi + 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Inject one default-method slot of a fat-ent when it has a body
+ * and the module does not already override it for this for-type.
+ * Parse+commit stays in the C helper (onefunc_result by-value).
+ * @param module *u8 — opaque ast_Module
+ * @param arena *u8 — opaque ASTArena
+ * @param src *u8 — full-file source bytes (stash dest)
+ * @param src_len i32 — byte count
+ * @param ent *u8 — fat-ent image; null → 0
+ * @param mi i32 — method slot
+ * @param for_k i32 — impl for-type TypeKind
+ * @param for_ptr i32 — 1 if for-type is *T
+ * @param for_nm *u8 — for-type spelling
+ * @param for_nl i32 — for-type length
+ * @param gnm *u8 — dest 64 for self_matches_for
+ * @return i32 — 1 injected, 0 skipped
+ * PLATFORM: SHARED — P12t helper.
+ */
+function skip_hoist_try_method(module: *u8, arena: *u8, src: *u8, src_len: i32, ent: *u8, mi: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, gnm: *u8): i32 {
+  let has_def: i32 = 0;
+  let mlen: i32 = 0;
+  let mnm: *u8 = 0 as *u8;
+  let fn_pos: i32 = 0;
+  let fn_line: i32 = 0;
+  let fn_col: i32 = 0;
+  if (ent == 0 as *u8) {
+    return 0;
+  }
+  if (mi < 0) {
+    return 0;
+  }
+  has_def = p12g_load_i32(ent, P12G_OFF_METHOD_HAS_DEFAULT + mi * 4);
+  if (has_def == 0) {
+    return 0;
+  }
+  mlen = p12g_load_i32(ent, P12G_OFF_METHOD_LENS + mi * 4);
+  if (mlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    mnm = ent + ((P12G_OFF_METHODS + mi * P12G_METHOD_NAME_ROW) as usize);
+  }
+  if (skip_hoist_method_exists(module, arena, mnm, mlen, for_k, for_ptr, for_nm, for_nl, gnm) != 0) {
+    return 0;
+  }
+  fn_pos = p12g_load_i32(ent, P12G_OFF_METHOD_FN_POS + mi * 4);
+  fn_line = p12g_load_i32(ent, P12G_OFF_METHOD_FN_LINE + mi * 4);
+  fn_col = p12g_load_i32(ent, P12G_OFF_METHOD_FN_COL + mi * 4);
+  return xlang_skip_hoist_inject_one_c(module, arena, src, src_len, fn_pos, fn_line, fn_col, for_nm, for_nl, for_ptr);
+}
+
+/**
+ * Walk one impl-seen row: find the bound trait in the fat table,
+ * then try each default-method slot.
+ * @param module *u8 — opaque ast_Module
+ * @param arena *u8 — opaque ASTArena
+ * @param src *u8 — full-file source bytes
+ * @param src_len i32 — byte count
+ * @param tname *u8 — impl trait spelling; null / empty → 0
+ * @param tlen i32 — byte count; <=0 → 0
+ * @param for_k i32 — impl for-type TypeKind
+ * @param for_ptr i32 — 1 if for-type is *T
+ * @param for_nm *u8 — for-type spelling
+ * @param for_nl i32 — for-type length
+ * @param table *u8 — dest trait-reg image
+ * @param stride i32 — bytes per ent
+ * @param n i32 — occupied registry count
+ * @param gnm *u8 — dest 64 for self_matches_for
+ * @return i32 — number of injects from this impl row
+ * PLATFORM: SHARED — P12t helper.
+ */
+function skip_hoist_try_impl(module: *u8, arena: *u8, src: *u8, src_len: i32, tname: *u8, tlen: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, table: *u8, stride: i32, n: i32, gnm: *u8): i32 {
+  let ent: *u8 = 0 as *u8;
+  let mi: i32 = 0;
+  let n_meth: i32 = 0;
+  let n_inj: i32 = 0;
+  if (tname == 0 as *u8) {
+    return 0;
+  }
+  if (tlen <= 0) {
+    return 0;
+  }
+  ent = skip_trait_ent_at(tname, tlen, table, stride, n);
+  if (ent == 0 as *u8) {
+    return 0;
+  }
+  n_meth = p12g_load_i32(ent, P12G_OFF_NUM_METHODS);
+  if (n_meth < 0) {
+    n_meth = 0;
+  }
+  if (n_meth > P12G_METH_MAX) {
+    n_meth = P12G_METH_MAX;
+  }
+  mi = 0;
+  while (mi < n_meth) {
+    n_inj = n_inj + skip_hoist_try_method(module, arena, src, src_len, ent, mi, for_k, for_ptr, for_nm, for_nl, gnm);
+    mi = mi + 1;
+  }
+  return n_inj;
+}
+
+/**
+ * Hoist trait default-method bodies as free UFCS functions when the
+ * impl did not override them. Per-impl inject so Self rewrites to
+ * each for-type (wave470). Language has no file-local statics / no
+ * fat-struct field access / no local onefunc_result; dest is
+ * g_xlang_skip_impl_* (stride 64, cap 16) plus the fat trait-reg
+ * image, and parse+commit stays in the C inject helper.
+ * @param module *u8 — opaque ast_Module; null → 0
+ * @param arena *u8 — opaque ASTArena stashed at trait_reg_reset; null → 0
+ * @param src *u8 — full-file source bytes (stash dest); null / empty → 0
+ * @param src_len i32 — byte count; <=0 → 0
+ * @param impl_trait *u8 — dest impl trait names, stride 64, cap 16
+ * @param impl_trait_len *i32 — dest impl trait name lens, cap 16
+ * @param for_kinds *i32 — dest for-type TypeKind ords, cap 16
+ * @param for_is_ptr *i32 — dest for-type is-*T flags, cap 16
+ * @param for_names *u8 — dest for-type names, stride 64, cap 16
+ * @param for_name_lens *i32 — dest for-type name lens, cap 16
+ * @param impl_n i32 — occupied impl-seen count (read-only)
+ * @param table *u8 — dest trait-reg image; null → 0
+ * @param stride i32 — bytes per ent; <=0 → 0
+ * @param n i32 — occupied registry count (read-only)
+ * @param gnm *u8 — dest 64 for self_matches_for; C trampoline holds it
+ * @return i32 — number of injects (0 if nothing to hoist)
+ * PLATFORM: SHARED — product P12t B-minus. C trampoline owns
+ * g_xlang_skip_impl_* / g_xlang_skip_trait_reg[] / g_w439_src_*.
+ * Do not copy into typeck. Do not merge with method_on_param.
+ * Do not wrap trait_check_impls_complete.
+ */
+#[no_mangle]
+export function xlang_skip_hoist_default_methods_into_c(module: *u8, arena: *u8, src: *u8, src_len: i32, impl_trait: *u8, impl_trait_len: *i32, for_kinds: *i32, for_is_ptr: *i32, for_names: *u8, for_name_lens: *i32, impl_n: i32, table: *u8, stride: i32, n: i32, gnm: *u8): i32 {
+  let si: i32 = 0;
+  let sn: i32 = 0;
+  let tlen: i32 = 0;
+  let skip: i32 = 0;
+  let n_inj: i32 = 0;
+  let trait_off: usize = 0;
+  let for_off: usize = 0;
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  if (src_len <= 0) {
+    return 0;
+  }
+  if (impl_trait == 0 as *u8) {
+    return 0;
+  }
+  if (impl_trait_len == 0 as *i32) {
+    return 0;
+  }
+  if (for_kinds == 0 as *i32) {
+    return 0;
+  }
+  if (for_is_ptr == 0 as *i32) {
+    return 0;
+  }
+  if (for_names == 0 as *u8) {
+    return 0;
+  }
+  if (for_name_lens == 0 as *i32) {
+    return 0;
+  }
+  if (table == 0 as *u8) {
+    return 0;
+  }
+  if (stride <= 0) {
+    return 0;
+  }
+  if (gnm == 0 as *u8) {
+    return 0;
+  }
+  if (impl_n <= 0) {
+    return 0;
+  }
+  sn = impl_n;
+  if (sn > SKIP_IMPL_SEEN_MAX) {
+    sn = SKIP_IMPL_SEEN_MAX;
+  }
+  unsafe {
+    si = 0;
+    while (si < sn) {
+      skip = 0;
+      tlen = impl_trait_len[si];
+      if (tlen <= 0) {
+        skip = 1;
+      }
+      if (skip == 0) {
+        trait_off = (si as usize) * (GNM_CAP as usize);
+        for_off = (si as usize) * (GNM_CAP as usize);
+        n_inj = n_inj + skip_hoist_try_impl(module, arena, src, src_len, impl_trait + trait_off, tlen, for_kinds[si], for_is_ptr[si], for_names + for_off, for_name_lens[si], table, stride, n, gnm);
+      }
+      si = si + 1;
+    }
+  }
+  return n_inj;
 }
 
 // ---------------------------------------------------------------------------
