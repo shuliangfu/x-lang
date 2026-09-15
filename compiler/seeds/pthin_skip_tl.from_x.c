@@ -5,14 +5,15 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X):
+ * Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r/P12s (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X):
  * portable skip walks (struct / enum / extern + impl header +
  * generic_bound_scan + enum_register + parse_one_extern_skip +
  * parse_one_extern_and_add + skip_name_is_self + self_matches_for +
  * named_eq_self + rewrite_self + register_type_params +
  * type_param_index + concrete_implements_trait +
  * bound_check_type_args + impl-seen accessors + bound_check +
- * F3 lookup + F3 simple getters + dest-extras elem_array_dim)
+ * F3 lookup + F3 simple getters + dest-extras elem_array_dim +
+ * method_on_param)
  * come from pthin_skip_tl.x;
  * this TU keeps by-value trampolines plus stash_source / trait-reg C.
  * skip_one_impl and generic_bound_scan trampolines live in the .inc
@@ -34,10 +35,11 @@
  * g_xlang_skip_trait_reg[] as *u8 + sizeof stride + n).
  * P12q F3 simple-getter trampolines live in the .inc (same table
  * + offsetof for slot/param i32). P12r dest-extras elem_array_dim
- * trampolines live in the .inc (same table). method_on_param stays C.
+ * trampolines live in the .inc (same table). P12s method_on_param
+ * trampoline lives in the .inc (pass g_fn_bound_* + fat trait-reg).
  * is_registered stays a C thin wrapper over find_reg.
  * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12r bodies.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12s bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>

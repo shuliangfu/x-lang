@@ -2,18 +2,17 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b–P12r: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b–P12s: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
  * enum_register + parse_one_extern_skip + parse_one_extern_and_add +
  * skip_name_is_self + self_matches_for + named_eq_self + rewrite_self +
  * register_type_params + type_param_index + concrete_implements_trait +
  * bound_check_type_args + impl-seen accessors + bound_check + F3 lookup +
- * F3 simple getters + dest-extras elem_array_dim; bodies in
+ * F3 simple getters + dest-extras elem_array_dim + method_on_param; bodies in
  * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl and
  * generic_bound_scan trampolines live here (need file-static tables).
- * skip_one_trait stays C (P12g PRESET not linked). method_on_param
- * stays C. Cold: no define, full twin. Do not reuse
- * XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12r bodies.
+ * skip_one_trait stays C (P12g PRESET not linked). Cold: no define, full
+ * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12s bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -1300,9 +1299,9 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
 /* PLATFORM: SHARED — P12n trampoline. Language has no file-local statics;
  * .x walks dest g_xlang_skip_impl_* (trait/for-name stride 64, cap 16).
  * Zero algorithm besides passing the tables. Historical public names
- * stay (`_c` / already-`_into_c`). method_on_param stays C (fat
- * trait-reg). F3 lookup is P12p; F3 simple getters are P12q;
- * dest-extras elem_array_dim are P12r. bound_check_c is P12o. */
+ * stay (`_c` / already-`_into_c`). method_on_param is P12s. F3 lookup
+ * is P12p; F3 simple getters are P12q; dest-extras elem_array_dim
+ * are P12r. bound_check_c is P12o. */
 extern int32_t xlang_skip_impl_seen_count_into_c(int32_t seen_n);
 int32_t xlang_skip_impl_seen_count_c(void) {
   return xlang_skip_impl_seen_count_into_c(g_xlang_skip_impl_seen_n);
@@ -1408,7 +1407,7 @@ int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
  * cap 16) using P12g offsets. Zero algorithm besides passing the
  * table (+ offsetof for P12q slot/param i32). is_registered stays a
  * C thin wrapper over find_reg (already G.7). dest-extras
- * elem_array_dim are P12r. method_on_param stays C. */
+ * elem_array_dim are P12r. method_on_param is P12s. */
 extern int32_t xlang_skip_trait_find_reg_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
         uint8_t *table, int32_t stride, int32_t n);
 static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trait_nlen) {
@@ -5591,6 +5590,36 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
  * @param out_ret_name_len  name length; may be NULL
  * @return 1 method granted by a bound; 0 no
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12s trampoline. Language has no file-local statics
+ * / no fat-struct field access; .x walks dest g_fn_bound_* (stride 64,
+ * cap 16) + g_xlang_skip_trait_reg[] as a byte image (stride =
+ * sizeof(ent), cap 16). Zero algorithm besides passing the tables.
+ * type_param_index is the P12k historical `_c` (injects g_fn_gp_*).
+ * register_pending stays C. Do not merge with bound_check_type_args. */
+extern int32_t xlang_generic_bound_method_on_param_into_c(const uint8_t *fn_name, int32_t fn_name_len,
+        const uint8_t *tp_name, int32_t tp_name_len, const uint8_t *method_name,
+        int32_t method_name_len, int32_t num_args, int32_t *out_ret_kind,
+        uint8_t *out_ret_name, int32_t *out_ret_name_len,
+        uint8_t *bound_name, int32_t *bound_name_len, uint8_t *bound_trait,
+        int32_t *bound_trait_len, int32_t *bound_pos, int32_t bound_n,
+        uint8_t *table, int32_t stride, int32_t n);
+int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len,
+                                               const uint8_t *method_name, int32_t method_name_len,
+                                               int32_t num_args, int32_t *out_ret_kind,
+                                               uint8_t *out_ret_name, int32_t *out_ret_name_len) {
+  return xlang_generic_bound_method_on_param_into_c(
+      fn_name, fn_name_len, tp_name, tp_name_len, method_name, method_name_len,
+      num_args, out_ret_kind, out_ret_name, out_ret_name_len,
+      (uint8_t *)g_fn_bound_name, g_fn_bound_name_len,
+      (uint8_t *)g_fn_bound_trait, g_fn_bound_trait_len,
+      g_fn_bound_pos, g_fn_bound_n,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
+#else
 int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn_name_len,
                                                const uint8_t *tp_name, int32_t tp_name_len,
                                                const uint8_t *method_name, int32_t method_name_len,
@@ -5656,6 +5685,7 @@ int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn
   }
   return 0;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X method_on_param */
 
 /**
  * wave449: single authority for generic trait-bound satisfaction.
@@ -5719,7 +5749,7 @@ int32_t xlang_generic_bound_diag_not_impl_c(const uint8_t *ta, int32_t ta_len,
  * .x walks dest g_fn_bound_* (stride 64, cap 16) + g_xlang_skip_impl_*
  * (trait/for-name stride 64, cap 16). Zero algorithm besides passing
  * the tables. type_args stay the caller's rows (stride 64). bound_check_c
- * is P12o. method_on_param stays C. Accessors are P12n. */
+ * is P12o. method_on_param is P12s. Accessors are P12n. */
 extern int32_t xlang_generic_bound_check_type_args_into_c(const uint8_t *fn_name, int32_t fn_name_len,
         uint8_t *type_args, int32_t *type_arg_lens, int32_t nargs, int32_t line, int32_t col,
         uint8_t *bound_name, int32_t *bound_name_len, uint8_t *bound_trait, int32_t *bound_trait_len,
@@ -5817,7 +5847,7 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
  * .x walks dest g_call_* (callee stride 64, typeargs 32x4x64, args cap 4,
  * call cap 32). Zero algorithm besides passing the tables. Each site
  * calls the historical public type_args `_c` (P12m injects bound/impl
- * tables). method_on_param stays C. F3 lookup is P12p; F3 simple
+ * tables). method_on_param is P12s. F3 lookup is P12p; F3 simple
  * getters are P12q; dest-extras elem_array_dim are P12r. */
 extern int32_t xlang_generic_bound_check_into_c(uint8_t *callee, int32_t *callee_len,
         uint8_t *typeargs, int32_t *typearg_lens, int32_t *nargs, int32_t *line,

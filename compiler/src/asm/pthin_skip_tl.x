@@ -182,12 +182,26 @@
 // fat table as P12p/P12q; wrap soup lives in one helper
 // (ndims==-2 / ndims==0 unused slots / dim_ix>=ndims extra wrap).
 // C trampoline passes *u8 + sizeof stride + n. is_registered stays
-// a C thin wrapper. method_on_param stays C. Do not wrap
-// method_on_param. Do not copy into typeck / codegen. Do not open
-// a new P-lane. Do not FORCE pabi mega. Do not merge with simple
-// ret/param array_dim (those reject dim_ix>=ndims).
+// a C thin wrapper. method_on_param is P12s. Do not copy into
+// typeck / codegen. Do not open a new P-lane. Do not FORCE pabi
+// mega. Do not merge with simple ret/param array_dim (those
+// reject dim_ix>=ndims).
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r: g05_try_x_to_o this
+// 7.2.1 P12s B-minus (2026-09-15): 有则补全 method_on_param
+// dest-buffer. Always host-cc (not behind BODIES). Walks dest
+// g_fn_bound_* (stride 64, cap 16) then the fat trait-reg image
+// (same table as P12p/P12q/P12r). type_param_index is the P12k
+// historical `_c` trampoline (injects g_fn_gp_*). Method walk
+// stays here (arity `continue` is not method_slot first-match).
+// is_registered stays a C thin wrapper. register_pending stays C.
+// Do not copy into typeck / codegen (they already call historical
+// `_c`). Do not merge with bound_check_type_args (impl check vs
+// method grant). Do not merge with F3 lookup (name→slot vs bound
+// grant). Do not reuse skip_copy_row64 / ret_name_dest (this
+// fill memset-64 + cap 63). Do not open a new P-lane. Do not
+// FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r/P12s: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
@@ -195,11 +209,11 @@
 // rewrite_self + register_type_params + type_param_index +
 // concrete_implements_trait + bound_check_type_args +
 // impl-seen accessors + bound_check + F3 lookup + F3 simple
-// getters + dest-extras elem_array_dim). Requires P9a
+// getters + dest-extras elem_array_dim + method_on_param). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12r bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12s bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -5119,7 +5133,7 @@ function skip_trait_elem_array_dim_at(ent: *u8, dims_base: i32, nd: i32, dim_ix:
  * @param n i32 — occupied registry count (read-only)
  * @return i32 — N > 0 / extra wrap count, or -1 if invalid
  * PLATFORM: SHARED — product P12r B-minus. C trampoline owns the table.
- * Do not wrap method_on_param. Do not merge with simple ret_array_dim.
+ * method_on_param is P12s. Do not merge with simple ret_array_dim.
  * Do not copy into typeck / codegen.
  */
 #[no_mangle]
@@ -5163,7 +5177,7 @@ export function xlang_skip_trait_method_ret_elem_array_dim_into_c(trait_nm: *u8,
  * @param n i32 — occupied registry count (read-only)
  * @return i32 — N > 0 / extra wrap count, or -1 if invalid
  * PLATFORM: SHARED — product P12r B-minus. C trampoline owns the table.
- * Do not wrap method_on_param. Do not merge with simple param_array_dim.
+ * method_on_param is P12s. Do not merge with simple param_array_dim.
  * Do not copy into typeck / codegen.
  */
 #[no_mangle]
@@ -5196,6 +5210,265 @@ export function xlang_skip_trait_method_param_elem_array_dim_into_c(trait_nm: *u
   nd = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + slot * P12G_PARAM_LENS_ROW + param_ix * 4);
   dims_base = P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + slot * P12G_PARAM_DIMS_ROW + param_ix * P12G_PARAM_DIMS_ROW_INNER;
   return skip_trait_elem_array_dim_at(ent, dims_base, nd, dim_ix);
+}
+
+/**
+ * Write method_on_param ret outs for one fat-ent slot.
+ * Matches the C twin: ret_kind optional; name_len starts at 0;
+ * out_ret_name is memset-64 then capped at 63. Do not reuse
+ * skip_copy_row64 (F4 returns stored nlen) or ret_name_dest
+ * (rejects nlen>64, no memset, no cap-63).
+ * @param ent *u8 — fat-ent image; null → 1 with no write
+ * @param slot i32 — vtable slot already in range
+ * @param out_ret_kind *i32 — TypeKind dest; null → skip
+ * @param out_ret_name *u8 — 64-byte NAMED dest; null → skip copy
+ * @param out_ret_name_len *i32 — name length dest; null → skip
+ * @return i32 — always 1 (hit)
+ * PLATFORM: SHARED — P12s helper.
+ */
+function skip_method_on_param_fill_ret(ent: *u8, slot: i32, out_ret_kind: *i32, out_ret_name: *u8, out_ret_name_len: *i32): i32 {
+  let rnl: i32 = 0;
+  let i: i32 = 0;
+  let rk: i32 = 0;
+  let src: *u8 = 0 as *u8;
+  if (ent == 0 as *u8) {
+    return 1;
+  }
+  rk = p12g_load_i32(ent, P12G_OFF_METHOD_RET_KINDS + slot * 4);
+  rnl = p12g_load_i32(ent, P12G_OFF_METHOD_RET_NAME_LENS + slot * 4);
+  unsafe {
+    if (out_ret_kind != 0 as *i32) {
+      out_ret_kind[0] = rk;
+    }
+    if (out_ret_name_len != 0 as *i32) {
+      out_ret_name_len[0] = 0;
+    }
+    if (out_ret_name != 0 as *u8) {
+      i = 0;
+      while (i < GNM_CAP) {
+        out_ret_name[i as usize] = 0;
+        i = i + 1;
+      }
+      if (rnl > 0) {
+        if (rnl > 63) {
+          rnl = 63;
+        }
+        src = ent + ((P12G_OFF_METHOD_RET_NAMES + slot * P12G_RET_NAME_ROW) as usize);
+        i = 0;
+        while (i < rnl) {
+          out_ret_name[i as usize] = src[i as usize];
+          i = i + 1;
+        }
+        if (out_ret_name_len != 0 as *i32) {
+          out_ret_name_len[0] = rnl;
+        }
+      }
+    }
+  }
+  return 1;
+}
+
+/**
+ * Walk one bound trait's methods for a name+arity grant.
+ * First matching method wins; arity mismatch continues to the
+ * next same-name slot (do not reuse method_slot first-match).
+ * @param trait_nm *u8 — bound trait spelling; null / empty → 0
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @param method_nm *u8 — method spelling; already non-empty
+ * @param method_nlen i32 — byte count; already > 0
+ * @param num_args i32 — METHOD extras (self not counted)
+ * @param out_ret_kind *i32 — TypeKind dest; may be null
+ * @param out_ret_name *u8 — 64-byte NAMED dest; may be null
+ * @param out_ret_name_len *i32 — name length dest; may be null
+ * @param table *u8 — dest trait-reg image
+ * @param stride i32 — bytes per ent
+ * @param n i32 — occupied registry count
+ * @return i32 — 1 granted, 0 no
+ * PLATFORM: SHARED — P12s helper. C trampoline owns the table.
+ */
+function skip_method_on_param_try_trait(trait_nm: *u8, trait_nlen: i32, method_nm: *u8, method_nlen: i32, num_args: i32, out_ret_kind: *i32, out_ret_name: *u8, out_ret_name_len: *i32, table: *u8, stride: i32, n: i32): i32 {
+  let ent: *u8 = 0 as *u8;
+  let mi: i32 = 0;
+  let n_meth: i32 = 0;
+  let mlen: i32 = 0;
+  let expect_np: i32 = 0;
+  let skip: i32 = 0;
+  let mname: *u8 = 0 as *u8;
+  if (trait_nm == 0 as *u8) {
+    return 0;
+  }
+  if (trait_nlen <= 0) {
+    return 0;
+  }
+  ent = skip_trait_ent_at(trait_nm, trait_nlen, table, stride, n);
+  if (ent == 0 as *u8) {
+    return 0;
+  }
+  n_meth = p12g_load_i32(ent, P12G_OFF_NUM_METHODS);
+  if (n_meth < 0) {
+    n_meth = 0;
+  }
+  if (n_meth > P12G_METH_MAX) {
+    n_meth = P12G_METH_MAX;
+  }
+  unsafe {
+    mi = 0;
+    while (mi < n_meth) {
+      skip = 0;
+      mlen = p12g_load_i32(ent, P12G_OFF_METHOD_LENS + mi * 4);
+      mname = ent + ((P12G_OFF_METHODS + mi * P12G_METHOD_NAME_ROW) as usize);
+      if (mlen <= 0) {
+        skip = 1;
+      }
+      if (skip == 0) {
+        if (skip_named_bytes_eq(mname, mlen, method_nm, method_nlen) == 0) {
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        expect_np = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_COUNTS + mi * 4);
+        if (expect_np >= 0) {
+          if (expect_np != num_args + 1) {
+            skip = 1;
+          }
+        }
+      }
+      if (skip == 0) {
+        skip_method_on_param_fill_ret(ent, mi, out_ret_kind, out_ret_name, out_ret_name_len);
+        return 1;
+      }
+      mi = mi + 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Grant `method` on type-param T when the enclosing generic function
+ * declared `T: Trait` and Trait lists that method.
+ * First matching bound+trait+method+arity wins. `num_args` is METHOD
+ * extras (self not counted); expect_np < 0 skips the arity gate.
+ * Language has no file-local statics / no fat-struct field access;
+ * dest is g_fn_bound_* (stride 64, cap 16) plus the fat trait-reg
+ * image (stride = sizeof(ent), cap 16). type_param_index is the
+ * P12k historical `_c` (C trampoline injects g_fn_gp_*).
+ * @param fn_name *u8 — enclosing generic function spelling; null / empty → 0
+ * @param fn_name_len i32 — byte count; capped at 63
+ * @param tp_name *u8 — receiver type-param spelling; null / empty → 0
+ * @param tp_name_len i32 — byte count; capped at 63
+ * @param method_name *u8 — method spelling; null / empty → 0
+ * @param method_name_len i32 — byte count; capped at 63
+ * @param num_args i32 — METHOD extras (self is implicit)
+ * @param out_ret_kind *i32 — TypeKind ord dest; may be null
+ * @param out_ret_name *u8 — 64-byte NAMED dest; may be null
+ * @param out_ret_name_len *i32 — name length dest; may be null
+ * @param bound_name *u8 — dest generic-fn names, stride 64, cap 16
+ * @param bound_name_len *i32 — dest generic-fn name lens, cap 16
+ * @param bound_trait *u8 — dest bound-trait names, stride 64, cap 16
+ * @param bound_trait_len *i32 — dest bound-trait name lens, cap 16
+ * @param bound_pos *i32 — dest type-param positions, cap 16
+ * @param bound_n i32 — occupied bound-row count (read-only)
+ * @param table *u8 — dest trait-reg image; null → 0
+ * @param stride i32 — bytes per ent; <=0 → 0
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — 1 method granted by a bound; 0 no
+ * PLATFORM: SHARED — product P12s B-minus. C trampoline owns
+ * g_fn_bound_* and g_xlang_skip_trait_reg[]. Do not copy into
+ * typeck / codegen (they already call historical `_c`). Do not
+ * merge with bound_check_type_args. Do not merge with F3 lookup.
+ */
+#[no_mangle]
+export function xlang_generic_bound_method_on_param_into_c(fn_name: *u8, fn_name_len: i32, tp_name: *u8, tp_name_len: i32, method_name: *u8, method_name_len: i32, num_args: i32, out_ret_kind: *i32, out_ret_name: *u8, out_ret_name_len: *i32, bound_name: *u8, bound_name_len: *i32, bound_trait: *u8, bound_trait_len: *i32, bound_pos: *i32, bound_n: i32, table: *u8, stride: i32, n: i32): i32 {
+  let pos: i32 = 0;
+  let bi: i32 = 0;
+  let nb: i32 = 0;
+  let skip: i32 = 0;
+  let hit: i32 = 0;
+  let name_off: usize = 0;
+  let trait_off: usize = 0;
+  if (fn_name == 0 as *u8) {
+    return 0;
+  }
+  if (fn_name_len <= 0) {
+    return 0;
+  }
+  if (tp_name == 0 as *u8) {
+    return 0;
+  }
+  if (tp_name_len <= 0) {
+    return 0;
+  }
+  if (method_name == 0 as *u8) {
+    return 0;
+  }
+  if (method_name_len <= 0) {
+    return 0;
+  }
+  if (bound_name == 0 as *u8) {
+    return 0;
+  }
+  if (bound_name_len == 0 as *i32) {
+    return 0;
+  }
+  if (bound_trait == 0 as *u8) {
+    return 0;
+  }
+  if (bound_trait_len == 0 as *i32) {
+    return 0;
+  }
+  if (bound_pos == 0 as *i32) {
+    return 0;
+  }
+  if (table == 0 as *u8) {
+    return 0;
+  }
+  if (stride <= 0) {
+    return 0;
+  }
+  if (bound_n <= 0) {
+    return 0;
+  }
+  if (fn_name_len > 63) {
+    fn_name_len = 63;
+  }
+  if (tp_name_len > 63) {
+    tp_name_len = 63;
+  }
+  if (method_name_len > 63) {
+    method_name_len = 63;
+  }
+  pos = xlang_generic_func_type_param_index_c(fn_name, fn_name_len, tp_name, tp_name_len);
+  if (pos < 0) {
+    return 0;
+  }
+  nb = bound_n;
+  if (nb > FN_BOUND_MAX) {
+    nb = FN_BOUND_MAX;
+  }
+  unsafe {
+    bi = 0;
+    while (bi < nb) {
+      skip = 0;
+      name_off = (bi as usize) * (BOUND_NAME_CAP as usize);
+      if (skip_named_bytes_eq(bound_name + name_off, bound_name_len[bi], fn_name, fn_name_len) == 0) {
+        skip = 1;
+      }
+      if (skip == 0) {
+        if (bound_pos[bi] != pos) {
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        trait_off = (bi as usize) * (BOUND_NAME_CAP as usize);
+        hit = skip_method_on_param_try_trait(bound_trait + trait_off, bound_trait_len[bi], method_name, method_name_len, num_args, out_ret_kind, out_ret_name, out_ret_name_len, table, stride, n);
+        if (hit == 1) {
+          return 1;
+        }
+      }
+      bi = bi + 1;
+    }
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------------------

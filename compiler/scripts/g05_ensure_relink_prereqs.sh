@@ -1281,7 +1281,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_pthin_p12b_thin_o"; then
             _pthin_p12b_ok=1
             _pthin_p12_extra="-DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X"
-            echo "g05_ensure: P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r skip_tl bodies ← $_pthin_p12b_x (7.2.1 B-minus struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip + self_matches_for + named_eq_self + rewrite_self + register_type_params + type_param_index + concrete_implements_trait + bound_check_type_args + impl-seen accessors + bound_check + F3 lookup + F3 simple getters + dest-extras elem_array_dim)"
+            echo "g05_ensure: P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r/P12s skip_tl bodies ← $_pthin_p12b_x (7.2.1 B-minus struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip + self_matches_for + named_eq_self + rewrite_self + register_type_params + type_param_index + concrete_implements_trait + bound_check_type_args + impl-seen accessors + bound_check + F3 lookup + F3 simple getters + dest-extras elem_array_dim + method_on_param)"
           else
             echo "g05_ensure: P12b skip_tl .x thin failed; P12 C twin stays full" >&2
           fi
