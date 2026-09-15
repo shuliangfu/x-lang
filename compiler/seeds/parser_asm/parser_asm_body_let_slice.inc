@@ -1,7 +1,13 @@
 /**
  * parser_asm_body_let_slice.inc — body let / cond expr 解析 helper C 实现。
  *
- * 由 parser_asm_thin_c.c #include；勿单独编译。
+ * 由 parser_asm_thin_c.c / pthin_let_alias.from_x.c #include；勿单独编译。
+ *
+ * Hybrid P2c: XLANG_PTHIN_LET_ALIAS_COND_FROM_X skips parse_cond_expr
+ * (dest-buffer in src/asm/pthin_let_alias.x). body_let_bracket stays C
+ * (AUDIT + parse_expr wrap). Missing parse_cond_expr_x keeps this C
+ * twin without dropping P2b let/alias (P6e PARSE_LAYOUT pattern).
+ * Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_BODY_LET_SLICE_INCLUDED
 #define PARSER_ASM_BODY_LET_SLICE_INCLUDED
@@ -54,6 +60,31 @@ int32_t parser_asm_parse_body_let_bracket_compound_init_ref_slice_c(void *arena,
  * Bare `if b {` disambiguation is in primary IDENT+LBRACE (looks_like_block; wave361).
  * PLATFORM: SHARED.
  */
+#ifdef XLANG_PTHIN_LET_ALIAS_COND_FROM_X
+/* PLATFORM: SHARED — P2c trampoline. AUDIT stays on the cold twin
+ * (product AUDIT_CALL is nop). Entry cursor is unconsumed; success
+ * publishes out->next_lex after the expr. INT+as probe lives in .x. */
+extern int32_t parser_asm_parse_cond_expr_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                   int32_t *out_expr_ref);
+void parser_asm_parse_cond_expr_into_slice_c(void *arena, struct parser_asm_lexer lex_start,
+                                             struct parser_asm_slice_u8 *source,
+                                             struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_lexer cur;
+  int32_t ok;
+  int32_t ref;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  cur = lex_start;
+  ok = 0;
+  ref = 0;
+  if (parser_asm_parse_cond_expr_x_into_c(arena, &cur, source, &ok, &ref) == 0)
+    return;
+  out->ok = ok;
+  out->expr_ref = ref;
+  out->next_lex = cur;
+}
+#else
 void parser_asm_parse_cond_expr_into_slice_c(void *arena, struct parser_asm_lexer lex_start,
                                              struct parser_asm_slice_u8 *source,
                                              struct parser_asm_parse_expr_result *out) {
@@ -84,5 +115,6 @@ void parser_asm_parse_cond_expr_into_slice_c(void *arena, struct parser_asm_lexe
   }
   parse_expr_into(arena, lex_start, source, out);
 }
+#endif /* XLANG_PTHIN_LET_ALIAS_COND_FROM_X parse_cond_expr */
 
 #endif /* PARSER_ASM_BODY_LET_SLICE_INCLUDED */

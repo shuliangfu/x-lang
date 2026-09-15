@@ -7,9 +7,12 @@
  *
  * Hybrid P2b (XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X): dest-buffer
  * parse_one_top_level_let / parse_one_type_alias come from
- * pthin_let_alias.x. C trampoline holds the name pack. body_let_bracket
- * / parse_cond_expr stay C. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b bodies.
+ * pthin_let_alias.x. C trampoline holds the name pack.
+ * Hybrid P2c (XLANG_PTHIN_LET_ALIAS_COND_FROM_X): dest-buffer
+ * parse_cond_expr (INT+as probe). Separate define so a missing
+ * parse_cond_expr_x keeps the C cond twin without dropping P2b.
+ * body_let_bracket stays C. Cold: no define, full .inc.
+ * Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b/P2c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -23,9 +26,11 @@
 #include "ast.h"
 
 _Static_assert((int)TOKEN_IDENT == 59, "let_alias.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_INT == 80, "let_alias.x TOKEN_INT pin");
 _Static_assert((int)TOKEN_COLON == 91, "let_alias.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_SEMICOLON == 95, "let_alias.x TOKEN_SEMICOLON pin");
 _Static_assert((int)TOKEN_ASSIGN == 117, "let_alias.x TOKEN_ASSIGN pin");
+_Static_assert((int)TOKEN_AS == 128, "let_alias.x TOKEN_AS pin");
 
 struct parser_asm_token {
   int32_t kind;

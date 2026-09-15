@@ -984,13 +984,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_rest_defs="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
         # P1 C is compiled after P9a so P1b BODIES_FROM_X can require the
         # lexer-step bridge (skip_balanced U symbols). See P1b block below.
-        # PLATFORM: SHARED — 7.2.1 P2b B-minus (2026-09-16).
+        # PLATFORM: SHARED — 7.2.1 P2b/P2c B-minus (2026-09-16).
         # pthin_let_alias.x holds dest-buffer parse_one_top_level_let and
         # parse_one_type_alias (P9a peek/step; P9a is linked later into
         # the same thin_glue, same as P6e/P7d/P4ud). BODIES is a separate
         # define so a missing parse_x keeps the C parse twins without
-        # dropping the P2 seed TU (body_let stays C). Cold: no define,
-        # full .inc.
+        # dropping the P2 seed TU (body_let stays C). COND is a further
+        # separate define (P6e PARSE_LAYOUT pattern) so a missing
+        # parse_cond_expr_x keeps the C cond twin without dropping P2b.
+        # Cold: no define, full .inc.
         _pthin_p2_extra=""
         if [ -n "$_pthin_p2b_thin_o" ] && [ -f "$_pthin_p2b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p2b_x" "$_pthin_p2b_thin_o" \
@@ -998,7 +1000,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_type_alias_x_into_c"; then
             _pthin_p2b_ok=1
             _pthin_p2_extra="-DXLANG_PTHIN_LET_ALIAS_BODIES_FROM_X"
-            echo "g05_ensure: P2b let/alias bodies ← $_pthin_p2b_x (7.2.1 B-minus)"
+            if g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_cond_expr_x_into_c"; then
+              _pthin_p2_extra="$_pthin_p2_extra -DXLANG_PTHIN_LET_ALIAS_COND_FROM_X"
+              echo "g05_ensure: P2b/P2c let/alias bodies ← $_pthin_p2b_x (7.2.1 B-minus)"
+            else
+              echo "g05_ensure: P2b let/alias bodies ← $_pthin_p2b_x (P2c parse_cond_expr C twin)"
+            fi
           else
             echo "g05_ensure: P2b let/alias .x thin failed or missing parse_x; P2 C twins stay full" >&2
           fi
