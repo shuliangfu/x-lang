@@ -4,6 +4,12 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 先调 parser_asm_parse_one_function_library_scan_slice_c 扫描 token，再建 AST / module func 槽。
  * 依赖同 TU 内 parser_asm_type_ref_slice.inc 的 struct ast_Type / PARSER_ASM_TYPE_*。
+ *
+ * Hybrid P6d: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the Type/Expr wrap
+ * soup (bodies in src/asm/pthin_fn_block.x). Parse / scan / block zeros /
+ * module func slot stay here (struct-by-value result). Cold: no define,
+ * full twin. Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6d bodies.
+ * PLATFORM: SHARED
  */
 #ifndef PARSER_ASM_LIBRARY_SLICE_INCLUDED
 #define PARSER_ASM_LIBRARY_SLICE_INCLUDED
@@ -78,7 +84,11 @@ extern int32_t parser_asm_parse_one_function_library_scan_slice_c(
 extern int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen);
 extern int32_t parser_asm_stretch_library_fn_shape_audit_c(void *lex_inout, void *source);
 
-/** 与 parser.x ast.expr_init_match_enum 一致：清零 match 占位字段。 */
+#ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
+/** 与 parser.x ast.expr_init_match_enum 一致：清零 match 占位字段。
+ * PLATFORM: SHARED — cold twin only; hybrid P6d dest-buffer wrap uses
+ * pabi set_common_zeros_c. Gated so hybrid -Werror does not see an
+ * unused static. */
 static void parser_asm_lib_expr_init_match_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -86,6 +96,13 @@ static void parser_asm_lib_expr_init_match_c(struct ast_Expr *e) {
   e->match_arm_base = 0;
   e->match_num_arms = 0;
 }
+#endif /* !XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X */
+
+#ifdef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
+extern int32_t parser_asm_library_bool_eq_shape_wrap_into_c(void *arena, uint8_t *param_name, int32_t pnlen,
+                                                           uint8_t *type_name, int32_t tnlen, uint8_t *field_name,
+                                                           int32_t flen, int32_t *out_bool_tr, int32_t *out_token_tr);
+#endif
 
 /** 失败快照：ok=false，next_lex 为调用方传入 lex。 */
 static struct parser_asm_library_parse_result parser_asm_library_fail_c(struct parser_asm_lexer lex) {
@@ -102,24 +119,26 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
     void *arena, void *module, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source) {
   struct parser_asm_library_parse_scan_result scan;
   struct parser_asm_library_parse_result fail;
+#ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
   struct ast_Type bt;
   struct ast_Type tt;
   struct ast_Expr ve;
   struct ast_Expr fe;
   struct ast_Expr ene;
   struct ast_Expr eqe;
-  struct ast_Block b;
-  int32_t bool_type_ref;
-  int32_t token_type_ref;
   int32_t var_ref;
   int32_t field_ref;
   int32_t enum_ref;
-  int32_t eq_ref;
-  int32_t block_ref;
-  int32_t fi_lib;
   int32_t ti;
   int32_t vi;
   int32_t fi;
+#endif
+  struct ast_Block b;
+  int32_t bool_type_ref;
+  int32_t token_type_ref;
+  int32_t eq_ref;
+  int32_t block_ref;
+  int32_t fi_lib;
   int32_t idx;
 
   fail = parser_asm_library_fail_c(lex);
@@ -132,6 +151,15 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
     return fail;
   }
 
+#ifdef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
+  bool_type_ref = 0;
+  token_type_ref = 0;
+  eq_ref = parser_asm_library_bool_eq_shape_wrap_into_c(arena, scan.param_name, scan.param_name_len,
+                                                       scan.param_type_name, scan.param_type_len, scan.field_name,
+                                                       scan.field_len, &bool_type_ref, &token_type_ref);
+  if (eq_ref == 0 || bool_type_ref == 0 || token_type_ref == 0)
+    return fail;
+#else
   bool_type_ref = ast_ast_arena_type_alloc(arena);
   if (bool_type_ref == 0)
     return fail;
@@ -231,6 +259,7 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
   eqe.field_access_base_ref = 0;
   eqe.field_access_field_len = 0;
   ast_ast_arena_expr_set(arena, eq_ref, eqe);
+#endif /* XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X library wrap family */
 
   block_ref = ast_ast_arena_block_alloc(arena);
   if (block_ref == 0)

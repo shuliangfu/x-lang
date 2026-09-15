@@ -764,7 +764,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # scan_sync / realign / dest-tag / parse_if_expr / match wrap)
   _pthin_p5b_x=src/asm/pthin_ctrl.x
   _pthin_p6_seed=seeds/pthin_fn_block.from_x.c
-  # 7.2.1 P6b/P6c B-minus: fn_block .x bodies (name-match trio + packed/soa modifiers)
+  # 7.2.1 P6b/P6c/P6d B-minus: fn_block .x bodies (name-match trio + packed/soa + library wrap)
   _pthin_p6b_x=src/asm/pthin_fn_block.x
   _pthin_p7_seed=seeds/pthin_simd.from_x.c
   # 7.2.1 P7b Route C: simd .x bodies (ident pack / callee name fill)
@@ -1136,7 +1136,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o"; then
             _pthin_p6b_ok=1
             _pthin_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
-            echo "g05_ensure: P6b/P6c fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
+            echo "g05_ensure: P6b/P6c/P6d fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
           else
             echo "g05_ensure: P6b fn_block .x thin failed; P6 C twin stays full" >&2
           fi

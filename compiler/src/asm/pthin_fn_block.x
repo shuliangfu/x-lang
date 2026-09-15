@@ -34,10 +34,30 @@
 // Do not copy these probes into parse_struct_record_layout. Do not
 // open a new P-lane.
 //
-// Hybrid P6b/P6c: g05_try_x_to_o this file; XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
-// skips the portable .inc region (name-match trio + modifier predicates).
-// No lexer-step bridge. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c bodies.
+// 7.2.1 P6d B-minus (2026-09-15): 有则补全 library-shape wrap dest-buffer
+// in this same domain file (efficiency: one L2 for remaining wrap soup
+// in library_slice.inc). Always-host-cc wrap sites:
+//   TYPE_BOOL return type
+//   TYPE_NAMED param type
+//   EXPR_VAR param + EXPR_FIELD_ACCESS + EXPR_ENUM_VARIANT + EXPR_EQ
+// Language has no Type/Expr by-value / no local u8[N]; C trampoline
+// forwards scan name buffers. Sidecar writes reuse existing pabi
+// pipeline_type_init_primitive_kind_at / init_named_at and
+// pipeline_expr_set_kind / set_common_zeros / set_line_col /
+// set_var_name / set_field_access_c / set_resolved_type_ref plus
+// P4bc set_binop_operands_c (G.7 one writer for binop slots; do not
+// copy; do not FORCE pabi mega; do not merge with P4bc wrap).
+// parse_one_function_library stays C (struct-by-value result + scan).
+// Block zeros / module func slot / layout alloc stay C. Do not
+// dest-buffer parse this wave. Do not copy wrap into parse_type_ref
+// / parse_match / P15 library_wrap scan. Do not copy name-match
+// loops into library_slice. Do not mix range_for. Do not wrap AUDIT.
+// Do not open a new P-lane.
+//
+// Hybrid P6b/P6c/P6d: g05_try_x_to_o this file; XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
+// skips the portable .inc region (name-match trio + modifier predicates
+// + library wrap soup). No lexer-step bridge. Cold: no define, full .inc.
+// Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Sidecar: count of struct layouts on the opaque module. */
@@ -53,11 +73,47 @@ export extern "C" function pipeline_module_struct_layout_field_name_len(module: 
 /** Sidecar: field type_ref at (layout, field). */
 export extern "C" function pipeline_module_struct_layout_field_type_ref(module: *u8, li: i32, j: i32): i32;
 
+/** Allocate a fresh Type slot; 0 on failure. */
+export extern "C" function ast_ast_arena_type_alloc(arena: *u8): i32;
+/** Allocate a fresh Expr slot; 0 on failure. */
+export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
+/** pabi: zero a Type slot and write a primitive kind_ord (0..16). */
+export extern "C" function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32, kind_ord: i32): i32;
+/** pabi: zero a Type slot and write TYPE_NAMED + spelling (nlen 1..255). */
+export extern "C" function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_len: i32): i32;
+/** Wave-0: wipe ref/base/count fields on a freshly allocated expr. */
+export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+/** Wave-0: write Expr.kind. */
+export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+/** Wave-0: write Expr.line / Expr.col. */
+export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
+/** Wave-0: write Expr.resolved_type_ref. */
+export extern "C" function pipeline_expr_set_resolved_type_ref(a: *u8, er: i32, type_ref: i32): void;
+/** Wave-0 pabi: write Expr.var_name / var_name_len (zeros the 256-byte slot). */
+export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+/** Suffix pabi: write field_access_base_ref + field name (cap 255). */
+export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+/**
+ * P4bc consumer-wave writer: write Expr.binop_left_ref / binop_right_ref.
+ * G.7: one writer for those slots. Lives in the P4bc seed; do not copy
+ * into this seed; do not FORCE pabi mega; do not merge with P4bc wrap.
+ */
+export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
+
 // TOKEN_* pin copies of include/token.h. P6 C _Static_assert fires if
 // the pin drifts; do not treat these as a second enum authority.
 const TOKEN_PACKED: i32 = 21;
 const TOKEN_SOA: i32 = 22;
 const TOKEN_IDENT: i32 = 59;
+
+// TypeKind / ExprKind ords from ast.x (library_slice.inc pins the same
+// subset). Do not treat these as a second enum authority.
+const TYPE_BOOL: i32 = 1;
+const TYPE_NAMED: i32 = 8;
+const EXPR_VAR: i32 = 3;
+const EXPR_EQ: i32 = 14;
+const EXPR_FIELD_ACCESS: i32 = 44;
+const EXPR_ENUM_VARIANT: i32 = 50;
 
 /**
  * Return 1 if `module` already has a struct layout whose name equals
@@ -300,4 +356,181 @@ export function parser_asm_tok_is_modifier_soa_c(kind: i32, ident_len: i32, next
     return 1;
   }
   return 0;
+}
+
+/**
+ * Allocate an Expr, wipe sidecar refs, write kind and line/col=0.
+ * C twin writes kind then a handful of zeros + init_match; dest-buffer
+ * uses pabi set_common_zeros_c (covers match slots and enum_variant_tag)
+ * then kind then line/col. Extra zeros on a fresh slot are equivalent.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param kind i32 — ExprKind ordinal
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — P6d helper. Not a second wrap authority.
+ */
+function skip_lib_wrap_prep(arena: *u8, kind: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_kind(arena, ref, kind);
+    pipeline_expr_set_line_col(arena, ref, 0, 0);
+  }
+  return ref;
+}
+
+/**
+ * Allocate TYPE_BOOL (kind_ord=1). Dest-buffer twin of the bool_type
+ * wrap soup in parser_asm_parse_one_function_library_slice_c.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @return i32 — new type ref, or 0 on null/alloc/init fail
+ * PLATFORM: SHARED — P6d helper. Writer = pipeline_type_init_primitive_kind_at.
+ */
+function skip_lib_type_bool(arena: *u8): i32 {
+  let ref: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    ref = ast_ast_arena_type_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_primitive_kind_at(arena, ref, TYPE_BOOL);
+  }
+  if (ok == 0) {
+    return 0;
+  }
+  return ref;
+}
+
+/**
+ * Allocate TYPE_NAMED from `name[0..nlen)`. nlen<=0 still wraps as an
+ * empty TYPE_NAMED (C twin writes kind=NAMED + name_len=0); pabi
+ * init_named_at rejects nlen<=0 so that arm uses primitive_kind_at(8).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param name *u8 — param-type spelling; null → 0
+ * @param nlen i32 — content length; <0 treated as 0
+ * @return i32 — new type ref, or 0 on null/alloc/init fail
+ * PLATFORM: SHARED — P6d helper. Writer = init_named_at / primitive_kind_at.
+ * Do not reuse init_compound (P3e TYPE_DYN ban).
+ */
+function skip_lib_type_named(arena: *u8, name: *u8, nlen: i32): i32 {
+  let ref: i32 = 0;
+  let n: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8 || name == 0 as *u8) {
+    return 0;
+  }
+  n = nlen;
+  if (n < 0) {
+    n = 0;
+  }
+  if (n > 255) {
+    n = 255;
+  }
+  unsafe {
+    ref = ast_ast_arena_type_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    if (n <= 0) {
+      ok = pipeline_type_init_primitive_kind_at(arena, ref, TYPE_NAMED);
+    } else {
+      ok = pipeline_type_init_named_at(arena, ref, name, n);
+    }
+  }
+  if (ok == 0) {
+    return 0;
+  }
+  return ref;
+}
+
+/**
+ * Allocate TYPE_BOOL + TYPE_NAMED + the `p.field == E.v` expr chain
+ * (VAR + FIELD_ACCESS + ENUM_VARIANT + EQ) used by the library-shape
+ * parser. Dest-buffer twin of the always-host-cc wrap soup in
+ * parser_asm_parse_one_function_library_slice_c. C trampoline forwards
+ * scan name buffers (language has no local u8[N]). Does not reject
+ * nlen<=0 (C twin only checks alloc). nlen<0 is treated as 0.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param param_name *u8 — param IDENT bytes; null → 0
+ * @param pnlen i32 — param name length
+ * @param type_name *u8 — param type IDENT bytes; null → 0
+ * @param tnlen i32 — param type name length
+ * @param field_name *u8 — field IDENT bytes; null → 0
+ * @param flen i32 — field name length
+ * @param out_bool_tr *i32 — dest for TYPE_BOOL ref; null → 0
+ * @param out_token_tr *i32 — dest for TYPE_NAMED ref; null → 0
+ * @return i32 — EQ expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P6d Route C. Authority for the library
+ * wrap family. parse_one_function_library stays C; do not copy.
+ * Do not merge with P4bc wrap / P5g match wrap / P3e TYPE_DYN wrap.
+ */
+#[no_mangle]
+export function parser_asm_library_bool_eq_shape_wrap_into_c(arena: *u8, param_name: *u8, pnlen: i32, type_name: *u8, tnlen: i32, field_name: *u8, flen: i32, out_bool_tr: *i32, out_token_tr: *i32): i32 {
+  let bool_tr: i32 = 0;
+  let token_tr: i32 = 0;
+  let var_ref: i32 = 0;
+  let field_ref: i32 = 0;
+  let enum_ref: i32 = 0;
+  let eq_ref: i32 = 0;
+  let pn: i32 = 0;
+  let fn: i32 = 0;
+  if (arena == 0 as *u8 || param_name == 0 as *u8 || type_name == 0 as *u8 || field_name == 0 as *u8 || out_bool_tr == 0 as *i32 || out_token_tr == 0 as *i32) {
+    return 0;
+  }
+  pn = pnlen;
+  if (pn < 0) {
+    pn = 0;
+  }
+  fn = flen;
+  if (fn < 0) {
+    fn = 0;
+  }
+  bool_tr = skip_lib_type_bool(arena);
+  if (bool_tr == 0) {
+    return 0;
+  }
+  token_tr = skip_lib_type_named(arena, type_name, tnlen);
+  if (token_tr == 0) {
+    return 0;
+  }
+  var_ref = skip_lib_wrap_prep(arena, EXPR_VAR);
+  if (var_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_var_name(arena, var_ref, param_name, pn);
+    pipeline_expr_set_resolved_type_ref(arena, var_ref, token_tr);
+  }
+  field_ref = skip_lib_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  if (field_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_field_access_c(arena, field_ref, var_ref, field_name, fn);
+  }
+  enum_ref = skip_lib_wrap_prep(arena, EXPR_ENUM_VARIANT);
+  if (enum_ref == 0) {
+    return 0;
+  }
+  eq_ref = skip_lib_wrap_prep(arena, EXPR_EQ);
+  if (eq_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_binop_operands_c(arena, eq_ref, field_ref, enum_ref);
+    pipeline_expr_set_resolved_type_ref(arena, eq_ref, bool_tr);
+    out_bool_tr[0] = bool_tr;
+    out_token_tr[0] = token_tr;
+  }
+  return eq_ref;
 }
