@@ -7,13 +7,13 @@
  * falls through to parse_expr_into (parser_x mega). parse_match_into
  * parses the full match expression and callbacks parse_expr_into.
  *
- * Hybrid P5e/P5g/P5h: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
- * tag scan, the match wrap-family, and parse_match_subject (bodies in
- * src/asm/pthin_ctrl.x). C trampolines hold ename[256] (P5e) and name[256]
- * (P5g VAR wrap; P5h parse calls the same trampoline). parse_match /
- * parse_match_struct_fields stay here (16-pattern + local u8[N]).
- * Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e/P5g/P5h bodies.
+ * Hybrid P5e/P5g/P5h/P5i: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
+ * tag scan, the match wrap-family, parse_match_subject, and
+ * parse_match_struct_fields (bodies in src/asm/pthin_ctrl.x). C trampolines
+ * hold ename[256] (P5e) and name[256] (P5g VAR wrap; P5h parse calls the
+ * same trampoline; P5i field wrap holds a second name[256]). parse_match_into
+ * stays here (16-pattern + enum_buf). Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e/P5g/P5h/P5i bodies.
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
@@ -150,7 +150,8 @@ static void parser_asm_match_expr_common_zeros_c(struct ast_Expr *e) {
  * Historical static names stay the parse face. Hybrid trampolines hold
  * dest name[256] (language has no local u8[N]) and forward to .x.
  * Cold: original Type/Expr-by-value get/set soup. parse_match_subject
- * dest-buffer is P5h; parse_match / struct_fields stay C. */
+ * dest-buffer is P5h; struct_fields dest-buffer is P5i; parse_match_into
+ * stays C. */
 #ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
 extern int32_t parser_asm_match_var_wrap_into_c(void *arena, uint8_t *name, int32_t nlen);
 extern int32_t parser_asm_match_field_wrap_into_c(void *arena, int32_t base_ref, uint8_t *name, int32_t nlen);
@@ -182,11 +183,30 @@ static int32_t parser_asm_match_field_wrap_c(void *arena, int32_t base_ref, uint
   return parser_asm_match_field_wrap_into_c(arena, base_ref, name, nlen);
 }
 
-static int32_t parser_asm_match_lit_wrap_c(void *arena, int32_t int_val) {
+/* PLATFORM: SHARED — P5i. C trampoline holds name[256] (language has
+ * no local u8[N]) and forwards to dest-buffer wrap. Not a second wrap
+ * authority. Not static: .x lives in a separate TU. */
+int32_t parser_asm_match_field_wrap_src_c(void *arena, int32_t base_ref, struct parser_asm_slice_u8 *source,
+                                          size_t start, int32_t nlen) {
+  uint8_t name[256];
+  int32_t ni;
+  if (!arena || !source)
+    return 0;
+  if (nlen > 255)
+    nlen = 127;
+  if (nlen < 0)
+    nlen = 0;
+  memset(name, 0, sizeof(name));
+  for (ni = 0; ni < nlen && start + (size_t)ni < source->length; ni++)
+    name[ni] = source->data[start + ni];
+  return parser_asm_match_field_wrap_into_c(arena, base_ref, name, nlen);
+}
+
+int32_t parser_asm_match_lit_wrap_c(void *arena, int32_t int_val) {
   return parser_asm_match_lit_wrap_into_c(arena, (int64_t)int_val);
 }
 
-static int32_t parser_asm_match_binop_wrap_c(void *arena, int32_t kind, int32_t left_ref, int32_t right_ref) {
+int32_t parser_asm_match_binop_wrap_c(void *arena, int32_t kind, int32_t left_ref, int32_t right_ref) {
   return parser_asm_match_binop_wrap_into_c(arena, kind, left_ref, right_ref);
 }
 
@@ -382,6 +402,29 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
                                                       struct parser_asm_slice_u8 *source,
                                                       struct parser_asm_lexer_result *r,
                                                       int32_t subject_ref, int32_t *out_guard) {
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+  /* PLATFORM: SHARED — P5i trampoline. *lex sits after `{` (caller
+   * already consumed LBRACE; lexer_next_into takes lex by value so the
+   * pointer is unchanged). .x peeks from that cursor. On success *lex
+   * is parked after `}`. *r is stale; callers lexer_next from *lex. */
+  {
+    extern int32_t parser_asm_parse_match_struct_fields_x_into_c(void *arena, void *lex_inout, void *source,
+                                                                int32_t subject_ref, int32_t *out_ok,
+                                                                int32_t *out_guard_x);
+    int32_t ok;
+    int32_t guard;
+    if (!arena || !lex || !source || !r || !out_guard)
+      return -1;
+    *out_guard = 0;
+    ok = 0;
+    guard = 0;
+    if (parser_asm_parse_match_struct_fields_x_into_c(arena, lex, source, subject_ref, &ok, &guard) == 0 ||
+        ok == 0)
+      return -1;
+    *out_guard = guard;
+    return 0;
+  }
+#else
   int32_t field_guard = 0;
   if (!arena || !lex || !source || !r || !out_guard)
     return -1;
@@ -446,6 +489,7 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
     parser_lex_from_next_into_glue(lex, *r);
   *out_guard = field_guard;
   return 0;
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X parse_match_struct_fields */
 }
 
 /**

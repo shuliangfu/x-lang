@@ -4,16 +4,18 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
  * comment-aware brace skip + kw_at_pos + scan_sync pos plus the P5d
  * six-stage realign walk, the P5e dest-typed enum-tag scan, the P5f
- * parse_if_expr dest-buffer, the P5g match wrap-family dest-buffer, and
- * the P5h parse_match_subject dest-buffer come from pthin_ctrl.x
+ * parse_if_expr dest-buffer, the P5g match wrap-family dest-buffer,
+ * the P5h parse_match_subject dest-buffer, and the P5i
+ * parse_match_struct_fields dest-buffer come from pthin_ctrl.x
  * (realign/parse over the P9a bridge peek family; dest-tag trampoline
  * holds ename[256]; if_expr trampoline holds parse_expr_result; VAR wrap
- * trampoline holds name[256] and is called by P5h). this TU keeps the
- * slice trampolines plus parse_match. Cold: no BODIES define, full
- * .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f/P5g/P5h
+ * trampoline holds name[256] and is called by P5h; field wrap src
+ * trampoline holds name[256] and is called by P5i). this TU keeps the
+ * slice trampolines plus parse_match_into. Cold: no BODIES define, full
+ * .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i
  * bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
@@ -37,11 +39,16 @@ _Static_assert((int)TOKEN_WHILE == 6, "ctrl.x TOKEN_WHILE pin");
 _Static_assert((int)TOKEN_FOR == 8, "ctrl.x TOKEN_FOR pin");
 _Static_assert((int)TOKEN_RETURN == 11, "ctrl.x TOKEN_RETURN pin");
 _Static_assert((int)TOKEN_MATCH == 18, "ctrl.x TOKEN_MATCH pin");
+_Static_assert((int)TOKEN_EOF == 0, "ctrl.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_UNDERSCORE == 52, "ctrl.x TOKEN_UNDERSCORE pin");
 _Static_assert((int)TOKEN_IDENT == 59, "ctrl.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_INT == 80, "ctrl.x TOKEN_INT pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "ctrl.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_LBRACE == 84, "ctrl.x TOKEN_LBRACE pin");
 _Static_assert((int)TOKEN_RBRACE == 85, "ctrl.x TOKEN_RBRACE pin");
 _Static_assert((int)TOKEN_LBRACKET == 86, "ctrl.x TOKEN_LBRACKET pin");
+_Static_assert((int)TOKEN_COMMA == 90, "ctrl.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "ctrl.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_DOT == 92, "ctrl.x TOKEN_DOT pin");
 
 struct parser_asm_token {
