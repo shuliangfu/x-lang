@@ -7,8 +7,9 @@
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
  * Hybrid P4b (XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X): portable IDENT
- * spelling / asm-option-bit bodies come from pthin_expr_primary.x; this
- * TU keeps slice trampolines. Cold: no BODIES define, full .inc.
+ * spelling / asm-option-bit / suffix_loop / IDENT head / P4bh remaining
+ * parse_primary dest-buffer come from pthin_expr_primary.x; this TU
+ * keeps slice trampolines. Cold: no BODIES define, full .inc.
  * P3c mangle trampoline is compiled when this TU also sees
  * XLANG_PTHIN_TYPE_REF_BODIES_FROM_X (g05 passes P3 extra).
  */
@@ -338,6 +339,29 @@ static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_s
 /* struct_lit first: primary uses static parse_struct_lit_fields_c from this slice. */
 #include "parser_asm_finish_struct_lit_slice.inc"
 #include "parser_asm_primary_slice.inc"
+
+_Static_assert((int)TOKEN_INT == 80, "primary.x TOKEN_INT pin");
+_Static_assert((int)TOKEN_FLOAT == 81, "primary.x TOKEN_FLOAT pin");
+_Static_assert((int)TOKEN_IF == 4, "primary.x TOKEN_IF pin");
+_Static_assert((int)TOKEN_RETURN == 11, "primary.x TOKEN_RETURN pin");
+_Static_assert((int)TOKEN_PANIC == 12, "primary.x TOKEN_PANIC pin");
+_Static_assert((int)TOKEN_MATCH == 18, "primary.x TOKEN_MATCH pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "primary.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "primary.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "primary.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "primary.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_LBRACKET == 86, "primary.x TOKEN_LBRACKET pin");
+_Static_assert((int)TOKEN_RBRACKET == 87, "primary.x TOKEN_RBRACKET pin");
+_Static_assert((int)TOKEN_FATARROW == 89, "primary.x TOKEN_FATARROW pin");
+_Static_assert((int)TOKEN_COMMA == 90, "primary.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "primary.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_AT == 129, "primary.x TOKEN_AT pin");
+_Static_assert((int)TOKEN_STRING == 130, "primary.x TOKEN_STRING pin");
+_Static_assert(PARSER_ASM_EXPR_BLOCK == 26, "primary.x EXPR_BLOCK pin");
+_Static_assert(PARSER_ASM_EXPR_RETURN == 41, "primary.x EXPR_RETURN pin");
+_Static_assert(PARSER_ASM_EXPR_PANIC == 42, "primary.x EXPR_PANIC pin");
+_Static_assert(PARSER_ASM_EXPR_ARRAY_LIT == 46, "primary.x EXPR_ARRAY_LIT pin");
+_Static_assert(PARSER_ASM_EXPR_STRING_LIT == 59, "primary.x EXPR_STRING_LIT pin");
 
 int labi_pthin_expr_primary_slice_marker(void) {
   return 2; /* finish_struct_lit + primary */

@@ -7,9 +7,11 @@
  * Hybrid P4b: XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips the portable
  * IDENT spelling / asm-option-bit region (bodies in src/asm/pthin_expr_primary.x
  * + slice trampolines in the seed TU). P4bg also skips the C IDENT/SELF
- * head twin (ident_x_into_c is the VAR-fill authority). parse_primary
- * AUDIT_CALL padding is compiled only under XLANG_PARSER_STRETCH_AUDIT
- * (product AUDIT_CALL is nop).
+ * head twin (ident_x_into_c is the VAR-fill authority). P4bh dest-buffer
+ * parse_primary_x_into_c is the remaining-arm dispatcher (STRING/RETURN/
+ * PANIC/paren/array/LBRACE + IF/MATCH/AT shims); C trampoline keeps AUDIT
+ * and publishes next_lex. parse_primary AUDIT_CALL padding is compiled
+ * only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.
@@ -65,6 +67,9 @@ extern void parser_finish_struct_lit_from_type_ident_into_glue(void *arena, int3
                                                                struct parser_asm_lexer lex_in_brace,
                                                                struct parser_asm_slice_u8 *source,
                                                                struct parser_asm_parse_expr_result *out);
+extern void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexer lex_in_brace,
+                                                    struct parser_asm_slice_u8 *source,
+                                                    struct parser_asm_parse_expr_result *out);
 extern int32_t parser_asm_stretch_primary_head_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_primary_expr_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_primary_expr_mega_full_deep_audit_c(void *lex_inout, void *source);
@@ -1941,6 +1946,66 @@ void parser_asm_parse_struct_lit_fields_ptr_c(void *arena, int32_t lit_ref, void
   *(struct parser_asm_lexer *)lex_inout = res.next_lex;
 }
 
+/**
+ * PLATFORM: SHARED — P4bh zero-algorithm shims. Language has no lexer /
+ * parse_expr_result by-value; decode / match parse / simd parse /
+ * anonymous struct stay C (local u8[N] / extra lexer_next).
+ */
+int32_t parser_asm_string_lit_decode_span_ptr_c(void *arena, int32_t head_ref, void *source, size_t q0,
+                                               int32_t nlen, int32_t line, int32_t col) {
+  if (!arena || !source || head_ref <= 0)
+    return -1;
+  return parser_asm_string_lit_decode_span_c(arena, head_ref, (struct parser_asm_slice_u8 *)source, q0, nlen, line,
+                                            col);
+}
+
+int32_t parser_parse_match_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                     int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_parse_match_into(arena, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+int32_t parser_parse_at_simd_builtin_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                               int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  struct parser_asm_lexer_result r0;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  memset(&r0, 0, sizeof(r0));
+  lexer_next_into(&r0, lex, source);
+  parser_parse_at_simd_builtin_into(arena, r0, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+void parser_asm_parse_anonymous_struct_lit_ptr_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_asm_parse_anonymous_struct_lit_c(arena, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+}
+
 /* Suffix LT(turbofish)-branch bridges: type_ref parse + count-only angle
  * skip, pointer faces for the .x loop. The type_ref parse consumes the
  * cursor (out lexer) and returns the ref; the count skip writes the
@@ -2795,6 +2860,40 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
 #endif /* XLANG_PARSER_STRETCH_AUDIT */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bh trampoline. AUDIT stayed above (product nop).
+   * Remaining STRING/RETURN/PANIC/paren/array/LBRACE walk plus IF/MATCH/AT
+   * shims live in parse_primary_x_into_c. Publish next_lex from the live
+   * cursor (P4bf stop contract). Do not merge suffix_loop. */
+  {
+    extern int32_t parser_asm_parse_primary_x_into_c(void *arena, void *lex_inout, void *source,
+                                                     int32_t *out_ok, int32_t *out_expr_ref,
+                                                     int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                     int32_t *parsed_refs, int32_t *pending_refs,
+                                                     uint8_t *mangled, uint8_t *name_buf);
+    struct parser_asm_lexer cur;
+    int32_t ok;
+    int32_t ref;
+    int32_t mc[256];
+    int32_t args[256];
+    int32_t pr[8];
+    int32_t pend[8];
+    uint8_t mangled[128];
+    uint8_t name[256];
+    cur = lex;
+    ok = 0;
+    ref = 0;
+    if (parser_asm_parse_primary_x_into_c(arena, &cur, source, &ok, &ref, mc, args, pr, pend, mangled, name) == 0 ||
+        ok == 0) {
+      out->ok = 0;
+      return;
+    }
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = cur;
+    return;
+  }
+#else
   lexer_next_into(&r, lex, source);
   if (r.tok.kind == (int32_t)TOKEN_STRING) {
     size_t q0;
@@ -3235,6 +3334,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     return;
   }
   out->ok = 0;
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X parse_primary */
 }
 
 #endif /* PARSER_ASM_PRIMARY_SLICE_INCLUDED */

@@ -16,12 +16,21 @@
 
 /* Primary literal wave: token ordinals (token.h enum, validated
  * ELSE=5/IF=4) and bridges. */
+const TOKEN_EOF: i32 = 0;
+const TOKEN_IF: i32 = 4;
+const TOKEN_RETURN: i32 = 11;
+const TOKEN_PANIC: i32 = 12;
+const TOKEN_MATCH: i32 = 18;
 const TOKEN_TRUE: i32 = 75;
 const TOKEN_FALSE: i32 = 76;
 const TOKEN_NULL: i32 = 132;
-const TOKEN_FLOAT: i32 = 134;
-const TOKEN_INT: i32 = 133;
+const TOKEN_FLOAT: i32 = 81;
+const TOKEN_INT: i32 = 80;
 const TOKEN_SELF: i32 = 51;
+const TOKEN_FATARROW: i32 = 89;
+const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_AT: i32 = 129;
+const TOKEN_STRING: i32 = 130;
 const EXPR_VAR_LIT: i32 = 3;
 export extern "C" function parser_asm_ident_pre_dispatch_ptr_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 const EXPR_LIT: i32 = 0;
@@ -59,7 +68,21 @@ export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
 export extern "C" function parser_asm_lbrace_looks_like_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_parse_struct_lit_fields_ptr_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
+export extern "C" function parser_asm_parse_anonymous_struct_lit_ptr_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
+export extern "C" function parser_asm_string_lit_decode_span_ptr_c(arena: *u8, head_ref: i32, source: *u8, q0: usize, nlen: i32, line: i32, col: i32): i32;
+export extern "C" function parser_parse_match_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
+export extern "C" function parser_parse_at_simd_builtin_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
+export extern "C" function parser_parse_block_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_block_ref: *i32): i32;
+export extern "C" function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_expr_ref: *i32): i32;
+export extern "C" function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: i32, type_ref: i32): i32;
+export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
+export extern "C" function pipeline_expr_append_array_lit_elem(a: *u8, er: i32, elem_ref: i32): i32;
+const EXPR_BLOCK: i32 = 26;
+const EXPR_RETURN: i32 = 41;
+const EXPR_PANIC: i32 = 42;
 const EXPR_FIELD_ACCESS: i32 = 44;
+const EXPR_ARRAY_LIT: i32 = 46;
+const EXPR_STRING_LIT: i32 = 59;
 export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_skip_angle_count_ptr_into_c(lex_inout: *u8, source: *u8, out_count: *i32): void;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
@@ -81,6 +104,7 @@ const TOKEN_IDENT: i32 = 59;
 const TOKEN_LPAREN: i32 = 82;
 const TOKEN_RPAREN: i32 = 83;
 const TOKEN_LBRACE: i32 = 84;
+const TOKEN_RBRACE: i32 = 85;
 const TOKEN_DOT: i32 = 92;
 const TOKEN_LBRACKET: i32 = 86;
 const TOKEN_RBRACKET: i32 = 87;
@@ -107,8 +131,10 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already ((void)0);
 // compiling ~770 lexer-init nops is dead preprocess, not combinator logic).
 //
-// Hybrid P4b: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
-// skips the portable .inc region. Cold: no define, full .inc stays.
+// Hybrid P4b/P4be/P4bf/P4bg/P4bh: g05_try_x_to_o this file;
+// XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips the portable .inc region
+// (spelling probes + suffix_loop + IDENT/INT heads + remaining
+// parse_primary dest-buffer). Cold: no define, full .inc stays.
 // 7.2.1 P4be (2026-09-15): suffix_loop / IDENT already lived in this file
 // but `-E` XT001'd on check_block of suffix_loop because TOKEN_IDENT /
 // LPAREN / RPAREN / LBRACE / TYPE and the method/field/var-name writers
@@ -128,6 +154,16 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // same contract wrap_prep sites already use. The C trampoline copies
 // lex_inout into out->next_lex (P4bf stop contract). Do not take
 // pending_n's address. Do not FORCE pabi mega.
+// 7.2.1 P4bh B-minus (2026-09-16): 有则补全 remaining parse_primary
+// dest-buffer (STRING concat, RETURN, PANIC, paren, array lit, LBRACE
+// block-vs-struct, plus IF via P5f and MATCH/AT via zero-algorithm
+// ptr shims). Dispatcher is a new function — do not grow suffix_loop
+// (XT001). Decode / anonymous-struct / match parse / simd parse stay
+// C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
+// Block wrap reuses P5f wrap_block_ref (G.7; type_ref=0). Unary
+// operand reuses P4uc set_unary_operand_c. C trampoline keeps AUDIT
+// and publishes next_lex. Do not dest-buffer parse_type_ref /
+// parse_match. Do not merge suffix_loop. Do not FORCE pabi mega.
 // pending_n stays a local i32 by value (do not take its address).
 // Do not FORCE pabi mega — writers already T.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
@@ -1045,6 +1081,416 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
       out_expr_ref[0] = ref;
     }
     parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * STRING primary: decode the first TOKEN_STRING span, then concatenate
+ * adjacent STRING tokens (wave282). Decode stays the C helper
+ * (chunked var_name overflow; language has no local u8[N]).
+ * @param arena *u8 — opaque AST arena
+ * @param lex_inout *u8 — cursor at STRING; parked after the last concat
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — 1 on success
+ * @param out_expr_ref *i32 — EXPR_STRING_LIT head
+ * @return i32 — 1 handled; 0 not STRING
+ * PLATFORM: SHARED — P4bh STRING arm. Do not copy decode.
+ */
+function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let q0: usize = 0;
+  let nlen: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 0;
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    q0 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, ref, EXPR_STRING_LIT);
+    pipeline_expr_set_line_col(arena, ref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    if (parser_asm_string_lit_decode_span_ptr_c(arena, ref, source, q0, nlen, tl, tc) != 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    while (1 == 1) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_STRING) {
+        break;
+      }
+      q0 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (parser_asm_string_lit_decode_span_ptr_c(arena, ref, source, q0, nlen, tl, tc) != 0) {
+        out_ok[0] = 0;
+        return 1;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * RETURN primary (`return` / `return expr`) for match-arm results.
+ * Terminator peek does not consume (`;` `}` EOF `,` `=>` stay for the
+ * caller). Operand parse reuses parse_expr_ptr (G.7).
+ * @return i32 — 1 handled; 0 not RETURN
+ * PLATFORM: SHARED — P4bh RETURN arm.
+ */
+function parser_asm_primary_return_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RETURN) {
+      return 0;
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, ref, EXPR_RETURN);
+    pipeline_expr_set_line_col(arena, ref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_SEMICOLON && kind != TOKEN_RBRACE && kind != TOKEN_EOF && kind != TOKEN_COMMA && kind != TOKEN_FATARROW) {
+      eok = 0;
+      eref = 0;
+      if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0) {
+        out_ok[0] = 0;
+        return 1;
+      }
+      pipeline_expr_set_unary_operand_c(arena, ref, eref);
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * PANIC primary (`panic` / `panic(expr)`). Line/col stay 0,0 (C twin).
+ * @return i32 — 1 handled; 0 not PANIC
+ * PLATFORM: SHARED — P4bh PANIC arm.
+ */
+function parser_asm_primary_panic_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let panic_op: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_PANIC) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_LPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_RPAREN) {
+        eok = 0;
+        eref = 0;
+        if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0) {
+          out_ok[0] = 0;
+          return 1;
+        }
+        panic_op = eref;
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_RPAREN) {
+          out_ok[0] = 0;
+          return 1;
+        }
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    }
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, ref, EXPR_PANIC);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_unary_operand_c(arena, ref, panic_op);
+    pipeline_expr_set_line_col(arena, ref, 0, 0);
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * `(expr)` grouping primary, then the shared suffix loop.
+ * @return i32 — 1 handled; 0 not LPAREN
+ * PLATFORM: SHARED — P4bh paren arm. Suffix loop is P4bf (G.7).
+ */
+function parser_asm_primary_paren_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    eok = 0;
+    eref = 0;
+    if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RPAREN) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    out_ok[0] = 1;
+    out_expr_ref[0] = eref;
+    parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * `[ e0, ... ]` / `[]` array-lit primary, then the shared suffix loop.
+ * @return i32 — 1 handled; 0 not LBRACKET
+ * PLATFORM: SHARED — P4bh array arm.
+ */
+function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACKET) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, ref, EXPR_ARRAY_LIT);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_line_col(arena, ref, 0, 0);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RBRACKET) {
+      while (1 == 1) {
+        eok = 0;
+        eref = 0;
+        if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0 || eref == 0) {
+          out_ok[0] = 0;
+          return 1;
+        }
+        if (pipeline_expr_append_array_lit_elem(arena, ref, eref) < 0) {
+          out_ok[0] = 0;
+          return 1;
+        }
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_COMMA) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (kind == TOKEN_RBRACKET) {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RBRACKET) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Bare `{` primary: block expression vs anonymous struct lit, then
+ * suffix loop on the struct path only (C twin). Block wrap is P5f
+ * (G.7; type_ref=0). Anonymous fields stay the C ptr shim.
+ * @return i32 — 1 handled; 0 not LBRACE
+ * PLATFORM: SHARED — P4bh LBRACE arm.
+ */
+function parser_asm_primary_lbrace_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let bok: i32 = 0;
+  let bref: i32 = 0;
+  let wrap: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    if (parser_asm_lbrace_looks_like_block_ptr_c(lex_inout, source) != 0) {
+      bok = 0;
+      bref = 0;
+      if (parser_parse_block_ptr_into_c(arena, lex_inout, source, 0, &bok, &bref) == 0 || bok == 0) {
+        out_ok[0] = 0;
+        return 1;
+      }
+      wrap = parser_asm_wrap_block_ref_as_expr_into_c(arena, bref, 0);
+      if (wrap == 0) {
+        out_ok[0] = 0;
+        return 1;
+      }
+      out_ok[0] = 1;
+      out_expr_ref[0] = wrap;
+      return 1;
+    }
+    eok = 0;
+    eref = 0;
+    parser_asm_parse_anonymous_struct_lit_ptr_c(arena, lex_inout, source, &eok, &eref);
+    if (eok == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = eref;
+    parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * parse_primary dest-buffer dispatcher (.x mirror of
+ * parser_asm_parse_primary_into_slice_c after AUDIT). Peek-dispatch
+ * remaining arms; INT/IDENT reuse existing literal_x / ident_x;
+ * IF reuses P5f; MATCH/AT are zero-algorithm C ptr shims.
+ * @param buffers — suffix-loop trampoline buffers (dispatcher-owned)
+ * @return i32 — 1 attempted (check out_ok); 0 null args
+ * PLATFORM: SHARED — product P4bh B-minus. C trampoline keeps AUDIT
+ * and copies lex_inout into out->next_lex. Do not grow suffix_loop.
+ */
+#[no_mangle]
+export function parser_asm_parse_primary_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
+  let kind: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    rc = parser_asm_primary_string_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc != 0) {
+      return 1;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_AT) {
+      rc = parser_parse_at_simd_builtin_ptr_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+      if (rc == 0) {
+        out_ok[0] = 0;
+      }
+      return 1;
+    }
+    rc = parser_asm_primary_literal_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    rc = parser_asm_primary_return_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc != 0) {
+      return 1;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_MATCH) {
+      rc = parser_parse_match_ptr_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+      if (rc == 0) {
+        out_ok[0] = 0;
+      }
+      return 1;
+    }
+    rc = parser_asm_primary_panic_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc != 0) {
+      return 1;
+    }
+    rc = parser_asm_primary_ident_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    rc = parser_asm_primary_paren_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    rc = parser_asm_primary_array_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_IF) {
+      rc = parser_asm_parse_if_expr_x_into_c(arena, lex_inout, source, 0, out_ok, out_expr_ref);
+      if (rc == 0) {
+        out_ok[0] = 0;
+      }
+      return 1;
+    }
+    rc = parser_asm_primary_lbrace_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    out_ok[0] = 0;
     return 1;
   }
   return 0;

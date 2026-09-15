@@ -1001,22 +1001,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P3 type_ref ← $_pthin_p3_seed (G-02f-280 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P4b/P4be/P4bf Route C (2026-09-13/15).
+        # PLATFORM: SHARED — 7.2.1 P4b/P4be/P4bf/P4bg/P4bh Route C (2026-09-13/15/16).
         # pthin_expr_primary.x holds IDENT spelling probes, the asm!
-        # options bit table, suffix_loop, and IDENT/INT heads. P4be
-        # completed TOKEN/writer pins so `-E` typeck of suffix_loop
-        # passes (was XT001 undeclared names). P4bf publishes next_lex
-        # from the C trampoline (C-twin stop contract) so IDENT callers
-        # do not re-parse `mod.fn(...)` until RSS blows up. P4bg
-        # dispatches ident_x_into_c (zeros THEN set_var_name so arena
-        # zeros do not wipe var_name_len). Cold: no define, full .inc.
+        # options bit table, suffix_loop, IDENT/INT heads, and P4bh
+        # remaining parse_primary dest-buffer. P4be completed TOKEN/writer
+        # pins so `-E` typeck of suffix_loop passes (was XT001 undeclared
+        # names). P4bf publishes next_lex from the C trampoline (C-twin
+        # stop contract) so IDENT callers do not re-parse `mod.fn(...)`
+        # until RSS blows up. P4bg dispatches ident_x_into_c (zeros THEN
+        # set_var_name so arena zeros do not wipe var_name_len). P4bh
+        # dest-buffers remaining primary arms (STRING/RETURN/PANIC/paren/
+        # array/LBRACE); MATCH/AT stay C ptr shims. Cold: no define, full .inc.
         # P3c mangle trampoline in primary.inc needs TYPE_REF_BODIES too.
         _pthin_p4p_extra=""
         if [ -n "$_pthin_p4pb_thin_o" ] && [ -f "$_pthin_p4pb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o"; then
             _pthin_p4pb_ok=1
             _pthin_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X"
-            echo "g05_ensure: P4b/P4be/P4bf/P4bg primary bodies ← $_pthin_p4pb_x (7.2.1 Route C)"
+            echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh primary bodies ← $_pthin_p4pb_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4b primary .x thin failed; P4 C twin stays full" >&2
           fi
