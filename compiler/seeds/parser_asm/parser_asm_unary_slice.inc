@@ -7,7 +7,8 @@
  *
  * Hybrid P4ub/P4uc: XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X skips the portable
  * TOKEN→ExprKind table and the wrap twin (bodies in pthin_expr_unary.x).
- * parse / arena stay here. wrap keeps a dest-buffer trampoline so
+ * parse stays here as a dest-buffer trampoline under BODIES (P4ud);
+ * AUDIT padding stays. wrap keeps a dest-buffer trampoline so
  * parse_unary still sees parse_expr_result*. Contiguous already-T
  * AUDIT_CALL padding is compiled only under XLANG_PARSER_STRETCH_AUDIT
  * (product AUDIT_CALL is nop).
@@ -160,6 +161,29 @@ int32_t parser_asm_unary_token_to_expr_kind_c(int32_t kind) {
   return -1;
 }
 #endif /* !XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X */
+
+#ifdef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
+/**
+ * Pointer-face parse_primary. Language has no lexer / parse_expr_result
+ * by-value; this C face copies the cursor, drives the historical
+ * parser_parse_primary_into, and writes ok / expr_ref / next_lex.
+ * PLATFORM: SHARED — P4ud zero-algorithm shim. Do not copy primary parse.
+ */
+int32_t parser_parse_primary_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                        int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_parse_primary_into(arena, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+#endif /* XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X primary ptr */
 
 /**
  * parse_unary_into：(-|!|&|await|run|spawn) unary | primary。
@@ -871,6 +895,29 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
 #endif /* XLANG_PARSER_STRETCH_AUDIT */
+#ifdef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4ud trampoline. AUDIT stays above (product nop).
+   * .x peeks once (C twin's two lexer_next_into both start from the same
+   * lex). Publish next_lex from the live cursor. */
+  {
+    extern int32_t parser_asm_parse_unary_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                   int32_t *out_expr_ref);
+    struct parser_asm_lexer cur;
+    int32_t ok;
+    int32_t ref;
+    cur = lex;
+    ok = 0;
+    ref = 0;
+    if (parser_asm_parse_unary_x_into_c(arena, &cur, source, &ok, &ref) == 0 || ok == 0) {
+      out->ok = 0;
+      return;
+    }
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = cur;
+    return;
+  }
+#else
   lexer_next_into(&r, lex, source);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
   lexer_next_into(&r, lex, source);
@@ -887,6 +934,7 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
     return;
   }
   parser_parse_primary_into(arena, lex, source, out);
+#endif /* XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X parse_unary */
 }
 
 #endif /* PARSER_ASM_UNARY_SLICE_INCLUDED */

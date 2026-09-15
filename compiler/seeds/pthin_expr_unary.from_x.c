@@ -5,10 +5,10 @@
  * Body: seeds/parser_asm/parser_asm_unary_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P4ub/P4uc (XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X): portable
- * TOKEN→ExprKind and wrap dest-buffer come from pthin_expr_unary.x;
- * this TU keeps a wrap trampoline plus arena parse. Cold: no BODIES
- * define, full .inc.
+ * Hybrid P4ub/P4uc/P4ud (XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X): portable
+ * TOKEN→ExprKind, wrap dest-buffer, and parse_unary dest-buffer come from
+ * pthin_expr_unary.x; this TU keeps wrap + primary-ptr trampolines.
+ * Cold: no BODIES define, full .inc.
  * Do not reuse XLANG_PTHIN_EXPR_UNARY_FROM_X for P4ub/P4uc bodies.
  */
 #include <stddef.h>

@@ -34,9 +34,18 @@
 // combinator logic). Do not "fix" the redundant double lexer_next_into
 // at the AUDIT/parse boundary as a side effect. Do not merge
 // compound_assign_token_to_expr_kind (different TOKEN set: += -= *= …).
+// 7.2.1 P4ud B-minus (2026-09-15): 有则补全 parse_unary dest-buffer.
+// Token walk reuses P9a peek/step (same family as P5f parse_if_expr).
+// Unary prefix: peek kind, step, recurse this dest-buffer, wrap via
+// P4uc wrap_operand_into_c. Non-prefix: parse_primary through the
+// pointer-face shim in unary.inc (zero-algorithm over the historical
+// by-value parser_parse_primary_into; language has no struct-by-value).
+// C trampoline keeps AUDIT_CALL padding and publishes next_lex.
+// Do not copy wrap into parse. Do not merge binop parse. Do not
+// dest-buffer parse_primary this wave. Do not open a new P-lane.
 //
-// Hybrid P4ub/P4uc: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
-// skips the portable .inc region (TOKEN table + wrap twin). token.h remains
+// Hybrid P4ub/P4uc/P4ud: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
+// skips the portable .inc region (TOKEN table + wrap twin + parse_unary). token.h remains
 // the TOKEN_* authority via P4u C _Static_assert pins. Cold: no define,
 // full .inc stays.
 // PLATFORM: SHARED freestanding.
@@ -72,6 +81,19 @@ export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): v
 export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
 /** P4uc: write Expr.unary_operand_ref. Call after set_common_zeros_c. */
 export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
+/** P9a: peek next kind without advancing. */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: consume one token; returns its kind. */
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek tok.line of the next token. */
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek tok.col of the next token. */
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+/**
+ * Pointer-face parse_primary. Zero-algorithm C shim in unary.inc:
+ * copies lexer, calls parser_parse_primary_into, writes ok/ref/next_lex.
+ */
+export extern "C" function parser_parse_primary_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 
 /**
  * Map unary prefix token → ExprKind ordinal.
@@ -148,4 +170,65 @@ export function parser_asm_unary_wrap_operand_into_c(arena: *u8, out_ok: *i32, o
     out_expr_ref[0] = op_ref;
   }
   return op_ref;
+}
+
+/**
+ * Parse unary prefix (`-` `~` `!` `&` `*` await/run/spawn) or fall back
+ * to parse_primary. .x mirror of parser_asm_parse_unary_into_slice_c:
+ * one P9a peek (the C twin's redundant double lexer_next_into both
+ * start from the same lex — not a double-advance). Prefix: step,
+ * recurse this dest-buffer, wrap. Non-prefix: primary ptr shim
+ * (cursor unadvanced, matching C parse_primary from the original lex).
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — cursor; parked after the parsed expr
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — parse_expr_result.ok
+ * @param out_expr_ref *i32 — parse_expr_result.expr_ref
+ * @return i32 — 1 success (out_ok=1); 0 failure
+ * PLATFORM: SHARED — product P4ud B-minus. C trampoline keeps AUDIT
+ * and the by-value parse_expr_result face. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_unary_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let expr_kind: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let wr: i32 = 0;
+  let inner_ref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    expr_kind = parser_asm_unary_token_to_expr_kind_c(kind);
+    if (expr_kind >= 0) {
+      tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+      tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      if (parser_asm_parse_unary_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref) == 0) {
+        return 0;
+      }
+      if (out_ok[0] == 0) {
+        return 0;
+      }
+      inner_ref = out_expr_ref[0];
+      wr = parser_asm_unary_wrap_operand_into_c(arena, out_ok, out_expr_ref, expr_kind, inner_ref, tl, tc);
+      if (wr == 0) {
+        out_ok[0] = 0;
+        return 0;
+      }
+      return 1;
+    }
+    if (parser_parse_primary_ptr_into_c(arena, lex_inout, source, out_ok, out_expr_ref) == 0) {
+      return 0;
+    }
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
 }
