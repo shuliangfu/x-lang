@@ -107,7 +107,7 @@
 // parallel arrays (trait stride 64, for-name stride 64, cap 16) and
 // holds gnm[64] for the P12i self_matches_for dest. Reuses
 // skip_named_bytes_eq + xlang_skip_impl_self_matches_for_into_c.
-// Accessors (seen_count / trait_name_into / for_type_into) stay C.
+// Accessors (seen_count / trait_name_into / for_type_into) are P12n.
 // method_on_param / bound_check stay C (fat trait-reg struct).
 // Do not copy into typeck. Do not merge with P6b. Do not merge with
 // trait-reg accessors. Do not open a new P-lane. Do not FORCE pabi mega.
@@ -119,21 +119,36 @@
 // the C trampoline passes those tables and the two diag helpers
 // format lsp_diag_report_typeck. bound_check_c stays C (thin
 // iterator over g_call_*). method_on_param stays C (fat trait-reg).
-// Accessors stay C. Do not copy into typeck (typeck already calls
+// Accessors are P12n. Do not copy into typeck (typeck already calls
 // the historical _c). Do not wrap method_on_param. Do not open a
 // new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m: g05_try_x_to_o this
+// 7.2.1 P12n B-minus (2026-09-15): 有则补全 F4 impl-seen accessors
+// dest-buffer (seen_count / trait_name_into / for_type_into). Always
+// host-cc (not behind BODIES). Same parallel g_xlang_skip_impl_*
+// tables as P12l (trait stride 64 / for-name stride 64 / cap 16);
+// for_type also reads for_kinds / for_is_ptr. Language has no
+// file-local statics; the C trampoline passes those tables.
+// Historical public names stay (`_c` / already-`_into_c`); dest
+// bodies are `_into_c` / `_dest_into_c` so they do not collide.
+// method_on_param stays C (fat trait-reg). F3 accessors stay C.
+// bound_check_c stays C. Do not merge with concrete_implements.
+// Do not copy into typeck / codegen (they already call `_c`).
+// Do not wrap method_on_param. Do not open a new P-lane.
+// Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
 // skip_name_is_self + self_matches_for + named_eq_self +
 // rewrite_self + register_type_params + type_param_index +
-// concrete_implements_trait + bound_check_type_args). Requires P9a
+// concrete_implements_trait + bound_check_type_args +
+// impl-seen accessors). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12m bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12n bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -4121,6 +4136,169 @@ export function xlang_generic_bound_check_type_args_into_c(fn_name: *u8, fn_name
     }
   }
   return violated;
+}
+
+/**
+ * Copy min(nlen, 64) bytes from a dest-table name row into out64.
+ * Does not zero the rest of out64 (matches the F4 C twins). Returns
+ * nlen (the stored length, which may exceed 64). nlen<=0 or null
+ * pointers → 0 and no write.
+ * @param src *u8 — dest-table row; null → 0
+ * @param nlen i32 — stored length; <=0 → 0
+ * @param out64 *u8 — caller dest, capacity >= 64; null → 0
+ * @return i32 — nlen on copy, 0 on reject
+ * PLATFORM: SHARED — file-local helper for P12n; not a second P1b copy_slice.
+ */
+function skip_copy_row64(src: *u8, nlen: i32, out64: *u8): i32 {
+  let ci: i32 = 0;
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  if (out64 == 0 as *u8) {
+    return 0;
+  }
+  if (nlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    ci = 0;
+    while (ci < nlen && ci < GNM_CAP) {
+      out64[ci as usize] = src[ci as usize];
+      ci = ci + 1;
+    }
+  }
+  return nlen;
+}
+
+/**
+ * Occupied impl-seen count. Language has no file-local statics; dest
+ * is the C `g_xlang_skip_impl_seen_n` scalar passed by the trampoline.
+ * @param seen_n i32 — occupied impl-seen count (read-only)
+ * @return i32 — seen_n unchanged (empty registry → 0)
+ * PLATFORM: SHARED — product P12n B-minus. C trampoline owns the scalar.
+ * Do not merge with concrete_implements. Do not wrap method_on_param.
+ */
+#[no_mangle]
+export function xlang_skip_impl_seen_count_into_c(seen_n: i32): i32 {
+  return seen_n;
+}
+
+/**
+ * Copy the trait name of impl block `si` into `out64` (capacity >= 64).
+ * Language has no file-local statics; dest tables are the C
+ * g_xlang_skip_impl_trait / _len (stride 64, cap 16). Does not zero
+ * the rest of out64. Returns the stored length (may exceed 64; copy
+ * truncates at 64 so the caller can detect truncation).
+ * @param si i32 — impl index, 0..seen_n-1
+ * @param out64 *u8 — dest 64; null → 0
+ * @param impl_trait *u8 — dest impl trait names, stride 64, cap 16
+ * @param impl_trait_len *i32 — dest impl trait name lens, cap 16
+ * @param seen_n i32 — occupied impl-seen count (read-only)
+ * @return i32 — stored trait name length, or 0 on invalid si / empty name
+ * PLATFORM: SHARED — product P12n B-minus. Historical public name
+ * `xlang_skip_impl_trait_name_into_c` stays the C trampoline.
+ * Do not merge with concrete_implements. Do not wrap method_on_param.
+ */
+#[no_mangle]
+export function xlang_skip_impl_trait_name_dest_into_c(si: i32, out64: *u8, impl_trait: *u8, impl_trait_len: *i32, seen_n: i32): i32 {
+  let nlen: i32 = 0;
+  let off: usize = 0;
+  if (out64 == 0 as *u8) {
+    return 0;
+  }
+  if (impl_trait == 0 as *u8) {
+    return 0;
+  }
+  if (impl_trait_len == 0 as *i32) {
+    return 0;
+  }
+  if (si < 0) {
+    return 0;
+  }
+  if (si >= seen_n) {
+    return 0;
+  }
+  if (si >= SKIP_IMPL_SEEN_MAX) {
+    return 0;
+  }
+  unsafe {
+    nlen = impl_trait_len[si];
+    if (nlen <= 0) {
+      return 0;
+    }
+    off = (si as usize) * (GNM_CAP as usize);
+    nlen = skip_copy_row64(impl_trait + off, nlen, out64);
+  }
+  return nlen;
+}
+
+/**
+ * Read the for-type info of impl block `si`. All out-params are
+ * written on success (returns 1) and left untouched on failure
+ * (returns 0). Language has no file-local statics; dest tables are
+ * the C g_xlang_skip_impl_for_* parallel arrays (name stride 64,
+ * cap 16). Empty for-type names still succeed (nlen 0, no copy).
+ * @param si i32 — impl index, 0..seen_n-1
+ * @param out_kind *i32 — dest for-type kind ord (NAMED=8); null → 0
+ * @param out_is_ptr *i32 — dest 1 if for-type is *T; null → 0
+ * @param out_name64 *u8 — dest for-type name bytes, capacity >= 64; null → 0
+ * @param out_nlen_ptr *i32 — dest for-type name length; null → 0
+ * @param for_kinds *i32 — dest for-type kinds, cap 16
+ * @param for_is_ptr *i32 — dest for-type ptr flags, cap 16
+ * @param for_names *u8 — dest for-type names, stride 64, cap 16
+ * @param for_name_lens *i32 — dest for-type name lens, cap 16
+ * @param seen_n i32 — occupied impl-seen count (read-only)
+ * @return i32 — 1 on success, 0 if si out of range or dest null
+ * PLATFORM: SHARED — product P12n B-minus. Historical public name
+ * `xlang_skip_impl_for_type_into_c` stays the C trampoline.
+ * Do not merge with concrete_implements. Do not wrap method_on_param.
+ */
+#[no_mangle]
+export function xlang_skip_impl_for_type_dest_into_c(si: i32, out_kind: *i32, out_is_ptr: *i32, out_name64: *u8, out_nlen_ptr: *i32, for_kinds: *i32, for_is_ptr: *i32, for_names: *u8, for_name_lens: *i32, seen_n: i32): i32 {
+  let nlen: i32 = 0;
+  let off: usize = 0;
+  if (si < 0) {
+    return 0;
+  }
+  if (si >= seen_n) {
+    return 0;
+  }
+  if (si >= SKIP_IMPL_SEEN_MAX) {
+    return 0;
+  }
+  if (out_kind == 0 as *i32) {
+    return 0;
+  }
+  if (out_is_ptr == 0 as *i32) {
+    return 0;
+  }
+  if (out_name64 == 0 as *u8) {
+    return 0;
+  }
+  if (out_nlen_ptr == 0 as *i32) {
+    return 0;
+  }
+  if (for_kinds == 0 as *i32) {
+    return 0;
+  }
+  if (for_is_ptr == 0 as *i32) {
+    return 0;
+  }
+  if (for_names == 0 as *u8) {
+    return 0;
+  }
+  if (for_name_lens == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_kind[0] = for_kinds[si];
+    out_is_ptr[0] = for_is_ptr[si];
+    nlen = for_name_lens[si];
+    out_nlen_ptr[0] = nlen;
+    off = (si as usize) * (GNM_CAP as usize);
+    skip_copy_row64(for_names + off, nlen, out_name64);
+  }
+  return 1;
 }
 
 // ---------------------------------------------------------------------------
