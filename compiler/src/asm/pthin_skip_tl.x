@@ -112,17 +112,28 @@
 // Do not copy into typeck. Do not merge with P6b. Do not merge with
 // trait-reg accessors. Do not open a new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l: g05_try_x_to_o this
+// 7.2.1 P12m B-minus (2026-09-15): 有则补全 bound_check_type_args
+// dest-buffer. Always-host-cc (not behind BODIES). Walks parallel
+// g_fn_bound_* + g_xlang_skip_impl_* arrays (NOT the fat trait-reg
+// struct). Language has no file-local statics / no printf varargs;
+// the C trampoline passes those tables and the two diag helpers
+// format lsp_diag_report_typeck. bound_check_c stays C (thin
+// iterator over g_call_*). method_on_param stays C (fat trait-reg).
+// Accessors stay C. Do not copy into typeck (typeck already calls
+// the historical _c). Do not wrap method_on_param. Do not open a
+// new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
 // skip_name_is_self + self_matches_for + named_eq_self +
 // rewrite_self + register_type_params + type_param_index +
-// concrete_implements_trait). Requires P9a
+// concrete_implements_trait + bound_check_type_args). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12l bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12m bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -198,6 +209,12 @@ export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, o
 export extern "C" function pipeline_type_find_or_alloc_named(arena: *u8, name: *u8, name_len: i32): i32;
 /** Sidecar: find or alloc compound (PTR/ARRAY/…) by kind+elem+size. Already in product. */
 export extern "C" function pipeline_type_find_or_alloc_compound(arena: *u8, kind_ord: i32, elem_ref: i32, array_size: i32): i32;
+/** P12k public trampoline: look up a type-param index on g_fn_gp_*. */
+export extern "C" function xlang_generic_func_type_param_index_c(fn_name: *u8, fn_name_len: i32, tp_name: *u8, tp_name_len: i32): i32;
+/** P12m C varargs trampoline: "generic function '%.*s' requires type arguments…". */
+export extern "C" function xlang_generic_bound_diag_need_type_args_c(fn_name: *u8, fn_name_len: i32, line: i32, col: i32): void;
+/** P12m C varargs trampoline: "generic bound not satisfied: %.*s does not impl %.*s". Returns 0. */
+export extern "C" function xlang_generic_bound_diag_not_impl_c(ta: *u8, ta_len: i32, trait_nm: *u8, trait_nlen: i32, line: i32, col: i32): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P12 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -3873,6 +3890,237 @@ export function xlang_skip_impl_concrete_implements_trait_into_c(arena: *u8, con
     }
   }
   return 0;
+}
+
+/**
+ * Walk dest impl-seen rows for trait spelling `trait_nm` + for-name `ta`.
+ * On a miss, emit the C varargs "does not impl" diagnostic.
+ * Extracted so the P12m export's check_block stays under typeck's
+ * statement budget (XT001).
+ * @param impl_trait *u8 — dest impl trait names, stride 64
+ * @param impl_trait_len *i32 — dest impl trait name lens
+ * @param for_names *u8 — dest for-type names, stride 64
+ * @param for_name_lens *i32 — dest for-type name lens
+ * @param seen_n i32 — occupied impl-seen count (already capped)
+ * @param trait_nm *u8 — bound trait spelling
+ * @param trait_nlen i32 — bound trait length
+ * @param ta *u8 — concrete type-arg spelling
+ * @param ta_len i32 — concrete type-arg length
+ * @param line i32 — 1-based diagnostic line
+ * @param col i32 — 1-based diagnostic column
+ * @return i32 — 1 found, 0 miss (diag emitted)
+ * PLATFORM: SHARED — helper of P12m dest-buffer.
+ */
+function skip_impl_seen_match_or_diag(impl_trait: *u8, impl_trait_len: *i32, for_names: *u8, for_name_lens: *i32, seen_n: i32, trait_nm: *u8, trait_nlen: i32, ta: *u8, ta_len: i32, line: i32, col: i32): i32 {
+  let si: i32 = 0;
+  let impl_ok: i32 = 0;
+  let trait_off: usize = 0;
+  let for_off: usize = 0;
+  if (impl_trait == 0 as *u8) {
+    return 0;
+  }
+  if (impl_trait_len == 0 as *i32) {
+    return 0;
+  }
+  if (for_names == 0 as *u8) {
+    return 0;
+  }
+  if (for_name_lens == 0 as *i32) {
+    return 0;
+  }
+  if (trait_nm == 0 as *u8) {
+    return 0;
+  }
+  if (ta == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    si = 0;
+    while (si < seen_n) {
+      trait_off = (si as usize) * (GNM_CAP as usize);
+      for_off = (si as usize) * (GNM_CAP as usize);
+      if (skip_named_bytes_eq(impl_trait + trait_off, impl_trait_len[si], trait_nm, trait_nlen) != 0) {
+        if (skip_named_bytes_eq(for_names + for_off, for_name_lens[si], ta, ta_len) != 0) {
+          impl_ok = 1;
+        }
+      }
+      si = si + 1;
+    }
+  }
+  if (impl_ok == 0) {
+    impl_ok = xlang_generic_bound_diag_not_impl_c(ta, ta_len, trait_nm, trait_nlen, line, col);
+    impl_ok = 0;
+  }
+  return impl_ok;
+}
+
+/**
+ * Verify every captured bound on `fn_name` against the impl-seen
+ * registry for the concrete type-arg names at this call / type site.
+ * Language has no file-local statics; dest tables are the C
+ * g_fn_bound_* (stride 64, cap 16) and g_xlang_skip_impl_*
+ * (trait / for-name stride 64, cap 16) parallel arrays. Type-arg
+ * rows are stride 64 (C `type_args[][64]`). Phantom type-param
+ * names (`Foo<T>` where T is a type-param of Foo) skip the impl
+ * check via P12k type_param_index. Diagnostics go through the C
+ * varargs trampolines (language has no printf varargs).
+ * @param fn_name *u8 — callee spelling; null / empty → 0
+ * @param fn_name_len i32 — byte count; capped at 63
+ * @param type_args *u8 — concrete type-name rows, stride 64; null only legal when nargs==0
+ * @param type_arg_lens *i32 — per-slot name lengths; null only legal when nargs==0
+ * @param nargs i32 — type-arg slot count
+ * @param line i32 — 1-based diagnostic line
+ * @param col i32 — 1-based diagnostic column
+ * @param bound_name *u8 — dest generic-fn names, stride 64, cap 16
+ * @param bound_name_len *i32 — dest generic-fn name lens, cap 16
+ * @param bound_trait *u8 — dest bound-trait names, stride 64, cap 16
+ * @param bound_trait_len *i32 — dest bound-trait name lens, cap 16
+ * @param bound_pos *i32 — dest type-param positions, cap 16
+ * @param bound_n i32 — occupied bound-row count (read-only)
+ * @param impl_trait *u8 — dest impl trait names, stride 64, cap 16
+ * @param impl_trait_len *i32 — dest impl trait name lens, cap 16
+ * @param for_names *u8 — dest impl for-type names, stride 64, cap 16
+ * @param for_name_lens *i32 — dest impl for-type name lens, cap 16
+ * @param seen_n i32 — occupied impl-seen count (read-only)
+ * @return i32 — 0 all bounds satisfied (or nothing to check); -1 ≥1 violation
+ * PLATFORM: SHARED — product P12m B-minus. C trampoline owns
+ * g_fn_bound_* and g_xlang_skip_impl_*. Do not wrap method_on_param.
+ * Do not wrap bound_check_c. Do not merge with fat trait-reg accessors.
+ * Do not copy into typeck (typeck already calls the historical `_c`).
+ */
+#[no_mangle]
+export function xlang_generic_bound_check_type_args_into_c(fn_name: *u8, fn_name_len: i32, type_args: *u8, type_arg_lens: *i32, nargs: i32, line: i32, col: i32, bound_name: *u8, bound_name_len: *i32, bound_trait: *u8, bound_trait_len: *i32, bound_pos: *i32, bound_n: i32, impl_trait: *u8, impl_trait_len: *i32, for_names: *u8, for_name_lens: *i32, seen_n: i32): i32 {
+  let bi: i32 = 0;
+  let si: i32 = 0;
+  let n: i32 = 0;
+  let sn: i32 = 0;
+  let pos: i32 = 0;
+  let ta_len: i32 = 0;
+  let impl_ok: i32 = 0;
+  let skip: i32 = 0;
+  let violated: i32 = 0;
+  let name_off: usize = 0;
+  let trait_off_b: usize = 0;
+  let trait_off_s: usize = 0;
+  let for_off: usize = 0;
+  let ta: *u8 = 0 as *u8;
+  if (fn_name == 0 as *u8) {
+    return 0;
+  }
+  if (fn_name_len <= 0) {
+    return 0;
+  }
+  if (bound_name == 0 as *u8) {
+    return 0;
+  }
+  if (bound_name_len == 0 as *i32) {
+    return 0;
+  }
+  if (bound_trait == 0 as *u8) {
+    return 0;
+  }
+  if (bound_trait_len == 0 as *i32) {
+    return 0;
+  }
+  if (bound_pos == 0 as *i32) {
+    return 0;
+  }
+  if (impl_trait == 0 as *u8) {
+    return 0;
+  }
+  if (impl_trait_len == 0 as *i32) {
+    return 0;
+  }
+  if (for_names == 0 as *u8) {
+    return 0;
+  }
+  if (for_name_lens == 0 as *i32) {
+    return 0;
+  }
+  if (bound_n <= 0) {
+    return 0;
+  }
+  if (fn_name_len > 63) {
+    fn_name_len = 63;
+  }
+  n = bound_n;
+  if (n > FN_BOUND_MAX) {
+    n = FN_BOUND_MAX;
+  }
+  sn = seen_n;
+  if (sn < 0) {
+    sn = 0;
+  }
+  if (sn > SKIP_IMPL_SEEN_MAX) {
+    sn = SKIP_IMPL_SEEN_MAX;
+  }
+  unsafe {
+    bi = 0;
+    while (bi < n) {
+      skip = 0;
+      name_off = (bi as usize) * (BOUND_NAME_CAP as usize);
+      if (skip_named_bytes_eq(bound_name + name_off, bound_name_len[bi], fn_name, fn_name_len) == 0) {
+        skip = 1;
+      }
+      pos = 0;
+      ta_len = 0;
+      ta = fn_name;
+      if (skip == 0) {
+        pos = bound_pos[bi];
+        if (nargs <= 0) {
+          skip = 2;
+        }
+      }
+      if (skip == 0) {
+        if (type_args == 0 as *u8) {
+          skip = 2;
+        }
+      }
+      if (skip == 0) {
+        if (type_arg_lens == 0 as *i32) {
+          skip = 2;
+        }
+      }
+      if (skip == 0) {
+        if (pos < 0) {
+          skip = 2;
+        }
+      }
+      if (skip == 0) {
+        if (pos >= nargs) {
+          skip = 2;
+        }
+      }
+      if (skip == 2) {
+        xlang_generic_bound_diag_need_type_args_c(fn_name, fn_name_len, line, col);
+        violated = -1;
+        skip = 1;
+      }
+      if (skip == 0) {
+        ta = type_args + (pos as usize) * (BOUND_NAME_CAP as usize);
+        ta_len = type_arg_lens[pos];
+        if (ta_len <= 0) {
+          xlang_generic_bound_diag_need_type_args_c(fn_name, fn_name_len, line, col);
+          violated = -1;
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        if (xlang_generic_func_type_param_index_c(fn_name, fn_name_len, ta, ta_len) >= 0) {
+          skip = 1;
+        }
+      }
+      if (skip == 0) {
+        trait_off_b = (bi as usize) * (BOUND_NAME_CAP as usize);
+        impl_ok = skip_impl_seen_match_or_diag(impl_trait, impl_trait_len, for_names, for_name_lens, sn, bound_trait + trait_off_b, bound_trait_len[bi], ta, ta_len, line, col);
+        if (impl_ok == 0) {
+          violated = -1;
+        }
+      }
+      bi = bi + 1;
+    }
+  }
+  return violated;
 }
 
 // ---------------------------------------------------------------------------

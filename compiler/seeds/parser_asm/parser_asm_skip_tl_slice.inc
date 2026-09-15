@@ -1067,6 +1067,12 @@ int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn
                                                const uint8_t *method_name, int32_t method_name_len,
                                                int32_t num_args, int32_t *out_ret_kind,
                                                uint8_t *out_ret_name, int32_t *out_ret_name_len);
+/* P12m C varargs trampolines for dest-buffer bound_check_type_args. */
+void xlang_generic_bound_diag_need_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                              int32_t line, int32_t col);
+int32_t xlang_generic_bound_diag_not_impl_c(const uint8_t *ta, int32_t ta_len,
+                                           const uint8_t *trait, int32_t trait_len,
+                                           int32_t line, int32_t col);
 
 /* wave439: source buffer stash. Populated by xlang_generic_bound_stash_source_c
  * from the top-level skip functions (struct/enum/trait/impl), each of which
@@ -5431,6 +5437,60 @@ int32_t xlang_generic_bound_method_on_param_c(const uint8_t *fn_name, int32_t fn
  * @return 0 all bounds satisfied (or nothing to check); -1 ≥1 violation
  * PLATFORM: SHARED parse+typeck — rebuild parser thin glue after edit.
  */
+
+/**
+ * P12m C varargs trampolines. Language has no printf varargs / no local
+ * u8[N] message buffer; the .x dest-buffer calls these to emit the same
+ * two diagnostics the C twin used to inline. Zero algorithm.
+ * PLATFORM: SHARED — format strings stay here (single authority).
+ */
+void xlang_generic_bound_diag_need_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                              int32_t line, int32_t col) {
+  if (!fn_name || fn_name_len <= 0)
+    return;
+  lsp_diag_report_typeck((int)line, (int)col,
+                         "generic function '%.*s' requires type arguments to satisfy trait bounds",
+                         (int)fn_name_len, (const char *)fn_name);
+}
+
+int32_t xlang_generic_bound_diag_not_impl_c(const uint8_t *ta, int32_t ta_len,
+                                           const uint8_t *trait, int32_t trait_len,
+                                           int32_t line, int32_t col) {
+  if (!ta || ta_len <= 0 || !trait || trait_len <= 0)
+    return 0;
+  lsp_diag_report_typeck((int)line, (int)col,
+                         "generic bound not satisfied: %.*s does not impl %.*s",
+                         (int)ta_len, (const char *)ta,
+                         (int)trait_len, (const char *)trait);
+  return 0;
+}
+
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12m trampoline. Language has no file-local statics;
+ * .x walks dest g_fn_bound_* (stride 64, cap 16) + g_xlang_skip_impl_*
+ * (trait/for-name stride 64, cap 16). Zero algorithm besides passing
+ * the tables. type_args stay the caller's rows (stride 64). bound_check_c
+ * stays C. method_on_param stays C. Accessors stay C. */
+extern int32_t xlang_generic_bound_check_type_args_into_c(const uint8_t *fn_name, int32_t fn_name_len,
+        uint8_t *type_args, int32_t *type_arg_lens, int32_t nargs, int32_t line, int32_t col,
+        uint8_t *bound_name, int32_t *bound_name_len, uint8_t *bound_trait, int32_t *bound_trait_len,
+        int32_t *bound_pos, int32_t bound_n,
+        uint8_t *impl_trait, int32_t *impl_trait_len, uint8_t *for_names, int32_t *for_name_lens,
+        int32_t seen_n);
+int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t type_args[][64],
+                                               const int32_t *type_arg_lens, int32_t nargs,
+                                               int32_t line, int32_t col) {
+  return xlang_generic_bound_check_type_args_into_c(
+      fn_name, fn_name_len, (uint8_t *)type_args, (int32_t *)type_arg_lens, nargs, line, col,
+      (uint8_t *)g_fn_bound_name, g_fn_bound_name_len,
+      (uint8_t *)g_fn_bound_trait, g_fn_bound_trait_len,
+      g_fn_bound_pos, g_fn_bound_n,
+      (uint8_t *)g_xlang_skip_impl_trait, g_xlang_skip_impl_trait_len,
+      (uint8_t *)g_xlang_skip_impl_for_names, g_xlang_skip_impl_for_name_lens,
+      g_xlang_skip_impl_seen_n);
+}
+#else
 int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn_name_len,
                                                const uint8_t type_args[][64],
                                                const int32_t *type_arg_lens, int32_t nargs,
@@ -5452,18 +5512,14 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
     pos = g_fn_bound_pos[bi];
     /* Under-specified: no slots at all, missing position, or empty name. */
     if (nargs <= 0 || !type_args || !type_arg_lens || pos < 0 || pos >= nargs) {
-      lsp_diag_report_typeck((int)line, (int)col,
-                             "generic function '%.*s' requires type arguments to satisfy trait bounds",
-                             (int)fn_name_len, (const char *)fn_name);
+      xlang_generic_bound_diag_need_type_args_c(fn_name, fn_name_len, line, col);
       violated = -1;
       continue;
     }
     ta_len = type_arg_lens[pos];
     ta = type_args[pos];
     if (ta_len <= 0) {
-      lsp_diag_report_typeck((int)line, (int)col,
-                             "generic function '%.*s' requires type arguments to satisfy trait bounds",
-                             (int)fn_name_len, (const char *)fn_name);
+      xlang_generic_bound_diag_need_type_args_c(fn_name, fn_name_len, line, col);
       violated = -1;
       continue;
     }
@@ -5485,16 +5541,14 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
       }
     }
     if (!impl_ok) {
-      lsp_diag_report_typeck((int)line, (int)col,
-                             "generic bound not satisfied: %.*s does not impl %.*s",
-                             (int)ta_len, (const char *)ta,
-                             (int)g_fn_bound_trait_len[bi],
-                             (const char *)g_fn_bound_trait[bi]);
+      xlang_generic_bound_diag_not_impl_c(ta, ta_len, g_fn_bound_trait[bi],
+                                         g_fn_bound_trait_len[bi], line, col);
       violated = -1;
     }
   }
   return violated;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X bound_check_type_args */
 
 /**
  * Verify captured generic call / type-position sites against decl bounds.
