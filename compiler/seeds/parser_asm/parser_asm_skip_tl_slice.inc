@@ -2,18 +2,19 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b–P12t: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b–P12u: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
  * enum_register + parse_one_extern_skip + parse_one_extern_and_add +
  * skip_name_is_self + self_matches_for + named_eq_self + rewrite_self +
  * register_type_params + type_param_index + concrete_implements_trait +
  * bound_check_type_args + impl-seen accessors + bound_check + F3 lookup +
  * F3 simple getters + dest-extras elem_array_dim + method_on_param +
- * skip_hoist_default_methods; bodies in
+ * skip_hoist_default_methods + trait_check_impls_complete outer walk; bodies in
  * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl and
  * generic_bound_scan trampolines live here (need file-static tables).
- * skip_one_trait stays C (P12g PRESET not linked). Cold: no define, full
- * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12t bodies.
+ * skip_one_trait stays C (P12g PRESET not linked). dest-SLICE param/ret
+ * shape + varargs diags stay C helpers (P12u). Cold: no define, full
+ * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12u bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -3056,7 +3057,7 @@ int32_t xlang_skip_hoist_inject_one_c(void *module, void *arena,
  * .x walks dest g_xlang_skip_impl_* (stride 64, cap 16) + fat
  * trait-reg image and calls inject_one per candidate. Zero
  * algorithm besides passing the tables and holding gnm[64].
- * trait_check_impls_complete stays C. register_pending stays C. */
+ * trait_check_impls_complete outer walk is P12u. register_pending stays C. */
 extern int32_t xlang_skip_hoist_default_methods_into_c(void *module, void *arena,
         uint8_t *src, int32_t src_len, uint8_t *impl_trait, int32_t *impl_trait_len,
         int32_t *for_kinds, int32_t *for_is_ptr, uint8_t *for_names,
@@ -3150,6 +3151,1843 @@ static void xlang_skip_hoist_default_methods_c(void *module) {
 }
 #endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X hoist */
 
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12u dest-SLICE / varargs helpers. Language has no
+ * local u8[N] / no fat-struct field access / no printf varargs; .x walks
+ * dest impl-seen + fat-ent image then calls these for param/ret shape
+ * and %.*s diags. Helpers read the same file-local tables the C trampoline
+ * passes as dest (si/ti index into g_xlang_skip_impl_* / g_xlang_skip_trait_reg).
+ * Cold twin keeps the original in-function soup (compile-time exclusive).
+ * Do not copy into typeck. Do not merge with skip_hoist. Do not FORCE pabi mega. */
+
+int32_t xlang_skip_trait_check_diag_unknown_c(int32_t si) {
+  int32_t tlen;
+  uint8_t *tname;
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return -1;
+  tlen = g_xlang_skip_impl_trait_len[si];
+  tname = g_xlang_skip_impl_trait[si];
+  if (tlen <= 0 || !tname)
+    return -1;
+  lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                         "impl for unknown trait %.*s", (int)tlen, (const char *)tname);
+  return -1;
+}
+
+int32_t xlang_skip_trait_check_diag_missing_c(int32_t si, const uint8_t *mnm, int32_t mlen) {
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return -1;
+  if (!mnm || mlen <= 0)
+    return -1;
+  lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                         "missing method %.*s", (int)mlen, (const char *)mnm);
+  return -1;
+}
+
+int32_t xlang_skip_trait_check_diag_param_count_c(int32_t si, const uint8_t *mnm, int32_t mlen) {
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return -1;
+  if (!mnm || mlen <= 0)
+    return -1;
+  lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                         "method %.*s parameter count mismatch", (int)mlen, (const char *)mnm);
+  return -1;
+}
+
+/**
+ * dest-SLICE param soup + untyped/annotated self for-type match (wave428/429/441).
+ * Caller already confirmed arity match. Returns -1 on mismatch (diag emitted).
+ * PLATFORM: SHARED — P12u language-permanent shape walk.
+ */
+int32_t xlang_skip_trait_check_param_shape_c(void *module, void *arena,
+    int32_t found_fi, int32_t si, int32_t ti, int32_t mi,
+    const uint8_t *mnm, int32_t mlen, int32_t expect_np) {
+  if (!module || !arena || found_fi < 0)
+    return 0;
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return 0;
+  if (ti < 0 || ti >= XLANG_SKIP_TRAIT_REG_MAX)
+    return 0;
+  if (mi < 0 || mi >= XLANG_SKIP_TRAIT_METH_MAX)
+    return 0;
+  if (!mnm || mlen <= 0 || expect_np < 0)
+    return 0;
+          int32_t pi;
+          for (pi = 0; pi < expect_np && pi < XLANG_SKIP_TRAIT_PARAM_MAX; pi++) {
+            int32_t ek = g_xlang_skip_trait_reg[ti].method_param_kinds[mi][pi];
+            int32_t pty;
+            int32_t got_pk;
+            if (ek < 0)
+              continue;
+            pty = pipeline_module_func_param_type_ref_at(module, found_fi, pi);
+            got_pk = (pty != 0) ? pipeline_type_kind_ord_at(arena, pty) : -1;
+            /* wave432: twin of seed param shape check (NAMED name / *T elem / []T elem). */
+            {
+              int32_t mm = 0;
+              if (got_pk >= 0 && got_pk != ek) {
+                mm = 1;
+              } else if (got_pk == ek && ek == XLANG_TRAIT_TY_NAMED) {
+                int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                if (enl > 0 && pty != 0) {
+                  uint8_t gnm[64];
+                  int32_t gnl = pipeline_type_named_name_into(arena, pty, gnm);
+                  if (!xlang_skip_trait_named_eq_self_c(
+                        g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                        gnm, gnl,
+                        g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                        g_xlang_skip_impl_for_is_ptr[si]))
+                    mm = 1;
+                }
+              } else if (got_pk == ek &&
+                         (ek == XLANG_TRAIT_TY_PTR || ek == XLANG_TRAIT_TY_SLICE)) {
+                int32_t eek = g_xlang_skip_trait_reg[ti].method_param_elem_kinds[mi][pi];
+                int32_t elem = (pty != 0) ? pipeline_type_elem_ref_at(arena, pty) : 0;
+                if (eek >= 0 && elem != 0) {
+                  int32_t gek = pipeline_type_kind_ord_at(arena, elem);
+                  if (gek >= 0 && gek != eek) {
+                    mm = 1;
+                  } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
+                  } else if (gek == eek && eek == XLANG_TRAIT_TY_SLICE) {
+                    /*
+                     * wave435: *[]T → PTR to SLICE of T. Walk pipeline SLICE
+                     * leaf → its elem → compare elem_elem (the slice base T).
+                     * dest-SLICE extra `[][][]T` / `[][][][]T`: skip-trait
+                     * stores eek=SLICE + eeek=leaf + ndims=-2 (extra inner
+                     * SLICE). Extra wrap count is dims[0] (0 means 1).
+                     * Pipeline pelem is then still SLICE — peel extra times
+                     * when ndims==-2 or T001 if layers run out. `[][]T`
+                     * (ndims=0) keeps the one-peel. dest extras dest-SLICE
+                     * of SLICE extra `[][]*T`: extra PTR wrap COUNT is
+                     * unused slot dims[0] with ndims staying 0 (1 =
+                     * `[][]*T`; 0 = no extra PTR = `[][]i32`). After the
+                     * leftover-SLICE peel, pelem is still PTR vs eeek=leaf
+                     * — peel leftover PTR extra times or T001. dest extras
+                     * dest-SLICE of SLICE extra ARRAY `[][][2]T`: leftover
+                     * after leftover-SLICE peel is ARRAY vs eeek=leaf
+                     * (ndims>=1, dims[0..ndims-1] from wave437 pending
+                     * LBRACKET after `[][]` then `[M]`). Peel leftover
+                     * ARRAY or T001. dest extras dest-SLICE of SLICE extra
+                     * ARRAY extra PTR `[][][2]*T`: leftover after extra
+                     * ARRAY peels is PTR vs eeek=leaf; extra PTR wrap
+                     * COUNT is unused slot dims[ndims] (1 = `[][][2]*T`;
+                     * 0 = no extra PTR = `[][][2]T`). Peel leftover PTR
+                     * extra times or T001. Store already has ndims>=1
+                     * (named / UFCS dest-stamp via the formal).
+                     * Discriminant: ndims==-2 extra SLICE; ndims==0 extra
+                     * PTR; ndims>=1 inner ARRAY (plus unused-slot extra
+                     * PTR). Do not invent -3.
+                     * PLATFORM: SHARED parse. G.7: complete this walk.
+                     */
+                    int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
+                    int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+                    if (eeek >= 0 && pelem != 0) {
+                      int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                      if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                        int32_t extra =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        int32_t extra_ptr;
+                        if (extra <= 0)
+                          extra = 1;
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          extra = extra - 1;
+                        }
+                        /*
+                         * dest extras dest-SLICE of SLICE extra PTR
+                         * `[][][]*T`: leftover after extra SLICE peels
+                         * is PTR vs eeek=leaf. Extra PTR wrap COUNT is
+                         * unused slot dims[1] (1 = `[][][]*T`; 0 = no
+                         * extra PTR = `[][][]T`). Peel leftover PTR
+                         * extra times or T001. dest extras dest-ARRAY
+                         * of SLICE extra PTR `[2][][]*T` uses the same
+                         * dims[1] encoding (ARRAY leftover matches at
+                         * leftover SLICE vs eek=SLICE — not this walk;
+                         * not T001). Do not invent -3. PLATFORM:
+                         * SHARED. G.7: complete this walk.
+                         */
+                        extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][1];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                      } else if (eand == 0) {
+                        int32_t extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                      } else if (eand >= 1) {
+                        /*
+                         * dest extras dest-SLICE of SLICE extra ARRAY
+                         * `[][][2]T`: leftover after leftover-SLICE
+                         * peel is ARRAY vs eeek=leaf. Inner ARRAY
+                         * dims are dims[0..ndims-1] (wave437 pending
+                         * LBRACKET after `[][]` then `[M]`). Peel
+                         * ARRAY outer-first or T001 if layers run
+                         * out. dest extras dest-SLICE of SLICE extra
+                         * ARRAY extra PTR `[][][2]*T`: leftover after
+                         * extra ARRAY peels is PTR vs eeek=leaf.
+                         * Extra PTR wrap COUNT is unused slot
+                         * dims[ndims] (1 = `[][][2]*T`; 0 = no extra
+                         * PTR = `[][][2]T`; same unused slot as dest
+                         * extras dest-SLICE of ARRAY extra `[][2][]T`
+                         * and dest extras dest-ARRAY of SLICE extra
+                         * `[2][][2]*T`; discriminant is elem_kind
+                         * SLICE vs ARRAY AND SLICE vs ARRAY outer).
+                         * Peel leftover PTR extra times or T001.
+                         * dest extras dest-ARRAY of SLICE extra PTR
+                         * `[2][][2]*T` uses the same dims[ndims]
+                         * encoding (ARRAY leftover matches at leftover
+                         * SLICE vs eek=SLICE — not this walk; not
+                         * T001). dest extras dest-SLICE of SLICE extra
+                         * wrap `[][][2][]T`: leftover after extra
+                         * ARRAY peels is SLICE vs eeek=leaf. Extra
+                         * SLICE wrap COUNT is unused slot
+                         * dims[ndims+1] (1 = `[][][2][]T`; 2 =
+                         * `[][][2][][]T`; 0 = no extra wrap =
+                         * `[][][2]T`; extra PTR of `[][][2]*T`
+                         * stays dims[ndims] — do not reopen). Peel
+                         * leftover SLICE extra times (after ARRAY,
+                         * before extra PTR) or T001. dest extras
+                         * dest-ARRAY of SLICE extra wrap `[2][][2][]T`
+                         * uses the same dims[ndims+1] encoding
+                         * (ARRAY leftover matches at leftover SLICE
+                         * vs eek=SLICE — not this walk; not T001).
+                         * PTR-outer extra empty `[]` `*[][2][]T`
+                         * uses the same dims[ndims+1] extra SLICE
+                         * encoding (this walk peels leftover SLICE
+                         * then extra ARRAY then extra SLICE then
+                         * extra PTR; leftover PTR vs eek=SLICE is
+                         * not T001 once extra SLICE is stored).
+                         * Extra ADDR_OF of typed `[][2][]i32`
+                         * dest-stamps via the formal (no dest extras
+                         * dest-PTR stamp). Nested extra lit dest
+                         * extras dest-PTR stamp stays deferred.
+                         * PTR-outer extra STAR `*[][2]*T` uses the
+                         * same dims[ndims] extra PTR encoding (this
+                         * walk peels leftover SLICE then extra ARRAY
+                         * then extra PTR; leftover PTR vs eek=SLICE
+                         * is not T001 once extra PTR is stored). Extra
+                         * ADDR_OF of typed `[][2]*i32` dest-stamps via
+                         * the formal (no dest extras dest-PTR stamp).
+                         * `[][]i32` (ndims==0) keeps leftover vs
+                         * eeek=leaf. Discriminant vs extra PTR
+                         * wrap-once: ndims==0 dims[0]; vs extra SLICE:
+                         * ndims==-2. Store already has ndims>=1
+                         * (named / UFCS dest-stamp via the formal).
+                         * Do not invent -3. PLATFORM: SHARED.
+                         * G.7: complete this walk.
+                         */
+                        int32_t d;
+                        int32_t extra_slice;
+                        int32_t extra_ptr;
+                        for (d = 0; d < eand; d++) {
+                          int32_t gsz;
+                          if (pgek != XLANG_TRAIT_TY_ARRAY || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          gsz = pipeline_type_array_size_at(arena, pelem);
+                          if (gsz != g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][d]) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        }
+                        extra_slice = 0;
+                        if (eand > 0 && eand + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                          extra_slice = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand + 1];
+                        if (extra_slice > 0) {
+                          while (extra_slice > 0) {
+                            if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_slice = extra_slice - 1;
+                          }
+                        }
+                        extra_ptr = 0;
+                        if (eand > 0 && eand < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                          extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                      }
+                      if (pgek >= 0 && pgek != eeek) {
+                        mm = 1;
+                      } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                        int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                        if (enl > 0) {
+                          uint8_t gnm[64];
+                          int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                          if (!xlang_skip_trait_named_eq_self_c(
+                                g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                gnm, gnl,
+                                g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                g_xlang_skip_impl_for_is_ptr[si]))
+                            mm = 1;
+                        }
+                      }
+                    }
+                  } else if (gek == eek && eek == XLANG_TRAIT_TY_ARRAY) {
+                    /*
+                     * wave436: *[N]T → PTR to ARRAY of N T. The PTR's elem
+                     * (elem) is the ARRAY. Walk its dims (elem_array_ndims/
+                     * dims) then compare the leaf elem kind/name with
+                     * elem_elem (base T). Multi-dim *[N][M]T is soft-skipped
+                     * at registration (eeks=-1) so this path only fires for
+                     * single-dim. Twin of wave433 ARRAY walk but on elem level.
+                     * PLATFORM: SHARED parse.
+                     */
+                    int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
+                    int32_t eend = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                    int32_t leaf_tr = elem;
+                    int32_t d;
+                    for (d = 0; d < eend && leaf_tr != 0; d++) {
+                      int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+                      int32_t gsz;
+                      if (k != XLANG_TRAIT_TY_ARRAY) {
+                        mm = 1;
+                        break;
+                      }
+                      gsz = pipeline_type_array_size_at(arena, leaf_tr);
+                      if (gsz != g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][d]) {
+                        mm = 1;
+                        break;
+                      }
+                      leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                      if (leaf_tr == 0 && d + 1 < eend) {
+                        mm = 1;
+                        break;
+                      }
+                    }
+                    if (!mm && eeek >= 0 && leaf_tr != 0) {
+                      int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                      /*
+                       * dest extras dest-SLICE of ARRAY extra `[][2]*T` /
+                       * `[][2][]T` / `[][2][]*T` and PTR-outer `*[2]*T` /
+                       * `*[2][]*T`: after walking ARRAY dims leftover is
+                       * still PTR (inner `*` of i32), SLICE (inner `[]`
+                       * of i32), or SLICE-of-PTR (`[][2][]*T` /
+                       * `*[2][]*T`) vs eeek=leaf. Extra PTR wrap count
+                       * is unused slot dims[ndims+1] (1 = `[][2]*T` /
+                       * `[][2][]*T` / `*[2]*T` / `*[2][]*T`); extra
+                       * SLICE wrap count is unused slot dims[ndims]
+                       * (1 = `[][2][]T` / `[][2][]*T` / `*[2][]T` /
+                       * `*[2][]*T`). Peel extra SLICE first (outer extra)
+                       * then extra PTR (inner extra) — dest extras wraps
+                       * PTR of leaf then SLICE. Peel PTR first of
+                       * `[][2][]*T` / `*[2][]*T` is T001 (leftover SLICE
+                       * vs PTR). `[][2]*T` / `*[2]*T` extra SLICE=0 still
+                       * peels PTR; `[][2][]T` extra PTR=0 still peels
+                       * SLICE. `[][2]i32` / `*[2]i32` (both slots 0)
+                       * keeps the ARRAY-then-leaf compare. Discriminant
+                       * dest extras dest-SLICE of ARRAY extra `[][2]*T`
+                       * vs PTR-outer `*[2]*T` (same unused slot) is
+                       * SLICE vs PTR outer. Do not invent -3.
+                       * PLATFORM: SHARED. G.7: complete this walk.
+                       */
+                      int32_t extra_ptr = 0;
+                      int32_t extra = 0;
+                      if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        extra = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend];
+                      if (extra > 0) {
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                          if (leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                          extra = extra - 1;
+                        }
+                      }
+                      if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                        extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eend + 1];
+                      if (extra_ptr > 0) {
+                        while (extra_ptr > 0) {
+                          if (pgek != XLANG_TRAIT_TY_PTR || leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                          if (leaf_tr == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                          extra_ptr = extra_ptr - 1;
+                        }
+                      }
+                      if (pgek >= 0 && pgek != eeek) {
+                        mm = 1;
+                      } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                        int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                        if (enl > 0) {
+                          uint8_t gnm[64];
+                          int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                          if (!xlang_skip_trait_named_eq_self_c(
+                                g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                gnm, gnl,
+                                g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                g_xlang_skip_impl_for_is_ptr[si]))
+                            mm = 1;
+                        }
+                      }
+                    }
+                  } else if (gek == eek && eek == XLANG_TRAIT_TY_PTR) {
+                    /*
+                     * dest extras dest-PARAM leftover extra
+                     * ARRAY/SLICE/PTR peels PTR-elem ndims>=1
+                     * `**[2][]T` / `**[2]*T` AND dest extras
+                     * dest-PARAM extra empty `[]` PTR-elem ndims=0
+                     * `**[]T` AND dest extras dest-PARAM extra STAR
+                     * PTR-elem ndims=0 `***T`: leftover PTR vs
+                     * eek=PTR is not T001 without extra ARRAY then
+                     * extra SLICE then extra PTR peels (store-only
+                     * leftover PTR vs eeek=leaf after extra ARRAY
+                     * peels is T001). Peel leftover PTR then ARRAY
+                     * dims then extra SLICE then extra PTR or T001
+                     * when ndims>=1. Extra SLICE wrap COUNT is unused
+                     * slot dims[ndims] when ndims>=1 (1 = `**[2][]T`;
+                     * 2 = `**[2][][]T`; 0 = no extra wrap =
+                     * `**[2]i32` / `**[2]*T`) and unused slot
+                     * dims[0] with ndims staying 0 (1 = `**[]T`;
+                     * 2 = `**[][]T`; 0 = no extra SLICE = `**T` /
+                     * `***T`). Extra PTR wrap COUNT is unused slot
+                     * dims[ndims+1] (1 = `**[2]*T` / `**[2][]*T`;
+                     * 0 = no extra PTR = `**[2]i32` / `**[2][]T`;
+                     * both slots = `**[2][]*T`) and unused slot
+                     * dims[1] with ndims staying 0 (1 = `***T`;
+                     * 2 = `****T`; 0 = no extra PTR = `**T`; both
+                     * slots = `**[]*T`). leftover skip eek=-1 was
+                     * false green of leftover extras never compared
+                     * (impl `**[2]i32` vs trait `**[2][]i32`
+                     * compile=0 run=2 leftover skip so leftover
+                     * never compares extras; impl `**[2]i32` vs
+                     * trait `**[2]*i32` compile=0 run=98 leftover
+                     * skip). Twin of leftover eek==PTR eend>0 extra
+                     * ARRAY then extra SLICE then extra PTR peels
+                     * (`**[2][]T` / `**[2]*T` dest extras dest-RET
+                     * already closed) AND leftover eek==PTR eend==0
+                     * extra SLICE then extra PTR peels (`**[]T` /
+                     * `***T` dest extras dest-RET already closed).
+                     * Extra ADDR_OF of typed `*[2][]i32` / `*[2]*i32`
+                     * dest-stamps via the formal (no dest extras
+                     * dest-PTR stamp). leftover extra SLICE peels
+                     * leftover eek==PTR eand==-2 (`[]*[]T` /
+                     * `[]*[][]T` PTR-to-SLICE of SLICE outer) peel
+                     * leftover SLICE extra times then leftover PTR
+                     * extra times (eeek compare stays inside the
+                     * eand==-2 branch — leftover after leftover-PTR
+                     * peel is SLICE vs eeek=leaf would T001 matching
+                     * `[]*[]T` if lifted). leftover skip leftover
+                     * extras never compared was false green (impl
+                     * `[]*i32` vs trait `[]*[]i32` compile=0 run=1
+                     * leftover skip). Twin of leftover eek==SLICE
+                     * eand==-2 extra SLICE then extra PTR peels.
+                     * Do not invent -3. PLATFORM: SHARED. G.7:
+                     * complete this walk.
+                     */
+                    int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
+                    int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+                    int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                    if (eeek >= 0 && pelem != 0) {
+                      int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      if (pgek == XLANG_TRAIT_TY_ARRAY && eand > 0) {
+                        int32_t d;
+                        int32_t extra_slice;
+                        int32_t extra_ptr;
+                        for (d = 0; d < eand && pelem != 0; d++) {
+                          int32_t k = pipeline_type_kind_ord_at(arena, pelem);
+                          int32_t gsz;
+                          if (k != XLANG_TRAIT_TY_ARRAY) {
+                            mm = 1;
+                            break;
+                          }
+                          gsz = pipeline_type_array_size_at(arena, pelem);
+                          if (gsz != g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][d]) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0 && d + 1 < eand) {
+                            mm = 1;
+                            break;
+                          }
+                        }
+                        if (!mm && pelem != 0)
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra_slice = 0;
+                        if (eand > 0 && eand < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                          extra_slice = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand];
+                        if (extra_slice > 0) {
+                          while (extra_slice > 0) {
+                            if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_slice = extra_slice - 1;
+                          }
+                        }
+                        extra_ptr = 0;
+                        if (eand > 0 && eand + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                          extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand + 1];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                        if (!mm) {
+                          if (pgek >= 0 && pgek != eeek) {
+                            mm = 1;
+                          } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                            int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                            if (enl > 0) {
+                              uint8_t gnm[64];
+                              int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                              if (!xlang_skip_trait_named_eq_self_c(
+                                    g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                    gnm, gnl,
+                                    g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                    g_xlang_skip_impl_for_is_ptr[si]))
+                                mm = 1;
+                            }
+                          }
+                        }
+                      } else if (eand == 0) {
+                        int32_t extra_slice;
+                        int32_t extra_ptr;
+                        extra_slice =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra_slice > 0) {
+                          while (extra_slice > 0) {
+                            if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_slice = extra_slice - 1;
+                          }
+                        }
+                        extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][1];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                        if (!mm) {
+                          if (pgek >= 0 && pgek != eeek) {
+                            mm = 1;
+                          } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                            int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                            if (enl > 0) {
+                              uint8_t gnm[64];
+                              int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                              if (!xlang_skip_trait_named_eq_self_c(
+                                    g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                    gnm, gnl,
+                                    g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                    g_xlang_skip_impl_for_is_ptr[si]))
+                                mm = 1;
+                            }
+                          }
+                        }
+                      } else if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                        /*
+                         * leftover extra SLICE peels leftover
+                         * eek==PTR eand==-2 `[]*[]T` / `[]*[][]T`
+                         * PTR-to-SLICE of SLICE outer: leftover PTR
+                         * vs eek=PTR is not T001 without leftover
+                         * extra SLICE peels (store-only leftover
+                         * extras never compared leftover skip false
+                         * green; impl `[]*i32` vs trait `[]*[]i32`
+                         * compile=0 run=1 leftover skip). Extra
+                         * SLICE wrap COUNT is dims[0] (0 means 1 =
+                         * `[]*[]T`; 2 = `[]*[][]T`). Extra PTR wrap
+                         * COUNT is unused slot dims[1] (1 =
+                         * `[]*[]*T`; 2 = `[]*[]**T`; 0 = no extra
+                         * PTR = `[]*[]T`). Peel leftover SLICE extra
+                         * times then leftover PTR extra times or
+                         * T001. Twin of leftover eek==SLICE
+                         * eand==-2 extra SLICE then extra PTR peels
+                         * (`[][][]T` / `[][][]*T` already closed)
+                         * AND leftover eek==ARRAY eand==-2 extra
+                         * SLICE peels (`[2]*[]T` already closed)
+                         * AND leftover eek==PTR eend==-2 extra
+                         * SLICE then extra PTR peels (`*[][]T` /
+                         * `*[][]*T` dest extras dest-RET already
+                         * closed). Extra ADDR_OF of typed dest
+                         * dest-stamps via the formal (no dest extras
+                         * dest-PTR stamp). Do not lift eeek compare
+                         * outside this branch — leftover after
+                         * leftover-PTR peel is SLICE vs eeek=leaf
+                         * would T001 matching `[]*[]T`. Do not
+                         * invent -3. PLATFORM: SHARED. G.7:
+                         * complete this walk.
+                         */
+                        int32_t extra;
+                        int32_t extra_ptr;
+                        extra =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                        if (extra <= 0)
+                          extra = 1;
+                        while (extra > 0) {
+                          if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pelem = pipeline_type_elem_ref_at(arena, pelem);
+                          if (pelem == 0) {
+                            mm = 1;
+                            break;
+                          }
+                          pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          extra = extra - 1;
+                        }
+                        extra_ptr =
+                            g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][1];
+                        if (extra_ptr > 0) {
+                          while (extra_ptr > 0) {
+                            if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            if (pelem == 0) {
+                              mm = 1;
+                              break;
+                            }
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            extra_ptr = extra_ptr - 1;
+                          }
+                        }
+                        if (!mm) {
+                          if (pgek >= 0 && pgek != eeek) {
+                            mm = 1;
+                          } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                            int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                            if (enl > 0) {
+                              uint8_t gnm[64];
+                              int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                              if (!xlang_skip_trait_named_eq_self_c(
+                                    g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                    gnm, gnl,
+                                    g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                    g_xlang_skip_impl_for_is_ptr[si]))
+                                mm = 1;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              } else if (got_pk == ek && ek == XLANG_TRAIT_TY_ARRAY) {
+                /*
+                 * wave433: walk nested TYPE_ARRAY dims[0]=outer … then leaf elem
+                 * kind/name. Twin of wave431 ret multi-dim walk.
+                 * PLATFORM: SHARED parse.
+                 */
+                int32_t nd = g_xlang_skip_trait_reg[ti].method_param_array_ndims[mi][pi];
+                int32_t eek = g_xlang_skip_trait_reg[ti].method_param_elem_kinds[mi][pi];
+                int32_t leaf_tr = pty;
+                if (nd > 0 && pty != 0) {
+                  int32_t d;
+                  for (d = 0; d < nd; d++) {
+                    int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    int32_t gsz;
+                    if (k != XLANG_TRAIT_TY_ARRAY) {
+                      mm = 1;
+                      break;
+                    }
+                    gsz = pipeline_type_array_size_at(arena, leaf_tr);
+                    if (gsz != g_xlang_skip_trait_reg[ti].method_param_array_dims[mi][pi][d]) {
+                      mm = 1;
+                      break;
+                    }
+                    leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                    if (leaf_tr == 0 && d + 1 < nd) {
+                      mm = 1;
+                      break;
+                    }
+                  }
+                  if (!mm && eek >= 0 && leaf_tr != 0) {
+                    int32_t gek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    if (gek >= 0 && gek != eek) {
+                      mm = 1;
+                    } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+                      int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                      if (enl > 0) {
+                        uint8_t gnm[64];
+                        int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                        if (!xlang_skip_trait_named_eq_self_c(
+                              g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                              gnm, gnl,
+                              g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                              g_xlang_skip_impl_for_is_ptr[si]))
+                          mm = 1;
+                      }
+                    } else if (gek == eek && eek == XLANG_TRAIT_TY_PTR) {
+                      /*
+                       * wave434: *T[N] → ARRAY of PTR (type syntax: [] binds tighter
+                       * than *). Walk pipeline ARRAY leaf (must be PTR) → its elem →
+                       * compare elem_elem (the *T base). PLATFORM: SHARED parse.
+                       */
+                      int32_t eeek = g_xlang_skip_trait_reg[ti].method_param_elem_elem_kinds[mi][pi];
+                      int32_t pelem = pipeline_type_elem_ref_at(arena, leaf_tr);
+                      if (eeek >= 0 && pelem != 0) {
+                        int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        /*
+                         * wave774: PTR pointee may be ARRAY/SLICE (e.g.
+                         * *[2]i32 or *[]i32). eeek holds the LEAF kind
+                         * (i32=0), not the direct pointee kind (ARRAY=10 /
+                         * SLICE=11). Walk elem_array_ndims dims (or -2 for
+                         * SLICE) to reach the leaf, then compare. Without
+                         * this, [2]*[2]i32 and [2]*[]i32 trait/impl params
+                         * mismatch (eeek=0 vs pgek=10/11).
+                         * dest extras dest-ARRAY of PTR `[2]*[][]T`: extra
+                         * wrap count is dims[0] (0 means 1 = `[2]*[]T`;
+                         * 2 = `[2]*[][]T`). Peel extra times when
+                         * ndims==-2 or T001 if layers run out. Peel-once
+                         * left pelem still SLICE vs eeek=leaf. Twin of
+                         * SLICE-of-SLICE extra peel above. Do not invent
+                         * -3. PLATFORM: SHARED. G.7: complete this walk.
+                         */
+                        if (pgek == XLANG_TRAIT_TY_ARRAY || pgek == XLANG_TRAIT_TY_SLICE) {
+                          int32_t eand = g_xlang_skip_trait_reg[ti].method_param_elem_array_ndims[mi][pi];
+                          if (eand > 0) {
+                            int32_t ed;
+                            int32_t extra_slice;
+                            int32_t extra_ptr;
+                            for (ed = 0; ed < eand && pelem != 0; ed++) {
+                              pelem = pipeline_type_elem_ref_at(arena, pelem);
+                            }
+                            if (pelem != 0) {
+                              pgek = pipeline_type_kind_ord_at(arena, pelem);
+                            }
+                            /*
+                             * dest extras dest-ARRAY of PTR extra
+                             * `[2]*[2]*T` / `[2]*[2][]*T`: leftover
+                             * after extra ARRAY peels is PTR vs
+                             * eeek=leaf (store-only T001). Extra
+                             * SLICE wrap COUNT is unused slot
+                             * dims[ndims] (1 = `[2]*[2][]T`; 0 = no
+                             * extra wrap = `[2]*[2]i32`). Extra PTR
+                             * wrap COUNT is unused slot
+                             * dims[ndims+1] (1 = `[2]*[2]*T`; 0 =
+                             * no extra PTR = `[2]*[2]i32`;
+                             * `[2]*[2][]*T` has both slots set).
+                             * Peel leftover SLICE extra times then
+                             * leftover PTR extra times or T001.
+                             * dest extras dest-SLICE of PTR extra
+                             * `[]*[2]*T` uses the same
+                             * dims[ndims+1] encoding (SLICE leftover
+                             * matches at leftover PTR vs eek=PTR —
+                             * not this walk; not T001). Discriminant
+                             * is ARRAY vs SLICE outer. Do not invent
+                             * -3. PLATFORM: SHARED. G.7: complete
+                             * this walk.
+                             */
+                            extra_slice = 0;
+                            if (eand < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                              extra_slice = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand];
+                            if (extra_slice > 0) {
+                              while (extra_slice > 0) {
+                                if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                                  mm = 1;
+                                  break;
+                                }
+                                pelem = pipeline_type_elem_ref_at(arena, pelem);
+                                if (pelem == 0) {
+                                  mm = 1;
+                                  break;
+                                }
+                                pgek = pipeline_type_kind_ord_at(arena, pelem);
+                                extra_slice = extra_slice - 1;
+                              }
+                            }
+                            extra_ptr = 0;
+                            if (eand + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                              extra_ptr = g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][eand + 1];
+                            if (extra_ptr > 0) {
+                              while (extra_ptr > 0) {
+                                if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                                  mm = 1;
+                                  break;
+                                }
+                                pelem = pipeline_type_elem_ref_at(arena, pelem);
+                                if (pelem == 0) {
+                                  mm = 1;
+                                  break;
+                                }
+                                pgek = pipeline_type_kind_ord_at(arena, pelem);
+                                extra_ptr = extra_ptr - 1;
+                              }
+                            }
+                          } else if (eand == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                            int32_t extra =
+                                g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[mi][pi][0];
+                            if (extra <= 0)
+                              extra = 1;
+                            while (extra > 0) {
+                              if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                                mm = 1;
+                                break;
+                              }
+                              pelem = pipeline_type_elem_ref_at(arena, pelem);
+                              if (pelem == 0) {
+                                mm = 1;
+                                break;
+                              }
+                              pgek = pipeline_type_kind_ord_at(arena, pelem);
+                              extra = extra - 1;
+                            }
+                          } else if (pelem != 0) {
+                            pgek = pipeline_type_kind_ord_at(arena, pelem);
+                          }
+                        }
+                        if (pgek >= 0 && pgek != eeek) {
+                          mm = 1;
+                        } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                          int32_t enl = g_xlang_skip_trait_reg[ti].method_param_name_lens[mi][pi];
+                          if (enl > 0) {
+                            uint8_t gnm[64];
+                            int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                            if (!xlang_skip_trait_named_eq_self_c(
+                                  g_xlang_skip_trait_reg[ti].method_param_names[mi][pi], enl,
+                                  gnm, gnl,
+                                  g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                                  g_xlang_skip_impl_for_is_ptr[si]))
+                              mm = 1;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              if (mm) {
+                lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                                       "method %.*s parameter type mismatch", (int)mlen,
+                                       (const char *)mnm);
+                return -1;
+              }
+            }
+          }
+          /*
+           * wave428: trait wrote untyped self (param0 ek=-1) → require impl param0
+           * matches `for` type (builtin / named / *T).
+           * wave429: also when trait annotated self (ek0>=0) — was false-green:
+           *   trait Double { double(self: i32) } + impl for u64 { double(self: i32) }
+           *   passed param-type (matches trait) but for-type was ignored → call on i32 run=42.
+           * wave441: logic extracted to xlang_skip_impl_self_matches_for_c (shared
+           *   with method lookup); helper returns 1 when for-type unknown or self
+           *   untyped (preserve old skip behavior). PLATFORM: SHARED parse.
+           */
+          if (expect_np >= 1) {
+            int32_t pty0 = pipeline_module_func_param_type_ref_at(module, found_fi, 0);
+            if (!xlang_skip_impl_self_matches_for_c(arena, pty0,
+                                                     g_xlang_skip_impl_for_kinds[si],
+                                                     g_xlang_skip_impl_for_is_ptr[si],
+                                                     g_xlang_skip_impl_for_names[si],
+                                                     g_xlang_skip_impl_for_name_lens[si])) {
+              lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si],
+                                     (int)g_xlang_skip_impl_col[si],
+                                     "method %.*s self type mismatch", (int)mlen,
+                                     (const char *)mnm);
+              return -1;
+            }
+          }
+  return 0;
+}
+
+/**
+ * dest-SLICE ret soup (wave425/427/430/431). Returns -1 on mismatch (diag emitted).
+ * No-op when expect_k < 0 / null arena / found_fi < 0.
+ * PLATFORM: SHARED — P12u language-permanent shape walk.
+ */
+int32_t xlang_skip_trait_check_ret_shape_c(void *module, void *arena,
+    int32_t found_fi, int32_t si, int32_t ti, int32_t mi,
+    const uint8_t *mnm, int32_t mlen) {
+  int32_t expect_k;
+  if (!module || !arena || found_fi < 0)
+    return 0;
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return 0;
+  if (ti < 0 || ti >= XLANG_SKIP_TRAIT_REG_MAX)
+    return 0;
+  if (mi < 0 || mi >= XLANG_SKIP_TRAIT_METH_MAX)
+    return 0;
+  if (!mnm || mlen <= 0)
+    return 0;
+  expect_k = g_xlang_skip_trait_reg[ti].method_ret_kinds[mi];
+  if (expect_k < 0)
+    return 0;
+        int32_t rty = pipeline_module_func_return_type_at(module, found_fi);
+        int32_t got_k = (rty != 0) ? pipeline_type_kind_ord_at(arena, rty) : -1;
+        int32_t mm = 0;
+        if (got_k >= 0 && got_k != expect_k) {
+          mm = 1;
+        } else if (got_k == expect_k && expect_k == XLANG_TRAIT_TY_NAMED) {
+          int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+          if (enl > 0 && rty != 0) {
+            uint8_t gnm[64];
+            int32_t gnl = pipeline_type_named_name_into(arena, rty, gnm);
+            if (!xlang_skip_trait_named_eq_self_c(
+                  g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                  gnm, gnl,
+                  g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                  g_xlang_skip_impl_for_is_ptr[si]))
+              mm = 1;
+          }
+        } else if (got_k == expect_k && expect_k == XLANG_TRAIT_TY_ARRAY) {
+          /*
+           * wave431: walk nested TYPE_ARRAY dims[0]=outer … then leaf elem kind/name.
+           * ndims==0 falls back to wave430 single outer size + one elem.
+           * PLATFORM: SHARED parse.
+           */
+          int32_t nd = g_xlang_skip_trait_reg[ti].method_ret_array_ndims[mi];
+          int32_t eek = g_xlang_skip_trait_reg[ti].method_ret_elem_kinds[mi];
+          int32_t leaf_tr = rty;
+          if (nd > 0 && rty != 0) {
+            int32_t d;
+            for (d = 0; d < nd; d++) {
+              int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+              int32_t gsz;
+              if (k != XLANG_TRAIT_TY_ARRAY) {
+                mm = 1;
+                break;
+              }
+              gsz = pipeline_type_array_size_at(arena, leaf_tr);
+              if (gsz != g_xlang_skip_trait_reg[ti].method_ret_array_dims[mi][d]) {
+                mm = 1;
+                break;
+              }
+              leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+              if (leaf_tr == 0 && d + 1 < nd) {
+                mm = 1;
+                break;
+              }
+            }
+            if (!mm && eek >= 0 && leaf_tr != 0) {
+              int32_t gek = pipeline_type_kind_ord_at(arena, leaf_tr);
+              if (gek >= 0 && gek != eek) {
+                mm = 1;
+              } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+                int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                if (enl > 0) {
+                  uint8_t gnm[64];
+                  int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                  if (!xlang_skip_trait_named_eq_self_c(
+                        g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                        gnm, gnl,
+                        g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                        g_xlang_skip_impl_for_is_ptr[si]))
+                    mm = 1;
+                }
+              } else if (gek == eek && eek == XLANG_TRAIT_TY_PTR) {
+                /*
+                 * wave438: *T[N] → ARRAY of PTR (type syntax: [] binds tighter
+                 * than *). Walk pipeline ARRAY leaf (must be PTR) → its elem →
+                 * compare elem_elem (the *T base). Twin of wave434 param *T[N]
+                 * check. PLATFORM: SHARED parse.
+                 */
+                int32_t eeek = g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[mi];
+                int32_t pelem = pipeline_type_elem_ref_at(arena, leaf_tr);
+                if (eeek >= 0 && pelem != 0) {
+                  int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                  if (pgek >= 0 && pgek != eeek) {
+                    mm = 1;
+                  } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
+            int32_t esz = g_xlang_skip_trait_reg[ti].method_ret_array_sizes[mi];
+            if (esz >= 0 && rty != 0) {
+              int32_t gsz = pipeline_type_array_size_at(arena, rty);
+              if (gsz != esz)
+                mm = 1;
+            }
+            if (!mm && eek >= 0 && elem != 0) {
+              int32_t gek = pipeline_type_kind_ord_at(arena, elem);
+              if (gek >= 0 && gek != eek) {
+                mm = 1;
+              } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+                int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                if (enl > 0) {
+                  uint8_t gnm[64];
+                  int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                  if (!xlang_skip_trait_named_eq_self_c(
+                        g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                        gnm, gnl,
+                        g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                        g_xlang_skip_impl_for_is_ptr[si]))
+                    mm = 1;
+                }
+              } else if (gek == eek && eek == XLANG_TRAIT_TY_PTR) {
+                /*
+                 * wave438: *T[N] single-dim (nd==0 fallback) → ARRAY of PTR.
+                 * Walk pipeline ARRAY leaf (must be PTR) → its elem → compare
+                 * elem_elem (the *T base). Twin of wave434 param *T[N] check.
+                 * PLATFORM: SHARED parse.
+                 */
+                int32_t eeek = g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[mi];
+                int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+                if (eeek >= 0 && pelem != 0) {
+                  int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                  if (pgek >= 0 && pgek != eeek) {
+                    mm = 1;
+                  } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } else if (got_k == expect_k &&
+                   (expect_k == XLANG_TRAIT_TY_PTR || expect_k == XLANG_TRAIT_TY_SLICE)) {
+          int32_t eek = g_xlang_skip_trait_reg[ti].method_ret_elem_kinds[mi];
+          int32_t elem = (rty != 0) ? pipeline_type_elem_ref_at(arena, rty) : 0;
+          if (!mm && eek >= 0 && elem != 0) {
+            int32_t gek = pipeline_type_kind_ord_at(arena, elem);
+            if (gek >= 0 && gek != eek) {
+              mm = 1;
+            } else if (gek == eek && eek == XLANG_TRAIT_TY_NAMED) {
+              int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+              if (enl > 0) {
+                uint8_t gnm[64];
+                int32_t gnl = pipeline_type_named_name_into(arena, elem, gnm);
+                if (!xlang_skip_trait_named_eq_self_c(
+                      g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                      gnm, gnl,
+                      g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                      g_xlang_skip_impl_for_is_ptr[si]))
+                  mm = 1;
+              }
+            } else if (gek == eek && eek == XLANG_TRAIT_TY_PTR) {
+              /*
+               * wave954: leftover extra SLICE peels leftover eek=PTR
+               * eand=-2 []*[]T / []*[][]T RET twin. After outer PTR or
+               * SLICE (got_k==expect_k: PTR outer *[]*T vs SLICE outer
+               * []*[]T both reach this via eek==PTR elem vs gek==PTR
+               * elem of impl), walk pointee ARRAY/SLICE ndims or PTR-
+               * to-SLICE sentinel (-2) to reach the leaf, then compare
+               * eeek (the leaf kind). Without this, impl []*i32 vs
+               * trait []*[]i32 RET (eeek=leaf i32 vs leftover SLICE of
+               * impl ptr-pointee) compiled=0 T001 leftover skip false
+               * green. Produce: leftover PTR vs eek=PTR matched then
+               * eend=-2 did not peel extra SLICE (store-only leftover
+               * extras never compared = leftover skip false green).
+               * Storage already complete (elem=PTR / eek=leaf /
+               * ndims=-2 / dims[0]=N extra SLICE / dims[1]=extra PTR).
+               * Discriminant vs dest extras dest-RET extra STAR
+               * SLICE-elem ndims=-2 *[][]*T (RET eek=SLICE not PTR)
+               * is eek=PTR vs eek=SLICE. Consume: leftover PTR vs
+               * eek=PTR non-T001 must first peel leftover PTR then
+               * extra SLICE then extra PTR. Peel leftover ARRAY when
+               * eend>=1 (discriminant vs *[]*T eend=0 which takes the
+               * no-peel direct compare path). Peel extra SLICE extra
+               * times from dims[eend+1] (eend>=1) or dims[0]
+               * (eend=-2 PTR_TO_SLICE sentinel; 0 means 1 extra SLICE
+               * like *[][]T). Peel extra PTR extra times from
+               * dims[eend] (eend>=1) or dims[1] (eend=-2). Then
+               * compare pgek vs eeek (or T001 if peel fails). Twin of
+               * param leftover PTR vs eek=PTR walk (param line 3584
+               * already closed). Do not invent -3. PLATFORM: SHARED
+               * parse. G.7: complete this walk for the RET twin.
+               */
+              int32_t eeek = g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[mi];
+              int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+              if (eeek >= 0 && pelem != 0) {
+                int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                int32_t eend = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[mi];
+                /*
+                 * wave954: leftover ARRAY/SLICE/PTR walk must happen
+                 * whenever eend>=1 or eend==PTR_TO_SLICE(-2), REGARDLESS
+                 * of current pgek. Before wave954: gated on
+                 * `pgek==ARRAY || pgek==SLICE` which skipped the walk
+                 * for impl `[]*i32` vs trait `[]*[]i32` (pelem is
+                 * PTR→i32, pgek=I32, not SLICE/ARRAY) — eend=-2
+                 * extra=1 never peeled; pgek=I32==eeek=I32 false green.
+                 * Peel flow: if eend>=1 → ARRAY peels + extra SLICE +
+                 * extra PTR; if eend==-2 → extra SLICE + extra PTR;
+                 * else (eend==0) → no leftover peel, direct compare
+                 * (classic case like `*T` or `**T` with no extra dims).
+                 * Each peel step T001 on kind mismatch. Twin of param
+                 * line 3449 (eand==-2 walk) and param line 3395
+                 * (eand==0 extra SLICE/PTR walk). PLATFORM: SHARED.
+                 */
+                if (eend > 0) {
+                  if (pgek == XLANG_TRAIT_TY_ARRAY) {
+                    int32_t ed;
+                    int32_t extra_slice;
+                    int32_t extra_ptr;
+                    for (ed = 0; ed < eend && pelem != 0; ed++) {
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    }
+                    if (pelem != 0) {
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    }
+                    extra_slice = 0;
+                    if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                    if (extra_slice > 0) {
+                      while (extra_slice > 0) {
+                        if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pelem = pipeline_type_elem_ref_at(arena, pelem);
+                        if (pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra_slice = extra_slice - 1;
+                      }
+                    }
+                    extra_ptr = 0;
+                    if (eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                      extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                    if (extra_ptr > 0) {
+                      while (extra_ptr > 0) {
+                        if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pelem = pipeline_type_elem_ref_at(arena, pelem);
+                        if (pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra_ptr = extra_ptr - 1;
+                      }
+                    }
+                  } else {
+                    mm = 1;
+                  }
+                } else if (eend == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                  /*
+                   * PTR_TO_SLICE sentinel eend=-2: extra SLICE wrap
+                   * COUNT in dims[0] (0 means 1 = []*[]T / *[]T;
+                   * 2 = []*[][]T). Extra PTR wrap COUNT in dims[1]
+                   * (1 = []*[]*T; 2 = []*[]**T; 0 = no extra PTR =
+                   * []*[]T / *[]T). Peel SLICE extra times then
+                   * PTR extra times or T001. Twin of param line 3449
+                   * (PARAM path, already closed 875d557e2). Do not
+                   * invent -3. PLATFORM: SHARED parse.
+                   */
+                  int32_t extra =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra <= 0)
+                    extra = 1;
+                  while (extra > 0) {
+                    if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    if (pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    extra = extra - 1;
+                  }
+                  if (!mm) {
+                    int32_t extra_ptr =
+                        g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][1];
+                    if (extra_ptr > 0) {
+                      while (extra_ptr > 0) {
+                        if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pelem = pipeline_type_elem_ref_at(arena, pelem);
+                        if (pelem == 0) {
+                          mm = 1;
+                          break;
+                        }
+                        pgek = pipeline_type_kind_ord_at(arena, pelem);
+                        extra_ptr = extra_ptr - 1;
+                      }
+                    }
+                  }
+                }
+                if (!mm && pgek >= 0 && pgek != eeek) {
+                  mm = 1;
+                } else if (!mm && pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                  int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                  if (enl > 0) {
+                    uint8_t gnm[64];
+                    int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                    if (!xlang_skip_trait_named_eq_self_c(
+                          g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                          gnm, gnl,
+                          g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                          g_xlang_skip_impl_for_is_ptr[si]))
+                      mm = 1;
+                  }
+                }
+              }
+            } else if (gek == eek && eek == XLANG_TRAIT_TY_SLICE) {
+              /*
+               * wave438: *[]T → PTR to SLICE of T. Walk pipeline SLICE
+               * leaf → its elem → compare elem_elem (the slice base T).
+               * dest extras dest-RET extra empty `[]` SLICE-elem
+               * `*[][2][]T`: leftover SLICE vs eek=SLICE is not T001
+               * without extra ARRAY peels (store-only leftover ARRAY
+               * vs eeek=leaf after leftover-SLICE peel is T001). Peel
+               * leftover SLICE then extra ARRAY then extra SLICE then
+               * extra PTR or T001. Extra SLICE wrap COUNT is unused
+               * slot dims[ndims+1] (1 = `*[][2][]T`; 2 =
+               * `*[][2][][]T`; 0 = no extra wrap = `*[][2]i32` /
+               * `*[][2]*T`). Extra PTR wrap COUNT is unused slot
+               * dims[ndims] (1 = `*[][2]*T` / `*[][2][]*T`; 0 = no
+               * extra PTR = `*[][2]i32` / `*[][2][]T`; `*[][2][]*T`
+               * has both slots set). leftover skip eek=-1 was false
+               * green of extra empty `[]` SLICE-elem (impl
+               * `*[][2]i32` vs trait `*[][2][]i32` compile=0;
+               * dest-stamp via the local of typed dest = false
+               * green even Ubuntu). dest extras dest-RET extra STAR
+               * SLICE-elem ndims=0 `*[]*T`: extra PTR wrap COUNT is
+               * unused slot dims[0] with ndims staying 0 (1 =
+               * `*[]*T`; 2 = `*[]**T`; 0 = no extra PTR = `*[]i32`).
+               * leftover skip eek=-1 was false green (impl `*[]i32`
+               * vs trait `*[]*i32` compile=0; dest-stamp via the
+               * local of typed dest = false green even Ubuntu). Peel
+               * leftover PTR extra times or T001. `*[]T` (ndims=0
+               * extra PTR=0) keeps leftover SLICE vs eek=SLICE
+               * (pointee compare eeek). Twin of param leftover PTR
+               * vs eek=SLICE extra ARRAY-then-SLICE-then-PTR peels
+               * (`*[][2][]T` param already closed) and param extra
+               * STAR ndims=0 leftover eand==0 extra PTR peels
+               * (`*[]*T` param already closed). Discriminant vs dest
+               * extras dest-RET extra empty `[]` ARRAY-elem `*[2][]T`
+               * / PTR-elem `**[2][]T` is SLICE vs ARRAY vs PTR elem.
+               * Extra ADDR_OF of typed `[][2][]i32` dest-stamps via
+               * the formal leftover skip eek=-1 was false green. Do
+               * not invent -3. PLATFORM: SHARED. G.7: complete this
+               * walk.
+               */
+              int32_t eeek = g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[mi];
+              int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+              if (eeek >= 0 && pelem != 0) {
+                int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                int32_t eend = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[mi];
+                if (eend >= 1) {
+                  int32_t d;
+                  int32_t extra_slice;
+                  int32_t extra_ptr;
+                  for (d = 0; d < eend && pelem != 0; d++) {
+                    int32_t k = pipeline_type_kind_ord_at(arena, pelem);
+                    int32_t gsz;
+                    if (k != XLANG_TRAIT_TY_ARRAY) {
+                      mm = 1;
+                      break;
+                    }
+                    gsz = pipeline_type_array_size_at(arena, pelem);
+                    if (gsz != g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][d]) {
+                      mm = 1;
+                      break;
+                    }
+                    pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    if (pelem == 0 && d + 1 < eend) {
+                      mm = 1;
+                      break;
+                    }
+                  }
+                  if (!mm && pelem != 0)
+                    pgek = pipeline_type_kind_ord_at(arena, pelem);
+                  extra_slice = 0;
+                  if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                  if (extra_slice > 0) {
+                    while (extra_slice > 0) {
+                      if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_slice = extra_slice - 1;
+                    }
+                  }
+                  extra_ptr = 0;
+                  if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                } else if (eend == 0) {
+                  /*
+                   * dest extras dest-RET extra STAR SLICE-elem
+                   * ndims=0 `*[]*T`: leftover after leftover-SLICE
+                   * peel is PTR vs eeek=leaf. Extra PTR wrap COUNT
+                   * is unused slot dims[0] (1 = `*[]*T`; 2 =
+                   * `*[]**T`; 0 = no extra PTR = `*[]i32`). Peel
+                   * leftover PTR extra times or T001. Twin of param
+                   * leftover eand==0 extra PTR peels. Do not invent
+                   * -3. PLATFORM: SHARED. G.7: complete this walk.
+                   */
+                  int32_t extra_ptr;
+                  extra_ptr =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                } else if (eend == XLANG_SKIP_TRAIT_ELEM_PTR_TO_SLICE_NDIMS) {
+                  /*
+                   * dest extras dest-RET extra STAR SLICE-elem
+                   * ndims=-2 `*[][]*T`: leftover after leftover-
+                   * SLICE peel is still SLICE vs eeek=leaf. Extra
+                   * SLICE wrap COUNT is dims[0] (0 means 1 =
+                   * `*[][]T`; 2 = `*[][][]T`). Extra PTR wrap
+                   * COUNT is unused slot dims[1] (1 = `*[][]*T`;
+                   * 2 = `*[][]**T`; 0 = no extra PTR = `*[][]T`).
+                   * Peel leftover SLICE extra times then leftover
+                   * PTR extra times or T001. Twin of param leftover
+                   * eand==-2 extra SLICE then extra PTR peels
+                   * (`*[][]*T` param already closed). Do not invent
+                   * -3. PLATFORM: SHARED. G.7: complete this walk.
+                   */
+                  int32_t extra;
+                  int32_t extra_ptr;
+                  extra =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra <= 0)
+                    extra = 1;
+                  while (extra > 0) {
+                    if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    if (pelem == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, pelem);
+                    extra = extra - 1;
+                  }
+                  extra_ptr =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][1];
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                }
+                if (!mm) {
+                  if (pgek >= 0 && pgek != eeek) {
+                    mm = 1;
+                  } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
+                  }
+                }
+              }
+            } else if (gek == eek && eek == XLANG_TRAIT_TY_ARRAY) {
+              /*
+               * wave438: *[N]T / *[N][M]T → PTR to ARRAY of N T. The PTR's
+               * elem (elem) is the ARRAY. Walk its dims (elem_array_ndims/
+               * dims) then compare the leaf elem kind/name with elem_elem
+               * (base T). Multi-dim *[N][M]T collected at registration
+               * (wave437 twin). PLATFORM: SHARED parse.
+               */
+              int32_t eeek = g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[mi];
+              int32_t eend = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[mi];
+              int32_t leaf_tr = elem;
+              int32_t d;
+              for (d = 0; d < eend && leaf_tr != 0; d++) {
+                int32_t k = pipeline_type_kind_ord_at(arena, leaf_tr);
+                int32_t gsz;
+                if (k != XLANG_TRAIT_TY_ARRAY) {
+                  mm = 1;
+                  break;
+                }
+                gsz = pipeline_type_array_size_at(arena, leaf_tr);
+                if (gsz != g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][d]) {
+                  mm = 1;
+                  break;
+                }
+                leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                if (leaf_tr == 0 && d + 1 < eend) {
+                  mm = 1;
+                  break;
+                }
+              }
+              if (!mm && eeek >= 0 && leaf_tr != 0) {
+                int32_t pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                /*
+                 * dest extras dest-RET PTR-to-ARRAY extra empty `[]`
+                 * `*[2][]T` AND dest extras dest-RET extra STAR
+                 * `*[2]*T`: leftover after ARRAY peels is SLICE /
+                 * PTR / SLICE-of-PTR vs eeek=leaf (store-only
+                 * T001). Extra SLICE wrap COUNT is unused slot
+                 * dims[ndims] (1 = `*[2][]T`; 0 = no extra wrap =
+                 * `*[2]i32`). Extra PTR wrap COUNT is unused slot
+                 * dims[ndims+1] (1 = `*[2]*T` / `*[2][]*T`; 0 = no
+                 * extra PTR = `*[2]i32` / `*[2][]T`; `*[2][]*T`
+                 * has both slots set). Peel leftover SLICE extra
+                 * times then leftover PTR extra times or T001.
+                 * Extra ADDR_OF of typed `[2]*i32` dest-stamps via
+                 * the formal leftover skip eek=-1 was false green;
+                 * dest extras dest-RET wrap-once dest-stamps
+                 * `*[2]i32`. Twin of param ARRAY leftover extra
+                 * SLICE-then-PTR peels. Do not invent -3.
+                 * PLATFORM: SHARED. G.7: complete this walk.
+                 */
+                int32_t extra_slice = 0;
+                int32_t extra_ptr = 0;
+                if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                  extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                if (extra_slice > 0) {
+                  while (extra_slice > 0) {
+                    if (pgek != XLANG_TRAIT_TY_SLICE || leaf_tr == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                    if (leaf_tr == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    extra_slice = extra_slice - 1;
+                  }
+                }
+                if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                  extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                if (extra_ptr > 0) {
+                  while (extra_ptr > 0) {
+                    if (pgek != XLANG_TRAIT_TY_PTR || leaf_tr == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    leaf_tr = pipeline_type_elem_ref_at(arena, leaf_tr);
+                    if (leaf_tr == 0) {
+                      mm = 1;
+                      break;
+                    }
+                    pgek = pipeline_type_kind_ord_at(arena, leaf_tr);
+                    extra_ptr = extra_ptr - 1;
+                  }
+                }
+                if (!mm) {
+                  if (pgek >= 0 && pgek != eeek) {
+                    mm = 1;
+                  } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, leaf_tr, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
+                  }
+                }
+              }
+            } else if (gek == eek && eek == XLANG_TRAIT_TY_PTR) {
+              /*
+               * dest extras dest-RET extra STAR PTR-elem `**[2]*T`
+               * AND dest extras dest-RET extra empty `[]` PTR-elem
+               * `**[2][]T` / `**[]T`: leftover PTR vs eek=PTR is
+               * not T001 without extra ARRAY peels (store-only
+               * leftover PTR vs eeek=leaf after extra ARRAY peels
+               * is T001). Peel leftover PTR then ARRAY dims then
+               * extra SLICE then extra PTR or T001. Extra SLICE
+               * wrap COUNT is unused slot dims[ndims] when
+               * ndims>=1 (1 = `**[2][]T`; 0 = no extra wrap =
+               * `**[2]i32`) and unused slot dims[0] with ndims
+               * staying 0 (1 = `**[]T`; 2 = `**[][]T`; 0 = no
+               * extra SLICE = `**T` / `***T`). Extra PTR wrap
+               * COUNT is unused slot dims[ndims+1] (1 = `**[2]*T`
+               * / `**[2][]*T`; 0 = no extra PTR = `**[2]i32` /
+               * `**[2][]T`; `**[2][]*T` has both slots set) and
+               * unused slot dims[1] with ndims staying 0 (1 =
+               * `***T`; 2 = `****T`; 0 = no extra PTR = `**T`;
+               * both slots = `**[]*T`). leftover skip eek=-1 was
+               * false green of extra empty `[]` PTR-elem (impl
+               * `**[2]i32` / `**i32` vs trait `**[2][]i32` /
+               * `**[]i32` compile=0). dest extras dest-RET extra
+               * STAR PTR-elem ndims=0 `***T`: extra PTR wrap
+               * COUNT is unused slot dims[1]. leftover skip
+               * eek=-1 was false green (impl `**i32` vs trait
+               * `***i32` compile=0; dest-stamp via the local of
+               * typed dest = false green even Ubuntu). Peel
+               * leftover PTR extra times or T001. `**i32`
+               * (ndims=0 extra PTR=0 extra SLICE=0) keeps leftover
+               * PTR vs eek=PTR (pointee compare eeek). Twin of
+               * leftover eek==SLICE eend==0 extra PTR peels
+               * (`*[]*T` already closed). Discriminant vs dest
+               * extras dest-RET extra STAR ARRAY-elem `*[2]*T` /
+               * extra empty `[]` ARRAY-elem `*[2][]T` is PTR vs
+               * ARRAY elem. Extra ADDR_OF of typed `*[2]*i32`
+               * dest-stamps via the formal leftover skip eek=-1
+               * was false green; dest extras dest-RET wrap-once
+               * dest-stamps `**[2]i32` / `**i32`. Do not invent
+               * -3. PLATFORM: SHARED. G.7: complete this walk.
+               */
+              int32_t eeek = g_xlang_skip_trait_reg[ti].method_ret_elem_elem_kinds[mi];
+              int32_t pelem = pipeline_type_elem_ref_at(arena, elem);
+              if (eeek >= 0 && pelem != 0) {
+                int32_t pgek = pipeline_type_kind_ord_at(arena, pelem);
+                int32_t eend = g_xlang_skip_trait_reg[ti].method_ret_elem_array_ndims[mi];
+                if (pgek == XLANG_TRAIT_TY_ARRAY && eend > 0) {
+                  int32_t d;
+                  int32_t extra_slice;
+                  int32_t extra_ptr;
+                  for (d = 0; d < eend && pelem != 0; d++) {
+                    int32_t k = pipeline_type_kind_ord_at(arena, pelem);
+                    int32_t gsz;
+                    if (k != XLANG_TRAIT_TY_ARRAY) {
+                      mm = 1;
+                      break;
+                    }
+                    gsz = pipeline_type_array_size_at(arena, pelem);
+                    if (gsz != g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][d]) {
+                      mm = 1;
+                      break;
+                    }
+                    pelem = pipeline_type_elem_ref_at(arena, pelem);
+                    if (pelem == 0 && d + 1 < eend) {
+                      mm = 1;
+                      break;
+                    }
+                  }
+                  if (!mm && pelem != 0)
+                    pgek = pipeline_type_kind_ord_at(arena, pelem);
+                  extra_slice = 0;
+                  if (eend > 0 && eend < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    extra_slice = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend];
+                  if (extra_slice > 0) {
+                    while (extra_slice > 0) {
+                      if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_slice = extra_slice - 1;
+                    }
+                  }
+                  extra_ptr = 0;
+                  if (eend > 0 && eend + 1 < XLANG_SKIP_TRAIT_ARRAY_DIM_MAX)
+                    extra_ptr = g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][eend + 1];
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                } else if (eend == 0) {
+                  /*
+                   * dest extras dest-RET extra STAR PTR-elem
+                   * ndims=0 `***T` AND dest extras dest-RET extra
+                   * empty `[]` PTR-elem ndims=0 `**[]T`: leftover
+                   * after leftover-PTR peel is PTR / SLICE vs
+                   * eeek=leaf. Extra SLICE wrap COUNT is unused
+                   * slot dims[0] (1 = `**[]T`; 2 = `**[][]T`; 0 =
+                   * no extra SLICE = `**T` / `***T`). Extra PTR
+                   * wrap COUNT is unused slot dims[1] (1 = `***T`;
+                   * 2 = `****T`; 0 = no extra PTR = `**T`; both
+                   * slots = `**[]*T`). Peel leftover SLICE extra
+                   * times then leftover PTR extra times or T001.
+                   * leftover skip eek=-1 was false green of extra
+                   * empty `[]` PTR-elem ndims=0 (impl `**i32` vs
+                   * trait `**[]i32` compile=0; dest-stamp via the
+                   * local of typed dest = false green even Ubuntu).
+                   * Twin of leftover eek==SLICE eend==0 extra PTR
+                   * peels and leftover eek==PTR ndims>=1 extra
+                   * SLICE-then-PTR peels. Do not invent -3.
+                   * PLATFORM: SHARED. G.7: complete this walk.
+                   */
+                  int32_t extra_slice;
+                  int32_t extra_ptr;
+                  extra_slice =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][0];
+                  if (extra_slice > 0) {
+                    while (extra_slice > 0) {
+                      if (pgek != XLANG_TRAIT_TY_SLICE || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_slice = extra_slice - 1;
+                    }
+                  }
+                  extra_ptr =
+                      g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[mi][1];
+                  if (extra_ptr > 0) {
+                    while (extra_ptr > 0) {
+                      if (pgek != XLANG_TRAIT_TY_PTR || pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pelem = pipeline_type_elem_ref_at(arena, pelem);
+                      if (pelem == 0) {
+                        mm = 1;
+                        break;
+                      }
+                      pgek = pipeline_type_kind_ord_at(arena, pelem);
+                      extra_ptr = extra_ptr - 1;
+                    }
+                  }
+                }
+                if (!mm) {
+                  if (pgek >= 0 && pgek != eeek) {
+                    mm = 1;
+                  } else if (pgek == eeek && eeek == XLANG_TRAIT_TY_NAMED) {
+                    int32_t enl = g_xlang_skip_trait_reg[ti].method_ret_name_lens[mi];
+                    if (enl > 0) {
+                      uint8_t gnm[64];
+                      int32_t gnl = pipeline_type_named_name_into(arena, pelem, gnm);
+                      if (!xlang_skip_trait_named_eq_self_c(
+                            g_xlang_skip_trait_reg[ti].method_ret_names[mi], enl,
+                            gnm, gnl,
+                            g_xlang_skip_impl_for_names[si], g_xlang_skip_impl_for_name_lens[si],
+                            g_xlang_skip_impl_for_is_ptr[si]))
+                        mm = 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (mm) {
+          lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                                 "method %.*s return type mismatch", (int)mlen, (const char *)mnm);
+          return -1;
+        }
+  return 0;
+}
+
+extern int32_t xlang_trait_check_impls_complete_into_c(void *module, void *arena,
+        uint8_t *impl_trait, int32_t *impl_trait_len, int32_t *for_kinds,
+        int32_t *for_is_ptr, uint8_t *for_names, int32_t *for_name_lens,
+        int32_t impl_n, uint8_t *table, int32_t stride, int32_t n, uint8_t *gnm,
+        uint8_t *src, int32_t src_len);
+
+int32_t xlang_trait_check_impls_complete_c(void *module) {
+  uint8_t gnm[64];
+  if (!module)
+    return 0;
+  /* wave468: inject default bodies before missing-method scan. */
+  xlang_skip_hoist_default_methods_c(module);
+  memset(gnm, 0, sizeof(gnm));
+  return xlang_trait_check_impls_complete_into_c(
+      module, g_xlang_trait_check_arena,
+      (uint8_t *)g_xlang_skip_impl_trait, g_xlang_skip_impl_trait_len,
+      g_xlang_skip_impl_for_kinds, g_xlang_skip_impl_for_is_ptr,
+      (uint8_t *)g_xlang_skip_impl_for_names, g_xlang_skip_impl_for_name_lens,
+      g_xlang_skip_impl_seen_n,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n, gnm,
+      g_w439_src_data, g_w439_src_len);
+}
+#else
 int32_t xlang_trait_check_impls_complete_c(void *module) {
   int32_t si;
   int32_t ti;
@@ -4978,6 +6816,8 @@ int32_t xlang_trait_check_impls_complete_c(void *module) {
     rc = -1;
   return rc;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X trait_check */
+
 
 /* ============================================================ */
 /* wave439: generic trait bound scan + check                    */
