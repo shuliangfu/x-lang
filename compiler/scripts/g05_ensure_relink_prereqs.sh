@@ -975,7 +975,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o"; then
             _pthin_p3b_ok=1
             _pthin_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
-            echo "g05_ensure: P3b/P3c type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
+            echo "g05_ensure: P3b/P3c/P3d type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P3b type_ref .x thin failed; P3 C twin stays full" >&2
           fi

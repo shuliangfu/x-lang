@@ -3,11 +3,12 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * Hybrid P3b/P3c/P3d: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
  * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
- * region (bodies in src/asm/pthin_type_ref.x + slice trampolines in the
- * seed TU). Arena alloc and parse_type_ref_impl stay C.
- * Cold: no BODIES define, this file is the full twin.
+ * region and (P3d) consume_qualified / type_angle_close (bodies in
+ * src/asm/pthin_type_ref.x + slice trampolines in the seed TU). Arena
+ * alloc and parse_type_ref_impl stay C. Cold: no BODIES define, this
+ * file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -30,6 +31,19 @@
  * @return 1 if closed, 0 if peek is neither GT nor RSHIFT
  * PLATFORM: SHARED type grammar — product type_ref path (this .inc).
  */
+#ifdef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+extern int32_t parser_asm_type_angle_close_into_c(int32_t peek_kind, void *lex_inout, size_t next_pos,
+                                                  int32_t next_line, int32_t next_col);
+static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexer_result *peek,
+                                                         struct parser_asm_lexer *lex_inout) {
+  /* PLATFORM: SHARED — P3d trampoline. Language has no lexer_result
+   * by-value; .x takes peek kind + next_lex scalars. */
+  if (!peek || !lex_inout)
+    return 0;
+  return parser_asm_type_angle_close_into_c(peek->tok.kind, lex_inout, peek->next_lex.pos, peek->next_lex.line,
+                                           peek->next_lex.col);
+}
+#else
 static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexer_result *peek,
                                                          struct parser_asm_lexer *lex_inout) {
   if (!peek || !lex_inout)
@@ -49,6 +63,7 @@ static int32_t parser_asm_type_angle_close_gt_or_rshift_c(struct parser_asm_lexe
   }
   return 0;
 }
+#endif /* XLANG_PTHIN_TYPE_REF_BODIES_FROM_X angle close */
 
 /** 与 ast.x Type 布局一致。
  * wave577 Cap: name/region_label [64]→[128] must match arena Type (ast.x / pipeline_gen).
@@ -111,6 +126,22 @@ extern int32_t parser_asm_stretch_builtin_vec_token_audit_c(int32_t kind);
  * wave582 Cap residual: content cap 63→255 (Type.name[256] / AST Cap wave577).
  * Caller out must have capacity ≥128. PLATFORM: SHARED product type_ref path.
  */
+#ifdef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+extern int32_t parser_asm_consume_qualified_type_ident_name_into_c(void *source, void *lex_inout, uint8_t *out,
+                                                                  int32_t *out_len, int32_t first_ident_len);
+int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u8 *source,
+                                                         struct parser_asm_lexer_result *r, uint8_t *out,
+                                                         int32_t *out_len) {
+  /* PLATFORM: SHARED — P3d trampoline. Language has no lexer_result
+   * by-value; .x walks r.next_lex via P9a peek/step. First IDENT kind
+   * check stays here (needs r.tok). */
+  if (!r || !out || !out_len || !source)
+    return -1;
+  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len <= 0)
+    return -1;
+  return parser_asm_consume_qualified_type_ident_name_into_c(source, &r->next_lex, out, out_len, r->tok.ident_len);
+}
+#else
 int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u8 *source,
                                                          struct parser_asm_lexer_result *r, uint8_t *out,
                                                          int32_t *out_len) {
@@ -156,6 +187,7 @@ int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u
     total += seg_len;
   }
 }
+#endif /* XLANG_PTHIN_TYPE_REF_BODIES_FROM_X consume_qualified */
 
 static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_lexer lex,
                                                 struct parser_asm_slice_u8 *source,

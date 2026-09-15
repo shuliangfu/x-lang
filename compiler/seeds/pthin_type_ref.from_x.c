@@ -5,11 +5,11 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
- * vector-ident bodies and type-inst mangle come from pthin_type_ref.x;
- * this TU keeps slice trampolines plus arena parse. Mangle C twins live
- * in primary.inc (7-arg trampoline holds suf[64]). Cold: no BODIES
- * define, full .inc.
+ * Hybrid P3b/P3c/P3d (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * vector-ident bodies, type-inst mangle, consume_qualified, and
+ * type_angle_close come from pthin_type_ref.x; this TU keeps slice
+ * trampolines plus arena parse. Mangle C twins live in primary.inc
+ * (7-arg trampoline holds suf[64]). Cold: no BODIES define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -83,7 +83,10 @@ _Static_assert((int)TOKEN_F32 == 77, "type_ref.x TOKEN_F32 pin");
 _Static_assert((int)TOKEN_F64 == 78, "type_ref.x TOKEN_F64 pin");
 _Static_assert((int)TOKEN_VOID == 79, "type_ref.x TOKEN_VOID pin");
 _Static_assert((int)TOKEN_LBRACKET == 86, "type_ref.x TOKEN_LBRACKET pin");
+_Static_assert((int)TOKEN_DOT == 92, "type_ref.x TOKEN_DOT pin");
 _Static_assert((int)TOKEN_STAR == 98, "type_ref.x TOKEN_STAR pin");
+_Static_assert((int)TOKEN_RSHIFT == 105, "type_ref.x TOKEN_RSHIFT pin");
+_Static_assert((int)TOKEN_GT == 121, "type_ref.x TOKEN_GT pin");
 
 #ifdef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 /* .x product bodies (same C names for Route C; buf split for dyn). */

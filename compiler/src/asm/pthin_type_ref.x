@@ -25,7 +25,7 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+// Hybrid P3b/P3c/P3d: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 // skips the portable .inc region. token.h remains the TOKEN_* authority
 // via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -39,7 +39,14 @@
 // Do not merge with codegen_type_ref_to_suffix or
 // typeck_type_ref_mangle_suffix (parser-local copy avoids a
 // parser→codegen link edge). Do not copy into suffix_loop / parse.
-// Do not open a new P-lane. Do not touch P4b pending_n / IDENT arm.
+// 7.2.1 P3d B-minus (2026-09-15): 有则补全 consume_qualified IDENT
+// path (`a.b.Type`) and type-pos angle close (GT / nested `>>`).
+// Both were always-host-cc in type_ref.inc (not behind BODIES).
+// Language has no lexer_result by-value; the C trampoline holds r
+// and forwards &r->next_lex plus first ident_len. Walk uses the
+// existing P9a peek/step family (peek, then step — no save/restore).
+// Name copy is P1b at_end (do not copy the copy loop). parse_type_ref
+// stays C. Do not open a new P-lane. Do not touch P4b pending_n.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -66,7 +73,27 @@ const TOKEN_F32: i32 = 77;
 const TOKEN_F64: i32 = 78;
 const TOKEN_VOID: i32 = 79;
 const TOKEN_LBRACKET: i32 = 86;
+const TOKEN_DOT: i32 = 92;
 const TOKEN_STAR: i32 = 98;
+const TOKEN_RSHIFT: i32 = 105;
+const TOKEN_GT: i32 = 121;
+
+/** P9a: peek next kind without advancing the opaque lexer. */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: consume one token; returns its kind. */
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek ident_len of the next token. */
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: lexer pos (copy-at-end uses this as IDENT end). */
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
+/** P9a: slice data / length for P1b at_end copy. */
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+/** P1b authority: copy nlen bytes ending at end_pos. Do not copy the loop. */
+export extern "C" function parser_asm_copy_slice_to_name64_at_end_buf_c(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void;
 
 // TypeKind ordinals — G.7 ≡ ast.x / PARSER_ASM_TYPE_* in type_ref.inc.
 const TYPE_I32: i32 = 0;
@@ -535,4 +562,134 @@ export function parser_asm_append_type_inst_mangle_into_c(arena: *u8, base: *u8,
     return 0;
   }
   return pos;
+}
+
+/**
+ * Close one type-position angle level.
+ * TOKEN_GT consumes fully. TOKEN_RSHIFT (`>>` max-munch) closes this
+ * level and leaves one `>` for the outer list by rewinding pos/col by 1.
+ * Does not accept TOKEN_RSHIFT_EQ.
+ * @param peek_kind i32 — already-peeked close token (token.h)
+ * @param lex_inout *u8 — opaque lexer; written on success; null → 0
+ * @param next_pos usize — peek.next_lex.pos (past the close token)
+ * @param next_line i32 — peek.next_lex.line
+ * @param next_col i32 — peek.next_lex.col
+ * @return i32 — 1 if closed, 0 if peek_kind is neither GT nor RSHIFT
+ * PLATFORM: SHARED type grammar. P3d dest-buffer split of the former
+ * static C twin. parse_type_ref_impl stays C and calls the trampoline.
+ */
+#[no_mangle]
+export function parser_asm_type_angle_close_into_c(peek_kind: i32, lex_inout: *u8, next_pos: usize, next_line: i32, next_col: i32): i32 {
+  let p: usize = 0;
+  let c: i32 = 0;
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (peek_kind == TOKEN_GT) {
+    unsafe {
+      parser_asm_lex_set_pos_c(lex_inout, next_pos);
+      parser_asm_lex_set_line_c(lex_inout, next_line);
+      parser_asm_lex_set_col_c(lex_inout, next_col);
+    }
+    return 1;
+  }
+  if (peek_kind == TOKEN_RSHIFT) {
+    p = next_pos;
+    c = next_col;
+    if (p > 0 as usize) {
+      p = p - 1 as usize;
+    }
+    if (c > 1) {
+      c = c - 1;
+    }
+    unsafe {
+      parser_asm_lex_set_pos_c(lex_inout, p);
+      parser_asm_lex_set_line_c(lex_inout, next_line);
+      parser_asm_lex_set_col_c(lex_inout, c);
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Consume qualified type IDENT path `a.b.Type` into out[0..*out_len).
+ * wave582 Cap residual: content cap 63→255 (Type.name[256]). First
+ * IDENT is already in hand (first_ident_len); lex_inout sits past it.
+ * Peek DOT then step — no lexer_result save/restore. Caps copy the C
+ * twin (`>255 → 127`; `total>=127` fail; `total+seg>255 → 127-total`).
+ * @param source *u8 — opaque slice; null → -1
+ * @param lex_inout *u8 — opaque lexer (r.next_lex); mutated; null → -1
+ * @param out *u8 — destination; caller cap ≥128; null → -1
+ * @param out_len *i32 — written byte count slot; null → -1
+ * @param first_ident_len i32 — already-consumed first IDENT length; ≤0 → -1
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: SHARED product type_ref path. P3d dest-buffer split.
+ * Name copy is P1b at_end (G.7). parse_type_ref stays C.
+ */
+#[no_mangle]
+export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8, lex_inout: *u8, out: *u8, out_len: *i32, first_ident_len: i32): i32 {
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  let seg_len: i32 = 0;
+  let total: i32 = 0;
+  let kind: i32 = 0;
+  let zi: i32 = 0;
+  let start: usize = 0;
+  if (source == 0 as *u8 || lex_inout == 0 as *u8 || out == 0 as *u8 || out_len == 0 as *i32 || first_ident_len <= 0) {
+    return -1;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source) as i32;
+    if (data == 0 as *u8) {
+      return -1;
+    }
+    seg_len = first_ident_len;
+    if (seg_len > 255) {
+      seg_len = 127;
+    }
+    parser_asm_copy_slice_to_name64_at_end_buf_c(data, slen, parser_asm_lex_pos_c(lex_inout), seg_len, out);
+    total = seg_len;
+    while (1 == 1) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_DOT) {
+        out_len[0] = total;
+        return 0;
+      }
+      if (total >= 127) {
+        return -1;
+      }
+      out[total as usize] = 46;
+      total = total + 1;
+      kind = parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_IDENT) {
+        return -1;
+      }
+      seg_len = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (seg_len <= 0) {
+        return -1;
+      }
+      if (total + seg_len > 255) {
+        seg_len = 127 - total;
+      }
+      if (seg_len <= 0) {
+        return -1;
+      }
+      kind = parser_asm_lex_step_kind_c(lex_inout, source);
+      // Subsequent segments write at out[total]; P1b at_end dest is out[0]
+      // only. Index copy matches name64_buf (skip bytes past slen).
+      zi = 0;
+      start = parser_asm_lex_pos_c(lex_inout) - (seg_len as usize);
+      while (zi < seg_len) {
+        if (start + zi as usize < slen as usize) {
+          out[(total + zi) as usize] = data[start + zi as usize];
+        }
+        zi = zi + 1;
+      }
+      total = total + seg_len;
+    }
+  }
+  return -1;
 }
