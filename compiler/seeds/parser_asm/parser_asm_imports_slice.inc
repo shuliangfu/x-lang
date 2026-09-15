@@ -7,11 +7,12 @@
  * walks (bodies in src/asm/pthin_imports.x + by-value trampolines
  * in the seed TU). collect_imports dest-buffers path/bind on the C
  * trampoline (no file-statics); module writes stay in
- * pipeline_module_import_*. Contiguous already-T AUDIT_CALL padding
- * on collect_imports is compiled only under XLANG_PARSER_STRETCH_AUDIT
- * (product AUDIT_CALL is nop; hybrid trampoline has no AUDIT). Cold:
- * no define, full twin. Do not reuse XLANG_PTHIN_IMPORTS_FROM_X for
- * P11b/P11c/P11d bodies.
+ * pipeline_module_import_*. copy_token_bytes slice name is a
+ * trampoline over P1f buf-path (copy family in lex_skip). Contiguous
+ * already-T AUDIT_CALL padding on collect_imports is compiled only
+ * under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop; hybrid
+ * trampoline has no AUDIT). Cold: no define, full twin. Do not reuse
+ * XLANG_PTHIN_IMPORTS_FROM_X for P11b/P11c/P11d bodies.
  */
 /* Forward decl: defined later in this file (G-02f-422 Ubuntu gcc fix) */
 int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
@@ -115,20 +116,26 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
  * Copy source[token_start..+tok_len) into a 128-byte buffer (zero-pad remainder).
  * wave584 Cap residual: binding-name content ≤255 (ImportEntry.binding_name[256]).
  * Historical name kept for symbol stability; width is 128.
- * PLATFORM: SHARED — product import collect path (this .inc → thin glue).
+ * PLATFORM: SHARED — P1f: algorithm is parser_asm_copy_token_bytes_to_buf64_buf_c
+ * (copy family in lex_skip); this slice face only unwraps the slice.
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+extern void parser_asm_copy_token_bytes_to_buf64_buf_c(uint8_t *source, int32_t source_len, size_t start,
+                                                       int32_t nlen, uint8_t *out);
 void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, size_t token_start,
                                                  int32_t tok_len, uint8_t *buf) {
-  int32_t bi;
+  uint8_t *data;
+  int32_t slen;
   if (!buf)
     return;
-  for (bi = 0; bi < 128; bi++) {
-    if (bi < tok_len && source && source->data && token_start + (size_t)bi < source->length)
-      buf[bi] = source->data[token_start + bi];
-    else
-      buf[bi] = 0;
-  }
+  data = (source && source->data) ? source->data : NULL;
+  if (!source)
+    slen = 0;
+  else if (source->length > (size_t)2147483647)
+    slen = 2147483647;
+  else
+    slen = (int32_t)source->length;
+  parser_asm_copy_token_bytes_to_buf64_buf_c(data, slen, token_start, tok_len, buf);
 }
 
 

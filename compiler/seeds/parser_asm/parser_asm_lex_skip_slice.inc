@@ -2,13 +2,15 @@
  * parser_asm_lex_skip_slice.inc — P1 lex/skip pure helpers (G-02f-281).
  * Included by parser_asm_thin_c.from_x.c or pthin_lex_skip.from_x.c.
  *
- * Hybrid P1b/P1c/P1d/P1e: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
+ * Hybrid P1b/P1c/P1d/P1e/P1f: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
  * kind/copy/skip-walk region and the count walk (bodies in
  * src/asm/pthin_lex_skip.x + by-value trampolines in the seed TU).
  * P1d ASI and P1e peek-name / first_token C twins live in helpers.inc
- * (trampoline there). g_gp_pending_* statics + register_pending stay here.
+ * (trampoline there). P1f copy_token_bytes buf-path lives here; the
+ * historical slice name stays a trampoline in imports.inc.
+ * g_gp_pending_* statics + register_pending stay here.
  * Cold: no define, this file is the full twin. Do not reuse
- * XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e bodies.
+ * XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f bodies.
  */
 #ifndef PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 #define PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
@@ -112,6 +114,25 @@ void parser_asm_copy_slice_to_param32_at_end_buf_c(uint8_t *source, int32_t sour
   if (!out)
     return;
   parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - (size_t)nlen, nlen, out);
+}
+
+/**
+ * copy_token_bytes buf path: fill a 128-byte row (zero-pad remainder).
+ * Historical slice name parser_asm_copy_token_bytes_to_buf64 unwraps to
+ * this. Width is 128 (wave584 bind scratch); the "64" suffix is stable.
+ * PLATFORM: SHARED — P1f copy-family sibling of param32 (256).
+ */
+void parser_asm_copy_token_bytes_to_buf64_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
+                                                uint8_t *out) {
+  int32_t i;
+  if (!out)
+    return;
+  for (i = 0; i < 128; i++) {
+    if (i < nlen && source && start + (size_t)i < (size_t)source_len)
+      out[i] = source[start + (size_t)i];
+    else
+      out[i] = 0;
+  }
 }
 
 /* extracted lines 4320-4447 */

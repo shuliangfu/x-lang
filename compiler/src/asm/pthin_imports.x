@@ -31,8 +31,9 @@
 // Module writes stay in the existing pipeline_module_import_*
 // helpers called as externs. Do not call skip_imports (would drop
 // recording and leave the lexer after CONST on a non-import
-// binding; collect fail-leaves AT CONST). copy_token_bytes_to_buf64
-// stays C (cold collect only). Do not wrap leftover collect walk
+// binding; collect fail-leaves AT CONST). copy_token_bytes buf-path
+// is P1f (copy family in pthin_lex_skip.x); this .inc keeps only
+// the slice trampoline. Do not wrap leftover collect walk
 // AUDIT. Contiguous already-T AUDIT prefix on collect_imports is
 // compiled only under XLANG_PARSER_STRETCH_AUDIT (cold twin).
 // By-value lexer returns stay as C trampolines in

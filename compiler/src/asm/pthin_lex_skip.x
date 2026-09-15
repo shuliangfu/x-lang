@@ -53,11 +53,21 @@
 // then calls .x. parse_peek dest `out` is C-owned (no local u8[N]).
 // SPAWN writes four bytes `spaw` and returns 5 (match the C twin).
 //
-// Hybrid P1b/P1c/P1d/P1e: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+// 7.2.1 P1f Route C (2026-09-15): 有则补全 this file with
+// copy_token_bytes (128-byte zero-fill row). The historical C loop
+// lived in imports.inc (always host-cc); the copy-family authority
+// is this file (name64 copies nlen with no remainder zero-fill;
+// param32 fills 256 and zeros the rest). Width 128 is the import
+// bind scratch (historical symbol keeps "buf64"). Do not merge into
+// param32 (wrong cap) or name64 (no remainder zeros). Do not open
+// a new P-lane. The imports.inc slice name stays a C trampoline
+// (language has no struct-by-value slice). register_pending stays C.
+//
+// Hybrid P1b/P1c/P1d/P1e/P1f: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
 // skips the portable .inc region and the helpers.inc ASI/peek twins.
 // token.h remains the TOKEN_* authority via P1 C _Static_assert pins.
 // Cold: no define, full .inc stays. Do not reuse
-// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e bodies.
+// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -335,6 +345,48 @@ export function parser_asm_copy_slice_to_param32_at_end_buf_c(source: *u8, sourc
     return;
   }
   parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+}
+
+/**
+ * Fill a 128-byte token/bind row from `source[start..)`. Bytes past
+ * `nlen` or `source_len` are written as 0. Historical C name
+ * `parser_asm_copy_token_bytes_to_buf64` kept the "64" suffix; width
+ * is 128 (wave584 bind scratch). The imports.inc slice wrapper keeps
+ * that historical name and unwraps the slice.
+ * @param source *u8 — source bytes; null zeros the row
+ * @param source_len i32 — source length; compared as usize against start+i
+ * @param start usize — first source byte
+ * @param nlen i32 — payload length; negative copies nothing (all zeros)
+ * @param out *u8 — destination; must be >= 128 bytes; null is a no-op
+ * PLATFORM: SHARED — copy-family 128-width sibling of param32 (256).
+ * Do not merge into param32 (wrong cap). Do not merge into name64
+ * (name64 does not zero-fill the remainder).
+ */
+#[no_mangle]
+export function parser_asm_copy_token_bytes_to_buf64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
+  let i: i32 = 0;
+  let off: usize = 0;
+  let slen: usize = 0;
+  let c: u8 = 0;
+  if (out == 0 as *u8) {
+    return;
+  }
+  slen = source_len as usize;
+  while (i < 128) {
+    if (i < nlen && source != 0 as *u8) {
+      off = start + i as usize;
+      if (off < slen) {
+        unsafe {
+          c = source[off];
+          out[i] = c;
+        }
+        i = i + 1;
+        continue;
+      }
+    }
+    unsafe { out[i] = 0; }
+    i = i + 1;
+  }
 }
 
 /**

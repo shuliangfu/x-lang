@@ -9,6 +9,7 @@
  * skip_imports / consume_path / try_skip / collect_imports walks come
  * from pthin_imports.x; this TU keeps the by-value trampolines
  * (collect dest-buffers path/bind on the C stack; no file-statics).
+ * copy_token_bytes slice name trampolines to P1f buf-path (lex_skip).
  * Cold: no BODIES define, full .inc. Do not reuse
  * XLANG_PTHIN_IMPORTS_FROM_X for P11b/P11c/P11d bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
