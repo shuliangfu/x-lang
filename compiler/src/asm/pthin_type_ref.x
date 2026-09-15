@@ -25,11 +25,11 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
-// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X are separate
-// defines (P6e PARSE_LAYOUT / P2c COND pattern) so a missing
-// postfix_x / prefix_x keeps that C twin without dropping P3b–P3e.
+// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X are
+// separate defines (P6e PARSE_LAYOUT / P2c COND pattern) so a missing
+// postfix_x / prefix_x / fn_x keeps that C twin without dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -88,6 +88,20 @@
 // shim (G.7; do not dest-buffer parse_type_ref — P3f hello/fmt red).
 // C trampoline holds label[64]. Do not copy wrap into parse. Do not
 // merge wrap. Do not FORCE pabi mega. Do not open a new P-lane.
+// 7.2.1 P3i B-minus (2026-09-16): 有则补全 type-position
+// `function(T0, T1, ...): Ret` dest-buffer. The FUNCTION arm was
+// inlined in parse_type_ref_impl (always host-cc; not behind
+// BODIES/POSTFIX/PREFIX). P9a peek/step consumes `function` then
+// `(`; empty `()` is n_params=0; params recurse via the existing
+// primary parse_type_ref_ptr shim (G.7; do not dest-buffer
+// parse_type_ref — P3f hello/fmt red). Return type follows `:`.
+// TYPE_FN writes go through pipeline_type_init_fn_c in this P3 seed
+// (kind=18 raw; do not FORCE pabi mega; do not reuse
+// init_compound_kind_at — kind_ord cap 15). Params land in the
+// existing pipeline_type_append_type_arg sidecar (G.7). C trampoline
+// publishes *out_lex. Do not apply postfix after TYPE_FN (C twin
+// does not). Do not `break` out of nested while. Do not dest-buffer
+// IDENT generic type-arg. parse_type_ref_impl stays C.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -114,8 +128,12 @@ const TOKEN_F32: i32 = 77;
 const TOKEN_F64: i32 = 78;
 const TOKEN_VOID: i32 = 79;
 const TOKEN_INT: i32 = 80;
+const TOKEN_LPAREN: i32 = 82;
+const TOKEN_RPAREN: i32 = 83;
 const TOKEN_LBRACKET: i32 = 86;
 const TOKEN_RBRACKET: i32 = 87;
+const TOKEN_COMMA: i32 = 90;
+const TOKEN_COLON: i32 = 91;
 const TOKEN_DOT: i32 = 92;
 const TOKEN_STAR: i32 = 98;
 const TOKEN_RSHIFT: i32 = 105;
@@ -162,6 +180,7 @@ const TYPE_F32: i32 = 14;
 const TYPE_F64: i32 = 15;
 const TYPE_VOID: i32 = 16;
 const TYPE_DYN: i32 = 17;
+const TYPE_FN: i32 = 18;
 
 /** Sidecar: TypeKind ordinal at type_ref. */
 export extern "C" function pipeline_type_kind_ord_at(a: *u8, type_ref: i32): i32;
@@ -189,6 +208,18 @@ export extern "C" function pipeline_type_init_compound_kind_at(a: *u8, ref: i32,
  * label. Lives in the P3 seed; do not copy; do not FORCE pabi mega.
  */
 export extern "C" function pipeline_type_init_slice_c(a: *u8, ref: i32, elem_tr: i32, label: *u8, nlen: i32): void;
+/**
+ * P3i consumer-wave writer: stamp TYPE_FN (kind=18) + return elem +
+ * n_params in array_size. Lives in the P3 seed; do not copy; do not
+ * FORCE pabi mega; do not reuse init_compound_kind_at (kind_ord cap
+ * 15; pipe_ty_kind_from_ord clamps >16 to TYPE_I32).
+ */
+export extern "C" function pipeline_type_init_fn_c(a: *u8, ref: i32, ret_tr: i32, n_params: i32): void;
+/**
+ * Existing sidecar: append one type-arg (TYPE_FN params / generic
+ * args). G.7 one writer; do not copy.
+ */
+export extern "C" function pipeline_type_append_type_arg(arena: *u8, type_ref: i32, arg_ref: i32): i32;
 /** Skip-trait registry predicate (skip_tl). G.7: one lookup table. */
 export extern "C" function xlang_skip_trait_is_registered_c(trait_nm: *u8, trait_nlen: i32): i32;
 /**
@@ -1114,6 +1145,92 @@ export function parser_asm_parse_prefix_array_x_into_c(arena: *u8, lex_inout: *u
       return 0;
     }
     return arr_ref;
+  }
+  return 0;
+}
+
+/**
+ * Parse type-position `function(T0, T1, ...): Ret` into a TYPE_FN slot.
+ * Peek must be TOKEN_FUNCTION else 0 (lex unchanged). Bare `function`
+ * (no `(`) consumes the keyword and returns 0, leaving lex before the
+ * next token — same as the C twin. Empty `()` is n_params=0. Each
+ * param and the return type recurse through parse_type_ref_ptr.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @return i32 — TYPE_FN type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3i dest-buffer split of the former
+ * inlined FUNCTION arm. Writer = pipeline_type_init_fn_c. Params =
+ * pipeline_type_append_type_arg (G.7). Elem walk = primary
+ * parse_type_ref_ptr (G.7). Do not dest-buffer parse_type_ref. Do not
+ * apply postfix after TYPE_FN. parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_fn_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let param_tr: i32 = 0;
+  let ret_tr: i32 = 0;
+  let fn_ref: i32 = 0;
+  let n_params: i32 = 0;
+  let done: i32 = 0;
+  let ap: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_FUNCTION) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    fn_ref = ast_ast_arena_type_alloc(arena);
+    if (fn_ref == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+    } else {
+      done = 0;
+      while (done == 0) {
+        param_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+        if (param_tr == 0) {
+          return 0;
+        }
+        ap = pipeline_type_append_type_arg(arena, fn_ref, param_tr);
+        n_params = n_params + 1;
+        if (ap != 0) {
+          return 0;
+        }
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_COMMA) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+        } else {
+          if (kind == TOKEN_RPAREN) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            done = 1;
+          } else {
+            return 0;
+          }
+        }
+      }
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_COLON) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ret_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+    if (ret_tr == 0) {
+      return 0;
+    }
+    pipeline_type_init_fn_c(arena, fn_ref, ret_tr, n_params);
+    return fn_ref;
   }
   return 0;
 }

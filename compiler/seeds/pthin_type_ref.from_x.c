@@ -5,7 +5,7 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
  * vector-ident bodies, type-inst mangle, consume_qualified,
  * type_angle_close, and TYPE_DYN wrap dest-buffer come from
  * pthin_type_ref.x; this TU keeps slice trampolines plus arena parse.
@@ -13,10 +13,14 @@
  * twins when both parse_x symbols are present (missing postfix keeps the
  * C twins without dropping P3b–P3e). XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X
  * (P3h) skips prefix `[N]T` / `[]T` C twin when prefix_x is present
- * (missing prefix keeps the C twin without dropping P3g). TYPE_DYN writer
- * pipeline_type_init_dyn_c lives here (consumer-wave; do not FORCE pabi
- * mega). Mangle C twins live in primary.inc (7-arg trampoline holds
- * suf[64]). Cold: no BODIES/POSTFIX/PREFIX define, full .inc.
+ * (missing prefix keeps the C twin without dropping P3g).
+ * XLANG_PTHIN_TYPE_REF_FN_FROM_X (P3i) skips type-position
+ * `function(...): Ret` C twin when fn_x is present (missing fn keeps
+ * the C twin without dropping P3h). TYPE_DYN / TYPE_FN writers
+ * pipeline_type_init_dyn_c / pipeline_type_init_fn_c live here
+ * (consumer-wave; do not FORCE pabi mega). Mangle C twins live in
+ * primary.inc (7-arg trampoline holds suf[64]). Cold: no
+ * BODIES/POSTFIX/PREFIX/FN define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -90,8 +94,12 @@ _Static_assert((int)TOKEN_F32 == 77, "type_ref.x TOKEN_F32 pin");
 _Static_assert((int)TOKEN_F64 == 78, "type_ref.x TOKEN_F64 pin");
 _Static_assert((int)TOKEN_VOID == 79, "type_ref.x TOKEN_VOID pin");
 _Static_assert((int)TOKEN_INT == 80, "type_ref.x TOKEN_INT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "type_ref.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "type_ref.x TOKEN_RPAREN pin");
 _Static_assert((int)TOKEN_LBRACKET == 86, "type_ref.x TOKEN_LBRACKET pin");
 _Static_assert((int)TOKEN_RBRACKET == 87, "type_ref.x TOKEN_RBRACKET pin");
+_Static_assert((int)TOKEN_COMMA == 90, "type_ref.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "type_ref.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_DOT == 92, "type_ref.x TOKEN_DOT pin");
 _Static_assert((int)TOKEN_STAR == 98, "type_ref.x TOKEN_STAR pin");
 _Static_assert((int)TOKEN_RSHIFT == 105, "type_ref.x TOKEN_RSHIFT pin");
@@ -193,6 +201,27 @@ void pipeline_type_init_slice_c(void *a, int32_t ref, int32_t elem_tr, uint8_t *
   }
 }
 
+/**
+ * PLATFORM: SHARED — P3i consumer-wave writer. Stamp TYPE_FN (kind=18)
+ * + return elem + n_params in array_size. Do not reuse
+ * pipeline_type_init_compound_kind_at (kind_ord cap 15;
+ * pipe_ty_kind_from_ord clamps >16 to TYPE_I32). Do not FORCE pabi mega.
+ * Params go through existing pipeline_type_append_type_arg (G.7).
+ */
+void pipeline_type_init_fn_c(void *a, int32_t ref, int32_t ret_tr, int32_t n_params) {
+  P3e_Type *t;
+  if (!a || ref <= 0)
+    return;
+  t = (P3e_Type *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return;
+  t->kind = 18; /* PARSER_ASM_TYPE_FN — write raw. */
+  t->elem_type_ref = ret_tr;
+  t->array_size = n_params;
+  t->name_len = 0;
+  t->region_label_len = 0;
+}
+
 /* mega rest 中为 static；本 TU 自备等价实现（layout 一致）。 */
 static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out,
                                                struct parser_asm_lexer_result r) {
@@ -218,6 +247,7 @@ _Static_assert(PARSER_ASM_TYPE_PTR == 9, "type_ref.x TYPE_PTR pin");
 _Static_assert(PARSER_ASM_TYPE_ARRAY == 10, "type_ref.x TYPE_ARRAY pin");
 _Static_assert(PARSER_ASM_TYPE_SLICE == 11, "type_ref.x TYPE_SLICE pin");
 _Static_assert(PARSER_ASM_TYPE_DYN == 17, "type_ref.x TYPE_DYN pin");
+_Static_assert(PARSER_ASM_TYPE_FN == 18, "type_ref.x TYPE_FN pin");
 
 int labi_pthin_type_ref_slice_marker(void) {
   return 1;
