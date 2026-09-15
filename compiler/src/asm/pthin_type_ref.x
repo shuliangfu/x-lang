@@ -25,11 +25,12 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
-// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X is a separate define (P6e
-// PARSE_LAYOUT / P2c COND pattern) so a missing postfix_x keeps the C
-// postfix twins without dropping P3b–P3e. token.h remains the TOKEN_*
+// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X are separate
+// defines (P6e PARSE_LAYOUT / P2c COND pattern) so a missing
+// postfix_x / prefix_x keeps that C twin without dropping P3b–P3e.
+// token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
 // historical i32x* / u32x* nibble pattern); do not "fix" as a side effect.
@@ -76,6 +77,17 @@
 // parse_type_ref (P3f was hello/fmt red). Do not copy wrap into parse.
 // Do not merge wrap. Do not FORCE pabi mega. Do not open a new P-lane.
 // Do not `break` out of nested while (P4bh parse drops the function).
+// 7.2.1 P3h B-minus (2026-09-16): 有则补全 prefix `[N]T` / `[]T` /
+// `[]T<label>` dest-buffer. The LBRACKET arm was inlined in
+// parse_type_ref_impl (always host-cc; not behind BODIES/POSTFIX).
+// P9a peek/step consumes `[`; empty `[]` is slice then recurse for T
+// (label after T, unlike postfix `T[]<label>`). `[N]` wraps ARRAY
+// around the recursive elem (multi-dim `[2][3]T` is recurse, not a
+// dim loop). ARRAY/SLICE writers = P3g (init_compound ARRAY /
+// init_slice_c). Elem walk = existing primary parse_type_ref_ptr
+// shim (G.7; do not dest-buffer parse_type_ref — P3f hello/fmt red).
+// C trampoline holds label[64]. Do not copy wrap into parse. Do not
+// merge wrap. Do not FORCE pabi mega. Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -179,6 +191,12 @@ export extern "C" function pipeline_type_init_compound_kind_at(a: *u8, ref: i32,
 export extern "C" function pipeline_type_init_slice_c(a: *u8, ref: i32, elem_tr: i32, label: *u8, nlen: i32): void;
 /** Skip-trait registry predicate (skip_tl). G.7: one lookup table. */
 export extern "C" function xlang_skip_trait_is_registered_c(trait_nm: *u8, trait_nlen: i32): i32;
+/**
+ * Existing primary pointer-face parse_type_ref (G.7 one shim).
+ * Prefix `[N]T` / `[]T` recurse through this; do not dest-buffer
+ * parse_type_ref (P3f was hello/fmt red).
+ */
+export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
 
 /**
  * Bounds check shared by IDENT spelling probes in this file.
@@ -991,6 +1009,111 @@ export function parser_asm_parse_postfix_array_x_into_c(arena: *u8, elem_tr: i32
       di = di - 1;
     }
     return cur;
+  }
+  return 0;
+}
+
+/**
+ * Parse prefix array/slice: `[N]T` / `[]T` / `[]T<label>`. Entry cursor
+ * is unconsumed. First token must be `[`; otherwise 0 and the cursor
+ * is left unchanged. Empty `[]` is slice, then recurse for T; optional
+ * `<ident>` label is after T (not after `[]` — that is postfix). `[N]`
+ * wraps TYPE_ARRAY around the recursive elem. Multi-dim `[2][3]T` is
+ * recurse, not a dim loop.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param label_scratch *u8 — dest for region label; caller owns ≥64
+ *   bytes; null fails the `<ident>` path (no-label `[]T` still works)
+ * @return i32 — TYPE_ARRAY / TYPE_SLICE type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3h dest-buffer split of the former
+ * inlined LBRACKET arm. Writer = P3g init_compound ARRAY /
+ * init_slice_c. Elem = primary parse_type_ref_ptr (G.7). Do not
+ * dest-buffer parse_type_ref. parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_prefix_array_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, label_scratch: *u8): i32 {
+  let kind: i32 = 0;
+  let nlen: i32 = 0;
+  let iv: i32 = 0;
+  let elem_tr: i32 = 0;
+  let slice_ref: i32 = 0;
+  let arr_ref: i32 = 0;
+  let ok: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  let ts: usize = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACKET) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RBRACKET) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      elem_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+      if (elem_tr == 0) {
+        return 0;
+      }
+      slice_ref = ast_ast_arena_type_alloc(arena);
+      if (slice_ref == 0) {
+        return 0;
+      }
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_LT) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        if (kind != TOKEN_IDENT || nlen <= 0 || nlen > 63 || label_scratch == 0 as *u8) {
+          return 0;
+        }
+        ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        data = parser_asm_lex_source_data_c(source);
+        slen = parser_asm_lex_source_length_c(source) as i32;
+        if (data == 0 as *u8) {
+          return 0;
+        }
+        /* G.7 ≡ C twin copy from token_start (not at_end). */
+        parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, nlen, label_scratch);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_GT) {
+          return 0;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        pipeline_type_init_slice_c(arena, slice_ref, elem_tr, label_scratch, nlen);
+        return slice_ref;
+      }
+      pipeline_type_init_slice_c(arena, slice_ref, elem_tr, 0 as *u8, 0);
+      return slice_ref;
+    }
+    if (kind != TOKEN_INT) {
+      return 0;
+    }
+    iv = parser_asm_lex_peek_int_val_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RBRACKET) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    elem_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+    if (elem_tr == 0) {
+      return 0;
+    }
+    arr_ref = ast_ast_arena_type_alloc(arena);
+    if (arr_ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_compound_kind_at(arena, arr_ref, TYPE_ARRAY, elem_tr, iv);
+    if (ok == 0) {
+      return 0;
+    }
+    return arr_ref;
   }
   return 0;
 }

@@ -3,13 +3,15 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
  * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
  * region, (P3d) consume_qualified / type_angle_close, and (P3e) TYPE_DYN
  * wrap / alloc (bodies in src/asm/pthin_type_ref.x + slice trampolines
  * in the seed TU). XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X skips postfix
- * array/slice C twins (P3g dest-buffer). Arena alloc and parse_type_ref_impl
- * stay C. Cold: no BODIES/POSTFIX define, this file is the full twin.
+ * array/slice C twins (P3g dest-buffer). XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X
+ * skips prefix `[N]T` / `[]T` C twin (P3h dest-buffer). Arena alloc and
+ * parse_type_ref_impl stay C. Cold: no BODIES/POSTFIX/PREFIX define, this
+ * file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -695,6 +697,125 @@ static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t el
 }
 #endif /* XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X postfix array/slice */
 
+#ifdef XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X
+extern int32_t parser_asm_parse_prefix_array_x_into_c(void *arena, void *lex_inout, void *source,
+                                                     uint8_t *label_scratch);
+/**
+ * PLATFORM: SHARED — P3h trampoline. Language has no local u8[N]; this
+ * C face holds label[64] for `[]T<label>`. Entry cursor is unconsumed
+ * `[`; parse_type_ref_impl stays C and only calls this on LBRACKET.
+ */
+static int32_t parser_asm_parse_prefix_array_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                       struct parser_asm_slice_u8 *source,
+                                                       struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  uint8_t label[64];
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  memset(label, 0, sizeof(label));
+  ref = parser_asm_parse_prefix_array_x_into_c(arena, &cur, source, label);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Parse prefix `[N]T` / `[]T` / `[]T<label>`. lex is unconsumed `[`.
+ * Empty `[]` is slice then recurse for T; optional `<ident>` is after T.
+ * `[N]` wraps ARRAY around the recursive elem. Multi-dim is recurse.
+ * PLATFORM: SHARED type grammar (docs/02 prefix form; postfix is P3g).
+ */
+static int32_t parser_asm_parse_prefix_array_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                       struct parser_asm_slice_u8 *source,
+                                                       struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  int32_t slice_elem_tr;
+  int32_t slice_ref;
+  struct ast_Type ts;
+  int32_t asz;
+  int32_t elem_tr;
+  int32_t arr_ref;
+  struct ast_Type ta;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_LBRACKET) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  parser_asm_lex_from_result_val_into(&lex, r);
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    slice_elem_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+    if (slice_elem_tr == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    slice_ref = ast_ast_arena_type_alloc(arena);
+    if (slice_ref != 0) {
+      ts = ast_arena_type_get(arena, slice_ref);
+      ts.kind = PARSER_ASM_TYPE_SLICE;
+      ts.elem_type_ref = slice_elem_tr;
+      ts.array_size = 0;
+      ts.name_len = 0;
+      ts.region_label_len = 0;
+      lexer_next_into(&r, lex, source);
+      if (r.tok.kind == (int32_t)TOKEN_LT) {
+        parser_asm_lex_from_result_val_into(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63) {
+          parser_asm_write_out_lex_c(out_lex, lex);
+          return 0;
+        }
+        parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, ts.region_label);
+        ts.region_label_len = r.tok.ident_len;
+        parser_asm_lex_from_result_val_into(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_GT) {
+          parser_asm_write_out_lex_c(out_lex, lex);
+          return 0;
+        }
+        parser_asm_lex_from_result_val_into(&lex, r);
+      }
+      ast_arena_type_set(arena, slice_ref, ts);
+    }
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return slice_ref;
+  }
+  if (r.tok.kind != (int32_t)TOKEN_INT) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  asz = r.tok.int_val;
+  parser_asm_lex_from_result_val_into(&lex, r);
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_RBRACKET) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  parser_asm_lex_from_result_val_into(&lex, r);
+  elem_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+  if (elem_tr == 0) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  arr_ref = ast_ast_arena_type_alloc(arena);
+  if (arr_ref != 0) {
+    ta = ast_arena_type_get(arena, arr_ref);
+    ta.kind = PARSER_ASM_TYPE_ARRAY;
+    ta.elem_type_ref = elem_tr;
+    ta.array_size = asz;
+    ta.name_len = 0;
+    ta.region_label_len = 0;
+    ast_arena_type_set(arena, arr_ref, ta);
+  }
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return arr_ref;
+}
+#endif /* XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X prefix array/slice */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -706,13 +827,6 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   int32_t elem_ref;
   int32_t type_ref_param;
   struct ast_Type t;
-  int32_t slice_elem_tr;
-  int32_t slice_ref;
-  struct ast_Type ts;
-  int32_t asz;
-  int32_t elem_tr;
-  int32_t arr_ref;
-  struct ast_Type ta;
   int32_t elem_ord;
   int32_t lanes;
   int32_t vec_ref;
@@ -909,75 +1023,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_slice_type_bracket_audit_c(&lex, source));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_array_type_bracket_audit_c(&lex, source));
-    parser_asm_lex_from_result_val_into(&lex, r);
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind == (int32_t)TOKEN_RBRACKET) {
-      parser_asm_lex_from_result_val_into(&lex, r);
-      slice_elem_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
-      if (slice_elem_tr == 0) {
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return 0;
-      }
-      slice_ref = ast_ast_arena_type_alloc(arena);
-      if (slice_ref != 0) {
-        ts = ast_arena_type_get(arena, slice_ref);
-        ts.kind = PARSER_ASM_TYPE_SLICE;
-        ts.elem_type_ref = slice_elem_tr;
-        ts.array_size = 0;
-        ts.name_len = 0;
-        ts.region_label_len = 0;
-        lexer_next_into(&r, lex, source);
-        if (r.tok.kind == (int32_t)TOKEN_LT) {
-          parser_asm_lex_from_result_val_into(&lex, r);
-          lexer_next_into(&r, lex, source);
-          if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0 || r.tok.ident_len > 63) {
-            parser_asm_write_out_lex_c(out_lex, lex);
-            return 0;
-          }
-          parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, r.tok.ident_len, ts.region_label);
-          ts.region_label_len = r.tok.ident_len;
-          parser_asm_lex_from_result_val_into(&lex, r);
-          lexer_next_into(&r, lex, source);
-          if (r.tok.kind != (int32_t)TOKEN_GT) {
-            parser_asm_write_out_lex_c(out_lex, lex);
-            return 0;
-          }
-          parser_asm_lex_from_result_val_into(&lex, r);
-        }
-        ast_arena_type_set(arena, slice_ref, ts);
-      }
-      parser_asm_write_out_lex_c(out_lex, lex);
-      return slice_ref;
-    }
-    if (r.tok.kind != (int32_t)TOKEN_INT) {
-      parser_asm_write_out_lex_c(out_lex, lex);
-      return 0;
-    }
-    asz = r.tok.int_val;
-    parser_asm_lex_from_result_val_into(&lex, r);
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_RBRACKET) {
-      parser_asm_write_out_lex_c(out_lex, lex);
-      return 0;
-    }
-    parser_asm_lex_from_result_val_into(&lex, r);
-    elem_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
-    if (elem_tr == 0) {
-      parser_asm_write_out_lex_c(out_lex, lex);
-      return 0;
-    }
-    arr_ref = ast_ast_arena_type_alloc(arena);
-    if (arr_ref != 0) {
-      ta = ast_arena_type_get(arena, arr_ref);
-      ta.kind = PARSER_ASM_TYPE_ARRAY;
-      ta.elem_type_ref = elem_tr;
-      ta.array_size = asz;
-      ta.name_len = 0;
-      ta.region_label_len = 0;
-      ast_arena_type_set(arena, arr_ref, ta);
-    }
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return arr_ref;
+    return parser_asm_parse_prefix_array_type_ref_c(arena, lex, source, out_lex);
   }
   if (r.tok.kind == (int32_t)TOKEN_I32X4 || r.tok.kind == (int32_t)TOKEN_I32X8 || r.tok.kind == (int32_t)TOKEN_I32X16
       || r.tok.kind == (int32_t)TOKEN_U32X4 || r.tok.kind == (int32_t)TOKEN_U32X8 || r.tok.kind == (int32_t)TOKEN_U32X16

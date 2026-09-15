@@ -5,16 +5,18 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
  * vector-ident bodies, type-inst mangle, consume_qualified,
  * type_angle_close, and TYPE_DYN wrap dest-buffer come from
  * pthin_type_ref.x; this TU keeps slice trampolines plus arena parse.
  * XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X (P3g) skips postfix array/slice C
  * twins when both parse_x symbols are present (missing postfix keeps the
- * C twins without dropping P3b–P3e). TYPE_DYN writer
+ * C twins without dropping P3b–P3e). XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X
+ * (P3h) skips prefix `[N]T` / `[]T` C twin when prefix_x is present
+ * (missing prefix keeps the C twin without dropping P3g). TYPE_DYN writer
  * pipeline_type_init_dyn_c lives here (consumer-wave; do not FORCE pabi
  * mega). Mangle C twins live in primary.inc (7-arg trampoline holds
- * suf[64]). Cold: no BODIES/POSTFIX define, full .inc.
+ * suf[64]). Cold: no BODIES/POSTFIX/PREFIX define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>

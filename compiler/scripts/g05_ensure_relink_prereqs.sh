@@ -1019,13 +1019,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P2 let/alias ← $_pthin_p2_seed (G-02f-279 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P3b/P3c/P3d/P3e/P3g Route C (2026-09-13/15/16).
+        # PLATFORM: SHARED — 7.2.1 P3b/P3c/P3d/P3e/P3g/P3h Route C (2026-09-13/15/16).
         # pthin_type_ref.x holds kind / dyn / builtin TypeKind / vector ident
         # plus type-inst mangle dest-buffer, consume_qualified / angle close,
-        # TYPE_DYN wrap dest-buffer, and P3g postfix array/slice dest-buffer.
+        # TYPE_DYN wrap dest-buffer, P3g postfix array/slice dest-buffer,
+        # and P3h prefix `[N]T` / `[]T` dest-buffer.
         # Runs before P3 C so BODIES_FROM_X skips the portable .inc region.
-        # POSTFIX is a separate define (P6e PARSE_LAYOUT / P2c COND) so a
-        # missing postfix_x keeps the C postfix twins without dropping
+        # POSTFIX / PREFIX are separate defines (P6e PARSE_LAYOUT / P2c COND)
+        # so a missing postfix_x / prefix_x keeps that C twin without dropping
         # P3b–P3e. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
         if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
@@ -1033,13 +1034,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_append_type_inst_mangle_into_c"; then
             _pthin_p3b_ok=1
             _pthin_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
+            _pthin_p3_lane="P3b/P3c/P3d/P3e"
             if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_postfix_slice_x_into_c" \
               && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_postfix_array_x_into_c"; then
               _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X"
-              echo "g05_ensure: P3b/P3c/P3d/P3e/P3g type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
-            else
-              echo "g05_ensure: P3b/P3c/P3d/P3e type_ref bodies ← $_pthin_p3b_x (P3g postfix C twin)"
+              _pthin_p3_lane="$_pthin_p3_lane/P3g"
             fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_prefix_array_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_PREFIX_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3h"
+            fi
+            echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P3b type_ref .x thin failed or missing mangle_into; P3 C twin stays full" >&2
           fi
