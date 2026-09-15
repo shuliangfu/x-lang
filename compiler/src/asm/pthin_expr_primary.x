@@ -114,10 +114,14 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // LPAREN / RPAREN / LBRACE / TYPE and the method/field/var-name writers
 // were used without local pins / externs (typeck treats unknown names as
 // check_block fail). Completing the pins makes `-E` typeck OK
-// (num_funcs=61). Product hybrid stays PARKED: C IDENT head + .x
-// suffix_loop trampoline RSS-runs on import method calls
-// (`fmt.println` / `option.none_i32()`); tiny `f()` / `s.x` are fine.
-// IDENT head dispatch stays off (hello typeck-broke when wired).
+// (num_funcs=61).
+// 7.2.1 P4bf (2026-09-15): P4be parked BODIES because the C trampoline
+// voided r/first_suffix and did not publish lex into out->next_lex.
+// IDENT/INT callers then returned a stale cursor; binop/stmt re-parsed
+// the same import method (`fmt.println` / `option.none_i32()`) until RSS
+// blew up. Root fix is the trampoline copy (C-twin stop contract); this
+// .x body is unchanged. IDENT head dispatch stays off (hello typeck-broke
+// when wired).
 // pending_n stays a local i32 by value (do not take its address).
 // Do not FORCE pabi mega — writers already T.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
@@ -490,7 +494,8 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
  *   - wave607: qualified struct lit continues the chain
  *   - stall guard: same pos+kind 4096 times -> hard fail
  * @return void — failures write out_ok=0; stop leaves the cursor at the
- *   first non-suffix token (the C arms set out->next_lex from the cursor)
+ *   first non-suffix token. The C trampoline (not this body) copies
+ *   lex_inout into out->next_lex; that is the C-twin stop contract.
  * PLATFORM: SHARED — product primary suffix loop (EXPR_PRIMARY gate).
  */
 #[no_mangle]

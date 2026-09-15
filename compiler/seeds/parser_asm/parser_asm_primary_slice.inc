@@ -868,8 +868,14 @@ static int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *
 #ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
 /* Primary suffix loop: body in pthin_expr_primary.x (peek/step cursor model;
  * peeks are pure so the C r-cache collapses away). Buffers are trampoline-
- * owned (no local arrays in the language). The arms set out->next_lex from
- * the cursor after the call, so exit-state next_lex handling is moot. */
+ * owned (no local arrays in the language).
+ * PLATFORM: SHARED — C-twin contract: every stop/fail path writes
+ * out->next_lex from the live cursor. The .x body only mutates lex_inout
+ * plus out_ok/out_expr_ref (no result struct). Publishing next_lex here is
+ * the C face of that contract, not a second suffix algorithm. P4be parked
+ * BODIES because skipping this copy left IDENT callers with a stale
+ * next_lex; binop/stmt then re-parsed the same `mod.fn(...)` until RSS
+ * blew up on import method calls (`fmt.println` / `option.none_i32()`). */
 extern void parser_asm_primary_suffix_loop_x_into_c(void *arena, void *source, void *lex_inout,
                                                     int32_t *out_ok, int32_t *out_expr_ref,
                                                     int32_t *mc_arg_buf, int32_t *arg_buf,
@@ -889,6 +895,8 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   parser_asm_primary_suffix_loop_x_into_c(arena, source, lex, &out->ok, &out->expr_ref,
                                           mc_arg_buf, arg_buf, parsed_refs, pending_refs,
                                           mangled, name_buf);
+  if (lex && out)
+    out->next_lex = *lex;
 }
 #else
 static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_asm_slice_u8 *source,
@@ -2839,11 +2847,12 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
    * the INT branch also drives the .x suffix loop (trampoline-owned
    * buffers — the language has no local arrays). Returns 0 (not mine) so
    * every other arm below stays C-authoritative.
-   * P4be: IDENT HEAD stays the C arm below. ident_x_into_c is compiled
+   * P4be/P4bf: IDENT HEAD stays the C arm below. ident_x_into_c is compiled
    * (suffix_loop typeck unblocked) but not dispatched — import-qualified
    * `fmt.println` / module field heads still need the C VAR fill. IDENT
    * still reaches the .x suffix loop via parser_asm_primary_ident_suffix_loop_c
-   * (BODIES trampoline). Do not wire ident_x_into_c here as a side effect. */
+   * (BODIES trampoline, which publishes next_lex). Do not wire
+   * ident_x_into_c here as a side effect. */
   {
     extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
                                                        int32_t *out_ok, int32_t *out_expr_ref,
