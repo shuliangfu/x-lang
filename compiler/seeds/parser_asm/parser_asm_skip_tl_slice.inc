@@ -5164,6 +5164,23 @@ void xlang_generic_bound_scan_c(uint8_t *data, int32_t len) {
  * Replaces any prior entry with the same function name.
  * PLATFORM: SHARED parse+typeck.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12k trampoline. Language has no file-local statics;
+ * .x writes dest g_fn_gp_* (same layout as P12d scan). Zero algorithm
+ * besides passing the tables. register_pending stays C. */
+extern int32_t xlang_generic_func_register_type_params_into_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                             uint8_t *names, int32_t *lens, int32_t n,
+                                                             uint8_t *gp_fname, int32_t *gp_fname_len,
+                                                             uint8_t *gp_names, int32_t *gp_lens,
+                                                             int32_t *gp_nargs, int32_t *gp_n);
+int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                    const uint8_t names[][64], const int32_t *lens,
+                                                    int32_t n) {
+  return xlang_generic_func_register_type_params_into_c(
+      fn_name, fn_name_len, (uint8_t *)names, (int32_t *)lens, n, (uint8_t *)g_fn_gp_fname,
+      g_fn_gp_fname_len, (uint8_t *)g_fn_gp_names, (int32_t *)g_fn_gp_lens, g_fn_gp_nargs, &g_fn_gp_n);
+}
+#else
 int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
                                                     const uint8_t names[][64], const int32_t *lens,
                                                     int32_t n) {
@@ -5207,6 +5224,7 @@ int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_
   }
   return n;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X register_type_params */
 
 /**
  * wave455: look up declaration-order index of a type-parameter name on a
@@ -5220,6 +5238,21 @@ int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_
  * @return 0-based type-arg index, or -1 if unknown function / name
  * PLATFORM: SHARED — used by pipeline_glue generic call ret fixup.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12k trampoline. Read-only dest of g_fn_gp_*; gp_n
+ * passed by value. Zero algorithm besides passing the tables. */
+extern int32_t xlang_generic_func_type_param_index_into_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                                         const uint8_t *tp_name, int32_t tp_name_len,
+                                                         uint8_t *gp_fname, int32_t *gp_fname_len,
+                                                         uint8_t *gp_names, int32_t *gp_lens,
+                                                         int32_t *gp_nargs, int32_t gp_n);
+int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn_name_len,
+                                               const uint8_t *tp_name, int32_t tp_name_len) {
+  return xlang_generic_func_type_param_index_into_c(
+      fn_name, fn_name_len, tp_name, tp_name_len, (uint8_t *)g_fn_gp_fname, g_fn_gp_fname_len,
+      (uint8_t *)g_fn_gp_names, (int32_t *)g_fn_gp_lens, g_fn_gp_nargs, g_fn_gp_n);
+}
+#else
 int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn_name_len,
                                                const uint8_t *tp_name, int32_t tp_name_len) {
   int32_t fi;
@@ -5246,6 +5279,7 @@ int32_t xlang_generic_func_type_param_index_c(const uint8_t *fn_name, int32_t fn
   }
   return -1;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X type_param_index */
 
 /**
  * 4.2.2 generic-body method via bound (G.7 complete the skip_tl bound+trait tables).

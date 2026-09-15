@@ -91,16 +91,26 @@
 // typeck. Do not merge with P6b. Do not merge with
 // concrete_implements_trait. Do not open a new P-lane.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j: g05_try_x_to_o this
+// 7.2.1 P12k B-minus (2026-09-15): 有则补全 register_type_params +
+// type_param_index dest-buffer. Both were always-host-cc (not behind
+// BODIES). Language has no file-local statics; the C trampoline
+// passes the existing g_fn_gp_* tables as flat dest (same layout as
+// P12d scan: fname stride 64 / names 32x4x64 / args cap 4).
+// register_pending stays C (reads g_gp_pending_* then calls this).
+// method_on_param / bound_check stay C (also walk g_fn_bound_* +
+// trait-reg). Do not merge with P1c pending tables. Do not open a
+// new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
 // skip_name_is_self + self_matches_for + named_eq_self +
-// rewrite_self). Requires P9a bridge + P1b skip walks (otherwise
-// skip_balanced / skip_generic_angle / copy_slice would UNDEF).
-// token.h remains the TOKEN_* authority via P12 C _Static_assert
-// pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12j bodies. P12g skip_one_trait
+// rewrite_self + register_type_params + type_param_index). Requires P9a
+// bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
+// / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
+// P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12k bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -3643,6 +3653,150 @@ export function xlang_skip_rewrite_self_type_ref_into_c(arena: *u8, type_ref: i3
     }
     return pipeline_type_find_or_alloc_named(arena, for_copy, n);
   }
+}
+
+/**
+ * Register declaration-order type-param names for a function into dest
+ * g_fn_gp_* tables (P12d layout). Replaces any prior row with the same
+ * function name. Input `names` is a flat [n][64] snapshot (pending
+ * angle-list or scan). Caps: fname 63, n ≤ 4, table 32.
+ * @param fn_name *u8 — function name bytes; null / empty → 0
+ * @param fn_name_len i32 — byte count; capped at 63
+ * @param names *u8 — dest input rows, stride 64
+ * @param lens *i32 — dest input row lengths
+ * @param n i32 — number of type-param rows; n<=0 → 0
+ * @param gp_fname *u8 — dest generic-fn names, stride 64, cap 32
+ * @param gp_fname_len *i32 — dest generic-fn name lens, cap 32
+ * @param gp_names *u8 — dest type-param names, stride 64, 32 x 4
+ * @param gp_lens *i32 — dest type-param lens, 32 x 4
+ * @param gp_nargs *i32 — dest type-param counts, cap 32
+ * @param gp_n *i32 — in/out occupied row count
+ * @return i32 — n registered, 0 on null/empty, -1 if table full
+ * PLATFORM: SHARED — product P12k B-minus. C trampoline owns g_fn_gp_*.
+ * Do not merge with P1c pending. Do not wrap method_on_param this wave.
+ */
+#[no_mangle]
+export function xlang_generic_func_register_type_params_into_c(fn_name: *u8, fn_name_len: i32, names: *u8, lens: *i32, n: i32, gp_fname: *u8, gp_fname_len: *i32, gp_names: *u8, gp_lens: *i32, gp_nargs: *i32, gp_n: *i32): i32 {
+  let fi: i32 = 0;
+  let pi: i32 = 0;
+  let slot: i32 = -1;
+  let gn: i32 = 0;
+  let pl: i32 = 0;
+  let fname_off: usize = 0;
+  let name_off: usize = 0;
+  let in_off: usize = 0;
+  let lens_off: usize = 0;
+  if (fn_name == 0 as *u8 || fn_name_len <= 0 || names == 0 as *u8 || lens == 0 as *i32 || n <= 0) {
+    return 0;
+  }
+  if (gp_fname == 0 as *u8 || gp_fname_len == 0 as *i32 || gp_names == 0 as *u8 || gp_lens == 0 as *i32 || gp_nargs == 0 as *i32 || gp_n == 0 as *i32) {
+    return 0;
+  }
+  if (fn_name_len > 63) {
+    fn_name_len = 63;
+  }
+  if (n > GENERIC_CALL_MAX_ARGS) {
+    n = GENERIC_CALL_MAX_ARGS;
+  }
+  unsafe {
+    gn = gp_n[0];
+    fi = 0;
+    while (fi < gn) {
+      fname_off = (fi as usize) * (BOUND_NAME_CAP as usize);
+      if (skip_named_bytes_eq(gp_fname + fname_off, gp_fname_len[fi], fn_name, fn_name_len) != 0) {
+        slot = fi;
+        break;
+      }
+      fi = fi + 1;
+    }
+    if (slot < 0) {
+      if (gn >= FN_GP_MAX) {
+        return -1;
+      }
+      slot = gn;
+      gp_n[0] = gn + 1;
+    }
+    fname_off = (slot as usize) * (BOUND_NAME_CAP as usize);
+    pl = skip_fill_for_copy(fn_name, fn_name_len, gp_fname + fname_off);
+    gp_fname_len[slot] = fn_name_len;
+    gp_nargs[slot] = n;
+    pi = 0;
+    while (pi < n) {
+      in_off = (pi as usize) * (BOUND_NAME_CAP as usize);
+      name_off = ((slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize) * (BOUND_NAME_CAP as usize);
+      lens_off = (slot as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize;
+      pl = lens[pi];
+      if (pl <= 0) {
+        pl = skip_fill_for_copy(names + in_off, 0, gp_names + name_off);
+        gp_lens[lens_off] = 0;
+      } else {
+        pl = skip_fill_for_copy(names + in_off, pl, gp_names + name_off);
+        gp_lens[lens_off] = pl;
+      }
+      pi = pi + 1;
+    }
+  }
+  return n;
+}
+
+/**
+ * Look up the declaration-order index of a type-parameter name on a
+ * generic function recorded by scan or register_type_params.
+ * @param fn_name *u8 — function name bytes; null / empty → -1
+ * @param fn_name_len i32 — byte count; capped at 63
+ * @param tp_name *u8 — type-param spelling (e.g. "T"); null / empty → -1
+ * @param tp_name_len i32 — byte count; capped at 63
+ * @param gp_fname *u8 — dest generic-fn names, stride 64, cap 32
+ * @param gp_fname_len *i32 — dest generic-fn name lens, cap 32
+ * @param gp_names *u8 — dest type-param names, stride 64, 32 x 4
+ * @param gp_lens *i32 — dest type-param lens, 32 x 4
+ * @param gp_nargs *i32 — dest type-param counts, cap 32
+ * @param gp_n i32 — occupied row count (read-only)
+ * @return i32 — 0-based type-arg index, or -1 if unknown function / name
+ * PLATFORM: SHARED — product P12k B-minus. C trampoline owns g_fn_gp_*.
+ * Do not merge with P1c pending. Do not wrap method_on_param this wave.
+ */
+#[no_mangle]
+export function xlang_generic_func_type_param_index_into_c(fn_name: *u8, fn_name_len: i32, tp_name: *u8, tp_name_len: i32, gp_fname: *u8, gp_fname_len: *i32, gp_names: *u8, gp_lens: *i32, gp_nargs: *i32, gp_n: i32): i32 {
+  let fi: i32 = 0;
+  let pi: i32 = 0;
+  let nargs: i32 = 0;
+  let fname_off: usize = 0;
+  let name_off: usize = 0;
+  let lens_off: usize = 0;
+  if (fn_name == 0 as *u8 || fn_name_len <= 0 || tp_name == 0 as *u8 || tp_name_len <= 0) {
+    return -1;
+  }
+  if (gp_fname == 0 as *u8 || gp_fname_len == 0 as *i32 || gp_names == 0 as *u8 || gp_lens == 0 as *i32 || gp_nargs == 0 as *i32 || gp_n <= 0) {
+    return -1;
+  }
+  if (fn_name_len > 63) {
+    fn_name_len = 63;
+  }
+  if (tp_name_len > 63) {
+    tp_name_len = 63;
+  }
+  unsafe {
+    fi = 0;
+    while (fi < gp_n) {
+      fname_off = (fi as usize) * (BOUND_NAME_CAP as usize);
+      if (skip_named_bytes_eq(gp_fname + fname_off, gp_fname_len[fi], fn_name, fn_name_len) != 0) {
+        nargs = gp_nargs[fi];
+        pi = 0;
+        while (pi < nargs) {
+          lens_off = (fi as usize) * (GENERIC_CALL_MAX_ARGS as usize) + pi as usize;
+          name_off = lens_off * (BOUND_NAME_CAP as usize);
+          if (skip_named_bytes_eq(gp_names + name_off, gp_lens[lens_off], tp_name, tp_name_len) != 0) {
+            return pi;
+          }
+          pi = pi + 1;
+        }
+        return -1;
+      }
+      fi = fi + 1;
+    }
+  }
+  return -1;
 }
 
 // ---------------------------------------------------------------------------
