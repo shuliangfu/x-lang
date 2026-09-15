@@ -145,23 +145,38 @@
 // xlang_generic_bound_check_type_args_c (P12m trampoline injects
 // g_fn_bound_* + g_xlang_skip_impl_*). Language has no file-local
 // statics; the C trampoline passes g_call_*. method_on_param stays
-// C (fat trait-reg). F3 accessors stay C. Do not merge with
+// C (fat trait-reg). F3 scalar getters stay C. Do not merge with
 // bound_check_type_args (iterator vs per-site). Do not copy into
 // typeck (typeck already calls type_args `_c`). Do not wrap
 // method_on_param. Do not open a new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o: g05_try_x_to_o this
+// 7.2.1 P12p B-minus (2026-09-15): 有则补全 F3 lookup-core dest-buffer
+// (find_reg / method_count / method_slot / method_name). Always
+// host-cc (not behind BODIES). Fat trait-reg is one
+// xlang_skip_trait_reg_ent_t[] (sizeof 46792, cap 16); names live
+// inside the struct, so dest is the C table as *u8 + stride + n.
+// Field offsets reuse the P12g pins (C layout is authority).
+// is_registered stays a C thin wrapper over find_reg (already G.7).
+// Remaining F3 scalar getters (ret_kind / param_kind / dims) stay
+// C and keep calling historical find_reg `_c`. method_on_param
+// stays C. Do not dest-buffer the remaining F3 getters as extra.
+// Do not wrap method_on_param. Do not copy into typeck / codegen
+// (they already call historical `_c`). Do not open a new P-lane.
+// Do not FORCE pabi mega. Do not reuse skip_copy_row64 (F3 name
+// copy rejects nlen>64; F4 returns stored nlen).
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
 // skip_name_is_self + self_matches_for + named_eq_self +
 // rewrite_self + register_type_params + type_param_index +
 // concrete_implements_trait + bound_check_type_args +
-// impl-seen accessors + bound_check). Requires P9a
+// impl-seen accessors + bound_check + F3 lookup). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12o bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12p bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -288,6 +303,7 @@ const TYPE_NAMED: i32 = 8;
 const TYPE_PTR: i32 = 9;
 const GNM_CAP: i32 = 64;
 const SKIP_IMPL_SEEN_MAX: i32 = 16;
+const SKIP_TRAIT_REG_MAX: i32 = 16;
 const FN_BOUND_MAX: i32 = 16;
 const GENERIC_CALL_MAX: i32 = 32;
 const GENERIC_CALL_MAX_ARGS: i32 = 4;
@@ -4390,6 +4406,236 @@ export function xlang_generic_bound_check_into_c(callee: *u8, callee_len: *i32, 
     }
   }
   return violated;
+}
+
+/**
+ * Find the trait-registry row for `trait_nm` by linear name scan.
+ * Language has no file-local statics / no fat-struct field access;
+ * dest is the C `g_xlang_skip_trait_reg[]` table as a byte image
+ * (stride = sizeof(ent), cap 16). Name bytes live at P12G_OFF_NAME
+ * (64) and name_len at P12G_OFF_NAME_LEN. Empty names never match
+ * (same as the C twin).
+ * @param trait_nm *u8 — trait name bytes; null → -1
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @param table *u8 — dest trait-reg ent image; null → -1
+ * @param stride i32 — bytes per ent (C sizeof); <=0 → -1
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — row 0..n-1, or -1 if not found / rejected
+ * PLATFORM: SHARED — product P12p B-minus. C trampoline owns the table.
+ * Do not wrap method_on_param. Do not dest-buffer remaining F3 getters.
+ * Do not copy into typeck / codegen (they already call historical `_c`).
+ */
+#[no_mangle]
+export function xlang_skip_trait_find_reg_into_c(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i32, n: i32): i32 {
+  let ti: i32 = 0;
+  let n_cap: i32 = 0;
+  let tlen: i32 = 0;
+  let ent: *u8 = 0 as *u8;
+  let tname: *u8 = 0 as *u8;
+  if (trait_nm == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (trait_nlen <= 0) {
+    return 0 - 1;
+  }
+  if (table == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (stride <= 0) {
+    return 0 - 1;
+  }
+  if (n <= 0) {
+    return 0 - 1;
+  }
+  n_cap = n;
+  if (n_cap > SKIP_TRAIT_REG_MAX) {
+    n_cap = SKIP_TRAIT_REG_MAX;
+  }
+  unsafe {
+    ti = 0;
+    while (ti < n_cap) {
+      ent = table + ((ti * stride) as usize);
+      tlen = p12g_load_i32(ent, P12G_OFF_NAME_LEN);
+      tname = ent + (P12G_OFF_NAME as usize);
+      if (tlen > 0) {
+        if (skip_named_bytes_eq(tname, tlen, trait_nm, trait_nlen) != 0) {
+          return ti;
+        }
+      }
+      ti = ti + 1;
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Return the declared method count (= vtable slot count) for a trait.
+ * Empty / missing trait → 0 (same as the C twin: missing and empty
+ * both return 0, so this is not the "is registered" predicate).
+ * @param trait_nm *u8 — trait name bytes; null → 0
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @param table *u8 — dest trait-reg ent image; null → 0
+ * @param stride i32 — bytes per ent; <=0 → 0
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — method count (>=0)
+ * PLATFORM: SHARED — product P12p B-minus. C trampoline owns the table.
+ * Do not wrap method_on_param. Do not dest-buffer remaining F3 getters.
+ */
+#[no_mangle]
+export function xlang_skip_trait_method_count_into_c(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i32, n: i32): i32 {
+  let ti: i32 = 0;
+  let n_meth: i32 = 0;
+  let ent: *u8 = 0 as *u8;
+  ti = xlang_skip_trait_find_reg_into_c(trait_nm, trait_nlen, table, stride, n);
+  if (ti < 0) {
+    return 0;
+  }
+  if (table == 0 as *u8) {
+    return 0;
+  }
+  if (stride <= 0) {
+    return 0;
+  }
+  unsafe {
+    ent = table + ((ti * stride) as usize);
+    n_meth = p12g_load_i32(ent, P12G_OFF_NUM_METHODS);
+  }
+  if (n_meth > 0) {
+    return n_meth;
+  }
+  return 0;
+}
+
+/**
+ * Resolve a method name to its vtable slot (declaration order, 0-based).
+ * Empty method names never match. Missing trait / missing method → -1.
+ * @param trait_nm *u8 — trait name bytes; null → -1
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param method_nm *u8 — method name bytes; null → -1
+ * @param method_nlen i32 — method name length; must be > 0
+ * @param table *u8 — dest trait-reg ent image; null → -1
+ * @param stride i32 — bytes per ent; <=0 → -1
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — slot >= 0, or -1 if trait/method absent
+ * PLATFORM: SHARED — product P12p B-minus. C trampoline owns the table.
+ * Do not wrap method_on_param. Do not dest-buffer remaining F3 getters.
+ */
+#[no_mangle]
+export function xlang_skip_trait_method_slot_into_c(trait_nm: *u8, trait_nlen: i32, method_nm: *u8, method_nlen: i32, table: *u8, stride: i32, n: i32): i32 {
+  let ti: i32 = 0;
+  let mi: i32 = 0;
+  let n_meth: i32 = 0;
+  let mlen: i32 = 0;
+  let ent: *u8 = 0 as *u8;
+  let mname: *u8 = 0 as *u8;
+  if (method_nm == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (method_nlen <= 0) {
+    return 0 - 1;
+  }
+  ti = xlang_skip_trait_find_reg_into_c(trait_nm, trait_nlen, table, stride, n);
+  if (ti < 0) {
+    return 0 - 1;
+  }
+  if (table == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (stride <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    ent = table + ((ti * stride) as usize);
+    n_meth = p12g_load_i32(ent, P12G_OFF_NUM_METHODS);
+  }
+  if (n_meth < 0) {
+    n_meth = 0;
+  }
+  if (n_meth > P12G_METH_MAX) {
+    n_meth = P12G_METH_MAX;
+  }
+  unsafe {
+    mi = 0;
+    while (mi < n_meth) {
+      mlen = p12g_load_i32(ent, P12G_OFF_METHOD_LENS + mi * 4);
+      mname = ent + ((P12G_OFF_METHODS + mi * P12G_METHOD_NAME_ROW) as usize);
+      if (mlen > 0) {
+        if (skip_named_bytes_eq(mname, mlen, method_nm, method_nlen) != 0) {
+          return mi;
+        }
+      }
+      mi = mi + 1;
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * Copy the method name at vtable `slot` into `out64` (capacity >= 64).
+ * Historical public name already ends `_into_c`, so this dest body is
+ * `_dest_into_c`. Rejects stored nlen>64 (does not copy; returns 0) —
+ * do not reuse skip_copy_row64 (that helper returns stored nlen even
+ * when it exceeds 64). Does not zero the rest of out64.
+ * @param trait_nm *u8 — trait name bytes; null → 0
+ * @param trait_nlen i32 — trait name length; must be > 0
+ * @param slot i32 — vtable slot; <0 → 0
+ * @param out64 *u8 — dest 64; null → 0
+ * @param table *u8 — dest trait-reg ent image; null → 0
+ * @param stride i32 — bytes per ent; <=0 → 0
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — method name length (>0 on success), 0 if trait/slot invalid
+ * PLATFORM: SHARED — product P12p B-minus. C trampoline owns the table.
+ * Do not wrap method_on_param. Do not dest-buffer remaining F3 getters.
+ */
+#[no_mangle]
+export function xlang_skip_trait_method_name_dest_into_c(trait_nm: *u8, trait_nlen: i32, slot: i32, out64: *u8, table: *u8, stride: i32, n: i32): i32 {
+  let ti: i32 = 0;
+  let mi: i32 = 0;
+  let n_meth: i32 = 0;
+  let mlen: i32 = 0;
+  let ent: *u8 = 0 as *u8;
+  let mname: *u8 = 0 as *u8;
+  if (out64 == 0 as *u8) {
+    return 0;
+  }
+  if (slot < 0) {
+    return 0;
+  }
+  ti = xlang_skip_trait_find_reg_into_c(trait_nm, trait_nlen, table, stride, n);
+  if (ti < 0) {
+    return 0;
+  }
+  if (table == 0 as *u8) {
+    return 0;
+  }
+  if (stride <= 0) {
+    return 0;
+  }
+  unsafe {
+    ent = table + ((ti * stride) as usize);
+    n_meth = p12g_load_i32(ent, P12G_OFF_NUM_METHODS);
+  }
+  if (slot >= n_meth) {
+    return 0;
+  }
+  unsafe {
+    mlen = p12g_load_i32(ent, P12G_OFF_METHOD_LENS + slot * 4);
+    mname = ent + ((P12G_OFF_METHODS + slot * P12G_METHOD_NAME_ROW) as usize);
+  }
+  if (mlen <= 0) {
+    return 0;
+  }
+  if (mlen > GNM_CAP) {
+    return 0;
+  }
+  unsafe {
+    mi = 0;
+    while (mi < mlen) {
+      out64[mi as usize] = mname[mi as usize];
+      mi = mi + 1;
+    }
+  }
+  return mlen;
 }
 
 // ---------------------------------------------------------------------------

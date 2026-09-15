@@ -2,16 +2,16 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b–P12o: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b–P12p: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
  * enum_register + parse_one_extern_skip + parse_one_extern_and_add +
  * skip_name_is_self + self_matches_for + named_eq_self + rewrite_self +
  * register_type_params + type_param_index + concrete_implements_trait +
- * bound_check_type_args + impl-seen accessors + bound_check; bodies in
- * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl
+ * bound_check_type_args + impl-seen accessors + bound_check + F3 lookup;
+ * bodies in src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl
  * and generic_bound_scan trampolines live here (need file-static tables).
  * skip_one_trait stays C (P12g PRESET not linked). Cold: no define, full
- * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12o bodies.
+ * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12p bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -1299,7 +1299,8 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
  * .x walks dest g_xlang_skip_impl_* (trait/for-name stride 64, cap 16).
  * Zero algorithm besides passing the tables. Historical public names
  * stay (`_c` / already-`_into_c`). method_on_param stays C (fat
- * trait-reg). F3 accessors stay C. bound_check_c is P12o. */
+ * trait-reg). F3 lookup is P12p; remaining F3 scalar getters stay C.
+ * bound_check_c is P12o. */
 extern int32_t xlang_skip_impl_seen_count_into_c(int32_t seen_n);
 int32_t xlang_skip_impl_seen_count_c(void) {
   return xlang_skip_impl_seen_count_into_c(g_xlang_skip_impl_seen_n);
@@ -1398,6 +1399,52 @@ int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
  * PLATFORM: SHARED parse + typeck + codegen.
  */
 
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12p trampoline. Language has no file-local statics
+ * / no fat-struct field access; .x walks dest g_xlang_skip_trait_reg[]
+ * as a byte image (stride = sizeof(ent), cap 16) using P12g offsets.
+ * Zero algorithm besides passing the table. is_registered stays a C
+ * thin wrapper over find_reg (already G.7). Remaining F3 scalar
+ * getters stay C and keep calling historical find_reg `_c`.
+ * method_on_param stays C. */
+extern int32_t xlang_skip_trait_find_reg_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *table, int32_t stride, int32_t n);
+static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  return xlang_skip_trait_find_reg_into_c(trait_nm, trait_nlen,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
+
+extern int32_t xlang_skip_trait_method_slot_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+        const uint8_t *method_nm, int32_t method_nlen, uint8_t *table, int32_t stride, int32_t n);
+int32_t xlang_skip_trait_method_slot_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                       const uint8_t *method_nm, int32_t method_nlen) {
+  return xlang_skip_trait_method_slot_into_c(trait_nm, trait_nlen, method_nm, method_nlen,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
+
+extern int32_t xlang_skip_trait_method_count_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *table, int32_t stride, int32_t n);
+int32_t xlang_skip_trait_method_count_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  return xlang_skip_trait_method_count_into_c(trait_nm, trait_nlen,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
+
+extern int32_t xlang_skip_trait_method_name_dest_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+        int32_t slot, uint8_t *out64, uint8_t *table, int32_t stride, int32_t n);
+int32_t xlang_skip_trait_method_name_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                           int32_t slot, uint8_t *out64) {
+  return xlang_skip_trait_method_name_dest_into_c(trait_nm, trait_nlen, slot, out64,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
+#else
 /**
  * Find the trait registry index for a trait by name (linear scan).
  * @param trait_nm   trait name bytes (e.g. "Clone"); must be non-null.
@@ -1419,23 +1466,6 @@ static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trai
     return ti;
   }
   return -1;
-}
-
-/**
- * True when `trait_nm` is a registered trait (skip-trait table).
- * G.7: thin public wrapper over xlang_skip_trait_find_reg_c so type_ref
- * can treat a bare trait name as TYPE_DYN without a second lookup table.
- * `xlang_skip_trait_method_count_c` returns 0 for both "missing" and
- * "empty trait", so it cannot be this predicate.
- * @param trait_nm *u8 — trait name bytes; null rejected
- * @param trait_nlen i32 — byte count; must be > 0
- * @return i32 — 1 if registered, 0 otherwise
- * PLATFORM: SHARED parse.
- */
-int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen) {
-  if (xlang_skip_trait_find_reg_c(trait_nm, trait_nlen) >= 0)
-    return 1;
-  return 0;
 }
 
 /**
@@ -1519,6 +1549,24 @@ int32_t xlang_skip_trait_method_name_into_c(const uint8_t *trait_nm, int32_t tra
   for (mi = 0; mi < mlen; mi++)
     out64[mi] = g_xlang_skip_trait_reg[ti].methods[slot][mi];
   return mlen;
+}
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X F3 lookup */
+
+/**
+ * True when `trait_nm` is a registered trait (skip-trait table).
+ * G.7: thin public wrapper over xlang_skip_trait_find_reg_c so type_ref
+ * can treat a bare trait name as TYPE_DYN without a second lookup table.
+ * `xlang_skip_trait_method_count_c` returns 0 for both "missing" and
+ * "empty trait", so it cannot be this predicate.
+ * @param trait_nm *u8 — trait name bytes; null rejected
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @return i32 — 1 if registered, 0 otherwise
+ * PLATFORM: SHARED parse.
+ */
+int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen) {
+  if (xlang_skip_trait_find_reg_c(trait_nm, trait_nlen) >= 0)
+    return 1;
+  return 0;
 }
 
 /**
@@ -5602,7 +5650,8 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
  * .x walks dest g_call_* (callee stride 64, typeargs 32x4x64, args cap 4,
  * call cap 32). Zero algorithm besides passing the tables. Each site
  * calls the historical public type_args `_c` (P12m injects bound/impl
- * tables). method_on_param stays C. F3 accessors stay C. */
+ * tables). method_on_param stays C. F3 lookup is P12p; remaining F3
+ * scalar getters stay C. */
 extern int32_t xlang_generic_bound_check_into_c(uint8_t *callee, int32_t *callee_len,
         uint8_t *typeargs, int32_t *typearg_lens, int32_t *nargs, int32_t *line,
         int32_t *col, int32_t call_n);
