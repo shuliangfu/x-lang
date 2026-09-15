@@ -29,18 +29,36 @@
 // writer for unary_operand_ref; do not copy into this seed) and
 // pipeline_expr_set_as_c in this P-lane seed (late as_* offsets;
 // pabi inject-only skips new rest symbols; do not FORCE the mega).
-// parse_as_suffix stays C (lexer_next + type_ref by-value) and calls
-// the historical wrap symbols. Do not dest-buffer parse this wave.
-// Do not copy wrap into parse_as_suffix / parse_unary / primary.
-// Do not merge unary wrap (prefix kinds + non-zero line/col +
-// operand_ref==0 reject). Do not merge binop wrap. Do not merge
-// ternary wrap. Do not wrap assign wrap as extra. Do not open a
-// new P-lane. Do not add bodies to pthin_expr_primary.x.
+// 7.2.1 P4ad B-minus (2026-09-16): 有则补全 parse dest-buffer.
+// Token walk reuses P9a peek/step (same family as P4ud / P4bd).
+// `?` vs ternary: peek_kind_after shim in as_suffix.inc (zero-algorithm
+// two lexer_next on a copy; language has no lexer by-value). Terminator
+// `; ) } , ]` consumes both `?` and the terminator (C twin sets
+// next_lex = rpeek.next_lex). `as` consumes the keyword then drives
+// the existing primary pointer-face parse_type_ref_ptr_into_c (G.7:
+// one type_ref ptr shim; do not dest-buffer type_ref parse — P3f was
+// product-red). Wrap stays P4as. C trampoline keeps AUDIT and the
+// by-value parse_expr_result face; parse does not zero out.ok /
+// out.expr_ref (caller already filled them from unary/primary).
+// Do not copy wrap into parse. Do not merge unary / binop / ternary
+// parse. Do not dest-buffer parse_cast / parse_assign / parse_ternary
+// this wave. Do not open a new P-lane. Do not add bodies to
+// pthin_expr_primary.x. Do not FORCE pabi mega.
 //
-// Hybrid P4as: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
-// skips the portable wrap twins. Cold: no define, full .inc stays.
-// Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as bodies.
+// Hybrid P4as/P4ad: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+// skips the portable wrap twins + parse body. Cold: no define, full .inc stays.
+// Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies.
 // PLATFORM: SHARED freestanding.
+
+// TOKEN_* pin copies of include/token.h. P4as C _Static_assert fires if
+// the pin drifts; do not treat these as a second enum authority.
+const TOKEN_RPAREN: i32 = 83;
+const TOKEN_RBRACE: i32 = 85;
+const TOKEN_RBRACKET: i32 = 87;
+const TOKEN_COMMA: i32 = 90;
+const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_QUESTION: i32 = 127;
+const TOKEN_AS: i32 = 128;
 
 // ExprKind ordinals — G.7 ≡ ast.x / PARSER_ASM_EXPR_* in as_suffix_slice.inc.
 const EXPR_AS: i32 = 54;
@@ -65,6 +83,20 @@ export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, op
  * Lives in the P4as seed; do not FORCE pabi mega; do not copy into other seeds.
  */
 export extern "C" function pipeline_expr_set_as_c(a: *u8, er: i32, operand_ref: i32, type_ref: i32): void;
+/** P9a: peek next kind without advancing. */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: consume one token; returns its kind. */
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/**
+ * Peek the token AFTER the unconsumed next token, without advancing.
+ * Zero-algorithm C shim in as_suffix.inc (two lexer_next on a copy).
+ */
+export extern "C" function parser_asm_lex_peek_kind_after_c(lex_inout: *u8, source: *u8): i32;
+/**
+ * Pointer-face parse_type_ref. G.7: lives in primary.inc (suffix_loop
+ * LT/turbofish); do not copy. Consumes the type and parks the cursor.
+ */
+export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
 
 /**
  * Allocate a TRY_PROPAGATE Expr and write kind / unary_operand_ref.
@@ -80,7 +112,7 @@ export extern "C" function pipeline_expr_set_as_c(a: *u8, er: i32, operand_ref: 
  * @param inner_ref i32 — operand expr (already parsed primary / prior suffix)
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — product P4as Route C. Authority for the try-propagate
- * wrap soup. parse_as_suffix stays C; do not copy. Do not merge P4uc unary wrap.
+ * wrap soup. parse dest-buffer is P4ad; do not copy wrap. Do not merge P4uc unary wrap.
  */
 #[no_mangle]
 export function parser_asm_try_propagate_wrap_into_c(arena: *u8, out_ok: *i32, out_expr_ref: *i32, inner_ref: i32): i32 {
@@ -120,7 +152,7 @@ export function parser_asm_try_propagate_wrap_into_c(arena: *u8, out_ok: *i32, o
  * @param type_ref i32 — target type from parse_type_ref after `as`
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — product P4as Route C. Authority for the as wrap soup.
- * parse_as_suffix stays C; do not copy. Do not merge unary/binop/ternary wrap.
+ * parse dest-buffer is P4ad; do not copy wrap. Do not merge unary/binop/ternary wrap.
  */
 #[no_mangle]
 export function parser_asm_as_wrap_into_c(arena: *u8, out_ok: *i32, out_expr_ref: *i32, inner_ref: i32, type_ref: i32): i32 {
@@ -143,4 +175,102 @@ export function parser_asm_as_wrap_into_c(arena: *u8, out_ok: *i32, out_expr_ref
     out_expr_ref[0] = as_ref;
   }
   return as_ref;
+}
+
+/**
+ * Return 1 if `kind` is a TRY_PROPAGATE terminator (`?` is Result
+ * propagation, not ternary). C twin: `;` `)` `}` `,` `]`.
+ * @param kind i32 — peeked token after `?` (token.h numbering)
+ * @return i32 — 1 terminator, 0 leave `?` for the ternary layer
+ * PLATFORM: SHARED — single matcher for the P4ad `?` disambiguation.
+ */
+#[no_mangle]
+export function parser_asm_as_suffix_try_terminator_c(kind: i32): i32 {
+  if (kind == TOKEN_SEMICOLON) {
+    return 1;
+  }
+  if (kind == TOKEN_RPAREN) {
+    return 1;
+  }
+  if (kind == TOKEN_RBRACE) {
+    return 1;
+  }
+  if (kind == TOKEN_COMMA) {
+    return 1;
+  }
+  if (kind == TOKEN_RBRACKET) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse zero or more postfix suffixes (`?` Result propagate, `as type`).
+ * .x mirror of parser_asm_parse_as_suffix_into_slice_c: caller already
+ * filled out_ok / out_expr_ref / lex_inout from unary/primary — this
+ * walk must not zero those slots. Peek does not consume. `?` + non-
+ * terminator leaves the cursor parked (ternary owns `?`). `?` +
+ * terminator steps both tokens then wraps TRY_PROPAGATE and returns
+ * (C twin does not loop after `?`). `as` steps, parse_type_ref_ptr,
+ * wraps EXPR_AS, loops. Type-ref fail / wrap fail write out_ok=0.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — cursor; parked after the last consumed suffix
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — parse_expr_result.ok (must already be 1)
+ * @param out_expr_ref *i32 — inner expr; rewritten on each wrap
+ * @return i32 — 1 success (including zero suffixes); 0 failure
+ * PLATFORM: SHARED — product P4ad B-minus. C trampoline keeps AUDIT
+ * and the by-value parse_expr_result face. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_as_suffix_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let after: i32 = 0;
+  let inner_ref: i32 = 0;
+  let type_ref: i32 = 0;
+  let wr: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    loop {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_QUESTION) {
+        after = parser_asm_lex_peek_kind_after_c(lex_inout, source);
+        if (parser_asm_as_suffix_try_terminator_c(after) == 0) {
+          // Leave `?` unconsumed for parse_ternary (`cond ? then : else`).
+          return 1;
+        }
+        inner_ref = out_expr_ref[0];
+        // C twin: consume `?` and the terminator (next_lex = rpeek.next_lex).
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        wr = parser_asm_try_propagate_wrap_into_c(arena, out_ok, out_expr_ref, inner_ref);
+        if (wr == 0) {
+          out_ok[0] = 0;
+          return 0;
+        }
+        return 1;
+      }
+      if (kind != TOKEN_AS) {
+        return 1;
+      }
+      inner_ref = out_expr_ref[0];
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      type_ref = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+      if (type_ref == 0) {
+        out_ok[0] = 0;
+        return 0;
+      }
+      wr = parser_asm_as_wrap_into_c(arena, out_ok, out_expr_ref, inner_ref, type_ref);
+      if (wr == 0) {
+        out_ok[0] = 0;
+        return 0;
+      }
+    }
+  }
+  return 0;
 }

@@ -6,11 +6,12 @@
  * After `as`, the full type_ref parser is the only matcher (`[]T` / `[N]T` /
  * `*T` / scalars / NAMED / SIMD tokens). PLATFORM: SHARED parse.
  *
- * Hybrid P4as: XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X skips the portable
- * TRY_PROPAGATE + EXPR_AS wrap twins (bodies in pthin_expr_as_suffix.x).
- * parse stays here (lexer_next + type_ref by-value). wrap keeps dest-buffer
- * trampolines so parse still sees parse_expr_result*. Do not reuse
- * XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as bodies. PLATFORM: SHARED.
+ * Hybrid P4as/P4ad: XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X skips the
+ * portable TRY_PROPAGATE + EXPR_AS wrap twins and the parse body
+ * (bodies in pthin_expr_as_suffix.x). parse is a dest-buffer trampoline
+ * under BODIES (P4ad); AUDIT stays. wrap keeps dest-buffer trampolines
+ * so cold parse still sees parse_expr_result*. Do not reuse
+ * XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies. PLATFORM: SHARED.
  */
 #ifndef PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
 #define PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
@@ -109,6 +110,28 @@ static int32_t parser_asm_as_wrap_c(void *arena, struct parser_asm_parse_expr_re
 }
 #endif /* XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X wrap */
 
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
+                            struct parser_asm_slice_u8 *source);
+/**
+ * Peek the token AFTER the unconsumed next token, without advancing.
+ * Language has no lexer by-value; this C face copies the cursor, drives
+ * lexer_next twice, and returns the second kind.
+ * PLATFORM: SHARED — P4ad zero-algorithm shim. Do not copy into P9a this wave.
+ */
+int32_t parser_asm_lex_peek_kind_after_c(void *lex, void *source) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source)
+    return 0;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  lexer_next_into(&r, r.next_lex, (struct parser_asm_slice_u8 *)source);
+  return r.tok.kind;
+}
+
+extern int32_t parser_asm_parse_as_suffix_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                   int32_t *out_expr_ref);
+#endif /* XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X peek-after + parse dest-buffer */
+
 /**
  * parse_as_suffix_into：解析零个或多个 postfix 后缀（`?` Result 传播、`as type`；假定 out 已由 primary 填充）。
  */
@@ -120,6 +143,17 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
   int32_t inner_ref;
   if (!out || !out->ok || !source)
     return;
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4ad trampoline. AUDIT stays (product nop).
+   * .x peeks; does not zero out.ok / out.expr_ref (caller filled them).
+   * Publish next_lex from the live cursor. */
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_as_suffix_chain_audit_c(&out->next_lex, source));
+  if (parser_asm_parse_as_suffix_x_into_c(arena, &out->next_lex, source, &out->ok, &out->expr_ref) == 0) {
+    out->ok = 0;
+    return;
+  }
+  return;
+#else
   lex_cur = out->next_lex;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_as_suffix_chain_audit_c(&lex_cur, source));
   for (;;) {
@@ -169,6 +203,7 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
       return;
     lex_cur = r.next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X parse_as_suffix */
 }
 
 #endif /* PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED */

@@ -4,11 +4,11 @@
  *
  * Body: seeds/parser_asm/parser_asm_as_suffix_slice.inc
  *
- * Hybrid P4as (XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X): portable
- * TRY_PROPAGATE + EXPR_AS wrap dest-buffer come from pthin_expr_as_suffix.x;
- * this TU keeps wrap trampolines plus arena parse. Cold: no BODIES
- * define, full .inc.
- * Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as bodies.
+ * Hybrid P4as/P4ad (XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X): portable
+ * TRY_PROPAGATE + EXPR_AS wrap dest-buffer and parse dest-buffer come from
+ * pthin_expr_as_suffix.x; this TU keeps wrap trampolines plus peek-after
+ * / parse trampolines. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies.
  * G.7: pipeline_expr_set_unary_operand_c lives in the P4u seed
  * (unary_operand_ref); pipeline_expr_set_as_c lives here (as_* slots).
  * Do not copy set_unary into this seed and do not FORCE pabi mega.
@@ -23,12 +23,24 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
+/* PLATFORM: SHARED — 7.2.1 P4ad. pthin_expr_as_suffix.x TOKEN_* are pin
+ * copies of this enum. token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_RPAREN == 83, "as_suffix.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "as_suffix.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_RBRACKET == 87, "as_suffix.x TOKEN_RBRACKET pin");
+_Static_assert((int)TOKEN_COMMA == 90, "as_suffix.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "as_suffix.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_QUESTION == 127, "as_suffix.x TOKEN_QUESTION pin");
+_Static_assert((int)TOKEN_AS == 128, "as_suffix.x TOKEN_AS pin");
+
 #ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
-/* .x product bodies (same C names for Route C wraps). */
+/* .x product bodies (same C names for Route C wraps + parse dest-buffer). */
 extern int32_t parser_asm_try_propagate_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref,
                                                     int32_t inner_ref);
 extern int32_t parser_asm_as_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t inner_ref,
                                          int32_t type_ref);
+extern int32_t parser_asm_parse_as_suffix_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                   int32_t *out_expr_ref);
 #endif
 
 struct parser_asm_token {

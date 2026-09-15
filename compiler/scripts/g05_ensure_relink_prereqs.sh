@@ -754,7 +754,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P4bb/P4bc/P4bd Route C: binop .x bodies (TOKEN→ExprKind + wrap + parse dest-buffer)
   _pthin_p4bb_x=src/asm/pthin_expr_binop.x
   _pthin_p4as_seed=seeds/pthin_expr_as_suffix.from_x.c
-  # 7.2.1 P4as Route C: as_suffix .x bodies (TRY_PROPAGATE + EXPR_AS wrap dest-buffer)
+  # 7.2.1 P4as/P4ad Route C: as_suffix .x bodies (TRY_PROPAGATE + EXPR_AS wrap + parse dest-buffer)
   _pthin_p4as_x=src/asm/pthin_expr_as_suffix.x
   _pthin_p4t_seed=seeds/pthin_expr_ternary.from_x.c
   # 7.2.1 P4tb/P4tc Route C: ternary wrap + assign wrap dest-buffer
@@ -1079,10 +1079,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P4 binop ← $_pthin_p4b_seed (G-02f-284 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P4as Route C (2026-09-15).
-        # pthin_expr_as_suffix.x holds TRY_PROPAGATE + EXPR_AS wrap dest-buffer.
-        # Runs before P4as C so BODIES_FROM_X skips the portable wrap twins.
-        # No lexer-step bridge. set_unary lives in the P4u seed (G.7 unary
+        # PLATFORM: SHARED — 7.2.1 P4as/P4ad Route C (2026-09-15/16).
+        # pthin_expr_as_suffix.x holds TRY_PROPAGATE + EXPR_AS wrap dest-buffer
+        # plus parse dest-buffer (P9a peek/step; type_ref ptr shim in primary).
+        # Runs before P4as C so BODIES_FROM_X skips the portable wrap twins
+        # and the parse body. set_unary lives in the P4u seed (G.7 unary
         # operand slot; do not FORCE pabi mega). set_as lives in this seed.
         # Cold: no define, full .inc.
         _pthin_p4as_extra=""
@@ -1090,7 +1091,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4as_x" "$_pthin_p4asb_thin_o"; then
             _pthin_p4asb_ok=1
             _pthin_p4as_extra="-DXLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X"
-            echo "g05_ensure: P4as as_suffix wrap ← $_pthin_p4as_x (7.2.1 Route C)"
+            echo "g05_ensure: P4as/P4ad as_suffix wrap+parse ← $_pthin_p4as_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4as as_suffix .x thin failed; P4as C twin stays full" >&2
           fi
