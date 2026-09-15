@@ -3,11 +3,13 @@
  *
  * 由 parser_asm_thin_c.c / pthin_fn_block.from_x.c #include；勿单独编译。
  *
- * Hybrid P6b/P6c: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the three
- * name-match helpers and the packed/soa modifier predicates (bodies in
- * src/asm/pthin_fn_block.x). parse_struct_record_layout stays here and
- * calls those symbols. Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c bodies.
+ * Hybrid P6b/P6c/P6d/P6e: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the
+ * three name-match helpers, packed/soa modifier predicates, and
+ * library-shape wrap (bodies in src/asm/pthin_fn_block.x).
+ * XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips parse_struct_record_layout
+ * (P6e dest-buffer; missing parse_x keeps the C twin without dropping
+ * P6b/P6c/P6d). Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e bodies.
  */
 #ifndef PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED
 #define PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED
@@ -243,6 +245,231 @@ extern int32_t parser_asm_struct_layout_first_name_match_idx_c(void *module, uin
 extern int32_t parser_asm_struct_layout_placeholder_idx_c(void *module, uint8_t *nm, int32_t nlen);
 #endif /* !XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X name-match trio */
 
+#ifndef PARSER_ASM_STRUCT_LAYOUT_PACK_DEFINED
+#define PARSER_ASM_STRUCT_LAYOUT_PACK_DEFINED
+/**
+ * P6e name / type-param / field-name pack. Language has no local u8[N]
+ * or u8[8][256]; the parse trampoline allocates this on the C stack
+ * and .x only talks through the helpers below.
+ * PLATFORM: SHARED — zero-algorithm face over C twin buffers.
+ */
+struct parser_asm_struct_layout_pack {
+  uint8_t sname[256];
+  int32_t sname_len;
+  uint8_t fname[256];
+  int32_t fname_len;
+  uint8_t tp_names[8][256];
+  int32_t tp_lens[8];
+  int32_t n_tp;
+};
+#endif
+
+extern int32_t parser_asm_struct_field_name_from_kind_c(int32_t kind, uint8_t *data, int32_t length, size_t next_pos,
+                                                        int32_t ident_len, uint8_t *out);
+extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int32_t j, uint8_t *out256);
+extern void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind);
+
+/**
+ * PLATFORM: SHARED — P6e. Clear the pack before one layout parse.
+ */
+void parser_asm_struct_layout_pack_reset_c(void *pack) {
+  struct parser_asm_struct_layout_pack *p;
+  int32_t i;
+  int32_t k;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p)
+    return;
+  memset(p, 0, sizeof(*p));
+  i = 0;
+  while (i < 8) {
+    p->tp_lens[i] = 0;
+    k = 0;
+    while (k < 256) {
+      p->tp_names[i][k] = 0;
+      k = k + 1;
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * PLATFORM: SHARED — P6e. Copy the struct type name via P1b at_end
+ * (C twin: next_lex.pos). ident_len<=0 or >255 fails (not clamp).
+ */
+int32_t parser_asm_struct_layout_pack_copy_sname_src_c(void *pack, void *source, size_t next_pos, int32_t ident_len) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !source)
+    return 0;
+  if (ident_len <= 0 || ident_len > 255)
+    return 0;
+  memset(p->sname, 0, sizeof(p->sname));
+  parser_asm_copy_slice_to_name64_at_end_slice_c((struct parser_asm_slice_u8 *)source, next_pos, ident_len, p->sname);
+  p->sname_len = ident_len;
+  return 1;
+}
+
+/** PLATFORM: SHARED — P6e. Packed struct-name length (0 if null). */
+int32_t parser_asm_struct_layout_pack_sname_len_c(void *pack) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p)
+    return 0;
+  return p->sname_len;
+}
+
+/** PLATFORM: SHARED — P6e. G.7 name-exists over packed sname. */
+int32_t parser_asm_struct_layout_pack_name_exists_c(void *pack, void *module) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || p->sname_len <= 0)
+    return 0;
+  return parser_asm_struct_layout_name_exists_arr_c(module, p->sname, p->sname_len);
+}
+
+/** PLATFORM: SHARED — P6e. G.7 placeholder idx over packed sname. */
+int32_t parser_asm_struct_layout_pack_placeholder_idx_c(void *pack, void *module) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || p->sname_len <= 0)
+    return -1;
+  return parser_asm_struct_layout_placeholder_idx_c(module, p->sname, p->sname_len);
+}
+
+/** PLATFORM: SHARED — P6e. G.7 first-name-match over packed sname. */
+int32_t parser_asm_struct_layout_pack_first_name_match_idx_c(void *pack, void *module) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || p->sname_len <= 0)
+    return -1;
+  return parser_asm_struct_layout_first_name_match_idx_c(module, p->sname, p->sname_len);
+}
+
+/** PLATFORM: SHARED — P6e. Write packed sname onto layout_idx. */
+void parser_asm_struct_layout_pack_set_name_c(void *pack, void *module, int32_t layout_idx) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || layout_idx < 0)
+    return;
+  pipeline_module_struct_layout_set_name(module, layout_idx, p->sname, p->sname_len);
+}
+
+/**
+ * PLATFORM: SHARED — P6e. Append one type-param IDENT (n_tp < 8).
+ * ident_len<=0 or >255 fails (C twin treats that as a malformed list).
+ */
+int32_t parser_asm_struct_layout_pack_tp_append_src_c(void *pack, void *source, size_t next_pos, int32_t ident_len) {
+  struct parser_asm_struct_layout_pack *p;
+  int32_t i;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !source)
+    return 0;
+  if (ident_len <= 0 || ident_len > 255)
+    return 0;
+  if (p->n_tp >= 8)
+    return 1;
+  i = p->n_tp;
+  memset(p->tp_names[i], 0, sizeof(p->tp_names[i]));
+  parser_asm_copy_slice_to_name64_at_end_slice_c((struct parser_asm_slice_u8 *)source, next_pos, ident_len,
+                                                 p->tp_names[i]);
+  p->tp_lens[i] = ident_len;
+  p->n_tp = i + 1;
+  return 1;
+}
+
+/** PLATFORM: SHARED — P6e. Drop captured type-params (malformed angle list). */
+void parser_asm_struct_layout_pack_tp_clear_c(void *pack) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p)
+    return;
+  p->n_tp = 0;
+}
+
+/** PLATFORM: SHARED — P6e. Commit packed type-params onto layout_idx. */
+void parser_asm_struct_layout_pack_tp_commit_c(void *pack, void *module, int32_t layout_idx) {
+  struct parser_asm_struct_layout_pack *p;
+  int32_t tpi;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || layout_idx < 0)
+    return;
+  tpi = 0;
+  while (tpi < p->n_tp) {
+    (void)pipeline_module_struct_layout_append_type_param(module, layout_idx, &p->tp_names[tpi][0], p->tp_lens[tpi]);
+    tpi = tpi + 1;
+  }
+}
+
+/**
+ * PLATFORM: SHARED — P6e. Fill fname via P19d from_kind (IDENT / SOA /
+ * PACKED / TYPE). Returns written length or -1.
+ */
+int32_t parser_asm_struct_layout_pack_copy_fname_c(void *pack, void *source, int32_t kind, int32_t ident_len,
+                                                   size_t next_pos) {
+  struct parser_asm_struct_layout_pack *p;
+  struct parser_asm_slice_u8 *src;
+  int32_t slen;
+  int32_t n;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  src = (struct parser_asm_slice_u8 *)source;
+  if (!p || !src)
+    return -1;
+  slen = 0;
+  if (src->length > 0)
+    slen = src->length > (size_t)2147483647 ? 2147483647 : (int32_t)src->length;
+  memset(p->fname, 0, sizeof(p->fname));
+  n = parser_asm_struct_field_name_from_kind_c(kind, src->data, slen, next_pos, ident_len, p->fname);
+  p->fname_len = n;
+  return n;
+}
+
+/**
+ * PLATFORM: SHARED — P6e. Duplicate-field scan over packed fname.
+ * Returns 1 if a same-name field already exists (P012 already reported),
+ * 0 if unique, -1 on null.
+ */
+int32_t parser_asm_struct_layout_pack_dup_field_c(void *pack, void *module, int32_t layout_idx, int32_t nf,
+                                                  int32_t line, int32_t col) {
+  struct parser_asm_struct_layout_pack *p;
+  uint8_t prev_name[256];
+  int32_t fj;
+  int32_t fl;
+  int32_t fk;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || layout_idx < 0)
+    return -1;
+  fj = 0;
+  while (fj < nf) {
+    fl = pipeline_module_struct_layout_field_name_len(module, layout_idx, fj);
+    if (fl == p->fname_len) {
+      memset(prev_name, 0, sizeof(prev_name));
+      pipeline_module_struct_layout_field_name_into(module, layout_idx, fj, prev_name);
+      fk = 0;
+      while (fk < fl) {
+        if (prev_name[fk] != p->fname[fk])
+          break;
+        fk = fk + 1;
+      }
+      if (fk == fl) {
+        parser_report_duplicate_name_p012_c(line, col, 1);
+        return 1;
+      }
+    }
+    fj = fj + 1;
+  }
+  return 0;
+}
+
+/** PLATFORM: SHARED — P6e. set_field from packed fname. */
+void parser_asm_struct_layout_pack_set_field_c(void *pack, void *module, int32_t layout_idx, int32_t nf, int32_t tr,
+                                               int32_t field_off) {
+  struct parser_asm_struct_layout_pack *p;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  if (!p || !module || layout_idx < 0)
+    return;
+  pipeline_module_struct_layout_set_field(module, layout_idx, nf, p->fname, p->fname_len, tr, field_off);
+}
+
 /**
  * parse_struct_record_layout_into：解析 struct Name { field: T; ... } 写入 module sidecar。
  */
@@ -250,6 +477,31 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
                                                              struct parser_asm_slice_u8 *source,
                                                              struct parser_asm_lexer *out_lex, int32_t allow_pad,
                                                              int32_t force_soa, int32_t repr_compat) {
+#ifdef XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X
+  /* PLATFORM: SHARED — P6e trampoline. AUDIT stays on the cold twin
+   * (product AUDIT_CALL is nop). Entry cursor is the unconsumed struct
+   * name (C twin's first lexer_next). Pack lives on this stack frame.
+   * Return 0 success / -1 fail (C twin). */
+  {
+    extern int32_t parser_asm_parse_struct_record_layout_x_into_c(void *arena, void *module, void *lex_inout,
+                                                                  void *source, int32_t allow_pad, int32_t force_soa,
+                                                                  int32_t repr_compat, void *pack);
+    struct parser_asm_struct_layout_pack pack;
+    struct parser_asm_lexer cur;
+    int32_t rc;
+    if (!arena || !module || !source || !out_lex)
+      return -1;
+    memset(&pack, 0, sizeof(pack));
+    parser_asm_struct_layout_pack_reset_c(&pack);
+    cur = lex;
+    rc = parser_asm_parse_struct_record_layout_x_into_c(arena, module, &cur, source, allow_pad, force_soa, repr_compat,
+                                                        &pack);
+    out_lex->pos = cur.pos;
+    out_lex->line = cur.line;
+    out_lex->col = cur.col;
+    return rc;
+  }
+#else
   struct parser_asm_lexer_result r;
   /* Cap 4.2.8: layout/field name[256]; field_name_into memcpy 256.
    * sname/fname/prev at [128] → __stack_chk_fail (Ubuntu hello/si). */
@@ -1209,6 +1461,7 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
   out_lex->line = lex.line;
   out_lex->col = lex.col;
   return 0;
+#endif /* XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X parse_struct_record_layout */
 }
 
 #endif /* PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED */

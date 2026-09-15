@@ -4,12 +4,14 @@
  *
  * Bodies: struct_layout + library + one_function_buf + block_from_res
  *
- * Hybrid P6b/P6c/P6d (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
+ * Hybrid P6b/P6c/P6d/P6e (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
  * struct-layout name-match helpers, packed/soa modifier predicates,
- * and library-shape TYPE/EXPR wrap come from pthin_fn_block.x; this
- * TU keeps parse / library scan / one_function / block_from_res.
- * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d bodies.
+ * and library-shape TYPE/EXPR wrap come from pthin_fn_block.x.
+ * XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips parse_struct_record_layout
+ * (P6e dest-buffer; C trampoline holds the name pack). This TU keeps
+ * library scan / one_function / block_from_res. Cold: no BODIES define,
+ * full .inc.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -21,9 +23,23 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
+_Static_assert((int)TOKEN_LET == 2, "fn_block.x TOKEN_LET pin");
+_Static_assert((int)TOKEN_CONST == 3, "fn_block.x TOKEN_CONST pin");
 _Static_assert((int)TOKEN_PACKED == 21, "fn_block.x TOKEN_PACKED pin");
 _Static_assert((int)TOKEN_SOA == 22, "fn_block.x TOKEN_SOA pin");
+_Static_assert((int)TOKEN_ALIGN == 46, "fn_block.x TOKEN_ALIGN pin");
 _Static_assert((int)TOKEN_IDENT == 59, "fn_block.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_INT == 80, "fn_block.x TOKEN_INT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "fn_block.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "fn_block.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "fn_block.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "fn_block.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_COMMA == 90, "fn_block.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "fn_block.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "fn_block.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_PLUS == 96, "fn_block.x TOKEN_PLUS pin");
+_Static_assert((int)TOKEN_LT == 120, "fn_block.x TOKEN_LT pin");
+_Static_assert((int)TOKEN_GT == 121, "fn_block.x TOKEN_GT pin");
 
 struct parser_asm_token {
   int32_t kind;

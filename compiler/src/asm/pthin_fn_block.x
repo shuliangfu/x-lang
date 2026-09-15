@@ -48,17 +48,30 @@
 // P4bc set_binop_operands_c (G.7 one writer for binop slots; do not
 // copy; do not FORCE pabi mega; do not merge with P4bc wrap).
 // parse_one_function_library stays C (struct-by-value result + scan).
-// Block zeros / module func slot / layout alloc stay C. Do not
-// dest-buffer parse this wave. Do not copy wrap into parse_type_ref
-// / parse_match / P15 library_wrap scan. Do not copy name-match
-// loops into library_slice. Do not mix range_for. Do not wrap AUDIT.
-// Do not open a new P-lane.
+// Block zeros / module func slot stay C. Do not dest-buffer parse
+// this wave (P6d). Do not copy wrap into parse_type_ref / parse_match
+// / P15 library_wrap scan. Do not copy name-match loops into
+// library_slice. Do not mix range_for. Do not wrap AUDIT. Do not
+// open a new P-lane.
 //
-// Hybrid P6b/P6c/P6d: g05_try_x_to_o this file; XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
-// skips the portable .inc region (name-match trio + modifier predicates
-// + library wrap soup). No lexer-step bridge. Cold: no define, full .inc.
-// Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d bodies.
-// PLATFORM: SHARED freestanding.
+// 7.2.1 P6e B-minus (2026-09-16): 有则补全 parse_struct_record_layout
+// dest-buffer. P9a peek/step walks IDENT name / optional <T,U> /
+// packed|soa / { align? let? field: T ;|, ... }. Name-match stays
+// P6b; packed/soa stays P6c; type_ref stays the primary ptr shim
+// (do not dest-buffer parse_type_ref — P3f was hello/fmt red).
+// Language has no local u8[N] / u8[8][256]; C trampoline holds the
+// sname/fname/tp pack. Skip-generic / skip-braces stay P1b. Field
+// names stay P19d from_kind. Do not `break` out of nested while.
+// Do not merge wrap. Do not mix range_for. Do not wrap AUDIT. Do
+// not open a new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P6b/P6c/P6d/P6e: g05_try_x_to_o this file;
+// XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips name-match + modifiers +
+// library wrap; XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips the
+// layout parse C twin when parse_x is present. P9a is linked later
+// into the same thin_glue (same as P7d/P4ud). Cold: no define, full
+// .inc. Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e
+// bodies. PLATFORM: SHARED freestanding.
 
 /** Sidecar: count of struct layouts on the opaque module. */
 export extern "C" function pipeline_module_num_struct_layouts_at(module: *u8): i32;
@@ -72,6 +85,26 @@ export extern "C" function pipeline_module_struct_layout_num_fields(module: *u8,
 export extern "C" function pipeline_module_struct_layout_field_name_len(module: *u8, li: i32, j: i32): i32;
 /** Sidecar: field type_ref at (layout, field). */
 export extern "C" function pipeline_module_struct_layout_field_type_ref(module: *u8, li: i32, j: i32): i32;
+/** Sidecar: allocate a layout slot; -1 on full. */
+export extern "C" function pipeline_module_struct_layout_alloc(module: *u8): i32;
+/** Sidecar: wipe one layout slot before rewrite. */
+export extern "C" function pipeline_module_struct_layout_reset_slot(module: *u8, idx: i32): void;
+/** Sidecar: write layout name bytes. */
+export extern "C" function pipeline_module_struct_layout_set_name(module: *u8, idx: i32, bytes: *u8, len: i32): void;
+/** Sidecar: write field count. */
+export extern "C" function pipeline_module_struct_layout_set_num_fields(module: *u8, idx: i32, nf: i32): void;
+/** Sidecar: allow_padding flag. */
+export extern "C" function pipeline_module_struct_layout_set_allow_padding(module: *u8, idx: i32, v: i32): void;
+/** Sidecar: soa flag. */
+export extern "C" function pipeline_module_struct_layout_set_soa(module: *u8, idx: i32, v: i32): void;
+/** Sidecar: packed flag. */
+export extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
+/** Sidecar: repr_compatible flag. */
+export extern "C" function pipeline_module_struct_layout_set_repr_compatible(module: *u8, idx: i32, v: i32): void;
+/** Sidecar: write field_align at (layout, field). */
+export extern "C" function pipeline_module_struct_layout_set_field_align(module: *u8, li: i32, j: i32, al: i32): void;
+/** Sidecar: next field offset given type + align req. */
+export extern "C" function pipeline_struct_layout_next_field_offset_ex(module: *u8, arena: *u8, layout_idx: i32, new_field_type_ref: i32, field_align_req: i32): i32;
 
 /** Allocate a fresh Type slot; 0 on failure. */
 export extern "C" function ast_ast_arena_type_alloc(arena: *u8): i32;
@@ -102,9 +135,54 @@ export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, l
 
 // TOKEN_* pin copies of include/token.h. P6 C _Static_assert fires if
 // the pin drifts; do not treat these as a second enum authority.
+const TOKEN_LET: i32 = 2;
+const TOKEN_CONST: i32 = 3;
 const TOKEN_PACKED: i32 = 21;
 const TOKEN_SOA: i32 = 22;
+const TOKEN_ALIGN: i32 = 46;
 const TOKEN_IDENT: i32 = 59;
+const TOKEN_INT: i32 = 80;
+const TOKEN_LPAREN: i32 = 82;
+const TOKEN_RPAREN: i32 = 83;
+const TOKEN_LBRACE: i32 = 84;
+const TOKEN_RBRACE: i32 = 85;
+const TOKEN_COMMA: i32 = 90;
+const TOKEN_COLON: i32 = 91;
+const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_PLUS: i32 = 96;
+const TOKEN_LT: i32 = 120;
+const TOKEN_GT: i32 = 121;
+
+/** P9a lexer-step bridge. Pure peeks re-lex the same token. */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_int_val_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_next_pos_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+/** P1b skip walks (pointer ABI). */
+export extern "C" function parser_asm_skip_generic_angle_list_into_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_skip_balanced_braces_into_c(lex_inout: *u8, source: *u8): i32;
+/** G.7 one type_ref ptr shim (primary.inc). Do not dest-buffer parse_type_ref. */
+export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
+/** P19d: field list can continue after `;` (name / let / const / align). */
+export extern "C" function parser_asm_struct_field_continues_tok_kind_c(k: i32): i32;
+/** P6e pack trampolines (C stack; language has no local u8[N]). */
+export extern "C" function parser_asm_struct_layout_pack_reset_c(pack: *u8): void;
+export extern "C" function parser_asm_struct_layout_pack_copy_sname_src_c(pack: *u8, source: *u8, next_pos: usize, ident_len: i32): i32;
+export extern "C" function parser_asm_struct_layout_pack_name_exists_c(pack: *u8, module: *u8): i32;
+export extern "C" function parser_asm_struct_layout_pack_placeholder_idx_c(pack: *u8, module: *u8): i32;
+export extern "C" function parser_asm_struct_layout_pack_first_name_match_idx_c(pack: *u8, module: *u8): i32;
+export extern "C" function parser_asm_struct_layout_pack_set_name_c(pack: *u8, module: *u8, layout_idx: i32): void;
+export extern "C" function parser_asm_struct_layout_pack_tp_append_src_c(pack: *u8, source: *u8, next_pos: usize, ident_len: i32): i32;
+export extern "C" function parser_asm_struct_layout_pack_tp_clear_c(pack: *u8): void;
+export extern "C" function parser_asm_struct_layout_pack_tp_commit_c(pack: *u8, module: *u8, layout_idx: i32): void;
+export extern "C" function parser_asm_struct_layout_pack_copy_fname_c(pack: *u8, source: *u8, kind: i32, ident_len: i32, next_pos: usize): i32;
+export extern "C" function parser_asm_struct_layout_pack_dup_field_c(pack: *u8, module: *u8, layout_idx: i32, nf: i32, line: i32, col: i32): i32;
+export extern "C" function parser_asm_struct_layout_pack_set_field_c(pack: *u8, module: *u8, layout_idx: i32, nf: i32, tr: i32, field_off: i32): void;
 
 // TypeKind / ExprKind ords from ast.x (library_slice.inc pins the same
 // subset). Do not treat these as a second enum authority.
@@ -272,8 +350,8 @@ export function parser_asm_struct_layout_placeholder_idx_c(module: *u8, nm: *u8,
  * @param length usize — source length
  * @return i32 — 1 if packed modifier, 0 otherwise
  * PLATFORM: SHARED — product P6c B-minus. Authority for
- * `parser_asm_tok_is_modifier_packed`. parse_struct_record_layout stays C
- * and calls the historical static via a zero-algorithm trampoline.
+ * `parser_asm_tok_is_modifier_packed`. parse_struct_record_layout dest-buffer
+ * is P6e and calls this predicate; do not copy the spelling probe.
  * Do not merge with P19d field-name kind. IDENT start is
  * `next_pos - ident_len` (C twin formula; do not use token_start).
  */
@@ -323,8 +401,8 @@ export function parser_asm_tok_is_modifier_packed_c(kind: i32, ident_len: i32, n
  * @param length usize — source length
  * @return i32 — 1 if soa modifier, 0 otherwise
  * PLATFORM: SHARED — product P6c B-minus. Authority for
- * `parser_asm_tok_is_modifier_soa`. parse_struct_record_layout stays C
- * and calls the historical static via a zero-algorithm trampoline.
+ * `parser_asm_tok_is_modifier_soa`. parse_struct_record_layout dest-buffer
+ * is P6e and calls this predicate; do not copy the spelling probe.
  * Do not merge with packed (left/right vs unary analog: 6-byte vs 3-byte
  * spelling) or with P19d field-name kind.
  */
@@ -533,4 +611,279 @@ export function parser_asm_library_bool_eq_shape_wrap_into_c(arena: *u8, param_n
     out_token_tr[0] = token_tr;
   }
   return eq_ref;
+}
+
+/**
+ * Consume an optional `struct Name<T,U>` type-param list into `pack`.
+ * Entry peek is the token after the struct name. No `<` is a no-op.
+ * Malformed lists fall back to P1b skip_generic and clear captured names
+ * (C twin). Leaves the cursor unconsumed on packed/soa/`{`.
+ * Do not `break` out of the nested while.
+ * @param lex_inout *u8 — opaque lexer
+ * @param source *u8 — opaque slice
+ * @param pack *u8 — C-stack name pack
+ * @return i32 — 1 (always; malformed is recovered)
+ * PLATFORM: SHARED — P6e helper. Not a second parse authority.
+ */
+function skip_layout_angle_list(lex_inout: *u8, source: *u8, pack: *u8): i32 {
+  let kind: i32 = 0;
+  let il: i32 = 0;
+  let np: usize = 0;
+  let tp_done: i32 = 0;
+  let bound_done: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || pack == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LT) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    tp_done = 0;
+    while (tp_done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (kind != TOKEN_IDENT || il <= 0 || il > 255) {
+        parser_asm_skip_generic_angle_list_into_c(lex_inout, source);
+        parser_asm_struct_layout_pack_tp_clear_c(pack);
+        tp_done = 1;
+      } else {
+        np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+        parser_asm_struct_layout_pack_tp_append_src_c(pack, source, np, il);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_COLON) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          bound_done = 0;
+          while (bound_done == 0) {
+            kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (kind == TOKEN_IDENT) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (kind == TOKEN_PLUS) {
+                parser_asm_lex_step_kind_c(lex_inout, source);
+              } else {
+                bound_done = 1;
+              }
+            } else {
+              bound_done = 1;
+            }
+          }
+        }
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_COMMA) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+        } else {
+          if (kind == TOKEN_GT) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            tp_done = 1;
+          } else {
+            parser_asm_skip_generic_angle_list_into_c(lex_inout, source);
+            parser_asm_struct_layout_pack_tp_clear_c(pack);
+            tp_done = 1;
+          }
+        }
+      }
+    }
+  }
+  return 1;
+}
+
+/**
+ * Parse `Name [ <T,U> ] [packed] [soa] { [align(N)] [let|const] field: T ;|, ... }`
+ * into the module sidecar. .x mirror of
+ * parser_asm_parse_struct_record_layout_into_slice_c. Entry cursor is
+ * the unconsumed struct name (caller already consumed `struct`).
+ * ident_len<=0 or >255 fails (C twin; not clamp). Packed+soa together
+ * fails. Duplicate field names report P012 and fail. Duplicate
+ * non-placeholder layouts skip the body and return 0. Do not `break`
+ * out of the field while.
+ * @param arena *u8 — opaque AST arena; null → -1
+ * @param module *u8 — opaque ast_Module; null → -1
+ * @param lex_inout *u8 — cursor on the name; success parks after `}`
+ * @param source *u8 — opaque slice
+ * @param allow_pad i32 — sidecar allow_padding
+ * @param force_soa i32 — #[soa] / caller soa; OR'd with `soa` modifier
+ * @param repr_compat i32 — sidecar repr_compatible
+ * @param pack *u8 — C-stack sname/fname/tp pack
+ * @return i32 — 0 success (including dup-skip), -1 fail
+ * PLATFORM: SHARED — product P6e B-minus. Name-match = P6b; packed/soa
+ * = P6c; type_ref = primary ptr shim (do not dest-buffer parse_type_ref).
+ * Do not merge wrap. Do not mix range_for. Do not wrap AUDIT. Do not
+ * open a new lane. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_parse_struct_record_layout_x_into_c(arena: *u8, module: *u8, lex_inout: *u8, source: *u8, allow_pad: i32, force_soa: i32, repr_compat: i32, pack: *u8): i32 {
+  let kind: i32 = 0;
+  let il: i32 = 0;
+  let np: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let is_soa: i32 = 0;
+  let is_packed: i32 = 0;
+  let dup: i32 = 0;
+  let weak_idx: i32 = 0;
+  let replace_idx: i32 = 0;
+  let layout_idx: i32 = 0;
+  let nf: i32 = 0;
+  let fields_done: i32 = 0;
+  let field_align_req: i32 = 0;
+  let fn_len: i32 = 0;
+  let tr: i32 = 0;
+  let field_off: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let ival: i32 = 0;
+  if (arena == 0 as *u8 || module == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || pack == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    parser_asm_struct_layout_pack_reset_c(pack);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (kind != TOKEN_IDENT || il <= 0 || il > 255) {
+      return -1;
+    }
+    np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+    if (parser_asm_struct_layout_pack_copy_sname_src_c(pack, source, np, il) == 0) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    skip_layout_angle_list(lex_inout, source, pack);
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    is_soa = force_soa;
+    is_packed = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+    if (parser_asm_tok_is_modifier_packed_c(kind, il, np, data, slen) != 0) {
+      is_packed = 1;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+    }
+    if (parser_asm_tok_is_modifier_soa_c(kind, il, np, data, slen) != 0) {
+      is_soa = 1;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    }
+    if (is_packed != 0 && is_soa != 0) {
+      return -1;
+    }
+    if (kind != TOKEN_LBRACE) {
+      return -1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    dup = parser_asm_struct_layout_pack_name_exists_c(pack, module);
+    weak_idx = parser_asm_struct_layout_pack_placeholder_idx_c(pack, module);
+    replace_idx = -1;
+    if (dup != 0) {
+      if (weak_idx < 0) {
+        replace_idx = parser_asm_struct_layout_pack_first_name_match_idx_c(pack, module);
+        if (replace_idx < 0) {
+          parser_asm_skip_balanced_braces_into_c(lex_inout, source);
+          return 0;
+        }
+      } else {
+        replace_idx = weak_idx;
+      }
+    }
+    layout_idx = replace_idx;
+    if (layout_idx < 0) {
+      layout_idx = pipeline_module_struct_layout_alloc(module);
+      if (layout_idx < 0) {
+        return -1;
+      }
+    }
+    pipeline_module_struct_layout_reset_slot(module, layout_idx);
+    parser_asm_struct_layout_pack_set_name_c(pack, module, layout_idx);
+    parser_asm_struct_layout_pack_tp_commit_c(pack, module, layout_idx);
+    nf = 0;
+    fields_done = 0;
+    while (fields_done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      field_align_req = 0;
+      if (kind == TOKEN_ALIGN) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_LPAREN) {
+          return -1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        ival = parser_asm_lex_peek_int_val_c(lex_inout, source);
+        if (kind != TOKEN_INT || ival <= 0) {
+          return -1;
+        }
+        field_align_req = ival;
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_RPAREN) {
+          return -1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      }
+      if (kind == TOKEN_RBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        fields_done = 1;
+      } else {
+        if (kind == TOKEN_LET || kind == TOKEN_CONST) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        }
+        il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+        tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+        tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+        fn_len = parser_asm_struct_layout_pack_copy_fname_c(pack, source, kind, il, np);
+        if (fn_len < 0) {
+          return -1;
+        }
+        if (parser_asm_struct_layout_pack_dup_field_c(pack, module, layout_idx, nf, tl, tc) != 0) {
+          return -1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_COLON) {
+          return -1;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+        if (tr == 0) {
+          return -1;
+        }
+        field_off = pipeline_struct_layout_next_field_offset_ex(module, arena, layout_idx, tr, field_align_req);
+        parser_asm_struct_layout_pack_set_field_c(pack, module, layout_idx, nf, tr, field_off);
+        if (field_align_req > 0) {
+          pipeline_module_struct_layout_set_field_align(module, layout_idx, nf, field_align_req);
+        }
+        nf = nf + 1;
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_SEMICOLON || kind == TOKEN_COMMA) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+        } else {
+          if (kind == TOKEN_RBRACE) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            fields_done = 1;
+          } else {
+            if (parser_asm_struct_field_continues_tok_kind_c(kind) != 0) {
+              fields_done = 0;
+            } else {
+              return -1;
+            }
+          }
+        }
+      }
+    }
+    pipeline_module_struct_layout_set_num_fields(module, layout_idx, nf);
+    pipeline_module_struct_layout_set_allow_padding(module, layout_idx, allow_pad);
+    pipeline_module_struct_layout_set_soa(module, layout_idx, is_soa);
+    pipeline_module_struct_layout_set_packed(module, layout_idx, is_packed);
+    pipeline_module_struct_layout_set_repr_compatible(module, layout_idx, repr_compat);
+  }
+  return 0;
 }

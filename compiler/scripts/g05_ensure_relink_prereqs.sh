@@ -1157,18 +1157,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         # P5 C is compiled after P9a (P5d realign .x calls the bridge
         # peek family). See the P5b/P5c/P5d block below.
-        # PLATFORM: SHARED — 7.2.1 P6b/P6c B-minus (2026-09-15).
-        # pthin_fn_block.x holds the three struct-layout name matchers
-        # plus packed/soa modifier predicates. No lexer-step bridge.
-        # Runs before P6 C so BODIES_FROM_X skips the portable .inc
-        # region. Cold: no define, full .inc.
+        # PLATFORM: SHARED — 7.2.1 P6b/P6c/P6d/P6e B-minus (2026-09-15 / 2026-09-16).
+        # pthin_fn_block.x holds the three struct-layout name matchers,
+        # packed/soa modifier predicates, library-shape wrap, and
+        # parse_struct_record_layout dest-buffer (P9a peek/step; P9a is
+        # linked later into the same thin_glue, same as P7d/P4ud).
+        # PARSE_LAYOUT is a separate define so a missing parse_x keeps
+        # the C parse twin without dropping P6b/P6c/P6d. Cold: no
+        # define, full .inc.
         _pthin_p6_extra=""
         if [ -n "$_pthin_p6b_thin_o" ] && [ -f "$_pthin_p6b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o" \
             && g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_struct_layout_first_name_match_idx_c"; then
             _pthin_p6b_ok=1
             _pthin_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
-            echo "g05_ensure: P6b/P6c/P6d fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_struct_record_layout_x_into_c"; then
+              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
+              echo "g05_ensure: P6b/P6c/P6d/P6e fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
+            else
+              echo "g05_ensure: P6b/P6c/P6d fn_block bodies ← $_pthin_p6b_x (P6e parse C twin)"
+            fi
           else
             echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2
           fi
