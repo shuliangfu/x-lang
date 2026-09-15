@@ -3,6 +3,10 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * if 条件表达式：if (cond) { block } [ else { block } | else if … ] → EXPR_IF。
+ *
+ * Hybrid P5f: XLANG_PTHIN_CTRL_BODIES_FROM_X skips wrap + parse (bodies in
+ * pthin_ctrl.x + dest-buffer trampoline). Cold: no define, full twin.
+ * Do not copy wrap into parse_unary / primary. Do not FORCE pabi mega.
  */
 #ifndef PARSER_ASM_IF_EXPR_SLICE_INCLUDED
 #define PARSER_ASM_IF_EXPR_SLICE_INCLUDED
@@ -28,7 +32,8 @@ extern int32_t parser_asm_stretch_if_expr_deep_audit_c(void *lex_inout, void *so
 extern int32_t parser_asm_stretch_if_expr_branch_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_else_if_chain_audit_c(void *lex_inout, void *source);
 
-/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 Cold twin only. */
 static void parser_asm_if_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -70,10 +75,41 @@ static void parser_asm_if_expr_common_zeros_c(struct ast_Expr *e) {
   e->call_resolved_func_index = -1;
   e->call_resolved_dep_index = -1;
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X common_zeros */
 
 /**
  * wrap_block_ref_as_expr：块 ref 包成 EXPR_BLOCK 节点（if 表达式 then/else 分支）。
+ * Hybrid P5f: dest-buffer in pthin_ctrl.x; this trampoline is unused
+ * (parse_if_expr_x calls wrap_into_c). Cold twin below.
  */
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+extern int32_t parser_asm_parse_if_expr_x_into_c(void *arena, void *lex_inout, void *source, int32_t type_ref,
+                                                 int32_t *out_ok, int32_t *out_expr_ref);
+
+/**
+ * parse_if_expr_into：lex_at_if 须指向 if；成功写 out.expr_ref 为 EXPR_IF。
+ * PLATFORM: SHARED — P5f trampoline. Language has no parse_expr_result
+ * by-value; .x writes ok / expr_ref dest slots and mutates lex_inout.
+ */
+void parser_asm_parse_if_expr_into_c(void *arena, struct parser_asm_lexer lex_at_if, struct parser_asm_slice_u8 *source,
+                                     int32_t type_ref, struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_lexer cur;
+  int32_t ok;
+  int32_t expr_ref;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  ok = 0;
+  expr_ref = 0;
+  cur = lex_at_if;
+  (void)parser_asm_parse_if_expr_x_into_c(arena, &cur, source, type_ref, &ok, &expr_ref);
+  if (ok == 0)
+    return;
+  out->ok = 1;
+  out->expr_ref = expr_ref;
+  out->next_lex = cur;
+}
+#else
 static int32_t parser_asm_wrap_block_ref_as_expr_c(void *arena, int32_t block_ref, int32_t type_ref) {
   int32_t ref;
   struct ast_Expr e;
@@ -199,5 +235,6 @@ void parser_asm_parse_if_expr_into_c(void *arena, struct parser_asm_lexer lex_at
   out->expr_ref = if_ref;
   out->next_lex = lex_cur;
 }
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X parse_if_expr */
 
 #endif /* PARSER_ASM_IF_EXPR_SLICE_INCLUDED */

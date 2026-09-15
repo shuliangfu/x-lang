@@ -65,11 +65,24 @@
 // merge with P14c module_try_register_enum_name. Do not open a new
 // P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P5b/P5c/P5d/P5e: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// 7.2.1 P5f B-minus (2026-09-15): 有则补全 parse_if_expr dest-buffer
+// plus wrap_block_ref. Both were always-host-cc in if_expr.inc (not
+// behind BODIES). Token walk reuses the P9a peek/step bridge and the
+// existing cond/block ptr shims from parse_if_stmt. Language has no
+// Expr by-value; wrap and EXPR_IF finish use pipeline_expr_set_kind /
+// set_common_zeros / set_resolved_type_ref / set_line_col plus
+// consumer-wave writers pipeline_expr_set_block_ref_c /
+// pipeline_expr_set_if_c defined in the P5 seed (pabi inject-only —
+// do not FORCE pabi mega). else-if recurses into this dest-buffer
+// (expr-ref as if_else_ref; not the if_stmt block-wrap). Do not copy
+// wrap into parse_unary / parse_* / pthin_expr_primary.x. Do not
+// merge with P4uc unary wrap. Do not open a new P-lane.
+//
+// Hybrid P5b/P5c/P5d/P5e/P5f: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
 // skips the portable .inc region. Requires the P9a lexer-step bridge
-// (P5d peeks; otherwise those would UNDEF — g05 gates this lane on
+// (P5d/P5f peeks; otherwise those would UNDEF — g05 gates this lane on
 // p9a ok). Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
-// for P5b/P5c/P5d/P5e bodies.
+// for P5b/P5c/P5d/P5e/P5f bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
@@ -86,6 +99,26 @@ export extern "C" function parser_parse_block_ptr_into_c(arena: *u8, lex_inout: 
 export extern "C" function parser_if_stmt_scan_sync_from_pos_ptr_into_c(source: *u8, pos0: usize, line0: i32, col0: i32, lex_inout: *u8): i32;
 export extern "C" function parser_asm_advance_past_cond_rparen_into_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function ast_ast_arena_block_alloc(arena: *u8): i32;
+/** Allocate a fresh Expr slot; 0 on failure. */
+export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
+/** Wave-0: wipe ref/base/count fields on a freshly allocated expr. */
+export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+/** Wave-0: write Expr.kind. */
+export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+/** Wave-0: write Expr.line / Expr.col. */
+export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
+/** Wave-0: write Expr.resolved_type_ref. */
+export extern "C" function pipeline_expr_set_resolved_type_ref(a: *u8, er: i32, type_ref: i32): void;
+/**
+ * P5f consumer-wave writer (P5 seed, not pabi mega): Expr.block_ref.
+ * Call after set_common_zeros_c.
+ */
+export extern "C" function pipeline_expr_set_block_ref_c(a: *u8, er: i32, block_ref: i32): void;
+/**
+ * P5f consumer-wave writer (P5 seed, not pabi mega): if_cond/then/else.
+ * Call after set_common_zeros_c.
+ */
+export extern "C" function pipeline_expr_set_if_c(a: *u8, er: i32, cond_ref: i32, then_ref: i32, else_ref: i32): void;
 export extern "C" function pipeline_block_append_if(arena: *u8, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
 export extern "C" function pipeline_block_append_stmt_order(arena: *u8, br: i32, kind: i32, idx: i32): i32;
 /** Pipeline sidecar: enum name / variant-tag table. Authority = runtime_pipeline_abi.x. */
@@ -149,6 +182,9 @@ const TOKEN_MATCH: i32 = 18;
 const TOKEN_IDENT: i32 = 59;
 const TOKEN_LPAREN: i32 = 82;
 const TOKEN_RBRACE: i32 = 85;
+// ExprKind pins (ast.x enum order). P5 C _Static_assert fires if they drift.
+const EXPR_IF: i32 = 25;
+const EXPR_BLOCK: i32 = 26;
 
 /**
  * Compare `klen` bytes at `data[i..]` with `kw[0..klen)`.
@@ -1281,4 +1317,173 @@ export function parser_asm_match_dest_enum_tag_into_c(m: *u8, vname: *u8, vlen: 
     return -1;
   }
   return found;
+}
+
+/**
+ * Wrap a parsed block as EXPR_BLOCK (if-expr then/else arms).
+ * Dest-buffer twin of parser_asm_wrap_block_ref_as_expr_c: zeros first,
+ * then kind=EXPR_BLOCK, block_ref, resolved_type_ref, line/col=0.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param block_ref i32 — then/else block; 0 → 0 (no wrap)
+ * @param type_ref i32 — enclosing function type stamped on the expr
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P5f B-minus. Authority for
+ * `parser_asm_wrap_block_ref_as_expr_c`. Do not copy into parse_unary
+ * / parse_* / pthin_expr_primary.x. Do not merge with P4uc unary wrap.
+ */
+#[no_mangle]
+export function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: i32, type_ref: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8 || block_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_kind(arena, ref, EXPR_BLOCK);
+    pipeline_expr_set_block_ref_c(arena, ref, block_ref);
+    pipeline_expr_set_resolved_type_ref(arena, ref, type_ref);
+    pipeline_expr_set_line_col(arena, ref, 0, 0);
+  }
+  return ref;
+}
+
+/**
+ * Allocate EXPR_IF and write cond/then/else plus type/line/col.
+ * Extracted so parse_if_expr_x stays under the typeck check_block budget.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param type_ref i32 — enclosing function type
+ * @param cond_ref i32 — condition expr
+ * @param then_ref i32 — then EXPR_BLOCK (or nested)
+ * @param else_ref i32 — else expr (0 when no else)
+ * @return i32 — new EXPR_IF ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — P5f helper.
+ */
+function skip_if_expr_finish(arena: *u8, type_ref: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32 {
+  let if_ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if_ref = ast_ast_arena_expr_alloc(arena);
+    if (if_ref == 0) {
+      return 0;
+    }
+    pipeline_expr_set_common_zeros_c(arena, if_ref);
+    pipeline_expr_set_kind(arena, if_ref, EXPR_IF);
+    pipeline_expr_set_resolved_type_ref(arena, if_ref, type_ref);
+    pipeline_expr_set_line_col(arena, if_ref, 0, 0);
+    pipeline_expr_set_if_c(arena, if_ref, cond_ref, then_ref, else_ref);
+  }
+  return if_ref;
+}
+
+/**
+ * Parse `if cond { then } [else {..} | else if ...]` as EXPR_IF.
+ * .x mirror of parser_asm_parse_if_expr_into_c: P9a peek/step, P1d
+ * rparen advance (cursor already past `{` on success), cond/block
+ * ptr shims, wrap_block_ref dest-buffer, else-if recurse into this
+ * dest-buffer (else_expr_ref = nested EXPR_IF, not an if_stmt block
+ * wrap). Does not scan_sync/realign (C twin parks at then/else end).
+ * @param arena *u8 — opaque ASTArena
+ * @param lex_inout *u8 — cursor at `if`; on success parked after the
+ *   whole expression (then-block end when no else)
+ * @param source *u8 — opaque slice
+ * @param type_ref i32 — enclosing function type (block parse context)
+ * @param out_ok *i32 — parse_expr_result.ok; null → 0
+ * @param out_expr_ref *i32 — parse_expr_result.expr_ref; null → 0
+ * @return i32 — 1 success (also writes out_ok=1); 0 any failure
+ * PLATFORM: SHARED — product P5f B-minus. C trampoline keeps the
+ * by-value parse_expr_result face. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let cok: i32 = 0;
+  let cond_ref: i32 = 0;
+  let bok: i32 = 0;
+  let bref: i32 = 0;
+  let then_expr: i32 = 0;
+  let else_expr: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let if_ref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IF) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    parser_asm_ctrl_realign_finish_peek(lex_inout, source, kind);
+    if (parser_parse_cond_expr_ptr_into_c(arena, lex_inout, source, &cok, &cond_ref) == 0) {
+      return 0;
+    }
+    if (cok == 0) {
+      return 0;
+    }
+    if (parser_asm_advance_past_cond_rparen_into_c(lex_inout, source) == 0) {
+      return 0;
+    }
+    if (parser_parse_block_ptr_into_c(arena, lex_inout, source, type_ref, &bok, &bref) == 0) {
+      return 0;
+    }
+    if (bok == 0) {
+      return 0;
+    }
+    then_expr = parser_asm_wrap_block_ref_as_expr_into_c(arena, bref, type_ref);
+    if (then_expr == 0) {
+      return 0;
+    }
+    else_expr = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_ELSE) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_IF) {
+        parser_asm_ctrl_realign_finish_peek(lex_inout, source, kind);
+        eok = 0;
+        eref = 0;
+        if (parser_asm_parse_if_expr_x_into_c(arena, lex_inout, source, type_ref, &eok, &eref) == 0) {
+          return 0;
+        }
+        if (eok == 0) {
+          return 0;
+        }
+        else_expr = eref;
+      } else if (kind == TOKEN_LBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        bok = 0;
+        bref = 0;
+        if (parser_parse_block_ptr_into_c(arena, lex_inout, source, type_ref, &bok, &bref) == 0) {
+          return 0;
+        }
+        if (bok == 0) {
+          return 0;
+        }
+        else_expr = parser_asm_wrap_block_ref_as_expr_into_c(arena, bref, type_ref);
+        if (else_expr == 0) {
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    }
+    if_ref = skip_if_expr_finish(arena, type_ref, cond_ref, then_expr, else_expr);
+    if (if_ref == 0) {
+      return 0;
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = if_ref;
+    return 1;
+  }
+  return 0;
 }

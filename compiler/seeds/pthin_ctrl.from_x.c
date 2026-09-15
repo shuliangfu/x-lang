@@ -4,13 +4,14 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b/P5c/P5d/P5e (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * Hybrid P5b/P5c/P5d/P5e/P5f (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
  * comment-aware brace skip + kw_at_pos + scan_sync pos plus the P5d
- * six-stage realign walk and the P5e dest-typed enum-tag scan come from
- * pthin_ctrl.x (realign over the P9a bridge peek family; dest-tag trampoline
- * holds ename[256]); this TU keeps the slice trampolines plus parse /
- * match / if_expr. Cold: no BODIES define, full .inc. Do
- * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e bodies.
+ * six-stage realign walk, the P5e dest-typed enum-tag scan, and the P5f
+ * parse_if_expr dest-buffer come from pthin_ctrl.x (realign/parse over the
+ * P9a bridge peek family; dest-tag trampoline holds ename[256]; if_expr
+ * trampoline holds parse_expr_result). this TU keeps the slice trampolines
+ * plus match parse. Cold: no BODIES define, full .inc. Do
+ * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -28,12 +29,14 @@
 _Static_assert((int)TOKEN_LET == 2, "ctrl.x TOKEN_LET pin");
 _Static_assert((int)TOKEN_CONST == 3, "ctrl.x TOKEN_CONST pin");
 _Static_assert((int)TOKEN_IF == 4, "ctrl.x TOKEN_IF pin");
+_Static_assert((int)TOKEN_ELSE == 5, "ctrl.x TOKEN_ELSE pin");
 _Static_assert((int)TOKEN_WHILE == 6, "ctrl.x TOKEN_WHILE pin");
 _Static_assert((int)TOKEN_FOR == 8, "ctrl.x TOKEN_FOR pin");
 _Static_assert((int)TOKEN_RETURN == 11, "ctrl.x TOKEN_RETURN pin");
 _Static_assert((int)TOKEN_MATCH == 18, "ctrl.x TOKEN_MATCH pin");
 _Static_assert((int)TOKEN_IDENT == 59, "ctrl.x TOKEN_IDENT pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "ctrl.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "ctrl.x TOKEN_LBRACE pin");
 _Static_assert((int)TOKEN_RBRACE == 85, "ctrl.x TOKEN_RBRACE pin");
 
 struct parser_asm_token {
@@ -127,6 +130,36 @@ struct ast_Expr {
   int32_t call_resolved_dep_index;
 };
 
+/* PLATFORM: SHARED — 7.2.1 P5f B-minus. ExprKind pins + consumer-wave
+ * writers. pabi inject-only skips new rest symbols, so these T live in
+ * the P5 seed (recompiled every g05). Pointer = pipeline_arena_expr_ptr.
+ * Layout ≡ W278_Expr; P4uc already pinned unary_operand_ref==300. */
+_Static_assert(offsetof(struct ast_Expr, unary_operand_ref) == 300, "P5f unary_operand_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, if_cond_ref) == 304, "P5f if_cond_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, if_then_ref) == 308, "P5f if_then_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, if_else_ref) == 312, "P5f if_else_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, block_ref) == 316, "P5f block_ref offset ≡ W278_Expr");
+extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);
+void pipeline_expr_set_block_ref_c(void *a, int32_t er, int32_t block_ref) {
+  struct ast_Expr *ex;
+  if (!a || er <= 0)
+    return;
+  ex = (struct ast_Expr *)pipeline_arena_expr_ptr(a, er);
+  if (ex)
+    ex->block_ref = block_ref;
+}
+void pipeline_expr_set_if_c(void *a, int32_t er, int32_t cond_ref, int32_t then_ref, int32_t else_ref) {
+  struct ast_Expr *ex;
+  if (!a || er <= 0)
+    return;
+  ex = (struct ast_Expr *)pipeline_arena_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->if_cond_ref = cond_ref;
+  ex->if_then_ref = then_ref;
+  ex->if_else_ref = else_ref;
+}
+
 struct ast_Module; /* opaque pointer only */
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
@@ -134,11 +167,12 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
 
 #ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
 /* .x product bodies (buf-path brace skip + kw_at_pos + scan_sync pos +
- * P5e dest-typed enum-tag scan). Same C name for skip_braces; kw_at_pos
- * keeps the slice+const char* trampoline because language has no C string
- * type; scan_sync keeps the by-value lexer trampoline because language
- * has no struct-by-value. dest-tag trampoline is in match_subject.inc
- * (holds ename[256]). */
+ * P5e dest-typed enum-tag scan + P5f parse_if_expr dest-buffer). Same C
+ * name for skip_braces; kw_at_pos keeps the slice+const char* trampoline
+ * because language has no C string type; scan_sync keeps the by-value
+ * lexer trampoline because language has no struct-by-value. dest-tag
+ * trampoline is in match_subject.inc (holds ename[256]). if_expr
+ * trampoline is in if_expr.inc (holds parse_expr_result). */
 extern size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_t *data, size_t len,
                                                                     size_t start);
 extern int32_t parser_asm_kw_at_pos_buf_c(uint8_t *data, size_t len, size_t i, uint8_t *kw, int32_t klen);
