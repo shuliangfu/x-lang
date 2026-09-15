@@ -1,7 +1,12 @@
 /**
  * parser_asm_struct_layout_slice.inc — parse_struct_record_layout_into C 实现。
  *
- * 由 parser_asm_thin_c.c #include；勿单独编译。
+ * 由 parser_asm_thin_c.c / pthin_fn_block.from_x.c #include；勿单独编译。
+ *
+ * Hybrid P6b: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the three name-match
+ * helpers (bodies in src/asm/pthin_fn_block.x). parse_struct_record_layout
+ * stays here and calls those symbols. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b bodies.
  */
 #ifndef PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED
 #define PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED
@@ -120,7 +125,12 @@ extern int32_t parser_asm_stretch_vx_struct_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_
 extern int32_t parser_asm_stretch_struct_layout_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len);
 
-/** 判断 module 中是否已有同名 struct layout。 */
+/** 判断 module 中是否已有同名 struct layout。
+ * P6b: hybrid body in pthin_fn_block.x (same C name). Cold twin only.
+ * Remaining parse_struct_record_layout in this file still calls the symbol,
+ * so BODIES_FROM_X must keep an extern (not a silent skip).
+ */
+#ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
 int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen) {
   int32_t k;
   int32_t nsl;
@@ -202,6 +212,11 @@ int32_t parser_asm_struct_layout_placeholder_idx_c(void *module, uint8_t *nm, in
   }
   return -1;
 }
+#else
+extern int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen);
+extern int32_t parser_asm_struct_layout_first_name_match_idx_c(void *module, uint8_t *nm, int32_t nlen);
+extern int32_t parser_asm_struct_layout_placeholder_idx_c(void *module, uint8_t *nm, int32_t nlen);
+#endif /* !XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X name-match trio */
 
 /**
  * parse_struct_record_layout_into：解析 struct Name { field: T; ... } 写入 module sidecar。
