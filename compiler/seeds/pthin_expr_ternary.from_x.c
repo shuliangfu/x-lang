@@ -4,10 +4,11 @@
  *
  * Body: seeds/parser_asm/parser_asm_ternary_assign_slice.inc
  *
- * Hybrid P4tb/P4tc (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
- * EXPR_TERNARY wrap and assign wrap dest-buffer come from
- * pthin_expr_ternary.x; this TU keeps wrap trampolines plus arena
- * parse/assign. Cold: no BODIES define, full .inc.
+ * Hybrid P4tb/P4tc/P4td (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
+ * EXPR_TERNARY wrap, assign wrap dest-buffer, and parse_ternary
+ * dest-buffer come from pthin_expr_ternary.x; this TU keeps wrap
+ * trampolines plus logor-ptr / parse trampolines. parse_assign stays
+ * C. Cold: no BODIES define, full .inc.
  * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
  * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots);
  * pipeline_expr_set_binop_operands_c lives in the P4bc seed; do not
@@ -24,12 +25,19 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
+/* PLATFORM: SHARED — 7.2.1 P4td. pthin_expr_ternary.x TOKEN_* are pin
+ * copies of this enum. token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_COLON == 91, "ternary.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_QUESTION == 127, "ternary.x TOKEN_QUESTION pin");
+
 #ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
-/* .x product body (same C name for Route C wrap). */
+/* .x product body (same C name for Route C wrap + parse dest-buffer). */
 extern int32_t parser_asm_ternary_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t cond_ref,
                                               int32_t then_ref, int32_t else_ref);
 extern int32_t parser_asm_assign_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
                                              int32_t left_ref, int32_t right_ref, int32_t line, int32_t col);
+extern int32_t parser_asm_parse_ternary_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                int32_t *out_expr_ref);
 #endif
 
 struct parser_asm_token {

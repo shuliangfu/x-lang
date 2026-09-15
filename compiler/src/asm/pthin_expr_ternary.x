@@ -20,34 +20,33 @@
 // (EXPR_TERNARY wrap).
 // 7.2.1 P4tc Route C (2026-09-15): 有则补全 assign wrap dest-buffer
 // in the same domain file (efficiency: one L2 for remaining wrap soup).
-// ternary_assign.inc is always host-cc'd into the hybrid P4t object.
-// Language has no Expr by-value; dest-buffer both wrap soups:
-//   EXPR_TERNARY (kind=27 + if_cond/then/else + line/col=0)
-//   ASSIGN/compound (kind param + binop left/right + token line/col)
-// The C trampoline in ternary_assign_slice.inc holds parse_expr_result*
-// and forwards out.ok / out.expr_ref. Sidecar writes go through the
-// PABI writer family (set_common_zeros / set_kind / set_line_col)
-// plus pipeline_expr_set_if_c in the P5 seed (G.7: one writer for
-// the if_* slots) and pipeline_expr_set_binop_operands_c in the P4bc
-// seed (G.7: one writer for binop_left/right; do not copy; do not
-// FORCE pabi mega; do not extend P4bc wrap with line/col — that
-// wrap hardcodes 0,0).
-// parse_ternary / parse_assign stay C and call the historical wrap
-// symbols. Do not dest-buffer parse this wave (extra lexer_next +
-// parse_expr by-value). Do not copy wrap into parse_ternary /
-// parse_assign. Do not merge unary wrap (unary_operand_ref). Do not
-// merge binop wrap (P4bc line/col=0 vs assign token line/col). Do
-// not merge skip_if_expr_finish (EXPR_IF=25 plus resolved_type_ref).
-// Do not open a new P-lane. Do not wrap dest-SLICE as extra. Do not
-// add bodies to pthin_expr_primary.x. Do not "fix" the redundant
-// double parse_ternary_into at the AUDIT/parse boundary of
-// parse_assign as a side effect.
+// 7.2.1 P4td B-minus (2026-09-16): 有则补全 parse_ternary dest-buffer.
+// Token walk reuses P9a peek/step (same family as P4ud / P4bd / P4ad).
+// Cond lower: logor through the pointer-face shim in ternary_assign.inc
+// (zero-algorithm over historical parser_parse_logor_into; language
+// has no struct-by-value). Then-branch: existing primary
+// parser_parse_expr_ptr_into_c (G.7: one expr ptr shim; do not copy;
+// C twin's then is parse_expr_into = assign-level). Else: recurse
+// this dest-buffer (right-assoc; C twin calls parse_ternary_into).
+// Wrap stays P4tb. C trampoline keeps AUDIT and the by-value
+// parse_expr_result face. parse_assign stays C (huge AUDIT + lvalue
+// + compound + extra lexer_next). Do not copy wrap into parse.
+// Do not dest-buffer parse_assign / parse_type_ref this wave.
+// Do not merge unary / binop / as_suffix parse. Do not open a new
+// P-lane. Do not add bodies to pthin_expr_primary.x. Do not FORCE
+// pabi mega. Do not "fix" the redundant double parse_ternary_into
+// at the AUDIT/parse boundary of parse_assign as a side effect.
 //
-// Hybrid P4tb/P4tc: g05_try_x_to_o this file;
-// XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the portable wrap twins.
-// Cold: no define, full .inc stays.
+// Hybrid P4tb/P4tc/P4td: g05_try_x_to_o this file;
+// XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the portable wrap twins
+// + parse_ternary body. Cold: no define, full .inc stays.
 // Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
 // PLATFORM: SHARED freestanding.
+
+// TOKEN_* pin copies of include/token.h. P4t C _Static_assert fires if
+// the pin drifts; do not treat these as a second enum authority.
+const TOKEN_COLON: i32 = 91;
+const TOKEN_QUESTION: i32 = 127;
 
 // ExprKind ordinal — G.7 ≡ ast.x / PARSER_ASM_EXPR_TERNARY in
 // ternary_assign_slice.inc.
@@ -73,6 +72,21 @@ export extern "C" function pipeline_expr_set_if_c(a: *u8, er: i32, cond_ref: i32
  * Lives in the P4bc seed; do not copy into this seed; do not FORCE pabi mega.
  */
 export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
+/** P9a: peek next kind without advancing. */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: consume one token; returns its kind. */
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/**
+ * Pointer-face parse_logor. Zero-algorithm C shim in ternary_assign.inc:
+ * copies lexer, calls parser_parse_logor_into, writes ok/ref/next_lex.
+ */
+export extern "C" function parser_parse_logor_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
+/**
+ * Pointer-face parse_expr (assign-level). G.7: lives in primary.inc
+ * (suffix_loop call/index); do not copy. C twin's then-branch is
+ * parse_expr_into.
+ */
+export extern "C" function parser_parse_expr_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 
 /**
  * Allocate a ternary Expr and write kind / if_cond / if_then / if_else.
@@ -90,7 +104,7 @@ export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, l
  * @param else_ref i32 — recursive ternary else expr
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — product P4tb Route C. Authority for the ternary
- * wrap soup. parse_ternary stays C; do not copy.
+ * wrap soup. parse dest-buffer is P4td; do not copy wrap.
  */
 #[no_mangle]
 export function parser_asm_ternary_wrap_into_c(arena: *u8, out_ok: *i32, out_expr_ref: *i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32 {
@@ -160,4 +174,87 @@ export function parser_asm_assign_wrap_into_c(arena: *u8, out_ok: *i32, out_expr
     out_expr_ref[0] = bin_ref;
   }
   return bin_ref;
+}
+
+/**
+ * Parse `logor ('?' parse_expr ':' parse_ternary)?` (right-assoc).
+ * .x mirror of parser_asm_parse_ternary_into_slice_c: logor ptr shim
+ * fills out_ok / out_expr_ref; peek does not consume. Non-`?` returns
+ * success with the cursor parked (same as C peek-and-restore). `?`
+ * steps, then-branch parse_expr_ptr (assign-level; dest slots reused
+ * after cond_ref is saved), `:` must follow or out_ok=0 (C does not
+ * restore the cursor). Else recurse this dest-buffer then wrap via
+ * P4tb. Wrap does not set out_ok=1 — the else parse already did.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — cursor; parked after the parsed expr
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — parse_expr_result.ok
+ * @param out_expr_ref *i32 — parse_expr_result.expr_ref
+ * @return i32 — 1 success (out_ok=1); 0 failure
+ * PLATFORM: SHARED — product P4td B-minus. C trampoline keeps AUDIT
+ * and the by-value parse_expr_result face. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_ternary_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let cond_ref: i32 = 0;
+  let then_ref: i32 = 0;
+  let else_ref: i32 = 0;
+  let wr: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    rc = parser_parse_logor_ptr_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc == 0) {
+      return 0;
+    }
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_QUESTION) {
+      // C twin: lexer_next then restore next_lex when not `?`.
+      return 1;
+    }
+    cond_ref = out_expr_ref[0];
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    // Then-branch is assign-level parse_expr (C: parse_expr_into into mid).
+    // Reuse dest slots after cond_ref is saved; G.7 one expr ptr shim.
+    rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc == 0) {
+      out_ok[0] = 0;
+      return 0;
+    }
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    then_ref = out_expr_ref[0];
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_COLON) {
+      // C twin: out.ok=0 without restoring the cursor.
+      out_ok[0] = 0;
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    // Else is right-assoc parse_ternary (C: recurse parse_ternary_into).
+    rc = parser_asm_parse_ternary_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc == 0) {
+      return 0;
+    }
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    else_ref = out_expr_ref[0];
+    wr = parser_asm_ternary_wrap_into_c(arena, out_ok, out_expr_ref, cond_ref, then_ref, else_ref);
+    if (wr == 0) {
+      out_ok[0] = 0;
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
 }

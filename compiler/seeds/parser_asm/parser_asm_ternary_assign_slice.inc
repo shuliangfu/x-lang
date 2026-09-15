@@ -4,12 +4,14 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * logor 已 thin delegate；then 分支回调 parse_expr_into（mega 桩 / 链接符号）。
  *
- * Hybrid P4tb/P4tc: XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the
- * portable EXPR_TERNARY wrap twin and the assign wrap twin (bodies in
- * pthin_expr_ternary.x). parse_ternary / parse_assign stay here. wrap
- * keeps dest-buffer trampolines so parse still sees parse_expr_result*.
- * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
- * Do not extend P4bc wrap with line/col. PLATFORM: SHARED.
+ * Hybrid P4tb/P4tc/P4td: XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the
+ * portable EXPR_TERNARY wrap twin, the assign wrap twin, and the
+ * parse_ternary body (bodies in pthin_expr_ternary.x). parse_ternary is
+ * a dest-buffer trampoline under BODIES (P4td); AUDIT stays.
+ * parse_assign stays here. wrap keeps dest-buffer trampolines so
+ * cold parse still sees parse_expr_result*. Do not reuse
+ * XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies. Do not extend P4bc wrap
+ * with line/col. PLATFORM: SHARED.
  */
 #ifndef PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED
 #define PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED
@@ -170,6 +172,32 @@ static int32_t parser_asm_assign_wrap_c(void *arena, struct parser_asm_parse_exp
 }
 #endif /* XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X assign wrap */
 
+#ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
+/**
+ * Pointer-face parse_logor. Language has no lexer / parse_expr_result
+ * by-value; this C face copies the cursor, drives the historical
+ * parser_parse_logor_into, and writes ok / expr_ref / next_lex.
+ * PLATFORM: SHARED — P4td zero-algorithm shim. Do not copy logor parse.
+ */
+int32_t parser_parse_logor_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                      int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_parse_logor_into(arena, lex, (struct parser_asm_slice_u8 *)source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+extern int32_t parser_asm_parse_ternary_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                int32_t *out_expr_ref);
+#endif /* XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X logor ptr + parse dest-buffer */
+
 /** 三元运算符：logor ('?' parse_expr ':' parse_ternary)*，右结合。 */
 void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                            struct parser_asm_parse_expr_result *out) {
@@ -182,6 +210,30 @@ void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer 
 
   if (!out || !source)
     return;
+#ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4td trampoline. AUDIT stays (product nop).
+   * .x peeks; includes logor via the ptr shim. Publish next_lex from
+   * the live cursor. Do not dest-buffer parse_assign this wave. */
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_ternary_op_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_ternary_assign_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_ternary_assign_full_deep_audit_c(&lex, source));
+  {
+    struct parser_asm_lexer cur;
+    int32_t ok;
+    int32_t ref;
+    cur = lex;
+    ok = 0;
+    ref = 0;
+    if (parser_asm_parse_ternary_x_into_c(arena, &cur, source, &ok, &ref) == 0 || ok == 0) {
+      out->ok = 0;
+      return;
+    }
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = cur;
+    return;
+  }
+#else
   parser_parse_logor_into(arena, lex, source, out);
   if (!out->ok)
     return;
@@ -217,6 +269,7 @@ void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer 
   else_ref = out->expr_ref;
   if (parser_asm_ternary_wrap_c(arena, out, cond_ref, then_ref, else_ref) == 0)
     return;
+#endif /* XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X parse_ternary */
 }
 
 /** 赋值层：ternary (('='|'+='|…) ternary)?；仅左值消费赋值符。 */
