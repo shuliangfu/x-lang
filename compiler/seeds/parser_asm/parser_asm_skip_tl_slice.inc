@@ -1219,6 +1219,28 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
  * @param trait_nlen     trait name length; must be > 0.
  * @return 1 if any impl block matches; 0 otherwise.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12l trampoline. Language has no file-local statics;
+ * .x walks dest g_xlang_skip_impl_* (trait stride 64, for-name stride 64,
+ * cap 16). Zero algorithm besides passing the tables and holding gnm[64]
+ * for the P12i self_matches_for dest. Accessors stay C. */
+extern int32_t xlang_skip_impl_concrete_implements_trait_into_c(void *arena,
+        int32_t concrete_ty_ref, const uint8_t *trait_nm, int32_t trait_nlen,
+        uint8_t *impl_trait, int32_t *impl_trait_len, int32_t *for_kinds,
+        int32_t *for_is_ptr, uint8_t *for_names, int32_t *for_name_lens,
+        int32_t seen_n, uint8_t *gnm);
+int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
+        int32_t concrete_ty_ref, const uint8_t *trait_nm, int32_t trait_nlen) {
+  uint8_t gnm[64];
+  memset(gnm, 0, sizeof(gnm));
+  return xlang_skip_impl_concrete_implements_trait_into_c(
+      arena, concrete_ty_ref, trait_nm, trait_nlen,
+      (uint8_t *)g_xlang_skip_impl_trait, g_xlang_skip_impl_trait_len,
+      g_xlang_skip_impl_for_kinds, g_xlang_skip_impl_for_is_ptr,
+      (uint8_t *)g_xlang_skip_impl_for_names, g_xlang_skip_impl_for_name_lens,
+      g_xlang_skip_impl_seen_n, gnm);
+}
+#else
 int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
         int32_t concrete_ty_ref, const uint8_t *trait_nm, int32_t trait_nlen) {
   int32_t si;
@@ -1240,6 +1262,7 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
   }
   return 0;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X concrete_implements_trait */
 
 /**
  * F4 per-impl vtable statics: iterator accessors over the impl registry

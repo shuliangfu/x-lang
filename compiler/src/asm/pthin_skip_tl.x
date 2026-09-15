@@ -101,16 +101,28 @@
 // trait-reg). Do not merge with P1c pending tables. Do not open a
 // new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k: g05_try_x_to_o this
+// 7.2.1 P12l B-minus (2026-09-15): 有则补全 concrete_implements_trait
+// dest-buffer. Always-host-cc (not behind BODIES). Language has no
+// file-local statics; the C trampoline passes g_xlang_skip_impl_*
+// parallel arrays (trait stride 64, for-name stride 64, cap 16) and
+// holds gnm[64] for the P12i self_matches_for dest. Reuses
+// skip_named_bytes_eq + xlang_skip_impl_self_matches_for_into_c.
+// Accessors (seen_count / trait_name_into / for_type_into) stay C.
+// method_on_param / bound_check stay C (fat trait-reg struct).
+// Do not copy into typeck. Do not merge with P6b. Do not merge with
+// trait-reg accessors. Do not open a new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
 // skip_name_is_self + self_matches_for + named_eq_self +
-// rewrite_self + register_type_params + type_param_index). Requires P9a
+// rewrite_self + register_type_params + type_param_index +
+// concrete_implements_trait). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12k bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12l bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -228,6 +240,7 @@ const IMPL_NAME_CAP: i32 = 64;
 const TYPE_NAMED: i32 = 8;
 const TYPE_PTR: i32 = 9;
 const GNM_CAP: i32 = 64;
+const SKIP_IMPL_SEEN_MAX: i32 = 16;
 const FN_BOUND_MAX: i32 = 16;
 const GENERIC_CALL_MAX: i32 = 32;
 const GENERIC_CALL_MAX_ARGS: i32 = 4;
@@ -3397,8 +3410,8 @@ function skip_named_self_or_eq(arena: *u8, ty_ref: i32, for_name: *u8, for_nlen:
  * @param for_nlen i32 — for-type name length
  * @param gnm *u8 — dest 64 for one TYPE_NAMED spelling; C trampoline holds it
  * @return i32 — 1 match or unknown/untyped; 0 definite mismatch
- * PLATFORM: SHARED — product P12i B-minus. concrete_implements_trait
- * stays C and calls the historical static. Do not copy into typeck.
+ * PLATFORM: SHARED — product P12i B-minus. P12l dest-buffers
+ * concrete_implements_trait over this matcher. Do not copy into typeck.
  * Do not merge with P6b. Do not open a new P-lane.
  */
 #[no_mangle]
@@ -3797,6 +3810,69 @@ export function xlang_generic_func_type_param_index_into_c(fn_name: *u8, fn_name
     }
   }
   return -1;
+}
+
+/**
+ * True when some registered impl block has trait name `trait_nm` AND
+ * its for-type matches `concrete_ty_ref` (P12i self_matches_for).
+ * Typeck dyn-coerce (`let x: dyn Trait = concrete`) is the consumer;
+ * it must not iterate the impl-seen tables itself.
+ * Language has no file-local statics; dest tables are the C
+ * g_xlang_skip_impl_* parallel arrays (trait stride 64, for-name
+ * stride 64, cap 16). `gnm` is the C trampoline dest for one
+ * TYPE_NAMED spelling inside self_matches_for.
+ * @param arena *u8 — opaque ASTArena; same instance that populated impls
+ * @param concrete_ty_ref i32 — RHS concrete type_ref; 0 → 0
+ * @param trait_nm *u8 — trait spelling (e.g. "Clone"); null / empty → 0
+ * @param trait_nlen i32 — trait name length; <=0 → 0
+ * @param impl_trait *u8 — dest trait names, stride 64, cap 16
+ * @param impl_trait_len *i32 — dest trait name lens, cap 16
+ * @param for_kinds *i32 — dest for-type TypeKind ords, cap 16
+ * @param for_is_ptr *i32 — dest for-type is-*T flags, cap 16
+ * @param for_names *u8 — dest for-type names, stride 64, cap 16
+ * @param for_name_lens *i32 — dest for-type name lens, cap 16
+ * @param seen_n i32 — occupied impl-seen count (read-only)
+ * @param gnm *u8 — dest 64 for self_matches_for; C trampoline holds it
+ * @return i32 — 1 if any impl matches, 0 otherwise
+ * PLATFORM: SHARED — product P12l B-minus. C trampoline owns
+ * g_xlang_skip_impl_*. Do not copy into typeck. Do not merge with P6b.
+ * Do not wrap method_on_param / bound_check this wave.
+ */
+#[no_mangle]
+export function xlang_skip_impl_concrete_implements_trait_into_c(arena: *u8, concrete_ty_ref: i32, trait_nm: *u8, trait_nlen: i32, impl_trait: *u8, impl_trait_len: *i32, for_kinds: *i32, for_is_ptr: *i32, for_names: *u8, for_name_lens: *i32, seen_n: i32, gnm: *u8): i32 {
+  let si: i32 = 0;
+  let tlen: i32 = 0;
+  let trait_off: usize = 0;
+  let for_off: usize = 0;
+  let n: i32 = 0;
+  if (trait_nm == 0 as *u8 || trait_nlen <= 0 || concrete_ty_ref == 0) {
+    return 0;
+  }
+  if (impl_trait == 0 as *u8 || impl_trait_len == 0 as *i32 || for_kinds == 0 as *i32 || for_is_ptr == 0 as *i32 || for_names == 0 as *u8 || for_name_lens == 0 as *i32 || gnm == 0 as *u8) {
+    return 0;
+  }
+  if (seen_n <= 0) {
+    return 0;
+  }
+  n = seen_n;
+  if (n > SKIP_IMPL_SEEN_MAX) {
+    n = SKIP_IMPL_SEEN_MAX;
+  }
+  unsafe {
+    si = 0;
+    while (si < n) {
+      tlen = impl_trait_len[si];
+      trait_off = (si as usize) * (GNM_CAP as usize);
+      if (skip_named_bytes_eq(impl_trait + trait_off, tlen, trait_nm, trait_nlen) != 0) {
+        for_off = (si as usize) * (GNM_CAP as usize);
+        if (xlang_skip_impl_self_matches_for_into_c(arena, concrete_ty_ref, for_kinds[si], for_is_ptr[si], for_names + for_off, for_name_lens[si], gnm) != 0) {
+          return 1;
+        }
+      }
+      si = si + 1;
+    }
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------------------

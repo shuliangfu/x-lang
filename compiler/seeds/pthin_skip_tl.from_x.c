@@ -5,22 +5,25 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X):
+ * Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X):
  * portable skip walks (struct / enum / extern + impl header +
  * generic_bound_scan + enum_register + parse_one_extern_skip +
  * parse_one_extern_and_add + skip_name_is_self + self_matches_for +
  * named_eq_self + rewrite_self + register_type_params +
- * type_param_index) come from pthin_skip_tl.x; this TU keeps
- * by-value trampolines plus stash_source / trait-reg C. skip_one_impl
- * and generic_bound_scan trampolines live in the .inc (need file-static
- * tables). enum_register trampolines live here (opaque module, no
- * file-static). parse_one_extern_skip trampoline lives in the .inc.
+ * type_param_index + concrete_implements_trait) come from pthin_skip_tl.x;
+ * this TU keeps by-value trampolines plus stash_source / trait-reg C.
+ * skip_one_impl and generic_bound_scan trampolines live in the .inc
+ * (need file-static tables). enum_register trampolines live here
+ * (opaque module, no file-static). parse_one_extern_skip trampoline
+ * lives in the .inc.
  * P12i self_matches_for trampoline lives in the .inc (holds gnm[64]).
  * P12j rewrite_self trampoline lives in the .inc (holds gnm[64] +
  * for_copy[64]); named_eq_self is a direct extern (pointer ABI).
  * P12k register/index trampolines live in the .inc (pass g_fn_gp_*).
+ * P12l concrete_implements trampoline lives in the .inc (pass
+ * g_xlang_skip_impl_* + hold gnm[64]).
  * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12k bodies.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12l bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -35,7 +38,7 @@
 #include "token.h"
 #include "ast.h"
 
-/* PLATFORM: SHARED — 7.2.1 P12b–P12k B-minus (2026-09-13 / P12k 2026-09-15).
+/* PLATFORM: SHARED — 7.2.1 P12b–P12l B-minus (2026-09-13 / P12l 2026-09-15).
  * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
