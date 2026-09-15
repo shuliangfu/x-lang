@@ -778,7 +778,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P11b/P11c/P11d B-minus: imports .x bodies (skip_imports + consume_path/try_skip + collect_imports)
   _pthin_p11b_x=src/asm/pthin_imports.x
   _pthin_p12_seed=seeds/pthin_skip_tl.from_x.c
-  # 7.2.1 P12b/P12c/P12d/P12e/P12f B-minus: skip_tl .x bodies (struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip)
+  # 7.2.1 P12b–P12i B-minus: skip_tl .x bodies (struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip + parse_one_extern_and_add + skip_name_is_self + self_matches_for)
   _pthin_p12b_x=src/asm/pthin_skip_tl.x
   _pthin_p13_seed=seeds/pthin_try_skip_allow.from_x.c
   # 7.2.1 P13b B-minus: try_skip_allow .x bodies (padding paren walk)
@@ -1263,21 +1263,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P11 imports ← $_pthin_p11_seed (G-02f-320 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P12b/P12c/P12d/P12e/P12f B-minus (2026-09-13).
+        # PLATFORM: SHARED — 7.2.1 P12b–P12i B-minus (2026-09-13 / P12i 2026-09-15).
         # pthin_skip_tl.x holds skip_one_struct/enum/extern + impl header
-        # + generic_bound_scan + enum_register + parse_one_extern_skip.
+        # + generic_bound_scan + enum_register + parse_one_extern_skip
+        # + parse_one_extern_and_add + skip_name_is_self + self_matches_for.
         # Requires P9a lexer-step bridge AND P1b skip_balanced /
         # skip_generic_angle / copy_slice (otherwise those would UNDEF).
         # Runs before P12 C so BODIES_FROM_X skips the portable .inc
         # region. Cold: no define, full .inc. Do not reuse
-        # XLANG_PTHIN_SKIP_TL_FROM_X. Do not open a new P12c/d/e/f lane.
+        # XLANG_PTHIN_SKIP_TL_FROM_X. Do not open a new P12c–i lane.
         _pthin_p12_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ -n "$_pthin_p12b_thin_o" ] && [ -f "$_pthin_p12b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_pthin_p12b_thin_o"; then
             _pthin_p12b_ok=1
             _pthin_p12_extra="-DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X"
-            echo "g05_ensure: P12b/P12c/P12d/P12e/P12f skip_tl bodies ← $_pthin_p12b_x (7.2.1 B-minus struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip)"
+            echo "g05_ensure: P12b/P12c/P12d/P12e/P12f/P12h/P12i skip_tl bodies ← $_pthin_p12b_x (7.2.1 B-minus struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip + self_matches_for)"
           else
             echo "g05_ensure: P12b skip_tl .x thin failed; P12 C twin stays full" >&2
           fi

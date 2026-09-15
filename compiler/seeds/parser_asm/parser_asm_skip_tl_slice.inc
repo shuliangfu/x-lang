@@ -2,13 +2,14 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b/P12c/P12d/P12e/P12f: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
- * skip walks (struct/enum/extern + impl header + generic_bound_scan +
- * enum_register + parse_one_extern_skip; bodies in src/asm/pthin_skip_tl.x +
- * by-value trampolines). skip_one_impl and generic_bound_scan trampolines
- * live here (need file-static tables). skip_one_trait /
- * parse_one_extern_and_add stay C. Cold: no define, full twin. Do not
- * reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e/P12f bodies.
+ * Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+ * skips the portable skip walks (struct/enum/extern + impl header +
+ * generic_bound_scan + enum_register + parse_one_extern_skip +
+ * parse_one_extern_and_add + skip_name_is_self + self_matches_for;
+ * bodies in src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl
+ * and generic_bound_scan trampolines live here (need file-static tables).
+ * skip_one_trait stays C (P12g PRESET not linked). Cold: no define, full
+ * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12i bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -1081,6 +1082,11 @@ static int32_t g_w439_src_len;
  * Used by self_matches_for and named_eq_self as the for-type alias.
  * PLATFORM: SHARED parse.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12i. Authority is pthin_skip_tl.x. Remaining C
+ * (named_eq_self / default-method hoist) still calls this historical name. */
+extern int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl);
+#else
 static int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl) {
   return (nl == 4 && nm &&
           nm[0] == (uint8_t)'S' && nm[1] == (uint8_t)'e' &&
@@ -1088,6 +1094,7 @@ static int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl) {
              ? 1
              : 0;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skip_name_is_self */
 
 /**
  * wave441: verify impl method's self (param0) type matches the impl's for-type.
@@ -1114,6 +1121,20 @@ static int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl) {
  *         0 if definite mismatch.
  * PLATFORM: SHARED parse.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+extern int32_t xlang_skip_impl_self_matches_for_into_c(void *arena, int32_t pty0, int32_t for_k,
+                                                      int32_t for_ptr, const uint8_t *for_name,
+                                                      int32_t for_nlen, uint8_t *gnm);
+static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
+                                                   int32_t for_k, int32_t for_ptr,
+                                                   const uint8_t *for_name, int32_t for_nlen) {
+  /* PLATFORM: SHARED — P12i trampoline. Language has no local u8[N];
+   * .x fills the dest then compares. Zero algorithm besides holding gnm[64]. */
+  uint8_t gnm[64];
+  memset(gnm, 0, sizeof(gnm));
+  return xlang_skip_impl_self_matches_for_into_c(arena, pty0, for_k, for_ptr, for_name, for_nlen, gnm);
+}
+#else
 static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
                                                    int32_t for_k, int32_t for_ptr,
                                                    const uint8_t *for_name, int32_t for_nlen) {
@@ -1177,6 +1198,7 @@ static int32_t xlang_skip_impl_self_matches_for_c(void *arena, int32_t pty0,
   }
   return 1;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X self_matches_for */
 
 /**
  * F2: Returns 1 iff some registered impl block has trait_name == trait_nm AND

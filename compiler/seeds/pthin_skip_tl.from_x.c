@@ -5,15 +5,17 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b/P12c/P12d/P12e/P12f (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X): portable skip
- * walks (struct / enum / extern + impl header + generic_bound_scan +
- * enum_register + parse_one_extern_skip) come from pthin_skip_tl.x; this TU
- * keeps by-value trampolines plus stash_source / trait-reg C. skip_one_impl
- * and generic_bound_scan trampolines live in the .inc (need file-static
- * tables). enum_register trampolines live here (opaque module, no
- * file-static). parse_one_extern_skip trampoline lives in the .inc.
- * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e/P12f bodies.
+ * Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X):
+ * portable skip walks (struct / enum / extern + impl header +
+ * generic_bound_scan + enum_register + parse_one_extern_skip +
+ * parse_one_extern_and_add + skip_name_is_self + self_matches_for) come from
+ * pthin_skip_tl.x; this TU keeps by-value trampolines plus stash_source /
+ * trait-reg C. skip_one_impl and generic_bound_scan trampolines live in the
+ * .inc (need file-static tables). enum_register trampolines live here
+ * (opaque module, no file-static). parse_one_extern_skip trampoline lives
+ * in the .inc. P12i self_matches_for trampoline lives in the .inc (holds
+ * gnm[64]). Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12i bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -28,7 +30,7 @@
 #include "token.h"
 #include "ast.h"
 
-/* PLATFORM: SHARED — 7.2.1 P12b/P12c/P12d/P12e/P12f B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P12b–P12i B-minus (2026-09-13 / P12i 2026-09-15).
  * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
@@ -497,6 +499,11 @@ int32_t parser_asm_skip_tl_parse_type_ref_into_c(void *arena, void *lex_inout, v
 #endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
 
 #include "parser_asm_skip_tl_slice.inc"
+
+/* PLATFORM: SHARED — P12i TypeKind pins ≡ pthin_skip_tl.x TYPE_NAMED/PTR
+ * and XLANG_TRAIT_TY_* in this .inc. Fire if the skip_tl #define drifts. */
+_Static_assert(XLANG_TRAIT_TY_NAMED == 8, "skip_tl.x TYPE_NAMED pin");
+_Static_assert(XLANG_TRAIT_TY_PTR == 9, "skip_tl.x TYPE_PTR pin");
 
 /* PLATFORM: SHARED — P12g ent stack-image offsets (2026-09-13 RFC route α).
  * The .x preset (g-1/g-2) writes xlang_skip_trait_reg_ent_t fields at these

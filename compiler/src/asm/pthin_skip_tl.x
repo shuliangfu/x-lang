@@ -68,13 +68,28 @@
 // would drop param/type capture). Do not open a new P-lane.
 // parse_one_extern_and_add (arena+module+ast_Func) stays C.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f: g05_try_x_to_o this file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
-// skips the portable .inc region (struct/enum/extern + impl header +
-// generic_bound_scan + enum_register + parse_one_extern_skip). Requires P9a bridge + P1b skip
+// 7.2.1 P12i B-minus (2026-09-15): 有则补全 skip_name_is_self +
+// skip_impl_self_matches_for dest-buffer. Both were always-host-cc
+// statics in skip_tl.inc (not behind BODIES). ABI is already
+// pointer-legal (opaque arena + name bytes). Language has no local
+// u8[N]; the C trampoline holds gnm[64] (same dest cap as the C
+// twin). Sidecar authority stays pipeline_type_kind_ord_at /
+// elem_ref_at / named_name_into. concrete_implements_trait stays C
+// (file-local impl-seen tables). Do not copy this match into typeck
+// (typeck already calls concrete_implements_trait). Do not merge
+// with P6b layout name-match. Do not copy skip_name_is_self into
+// P4b. Do not open a new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i: g05_try_x_to_o this file;
+// XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc region
+// (struct/enum/extern + impl header + generic_bound_scan +
+// enum_register + parse_one_extern_skip + parse_one_extern_and_add +
+// skip_name_is_self + self_matches_for). Requires P9a bridge + P1b skip
 // walks (otherwise skip_balanced / skip_generic_angle / copy_slice
 // would UNDEF). token.h remains the TOKEN_* authority via P12 C
 // _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b/P12c/P12d/P12e/P12f bodies.
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12i bodies. P12g skip_one_trait
+// ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -139,6 +154,12 @@ export extern "C" function pipeline_onefunc_set_param_type_ref(pool: *u8, i: i32
 export extern "C" function parser_asm_module_try_register_enum_name_c(module: *u8, name: *u8, name_len: i32): i32;
 /** Pipeline sidecar: append one variant name to enum slot `idx`. */
 export extern "C" function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes: *u8, len: i32): i32;
+/** Sidecar: TypeKind ordinal at type_ref; -1 if the slot is missing. */
+export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+/** Sidecar: elem_type_ref at type_ref (PTR/ARRAY/SLICE); 0 if missing. */
+export extern "C" function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
+/** Sidecar: copy TYPE_NAMED spelling into dest; return full name_len (may exceed dest cap). */
+export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P12 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -176,6 +197,11 @@ const TOKEN_LT: i32 = 120;
 const TOKEN_GT: i32 = 121;
 const TOKEN_STRING: i32 = 130;
 const IMPL_NAME_CAP: i32 = 64;
+// TypeKind pins ≡ XLANG_TRAIT_TY_* in skip_tl.inc / ast.x. P12 C
+// _Static_assert fires if the pin drifts.
+const TYPE_NAMED: i32 = 8;
+const TYPE_PTR: i32 = 9;
+const GNM_CAP: i32 = 64;
 const FN_BOUND_MAX: i32 = 16;
 const GENERIC_CALL_MAX: i32 = 32;
 const GENERIC_CALL_MAX_ARGS: i32 = 4;
@@ -3214,6 +3240,234 @@ export function parser_asm_parse_one_extern_skip_into_c(lex_inout: *u8, source: 
     }
     parser_asm_lex_step_kind_c(lex_inout, source);
     has_body[0] = 0;
+  }
+  return 1;
+}
+
+/**
+ * TYPE_NAMED spelling "Self" (capital S) — not TOKEN_SELF lowercase
+ * binding. Used by self_matches_for and remaining C named_eq_self.
+ * @param nm *u8 — spelling bytes; null → 0
+ * @param nl i32 — byte count; must be 4
+ * @return i32 — 1 if exactly `Self`; 0 otherwise
+ * PLATFORM: SHARED — product P12i B-minus. Do not copy into P4b.
+ */
+#[no_mangle]
+export function xlang_skip_name_is_self_c(nm: *u8, nl: i32): i32 {
+  if (nl != 4) {
+    return 0;
+  }
+  if (nm == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (nm[0] != 83) {
+      return 0;
+    }
+    if (nm[1] != 101) {
+      return 0;
+    }
+    if (nm[2] != 108) {
+      return 0;
+    }
+    if (nm[3] != 102) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Byte-exact compare of two spellings. Dest cap is 64 (C twin gnm[64]).
+ * Lengths must match; then min(alen, 64) bytes are compared.
+ * @param a *u8 — left bytes; null with alen>0 → 0
+ * @param alen i32 — left length
+ * @param b *u8 — right bytes; null with blen>0 → 0
+ * @param blen i32 — right length
+ * @return i32 — 1 if equal, 0 otherwise
+ * PLATFORM: SHARED — file-local helper for P12i; not a second P6b authority.
+ */
+function skip_named_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
+  let i: i32 = 0;
+  if (alen != blen) {
+    return 0;
+  }
+  if (alen <= 0) {
+    return 1;
+  }
+  if (a == 0 as *u8 || b == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    i = 0;
+    while (i < alen && i < GNM_CAP) {
+      if (a[i as usize] != b[i as usize]) {
+        return 0;
+      }
+      i = i + 1;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Zero dest[0..64) then copy the TYPE_NAMED spelling of `ty_ref`.
+ * @param arena *u8 — opaque ASTArena
+ * @param ty_ref i32 — type_ref whose name is copied
+ * @param gnm *u8 — dest 64; null → 0
+ * @return i32 — full name_len from the sidecar (may exceed 64)
+ * PLATFORM: SHARED — C trampoline holds gnm[64]; memset every fill.
+ */
+function skip_fill_gnm(arena: *u8, ty_ref: i32, gnm: *u8): i32 {
+  let zi: i32 = 0;
+  if (gnm == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    zi = 0;
+    while (zi < GNM_CAP) {
+      gnm[zi as usize] = 0;
+      zi = zi + 1;
+    }
+    return pipeline_type_named_name_into(arena, ty_ref, gnm);
+  }
+}
+
+/**
+ * NAMED for-type name check used by the three self_matches_for arms.
+ * Self spelling → `self_ok`; else dest-buffer byte-eq against `for_name`.
+ * @param arena *u8 — opaque ASTArena
+ * @param ty_ref i32 — type_ref whose NAME is compared
+ * @param for_name *u8 — impl for-type spelling
+ * @param for_nlen i32 — for-type length
+ * @param gnm *u8 — dest 64
+ * @param self_ok i32 — value to return when the type spelling is `Self`
+ * @return i32 — self_ok / 1 match / 0 mismatch
+ * PLATFORM: SHARED — file-local; keep the C twin's Self vs memcmp order.
+ */
+function skip_named_self_or_eq(arena: *u8, ty_ref: i32, for_name: *u8, for_nlen: i32, gnm: *u8, self_ok: i32): i32 {
+  let gnl: i32 = 0;
+  gnl = skip_fill_gnm(arena, ty_ref, gnm);
+  if (xlang_skip_name_is_self_c(gnm, gnl) != 0) {
+    return self_ok;
+  }
+  if (skip_named_bytes_eq(gnm, gnl, for_name, for_nlen) == 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Verify an impl method's param0 (self) type matches the impl for-type.
+ * Wave441/470/471: unknown/untyped accept; `Self` aliases the named
+ * non-ptr for-type; pointer receivers `*For` / `*Self` are accepted
+ * when the impl is `for For` (non-ptr). Language has no local u8[N];
+ * `gnm` is the C trampoline dest (cap 64).
+ * @param arena *u8 — opaque ASTArena; may be null (sidecar returns -1/0)
+ * @param pty0 i32 — type_ref of impl method param0; 0 if untyped
+ * @param for_k i32 — for-type TypeKind ordinal; <0 → accept
+ * @param for_ptr i32 — 1 if for-type is *T
+ * @param for_name *u8 — for-type name bytes; may be null
+ * @param for_nlen i32 — for-type name length
+ * @param gnm *u8 — dest 64 for one TYPE_NAMED spelling; C trampoline holds it
+ * @return i32 — 1 match or unknown/untyped; 0 definite mismatch
+ * PLATFORM: SHARED — product P12i B-minus. concrete_implements_trait
+ * stays C and calls the historical static. Do not copy into typeck.
+ * Do not merge with P6b. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function xlang_skip_impl_self_matches_for_into_c(arena: *u8, pty0: i32, for_k: i32, for_ptr: i32, for_name: *u8, for_nlen: i32, gnm: *u8): i32 {
+  let got0: i32 = 0;
+  let elem: i32 = 0;
+  let gek: i32 = 0;
+  let rc: i32 = 0;
+  let self_ok: i32 = 0;
+  if (for_k < 0) {
+    return 1;
+  }
+  unsafe {
+    if (pty0 != 0) {
+      got0 = pipeline_type_kind_ord_at(arena, pty0);
+    } else {
+      got0 = 0 - 1;
+    }
+  }
+  if (got0 < 0) {
+    return 1;
+  }
+  if (gnm == 0 as *u8) {
+    return 0;
+  }
+  if (for_ptr != 0) {
+    if (got0 != TYPE_PTR) {
+      return 0;
+    }
+    unsafe {
+      if (pty0 != 0) {
+        elem = pipeline_type_elem_ref_at(arena, pty0);
+      } else {
+        elem = 0;
+      }
+      if (elem != 0) {
+        gek = pipeline_type_kind_ord_at(arena, elem);
+      } else {
+        gek = 0 - 1;
+      }
+    }
+    if (gek >= 0 && gek != for_k) {
+      return 0;
+    }
+    if (gek == for_k && for_k == TYPE_NAMED && for_nlen > 0 && for_name != 0 as *u8 && elem != 0) {
+      rc = skip_named_self_or_eq(arena, elem, for_name, for_nlen, gnm, 1);
+      if (rc == 0) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  if (got0 == TYPE_PTR) {
+    unsafe {
+      if (pty0 != 0) {
+        elem = pipeline_type_elem_ref_at(arena, pty0);
+      } else {
+        elem = 0;
+      }
+      if (elem != 0) {
+        gek = pipeline_type_kind_ord_at(arena, elem);
+      } else {
+        gek = 0 - 1;
+      }
+    }
+    if (gek < 0) {
+      return 1;
+    }
+    if (gek != for_k) {
+      return 0;
+    }
+    if (for_k == TYPE_NAMED && for_nlen > 0 && for_name != 0 as *u8 && elem != 0) {
+      rc = skip_named_self_or_eq(arena, elem, for_name, for_nlen, gnm, 1);
+      if (rc == 0) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  if (got0 != for_k) {
+    return 0;
+  }
+  if (got0 == TYPE_NAMED && for_nlen > 0 && for_name != 0 as *u8) {
+    /* C twin: Self → (for_k == NAMED) ? 1 : 0; after got0 != for_k
+     * the NAMED arm has for_k == NAMED, so this is 1. Keep the
+     * ternary so the dest-buffer twin matches the C control flow. */
+    if (for_k == TYPE_NAMED) {
+      self_ok = 1;
+    } else {
+      self_ok = 0;
+    }
+    rc = skip_named_self_or_eq(arena, pty0, for_name, for_nlen, gnm, self_ok);
+    if (rc == 0) {
+      return 0;
+    }
   }
   return 1;
 }
