@@ -2,10 +2,10 @@
  * parser_asm_skip_if_slice.inc — P14 skip_if (G-02f-323).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_if.from_x.c.
  *
- * Hybrid P14b: XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skips the portable skip
- * walks (bodies in src/asm/pthin_skip_if.x + by-value trampolines in the
- * seed TU). module_try_register_enum stays here. Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_SKIP_IF_FROM_X for P14b bodies.
+ * Hybrid P14b/P14c: XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skips the portable skip
+ * walks and module_try_register_enum (bodies in src/asm/pthin_skip_if.x +
+ * by-value trampolines in the seed TU). Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_SKIP_IF_FROM_X for P14b/P14c bodies.
  */
 #ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 /**
@@ -116,7 +116,9 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_core_buf_c(struct parser_a
  * Register top-level enum name (dedupe); returns sidecar index or -1.
  * wave582 Cap residual: name_len content cap 63→255 (ModuleEnumEntry.name[256]).
  * PLATFORM: SHARED product enum path.
+ * P14c: hybrid body in pthin_skip_if.x (same C name). Cold twin only.
  */
+#ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 int32_t parser_asm_module_try_register_enum_name_c(void *module, uint8_t *name, int32_t name_len) {
   int32_t ei;
   int32_t j;
@@ -150,6 +152,7 @@ int32_t parser_asm_module_try_register_enum_name_c(void *module, uint8_t *name, 
   pipeline_module_enum_set_name(module, slot, name, name_len);
   return slot;
 }
+#endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X module_try_register_enum_name */
 
 #ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X
 /**

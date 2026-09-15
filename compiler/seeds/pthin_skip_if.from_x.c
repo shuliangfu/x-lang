@@ -5,10 +5,10 @@
  * Body: seeds/parser_asm/parser_asm_skip_if_slice.inc (~955)
  * skip_trait_impl_block_raw + skip_one_if_core/statement + module_try_register_enum
  *
- * Hybrid P14b (XLANG_PTHIN_SKIP_IF_BODIES_FROM_X): portable skip walks
- * come from pthin_skip_if.x; this TU keeps by-value trampolines plus
- * enum-register C. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_SKIP_IF_FROM_X for P14b bodies.
+ * Hybrid P14b/P14c (XLANG_PTHIN_SKIP_IF_BODIES_FROM_X): portable skip walks
+ * and enum-register come from pthin_skip_if.x; this TU keeps by-value
+ * trampolines. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_IF_FROM_X for P14b/P14c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -20,7 +20,7 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
-/* PLATFORM: SHARED — 7.2.1 P14b B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P14b/P14c B-minus (2026-09-13/15).
  * pthin_skip_if.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "skip_if.x TOKEN_EOF pin");

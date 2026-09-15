@@ -782,7 +782,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P13b B-minus: try_skip_allow .x bodies (padding paren walk)
   _pthin_p13b_x=src/asm/pthin_try_skip_allow.x
   _pthin_p14_seed=seeds/pthin_skip_if.from_x.c
-  # 7.2.1 P14b B-minus: skip_if .x bodies (trait/impl + if-core/statement walks)
+  # 7.2.1 P14b/P14c B-minus: skip_if .x bodies (trait/impl + if-core/statement + enum register)
   _pthin_p14b_x=src/asm/pthin_skip_if.x
   _pthin_p15_seed=seeds/pthin_library.from_x.c
   # 7.2.1 P15b B-minus: library .x bodies (library_scan walk)
@@ -1320,18 +1320,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P13 try_skip_allow ← $_pthin_p13_seed (G-02f-322 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P14b B-minus (2026-09-13).
-        # pthin_skip_if.x holds trait/impl + if-core/statement walks.
-        # Requires P9a lexer-step bridge AND P1b skip_balanced (otherwise
-        # skip_balanced would UNDEF). Runs before P14 C so BODIES_FROM_X
-        # skips the portable .inc region. Cold: no define, full .inc.
+        # PLATFORM: SHARED — 7.2.1 P14b/P14c B-minus (2026-09-13/15).
+        # pthin_skip_if.x holds trait/impl + if-core/statement walks
+        # and module_try_register_enum_name. Requires P9a lexer-step
+        # bridge AND P1b skip_balanced (otherwise skip_balanced would
+        # UNDEF). Runs before P14 C so BODIES_FROM_X skips the portable
+        # .inc region. Cold: no define, full .inc.
         _pthin_p14_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ -n "$_pthin_p14b_thin_o" ] && [ -f "$_pthin_p14b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p14b_x" "$_pthin_p14b_thin_o"; then
             _pthin_p14b_ok=1
             _pthin_p14_extra="-DXLANG_PTHIN_SKIP_IF_BODIES_FROM_X"
-            echo "g05_ensure: P14b skip_if bodies ← $_pthin_p14b_x (7.2.1 B-minus)"
+            echo "g05_ensure: P14b/P14c skip_if bodies ← $_pthin_p14b_x (7.2.1 B-minus)"
           else
             echo "g05_ensure: P14b skip_if .x thin failed; P14 C twin stays full" >&2
           fi
