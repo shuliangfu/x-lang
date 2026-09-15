@@ -97,8 +97,8 @@
 // passes the existing g_fn_gp_* tables as flat dest (same layout as
 // P12d scan: fname stride 64 / names 32x4x64 / args cap 4).
 // register_pending stays C (reads g_gp_pending_* then calls this).
-// method_on_param / bound_check stay C (also walk g_fn_bound_* +
-// trait-reg). Do not merge with P1c pending tables. Do not open a
+// method_on_param stays C (fat trait-reg). bound_check is P12o.
+// Do not merge with P1c pending tables. Do not open a
 // new P-lane. Do not FORCE pabi mega.
 //
 // 7.2.1 P12l B-minus (2026-09-15): 有则补全 concrete_implements_trait
@@ -108,7 +108,7 @@
 // holds gnm[64] for the P12i self_matches_for dest. Reuses
 // skip_named_bytes_eq + xlang_skip_impl_self_matches_for_into_c.
 // Accessors (seen_count / trait_name_into / for_type_into) are P12n.
-// method_on_param / bound_check stay C (fat trait-reg struct).
+// method_on_param stays C (fat trait-reg struct). bound_check is P12o.
 // Do not copy into typeck. Do not merge with P6b. Do not merge with
 // trait-reg accessors. Do not open a new P-lane. Do not FORCE pabi mega.
 //
@@ -117,7 +117,7 @@
 // g_fn_bound_* + g_xlang_skip_impl_* arrays (NOT the fat trait-reg
 // struct). Language has no file-local statics / no printf varargs;
 // the C trampoline passes those tables and the two diag helpers
-// format lsp_diag_report_typeck. bound_check_c stays C (thin
+// format lsp_diag_report_typeck. bound_check_c is P12o (thin
 // iterator over g_call_*). method_on_param stays C (fat trait-reg).
 // Accessors are P12n. Do not copy into typeck (typeck already calls
 // the historical _c). Do not wrap method_on_param. Do not open a
@@ -132,23 +132,36 @@
 // Historical public names stay (`_c` / already-`_into_c`); dest
 // bodies are `_into_c` / `_dest_into_c` so they do not collide.
 // method_on_param stays C (fat trait-reg). F3 accessors stay C.
-// bound_check_c stays C. Do not merge with concrete_implements.
+// bound_check_c is P12o. Do not merge with concrete_implements.
 // Do not copy into typeck / codegen (they already call `_c`).
 // Do not wrap method_on_param. Do not open a new P-lane.
 // Do not FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n: g05_try_x_to_o this
+// 7.2.1 P12o B-minus (2026-09-15): 有则补全 bound_check_c dest-buffer.
+// Always host-cc (not behind BODIES). Thin iterator over the
+// parallel g_call_* tables P12d scan already writes (callee stride
+// 64 / typeargs 32x4x64 / args cap 4 / call cap 32). Each site
+// delegates to the historical public
+// xlang_generic_bound_check_type_args_c (P12m trampoline injects
+// g_fn_bound_* + g_xlang_skip_impl_*). Language has no file-local
+// statics; the C trampoline passes g_call_*. method_on_param stays
+// C (fat trait-reg). F3 accessors stay C. Do not merge with
+// bound_check_type_args (iterator vs per-site). Do not copy into
+// typeck (typeck already calls type_args `_c`). Do not wrap
+// method_on_param. Do not open a new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
 // skip_name_is_self + self_matches_for + named_eq_self +
 // rewrite_self + register_type_params + type_param_index +
 // concrete_implements_trait + bound_check_type_args +
-// impl-seen accessors). Requires P9a
+// impl-seen accessors + bound_check). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12n bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12o bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -230,6 +243,8 @@ export extern "C" function xlang_generic_func_type_param_index_c(fn_name: *u8, f
 export extern "C" function xlang_generic_bound_diag_need_type_args_c(fn_name: *u8, fn_name_len: i32, line: i32, col: i32): void;
 /** P12m C varargs trampoline: "generic bound not satisfied: %.*s does not impl %.*s". Returns 0. */
 export extern "C" function xlang_generic_bound_diag_not_impl_c(ta: *u8, ta_len: i32, trait_nm: *u8, trait_nlen: i32, line: i32, col: i32): i32;
+/** P12m public trampoline: per-site bound check (injects g_fn_bound_* + g_xlang_skip_impl_*). */
+export extern "C" function xlang_generic_bound_check_type_args_c(fn_name: *u8, fn_name_len: i32, type_args: *u8, type_arg_lens: *i32, nargs: i32, line: i32, col: i32): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P12 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -4000,7 +4015,7 @@ function skip_impl_seen_match_or_diag(impl_trait: *u8, impl_trait_len: *i32, for
  * @return i32 — 0 all bounds satisfied (or nothing to check); -1 ≥1 violation
  * PLATFORM: SHARED — product P12m B-minus. C trampoline owns
  * g_fn_bound_* and g_xlang_skip_impl_*. Do not wrap method_on_param.
- * Do not wrap bound_check_c. Do not merge with fat trait-reg accessors.
+ * bound_check_c is P12o. Do not merge with fat trait-reg accessors.
  * Do not copy into typeck (typeck already calls the historical `_c`).
  */
 #[no_mangle]
@@ -4299,6 +4314,82 @@ export function xlang_skip_impl_for_type_dest_into_c(si: i32, out_kind: *i32, ou
     skip_copy_row64(for_names + off, nlen, out_name64);
   }
   return 1;
+}
+
+/**
+ * Verify every captured generic call / type-position site against
+ * decl bounds. Language has no file-local statics; dest tables are
+ * the C g_call_* parallel arrays P12d scan already writes (callee
+ * stride 64, typeargs 32x4x64, args cap 4, call cap 32). Each site
+ * delegates to the historical public
+ * `xlang_generic_bound_check_type_args_c` (P12m trampoline injects
+ * g_fn_bound_* + g_xlang_skip_impl_*). Zero algorithm besides the
+ * iteration. Empty registry (call_n<=0) → 0.
+ * @param callee *u8 — dest callee names, stride 64, cap 32
+ * @param callee_len *i32 — dest callee name lens, cap 32
+ * @param typeargs *u8 — dest type-arg rows, 32 x 4 x 64
+ * @param typearg_lens *i32 — dest type-arg lens, 32 x 4
+ * @param nargs *i32 — dest per-site type-arg counts, cap 32
+ * @param line *i32 — dest 1-based diagnostic lines, cap 32
+ * @param col *i32 — dest 1-based diagnostic columns, cap 32
+ * @param call_n i32 — occupied call-site count (read-only)
+ * @return i32 — 0 all sites satisfied (or nothing to check); -1 ≥1 violation
+ * PLATFORM: SHARED — product P12o B-minus. C trampoline owns g_call_*.
+ * Do not merge with bound_check_type_args (iterator vs per-site).
+ * Do not wrap method_on_param. Do not dest-buffer F3. Do not copy
+ * into typeck (typeck already calls type_args `_c`).
+ */
+#[no_mangle]
+export function xlang_generic_bound_check_into_c(callee: *u8, callee_len: *i32, typeargs: *u8, typearg_lens: *i32, nargs: *i32, line: *i32, col: *i32, call_n: i32): i32 {
+  let ci: i32 = 0;
+  let n: i32 = 0;
+  let violated: i32 = 0;
+  let callee_off: usize = 0;
+  let args_off: usize = 0;
+  let lens_off: usize = 0;
+  let lens_row: *i32 = 0 as *i32;
+  if (callee == 0 as *u8) {
+    return 0;
+  }
+  if (callee_len == 0 as *i32) {
+    return 0;
+  }
+  if (typeargs == 0 as *u8) {
+    return 0;
+  }
+  if (typearg_lens == 0 as *i32) {
+    return 0;
+  }
+  if (nargs == 0 as *i32) {
+    return 0;
+  }
+  if (line == 0 as *i32) {
+    return 0;
+  }
+  if (col == 0 as *i32) {
+    return 0;
+  }
+  if (call_n <= 0) {
+    return 0;
+  }
+  n = call_n;
+  if (n > GENERIC_CALL_MAX) {
+    n = GENERIC_CALL_MAX;
+  }
+  unsafe {
+    ci = 0;
+    while (ci < n) {
+      callee_off = (ci as usize) * (BOUND_NAME_CAP as usize);
+      args_off = (ci as usize) * (GENERIC_CALL_MAX_ARGS as usize) * (BOUND_NAME_CAP as usize);
+      lens_off = (ci as usize) * (GENERIC_CALL_MAX_ARGS as usize);
+      lens_row = typearg_lens + lens_off;
+      if (xlang_generic_bound_check_type_args_c(callee + callee_off, callee_len[ci], typeargs + args_off, lens_row, nargs[ci], line[ci], col[ci]) != 0) {
+        violated = 0 - 1;
+      }
+      ci = ci + 1;
+    }
+  }
+  return violated;
 }
 
 // ---------------------------------------------------------------------------

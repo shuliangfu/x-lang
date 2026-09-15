@@ -2,16 +2,16 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b–P12n: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b–P12o: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
  * enum_register + parse_one_extern_skip + parse_one_extern_and_add +
  * skip_name_is_self + self_matches_for + named_eq_self + rewrite_self +
  * register_type_params + type_param_index + concrete_implements_trait +
- * bound_check_type_args + impl-seen accessors; bodies in
+ * bound_check_type_args + impl-seen accessors + bound_check; bodies in
  * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl
  * and generic_bound_scan trampolines live here (need file-static tables).
  * skip_one_trait stays C (P12g PRESET not linked). Cold: no define, full
- * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12n bodies.
+ * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12o bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -1299,7 +1299,7 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
  * .x walks dest g_xlang_skip_impl_* (trait/for-name stride 64, cap 16).
  * Zero algorithm besides passing the tables. Historical public names
  * stay (`_c` / already-`_into_c`). method_on_param stays C (fat
- * trait-reg). F3 accessors stay C. bound_check_c stays C. */
+ * trait-reg). F3 accessors stay C. bound_check_c is P12o. */
 extern int32_t xlang_skip_impl_seen_count_into_c(int32_t seen_n);
 int32_t xlang_skip_impl_seen_count_c(void) {
   return xlang_skip_impl_seen_count_into_c(g_xlang_skip_impl_seen_n);
@@ -5504,7 +5504,7 @@ int32_t xlang_generic_bound_diag_not_impl_c(const uint8_t *ta, int32_t ta_len,
  * .x walks dest g_fn_bound_* (stride 64, cap 16) + g_xlang_skip_impl_*
  * (trait/for-name stride 64, cap 16). Zero algorithm besides passing
  * the tables. type_args stay the caller's rows (stride 64). bound_check_c
- * stays C. method_on_param stays C. Accessors are P12n. */
+ * is P12o. method_on_param stays C. Accessors are P12n. */
 extern int32_t xlang_generic_bound_check_type_args_into_c(const uint8_t *fn_name, int32_t fn_name_len,
         uint8_t *type_args, int32_t *type_arg_lens, int32_t nargs, int32_t line, int32_t col,
         uint8_t *bound_name, int32_t *bound_name_len, uint8_t *bound_trait, int32_t *bound_trait_len,
@@ -5597,6 +5597,23 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
  * PLATFORM: SHARED parse.
  * @return 0 all bounds satisfied (or no bounds to check); -1 ≥1 violation.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12o trampoline. Language has no file-local statics;
+ * .x walks dest g_call_* (callee stride 64, typeargs 32x4x64, args cap 4,
+ * call cap 32). Zero algorithm besides passing the tables. Each site
+ * calls the historical public type_args `_c` (P12m injects bound/impl
+ * tables). method_on_param stays C. F3 accessors stay C. */
+extern int32_t xlang_generic_bound_check_into_c(uint8_t *callee, int32_t *callee_len,
+        uint8_t *typeargs, int32_t *typearg_lens, int32_t *nargs, int32_t *line,
+        int32_t *col, int32_t call_n);
+int32_t xlang_generic_bound_check_c(void) {
+  return xlang_generic_bound_check_into_c(
+      (uint8_t *)g_call_callee, g_call_callee_len,
+      (uint8_t *)g_call_typeargs, (int32_t *)g_call_typearg_lens,
+      g_call_nargs, g_call_line, g_call_col,
+      g_call_n);
+}
+#else
 int32_t xlang_generic_bound_check_c(void) {
   int32_t ci;
   int32_t violated = 0;
@@ -5609,6 +5626,7 @@ int32_t xlang_generic_bound_check_c(void) {
   }
   return violated;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X bound_check */
 
 /* P12g g-3: cold-path only - the hybrid .x walkers copy names via the P1b
  * authority (parser_asm_copy_slice_to_name64_buf_c), so this trait-local
