@@ -1105,21 +1105,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P4 as_suffix ← $_pthin_p4as_seed (G-02f-285 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P4tb/P4tc/P4td (2026-09-16).
+        # PLATFORM: SHARED — 7.2.1 P4tb/P4tc/P4td/P4te (2026-09-16).
         # pthin_expr_ternary.x holds EXPR_TERNARY wrap + assign wrap
-        # dest-buffer + parse_ternary dest-buffer. Runs before P4t C
-        # so BODIES_FROM_X skips the portable wrap twins and the
-        # parse_ternary body. No lexer-step bridge. set_if lives in
-        # the P5 seed (G.7 if_* slots); set_binop lives in the P4bc
-        # seed (G.7 left/right slots; do not FORCE pabi mega; do not
-        # extend P4bc wrap with line/col). parse_assign stays C.
+        # dest-buffer + parse_ternary dest-buffer + parse_assign
+        # dest-buffer. Runs before P4t C so BODIES_FROM_X skips the
+        # portable wrap twins and the parse bodies. No lexer-step
+        # bridge. set_if lives in the P5 seed (G.7 if_* slots);
+        # set_binop lives in the P4bc seed (G.7 left/right slots; do
+        # not FORCE pabi mega; do not extend P4bc wrap with line/col).
         # Cold: no define, full .inc.
         _pthin_p4t_extra=""
         if [ -n "$_pthin_p4tb_thin_o" ] && [ -f "$_pthin_p4tb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4tb_x" "$_pthin_p4tb_thin_o"; then
             _pthin_p4tb_ok=1
             _pthin_p4t_extra="-DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X"
-            echo "g05_ensure: P4tb/P4tc/P4td ternary wrap+parse ← $_pthin_p4tb_x (7.2.1 Route C)"
+            echo "g05_ensure: P4tb/P4tc/P4td/P4te ternary wrap+parse ← $_pthin_p4tb_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4tb ternary .x thin failed; P4t C twin stays full" >&2
           fi

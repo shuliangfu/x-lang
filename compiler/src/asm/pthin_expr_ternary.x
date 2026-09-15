@@ -29,17 +29,28 @@
 // C twin's then is parse_expr_into = assign-level). Else: recurse
 // this dest-buffer (right-assoc; C twin calls parse_ternary_into).
 // Wrap stays P4tb. C trampoline keeps AUDIT and the by-value
-// parse_expr_result face. parse_assign stays C (huge AUDIT + lvalue
-// + compound + extra lexer_next). Do not copy wrap into parse.
-// Do not dest-buffer parse_assign / parse_type_ref this wave.
+// parse_expr_result face.
+// 7.2.1 P4te B-minus (2026-09-16): 有则补全 parse_assign dest-buffer.
+// Token walk reuses P9a peek/step plus peek_tok_line/col (assign wrap
+// needs the token's line/col; P4bc wrap hardcodes 0,0). Left/right
+// are this file's parse_ternary dest-buffer. C twin parses ternary
+// twice from the same start cursor (AUDIT/parse boundary); .x
+// save/restores pos+line+col via the P9a cursor trio rather than
+// "fixing" the double parse. Non-assign and non-lvalue park the
+// cursor (peek does not consume). Compound kind / lvalue tests
+// reuse parser_asm_is_compound_assign_token_c (P1) and
+// compound_assign_token_to_expr_kind_from_glue /
+// pipeline_expr_ref_is_assign_lvalue (G.7: do not copy those
+// tables). Wrap stays P4tc. Do not copy wrap into parse.
+// Do not dest-buffer parse_type_ref / parse_match this wave.
 // Do not merge unary / binop / as_suffix parse. Do not open a new
 // P-lane. Do not add bodies to pthin_expr_primary.x. Do not FORCE
-// pabi mega. Do not "fix" the redundant double parse_ternary_into
-// at the AUDIT/parse boundary of parse_assign as a side effect.
+// pabi mega. Do not "fix" the redundant double parse_ternary as a
+// side effect.
 //
-// Hybrid P4tb/P4tc/P4td: g05_try_x_to_o this file;
+// Hybrid P4tb/P4tc/P4td/P4te: g05_try_x_to_o this file;
 // XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the portable wrap twins
-// + parse_ternary body. Cold: no define, full .inc stays.
+// + parse_ternary body + parse_assign body. Cold: no define, full .inc stays.
 // Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
 // PLATFORM: SHARED freestanding.
 
@@ -47,10 +58,12 @@
 // the pin drifts; do not treat these as a second enum authority.
 const TOKEN_COLON: i32 = 91;
 const TOKEN_QUESTION: i32 = 127;
+const TOKEN_ASSIGN: i32 = 117;
 
-// ExprKind ordinal — G.7 ≡ ast.x / PARSER_ASM_EXPR_TERNARY in
+// ExprKind ordinals — G.7 ≡ ast.x / PARSER_ASM_EXPR_* in
 // ternary_assign_slice.inc.
 const EXPR_TERNARY: i32 = 27;
+const EXPR_ASSIGN: i32 = 28;
 
 /** Allocate a fresh Expr slot; 0 on failure. */
 export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
@@ -76,6 +89,32 @@ export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, l
 export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: consume one token; returns its kind. */
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek the upcoming token's line (assign wrap copies r.tok.line). */
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek the upcoming token's col (assign wrap copies r.tok.col). */
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+/** P9a cursor trio: snapshot/restore the opaque lexer for the C twin's
+ * double parse_ternary from the same start (language has no lexer by-value). */
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
+/**
+ * P1: true when kind is += … >>=. G.7: one compound-assign token table
+ * (pthin_lex_skip.x); do not copy.
+ */
+export extern "C" function parser_asm_is_compound_assign_token_c(kind: i32): i32;
+/**
+ * Glue: TOKEN_PLUS_EQ… → ExprKind. G.7: one TOKEN→kind table; do not copy.
+ */
+export extern "C" function compound_assign_token_to_expr_kind_from_glue(kind: i32): i32;
+/**
+ * Sidecar: true when expr_ref is an assign lvalue. G.7: one lvalue
+ * predicate (pabi); do not copy into this file.
+ */
+export extern "C" function pipeline_expr_ref_is_assign_lvalue(arena: *u8, expr_ref: i32): i32;
 /**
  * Pointer-face parse_logor. Zero-algorithm C shim in ternary_assign.inc:
  * copies lexer, calls parser_parse_logor_into, writes ok/ref/next_lex.
@@ -150,7 +189,7 @@ export function parser_asm_ternary_wrap_into_c(arena: *u8, out_ok: *i32, out_exp
  * @param col i32 — assign-token col (C twin copies r.tok.col)
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — product P4tc Route C. Authority for the assign
- * wrap soup. parse_assign stays C; do not copy. Do not extend P4bc wrap.
+ * wrap soup. parse dest-buffer is P4te; do not copy. Do not extend P4bc wrap.
  */
 #[no_mangle]
 export function parser_asm_assign_wrap_into_c(arena: *u8, out_ok: *i32, out_expr_ref: *i32, kind: i32, left_ref: i32, right_ref: i32, line: i32, col: i32): i32 {
@@ -250,6 +289,98 @@ export function parser_asm_parse_ternary_x_into_c(arena: *u8, lex_inout: *u8, so
     }
     else_ref = out_expr_ref[0];
     wr = parser_asm_ternary_wrap_into_c(arena, out_ok, out_expr_ref, cond_ref, then_ref, else_ref);
+    if (wr == 0) {
+      out_ok[0] = 0;
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse `ternary (('='|'+='|…) ternary)?` (lvalue-only).
+ * .x mirror of parser_asm_parse_assign_into_slice_c: parse_ternary dest-buffer
+ * fills out_ok / out_expr_ref. C twin parses ternary twice from the same
+ * start cursor (AUDIT/parse boundary); this body save/restores pos+line+col
+ * and does the same double parse — do not collapse it. Peek does not
+ * consume. Non-assign and non-lvalue return success with the cursor parked
+ * (same as C peek-and-restore). Assign / compound steps, then-right is
+ * another parse_ternary dest-buffer, wrap via P4tc with the token line/col.
+ * Wrap does not set out_ok=1 — the right-hand ternary already did.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — cursor; parked after the parsed expr
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — parse_expr_result.ok
+ * @param out_expr_ref *i32 — parse_expr_result.expr_ref
+ * @return i32 — 1 success (out_ok=1); 0 failure
+ * PLATFORM: SHARED — product P4te B-minus. C trampoline keeps AUDIT
+ * and the by-value parse_expr_result face. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_assign_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let assign_kind: i32 = 0;
+  let assign_line: i32 = 0;
+  let assign_col: i32 = 0;
+  let wr: i32 = 0;
+  let rc: i32 = 0;
+  let lv: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    // C twin: two parse_ternary_into from the same by-value `lex`
+    // (first result is overwritten; no ok-check on the first call).
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    rc = parser_asm_parse_ternary_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    parser_asm_lex_set_pos_c(lex_inout, pos0);
+    parser_asm_lex_set_line_c(lex_inout, line0);
+    parser_asm_lex_set_col_c(lex_inout, col0);
+    rc = parser_asm_parse_ternary_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc == 0) {
+      return 0;
+    }
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_ASSIGN && parser_asm_is_compound_assign_token_c(kind) == 0) {
+      // C twin: lexer_next then restore next_lex when not assign.
+      return 1;
+    }
+    lv = pipeline_expr_ref_is_assign_lvalue(arena, out_expr_ref[0]);
+    if (lv == 0) {
+      // C twin: not an lvalue → park cursor, keep the ternary result.
+      return 1;
+    }
+    left_ref = out_expr_ref[0];
+    assign_kind = EXPR_ASSIGN;
+    if (kind != TOKEN_ASSIGN) {
+      assign_kind = compound_assign_token_to_expr_kind_from_glue(kind);
+    }
+    assign_line = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    assign_col = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    rc = parser_asm_parse_ternary_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+    if (rc == 0) {
+      out_ok[0] = 0;
+      return 0;
+    }
+    if (out_ok[0] == 0) {
+      return 0;
+    }
+    right_ref = out_expr_ref[0];
+    wr = parser_asm_assign_wrap_into_c(arena, out_ok, out_expr_ref, assign_kind, left_ref, right_ref, assign_line, assign_col);
     if (wr == 0) {
       out_ok[0] = 0;
       return 0;
