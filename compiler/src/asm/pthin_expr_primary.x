@@ -119,9 +119,15 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // voided r/first_suffix and did not publish lex into out->next_lex.
 // IDENT/INT callers then returned a stale cursor; binop/stmt re-parsed
 // the same import method (`fmt.println` / `option.none_i32()`) until RSS
-// blew up. Root fix is the trampoline copy (C-twin stop contract); this
-// .x body is unchanged. IDENT head dispatch stays off (hello typeck-broke
-// when wired).
+// blew up. Root fix is the trampoline copy (C-twin stop contract).
+// 7.2.1 P4bg (2026-09-15): IDENT head dispatch. P4be "hello typeck-broke"
+// was not a second suffix algorithm — ident_x wrote var_name then called
+// pipeline_expr_set_common_zeros_c, which zeros var_name_len (arena twin
+// of the C local wipe, which does NOT touch the name slot). typeck then
+// saw empty `fmt` / module heads. Fill order is now zeros THEN name, the
+// same contract wrap_prep sites already use. The C trampoline copies
+// lex_inout into out->next_lex (P4bf stop contract). Do not take
+// pending_n's address. Do not FORCE pabi mega.
 // pending_n stays a local i32 by value (do not take its address).
 // Do not FORCE pabi mega — writers already T.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
@@ -939,10 +945,13 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
 /**
  * IDENT/SELF primary head (.x mirror of the IDENT arm): pre-dispatch fat
  * shim (unsafe-expr / asm-bang sub-parsers stay C), then the VAR fill
- * (kind 3 + source name copy + token line/col + zeros), the Type{...}
+ * (kind 3 + token line/col + zeros + source name copy), the Type{...}
  * struct-lit LBRACE dance (two block-pref authorities; on prefer-block
  * restore the cursor AT the '{' and stop), and the .x suffix loop
  * (wave607 continuation). Keyword `self` skips the struct-lit path.
+ * P4bg: pipeline_expr_set_common_zeros_c zeros var_name_len; the name
+ * copy MUST follow zeros (C local wipe does not touch the name slot, so
+ * the C arm could copy-then-zero). The C trampoline publishes next_lex.
  * @param buffers — the six suffix-loop trampoline buffers (dispatcher-owned)
  * @return i32 — 1 handled (check out_ok for inner failures); 0 not IDENT/SELF
  * PLATFORM: SHARED — product primary IDENT arm (EXPR_PRIMARY gate).
@@ -995,9 +1004,13 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
       return 1;
     }
     pipeline_expr_set_kind(arena, ref, EXPR_VAR_LIT);
-    pipeline_expr_set_var_name(arena, ref, data + ts, vlen);
     pipeline_expr_set_line_col(arena, ref, tl, tc);
+    /* Arena zeros wipe var_name_len (count field). Write the IDENT
+     * payload AFTER the wipe so typeck still sees `fmt` / module heads.
+     * C local zeros skip the name slot, which is why copy-then-zero
+     * worked on the C arm and failed here. */
     pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_var_name(arena, ref, data + ts, vlen);
     out_ok[0] = 1;
     out_expr_ref[0] = ref;
     parser_asm_lex_step_kind_c(lex_inout, source);

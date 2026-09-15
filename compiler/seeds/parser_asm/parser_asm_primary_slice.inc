@@ -6,8 +6,10 @@
  *
  * Hybrid P4b: XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips the portable
  * IDENT spelling / asm-option-bit region (bodies in src/asm/pthin_expr_primary.x
- * + slice trampolines in the seed TU). parse_primary AUDIT_CALL padding is
- * compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
+ * + slice trampolines in the seed TU). P4bg also skips the C IDENT/SELF
+ * head twin (ident_x_into_c is the VAR-fill authority). parse_primary
+ * AUDIT_CALL padding is compiled only under XLANG_PARSER_STRETCH_AUDIT
+ * (product AUDIT_CALL is nop).
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.
@@ -170,7 +172,9 @@ static int parser_asm_suffix_debug_enabled(void) {
   return v && *v && *v != '0';
 }
 
-/** Copy ident into e.var_name (wave577 Cap: up to 127 bytes + zero-pad to 128). */
+#ifndef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+/** Copy ident into e.var_name (wave577 Cap: up to 127 bytes + zero-pad to 128).
+ * Cold-only: hybrid P4bg IDENT head uses pipeline_expr_set_var_name. */
 static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e, struct parser_asm_slice_u8 *source,
                                                    size_t start, int32_t len) {
   int32_t i;
@@ -190,6 +194,7 @@ static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e
     i++;
   }
 }
+#endif /* !XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X copy_ident */
 
 static int32_t parser_asm_wrap_block_ref_as_expr_primary_c(void *arena, int32_t block_ref) {
   int32_t ref;
@@ -2847,12 +2852,9 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
    * the INT branch also drives the .x suffix loop (trampoline-owned
    * buffers — the language has no local arrays). Returns 0 (not mine) so
    * every other arm below stays C-authoritative.
-   * P4be/P4bf: IDENT HEAD stays the C arm below. ident_x_into_c is compiled
-   * (suffix_loop typeck unblocked) but not dispatched — import-qualified
-   * `fmt.println` / module field heads still need the C VAR fill. IDENT
-   * still reaches the .x suffix loop via parser_asm_primary_ident_suffix_loop_c
-   * (BODIES trampoline, which publishes next_lex). Do not wire
-   * ident_x_into_c here as a side effect. */
+   * P4bg: IDENT/SELF head is dispatched later in this function (same
+   * trampoline-owned buffers + next_lex publish). ident_x_into_c is the
+   * VAR-fill authority; do not keep a second IDENT algorithm here. */
   {
     extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
                                                        int32_t *out_ok, int32_t *out_expr_ref,
@@ -3045,8 +3047,43 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     parser_asm_primary_parse_panic_c(arena, source, &lex, &r, out);
     return;
   }
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+  /* P4bg IDENT/SELF head: body in pthin_expr_primary.x. Buffers are
+   * trampoline-owned (no local arrays). Publish next_lex from the live
+   * cursor — same C-twin stop contract as the suffix_loop trampoline
+   * (P4bf). ident_x zeros THEN set_var_name so arena zeros do not wipe
+   * var_name_len (the C local wipe never touched the name slot).
+   * PLATFORM: SHARED — zero algorithm in this trampoline. */
+  {
+    extern int32_t parser_asm_primary_ident_x_into_c(void *arena, void *lex_inout, void *source,
+                                                     int32_t *out_ok, int32_t *out_expr_ref,
+                                                     int32_t *mc_arg_buf, int32_t *arg_buf,
+                                                     int32_t *parsed_refs, int32_t *pending_refs,
+                                                     uint8_t *mangled, uint8_t *name_buf);
+    struct parser_asm_lexer ident_lex;
+    int32_t ident_mc[256];
+    int32_t ident_args[256];
+    int32_t ident_pr[8];
+    int32_t ident_pend[8];
+    uint8_t ident_mangled[128];
+    uint8_t ident_name[256];
+    int32_t ident_ok = 0;
+    int32_t ident_ref = 0;
+    ident_lex = lex;
+    if (parser_asm_primary_ident_x_into_c(arena, &ident_lex, source, &ident_ok, &ident_ref,
+                                          ident_mc, ident_args, ident_pr, ident_pend,
+                                          ident_mangled, ident_name) != 0) {
+      out->ok = ident_ok;
+      out->expr_ref = ident_ref;
+      out->next_lex = ident_lex;
+      return;
+    }
+  }
+#endif
+#ifndef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
   /* TOKEN_IDENT or TOKEN_SELF: keyword self is a valid EXPR_VAR name "self"
-   * (pairs with param/let binding accept TOKEN_SELF; lexer ident_len=0 for SELF). */
+   * (pairs with param/let binding accept TOKEN_SELF; lexer ident_len=0 for SELF).
+   * Cold-only: hybrid P4bg skips this twin (ident_x_into_c is the authority). */
   if (r.tok.kind == (int32_t)TOKEN_IDENT || r.tok.kind == (int32_t)TOKEN_SELF) {
     int32_t vlen = r.tok.ident_len;
     int name_was_self = (r.tok.kind == (int32_t)TOKEN_SELF);
@@ -3124,6 +3161,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
     return;
   }
+#endif /* !XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X IDENT head */
   if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_paren_expr_head_audit_c(&lex, source));
     parser_asm_lex_from_result_val_into(&lex, r);

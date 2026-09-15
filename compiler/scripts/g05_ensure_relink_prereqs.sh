@@ -1007,15 +1007,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # completed TOKEN/writer pins so `-E` typeck of suffix_loop
         # passes (was XT001 undeclared names). P4bf publishes next_lex
         # from the C trampoline (C-twin stop contract) so IDENT callers
-        # do not re-parse `mod.fn(...)` until RSS blows up. IDENT head
-        # dispatch stays off. Cold: no define, full .inc.
+        # do not re-parse `mod.fn(...)` until RSS blows up. P4bg
+        # dispatches ident_x_into_c (zeros THEN set_var_name so arena
+        # zeros do not wipe var_name_len). Cold: no define, full .inc.
         # P3c mangle trampoline in primary.inc needs TYPE_REF_BODIES too.
         _pthin_p4p_extra=""
         if [ -n "$_pthin_p4pb_thin_o" ] && [ -f "$_pthin_p4pb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o"; then
             _pthin_p4pb_ok=1
             _pthin_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X"
-            echo "g05_ensure: P4b/P4be/P4bf primary bodies ← $_pthin_p4pb_x (7.2.1 Route C)"
+            echo "g05_ensure: P4b/P4be/P4bf/P4bg primary bodies ← $_pthin_p4pb_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4b primary .x thin failed; P4 C twin stays full" >&2
           fi
