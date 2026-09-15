@@ -4,10 +4,11 @@
  *
  * Body: seeds/parser_asm/parser_asm_simd_builtin_slice.inc
  *
- * Hybrid P7b/P7c (XLANG_PTHIN_SIMD_BODIES_FROM_X): portable ident pack /
- * callee-name fill plus callee VAR + CALL wrap come from pthin_simd.x;
- * this TU keeps the slice trampoline plus arena parse. Cold: no BODIES
- * define, full .inc. Do not FORCE pabi mega (set_call_c already T).
+ * Hybrid P7b/P7c/P7d (XLANG_PTHIN_SIMD_BODIES_FROM_X): portable ident pack /
+ * callee-name fill plus callee VAR + CALL wrap plus parse_at_simd_builtin
+ * dest-buffer come from pthin_simd.x; this TU keeps the slice trampoline
+ * (name[256] wrap + parse next_lex). Cold: no BODIES define, full .inc.
+ * Do not FORCE pabi mega (set_call_c already T).
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -17,6 +18,13 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P7d. pthin_simd.x TOKEN_* are pin copies
+ * of this enum. token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_IDENT == 59, "simd.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "simd.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "simd.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_COMMA == 90, "simd.x TOKEN_COMMA pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -111,23 +119,10 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
 
 #ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
 /* .x product bodies (buf-path ident pack + callee name fill + P7c
- * callee VAR + CALL wrap dest-buffer). */
-extern int32_t parser_asm_simd_builtin_ident_pack_c(uint8_t *data, size_t length, size_t token_start,
-                                                    int32_t ident_len);
+ * callee VAR + CALL wrap dest-buffer + P7d parse dest-buffer).
+ * ident_pack lives in the .x TU; parse calls it directly. This TU
+ * keeps callee_name_fill for the wrap trampoline. */
 extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
-
-static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r, struct parser_asm_slice_u8 *source,
-                                              int32_t *need_args_out, int32_t *is_shuffle_out) {
-  int32_t pack;
-  if (!r || !source || !need_args_out || !is_shuffle_out)
-    return 0;
-  pack = parser_asm_simd_builtin_ident_pack_c(source->data, source->length, r->token_start, r->tok.ident_len);
-  if (pack == 0)
-    return 0;
-  *is_shuffle_out = pack >> 8;
-  *need_args_out = pack & 255;
-  return 1;
-}
 #endif
 
 #include "parser_asm_simd_builtin_slice.inc"

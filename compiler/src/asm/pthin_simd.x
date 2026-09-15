@@ -32,17 +32,32 @@
 // set_kind / set_common_zeros / set_line_col / set_var_name /
 // set_call_c plus pipeline_expr_init_call_resolve_at_ref (C twin zeros
 // stamp call_resolved_* = -1; pabi zeros does not). Do not FORCE pabi
-// mega. Do not dest-buffer parse_at_simd_builtin this wave (extra
-// lexer_next + parse_expr_into). Do not copy wrap into parse. Do not
-// merge with P4b suffix CALL wrap (that wrap takes pending_n type
-// args; simd builtins have none). Do not wrap the two AUDIT_CALL
-// sites. Do not open a new P-lane. Do not add bodies to
-// pthin_expr_primary.x.
+// mega. Do not copy wrap into parse. Do not merge with P4b suffix
+// CALL wrap (that wrap takes pending_n type args; simd builtins have
+// none). Do not wrap the two AUDIT_CALL sites. Do not open a new
+// P-lane. Do not add bodies to pthin_expr_primary.x.
 //
-// Hybrid P7b/P7c: g05_try_x_to_o this file; XLANG_PTHIN_SIMD_BODIES_FROM_X
-// skips the portable .inc region. Cold: no define, full .inc stays.
+// 7.2.1 P7d B-minus (2026-09-16): 有则补全 parse_at_simd_builtin
+// dest-buffer. Token walk reuses the P9a peek/step family (same as
+// P4ud/P4bh). IDENT pack is P7b; CALL wrap is P7c through the C
+// name-buffer trampoline (language has no local u8[N]). Args go
+// through the existing parse_expr ptr shim (G.7 one shim; do not
+// copy). C trampoline keeps AUDIT on the cold twin and publishes
+// next_lex. Do not dest-buffer parse_match / parse_type_ref. Do not
+// merge wrap. Do not FORCE pabi mega.
+//
+// Hybrid P7b/P7c/P7d: g05_try_x_to_o this file; XLANG_PTHIN_SIMD_BODIES_FROM_X
+// skips the portable .inc region (ident pack + callee fill + wrap +
+// parse). Cold: no define, full .inc stays.
 // Pack encoding: (is_shuffle << 8) | need_args; 0 = no match.
 // PLATFORM: SHARED freestanding.
+
+// TOKEN_* pin copies of include/token.h. P7 C _Static_assert fires if
+// the pin drifts; do not treat these as a second enum authority.
+const TOKEN_IDENT: i32 = 59;
+const TOKEN_LPAREN: i32 = 82;
+const TOKEN_RPAREN: i32 = 83;
+const TOKEN_COMMA: i32 = 90;
 
 /** Allocate a fresh Expr slot; 0 on failure. */
 export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
@@ -66,6 +81,32 @@ export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref:
  * not. G.7: reuse the existing pabi writer.
  */
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(a: *u8, expr_ref: i32): void;
+
+/** P9a lexer-step bridge: peek the kind at the live cursor (no consume). */
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a lexer-step bridge: consume one token, park at the next. */
+export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: IDENT (or similar) payload start in the source slice. */
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+/** P9a: IDENT payload length. */
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+/** Opaque slice → data pointer (P9a source accessors). */
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+/** Opaque slice → byte length. */
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+/**
+ * Pointer-face parse_expr. Zero-algorithm C shim in primary.inc
+ * (G.7: one expr ptr shim; do not copy). Cursor in/out.
+ */
+export extern "C" function parser_parse_expr_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
+/** Append one CALL arg; <0 on failure. Existing pabi writer. */
+export extern "C" function pipeline_expr_append_call_arg(a: *u8, er: i32, arg: i32): i32;
+/**
+ * P7c wrap trampoline in simd_builtin_slice.inc: holds name[256],
+ * fills via callee_name_fill (G.7), forwards wrap_into. Not a second
+ * wrap authority.
+ */
+export extern "C" function parser_asm_simd_call_wrap_c(arena: *u8, is_shuffle: i32): i32;
 
 const EXPR_VAR: i32 = 3;
 const EXPR_CALL: i32 = 48;
@@ -255,7 +296,8 @@ function skip_simd_wrap_prep(arena: *u8, kind: i32): i32 {
  * @param nlen i32 — content length (11 or 12 from fill)
  * @return i32 — new CALL expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — product P7c Route C. Authority for the simd
- * callee+CALL wrap. parse_at_simd_builtin stays C; do not copy.
+ * callee+CALL wrap. P7d parse calls the C name-buffer trampoline
+ * (parser_asm_simd_call_wrap_c); do not copy wrap into parse.
  * Do not merge with P4b suffix CALL wrap.
  */
 #[no_mangle]
@@ -285,4 +327,114 @@ export function parser_asm_simd_call_wrap_into_c(arena: *u8, name: *u8, nlen: i3
     pipeline_expr_set_call_c(arena, call_ref, callee_ref, 0);
   }
   return call_ref;
+}
+
+/**
+ * Parse shuffle/select SIMD builtin after AT is consumed.
+ * .x mirror of parser_asm_parse_at_simd_builtin_into_c: cursor is at the
+ * IDENT (C trampoline starts from r0.next_lex). Pack is P7b
+ * ident_pack; CALL node is P7c via the C name-buffer trampoline
+ * (language has no local u8 array). Args go through the existing
+ * parse_expr ptr shim (G.7). Empty parens only succeed when need_args
+ * is 0 (shuffle/select never take zero; kept to match the C twin).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at IDENT after AT; on success parked
+ *   after the closing RPAREN
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — parse_expr_result.ok
+ * @param out_expr_ref *i32 — CALL expr ref
+ * @return i32 — 1 success (out_ok=1); 0 failure (out_ok=0)
+ * PLATFORM: SHARED — product P7d B-minus. C trampoline keeps the
+ * by-value lexer_result face. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_at_simd_builtin_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let pack: i32 = 0;
+  let is_shuffle: i32 = 0;
+  let need_args: i32 = 0;
+  let call_ref: i32 = 0;
+  let got: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let done: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    pack = parser_asm_simd_builtin_ident_pack_c(data, slen, ts, il);
+    if (pack == 0) {
+      return 0;
+    }
+    is_shuffle = pack / 256;
+    need_args = pack - is_shuffle * 256;
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    call_ref = parser_asm_simd_call_wrap_c(arena, is_shuffle);
+    if (call_ref == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      if (need_args != 0) {
+        return 0;
+      }
+    } else {
+      got = 0;
+      done = 0;
+      /* Do not `break` out of this nested while: P4bh parse silently
+       * drops the whole function (num_funcs stays 22, no XP003). */
+      while (done == 0) {
+        eok = 0;
+        eref = 0;
+        if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0) {
+          return 0;
+        }
+        if (eok == 0) {
+          return 0;
+        }
+        if (pipeline_expr_append_call_arg(arena, call_ref, eref) < 0) {
+          return 0;
+        }
+        got = got + 1;
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind == TOKEN_COMMA) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+        } else {
+          if (kind == TOKEN_RPAREN) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            done = 1;
+          } else {
+            return 0;
+          }
+        }
+      }
+      if (got != need_args) {
+        return 0;
+      }
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = call_ref;
+    return 1;
+  }
+  return 0;
 }

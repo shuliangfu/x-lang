@@ -135,6 +135,18 @@ g05_cc_c() {
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
 #       （strict_glue 等与 bootstrap_seed_pipeline_filtered 同名符号需 weak，对齐 seed）
+# True if OBJ defines SYM as a text symbol (Darwin nm prefixes '_').
+# Reject incomplete -E fallbacks that still exit 0 after a silent
+# parse-drop of a dest-buffer export (P4bh `break` nest). PLATFORM: SHARED.
+g05_obj_defines() {
+  _g05_obj="$1"
+  _g05_sym="$2"
+  nm -gU "$_g05_obj" 2>/dev/null | awk -v s="$_g05_sym" -v us="_$_g05_sym" '
+    $2 == "T" && ($3 == s || $3 == us) { found = 1 }
+    END { exit found ? 0 : 1 }
+  '
+}
+
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -943,6 +955,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p7b_ok=0
         _pthin_p9_ok=0
         _pthin_p9a_ok=0
+        _pthin_p9a_audit_ok=0
         _pthin_p9b_ok=0
         _pthin_p10_ok=0
         _pthin_p10b_ok=0
@@ -984,12 +997,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
         if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o"; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o" \
+            && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_append_type_inst_mangle_into_c"; then
             _pthin_p3b_ok=1
             _pthin_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
             echo "g05_ensure: P3b/P3c/P3d/P3e type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else
-            echo "g05_ensure: P3b type_ref .x thin failed; P3 C twin stays full" >&2
+            echo "g05_ensure: P3b type_ref .x thin failed or missing mangle_into; P3 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p3_o" ] && [ -f "$_pthin_p3_seed" ]; then
@@ -1144,12 +1158,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # region. Cold: no define, full .inc.
         _pthin_p6_extra=""
         if [ -n "$_pthin_p6b_thin_o" ] && [ -f "$_pthin_p6b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o"; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o" \
+            && g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_struct_layout_first_name_match_idx_c"; then
             _pthin_p6b_ok=1
             _pthin_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
             echo "g05_ensure: P6b/P6c/P6d fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
           else
-            echo "g05_ensure: P6b fn_block .x thin failed; P6 C twin stays full" >&2
+            echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p6_o" ] && [ -f "$_pthin_p6_seed" ]; then
@@ -1161,18 +1176,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P6 fn/block ← $_pthin_p6_seed (G-02f-287 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P7b/P7c Route C (2026-09-13 / 2026-09-15).
-        # pthin_simd.x holds ident pack / callee name fill / callee+CALL wrap.
-        # Runs before P7 C so BODIES_FROM_X skips the portable .inc region.
-        # No lexer-step bridge. Cold: no define, full .inc.
+        # PLATFORM: SHARED — 7.2.1 P7b/P7c/P7d Route C (2026-09-13 / 2026-09-15 / 2026-09-16).
+        # pthin_simd.x holds ident pack / callee name fill / callee+CALL wrap
+        # plus parse_at_simd_builtin dest-buffer (P9a peek/step; expr ptr
+        # shim). Runs before P7 C so BODIES_FROM_X skips the portable .inc
+        # region. P9a is linked later into the same thin_glue (same as
+        # P4ud/P4bh). Cold: no define, full .inc.
         _pthin_p7_extra=""
         if [ -n "$_pthin_p7b_thin_o" ] && [ -f "$_pthin_p7b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p7b_x" "$_pthin_p7b_thin_o"; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p7b_x" "$_pthin_p7b_thin_o" \
+            && g05_obj_defines "$_pthin_p7b_thin_o" "parser_asm_parse_at_simd_builtin_x_into_c"; then
             _pthin_p7b_ok=1
             _pthin_p7_extra="-DXLANG_PTHIN_SIMD_BODIES_FROM_X"
-            echo "g05_ensure: P7b/P7c simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
+            echo "g05_ensure: P7b/P7c/P7d simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
           else
-            echo "g05_ensure: P7b simd .x thin failed; P7 C twin stays full" >&2
+            echo "g05_ensure: P7b simd .x thin failed or missing parse dest-buffer; P7 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p7_o" ] && [ -f "$_pthin_p7_seed" ]; then
@@ -1184,23 +1202,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P7 simd ← $_pthin_p7_seed (G-02f-288 seed slice)"
           fi
         fi
-        # G-02f-318a / 7.2.1 B-minus pilot (RFC §5c): stretch-audit .x thin + bridge.
-        # Runs BEFORE P9 so its define gates the suite C twin out of the P9 seed TU
-        # AND (via rest_defs) out of the rest TU; on any failure both fall back to
-        # the seed C twin with no define — single authority per lane either way.
+        # G-02f-318a / 7.2.1 B-minus pilot (RFC §5c): lexer-step BRIDGE is
+        # the peek/step authority used by dest-buffer parse (P4ud/P4bh/P5/P7d).
+        # Compile the bridge even when stretch-audit .x thin fails (audit
+        # mega -E typeck/check_block flakes; coupling it with && dropped
+        # peek/step from the product glue and UNDEF'd every dest-buffer
+        # lane). STRETCH_AUDIT_FROM_X still requires the audit .x thin.
         # PLATFORM: SHARED
         _pthin_p9_extra=""
-        if [ -n "$_pthin_p9a_thin_o" ] && [ -n "$_pthin_p9a_o" ] && [ -f "$_pthin_p9a_x" ] \
-          && [ -f "$_pthin_p9a_bridge" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9a_x" "$_pthin_p9a_thin_o" \
-             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm \
-                  -c -o "$_pthin_p9a_o" "$_pthin_p9a_bridge"; then
+        if [ -n "$_pthin_p9a_o" ] && [ -f "$_pthin_p9a_bridge" ]; then
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm \
+               -c -o "$_pthin_p9a_o" "$_pthin_p9a_bridge"; then
             _pthin_p9a_ok=1
+            echo "g05_ensure: P9a lexer-step bridge ← $_pthin_p9a_bridge (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P9a lexer-step bridge -c failed; peek/step stay absent" >&2
+          fi
+        fi
+        if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p9a_thin_o" ] && [ -f "$_pthin_p9a_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9a_x" "$_pthin_p9a_thin_o"; then
+            _pthin_p9a_audit_ok=1
             _pthin_p9_extra="-DXLANG_PTHIN_STRETCH_AUDIT_FROM_X"
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_STRETCH_AUDIT_FROM_X"
-            echo "g05_ensure: P9a stretch_audit ← $_pthin_p9a_x + $_pthin_p9a_bridge (7.2.1 B-minus)"
+            echo "g05_ensure: P9a stretch_audit ← $_pthin_p9a_x (7.2.1 B-minus)"
           else
-            echo "g05_ensure: P9a stretch_audit .x thin failed; seed C twin stays" >&2
+            echo "g05_ensure: P9a stretch_audit .x thin failed; audit C twin stays (bridge still linked)" >&2
           fi
         fi
         # PLATFORM: SHARED — 7.2.1 P1b/P1c/P1d/P1e/P1f Route C + B-minus (2026-09-13/15).
@@ -1272,7 +1298,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # twins. Runs before P5 C so BODIES_FROM_X skips the portable
         # .inc region. Cold: no define, full .inc.
         _pthin_p5_extra=""
-        if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p5b_thin_o" ] && [ -f "$_pthin_p5b_x" ]; then
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] && [ -n "$_pthin_p5b_thin_o" ] && [ -f "$_pthin_p5b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o"; then
             _pthin_p5b_ok=1
             _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
@@ -1651,7 +1677,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p9_o"
         fi
         if [ "$_pthin_p9a_ok" = "1" ]; then
-          _pthin_link="$_pthin_link $_pthin_p9a_thin_o $_pthin_p9a_o"
+          _pthin_link="$_pthin_link $_pthin_p9a_o"
+        fi
+        if [ "$_pthin_p9a_audit_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p9a_thin_o"
         fi
         if [ "$_pthin_p9b_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p9b_thin_o"
