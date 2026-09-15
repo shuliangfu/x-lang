@@ -158,7 +158,7 @@
 // Field offsets reuse the P12g pins (C layout is authority).
 // is_registered stays a C thin wrapper over find_reg (already G.7).
 // Simple F3 scalar getters are P12q. dest-extras elem_array_dim
-// stay C. method_on_param stays C. Do not wrap method_on_param.
+// are P12r. method_on_param stays C. Do not wrap method_on_param.
 // Do not copy into typeck / codegen (they already call historical
 // `_c`). Do not open a new P-lane. Do not FORCE pabi mega. Do not
 // reuse skip_copy_row64 (F3 name copy rejects nlen>64; F4 returns
@@ -170,14 +170,24 @@
 // fat table as P12p; C trampoline passes *u8 + sizeof stride + n
 // plus offsetof for the slot/param i32 family (one .x body per
 // access shape, not 15 copies). dest-extras
-// ret_elem_array_dim / param_elem_array_dim stay C (nested wrap
-// soup). is_registered stays a C thin wrapper. method_on_param
-// stays C. Do not dest-buffer dest-extras elem_array_dim as extra.
-// Do not wrap method_on_param. Do not copy into typeck / codegen.
-// Do not open a new P-lane. Do not FORCE pabi mega. Do not reuse
+// ret_elem_array_dim / param_elem_array_dim are P12r. is_registered
+// stays a C thin wrapper. method_on_param stays C. Do not wrap
+// method_on_param. Do not copy into typeck / codegen. Do not open
+// a new P-lane. Do not FORCE pabi mega. Do not reuse
 // skip_copy_row64 for F3 name copy.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q: g05_try_x_to_o this
+// 7.2.1 P12r B-minus (2026-09-15): 有则补全 F3 dest-extras
+// elem_array_dim dest-buffer (ret_elem_array_dim /
+// param_elem_array_dim). Always host-cc (not behind BODIES). Same
+// fat table as P12p/P12q; wrap soup lives in one helper
+// (ndims==-2 / ndims==0 unused slots / dim_ix>=ndims extra wrap).
+// C trampoline passes *u8 + sizeof stride + n. is_registered stays
+// a C thin wrapper. method_on_param stays C. Do not wrap
+// method_on_param. Do not copy into typeck / codegen. Do not open
+// a new P-lane. Do not FORCE pabi mega. Do not merge with simple
+// ret/param array_dim (those reject dim_ix>=ndims).
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j/P12k/P12l/P12m/P12n/P12o/P12p/P12q/P12r: g05_try_x_to_o this
 // file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
 // region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
@@ -185,11 +195,11 @@
 // rewrite_self + register_type_params + type_param_index +
 // concrete_implements_trait + bound_check_type_args +
 // impl-seen accessors + bound_check + F3 lookup + F3 simple
-// getters). Requires P9a
+// getters + dest-extras elem_array_dim). Requires P9a
 // bridge + P1b skip walks (otherwise skip_balanced / skip_generic_angle
 // / copy_slice would UNDEF). token.h remains the TOKEN_* authority via
 // P12 C _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12q bodies. P12g skip_one_trait
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12r bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -4998,6 +5008,194 @@ export function xlang_skip_trait_method_param_name_dest_into_c(trait_nm: *u8, tr
     }
   }
   return nlen;
+}
+
+/**
+ * dest-extras wrap-soup dim lookup over one dims row.
+ * Shared by ret_elem_array_dim and param_elem_array_dim (G.7: one
+ * body, not two copies of the ndims==-2 / ndims==0 / dim_ix>=ndims
+ * unused-slot rules).
+ * @param ent *u8 — fat-ent image; null → -1
+ * @param dims_base i32 — byte offset of dims[0] for this slot(/param)
+ * @param nd i32 — stored elem_array_ndims (may be -2 / 0 / >0)
+ * @param dim_ix i32 — requested dim; <0 or >= DIM_MAX → -1
+ * @return i32 — N > 0, extra wrap count, or -1 if unused / invalid
+ * PLATFORM: SHARED — P12r helper. Matches C twins in skip_tl.inc.
+ */
+function skip_trait_elem_array_dim_at(ent: *u8, dims_base: i32, nd: i32, dim_ix: i32): i32 {
+  let extra: i32 = 0;
+  if (ent == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dim_ix < 0) {
+    return 0 - 1;
+  }
+  if (dim_ix >= P12G_DIM_MAX) {
+    return 0 - 1;
+  }
+  /* ndims==-2: extra SLICE wrap in dims[0] (0 means 1); unused
+   * slot dims[1] extra PTR wrap (0 / missing → -1). dim_ix>=nd
+   * would reject every dim_ix>=0 because -2 is negative. */
+  if (nd == P12G_ELEM_PTR_TO_SLICE_NDIMS) {
+    extra = p12g_load_i32(ent, dims_base + dim_ix * 4);
+    if (dim_ix == 0) {
+      if (extra <= 0) {
+        extra = 1;
+      }
+      return extra;
+    }
+    if (dim_ix == 1) {
+      if (extra <= 0) {
+        return 0 - 1;
+      }
+      return extra;
+    }
+    return 0 - 1;
+  }
+  /* ndims==0: unused slot dims[0] / dims[1] extra wrap. dim_ix>=nd
+   * would treat dim_ix as an extra-wrap probe and then reject
+   * because nd is not >0. leftover dim_ix>=2 → -1. */
+  if (nd == 0) {
+    if (dim_ix == 0) {
+      extra = p12g_load_i32(ent, dims_base + 0);
+      if (extra <= 0) {
+        return 0 - 1;
+      }
+      return extra;
+    }
+    if (dim_ix == 1) {
+      extra = p12g_load_i32(ent, dims_base + 4);
+      if (extra <= 0) {
+        return 0 - 1;
+      }
+      return extra;
+    }
+    return 0 - 1;
+  }
+  /* leftover negative ndims other than -2: C hits dim_ix>=nd then
+   * !(nd>0 && nd<DIM_MAX) → -1. */
+  if (nd <= 0) {
+    return 0 - 1;
+  }
+  /* dim_ix>=ndims: unused slot dims[ndims] / dims[ndims+1] extra
+   * wrap. extra>0 returns the count; 0 / missing → -1. */
+  if (dim_ix >= nd) {
+    if (nd >= P12G_DIM_MAX) {
+      return 0 - 1;
+    }
+    if (dim_ix == nd) {
+      extra = p12g_load_i32(ent, dims_base + nd * 4);
+      if (extra <= 0) {
+        return 0 - 1;
+      }
+      return extra;
+    }
+    if (dim_ix == nd + 1) {
+      if (nd + 1 >= P12G_DIM_MAX) {
+        return 0 - 1;
+      }
+      extra = p12g_load_i32(ent, dims_base + (nd + 1) * 4);
+      if (extra <= 0) {
+        return 0 - 1;
+      }
+      return extra;
+    }
+    return 0 - 1;
+  }
+  extra = p12g_load_i32(ent, dims_base + dim_ix * 4);
+  return extra;
+}
+
+/**
+ * Return one dim of a trait-method return's ARRAY elem (`*[K][N]T`)
+ * including dest-extras unused-slot wrap soup.
+ * Twin of param_elem_array_dim. Historical public stays `_c`.
+ * @param trait_nm *u8 — trait name bytes; null → -1
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @param slot i32 — vtable slot; <0 → -1
+ * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
+ * @param table *u8 — dest trait-reg image; null → -1
+ * @param stride i32 — bytes per ent; <=0 → -1
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — N > 0 / extra wrap count, or -1 if invalid
+ * PLATFORM: SHARED — product P12r B-minus. C trampoline owns the table.
+ * Do not wrap method_on_param. Do not merge with simple ret_array_dim.
+ * Do not copy into typeck / codegen.
+ */
+#[no_mangle]
+export function xlang_skip_trait_method_ret_elem_array_dim_into_c(trait_nm: *u8, trait_nlen: i32, slot: i32, dim_ix: i32, table: *u8, stride: i32, n: i32): i32 {
+  let ent: *u8 = 0 as *u8;
+  let nd: i32 = 0;
+  let dims_base: i32 = 0;
+  if (slot < 0) {
+    return 0 - 1;
+  }
+  if (dim_ix < 0) {
+    return 0 - 1;
+  }
+  if (dim_ix >= P12G_DIM_MAX) {
+    return 0 - 1;
+  }
+  ent = skip_trait_ent_at(trait_nm, trait_nlen, table, stride, n);
+  if (ent == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (skip_trait_slot_in_range(ent, slot) == 0) {
+    return 0 - 1;
+  }
+  nd = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + slot * 4);
+  dims_base = P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + slot * P12G_RET_DIMS_ROW;
+  return skip_trait_elem_array_dim_at(ent, dims_base, nd, dim_ix);
+}
+
+/**
+ * Return one dim of a trait-method formal's ARRAY elem (`[][K][N]T`)
+ * including dest-extras unused-slot wrap soup.
+ * Extra i of a METHOD_CALL maps to param_ix = i+1 (param 0 is self).
+ * Historical public stays `_c`.
+ * @param trait_nm *u8 — trait name bytes; null → -1
+ * @param trait_nlen i32 — byte count; must be > 0
+ * @param slot i32 — vtable slot; <0 → -1
+ * @param param_ix i32 — formal index including self; <0 or >= PARAM_MAX → -1
+ * @param dim_ix i32 — dimension index (0 = outer of the ARRAY elem)
+ * @param table *u8 — dest trait-reg image; null → -1
+ * @param stride i32 — bytes per ent; <=0 → -1
+ * @param n i32 — occupied registry count (read-only)
+ * @return i32 — N > 0 / extra wrap count, or -1 if invalid
+ * PLATFORM: SHARED — product P12r B-minus. C trampoline owns the table.
+ * Do not wrap method_on_param. Do not merge with simple param_array_dim.
+ * Do not copy into typeck / codegen.
+ */
+#[no_mangle]
+export function xlang_skip_trait_method_param_elem_array_dim_into_c(trait_nm: *u8, trait_nlen: i32, slot: i32, param_ix: i32, dim_ix: i32, table: *u8, stride: i32, n: i32): i32 {
+  let ent: *u8 = 0 as *u8;
+  let nd: i32 = 0;
+  let dims_base: i32 = 0;
+  if (slot < 0) {
+    return 0 - 1;
+  }
+  if (param_ix < 0) {
+    return 0 - 1;
+  }
+  if (param_ix >= P12G_PARAM_MAX) {
+    return 0 - 1;
+  }
+  if (dim_ix < 0) {
+    return 0 - 1;
+  }
+  if (dim_ix >= P12G_DIM_MAX) {
+    return 0 - 1;
+  }
+  ent = skip_trait_ent_at(trait_nm, trait_nlen, table, stride, n);
+  if (ent == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (skip_trait_slot_in_range(ent, slot) == 0) {
+    return 0 - 1;
+  }
+  nd = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + slot * P12G_PARAM_LENS_ROW + param_ix * 4);
+  dims_base = P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + slot * P12G_PARAM_DIMS_ROW + param_ix * P12G_PARAM_DIMS_ROW_INNER;
+  return skip_trait_elem_array_dim_at(ent, dims_base, nd, dim_ix);
 }
 
 // ---------------------------------------------------------------------------

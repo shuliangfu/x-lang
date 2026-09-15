@@ -2,17 +2,18 @@
  * parser_asm_skip_tl_slice.inc — P12 skip top-level (G-02f-321).
  * Included by parser_asm_thin_c.from_x.c or pthin_skip_tl.from_x.c.
  *
- * Hybrid P12b–P12q: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
+ * Hybrid P12b–P12r: XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable
  * skip walks (struct/enum/extern + impl header + generic_bound_scan +
  * enum_register + parse_one_extern_skip + parse_one_extern_and_add +
  * skip_name_is_self + self_matches_for + named_eq_self + rewrite_self +
  * register_type_params + type_param_index + concrete_implements_trait +
  * bound_check_type_args + impl-seen accessors + bound_check + F3 lookup +
- * F3 simple getters; bodies in src/asm/pthin_skip_tl.x + by-value
- * trampolines). skip_one_impl and generic_bound_scan trampolines live
- * here (need file-static tables). skip_one_trait stays C (P12g PRESET
- * not linked). dest-extras elem_array_dim stay C. Cold: no define, full
- * twin. Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12q bodies.
+ * F3 simple getters + dest-extras elem_array_dim; bodies in
+ * src/asm/pthin_skip_tl.x + by-value trampolines). skip_one_impl and
+ * generic_bound_scan trampolines live here (need file-static tables).
+ * skip_one_trait stays C (P12g PRESET not linked). method_on_param
+ * stays C. Cold: no define, full twin. Do not reuse
+ * XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12r bodies.
  */
 /* wave439: forward decl — stash full-file source slice for the generic-bound
  * scan. Defined below; called from each top-level skip_*_into_slice_c entry.
@@ -1301,7 +1302,7 @@ int32_t xlang_skip_impl_concrete_implements_trait_c(void *arena,
  * Zero algorithm besides passing the tables. Historical public names
  * stay (`_c` / already-`_into_c`). method_on_param stays C (fat
  * trait-reg). F3 lookup is P12p; F3 simple getters are P12q;
- * dest-extras elem_array_dim stay C. bound_check_c is P12o. */
+ * dest-extras elem_array_dim are P12r. bound_check_c is P12o. */
 extern int32_t xlang_skip_impl_seen_count_into_c(int32_t seen_n);
 int32_t xlang_skip_impl_seen_count_c(void) {
   return xlang_skip_impl_seen_count_into_c(g_xlang_skip_impl_seen_n);
@@ -1401,13 +1402,13 @@ int32_t xlang_skip_impl_for_type_into_c(int32_t si, int32_t *out_kind,
  */
 
 #ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
-/* PLATFORM: SHARED — P12p/P12q trampoline. Language has no file-local
- * statics / no fat-struct field access; .x walks dest
+/* PLATFORM: SHARED — P12p/P12q/P12r trampoline. Language has no
+ * file-local statics / no fat-struct field access; .x walks dest
  * g_xlang_skip_trait_reg[] as a byte image (stride = sizeof(ent),
  * cap 16) using P12g offsets. Zero algorithm besides passing the
  * table (+ offsetof for P12q slot/param i32). is_registered stays a
  * C thin wrapper over find_reg (already G.7). dest-extras
- * elem_array_dim stay C. method_on_param stays C. */
+ * elem_array_dim are P12r. method_on_param stays C. */
 extern int32_t xlang_skip_trait_find_reg_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
         uint8_t *table, int32_t stride, int32_t n);
 static int32_t xlang_skip_trait_find_reg_c(const uint8_t *trait_nm, int32_t trait_nlen) {
@@ -1582,6 +1583,26 @@ int32_t xlang_skip_trait_method_param_name_into_c(const uint8_t *trait_nm, int32
       (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
       g_xlang_skip_trait_reg_n);
 }
+
+extern int32_t xlang_skip_trait_method_ret_elem_array_dim_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t dim_ix, uint8_t *table, int32_t stride, int32_t n);
+int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                    int32_t slot, int32_t dim_ix) {
+  return xlang_skip_trait_method_ret_elem_array_dim_into_c(trait_nm, trait_nlen, slot, dim_ix,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
+
+extern int32_t xlang_skip_trait_method_param_elem_array_dim_into_c(const uint8_t *trait_nm, int32_t trait_nlen,
+        int32_t slot, int32_t param_ix, int32_t dim_ix, uint8_t *table, int32_t stride, int32_t n);
+int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, int32_t trait_nlen,
+                                                      int32_t slot, int32_t param_ix, int32_t dim_ix) {
+  return xlang_skip_trait_method_param_elem_array_dim_into_c(trait_nm, trait_nlen, slot, param_ix, dim_ix,
+      (uint8_t *)g_xlang_skip_trait_reg,
+      (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_trait_reg_n);
+}
 #else
 /**
  * Find the trait registry index for a trait by name (linear scan).
@@ -1688,7 +1709,7 @@ int32_t xlang_skip_trait_method_name_into_c(const uint8_t *trait_nm, int32_t tra
     out64[mi] = g_xlang_skip_trait_reg[ti].methods[slot][mi];
   return mlen;
 }
-#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X F3 lookup + simple getters */
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X F3 lookup + simple getters + dest-extras */
 
 /**
  * True when `trait_nm` is a registered trait (skip-trait table).
@@ -1887,6 +1908,7 @@ int32_t xlang_skip_trait_method_ret_elem_array_ndims_c(const uint8_t *trait_nm, 
 }
 #endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X simple F3 getters (ret slot) */
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * Return one dim of a trait-method return's ARRAY elem (`*[K][N]T`).
  * dim_ix 0 is the outer K of the ARRAY elem; last dim is innermost N.
@@ -2021,6 +2043,7 @@ int32_t xlang_skip_trait_method_ret_elem_array_dim_c(const uint8_t *trait_nm, in
   }
   return g_xlang_skip_trait_reg[ti].method_ret_elem_array_dims[slot][dim_ix];
 }
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X dest-extras ret_elem_array_dim */
 
 #ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
@@ -2289,6 +2312,7 @@ int32_t xlang_skip_trait_method_param_elem_array_ndims_c(const uint8_t *trait_nm
 }
 #endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X simple F3 getters (ret name + param) */
 
+#ifndef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
 /**
  * Return one dim of a trait-method formal's ARRAY elem (`[][K][N]T`).
  * dim_ix 0 is the outer K of the ARRAY elem; last dim is innermost N.
@@ -2526,6 +2550,7 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
   }
   return g_xlang_skip_trait_reg[ti].method_param_elem_array_dims[slot][param_ix][dim_ix];
 }
+#endif /* !XLANG_PTHIN_SKIP_TL_BODIES_FROM_X dest-extras param_elem_array_dim */
 
 /**
  * wave469 Cap residual pure — trait TYPE_NAMED "Self" rewrites to the impl
@@ -5793,7 +5818,7 @@ int32_t xlang_generic_bound_check_type_args_c(const uint8_t *fn_name, int32_t fn
  * call cap 32). Zero algorithm besides passing the tables. Each site
  * calls the historical public type_args `_c` (P12m injects bound/impl
  * tables). method_on_param stays C. F3 lookup is P12p; F3 simple
- * getters are P12q; dest-extras elem_array_dim stay C. */
+ * getters are P12q; dest-extras elem_array_dim are P12r. */
 extern int32_t xlang_generic_bound_check_into_c(uint8_t *callee, int32_t *callee_len,
         uint8_t *typeargs, int32_t *typearg_lens, int32_t *nargs, int32_t *line,
         int32_t *col, int32_t call_n);
