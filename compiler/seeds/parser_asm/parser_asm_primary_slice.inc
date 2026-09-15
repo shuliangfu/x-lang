@@ -2838,7 +2838,12 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
    * pthin_expr_primary.x via the wave-0 writer family (no Expr by-value);
    * the INT branch also drives the .x suffix loop (trampoline-owned
    * buffers — the language has no local arrays). Returns 0 (not mine) so
-   * every other arm below stays C-authoritative (IDENT arm pending). */
+   * every other arm below stays C-authoritative.
+   * P4be: IDENT HEAD stays the C arm below. ident_x_into_c is compiled
+   * (suffix_loop typeck unblocked) but not dispatched — import-qualified
+   * `fmt.println` / module field heads still need the C VAR fill. IDENT
+   * still reaches the .x suffix loop via parser_asm_primary_ident_suffix_loop_c
+   * (BODIES trampoline). Do not wire ident_x_into_c here as a side effect. */
   {
     extern int32_t parser_asm_primary_literal_x_into_c(void *arena, void *lex_inout, void *source,
                                                        int32_t *out_ok, int32_t *out_expr_ref,
@@ -2866,29 +2871,6 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       }
       out->ok = 0;
       return;
-    }
-    {
-      extern int32_t parser_asm_primary_ident_x_into_c(void *arena, void *lex_inout, void *source,
-                                                       int32_t *out_ok, int32_t *out_expr_ref,
-                                                       int32_t *mc_arg_buf, int32_t *arg_buf,
-                                                       int32_t *parsed_refs, int32_t *pending_refs,
-                                                       uint8_t *mangled, uint8_t *name_buf);
-      struct parser_asm_lexer id_lex;
-      int32_t id_ok = 0;
-      int32_t id_ref = 0;
-      id_lex = lex;
-      if (parser_asm_primary_ident_x_into_c(arena, &id_lex, source, &id_ok, &id_ref,
-                                            lit_mc, lit_args, lit_pr, lit_pend,
-                                            lit_mangled, lit_name) != 0) {
-        if (id_ok != 0) {
-          out->ok = 1;
-          out->expr_ref = id_ref;
-          out->next_lex = id_lex;
-          return;
-        }
-        out->ok = 0;
-        return;
-      }
     }
   }
 #endif

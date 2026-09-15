@@ -49,6 +49,13 @@ export extern "C" function pipeline_expr_var_name_into(a: *u8, er: i32, dst: *u8
 export extern "C" function pipeline_expr_set_index_c(a: *u8, er: i32, base_ref: i32, index_ref: i32, is_slice: i32): void;
 export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref: i32, num_type_args: i32): void;
 export extern "C" function pipeline_expr_set_struct_lit_finish_c(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_method_call_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_field_name_len_at(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_field_name_into(a: *u8, er: i32, dst: *u8): void;
+export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
 export extern "C" function parser_asm_lbrace_looks_like_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_parse_struct_lit_fields_ptr_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
@@ -69,6 +76,11 @@ export extern "C" function pipeline_expr_append_method_call_arg(a: *u8, er: i32,
 export extern "C" function pipeline_expr_append_call_arg(a: *u8, er: i32, arg: i32): i32;
 export extern "C" function pipeline_expr_append_call_type_arg(a: *u8, er: i32, tr: i32): i32;
 export extern "C" function parser_asm_append_type_inst_mangle_c(arena: *u8, nm: *u8, nlen: i32, refs: *i32, n: i32, out: *u8, cap: i32): i32;
+const TOKEN_TYPE: i32 = 20;
+const TOKEN_IDENT: i32 = 59;
+const TOKEN_LPAREN: i32 = 82;
+const TOKEN_RPAREN: i32 = 83;
+const TOKEN_LBRACE: i32 = 84;
 const TOKEN_DOT: i32 = 92;
 const TOKEN_LBRACKET: i32 = 86;
 const TOKEN_RBRACKET: i32 = 87;
@@ -97,6 +109,17 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 //
 // Hybrid P4b: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
 // skips the portable .inc region. Cold: no define, full .inc stays.
+// 7.2.1 P4be (2026-09-15): suffix_loop / IDENT already lived in this file
+// but `-E` XT001'd on check_block of suffix_loop because TOKEN_IDENT /
+// LPAREN / RPAREN / LBRACE / TYPE and the method/field/var-name writers
+// were used without local pins / externs (typeck treats unknown names as
+// check_block fail). Completing the pins makes `-E` typeck OK
+// (num_funcs=61). Product hybrid stays PARKED: C IDENT head + .x
+// suffix_loop trampoline RSS-runs on import method calls
+// (`fmt.println` / `option.none_i32()`); tiny `f()` / `s.x` are fine.
+// IDENT head dispatch stays off (hello typeck-broke when wired).
+// pending_n stays a local i32 by value (do not take its address).
+// Do not FORCE pabi mega — writers already T.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
 // (different ABI: kind==IDENT plus token_start fallback); do not merge
 // into these buf probes as a side effect.
@@ -403,15 +426,15 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
     parser_asm_lex_step_kind_c(lex_inout, source);
     if (kind == TOKEN_INT) {
       /* INT head + suffix chain (`.method()`/`[i]`/`<T>()`) — the C arm
-       * steps past the literal then enters the suffix loop; the .x loop
-       * re-peeks purely, so just step and call it. */
-      parser_asm_lex_step_kind_c(lex_inout, source);
+       * steps past the literal once then enters the suffix loop; the .x
+       * loop re-peeks purely. The step above already consumed INT; do
+       * not step again (that would swallow the first suffix token). */
       pipeline_expr_set_kind(arena, ref, EXPR_LIT);
       pipeline_expr_set_line_col(arena, ref, tl, tc);
       pipeline_expr_set_int_val(arena, ref, iv);
       pipeline_expr_set_common_zeros_c(arena, ref);
       out_ok[0] = 1;
-      out_expr_ref[0] = 0;
+      out_expr_ref[0] = ref;
       parser_asm_primary_suffix_loop_x_into_c(arena, source, lex_inout, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
       return 1;
     }
