@@ -5,10 +5,11 @@
  * Body: seeds/parser_asm/parser_asm_unary_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P4ub (XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X): portable
- * TOKEN→ExprKind comes from pthin_expr_unary.x; this TU keeps wrap
- * plus arena parse. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_EXPR_UNARY_FROM_X for P4ub bodies.
+ * Hybrid P4ub/P4uc (XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X): portable
+ * TOKEN→ExprKind and wrap dest-buffer come from pthin_expr_unary.x;
+ * this TU keeps a wrap trampoline plus arena parse. Cold: no BODIES
+ * define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_UNARY_FROM_X for P4ub/P4uc bodies.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -34,7 +35,38 @@ _Static_assert((int)TOKEN_BANG == 126, "unary.x TOKEN_BANG pin");
 #ifdef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
 /* .x product body (same C name for Route C scalar table). */
 extern int32_t parser_asm_unary_token_to_expr_kind_c(int32_t kind);
+extern int32_t parser_asm_unary_wrap_operand_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                                    int32_t operand_ref, int32_t line, int32_t col);
 #endif
+
+/* P4uc consumer-wave writer. pipeline_abi inject-only skips new rest
+ * symbols, so this T lives in the P4u seed (recompiled every g05).
+ * Pointer = pipeline_arena_expr_ptr (same as w278_expr_ptr). Layout
+ * prefix ≡ W278_Expr through unary_operand_ref (var_name[256]).
+ * Call AFTER pipeline_expr_set_common_zeros_c. PLATFORM: SHARED. */
+extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);
+typedef struct P4uc_ExprPrefix {
+  int32_t kind;
+  int32_t resolved_type_ref;
+  int32_t line;
+  int32_t col;
+  int64_t int_val;
+  double float_val;
+  uint8_t var_name[256];
+  int32_t var_name_len;
+  int32_t binop_left_ref;
+  int32_t binop_right_ref;
+  int32_t unary_operand_ref;
+} P4uc_ExprPrefix;
+_Static_assert(offsetof(P4uc_ExprPrefix, unary_operand_ref) == 300, "P4uc unary_operand_ref offset ≡ W278_Expr");
+void pipeline_expr_set_unary_operand_c(void *a, int32_t er, int32_t operand_ref) {
+  P4uc_ExprPrefix *ex;
+  if (!a || er <= 0)
+    return;
+  ex = (P4uc_ExprPrefix *)pipeline_arena_expr_ptr(a, er);
+  if (ex)
+    ex->unary_operand_ref = operand_ref;
+}
 
 struct parser_asm_token {
   int32_t kind;

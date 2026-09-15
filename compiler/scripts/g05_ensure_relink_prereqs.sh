@@ -1011,16 +1011,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P4 primary ← $_pthin_p4p_seed (G-02f-282 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P4ub Route C (2026-09-13).
-        # pthin_expr_unary.x holds TOKEN→ExprKind. Runs before P4u C so
-        # BODIES_FROM_X skips the portable .inc region. No lexer-step
-        # bridge. Cold: no define, full .inc.
+        # PLATFORM: SHARED — 7.2.1 P4ub/P4uc Route C (2026-09-13/15).
+        # pthin_expr_unary.x holds TOKEN→ExprKind + wrap dest-buffer.
+        # Runs before P4u C so BODIES_FROM_X skips the portable .inc
+        # region. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p4u_extra=""
         if [ -n "$_pthin_p4ub_thin_o" ] && [ -f "$_pthin_p4ub_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4ub_x" "$_pthin_p4ub_thin_o"; then
             _pthin_p4ub_ok=1
             _pthin_p4u_extra="-DXLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X"
-            echo "g05_ensure: P4ub unary bodies ← $_pthin_p4ub_x (7.2.1 Route C)"
+            echo "g05_ensure: P4ub/P4uc unary bodies ← $_pthin_p4ub_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4ub unary .x thin failed; P4u C twin stays full" >&2
           fi

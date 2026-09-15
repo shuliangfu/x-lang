@@ -5,10 +5,12 @@
  * 与 parser.x parse_unary_into 一致：await/run/spawn/-/~/!/&/star 前缀 + primary 回落。
  * PLATFORM: SHARED — unary authority; TOKEN_TILDE must map to EXPR_BITNOT (LANG-006).
  *
- * Hybrid P4ub: XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X skips the portable
- * TOKEN→ExprKind table (body in pthin_expr_unary.x). wrap / parse / arena
- * stay here. Contiguous already-T AUDIT_CALL padding is compiled only
- * under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
+ * Hybrid P4ub/P4uc: XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X skips the portable
+ * TOKEN→ExprKind table and the wrap twin (bodies in pthin_expr_unary.x).
+ * parse / arena stay here. wrap keeps a dest-buffer trampoline so
+ * parse_unary still sees parse_expr_result*. Contiguous already-T
+ * AUDIT_CALL padding is compiled only under XLANG_PARSER_STRETCH_AUDIT
+ * (product AUDIT_CALL is nop).
  */
 #ifndef PARSER_ASM_UNARY_SLICE_INCLUDED
 #define PARSER_ASM_UNARY_SLICE_INCLUDED
@@ -94,7 +96,21 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
 /**
  * 分配一元节点并写入 kind / unary_operand_ref（line/col=0，其余字段清零）。
  * 成功返回 expr ref，失败返回 0 并清 out.ok。
+ * PLATFORM: SHARED — P4uc trampoline when BODIES_FROM_X; cold twin below.
  */
+#ifdef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
+extern int32_t parser_asm_unary_wrap_operand_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                                    int32_t operand_ref, int32_t line, int32_t col);
+static int32_t parser_asm_unary_wrap_operand_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
+                                               int32_t operand_ref, int32_t line, int32_t col) {
+  /* PLATFORM: SHARED — P4uc trampoline. Language has no Expr by-value;
+   * .x writes out.ok / out.expr_ref through dest slots. parse_unary in
+   * this TU still calls this symbol. */
+  if (!arena || !out || operand_ref == 0)
+    return 0;
+  return parser_asm_unary_wrap_operand_into_c(arena, &out->ok, &out->expr_ref, kind, operand_ref, line, col);
+}
+#else
 static int32_t parser_asm_unary_wrap_operand_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
                                                int32_t operand_ref, int32_t line, int32_t col) {
   int32_t op_ref;
@@ -116,6 +132,7 @@ static int32_t parser_asm_unary_wrap_operand_c(void *arena, struct parser_asm_pa
   out->expr_ref = op_ref;
   return op_ref;
 }
+#endif /* XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X wrap */
 
 #ifndef XLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X
 /**
