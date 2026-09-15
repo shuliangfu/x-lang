@@ -8,11 +8,11 @@
  * lex (stretch padding → every expr parsed twice). Product keeps one.
  * single_tok_chain audit_fn uses PARSER_ASM_STRETCH_AUDIT_CALL (was un-gated).
  *
- * Hybrid P4bb: XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X skips the portable
- * TOKEN→ExprKind table (body in pthin_expr_binop.x). wrap / parse / arena
- * stay here. Contiguous already-T AUDIT_CALL padding on parse_logor is
- * compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
- * PLATFORM: SHARED. Do not assemble parser.x.
+ * Hybrid P4bb/P4bc: XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X skips the portable
+ * TOKEN→ExprKind table and wrap dest-buffer (body in pthin_expr_binop.x).
+ * parse / peek / arena stay here. Contiguous already-T AUDIT_CALL padding
+ * on parse_logor is compiled only under XLANG_PARSER_STRETCH_AUDIT
+ * (product AUDIT_CALL is nop). PLATFORM: SHARED. Do not assemble parser.x.
  */
 #ifndef PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
 #define PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
@@ -144,7 +144,24 @@ extern int32_t parser_asm_stretch_expr_bitor_binop_audit_c(void *lex_inout, void
 extern int32_t parser_asm_stretch_expr_logand_binop_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_expr_logor_binop_audit_c(void *lex_inout, void *source);
 
-/** 分配二元节点并写入 left/right/kind。 */
+/**
+ * 分配二元节点并写入 left/right/kind（line/col=0）。
+ * 成功返回 expr ref，失败返回 0 并清 out.ok。
+ * PLATFORM: SHARED — P4bc trampoline when BODIES_FROM_X; cold twin below.
+ */
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+extern int32_t parser_asm_binop_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                            int32_t left_ref, int32_t right_ref);
+static int32_t parser_asm_binop_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
+                                       int32_t left_ref, int32_t right_ref) {
+  /* PLATFORM: SHARED — P4bc trampoline. Language has no Expr by-value;
+   * .x writes out.ok / out.expr_ref through dest slots. parse_* in this
+   * TU still call this symbol. Do not merge unary wrap. */
+  if (!arena || !out)
+    return 0;
+  return parser_asm_binop_wrap_into_c(arena, &out->ok, &out->expr_ref, kind, left_ref, right_ref);
+}
+#else
 static int32_t parser_asm_binop_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
                                        int32_t left_ref, int32_t right_ref) {
   int32_t bin_ref;
@@ -167,6 +184,7 @@ static int32_t parser_asm_binop_wrap_c(void *arena, struct parser_asm_parse_expr
   out->expr_ref = bin_ref;
   return bin_ref;
 }
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X wrap */
 
 /**
  * One-token peek cache for left-assoc binop chains in this slice.

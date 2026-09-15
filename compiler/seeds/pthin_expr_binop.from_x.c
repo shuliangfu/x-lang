@@ -11,10 +11,11 @@
  * stay no-op unless XLANG_PARSER_STRETCH_AUDIT. audit_fn on single_tok_chain
  * uses the same gate (was extra-lexing every bitand…logor expr).
  *
- * Hybrid P4bb (XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X): portable
- * TOKEN→ExprKind comes from pthin_expr_binop.x; this TU keeps wrap
- * plus arena parse. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_EXPR_BINOP_FROM_X for P4bb bodies.
+ * Hybrid P4bb/P4bc (XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X): portable
+ * TOKEN→ExprKind and wrap dest-buffer come from pthin_expr_binop.x;
+ * this TU keeps a wrap trampoline plus arena parse. Cold: no BODIES
+ * define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_BINOP_FROM_X for P4bb/P4bc bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -51,7 +52,40 @@ _Static_assert((int)TOKEN_PIPEPIPE == 125, "binop.x TOKEN_PIPEPIPE pin");
 #ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
 /* .x product body (same C name for Route C scalar table). */
 extern int32_t parser_asm_binop_token_to_expr_kind_c(int32_t kind);
+extern int32_t parser_asm_binop_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                            int32_t left_ref, int32_t right_ref);
 #endif
+
+/* P4bc consumer-wave writer. pipeline_abi inject-only skips new rest
+ * symbols, so this T lives in the P4b seed (recompiled every g05).
+ * Pointer = pipeline_arena_expr_ptr (same as w278_expr_ptr). Layout
+ * prefix ≡ W278_Expr through binop_right_ref (var_name[256]).
+ * Call AFTER pipeline_expr_set_common_zeros_c. PLATFORM: SHARED. */
+extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);
+typedef struct P4bc_ExprPrefix {
+  int32_t kind;
+  int32_t resolved_type_ref;
+  int32_t line;
+  int32_t col;
+  int64_t int_val;
+  double float_val;
+  uint8_t var_name[256];
+  int32_t var_name_len;
+  int32_t binop_left_ref;
+  int32_t binop_right_ref;
+} P4bc_ExprPrefix;
+_Static_assert(offsetof(P4bc_ExprPrefix, binop_left_ref) == 292, "P4bc binop_left_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(P4bc_ExprPrefix, binop_right_ref) == 296, "P4bc binop_right_ref offset ≡ W278_Expr");
+void pipeline_expr_set_binop_operands_c(void *a, int32_t er, int32_t left_ref, int32_t right_ref) {
+  P4bc_ExprPrefix *ex;
+  if (!a || er <= 0)
+    return;
+  ex = (P4bc_ExprPrefix *)pipeline_arena_expr_ptr(a, er);
+  if (ex) {
+    ex->binop_left_ref = left_ref;
+    ex->binop_right_ref = right_ref;
+  }
+}
 
 struct parser_asm_token {
   int32_t kind;

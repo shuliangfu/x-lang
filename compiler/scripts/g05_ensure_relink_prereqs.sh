@@ -751,7 +751,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P4ub Route C: unary .x bodies (TOKEN→ExprKind)
   _pthin_p4ub_x=src/asm/pthin_expr_unary.x
   _pthin_p4b_seed=seeds/pthin_expr_binop.from_x.c
-  # 7.2.1 P4bb Route C: binop .x bodies (TOKEN→ExprKind)
+  # 7.2.1 P4bb/P4bc Route C: binop .x bodies (TOKEN→ExprKind + wrap dest-buffer)
   _pthin_p4bb_x=src/asm/pthin_expr_binop.x
   _pthin_p4as_seed=seeds/pthin_expr_as_suffix.from_x.c
   _pthin_p4t_seed=seeds/pthin_expr_ternary.from_x.c
@@ -1034,16 +1034,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P4 unary ← $_pthin_p4u_seed (G-02f-283 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P4bb Route C (2026-09-13).
-        # pthin_expr_binop.x holds TOKEN→ExprKind. Runs before P4b C so
-        # BODIES_FROM_X skips the portable .inc region. No lexer-step
-        # bridge. Cold: no define, full .inc.
+        # PLATFORM: SHARED — 7.2.1 P4bb/P4bc Route C (2026-09-13/15).
+        # pthin_expr_binop.x holds TOKEN→ExprKind + wrap dest-buffer.
+        # Runs before P4b C so BODIES_FROM_X skips the portable .inc
+        # region. No lexer-step bridge. Cold: no define, full .inc.
+        # Setter pipeline_expr_set_binop_operands_c lives in the P4b
+        # seed (inject-only pabi does not pick up new rest symbols).
         _pthin_p4b_extra=""
         if [ -n "$_pthin_p4bb_thin_o" ] && [ -f "$_pthin_p4bb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4bb_x" "$_pthin_p4bb_thin_o"; then
             _pthin_p4bb_ok=1
             _pthin_p4b_extra="-DXLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X"
-            echo "g05_ensure: P4bb binop bodies ← $_pthin_p4bb_x (7.2.1 Route C)"
+            echo "g05_ensure: P4bb/P4bc binop bodies ← $_pthin_p4bb_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4bb binop .x thin failed; P4b C twin stays full" >&2
           fi

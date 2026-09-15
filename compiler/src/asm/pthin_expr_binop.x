@@ -19,19 +19,29 @@
 // 7.2.1 P4bb Route C productize (2026-09-13): after P4ub unary TOKEN table,
 // binop.inc is the next still-host-cc product slice with portable scalar
 // tables. TOKEN → ExprKind for * / % + - << >> < <= > >= == != (and the
-// single-tok & ^ | && || map, kept complete) is Route C (int32). Arena
-// wrap, peek cache, single_tok_chain, and parse_* stay C. Contiguous
-// already-T AUDIT_CALL padding on parse_logor is gated in the .inc under
-// XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already ((void)0);
-// compiling ~700 lexer-init nops is dead preprocess).
+// single-tok & ^ | && || map, kept complete) is Route C (int32). Peek
+// cache, single_tok_chain, and parse_* stay C.
+// 7.2.1 P4bc B-minus (2026-09-15): 有则补全 wrap dest-buffer.
+// Language has no Expr by-value; the C trampoline in expr_binop_slice.inc
+// holds parse_expr_result* and forwards out.ok / out.expr_ref. Sidecar
+// writes go through the PABI writer family (set_common_zeros / set_kind /
+// set_line_col) plus pipeline_expr_set_binop_operands_c defined in the
+// P4b seed (pabi inject-only skips new rest symbols; do not FORCE the
+// mega). parse_* stay C and call the historical wrap symbol.
+// Do not copy wrap into parse_term / parse_addsub / …. Do not merge
+// unary wrap (unary_operand_ref vs left/right). Do not open a new P-lane.
+// Contiguous already-T AUDIT_CALL padding on parse_logor is gated in the
+// .inc under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already
+// ((void)0); compiling ~700 lexer-init nops is dead preprocess).
 // Do not merge parser_asm_unary_token_to_expr_kind_c (same TOKEN_* can
 // mean unary prefix vs binary op: STAR deref vs mul, AMP addr-of vs
 // bitand, MINUS neg vs sub). Do not rewrite single_tok_chain to call
 // this table as a side effect.
 //
-// Hybrid P4bb: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
-// skips the portable .inc region. token.h remains the TOKEN_* authority
-// via P4b C _Static_assert pins. Cold: no define, full .inc stays.
+// Hybrid P4bb/P4bc: g05_try_x_to_o this file; XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+// skips the portable .inc region (TOKEN table + wrap twin). token.h remains
+// the TOKEN_* authority via P4b C _Static_assert pins. Cold: no define,
+// full .inc stays.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P4b C _Static_assert fires if
@@ -74,6 +84,17 @@ const EXPR_GT: i32 = 18;
 const EXPR_GE: i32 = 19;
 const EXPR_LOGAND: i32 = 20;
 const EXPR_LOGOR: i32 = 21;
+
+/** Allocate a fresh Expr slot; 0 on failure. */
+export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
+/** Wave-0: wipe ref/base/count fields on a freshly allocated expr. */
+export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+/** Wave-0: write Expr.kind. */
+export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+/** Wave-0: write Expr.line / Expr.col. */
+export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
+/** P4bc: write Expr.binop_left_ref and Expr.binop_right_ref. Call after set_common_zeros_c. */
+export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
 
 /**
  * Map binary-operator token → ExprKind ordinal.
@@ -142,4 +163,44 @@ export function parser_asm_binop_token_to_expr_kind_c(kind: i32): i32 {
     return EXPR_LOGOR;
   }
   return -1;
+}
+
+/**
+ * Allocate a binary Expr and write kind / left / right (line/col = 0).
+ * Dest-buffer twin of parser_asm_binop_wrap_c: zeros first, then kind,
+ * operands, line/col. On alloc fail writes out_ok=0 and returns 0.
+ * Success writes out_expr_ref and returns the new ref (does not set
+ * out_ok=1 — parse_* already hold ok from the operand parse). Does not
+ * reject left_ref==0 / right_ref==0: the C twin only checks arena/out.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param out_ok *i32 — parse_expr_result.ok slot; null → 0; alloc fail → 0
+ * @param out_expr_ref *i32 — parse_expr_result.expr_ref slot; null → 0
+ * @param kind i32 — ExprKind ordinal (ADD/SUB/MUL/…/LOGOR)
+ * @param left_ref i32 — left operand expr ref
+ * @param right_ref i32 — right operand expr ref
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P4bc B-minus. Authority for
+ * `parser_asm_binop_wrap_c`. parse_* stay C; do not copy.
+ */
+#[no_mangle]
+export function parser_asm_binop_wrap_into_c(arena: *u8, out_ok: *i32, out_expr_ref: *i32, kind: i32, left_ref: i32, right_ref: i32): i32 {
+  let bin_ref: i32 = 0;
+  if (arena == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    bin_ref = ast_ast_arena_expr_alloc(arena);
+    if (bin_ref == 0) {
+      out_ok[0] = 0;
+      return 0;
+    }
+    // Zeros first: set_common_zeros_c clears binop_left_ref / binop_right_ref.
+    pipeline_expr_set_common_zeros_c(arena, bin_ref);
+    pipeline_expr_set_kind(arena, bin_ref, kind);
+    pipeline_expr_set_binop_operands_c(arena, bin_ref, left_ref, right_ref);
+    // C twin writes line=0 / col=0 after zeros (zeros does not touch line/col).
+    pipeline_expr_set_line_col(arena, bin_ref, 0, 0);
+    out_expr_ref[0] = bin_ref;
+  }
+  return bin_ref;
 }
