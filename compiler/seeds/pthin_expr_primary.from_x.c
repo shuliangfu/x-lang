@@ -9,6 +9,8 @@
  * Hybrid P4b (XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X): portable IDENT
  * spelling / asm-option-bit bodies come from pthin_expr_primary.x; this
  * TU keeps slice trampolines. Cold: no BODIES define, full .inc.
+ * P3c mangle trampoline is compiled when this TU also sees
+ * XLANG_PTHIN_TYPE_REF_BODIES_FROM_X (g05 passes P3 extra).
  */
 #include <stddef.h>
 #include <stdint.h>

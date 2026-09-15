@@ -5,9 +5,11 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
- * vector-ident bodies come from pthin_type_ref.x; this TU keeps slice
- * trampolines plus arena parse. Cold: no BODIES define, full .inc.
+ * Hybrid P3b/P3c (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * vector-ident bodies and type-inst mangle come from pthin_type_ref.x;
+ * this TU keeps slice trampolines plus arena parse. Mangle C twins live
+ * in primary.inc (7-arg trampoline holds suf[64]). Cold: no BODIES
+ * define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -113,6 +115,17 @@ static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out,
 }
 
 #include "parser_asm_type_ref_slice.inc"
+
+_Static_assert(PARSER_ASM_TYPE_I32 == 0, "type_ref.x TYPE_I32 pin");
+_Static_assert(PARSER_ASM_TYPE_BOOL == 1, "type_ref.x TYPE_BOOL pin");
+_Static_assert(PARSER_ASM_TYPE_U8 == 2, "type_ref.x TYPE_U8 pin");
+_Static_assert(PARSER_ASM_TYPE_U32 == 3, "type_ref.x TYPE_U32 pin");
+_Static_assert(PARSER_ASM_TYPE_U64 == 4, "type_ref.x TYPE_U64 pin");
+_Static_assert(PARSER_ASM_TYPE_I64 == 5, "type_ref.x TYPE_I64 pin");
+_Static_assert(PARSER_ASM_TYPE_USIZE == 6, "type_ref.x TYPE_USIZE pin");
+_Static_assert(PARSER_ASM_TYPE_ISIZE == 7, "type_ref.x TYPE_ISIZE pin");
+_Static_assert(PARSER_ASM_TYPE_NAMED == 8, "type_ref.x TYPE_NAMED pin");
+_Static_assert(PARSER_ASM_TYPE_PTR == 9, "type_ref.x TYPE_PTR pin");
 
 int labi_pthin_type_ref_slice_marker(void) {
   return 1;

@@ -25,11 +25,21 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+// Hybrid P3b/P3c: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 // skips the portable .inc region. token.h remains the TOKEN_* authority
 // via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
 // historical i32x* / u32x* nibble pattern); do not "fix" as a side effect.
+// 7.2.1 P3c B-minus (2026-09-15): 有则补全 type-inst mangle dest-buffer.
+// parser_asm_type_ref_mangle_suffix_c / append_type_inst_mangle were
+// always-host-cc statics in primary.inc (not behind BODIES). Bodies
+// land here because pthin_expr_primary.x suffix_loop still XT001 on
+// the pin egg (P4b thin already falls back to C). Language has no
+// local u8[N]; the C trampoline in primary.inc holds suf[64].
+// Do not merge with codegen_type_ref_to_suffix or
+// typeck_type_ref_mangle_suffix (parser-local copy avoids a
+// parser→codegen link edge). Do not copy into suffix_loop / parse.
+// Do not open a new P-lane. Do not touch P4b pending_n / IDENT arm.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -67,9 +77,18 @@ const TYPE_U64: i32 = 4;
 const TYPE_I64: i32 = 5;
 const TYPE_USIZE: i32 = 6;
 const TYPE_ISIZE: i32 = 7;
+const TYPE_NAMED: i32 = 8;
+const TYPE_PTR: i32 = 9;
 const TYPE_F32: i32 = 14;
 const TYPE_F64: i32 = 15;
 const TYPE_VOID: i32 = 16;
+
+/** Sidecar: TypeKind ordinal at type_ref. */
+export extern "C" function pipeline_type_kind_ord_at(a: *u8, type_ref: i32): i32;
+/** Sidecar: pointer/array element type_ref. */
+export extern "C" function pipeline_type_elem_ref_at(a: *u8, type_ref: i32): i32;
+/** Sidecar: copy NAMED spelling into out; returns length. */
+export extern "C" function pipeline_type_named_name_into(a: *u8, type_ref: i32, out: *u8): i32;
 
 /**
  * Bounds check shared by IDENT spelling probes in this file.
@@ -279,4 +298,241 @@ export function parser_asm_vector_type_ident_pack_c(data: *u8, length: usize, to
     return (TYPE_I32 << 8) | 8;
   }
   return 0;
+}
+
+/**
+ * Map one type_ref to a C-safe mangle suffix into buf[0..).
+ * PTR peels to the element then appends `_ptr` ptr_n times. NAMED copies
+ * the sidecar name. Scalars: i32/i64/u8/u32/u64/bool/usize/isize.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param type_ref i32 — type slot; <= 0 → 0
+ * @param buf *u8 — destination; null → 0
+ * @param buf_cap i32 — capacity in bytes; <= 0 → 0
+ * @return i32 — bytes written, or 0 on failure
+ * PLATFORM: SHARED — product P3c B-minus. Parser-local STRUCT_LIT
+ * suffix authority. Do not merge with codegen_type_ref_to_suffix or
+ * typeck_type_ref_mangle_suffix. PTR uses `n + 4 < buf_cap` (C twin).
+ */
+#[no_mangle]
+export function parser_asm_type_ref_mangle_suffix_c(arena: *u8, type_ref: i32, buf: *u8, buf_cap: i32): i32 {
+  let tk: i32 = 0;
+  let n: i32 = 0;
+  let elem: i32 = 0;
+  let ptr_n: i32 = 0;
+  let cur: i32 = 0;
+  let pi: i32 = 0;
+  if (arena == 0 as *u8 || type_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
+    return 0;
+  }
+  cur = type_ref;
+  ptr_n = 0;
+  tk = pipeline_type_kind_ord_at(arena, cur);
+  while (tk == TYPE_PTR) {
+    elem = pipeline_type_elem_ref_at(arena, cur);
+    if (elem <= 0) {
+      return 0;
+    }
+    cur = elem;
+    ptr_n = ptr_n + 1;
+    if (ptr_n > 64) {
+      return 0;
+    }
+    tk = pipeline_type_kind_ord_at(arena, cur);
+  }
+  n = 0;
+  if (tk == TYPE_NAMED) {
+    n = pipeline_type_named_name_into(arena, cur, buf);
+    if (n <= 0 || n >= buf_cap) {
+      return 0;
+    }
+  } else if (tk == TYPE_I32) {
+    if (buf_cap < 3) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 105;
+      buf[1] = 51;
+      buf[2] = 50;
+    }
+    n = 3;
+  } else if (tk == TYPE_I64) {
+    if (buf_cap < 3) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 105;
+      buf[1] = 54;
+      buf[2] = 52;
+    }
+    n = 3;
+  } else if (tk == TYPE_U8) {
+    if (buf_cap < 2) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 117;
+      buf[1] = 56;
+    }
+    n = 2;
+  } else if (tk == TYPE_U32) {
+    if (buf_cap < 3) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 117;
+      buf[1] = 51;
+      buf[2] = 50;
+    }
+    n = 3;
+  } else if (tk == TYPE_U64) {
+    if (buf_cap < 3) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 117;
+      buf[1] = 54;
+      buf[2] = 52;
+    }
+    n = 3;
+  } else if (tk == TYPE_BOOL) {
+    if (buf_cap < 4) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 98;
+      buf[1] = 111;
+      buf[2] = 111;
+      buf[3] = 108;
+    }
+    n = 4;
+  } else if (tk == TYPE_USIZE) {
+    if (buf_cap < 5) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 117;
+      buf[1] = 115;
+      buf[2] = 105;
+      buf[3] = 122;
+      buf[4] = 101;
+    }
+    n = 5;
+  } else if (tk == TYPE_ISIZE) {
+    if (buf_cap < 5) {
+      return 0;
+    }
+    unsafe {
+      buf[0] = 105;
+      buf[1] = 115;
+      buf[2] = 105;
+      buf[3] = 122;
+      buf[4] = 101;
+    }
+    n = 5;
+  } else {
+    return 0;
+  }
+  pi = 0;
+  while (pi < ptr_n) {
+    if (n > 0 && n + 4 < buf_cap) {
+      unsafe {
+        buf[n as usize] = 95;
+        buf[(n + 1) as usize] = 112;
+        buf[(n + 2) as usize] = 116;
+        buf[(n + 3) as usize] = 114;
+      }
+      n = n + 4;
+      pi = pi + 1;
+    } else {
+      return n;
+    }
+  }
+  return n;
+}
+
+/**
+ * `Name` + type_arg refs → `Name_suf0[_suf1…]` (cap 255 content).
+ * CORE-016: `Result<T,i32>` compresses to `Result_T` (drop trailing `_i32`
+ * when E=i32). Suffix scratch `suf` is trampoline-owned (no local u8[N]).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param base *u8 — type name bytes; null → 0
+ * @param base_len i32 — name length; <= 0 → 0
+ * @param type_refs *i32 — type_arg refs; null → 0
+ * @param nrefs i32 — type_arg count; <= 0 → 0; walk cap 8
+ * @param out *u8 — destination; null → 0
+ * @param out_cap i32 — destination capacity; <= 0 → 0
+ * @param suf *u8 — 64-byte suffix scratch from the C trampoline; null → 0
+ * @param suf_cap i32 — scratch capacity; C twin uses 64
+ * @return i32 — mangled length, or 0 on failure
+ * PLATFORM: SHARED — product P3c B-minus. Historical 7-arg name
+ * `parser_asm_append_type_inst_mangle_c` stays a C trampoline in
+ * primary.inc that holds `suf[64]`. Do not copy this loop into
+ * suffix_loop or parse_primary.
+ */
+#[no_mangle]
+export function parser_asm_append_type_inst_mangle_into_c(arena: *u8, base: *u8, base_len: i32, type_refs: *i32, nrefs: i32, out: *u8, out_cap: i32, suf: *u8, suf_cap: i32): i32 {
+  let pos: i32 = 0;
+  let ai: i32 = 0;
+  let is_result: i32 = 0;
+  let e_is_i32: i32 = 0;
+  let sl: i32 = 0;
+  let sj: i32 = 0;
+  let tr: i32 = 0;
+  let b: u8 = 0;
+  if (arena == 0 as *u8 || base == 0 as *u8 || base_len <= 0 || type_refs == 0 as *i32 || nrefs <= 0 || out == 0 as *u8 || out_cap <= 0 || suf == 0 as *u8 || suf_cap <= 0) {
+    return 0;
+  }
+  if (base_len >= out_cap) {
+    return 0;
+  }
+  unsafe {
+    pos = 0;
+    while (pos < base_len) {
+      out[pos] = base[pos];
+      pos = pos + 1;
+    }
+    is_result = 0;
+    if (base_len == 6 && base[0] == 82 && base[1] == 101 && base[2] == 115 && base[3] == 117 && base[4] == 108 && base[5] == 116) {
+      is_result = 1;
+    }
+    e_is_i32 = 0;
+    if (is_result != 0 && nrefs >= 2) {
+      tr = type_refs[1];
+      if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == TYPE_I32) {
+        e_is_i32 = 1;
+      }
+    }
+    ai = 0;
+    while (ai < nrefs && ai < 8) {
+      if (is_result != 0 && e_is_i32 != 0 && ai == 1) {
+        ai = ai + 1;
+        continue;
+      }
+      tr = type_refs[ai];
+      if (tr <= 0) {
+        return 0;
+      }
+      sl = parser_asm_type_ref_mangle_suffix_c(arena, tr, suf, suf_cap);
+      if (sl <= 0) {
+        return 0;
+      }
+      if (pos + 1 + sl >= out_cap) {
+        return 0;
+      }
+      out[pos] = 95;
+      pos = pos + 1;
+      sj = 0;
+      while (sj < sl) {
+        b = suf[sj];
+        out[pos] = b;
+        pos = pos + 1;
+        sj = sj + 1;
+      }
+      ai = ai + 1;
+    }
+  }
+  if (pos <= base_len) {
+    return 0;
+  }
+  return pos;
 }

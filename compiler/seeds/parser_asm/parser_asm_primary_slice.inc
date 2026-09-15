@@ -8,6 +8,8 @@
  * IDENT spelling / asm-option-bit region (bodies in src/asm/pthin_expr_primary.x
  * + slice trampolines in the seed TU). parse_primary AUDIT_CALL padding is
  * compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
+ * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_PRIMARY_SLICE_INCLUDED
@@ -675,6 +677,23 @@ enum {
   PARSER_ASM_PRIM_TYPE_PTR = 9
 };
 
+#ifdef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+/* PLATFORM: SHARED — P3c dest-buffer bodies in pthin_type_ref.x.
+ * Historical 7-arg append keeps this trampoline (holds suf[64]; language
+ * has no local u8[N]). suffix_loop / parse_primary still call the 7-arg
+ * name. Zero algorithm. Gated on TYPE_REF_BODIES (P3b compiles; P4b
+ * suffix_loop still XT001 so PRIMARY_BODIES may be off). */
+extern int32_t parser_asm_type_ref_mangle_suffix_c(void *arena, int32_t type_ref, uint8_t *buf, int32_t buf_cap);
+extern int32_t parser_asm_append_type_inst_mangle_into_c(void *arena, const uint8_t *base, int32_t base_len,
+                                                        const int32_t *type_refs, int32_t nrefs, uint8_t *out,
+                                                        int32_t out_cap, uint8_t *suf, int32_t suf_cap);
+int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *base, int32_t base_len,
+                                            const int32_t *type_refs, int32_t nrefs, uint8_t *out,
+                                            int32_t out_cap) {
+  uint8_t suf[64];
+  return parser_asm_append_type_inst_mangle_into_c(arena, base, base_len, type_refs, nrefs, out, out_cap, suf, 64);
+}
+#else
 /**
  * Map one type_ref to a C-safe mangle suffix into buf.
  * Mirrors codegen_type_ref_to_suffix for the STRUCT_LIT parse path (LANG-009 M8).
@@ -843,6 +862,7 @@ static int32_t parser_asm_append_type_inst_mangle_c(void *arena, const uint8_t *
     return 0;
   return pos;
 }
+#endif /* XLANG_PTHIN_TYPE_REF_BODIES_FROM_X type-inst mangle */
 
 /** IDENT 后 `.field` / `[idx]` / `(args)` 后缀链；失败时写 out.ok=0 或仅写 out.next_lex 后返回。 */
 #ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
