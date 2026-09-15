@@ -3,12 +3,12 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * Hybrid P3b/P3c/P3d/P3e: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
  * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
- * region and (P3d) consume_qualified / type_angle_close (bodies in
- * src/asm/pthin_type_ref.x + slice trampolines in the seed TU). Arena
- * alloc and parse_type_ref_impl stay C. Cold: no BODIES define, this
- * file is the full twin.
+ * region, (P3d) consume_qualified / type_angle_close, and (P3e) TYPE_DYN
+ * wrap / alloc (bodies in src/asm/pthin_type_ref.x + slice trampolines
+ * in the seed TU). Arena alloc and parse_type_ref_impl stay C. Cold: no
+ * BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -220,6 +220,21 @@ static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *so
  */
 extern int32_t xlang_skip_trait_is_registered_c(const uint8_t *trait_nm, int32_t trait_nlen);
 
+#ifdef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+extern int32_t parser_asm_wrap_registered_trait_as_dyn_into_c(void *arena, int32_t named_tr, uint8_t *name_scratch);
+/**
+ * PLATFORM: SHARED — P3e trampoline. Language has no Type by-value and
+ * no local u8[N]; this C face holds name[256] for sidecar named_name_into.
+ * parse_type_ref_impl still calls this historical static name.
+ */
+static int32_t parser_asm_wrap_registered_trait_as_dyn_c(void *arena, int32_t named_tr) {
+  uint8_t name[256];
+  if (!arena || named_tr <= 0)
+    return named_tr;
+  memset(name, 0, sizeof(name));
+  return parser_asm_wrap_registered_trait_as_dyn_into_c(arena, named_tr, name);
+}
+#else
 /**
  * Allocate TYPE_DYN wrapping `inner_tr`. If inner is already TYPE_DYN,
  * return it (no nested fat). Copies the trait name from a TYPE_NAMED
@@ -278,6 +293,7 @@ static int32_t parser_asm_wrap_registered_trait_as_dyn_c(void *arena, int32_t na
     return named_tr;
   return parser_asm_alloc_dyn_type_ref_c(arena, named_tr);
 }
+#endif /* XLANG_PTHIN_TYPE_REF_BODIES_FROM_X TYPE_DYN wrap */
 
 #ifndef XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 /**

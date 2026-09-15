@@ -5,10 +5,12 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c/P3d (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
- * vector-ident bodies, type-inst mangle, consume_qualified, and
- * type_angle_close come from pthin_type_ref.x; this TU keeps slice
- * trampolines plus arena parse. Mangle C twins live in primary.inc
+ * Hybrid P3b/P3c/P3d/P3e (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * vector-ident bodies, type-inst mangle, consume_qualified,
+ * type_angle_close, and TYPE_DYN wrap dest-buffer come from
+ * pthin_type_ref.x; this TU keeps slice trampolines plus arena parse.
+ * TYPE_DYN writer pipeline_type_init_dyn_c lives here (consumer-wave;
+ * do not FORCE pabi mega). Mangle C twins live in primary.inc
  * (7-arg trampoline holds suf[64]). Cold: no BODIES define, full .inc.
  */
 #include <stddef.h>
@@ -96,6 +98,8 @@ extern int32_t parser_asm_type_ref_ident_is_dyn_buf_c(uint8_t *data, size_t leng
                                                      int32_t ident_len);
 extern int32_t parser_asm_vector_type_ident_pack_c(uint8_t *data, size_t length, size_t token_start,
                                                   int32_t ident_len);
+extern int32_t parser_asm_wrap_registered_trait_as_dyn_into_c(void *arena, int32_t named_tr, uint8_t *name_scratch);
+extern int32_t parser_asm_alloc_dyn_type_ref_into_c(void *arena, int32_t inner_tr, uint8_t *name_scratch);
 
 static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *source,
                                                   struct parser_asm_lexer_result *r) {
@@ -106,6 +110,51 @@ static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *so
   return parser_asm_type_ref_ident_is_dyn_buf_c(source->data, source->length, r->token_start, r->tok.ident_len);
 }
 #endif
+
+/* P3e consumer-wave writer. pipeline_abi inject-only skips new rest
+ * symbols, so this T lives in the P3 seed (recompiled every g05).
+ * Pointer = pipeline_arena_type_ptr. Layout ≡ Type LE:
+ * kind@0 name[256]@4 name_len@260 elem@264 array_size@268
+ * region_label[256]@272 region_label_len@528 size=532.
+ * Do not reuse pipeline_type_init_compound_kind_at (kind_ord cap 15;
+ * pipe_ty_kind_from_ord clamps >16 to TYPE_I32). PLATFORM: SHARED. */
+extern void *pipeline_arena_type_ptr(void *a, int32_t ref);
+typedef struct P3e_Type {
+  int32_t kind;
+  uint8_t name[256];
+  int32_t name_len;
+  int32_t elem_type_ref;
+  int32_t array_size;
+  uint8_t region_label[256];
+  int32_t region_label_len;
+} P3e_Type;
+_Static_assert(offsetof(P3e_Type, kind) == 0, "P3e Type.kind offset");
+_Static_assert(offsetof(P3e_Type, name) == 4, "P3e Type.name offset");
+_Static_assert(offsetof(P3e_Type, name_len) == 260, "P3e Type.name_len offset");
+_Static_assert(offsetof(P3e_Type, elem_type_ref) == 264, "P3e Type.elem_type_ref offset");
+_Static_assert(offsetof(P3e_Type, array_size) == 268, "P3e Type.array_size offset");
+_Static_assert(offsetof(P3e_Type, region_label) == 272, "P3e Type.region_label offset");
+_Static_assert(offsetof(P3e_Type, region_label_len) == 528, "P3e Type.region_label_len offset");
+_Static_assert(sizeof(P3e_Type) == 532, "P3e Type size ≡ pipe_ty_slot_size");
+void pipeline_type_init_dyn_c(void *a, int32_t ref, int32_t inner_tr, uint8_t *name, int32_t nlen) {
+  P3e_Type *t;
+  int32_t i;
+  if (!a || ref <= 0)
+    return;
+  t = (P3e_Type *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return;
+  t->kind = 17; /* PARSER_ASM_TYPE_DYN — write raw; do not go through pipe_ty_kind_from_ord. */
+  t->elem_type_ref = inner_tr;
+  t->array_size = 0;
+  t->region_label_len = 0;
+  t->name_len = 0;
+  if (name && nlen > 0 && nlen < 128) {
+    for (i = 0; i < nlen; i++)
+      t->name[i] = name[i];
+    t->name_len = nlen;
+  }
+}
 
 /* mega rest 中为 static；本 TU 自备等价实现（layout 一致）。 */
 static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out,
@@ -129,6 +178,7 @@ _Static_assert(PARSER_ASM_TYPE_USIZE == 6, "type_ref.x TYPE_USIZE pin");
 _Static_assert(PARSER_ASM_TYPE_ISIZE == 7, "type_ref.x TYPE_ISIZE pin");
 _Static_assert(PARSER_ASM_TYPE_NAMED == 8, "type_ref.x TYPE_NAMED pin");
 _Static_assert(PARSER_ASM_TYPE_PTR == 9, "type_ref.x TYPE_PTR pin");
+_Static_assert(PARSER_ASM_TYPE_DYN == 17, "type_ref.x TYPE_DYN pin");
 
 int labi_pthin_type_ref_slice_marker(void) {
   return 1;

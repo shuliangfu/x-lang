@@ -742,7 +742,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p1b_x=src/asm/pthin_lex_skip.x
   _pthin_p2_seed=seeds/pthin_let_alias.from_x.c
   _pthin_p3_seed=seeds/pthin_type_ref.from_x.c
-  # 7.2.1 P3b/P3c Route C: type_ref .x bodies (kind / dyn / TypeKind / vector ident / type-inst mangle)
+  # 7.2.1 P3b/P3c/P3d/P3e Route C: type_ref .x bodies (kind / dyn / TypeKind / vector ident / type-inst mangle / consume_qualified / TYPE_DYN wrap)
   _pthin_p3b_x=src/asm/pthin_type_ref.x
   _pthin_p4p_seed=seeds/pthin_expr_primary.from_x.c
   # 7.2.1 P4b Route C: primary .x bodies (ident spelling / asm-option-bit)
@@ -975,9 +975,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P2 let/alias ← $_pthin_p2_seed (G-02f-279 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P3b/P3c Route C (2026-09-13/15).
+        # PLATFORM: SHARED — 7.2.1 P3b/P3c/P3d/P3e Route C (2026-09-13/15).
         # pthin_type_ref.x holds kind / dyn / builtin TypeKind / vector ident
-        # plus type-inst mangle dest-buffer. Runs before P3 C so
+        # plus type-inst mangle dest-buffer, consume_qualified / angle close,
+        # and TYPE_DYN wrap dest-buffer. Runs before P3 C so
         # BODIES_FROM_X skips the portable .inc region. No lexer-step
         # bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
@@ -985,7 +986,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o"; then
             _pthin_p3b_ok=1
             _pthin_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
-            echo "g05_ensure: P3b/P3c/P3d type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
+            echo "g05_ensure: P3b/P3c/P3d/P3e type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P3b type_ref .x thin failed; P3 C twin stays full" >&2
           fi

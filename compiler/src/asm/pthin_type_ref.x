@@ -25,7 +25,7 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+// Hybrid P3b/P3c/P3d/P3e: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
 // skips the portable .inc region. token.h remains the TOKEN_* authority
 // via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -47,6 +47,20 @@
 // existing P9a peek/step family (peek, then step — no save/restore).
 // Name copy is P1b at_end (do not copy the copy loop). parse_type_ref
 // stays C. Do not open a new P-lane. Do not touch P4b pending_n.
+// 7.2.1 P3e B-minus (2026-09-15): 有则补全 TYPE_DYN wrap dest-buffer.
+// alloc_dyn_type_ref + wrap_registered_trait_as_dyn were always
+// host-cc statics in type_ref.inc (not behind BODIES). Language has
+// no Type by-value; dest-buffer both wrap soups in this domain file.
+// C trampoline holds name[256] for sidecar named_name_into.
+// Sidecar reads go through existing pipeline_type_kind_ord_at /
+// named_name_into (G.7). TYPE_DYN writes go through
+// pipeline_type_init_dyn_c in this P3 seed (consumer-wave writer;
+// do not FORCE pabi mega; do not reuse init_compound_kind_at —
+// that helper caps kind_ord at 15 and pipe_ty_kind_from_ord
+// clamps >16 to TYPE_I32). parse_type_ref stays C. Do not copy
+// wrap into parse. Do not merge with P3c mangle. Do not dest-buffer
+// the IDENT generic type-arg get/set soup this wave (extra
+// lexer_next). Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -109,6 +123,7 @@ const TYPE_PTR: i32 = 9;
 const TYPE_F32: i32 = 14;
 const TYPE_F64: i32 = 15;
 const TYPE_VOID: i32 = 16;
+const TYPE_DYN: i32 = 17;
 
 /** Sidecar: TypeKind ordinal at type_ref. */
 export extern "C" function pipeline_type_kind_ord_at(a: *u8, type_ref: i32): i32;
@@ -116,6 +131,16 @@ export extern "C" function pipeline_type_kind_ord_at(a: *u8, type_ref: i32): i32
 export extern "C" function pipeline_type_elem_ref_at(a: *u8, type_ref: i32): i32;
 /** Sidecar: copy NAMED spelling into out; returns length. */
 export extern "C" function pipeline_type_named_name_into(a: *u8, type_ref: i32, out: *u8): i32;
+/** Allocate a fresh Type slot; 0 on failure. */
+export extern "C" function ast_ast_arena_type_alloc(arena: *u8): i32;
+/**
+ * P3e consumer-wave writer: stamp TYPE_DYN (kind=17) + elem + optional
+ * NAMED spelling copy. Lives in the P3 seed; do not copy; do not FORCE
+ * pabi mega; do not reuse init_compound_kind_at (kind_ord cap 15).
+ */
+export extern "C" function pipeline_type_init_dyn_c(a: *u8, ref: i32, inner_tr: i32, name: *u8, nlen: i32): void;
+/** Skip-trait registry predicate (skip_tl). G.7: one lookup table. */
+export extern "C" function xlang_skip_trait_is_registered_c(trait_nm: *u8, trait_nlen: i32): i32;
 
 /**
  * Bounds check shared by IDENT spelling probes in this file.
@@ -692,4 +717,80 @@ export function parser_asm_consume_qualified_type_ident_name_into_c(source: *u8,
     }
   }
   return -1;
+}
+
+/**
+ * Allocate TYPE_DYN wrapping `inner_tr`. If inner is already TYPE_DYN,
+ * return it (no nested fat). Copies the trait name from a TYPE_NAMED
+ * inner for diagnostics / F2 impl lookup when name_len is in (0, 128).
+ * G.7: single TYPE_DYN allocator for type-position registered trait names.
+ * @param arena *u8 — AST arena; null → inner_tr
+ * @param inner_tr i32 — inner type_ref (trait NAMED, or already DYN); <=0 → inner_tr
+ * @param name_scratch *u8 — dest for sidecar NAMED spelling; caller owns
+ *   ≥256 bytes; null skips the name copy (name_len stays 0)
+ * @return i32 — TYPE_DYN type_ref, or inner_tr on alloc failure
+ * PLATFORM: SHARED type grammar. P3e dest-buffer split of the former
+ * static C twin. Writer = pipeline_type_init_dyn_c (P3 seed).
+ */
+#[no_mangle]
+export function parser_asm_alloc_dyn_type_ref_into_c(arena: *u8, inner_tr: i32, name_scratch: *u8): i32 {
+  let ik: i32 = 0;
+  let dyn_tr: i32 = 0;
+  let nlen: i32 = 0;
+  if (arena == 0 as *u8 || inner_tr <= 0) {
+    return inner_tr;
+  }
+  ik = pipeline_type_kind_ord_at(arena, inner_tr);
+  if (ik == TYPE_DYN) {
+    return inner_tr;
+  }
+  dyn_tr = ast_ast_arena_type_alloc(arena);
+  if (dyn_tr == 0) {
+    return inner_tr;
+  }
+  nlen = 0;
+  if (ik == TYPE_NAMED && name_scratch != 0 as *u8) {
+    nlen = pipeline_type_named_name_into(arena, inner_tr, name_scratch);
+    if (nlen <= 0) {
+      nlen = 0;
+    }
+    if (nlen >= 128) {
+      nlen = 0;
+    }
+  }
+  pipeline_type_init_dyn_c(arena, dyn_tr, inner_tr, name_scratch, nlen);
+  return dyn_tr;
+}
+
+/**
+ * If `named_tr` is TYPE_NAMED of a registered trait, wrap TYPE_DYN.
+ * This is the only type-position producer of TYPE_DYN (write `Clone`,
+ * not `dyn Clone`). Struct/alias names stay TYPE_NAMED.
+ * @param arena *u8 — AST arena; null → named_tr
+ * @param named_tr i32 — candidate type_ref; <=0 → named_tr
+ * @param name_scratch *u8 — dest for sidecar NAMED spelling; caller
+ *   owns ≥256 bytes; null → named_tr
+ * @return i32 — TYPE_DYN type_ref, or the original ref
+ * PLATFORM: SHARED type grammar. P3e dest-buffer split of the former
+ * static C twin. parse_type_ref stays C and calls the trampoline.
+ */
+#[no_mangle]
+export function parser_asm_wrap_registered_trait_as_dyn_into_c(arena: *u8, named_tr: i32, name_scratch: *u8): i32 {
+  let kind: i32 = 0;
+  let nlen: i32 = 0;
+  if (arena == 0 as *u8 || named_tr <= 0 || name_scratch == 0 as *u8) {
+    return named_tr;
+  }
+  kind = pipeline_type_kind_ord_at(arena, named_tr);
+  if (kind != TYPE_NAMED) {
+    return named_tr;
+  }
+  nlen = pipeline_type_named_name_into(arena, named_tr, name_scratch);
+  if (nlen <= 0) {
+    return named_tr;
+  }
+  if (xlang_skip_trait_is_registered_c(name_scratch, nlen) == 0) {
+    return named_tr;
+  }
+  return parser_asm_alloc_dyn_type_ref_into_c(arena, named_tr, name_scratch);
 }
