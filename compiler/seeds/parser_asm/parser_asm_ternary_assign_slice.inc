@@ -4,11 +4,12 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * logor 已 thin delegate；then 分支回调 parse_expr_into（mega 桩 / 链接符号）。
  *
- * Hybrid P4tb: XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the portable
- * EXPR_TERNARY wrap twin (body in pthin_expr_ternary.x). parse / assign
- * wrap stay here. wrap keeps a dest-buffer trampoline so parse_ternary
- * still sees parse_expr_result*. Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X
- * for P4tb bodies. PLATFORM: SHARED.
+ * Hybrid P4tb/P4tc: XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the
+ * portable EXPR_TERNARY wrap twin and the assign wrap twin (bodies in
+ * pthin_expr_ternary.x). parse_ternary / parse_assign stay here. wrap
+ * keeps dest-buffer trampolines so parse still sees parse_expr_result*.
+ * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
+ * Do not extend P4bc wrap with line/col. PLATFORM: SHARED.
  */
 #ifndef PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED
 #define PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED
@@ -125,6 +126,50 @@ static int32_t parser_asm_ternary_wrap_c(void *arena, struct parser_asm_parse_ex
 }
 #endif /* XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X wrap */
 
+/**
+ * Allocate an assign / compound-assign node and write kind / left / right
+ * plus the assign-token line/col. Success returns expr ref; failure
+ * returns 0 and clears out.ok.
+ * PLATFORM: SHARED — P4tc trampoline when BODIES_FROM_X; cold twin below.
+ * Do not reuse parser_asm_binop_wrap_c (that wrap hardcodes line/col=0).
+ */
+#ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
+extern int32_t parser_asm_assign_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                             int32_t left_ref, int32_t right_ref, int32_t line, int32_t col);
+static int32_t parser_asm_assign_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
+                                        int32_t left_ref, int32_t right_ref, int32_t line, int32_t col) {
+  /* PLATFORM: SHARED — P4tc trampoline. Language has no Expr by-value;
+   * .x writes out.ok / out.expr_ref through dest slots. parse_assign in
+   * this TU still calls this symbol. Do not merge P4bc binop wrap. */
+  if (!arena || !out)
+    return 0;
+  return parser_asm_assign_wrap_into_c(arena, &out->ok, &out->expr_ref, kind, left_ref, right_ref, line, col);
+}
+#else
+static int32_t parser_asm_assign_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t kind,
+                                        int32_t left_ref, int32_t right_ref, int32_t line, int32_t col) {
+  int32_t bin_ref;
+  struct parser_asm_ast_expr be;
+  if (!arena || !out)
+    return 0;
+  bin_ref = ast_ast_arena_expr_alloc(arena);
+  if (bin_ref == 0) {
+    out->ok = 0;
+    return 0;
+  }
+  be = parser_asm_arena_expr_get_c(arena, bin_ref);
+  parser_asm_expr_set_common_zeros_c(&be);
+  be.kind = kind;
+  be.binop_left_ref = left_ref;
+  be.binop_right_ref = right_ref;
+  be.line = line;
+  be.col = col;
+  parser_asm_arena_expr_set_c(arena, bin_ref, be);
+  out->expr_ref = bin_ref;
+  return bin_ref;
+}
+#endif /* XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X assign wrap */
+
 /** 三元运算符：logor ('?' parse_expr ':' parse_ternary)*，右结合。 */
 void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                            struct parser_asm_parse_expr_result *out) {
@@ -182,9 +227,7 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
   int32_t tok;
   int32_t left_ref;
   int32_t right_ref;
-  int32_t bin_ref;
   int32_t assign_kind;
-  struct parser_asm_ast_expr be;
 
   if (!out || !source)
     return;
@@ -917,20 +960,8 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
   if (!out->ok)
     return;
   right_ref = out->expr_ref;
-  bin_ref = ast_ast_arena_expr_alloc(arena);
-  if (bin_ref == 0) {
-    out->ok = 0;
+  if (parser_asm_assign_wrap_c(arena, out, assign_kind, left_ref, right_ref, assign_line, assign_col) == 0)
     return;
-  }
-  be = parser_asm_arena_expr_get_c(arena, bin_ref);
-  parser_asm_expr_set_common_zeros_c(&be);
-  be.kind = assign_kind;
-  be.binop_left_ref = left_ref;
-  be.binop_right_ref = right_ref;
-  be.line = assign_line;
-  be.col = assign_col;
-  parser_asm_arena_expr_set_c(arena, bin_ref, be);
-  out->expr_ref = bin_ref;
   }
 }
 

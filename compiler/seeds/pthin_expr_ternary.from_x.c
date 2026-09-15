@@ -4,13 +4,15 @@
  *
  * Body: seeds/parser_asm/parser_asm_ternary_assign_slice.inc
  *
- * Hybrid P4tb (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
- * EXPR_TERNARY wrap dest-buffer comes from pthin_expr_ternary.x;
- * this TU keeps a wrap trampoline plus arena parse/assign. Cold: no
- * BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for P4tb bodies.
- * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots); do
- * not copy that writer here and do not FORCE pabi mega.
+ * Hybrid P4tb/P4tc (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
+ * EXPR_TERNARY wrap and assign wrap dest-buffer come from
+ * pthin_expr_ternary.x; this TU keeps wrap trampolines plus arena
+ * parse/assign. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
+ * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots);
+ * pipeline_expr_set_binop_operands_c lives in the P4bc seed; do not
+ * copy those writers here, do not FORCE pabi mega, do not extend
+ * P4bc wrap with line/col.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -26,6 +28,8 @@
 /* .x product body (same C name for Route C wrap). */
 extern int32_t parser_asm_ternary_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t cond_ref,
                                               int32_t then_ref, int32_t else_ref);
+extern int32_t parser_asm_assign_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                             int32_t left_ref, int32_t right_ref, int32_t line, int32_t col);
 #endif
 
 struct parser_asm_token {
@@ -233,8 +237,9 @@ extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, st
 
 #include "parser_asm_ternary_assign_slice.inc"
 
-/* PLATFORM: SHARED — 7.2.1 P4tb. pthin_expr_ternary.x EXPR_TERNARY pin. */
+/* PLATFORM: SHARED — 7.2.1 P4tb/P4tc. pthin_expr_ternary.x ExprKind pins. */
 _Static_assert(PARSER_ASM_EXPR_TERNARY == 27, "ternary.x EXPR_TERNARY pin");
+_Static_assert(PARSER_ASM_EXPR_ASSIGN == 28, "ternary.x EXPR_ASSIGN pin");
 
 int labi_pthin_expr_ternary_slice_marker(void) {
   return 2; /* ternary + assign */

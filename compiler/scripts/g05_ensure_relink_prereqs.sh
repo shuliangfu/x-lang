@@ -757,7 +757,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P4as Route C: as_suffix .x bodies (TRY_PROPAGATE + EXPR_AS wrap dest-buffer)
   _pthin_p4as_x=src/asm/pthin_expr_as_suffix.x
   _pthin_p4t_seed=seeds/pthin_expr_ternary.from_x.c
-  # 7.2.1 P4tb Route C: ternary wrap dest-buffer
+  # 7.2.1 P4tb/P4tc Route C: ternary wrap + assign wrap dest-buffer
   _pthin_p4tb_x=src/asm/pthin_expr_ternary.x
   _pthin_p5_seed=seeds/pthin_ctrl.from_x.c
   # 7.2.1 P5b Route C: ctrl .x bodies (comment-aware brace skip / kw_at_pos)
@@ -1097,17 +1097,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         # PLATFORM: SHARED — 7.2.1 P4tb Route C (2026-09-15).
-        # pthin_expr_ternary.x holds EXPR_TERNARY wrap dest-buffer.
-        # Runs before P4t C so BODIES_FROM_X skips the portable wrap
-        # twin. No lexer-step bridge. set_if lives in the P5 seed
-        # (G.7 if_* slots; do not FORCE pabi mega). Cold: no define,
-        # full .inc.
+        # pthin_expr_ternary.x holds EXPR_TERNARY wrap + assign wrap
+        # dest-buffer. Runs before P4t C so BODIES_FROM_X skips the
+        # portable wrap twins. No lexer-step bridge. set_if lives in
+        # the P5 seed (G.7 if_* slots); set_binop lives in the P4bc
+        # seed (G.7 left/right slots; do not FORCE pabi mega; do not
+        # extend P4bc wrap with line/col). Cold: no define, full .inc.
         _pthin_p4t_extra=""
         if [ -n "$_pthin_p4tb_thin_o" ] && [ -f "$_pthin_p4tb_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4tb_x" "$_pthin_p4tb_thin_o"; then
             _pthin_p4tb_ok=1
             _pthin_p4t_extra="-DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X"
-            echo "g05_ensure: P4tb ternary wrap ← $_pthin_p4tb_x (7.2.1 Route C)"
+            echo "g05_ensure: P4tb/P4tc ternary+assign wrap ← $_pthin_p4tb_x (7.2.1 Route C)"
           else
             echo "g05_ensure: P4tb ternary .x thin failed; P4t C twin stays full" >&2
           fi
