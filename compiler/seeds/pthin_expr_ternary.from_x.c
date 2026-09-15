@@ -3,6 +3,15 @@
  * Hybrid: XLANG_PTHIN_EXPR_TERNARY_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_ternary_assign_slice.inc
+ *
+ * Hybrid P4tb (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
+ * EXPR_TERNARY wrap dest-buffer comes from pthin_expr_ternary.x;
+ * this TU keeps a wrap trampoline plus arena parse/assign. Cold: no
+ * BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for P4tb bodies.
+ * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots); do
+ * not copy that writer here and do not FORCE pabi mega.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +21,12 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+#ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
+/* .x product body (same C name for Route C wrap). */
+extern int32_t parser_asm_ternary_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t cond_ref,
+                                              int32_t then_ref, int32_t else_ref);
+#endif
 
 struct parser_asm_token {
   int32_t kind;
@@ -217,6 +232,9 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 
 #include "parser_asm_ternary_assign_slice.inc"
+
+/* PLATFORM: SHARED — 7.2.1 P4tb. pthin_expr_ternary.x EXPR_TERNARY pin. */
+_Static_assert(PARSER_ASM_EXPR_TERNARY == 27, "ternary.x EXPR_TERNARY pin");
 
 int labi_pthin_expr_ternary_slice_marker(void) {
   return 2; /* ternary + assign */

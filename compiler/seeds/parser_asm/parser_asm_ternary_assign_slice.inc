@@ -3,6 +3,12 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * logor 已 thin delegate；then 分支回调 parse_expr_into（mega 桩 / 链接符号）。
+ *
+ * Hybrid P4tb: XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X skips the portable
+ * EXPR_TERNARY wrap twin (body in pthin_expr_ternary.x). parse / assign
+ * wrap stay here. wrap keeps a dest-buffer trampoline so parse_ternary
+ * still sees parse_expr_result*. Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X
+ * for P4tb bodies. PLATFORM: SHARED.
  */
 #ifndef PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED
 #define PARSER_ASM_TERNARY_ASSIGN_SLICE_INCLUDED
@@ -76,6 +82,49 @@ extern int32_t parser_asm_stretch_ternary_assign_deep_audit_c(void *lex_inout, v
 extern int32_t parser_asm_stretch_expr_stmt_full_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_assign_op_audit_c(void *lex_inout, void *source);
 
+/**
+ * Allocate a ternary node and write kind / if_cond / if_then / if_else
+ * (line/col=0). Success returns expr ref; failure returns 0 and clears out.ok.
+ * PLATFORM: SHARED — P4tb trampoline when BODIES_FROM_X; cold twin below.
+ */
+#ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
+extern int32_t parser_asm_ternary_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t cond_ref,
+                                              int32_t then_ref, int32_t else_ref);
+static int32_t parser_asm_ternary_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t cond_ref,
+                                         int32_t then_ref, int32_t else_ref) {
+  /* PLATFORM: SHARED — P4tb trampoline. Language has no Expr by-value;
+   * .x writes out.ok / out.expr_ref through dest slots. parse_ternary in
+   * this TU still calls this symbol. Do not merge unary/binop wrap. */
+  if (!arena || !out)
+    return 0;
+  return parser_asm_ternary_wrap_into_c(arena, &out->ok, &out->expr_ref, cond_ref, then_ref, else_ref);
+}
+#else
+static int32_t parser_asm_ternary_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t cond_ref,
+                                         int32_t then_ref, int32_t else_ref) {
+  int32_t tern_ref;
+  struct parser_asm_ast_expr te;
+  if (!arena || !out)
+    return 0;
+  tern_ref = ast_ast_arena_expr_alloc(arena);
+  if (tern_ref == 0) {
+    out->ok = 0;
+    return 0;
+  }
+  te = parser_asm_arena_expr_get_c(arena, tern_ref);
+  parser_asm_expr_set_common_zeros_c(&te);
+  te.kind = PARSER_ASM_EXPR_TERNARY;
+  te.if_cond_ref = cond_ref;
+  te.if_then_ref = then_ref;
+  te.if_else_ref = else_ref;
+  te.line = 0;
+  te.col = 0;
+  parser_asm_arena_expr_set_c(arena, tern_ref, te);
+  out->expr_ref = tern_ref;
+  return tern_ref;
+}
+#endif /* XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X wrap */
+
 /** 三元运算符：logor ('?' parse_expr ':' parse_ternary)*，右结合。 */
 void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                            struct parser_asm_parse_expr_result *out) {
@@ -85,8 +134,6 @@ void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer 
   int32_t cond_ref;
   int32_t then_ref;
   int32_t else_ref;
-  int32_t tern_ref;
-  struct parser_asm_ast_expr te;
 
   if (!out || !source)
     return;
@@ -123,21 +170,8 @@ void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer 
   if (!out->ok)
     return;
   else_ref = out->expr_ref;
-  tern_ref = ast_ast_arena_expr_alloc(arena);
-  if (tern_ref == 0) {
-    out->ok = 0;
+  if (parser_asm_ternary_wrap_c(arena, out, cond_ref, then_ref, else_ref) == 0)
     return;
-  }
-  te = parser_asm_arena_expr_get_c(arena, tern_ref);
-  parser_asm_expr_set_common_zeros_c(&te);
-  te.kind = PARSER_ASM_EXPR_TERNARY;
-  te.if_cond_ref = cond_ref;
-  te.if_then_ref = then_ref;
-  te.if_else_ref = else_ref;
-  te.line = 0;
-  te.col = 0;
-  parser_asm_arena_expr_set_c(arena, tern_ref, te);
-  out->expr_ref = tern_ref;
 }
 
 /** 赋值层：ternary (('='|'+='|…) ternary)?；仅左值消费赋值符。 */
