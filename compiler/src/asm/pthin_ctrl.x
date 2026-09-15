@@ -93,9 +93,10 @@
 // 0,0 as its public ABI). match_matched_ref has no pabi setter, so
 // pipeline_expr_set_match_matched_c lives in the P5 seed (pabi
 // inject-only — do not FORCE pabi mega). parse dest-buffer is P5h
-// (subject) + P5i (struct fields). parse_match_into stays C
-// (local u8[N] + 16-pattern arrays; trampoline-owned buffers later).
-// Do not copy wrap into parse_match. Do not merge with P5e dest-enum-tag.
+// (subject) + P5i (struct fields) + P5j (parse_match_into arm walk).
+// C trampoline holds the 16-pattern pack and enum/variant name[128]
+// (language has no local u8[N] / i32[16]). Do not copy wrap into
+// parse_match. Do not merge with P5e dest-enum-tag.
 // Do not copy dest-tag into parse_match / P12e. Do not add bodies to
 // pthin_expr_primary.x.
 //
@@ -107,8 +108,8 @@
 // shim (G.7 one shim; do not copy); postfix restores the entry
 // cursor trio so parse_expr starts at the IDENT (C twin rewinds to
 // the original by-value lex). C trampoline keeps AUDIT on the cold
-// twin and publishes next_lex. Do not dest-buffer parse_match_into
-// (16-pattern + enum_buf) / parse_type_ref (P3f hello/fmt red).
+// twin and publishes next_lex. parse_match_into dest-buffer is P5j.
+// Do not dest-buffer parse_type_ref (P3f hello/fmt red).
 // Do not merge wrap. Do not FORCE pabi mega.
 //
 // 7.2.1 P5i B-minus (2026-09-16): 有则补全 parse_match_struct_fields
@@ -117,15 +118,26 @@
 // is the first token inside the braces. IDENT field names go through
 // the C name-buffer trampoline (language has no local u8[N]); lit /
 // EQ / LOGAND wraps stay P5g. Do not `break` out of the field while
-// (P4bh parse silently drops the whole function). Do not dest-buffer
-// parse_match_into / parse_type_ref. Do not merge wrap. Do not FORCE
-// pabi mega.
+// (P4bh parse silently drops the whole function). parse_match_into
+// dest-buffer is P5j. Do not dest-buffer parse_type_ref. Do not merge
+// wrap. Do not FORCE pabi mega.
 //
-// Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// 7.2.1 P5j B-minus (2026-09-16): 有则补全 parse_match_into dest-buffer.
+// Token walk reuses the P9a peek/step family. Entry cursor is the
+// unconsumed `match` keyword (C twin's first lexer_next). Subject
+// is P5h; struct-fields is P5i; MATCH wrap is P5g wrap_into (G.7;
+// do not copy wrap). Arm expr / `if` guard go through the existing
+// parse_expr ptr shim. Language has no local u8[N] / i32[16]; the C
+// trampoline holds the 16-pattern pack (reset/append/commit) and
+// enum/variant name[128] dest-tag copies. Do not `break` out of the
+// arm / pattern whiles. Do not dest-buffer parse_type_ref. Do not
+// merge wrap. Do not FORCE pabi mega.
+//
+// Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
 // skips the portable .inc region. Requires the P9a lexer-step bridge
-// (P5d/P5f/P5h/P5i peeks; otherwise those would UNDEF — g05 gates this lane on
+// (P5d/P5f/P5h/P5i/P5j peeks; otherwise those would UNDEF — g05 gates this lane on
 // p9a ok). Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
-// for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i bodies.
+// for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
@@ -225,6 +237,25 @@ export extern "C" function parser_asm_match_lit_wrap_c(arena: *u8, int_val: i32)
  * P5g EQ/LOGAND wrap trampoline. P5i parse calls this (not static).
  */
 export extern "C" function parser_asm_match_binop_wrap_c(arena: *u8, kind: i32, left_ref: i32, right_ref: i32): i32;
+/**
+ * P5j 16-pattern pack. C trampoline holds i32[16] slots (language
+ * has no local i32[N]). reset/n/append/commit are zero-algorithm
+ * faces over the stack pack the parse trampoline passes in.
+ */
+export extern "C" function parser_asm_match_arm_pat_reset_c(pack: *u8): void;
+export extern "C" function parser_asm_match_arm_pat_n_c(pack: *u8): i32;
+export extern "C" function parser_asm_match_arm_pat_append_c(pack: *u8, is_wc: i32, lit_v: i32, is_ev: i32, var_idx: i32, guard_ref: i32): i32;
+export extern "C" function parser_asm_match_arm_pat_commit_c(arena: *u8, mref: i32, pack: *u8, arm_expr: i32, extra_guard: i32): i32;
+/**
+ * P5j dest-typed enum tag: C trampoline holds name[128], copies the
+ * IDENT span, forwards P5e dest_enum_tag. Not a second scan.
+ */
+export extern "C" function parser_asm_match_ident_dest_tag_src_c(source: *u8, start: usize, nlen: i32): i32;
+/**
+ * P5j named `Type.Variant` tag: C trampoline holds two name[128]
+ * buffers and forwards pipeline_module_enum_variant_tag_for_names.
+ */
+export extern "C" function parser_asm_match_ident_dot_variant_tag_src_c(source: *u8, enum_start: usize, enum_len: i32, variant_start: usize, variant_len: i32): i32;
 
 /* P19 scalar authorities (pthin_helpers.x in hybrid; cold C twins in the
  * P19 seed region — see parser_asm_helpers_slice.inc P5d note). */
@@ -276,6 +307,9 @@ const TOKEN_LBRACKET: i32 = 86;
 const TOKEN_COMMA: i32 = 90;
 const TOKEN_COLON: i32 = 91;
 const TOKEN_DOT: i32 = 92;
+const TOKEN_FATARROW: i32 = 89;
+const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_PIPE: i32 = 102;
 // ExprKind pins (ast.x enum order). P5 C _Static_assert fires if they drift.
 const EXPR_LIT: i32 = 0;
 const EXPR_VAR: i32 = 3;
@@ -1366,8 +1400,9 @@ export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, so
  * @param vlen i32 — variant content length; <= 0 → -1
  * @param ename *u8 — caller dest for one enum name (capacity 256); C trampoline holds it
  * @return i32 — tag >= 0 on a unique owner; -1 unknown / ambiguous / null
- * PLATFORM: SHARED — product P5e B-minus. parse_match stays C and calls
- * the historical static. Do not copy this scan into parse_match or P12e.
+ * PLATFORM: SHARED — product P5e B-minus. P5j dest-tag trampoline
+ * holds name[128] and calls the historical static. Do not copy this
+ * scan into parse_match or P12e.
  * Do not merge with P14c register. Do not open a new P-lane.
  */
 #[no_mangle]
@@ -1757,8 +1792,9 @@ export function parser_asm_match_binop_wrap_into_c(arena: *u8, kind: i32, left_r
  * @param arena *u8 — opaque AST arena; null → 0
  * @param matched_ref i32 — subject expr
  * @return i32 — new expr ref, or 0 on null/alloc fail
- * PLATFORM: SHARED — product P5g Route C. parse_match stays C; do
- * not copy. Do not merge with P5e dest-enum-tag.
+ * PLATFORM: SHARED — product P5g Route C. P5j parse calls this
+ * wrap_into (G.7 one wrap). Do not copy wrap into parse. Do not
+ * merge with P5e dest-enum-tag.
  */
 #[no_mangle]
 export function parser_asm_match_expr_wrap_into_c(arena: *u8, matched_ref: i32): i32 {
@@ -1793,9 +1829,9 @@ export function parser_asm_match_expr_wrap_into_c(arena: *u8, matched_ref: i32):
  * @param out_expr_ref *i32 — parse_expr_result.expr_ref; null → 0
  * @return i32 — 1 success (out_ok=1); 0 failure (out_ok=0)
  * PLATFORM: SHARED — product P5h B-minus. C trampoline keeps AUDIT
- * and the by-value parse_expr_result face. Do not dest-buffer
- * parse_match_into / parse_type_ref. Do not merge wrap. Do not open
- * a new lane.
+ * and the by-value parse_expr_result face. parse_match_into dest-buffer
+ * is P5j. Do not dest-buffer parse_type_ref. Do not merge wrap. Do
+ * not open a new lane.
  */
 #[no_mangle]
 export function parser_asm_parse_match_subject_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
@@ -1879,8 +1915,9 @@ export function parser_asm_parse_match_subject_x_into_c(arena: *u8, lex_inout: *
  * @param out_guard *i32 — 0 or implicit guard expr_ref; null → 0
  * @return i32 — 1 success (out_ok=1); 0 failure (out_ok=0)
  * PLATFORM: SHARED — product P5i B-minus. C trampoline keeps the
- * by-value lexer_result face. Do not dest-buffer parse_match_into /
- * parse_type_ref. Do not merge wrap. Do not open a new lane.
+ * by-value lexer_result face. parse_match_into dest-buffer is P5j.
+ * Do not dest-buffer parse_type_ref. Do not merge wrap. Do not open
+ * a new lane.
  */
 #[no_mangle]
 export function parser_asm_parse_match_struct_fields_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, subject_ref: i32, out_ok: *i32, out_guard: *i32): i32 {
@@ -1967,6 +2004,257 @@ export function parser_asm_parse_match_struct_fields_x_into_c(arena: *u8, lex_in
     }
     out_ok[0] = 1;
     out_guard[0] = field_guard;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse `match expr { pat => result; ... }` at the live cursor.
+ * .x mirror of parser_asm_parse_match_into_c: P9a peek/step.
+ * Entry cursor is the unconsumed MATCH keyword (C twin's first
+ * lexer_next). Subject is P5h; `{ fields }` is P5i; MATCH wrap is
+ * P5g wrap_into. Arm result / `if` guard go through the existing
+ * parse_expr ptr shim. Multi-pattern `|` and implicit field guards
+ * live in the C 16-pattern pack (language has no local i32[16]).
+ * Enum/variant IDENT spans go through C name-buffer dest-tag
+ * trampolines (language has no local u8[N]). Clamp copies the C
+ * twin: ident_len>255 → 127. Do not `break` out of the arm / pattern
+ * whiles.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor before `match`; on success parked after `}`
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — parse_expr_result.ok; null → 0
+ * @param out_expr_ref *i32 — parse_expr_result.expr_ref; null → 0
+ * @param pack *u8 — C-owned 16-pattern pack; null → 0
+ * @return i32 — 1 success (out_ok=1); 0 failure (out_ok=0)
+ * PLATFORM: SHARED — product P5j B-minus. C trampoline keeps AUDIT
+ * on the cold twin and the by-value parse_expr_result face. Do not
+ * dest-buffer parse_type_ref. Do not merge wrap. Do not open a new
+ * lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_match_into_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, pack: *u8): i32 {
+  let kind: i32 = 0;
+  let k2: i32 = 0;
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let ts2: usize = 0;
+  let il2: i32 = 0;
+  let iv: i64 = 0;
+  let lit_v: i32 = 0;
+  let is_wc: i32 = 0;
+  let is_ev: i32 = 0;
+  let var_idx: i32 = 0;
+  let guard: i32 = 0;
+  let sok: i32 = 0;
+  let sref: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let gok: i32 = 0;
+  let gref: i32 = 0;
+  let mref: i32 = 0;
+  let rc: i32 = 0;
+  let arms_done: i32 = 0;
+  let pat_done: i32 = 0;
+  let arm_via_guard: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32 || pack == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_MATCH) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    sok = 0;
+    sref = 0;
+    rc = parser_asm_parse_match_subject_x_into_c(arena, lex_inout, source, &sok, &sref);
+    if (rc == 0 || sok == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    mref = parser_asm_match_expr_wrap_into_c(arena, sref);
+    if (mref == 0) {
+      return 0;
+    }
+    /* Do not `break` out of these whiles: P4bh parse silently drops
+     * the whole function (num_funcs stays N, no XP003). */
+    while (arms_done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_RBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        arms_done = 1;
+      } else {
+        parser_asm_match_arm_pat_reset_c(pack);
+        pat_done = 0;
+        arm_via_guard = 0;
+        while (pat_done == 0) {
+          if (parser_asm_match_arm_pat_n_c(pack) >= 16) {
+            return 0;
+          }
+          is_wc = 0;
+          lit_v = 0;
+          is_ev = 0;
+          var_idx = -1;
+          guard = 0;
+          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (kind == TOKEN_INT) {
+            iv = 0;
+            parser_asm_lex_peek_int64_val_into_c(lex_inout, source, &iv);
+            lit_v = iv as i32;
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          } else {
+            if (kind == TOKEN_UNDERSCORE) {
+              is_wc = 1;
+              parser_asm_lex_step_kind_c(lex_inout, source);
+            } else {
+              if (kind == TOKEN_IDENT) {
+                ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+                il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+                if (il > 255) {
+                  il = 127;
+                }
+                parser_asm_lex_step_kind_c(lex_inout, source);
+                k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+                if (k2 == TOKEN_LBRACE) {
+                  parser_asm_lex_step_kind_c(lex_inout, source);
+                  eok = 0;
+                  guard = 0;
+                  rc = parser_asm_parse_match_struct_fields_x_into_c(arena, lex_inout, source, sref, &eok, &guard);
+                  if (rc == 0 || eok == 0) {
+                    return 0;
+                  }
+                  is_wc = 1;
+                } else {
+                  if (k2 == TOKEN_DOT) {
+                    parser_asm_lex_step_kind_c(lex_inout, source);
+                    k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+                    if (k2 != TOKEN_IDENT) {
+                      return 0;
+                    }
+                    ts2 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+                    il2 = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+                    if (il2 > 255) {
+                      il2 = 127;
+                    }
+                    parser_asm_lex_step_kind_c(lex_inout, source);
+                    is_ev = 1;
+                    var_idx = parser_asm_match_ident_dot_variant_tag_src_c(source, ts, il, ts2, il2);
+                  } else {
+                    is_ev = 1;
+                    var_idx = parser_asm_match_ident_dest_tag_src_c(source, ts, il);
+                    if (var_idx < 0) {
+                      return 0;
+                    }
+                  }
+                }
+              } else {
+                if (kind == TOKEN_LBRACE) {
+                  parser_asm_lex_step_kind_c(lex_inout, source);
+                  eok = 0;
+                  guard = 0;
+                  rc = parser_asm_parse_match_struct_fields_x_into_c(arena, lex_inout, source, sref, &eok, &guard);
+                  if (rc == 0 || eok == 0) {
+                    return 0;
+                  }
+                  is_wc = 1;
+                } else {
+                  if (kind == TOKEN_DOT) {
+                    parser_asm_lex_step_kind_c(lex_inout, source);
+                    k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+                    if (k2 != TOKEN_IDENT) {
+                      return 0;
+                    }
+                    ts2 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+                    il2 = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+                    if (il2 > 255) {
+                      il2 = 127;
+                    }
+                    parser_asm_lex_step_kind_c(lex_inout, source);
+                    is_ev = 1;
+                    var_idx = parser_asm_match_ident_dest_tag_src_c(source, ts2, il2);
+                    if (var_idx < 0) {
+                      return 0;
+                    }
+                  } else {
+                    return 0;
+                  }
+                }
+              }
+            }
+          }
+          if (parser_asm_match_arm_pat_append_c(pack, is_wc, lit_v, is_ev, var_idx, guard) == 0) {
+            return 0;
+          }
+          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (kind == TOKEN_PIPE) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          } else {
+            if (kind == TOKEN_IF) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              gok = 0;
+              gref = 0;
+              rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &gok, &gref);
+              if (rc == 0 || gok == 0) {
+                return 0;
+              }
+              kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (kind != TOKEN_FATARROW) {
+                return 0;
+              }
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              eok = 0;
+              eref = 0;
+              rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
+              if (rc == 0 || eok == 0) {
+                return 0;
+              }
+              kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (kind != TOKEN_SEMICOLON) {
+                return 0;
+              }
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              if (parser_asm_match_arm_pat_commit_c(arena, mref, pack, eref, gref) == 0) {
+                return 0;
+              }
+              arm_via_guard = 1;
+              pat_done = 1;
+            } else {
+              if (kind != TOKEN_FATARROW) {
+                return 0;
+              }
+              pat_done = 1;
+            }
+          }
+        }
+        if (arm_via_guard == 0) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          eok = 0;
+          eref = 0;
+          rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
+          if (rc == 0 || eok == 0) {
+            return 0;
+          }
+          kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (kind != TOKEN_SEMICOLON) {
+            return 0;
+          }
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          if (parser_asm_match_arm_pat_commit_c(arena, mref, pack, eref, 0) == 0) {
+            return 0;
+          }
+        }
+      }
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = mref;
     return 1;
   }
   return 0;

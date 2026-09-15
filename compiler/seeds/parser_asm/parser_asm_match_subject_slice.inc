@@ -7,13 +7,14 @@
  * falls through to parse_expr_into (parser_x mega). parse_match_into
  * parses the full match expression and callbacks parse_expr_into.
  *
- * Hybrid P5e/P5g/P5h/P5i: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
- * tag scan, the match wrap-family, parse_match_subject, and
- * parse_match_struct_fields (bodies in src/asm/pthin_ctrl.x). C trampolines
- * hold ename[256] (P5e) and name[256] (P5g VAR wrap; P5h parse calls the
- * same trampoline; P5i field wrap holds a second name[256]). parse_match_into
- * stays here (16-pattern + enum_buf). Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e/P5g/P5h/P5i bodies.
+ * Hybrid P5e/P5g/P5h/P5i/P5j: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
+ * tag scan, the match wrap-family, parse_match_subject,
+ * parse_match_struct_fields, and parse_match_into (bodies in
+ * src/asm/pthin_ctrl.x). C trampolines hold ename[256] (P5e), name[256]
+ * (P5g VAR wrap; P5h parse calls the same trampoline; P5i field wrap
+ * holds a second name[256]), and the P5j 16-pattern pack plus
+ * enum/variant name[128]. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e/P5g/P5h/P5i/P5j bodies.
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
@@ -151,7 +152,7 @@ static void parser_asm_match_expr_common_zeros_c(struct ast_Expr *e) {
  * dest name[256] (language has no local u8[N]) and forward to .x.
  * Cold: original Type/Expr-by-value get/set soup. parse_match_subject
  * dest-buffer is P5h; struct_fields dest-buffer is P5i; parse_match_into
- * stays C. */
+ * dest-buffer is P5j. */
 #ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
 extern int32_t parser_asm_match_var_wrap_into_c(void *arena, uint8_t *name, int32_t nlen);
 extern int32_t parser_asm_match_field_wrap_into_c(void *arena, int32_t base_ref, uint8_t *name, int32_t nlen);
@@ -552,6 +553,158 @@ static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t
 }
 #endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X dest enum tag */
 
+#ifndef PARSER_ASM_MATCH_ARM_PAT_PACK_DEFINED
+#define PARSER_ASM_MATCH_ARM_PAT_PACK_DEFINED
+/**
+ * P5j 16-pattern pack. Language has no local i32[16]; the parse
+ * trampoline allocates this on the C stack (nested match keeps a
+ * separate frame) and .x only talks through reset/n/append/commit.
+ * PLATFORM: SHARED — zero-algorithm face over C twin arrays.
+ */
+struct parser_asm_match_arm_pat_pack {
+  int32_t is_wc[16];
+  int32_t lit_v[16];
+  int32_t is_ev[16];
+  int32_t var_idx[16];
+  int32_t guard_ref[16];
+  int32_t n;
+};
+#endif
+
+/**
+ * PLATFORM: SHARED — P5j. Clear the pack before collecting one arm's
+ * patterns. Not a second arm-append authority.
+ */
+void parser_asm_match_arm_pat_reset_c(void *pack) {
+  struct parser_asm_match_arm_pat_pack *p;
+  int32_t i;
+  p = (struct parser_asm_match_arm_pat_pack *)pack;
+  if (!p)
+    return;
+  p->n = 0;
+  i = 0;
+  while (i < 16) {
+    p->is_wc[i] = 0;
+    p->lit_v[i] = 0;
+    p->is_ev[i] = 0;
+    p->var_idx[i] = -1;
+    p->guard_ref[i] = 0;
+    i = i + 1;
+  }
+}
+
+/**
+ * PLATFORM: SHARED — P5j. Current pattern count. Null pack reports 16
+ * so the .x walk fail-closes (C twin returns when pat_n >= 16).
+ */
+int32_t parser_asm_match_arm_pat_n_c(void *pack) {
+  struct parser_asm_match_arm_pat_pack *p;
+  p = (struct parser_asm_match_arm_pat_pack *)pack;
+  if (!p)
+    return 16;
+  return p->n;
+}
+
+/**
+ * PLATFORM: SHARED — P5j. Store one pattern. Returns 0 on null/overflow
+ * (C twin `if (pat_n >= 16) return`).
+ */
+int32_t parser_asm_match_arm_pat_append_c(void *pack, int32_t is_wc, int32_t lit_v, int32_t is_ev, int32_t var_idx,
+                                          int32_t guard_ref) {
+  struct parser_asm_match_arm_pat_pack *p;
+  int32_t i;
+  p = (struct parser_asm_match_arm_pat_pack *)pack;
+  if (!p || p->n >= 16)
+    return 0;
+  i = p->n;
+  p->is_wc[i] = is_wc;
+  p->lit_v[i] = lit_v;
+  p->is_ev[i] = is_ev;
+  p->var_idx[i] = var_idx;
+  p->guard_ref[i] = guard_ref;
+  p->n = i + 1;
+  return 1;
+}
+
+/**
+ * PLATFORM: SHARED — P5j. Expand the pack into MatchArmEntry rows.
+ * extra_guard != 0 is the TOKEN_IF path (C twin sets that guard on
+ * every pattern and ignores pat_guard_ref). extra_guard == 0 is the
+ * FATARROW path (set pat_guard_ref[i] only when > 0).
+ */
+int32_t parser_asm_match_arm_pat_commit_c(void *arena, int32_t mref, void *pack, int32_t arm_expr, int32_t extra_guard) {
+  struct parser_asm_match_arm_pat_pack *p;
+  int32_t i;
+  int32_t arm_i;
+  p = (struct parser_asm_match_arm_pat_pack *)pack;
+  if (!arena || !p || mref == 0)
+    return 0;
+  i = 0;
+  while (i < p->n) {
+    arm_i = pipeline_expr_append_match_arm(arena, mref, arm_expr, p->is_wc[i], p->lit_v[i], p->is_ev[i],
+                                          p->var_idx[i]);
+    if (arm_i < 0)
+      return 0;
+    if (extra_guard != 0)
+      pipeline_expr_match_arm_set_guard_ref(arena, mref, arm_i, extra_guard);
+    else if (p->guard_ref[i] > 0)
+      pipeline_expr_match_arm_set_guard_ref(arena, mref, arm_i, p->guard_ref[i]);
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * PLATFORM: SHARED — P5j dest-typed IDENT / `.Variant` tag. Holds
+ * name[128] (C twin enum_buf/variant_buf), copies the source span,
+ * forwards P5e dest_enum_tag. Clamp copies the C twin: nlen>255 → 127.
+ * No module → -1 (caller dest-typed path parse-fails).
+ */
+int32_t parser_asm_match_ident_dest_tag_src_c(struct parser_asm_slice_u8 *source, size_t start, int32_t nlen) {
+  uint8_t buf[128];
+  struct ast_Module *mod_m;
+  if (!source)
+    return -1;
+  if (nlen > 255)
+    nlen = 127;
+  if (nlen <= 0)
+    return -1;
+  memset(buf, 0, sizeof(buf));
+  parser_asm_copy_slice_to_name64_slice_c(source, start, nlen, buf);
+  mod_m = pipeline_parser_get_match_module();
+  if (!mod_m)
+    return -1;
+  return parser_asm_match_dest_enum_tag_c(mod_m, buf, nlen);
+}
+
+/**
+ * PLATFORM: SHARED — P5j named `Type.Variant` tag. Holds two name[128]
+ * buffers. No module → -1 (C twin leaves var_idx=-1; caller does not
+ * parse-fail). Clamp copies the C twin: len>255 → 127.
+ */
+int32_t parser_asm_match_ident_dot_variant_tag_src_c(struct parser_asm_slice_u8 *source, size_t enum_start,
+                                                     int32_t enum_len, size_t variant_start, int32_t variant_len) {
+  uint8_t enum_buf[128];
+  uint8_t variant_buf[128];
+  struct ast_Module *mod_m;
+  if (!source)
+    return -1;
+  if (enum_len > 255)
+    enum_len = 127;
+  if (variant_len > 255)
+    variant_len = 127;
+  if (enum_len <= 0 || variant_len <= 0)
+    return -1;
+  memset(enum_buf, 0, sizeof(enum_buf));
+  memset(variant_buf, 0, sizeof(variant_buf));
+  parser_asm_copy_slice_to_name64_slice_c(source, enum_start, enum_len, enum_buf);
+  parser_asm_copy_slice_to_name64_slice_c(source, variant_start, variant_len, variant_buf);
+  mod_m = pipeline_parser_get_match_module();
+  if (!mod_m)
+    return -1;
+  return pipeline_module_enum_variant_tag_for_names(mod_m, enum_buf, enum_len, variant_buf, variant_len);
+}
+
 /**
  * parse_match_into：解析 `match expr { pat => result; ... }`；lex 指向 match 关键字。
  *
@@ -564,6 +717,37 @@ static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t
  */
 void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                    struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+  /* PLATFORM: SHARED — P5j trampoline. AUDIT stays on the cold twin
+   * (product AUDIT_CALL is nop). .x starts at the entry cursor (same
+   * as C's first lexer_next). Pack lives on this stack frame so a
+   * nested match gets its own 16-pattern slots. Publish next_lex
+   * from the live cursor. */
+  {
+    extern int32_t parser_asm_parse_match_into_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                        int32_t *out_expr_ref, void *pack);
+    struct parser_asm_match_arm_pat_pack pack;
+    struct parser_asm_lexer cur;
+    int32_t ok;
+    int32_t ref;
+    if (!arena || !source || !out)
+      return;
+    out->ok = 0;
+    memset(&pack, 0, sizeof(pack));
+    cur = lex;
+    ok = 0;
+    ref = 0;
+    if (parser_asm_parse_match_into_x_into_c(arena, &cur, source, &ok, &ref, &pack) == 0 || ok == 0) {
+      out->ok = 0;
+      out->next_lex = cur;
+      return;
+    }
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = cur;
+    return;
+  }
+#else
   struct parser_asm_lexer_result r;
   struct parser_asm_parse_expr_result matched_res;
   int32_t mref;
@@ -1598,6 +1782,7 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   out->ok = 1;
   out->expr_ref = mref;
   out->next_lex = lex;
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X parse_match_into */
 }
 
 #endif /* PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED */

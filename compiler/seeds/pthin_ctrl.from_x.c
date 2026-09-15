@@ -4,18 +4,20 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
  * comment-aware brace skip + kw_at_pos + scan_sync pos plus the P5d
  * six-stage realign walk, the P5e dest-typed enum-tag scan, the P5f
  * parse_if_expr dest-buffer, the P5g match wrap-family dest-buffer,
- * the P5h parse_match_subject dest-buffer, and the P5i
- * parse_match_struct_fields dest-buffer come from pthin_ctrl.x
+ * the P5h parse_match_subject dest-buffer, the P5i
+ * parse_match_struct_fields dest-buffer, and the P5j parse_match_into
+ * dest-buffer come from pthin_ctrl.x
  * (realign/parse over the P9a bridge peek family; dest-tag trampoline
  * holds ename[256]; if_expr trampoline holds parse_expr_result; VAR wrap
  * trampoline holds name[256] and is called by P5h; field wrap src
- * trampoline holds name[256] and is called by P5i). this TU keeps the
- * slice trampolines plus parse_match_into. Cold: no BODIES define, full
- * .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i
+ * trampoline holds name[256] and is called by P5i; P5j pack trampoline
+ * holds the 16-pattern arrays + enum/variant name[128]). this TU keeps
+ * the slice trampolines. Cold: no BODIES define, full
+ * .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j
  * bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
@@ -50,6 +52,9 @@ _Static_assert((int)TOKEN_LBRACKET == 86, "ctrl.x TOKEN_LBRACKET pin");
 _Static_assert((int)TOKEN_COMMA == 90, "ctrl.x TOKEN_COMMA pin");
 _Static_assert((int)TOKEN_COLON == 91, "ctrl.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_DOT == 92, "ctrl.x TOKEN_DOT pin");
+_Static_assert((int)TOKEN_FATARROW == 89, "ctrl.x TOKEN_FATARROW pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "ctrl.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_PIPE == 102, "ctrl.x TOKEN_PIPE pin");
 
 struct parser_asm_token {
   int32_t kind;
