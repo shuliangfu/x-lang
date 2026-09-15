@@ -760,7 +760,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P4tb/P4tc Route C: ternary wrap + assign wrap dest-buffer
   _pthin_p4tb_x=src/asm/pthin_expr_ternary.x
   _pthin_p5_seed=seeds/pthin_ctrl.from_x.c
-  # 7.2.1 P5b Route C: ctrl .x bodies (comment-aware brace skip / kw_at_pos)
+  # 7.2.1 P5b/P5c/P5d/P5e/P5f/P5g Route C: ctrl .x bodies (brace skip / kw /
+  # scan_sync / realign / dest-tag / parse_if_expr / match wrap)
   _pthin_p5b_x=src/asm/pthin_ctrl.x
   _pthin_p6_seed=seeds/pthin_fn_block.from_x.c
   # 7.2.1 P6b/P6c B-minus: fn_block .x bodies (name-match trio + packed/soa modifiers)
@@ -1247,22 +1248,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P9 stretch+suite ← $_pthin_p9_seed (G-02f-318 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d/P5e B-minus.
+        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d/P5e/P5f/P5g B-minus.
         # pthin_ctrl.x holds comment-aware brace skip / kw_at_pos /
         # scan_sync pos + the six-stage realign walk + dest-typed enum
-        # tag scan (P5e; C trampoline holds ename[256]). P5d requires the
-        # P9a lexer-step bridge (peek family + cursor trio; otherwise
-        # those would UNDEF), so this lane runs AFTER P9a and gates on
-        # its ok flag. P19 scalars (pos_before_run / lex_at_token_pos /
-        # ident_is_unsafe_kind / rewind_kind) resolve from pthin_helpers.x
-        # or the P19 cold C twins. Runs before P5 C so BODIES_FROM_X skips
-        # the portable .inc region. Cold: no define, full .inc.
+        # tag scan (P5e; C trampoline holds ename[256]) + parse_if_expr
+        # (P5f) + match wrap-family dest-buffer (P5g; VAR trampoline
+        # holds name[256]). P5d/P5f require the P9a lexer-step bridge
+        # (peek family + cursor trio; otherwise those would UNDEF), so
+        # this lane runs AFTER P9a and gates on its ok flag. P19 scalars
+        # (pos_before_run / lex_at_token_pos / ident_is_unsafe_kind /
+        # rewind_kind) resolve from pthin_helpers.x or the P19 cold C
+        # twins. Runs before P5 C so BODIES_FROM_X skips the portable
+        # .inc region. Cold: no define, full .inc.
         _pthin_p5_extra=""
         if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p5b_thin_o" ] && [ -f "$_pthin_p5b_x" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o"; then
             _pthin_p5b_ok=1
             _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
-            echo "g05_ensure: P5b/P5c/P5d/P5e/P5f ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr)"
+            echo "g05_ensure: P5b/P5c/P5d/P5e/P5f/P5g ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr + match wrap)"
           else
             echo "g05_ensure: P5b ctrl .x thin failed; P5 C twin stays full" >&2
           fi

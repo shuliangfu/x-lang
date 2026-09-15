@@ -7,10 +7,12 @@
  * falls through to parse_expr_into (parser_x mega). parse_match_into
  * parses the full match expression and callbacks parse_expr_into.
  *
- * Hybrid P5e: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
- * tag scan (body in src/asm/pthin_ctrl.x). C trampoline holds ename[256].
- * parse_match stays here. Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e bodies.
+ * Hybrid P5e/P5g: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
+ * tag scan and the match wrap-family (bodies in src/asm/pthin_ctrl.x).
+ * C trampolines hold ename[256] (P5e) and name[256] (P5g VAR wrap).
+ * parse_match / parse_match_subject / parse_match_struct_fields stay here.
+ * Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e/P5g bodies.
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
@@ -90,7 +92,8 @@ extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int
 /* wave700: optional match-arm guard (`pat if cond =>`). */
 extern void pipeline_expr_match_arm_set_guard_ref(void *arena, int32_t expr_ref, int32_t i, int32_t guard_ref);
 
-/** 与 parser.x ast.expr_init_match_enum 一致。 */
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/** 与 parser.x ast.expr_init_match_enum 一致。 Cold wrap soup only. */
 static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -140,6 +143,151 @@ static void parser_asm_match_expr_common_zeros_c(struct ast_Expr *e) {
   e->call_resolved_func_index = -1;
   e->call_resolved_dep_index = -1;
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X cold wrap helpers */
+
+/* PLATFORM: SHARED — 7.2.1 P5g B-minus. Match wrap-family dest-buffer.
+ * Historical static names stay the parse face. Hybrid trampolines hold
+ * dest name[256] (language has no local u8[N]) and forward to .x.
+ * Cold: original Type/Expr-by-value get/set soup. parse stays C. */
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+extern int32_t parser_asm_match_var_wrap_into_c(void *arena, uint8_t *name, int32_t nlen);
+extern int32_t parser_asm_match_field_wrap_into_c(void *arena, int32_t base_ref, uint8_t *name, int32_t nlen);
+extern int32_t parser_asm_match_lit_wrap_into_c(void *arena, int64_t int_val);
+extern int32_t parser_asm_match_binop_wrap_into_c(void *arena, int32_t kind, int32_t left_ref, int32_t right_ref);
+extern int32_t parser_asm_match_expr_wrap_into_c(void *arena, int32_t matched_ref);
+
+static int32_t parser_asm_match_var_wrap_c(void *arena, struct parser_asm_slice_u8 *source, size_t start,
+                                           int32_t nlen) {
+  uint8_t name[256];
+  int32_t ni;
+  if (!arena || !source)
+    return 0;
+  if (nlen > 255)
+    nlen = 127;
+  if (nlen < 0)
+    nlen = 0;
+  memset(name, 0, sizeof(name));
+  for (ni = 0; ni < nlen && start + (size_t)ni < source->length; ni++)
+    name[ni] = source->data[start + ni];
+  return parser_asm_match_var_wrap_into_c(arena, name, nlen);
+}
+
+static int32_t parser_asm_match_field_wrap_c(void *arena, int32_t base_ref, uint8_t *name, int32_t nlen) {
+  return parser_asm_match_field_wrap_into_c(arena, base_ref, name, nlen);
+}
+
+static int32_t parser_asm_match_lit_wrap_c(void *arena, int32_t int_val) {
+  return parser_asm_match_lit_wrap_into_c(arena, (int64_t)int_val);
+}
+
+static int32_t parser_asm_match_binop_wrap_c(void *arena, int32_t kind, int32_t left_ref, int32_t right_ref) {
+  return parser_asm_match_binop_wrap_into_c(arena, kind, left_ref, right_ref);
+}
+
+static int32_t parser_asm_match_expr_wrap_c(void *arena, int32_t matched_ref) {
+  return parser_asm_match_expr_wrap_into_c(arena, matched_ref);
+}
+#else
+static int32_t parser_asm_match_var_wrap_c(void *arena, struct parser_asm_slice_u8 *source, size_t start,
+                                           int32_t nlen) {
+  int32_t ref;
+  struct ast_Expr e;
+  int32_t ni;
+  if (!arena || !source)
+    return 0;
+  if (nlen > 255)
+    nlen = 127;
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0)
+    return 0;
+  e = ast_ast_arena_expr_get(arena, ref);
+  e.kind = 3; /* AST_EXPR_VAR */
+  e.var_name_len = nlen;
+  for (ni = 0; ni < nlen && start + (size_t)ni < source->length; ni++)
+    e.var_name[ni] = source->data[start + ni];
+  for (; ni < 128; ni++)
+    e.var_name[ni] = 0;
+  e.line = 0;
+  e.col = 0;
+  parser_asm_match_expr_common_zeros_c(&e);
+  ast_ast_arena_expr_set(arena, ref, e);
+  return ref;
+}
+
+static int32_t parser_asm_match_field_wrap_c(void *arena, int32_t base_ref, uint8_t *name, int32_t nlen) {
+  int32_t ref;
+  struct ast_Expr fe;
+  if (!arena || !name)
+    return 0;
+  if (nlen > 255)
+    nlen = 127;
+  if (nlen < 0)
+    nlen = 0;
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0)
+    return 0;
+  fe = ast_ast_arena_expr_get(arena, ref);
+  memset(&fe, 0, sizeof(fe));
+  fe.kind = 44; /* EXPR_FIELD_ACCESS */
+  fe.field_access_base_ref = base_ref;
+  memcpy(fe.field_access_field_name, name, (size_t)nlen);
+  fe.field_access_field_len = nlen;
+  ast_ast_arena_expr_set(arena, ref, fe);
+  return ref;
+}
+
+static int32_t parser_asm_match_lit_wrap_c(void *arena, int32_t int_val) {
+  int32_t ref;
+  struct ast_Expr le;
+  if (!arena)
+    return 0;
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0)
+    return 0;
+  le = ast_ast_arena_expr_get(arena, ref);
+  memset(&le, 0, sizeof(le));
+  le.kind = 0; /* EXPR_LIT */
+  le.int_val = (int64_t)int_val;
+  ast_ast_arena_expr_set(arena, ref, le);
+  return ref;
+}
+
+static int32_t parser_asm_match_binop_wrap_c(void *arena, int32_t kind, int32_t left_ref, int32_t right_ref) {
+  int32_t ref;
+  struct ast_Expr ee;
+  if (!arena)
+    return 0;
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0)
+    return 0;
+  ee = ast_ast_arena_expr_get(arena, ref);
+  memset(&ee, 0, sizeof(ee));
+  ee.kind = kind;
+  ee.binop_left_ref = left_ref;
+  ee.binop_right_ref = right_ref;
+  ast_ast_arena_expr_set(arena, ref, ee);
+  return ref;
+}
+
+static int32_t parser_asm_match_expr_wrap_c(void *arena, int32_t matched_ref) {
+  int32_t ref;
+  struct ast_Expr me;
+  if (!arena)
+    return 0;
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0)
+    return 0;
+  me = ast_ast_arena_expr_get(arena, ref);
+  me.kind = 43; /* EXPR_MATCH */
+  me.line = 0;
+  me.col = 0;
+  parser_asm_match_expr_common_zeros_c(&me);
+  parser_asm_expr_init_match_enum_c(&me);
+  me.match_matched_ref = matched_ref;
+  ast_ast_arena_expr_set(arena, ref, me);
+  return ref;
+}
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X match wrap family */
 
 /**
  * parse_match_subject_into: parse the match subject.
@@ -155,10 +303,7 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer_result peek;
   int32_t ref;
-  struct ast_Expr e;
   int32_t name_len;
-  size_t start;
-  int32_t ni;
   if (!arena || !source || !out)
     return;
   out->ok = 0;
@@ -175,25 +320,13 @@ void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer 
     }
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_subject_ident_audit_c((int32_t)r.tok.kind, source,
                                                                                r.token_start, r.tok.ident_len));
-    ref = ast_ast_arena_expr_alloc(arena);
-    if (ref == 0)
-      return;
-    e = ast_ast_arena_expr_get(arena, ref);
-    e.kind = 3; /* AST_EXPR_VAR */
-    /* wave582 Cap residual: Expr.var_name is u8[128]; clamp 63→127, pad 128. */
+    /* wave582 Cap residual: Expr.var_name content ≤255; clamp 63→127. */
     name_len = r.tok.ident_len;
     if (name_len > 255)
       name_len = 127;
-    e.var_name_len = name_len;
-    start = r.token_start;
-    for (ni = 0; ni < name_len && start + (size_t)ni < source->length; ni++)
-      e.var_name[ni] = source->data[start + ni];
-    for (; ni < 128; ni++)
-      e.var_name[ni] = 0;
-    e.line = 0;
-    e.col = 0;
-    parser_asm_match_expr_common_zeros_c(&e);
-    ast_ast_arena_expr_set(arena, ref, e);
+    ref = parser_asm_match_var_wrap_c(arena, source, r.token_start, name_len);
+    if (ref == 0)
+      return;
     out->ok = 1;
     out->expr_ref = ref;
     out->next_lex = r.next_lex;
@@ -235,7 +368,6 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
       if (r->tok.kind == (int32_t)TOKEN_COLON) {
         int32_t fval;
         int32_t fref, lit_ref, eq_ref;
-        struct ast_Expr fe, le, ee;
         parser_lex_from_next_into_glue(lex, *r);
         lexer_next_into(r, *lex, source);
         /* `field: _` — wildcard field value, skip (no guard). */
@@ -248,46 +380,21 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
           fval = r->tok.int_val;
           parser_lex_from_next_into_glue(lex, *r);
           lexer_next_into(r, *lex, source);
-          fref = ast_ast_arena_expr_alloc(arena);
+          fref = parser_asm_match_field_wrap_c(arena, subject_ref, fname, flen);
           if (fref == 0)
             return -1;
-          fe = ast_ast_arena_expr_get(arena, fref);
-          memset(&fe, 0, sizeof(fe));
-          fe.kind = 44; /* EXPR_FIELD_ACCESS */
-          fe.field_access_base_ref = subject_ref;
-          memcpy(fe.field_access_field_name, fname, (size_t)flen);
-          fe.field_access_field_len = flen;
-          ast_ast_arena_expr_set(arena, fref, fe);
-          lit_ref = ast_ast_arena_expr_alloc(arena);
+          lit_ref = parser_asm_match_lit_wrap_c(arena, fval);
           if (lit_ref == 0)
             return -1;
-          le = ast_ast_arena_expr_get(arena, lit_ref);
-          memset(&le, 0, sizeof(le));
-          le.kind = 0; /* EXPR_LIT */
-          le.int_val = (int64_t)fval;
-          ast_ast_arena_expr_set(arena, lit_ref, le);
-          eq_ref = ast_ast_arena_expr_alloc(arena);
+          eq_ref = parser_asm_match_binop_wrap_c(arena, 14, fref, lit_ref);
           if (eq_ref == 0)
             return -1;
-          ee = ast_ast_arena_expr_get(arena, eq_ref);
-          memset(&ee, 0, sizeof(ee));
-          ee.kind = 14; /* EXPR_EQ */
-          ee.binop_left_ref = fref;
-          ee.binop_right_ref = lit_ref;
-          ast_ast_arena_expr_set(arena, eq_ref, ee);
           if (field_guard == 0) {
             field_guard = eq_ref;
           } else {
-            int32_t and_ref = ast_ast_arena_expr_alloc(arena);
-            struct ast_Expr ae;
+            int32_t and_ref = parser_asm_match_binop_wrap_c(arena, 20, field_guard, eq_ref);
             if (and_ref == 0)
               return -1;
-            ae = ast_ast_arena_expr_get(arena, and_ref);
-            memset(&ae, 0, sizeof(ae));
-            ae.kind = 20; /* EXPR_LOGAND */
-            ae.binop_left_ref = field_guard;
-            ae.binop_right_ref = eq_ref;
-            ast_ast_arena_expr_set(arena, and_ref, ae);
             field_guard = and_ref;
           }
         }
@@ -382,7 +489,6 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
   struct parser_asm_lexer_result r;
   struct parser_asm_parse_expr_result matched_res;
   int32_t mref;
-  struct ast_Expr me;
   int32_t is_wc;
   int32_t lit_v;
   int32_t is_ev;
@@ -1201,17 +1307,9 @@ void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex, str
     return;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_arms_probe_c(&r.next_lex, source, 0));
   lex = r.next_lex;
-  mref = ast_ast_arena_expr_alloc(arena);
+  mref = parser_asm_match_expr_wrap_c(arena, matched_res.expr_ref);
   if (mref == 0)
     return;
-  me = ast_ast_arena_expr_get(arena, mref);
-  me.kind = 43; /* EXPR_MATCH */
-  me.line = 0;
-  me.col = 0;
-  parser_asm_match_expr_common_zeros_c(&me);
-  parser_asm_expr_init_match_enum_c(&me);
-  me.match_matched_ref = matched_res.expr_ref;
-  ast_ast_arena_expr_set(arena, mref, me);
   for (;;) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_RBRACE) {

@@ -78,11 +78,32 @@
 // wrap into parse_unary / parse_* / pthin_expr_primary.x. Do not
 // merge with P4uc unary wrap. Do not open a new P-lane.
 //
-// Hybrid P5b/P5c/P5d/P5e/P5f: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// 7.2.1 P5g B-minus (2026-09-15): 有则补全 match wrap-family dest-buffer
+// in this same domain file (efficiency: one L2 for remaining wrap soup
+// in match_subject.inc). Always-host-cc wrap sites:
+//   IDENT subject → EXPR_VAR (kind=3 + var_name)
+//   field pattern → EXPR_FIELD_ACCESS / EXPR_LIT / EXPR_EQ / EXPR_LOGAND
+//   match expr head → EXPR_MATCH (kind=43 + match_matched_ref)
+// Language has no Expr by-value / no local u8[N]; C trampolines hold
+// name[256] for the VAR wrap. Sidecar writes reuse existing pabi
+// set_kind / set_common_zeros / set_line_col / set_var_name /
+// set_int_val / set_field_access_c plus P4bc set_binop_operands_c
+// (G.7 one writer for binop slots; do not copy; do not merge with
+// P4bc wrap — that wrap writes parse_expr_result dest + hardcodes
+// 0,0 as its public ABI). match_matched_ref has no pabi setter, so
+// pipeline_expr_set_match_matched_c lives in the P5 seed (pabi
+// inject-only — do not FORCE pabi mega). parse_match /
+// parse_match_subject / parse_match_struct_fields stay C. Do not
+// dest-buffer parse this wave (extra lexer_next). Do not copy wrap
+// into parse_match. Do not merge with P5e dest-enum-tag. Do not
+// copy dest-tag into parse_match / P12e. Do not add bodies to
+// pthin_expr_primary.x.
+//
+// Hybrid P5b/P5c/P5d/P5e/P5f/P5g: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
 // skips the portable .inc region. Requires the P9a lexer-step bridge
 // (P5d/P5f peeks; otherwise those would UNDEF — g05 gates this lane on
 // p9a ok). Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
-// for P5b/P5c/P5d/P5e/P5f bodies.
+// for P5b/P5c/P5d/P5e/P5f/P5g bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
@@ -119,6 +140,23 @@ export extern "C" function pipeline_expr_set_block_ref_c(a: *u8, er: i32, block_
  * Call after set_common_zeros_c.
  */
 export extern "C" function pipeline_expr_set_if_c(a: *u8, er: i32, cond_ref: i32, then_ref: i32, else_ref: i32): void;
+/** Wave-0 pabi: write Expr.int_val. */
+export extern "C" function pipeline_expr_set_int_val(a: *u8, er: i32, v: i64): void;
+/** Wave-0 pabi: write Expr.var_name / var_name_len (zeros the 256-byte slot). */
+export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+/** Suffix pabi: write field_access_base_ref + field name (cap 255). */
+export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+/**
+ * P4bc consumer-wave writer: write Expr.binop_left_ref / binop_right_ref.
+ * G.7: one writer for those slots. Lives in the P4bc seed; do not copy
+ * into this seed; do not FORCE pabi mega; do not merge with P4bc wrap.
+ */
+export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
+/**
+ * P5g consumer-wave writer (P5 seed, not pabi mega): match_matched_ref.
+ * Call after set_common_zeros_c.
+ */
+export extern "C" function pipeline_expr_set_match_matched_c(a: *u8, er: i32, matched_ref: i32): void;
 export extern "C" function pipeline_block_append_if(arena: *u8, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
 export extern "C" function pipeline_block_append_stmt_order(arena: *u8, br: i32, kind: i32, idx: i32): i32;
 /** Pipeline sidecar: enum name / variant-tag table. Authority = runtime_pipeline_abi.x. */
@@ -183,8 +221,14 @@ const TOKEN_IDENT: i32 = 59;
 const TOKEN_LPAREN: i32 = 82;
 const TOKEN_RBRACE: i32 = 85;
 // ExprKind pins (ast.x enum order). P5 C _Static_assert fires if they drift.
+const EXPR_LIT: i32 = 0;
+const EXPR_VAR: i32 = 3;
+const EXPR_EQ: i32 = 14;
+const EXPR_LOGAND: i32 = 20;
 const EXPR_IF: i32 = 25;
 const EXPR_BLOCK: i32 = 26;
+const EXPR_MATCH: i32 = 43;
+const EXPR_FIELD_ACCESS: i32 = 44;
 
 /**
  * Compare `klen` bytes at `data[i..]` with `kw[0..klen)`.
@@ -1486,4 +1530,188 @@ export function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, so
     return 1;
   }
   return 0;
+}
+
+/**
+ * Shared alloc + zeros + kind + line/col=0 for P5g match wraps.
+ * C twins memset or call match_expr_common_zeros then write kind;
+ * pabi zeros does not touch kind/line/col, so this order matches.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param kind i32 — ExprKind ordinal
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — P5g helper. Not a second wrap authority.
+ */
+function skip_match_wrap_prep(arena: *u8, kind: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_kind(arena, ref, kind);
+    pipeline_expr_set_line_col(arena, ref, 0, 0);
+  }
+  return ref;
+}
+
+/**
+ * Allocate EXPR_VAR and write the identifier spelling.
+ * Dest-buffer twin of the IDENT arm wrap soup in
+ * parser_asm_parse_match_subject_into_c. C trampoline holds name[256]
+ * and copies the source span (language has no local u8[N]). Clamp
+ * copies the C twin: nlen>255 → 127. nlen<=0 still wraps (IDENT arm
+ * only checks alloc).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param name *u8 — IDENT bytes; null → 0
+ * @param nlen i32 — content length; >255 clamped to 127
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P5g Route C. Authority for the match
+ * subject VAR wrap. parse_match_subject stays C; do not copy.
+ */
+#[no_mangle]
+export function parser_asm_match_var_wrap_into_c(arena: *u8, name: *u8, nlen: i32): i32 {
+  let ref: i32 = 0;
+  let n: i32 = 0;
+  if (arena == 0 as *u8 || name == 0 as *u8) {
+    return 0;
+  }
+  n = nlen;
+  if (n > 255) {
+    n = 127;
+  }
+  if (n < 0) {
+    n = 0;
+  }
+  ref = skip_match_wrap_prep(arena, EXPR_VAR);
+  if (ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_var_name(arena, ref, name, n);
+  }
+  return ref;
+}
+
+/**
+ * Allocate EXPR_FIELD_ACCESS for a match struct-field guard.
+ * Dest-buffer twin of the field wrap soup in
+ * parser_asm_parse_match_struct_fields_c. Does not reject base_ref==0
+ * (C twin only checks alloc).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param base_ref i32 — match subject expr
+ * @param name *u8 — field spelling; null → 0
+ * @param nlen i32 — content length; >255 clamped to 127
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P5g Route C. parse stays C; do not copy.
+ */
+#[no_mangle]
+export function parser_asm_match_field_wrap_into_c(arena: *u8, base_ref: i32, name: *u8, nlen: i32): i32 {
+  let ref: i32 = 0;
+  let n: i32 = 0;
+  if (arena == 0 as *u8 || name == 0 as *u8) {
+    return 0;
+  }
+  n = nlen;
+  if (n > 255) {
+    n = 127;
+  }
+  if (n < 0) {
+    n = 0;
+  }
+  ref = skip_match_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  if (ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_field_access_c(arena, ref, base_ref, name, n);
+  }
+  return ref;
+}
+
+/**
+ * Allocate EXPR_LIT for a match field-pattern integer.
+ * Dest-buffer twin of the lit wrap soup in
+ * parser_asm_parse_match_struct_fields_c. int_val is the already-narrowed
+ * i32 the C twin stored in fval before widening to Expr.int_val.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param int_val i64 — literal payload (C trampoline casts fval)
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P5g Route C. parse stays C; do not copy.
+ */
+#[no_mangle]
+export function parser_asm_match_lit_wrap_into_c(arena: *u8, int_val: i64): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  ref = skip_match_wrap_prep(arena, EXPR_LIT);
+  if (ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_int_val(arena, ref, int_val);
+  }
+  return ref;
+}
+
+/**
+ * Allocate a binop-like expr (EXPR_EQ=14 or EXPR_LOGAND=20) for a
+ * match field-pattern guard chain. Dest-buffer twin of the EQ/LOGAND
+ * wrap soups in parser_asm_parse_match_struct_fields_c. Binop slots
+ * go through P4bc set_binop_operands_c (G.7 one writer). Do not call
+ * parser_asm_binop_wrap_into_c (different ABI: parse_expr_result dest).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param kind i32 — ExprKind ordinal (14 or 20)
+ * @param left_ref i32 — left operand
+ * @param right_ref i32 — right operand
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P5g Route C. parse stays C; do not copy.
+ * Do not merge with P4bc wrap.
+ */
+#[no_mangle]
+export function parser_asm_match_binop_wrap_into_c(arena: *u8, kind: i32, left_ref: i32, right_ref: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  ref = skip_match_wrap_prep(arena, kind);
+  if (ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_binop_operands_c(arena, ref, left_ref, right_ref);
+  }
+  return ref;
+}
+
+/**
+ * Allocate EXPR_MATCH and write match_matched_ref.
+ * Dest-buffer twin of the wrap soup at the start of
+ * parser_asm_parse_match_into_c. init_match_enum (arm_base +
+ * enum_variant_tag = 0) is already covered by set_common_zeros_c.
+ * Does not reject matched_ref==0 (C twin only checks alloc).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param matched_ref i32 — subject expr
+ * @return i32 — new expr ref, or 0 on null/alloc fail
+ * PLATFORM: SHARED — product P5g Route C. parse_match stays C; do
+ * not copy. Do not merge with P5e dest-enum-tag.
+ */
+#[no_mangle]
+export function parser_asm_match_expr_wrap_into_c(arena: *u8, matched_ref: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  ref = skip_match_wrap_prep(arena, EXPR_MATCH);
+  if (ref == 0) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_set_match_matched_c(arena, ref, matched_ref);
+  }
+  return ref;
 }
