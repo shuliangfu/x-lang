@@ -4,20 +4,22 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
  * comment-aware brace skip + kw_at_pos + scan_sync pos plus the P5d
  * six-stage realign walk, the P5e dest-typed enum-tag scan, the P5f
  * parse_if_expr dest-buffer, the P5g match wrap-family dest-buffer,
  * the P5h parse_match_subject dest-buffer, the P5i
- * parse_match_struct_fields dest-buffer, and the P5j parse_match_into
- * dest-buffer come from pthin_ctrl.x
+ * parse_match_struct_fields dest-buffer, the P5j parse_match_into
+ * dest-buffer, and the P5k leftover if_stmt C-twin T-shrink come from
+ * pthin_ctrl.x
  * (realign/parse over the P9a bridge peek family; dest-tag trampoline
  * holds ename[256]; if_expr trampoline holds parse_expr_result; VAR wrap
  * trampoline holds name[256] and is called by P5h; field wrap src
  * trampoline holds name[256] and is called by P5i; P5j pack trampoline
- * holds the 16-pattern arrays + enum/variant name[128]). this TU keeps
+ * holds the 16-pattern arrays + enum/variant name[128]; P5k skips
+ * parse_if_stmt_into_slice_c when parse_if_stmt_x is present). this TU keeps
  * the slice trampolines. Cold: no BODIES define, full
- * .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j
+ * .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k
  * bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */

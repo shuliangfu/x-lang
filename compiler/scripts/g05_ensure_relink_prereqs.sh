@@ -1323,7 +1323,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P9 stretch+suite ← $_pthin_p9_seed (G-02f-318 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d/P5e/P5f/P5g/P5h/P5i/P5j B-minus.
+        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d/P5e/P5f/P5g/P5h/P5i/P5j B-minus + P5k T-shrink.
         # pthin_ctrl.x holds comment-aware brace skip / kw_at_pos /
         # scan_sync pos + the six-stage realign walk + dest-typed enum
         # tag scan (P5e; C trampoline holds ename[256]) + parse_if_expr
@@ -1331,11 +1331,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # holds name[256]) + parse_match_subject dest-buffer (P5h) +
         # parse_match_struct_fields dest-buffer (P5i; field wrap src
         # trampoline holds name[256]) + parse_match_into dest-buffer
-        # (P5j; C trampoline holds 16-pattern pack + name[128]).
+        # (P5j; C trampoline holds 16-pattern pack + name[128]) + P5k
+        # leftover if_stmt C-twin T-shrink (requires parse_if_stmt_x).
         # P5d/P5f/P5h/P5i/P5j require the P9a lexer-step bridge (peek family +
         # cursor trio; otherwise those would UNDEF), so this lane runs
         # AFTER P9a and gates on its ok flag. Incomplete -E that still
-        # exits 0 without parse_match_into_x falls back to the C twin
+        # exits 0 without parse_match_into_x / parse_if_stmt_x falls back to the C twin
         # (same class as P7d g05_obj_defines). P19 scalars
         # (pos_before_run / lex_at_token_pos / ident_is_unsafe_kind /
         # rewind_kind) resolve from pthin_helpers.x or the P19 cold C
@@ -1346,12 +1347,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o" \
             && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_subject_x_into_c" \
             && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_struct_fields_x_into_c" \
-            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_into_x_into_c"; then
+            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_into_x_into_c" \
+            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_if_stmt_x_into_c"; then
             _pthin_p5b_ok=1
             _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
-            echo "g05_ensure: P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr + match wrap + match subject parse + match struct fields + match into)"
+            echo "g05_ensure: P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr + match wrap + match subject parse + match struct fields + match into + if_stmt T-shrink)"
           else
-            echo "g05_ensure: P5b ctrl .x thin failed or missing match-subject/struct-fields/into dest-buffer; P5 C twin stays full" >&2
+            echo "g05_ensure: P5b ctrl .x thin failed or missing match-subject/struct-fields/into/if_stmt dest-buffer; P5 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p5_o" ] && [ -f "$_pthin_p5_seed" ]; then

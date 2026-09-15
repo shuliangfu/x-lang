@@ -9,8 +9,10 @@
  * bodies in src/asm/pthin_ctrl.x + slice trampolines in the seed TU)
  * and, since P5d, the six-stage realign walk (P9a bridge peek family).
  * parse / arena stay here (callback into X mega parse_cond_expr /
- * parse_block; do not X-emit that body). Contiguous already-T AUDIT_CALL
- * padding on parse_if_stmt is compiled only under
+ * parse_block; do not X-emit that body). P5k (2026-09-16): the leftover
+ * C twin parse_if_stmt_into_slice_c is skipped when BODIES is on
+ * (8.3.6 T-shrink; .x is already the product walk). Contiguous
+ * already-T AUDIT_CALL padding on the cold twin is compiled only under
  * XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop). Cold: no
  * define, full twin. Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d
  * bodies. Do not wrap leftover else-if AUDIT.
@@ -117,9 +119,12 @@ extern int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_r
 extern struct parser_asm_lexer parser_asm_skip_balanced_parens_slice_c(struct parser_asm_lexer lex,
                                                                        struct parser_asm_slice_u8 *source);
 
-/** if 条件 field 访问后按源码扫描对齐至 cond 的 ')' 之后（前向声明）。 */
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/** if 条件 field 访问后按源码扫描对齐至 cond 的 ')' 之后（前向声明）。
+ * Dead after wave650 inclusive parens; P5k keeps the cold twin only. */
 static struct parser_asm_lexer parser_asm_sync_lex_after_if_cond_paren_c(
     struct parser_asm_lexer lex_at_if, struct parser_asm_slice_u8 *source);
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X sync_lex fwd */
 /** 从当前 if 起点扫描整句 if/else 并返回下一语句首 token（前向声明）。 */
 static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parser_asm_lexer lex_cur,
                                                                     struct parser_asm_slice_u8 *source);
@@ -334,6 +339,10 @@ extern int32_t parser_asm_stretch_vx_control_flow_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_
 extern int32_t parser_asm_stretch_vx_control_flow_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_else_if_chain_audit_c(void *lex_inout, void *source);
 
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/* P5k: leftover C twin of already-T parse_if_stmt_x. Hybrid trampoline
+ * below calls .x; this body is cold fallback only (8.3.6 T-shrink).
+ * AUDIT prefix stays on this twin (product AUDIT_CALL is nop). */
 /** 前向声明：else-if 递归。 */
 static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_asm_lexer lex_at_if,
                                                      struct parser_asm_slice_u8 *source, int32_t type_ref,
@@ -1239,6 +1248,7 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   }
   return 1;
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X parse_if_stmt_into_slice */
 
 /** 非 static 导出供 glue 调用。 */
 #ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
@@ -1269,10 +1279,12 @@ int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex
 }
 #endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X parse_if_stmt */
 
-/** 判断 c 是否为空白符。 */
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
+/** 判断 c 是否为空白符。 Unused leftover of the if_stmt C twin (P5k). */
 static int32_t parser_asm_is_ws_byte_c(uint8_t c) {
   return c == (uint8_t)' ' || c == (uint8_t)'\t' || c == (uint8_t)'\n' || c == (uint8_t)'\r';
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X is_ws_byte */
 
 #ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
 /** 判断 source[i..] 是否为独立关键字 kw。 Hybrid P5b: body in pthin_ctrl.x. */
@@ -1517,8 +1529,10 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
 }
 #endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X scan_sync */
 
+#ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
 /**
  * if 条件含 struct.field 时 cond_res.next_lex 可能被污染；自 if 关键字扫描至 cond 的 ')' 之后。
+ * Dead after wave650 inclusive parens; P5k keeps the cold twin only.
  */
 static struct parser_asm_lexer parser_asm_sync_lex_after_if_cond_paren_c(
     struct parser_asm_lexer lex_at_if, struct parser_asm_slice_u8 *source) {
@@ -1541,6 +1555,7 @@ static struct parser_asm_lexer parser_asm_sync_lex_after_if_cond_paren_c(
   }
   return (struct parser_asm_lexer){ .pos = (int32_t)i, .line = lex_at_if.line, .col = lex_at_if.col };
 }
+#endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X sync_lex */
 
 /** parse_one_function_impl：if 语句后 lex 回扫（field cond 后偶发落在 return 之后）。 */
 void parser_realign_lex_after_if_stmt_onefunc_glue(struct parser_asm_lexer *lex,

@@ -133,11 +133,21 @@
 // arm / pattern whiles. Do not dest-buffer parse_type_ref. Do not
 // merge wrap. Do not FORCE pabi mega.
 //
-// Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// 7.2.1 P5k T-shrink (2026-09-16): leftover C twin of already-T
+// parse_if_stmt_x (`parser_asm_parse_if_stmt_into_slice_c`) plus the
+// unused is_ws_byte / dead sync_lex_after_if_cond_paren helpers are
+// skipped when BODIES is on (8.3.6 cold-twin shrink). Hybrid keeps
+// the by-value trampoline that calls this file's parse_if_stmt_x.
+// g05 now requires parse_if_stmt_x alongside the three match parse_x
+// before setting BODIES (missing parse_if_stmt_x keeps the C twin).
+// Do not dest-buffer parse_type_ref. Do not merge wrap. Do not FORCE
+// pabi mega. Do not wrap leftover else-if AUDIT (stays on the cold twin).
+//
+// Hybrid P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
 // skips the portable .inc region. Requires the P9a lexer-step bridge
 // (P5d/P5f/P5h/P5i/P5j peeks; otherwise those would UNDEF — g05 gates this lane on
 // p9a ok). Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
-// for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j bodies.
+// for P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
