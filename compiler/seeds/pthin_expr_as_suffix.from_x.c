@@ -3,6 +3,16 @@
  * Hybrid: XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_as_suffix_slice.inc
+ *
+ * Hybrid P4as (XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X): portable
+ * TRY_PROPAGATE + EXPR_AS wrap dest-buffer come from pthin_expr_as_suffix.x;
+ * this TU keeps wrap trampolines plus arena parse. Cold: no BODIES
+ * define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as bodies.
+ * G.7: pipeline_expr_set_unary_operand_c lives in the P4u seed
+ * (unary_operand_ref); pipeline_expr_set_as_c lives here (as_* slots).
+ * Do not copy set_unary into this seed and do not FORCE pabi mega.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +22,14 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+/* .x product bodies (same C names for Route C wraps). */
+extern int32_t parser_asm_try_propagate_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref,
+                                                    int32_t inner_ref);
+extern int32_t parser_asm_as_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t inner_ref,
+                                         int32_t type_ref);
+#endif
 
 struct parser_asm_token {
   int32_t kind;
@@ -156,6 +174,26 @@ struct ast_Expr {
   int32_t call_resolved_dep_index;
 };
 
+/* PLATFORM: SHARED — 7.2.1 P4as B-minus. ExprKind pins + consumer-wave
+ * writer. pabi inject-only skips new rest symbols, so this T lives in
+ * the P4as seed (recompiled every g05). Pointer = pipeline_arena_expr_ptr.
+ * Layout ≡ W278_Expr; P4uc already pinned unary_operand_ref==300.
+ * as_operand_ref=1208 / as_target_type_ref=1212 (late offsets). */
+_Static_assert(offsetof(struct ast_Expr, unary_operand_ref) == 300, "P4as unary_operand_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, as_operand_ref) == 1208, "P4as as_operand_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, as_target_type_ref) == 1212, "P4as as_target_type_ref offset ≡ W278_Expr");
+extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);
+void pipeline_expr_set_as_c(void *a, int32_t er, int32_t operand_ref, int32_t type_ref) {
+  struct ast_Expr *ex;
+  if (!a || er <= 0)
+    return;
+  ex = (struct ast_Expr *)pipeline_arena_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->as_operand_ref = operand_ref;
+  ex->as_target_type_ref = type_ref;
+}
+
 /* 与 type_ref_slice / mega rest TypeKind 一致。 */
 struct ast_Type {
   int32_t kind;
@@ -260,6 +298,10 @@ extern void parser_lex_from_lexer_result_ptr_into(struct parser_asm_lexer *out,
                                                  struct parser_asm_lexer_result *r);
 
 #include "parser_asm_as_suffix_slice.inc"
+
+/* PLATFORM: SHARED — 7.2.1 P4as. pthin_expr_as_suffix.x ExprKind pins. */
+_Static_assert(PARSER_ASM_EXPR_AS == 54, "as_suffix.x EXPR_AS pin");
+_Static_assert(PARSER_ASM_EXPR_TRY_PROPAGATE == 58, "as_suffix.x EXPR_TRY_PROPAGATE pin");
 
 int labi_pthin_expr_as_suffix_slice_marker(void) {
   return 1;
