@@ -1,8 +1,12 @@
 /**
  * parser_asm_type_alias_slice.inc — parse_one_type_alias_into C 实现。
  *
- * 由 parser_asm_thin_c.c #include；勿单独编译。
+ * 由 parser_asm_thin_c.c / pthin_let_alias.from_x.c #include；勿单独编译。
  * 顶层 type 别名「type Alias = TargetType ;」；Target 经 parse_type_ref 完整语法。
+ *
+ * Hybrid P2b: XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X skips this parse twin
+ * (dest-buffer in src/asm/pthin_let_alias.x). Name pack trampolines live
+ * in top_level_let_slice.inc (included first). Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED
@@ -40,6 +44,37 @@ extern void parser_asm_copy_slice_to_name64_slice_c(struct parser_asm_slice_u8 *
  * Prior name_buf[128]/[64] overflowed or truncated long aliases.
  * PLATFORM: SHARED product type_alias path (this .inc → thin glue).
  */
+#ifdef XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X
+/* PLATFORM: SHARED — P2b trampoline. Entry cursor is the unconsumed
+ * alias IDENT (caller already consumed `type`; C twin's first lexer_next).
+ * Pack lives on this stack frame (struct defined in top_level_let_slice).
+ * Success publishes out->next_lex after `;`; fail leaves ok=0. */
+extern int32_t parser_asm_parse_one_type_alias_x_into_c(void *arena, void *module, void *lex_inout, void *source,
+                                                        void *pack);
+extern void parser_asm_let_alias_pack_reset_c(void *pack);
+void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                  struct parser_asm_slice_u8 *source,
+                                                  struct parser_asm_type_alias_result *out) {
+  struct parser_asm_let_alias_pack pack;
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!out)
+    return;
+  out->ok = 0;
+  if (!arena || !module || !source)
+    return;
+  memset(&pack, 0, sizeof(pack));
+  parser_asm_let_alias_pack_reset_c(&pack);
+  cur = lex;
+  rc = parser_asm_parse_one_type_alias_x_into_c(arena, module, &cur, source, &pack);
+  if (rc != 1)
+    return;
+  out->next_lex.pos = cur.pos;
+  out->next_lex.line = cur.line;
+  out->next_lex.col = cur.col;
+  out->ok = 1;
+}
+#else
 void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                   struct parser_asm_slice_u8 *source,
                                                   struct parser_asm_type_alias_result *out) {
@@ -81,5 +116,6 @@ void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, str
   parser_lex_from_next_into_glue(&out->next_lex, r);
   out->ok = 1;
 }
+#endif /* XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X parse_one_type_alias */
 
 #endif /* PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED */

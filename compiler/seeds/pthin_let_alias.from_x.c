@@ -4,6 +4,13 @@
  *
  * Bodies: seeds/parser_asm/{body_let,top_level_let,type_alias}_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
+ *
+ * Hybrid P2b (XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X): dest-buffer
+ * parse_one_top_level_let / parse_one_type_alias come from
+ * pthin_let_alias.x. C trampoline holds the name pack. body_let_bracket
+ * / parse_cond_expr stay C. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -14,6 +21,11 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 #include "ast.h"
+
+_Static_assert((int)TOKEN_IDENT == 59, "let_alias.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_COLON == 91, "let_alias.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "let_alias.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_ASSIGN == 117, "let_alias.x TOKEN_ASSIGN pin");
 
 struct parser_asm_token {
   int32_t kind;

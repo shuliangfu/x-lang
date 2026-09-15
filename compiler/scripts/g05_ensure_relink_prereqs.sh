@@ -752,6 +752,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P1b Route C + B-minus: lex_skip .x bodies (kind/copy/skip walks)
   _pthin_p1b_x=src/asm/pthin_lex_skip.x
   _pthin_p2_seed=seeds/pthin_let_alias.from_x.c
+  # 7.2.1 P2b B-minus: let/alias .x bodies (top_level_let + type_alias dest-buffer)
+  _pthin_p2b_x=src/asm/pthin_let_alias.x
   _pthin_p3_seed=seeds/pthin_type_ref.from_x.c
   # 7.2.1 P3b/P3c/P3d/P3e Route C: type_ref .x bodies (kind / dyn / TypeKind / vector ident / type-inst mangle / consume_qualified / TYPE_DYN wrap)
   _pthin_p3b_x=src/asm/pthin_type_ref.x
@@ -822,6 +824,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p1_seed" ] && [ "$_pthin_p1_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p1b_x" ] && [ "$_pthin_p1b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p2_seed" ] && [ "$_pthin_p2_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p2b_x" ] && [ "$_pthin_p2b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p3_seed" ] && [ "$_pthin_p3_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p3b_x" ] && [ "$_pthin_p3b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4p_seed" ] && [ "$_pthin_p4p_seed" -nt parser_asm_thin_glue.o ]; } \
@@ -888,6 +891,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p1_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p1.XXXXXX") || true
         _pthin_p1b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p1b_thin.XXXXXX") || true
         _pthin_p2_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p2.XXXXXX") || true
+        _pthin_p2b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p2b_thin.XXXXXX") || true
         _pthin_p3_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p3.XXXXXX") || true
         _pthin_p3b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p3b_thin.XXXXXX") || true
         _pthin_p4p_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4p.XXXXXX") || true
@@ -934,6 +938,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p1_ok=0
         _pthin_p1b_ok=0
         _pthin_p2_ok=0
+        _pthin_p2b_ok=0
         _pthin_p3_ok=0
         _pthin_p3b_ok=0
         _pthin_p4p_ok=0
@@ -979,10 +984,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_rest_defs="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
         # P1 C is compiled after P9a so P1b BODIES_FROM_X can require the
         # lexer-step bridge (skip_balanced U symbols). See P1b block below.
+        # PLATFORM: SHARED — 7.2.1 P2b B-minus (2026-09-16).
+        # pthin_let_alias.x holds dest-buffer parse_one_top_level_let and
+        # parse_one_type_alias (P9a peek/step; P9a is linked later into
+        # the same thin_glue, same as P6e/P7d/P4ud). BODIES is a separate
+        # define so a missing parse_x keeps the C parse twins without
+        # dropping the P2 seed TU (body_let stays C). Cold: no define,
+        # full .inc.
+        _pthin_p2_extra=""
+        if [ -n "$_pthin_p2b_thin_o" ] && [ -f "$_pthin_p2b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p2b_x" "$_pthin_p2b_thin_o" \
+            && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_top_level_let_x_into_c" \
+            && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_type_alias_x_into_c"; then
+            _pthin_p2b_ok=1
+            _pthin_p2_extra="-DXLANG_PTHIN_LET_ALIAS_BODIES_FROM_X"
+            echo "g05_ensure: P2b let/alias bodies ← $_pthin_p2b_x (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P2b let/alias .x thin failed or missing parse_x; P2 C twins stay full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p2_o" ] && [ -f "$_pthin_p2_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p2_o" "$_pthin_p2_seed"; then
+               $_pthin_p2_extra -c -o "$_pthin_p2_o" "$_pthin_p2_seed"; then
             _pthin_p2_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_LET_ALIAS_FROM_X"
             echo "g05_ensure: P2 let/alias ← $_pthin_p2_seed (G-02f-279 seed slice)"
@@ -1648,6 +1672,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p2_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p2_o"
         fi
+        if [ "$_pthin_p2b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p2b_thin_o"
+        fi
         if [ "$_pthin_p6_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p6_o"
         fi
@@ -1807,7 +1834,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_done" = "0" ]; then
           echo "g05_ensure: parser thin P1–P7+P9–P20 hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
+        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p2b_thin_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
