@@ -8,8 +8,9 @@
  *
  * Hybrid P4b (XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X): portable IDENT
  * spelling / asm-option-bit / suffix_loop / IDENT head / P4bh remaining
- * parse_primary dest-buffer come from pthin_expr_primary.x; this TU
- * keeps slice trampolines. Cold: no BODIES define, full .inc.
+ * parse_primary dest-buffer / P4bi parse_struct_lit_fields dest-buffer
+ * come from pthin_expr_primary.x; this TU keeps slice trampolines.
+ * Cold: no BODIES define, full .inc.
  * P3c mangle trampoline is compiled when this TU also sees
  * XLANG_PTHIN_TYPE_REF_BODIES_FROM_X (g05 passes P3 extra).
  */
@@ -354,6 +355,7 @@ _Static_assert((int)TOKEN_LBRACKET == 86, "primary.x TOKEN_LBRACKET pin");
 _Static_assert((int)TOKEN_RBRACKET == 87, "primary.x TOKEN_RBRACKET pin");
 _Static_assert((int)TOKEN_FATARROW == 89, "primary.x TOKEN_FATARROW pin");
 _Static_assert((int)TOKEN_COMMA == 90, "primary.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "primary.x TOKEN_COLON pin");
 _Static_assert((int)TOKEN_SEMICOLON == 95, "primary.x TOKEN_SEMICOLON pin");
 _Static_assert((int)TOKEN_AT == 129, "primary.x TOKEN_AT pin");
 _Static_assert((int)TOKEN_STRING == 130, "primary.x TOKEN_STRING pin");

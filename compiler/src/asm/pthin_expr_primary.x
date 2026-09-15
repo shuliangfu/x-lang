@@ -68,6 +68,9 @@ export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
 export extern "C" function parser_asm_lbrace_looks_like_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_empty_ident_braces_prefer_block_ptr_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_parse_struct_lit_fields_ptr_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
+export extern "C" function parser_asm_struct_lit_append_field_src_c(arena: *u8, lit_ref: i32, source: *u8, start: usize, nlen: i32, init_ref: i32): i32;
+export extern "C" function parser_asm_struct_lit_append_shorthand_src_c(arena: *u8, lit_ref: i32, source: *u8, start: usize, nlen: i32): i32;
+export extern "C" function parser_asm_struct_lit_parse_field_value_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_asm_parse_anonymous_struct_lit_ptr_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
 export extern "C" function parser_asm_string_lit_decode_span_ptr_c(arena: *u8, head_ref: i32, source: *u8, q0: usize, nlen: i32, line: i32, col: i32): i32;
 export extern "C" function parser_parse_match_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
@@ -109,6 +112,7 @@ const TOKEN_DOT: i32 = 92;
 const TOKEN_LBRACKET: i32 = 86;
 const TOKEN_RBRACKET: i32 = 87;
 const TOKEN_COMMA: i32 = 90;
+const TOKEN_COLON: i32 = 91;
 const TOKEN_LT: i32 = 120;
 const TOKEN_GT: i32 = 121;
 const TOKEN_RSHIFT: i32 = 105;
@@ -131,10 +135,11 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already ((void)0);
 // compiling ~770 lexer-init nops is dead preprocess, not combinator logic).
 //
-// Hybrid P4b/P4be/P4bf/P4bg/P4bh: g05_try_x_to_o this file;
+// Hybrid P4b/P4be/P4bf/P4bg/P4bh/P4bi: g05_try_x_to_o this file;
 // XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips the portable .inc region
 // (spelling probes + suffix_loop + IDENT/INT heads + remaining
-// parse_primary dest-buffer). Cold: no define, full .inc stays.
+// parse_primary dest-buffer + parse_struct_lit_fields dest-buffer).
+// Cold: no define, full .inc stays.
 // 7.2.1 P4be (2026-09-15): suffix_loop / IDENT already lived in this file
 // but `-E` XT001'd on check_block of suffix_loop because TOKEN_IDENT /
 // LPAREN / RPAREN / LBRACE / TYPE and the method/field/var-name writers
@@ -158,14 +163,24 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // dest-buffer (STRING concat, RETURN, PANIC, paren, array lit, LBRACE
 // block-vs-struct, plus IF via P5f and MATCH/AT via zero-algorithm
 // ptr shims). Dispatcher is a new function — do not grow suffix_loop
-// (XT001). Decode / anonymous-struct / match parse / simd parse stay
-// C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
+// (XT001). Decode / anonymous-struct alloc / match parse / simd parse
+// stay C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
 // Block wrap reuses P5f wrap_block_ref (G.7; type_ref=0). Unary
 // operand reuses P4uc set_unary_operand_c. C trampoline keeps AUDIT
 // and publishes next_lex. Do not dest-buffer parse_type_ref /
 // parse_match. Do not merge suffix_loop. Do not FORCE pabi mega.
 // pending_n stays a local i32 by value (do not take its address).
 // Do not FORCE pabi mega — writers already T.
+// 7.2.1 P4bi B-minus (2026-09-16): 有则补全 parse_struct_lit_fields
+// dest-buffer. Field names go through a C trampoline that holds
+// name[256] (language has no local u8[N]) and forwards
+// pipeline_expr_append_struct_lit_field / shorthand VAR alloc.
+// Field-value parse_expr bumps struct_field_value_depth in C
+// (wave367 empty Type {} vs prefer-block). ident_len<=0 or >255
+// fails (C twin; do not clamp 127). Anonymous alloc and
+// finish_struct_lit_from_type_ident stay C. Do not grow
+// suffix_loop. Do not merge wrap. Do not dest-buffer
+// parse_type_ref / parse_match_into. Do not FORCE pabi mega.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
 // (different ABI: kind==IDENT plus token_start fallback); do not merge
 // into these buf probes as a side effect.
@@ -1491,6 +1506,114 @@ export function parser_asm_parse_primary_x_into_c(arena: *u8, lex_inout: *u8, so
       return 1;
     }
     out_ok[0] = 0;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse `{ field: expr, field, ... }` after TOKEN_LBRACE is consumed.
+ * .x mirror of parser_asm_parse_struct_lit_fields_c. Entry cursor is
+ * after `{` (caller already consumed LBRACE); first peek is the first
+ * token inside the braces. IDENT field names go through the C
+ * name-buffer trampoline (language has no local u8[N]). `field: expr`
+ * bumps struct_field_value_depth around parse_expr (wave367 empty
+ * Type {} vs prefer-block). `{ fd }` / `{ fd, x: 1 }` shorthand
+ * allocs EXPR_VAR then appends. ident_len<=0 or >255 fails (C twin;
+ * do not clamp 127). EOF without RBRACE fails (C twin). Empty `{}`
+ * succeeds. Do not `break` out of the field while.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lit_ref i32 — EXPR_STRUCT_LIT already allocated; 0 → 0
+ * @param lex_inout *u8 — cursor after `{`; on success parked after `}`
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — 1 on parse success; null → 0
+ * @param out_expr_ref *i32 — lit_ref on success; null → 0
+ * @return i32 — 1 success (out_ok=1); 0 failure (out_ok=0)
+ * PLATFORM: SHARED — product P4bi B-minus. C trampoline keeps AUDIT
+ * and the by-value parse_expr_result face. Do not dest-buffer
+ * parse_type_ref / parse_match_into. Do not merge wrap. Do not
+ * grow suffix_loop. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_struct_lit_fields_x_into_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let k2: i32 = 0;
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let arc: i32 = 0;
+  let done: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32 || lit_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    /* Do not `break` out of this while: P4bh parse silently drops the
+     * whole function (num_funcs stays N, no XP003). */
+    while (done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_RBRACE) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        out_ok[0] = 1;
+        out_expr_ref[0] = lit_ref;
+        done = 1;
+      } else {
+        if (kind != TOKEN_IDENT) {
+          return 0;
+        }
+        ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+        il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        if (il <= 0 || il > 255) {
+          return 0;
+        }
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (k2 == TOKEN_COLON) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          eok = 0;
+          eref = 0;
+          if (parser_asm_struct_lit_parse_field_value_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0 || eref <= 0) {
+            return 0;
+          }
+          arc = parser_asm_struct_lit_append_field_src_c(arena, lit_ref, source, ts, il, eref);
+          if (arc < 0) {
+            return 0;
+          }
+          k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+          if (k2 == TOKEN_COMMA) {
+            parser_asm_lex_step_kind_c(lex_inout, source);
+          } else {
+            if (k2 == TOKEN_RBRACE) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              out_ok[0] = 1;
+              out_expr_ref[0] = lit_ref;
+              done = 1;
+            } else {
+              return 0;
+            }
+          }
+        } else {
+          if (k2 == TOKEN_COMMA || k2 == TOKEN_RBRACE) {
+            arc = parser_asm_struct_lit_append_shorthand_src_c(arena, lit_ref, source, ts, il);
+            if (arc < 0) {
+              return 0;
+            }
+            if (k2 == TOKEN_RBRACE) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              out_ok[0] = 1;
+              out_expr_ref[0] = lit_ref;
+              done = 1;
+            } else {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+            }
+          } else {
+            return 0;
+          }
+        }
+      }
+    }
     return 1;
   }
   return 0;

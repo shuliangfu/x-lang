@@ -2804,7 +2804,8 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
 int labi_pthin_expr_as_suffix_slice_marker(void);
 #endif
 /* G-02f-282 P4 primary+struct_lit：默认 #include；hybrid 时在 pthin_expr_primary.from_x.c
- * （primary 调用 finish_struct_lit 内 static parse_struct_lit_fields — 须同 TU） */
+ * （primary 调用 finish_struct_lit 内 parse_struct_lit_fields — 须同 TU；
+ * P4bi dest-buffer 在 pthin_expr_primary.x，C trampoline 同 TU 持 name[256]） */
 #ifndef XLANG_PTHIN_EXPR_PRIMARY_FROM_X
 #include "parser_asm_finish_struct_lit_slice.inc"
 #include "parser_asm_primary_slice.inc"

@@ -4,6 +4,12 @@
  * 由 parser_asm_thin_c.c #include（须在 body_let_slice 之后）；勿单独编译。
  * TypeName { a: e1 , b: e2 } 后缀字段填充；支持 STR-02 字段简写 `{ fd }` => `{ fd: fd }`；
  * 匿名 `{ a: e1 }` 字面量供 `let p: PollFd = { ... }` 使用。
+ *
+ * Hybrid P4bi: XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips
+ * parse_struct_lit_fields (body in src/asm/pthin_expr_primary.x).
+ * C trampolines hold name[256] (append/shorthand) and bump
+ * struct_field_value_depth around parse_expr. Anonymous alloc and
+ * finish_struct_lit_from_type_ident stay here. Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
 #define PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
@@ -110,11 +116,105 @@ static int32_t parser_asm_alloc_var_expr_from_field_name_c(void *arena, uint8_t 
 }
 
 /**
+ * PLATFORM: SHARED — P4bi. C trampoline holds name[256] (language has
+ * no local u8[N]) and forwards pipeline_expr_append_struct_lit_field.
+ * Not a second wrap authority. Not static: .x lives in a separate TU.
+ * ident_len<=0 or >255 fails (C twin; do not clamp 127).
+ */
+int32_t parser_asm_struct_lit_append_field_src_c(void *arena, int32_t lit_ref, struct parser_asm_slice_u8 *source,
+                                                 size_t start, int32_t nlen, int32_t init_ref) {
+  uint8_t name[256];
+  int32_t ni;
+  if (!arena || !source || lit_ref <= 0)
+    return -1;
+  if (nlen <= 0 || nlen > 255)
+    return -1;
+  memset(name, 0, sizeof(name));
+  for (ni = 0; ni < nlen && start + (size_t)ni < source->length; ni++)
+    name[ni] = source->data[start + ni];
+  return pipeline_expr_append_struct_lit_field(arena, lit_ref, name, nlen, init_ref);
+}
+
+/**
+ * PLATFORM: SHARED — P4bi shorthand `{ fd }` / `{ fd, x: 1 }`. Holds
+ * name[256], allocs EXPR_VAR via the historical helper, then appends.
+ * Not a second wrap authority.
+ */
+int32_t parser_asm_struct_lit_append_shorthand_src_c(void *arena, int32_t lit_ref, struct parser_asm_slice_u8 *source,
+                                                     size_t start, int32_t nlen) {
+  uint8_t name[256];
+  int32_t ni;
+  int32_t init_ref;
+  if (!arena || !source || lit_ref <= 0)
+    return -1;
+  if (nlen <= 0 || nlen > 255)
+    return -1;
+  memset(name, 0, sizeof(name));
+  for (ni = 0; ni < nlen && start + (size_t)ni < source->length; ni++)
+    name[ni] = source->data[start + ni];
+  init_ref = parser_asm_alloc_var_expr_from_field_name_c(arena, name, nlen);
+  if (init_ref <= 0)
+    return -1;
+  return pipeline_expr_append_struct_lit_field(arena, lit_ref, name, nlen, init_ref);
+}
+
+/**
+ * PLATFORM: SHARED — P4bi field-value parse_expr. Bumps
+ * parser_asm_struct_field_value_depth around the historical by-value
+ * parse_expr_into (wave367 empty Type {} vs prefer-block). Writes the
+ * post-expr cursor back through lex_inout.
+ */
+int32_t parser_asm_struct_lit_parse_field_value_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                 int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_asm_struct_field_value_depth = parser_asm_struct_field_value_depth + 1;
+  parse_expr_into(arena, lex, (struct parser_asm_slice_u8 *)source, &res);
+  parser_asm_struct_field_value_depth = parser_asm_struct_field_value_depth - 1;
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+/**
  * 从 `{` 之后 lexer 解析字段列表写入 lit_ref；成功时写 out->ok/expr_ref/next_lex。
  */
 static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, struct parser_asm_lexer lex_in_brace,
                                                  struct parser_asm_slice_u8 *source,
                                                  struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bi trampoline. lex_in_brace sits after `{`
+   * (caller already consumed LBRACE). .x peeks from a local copy.
+   * On success out->next_lex is parked after `}`. C trampoline keeps
+   * AUDIT (product AUDIT_CALL is nop). */
+  {
+    extern int32_t parser_asm_parse_struct_lit_fields_x_into_c(void *arena, int32_t lit_ref, void *lex_inout,
+                                                              void *source, int32_t *out_ok, int32_t *out_expr_ref);
+    struct parser_asm_lexer cur;
+    int32_t ok;
+    int32_t ref;
+    if (!arena || !source || !out || lit_ref == 0)
+      return;
+    out->ok = 0;
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_fields_body_audit_c(&lex_in_brace, source));
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_fields_probe_c(&lex_in_brace, source, 0));
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_struct_lit_deep_audit_c(&lex_in_brace, source));
+    cur = lex_in_brace;
+    ok = 0;
+    ref = 0;
+    if (parser_asm_parse_struct_lit_fields_x_into_c(arena, lit_ref, &cur, source, &ok, &ref) == 0 || ok == 0)
+      return;
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = cur;
+    return;
+  }
+#else
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result rf;
   int32_t flen;
@@ -208,6 +308,7 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
     }
     return;
   }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X parse_struct_lit_fields */
 }
 
 /**
