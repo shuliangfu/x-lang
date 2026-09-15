@@ -1083,8 +1083,8 @@ static int32_t g_w439_src_len;
  * PLATFORM: SHARED parse.
  */
 #ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
-/* PLATFORM: SHARED — P12i. Authority is pthin_skip_tl.x. Remaining C
- * (named_eq_self / default-method hoist) still calls this historical name. */
+/* PLATFORM: SHARED — P12i/P12j. Authority is pthin_skip_tl.x. Remaining C
+ * (default-method hoist / trait check) still calls this historical name. */
 extern int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl);
 #else
 static int32_t xlang_skip_name_is_self_c(const uint8_t *nm, int32_t nl) {
@@ -2302,6 +2302,14 @@ int32_t xlang_skip_trait_method_param_elem_array_dim_c(const uint8_t *trait_nm, 
  * @param for_ptr   1 if for-type is *T
  * @return 1 match, 0 mismatch
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* PLATFORM: SHARED — P12j. Authority is pthin_skip_tl.x
+ * xlang_skip_trait_named_eq_self_c. Pointer ABI; no dest trampoline. */
+extern int32_t xlang_skip_trait_named_eq_self_c(
+    const uint8_t *expect_nm, int32_t expect_nl,
+    const uint8_t *got_nm, int32_t got_nl,
+    const uint8_t *for_nm, int32_t for_nl, int32_t for_ptr);
+#else
 static int32_t xlang_skip_trait_named_eq_self_c(
     const uint8_t *expect_nm, int32_t expect_nl,
     const uint8_t *got_nm, int32_t got_nl,
@@ -2332,6 +2340,7 @@ static int32_t xlang_skip_trait_named_eq_self_c(
   return (got_nl == expect_nl && got_nm &&
           memcmp(got_nm, expect_nm, (size_t)expect_nl) == 0) ? 1 : 0;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X named_eq_self */
 
 /**
  * wave470: rewrite TYPE_NAMED "Self" to the impl `for` named type.
@@ -2348,6 +2357,25 @@ static int32_t xlang_skip_trait_named_eq_self_c(
  * @param for_ptr 1 if for is *T (no rewrite this wave)
  * @return rewritten type_ref or original
  */
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+extern int32_t xlang_skip_rewrite_self_type_ref_into_c(void *arena, int32_t type_ref,
+                                                      const uint8_t *for_nm, int32_t for_nl,
+                                                      int32_t for_ptr, uint8_t *gnm,
+                                                      uint8_t *for_copy);
+static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
+                                                   const uint8_t *for_nm, int32_t for_nl,
+                                                   int32_t for_ptr) {
+  /* PLATFORM: SHARED — P12j trampoline. Language has no local u8[N];
+   * .x fills dests then rewrites. Zero algorithm besides holding
+   * gnm[64] + for_copy[64]. */
+  uint8_t gnm[64];
+  uint8_t for_copy[64];
+  memset(gnm, 0, sizeof(gnm));
+  memset(for_copy, 0, sizeof(for_copy));
+  return xlang_skip_rewrite_self_type_ref_into_c(arena, type_ref, for_nm, for_nl, for_ptr, gnm,
+                                                for_copy);
+}
+#else
 static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
                                                    const uint8_t *for_nm, int32_t for_nl,
                                                    int32_t for_ptr) {
@@ -2389,6 +2417,7 @@ static int32_t xlang_skip_rewrite_self_type_ref_c(void *arena, int32_t type_ref,
     return type_ref;
   return pipeline_type_find_or_alloc_named(arena, for_copy, n);
 }
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X rewrite_self */
 
 /*
  * wave468 Cap residual pure — hoist trait default method bodies as free UFCS

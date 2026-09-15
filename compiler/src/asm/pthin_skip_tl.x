@@ -80,15 +80,27 @@
 // with P6b layout name-match. Do not copy skip_name_is_self into
 // P4b. Do not open a new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i: g05_try_x_to_o this file;
-// XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc region
-// (struct/enum/extern + impl header + generic_bound_scan +
+// 7.2.1 P12j B-minus (2026-09-15): 有则补全 named_eq_self +
+// rewrite_self dest-buffer. Both were always-host-cc statics in
+// skip_tl.inc (not behind BODIES). named_eq_self is already pointer
+// ABI (name bytes). rewrite_self needs local u8[N]; the C trampoline
+// holds gnm[64] + for_copy[64]. Sidecar authority stays
+// pipeline_type_* (including existing find_or_alloc_named /
+// find_or_alloc_compound — do not FORCE pabi mega). Seed
+// seed_parse_into_buf twins stay C this wave. Do not copy into
+// typeck. Do not merge with P6b. Do not merge with
+// concrete_implements_trait. Do not open a new P-lane.
+//
+// Hybrid P12b/P12c/P12d/P12e/P12f/P12h/P12i/P12j: g05_try_x_to_o this
+// file; XLANG_PTHIN_SKIP_TL_BODIES_FROM_X skips the portable .inc
+// region (struct/enum/extern + impl header + generic_bound_scan +
 // enum_register + parse_one_extern_skip + parse_one_extern_and_add +
-// skip_name_is_self + self_matches_for). Requires P9a bridge + P1b skip
-// walks (otherwise skip_balanced / skip_generic_angle / copy_slice
-// would UNDEF). token.h remains the TOKEN_* authority via P12 C
-// _Static_assert pins. Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12i bodies. P12g skip_one_trait
+// skip_name_is_self + self_matches_for + named_eq_self +
+// rewrite_self). Requires P9a bridge + P1b skip walks (otherwise
+// skip_balanced / skip_generic_angle / copy_slice would UNDEF).
+// token.h remains the TOKEN_* authority via P12 C _Static_assert
+// pins. Cold: no define, full .inc. Do not reuse
+// XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12j bodies. P12g skip_one_trait
 // ent-image stays PRESET (not linked).
 // PLATFORM: SHARED freestanding.
 
@@ -160,6 +172,10 @@ export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
 /** Sidecar: copy TYPE_NAMED spelling into dest; return full name_len (may exceed dest cap). */
 export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8): i32;
+/** Sidecar: find or alloc TYPE_NAMED by spelling. Already in product; do not FORCE pabi mega. */
+export extern "C" function pipeline_type_find_or_alloc_named(arena: *u8, name: *u8, name_len: i32): i32;
+/** Sidecar: find or alloc compound (PTR/ARRAY/…) by kind+elem+size. Already in product. */
+export extern "C" function pipeline_type_find_or_alloc_compound(arena: *u8, kind_ord: i32, elem_ref: i32, array_size: i32): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P12 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -3246,7 +3262,7 @@ export function parser_asm_parse_one_extern_skip_into_c(lex_inout: *u8, source: 
 
 /**
  * TYPE_NAMED spelling "Self" (capital S) — not TOKEN_SELF lowercase
- * binding. Used by self_matches_for and remaining C named_eq_self.
+ * binding. Used by self_matches_for, named_eq_self, and rewrite_self.
  * @param nm *u8 — spelling bytes; null → 0
  * @param nl i32 — byte count; must be 4
  * @return i32 — 1 if exactly `Self`; 0 otherwise
@@ -3470,6 +3486,163 @@ export function xlang_skip_impl_self_matches_for_into_c(arena: *u8, pty0: i32, f
     }
   }
   return 1;
+}
+
+/**
+ * Zero dest[0..64) then copy min(for_nl, 63) bytes of the for-type spelling.
+ * Matches the C twin: n = for_nl; if n > 63 then n = 63; memset; memcpy n.
+ * @param for_nm *u8 — source spelling; caller already rejected null
+ * @param for_nl i32 — source length; caller already rejected <= 0
+ * @param for_copy *u8 — dest 64; null → 0
+ * @return i32 — copied byte count (1..63)
+ * PLATFORM: SHARED — file-local dest fill for P12j rewrite_self.
+ */
+function skip_fill_for_copy(for_nm: *u8, for_nl: i32, for_copy: *u8): i32 {
+  let n: i32 = 0;
+  let zi: i32 = 0;
+  if (for_copy == 0 as *u8 || for_nm == 0 as *u8) {
+    return 0;
+  }
+  n = for_nl;
+  if (n > 63) {
+    n = 63;
+  }
+  unsafe {
+    zi = 0;
+    while (zi < GNM_CAP) {
+      for_copy[zi as usize] = 0;
+      zi = zi + 1;
+    }
+    zi = 0;
+    while (zi < n) {
+      for_copy[zi as usize] = for_nm[zi as usize];
+      zi = zi + 1;
+    }
+  }
+  return n;
+}
+
+/**
+ * Trait TYPE_NAMED "Self" vs impl for-type name match.
+ * Wave469/470: expect "Self" aliases the named non-ptr for-type; got
+ * "Self" (default hoist) aliases for; otherwise byte-eq. Pointer for
+ * (`for *T`) is a mismatch this wave. Byte-eq reuses skip_named_bytes_eq
+ * (dest cap 64 matches skip_tl name tables).
+ * @param expect_nm *u8 — trait expected type name; may be "Self"
+ * @param expect_nl i32 — length; <=0 → match (no name constraint)
+ * @param got_nm *u8 — impl-side type name
+ * @param got_nl i32 — length
+ * @param for_nm *u8 — impl for-type name; null with for_nl>0 → mismatch in Self arms
+ * @param for_nl i32 — for-type length
+ * @param for_ptr i32 — 1 if for-type is *T
+ * @return i32 — 1 match, 0 mismatch
+ * PLATFORM: SHARED — product P12j B-minus. Seed twin stays C. Do not
+ * copy into typeck. Do not merge with P6b. Do not merge with
+ * concrete_implements_trait. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function xlang_skip_trait_named_eq_self_c(expect_nm: *u8, expect_nl: i32, got_nm: *u8, got_nl: i32, for_nm: *u8, for_nl: i32, for_ptr: i32): i32 {
+  let exp_self: i32 = 0;
+  let got_self: i32 = 0;
+  if (expect_nl <= 0) {
+    return 1;
+  }
+  exp_self = xlang_skip_name_is_self_c(expect_nm, expect_nl);
+  got_self = xlang_skip_name_is_self_c(got_nm, got_nl);
+  if (exp_self != 0) {
+    if (for_ptr != 0 || for_nl <= 0 || for_nm == 0 as *u8) {
+      return 0;
+    }
+    if (got_self != 0) {
+      return 1;
+    }
+    if (got_nm == 0 as *u8) {
+      return 0;
+    }
+    return skip_named_bytes_eq(got_nm, got_nl, for_nm, for_nl);
+  }
+  if (got_self != 0) {
+    if (for_ptr != 0 || for_nl <= 0 || for_nm == 0 as *u8) {
+      return 0;
+    }
+    if (expect_nm == 0 as *u8) {
+      return 0;
+    }
+    return skip_named_bytes_eq(expect_nm, expect_nl, for_nm, for_nl);
+  }
+  if (got_nm == 0 as *u8) {
+    return 0;
+  }
+  return skip_named_bytes_eq(got_nm, got_nl, expect_nm, expect_nl);
+}
+
+/**
+ * Rewrite TYPE_NAMED "Self" (and PTR-to-Self) to the impl `for` named type.
+ * Used when hoisting trait default methods so UFCS method_call can match
+ * receiver type A against param0 type A. Soft: for_ptr / non-named for
+ * leave type_ref unchanged. Language has no local u8[N]; `gnm` and
+ * `for_copy` are C trampoline dests (cap 64).
+ * @param arena *u8 — opaque ASTArena; null → type_ref unchanged
+ * @param type_ref i32 — type to rewrite; 0 → 0
+ * @param for_nm *u8 — for-type name bytes
+ * @param for_nl i32 — length
+ * @param for_ptr i32 — 1 if for is *T (no rewrite this wave)
+ * @param gnm *u8 — dest 64 for one TYPE_NAMED spelling; C trampoline holds it
+ * @param for_copy *u8 — dest 64 NUL-padded for-type copy for find_or_alloc
+ * @return i32 — rewritten type_ref or original
+ * PLATFORM: SHARED — product P12j B-minus. Sidecar = pipeline_type_*.
+ * Do not FORCE pabi mega. Do not copy into typeck. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function xlang_skip_rewrite_self_type_ref_into_c(arena: *u8, type_ref: i32, for_nm: *u8, for_nl: i32, for_ptr: i32, gnm: *u8, for_copy: *u8): i32 {
+  let k: i32 = 0;
+  let gnl: i32 = 0;
+  let n: i32 = 0;
+  let for_named: i32 = 0;
+  let elem: i32 = 0;
+  let ek: i32 = 0;
+  if (arena == 0 as *u8 || type_ref == 0 || for_ptr != 0 || for_nl <= 0 || for_nm == 0 as *u8) {
+    return type_ref;
+  }
+  if (gnm == 0 as *u8 || for_copy == 0 as *u8) {
+    return type_ref;
+  }
+  n = skip_fill_for_copy(for_nm, for_nl, for_copy);
+  if (n <= 0) {
+    return type_ref;
+  }
+  /* One unsafe for sidecar FFI. skip_fill_* helpers keep their own dest unsafe. */
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, type_ref);
+    if (k == TYPE_PTR) {
+      elem = pipeline_type_elem_ref_at(arena, type_ref);
+      if (elem != 0) {
+        ek = pipeline_type_kind_ord_at(arena, elem);
+      } else {
+        ek = 0 - 1;
+      }
+      if (ek != TYPE_NAMED) {
+        return type_ref;
+      }
+      gnl = skip_fill_gnm(arena, elem, gnm);
+      if (xlang_skip_name_is_self_c(gnm, gnl) == 0) {
+        return type_ref;
+      }
+      for_named = pipeline_type_find_or_alloc_named(arena, for_copy, n);
+      if (for_named == 0) {
+        return type_ref;
+      }
+      return pipeline_type_find_or_alloc_compound(arena, TYPE_PTR, for_named, 0);
+    }
+    if (k != TYPE_NAMED) {
+      return type_ref;
+    }
+    gnl = skip_fill_gnm(arena, type_ref, gnm);
+    if (xlang_skip_name_is_self_c(gnm, gnl) == 0) {
+      return type_ref;
+    }
+    return pipeline_type_find_or_alloc_named(arena, for_copy, n);
+  }
 }
 
 // ---------------------------------------------------------------------------
