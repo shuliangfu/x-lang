@@ -4,10 +4,11 @@
  *
  * Bodies: struct_layout + library + one_function_buf + block_from_res
  *
- * Hybrid P6b (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three struct-layout
- * name-match helpers come from pthin_fn_block.x; this TU keeps parse /
- * library / one_function / block_from_res. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b bodies.
+ * Hybrid P6b/P6c (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
+ * struct-layout name-match helpers and packed/soa modifier predicates
+ * come from pthin_fn_block.x; this TU keeps parse / library /
+ * one_function / block_from_res. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -18,6 +19,10 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+_Static_assert((int)TOKEN_PACKED == 21, "fn_block.x TOKEN_PACKED pin");
+_Static_assert((int)TOKEN_SOA == 22, "fn_block.x TOKEN_SOA pin");
+_Static_assert((int)TOKEN_IDENT == 59, "fn_block.x TOKEN_IDENT pin");
 
 struct parser_asm_token {
   int32_t kind;

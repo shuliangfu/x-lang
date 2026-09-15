@@ -3,10 +3,11 @@
  *
  * 由 parser_asm_thin_c.c / pthin_fn_block.from_x.c #include；勿单独编译。
  *
- * Hybrid P6b: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the three name-match
- * helpers (bodies in src/asm/pthin_fn_block.x). parse_struct_record_layout
- * stays here and calls those symbols. Cold: no define, full twin.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b bodies.
+ * Hybrid P6b/P6c: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the three
+ * name-match helpers and the packed/soa modifier predicates (bodies in
+ * src/asm/pthin_fn_block.x). parse_struct_record_layout stays here and
+ * calls those symbols. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c bodies.
  */
 #ifndef PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED
 #define PARSER_ASM_STRUCT_LAYOUT_SLICE_INCLUDED
@@ -31,6 +32,7 @@ extern void pipeline_module_struct_layout_set_field_align(void *module, int32_t 
 extern int32_t pipeline_struct_layout_next_field_offset_ex(void *module, void *arena, int32_t layout_idx,
                                                              int32_t new_field_type_ref, int32_t field_align_req);
 
+#ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
 /** struct Name 后修饰符：TOKEN_* 或 Ident 拼写（lexer 路径差异兼容）。 */
 static int parser_asm_tok_is_modifier_packed(struct parser_asm_lexer_result *r,
                                               struct parser_asm_slice_u8 *source) {
@@ -62,6 +64,29 @@ static int parser_asm_tok_is_modifier_soa(struct parser_asm_lexer_result *r,
     return 0;
   return memcmp((const char *)source->data + start, "soa", 3) == 0;
 }
+#else
+/* Hybrid P6c: dest-buffer bodies in pthin_fn_block.x; trampoline keeps the
+ * historical (lexer_result*, slice*) call sites in parse_struct_record_layout.
+ * Zero algorithm — extracts kind / ident_len / next_pos / data / length. */
+extern int32_t parser_asm_tok_is_modifier_packed_c(int32_t kind, int32_t ident_len, size_t next_pos,
+                                                   uint8_t *data, size_t length);
+extern int32_t parser_asm_tok_is_modifier_soa_c(int32_t kind, int32_t ident_len, size_t next_pos,
+                                                uint8_t *data, size_t length);
+static int parser_asm_tok_is_modifier_packed(struct parser_asm_lexer_result *r,
+                                              struct parser_asm_slice_u8 *source) {
+  if (!r)
+    return 0;
+  return parser_asm_tok_is_modifier_packed_c(r->tok.kind, r->tok.ident_len, r->next_lex.pos,
+                                             source ? source->data : 0, source ? source->length : 0);
+}
+static int parser_asm_tok_is_modifier_soa(struct parser_asm_lexer_result *r,
+                                           struct parser_asm_slice_u8 *source) {
+  if (!r)
+    return 0;
+  return parser_asm_tok_is_modifier_soa_c(r->tok.kind, r->tok.ident_len, r->next_lex.pos,
+                                          source ? source->data : 0, source ? source->length : 0);
+}
+#endif /* !XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X modifiers */
 
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                   struct parser_asm_slice_u8 *source,
