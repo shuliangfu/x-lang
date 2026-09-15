@@ -8,11 +8,13 @@
  * lex (stretch padding → every expr parsed twice). Product keeps one.
  * single_tok_chain audit_fn uses PARSER_ASM_STRETCH_AUDIT_CALL (was un-gated).
  *
- * Hybrid P4bb/P4bc: XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X skips the portable
- * TOKEN→ExprKind table and wrap dest-buffer (body in pthin_expr_binop.x).
- * parse / peek / arena stay here. Contiguous already-T AUDIT_CALL padding
- * on parse_logor is compiled only under XLANG_PARSER_STRETCH_AUDIT
- * (product AUDIT_CALL is nop). PLATFORM: SHARED. Do not assemble parser.x.
+ * Hybrid P4bb/P4bc/P4bd: XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X skips the
+ * portable TOKEN→ExprKind table, wrap dest-buffer, and parse_* chains
+ * (body in pthin_expr_binop.x). parse dest-buffer is a trampoline under
+ * BODIES (P4bd); peek-cache / single_tok_chain stay C-twin only.
+ * Contiguous already-T AUDIT_CALL padding on parse_logor is compiled
+ * only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
+ * PLATFORM: SHARED. Do not assemble parser.x.
  */
 #ifndef PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
 #define PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED
@@ -186,6 +188,63 @@ static int32_t parser_asm_binop_wrap_c(void *arena, struct parser_asm_parse_expr
 }
 #endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X wrap */
 
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+/**
+ * Pointer-face parse_cast. Language has no lexer / parse_expr_result
+ * by-value; this C face copies the cursor, drives the historical
+ * parser_parse_cast_into (unary + as_suffix), and writes ok / expr_ref /
+ * next_lex.
+ * PLATFORM: SHARED — P4bd zero-algorithm shim. Do not copy cast parse.
+ */
+int32_t parser_parse_cast_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                     int32_t *out_expr_ref) {
+  struct parser_asm_parse_expr_result res;
+  struct parser_asm_lexer lex;
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  lex = *(struct parser_asm_lexer *)lex_inout;
+  memset(&res, 0, sizeof(res));
+  parser_parse_cast_into(arena, lex, source, &res);
+  *out_ok = res.ok;
+  *out_expr_ref = res.expr_ref;
+  *(struct parser_asm_lexer *)lex_inout = res.next_lex;
+  return 1;
+}
+
+extern int32_t parser_asm_parse_binop_level_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                     int32_t *out_expr_ref, int32_t level);
+
+/**
+ * PLATFORM: SHARED — P4bd trampoline. Language has no Expr by-value;
+ * .x writes out.ok / out.expr_ref through dest slots and parks the
+ * live cursor. Callers still see parse_expr_result*. AUDIT stays in
+ * the C twin (#else). Do not merge unary parse.
+ */
+static void parser_asm_binop_parse_level_trampoline_c(void *arena, struct parser_asm_lexer lex,
+                                                      struct parser_asm_slice_u8 *source,
+                                                      struct parser_asm_parse_expr_result *out, int32_t level) {
+  struct parser_asm_lexer cur;
+  int32_t ok;
+  int32_t ref;
+  if (!out || !source) {
+    if (out)
+      out->ok = 0;
+    return;
+  }
+  cur = lex;
+  ok = 0;
+  ref = 0;
+  if (parser_asm_parse_binop_level_x_into_c(arena, &cur, source, &ok, &ref, level) == 0 || ok == 0) {
+    out->ok = 0;
+    return;
+  }
+  out->ok = 1;
+  out->expr_ref = ref;
+  out->next_lex = cur;
+}
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse dest-buffer */
+
+#ifndef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
 /**
  * One-token peek cache for left-assoc binop chains in this slice.
  *
@@ -200,6 +259,7 @@ static int32_t parser_asm_binop_wrap_c(void *arena, struct parser_asm_parse_expr
  * PLATFORM: SHARED — TLS so large-stack / dep threads do not clobber.
  * Do not assemble parser.x; product authority is this .inc via
  * pthin_expr_binop.from_x.c (XLANG_PTHIN_EXPR_BINOP_FROM_X).
+ * P4bd: product BODIES uses P9a peek/step; this cache stays C-twin only.
  */
 static __thread int32_t g_pipe_binop_peek_ok;
 static __thread uint8_t *g_pipe_binop_peek_data;
@@ -236,7 +296,7 @@ static void parser_asm_binop_lex_advance_from_peek(struct parser_asm_lexer *lex_
   parser_asm_lex_from_result_val_into(lex_inout, r);
   g_pipe_binop_peek_ok = 0;
 }
-
+#endif /* !XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X peek cache */
 
 #ifndef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
 /**
@@ -288,6 +348,11 @@ int32_t parser_asm_binop_token_to_expr_kind_c(int32_t kind) {
 /** parse_term_into：cast ( (*|/|%) cast )*。 */
 void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                         struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bd trampoline. AUDIT stays in the C twin. */
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 0);
+  return;
+#else
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   int32_t kind;
@@ -316,11 +381,17 @@ void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex
       return;
     lex_cur = out->next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse_term */
 }
 
 /** parse_addsub_into：term ( (+|-) term )*。 */
 void parser_asm_parse_addsub_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                           struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bd trampoline. AUDIT stays in the C twin. */
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 1);
+  return;
+#else
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   int32_t kind;
@@ -348,11 +419,17 @@ void parser_asm_parse_addsub_into_slice_c(void *arena, struct parser_asm_lexer l
       return;
     lex_cur = out->next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse_addsub */
 }
 
 /** parse_shift_into：addsub ( (<<|>>) addsub )*。 */
 void parser_asm_parse_shift_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                          struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bd trampoline. AUDIT stays in the C twin. */
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 2);
+  return;
+#else
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   int32_t kind;
@@ -380,12 +457,18 @@ void parser_asm_parse_shift_into_slice_c(void *arena, struct parser_asm_lexer le
       return;
     lex_cur = out->next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse_shift */
 }
 
 /** parse_relcompare_into：shift ( (<|<=|>|>=) shift )*。 */
 void parser_asm_parse_relcompare_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                               struct parser_asm_slice_u8 *source,
                                               struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bd trampoline. AUDIT stays in the C twin. */
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 3);
+  return;
+#else
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   int32_t kind;
@@ -415,11 +498,17 @@ void parser_asm_parse_relcompare_into_slice_c(void *arena, struct parser_asm_lex
       return;
     lex_cur = out->next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse_relcompare */
 }
 
 /** parse_compare_into：relcompare ( (==|!=) relcompare )*。 */
 void parser_asm_parse_compare_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                            struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bd trampoline. AUDIT stays in the C twin. */
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 4);
+  return;
+#else
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
   int32_t kind;
@@ -447,8 +536,10 @@ void parser_asm_parse_compare_into_slice_c(void *arena, struct parser_asm_lexer 
       return;
     lex_cur = out->next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse_compare */
 }
 
+#ifndef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
 /** 单 token 左结合二元链：首 operand 已由 lower 解析。 */
 static void parser_asm_binop_single_tok_chain_c(void *arena, struct parser_asm_lexer lex,
                                                 struct parser_asm_slice_u8 *source,
@@ -490,39 +581,62 @@ static void parser_asm_binop_single_tok_chain_c(void *arena, struct parser_asm_l
     lex_cur = out->next_lex;
   }
 }
+#endif /* !XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X single_tok_chain */
 
 /** parse_bitand_into：compare ( & compare )*。 */
 void parser_asm_parse_bitand_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                           struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 5);
+#else
   parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_AMP, PARSER_ASM_EXPR_BITAND,
                                       parser_parse_compare_into, parser_asm_stretch_expr_bitand_binop_audit_c);
+#endif
 }
 
 /** parse_bitxor_into：bitand ( ^ bitand )*。 */
 void parser_asm_parse_bitxor_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                           struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 6);
+#else
   parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_CARET, PARSER_ASM_EXPR_BITXOR,
                                       parser_parse_bitand_into, parser_asm_stretch_expr_bitxor_binop_audit_c);
+#endif
 }
 
 /** parse_bitor_into：bitxor ( | bitxor )*。 */
 void parser_asm_parse_bitor_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                          struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 7);
+#else
   parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_PIPE, PARSER_ASM_EXPR_BITOR,
                                       parser_parse_bitxor_into, parser_asm_stretch_expr_bitor_binop_audit_c);
+#endif
 }
 
 /** parse_logand_into：bitor ( && bitor )*。 */
 void parser_asm_parse_logand_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                           struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 8);
+#else
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_binop_mid_chain_audit_c(&lex, source));
   parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_AMPAMP, PARSER_ASM_EXPR_LOGAND,
                                       parser_parse_bitor_into, parser_asm_stretch_expr_logand_binop_audit_c);
+#endif
 }
 
 /** parse_logor_into：logand ( || logand )*。 */
 void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                          struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4bd trampoline. Stretch AUDIT padding stays in
+   * the C twin (product AUDIT_CALL is already nop). */
+  parser_asm_binop_parse_level_trampoline_c(arena, lex, source, out, 9);
+  return;
+#else
 #ifdef XLANG_PARSER_STRETCH_AUDIT
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_binop_full_chain_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_expr_binop_mega_full_deep_audit_c(&lex, source));
@@ -1232,6 +1346,7 @@ void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer le
   parser_asm_binop_single_tok_chain_c(arena, lex, source, out, (int32_t)TOKEN_PIPEPIPE, PARSER_ASM_EXPR_LOGOR,
                                       parser_parse_logand_into, parser_asm_stretch_expr_logor_binop_audit_c);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
+#endif /* !XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X parse_logor */
 }
 
 #endif /* PARSER_ASM_EXPR_BINOP_SLICE_INCLUDED */

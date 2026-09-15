@@ -11,11 +11,11 @@
  * stay no-op unless XLANG_PARSER_STRETCH_AUDIT. audit_fn on single_tok_chain
  * uses the same gate (was extra-lexing every bitand…logor expr).
  *
- * Hybrid P4bb/P4bc (XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X): portable
- * TOKEN→ExprKind and wrap dest-buffer come from pthin_expr_binop.x;
- * this TU keeps a wrap trampoline plus arena parse. Cold: no BODIES
- * define, full .inc.
- * Do not reuse XLANG_PTHIN_EXPR_BINOP_FROM_X for P4bb/P4bc bodies.
+ * Hybrid P4bb/P4bc/P4bd (XLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X): portable
+ * TOKEN→ExprKind, wrap dest-buffer, and parse_* dest-buffer come from
+ * pthin_expr_binop.x; this TU keeps wrap + parse trampolines plus
+ * peek-cache / AUDIT. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_BINOP_FROM_X for P4bb/P4bc/P4bd bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -54,6 +54,8 @@ _Static_assert((int)TOKEN_PIPEPIPE == 125, "binop.x TOKEN_PIPEPIPE pin");
 extern int32_t parser_asm_binop_token_to_expr_kind_c(int32_t kind);
 extern int32_t parser_asm_binop_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
                                             int32_t left_ref, int32_t right_ref);
+extern int32_t parser_asm_parse_binop_level_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                     int32_t *out_expr_ref, int32_t level);
 #endif
 
 /* P4bc consumer-wave writer. pipeline_abi inject-only skips new rest
