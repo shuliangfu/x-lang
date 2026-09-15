@@ -30,20 +30,26 @@
 // and diag_first_ident_len (FUNCTION then IDENT ident_len). Language
 // has no lexer_init / struct-by-value; the C trampoline inits the
 // lexer then calls diag_first_ident_into. Do not duplicate
-// skip_one_struct (P12b) or skip_one_function_full (P10b). P010–P014
-// diag reports, sticky globals, and onefunc_param_name_dup stay C.
+// skip_one_struct (P12b) or skip_one_function_full (P10b).
+// 7.2.1 P18d B-minus (2026-09-15): 有则补全 this file — P010–P014
+// diag reports (same C names; scalar line/col/kind ABI) and
+// onefunc_param_name_dup. Sticky / allow_bare_self / cur_module
+// file-statics stay C (language has no mutable file-local i32 /
+// void* globals); .x raises the P011–P014 sticky via
+// parser_sig_type_hard_set_c. Product msg text stays in C
+// parser_body_tl_p0xx_msg_c (bootstrap STRING_LIT cap is 64 bytes).
+// Do not wrap glue_tail scattered AUDIT. Do not compile this file
+// as a skip-include stub without bodies. Do not open a new P-lane
+// (有则补全 P18b).
 // Product AUDIT_CALL is already ((void)0); the C twins keep the huge
 // already-T combinator probes as cold fallback only.
-// Do not wrap glue_tail scattered AUDIT as a side effect.
-// Do not compile this file as a skip-include stub without bodies.
-// Do not open a new P-lane (有则补全 P18b).
 //
-// Hybrid P18b/P18c: g05_try_x_to_o this file; XLANG_PTHIN_BODY_TL_BODIES_FROM_X
+// Hybrid P18b/P18c/P18d: g05_try_x_to_o this file; XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 // skips the portable .inc region. Requires P9a bridge + P14b
 // skip_one_if_statement + P12b skip_one_struct + P10b
 // skip_one_function_full (otherwise those would UNDEF). token.h remains
 // the TOKEN_* authority via P18 C _Static_assert pins. Cold: no define,
-// full .inc. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c bodies.
+// full .inc. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c/P18d bodies.
 // G.7: hybrid authority for is_fn_sig_scalar is this file; mega rest
 // (parser_asm_thin_c.x) is omitted on full hybrid (G-02f-330); cold
 // authority is the .inc twin. Do not compile thin_c.x as a second table.
@@ -65,6 +71,20 @@ export extern "C" function parser_asm_skip_one_if_statement_into_c(lex_inout: *u
 export extern "C" function parser_asm_skip_one_struct_into_c(lex_inout: *u8, source: *u8): i32;
 /** P10b authority: skip one `function` / `extern` / `async function` item. */
 export extern "C" function parser_asm_skip_one_function_full_into_c(lex_inout: *u8, source: *u8): i32;
+/** Product diag with a P0xx code. file/detail may be null. */
+export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+/** C accessor: set g_parser_sig_type_hard so parse_into_buf aborts (ok=-2). */
+export extern "C" function parser_sig_type_hard_set_c(on: i32): void;
+/**
+ * Interned P010–P014 diagnostic messages (C). Bootstrap STRING_LIT is
+ * 64 bytes; several product msgs exceed that, so the text stays in C.
+ * id 0..8 as documented on the C twin; unknown id → null.
+ */
+export extern "C" function parser_body_tl_p0xx_msg_c(id: i32): *u8;
+/** OneFunc sidecar: byte length of param i's name. */
+export extern "C" function pipeline_onefunc_param_name_len(pool: *u8, i: i32): i32;
+/** OneFunc sidecar: byte at off of param i's name. */
+export extern "C" function pipeline_onefunc_param_name_byte_at(pool: *u8, i: i32, off: i32): u8;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P18 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -395,4 +415,161 @@ export function parser_asm_diag_first_ident_len_into_c(lex_inout: *u8, source: *
     n = parser_asm_lex_peek_ident_len_c(lex_inout, source);
   }
   return n;
+}
+
+/**
+ * Hard P010 for illegal binding forms: `let` without `: Type`, or
+ * `const` without `: Type` / `= init`. Does not raise the sig-type
+ * sticky (callers fail-leave the construct). Same C name as the .inc
+ * twin.
+ * @param line i32 — 1-based source line of the unexpected token
+ * @param col i32 — 1-based column
+ * @param is_let i32 — 1 = let (docs ban inference); 0 = const
+ * @return void
+ * PLATFORM: SHARED — product P18d B-minus; diag_report_with_code is
+ * the existing diagnostic authority (do not add a second reporter).
+ */
+#[no_mangle]
+export function parser_report_untyped_binding_p010_c(line: i32, col: i32, is_let: i32): void {
+  unsafe {
+    if (is_let != 0) {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P010",
+                            parser_body_tl_p0xx_msg_c(0), 0 as *u8);
+    } else {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P010",
+                            parser_body_tl_p0xx_msg_c(1), 0 as *u8);
+    }
+  }
+}
+
+/**
+ * Hard P011 for untyped function formals / missing return type.
+ * Raises the sig-type sticky so parse_into_buf aborts (ok=-2) instead
+ * of soft-skip+continue. kind 0 = param missing `: Type`; 1 = function
+ * missing return `: Type`. Same C name as the .inc twin.
+ * @param line i32 — 1-based source line of the unexpected token
+ * @param col i32 — 1-based column
+ * @param kind i32 — 0 param, 1 return type
+ * @return void
+ * PLATFORM: SHARED — product P18d B-minus.
+ */
+#[no_mangle]
+export function parser_report_untyped_formal_p011_c(line: i32, col: i32, kind: i32): void {
+  unsafe {
+    parser_sig_type_hard_set_c(1);
+    if (kind == 0) {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P011",
+                            parser_body_tl_p0xx_msg_c(2), 0 as *u8);
+    } else {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P011",
+                            parser_body_tl_p0xx_msg_c(3), 0 as *u8);
+    }
+  }
+}
+
+/**
+ * Hard P012 for duplicate function param / struct field / module
+ * top-level let/const names. Raises the sig-type sticky. kind 0 =
+ * function param; 1 = struct field; 2 = module top-level binding.
+ * Same C name as the .inc twin.
+ * @param line i32 — 1-based source line of the duplicate name token
+ * @param col i32 — 1-based column
+ * @param kind i32 — 0 param, 1 field, 2 top-level let/const
+ * @return void
+ * PLATFORM: SHARED — product P18d B-minus.
+ */
+#[no_mangle]
+export function parser_report_duplicate_name_p012_c(line: i32, col: i32, kind: i32): void {
+  unsafe {
+    parser_sig_type_hard_set_c(1);
+    if (kind == 0) {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P012",
+                            parser_body_tl_p0xx_msg_c(4), 0 as *u8);
+    } else if (kind == 2) {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P012",
+                            parser_body_tl_p0xx_msg_c(6), 0 as *u8);
+    } else {
+      diag_report_with_code(0 as *u8, line, col, "parse error", "P012",
+                            parser_body_tl_p0xx_msg_c(5), 0 as *u8);
+    }
+  }
+}
+
+/**
+ * Hard P013 for the `dyn Trait` prefix. Product spelling is the trait
+ * name alone (`let x: Clone = a`). Raises the sig-type sticky. Same
+ * C name as the .inc twin.
+ * @param line i32 — 1-based source line of the `dyn` token
+ * @param col i32 — 1-based column
+ * @return void
+ * PLATFORM: SHARED — product P18d B-minus.
+ */
+#[no_mangle]
+export function parser_report_dyn_prefix_p013_c(line: i32, col: i32): void {
+  unsafe {
+    parser_sig_type_hard_set_c(1);
+    diag_report_with_code(0 as *u8, line, col, "parse error", "P013",
+                          parser_body_tl_p0xx_msg_c(7), 0 as *u8);
+  }
+}
+
+/**
+ * Hard P014 when a let/const/param binding name is a keyword token.
+ * Raises the sig-type sticky. Same C name as the .inc twin.
+ * @param line i32 — 1-based source line of the keyword token
+ * @param col i32 — 1-based column
+ * @return void
+ * PLATFORM: SHARED — product P18d B-minus.
+ */
+#[no_mangle]
+export function parser_report_keyword_binding_p014_c(line: i32, col: i32): void {
+  unsafe {
+    parser_sig_type_hard_set_c(1);
+    diag_report_with_code(0 as *u8, line, col, "parse error", "P014",
+                          parser_body_tl_p0xx_msg_c(8), 0 as *u8);
+  }
+}
+
+/**
+ * Return 1 if `name` already appears among OneFunc params [0, nparams).
+ * Byte-compares via pipeline_onefunc_param_name_len / _byte_at (do not
+ * copy a second name table). Same C name as the .inc twin.
+ * @param pool *u8 — OneFunc sidecar pool (pipeline_onefunc_*); null → 0
+ * @param nparams i32 — number of params already appended
+ * @param name *u8 — candidate binding name bytes; null → 0
+ * @param name_len i32 — byte length (1..127); <= 0 → 0
+ * @return i32 — 1 if duplicate, 0 otherwise
+ * PLATFORM: SHARED — product P18d B-minus.
+ */
+#[no_mangle]
+export function parser_onefunc_param_name_dup_c(pool: *u8, nparams: i32, name: *u8, name_len: i32): i32 {
+  let i: i32 = 0;
+  let k: i32 = 0;
+  let pl: i32 = 0;
+  let nb: u8 = 0;
+  let pb: u8 = 0;
+  unsafe {
+    if (pool == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || nparams <= 0) {
+      return 0;
+    }
+    while (i < nparams) {
+      pl = pipeline_onefunc_param_name_len(pool, i);
+      if (pl == name_len) {
+        k = 0;
+        while (k < name_len) {
+          nb = name[k];
+          pb = pipeline_onefunc_param_name_byte_at(pool, i, k);
+          if (pb != nb) {
+            break;
+          }
+          k = k + 1;
+        }
+        if (k == name_len) {
+          return 1;
+        }
+      }
+      i = i + 1;
+    }
+  }
+  return 0;
 }

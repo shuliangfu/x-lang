@@ -3,11 +3,13 @@
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into
  * + skip_one_top_level_{let,const} + cfg_skip_pending_top_level
  *
- * Hybrid P18b/P18c: XLANG_PTHIN_BODY_TL_BODIES_FROM_X skips the portable
- * skip walks, the scalar TOKEN table, cfg_skip, and diag_first_ident
- * (bodies in src/asm/pthin_body_tl.x + by-value trampolines in the seed
- * TU). P010–P014 / onefunc_param_name_dup stay here. Cold: no define,
- * full twin. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c bodies.
+ * Hybrid P18b/P18c/P18d: XLANG_PTHIN_BODY_TL_BODIES_FROM_X skips the portable
+ * skip walks, the scalar TOKEN table, cfg_skip, diag_first_ident,
+ * P010–P014 reports, and onefunc_param_name_dup (bodies in
+ * src/asm/pthin_body_tl.x + by-value trampolines in the seed TU).
+ * Sticky / allow_bare_self / cur_module file-statics stay here.
+ * Cold: no define, full twin. Do not reuse XLANG_PTHIN_BODY_TL_FROM_X
+ * for P18b/P18c/P18d bodies.
  */
 #ifndef PARSER_ASM_BODY_TL_SLICE_INC
 #define PARSER_ASM_BODY_TL_SLICE_INC
@@ -30,19 +32,19 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
  * @param is_let 1 = let (docs ban inference); 0 = const (needs `: Type` or `= init`)
  * PLATFORM: SHARED parse.
  */
+const char *parser_body_tl_p0xx_msg_c(int32_t id);
+
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 void parser_report_untyped_binding_p010_c(int32_t line, int32_t col, int32_t is_let) {
   extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind,
                                     const char *code, const char *msg, const char *detail);
   if (is_let != 0) {
-    diag_report_with_code(NULL, line, col, "parse error", "P010",
-                          "let requires type annotation (no type inference; write let name: Type = ...)",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P010", parser_body_tl_p0xx_msg_c(0), NULL);
   } else {
-    diag_report_with_code(NULL, line, col, "parse error", "P010",
-                          "const requires ': Type = init' or '= init' (type inferred from init)",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P010", parser_body_tl_p0xx_msg_c(1), NULL);
   }
 }
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X p010 */
 
 /*
  * wave676 Cap residual: hard P011 for untyped function formals / missing return type.
@@ -60,6 +62,46 @@ static int32_t g_parser_sig_type_hard = 0;
 void parser_sig_type_hard_reset_c(void) { g_parser_sig_type_hard = 0; }
 
 int32_t parser_sig_type_hard_pending_c(void) { return g_parser_sig_type_hard; }
+
+/*
+ * Completes the reset/pending accessor family so hybrid P18d .x reports
+ * can raise the sticky without a mutable file-local i32 (language ban).
+ * on != 0 → 1; on == 0 → 0. Cold C twins also call this (single write).
+ * PLATFORM: SHARED parse.
+ */
+void parser_sig_type_hard_set_c(int32_t on) { g_parser_sig_type_hard = on ? 1 : 0; }
+
+/*
+ * Interned P010–P014 diagnostic messages. Bootstrap STRING_LIT is 64
+ * bytes; several product msgs exceed that, so hybrid P18d .x reports
+ * fetch the text here instead of embedding the literal.
+ * id: 0 P010 let, 1 P010 const, 2 P011 param, 3 P011 return,
+ *     4 P012 param, 5 P012 field, 6 P012 top-level, 7 P013, 8 P014.
+ * Unknown id → NULL.
+ * PLATFORM: SHARED parse — message text authority (do not fork wording
+ * in .x). Always compiled (cold C twins inlined the same strings).
+ */
+const char *parser_body_tl_p0xx_msg_c(int32_t id) {
+  if (id == 0)
+    return "let requires type annotation (no type inference; write let name: Type = ...)";
+  if (id == 1)
+    return "const requires ': Type = init' or '= init' (type inferred from init)";
+  if (id == 2)
+    return "function parameter requires type annotation (write name: Type)";
+  if (id == 3)
+    return "function requires return type annotation (write ): Type { ... })";
+  if (id == 4)
+    return "duplicate parameter name in function signature";
+  if (id == 5)
+    return "duplicate field name in struct definition";
+  if (id == 6)
+    return "duplicate top-level binding name (module already declares this let/const; rename one)";
+  if (id == 7)
+    return "do not write 'dyn Trait'; write the trait name (e.g. let x: Clone = a)";
+  if (id == 8)
+    return "binding name must be an identifier, not a keyword";
+  return NULL;
+}
 
 /*
  * 4.2.1 / wave676: product P011 rejects untyped formals, including free/inherent
@@ -89,18 +131,15 @@ void parser_cur_module_set_c(void *m) { g_parser_cur_module = m; }
 
 void *parser_cur_module_get_c(void) { return g_parser_cur_module; }
 
+#ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind) {
   extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
                                     const char *code, const char *msg, const char *detail);
-  g_parser_sig_type_hard = 1;
+  parser_sig_type_hard_set_c(1);
   if (kind == 0) {
-    diag_report_with_code(NULL, line, col, "parse error", "P011",
-                          "function parameter requires type annotation (write name: Type)",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P011", parser_body_tl_p0xx_msg_c(2), NULL);
   } else {
-    diag_report_with_code(NULL, line, col, "parse error", "P011",
-                          "function requires return type annotation (write ): Type { ... })",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P011", parser_body_tl_p0xx_msg_c(3), NULL);
   }
 }
 
@@ -117,22 +156,16 @@ void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind
 void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind) {
   extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
                                     const char *code, const char *msg, const char *detail);
-  g_parser_sig_type_hard = 1;
+  parser_sig_type_hard_set_c(1);
   if (kind == 0) {
-    diag_report_with_code(NULL, line, col, "parse error", "P012",
-                          "duplicate parameter name in function signature",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P012", parser_body_tl_p0xx_msg_c(4), NULL);
   } else if (kind == 2) {
     /* 9.6.3: two module-level let/const with one name used to compile silently
      * (second registration won). Root-fixed at the top-level-let registration
      * authority; sticky abort via g_parser_sig_type_hard. PLATFORM: SHARED parse. */
-    diag_report_with_code(NULL, line, col, "parse error", "P012",
-                          "duplicate top-level binding name (module already declares this let/const; rename one)",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P012", parser_body_tl_p0xx_msg_c(6), NULL);
   } else {
-    diag_report_with_code(NULL, line, col, "parse error", "P012",
-                          "duplicate field name in struct definition",
-                          NULL);
+    diag_report_with_code(NULL, line, col, "parse error", "P012", parser_body_tl_p0xx_msg_c(5), NULL);
   }
 }
 
@@ -149,10 +182,8 @@ void parser_report_duplicate_name_p012_c(int32_t line, int32_t col, int32_t kind
 void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col) {
   extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
                                     const char *code, const char *msg, const char *detail);
-  g_parser_sig_type_hard = 1;
-  diag_report_with_code(NULL, line, col, "parse error", "P013",
-                        "do not write 'dyn Trait'; write the trait name (e.g. let x: Clone = a)",
-                        NULL);
+  parser_sig_type_hard_set_c(1);
+  diag_report_with_code(NULL, line, col, "parse error", "P013", parser_body_tl_p0xx_msg_c(7), NULL);
 }
 
 /*
@@ -172,10 +203,8 @@ void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col) {
 void parser_report_keyword_binding_p014_c(int32_t line, int32_t col) {
   extern void diag_report_with_code(const char *file, int32_t line, int32_t col, const char *kind_s,
                                     const char *code, const char *msg, const char *detail);
-  g_parser_sig_type_hard = 1;
-  diag_report_with_code(NULL, line, col, "parse error", "P014",
-                        "binding name must be an identifier, not a keyword",
-                        NULL);
+  parser_sig_type_hard_set_c(1);
+  diag_report_with_code(NULL, line, col, "parse error", "P014", parser_body_tl_p0xx_msg_c(8), NULL);
 }
 
 /**
@@ -208,6 +237,7 @@ int32_t parser_onefunc_param_name_dup_c(uint8_t *pool, int32_t nparams, uint8_t 
   }
   return 0;
 }
+#endif /* !XLANG_PTHIN_BODY_TL_BODIES_FROM_X p011-p014-dup */
 
 #ifndef XLANG_PTHIN_BODY_TL_BODIES_FROM_X
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */

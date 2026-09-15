@@ -6,13 +6,14 @@
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into
  * + skip_one_top_level_{let,const} + cfg_skip_pending_top_level
  *
- * Hybrid P18b/P18c (XLANG_PTHIN_BODY_TL_BODIES_FROM_X): portable skip
- * walks, the scalar TOKEN table, cfg_skip, and diag_first_ident come
- * from pthin_body_tl.x; this TU keeps by-value trampolines plus
- * P010–P014 / onefunc_param_name_dup C. Language has no lexer_init /
- * struct-by-value; the diag_first_ident trampoline inits the lexer.
+ * Hybrid P18b/P18c/P18d (XLANG_PTHIN_BODY_TL_BODIES_FROM_X): portable skip
+ * walks, the scalar TOKEN table, cfg_skip, diag_first_ident, P010–P014
+ * reports, and onefunc_param_name_dup come from pthin_body_tl.x; this
+ * TU keeps by-value trampolines plus sticky / allow_bare_self /
+ * cur_module C statics. Language has no lexer_init / struct-by-value;
+ * the diag_first_ident trampoline inits the lexer.
  * Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c bodies.
+ * Do not reuse XLANG_PTHIN_BODY_TL_FROM_X for P18b/P18c/P18d bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -24,7 +25,7 @@
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 
-/* PLATFORM: SHARED — 7.2.1 P18b/P18c Route C + B-minus (2026-09-13).
+/* PLATFORM: SHARED — 7.2.1 P18b/P18c/P18d Route C + B-minus.
  * pthin_body_tl.x TOKEN_* are pin copies of this enum.
  * token.h remains the authority; fire if the pin drifts. */
 _Static_assert((int)TOKEN_EOF == 0, "body_tl.x TOKEN_EOF pin");
