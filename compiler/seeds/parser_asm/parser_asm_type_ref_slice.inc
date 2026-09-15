@@ -3,12 +3,13 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * Hybrid P3b/P3c/P3d/P3e/P3g: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
  * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
  * region, (P3d) consume_qualified / type_angle_close, and (P3e) TYPE_DYN
  * wrap / alloc (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). Arena alloc and parse_type_ref_impl stay C. Cold: no
- * BODIES define, this file is the full twin.
+ * in the seed TU). XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X skips postfix
+ * array/slice C twins (P3g dest-buffer). Arena alloc and parse_type_ref_impl
+ * stay C. Cold: no BODIES/POSTFIX define, this file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -533,6 +534,33 @@ int32_t parser_asm_alloc_pointee_type_ref_from_tok_c(void *arena, struct parser_
  * 解析 `T[]<label>` 后缀：空 `[]` 为 slice，可选 `<ident>` 域标签（M-3）。
  * lex 须已消费 `[`；若下一 token 不是 `]` 则返回 0。
  */
+#ifdef XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X
+extern int32_t parser_asm_parse_postfix_array_x_into_c(void *arena, int32_t elem_tr, void *lex_inout, void *source,
+                                                      uint8_t *label_scratch);
+/**
+ * PLATFORM: SHARED — P3g trampoline. Language has no local u8[N]; this
+ * C face holds label[64] for the empty-`[]` first-postfix slice path
+ * (array_x calls slice_x). Entry cursor is unconsumed; no `[` leaves
+ * *out_lex == entry and returns elem_tr. parse_type_ref_impl stays C.
+ * The slice C twin is skipped here: parse_type_ref_impl only calls the
+ * array helper (hybrid -Werror unused-function).
+ */
+static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t elem_tr,
+                                                       struct parser_asm_lexer lex,
+                                                       struct parser_asm_slice_u8 *source,
+                                                       struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  uint8_t label[64];
+  int32_t ref;
+  if (!out_lex || elem_tr == 0)
+    return elem_tr;
+  cur = lex;
+  memset(label, 0, sizeof(label));
+  ref = parser_asm_parse_postfix_array_x_into_c(arena, elem_tr, &cur, source, label);
+  *out_lex = cur;
+  return ref;
+}
+#else
 static int32_t parser_asm_parse_postfix_slice_type_ref_c(void *arena, int32_t elem_tr,
                                                          struct parser_asm_lexer lex,
                                                          struct parser_asm_slice_u8 *source,
@@ -665,6 +693,7 @@ static int32_t parser_asm_parse_postfix_array_type_ref_c(void *arena, int32_t el
   parser_asm_write_out_lex_c(out_lex, lex);
   return cur;
 }
+#endif /* XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X postfix array/slice */
 
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。

@@ -25,9 +25,12 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e: g05_try_x_to_o this file; XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
-// skips the portable .inc region. token.h remains the TOKEN_* authority
-// via P3 C _Static_assert pins. Cold: no define, full .inc stays.
+// Hybrid P3b/P3c/P3d/P3e/P3g: g05_try_x_to_o this file;
+// XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
+// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X is a separate define (P6e
+// PARSE_LAYOUT / P2c COND pattern) so a missing postfix_x keeps the C
+// postfix twins without dropping P3b–P3e. token.h remains the TOKEN_*
+// authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
 // historical i32x* / u32x* nibble pattern); do not "fix" as a side effect.
 // 7.2.1 P3c B-minus (2026-09-15): 有则补全 type-inst mangle dest-buffer.
@@ -61,6 +64,18 @@
 // wrap into parse. Do not merge with P3c mangle. Do not dest-buffer
 // the IDENT generic type-arg get/set soup this wave (extra
 // lexer_next). Do not open a new P-lane.
+// 7.2.1 P3g B-minus (2026-09-16): 有则补全 postfix `T[]` / `T[]<label>` /
+// `T[N]` / `T[N][M]…` dest-buffer. Both helpers were always-host-cc
+// statics in type_ref.inc (not behind BODIES). P9a peek/step walks
+// the bracket chain; empty `[]` as the first postfix is slice
+// (`T[N][]` fail-closed). ARRAY/SLICE writes reuse
+// pipeline_type_init_compound_kind_at (kind 10/11 < 15; G.7). Optional
+// region label goes through pipeline_type_set_region_label_at; the C
+// trampoline holds label[64] (language has no local u8[N]). Local
+// i32[8] dims match skip_tl. parse_type_ref stays C. Do not dest-buffer
+// parse_type_ref (P3f was hello/fmt red). Do not copy wrap into parse.
+// Do not merge wrap. Do not FORCE pabi mega. Do not open a new P-lane.
+// Do not `break` out of nested while (P4bh parse drops the function).
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -86,10 +101,13 @@ const TOKEN_F32X4: i32 = 74;
 const TOKEN_F32: i32 = 77;
 const TOKEN_F64: i32 = 78;
 const TOKEN_VOID: i32 = 79;
+const TOKEN_INT: i32 = 80;
 const TOKEN_LBRACKET: i32 = 86;
+const TOKEN_RBRACKET: i32 = 87;
 const TOKEN_DOT: i32 = 92;
 const TOKEN_STAR: i32 = 98;
 const TOKEN_RSHIFT: i32 = 105;
+const TOKEN_LT: i32 = 120;
 const TOKEN_GT: i32 = 121;
 
 /** P9a: peek next kind without advancing the opaque lexer. */
@@ -98,6 +116,12 @@ export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: peek ident_len of the next token. */
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek TOKEN_INT payload as i32 (array dim). */
+export extern "C" function parser_asm_lex_peek_int_val_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek token_start of the next token (IDENT label copy). */
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+/** P1b authority: copy nlen bytes starting at start. Do not copy the loop. */
+export extern "C" function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void;
 /** P9a: lexer pos (copy-at-end uses this as IDENT end). */
 export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
 export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
@@ -120,6 +144,8 @@ const TYPE_USIZE: i32 = 6;
 const TYPE_ISIZE: i32 = 7;
 const TYPE_NAMED: i32 = 8;
 const TYPE_PTR: i32 = 9;
+const TYPE_ARRAY: i32 = 10;
+const TYPE_SLICE: i32 = 11;
 const TYPE_F32: i32 = 14;
 const TYPE_F64: i32 = 15;
 const TYPE_VOID: i32 = 16;
@@ -139,6 +165,18 @@ export extern "C" function ast_ast_arena_type_alloc(arena: *u8): i32;
  * pabi mega; do not reuse init_compound_kind_at (kind_ord cap 15).
  */
 export extern "C" function pipeline_type_init_dyn_c(a: *u8, ref: i32, inner_tr: i32, name: *u8, nlen: i32): void;
+/**
+ * Existing pipeline_abi writer: stamp compound Type (kind 0..15) + elem +
+ * array_size. TYPE_ARRAY=10 fits the cap (G.7). Do not reuse for
+ * TYPE_DYN=17 (P3e). Labeled TYPE_SLICE uses pipeline_type_init_slice_c
+ * (set_region_label_at wipes elem_type_ref on the current Type layout).
+ */
+export extern "C" function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: i32, elem_ref: i32, array_size: i32): i32;
+/**
+ * P3g consumer-wave writer: stamp TYPE_SLICE + elem + optional region
+ * label. Lives in the P3 seed; do not copy; do not FORCE pabi mega.
+ */
+export extern "C" function pipeline_type_init_slice_c(a: *u8, ref: i32, elem_tr: i32, label: *u8, nlen: i32): void;
 /** Skip-trait registry predicate (skip_tl). G.7: one lookup table. */
 export extern "C" function xlang_skip_trait_is_registered_c(trait_nm: *u8, trait_nlen: i32): i32;
 
@@ -793,4 +831,166 @@ export function parser_asm_wrap_registered_trait_as_dyn_into_c(arena: *u8, named
     return named_tr;
   }
   return parser_asm_alloc_dyn_type_ref_into_c(arena, named_tr, name_scratch);
+}
+
+/**
+ * Parse postfix slice after a consumed `[`: first token must be `]`.
+ * Optional `<ident>` region label (M-3, ident_len in 1..63). Entry
+ * cursor is unconsumed; success parks after `]` or after `>`.
+ * @param arena *u8 — AST arena; null → 0
+ * @param elem_tr i32 — element type_ref; <=0 → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param label_scratch *u8 — dest for region label; caller owns ≥64
+ *   bytes; null fails the `<ident>` path (no-label `T[]` still works)
+ * @return i32 — TYPE_SLICE type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3g dest-buffer split of the former
+ * static C twin. Writer = pipeline_type_init_slice_c (P3 seed). Name
+ * copy is P1b from token_start (G.7 ≡ C twin). parse_type_ref stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_postfix_slice_x_into_c(arena: *u8, elem_tr: i32, lex_inout: *u8, source: *u8, label_scratch: *u8): i32 {
+  let kind: i32 = 0;
+  let nlen: i32 = 0;
+  let slice_ref: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  let ts: usize = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || elem_tr == 0) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RBRACKET) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    slice_ref = ast_ast_arena_type_alloc(arena);
+    if (slice_ref == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_LT) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (kind != TOKEN_IDENT || nlen <= 0 || nlen > 63 || label_scratch == 0 as *u8) {
+        return 0;
+      }
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source) as i32;
+      if (data == 0 as *u8) {
+        return 0;
+      }
+      /* G.7 ≡ C twin copy from token_start (not at_end: next_lex.pos
+       * may sit past the IDENT). */
+      parser_asm_copy_slice_to_name64_buf_c(data, slen, ts, nlen, label_scratch);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_GT) {
+        return 0;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      pipeline_type_init_slice_c(arena, slice_ref, elem_tr, label_scratch, nlen);
+      return slice_ref;
+    }
+    pipeline_type_init_slice_c(arena, slice_ref, elem_tr, 0 as *u8, 0);
+    return slice_ref;
+  }
+  return 0;
+}
+
+/**
+ * Parse postfix array/slice after an element type: `T[]` / `T[]<label>` /
+ * `T[N]` / `T[N][M]…`. Entry cursor is unconsumed. If the next token is
+ * not `[`, the cursor is left unchanged and `elem_tr` is returned.
+ * Empty `[]` is slice only as the first postfix (`T[N][]` fail-closed).
+ * Cap 8 dims; wrap right-to-left so `i32[2][3]` ≡ array-of-2 of
+ * array-of-3 of i32.
+ * @param arena *u8 — AST arena; null → elem_tr when no `[`, else 0
+ * @param elem_tr i32 — element type_ref; <=0 → elem_tr
+ * @param lex_inout *u8 — opaque lexer; mutated; null → elem_tr
+ * @param source *u8 — opaque slice; null → elem_tr
+ * @param label_scratch *u8 — forwarded to the slice helper; caller
+ *   owns ≥64 bytes
+ * @return i32 — TYPE_ARRAY / TYPE_SLICE type_ref, elem_tr if no `[`,
+ *   or 0 on failure
+ * PLATFORM: SHARED type grammar. P3g dest-buffer split of the former
+ * static C twin. Writer = pipeline_type_init_compound_kind_at (ARRAY).
+ * Do not `break` out of the dim while (P4bh). parse_type_ref stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_postfix_array_x_into_c(arena: *u8, elem_tr: i32, lex_inout: *u8, source: *u8, label_scratch: *u8): i32 {
+  let kind: i32 = 0;
+  let iv: i32 = 0;
+  let ndims: i32 = 0;
+  let more: i32 = 0;
+  let di: i32 = 0;
+  let cur: i32 = 0;
+  let arr_ref: i32 = 0;
+  let ok: i32 = 0;
+  let dims: i32[8] = [];
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || elem_tr == 0) {
+    return elem_tr;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACKET) {
+      return elem_tr;
+    }
+    ndims = 0;
+    more = 1;
+    while (more == 1) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_RBRACKET) {
+        if (ndims > 0) {
+          return 0;
+        }
+        return parser_asm_parse_postfix_slice_x_into_c(arena, elem_tr, lex_inout, source, label_scratch);
+      }
+      if (kind != TOKEN_INT) {
+        return 0;
+      }
+      iv = parser_asm_lex_peek_int_val_c(lex_inout, source);
+      if (iv <= 0) {
+        return 0;
+      }
+      if (ndims >= 8) {
+        return 0;
+      }
+      dims[ndims] = iv;
+      ndims = ndims + 1;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_RBRACKET) {
+        return 0;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_LBRACKET) {
+        more = 0;
+      }
+    }
+    if (arena == 0 as *u8) {
+      return 0;
+    }
+    cur = elem_tr;
+    di = ndims - 1;
+    while (di >= 0) {
+      arr_ref = ast_ast_arena_type_alloc(arena);
+      if (arr_ref == 0) {
+        return 0;
+      }
+      ok = pipeline_type_init_compound_kind_at(arena, arr_ref, TYPE_ARRAY, cur, dims[di]);
+      if (ok == 0) {
+        return 0;
+      }
+      cur = arr_ref;
+      di = di - 1;
+    }
+    return cur;
+  }
+  return 0;
 }
