@@ -54,11 +54,22 @@
 // P19 cold C twins otherwise. parse_if_stmt / arena / match /
 // if_expr stay C. Do not open a new P-lane.
 //
-// Hybrid P5b/P5c/P5d: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
+// 7.2.1 P5e B-minus (2026-09-15): 有则补全 this file with
+// match_dest_enum_tag dest-buffer. The C twin lived in
+// match_subject.inc (always host-cc, not behind BODIES). ABI is
+// already pointer-legal (opaque module + variant bytes); language
+// has no local u8[N], so the C trampoline holds ename[256] and
+// forwards it. Sidecar authority stays pipeline_module_enum_*.
+// parse_match stays C and calls the historical static. Do not copy
+// this scan into parse_match or P12e skip_one_enum_register. Do not
+// merge with P14c module_try_register_enum_name. Do not open a new
+// P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P5b/P5c/P5d/P5e: g05_try_x_to_o this file; XLANG_PTHIN_CTRL_BODIES_FROM_X
 // skips the portable .inc region. Requires the P9a lexer-step bridge
 // (P5d peeks; otherwise those would UNDEF — g05 gates this lane on
 // p9a ok). Cold: no define, full .inc. Do not reuse XLANG_PTHIN_CTRL_FROM_X
-// for P5b/P5c/P5d bodies.
+// for P5b/P5c/P5d/P5e bodies.
 // PLATFORM: SHARED freestanding.
 
 /** P9b authority: advance past whitespace and comments. */
@@ -77,6 +88,10 @@ export extern "C" function parser_asm_advance_past_cond_rparen_into_c(lex_inout:
 export extern "C" function ast_ast_arena_block_alloc(arena: *u8): i32;
 export extern "C" function pipeline_block_append_if(arena: *u8, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
 export extern "C" function pipeline_block_append_stmt_order(arena: *u8, br: i32, kind: i32, idx: i32): i32;
+/** Pipeline sidecar: enum name / variant-tag table. Authority = runtime_pipeline_abi.x. */
+export extern "C" function pipeline_module_enum_name_len(module: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_enum_name_byte_at(module: *u8, idx: i32, off: i32): u8;
+export extern "C" function pipeline_module_enum_variant_tag_for_names(m: *u8, enum_name: *u8, enum_len: i32, variant_name: *u8, variant_len: i32): i32;
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
 export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
@@ -1202,4 +1217,68 @@ export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, so
     return 1;
   }
   return 0;
+}
+
+/**
+ * Dest-typed `.Variant` match: unique registered enum that owns this
+ * variant spelling. Walks sidecar enum names (cap 64), copies each
+ * name into caller `ename[256]`, and asks
+ * pipeline_module_enum_variant_tag_for_names. Unique hit → that tag;
+ * 0 or 2+ hits → -1 (caller parse-fails).
+ * @param m *u8 — opaque ast_Module; null → -1
+ * @param vname *u8 — variant spelling bytes (not required to be NUL-terminated)
+ * @param vlen i32 — variant content length; <= 0 → -1
+ * @param ename *u8 — caller dest for one enum name (capacity 256); C trampoline holds it
+ * @return i32 — tag >= 0 on a unique owner; -1 unknown / ambiguous / null
+ * PLATFORM: SHARED — product P5e B-minus. parse_match stays C and calls
+ * the historical static. Do not copy this scan into parse_match or P12e.
+ * Do not merge with P14c register. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function parser_asm_match_dest_enum_tag_into_c(m: *u8, vname: *u8, vlen: i32, ename: *u8): i32 {
+  let ei: i32 = 0;
+  let nlen: i32 = 0;
+  let bi: i32 = 0;
+  let zi: i32 = 0;
+  let tag: i32 = 0;
+  let hits: i32 = 0;
+  let found: i32 = -1;
+  let b: u8 = 0;
+  if (m == 0 as *u8 || vname == 0 as *u8 || ename == 0 as *u8 || vlen <= 0) {
+    return -1;
+  }
+  unsafe {
+    ei = 0;
+    while (ei < 64) {
+      nlen = pipeline_module_enum_name_len(m, ei);
+      if (nlen <= 0) {
+        break;
+      }
+      if (nlen > 255) {
+        nlen = 127;
+      }
+      // C twin memset(ename, 0, 256) every iteration before the copy.
+      zi = 0;
+      while (zi < 256) {
+        ename[zi as usize] = 0;
+        zi = zi + 1;
+      }
+      bi = 0;
+      while (bi < nlen) {
+        b = pipeline_module_enum_name_byte_at(m, ei, bi);
+        ename[bi as usize] = b;
+        bi = bi + 1;
+      }
+      tag = pipeline_module_enum_variant_tag_for_names(m, ename, nlen, vname, vlen);
+      if (tag >= 0) {
+        hits = hits + 1;
+        found = tag;
+      }
+      ei = ei + 1;
+    }
+  }
+  if (hits != 1) {
+    return -1;
+  }
+  return found;
 }

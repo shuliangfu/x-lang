@@ -4,12 +4,13 @@
  *
  * Bodies: if_stmt + match_subject + if_expr slice.inc（顺序同 mega）
  *
- * Hybrid P5b/P5c/P5d (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
+ * Hybrid P5b/P5c/P5d/P5e (XLANG_PTHIN_CTRL_BODIES_FROM_X): portable buf-path
  * comment-aware brace skip + kw_at_pos + scan_sync pos plus the P5d
- * six-stage realign walk come from pthin_ctrl.x (realign over the P9a
- * bridge peek family); this TU keeps the slice trampolines plus parse /
+ * six-stage realign walk and the P5e dest-typed enum-tag scan come from
+ * pthin_ctrl.x (realign over the P9a bridge peek family; dest-tag trampoline
+ * holds ename[256]); this TU keeps the slice trampolines plus parse /
  * match / if_expr. Cold: no BODIES define, full .inc. Do
- * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d bodies.
+ * not reuse XLANG_PTHIN_CTRL_FROM_X for P5b/P5c/P5d/P5e bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -132,10 +133,12 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *data);
 
 #ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
-/* .x product bodies (buf-path brace skip + kw_at_pos + scan_sync pos).
- * Same C name for skip_braces; kw_at_pos keeps the slice+const char*
- * trampoline because language has no C string type; scan_sync keeps
- * the by-value lexer trampoline because language has no struct-by-value. */
+/* .x product bodies (buf-path brace skip + kw_at_pos + scan_sync pos +
+ * P5e dest-typed enum-tag scan). Same C name for skip_braces; kw_at_pos
+ * keeps the slice+const char* trampoline because language has no C string
+ * type; scan_sync keeps the by-value lexer trampoline because language
+ * has no struct-by-value. dest-tag trampoline is in match_subject.inc
+ * (holds ename[256]). */
 extern size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_t *data, size_t len,
                                                                     size_t start);
 extern int32_t parser_asm_kw_at_pos_buf_c(uint8_t *data, size_t len, size_t i, uint8_t *kw, int32_t klen);

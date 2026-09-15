@@ -1,11 +1,16 @@
 /**
  * parser_asm_match_subject_slice.inc — parse_match_subject_into / parse_match_into C 实现。
  *
- * 由 parser_asm_thin_c.c #include；勿单独编译。
+ * 由 parser_asm_thin_c.c / pthin_ctrl.from_x.c #include；勿单独编译。
  * match subject: bare IDENT → EXPR_VAR (so `{` after IDENT is match arms,
  * not STRUCT_LIT). IDENT followed by CALL `(` / INDEX `[` / FIELD `.`
  * falls through to parse_expr_into (parser_x mega). parse_match_into
  * parses the full match expression and callbacks parse_expr_into.
+ *
+ * Hybrid P5e: XLANG_PTHIN_CTRL_BODIES_FROM_X skips the dest-typed enum
+ * tag scan (body in src/asm/pthin_ctrl.x). C trampoline holds ename[256].
+ * parse_match stays here. Cold: no define, full twin.
+ * Do not reuse XLANG_PTHIN_CTRL_FROM_X for P5e bodies.
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
@@ -311,6 +316,19 @@ static int32_t parser_asm_parse_match_struct_fields_c(void *arena, struct parser
  * G.7: same pipeline_module_enum_variant_tag_for_names as IDENT+DOT.
  * PLATFORM: SHARED dest-typed enum match.
  */
+#ifdef XLANG_PTHIN_CTRL_BODIES_FROM_X
+extern int32_t parser_asm_match_dest_enum_tag_into_c(void *m, uint8_t *vname, int32_t vlen, uint8_t *ename);
+static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t vlen) {
+  /* PLATFORM: SHARED — P5e trampoline. Language has no local u8[N];
+   * .x fills the dest buffer then calls pipeline_module_enum_variant_tag_for_names.
+   * Zero algorithm besides holding ename[256]. */
+  uint8_t ename[256];
+  if (!m || !vname || vlen <= 0)
+    return -1;
+  memset(ename, 0, sizeof(ename));
+  return parser_asm_match_dest_enum_tag_into_c(m, vname, vlen, ename);
+}
+#else
 static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t vlen) {
   uint8_t ename[256];
   int32_t ei;
@@ -347,6 +365,7 @@ static int32_t parser_asm_match_dest_enum_tag_c(void *m, uint8_t *vname, int32_t
     return -1;
   return found;
 }
+#endif /* XLANG_PTHIN_CTRL_BODIES_FROM_X dest enum tag */
 
 /**
  * parse_match_into：解析 `match expr { pat => result; ... }`；lex 指向 match 关键字。

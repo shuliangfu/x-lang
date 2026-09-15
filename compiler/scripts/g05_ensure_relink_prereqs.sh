@@ -1203,9 +1203,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P9 stretch+suite ← $_pthin_p9_seed (G-02f-318 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d B-minus (2026-09-13).
+        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d/P5e B-minus.
         # pthin_ctrl.x holds comment-aware brace skip / kw_at_pos /
-        # scan_sync pos + the six-stage realign walk. P5d requires the
+        # scan_sync pos + the six-stage realign walk + dest-typed enum
+        # tag scan (P5e; C trampoline holds ename[256]). P5d requires the
         # P9a lexer-step bridge (peek family + cursor trio; otherwise
         # those would UNDEF), so this lane runs AFTER P9a and gates on
         # its ok flag. P19 scalars (pos_before_run / lex_at_token_pos /
@@ -1217,7 +1218,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o"; then
             _pthin_p5b_ok=1
             _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
-            echo "g05_ensure: P5b/P5c/P5d ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign)"
+            echo "g05_ensure: P5b/P5c/P5d/P5e ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag)"
           else
             echo "g05_ensure: P5b ctrl .x thin failed; P5 C twin stays full" >&2
           fi
