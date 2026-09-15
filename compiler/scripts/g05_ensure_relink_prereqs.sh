@@ -141,10 +141,9 @@ g05_cc_c() {
 g05_obj_defines() {
   _g05_obj="$1"
   _g05_sym="$2"
-  nm -gU "$_g05_obj" 2>/dev/null | awk -v s="$_g05_sym" -v us="_$_g05_sym" '
-    $2 == "T" && ($3 == s || $3 == us) { found = 1 }
-    END { exit found ? 0 : 1 }
-  '
+  # Linux nm: "ADDR T name" or "T name"; Darwin: "ADDR T _name".
+  # G05_X_O_WEAK may stamp W rather than T.
+  nm -gU "$_g05_obj" 2>/dev/null | grep -E " [TWtw] (_)?${_g05_sym}\$" >/dev/null
 }
 
 g05_try_x_to_o() {
