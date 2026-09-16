@@ -46096,6 +46096,7 @@ int32_t pipeline_module_num_type_aliases_at(void *module) {
  * Soft-reset when module.num_imports@8 == 0 (parse / module reset).
  * PLATFORM: SHARED freestanding module_import Cap leave.
  */
+/* XLANG_PABI_MODULE_IMPORT_THIN_BEGIN */
 #define WAVE263_IMP_SLOTS 128
 #define WAVE263_IMP_ENTRY_SZ 532
 #define WAVE263_IMP_SEL_ROW 64
@@ -46644,6 +46645,7 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
     return 0;
   return rows[abs * WAVE263_IMP_SEL_ROW + off];
 }
+/* XLANG_PABI_MODULE_IMPORT_THIN_END */
 
 #endif /* close wave178 FROM_X for leftover-PE enum storage unique */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE enum storage unique */
