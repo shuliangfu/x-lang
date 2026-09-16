@@ -3212,6 +3212,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_type_to_c_repr_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_binop_block_peel_thin.x ] \
+      && [ src/runtime_pipeline_abi_binop_block_peel_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3235,6 +3239,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_param_ptr_slot_thin "$o" || true
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+      pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
@@ -4242,67 +4247,11 @@ pipeline_abi_inject_type_to_c_repr_thin() {
 }
 
 # binop dual-slot peel of transparent EXPR_BLOCK (`unsafe { e }`).
-# Product hybrid keeps load_operand in the leftover (seed body is
-# #ifndef FROM_X). inject-only skips full mega -E, so extract the
-# marked seed bodies, weaken the existing strong symbols, first-wins
-# ld -r. G.7: one C body (markers in from_x.c).
+# G.7: .x thin matches mega; same inject_thin_leaf as class E (PREFER_ASM).
+# Seed C-extract markers remain cold twin only (not product inject path).
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_binop_block_peel_thin() {
-  local o="$1"
-  local seed="seeds/runtime_pipeline_abi.from_x.c"
-  local gen_c thin_o base_o oc
-  if [ ! -s "$o" ] || [ ! -f "$seed" ]; then
-    return 0
-  fi
-  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_blkpeel.XXXXXX.c")"
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_blkpeel.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_blkpeel_base.XXXXXX.o")"
-  if ! awk '
-    /XLANG_PABI_BINOP_BLOCK_PEEL_THIN_BEGIN/ {p=1; next}
-    /XLANG_PABI_BINOP_BLOCK_PEEL_THIN_END/ {p=0; next}
-    p {print}
-  ' "$seed" >"$gen_c" || [ ! -s "$gen_c" ]; then
-    log "pipeline_abi blkpeel-thin inject: extract failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--Wall -I. -Iinclude -Isrc} -Wno-unused -c -o "$thin_o" "$gen_c" 2>/dev/null; then
-    log "pipeline_abi blkpeel-thin inject: cc thin failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  oc=""
-  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-  elif command -v llvm-objcopy >/dev/null 2>&1; then
-    oc=llvm-objcopy
-  elif command -v objcopy >/dev/null 2>&1; then
-    oc=objcopy
-  fi
-  if [ -n "$oc" ]; then
-    for s in \
-      glue_try_binop_load_operand_elf_c \
-      glue_binop_operand_index_addr_clobbers_rbx_elf_c \
-      glue_binop_operand_load_to_rbx_clobbers_rax_elf_c \
-      glue_expr_emit_may_clobber_rbx_elf_c \
-      glue_expr_block_transparent_value_ref_at
-    do
-      "$oc" --weaken-symbol="_$s" "$base_o" 2>/dev/null \
-        || "$oc" --weaken-symbol="$s" "$base_o" 2>/dev/null \
-        || true
-    done
-  fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi blkpeel-thin inject OK (first-wins over weakened leftover)"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
-  fi
-  cp -f "$base_o" "$o"
-  log "pipeline_abi blkpeel-thin inject: merge failed; restored base"
-  rm -f "$gen_c" "$thin_o" "$base_o"
-  return 1
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_block_peel_thin.x" "blkpeel-thin"
 }
 
 # wave142 dest-in-rbx assign thin inject.
