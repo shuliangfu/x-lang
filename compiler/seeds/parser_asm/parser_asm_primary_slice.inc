@@ -22,7 +22,9 @@
  * P4bn: XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X trampolines
  * finish_from_type_ident (body in pthin_expr_primary.x; C holds
  * name[256]). P4bo: XLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X trampolines
- * parse_asm_bang (C holds tmpl[256]+regs[128]; parse_unsafe stays C).
+ * parse_asm_bang (C holds tmpl[256]+regs[128]). P4bp:
+ * XLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X trampolines parse_unsafe
+ * (ident_pre_dispatch stays C compositor; lbrace lookahead stays C).
  * Cold: no define, full twin.
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
@@ -542,6 +544,34 @@ static int32_t parser_asm_primary_ident_is_asm_option_name_c(struct parser_asm_s
 }
 #endif /* !XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X */
 
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X
+extern int32_t parser_asm_primary_parse_unsafe_x_into_c(void *arena, void *lex_inout, void *source,
+                                                       int32_t *out_ok, int32_t *out_expr_ref);
+/**
+ * PLATFORM: SHARED — P4bp trampoline. Entry cursor is unconsumed
+ * TOKEN_LBRACE (`lex_after_kw` after IDENT `unsafe`). ident_pre_dispatch
+ * stays C compositor. lbrace_looks_like_block / empty_ident_braces stay C.
+ */
+static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
+                                                   struct parser_asm_slice_u8 *source,
+                                                   struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_lexer lex;
+  int32_t ok;
+  int32_t ref;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  out->expr_ref = 0;
+  lex = lex_after_kw;
+  ok = 0;
+  ref = 0;
+  if (parser_asm_primary_parse_unsafe_x_into_c(arena, &lex, source, &ok, &ref) == 0 || ok == 0)
+    return;
+  out->ok = 1;
+  out->expr_ref = ref;
+  out->next_lex = lex;
+}
+#else
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
                                                    struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_parse_expr_result *out) {
@@ -576,6 +606,7 @@ static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_as
   out->expr_ref = expr_ref;
   out->next_lex = block_res.next_lex;
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X parse_unsafe */
 
 /**
  * Parse bare `{ ... }` as an EXPR_BLOCK primary (docs/08 §2.3 block expression).
@@ -1581,7 +1612,7 @@ extern int32_t parser_asm_primary_parse_asm_bang_x_into_c(void *arena, void *lex
  * PLATFORM: SHARED — P4bo trampoline. Language has no local u8[N]; this
  * C face holds tmpl[256] (template decode cap 127) and regs[128]
  * (comma-separated register spellings). Entry cursor is unconsumed BANG
- * (`*lex` at `!`; `*r` already holds that token). parse_unsafe stays C.
+ * (`*lex` at `!`; `*r` already holds that token). parse_unsafe is P4bp.
  */
 static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_slice_u8 *source,
                                                 struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,

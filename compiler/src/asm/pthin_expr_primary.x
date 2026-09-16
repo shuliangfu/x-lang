@@ -81,6 +81,9 @@ export extern "C" function parser_parse_at_simd_builtin_ptr_into_c(arena: *u8, l
 export extern "C" function parser_parse_block_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_block_ref: *i32): i32;
 export extern "C" function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: i32, type_ref: i32): i32;
+export extern "C" function ast_ast_arena_block_alloc(arena: *u8): i32;
+export extern "C" function pipeline_block_append_unsafe(arena: *u8, br: i32, body_ref: i32): i32;
+export extern "C" function pipeline_block_append_stmt_order(arena: *u8, br: i32, kind: i32, idx: i32): i32;
 export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
 export extern "C" function pipeline_expr_append_array_lit_elem(a: *u8, er: i32, elem_ref: i32): i32;
 export extern "C" function lexer_note_string_lit_overflow(line: i32, col: i32): void;
@@ -197,17 +200,26 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // keeps the C twin without dropping P4bh/P4bj/P4bm. Do not dest-buffer
 // append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
 // 7.2.1 P4bo B-minus (2026-09-16): 有则补全 parse_asm_bang dest-buffer.
-// ident_pre_dispatch still C (thin compositor); parse_unsafe stays C.
-// Template decode writes a C-owned tmpl[256] (cap 127 + overflow note,
-// same as the C twin; do NOT reuse STRING decode_span — invalid-escape
-// fallthrough writes the backslash, STRING consumed the follower).
-// Register spellings pack into C-owned regs[128] then
-// set_method_call_c (does not change kind). Option bits go through
-// set_call_c(callee=0, bits) onto call_num_type_args. n_in is
-// set_int_val. Independent ASM_BANG gate so a missing asm_x keeps
-// the C twin without dropping P4bh/P4bj/P4bm/P4bn. Nested while
-// uses flags (no break). Do not dest-buffer append_byte /
-// parse_type_ref / parse_unsafe. Do not FORCE pabi mega.
+// ident_pre_dispatch still C (thin compositor). Template decode writes
+// a C-owned tmpl[256] (cap 127 + overflow note, same as the C twin;
+// do NOT reuse STRING decode_span — invalid-escape fallthrough writes
+// the backslash, STRING consumed the follower). Register spellings pack
+// into C-owned regs[128] then set_method_call_c (does not change kind).
+// Option bits go through set_call_c(callee=0, bits) onto
+// call_num_type_args. n_in is set_int_val. Independent ASM_BANG gate
+// so a missing asm_x keeps the C twin without dropping
+// P4bh/P4bj/P4bm/P4bn. Nested while uses flags (no break). Do not
+// dest-buffer append_byte / parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bp B-minus (2026-09-16): 有则补全 parse_unsafe dest-buffer.
+// ident_pre_dispatch still C (thin compositor). Entry cursor is
+// unconsumed TOKEN_LBRACE (caller already matched IDENT unsafe).
+// Inner block = parse_block_ptr (lex after `{`, same as P4bh LBRACE
+// block). Wrapper block holds one unsafe stmt (order kind=6) whose
+// body is the inner block; wrap as EXPR_BLOCK via P5f wrap_block_ref
+// (G.7; type_ref=0). Independent UNSAFE gate so a missing unsafe_x
+// keeps the C twin without dropping P4bh/P4bj/P4bm/P4bn/P4bo.
+// Do not dest-buffer lbrace_looks_like_block / empty_ident_braces.
+// Do not dest-buffer append_byte / parse_type_ref. Do not FORCE pabi mega.
 // 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
 // C twin keeps *lex at `<` until follower is `(` / committed `{` struct
 // lit. .x type_ref walk and count-only skip both advance lex_inout;
@@ -2342,7 +2354,7 @@ function parser_asm_primary_asm_parse_operand_x(arena: *u8, lex_inout: *u8, sour
  * PLATFORM: SHARED — product P4bo. Writers = set_kind / set_var_name /
  * set_method_call_c / set_call_c / set_int_val / append_call_arg (G.7).
  * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
- * Do not dest-buffer parse_unsafe. Do not FORCE pabi mega.
+ * Do not FORCE pabi mega.
  */
 #[no_mangle]
 export function parser_asm_primary_parse_asm_bang_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
@@ -2503,6 +2515,85 @@ export function parser_asm_primary_parse_asm_bang_x_into_c(arena: *u8, lex_inout
     parser_asm_lex_step_kind_c(lex_inout, source);
     out_ok[0] = 1;
     out_expr_ref[0] = pref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse expression-position `unsafe { ... }`. Caller already matched
+ * IDENT `unsafe`; entry cursor is the unconsumed TOKEN_LBRACE.
+ * Inner block is parse_block_ptr (lex after `{`, same as P4bh LBRACE
+ * block). A fresh wrapper block holds one unsafe stmt (order kind=6)
+ * whose body is that inner block; wrap the wrapper as EXPR_BLOCK via
+ * P5f wrap_block_ref (G.7; type_ref=0). Fail-closed: missing `{`,
+ * block parse fail, alloc fail, or append fail leave out_ok=0.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at `{`; parked after the inner block on success
+ * @param source *u8 — opaque source slice
+ * @param out_ok *i32 — 1 on parse success
+ * @param out_expr_ref *i32 — EXPR_BLOCK wrapper ref on success
+ * @return i32 — 1 handled (check out_ok); 0 not LBRACE / null args
+ * PLATFORM: SHARED — product P4bp. Writers = parse_block_ptr /
+ * ast_ast_arena_block_alloc / pipeline_block_append_unsafe /
+ * pipeline_block_append_stmt_order / wrap_block_ref (G.7).
+ * ident_pre_dispatch stays C compositor. Do not dest-buffer
+ * lbrace_looks_like_block / empty_ident_braces. Do not dest-buffer
+ * append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_primary_parse_unsafe_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let bok: i32 = 0;
+  let bref: i32 = 0;
+  let wrap: i32 = 0;
+  let wref: i32 = 0;
+  let uidx: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  if (out_ok == 0 as *i32) {
+    return 0;
+  }
+  if (out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    bok = 0;
+    bref = 0;
+    if (parser_parse_block_ptr_into_c(arena, lex_inout, source, 0, &bok, &bref) == 0 || bok == 0) {
+      return 1;
+    }
+    wref = ast_ast_arena_block_alloc(arena);
+    if (wref == 0) {
+      return 1;
+    }
+    uidx = pipeline_block_append_unsafe(arena, wref, bref);
+    if (uidx < 0) {
+      return 1;
+    }
+    if (pipeline_block_append_stmt_order(arena, wref, 6, uidx) < 0) {
+      return 1;
+    }
+    wrap = parser_asm_wrap_block_ref_as_expr_into_c(arena, wref, 0);
+    if (wrap == 0) {
+      return 1;
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = wrap;
     return 1;
   }
   return 0;
