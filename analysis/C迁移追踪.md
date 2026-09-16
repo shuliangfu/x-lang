@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志、「证：…」长叙事。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古全文**（瘦身前）：[`archive/C迁移追踪-流水账归档-20260910.md`](archive/C迁移追踪-流水账归档-20260910.md) · 更早：[`archive/C迁移追踪-流水账归档-20260825.md`](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-16 · P4bk BREAK/CONTINUE primary（pabi mega 第一道 T001）· Darwin L2 绿 · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-16 · tip **`6e4273b61`**（P4bk BREAK/CONTINUE primary／pabi mega 第一道 T001 双端绿）· 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
