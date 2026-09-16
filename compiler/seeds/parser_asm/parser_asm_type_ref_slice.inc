@@ -3,19 +3,14 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
- * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
- * region, (P3d) consume_qualified / type_angle_close, and (P3e) TYPE_DYN
- * wrap / alloc (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X skips postfix
- * array/slice C twins (P3g dest-buffer). XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X
- * skips prefix `[N]T` / `[]T` C twin (P3h dest-buffer).
- * XLANG_PTHIN_TYPE_REF_FN_FROM_X skips type-position `function(...): Ret`
- * C twin (P3i dest-buffer). XLANG_PTHIN_TYPE_REF_STAR_FROM_X skips prefix
- * `*T` C twin (P3j dest-buffer). XLANG_PTHIN_TYPE_REF_LINEAR_FROM_X skips
- * IDENT `Linear(T)` C twin (P3k dest-buffer). Arena alloc and
- * parse_type_ref_impl stay C. Cold: no BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR
- * define, this file is the full twin.
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * skips the portable token_starts_type / ident_is_dyn / builtin_kind_ord /
+ * vector-ident-pack region, (P3d) consume_qualified / type_angle_close, and
+ * (P3e) TYPE_DYN wrap (bodies in src/asm/pthin_type_ref.x + slice trampolines
+ * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC are separate
+ * defines for P3g–P3m. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
+ * alloc_vector_type_ref C twin. parse_type_ref_impl stays C. Cold: no
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -440,7 +435,14 @@ static int32_t parser_asm_type_ref_from_builtin_token_c(void *arena, int32_t tok
 
 /**
  * parser_alloc_vector_type_ref：分配 TYPE_VECTOR 节点（elem_ord 为 TypeKind 序数，lanes 为车道数）。
+ * PLATFORM: SHARED — P3m trampoline when ALLOC_VEC_FROM_X; cold twin below.
  */
+#ifdef XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X
+extern int32_t parser_asm_alloc_vector_type_ref_x_into_c(void *arena, int32_t elem_ord, int32_t lanes);
+int32_t parser_asm_alloc_vector_type_ref_c(void *arena, int32_t elem_ord, int32_t lanes) {
+  return parser_asm_alloc_vector_type_ref_x_into_c(arena, elem_ord, lanes);
+}
+#else
 int32_t parser_asm_alloc_vector_type_ref_c(void *arena, int32_t elem_ord, int32_t lanes) {
   int32_t elem_tr_v;
   int32_t vec_ref;
@@ -460,6 +462,7 @@ int32_t parser_asm_alloc_vector_type_ref_c(void *arena, int32_t elem_ord, int32_
   ast_arena_type_set(arena, vec_ref, tv);
   return vec_ref;
 }
+#endif /* XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X */
 
 /**
  * parser_vector_type_ref_from_ident_spelling：IDENT 拼写 i32x4 / Vec4f 等时返回 TYPE_VECTOR ref。

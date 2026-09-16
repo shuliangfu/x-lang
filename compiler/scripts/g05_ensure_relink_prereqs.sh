@@ -1031,8 +1031,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # TYPE_DYN wrap dest-buffer, P3g postfix array/slice dest-buffer,
         # P3h prefix `[N]T` / `[]T` dest-buffer, P3i type-position
         # `function(...): Ret` dest-buffer, P3j prefix `*T` dest-buffer,
-        # P3k IDENT `Linear(T)` dest-buffer, and P3l builtin vec-token
-        # dest-buffer.
+        # P3k IDENT `Linear(T)` dest-buffer, P3l builtin vec-token
+        # dest-buffer, and P3m alloc_vector_type_ref.
         # Runs before P3 C so BODIES_FROM_X skips the portable .inc region.
         # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC are separate defines (P6e PARSE_LAYOUT / P2c COND)
         # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x keeps that C twin without dropping
@@ -1068,6 +1068,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_builtin_vec_type_x_into_c"; then
               _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_VEC_FROM_X"
               _pthin_p3_lane="$_pthin_p3_lane/P3l"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_alloc_vector_type_ref_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3m"
             fi
             echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else

@@ -25,12 +25,13 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
-// STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X are separate defines (P6e PARSE_LAYOUT /
-// P2c COND pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x / vec_x keeps that C twin without dropping P3b–P3e.
+// STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X are separate
+// defines (P6e PARSE_LAYOUT / P2c COND pattern) so a missing postfix_x /
+// prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x keeps that C twin
+// without dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -137,8 +138,15 @@
 // writer = init_compound_kind_at (kind 13 < 15; G.7). Elem scalar
 // = pipeline_type_ensure_by_kind_ord (G.7). No postfix (C twin
 // does not). Do not dest-buffer IDENT vector spelling consume
-// (pack already .x; leftover is alloc wrap). Do not dest-buffer
+// (pack already .x; leftover alloc wrap is P3m). Do not dest-buffer
 // parse_type_ref. parse_type_ref_impl stays C.
+// 7.2.1 P3m Route C (2026-09-16): 有则补全 alloc_vector_type_ref.
+// Shared TYPE_VECTOR allocator used by IDENT spelling (from_ident)
+// and by P3l builtin vec token. Writer = init_compound_kind_at
+// (kind 13) + ensure_by_kind_ord for elem (G.7). ALLOC_VEC is a
+// separate define so a missing alloc_x keeps the C twin without
+// dropping P3l. Do not merge into parse_type_ref_impl (P3f red).
+// Do not open a new P-lane. Do not FORCE pabi mega.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -1593,6 +1601,42 @@ export function parser_asm_parse_builtin_vec_type_x_into_c(arena: *u8, lex_inout
     }
     lanes = parser_asm_builtin_vec_token_lanes(kind);
     parser_asm_lex_step_kind_c(lex_inout, source);
+    elem_tr = pipeline_type_ensure_by_kind_ord(arena, elem_ord);
+    if (elem_tr == 0) {
+      return 0;
+    }
+    vec_ref = ast_ast_arena_type_alloc(arena);
+    if (vec_ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_compound_kind_at(arena, vec_ref, TYPE_VECTOR, elem_tr, lanes);
+    if (ok == 0) {
+      return 0;
+    }
+    return vec_ref;
+  }
+  return 0;
+}
+
+/**
+ * Allocate a TYPE_VECTOR node (elem_ord = TypeKind ordinal, lanes = width).
+ * @param arena *u8 — AST arena; null → 0
+ * @param elem_ord i32 — scalar elem kind ordinal (ensure_by_kind_ord)
+ * @param lanes i32 — vector lane count (stored as array_size)
+ * @return i32 — TYPE_VECTOR type_ref, or 0
+ * PLATFORM: SHARED — product P3m Route C. Shared by IDENT spelling
+ * (from_ident C trampoline) and P3l builtin vec. Writer =
+ * init_compound_kind_at (kind 13). Do not merge into parse_type_ref_impl.
+ */
+#[no_mangle]
+export function parser_asm_alloc_vector_type_ref_x_into_c(arena: *u8, elem_ord: i32, lanes: i32): i32 {
+  let elem_tr: i32 = 0;
+  let vec_ref: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
     elem_tr = pipeline_type_ensure_by_kind_ord(arena, elem_ord);
     if (elem_tr == 0) {
       return 0;
