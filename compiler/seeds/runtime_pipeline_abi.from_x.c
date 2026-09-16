@@ -55704,6 +55704,7 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
  * leftover-PE rest is the only seed body (FROM_X omits this block).
  * PLATFORM: SHARED freestanding Cap residual cold twin.
  */
+/* XLANG_PABI_SIDECAR_POOL_THIN_BEGIN */
 #ifndef WAVE275_SIDECAR_POOL_COLD
 #define WAVE275_SIDECAR_POOL_COLD 1
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -56252,6 +56253,7 @@ void *onefunc_sidecar_get(void *key, int create) {
 }
 
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
+/* XLANG_PABI_SIDECAR_POOL_THIN_END */
 #endif /* WAVE275_SIDECAR_POOL_COLD */
 
 /* =============================================================================
