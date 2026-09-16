@@ -49236,6 +49236,7 @@ void asm_ctx_ensure_block_locals(uint8_t *ctx, void *arena, int32_t block_ref, i
  * PLATFORM: SHARED freestanding frame layout Cap leave.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* XLANG_PABI_BLOCK_TREE_THIN_BEGIN */
 extern int32_t asm_local_slot_bytes(void *arena, int32_t type_ref);
 extern int32_t asm_fixed_array_total_bytes_mod(void *arena, int32_t type_ref, void *mod);
 extern void asm_ctx_ensure_block_locals(uint8_t *ctx, void *arena, int32_t block_ref, int32_t *inout_next_offset,
@@ -49453,6 +49454,7 @@ void asm_ctx_fill_locals_block_tree(uint8_t *ctx, void *arena, int32_t block_ref
     sp = wave269_block_tree_push_region_children(arena, sp, cur);
   }
 }
+/* XLANG_PABI_BLOCK_TREE_THIN_END */
 /* end wave269 block_tree cold twins */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave269 cold twins */
 #endif /* close wave178 FROM_X for leftover-PE find_or_alloc_ptr unique */
