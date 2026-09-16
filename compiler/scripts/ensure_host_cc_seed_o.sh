@@ -3717,7 +3717,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm_expr_thin "$o" || true
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         pipeline_abi_inject_assign_thin "$o" || true
-        pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+          pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
         return 0
@@ -4259,11 +4259,13 @@ pipeline_abi_inject_binop_block_peel_thin() {
 
 # wave142 dest-in-rbx assign thin inject.
 # M2: C-extract awk markers → .x thin via inject_thin_leaf (PREFER_ASM).
-# G.7: bodies match mega .x assign cluster; w157/sum_block stay leftover.
-# PLATFORM: SHARED shell · LINUX gold + MACOS.
+# G.7: bodies match mega .x assign cluster; w157/sum_block stay mega leftover
+# (pure-asm file-level BSS let emits poisoned __TEXT Lxml — Darwin ld -r
+# BRANCH26; keep host leftover until BSS emit fixed). PLATFORM: SHARED.
 pipeline_abi_inject_assign_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_assign_thin.x" "asg-thin"
 }
+
 
 try_ensure_pipeline_abi_prefer_one() {
   local o="$1"

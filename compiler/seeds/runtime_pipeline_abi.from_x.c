@@ -19713,6 +19713,9 @@ int32_t glue_body_expr_stmt_at_c(void *arena, int32_t body_ref, int32_t si, int3
   return 1;
 }
 
+
+/* XLANG_PABI_ASSIGN_THIN_END — assign cluster only; w157/sum_block stay leftover/mega */
+
 /* ============================================================================
  * wave157 call-spill calculation: w157_sum_expr_call_spill_bytes +
  *   glue_asm_sum_block_call_spill_bytes.
@@ -19769,6 +19772,8 @@ extern int32_t pipeline_block_labeled_return_expr_ref(void *arena, int32_t block
 static int32_t g_w157_spill_total = 0;
 static int32_t g_w157_spill_visits = 0;
 static int32_t g_w157_walk_stack[8192];
+
+
 
 static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
   int32_t ko, n, i, arg_ref, op, as_op;
@@ -20040,7 +20045,6 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
   w157_walk_block_rec(arena, block_ref, 256);
   return g_w157_spill_total;
 }
-/* XLANG_PABI_ASSIGN_THIN_END */
 
 
 
