@@ -49975,6 +49975,7 @@ int32_t pipeline_type_find_or_alloc_compound(void *a, int32_t kind_ord, int32_t 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 
+/* XLANG_PABI_GROW_VEC_THIN_BEGIN */
 #ifndef AST_POOL_GROW
 #define AST_POOL_GROW 4096
 #endif
@@ -50160,6 +50161,7 @@ void grow_vec_copy_append(GrowVec *dst, GrowVec *src) {
   }
 }
 
+/* XLANG_PABI_GROW_VEC_THIN_END */
 /* end wave271 grow_vec cold twins */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave271 cold twins */
 
