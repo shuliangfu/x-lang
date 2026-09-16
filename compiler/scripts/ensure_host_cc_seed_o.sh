@@ -3216,6 +3216,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_binop_block_peel_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_assign_thin.x ] \
+      && [ src/runtime_pipeline_abi_assign_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -4136,8 +4140,11 @@ pipeline_abi_inject_field_load_sz_thin() {
 
 # Clang-MH_OBJECT writer overlay. G.7: C thin matches pipeline_macho_write_o_to_buf_c
 # in runtime_pipeline_abi.x / from_x.c. Leftover writer is already strong T;
-# weaken then first-wins (same as PREFER_ASM leaf replace). Skip when source
-# is not newer than OUT (already ingested this mtime).
+# weaken then first-wins (same as PREFER_ASM leaf replace).
+# Do NOT skip on src-mtime vs OUT: prefer rebuild makes a fresh leftover .o
+# newer than the thin .c, which falsely skipped the clang writer and left
+# CG002 (out_len=0) on Darwin L2. Always attempt overlay; idempotent via
+# weaken + first-wins.
 # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
 pipeline_abi_inject_macho_write_thin() {
   local o="$1"
@@ -4147,10 +4154,6 @@ pipeline_abi_inject_macho_write_thin() {
   if pipeline_abi_o_is_libtool_archive "$o"; then
     log "pipeline_abi macho-write inject skip: $o is libtool archive"
     return 1
-  fi
-  if [ ! "$src" -nt "$o" ]; then
-    log "pipeline_abi macho-write inject skip: $src not newer than $o"
-    return 0
   fi
   thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_macho_wr.XXXXXX.o")"
   base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_macho_wr_base.XXXXXX.o")"
@@ -4255,73 +4258,11 @@ pipeline_abi_inject_binop_block_peel_thin() {
 }
 
 # wave142 dest-in-rbx assign thin inject.
-# Seed rest holds strong assign cluster in leftover; weaken then first-wins.
-# G.7: one C body (markers in from_x.c). PLATFORM: SHARED shell · LINUX gold + MACOS.
+# M2: C-extract awk markers → .x thin via inject_thin_leaf (PREFER_ASM).
+# G.7: bodies match mega .x assign cluster; w157/sum_block stay leftover.
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_assign_thin() {
-  local o="$1"
-  local seed="seeds/runtime_pipeline_abi.from_x.c"
-  local gen_c thin_o base_o oc
-  if [ ! -s "$o" ] || [ ! -f "$seed" ]; then
-    return 0
-  fi
-  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_asg.XXXXXX.c")"
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_asg.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_asg_base.XXXXXX.o")"
-  if ! awk '
-    /XLANG_PABI_ASSIGN_THIN_BEGIN/ {p=1; next}
-    /XLANG_PABI_ASSIGN_THIN_END/ {p=0; next}
-    p {print}
-  ' "$seed" >"$gen_c" || [ ! -s "$gen_c" ]; then
-    log "pipeline_abi asg-thin inject: extract failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--Wall -I. -Iinclude -Isrc} -Wno-implicit-function-declaration -Wno-int-conversion -Wno-unused -c -o "$thin_o" "$gen_c" 2>/dev/null; then
-    log "pipeline_abi asg-thin inject: cc thin failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  oc=""
-  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-  elif command -v llvm-objcopy >/dev/null 2>&1; then
-    oc=llvm-objcopy
-  elif command -v objcopy >/dev/null 2>&1; then
-    oc=objcopy
-  fi
-  if [ -n "$oc" ]; then
-    # Every non-static def inside the XLANG_PABI_ASSIGN_THIN markers compiles
-    # into BOTH the thin member and the full-compile base member; it MUST be
-    # listed here or Darwin -force_load links fail with a duplicate symbol
-    # (Ubuntu archive member selection hides it — verify on BOTH ends).
-    # wave661: +w157_walk_block_rec (w157 wave added it inside the region
-    # without updating this list; Darwin cold L4 g05 link caught it).
-    for s in \
-      glue_assign_lhs_f32_type_ref_elf_c \
-      glue_emit_assign_rhs_elf_c \
-      glue_emit_assign_rhs_to_rax_elf_c \
-      pipeline_asm_emit_assign_elf_c \
-      glue_field_assign_pair_base_ref_c \
-      glue_body_expr_stmt_at_c \
-      glue_asm_sum_block_call_spill_bytes \
-      w157_walk_block_rec
-    do
-      "$oc" --weaken-symbol="_$s" "$base_o" 2>/dev/null \
-        || "$oc" --weaken-symbol="$s" "$base_o" 2>/dev/null \
-        || true
-    done
-  fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi asg-thin inject OK (first-wins over weakened leftover)"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
-  fi
-  cp -f "$base_o" "$o"
-  log "pipeline_abi asg-thin inject: merge failed; restored base"
-  rm -f "$gen_c" "$thin_o" "$base_o"
-  return 1
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_assign_thin.x" "asg-thin"
 }
 
 try_ensure_pipeline_abi_prefer_one() {
