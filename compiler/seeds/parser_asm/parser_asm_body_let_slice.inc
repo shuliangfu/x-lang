@@ -4,10 +4,12 @@
  * 由 parser_asm_thin_c.c / pthin_let_alias.from_x.c #include；勿单独编译。
  *
  * Hybrid P2c: XLANG_PTHIN_LET_ALIAS_COND_FROM_X skips parse_cond_expr
- * (dest-buffer in src/asm/pthin_let_alias.x). body_let_bracket stays C
- * (AUDIT + parse_expr wrap). Missing parse_cond_expr_x keeps this C
- * twin without dropping P2b let/alias (P6e PARSE_LAYOUT pattern).
- * Cold: no define, full twin.
+ * (dest-buffer in src/asm/pthin_let_alias.x). Hybrid P2d:
+ * XLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X skips body_let_bracket
+ * (dest-buffer in src/asm/pthin_let_alias.x; AUDIT + lexer_next_into
+ * stay C trampoline / cold twin). Missing parse_cond_expr_x /
+ * body_let_bracket_x keeps that C twin without dropping earlier P2
+ * (P6e PARSE_LAYOUT pattern). Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_BODY_LET_SLICE_INCLUDED
 #define PARSER_ASM_BODY_LET_SLICE_INCLUDED
@@ -27,7 +29,38 @@ extern int32_t parser_asm_stretch_body_let_bracket_deep_audit_c(void *lex_inout,
 
 /**
  * let 初值 `[..] op [..]`：自 `[` 起点 parse_expr_into，更新 lex/r；成功返回 expr ref，失败 0。
+ * PLATFORM: SHARED — P2d trampoline when BRACKET_FROM_X. AUDIT stays on
+ * the cold twin (product AUDIT_CALL is nop). lexer_next_into stays here
+ * (P1d face; .x never sees lexer_result).
  */
+#ifdef XLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X
+extern int32_t parser_asm_parse_body_let_bracket_compound_init_ref_x_into_c(void *arena, size_t bracket_start,
+                                                                           void *lex_inout, void *source,
+                                                                           int32_t *out_ok, int32_t *out_expr_ref);
+int32_t parser_asm_parse_body_let_bracket_compound_init_ref_slice_c(void *arena, size_t bracket_start,
+                                                                    struct parser_asm_lexer lex,
+                                                                    struct parser_asm_slice_u8 *source,
+                                                                    struct parser_asm_lexer *lex_out,
+                                                                    struct parser_asm_lexer_result *r_out) {
+  struct parser_asm_lexer cur;
+  int32_t ok;
+  int32_t ref;
+  if (!arena || !source || !lex_out || !r_out)
+    return 0;
+  cur = lex;
+  ok = 0;
+  ref = 0;
+  if (parser_asm_parse_body_let_bracket_compound_init_ref_x_into_c(arena, bracket_start, &cur, source, &ok, &ref) == 0)
+    return 0;
+  if (!ok)
+    return 0;
+  lex_out->pos = cur.pos;
+  lex_out->line = cur.line;
+  lex_out->col = cur.col;
+  lexer_next_into(r_out, cur, source);
+  return ref;
+}
+#else
 int32_t parser_asm_parse_body_let_bracket_compound_init_ref_slice_c(void *arena, size_t bracket_start,
                                                                     struct parser_asm_lexer lex,
                                                                     struct parser_asm_slice_u8 *source,
@@ -53,6 +86,7 @@ int32_t parser_asm_parse_body_let_bracket_compound_init_ref_slice_c(void *arena,
   lexer_next_into(r_out, arr_binop_res.next_lex, source);
   return arr_binop_res.expr_ref;
 }
+#endif /* XLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X body_let_bracket */
 
 /**
  * parse_cond_expr_into：if/while 条件；int 后接 as 时从 int 起点 parse_expr（与 return 0 as T 一致）。

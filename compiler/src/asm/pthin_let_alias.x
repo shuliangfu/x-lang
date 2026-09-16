@@ -29,19 +29,26 @@
 // 7.2.1 P2c B-minus (2026-09-16): 有则补全 parse_cond_expr dest-buffer.
 // INT followed by `as` rewinds to the INT token start so parse_expr
 // sees `0 as T` (same as `return 0 as T`). Other heads call parse_expr
-// from the entry cursor. body_let_bracket stays C (AUDIT + parse_expr
-// wrap). Do not merge wrap. Do not dest-buffer parse_one_function_library.
-// Do not dest-buffer parse_type_ref. Do not mix range_for. Do not wrap
-// AUDIT. Do not open a new P-lane. Do not FORCE pabi mega.
+// from the entry cursor. Do not merge wrap. Do not dest-buffer
+// parse_one_function_library. Do not dest-buffer parse_type_ref. Do
+// not mix range_for. Do not wrap AUDIT. Do not open a new P-lane. Do
+// not FORCE pabi mega.
+// 7.2.1 P2d B-minus (2026-09-16): 有则补全 body_let_bracket dest-buffer.
+// Rewind cursor to `[` (bracket_start) keeping entry line/col, then
+// parse_expr (G.7 primary ptr shim). C trampoline publishes lex_out
+// and lexer_next_into r_out (P1d face; .x never sees lexer_result).
+// AUDIT stays on the cold twin. Do not migrate glue_tail wrapper.
 //
-// Hybrid P2b/P2c: g05_try_x_to_o this file;
+// Hybrid P2b/P2c/P2d: g05_try_x_to_o this file;
 // XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X skips the two parse C twins when
 // both parse_x symbols are present. XLANG_PTHIN_LET_ALIAS_COND_FROM_X
 // is a separate define (P6e PARSE_LAYOUT pattern) so a missing
 // parse_cond_expr_x keeps the C cond twin without dropping P2b.
-// P9a is linked later into the same thin_glue (same as P6e/P7d/P4ud).
-// Cold: no define, full .inc.
-// Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b/P2c bodies.
+// XLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X is a further separate define so
+// a missing body_let_bracket_x keeps the C bracket twin without
+// dropping P2b/P2c. P9a is linked later into the same thin_glue
+// (same as P6e/P7d/P4ud). Cold: no define, full .inc.
+// Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b/P2c/P2d bodies.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P2 C _Static_assert fires if
@@ -291,6 +298,7 @@ export function parser_asm_parse_one_type_alias_x_into_c(arena: *u8, module: *u8
  * PLATFORM: SHARED — product P2c B-minus. expr = primary ptr shim
  * (G.7). Do not dest-buffer parse_type_ref. Do not merge wrap. Do
  * not wrap AUDIT. Do not mix range_for. Do not open a new lane.
+ * body_let_bracket is P2d (separate BRACKET_FROM_X).
  */
 #[no_mangle]
 export function parser_asm_parse_cond_expr_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
@@ -340,6 +348,53 @@ export function parser_asm_parse_cond_expr_x_into_c(arena: *u8, lex_inout: *u8, 
       parser_asm_lex_set_line_c(lex_inout, line0);
       parser_asm_lex_set_col_c(lex_inout, col0);
     }
+    rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
+    if (rc == 0) {
+      return 0;
+    }
+    out_ok[0] = eok;
+    out_expr_ref[0] = eref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * let init `[..] op [..]`：rewind to bracket_start, parse_expr.
+ * Entry line/col stay; pos becomes bracket_start before parse_expr.
+ * Success parks lex after the expr; out_ok/out_expr_ref from shim.
+ * @param arena *u8 — opaque ASTArena; null → 0
+ * @param bracket_start usize — byte offset of `[`
+ * @param lex_inout *u8 — entry cursor (line/col); success after expr
+ * @param source *u8 — opaque slice
+ * @param out_ok *i32 — 1 when parse_expr succeeded
+ * @param out_expr_ref *i32 — expr ref from parse_expr
+ * @return i32 — 1 handled (ok may still be 0); 0 null args
+ * PLATFORM: SHARED — product P2d B-minus. expr = primary ptr shim
+ * (G.7). Do not wrap AUDIT. Do not migrate glue_tail. Do not open a
+ * new lane. C trampoline does lex_out + lexer_next_into (P1d face).
+ */
+#[no_mangle]
+export function parser_asm_parse_body_let_bracket_compound_init_ref_x_into_c(
+    arena: *u8, bracket_start: usize, lex_inout: *u8, source: *u8, out_ok: *i32,
+    out_expr_ref: *i32): i32 {
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  let rc: i32 = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 ||
+      out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    parser_asm_lex_set_pos_c(lex_inout, bracket_start);
+    parser_asm_lex_set_line_c(lex_inout, line0);
+    parser_asm_lex_set_col_c(lex_inout, col0);
     rc = parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref);
     if (rc == 0) {
       return 0;

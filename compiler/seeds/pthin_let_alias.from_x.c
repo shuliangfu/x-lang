@@ -11,8 +11,11 @@
  * Hybrid P2c (XLANG_PTHIN_LET_ALIAS_COND_FROM_X): dest-buffer
  * parse_cond_expr (INT+as probe). Separate define so a missing
  * parse_cond_expr_x keeps the C cond twin without dropping P2b.
- * body_let_bracket stays C. Cold: no define, full .inc.
- * Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b/P2c bodies.
+ * Hybrid P2d (XLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X): dest-buffer
+ * body_let_bracket (rewind to `[` + parse_expr). Separate define so
+ * a missing body_let_bracket_x keeps the C twin without dropping
+ * P2b/P2c. AUDIT + lexer_next_into stay C. Cold: no define, full .inc.
+ * Do not reuse XLANG_PTHIN_LET_ALIAS_FROM_X for P2b/P2c/P2d bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
