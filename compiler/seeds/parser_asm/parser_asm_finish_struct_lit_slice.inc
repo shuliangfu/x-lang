@@ -8,8 +8,8 @@
  * Hybrid P4bi: XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X skips
  * parse_struct_lit_fields (body in src/asm/pthin_expr_primary.x).
  * C trampolines hold name[256] (append/shorthand) and bump
- * struct_field_value_depth around parse_expr. Anonymous alloc and
- * finish_struct_lit_from_type_ident stay here. Cold: no define, full twin.
+ * struct_field_value_depth around parse_expr. P4bj anonymous alloc trampolines when
+ * XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X; finish_struct_lit_from_type_ident stays here. Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
 #define PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
@@ -314,6 +314,29 @@ static void parser_asm_parse_struct_lit_fields_c(void *arena, int32_t lit_ref, s
 /**
  * 匿名 struct 字面量 `{ field: expr , ... }`；`lex_in_brace` 位于 `{` 之后。
  */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X
+extern int32_t parser_asm_parse_anonymous_struct_lit_x_into_c(void *arena, void *lex_inout, void *source,
+                                                             int32_t *out_ok, int32_t *out_expr_ref);
+void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexer lex_in_brace,
+                                             struct parser_asm_slice_u8 *source,
+                                             struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_lexer cur;
+  int32_t ok = 0;
+  int32_t ref = 0;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  out->expr_ref = 0;
+  cur = lex_in_brace;
+  if (parser_asm_parse_anonymous_struct_lit_x_into_c(arena, &cur, source, &ok, &ref) == 0 || ok == 0) {
+    out->ok = 0;
+    return;
+  }
+  out->ok = 1;
+  out->expr_ref = ref;
+  out->next_lex = cur;
+}
+#else
 void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexer lex_in_brace,
                                              struct parser_asm_slice_u8 *source,
                                              struct parser_asm_parse_expr_result *out) {
@@ -344,6 +367,7 @@ void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexe
   ast_ast_arena_expr_set(arena, lit_ref, le);
   parser_asm_parse_struct_lit_fields_c(arena, lit_ref, lex_in_brace, source, out);
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X */
 
 /**
  * finish_struct_lit_from_type_ident_into：lit_ref 为 IDENT 占位；lex_in_brace 为 `{` 后 lexer。

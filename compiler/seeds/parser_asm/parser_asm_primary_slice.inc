@@ -1992,6 +1992,18 @@ int32_t parser_parse_at_simd_builtin_ptr_into_c(void *arena, void *lex_inout, vo
   return 1;
 }
 
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X
+extern int32_t parser_asm_parse_anonymous_struct_lit_x_into_c(void *arena, void *lex_inout, void *source,
+                                                             int32_t *out_ok, int32_t *out_expr_ref);
+void parser_asm_parse_anonymous_struct_lit_ptr_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                int32_t *out_expr_ref) {
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return;
+  *out_ok = 0;
+  *out_expr_ref = 0;
+  (void)parser_asm_parse_anonymous_struct_lit_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+}
+#else
 void parser_asm_parse_anonymous_struct_lit_ptr_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
                                                 int32_t *out_expr_ref) {
   struct parser_asm_parse_expr_result res;
@@ -2005,6 +2017,7 @@ void parser_asm_parse_anonymous_struct_lit_ptr_c(void *arena, void *lex_inout, v
   *out_expr_ref = res.expr_ref;
   *(struct parser_asm_lexer *)lex_inout = res.next_lex;
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X ptr */
 
 /* Suffix LT(turbofish)-branch bridges: type_ref parse + count-only angle
  * skip, pointer faces for the .x loop. The type_ref parse consumes the

@@ -163,7 +163,7 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // dest-buffer (STRING concat, RETURN, PANIC, paren, array lit, LBRACE
 // block-vs-struct, plus IF via P5f and MATCH/AT via zero-algorithm
 // ptr shims). Dispatcher is a new function — do not grow suffix_loop
-// (XT001). Decode / anonymous-struct alloc / match parse / simd parse
+// (XT001). Decode / match parse / simd parse
 // stay C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
 // Block wrap reuses P5f wrap_block_ref (G.7; type_ref=0). Unary
 // operand reuses P4uc set_unary_operand_c. C trampoline keeps AUDIT
@@ -178,7 +178,8 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // Field-value parse_expr bumps struct_field_value_depth in C
 // (wave367 empty Type {} vs prefer-block). ident_len<=0 or >255
 // fails (C twin; do not clamp 127). Anonymous alloc and
-// finish_struct_lit_from_type_ident stay C. Do not grow
+// finish_struct_lit_from_type_ident stay C. P4bj anonymous-struct alloc
+// (set_struct_lit_finish nlen=0 + fields). Do not grow
 // suffix_loop. Do not merge wrap. Do not dest-buffer
 // parse_type_ref / parse_match_into. Do not FORCE pabi mega.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
@@ -1618,3 +1619,41 @@ export function parser_asm_parse_struct_lit_fields_x_into_c(arena: *u8, lit_ref:
   }
   return 0;
 }
+
+/**
+ * Anonymous `{ field: expr, ... }` alloc + fields. lex_inout sits after `{`.
+ * @param arena *u8
+ * @param lex_inout *u8 — C lexer blob; fields walk advances it
+ * @param source *u8 — source slice
+ * @param out_ok *i32
+ * @param out_expr_ref *i32
+ * @return i32 — 1 success; 0 failure
+ * PLATFORM: SHARED — product P4bj. Do not dest-buffer whole primary.
+ * Do not merge wrap. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_parse_anonymous_struct_lit_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let lit_ref: i32 = 0;
+  let empty: *u8 = 0 as *u8;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    lit_ref = ast_ast_arena_expr_alloc(arena);
+    if (lit_ref == 0) {
+      return 0;
+    }
+    /* kind=45 + empty struct name + field_base/num_fields=0 */
+    pipeline_expr_set_struct_lit_finish_c(arena, lit_ref, empty, 0);
+    if (parser_asm_parse_struct_lit_fields_x_into_c(arena, lit_ref, lex_inout, source, out_ok, out_expr_ref) == 0 || out_ok[0] == 0) {
+      out_ok[0] = 0;
+      out_expr_ref[0] = 0;
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+

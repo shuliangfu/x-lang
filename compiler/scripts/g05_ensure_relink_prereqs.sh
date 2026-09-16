@@ -1111,7 +1111,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_struct_lit_fields_x_into_c"; then
             _pthin_p4pb_ok=1
             _pthin_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X"
-            echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi primary bodies ← $_pthin_p4pb_x (7.2.1 Route C)"
+            if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_anonymous_struct_lit_x_into_c"; then
+              _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X"
+              echo "g05_ensure: P4b–P4bi/P4bj primary + anon-struct alloc ← $_pthin_p4pb_x"
+            else
+              echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bj anon C twin)"
+            fi
           else
             echo "g05_ensure: P4b primary .x thin failed or missing parse_primary/struct_lit_fields dest-buffer; P4 C twin stays full" >&2
           fi
