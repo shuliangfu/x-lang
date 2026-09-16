@@ -5,7 +5,7 @@
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
- * Hybrid P12b–P12u (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X) + P12v param_shape (XLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X):
+ * Hybrid P12b–P12u (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X) + P12v param/ret_shape (XLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X):
  * portable skip walks (struct / enum / extern + impl header +
  * generic_bound_scan + enum_register + parse_one_extern_skip +
  * parse_one_extern_and_add + skip_name_is_self + self_matches_for +

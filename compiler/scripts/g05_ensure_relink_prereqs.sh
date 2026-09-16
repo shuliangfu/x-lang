@@ -1473,7 +1473,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             _pthin_p12_extra="-DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X"
             if g05_obj_defines "$_pthin_p12b_thin_o" "xlang_skip_trait_check_param_shape_x_into_c"; then
               _pthin_p12_extra="$_pthin_p12_extra -DXLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X"
-              echo "g05_ensure: P12b–P12u/P12v skip_tl + param_shape ← $_pthin_p12b_x"
+              echo "g05_ensure: P12b–P12u/P12v skip_tl + param/ret_shape ← $_pthin_p12b_x"
             else
               echo "g05_ensure: P12b–P12u skip_tl bodies ← $_pthin_p12b_x (P12v param_shape C twin)"
             fi
