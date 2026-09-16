@@ -176,6 +176,14 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // next function (T001 arity 0:0) — that is the pipeline_abi mega
 // "hang/CG002" typeck wall on LARGE xlang. Do not use `break` inside
 // this file's nested while (P4bh parse-drop). Do not grow suffix_loop.
+// 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
+// C twin keeps *lex at `<` until follower is `(` / committed `{` struct
+// lit. .x type_ref walk and count-only skip both advance lex_inout;
+// without restore, `nfuncs < 150 || nfuncs > 1450` ate the later `>`
+// as a generic closer and silently dropped the function (mega T001 on
+// asm_module_is_compiler_selfhost because parser_selfhost vanished).
+// Restore pos/line/col to `<` and return — leave relcompare to binop.
+// Do not dest-buffer IDENT generic type-arg. Do not FORCE pabi mega.
 // Block wrap reuses P5f wrap_block_ref (G.7; type_ref=0). Unary
 // operand reuses P4uc set_unary_operand_c. C trampoline keeps AUDIT
 // and publishes next_lex. Do not dest-buffer parse_type_ref /
@@ -602,6 +610,8 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
   let np: usize = 0;
   let tl: i32 = 0;
   let tc: i32 = 0;
+  let lt_line: i32 = 0;
+  let lt_col: i32 = 0;
   if (arena == 0 as *u8 || source == 0 as *u8 || lex_inout == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return;
   }
@@ -731,10 +741,14 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         }
       } else if (kind == TOKEN_LT) {
         /* Turbofish: real type_refs first; on unparsable fall back count-only.
-         * Neither `{` nor `(` after the angles leaves `<` for relcompare. */
+         * Neither `{` nor `(` after the angles leaves `<` for relcompare.
+         * P4bl: save `<` pos/line/col (prev_pos is already the `<` byte)
+         * BEFORE step. C twin never moves *lex until follower is `(`. */
         parse_ok = 1;
         n = 0;
         pi = 0;
+        lt_line = parser_asm_lex_line_c(lex_inout);
+        lt_col = parser_asm_lex_col_c(lex_inout);
         while (pi < 8) {
           parsed_refs[pi] = 0;
           pi = pi + 1;
@@ -778,7 +792,10 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         if (parse_ok != 0) {
           k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
           if (k2 == TOKEN_LBRACE) {
-            /* Generic struct lit `Type<T>{...}` on a VAR head. */
+            /* Generic struct lit `Type<T>{...}` on a VAR head.
+             * P4bl: do not rewind these returns — cursor stays past `>`
+             * so finish_struct_lit / prefer-block can see `{`. Rewinding
+             * here P001'd `Wrap<i32>{ val: 1 }` (P4bk parsed that head). */
             if (pipeline_expr_kind_ord_at(arena, out_expr_ref[0]) != EXPR_VAR) {
               return;
             }
@@ -820,6 +837,11 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
             continue;
           }
           if (k2 != TOKEN_LPAREN) {
+            /* P4bl: not a turbofish call — restore `<` for relcompare
+             * (C: out->next_lex = *lex still at TOKEN_LT). */
+            parser_asm_lex_set_pos_c(lex_inout, prev_pos);
+            parser_asm_lex_set_line_c(lex_inout, lt_line);
+            parser_asm_lex_set_col_c(lex_inout, lt_col);
             return;
           }
           pending_n = n;
@@ -839,6 +861,11 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
           parser_asm_skip_angle_count_ptr_into_c(lex_inout, source, &count);
           k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
           if (k2 != TOKEN_LPAREN) {
+            /* P4bl: skip found a later `>` (often `a < x || a > y`).
+             * C twin leaves *lex at `<`; commit only when follower is `(`. */
+            parser_asm_lex_set_pos_c(lex_inout, prev_pos);
+            parser_asm_lex_set_line_c(lex_inout, lt_line);
+            parser_asm_lex_set_col_c(lex_inout, lt_col);
             return;
           }
           pending_n = count;

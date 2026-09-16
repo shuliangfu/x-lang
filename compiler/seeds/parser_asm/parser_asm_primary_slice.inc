@@ -14,6 +14,9 @@
  * padding is compiled only under XLANG_PARSER_STRETCH_AUDIT (product
  * AUDIT_CALL is nop). P4bk: C BREAK/CONTINUE arm below is the cold twin;
  * under BODIES the .x dispatcher is the authority (unhandled → out_ok=0).
+ * P4bl: suffix_loop TOKEN_LT that is not a turbofish `( ` / committed
+ * struct-lit `{` must leave *lex at `<` for relcompare (C already does;
+ * .x dest-buffer must restore after type_ref walk / count-only skip).
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.
@@ -1243,6 +1246,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
           continue;
         }
         if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+          /* P4bl: leave *lex at `<` for relcompare (not a turbofish call). */
           out->next_lex = *lex;
           return;
         }
@@ -1260,6 +1264,8 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         lexer_next_into(&after_angle_tok, after_angle, source);
         /* STRUCT_LIT type-inst needs real type_refs for mangle; count-only cannot. */
         if (after_angle_tok.tok.kind != (int32_t)TOKEN_LPAREN) {
+          /* P4bl: count-only skip is a copy; *lex stays at `<` for relcompare.
+           * `a < x || a > y` must not treat the later `>` as a generic closer. */
           out->next_lex = *lex;
           return;
         }
