@@ -3,7 +3,7 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
  * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
  * region, (P3d) consume_qualified / type_angle_close, and (P3e) TYPE_DYN
  * wrap / alloc (bodies in src/asm/pthin_type_ref.x + slice trampolines
@@ -11,8 +11,9 @@
  * array/slice C twins (P3g dest-buffer). XLANG_PTHIN_TYPE_REF_PREFIX_FROM_X
  * skips prefix `[N]T` / `[]T` C twin (P3h dest-buffer).
  * XLANG_PTHIN_TYPE_REF_FN_FROM_X skips type-position `function(...): Ret`
- * C twin (P3i dest-buffer). Arena alloc and parse_type_ref_impl stay C.
- * Cold: no BODIES/POSTFIX/PREFIX/FN define, this file is the full twin.
+ * C twin (P3i dest-buffer). XLANG_PTHIN_TYPE_REF_STAR_FROM_X skips prefix
+ * `*T` C twin (P3j dest-buffer). Arena alloc and parse_type_ref_impl stay C.
+ * Cold: no BODIES/POSTFIX/PREFIX/FN/STAR define, this file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -923,6 +924,117 @@ static int32_t parser_asm_parse_fn_type_ref_c(void *arena, struct parser_asm_lex
 }
 #endif /* XLANG_PTHIN_TYPE_REF_FN_FROM_X type-position function(...): Ret */
 
+#ifdef XLANG_PTHIN_TYPE_REF_STAR_FROM_X
+extern int32_t parser_asm_parse_star_type_x_into_c(void *arena, void *lex_inout, void *source,
+                                                  uint8_t *name_scratch, int32_t *qn_len_slot,
+                                                  uint8_t *label_scratch);
+/**
+ * PLATFORM: SHARED — P3j trampoline. Language has no local u8[N] and no
+ * &local i32; this C face holds name[256] + qn_len + label[64]. Entry
+ * cursor is unconsumed `*`; parse_type_ref_impl stays C and only calls
+ * this on TOKEN_STAR. PTR wrap + NAMED/scalar writers live in .x.
+ */
+static int32_t parser_asm_parse_star_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                               struct parser_asm_slice_u8 *source,
+                                               struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  uint8_t name[256];
+  uint8_t label[64];
+  int32_t qn_len;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  memset(name, 0, sizeof(name));
+  memset(label, 0, sizeof(label));
+  qn_len = 0;
+  ref = parser_asm_parse_star_type_x_into_c(arena, &cur, source, name, &qn_len, label);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Parse prefix `*T` / `**T` / `*[]T` / `*[N]T`. lex is unconsumed `*`.
+ * One or more stars; `*[` / `*dyn` / `*impl` recurse (inner owns the
+ * token). Scalar/IDENT pointee is alloc_pointee. PTR wrap then C-style
+ * postfix `*T[N]`. PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_parse_star_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                               struct parser_asm_slice_u8 *source,
+                                               struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  int32_t ptr_depth;
+  int32_t elem_ref;
+  int32_t type_ref_param;
+  struct ast_Type t;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_STAR) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  ptr_depth = 0;
+  while (r.tok.kind == (int32_t)TOKEN_STAR) {
+    ++ptr_depth;
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+  }
+  if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
+    /*
+     * wave435: *[]T / *[N]T → PTR to SLICE/ARRAY of T (type syntax: [] binds
+     * tighter than *). The inner slice/array is parsed recursively (it owns
+     * the `[`), then PTR is wrapped around it. The C-style postfix *T[N]
+     * (ARRAY of PTR to T, scalar base T) is preserved for the scalar path
+     * below. PLATFORM: SHARED parse.
+     */
+    elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+    if (elem_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+  } else if (parser_asm_type_ref_ident_is_dyn_c(source, &r) || r.tok.kind == (int32_t)TOKEN_IMPL) {
+    /*
+     * Same-layer: `*dyn Trait` (P013 reject via recurse) / `*impl Trait`.
+     * alloc_pointee only accepts IDENT as TYPE_NAMED, so a leftover
+     * Clone after `*dyn` would drop the function. Recurse so the
+     * prefix handler above reports P013 (or peels `impl`). `lex` sits
+     * after the stars, before the pointee token. PLATFORM: SHARED.
+     */
+    elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+    if (elem_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+  } else {
+    elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
+    if (elem_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
+  }
+  while (ptr_depth > 0) {
+    type_ref_param = ast_ast_arena_type_alloc(arena);
+    if (type_ref_param == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    t = ast_arena_type_get(arena, type_ref_param);
+    t.kind = PARSER_ASM_TYPE_PTR;
+    t.elem_type_ref = elem_ref;
+    t.name_len = 0;
+    t.array_size = 0;
+    t.region_label_len = 0;
+    ast_arena_type_set(arena, type_ref_param, t);
+    elem_ref = type_ref_param;
+    --ptr_depth;
+  }
+  /** C 风格后缀：*T[N] 为 N 个 T 指针的固定数组（如 *u8[2]）。 */
+  return parser_asm_parse_postfix_array_type_ref_c(arena, elem_ref, lex, source, out_lex);
+}
+#endif /* XLANG_PTHIN_TYPE_REF_STAR_FROM_X prefix *T */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -930,8 +1042,6 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer_result r;
-  int32_t ptr_depth;
-  int32_t elem_ref;
   int32_t type_ref_param;
   struct ast_Type t;
   int32_t elem_ord;
@@ -995,66 +1105,13 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
    */
   if (r.tok.kind == (int32_t)TOKEN_FUNCTION)
     return parser_asm_parse_fn_type_ref_c(arena, lex, source, out_lex);
-  if (r.tok.kind == (int32_t)TOKEN_STAR) {
-    ptr_depth = 0;
-    while (r.tok.kind == (int32_t)TOKEN_STAR) {
-      ++ptr_depth;
-      parser_asm_lex_from_result_val_into(&lex, r);
-      lexer_next_into(&r, lex, source);
-    }
-    if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
-      /*
-       * wave435: *[]T / *[N]T → PTR to SLICE/ARRAY of T (type syntax: [] binds
-       * tighter than *). The inner slice/array is parsed recursively (it owns
-       * the `[`), then PTR is wrapped around it. The C-style postfix *T[N]
-       * (ARRAY of PTR to T, scalar base T) is preserved for the scalar path
-       * below. PLATFORM: SHARED parse.
-       */
-      elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
-      if (elem_ref == 0) {
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return 0;
-      }
-    } else if (parser_asm_type_ref_ident_is_dyn_c(source, &r) || r.tok.kind == (int32_t)TOKEN_IMPL) {
-      /*
-       * Same-layer: `*dyn Trait` (P013 reject via recurse) / `*impl Trait`.
-       * alloc_pointee only accepts IDENT as TYPE_NAMED, so a leftover
-       * Clone after `*dyn` would drop the function. Recurse so the
-       * prefix handler above reports P013 (or peels `impl`). `lex` sits
-       * after the stars, before the pointee token. PLATFORM: SHARED.
-       */
-      elem_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
-      if (elem_ref == 0) {
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return 0;
-      }
-    } else {
-      elem_ref = parser_asm_alloc_pointee_type_ref_from_tok_c(arena, source, &r);
-      if (elem_ref == 0) {
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return 0;
-      }
-      parser_asm_lex_from_result_val_into(&lex, r);
-    }
-    while (ptr_depth > 0) {
-      type_ref_param = ast_ast_arena_type_alloc(arena);
-      if (type_ref_param == 0) {
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return 0;
-      }
-      t = ast_arena_type_get(arena, type_ref_param);
-      t.kind = PARSER_ASM_TYPE_PTR;
-      t.elem_type_ref = elem_ref;
-      t.name_len = 0;
-      t.array_size = 0;
-      t.region_label_len = 0;
-      ast_arena_type_set(arena, type_ref_param, t);
-      elem_ref = type_ref_param;
-      --ptr_depth;
-    }
-    /** C 风格后缀：*T[N] 为 N 个 T 指针的固定数组（如 *u8[2]）。 */
-    return parser_asm_parse_postfix_array_type_ref_c(arena, elem_ref, lex, source, out_lex);
-  }
+  /*
+   * P3j dest-buffer: helper owns the unconsumed `*` cursor
+   * (same as P3h prefix owning unconsumed `[`).
+   * PLATFORM: SHARED type grammar.
+   */
+  if (r.tok.kind == (int32_t)TOKEN_STAR)
+    return parser_asm_parse_star_type_ref_c(arena, lex, source, out_lex);
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_slice_type_bracket_audit_c(&lex, source));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_array_type_bracket_audit_c(&lex, source));

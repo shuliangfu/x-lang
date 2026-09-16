@@ -25,11 +25,12 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
-// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X are
-// separate defines (P6e PARSE_LAYOUT / P2c COND pattern) so a missing
-// postfix_x / prefix_x / fn_x keeps that C twin without dropping P3b–P3e.
+// XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
+// STAR_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// pattern) so a missing postfix_x / prefix_x / fn_x / star_x keeps
+// that C twin without dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -102,6 +103,21 @@
 // publishes *out_lex. Do not apply postfix after TYPE_FN (C twin
 // does not). Do not `break` out of nested while. Do not dest-buffer
 // IDENT generic type-arg. parse_type_ref_impl stays C.
+// 7.2.1 P3j B-minus (2026-09-16): 有则补全 prefix `*T` / `**T` /
+// `*[]T` / `*[N]T` dest-buffer. The STAR arm was inlined in
+// parse_type_ref_impl (always host-cc; not behind BODIES/POSTFIX/
+// PREFIX/FN). P9a peek/step consumes one or more `*`; empty pointee
+// fails closed. `*[` / `*dyn` / `*impl` recurse via the existing
+// primary parse_type_ref_ptr shim (G.7; do not dest-buffer
+// parse_type_ref — P3f hello/fmt red). Scalar/IDENT pointee mirrors
+// alloc_pointee: IDENT → consume_qualified + init_named_at; builtin
+// including VOID → init_primitive_kind_at (0..16; G.7). PTR wrap
+// reuses init_compound_kind_at (TYPE_PTR=9 < 15). C-style `*T[N]`
+// postfix is the existing P3g array helper (same file). C trampoline
+// holds name[256] + qn_len + label[64] (no local u8[N], no &local
+// i32). Do not copy wrap into parse. Do not merge wrap. Do not FORCE
+// pabi mega. Do not open a new P-lane. Do not dest-buffer IDENT
+// generic type-arg. parse_type_ref_impl stays C.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -220,6 +236,19 @@ export extern "C" function pipeline_type_init_fn_c(a: *u8, ref: i32, ret_tr: i32
  * args). G.7 one writer; do not copy.
  */
 export extern "C" function pipeline_type_append_type_arg(arena: *u8, type_ref: i32, arg_ref: i32): i32;
+/**
+ * Existing pabi writer: zero a Type slot and write a primitive
+ * kind_ord 0..16 (VOID=16). G.7 one scalar writer; do not copy;
+ * do not FORCE pabi mega.
+ */
+export extern "C" function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32, kind_ord: i32): i32;
+/**
+ * Existing pabi writer: zero a Type slot and write TYPE_NAMED +
+ * spelling (nlen 1..255). G.7 one NAMED writer; do not copy.
+ */
+export extern "C" function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_len: i32): i32;
+/** P1b: token that may follow `*` as a pointee. G.7 one table. */
+export extern "C" function parser_asm_is_pointee_type_token_c(kind: i32): i32;
 /** Skip-trait registry predicate (skip_tl). G.7: one lookup table. */
 export extern "C" function xlang_skip_trait_is_registered_c(trait_nm: *u8, trait_nlen: i32): i32;
 /**
@@ -1231,6 +1260,141 @@ export function parser_asm_parse_fn_type_x_into_c(arena: *u8, lex_inout: *u8, so
     }
     pipeline_type_init_fn_c(arena, fn_ref, ret_tr, n_params);
     return fn_ref;
+  }
+  return 0;
+}
+
+/**
+ * Parse prefix pointer type `*T` / `**T` / `*[]T` / `*[N]T`.
+ * Peek must be TOKEN_STAR else 0 (lex unchanged). One or more `*`
+ * are consumed; the pointee is then:
+ *   - unconsumed `[` / contextual `dyn` / `impl` → parse_type_ref_ptr
+ *     (inner owns the token; `*[]T` is PTR-to-SLICE, not slice-of-PTR)
+ *   - IDENT → consume_qualified + TYPE_NAMED (alloc_pointee mirror)
+ *   - builtin scalar/void → init_primitive_kind_at (0..16)
+ * Each `*` wraps TYPE_PTR around the pointee (inner-first). C-style
+ * postfix `*T[N]` is parse_postfix_array_x (same file).
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param name_scratch *u8 — dest for qualified NAMED spelling;
+ *   caller owns ≥256 bytes; null fails the IDENT pointee path
+ * @param qn_len_slot *i32 — C-owned length slot for consume_qualified
+ *   (language has no &local i32); null fails the IDENT pointee path
+ * @param label_scratch *u8 — forwarded to postfix array/slice;
+ *   caller owns ≥64 bytes
+ * @return i32 — TYPE_PTR (possibly postfix ARRAY/SLICE) type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3j dest-buffer split of the former
+ * inlined STAR arm. PTR writer = init_compound_kind_at (kind 9).
+ * NAMED writer = init_named_at. Scalar writer = init_primitive_kind_at.
+ * Elem walk = primary parse_type_ref_ptr (G.7). Do not dest-buffer
+ * parse_type_ref. parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_star_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, name_scratch: *u8, qn_len_slot: *i32, label_scratch: *u8): i32 {
+  let kind: i32 = 0;
+  let ptr_depth: i32 = 0;
+  let elem_tr: i32 = 0;
+  let wrap_tr: i32 = 0;
+  let got_elem: i32 = 0;
+  let first: i32 = 0;
+  let nlen: i32 = 0;
+  let ord: i32 = 0;
+  let ok: i32 = 0;
+  let rc: i32 = 0;
+  let ts: usize = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STAR) {
+      return 0;
+    }
+    ptr_depth = 0;
+    while (kind == TOKEN_STAR) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      ptr_depth = ptr_depth + 1;
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    }
+    got_elem = 0;
+    if (kind == TOKEN_LBRACKET) {
+      elem_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+      got_elem = 1;
+    } else {
+      if (kind == TOKEN_IMPL) {
+        elem_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+        got_elem = 1;
+      } else {
+        if (kind == TOKEN_IDENT) {
+          nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+          ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+          data = parser_asm_lex_source_data_c(source);
+          slen = parser_asm_lex_source_length_c(source);
+          if (parser_asm_type_ref_ident_is_dyn_buf_c(data, slen, ts, nlen) != 0) {
+            elem_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+            got_elem = 1;
+          }
+        }
+      }
+    }
+    if (got_elem == 0) {
+      if (parser_asm_is_pointee_type_token_c(kind) == 0) {
+        return 0;
+      }
+      if (kind == TOKEN_IDENT) {
+        first = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        rc = parser_asm_consume_qualified_type_ident_name_into_c(source, lex_inout, name_scratch, qn_len_slot, first);
+        if (rc != 0) {
+          return 0;
+        }
+        elem_tr = ast_ast_arena_type_alloc(arena);
+        if (elem_tr == 0) {
+          return 0;
+        }
+        nlen = 0;
+        if (qn_len_slot != 0 as *i32) {
+          nlen = qn_len_slot[0];
+        }
+        ok = pipeline_type_init_named_at(arena, elem_tr, name_scratch, nlen);
+        if (ok == 0) {
+          return 0;
+        }
+      } else {
+        ord = parser_asm_type_ref_builtin_kind_ord_c(kind);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        if (ord < 0) {
+          ord = TYPE_VOID;
+        }
+        elem_tr = ast_ast_arena_type_alloc(arena);
+        if (elem_tr == 0) {
+          return 0;
+        }
+        ok = pipeline_type_init_primitive_kind_at(arena, elem_tr, ord);
+        if (ok == 0) {
+          return 0;
+        }
+      }
+    }
+    if (elem_tr == 0) {
+      return 0;
+    }
+    while (ptr_depth > 0) {
+      wrap_tr = ast_ast_arena_type_alloc(arena);
+      if (wrap_tr == 0) {
+        return 0;
+      }
+      ok = pipeline_type_init_compound_kind_at(arena, wrap_tr, TYPE_PTR, elem_tr, 0);
+      if (ok == 0) {
+        return 0;
+      }
+      elem_tr = wrap_tr;
+      ptr_depth = ptr_depth - 1;
+    }
+    return parser_asm_parse_postfix_array_x_into_c(arena, elem_tr, lex_inout, source, label_scratch);
   }
   return 0;
 }

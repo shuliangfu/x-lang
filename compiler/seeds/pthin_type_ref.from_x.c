@@ -5,7 +5,7 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
  * vector-ident bodies, type-inst mangle, consume_qualified,
  * type_angle_close, and TYPE_DYN wrap dest-buffer come from
  * pthin_type_ref.x; this TU keeps slice trampolines plus arena parse.
@@ -16,11 +16,13 @@
  * (missing prefix keeps the C twin without dropping P3g).
  * XLANG_PTHIN_TYPE_REF_FN_FROM_X (P3i) skips type-position
  * `function(...): Ret` C twin when fn_x is present (missing fn keeps
- * the C twin without dropping P3h). TYPE_DYN / TYPE_FN writers
+ * the C twin without dropping P3h). XLANG_PTHIN_TYPE_REF_STAR_FROM_X
+ * (P3j) skips prefix `*T` C twin when star_x is present (missing star
+ * keeps the C twin without dropping P3i). TYPE_DYN / TYPE_FN writers
  * pipeline_type_init_dyn_c / pipeline_type_init_fn_c live here
  * (consumer-wave; do not FORCE pabi mega). Mangle C twins live in
  * primary.inc (7-arg trampoline holds suf[64]). Cold: no
- * BODIES/POSTFIX/PREFIX/FN define, full .inc.
+ * BODIES/POSTFIX/PREFIX/FN/STAR define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
