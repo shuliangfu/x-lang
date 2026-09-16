@@ -356,8 +356,12 @@ export function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize,
 
 // --- Keyword spelling verification (coarse, table-driven). ---
 
-// 35 keywords x 10 bytes each (longest is "function"=8 + NUL; row-major).
-let g_stretch_kw_spell: u8[350] = [
+// 36 keywords x 10 bytes each (longest is "function"=8 + NUL; row-major).
+// Size must equal STRETCH_KW_COUNT * STRETCH_KW_ROW. A longer ARRAY_LIT than
+// the declared TYPE_ARRAY is a typeck-silent C excess-init; asm bake then
+// CG002 (ne > span). C twin k_parser_asm_stretch_kw_spell is 36 strings
+// including "label" (sizeof walk). PLATFORM: SHARED.
+let g_stretch_kw_spell: u8[360] = [
   114, 101, 116, 117, 114, 110, 0, 0, 0, 0,
   102, 117, 110, 99, 116, 105, 111, 110, 0, 0,
    99, 111, 110, 115, 116, 0, 0, 0, 0, 0,
@@ -396,7 +400,7 @@ let g_stretch_kw_spell: u8[350] = [
   108, 97, 98, 101, 108, 0, 0, 0, 0, 0,
 ];
 
-const STRETCH_KW_COUNT: i32 = 35;
+const STRETCH_KW_COUNT: i32 = 36;
 const STRETCH_KW_ROW: i32 = 10;
 
 /**

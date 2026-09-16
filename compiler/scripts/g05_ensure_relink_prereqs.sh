@@ -1452,18 +1452,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # PLATFORM: SHARED — 7.2.1 Route C productize (2026-09-12).
         # pthin_stretch.x already holds the 13 lite scalar-table bodies.
         # Runs BEFORE P9 C so LITE_FROM_X skips emit_heavy_stretch_slice.inc
-        # (same skip-include pattern as P9a/suite). Pure-asm may CG002 on
-        # global u8[] inits; g05_try_x_to_o then -E+cc. Cold: no define, lite
-        # C stays. token.h remains the classify-enum authority via P9 C
-        # _Static_assert pins.
+        # (same skip-include pattern as P9a/suite).
+        # M2 class B (2026-09-16): standalone `xlang -backend asm -c` of this
+        # file is green after kw_spell u8[360] (= 36 keywords * 10, matching
+        # C k_parser_asm_stretch_kw_spell sizeof). Linking that .o into
+        # xlang_asm SIGSEGVs product hello (lexer_skip data pointer 0x5012).
+        # Keep the C lite twin until that in-chain .o is root-fixed.
+        # token.h remains the classify-enum authority via P9 C _Static_assert.
         if [ -n "$_pthin_p9b_thin_o" ] && [ -f "$_pthin_p9b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9b_x" "$_pthin_p9b_thin_o"; then
-            _pthin_p9b_ok=1
-            _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
-            echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
-          else
-            echo "g05_ensure: P9b stretch .x thin failed; lite C twin stays" >&2
-          fi
+          echo "g05_ensure: P9b stretch lite C twin (asm .o in-chain SEGV; class B leftover)"
         fi
         if [ -n "$_pthin_p9_o" ] && [ -f "$_pthin_p9_seed" ]; then
           # shellcheck disable=SC2086
