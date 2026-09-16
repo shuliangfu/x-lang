@@ -62572,9 +62572,12 @@ void arch_arm64_pipeline_asm_module_func_name_copy64(void *m, int32_t func_index
  * Not gated by FROM_X. OneFunc sidecar mutators + fill_from_onefunc stay seed
  * host-cc (GrowVec mutators; same residual class as wave277–280). G.7: sole
  * product authority for pipeline_onefunc_* / pipeline_block_fill_*_from_onefunc.
- * Pure keeps export-extern only (no body dual-export). PLATFORM: SHARED —
- * runtime_pipeline_abi.o.
+ * Pure keeps export-extern only (no body dual-export).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_onefunc_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
+ * PLATFORM: SHARED — runtime_pipeline_abi.o.
  * ============================================================================= */
+/* XLANG_PABI_ONEFUNC_THIN_BEGIN */
 #ifndef WAVE281_ONEFUNC_DOMAIN_ALWAYS
 #define WAVE281_ONEFUNC_DOMAIN_ALWAYS 1
 
@@ -63666,6 +63669,7 @@ void pipeline_block_fill_fors_from_onefunc(void *a, int32_t br, uint8_t *out, in
   }
 }
 
+/* XLANG_PABI_ONEFUNC_THIN_END */
 #endif /* WAVE281_ONEFUNC_DOMAIN_ALWAYS */
 
 
