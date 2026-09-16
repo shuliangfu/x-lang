@@ -65287,8 +65287,11 @@ int32_t ast_pipeline_arena_func_alloc(struct ast_ASTArena *a) { return pipeline_
  * sizeof_dep_ctx, expr helpers). Pure duals (parse_into_buf / resolve_path_x /
  * load_import_from_disk_c / sync_dep_slots_from_driver_c / sizeof_arena|module)
  * live only under #ifndef FROM_X cold (read_file_x cold already at seed ~4212).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_parse_orch_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_PARSE_ORCH_THIN_BEGIN */
 #ifndef WAVE284_PARSE_ORCH_ALWAYS
 #define WAVE284_PARSE_ORCH_ALWAYS 1
 
@@ -66014,6 +66017,7 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   return w284_load_i32(ex, 0);
 }
 
+/* XLANG_PABI_PARSE_ORCH_THIN_END */
 #endif /* WAVE284_PARSE_ORCH_ALWAYS */
 
 /* =============================================================================
