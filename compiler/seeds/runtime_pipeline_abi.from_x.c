@@ -47727,6 +47727,7 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_STRUCT_LAYOUT_THIN_BEGIN */
 #define WAVE266_SL_SLOTS 128
 #define WAVE266_SL_LAYOUT_SZ 296
 #define WAVE266_SL_FIELD_SZ 272
@@ -48217,7 +48218,7 @@ int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t li, i
   if (!fe)
     return 0;
   memcpy(&fl, fe + 256, 4);
-  return (fl > 0 && fl <= 127) ? fl : 0;
+  return (fl > 0 && fl <= 255) ? fl : 0;
 }
 
 void pipeline_module_struct_layout_field_name_into(void *module, int32_t li, int32_t j, uint8_t *out64) {
@@ -48310,7 +48311,8 @@ int32_t pipeline_module_struct_layout_append_type_param(void *module, int32_t li
   }
   ent = g_wave266_sl_tp[s] + (size_t)abs * (size_t)WAVE266_SL_TP_SZ;
   memset(ent, 0, WAVE266_SL_TP_SZ);
-  memcpy(ent + 256, &name_len, 4);
+  /* name_len@128 matches product .x / Cap 128-era tp row (TP_SZ 260). */
+  memcpy(ent + 128, &name_len, 4);
   for (i = 0; i < name_len; i++)
     ent[i] = name[i];
   tp_count = tp_count + 1;
@@ -48416,34 +48418,34 @@ void pipeline_module_struct_layout_type_param_name_into(void *module, int32_t li
   } while (0)
 
 void pipeline_module_struct_layout_set_allow_padding(void *module, int32_t idx, int32_t v) {
-  WAVE266_SL_FLAG_SET(140);
+  WAVE266_SL_FLAG_SET(268);
 }
 int32_t pipeline_module_struct_layout_allow_padding_at(void *module, int32_t idx) {
-  WAVE266_SL_FLAG_GET(140);
+  WAVE266_SL_FLAG_GET(268);
 }
 void pipeline_module_struct_layout_set_soa(void *module, int32_t idx, int32_t v) {
-  WAVE266_SL_FLAG_SET(144);
+  WAVE266_SL_FLAG_SET(272);
 }
 int32_t pipeline_module_struct_layout_soa_at(void *module, int32_t idx) {
-  WAVE266_SL_FLAG_GET(144);
+  WAVE266_SL_FLAG_GET(272);
 }
 void pipeline_module_struct_layout_set_packed(void *module, int32_t idx, int32_t v) {
-  WAVE266_SL_FLAG_SET(148);
+  WAVE266_SL_FLAG_SET(276);
 }
 int32_t pipeline_module_struct_layout_packed_at(void *module, int32_t idx) {
-  WAVE266_SL_FLAG_GET(148);
+  WAVE266_SL_FLAG_GET(276);
 }
 void pipeline_module_struct_layout_set_repr_compatible(void *module, int32_t idx, int32_t v) {
-  WAVE266_SL_FLAG_SET(152);
+  WAVE266_SL_FLAG_SET(280);
 }
 int32_t pipeline_module_struct_layout_repr_compatible_at(void *module, int32_t idx) {
-  WAVE266_SL_FLAG_GET(152);
+  WAVE266_SL_FLAG_GET(280);
 }
 void pipeline_module_struct_layout_set_is_export(void *module, int32_t idx, int32_t v) {
-  WAVE266_SL_FLAG_SET(156);
+  WAVE266_SL_FLAG_SET(284);
 }
 int32_t pipeline_module_struct_layout_is_export_at(void *module, int32_t idx) {
-  WAVE266_SL_FLAG_GET(156);
+  WAVE266_SL_FLAG_GET(284);
 }
 
 int32_t pipeline_module_num_struct_layouts_at(void *module) {
@@ -48452,6 +48454,7 @@ int32_t pipeline_module_num_struct_layouts_at(void *module) {
   wave266_sl_soft_sync(module);
   return wave266_sl_header_n(module);
 }
+/* XLANG_PABI_STRUCT_LAYOUT_THIN_END */
 
 /* Cold freestanding: sizing needs pure glue_type_*; product pure owns full path. */
 int32_t pipeline_asm_type_ref_byte_size_c(void *arena, int32_t ty_ref) {
