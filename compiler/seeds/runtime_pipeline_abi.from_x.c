@@ -66706,8 +66706,11 @@ int32_t typeck_check_expr_method_call(void *module, void *arena, int32_t expr_re
  *   ExternParseResult: next_lex@0, name[128]@16, …, is_variadic after abi_kind
  *   LibraryParseResult / TrySkipAllowResult match product allow(padding)
  * dual-export ban: only seed ALWAYS defines these bodies (no pure twin).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_parser_result_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_PARSER_RESULT_THIN_BEGIN */
 #ifndef WAVE287_PARSER_RESULT_ALWAYS
 #define WAVE287_PARSER_RESULT_ALWAYS 1
 
@@ -66968,6 +66971,7 @@ void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t 
   parser_collect_imports_buf(lex, data, n, module, &import_res);
 }
 
+/* XLANG_PABI_PARSER_RESULT_THIN_END */
 #endif /* WAVE287_PARSER_RESULT_ALWAYS */
 
 /* =============================================================================
