@@ -25,13 +25,13 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
 // STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X /
-// SCALAR_FROM_X / NAMED_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// SCALAR_FROM_X / NAMED_FROM_X / GENERIC_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
 // pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x / vec_x / alloc_x / scalar_x / named_x keeps that C twin without
+// linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x keeps that C twin without
 // dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
@@ -172,11 +172,27 @@
 // parse_type_ref — P3f hello/fmt red). IDENT NAMED writer =
 // init_named_at (G.7; same as P3j pointee). C trampoline holds
 // name[256] + qn_len (no local u8[N], no &local i32). Generic
-// `<T,U>` type-arg get/set stays C (banned dest-buffer). wrap_dyn
-// stays P3e (after `<T>` so `Wrap<i32>` is not a trait). Postfix
-// stays P3g. NAMED is a separate define so a missing named_x
-// keeps the C twin without dropping P3n. Do not dest-buffer
-// parse_type_ref. Do not FORCE pabi mega. Do not open a new P-lane.
+// `<T,U>` type-arg dest-buffer is P3p. wrap_dyn stays P3e (after
+// `<T>` so `Wrap<i32>` is not a trait). Postfix stays P3g. NAMED
+// is a separate define so a missing named_x keeps the C twin
+// without dropping P3n. Do not dest-buffer parse_type_ref. Do
+// not FORCE pabi mega. Do not open a new P-lane.
+// 7.2.1 P3p B-minus (2026-09-16): 有则补全 IDENT generic `<T,U>`
+// type-arg dest-buffer. The optional angle list after TYPE_NAMED
+// was inlined in parse_type_ref_impl (always host-cc). P9a
+// peek/step owns the unconsumed `<`; each arg recurses via the
+// existing primary parse_type_ref_ptr shim (G.7; do not dest-buffer
+// parse_type_ref — P3f hello/fmt red). Sidecar append =
+// pipeline_type_append_type_arg (G.7; same as P3i TYPE_FN params).
+// first-arg + count stamp = pipeline_type_set_elem_array_size_at
+// (G.7; do not Type by-value get/set; do not FORCE pabi mega).
+// Nested `Name<Name<T>>` close reuses the P3d RSHIFT contract
+// (step `>>` then rewind pos/col by 1). Not-`<` leaves lex
+// unchanged so wrap_dyn / postfix still see `[`. GENERIC is a
+// separate define so a missing generic_x keeps the C loop without
+// dropping P3o. Do not dest-buffer parse_type_ref. Do not FORCE
+// pabi mega. Do not open a new P-lane. Do not `break` out of the
+// arg while (P4bh parse-drop).
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -307,6 +323,12 @@ export extern "C" function pipeline_type_init_fn_c(a: *u8, ref: i32, ret_tr: i32
  * args). G.7 one writer; do not copy.
  */
 export extern "C" function pipeline_type_append_type_arg(arena: *u8, type_ref: i32, arg_ref: i32): i32;
+/**
+ * Existing sidecar: stamp Type.elem_type_ref + array_size.
+ * G.7 one writer for the IDENT generic first-arg/count pair
+ * (C twin used Type by-value get/set). Do not FORCE pabi mega.
+ */
+export extern "C" function pipeline_type_set_elem_array_size_at(arena: *u8, ref: i32, elem_ref: i32, array_size: i32): i32;
 /**
  * Existing pabi writer: zero a Type slot and write a primitive
  * kind_ord 0..16 (VOID=16). G.7 one scalar writer; do not copy;
@@ -1819,9 +1841,9 @@ export function parser_asm_peel_dyn_impl_prefix_x_into_c(arena: *u8, lex_inout: 
  * Parse type-position IDENT NAMED (`Foo` / `a.b.Type`) into a
  * TYPE_NAMED slot. Peek must be IDENT else 0 (lex unchanged) so
  * Linear / vector IDENT still own those spellings. consume_qualified
- * walks `a.b.Type` via P3d. Generic `<T,U>` stays in the C impl
- * (banned dest-buffer). wrap_dyn stays P3e (after `<T>`). Postfix
- * stays P3g. consume fail restores the entry cursor.
+ * walks `a.b.Type` via P3d. Generic `<T,U>` is P3p. wrap_dyn
+ * stays P3e (after `<T>`). Postfix stays P3g. consume fail
+ * restores the entry cursor.
  * @param arena *u8 — AST arena; null → 0
  * @param lex_inout *u8 — opaque lexer; mutated; null → 0
  * @param source *u8 — opaque slice; null → 0
@@ -1832,8 +1854,8 @@ export function parser_asm_peel_dyn_impl_prefix_x_into_c(arena: *u8, lex_inout: 
  * @return i32 — TYPE_NAMED type_ref, or 0
  * PLATFORM: SHARED type grammar. P3o dest-buffer split of the former
  * inlined IDENT NAMED arm. Writer = init_named_at (G.7). Do not
- * dest-buffer parse_type_ref. Do not dest-buffer IDENT generic
- * type-arg get/set. parse_type_ref_impl stays C.
+ * dest-buffer parse_type_ref. Generic `<T,U>` is P3p.
+ * parse_type_ref_impl stays C.
  */
 #[no_mangle]
 export function parser_asm_parse_named_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, name_scratch: *u8, qn_len_slot: *i32): i32 {
@@ -1895,6 +1917,99 @@ export function parser_asm_parse_named_type_x_into_c(arena: *u8, lex_inout: *u8,
       return 0;
     }
     return type_ref;
+  }
+  return 0;
+}
+
+/**
+ * Parse optional type-position generic args after a TYPE_NAMED slot
+ * (`Name<T>` / `Name<T,U>` / nested `Name<Name<T>>`). Peek must be
+ * TOKEN_LT else `named_tr` is returned and lex is unchanged so
+ * wrap_dyn / postfix still see `[`. Each arg recurses through
+ * parse_type_ref_ptr. COMMA continues; TOKEN_GT consumes; TOKEN_RSHIFT
+ * (`>>`) closes this level and leaves one `>` (P3d contract: step
+ * then rewind pos/col by 1). Fail-closed: a missing arg or a non
+ * comma/close token returns 0 with lex parked at the fail site.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param named_tr i32 — TYPE_NAMED type_ref from P3o; <=0 → 0
+ * @return i32 — named_tr with sidecar args, named_tr if no `<`, or 0
+ * PLATFORM: SHARED type grammar. P3p dest-buffer split of the former
+ * inlined IDENT generic get/set soup. Append =
+ * pipeline_type_append_type_arg (G.7). first-arg + count =
+ * pipeline_type_set_elem_array_size_at (G.7). Recurse = primary
+ * parse_type_ref_ptr (G.7). Do not dest-buffer parse_type_ref.
+ * parse_type_ref_impl stays C. wrap_dyn stays P3e (after this).
+ * Postfix stays P3g. Do not `break` out of the arg while.
+ */
+#[no_mangle]
+export function parser_asm_parse_named_generic_args_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, named_tr: i32): i32 {
+  let kind: i32 = 0;
+  let ta_ref: i32 = 0;
+  let first_ta: i32 = 0;
+  let n_ta: i32 = 0;
+  let done: i32 = 0;
+  let p: usize = 0;
+  let c: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (named_tr <= 0) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LT) {
+      return named_tr;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    done = 0;
+    while (done == 0) {
+      ta_ref = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+      if (ta_ref == 0) {
+        return 0;
+      }
+      if (n_ta == 0) {
+        first_ta = ta_ref;
+      }
+      if (ta_ref > 0) {
+        pipeline_type_append_type_arg(arena, named_tr, ta_ref);
+      }
+      n_ta = n_ta + 1;
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_COMMA) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+      } else {
+        if (kind == TOKEN_GT) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          done = 1;
+        } else {
+          if (kind == TOKEN_RSHIFT) {
+            /* P3d nested `>>`: consume both bytes then leave one `>`
+             * for the outer list (rewind pos/col by 1; line stays). */
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            p = parser_asm_lex_pos_c(lex_inout);
+            c = parser_asm_lex_col_c(lex_inout);
+            if (p > 0 as usize) {
+              p = p - 1 as usize;
+            }
+            if (c > 1) {
+              c = c - 1;
+            }
+            parser_asm_lex_set_pos_c(lex_inout, p);
+            parser_asm_lex_set_col_c(lex_inout, c);
+            done = 1;
+          } else {
+            return 0;
+          }
+        }
+      }
+    }
+    if (first_ta > 0) {
+      pipeline_type_set_elem_array_size_at(arena, named_tr, first_ta, n_ta);
+    }
+    return named_tr;
   }
   return 0;
 }

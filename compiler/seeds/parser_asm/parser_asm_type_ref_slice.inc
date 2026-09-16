@@ -3,16 +3,17 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * skips the portable token_starts_type / ident_is_dyn / builtin_kind_ord /
  * vector-ident-pack region, (P3d) consume_qualified / type_angle_close, and
  * (P3e) TYPE_DYN wrap (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED are separate
- * defines for P3g–P3o. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
+ * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC are separate
+ * defines for P3g–P3p. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
  * alloc_vector_type_ref C twin. XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X (P3n) skips
  * builtin scalar-token C twin. XLANG_PTHIN_TYPE_REF_NAMED_FROM_X (P3o) skips
- * dyn/impl peel + IDENT NAMED C twins. parse_type_ref_impl stays C. Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED define, full twin.
+ * dyn/impl peel + IDENT NAMED C twins. XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X (P3p)
+ * skips IDENT generic `<T,U>` C loop. parse_type_ref_impl stays C. Cold: no
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -1275,7 +1276,7 @@ static int32_t parser_asm_peel_dyn_impl_prefix_c(void *arena, struct parser_asm_
  * PLATFORM: SHARED — P3o trampoline. Language has no local u8[N] and no
  * &local i32; this C face holds name[256] + qn_len. Entry cursor is
  * unconsumed IDENT; parse_type_ref_impl stays C and only calls this
- * after Linear / vector IDENT miss. Generic `<T>` stays in the impl.
+ * after Linear / vector IDENT miss. Generic `<T>` is P3p.
  */
 static int32_t parser_asm_parse_named_type_ref_c(void *arena, struct parser_asm_lexer lex,
                                                 struct parser_asm_slice_u8 *source,
@@ -1330,7 +1331,7 @@ static int32_t parser_asm_peel_dyn_impl_prefix_c(void *arena, struct parser_asm_
 /**
  * Parse type-position IDENT NAMED (`Foo` / `a.b.Type`). lex is
  * unconsumed IDENT. consume_qualified walks dots. Generic `<T>`
- * stays in parse_type_ref_impl. PLATFORM: SHARED type grammar.
+ * is P3p. PLATFORM: SHARED type grammar.
  */
 static int32_t parser_asm_parse_named_type_ref_c(void *arena, struct parser_asm_lexer lex,
                                                 struct parser_asm_slice_u8 *source,
@@ -1369,6 +1370,88 @@ static int32_t parser_asm_parse_named_type_ref_c(void *arena, struct parser_asm_
 }
 #endif /* XLANG_PTHIN_TYPE_REF_NAMED_FROM_X dyn/impl peel + IDENT NAMED */
 
+#ifdef XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X
+extern int32_t parser_asm_parse_named_generic_args_x_into_c(void *arena, void *lex_inout, void *source,
+                                                           int32_t named_tr);
+/**
+ * PLATFORM: SHARED — P3p trampoline. Entry cursor is unconsumed after
+ * TYPE_NAMED. Not-`<` leaves lex unchanged so wrap_dyn / postfix still
+ * see `[`. Fail-closed parks lex at the fail site (same as the C twin).
+ */
+static int32_t parser_asm_parse_named_generic_args_c(void *arena, int32_t named_tr,
+                                                    struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source,
+                                                    struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  ref = parser_asm_parse_named_generic_args_x_into_c(arena, &cur, source, named_tr);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Optional type-position `Name<T>` / `Name<T,U>` after TYPE_NAMED.
+ * Nested `Name<Name<T>>` closes via P3d GT / RSHIFT. PLATFORM: SHARED.
+ */
+static int32_t parser_asm_parse_named_generic_args_c(void *arena, int32_t named_tr,
+                                                    struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source,
+                                                    struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result peek_ta;
+  int32_t first_ta;
+  int32_t n_ta;
+  int32_t ta_ref;
+  struct ast_Type t;
+  extern int32_t pipeline_type_append_type_arg(void *arena, int32_t type_ref, int32_t arg_ref);
+  if (!source || !out_lex)
+    return 0;
+  if (named_tr == 0) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  lexer_next_into(&peek_ta, lex, source);
+  if (peek_ta.tok.kind != (int32_t)TOKEN_LT) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return named_tr;
+  }
+  parser_asm_lex_from_result_val_into(&lex, peek_ta);
+  first_ta = 0;
+  n_ta = 0;
+  for (;;) {
+    ta_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+    if (ta_ref == 0) {
+      parser_asm_write_out_lex_c(out_lex, lex);
+      return 0;
+    }
+    if (n_ta == 0)
+      first_ta = ta_ref;
+    if (named_tr != 0 && ta_ref > 0)
+      (void)pipeline_type_append_type_arg(arena, named_tr, ta_ref);
+    n_ta = n_ta + 1;
+    lexer_next_into(&peek_ta, lex, source);
+    if (peek_ta.tok.kind == (int32_t)TOKEN_COMMA) {
+      parser_asm_lex_from_result_val_into(&lex, peek_ta);
+      continue;
+    }
+    if (parser_asm_type_angle_close_gt_or_rshift_c(&peek_ta, &lex) != 0)
+      break;
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  if (named_tr != 0 && first_ta > 0) {
+    t = ast_arena_type_get(arena, named_tr);
+    t.elem_type_ref = first_ta;
+    t.array_size = n_ta;
+    ast_arena_type_set(arena, named_tr, t);
+  }
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return named_tr;
+}
+#endif /* XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X IDENT generic <T,U> */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -1377,7 +1460,6 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
                                                                 struct parser_asm_lexer *out_lex) {
   struct parser_asm_lexer_result r;
   int32_t type_ref_param;
-  struct ast_Type t;
   int32_t type_ref_scalar;
   int32_t linear_ref;
   int32_t vec_tok_ref;
@@ -1473,69 +1555,23 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
     /*
      * P3o dest-buffer: helper owns the unconsumed IDENT NAMED cursor
      * (same as P3k Linear owning unconsumed IDENT). consume_qualified
-     * + init_named_at live in .x. Generic `<T,U>` stays here (banned
-     * dest-buffer). Fail-closed: do not fall through as a half NAMED.
-     * PLATFORM: SHARED type grammar.
+     * + init_named_at live in .x. Fail-closed: do not fall through as
+     * a half NAMED. PLATFORM: SHARED type grammar.
      */
     type_ref_param = parser_asm_parse_named_type_ref_c(arena, lex, source, out_lex);
     if (type_ref_param == 0)
       return 0;
     lex = *out_lex;
     /*
-     * wave466/467 Cap residual pure: type-position `Name<T>` / `Name<T,U>` (docs/02).
-     * Prior: IDENT became TYPE_NAMED then postfix only saw `[` — bare `<` after the
-     * name failed the surrounding param/let type parse (XP003 out_len=0) for
-     * `let w: Wrap<i32>` / `w: Wrap<i32>`. Call-site turbofish (primary) already
-     * parsed angles; type_ref had no twin path (G.7 single authority here).
-     *
-     * Contract: after TYPE_NAMED, optional `< type (, type)* >`.
-     *   - first type arg → elem_type_ref (wave466 single-arg mono)
-     *   - array_size → top-level arg count
-     *   - wave467: all args also in sidecar via pipeline_type_append_type_arg
-     * Nested angles work via recursive parse_type_ref. PLATFORM: SHARED type grammar.
+     * P3p dest-buffer: optional `<T,U>` after TYPE_NAMED. Not-`<`
+     * leaves lex unchanged so wrap_dyn / postfix still see `[`.
+     * Nested `Name<Name<T>>` closes via P3d GT / RSHIFT.
+     * PLATFORM: SHARED type grammar.
      */
-    {
-      struct parser_asm_lexer_result peek_ta;
-      int32_t first_ta;
-      int32_t n_ta;
-      int32_t ta_ref;
-      extern int32_t pipeline_type_append_type_arg(void *arena, int32_t type_ref, int32_t arg_ref);
-      lexer_next_into(&peek_ta, lex, source);
-      if (peek_ta.tok.kind == (int32_t)TOKEN_LT) {
-        parser_asm_lex_from_result_val_into(&lex, peek_ta);
-        first_ta = 0;
-        n_ta = 0;
-        for (;;) {
-          ta_ref = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
-          if (ta_ref == 0) {
-            parser_asm_write_out_lex_c(out_lex, lex);
-            return 0;
-          }
-          if (n_ta == 0)
-            first_ta = ta_ref;
-          if (type_ref_param != 0 && ta_ref > 0)
-            (void)pipeline_type_append_type_arg(arena, type_ref_param, ta_ref);
-          n_ta = n_ta + 1;
-          lexer_next_into(&peek_ta, lex, source);
-          if (peek_ta.tok.kind == (int32_t)TOKEN_COMMA) {
-            parser_asm_lex_from_result_val_into(&lex, peek_ta);
-            continue;
-          }
-          /* wave483: TOKEN_GT or nested `>>` (TOKEN_RSHIFT) closes this angle level. */
-          if (parser_asm_type_angle_close_gt_or_rshift_c(&peek_ta, &lex) != 0)
-            break;
-          parser_asm_write_out_lex_c(out_lex, lex);
-          return 0;
-        }
-        if (type_ref_param != 0 && first_ta > 0) {
-          t = ast_arena_type_get(arena, type_ref_param);
-          t.elem_type_ref = first_ta;
-          t.array_size = n_ta;
-          ast_arena_type_set(arena, type_ref_param, t);
-        }
-      }
-      /* If next was not `<`, leave lex unadvanced so postfix sees `[` / end. */
-    }
+    type_ref_param = parser_asm_parse_named_generic_args_c(arena, type_ref_param, lex, source, out_lex);
+    if (type_ref_param == 0)
+      return 0;
+    lex = *out_lex;
     /*
      * Bare trait name in type position (`let x: Clone = a`) is TYPE_DYN
      * without writing `dyn`. Registered skip-trait names wrap the same
