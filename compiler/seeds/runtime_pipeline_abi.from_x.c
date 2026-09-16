@@ -57053,8 +57053,11 @@ int32_t pipeline_parser_extern_init_arena_func_and_register_c(void *arena, void 
  * Not gated by FROM_X. Complex GrowVec insert-and-shift + multi-pool mutators
  * stay seed host-cc (same residual class as wave276 value-ABI). G.7: sole
  * product authority for pipeline_block_* / ast_ast_block_* faces below.
+ * M2 Class E: C thin leave = runtime_pipeline_abi_block_domain_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED — runtime_pipeline_abi.o.
  * ============================================================================= */
+/* XLANG_PABI_BLOCK_DOMAIN_THIN_BEGIN */
 #ifndef WAVE277_BLOCK_DOMAIN_ALWAYS
 #define WAVE277_BLOCK_DOMAIN_ALWAYS 1
 
@@ -58985,6 +58988,7 @@ void ast_ast_expr_apply_call_resolve(void *a, int32_t call_expr_ref, int32_t dep
 
 
 
+/* XLANG_PABI_BLOCK_DOMAIN_THIN_END */
 #endif /* WAVE277_BLOCK_DOMAIN_ALWAYS */
 
 /* =============================================================================

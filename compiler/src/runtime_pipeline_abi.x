@@ -1538,8 +1538,10 @@ export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
  */
 export extern function typeck_soa_fill_field_access_for_asm_emit(m: *u8, a: *u8): void;
 
-/* wave277: fixup body is seed ALWAYS (ast_pool_block domain leave). Dual-export ban:
- * pure no longer provides empty weak body — Cap residual in runtime_pipeline_abi.from_x.c. */
+/* wave277: fixup body is seed ALWAYS + C thin leave
+ * (runtime_pipeline_abi_block_domain_thin.c; ast_pool_block domain).
+ * Dual-export ban: pure no longer provides empty weak body —
+ * Cap residual in runtime_pipeline_abi.from_x.c / block_domain_thin. */
 export extern "C" function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void;
 
 /* wave80: asm_asm_codegen_elf_o is export-extern only (see top of file).
