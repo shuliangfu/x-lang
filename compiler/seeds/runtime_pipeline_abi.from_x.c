@@ -45791,6 +45791,7 @@ void pipeline_typeck_active_module_set_c(void *m) {
  * extern asm_ctx_set_scope_block residual).
  * PLATFORM: SHARED freestanding emit Cap bridges.
  */
+/* XLANG_PABI_GLUE_STATICS_THIN_BEGIN */
 extern void asm_ctx_set_scope_block(void *ctx, int32_t block_ref);
 extern void *pipeline_asm_ctx_layout(void *ctx);
 /* wave221/222 cold twins provide these process-local cells when pure absent. */
@@ -45821,6 +45822,7 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
   if (dep)
     pipeline_asm_emit_ctx_dep_pipe_set(dep);
 }
+/* XLANG_PABI_GLUE_STATICS_THIN_END */
 
 #endif /* close wave178 FROM_X for leftover-PE type_alias storage unique */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE type_alias storage unique */
