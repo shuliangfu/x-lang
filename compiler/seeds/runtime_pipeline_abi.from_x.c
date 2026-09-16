@@ -45771,6 +45771,7 @@ uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
  * Hybrid product links pure; cold seed keeps local static under #ifndef FROM_X.
  * PLATFORM: SHARED freestanding typeck active-module cell.
  */
+/* XLANG_PABI_TYPECK_ACTIVE_THIN_BEGIN */
 static void *g_wave224_typeck_active_module = 0;
 
 void *pipeline_typeck_active_module_c(void) {
@@ -45779,6 +45780,7 @@ void *pipeline_typeck_active_module_c(void) {
 void pipeline_typeck_active_module_set_c(void *m) {
   g_wave224_typeck_active_module = m;
 }
+/* XLANG_PABI_TYPECK_ACTIVE_THIN_END */
 
 /*
  * wave261 cold twins: glue_statics Cap residual pure leave.
