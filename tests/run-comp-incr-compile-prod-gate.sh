@@ -6,10 +6,13 @@
 # 3) 有 native xlang 时逐条执行 prod hook
 #
 # 用法：./tests/run-comp-incr-compile-prod-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP021_DOC:-analysis/comp-incr-compile-prod-v1.md}"
+DOC="${XLANG_COMP021_DOC:-analysis/archive/comp/comp-incr-compile-prod-v1.md}"
 WAVE="${XLANG_COMP021_WAVE_TSV:-tests/baseline/comp-incr-compile-prod-wave.tsv}"
 MANIFEST="${XLANG_COMP021_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
 BENCH="${XLANG_COMP021_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
@@ -21,7 +24,7 @@ MIN_PROD=4
 
 echo "=== COMP-021: incr-compile prod manifest ==="
 for f in "$DOC" "$WAVE" "$MANIFEST" "$BENCH" "$LIB" \
-  analysis/comp-incr-compile-wave-v1.md tests/run-comp-incr-compile-wave-gate.sh \
+  analysis/archive/comp/comp-incr-compile-wave-v1.md tests/run-comp-incr-compile-wave-gate.sh \
   tests/run-comp-incr-compile-gate.sh tests/run-comp-incr-compile.sh \
   tests/run-obs-compile-phase-timing-gate.sh; do
   if [ ! -f "$f" ]; then

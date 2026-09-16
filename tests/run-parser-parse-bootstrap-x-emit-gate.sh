@@ -1,25 +1,53 @@
 #!/usr/bin/env bash
-# x PARSE_BOOTSTRAP_EMIT 轨道门禁：全量 parser.x 真 emit parse_into* 在 seed/xlang_asm 上仍 139（已知）。
-# C seed TU（parser_asm_parse_bootstrap_obj.inc）为默认路径；本门禁记录 x 探测结果，防回归为「静默成功但无 .o」。
-# 用法：
-#   ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
-#   XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
-#   XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK=1 XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ...  # 修通 x emit 后硬门禁
+# x PARSE_BOOTSTRAP_EMIT probe honesty gate.
+#
+# Honesty: soft XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL retired —
+# MINIMAL failures / unexpected mega emit soft die→exit0 were portable
+# false-green. Default path remains C seed TU; X FULL emit is observational
+# known-fail (not mega promote).
+#
+# Env: XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK=1 — require X FULL OK.
+# Report: minimal=/full_obs=/skip=
+# PLATFORM: LINUX gold · DARWIN N/A (honest skip).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL:-${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL:-0}}
-EXPECT_OK=${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-0}}
+DOC="analysis/archive/phase/phase-parser-soft-fail0-honesty.md"
+PREFIX="xlang: [XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT]"
+EXPECT_OK=${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-0}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
+MINIMAL_OK=0
+FULL_OBS=0
+SKIP=1
+
+die() {
+  echo "parser-parse-bootstrap-x-emit-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail minimal=${MINIMAL_OK:-0} full_obs=${FULL_OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+report_ok() {
+  echo "${PREFIX} status=ok minimal=${MINIMAL_OK:-0} full_obs=${FULL_OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate honesty section"
+
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "parser-parse-bootstrap-x-emit-gate: N/A on Darwin"
+  SKIP=1
+  echo "parser-parse-bootstrap-x-emit-gate: N/A on Darwin (Linux covers x-emit probe)"
+  report_ok
   exit 0
 fi
+
 
 XLANG_SEED="compiler/xlang"
 if [ ! -x "$XLANG_SEED" ]; then
   echo "parser-parse-bootstrap-x-emit-gate: SKIP (no $XLANG_SEED)"
+  report_ok
   exit 0
 fi
 
@@ -41,9 +69,7 @@ EC=$?
 set -e
 
 HAS_O=0
-if [ -s "$OUT" ]; then
-  HAS_O=1
-fi
+[ -s "$OUT" ] && HAS_O=1
 HAS_SYM=0
 HAS_SYM_SZ=0
 if [ "$HAS_O" = "1" ]; then
@@ -53,31 +79,29 @@ if [ "$HAS_O" = "1" ]; then
     HAS_SYM_SZ=${HAS_SYM_SZ:-0}
   fi
 fi
-
 rm -f "$OUT" 2>/dev/null || true
 
 if [ "$EXPECT_OK" = "1" ]; then
   if [ "$EC" -ne 0 ] || [ "$HAS_SYM" != "1" ]; then
-    echo "parser-parse-bootstrap-x-emit-gate FAIL: expected x bootstrap OK (ec=$EC has_sym=$HAS_SYM)" >&2
     tail -n 10 "$LOG" 2>/dev/null || true
     rm -f "$LOG" 2>/dev/null || true
-    [ "$FAIL" = "1" ] && exit 1
-    exit 0
+    die "expected x bootstrap OK (ec=$EC has_sym=$HAS_SYM)"
   fi
-  echo "parser-parse-bootstrap-x-emit-gate PASS: x bootstrap emit OK (unexpected — prefer C TU unless intentional)"
+  MINIMAL_OK=1
+  FULL_OBS=1
+  SKIP=0
+  echo "parser-parse-bootstrap-x-emit-gate PASS: x bootstrap emit OK (EXPECT_OK=1)"
   rm -f "$LOG" 2>/dev/null || true
+  report_ok
   exit 0
 fi
 
-# 默认：139/失败为已知；须无 mega 级 parse_into_buf 真 emit（ret0 桩允许）。
+# Default: unexpected mega-sized parse_into_buf emit is hard (not soft track).
 if [ "$EC" -eq 0 ] && [ "$HAS_SYM" = "1" ] && [ "$HAS_SYM_SZ" -gt 4096 ]; then
-  echo "parser-parse-bootstrap-x-emit-gate FAIL: x bootstrap unexpectedly succeeded (use C TU or set EXPECT_OK)" >&2
   rm -f "$LOG" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "x bootstrap unexpectedly succeeded with mega parse_into_buf (use C TU or set EXPECT_OK)"
 fi
 
-# MINIMAL 白名单轨道：parse_into_init 可编，parse_into_buf 仍桩化（见 bisect-gate）。
 MIN_OUT="/tmp/xlang_parser_boot_x_emit_min.$$.o"
 MIN_LOG="/tmp/xlang_parser_boot_x_emit_min.log"
 rm -f "$MIN_OUT" "$MIN_LOG" 2>/dev/null || true
@@ -102,17 +126,17 @@ if [ -s "$MIN_OUT" ]; then
 fi
 rm -f "$MIN_OUT" "$MIN_LOG" 2>/dev/null || true
 if [ "$MIN_EC" -ne 0 ] || [ "$MIN_HAS_INIT" != "1" ] || [ "$MIN_HAS_BUF_SZ" -gt 128 ]; then
-  echo "parser-parse-bootstrap-x-emit-gate FAIL: MINIMAL bootstrap (ec=$MIN_EC init=$MIN_HAS_INIT buf_sz=$MIN_HAS_BUF_SZ)" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "MINIMAL bootstrap (ec=$MIN_EC init=$MIN_HAS_INIT buf_sz=$MIN_HAS_BUF_SZ)"
 fi
+MINIMAL_OK=1
 
+FULL_OBS=1
 if [ "$EC" -eq 139 ] || [ "$EC" -eq 134 ] || [ "$EC" -ne 0 ]; then
   echo "parser-parse-bootstrap-x-emit-gate PASS (known x bootstrap fail ec=$EC; MINIMAL OK; use parser_asm_parse_bootstrap_obj.inc)"
-  rm -f "$LOG" 2>/dev/null || true
-  exit 0
+else
+  echo "parser-parse-bootstrap-x-emit-gate PASS (ec=$EC has_o=$HAS_O; x emit path inactive — C TU default)"
 fi
-
-echo "parser-parse-bootstrap-x-emit-gate PASS (ec=$EC has_o=$HAS_O; x emit path inactive — C TU default)"
 rm -f "$LOG" 2>/dev/null || true
+SKIP=0
+report_ok
 exit 0

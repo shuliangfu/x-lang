@@ -1,7 +1,9 @@
 /**
  * net_udp_many_server.c — N4 基线 server：recvmmsg/recvfrom 循环收 UDP（C -O2 对照）
  * 用法：net_udp_many_server [port] [n_pkts]  默认 38458 / 4096
+ * PLATFORM: LINUX — recvmmsg needs _GNU_SOURCE before sys/socket.h (glibc).
  */
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdint.h>

@@ -1,6 +1,7 @@
 # std.queue Tier-S stable public API (import std.queue)
+# Authority = std/queue/mod.x live exports (len renamed to length).
 new
 push_back
 pop_front
-len
+length
 deinit

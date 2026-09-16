@@ -1,7 +1,9 @@
 # LANG-008 生命周期错误信息友好化 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 `lsp_diag_report_typeck`、`tests/run-typeck-region.sh` 对齐  
+> 更新时间：2026-08-29  
+> **Honesty 2026-08-24 #8: lsp_diag.c/typeck.c retired; live = lsp_diag.h + typeck.x.**
+> **2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
+> 状态：**定版（honesty residual auto-make）** — 与 `lsp_diag_report_typeck`、`tests/run-typeck-region.sh` 对齐  
 > 关联：`TYPE-002`（region 检查）、`EXC-005`（CLI/LSP 错误显示）
 
 ---
@@ -79,9 +81,27 @@ typeck error: slice region escape: cannot assign <ra> slice to unbound T[] at 8:
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/lang-lifetime-diag-v1.md` |
+| 本文 | `analysis/archive/lang/lang-lifetime-diag-v1.md` |
 | manifest | `tests/baseline/lang-lifetime-diag.tsv` |
 | 矩阵 | `tests/baseline/lang-lifetime-diag-cases.tsv` |
-| region RFC | `analysis/type-region-v1-rfc.md` |
+| region RFC | `analysis/archive/type/type-region-v1-rfc.md` |
 
 **LANG-008 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
+die (manifest face is live); `xlang check` line/substr smoke = obs (check
+gate paused 2026-08-05); DOC=archive; report `run=`／`obs=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
+**2026-08-29 leftover dual-authority DOC 已收**（LANG-008：顶层
+`analysis/type-region-v1-rfc.md`／`analysis/type-linear-v1-rfc.md` 与
+archive/type 双份退役；live = `analysis/archive/type/`；顶层复活硬 die；
+nested lifetime-diag 产品 substr 仍 leftover／obs；报告 `run=`／`obs=`／`skip=`）。
+
+`tests/run-lang-lifetime-diag-gate.sh` + `tests/run-lang-lifetime-diag.sh`:
+
+1. Archive DOC + manifest + cases TSV（拒 lsp_diag.c／typeck.c resurrect）
+2. Native xlang：matrix 烟测；check 格式债 → obs（非 soft silence）
+3. 缺 native／显式坏 XLANG 硬 die

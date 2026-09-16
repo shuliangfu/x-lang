@@ -54,7 +54,7 @@ if [ ! -x "./$TARGET" ]; then
       bash scripts/bootstrap_driver_seed.sh
     fi
   else
-    log "missing executable ./$TARGET (run make bootstrap-driver-seed first)"
+    log "missing executable ./$TARGET (run bash scripts/bootstrap_driver_seed.sh / ./xbuild bootstrap-driver-seed first)"
     exit 1
   fi
 fi

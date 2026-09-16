@@ -18,6 +18,7 @@
  *            macOS/Linux delegate to system headers via #include_next.
  *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
+#include <xlang_io_cap.h>
 
 /* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -203,7 +204,12 @@ extern int32_t lsp_main_impl(void);
 extern void driver_bump_stack_limit(void);
 extern void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 
-uint8_t g_lsp_state_buf[16388];
+/* PLATFORM: MACOS — tentative COMMON for a 16388-byte object gets size-derived
+ * alignment 2^15 (0x8000). Apple ld then warns:
+ *   reducing alignment of section __DATA,__common from 0x8000 to 0x4000
+ * Zero-init forces a defined zerofill symbol in __DATA,__common with align 2^0
+ * (same shape as -fno-common; no 16KiB file bloat). PLATFORM: SHARED seed. */
+uint8_t g_lsp_state_buf[16388] = {0};
 
 typedef struct LspMainThreadArgs {
     int32_t result;
@@ -294,7 +300,7 @@ int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len)
         return 0;
     }
     while (off < len) {
-        ssize_t n = write(fd, buf + (size_t)off, (size_t)(len - off));
+        ssize_t n = (ssize_t)xlang_io_write(fd, buf + (size_t)off, (size_t)(len - off));
         if (n < 0) {
             if (errno == EINTR) {
                 continue;

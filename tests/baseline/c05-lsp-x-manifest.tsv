@@ -1,4 +1,8 @@
 # C-05 LSP .x 盘点（manifest）
+# honesty 2026-08-30 leftover unused compiler-make SOURCE leftover c05:
+# tests/run-c05-lsp-x-gate.sh sourced unused (no xlang_compiler_make) retired.
+# leftover nested run-lsp.sh auto-make / leftover native_xlang / leftover
+# SKIP→OK / leftover prefer-c stay.
 # 列：item_id	layer	anchor	check_type	gate_or_notes
 lsp_diag_x	x	compiler/src/lsp/lsp_diag.x	grep	pipeline_lsp_diag_parse_typeck_buf
 lsp_diag_gen	makefile	lsp_diag_gen.c	grep	-E-extern zero perl

@@ -16,6 +16,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/heap/page_mmap.o \
 	../std/sys/sys.o \
 	../std/sys/linux.o \
+	../std/sys/macos.o \
 	../core/mem/mem.o \
 	../core/builtin/builtin.o \
 	../core/types/types.o \
@@ -23,6 +24,10 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../core/result/result.o \
 	../core/debug/debug.o \
 	../core/slice/mod.o \
+	../core/str/mod.o \
+	../core/iterator/mod.o \
+	../core/fmt/mod.o \
+	../std/bytes/bytes.o \
 	../std/map/map.o \
 	../std/set/set.o \
 	../std/vec/vec.o \
@@ -47,6 +52,17 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/error/error.o \
 	../std/json/json.o \
 	../std/csv/csv.o \
+	../std/cli/cli.o \
+	../std/config/config.o \
+	../std/cache/cache.o \
+	../std/url/url.o \
+	../std/security/security.o \
+	../std/option/option.o \
+	../std/result/result.o \
+	../std/datetime/datetime.o \
+	../std/db/sqlite/sqlite.o \
+	../std/db/kv/kv.o \
+	../std/db/arrow/arrow.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
 	../std/tar/tar.o \
@@ -59,5 +75,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/compress/compress.o \
 	../std/io/driver.o \
 	../std/io/io.o \
-	../std/debug/debug.o
+	../std/debug/debug.o \
+	../std/simd/simd.o \
+	../std/async/async.o
 

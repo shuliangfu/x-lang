@@ -3,4 +3,4 @@ log_runtime	file	compiler/seeds/runtime_log_os.from_x.c	OS 胶层（F-ZC）
 log_glue_absent	absent	std/log/log_os_glue.c	已迁入 compiler
 log_mod	file	std/log/mod.x	对外 API
 log_c_absent	absent	std/log/log.c	已删除
-makefile	makefile	compiler/Makefile	log.o 纯 .x + runtime_log_os.o
+makefile	makefile	xbuild	log.o 纯 .x + runtime_log_os.o

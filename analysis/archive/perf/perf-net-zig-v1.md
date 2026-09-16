@@ -116,3 +116,8 @@ XLANG_PERF_UPDATE_NET_BASELINE=1 ./tests/run-perf-net.sh --bench
 | echo Zig | `tests/bench/net_echo_throughput.zig` |
 
 **PERF-003 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON:-0 silent OK; over-cap = obs; report run=/obs=/skip=.
+

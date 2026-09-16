@@ -1,0 +1,3 @@
+wpo strict link: undefined symbol run_x_pipeline_impl
+pipeline WPO symbol missing after DCE pass
+ld: undefined symbol: run_x_pipeline_impl

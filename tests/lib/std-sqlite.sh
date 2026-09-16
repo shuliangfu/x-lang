@@ -1,64 +1,50 @@
 #!/usr/bin/env bash
-# std-sqlite.sh — STD-010 共享：API 校验与 typeck 烟测
+# std-sqlite.sh — STD-010 prereq helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_sqlite_has_api MOD_X FN
+#   std_sqlite_resolve_shu
+#   std_sqlite_run_smoke / std_sqlite_emit_report  (G.7: parent std-sqlite-gate.sh)
+# Honesty: refuse soft auto-make / soft SKIP→OK / prefer-c; report run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-STD_SQLITE_PREFIX="${XLANG_STD_SQLITE_PREFIX:-xlang: [XLANG_STD_SQLITE]}"
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
+# G.7: product -o + report live in STD-057 lib; do not fork a second run_smoke.
+# shellcheck source=tests/lib/std-sqlite-gate.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-sqlite-gate.sh"
 
-# 检查 mod.x 是否导出指定函数。
+# Check mod.x exports the named function (live surface, not fossil aliases).
 std_sqlite_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 对草案 .x 跑 xlang check；失败返回 1。
-std_sqlite_run_typeck() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-typeck}"
-  if [ ! -f "$src" ]; then
-    echo "std-sqlite FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" check -L . "$src" >/dev/null 2>&1; then
-    "$xlang" check -L . "$src" 2>&1 | tail -8 >&2 || true
-    echo "std-sqlite FAIL: check $tag ($src)" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 输出结构化预研报告行。
-std_sqlite_emit_report() {
-  local status="$1"
-  local apis="$2"
-  local layers="$3"
-  local typeck="$4"
-  echo "${STD_SQLITE_PREFIX} status=${status} apis=${apis} layers=${layers} typeck=${typeck}"
-}
-
-# 判断本机能否直接执行给定 xlang 二进制。
-std_sqlite_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-# 解析可用 xlang；失败返回 1。
+# Prefer product asm; refuse prefer-c / soft auto-make / soft SKIP→OK.
+# Explicit XLANG that is missing or non-native returns 1 (caller hard-dies).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 std_sqlite_resolve_shu() {
-  if [ -n "${XLANG:-}" ] && std_sqlite_native_xlang "$XLANG"; then
-    echo "$XLANG"
-    return 0
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if std_sqlite_native_xlang "$cand"; then
-      echo "$cand"
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done

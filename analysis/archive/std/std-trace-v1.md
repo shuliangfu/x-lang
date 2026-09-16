@@ -1,7 +1,7 @@
 # STD-088 std.trace v1
 
-> 更新时间：2026-06-18  
-> 状态：**可用** — Span 嵌套 + trace_id + text 导出 + context 集成 + gate
+> 更新时间：2026-08-28  
+> 状态：**可用** — Span 嵌套 + id + text 导出 + context 集成 + gate（soft→硬绿）
 
 ---
 
@@ -17,22 +17,26 @@
 
 ## 2. API
 
+产品短名（`std/trace/mod.x`）：
+
 | API | 说明 |
 |-----|------|
-| `trace_new` / `trace_free` | 追踪会话 |
-| `span_start` / `span_start_child` / `span_end` | 嵌套 Span |
-| `trace_id` / `current_span` | ID 与栈顶 |
+| `new` / `free` | 追踪会话 |
+| `start` / `start_child` / `end` | 嵌套 Span |
+| `id` / `current_span` / `count` | ID 与栈顶／计数 |
 | `export_text` | OTLP 风格简化 text |
-| `attach_to_context` / `from_context` | 与 std.context 集成 |
+| `attach` / `from_ctx` | 与 std.context 集成 |
 
 实现：`std/trace/mod.x` + `std/trace/trace.x`（F-trace v2 纯 .x，无 glue）。
 
 ---
 
-## 3. Gate
+## Gate
+
+Honesty（2026-08-28）：prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft prefer-c／soft SKIP→OK／soft `ensure_std_c_o`／`c_smoke=`／`x=` 报告；显式坏 XLANG／缺 native 硬 die；check／host-C／tip product `-o` UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
 
 ```
-xlang: [XLANG_STD_TRACE] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_TRACE] status=ok run=N obs=M skip=0
 std-trace gate OK
 ```
 
@@ -43,3 +47,4 @@ std-trace gate OK
 - async/io/net 自动 span 挂钩  
 - OTLP JSON/protobuf 导出  
 - 并发安全  
+- tip `std_trace_*` 产品 UNDEF 另案  

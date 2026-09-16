@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# type-zero-cost.sh — TYPE-005 零成本抽象共享辅助
+# type-zero-cost.sh — TYPE-005 zero-cost abstraction shared helpers.
+#
+# Honesty (2026-08-28): fossil bench/{loop_i32,mem_copy,struct_param,call_boundary}.x
+# retired — live = r01_/m03_/r10_/a01_*. Prefer product native via dod_native_exe
+# when available; keep type_zero_cost_native_xlang for callers that have not yet
+# sourced dod-native-exe.sh.
+# PLATFORM: SHARED archaeology.
 
-# 判断本机能否直接执行给定 xlang 二进制。
+# Return 0 if path is a native executable for this host (Mach-O/ELF match).
 type_zero_cost_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -15,13 +21,33 @@ type_zero_cost_native_xlang() {
   esac
 }
 
-# 解析 bench 矩阵中的 .x 路径。
+# Map fossil bench basenames to live r01_/m03_/r10_/a01_ names.
+# PLATFORM: SHARED — same rename as codegen-regression honesty.
+type_zero_cost_live_bench_name() {
+  local file="$1"
+  case "$file" in
+    loop_i32.x) echo "r01_loop_i32.x" ;;
+    mem_copy.x) echo "m03_mem_copy.x" ;;
+    struct_param.x) echo "r10_struct_param.x" ;;
+    call_boundary.x) echo "a01_call_boundary.x" ;;
+    *) echo "$file" ;;
+  esac
+}
+
+# Resolve bench matrix .x path (bench/ or tests/typeck/linear/).
+# Accepts live names or fossils; never invents missing files.
 type_zero_cost_bench_x() {
   local file="$1"
-  if [ -f "bench/${file}" ]; then
+  local live
+  live=$(type_zero_cost_live_bench_name "$file")
+  if [ -f "bench/${live}" ]; then
+    echo "bench/${live}"
+  elif [ -f "bench/${file}" ]; then
     echo "bench/${file}"
   elif [ -f "tests/typeck/linear/${file}" ]; then
     echo "tests/typeck/linear/${file}"
+  elif [ -f "tests/typeck/linear/${live}" ]; then
+    echo "tests/typeck/linear/${live}"
   else
     return 1
   fi

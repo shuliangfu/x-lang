@@ -1,9 +1,11 @@
 # TYPE-005 zero-cost abstraction bench matrix
-# 列：bench_id	su_file	c_ref	policy	notes
+# cols: bench_id	su_file	c_ref	policy	notes
+# honesty 2026-08-28: fossil loop_i32/mem_copy/struct_param/call_boundary →
+# live r01_/m03_/r10_/a01_*; typeck policy = obs (check gate paused).
 # min_benches	6
-bench_loop	loop_i32.x	loop_i32.c	bcmp	scalar loop
-bench_mem	mem_copy.x	mem_copy.c	bcmp	memcpy hot
-bench_struct	struct_param.x	struct_param.c	bcmp	small struct byval
-bench_call	call_boundary.x	call_boundary.c	bcmp	call depth
+bench_loop	r01_loop_i32.x	r01_loop_i32.c	bcmp	scalar loop
+bench_mem	m03_mem_copy.x	m03_mem_copy.c	bcmp	memcpy hot
+bench_struct	r10_struct_param.x	r10_struct_param.c	bcmp	small struct byval
+bench_call	a01_call_boundary.x	a01_call_boundary.c	bcmp	call depth
 bench_generic	generic_id_i32.x	-	compile	monomorph smoke
 bench_linear	move_ok.x	-	typeck	Linear ABI

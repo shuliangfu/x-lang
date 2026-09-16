@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# std-schema.sh — STD-090 manifest 与烟测辅助
+# std-schema.sh — STD-090 Schema decode helpers (JSON/CSV/column map).
+#
+# Usage (after source):
+#   std_schema_symbols_ok MOD_X SCHEMA_X TSV
+#   std_schema_run_smoke XLANG SRC [TAG]
+#   std_schema_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_SCHEMA_PREFIX="${XLANG_STD_SCHEMA_PREFIX:-xlang: [XLANG_STD_SCHEMA]}"
 
+# Validate manifest api/symbol/file/smoke/vectors anchors.
+# Echo miss count; return 0 when miss=0.
 std_schema_symbols_ok() {
   local mod_x="$1"
   local schema_x="$2"
@@ -40,6 +48,9 @@ std_schema_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# Compile and run .x decode smoke.
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
+# Tip product UNDEF for std_schema_* is gate-obs (not this helper's soft OK).
 std_schema_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -47,7 +58,7 @@ std_schema_run_smoke() {
   local exe="/tmp/xlang_std_schema_${tag}_$$"
   if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-schema FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -63,10 +74,11 @@ std_schema_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check / tip UNDEF / host-C = obs).
 std_schema_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_SCHEMA_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_SCHEMA_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

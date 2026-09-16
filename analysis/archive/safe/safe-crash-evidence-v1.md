@@ -72,10 +72,26 @@ XLANG_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh   # runnable
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/safe-crash-evidence-v1.md` |
+| 本文 | `analysis/archive/safe/safe-crash-evidence-v1.md` |
 | manifest | `tests/baseline/safe-crash-evidence.tsv` |
 | 库 | `tests/lib/safe-crash.sh` |
 | runner | `tests/run-safe-crash-evidence.sh` |
 | 门禁 | `tests/run-safe-crash-evidence-gate.sh` |
 
 **SAFE-007 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + API/impl anchors = hard.
+- Product `-o` evidence residual (`std_backtrace_collect_crash_evidence` UNDEF) = obs.
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-safe-crash-evidence-gate.sh
+```
+
+manifest: `tests/baseline/safe-crash-evidence.tsv`

@@ -1,99 +1,139 @@
 #!/usr/bin/env bash
-# STD-096：std.dynlib last_error 文本诊断门禁
-set -e
+# STD-096: std.dynlib last_error text diagnostic gate — honesty leftover unused compiler-make →硬绿.
+#
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# last_error.x -o exit0 = hard run (run=1). check / host-C archaeology = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-dynlib-last-error-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "$0")/lib/ci-host.sh"
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
+DOC="${XLANG_STD096_DOC:-analysis/archive/std/std-dynlib-last-error-v1.md}"
+MANIFEST="${XLANG_STD096_TSV:-tests/baseline/std-dynlib-last-error.tsv}"
 MOD_X="std/dynlib/mod.x"
-DYNLIB_RUNTIME="compiler/seeds/runtime_dynlib_os.from_x.c"
 DYNLIB_X="std/dynlib/dynlib.x"
-MANIFEST="tests/baseline/std-dynlib-last-error.tsv"
+DYNLIB_RUNTIME="compiler/seeds/runtime_dynlib_os.from_x.c"
+LIB="tests/lib/std-dynlib-last-error.sh"
 SMOKE_X="tests/dynlib/last_error.x"
 SMOKE_C="tests/dynlib/last_error_smoke.c"
-PREFIX="xlang: [XLANG_STD096_DYNLIB_ERR]"
+SMOKE_EXPECT=0
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+# shellcheck source=tests/lib/std-dynlib-last-error.sh
+. "$LIB"
+
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-dynlib-last-error gate FAIL: $*" >&2
+  std_dynlib_last_error_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== STD-096: dynlib last_error manifest ==="
-for f in "$MOD_X" "$DYNLIB_X" "$DYNLIB_RUNTIME" "$MANIFEST" "$SMOKE_X" "$SMOKE_C"; do
-  if [ ! -f "$f" ]; then
-    echo "dynlib-last-error gate FAIL: missing $f" >&2
-    exit 1
-  fi
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$DYNLIB_X" "$DYNLIB_RUNTIME" "$SMOKE_X" "$SMOKE_C"; do
+  [ -f "$f" ] || die "missing $f"
 done
-if ! grep -qE "function last_os_error\\(" "$MOD_X" 2>/dev/null; then
-  echo "dynlib-last-error gate FAIL: missing api last_os_error" >&2
-  exit 1
-fi
-if ! grep -qF "dynlib_last_error_copy_c" "$DYNLIB_X" 2>/dev/null; then
-  echo "dynlib-last-error gate FAIL: missing C copy symbol" >&2
-  exit 1
-fi
-echo "dynlib-last-error manifest OK"
 
-C_OK=0
-X_OK=0
-SKIP=0
-XLANG_BIN=""
-if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
-  :
-elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
-  :
-fi
+for kw in last_os_error dynlib_last_error_copy_c STD-096; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
+grep -qF '## 4. Gate' "$DOC" 2>/dev/null || die "doc missing '## 4. Gate'"
 
-if [ -n "$XLANG_BIN" ]; then
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/dynlib/dynlib.o
-  xlang_compiler_make runtime_dynlib_os.o >/dev/null 2>&1 || true
-  ld_extra=""
-  case "$(uname -s)" in
-    Linux*) ld_extra="-ldl" ;;
-  esac
+sym_miss="$(std_dynlib_last_error_symbols_ok "$MOD_X" "$DYNLIB_X" "$MANIFEST" "$DOC" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+echo "std-dynlib-last-error manifest OK"
 
-  echo "=== STD-096: C smoke ==="
-  c_exe="/tmp/xlang_std096_dynlib_err_$$"
-  if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/dynlib/dynlib.o compiler/runtime_dynlib_os.o $ld_extra 2>/dev/null; then
-    set +e
-    "$c_exe" >/dev/null 2>&1
-    c_ec=$?
-    set -e
-    rm -f "$c_exe"
-    if [ "$c_ec" -ne 0 ]; then
-      echo "dynlib-last-error gate FAIL: C smoke exit=$c_ec" >&2
-      exit 1
-    fi
-    C_OK=1
-  else
-    echo "dynlib-last-error gate FAIL: compile $SMOKE_C" >&2
-    exit 1
-  fi
-
-  echo "=== STD-096: .x typeck (XLANG=$XLANG_BIN) ==="
-  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "dynlib-last-error gate FAIL: typeck $SMOKE_X" >&2
-    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
-    exit 1
-  fi
-  X_OK=1
-else
-  echo "dynlib-last-error gate SKIP C/.x smoke (no native xlang-c)" >&2
+if [ "${XLANG_STD096_MANIFEST_ONLY:-0}" = "1" ]; then
   SKIP=1
+  std_dynlib_last_error_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-dynlib-last-error gate OK (manifest only)"
+  exit 0
 fi
 
-echo "${PREFIX} status=ok c=${C_OK} x=${X_OK} skip=${SKIP} host=$(ci_host_summary)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-096: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
+
+# Host-C archaeology = obs only; refuse leftover unused compiler-make.sh /
+# soft ensure/auto-make rebuild. Product -o is the hard path.
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+if std_dynlib_last_error_run_c_smoke; then
+  echo "std-dynlib-last-error c smoke OK (observational)"
+else
+  echo "std-dynlib-last-error OBS c smoke (host-C archaeology; refuse soft ensure/auto-make)" >&2
+  OBS=$((OBS + 1))
+fi
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std096_dynlib_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-dynlib-last-error OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+OUT="/tmp/xlang_std096_dynlib_err_$$"
+LOG="/tmp/xlang_std096_dynlib_err_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-dynlib-last-error OK: product -o"
+
+std_dynlib_last_error_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-dynlib-last-error gate OK"

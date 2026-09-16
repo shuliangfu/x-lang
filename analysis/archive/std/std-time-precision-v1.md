@@ -1,7 +1,7 @@
 # STD-005 std.time 高精度与时区策略 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · Gate honesty soft→硬绿  
 > 关联：`STD-001`（io 超时）、`PERF-001`（基准计时）、`std/time/README.md`
 
 ---
@@ -91,22 +91,28 @@
 
 ---
 
-## 6. 验证与门禁
+## 6. Gate
 
 ```bash
-# manifest + API + 烟测（native xlang）
 ./tests/run-std-time-gate.sh
-
-# 模块回归（compile + run main）
-./tests/run-time.sh
-
-# 单文件 typeck / runnable 烟测
-./compiler/xlang check -L . tests/time/precision_smoke.x
 ```
+
+Honesty（2026-08-26）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin asm→c 假权威）
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `main.x` + `precision_smoke.x` **exit 0 硬失败**（有 native xlang 时无 soft SKIP）
+- 报告行：`check=`／`main=`／`precision=`／`skip=`（硬绿信号＝`main=`／`precision=`）
+
+模块回归：`./tests/run-time.sh`（compile + run main）
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-time.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o time.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`bench_timer`／`format_timezone` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [TIME]`。Keep `## 6. Gate`。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-time-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main.x`＋`precision_smoke.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 6. Gate`。 Leave wrap body / ensure_std family.
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/std-time-precision-v1.md` |
+| 本文 | `analysis/archive/std/std-time-precision-v1.md` |
 | manifest | `tests/baseline/std-time-manifest.tsv` |
 | 库 | `tests/lib/std-time.sh` |
 | 门禁 | `tests/run-std-time-gate.sh` |
@@ -114,4 +120,14 @@
 | README | `std/time/README.md` |
 | 示例 catalog | `tests/baseline/std-examples-catalog.tsv`（`ex_time`） |
 
-**STD-005 状态：定版 ✅**
+旧闸偏 `xlang-c`／无 native 则 soft SKIP 却报 OK／section `## 6. 验证与门禁`＝portable 假红；产品 asm 烟测本绿（runnable）。
+
+**STD-005 状态：定版 ✅ · Gate honesty soft→硬绿**
+
+### Changelog
+
+| Ver | Date | Note |
+|-----|------|------|
+| v1.0 | 2026-06-17 | 定版：精度矩阵 + UTC 时区策略 + 13 API |
+| v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 6. Gate`；报告 `check=`／`main=`／`precision=`／`skip=` |
+| v1.2 | 2026-08-29 | leftover unused `compiler-make.sh` retired（no `xlang_compiler_make`；product `-o` hard） |

@@ -1,7 +1,10 @@
 # STD-168 placeholder() 清单 manifest
 # 列：item_id	kind	anchor	notes
+# leftover residual 2026-08-29: leftover fossil top-level DOC as live
+# path retired. Live = analysis/archive/other-tickets/. TSV doc file
+# path updated (xref; identity otherwise kept).
 # max_count	6
-doc	file	analysis/placeholder-inventory-v1.md	STD-168
+doc	file	analysis/archive/other-tickets/placeholder-inventory-v1.md	STD-168
 gate	script	run-placeholder-inventory-gate.sh	gate
 lib	script	tests/lib/placeholder-inventory.sh	helper
 smoke_ref	file	tests/stdlib-import/main.x	core.types 烟测

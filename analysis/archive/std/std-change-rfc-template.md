@@ -5,6 +5,7 @@
 > 更新时间：YYYY-MM-DD  
 > 状态：**草案 / 评审中 / 定版（vN）**  
 > 关联：STBL-003、`NEXT.md` §2 任务行、（可选）`ZC-*` / `EXC-*` / `STD-*`
+> **Honesty 2026-08-24 #10:** top-level analysis/std-change-rfc-template.md retired; live = analysis/archive/std/std-change-rfc-template.md.
 
 ---
 

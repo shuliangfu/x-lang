@@ -278,7 +278,8 @@ int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
 int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
-  uint8_t reloc_name[128];
+  /* Cap 4.2.8: '_' + up to 255 content (was [128]/127 → asm -o long-name CG002). */
+  uint8_t reloc_name[256];
   int32_t at;
   int32_t reloc_len;
   int32_t i;
@@ -297,9 +298,9 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
    * Stage 12.0.5 ABI: always prepend '_' for C call names. Do NOT skip when
    * name[0]=='_' — C reserved names like __error must become ___error (host cc). */
   macho_leading_underscore = pipeline_elf_ctx_macho_leading_underscore((uint8_t *)elf_ctx);
-  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 127) {
+  if (macho_leading_underscore != 0 && name_len > 0 && name_len <= 255) {
     reloc_name[0] = (uint8_t)'_';
-    for (i = 0; i < name_len && i < 127; i++)
+    for (i = 0; i < name_len && i < 255; i++)
       reloc_name[i + 1] = name[i];
     reloc_len = name_len + 1;
     return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, reloc_name, reloc_len);
@@ -404,6 +405,7 @@ extern int32_t arch_arm64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenC
 extern int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
 extern int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi);
 extern int32_t arch_arm64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
+extern int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
 extern int32_t arch_arm64_enc_enc_sub_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_add_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_str_x0_sp_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
@@ -1620,36 +1622,74 @@ int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
 }
 
 /**
- * PLATFORM: LINUX+MACOS x86_64 — setcc after ucomisd/comisd (CF/ZF based).
+ * PLATFORM: LINUX+MACOS x86_64 — setcc after ucomisd/comisd (CF/ZF/PF based).
  * cc: 0=eq 1=ne 2=lt(b) 3=le(be) 4=gt(a) 5=ge(ae); then movzbl %al,%eax.
  * Integer setl/setle/setg/setge read SF/OF and are wrong after ucomisd.
+ * IEEE unordered (NaN): ucomis* sets ZF=PF=CF=1, so plain sete/setne/setb/
+ * setbe answer C-wrong for NaN operands (a!=a was false, a<b was true).
+ * cc 0/2/3 are ordered-only (AND with !PF via setnp), cc 1 is unordered-or
+ * (OR with PF via setp); cc 4/5 (seta/setae) already exclude unordered.
+ * %cl is scratch here: the compare glue pins operands in rbx/rax and only
+ * eax carries the result out.
  */
 int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta) {
-  uint8_t op = 0x94; /* sete */
   static const uint8_t movzbl_al_eax[3] = {0x0f, 0xb6, 0xc0};
+  static const uint8_t setnp_cl[3] = {0x0f, 0x9b, 0xc1}; /* setnp %cl (PF=0, ordered) */
+  static const uint8_t setp_cl[3] = {0x0f, 0x9a, 0xc1};  /* setp %cl (PF=1, unordered) */
+  static const uint8_t and_cl_al[2] = {0x20, 0xc8};      /* and %cl,%al — al &= cl */
+  static const uint8_t or_cl_al[2] = {0x00, 0xc8};       /* or %cl,%al  — al |= cl */
+  uint8_t op = 0x94; /* sete */
   uint8_t s[3];
-  /* wave616: after arm64 fcmp (ucomisd twin), NZCV matches integer cset eq/ne/lt/le/gt/ge. */
-  if (ta == 1)
-    return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+  /* PLATFORM: MACOS|ARM64 — CSET W0,<inv_cond> directly (do NOT reuse the
+   * integer table pipeline_asm_arm64_cset_cond_enc_from_cc: wave616's
+   * "NZCV matches integer cset" claim only holds for cc 0/1/4/5). fcmp
+   * unordered sets Z=0,C=1,V=1, so integer LT/LE (N!=V based) answer true
+   * on NaN where C FP semantics demand false. FP relations map to
+   * {EQ,NE,MI,LS,GT,GE}; stored inverted for CSINC: {1,0,5,8,13,11}
+   * (ordered lt = N==1 -> invert PL; ordered le = Z==1||C==0 -> invert HI). */
+  if (ta == 1) {
+    static const int32_t fp_inv_cond[6] = {1, 0, 5, 8, 13, 11};
+    if (cc < 0 || cc > 5)
+      return -1;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x1a9f07e0u | ((uint32_t)fp_inv_cond[cc] << 12)));
+  }
   if (ta != 0 || !elf_ctx)
     return -1;
-  if (cc == 1)
+  if (cc == 1) {
+    /* NE = ordered-ne OR unordered: setp %cl first, OR it in below. */
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)setp_cl, 3) != 0)
+      return -1;
     op = 0x95; /* setne */
-  else if (cc == 2)
-    op = 0x92; /* setb  = CF (below / less) */
-  else if (cc == 3)
-    op = 0x96; /* setbe = CF|ZF */
-  else if (cc == 4)
-    op = 0x97; /* seta  = !CF & !ZF */
+  } else if (cc == 2 || cc == 3) {
+    /* LT/LE are ordered-only: setnp %cl first, AND it in below. */
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)setnp_cl, 3) != 0)
+      return -1;
+    if (cc == 2)
+      op = 0x92; /* setb  = CF (below / less) */
+    else
+      op = 0x96; /* setbe = CF|ZF */
+  } else if (cc == 0) {
+    /* EQ is ordered-only too: plain sete is true on unordered. */
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)setnp_cl, 3) != 0)
+      return -1;
+  } else if (cc == 4)
+    op = 0x97; /* seta  = !CF & !ZF — unordered-false already */
   else if (cc == 5)
-    op = 0x93; /* setae = !CF */
-  else if (cc != 0)
+    op = 0x93; /* setae = !CF — unordered-false already */
+  else
     return -1;
   s[0] = 0x0f;
   s[1] = op;
   s[2] = 0xc0;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, s, 3) != 0)
     return -1;
+  if (cc == 1) {
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)or_cl_al, 2) != 0)
+      return -1;
+  } else if (cc == 0 || cc == 2 || cc == 3) {
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_cl_al, 2) != 0)
+      return -1;
+  }
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movzbl_al_eax, 3);
 }
 
@@ -1703,7 +1743,12 @@ int32_t backend_enc_imul_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
+   * twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
+   * skipped the zi reload in consecutive same-index stores -> pointer+pointer). */
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1)
     return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx);
   if (ta == 2)
@@ -2217,6 +2262,9 @@ int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *
 int32_t backend_enc_mov_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   if (ta == 0)
     return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
+  /* Stage10 10.2.2 slice1: AAPCS arg → x0 for asm! lateout. */
+  if (ta == 1)
+    return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
   return -1;
 }
 #endif
@@ -3065,7 +3113,15 @@ int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *e
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+  /* P12g DIV root fix: rax+rbx var-slot cache invalidation at the CALL
+   * authority — see backend_enc_dispatch.x twin docblock (call clobbers both;
+   * stale rax belief dropped peek_ident_len's return value so the turbofish
+   * lens recorded 0 -> T001 copy<A>). */
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1)
     return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
   if (ta == 2)

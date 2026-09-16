@@ -50,3 +50,8 @@ XLANG_NOLIBC_N07_V5_TRY_BUILD=1 XLANG_NOLIBC_N07_V5_FAIL=1 ./tests/run-nolibc-n0
 | 日志 | g05 `/tmp/ubuntu_n07_l10_g05_4c736d57.log` · matrix `/tmp/ubuntu_n07_l10_matrix_4c736d57.log` |
 | g05 | ✅ 60 objs · **static** · `ldd` 无 `libc.so` |
 | 矩阵 | ✅ rv=42 · opt=102 · si=0 · hello=0 |
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n07-v5-gate.sh`.
+Soft `XLANG_NOLIBC_N07_V5_FAIL` retired — hard die on missing DOC/manifest/shared nostdlib authority;
+TRY_BUILD opt-in on Linux x86_64. PLATFORM: SHARED archaeology / LINUX try.

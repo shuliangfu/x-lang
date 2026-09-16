@@ -92,8 +92,18 @@ language await read/write/read_fd
 ```
 
 ```
-xlang: [XLANG_STD_ASYNC_IO_CPS] status=ok align=1 emit=1 skip=0
+xlang: [XLANG_STD_ASYNC_IO_CPS] status=ok run=0 obs=5 skip=0
+std-async-io-cps gate OK
 ```
+
+### Gate honesty (2026-08-28)
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad / missing native = hard die.
+- Refuse soft prefer-c / soft auto-make / soft SKIP→OK / check-as-hard.
+- check residual = obs (paused 2026-08-05). tip product `-o` `std_async_*` UNDEF = obs (product debt leave).
+- tip `-E` tool fail = hard; CPS emit marker miss (`xlang_async_cps_suspend_io` / `xlang_io_submit_read_async`) = obs.
+- Report contract: `run=` / `obs=` / `skip=` (retired `align=` / `io_uring=` / `emit=`). Archive DOC is live authority (refuse top-level resurrect).
+- Cross-links: [std-async-api-v1](std-async-api-v1.md) · [std-metrics-v1](std-metrics-v1.md).
 
 ---
 

@@ -1,0 +1,700 @@
+#!/usr/bin/env python3
+# sync_stretch_audit_harness.py — regenerate the B-minus equivalence harness
+# twin set + dispatch table from the current migrated surface.
+#
+# Inputs (authorities):
+#   src/asm/pthin_stretch_audit.x                          — migrated exports
+#   seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc — gated twins
+#   seeds/parser_asm_lex_step_bridge.from_x.c + suite skip helpers — link faces
+#
+# Outputs (fully regenerated each run):
+#   scripts/pthin_stretch_audit_eq_twins.h — c_ref_* static twins (verbatim
+#     gated C bodies, renamed) + helper authority copies
+#   scripts/pthin_stretch_audit_eq_table.h — shims + k_cases[] for every
+#     migrated 2-arg audit (3-arg flag audits get both polarities;
+#     out-param audits get null + packed-slot polarities)
+#
+# PLATFORM: SHARED (host-side generator; output compiled on both ends).
+import re
+import sys
+
+SUITE = "seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc"
+XFILE = "src/asm/pthin_stretch_audit.x"
+TWINS = "scripts/pthin_stretch_audit_eq_twins.h"
+TABLE = "scripts/pthin_stretch_audit_eq_table.h"
+
+# helper authority copies (link faces used by twins; refresh with sources)
+HELPERS = '''
+/* ── helper authority copies (verbatim from their slices; refresh together) ── */
+extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
+/* v5.36: skip stubs live after suite helpers; diag_after_imports calls these. */
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source);
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                        struct parser_asm_slice_u8 *source);
+void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r) {
+  if (!out)
+    return;
+  out->pos = r.next_lex.pos;
+  out->line = r.next_lex.line;
+  out->col = r.next_lex.col;
+}
+static int32_t parser_asm_stretch_is_type_start_kind_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
+      || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64
+      || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_IDENT;
+}
+
+static int32_t parser_asm_stretch_ident_byte_ok_c(uint8_t c, int32_t is_first) {
+  int alpha = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+  if (is_first != 0)
+    return alpha ? 1 : 0;
+  return alpha || (c >= '0' && c <= '9') ? 1 : 0;
+}
+int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len) {
+  int32_t i;
+  if (!name || len <= 0 || len > 63)
+    return 0;
+  if (parser_asm_stretch_ident_byte_ok_c(name[0], 1) == 0)
+    return 0;
+  for (i = 1; i < len; i++) {
+    if (parser_asm_stretch_ident_byte_ok_c(name[i], 0) == 0)
+      return 0;
+  }
+  return 1;
+}
+int32_t parser_asm_is_compound_assign_token_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_PLUS_EQ || kind == (int32_t)TOKEN_MINUS_EQ || kind == (int32_t)TOKEN_STAR_EQ
+      || kind == (int32_t)TOKEN_SLASH_EQ || kind == (int32_t)TOKEN_PERCENT_EQ || kind == (int32_t)TOKEN_AMP_EQ
+      || kind == (int32_t)TOKEN_PIPE_EQ || kind == (int32_t)TOKEN_CARET_EQ || kind == (int32_t)TOKEN_LSHIFT_EQ
+      || kind == (int32_t)TOKEN_RSHIFT_EQ;
+}
+/* Top-level coarse classification codes (suite enum; needed by classify helper). */
+enum {
+  STRETCH_TOP_UNKNOWN = 0,
+  STRETCH_TOP_IMPORT = 1,
+  STRETCH_TOP_CONST_BIND = 2,
+  STRETCH_TOP_FUNCTION = 3,
+  STRETCH_TOP_STRUCT = 4,
+  STRETCH_TOP_ENUM = 5,
+  STRETCH_TOP_EXTERN = 6,
+  STRETCH_TOP_LET = 7,
+  STRETCH_TOP_TRAIT = 8,
+  STRETCH_TOP_IMPL = 9
+};
+/* Stretch token aliases used by field-kind classifiers (≡ heavy_stretch_slice). */
+enum {
+  STRETCH_TOKEN_IDENT = 1,
+  STRETCH_TOKEN_ALIGN = 33
+};
+/* v4.8: kind classifiers + thin bind audits (single authority = bind_name_validate). */
+int32_t parser_asm_stretch_struct_field_name_kind_c(int32_t kind) {
+  if (kind == STRETCH_TOKEN_IDENT)
+    return 1;
+  if (kind == 17) /* TOKEN_PACKED legacy */
+    return 1;
+  if (kind == 18) /* TOKEN_SOA legacy */
+    return 1;
+  if (kind == (int32_t)TOKEN_TYPE)
+    return 1;
+  if (kind == (int32_t)TOKEN_PACKED)
+    return 1;
+  if (kind == (int32_t)TOKEN_SOA)
+    return 1;
+  if (kind == STRETCH_TOKEN_ALIGN)
+    return 1;
+  return 0;
+}
+int32_t parser_asm_stretch_struct_field_continues_kind_c(int32_t kind) {
+  return parser_asm_stretch_struct_field_name_kind_c(kind) != 0 || kind == STRETCH_TOKEN_ALIGN;
+}
+static int32_t parser_asm_stretch_struct_field_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t name_len) {
+  if (!source || name_len <= 0)
+    return 0;
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
+}
+static int32_t parser_asm_stretch_enum_variant_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                     int32_t name_len) {
+  if (!source || name_len <= 0)
+    return 0;
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
+}
+static int32_t parser_asm_stretch_enum_discriminant_kind_audit_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_INT ? 1 : 0;
+}
+/* v4.9: function_name_audit is a thin wrap of bind_name_validate (G.7). */
+static int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len) {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+/* v5.7: struct_layout_name_audit is the same thin wrap (G.7). */
+static int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name, int32_t name_len) {
+  return parser_asm_stretch_bind_name_validate_c(name, name_len);
+}
+/* v5.8: loop_stmt_body is a real flag3 .x port; c_ref twin comes from the
+ * gated suite body via sync (no harness stub — stub returned 0 and would
+ * diverge on score+= callers unlocked this wave). */
+/* v5.9: import_select_list is a real flag3 inout .x port; c_ref twin comes
+ * from the gated suite body via sync. item_bind stays suite-local thin wrap
+ * of bind_name_validate (G.7). path_validate copy mirrors pthin_stretch.x
+ * (product authority) so audit_x.o UNDEF resolves in this TU. */
+/* v5.10: diag_lex_after_imports(+buf) are real .x ports (ABI-widened no-lex
+ * roots); c_ref twins come from the gated suite bodies via sync. Fresh
+ * lexer_init copy matches foundation authority (pos=0,line=1,col=1) so the
+ * diag_lex c_ref twin can call it without pulling pthin_foundation.o. */
+struct parser_asm_lexer parser_asm_lexer_init_c(void) {
+  struct parser_asm_lexer lex;
+  lex.pos = 0;
+  lex.line = 1;
+  lex.col = 1;
+  return lex;
+}
+/* v5.32: diag_parse_one_mega(+full_deep chain) are real .x ports (ABI-widened
+ * no-lex roots). v5.47: mega_buf wrap_buf is a real .x port too; c_ref twin
+ * comes from the gated suite via sync (no HARNESS_MEGA_STILL_C). */
+static int32_t parser_asm_stretch_import_select_item_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                           int32_t name_len) {
+  if (!source || name_len <= 0)
+    return 0;
+  return parser_asm_stretch_bind_name_validate_c(source->data + token_start, name_len);
+}
+int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len) {
+  int32_t i;
+  if (!path || path_len <= 0)
+    return 0;
+  if (path_len > 63)
+    path_len = 63;
+  for (i = 0; i < path_len; i++) {
+    uint8_t c = path[i];
+    if (c == 0)
+      break;
+    if (c == (uint8_t)'.')
+      continue;
+    if (parser_asm_stretch_ident_byte_ok_c(c, 0) == 0)
+      return 0;
+  }
+  return 1;
+}
+'''
+
+
+# v5.39: leftover helpers now defined by audit_x.o. suite_helper_defs must
+# emit `static` copies so c_ref twins keep C authority without duplicate T.
+HELPERS_PORTED_TO_X = {
+    "parser_asm_stretch_vector_type_ident_audit_c",
+    "parser_asm_stretch_builtin_vec_token_audit_c",
+    # v5.40 leftover Route C flatten (kind / source+off); static copies keep
+    # C authority for c_ref twins without duplicate T vs audit_x.o.
+    "parser_asm_stretch_spawn_kw_audit_c",
+    "parser_asm_stretch_match_subject_ident_audit_c",
+    # v5.41 leftover Route C flatten (one-token lookahead → scalars).
+    "parser_asm_stretch_simd_builtin_audit_c",
+    # v5.42 leftover Route C flatten from_at (lookahead + lex_after_ident).
+    "parser_asm_stretch_simd_builtin_deep_from_at_audit_c",
+    # v5.43 leftover Route C flatten peek_kind_chain (out-array).
+    "parser_asm_stretch_peek_kind_chain_c",
+    # v5.44 leftover Route C flatten expr_binop_kinds_probe (match-set).
+    "parser_asm_stretch_expr_binop_kinds_probe_c",
+}
+
+SUITE_HELPER_SIGS = [
+    "int32_t parser_asm_stretch_expr_binop_kinds_probe_c(",
+    "void parser_asm_skip_balanced_parens_into_slice_c(",
+    "void parser_asm_skip_balanced_braces_into_slice_c(",
+    # v5.45: skip_balanced / skip_type_suffix / skip_one_param_type are
+    # pointer-ABI eq audits (gated C twins). Do not copy leftover by-val
+    # bodies — c_ref twins come from the gated suite via the twin regex.
+    # v4.6: kinds[] audit c_ref twins call these suite helpers by name
+    "int32_t parser_asm_stretch_classify_toplevel_c(",
+    "int32_t parser_asm_stretch_peek_kind_chain_c(",
+    # v5.46: advance_to_* are pointer-ABI eq audits (gated C twins). Do not
+    # copy leftover by-val + out_body_lex bodies — c_ref twins come from
+    # the gated suite via the twin regex. Generator still inlines advance
+    # via restore-trio (eq-honest); leftover helper is the new authority.
+    # v5.6: deep-scan / library_scan / match_subject helpers (small suite defs)
+    "int32_t parser_asm_stretch_spawn_kw_audit_c(",
+    "int32_t parser_asm_stretch_match_subject_ident_audit_c(",
+    # v5.36: simd from_at leftover (lexer_result by-val; .x inlines). Callees
+    # first so from_at can call them without a forward decl.
+    "int32_t parser_asm_stretch_simd_builtin_audit_c(",
+    "int32_t parser_asm_stretch_vector_type_ident_audit_c(",
+    "int32_t parser_asm_stretch_builtin_vec_token_audit_c(",
+    "int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(",
+    # v5.36: diag_fail leftover — product helper returns lexer_result.
+    "struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(",
+]
+
+# v5.47: mega_buf is a real wrap_buf .x port (c_ref from gated suite).
+# Do not keep a still-C wrapper — that would duplicate T vs audit_x.o.
+# v5.48: import_path_post / collect_imports_preamble are leftover_helpers
+# (first param is not lex:); no eq-table row. C twins gated; do not copy
+# leftover by-val / finalize bodies into HELPERS (duplicate T vs audit_x.o).
+# v5.49: validate_toplevel_token is leftover_helpers (kind/ident_len first);
+# no eq-table row. C twin gated; do not copy token_run_len / verify_kw
+# tables into HELPERS (G.7 stretch.x authority; duplicate T vs audit_x.o).
+# v5.50: kind-scalar leftover_helpers stay leftover_helpers (not lex-first
+# k_cases). Exhaustive TokenKind eq is scripts/pthin_stretch_audit_eq_leftover_kind.c
+# (sibling TU; twins.h statics would shadow .x T). Do not copy classify /
+# score tables into leftover-to-audit.
+# v5.51: name/len leftover_helpers stay leftover_helpers (not lex-first
+# k_cases). Ident byte-class eq is scripts/pthin_stretch_audit_eq_leftover_namelen.c
+# (sibling TU; same twins.h shadow). C twins remain G.7 thin wraps of
+# bind_name_validate. Do not copy classify / score into leftover-to-audit.
+# v5.52: source+off leftover_helpers stay leftover_helpers (not lex-first
+# k_cases). Slice+offset eq is scripts/pthin_stretch_audit_eq_leftover_sourceoff.c
+# (sibling TU; same twins.h shadow). C twins remain G.7 thin wraps of
+# bind_name_validate on source->data+token_start (vector_type_ident adds
+# i3x*/Vec*). Do not copy classify / score into leftover-to-audit.
+# v5.53: kind+source+off leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Kind+slice+offset eq is
+# scripts/pthin_stretch_audit_eq_leftover_kindsrc.c (sibling TU; same
+# twins.h shadow of match_subject_ident). C twins remain G.7 thin wraps
+# of bind_name_validate on source->data+token_start (import_dot_segment
+# adds I32/ASYNC always-1). Do not copy classify / score into
+# leftover-to-audit.
+# v5.54: two-kind+source+off leftover_helpers stay leftover_helpers
+# (not lex-first k_cases). Kind-pair+slice+offset eq is
+# scripts/pthin_stretch_audit_eq_leftover_twokind.c (sibling TU; same
+# twins.h shadow of simd_builtin). C twin is a shuffle/select spelling
+# check (not bind_name_validate). Do not copy classify / score into
+# leftover-to-audit.
+# v5.55: 7-param as-bind leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Kind-pair+slice+two-off eq is
+# scripts/pthin_stretch_audit_eq_leftover_asbind.c (sibling TU; 7-param
+# first-kind ABI cannot be a k_cases row). C twin is "as" spelling plus
+# bind_name_validate on data+next_start. Do not copy classify / score
+# into leftover-to-audit.
+# v5.56: kinds-array leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Out-array / match-set + live lex eq is
+# scripts/pthin_stretch_audit_eq_leftover_kindarr.c (sibling TU; twins.h
+# statics shadow peek_kind_chain / expr_binop_kinds_probe). C twins copy
+# *lex + lexer_next_into; .x peek/step/restore. peek_kind_chain_buf is
+# already a lex-first k_cases wrap. Do not copy classify / score into
+# leftover-to-audit.
+# v5.57: validate_toplevel leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Span/bounds eq is
+# scripts/pthin_stretch_audit_eq_leftover_validate.c (sibling TU;
+# first-kind ABI cannot be a k_cases row; twins.h has no static). C twin
+# is EOF / ident_len<=0 / span — do not copy token_run_len / verify_kw
+# tables into leftover-to-audit. classify / score stay stretch.x.
+# v5.58: import_path_post leftover_helpers stay leftover_helpers (not
+# lex-first k_cases). Path-buf + validate-wrap eq is
+# scripts/pthin_stretch_audit_eq_leftover_pathpost.c (sibling TU;
+# first-path_buf ABI cannot be a k_cases row; twins.h has no static).
+# C twin is a thin wrap of import_path_validate (extern; do not copy
+# ident_continue tables). classify / score stay stretch.x. Do not mix
+# from_at lex_after_ident or collect_imports_preamble.
+# v5.59: collect_imports_preamble leftover_helpers stay leftover_helpers
+# (not lex-first k_cases). Three-kind + source wrap eq is
+# scripts/pthin_stretch_audit_eq_leftover_preamble.c (sibling TU;
+# first-kind ABI cannot be a k_cases row; twins.h has no static).
+# C twin is a thin wrap of classify_toplevel (extern; do not copy
+# classify tables). Honest flatten is live source → 1 / null → 0.
+# classify / score stay stretch.x. Do not mix from_at lex_after_ident.
+# v5.60: simd_builtin_deep_from_at leftover_helpers stay leftover_helpers
+# (not lex-first k_cases). from_at + lex_after_ident eq is
+# scripts/pthin_stretch_audit_eq_leftover_fromat.c (sibling TU;
+# twins.h static shadows .x T; first-at_kind ABI cannot be a k_cases
+# row). C twin is a thin combinator of simd_builtin / vector_type_ident
+# / paren_expr_head / builtin_vec_token (do not copy classify / score
+# tables). Honest flatten: C skips paren on null lex; .x paren returns
+# 0 on null lex. Last leftover_helper. classify / score stay stretch.x.
+# v5.61: leftover_helpers 0. Deep-chain batch smoke (not a new leftover
+# TU): exact ultra_mega layer is already lex-first k_cases (25 rows;
+# ultra_mega is not a HARD BAN substring). Do not copy classify / score
+# into leftover-to-audit. Do not daily *vx* / summit / peak / zenith /
+# versal. Eq gate: FORCE smoke deep_off=0 /
+# EQ_ONLY=ultra_mega,skip_allow EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.62: leftover_helpers 0. Second deep-chain batch (not a new leftover
+# TU): exact super_mega layer is already lex-first k_cases (25 rows;
+# super_mega is not a HARD BAN substring and is not in
+# is_deep_climb_name). Do not copy classify / score into leftover-to-audit.
+# Do not daily *vx* / summit / peak / zenith / versal. Eq gate: FORCE
+# smoke deep_off=0 / EQ_ONLY=super_mega,skip_allow EQ_SKIP_SYNTH=1
+# EQ_FILE_STRIDE=4.
+# v5.63: leftover_helpers 0. Third deep-chain batch (not a new leftover
+# TU): exact hyper_mega layer is already lex-first k_cases (25 rows;
+# hyper_mega is not a HARD BAN substring but IS in is_deep_climb_name).
+# Harness eq_tok_hits_name rejects ultra_hyper swallow (575 extra).
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove hyper_mega
+# from is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=hyper_mega EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.64: leftover_helpers 0. Fourth deep-chain batch (not a new leftover
+# TU): exact ultra_hyper layer is already lex-first k_cases (25 rows;
+# ultra_hyper is not a HARD BAN substring but IS in is_deep_climb_name).
+# Harness eq_tok_hits_name rejects max_ultra swallow (550 extra).
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove ultra_hyper
+# from is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=ultra_hyper EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.65: leftover_helpers 0. Fifth deep-chain batch (not a new leftover
+# TU): exact max_ultra layer is already lex-first k_cases (25 rows;
+# max_ultra is not a HARD BAN substring but IS in is_deep_climb_name).
+# Harness eq_tok_hits_name rejects apex_max swallow (525 extra).
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove max_ultra
+# from is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=max_ultra EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.66: leftover_helpers 0. Sixth deep-chain batch (not a new leftover
+# TU): exact apex_max layer is already lex-first k_cases (25 rows;
+# apex_max is not a HARD BAN substring but IS in is_deep_climb_name).
+# Harness eq_tok_hits_name rejects summit_apex swallow (500 extra).
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove apex_max
+# from is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=apex_max EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.67: leftover_helpers 0. Seventh deep-chain batch (not a new leftover
+# TU): exact crown_pinnacle layer is already lex-first k_cases (25 rows;
+# EQ_ONLY string is not HARD BAN; pinnacle/crown ARE in
+# is_deep_climb_name). Skipped HARD BAN rungs summit / peak / zenith /
+# pinnacle_zenith. Harness eq_tok_hits_name rejects supreme_crown
+# swallow (375 extra). Case names still contain zenith/peak/summit.
+# Do not copy classify / score into leftover-to-audit. Do not daily
+# *vx* / summit / peak / zenith / versal. Do not remove crown /
+# pinnacle from is_deep_climb_name without measurement. Eq gate:
+# FORCE smoke deep_off=0 / EQ_ONLY=crown_pinnacle EQ_SKIP_SYNTH=1
+# EQ_FILE_STRIDE=4.
+# v5.68: leftover_helpers 0. Eighth deep-chain batch (not a new leftover
+# TU): exact supreme_crown layer is already lex-first k_cases (25 rows;
+# EQ_ONLY string is not HARD BAN; crown IS in is_deep_climb_name).
+# Skipped HARD BAN rungs summit / peak / zenith / pinnacle_zenith.
+# Harness eq_tok_hits_name rejects ultimate_supreme swallow (350 extra).
+# Case names still contain zenith/peak/summit. Do not copy classify /
+# score into leftover-to-audit. Do not daily *vx* / summit / peak /
+# zenith / versal. Do not remove crown / pinnacle from
+# is_deep_climb_name without measurement. Eq gate: FORCE smoke
+# deep_off=0 / EQ_ONLY=supreme_crown EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+# v5.69: leftover_helpers 0. Ninth deep-chain batch (not a new leftover
+# TU): 提速纪律 item 2 — ban 一层 exact 一波. k_eq_nest_skip is the
+# single nested-rung authority (full chain). Remaining until *versal*
+# wall = 6×25=150. Measured 6-rung JOBS=4 >15 min Darwin. This wave
+# = first 3 rungs (75 k_cases): ultimate_supreme / absolute_ultimate /
+# transcendent_absolute. Next = infinite_transcendent /
+# eternal_infinite / cosmic_eternal. universal_* stay HARD BAN
+# (*versal*). Multi-token daily JOBS=4. Case names still contain
+# zenith/peak/summit. Do not copy classify / score into
+# leftover-to-audit. Do not daily *vx* / summit / peak / zenith /
+# versal. Do not remove crown / pinnacle from is_deep_climb_name
+# without measurement. Eq gate: FORCE smoke deep_off=0 / EQ_ONLY=
+# ultimate_supreme,absolute_ultimate,transcendent_absolute
+# EQ_SKIP_SYNTH=1 EQ_FILE_STRIDE=4.
+
+# v5.6: harness-local skip stubs (real skip_one_struct_into is ~800 lines +
+# generic-bound/cfg deps — too heavy for the eq TU). Stubs match the audit
+# corpus shape: advance to '{' / skip balanced braces; skip_imports returns
+# lex unchanged when no CONST-import prefix (eq synth rarely stresses cfg).
+# Product g05 links the real suite authority via the bridge inplace wrappers.
+HARNESS_SKIP_STUBS = r'''
+/* v5.6 harness stub — G.7 product authority remains suite skip_one_struct_slice. */
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  struct parser_asm_lexer after;
+  int32_t guard;
+  if (!source)
+    return lex;
+  guard = 0;
+  for (;;) {
+    if (guard++ > 256)
+      return lex;
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+      parser_asm_skip_balanced_braces_into_slice_c(&after, r.next_lex, source);
+      return after;
+    }
+    if (r.tok.kind == (int32_t)TOKEN_EOF)
+      return lex;
+    lex = r.next_lex;
+  }
+}
+
+/* v5.6 harness stub — G.7 product authority remains suite skip_imports_slice. */
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex,
+                                                        struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  int32_t guard;
+  if (!source)
+    return lex;
+  guard = 0;
+  for (;;) {
+    if (guard++ > 64)
+      return lex;
+    lexer_next_into(&r, lex, source);
+    if (r.tok.kind != (int32_t)TOKEN_CONST)
+      return lex;
+    /* Consume a coarse "const … ;" span (eq corpus import shapes). */
+    lex = r.next_lex;
+    {
+      int32_t g2 = 0;
+      for (;;) {
+        if (g2++ > 128)
+          return lex;
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
+          lex = r.next_lex;
+          break;
+        }
+        if (r.tok.kind == (int32_t)TOKEN_EOF)
+          return lex;
+        lex = r.next_lex;
+      }
+    }
+  }
+}
+'''
+
+
+def suite_helper_defs(suite, exports=None):
+    """Pull suite helper defs into twins.h.
+
+    When `exports` is set (migrated audit names), rewrite calls inside the
+    helper bodies onto `c_ref_*` twins. v5.46: advance_to_* are gated
+    pointer-ABI eq audits (not copied here). Remaining SUITE_HELPER_SIGS
+    still rewrite callees onto `c_ref_*`; c_ref twins are pointer-ABI, so
+    bare `lex` becomes `&lex` at the rewrite site.
+    PLATFORM: SHARED — host-side harness generator.
+    """
+    out = []
+    exports = exports or []
+    for sig in SUITE_HELPER_SIGS:
+        m = re.search(r"^" + re.escape(sig) + r"[^\n]*$(.*?)^}$", suite, re.S | re.M)
+        if not m:
+            # try lex_skip / diag_late for helpers that do not live in the suite.
+            extra_src = ""
+            for extra_fp in (
+                "seeds/parser_asm/parser_asm_lex_skip_slice.inc",
+                "seeds/parser_asm/parser_asm_diag_late_slice.inc",
+            ):
+                try:
+                    extra_src += open(extra_fp).read() + "\n"
+                except FileNotFoundError:
+                    pass
+            m = re.search(r"^" + re.escape(sig) + r"[^\n]*$(.*?)^}$", extra_src, re.S | re.M)
+        if not m:
+            raise SystemExit(f"helper def not found: {sig}")
+        body = m.group(0)
+        for n in HELPERS_PORTED_TO_X:
+            if body.startswith("int32_t " + n) or body.startswith("static int32_t " + n):
+                if not body.startswith("static "):
+                    body = "static " + body
+                break
+        # strip audit-gate macros (daily no-op semantics) and their inner calls
+        body = re.sub(r"PARSER_ASM_STRETCH_AUDIT_CALL\([^;]*\);", "(void)0;", body)
+        for other in exports:
+            base = other[len("parser_asm_stretch_"):-2]
+            cref = f"c_ref_{base}"
+            # Pointer-ABI c_ref twins always take void* — normalize both
+            # `CALLEE(&lex, …)` and by-value `CALLEE(lex, …)` onto `c_ref_(&lex, …)`.
+            body = body.replace(f"{other}(&", f"{cref}(&")
+            body = re.sub(
+                rf"{re.escape(other)}\(([a-zA-Z_])",
+                rf"{cref}(&\1",
+                body,
+            )
+        out.append(body + "\n")
+    return "\n".join(out)
+
+
+def main():
+    suite = open(SUITE).read()
+    xsrc = open(XFILE).read()
+
+    # 1) migrated exports (2-arg audits; flag/out/buf detected by params)
+    exports = re.findall(r"export function (parser_asm_stretch_\w+_c)\(", xsrc)
+    flag3 = set()
+    buf3 = set()
+    buf4 = set()  # v5.37: (lex, data, len, is_const)
+    out3 = {}  # name -> out param ident
+    # v5.39: leftover Route C helpers (kind / name,len / source+off) are
+    # exported from the same .x but are NOT (lex, source) eq audits.
+    leftover_helpers = set()
+    for m in re.finditer(r"export function (parser_asm_stretch_\w+_c)\(([^)]*)\): i32 \{", xsrc):
+        params = m.group(2)
+        p0 = params.strip()
+        if not (p0.startswith("lex:") or p0.startswith("lex_inout:")):
+            leftover_helpers.add(m.group(1))
+            continue
+        ncomma = params.count(",")
+        if ncomma == 3 and "data: *u8" in params and "len: i32" in params:
+            buf4.add(m.group(1))
+        elif ncomma == 2:
+            if "data: *u8" in params and "len: i32" in params:
+                buf3.add(m.group(1))
+            else:
+                mo = re.search(r"(out_\w+): \*i32", params)
+                if mo:
+                    out3[m.group(1)] = mo.group(1)
+                else:
+                    flag3.add(m.group(1))
+    audit_exports = [n for n in exports if n not in leftover_helpers]
+
+    # 2) twins from the suite (gated pointer-ABI bodies)
+    twins = []
+    fwds = []
+    have = set()
+    # v5.33: require the FROM_X gate immediately above the twin. Ungated
+    # void*-ABI still-C roots (e.g. diag_fn_mega_buf widened for .x callers
+    # but not yet migrated) previously matched this regex and swallowed the
+    # next function's #endif, dropping that twin (block_stmt_mega non-buf).
+    for m in re.finditer(
+        r"^#ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X\n"
+        r"int32_t (parser_asm_stretch_\w+_c)\(void \*lex_inout([^\n]*)\) \{$(.*?)^\}$\n#endif",
+        suite, re.S | re.M,
+    ):
+        name, extra, body = m.group(1), m.group(2), m.group(3)
+        if name not in audit_exports or name in have:
+            continue
+        have.add(name)
+        base = name[len("parser_asm_stretch_"):-2]  # strip prefix and _c
+        fm = re.search(name + r"\(void \*lex_inout, void \*source, int32_t (\w+)\)", suite)
+        flagname = fm.group(1) if fm else "flag"
+        om = re.search(name + r"\(void \*lex_inout, void \*source, int32_t \*(out_\w+)\)", suite)
+        if name in buf4:
+            twin_extra = ", uint8_t *data, int32_t len, int32_t is_const"
+        elif name in buf3:
+            twin_extra = ", uint8_t *data, int32_t len"
+        elif name in out3:
+            twin_extra = f", int32_t *{out3[name]}"
+        elif name in flag3:
+            twin_extra = f", int32_t {flagname}"
+        else:
+            twin_extra = ""
+        body = body.replace(f"{name}(", f"c_ref_{base}(", 0)  # no self-calls
+        # internal calls to other migrated audits → c_ref_ forms
+        for other in audit_exports:
+            if other != name:
+                body = body.replace(f"{other}(", f"c_ref_{other[len('parser_asm_stretch_'):-2]}(")
+        # v5.6: .x elides void validate_toplevel_token_c(r,…) — keep c_ref in sync
+        # (validate pulls token_run_len/verify_kw tables too heavy for this TU).
+        body = re.sub(
+            r"\(void\)parser_asm_stretch_validate_toplevel_token_c\([^;]*\);",
+            "/* elide void validate_toplevel (v5.6; matches .x) */",
+            body,
+        )
+        if name in buf4:
+            sig_line = f"static int32_t c_ref_{base}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const) {{\n"
+        elif name in buf3:
+            sig_line = f"static int32_t c_ref_{base}(void *lex_inout, uint8_t *data, int32_t len) {{\n"
+        else:
+            sig_line = f"static int32_t c_ref_{base}(void *lex_inout, void *source{twin_extra}) {{\n"
+        fwds.append(sig_line.rstrip(" {\n") + ";")
+        twins.append(
+            f"/* Reference twin — verbatim copy of the gated C authority for {name}. */\n"
+            + sig_line
+            + f"{body}\n}}\n"
+        )
+    missing = [n for n in audit_exports if n not in have]
+    if missing:
+        print("WARN: no gated twin found for:", ", ".join(missing))
+    if leftover_helpers:
+        print(f"leftover helpers (not eq-table): {len(leftover_helpers)}")
+
+    open(TWINS, "w").write(
+        "/* AUTO-GENERATED by sync_stretch_audit_harness.py — do not edit.\n"
+        " * Reference twins for every migrated audit; refreshed each wave. */\n"
+        + HELPERS
+        + "\n/* Forward decls so twins / leftover helpers may call each other. */\n"
+        + "\n".join(fwds) + "\n\n"
+        + suite_helper_defs(suite, audit_exports)
+        + HARNESS_SKIP_STUBS
+        + "\n".join(twins)
+    )
+
+    # 3) table: shims + rows
+    rows = []
+    for name in sorted(audit_exports):
+        base = name[len("parser_asm_stretch_"):-2]
+        if name in buf4:
+            rows.append(f'    {{"{base}/1", r_{base}, x_{base}, 1, 0}},')
+            rows.append(f'    {{"{base}/0", r_{base}, x_{base}, 0, 0}},')
+        elif name in buf3:
+            rows.append(f'    {{"{base}", r_{base}, x_{base}, 0, 0}},')
+        elif name in out3:
+            # flag=0 → NULL out (return only); flag=1 → pack out into high 16 bits
+            rows.append(f'    {{"{base}/null", r_{base}, x_{base}, 0, 0}},')
+            rows.append(f'    {{"{base}/slot", r_{base}, x_{base}, 1, 0}},')
+        elif name in flag3:
+            # v5.9: flag3 may also be inout (import_select_list max_names).
+            inout = 1 if name in INOUT_SET else 0
+            rows.append(f'    {{"{base}/1", c_ref_{base}, x_{base}, 1, {inout}}},')
+            rows.append(f'    {{"{base}/0", c_ref_{base}, x_{base}, 0, {inout}}},')
+        else:
+            inout = 1 if name in INOUT_SET else 0
+            rows.append(f'    {{"{base}", r_{base}, x_{base}, 0, {inout}}},')
+    shims = []
+    for name in sorted(audit_exports):
+        base = name[len("parser_asm_stretch_"):-2]
+        if name in buf4:
+            shims.append(
+                f"static int32_t x_{base}(void *l, void *s, int32_t f) {{ struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return {name}(l, sl_->data, (int32_t)sl_->length, f); }}")
+            shims.append(
+                f"static int32_t r_{base}(void *l, void *s, int32_t f) {{ struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_{base}(l, sl_->data, (int32_t)sl_->length, f); }}")
+        elif name in buf3:
+            shims.append(
+                f"static int32_t x_{base}(void *l, void *s, int32_t f) {{ (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return {name}(l, sl_->data, (int32_t)sl_->length); }}")
+            shims.append(
+                f"static int32_t r_{base}(void *l, void *s, int32_t f) {{ (void)f; struct parser_asm_slice_u8 *sl_ = (struct parser_asm_slice_u8 *)s; if (!sl_) return 0; return c_ref_{base}(l, sl_->data, (int32_t)sl_->length); }}")
+        elif name in out3:
+            # Pack out into high 16 when f!=0 so check_one compares return+out.
+            shims.append(
+                f"static int32_t x_{base}(void *l, void *s, int32_t f) {{ int32_t slot = 0; int32_t rc = {name}(l, s, f ? &slot : 0); return f ? ((rc & 0xffff) | (slot << 16)) : rc; }}")
+            shims.append(
+                f"static int32_t r_{base}(void *l, void *s, int32_t f) {{ int32_t slot = 0; int32_t rc = c_ref_{base}(l, s, f ? &slot : 0); return f ? ((rc & 0xffff) | (slot << 16)) : rc; }}")
+        elif name in flag3:
+            shims.append(
+                f"static int32_t x_{base}(void *l, void *s, int32_t f) {{ return {name}(l, s, f); }}")
+        else:
+            shims.append(
+                f"static int32_t x_{base}(void *l, void *s, int32_t f) {{ (void)f; return {name}(l, s); }}")
+            shims.append(
+                f"static int32_t r_{base}(void *l, void *s, int32_t f) {{ (void)f; return c_ref_{base}(l, s); }}")
+    externs = []
+    for name in sorted(audit_exports):
+        if name in buf4:
+            externs.append(f"extern int32_t {name}(void *lex_inout, uint8_t *data, int32_t len, int32_t is_const);")
+        elif name in buf3:
+            externs.append(f"extern int32_t {name}(void *lex_inout, uint8_t *data, int32_t len);")
+        elif name in out3:
+            externs.append(f"extern int32_t {name}(void *lex_inout, void *source, int32_t *{out3[name]});")
+        elif name in flag3:
+            externs.append(f"extern int32_t {name}(void *lex_inout, void *source, int32_t flag);")
+        else:
+            externs.append(f"extern int32_t {name}(void *lex_inout, void *source);")
+    open(TABLE, "w").write(
+        "/* AUTO-GENERATED by sync_stretch_audit_harness.py — do not edit. */\n"
+        + "\n".join(externs) + "\n\n"
+        + "\n".join(shims)
+        + "\n\nstatic const audit_case k_cases[] = {\n"
+        + "\n".join(rows)
+        + "\n};\n"
+    )
+    print(f"twins: {len(twins)}, table rows: {len(rows)} (exports {len(audit_exports)} leftover_helpers {len(leftover_helpers)})")
+    return 0
+
+
+# inout-contract audits (compare post-call end states, not immobility)
+INOUT_SET = {
+    "parser_asm_stretch_fn_param_list_audit_c",
+    "parser_asm_stretch_skip_return_type_audit_c",
+    # v5.9: import select-list advances past `}` (and mid-fail past last IDENT)
+    "parser_asm_stretch_import_select_list_audit_c",
+    # v5.39: leftover inout helper — skip allow(...) groups in front of struct
+    "parser_asm_stretch_skip_allow_modifiers_c",
+    # v5.45: leftover inout skip chain (brackets / type suffix / one param type)
+    "parser_asm_stretch_skip_balanced_brackets_into_c",
+    "parser_asm_stretch_skip_type_suffix_c",
+    "parser_asm_stretch_skip_one_param_type_c",
+    # v5.46: leftover inout advance_to family (secondary cursor → lex_inout)
+    "parser_asm_stretch_struct_advance_to_body_lex_c",
+    "parser_asm_stretch_enum_advance_to_body_lex_c",
+    "parser_asm_stretch_trait_advance_to_body_lex_c",
+    "parser_asm_stretch_impl_advance_to_body_lex_c",
+    "parser_asm_stretch_if_advance_to_body_lex_c",
+    "parser_asm_stretch_function_advance_to_body_lex_c",
+    "parser_asm_stretch_match_advance_to_arms_lex_c",
+}
+
+
+if __name__ == "__main__":
+    sys.exit(main())

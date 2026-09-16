@@ -12,6 +12,9 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+/* Cap residual 9.7.1: inline ABI writers take the opaque fd-handle stream. */
+#include "xlang_driver_stream_cap.h"
 
 #ifndef CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS    1u
@@ -27,7 +30,10 @@ extern unsigned codegen_get_preamble_skip_mask(void);
 const char *const driver_preamble_io_net_lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
-        "#include <stdint.h>\n",
+        /* Cap 10.7.1 slice10: fold Cap va header into existing slot (do NOT add a
+         * new array row — fixed N=224 skip ranges). Mirrors -E emit_header.
+         * PLATFORM: SHARED host-C product -o preamble. */
+        "#include <stdint.h>\n#include <xlang_va_cap.h>\n",
         /* PLATFORM: SHARED — host libc prototypes for skip-list symbols
          * (codegen_is_libc_conflicting_extern_name: malloc/free/calloc/realloc/
          * getenv/memcpy/memchr/strtoul/...). XLANG *u8 emits as uint8_t * and
@@ -91,28 +97,33 @@ const char *const driver_preamble_io_net_lines[] = {
         "}\n"
         "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n"
         "#endif\n",
+        /* Cap residual 9.1.8: read/write/writev via xlang_io_cap.h (no libc write).
+         * Generated user C needs -I…/compiler/include (Cap 10.7.1 slice11: invoke_cc second -I).
+         * PLATFORM: SHARED (LINUX | DARWIN | WINDOWS | POSIX). */
+        "#include <xlang_io_cap.h>\n"
         "static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
-        "  return read((int)fd, (void *)buf, count);\n"
-        "}\n",
+        "  return (ssize_t)xlang_io_read((int)fd, (void *)buf, count);\n"
+        "}\n"
         "static inline ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
-        "  return write((int)fd, (const void *)buf, count);\n"
+        "  return (ssize_t)xlang_io_write((int)fd, (const void *)buf, count);\n"
         "}\n",
-        /* PLATFORM: POSIX — MinGW lacks readv/writev/poll/pread/pwrite and the types
-         * struct iovec, struct pollfd, nfds_t. Gate each inline behind _WIN32. Windows
-         * std.io.sync / std.net use xlang_sys_read/write (provided by MinGW io.h). */
+        /* PLATFORM: POSIX — MinGW lacks readv/poll/pread/pwrite and the types
+         * struct pollfd, nfds_t. Gate each inline behind _WIN32.
+         * Cap residual 9.1.8: writev via xlang_io_cap.h on all platforms. */
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t xlang_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
         "}\n"
         "#endif\n",
-        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
-        "  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
-        "}\n"
-        "#endif\n",
+        "  return (ssize_t)xlang_io_writev((int)fd, (const void *)iov, (int)iovcnt);\n"
+        "}\n",
+        /* Cap residual 9.1.7/9.1.9: poll via xlang_net_cap.h (no libc poll).
+         * Co-emit into std.net must not leave U poll (net.o residual). */
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
+        "#include <xlang_net_cap.h>\n"
         "static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
-        "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
+        "  return (int32_t)xlang_net_poll((void *)fds, (unsigned int)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
@@ -633,9 +644,13 @@ const int32_t driver_preamble_fs_path_lines_n =
 
 #ifndef XLANG_RT_PREAMBLE_FROM_X
 
-/** 向生成 C 写入 std.io / std.net 内联 ABI。成功返回 0。 */
-int write_io_net_abi_inline(FILE *cf) {
+/** 向生成 C 写入 std.io / std.net 内联 ABI。成功返回 0。
+ * 9.7.1: cf is the opaque fd-handle stream (xlang_driver_stream_cap.h). */
+int write_io_net_abi_inline(uint8_t *cf) {
     const unsigned skip = codegen_get_preamble_skip_mask();
+    int fd = xlang_driver_handle_to_fd(cf);
+    if (fd < 0)
+        return 1;
     for (int32_t i = 0; i < driver_preamble_io_net_lines_n; i++) {
         int skip_line = 0;
         /* std_io_driver_handle_* 别名：codegen 已 emit handle_stdin 等时跳过。 */
@@ -661,24 +676,30 @@ int write_io_net_abi_inline(FILE *cf) {
          */
         if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 178 && i <= 181)
             skip_line = 1;
-        if (!skip_line && fputs(driver_preamble_io_net_lines[i], cf) == EOF)
+        if (!skip_line && xlang_io_write(fd, driver_preamble_io_net_lines[i],
+                                         strlen(driver_preamble_io_net_lines[i])) < 0)
             return 1;
     }
     return 0;
 }
 
-/** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI。成功返回 0。 */
-int write_fs_path_map_error_abi_inline(FILE *cf) {
+/** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI。成功返回 0。
+ * 9.7.1: cf is the opaque fd-handle stream (xlang_driver_stream_cap.h). */
+int write_fs_path_map_error_abi_inline(uint8_t *cf) {
+    int fd = xlang_driver_handle_to_fd(cf);
+    if (fd < 0)
+        return 1;
     for (int32_t i = 0; i < driver_preamble_fs_path_lines_n; i++) {
-        if (fputs(driver_preamble_fs_path_lines[i], cf) == EOF)
+        if (xlang_io_write(fd, driver_preamble_fs_path_lines[i],
+                           strlen(driver_preamble_fs_path_lines[i])) < 0)
             return 1;
     }
     return 0;
 }
 
 #else
-int write_io_net_abi_inline(FILE *cf);
-int write_fs_path_map_error_abi_inline(FILE *cf);
+int write_io_net_abi_inline(uint8_t *cf);
+int write_fs_path_map_error_abi_inline(uint8_t *cf);
 #endif
 
 int labi_rt_preamble_slice_marker(void) {

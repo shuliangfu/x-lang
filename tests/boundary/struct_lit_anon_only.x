@@ -1,7 +1,7 @@
-// Named `Type { fields }` is rejected as a value. Dest type names the
-// struct: `let x: Type = { fields }`. Match-arm patterns may write
+// Named `Type { fields }` is accepted as a value (LANG-009), alongside
+// anonymous `let x: Type = { fields }`. Match-arm patterns may write
 // `{ fields } =>` (type from subject) or `Type { fields } =>`.
-// Expected: typeck T001 on the named let.
+// Expected: typeck OK; run returns 1.
 // PLATFORM: SHARED — Ubuntu gold.
 
 struct Point {
@@ -10,8 +10,8 @@ struct Point {
 }
 
 /**
- * Named struct literal must not typeck.
- * @return i32 — not reached
+ * Named struct literal typecks and runs.
+ * @return i32 — Point.x
  */
 function main(): i32 {
   let p: Point = Point { x: 1, y: 2 };

@@ -32,8 +32,16 @@
 ## 3. Gate
 
 ```
-xlang: [XLANG_STD117_METRICS_OBS] status=ok x=1 skip=0
+xlang: [XLANG_STD117_METRICS_OBS] status=ok run=0 obs=2 skip=0
 std-metrics-obs gate OK
 ```
 
 向量：`tests/baseline/std-metrics-obs-vectors.tsv`。
+
+### Gate honesty (2026-08-28)
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad / missing native = hard die.
+- Refuse soft prefer-c / soft auto-make / soft SKIP→OK / grep-as-sole-green.
+- check residual = obs (paused 2026-08-05). tip product `-o` `std_metrics_*` / `std_trace_*` UNDEF = obs (product debt leave).
+- Report contract: `run=` / `obs=` / `skip=`. Archive DOC is live authority (refuse top-level resurrect).
+- Cross-links: [std-metrics-v1](std-metrics-v1.md) · [std-schema-v1](std-schema-v1.md).

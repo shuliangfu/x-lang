@@ -1,11 +1,35 @@
 #!/usr/bin/env bash
+# COMP-012: riscv64 regression manifest gate (false-authority honesty).
+#
+# Honesty: soft SKIP→OK in run-comp-riscv64.sh retired (2026-08-27). Prefer
+# product xlang_asm via child; DOC→archive with ## Gate; refuse top-level
+# DOC resurrect. Report inherits child run=/skip=; greppable gate OK kept.
+#
 # COMP-012：riscv64 回归 manifest 门禁
 #
 # 用法：./tests/run-comp-riscv64-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-DOC="${XLANG_COMP_RISCV64_DOC:-analysis/comp-riscv64-v1.md}"
+PREFIX="xlang: [XLANG_COMP_RISCV64]"
+
+die() {
+  echo "comp-riscv64 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail host=$(ci_host_summary)"
+  exit 1
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/comp-riscv64-v1.md ]; then
+  die "refuse top-level analysis/comp-riscv64-v1.md (use archive/comp)"
+fi
+
+DOC="${XLANG_COMP_RISCV64_DOC:-analysis/archive/comp/comp-riscv64-v1.md}"
 MANIFEST="${XLANG_COMP_RISCV64_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
 MATRIX="${XLANG_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 MIN_LAYERS=6
@@ -24,6 +48,10 @@ for f in "$DOC" "$MANIFEST" "$MATRIX" \
     exit 1
   fi
 done
+
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

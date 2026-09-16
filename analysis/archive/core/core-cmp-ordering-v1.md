@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` Phase 2 CORE-005、`std/sort` 比较器约定
+> **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
 
 ---
 
@@ -53,6 +54,24 @@
 - 报告：`xlang: [XLANG_CORE_CMP_ORDERING] status=ok`
 
 ---
+
+
+## Gate
+
+```bash
+./tests/run-core-cmp-ordering-gate.sh
+```
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；产品 `-o` 硬绿（或 tip 残＝obs）；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
+
+**gate report**：stdout 须含 `core-cmp-ordering gate OK`；失败打印 `core-cmp-ordering gate FAIL:` 行。
+
+| 资源 | 路径 |
+|------|------|
+| 本文 | `analysis/archive/core/core-cmp-ordering-v1.md` |
+| manifest | `tests/baseline/core-cmp-ordering.tsv` |
+
+**状态：定版 ✅（honesty soft→硬绿）**
 
 ## 5. 演进
 

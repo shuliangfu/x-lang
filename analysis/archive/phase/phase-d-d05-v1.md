@@ -4,6 +4,8 @@
 
 ## v1 完成（✅）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 | 项 | 标准 | Gate |
 |----|------|------|
 | 发布入口 | `make bootstrap-driver-bstrict` → `cp xlang_asm $(TARGET)` | `run-d05-single-xlang-release-gate.sh` |
@@ -11,11 +13,20 @@
 | 日常 compile | `XLANG=./compiler/xlang check …` **不**设 `XLANG_LINK_XLANG=xlang-c` | 同上（x86_64 native） |
 | 文档 | README / SELFHOST / bootstrap.sh 区分「日常 xlang」与「考古 xlang-c」 | 同上 manifest |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): hard-fail (soft `XLANG_D05_FAIL` retired).
+Live entry = `./xbuild bootstrap-driver-bstrict` (Makefile deleted).
+Smoke uses `-backend asm` (check gate paused unless
+`XLANG_D05_REQUIRE_CHECK=1`).
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-d05-single-xlang-release-gate.sh`. Missing native still SKIP smoke（existing leftover）。Keep `## Gate`。 Leave wrap body / ensure_std family.
+
+**2026-08-30 leftover d05_native_exe third resolver 已收**：leftover `d05_native_exe` 第三 resolver 退役（G.7 收敛 `dod_native_exe`）；leftover ignore of explicit-bad（显式坏 XLANG 静默回落 `xlang_asm`／DOC 前不先 die）retired；leftover SKIP→OK（缺 native 仍 gate OK）retired。显式坏 XLANG／缺 native 先硬 die。Prefer asm＋`XLANG_LINK_XLANG`。leftover nested MANIFEST_ONLY／REQUIRE_CHECK／hash note／`-backend asm -o` smoke stay。Keep `## Gate`。
 
 ```bash
-make -C compiler bootstrap-driver-bstrict   # xlang ← xlang_asm
-XLANG_D05_FAIL=1 ./tests/run-d05-single-xlang-release-gate.sh
+./xbuild bootstrap-driver-bstrict   # xlang ← xlang_asm
+./tests/run-d05-single-xlang-release-gate.sh
 XLANG=./compiler/xlang ./tests/run-hello.sh
 ```
 

@@ -12,8 +12,10 @@ function main(): i32 {
     subcommand_len: 0, help: 0, version: 0, verbose: 0, unknown: 0, positional_count: 0,
     subcommand: [], positional0_len: 0, positional0: []
   };
-  let run: u8[3] = [114, 117, 110];
-  let ec: i32 = cli.parse_from_iter(&it, &run[0], 3, &res);
+  /* Bytes of ASCII "run" (subcommand name). Cannot bind `let run`: TOKEN_RUN is
+   * unary (`run <expr>`); that used to soft-drop main (P001). P014 names it. */
+  let cmd: u8[3] = [114, 117, 110];
+  let ec: i32 = cli.parse_from_iter(&it, &cmd[0], 3, &res);
   if (ec == cli.err_help()) { return 0; }
   if (ec != cli.err_ok()) { return 1; }
   if (env.args_iter_count() >= 2) {

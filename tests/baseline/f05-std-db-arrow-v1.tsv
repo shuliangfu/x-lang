@@ -1,0 +1,9 @@
+# F-05 v1 std.db.arrow C-removal manifest
+# cols: item_id	kind	anchor	mod_path	notes
+symbol_create	symbol	arrow_column_i32_create_c	std/db/arrow/arrow.x	column create ABI
+symbol_smoke	symbol	arrow_smoke_c	std/db/arrow/arrow.x	arrow smoke ABI
+symbol_f32_sum	symbol	arrow_column_f32_sum_c	compiler/seeds/runtime_arrow_simd_glue.from_x.c	SIMD glue sum
+absent_c	absent	std/db/arrow/arrow.c		deleted arrow.c
+absent_simd_glue	absent	std/db/arrow/arrow_simd_glue.c		moved to runtime seed
+glue_runtime	file	compiler/seeds/runtime_arrow_simd_glue.from_x.c		runtime SIMD glue
+x_arrow	file	std/db/arrow/arrow.x		arrow pure .x

@@ -1,53 +1,42 @@
 #!/usr/bin/env bash
-# std-json.sh — STD-008 共享：std.json API 与烟测辅助
+# std-json.sh — STD-008: std.json zero-copy manifest helpers.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_json_api_count [manifest_tsv]
 #   std_json_has_api MOD_X fn_name
-#   std_json_has_c_impl JSON_C sym_name
-#   std_json_run_smoke XLANG_BIN smoke_x tag
+#   std_json_has_c_impl JSON_X sym_name
+#   std_json_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# 统计 manifest 中 api 行数。
+STD_JSON_PREFIX="${XLANG_STD_JSON_PREFIX:-xlang: [XLANG_STD_JSON]}"
+
+# Count api rows in the manifest TSV.
 std_json_api_count() {
   local man="${1:-tests/baseline/std-json-manifest.tsv}"
   awk -F'\t' '$2=="api" && $1 !~ /^#/ { n++ } END { print n+0 }' "$man"
 }
 
-# 检查 mod.x 是否导出指定函数。
+# True if mod.x exports function fn_name(.
 std_json_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 检查 json.c 是否实现 C 符号。
+# True if json.x (or legacy .c) defines sym_name(.
 std_json_has_c_impl() {
   local cfile="$1"
   local sym="$2"
   grep -qF "${sym}(" "$cfile" 2>/dev/null
 }
 
-# 编译并运行烟测 .x；期望退出码 0。
-std_json_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_json_${tag}_$$"
-  if [ ! -f "$src" ]; then
-    echo "std-json FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-json FAIL: $tag exit=$ec ($src)" >&2
-    return 1
-  fi
-  return 0
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is main product -o; zc / check residuals = obs
+# (Darwin arm64 needs_copy residual on zc_parse_string_view).
+std_json_emit_report() {
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_JSON_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

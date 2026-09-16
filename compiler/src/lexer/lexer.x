@@ -189,12 +189,13 @@ let g_lexer_invalid_escape_reported: i32 = 0;
 
 /**
  * wave283 Cap residual: sticky string-literal capacity overflow for the current parse.
- * EXPR_STRING_LIT stores semantic bytes in Expr.var_name (cap 127 content + NUL).
- * Prior soft residual: decode loops clamped source length / stopped at wi<63 and
- * silently truncated longer literals (and adjacent concat past 63) → wrong programs.
- * Set when a decode write would exceed 127 semantic bytes; product parse must hard-fail.
+ * EXPR_STRING_LIT stores semantic bytes in Expr.var_name (first 127) plus
+ * int_val-chained overflow chunks (cap 4095). Identifier name slots stay 127
+ * (4.2.8 leave-off). Prior soft residual: decode loops clamped / stopped at
+ * wi<63 and silently truncated. Set when a decode write would exceed 4095
+ * semantic bytes; product parse must hard-fail.
  * Cleared by lexer_string_lit_overflow_reset at each product parse entry.
- * PLATFORM: SHARED — AST layout stay 64; raise layout is a separate leaf.
+ * PLATFORM: SHARED — STRING_LIT overflow complete; ident layout raise leave-off.
  */
 let g_lexer_string_lit_overflow: i32 = 0;
 let g_lexer_string_lit_overflow_line: i32 = 0;
@@ -204,7 +205,7 @@ let g_lexer_string_lit_overflow_reported: i32 = 0;
 /**
  * wave284 Cap residual: sticky identifier/name capacity overflow for the current parse.
  * AST name slots (Func.name, LetDecl.name, Expr.var_name for vars, field/method names)
- * are fixed `name[128]` with content cap 127 (primary_slice and name64 copies).
+ * are fixed `name[256]` with content cap 255 (primary_slice and name64 copies).
  * Prior soft residual: idents longer than 63 were TOKEN_IDENT with full span, then
  * silent clamp to 63 / XP003 / typeck mismatch without a hard L0xx → wrong or opaque fail.
  * Set when a non-keyword ident span length exceeds 63; product parse must hard-fail.
@@ -1233,9 +1234,9 @@ function lexer_note_invalid_escape(line: i32, col: i32): void {
 
 /**
  * Record and report L011 once for string-literal content exceeding AST capacity.
- * Cap is 127 semantic bytes (Expr.var_name[128] with trailing NUL). Called from
- * parser decode authorities (parser.x let-init, primary_slice, parser_gen seed)
- * when a write would exceed the cap — not silent truncate.
+ * Cap is 4095 semantic bytes (Expr.var_name[256] plus int_val overflow chunks).
+ * Called from parser decode authorities (parser.x let-init, primary_slice,
+ * parser_gen seed) when a write would exceed the cap — not silent truncate.
  * @param line i32 — 1-based line of the string literal (open quote / overflow site)
  * @param col i32 — 1-based column of the string literal
  * @return void
@@ -1312,9 +1313,9 @@ export function lexer_note_string_lit_overflow(line: i32, col: i32): void {
 
 /**
  * Record and report L012 once for an identifier longer than AST name capacity.
- * Cap is 127 bytes (name[128] slots; primary_slice / name64 copies use content max 127).
+ * Cap is 255 bytes (name[256] slots; primary_slice / name64 copies use content max 255).
  * Called from try_keyword / try_keyword_buf when falling through to TOKEN_IDENT with
- * span length > 127 — produce-point authority (G.7); not silent clamp / XP003.
+ * span length > 255 — produce-point authority (G.7); not silent clamp / XP003.
  * @param line i32 — 1-based line of the identifier start
  * @param col i32 — 1-based column of the identifier start
  * @return void
@@ -2290,8 +2291,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }
-  // wave577 Cap track: AST name slots cap raised 63 -> 127 (u8[128] -> u8[128]); long idents hard-fail L012 (not silent clamp / XP003).
-  if (nlen > 127) {
+  // wave Cap 4.2.8: AST name slots cap raised 127 -> 255 (u8[128] -> u8[256]); long idents hard-fail L012 (not silent clamp / XP003).
+  if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
   let t: token.Token = {
@@ -2455,8 +2456,8 @@ i32): token.Token {
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
-  // wave577 Cap track: G.7 mirror try_keyword — L012 when non-keyword span > 127.
-  if (nlen > 127) {
+  // wave Cap 4.2.8: G.7 mirror try_keyword — L012 when non-keyword span > 255.
+  if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
   let t: token.Token = { kind: 59, line: line0, col: col0, int_val: (0 as i64),
@@ -2562,10 +2563,10 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
     return 0;
   }
   let expr_len: i32 = (p as i32) - (expr_start as i32) - 1;
-  if (expr_len <= 0 || expr_len > 127) {
+  if (expr_len <= 0 || expr_len > 255) {
     return 0;
   }
-  let tmp: u8[128] = [];
+  let tmp: u8[256] = [];
   let ti: i32 = 0;
   while (ti < expr_len) {
     tmp[ti] = data[expr_start + (ti as usize)];

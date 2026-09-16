@@ -104,6 +104,7 @@ tool_lint_expect_warn_reorder() {
 }
 
 # XLANG_UNUSED_HINT=1：期望含 unused binding info 且 exit 0。
+# Honesty 2026-08-25: L6 product path hard-green (no soft SKIP).
 tool_lint_expect_info_unused() {
   local xlang="$1"
   local src="$2"

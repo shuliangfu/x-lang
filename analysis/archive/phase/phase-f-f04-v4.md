@@ -20,10 +20,27 @@
 | gzip/brotli/zstd | 仍为 `.c`（gzip 仍 -DXLANG_USE_ZLIB 链 libz） |
 | 无 libz 环境 | deflate/inflate 链接需 -lz；无库时链接失败（同 heap -lc 模式） |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory + STD-007 compress. No soft
+`die→exit 0`. Soft `XLANG_F04_COMPRESS_ZLIB_FAIL` retired. Report
+`static=` / `inventory=` / `compress=` / `skip=`.
+
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-compress-zlib：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／STD-007 compress 不重写）。
 
 ```bash
-XLANG_F04_COMPRESS_ZLIB_FAIL=1 ./tests/run-f04-std-compress-zlib-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=100
+./tests/run-f04-std-compress-zlib-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-compress-zlib-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F04_COMPRESS_ZLIB_FAIL` path retired; gate
+always hard). Neighbor inventory / STD-007 still own their own FAIL knives
+when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ./tests/run-std-compress-gate.sh
 ```

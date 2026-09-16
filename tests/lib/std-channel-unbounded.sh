@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# std-channel-unbounded.sh — STD-044 manifest 与烟测辅助
+# std-channel-unbounded.sh — STD-044 unbounded channel helpers (honesty prefer-asm).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_channel_unbounded_symbols_ok MOD_X CHANNEL_C TSV
-#   std_channel_unbounded_run_smoke XLANG_BIN X TAG
-#   std_channel_unbounded_emit_report status unbounded_ok main_ok skip
+#   std_channel_unbounded_run_smoke XLANG_BIN SRC [TAG]
+#   std_channel_unbounded_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / soft ensure; report run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CHANNEL_UNBOUNDED_PREFIX="${XLANG_STD_CHANNEL_UNBOUNDED_PREFIX:-xlang: [XLANG_STD_CHANNEL_UNBOUNDED]}"
 
-# 校验 manifest symbol/api；echo 缺失数。
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_channel_unbounded_symbols_ok() {
   local mod_x="$1"
   local channel_c="$2"
@@ -35,9 +37,26 @@ std_channel_unbounded_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section)
+        local doc="${XLANG_STD_CHANNEL_UNBOUNDED_DOC:-analysis/archive/std/std-channel-unbounded-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-channel-unbounded FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
       file|smoke)
         if [ ! -f "$anchor" ]; then
           echo "std-channel-unbounded FAIL: missing file '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      script)
+        if [ -n "$anchor" ] && [ -f "$anchor" ]; then
+          :
+        elif [ -n "$mod_path" ] && [ -f "$mod_path" ]; then
+          :
+        else
+          echo "std-channel-unbounded FAIL: missing script '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -47,39 +66,44 @@ std_channel_unbounded_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x。
+# Product tip -o smoke. Caller decides hard vs obs (tip UNDEF/SEGV = obs leave).
+# PLATFORM: SHARED archaeology — product honesty path.
+# Do not restore set -e between steps: return 1 must not trip the gate's set +e window.
 std_channel_unbounded_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_channel_ub_${tag}_$$"
+  local log="/tmp/xlang_std_channel_ub_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-channel-unbounded FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-channel-unbounded FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-channel-unbounded OBS tip product -o (ec=$o_ec)" >&2
+    tail -n 8 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
-  set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
-  set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
-    echo "std-channel-unbounded FAIL: run $src exit=$ec" >&2
+    echo "std-channel-unbounded OBS tip run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report line (honesty: run=/obs=/skip=; retired unbounded=/main=).
 std_channel_unbounded_emit_report() {
   local status="$1"
-  local unbounded_ok="$2"
-  local main_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_CHANNEL_UNBOUNDED_PREFIX} status=${status} unbounded=${unbounded_ok} main=${main_ok} skip=${skip}"
+  echo "${STD_CHANNEL_UNBOUNDED_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

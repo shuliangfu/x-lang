@@ -1,4 +1,5 @@
 # CORE-005 core.cmp manifest
+# honesty 2026-08-24 #11: DOC → analysis/archive/core/; codegen.c retired → codegen.x / pure .x
 # 列：item_id	kind	anchor	notes
 min_cmp_apis	3
 ordering_struct	symbol	Ordering	core/cmp/mod.x
@@ -8,5 +9,5 @@ cmp_ptr	symbol	cmp_ptr	core/cmp/mod.x
 ordering_reverse	symbol	reverse	core/cmp/mod.x
 ordering_then	symbol	then	core/cmp/mod.x
 test_smoke	file	tests/cmp/main.x	烟测
-doc	file	core-cmp-ordering-v1.md	analysis/core-cmp-ordering-v1.md	RFC
+doc	file	core-cmp-ordering-v1.md	analysis/archive/core/core-cmp-ordering-v1.md	RFC
 gate	script	run-core-cmp-ordering-gate.sh	tests/run-core-cmp-ordering-gate.sh	manifest

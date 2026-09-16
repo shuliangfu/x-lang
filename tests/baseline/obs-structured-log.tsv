@@ -20,5 +20,5 @@ comp_zig_strategy	bracket_component	XLANG_ZIG_STRATEGY	PERF-011
 smoke_component	struct_component	obs_smoke	gate 烟测
 smoke_harness	file	bench/obs_structured_log_smoke.c	C harness
 smoke_log_o	object	std/log/log.o	链接
-cross_obs001	cross_ref	analysis/obs-compile-phase-timing-v1.md
+cross_obs001	cross_ref	analysis/archive/obs/obs-compile-phase-timing-v1.md
 cross_obs002	cross_ref	analysis/obs-async-runtime-trace-v1.md

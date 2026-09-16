@@ -15,6 +15,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: asm tmp path → Cap snprintf */
+/* G.7: Cap after stdio for rt_run_asm_backend cold seed. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -23,6 +27,7 @@
 #include "runtime_diag_codes.h"
 #include "runtime_io_abi.h"
 #include "runtime_driver_abi.h"
+#include "xlang_driver_stream_cap.h" /* Cap residual 9.7.1: opaque FILE* face → fd-handle face */
 #include "runtime_pipeline_abi.h"
 #include "runtime_link_abi.h"
 #include "runtime_proc_abi.h"
@@ -77,7 +82,6 @@ extern char *xlang_preprocess_quiet(const char *data, size_t len, const char **d
 extern void pipeline_diag_emitted_reset(void);
 extern int pipeline_diag_emitted_get(void);
 extern void diag_set_file(const char *path, const char *src, size_t len);
-extern int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
 extern size_t pipeline_sizeof_elf_ctx(void);
@@ -110,8 +114,6 @@ extern int pipeline_asm_user_deps_need_coemit(char **dep_paths, int n_deps);
 extern void pipeline_debug_module_funcs(void *module);
 extern void driver_diagnostic_after_entry_parse_module(void *module);
 extern int driver_check_diag_emitted_get(void);
-extern int driver_c_typeck_entry(void *module, void *arena, const char *src, size_t len);
-extern int driver_c_typeck_entry_large_stack(void *module, void *arena, const char *src, size_t len);
 extern int32_t driver_get_pending_target_cpu_features(void);
 extern int32_t driver_freestanding_get(void);
 extern void driver_set_pipeline_entry_source_len(size_t len);
@@ -135,6 +137,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
     driver_bump_stack_limit();
+    /* PLATFORM: SHARED — feed -O to link_abi before Darwin bare-ld (TOOL-005). */
+    xlang_link_capture_opt_level_from_argv(argc, argv);
     if (argv && argc > 0)
         ndefines = driver_argv_collect_defines(argc, argv, defines, MAX_DEFINES);
     /** B-02：#[cfg] 与 -target triple 联动（asm 后端路径）。 */
@@ -162,43 +166,17 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (!src)
         return 1;
     diag_set_file(input_path, src, src_len);
-#if !defined(XLANG_NO_C_FRONTEND) && !defined(XLANG_USE_X_PIPELINE)
     /*
-     * Why: Both C-frontend fallback paths (smoke + check) require the deleted
-     *      C frontend (parse / typeck_module / driver_c_typeck_entry). With
-     *      XLANG_USE_X_PIPELINE defined (default on all current modes:
-     *      macOS no_c, Linux no_c, Windows LEGACY), these paths are dead and
-     *      must NOT be compiled: on Windows PE/MinGW XLANG_WEAK expands to
-     *      empty, so the weak stubs in runtime_driver_strict_glue_stubs.o
-     *      (parse, typeck_module, driver_c_frontend_smoke_impl) become STRONG
-     *      defs. With --allow-multiple-definition the stub `parse()` returns
-     *      -1 → driver_c_frontend_smoke returns 1 → silent exit=1 on every
-     *      `xlang -c file.x` invocation. Guarding with !XLANG_USE_X_PIPELINE
-     *      (matching driver_c_typeck_entry below) makes `-c file.x` route
-     *      through the X pipeline exactly as on macOS no_c mode.
-     * Invariant: When XLANG_USE_X_PIPELINE is defined, the X pipeline path
-     *            (parser_parse_into_init + parser_parse_into_buf) handles
-     *            `-c file.x` smoke and `xlang check` alike; this entire
-     *            block is skipped.
-     * PLATFORM: SHARED — guard applies on all platforms; verified macOS arm64
-     *           (no_c + LEGACY) and Windows MSYS x86_64.
+     * Retired leftover !XLANG_NO_C_FRONTEND consume sites:
+     * driver_c_frontend_smoke / driver_c_typeck_entry. C frontend is gone;
+     * mega wrappers deleted (36bb731f1 / 023b26d09). Product early-exit
+     * authority is driver_asm_try_c_frontend_early (always -2 → .x pipeline)
+     * in runtime_driver_abi_thin.x. Cold seed falls through to
+     * parser_parse_into_* below (same as PREFER .x rt_ab_step_early).
+     * Re-adding those calls would UNDEF, not silently recover a C frontend.
+     * PLATFORM: SHARED — consume-site hygiene; product PREFER rest is
+     * FROM_X marker (H=0); this body compiles only on cold/no-PREFER.
      */
-    /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；xlang check 不走烟测。 */
-    if (out_path == NULL && !driver_check_only_get()) {
-        int smoke_rc = driver_c_frontend_smoke(input_path, src, lib_roots_arr, n_lib_roots);
-        free(src);
-        return smoke_rc;
-    }
-    /*
-     * xlang check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
-     * 无 X pipeline 时回退 C typeck。
-     */
-    if (driver_check_only_get()) {
-        int ck = driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
-        free(src);
-        return ck;
-    }
-#endif
     size_t arena_sz = pipeline_sizeof_arena();
     size_t module_sz = pipeline_sizeof_module();
     void *arena = malloc(arena_sz);
@@ -252,7 +230,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         driver_diagnostic_after_entry_parse(driver_get_module_num_funcs(module));
         driver_diagnostic_after_entry_parse_module(module);
         {
-            FILE *metric_o = fopen(out_path, "wb");
+            /* Cap residual 9.7.1: metric placeholder .o via Cap open_write
+             * (binary-safe on Windows; single zero byte payload). */
+            int metric_fd = xlang_io_open_write(out_path);
+            uint8_t *metric_o = metric_fd < 0 ? NULL : xlang_driver_handle_from_fd(metric_fd);
             if (!metric_o) {
                 diag_reportf_with_code(out_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                              "cannot open parse-metric output '%s'",
@@ -262,8 +243,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            (void)fputc('\0', metric_o);
-            if (fclose(metric_o) != 0) {
+            {
+                const char metric_zero = '\0';
+                (void)xlang_io_write(xlang_driver_handle_to_fd(metric_o), &metric_zero, 1);
+            }
+            if (xlang_driver_handle_close(metric_o) != 0) {
                 diag_reportf_with_code(out_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                              "failed to write parse-metric output '%s'",
                              out_path ? out_path : "?");
@@ -345,7 +329,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * 否则 pipeline 二次 strict parse 大模块仅 ~4 func（parser.x）；见 run-parser-parse-count-gate.sh。
      */
     typeck_ndep_store((int32_t)(0));
-    FILE *asm_out = NULL;
+    /* Cap residual 9.7.1: opaque fd handle (NULL = not opened). PLATFORM: SHARED. */
+    uint8_t *asm_out = NULL;
     int emit_elf_o = 0;
     void *elf_ctx_ptr = NULL;
     char asm_tmp_o_path[64];
@@ -372,7 +357,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            asm_out = fdopen(fd, "wb");
+            /* Cap residual 9.7.1: keep the mkstemp fd — wrap it as an opaque
+             * handle instead of fdopen("wb"). PLATFORM: SHARED. */
+            asm_out = xlang_driver_handle_from_fd(fd);
             if (!asm_out) {
                 runtime_diag_errno_path(input_path, "build error", "fdopen (asm)", asm_tmp_o_path);
                 close(fd);
@@ -384,7 +371,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             emit_elf_o = 1;
         } else {
-            asm_out = fopen(out_path, "wb");
+            /* Cap residual 9.7.1: fopen(out_path, "wb") → Cap open_write
+             * (create/truncate, binary-safe on Windows). PLATFORM: SHARED. */
+            int aof = xlang_io_open_write(out_path);
+            asm_out = aof < 0 ? NULL : xlang_driver_handle_from_fd(aof);
             if (!asm_out) {
                 runtime_diag_errno_path(out_path, "io error", "fopen (-o asm)", out_path);
                 free(arena);
@@ -558,10 +548,30 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
-                lib_roots_arr, n_lib_roots);
-            xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
-            (const uint8_t *)dep_sources[j], dep_lens[j]);
+            /* Import-map ctx is consumed only by parse_skip_typeck / for_asm_module_o.
+             * parse_only does not take ctx; skip map_impl's throwaway tmp parse of
+             * the same source (P2 Darwin -o: hello prerun was ~50% discarded parse).
+             * PLATFORM: SHARED — leftover/cold twin of rt_run_asm_backend.x.
+             */
+            int need_import_map = 1;
+            if (asm_smoke_only)
+                need_import_map = 0;
+            else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j]))
+                need_import_map = 0;
+            else if (emit_elf_o && xlang_asm_user_dep_parse_skip_typeck_path(dep_paths[j]))
+                need_import_map = 1;
+            else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0)
+                need_import_map = 0;
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
+            else if (emit_elf_o && !asm_smoke_only && !driver_asm_build_skip_typeck())
+                need_import_map = 0;
+#endif
+            if (need_import_map) {
+                xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
+                    lib_roots_arr, n_lib_roots);
+                xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+                (const uint8_t *)dep_sources[j], dep_lens[j]);
+            }
             /*
              * 无 -o 烟测：dep 仅 parse 填槽；全量 .x typeck 在 strict typeck.o 上对 std.io 等大库易 SIGSEGV。
              * 有 -o 用户链仍 typeck dep（std.io 经 seed bridge）；入口走 C typeck。
@@ -591,8 +601,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                     pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
             } else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0) {
                 /*
-                 * ENTRY_MODULE_ONLY 且将走 C typeck 预检：dep 仅 parse 填槽，勿对整棵 dep 再跑 .x typeck（栈/耗时）。
-                 * 入口模块类型由 driver_c_typeck_entry 与并列 build_asm/*.o 保证。
+                 * ENTRY_MODULE_ONLY: dep parse-only (do not .x-typeck the whole
+                 * dep tree). Entry types come from pipeline_typeck_entry_module
+                 * plus sibling build_asm/*.o. (Was: driver_c_typeck_entry C
+                 * precheck — C frontend gone; leftover call deleted this knife.)
+                 * PLATFORM: SHARED.
                  */
                 ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
@@ -664,40 +677,24 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             diag_report(NULL, 0, 0, "note",
                         "asm entry debug: BEFORE pipeline_run_x_pipeline", NULL);
         }
-#if !defined(XLANG_NO_C_FRONTEND)
         /*
-         * 用户程序 asm 编译：C typeck 预检（strict 链 typeck_c_orchestration_partial 提供真 typeck_module），
-         * 再 skip pipeline 内 .x typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
+         * Retired leftover !XLANG_NO_C_FRONTEND driver_c_typeck_entry_large_stack
+         * precheck. Product authority is driver_asm_try_c_typeck_precheck
+         * (always -1 → skip) in runtime_driver_abi_thin.x; typeck is
+         * pipeline_typeck_entry_module. Skip-typeck flags below stay live
+         * on product xlang_asm (XLANG_NO_C_FRONTEND).
+         * PLATFORM: SHARED.
          */
-        if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = link_abi_getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
-            if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
-                if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
-                    free(out_buf);
-                    pipeline_dep_ctx_heap_destroy(pctx);
-                    for (j = 0; j < n_deps; j++) {
-                        free(dep_arenas[j]);
-                        free(dep_modules[j]);
-                    }
-                    while (n_deps > 0) {
-                        n_deps--;
-                        free(dep_sources[n_deps]);
-                        free(dep_paths[n_deps]);
-                    }
-                    free(arena);
-                    free(module);
-                    free(src);
-                    return 1;
-                }
-            }
-        }
-#endif
         /*
-         * 用户 asm -o：入口 pipeline 跳过 .x typeck（须在 #endif 外：xlang_asm 为 XLANG_NO_C_FRONTEND 时仍要 skip）。
-         * import 程序（dead_user 等）否则 typecheck_entry SIGSEGV。
-         * 无 import 单文件仍须 typeck（struct field_access_offset）；仅 skip codegen，机器码由 asm_codegen_elf_o 生成。
-         * std 库 .o 仍靠 C typeck 预检 + pipeline_fill_*_for_skipped_typeck；勿跑 x typeck（enc_label 失败）。
-         * xlang check + std/core 闭包：与 -o 多文件一致 skip 入口 .x typeck，parse 已在 smoke 路径完成。
+         * User asm -o: skip entry .x typeck (product xlang_asm is
+         * XLANG_NO_C_FRONTEND and still needs this skip). Import programs
+         * otherwise SIGSEGV in typecheck_entry. Single-file no-import still
+         * typecks (struct field_access_offset); only skip codegen — machine
+         * code comes from asm_codegen_elf_o. std library .o skip .x typeck
+         * (enc_label fails) and fill via pipeline_fill_*_for_skipped_typeck.
+         * C typeck precheck is gone. xlang check + std/core closure: same
+         * skip as multi-file -o; parse already happened above.
+         * PLATFORM: SHARED.
          */
         if (!asm_smoke_only) {
             if (n_deps > 0)
@@ -877,9 +874,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 }
             }
         }
-        fwrite(out_buf->data, 1, (size_t)out_buf->length, asm_out ? asm_out : stdout);
-        if (!asm_out)
-            fflush(stdout);
+        /* Cap residual 9.7.1: fwrite(stdout) → raw fd write (unbuffered; no
+         * flush needed). PLATFORM: SHARED. */
+        (void)xlang_io_write(asm_out ? xlang_driver_handle_to_fd(asm_out) : 1,
+                             out_buf->data, (size_t)out_buf->length);
         driver_asm_fclose_asm_out(asm_out);
         asm_out = NULL;
         if (elf_ctx_ptr) { free(elf_ctx_ptr); elf_ctx_ptr = NULL; }

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# TYPE-003：借用规则冲突诊断 manifest 门禁
+# TYPE-003: borrow conflict diagnostic manifest gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-type-borrow-conflict-gate.sh
-set -e
+# Honesty: DOC → analysis/archive/type/; refuse top-level resurrect;
+# require ## Gate. Prefer product asm via runner (no soft SKIP→OK /
+# soft auto-make). PLATFORM: SHARED archaeology.
+#
+# Usage: ./tests/run-type-borrow-conflict-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TYPE_BORROW_DOC:-analysis/type-borrow-conflict-v1.md}"
+DOC="${XLANG_TYPE_BORROW_DOC:-analysis/archive/type/type-borrow-conflict-v1.md}"
 MANIFEST="${XLANG_TYPE_BORROW_MANIFEST:-tests/baseline/type-borrow-conflict.tsv}"
 MATRIX="${XLANG_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
 MIN_LAYERS=6
@@ -14,9 +18,13 @@ MIN_CASES=6
 # shellcheck source=tests/lib/type-borrow-conflict.sh
 . tests/lib/type-borrow-conflict.sh
 
-echo "=== TYPE-003: borrow conflict manifest ==="
+echo "=== TYPE-003: borrow conflict manifest (archive DOC) ==="
+if [ -f analysis/type-borrow-conflict-v1.md ]; then
+  echo "type-borrow-conflict gate FAIL: top-level DOC resurrected (live = archive/type/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
-  analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
+  analysis/archive/type/type-linear-v1-rfc.md analysis/archive/type/type-region-v1-rfc.md \
   compiler/src/typeck/typeck.x \
   tests/typeck/borrow/fp_linear_two_bindings_ok.x; do
   if [ ! -f "$f" ]; then
@@ -24,6 +32,10 @@ for f in "$DOC" "$MANIFEST" "$MATRIX" \
     exit 1
   fi
 done
+if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
+  echo "type-borrow-conflict gate FAIL: doc missing ## Gate section" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

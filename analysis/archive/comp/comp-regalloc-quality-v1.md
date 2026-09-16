@@ -1,7 +1,7 @@
 # COMP-013：regalloc 质量波次 gate 扩展 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）**  
 > 前置：COMP-005 `comp-regalloc-v1.md`、`comp-regalloc-quality.tsv`  
 > 关联：asm 7.3、`run-asm-73-gate.sh`、Phase 3 COMP-013
 
@@ -34,6 +34,9 @@ Wave2 新增：`metric_nested_var`、`metric_field_index`、`metric_index_lit`�
 ---
 
 ## 3. Gate
+
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired;
+explicit-bad XLANG hard-dies (no SKIP runnable → gate OK). Keep `## 3. Gate`.
 
 ```bash
 ./tests/run-comp-regalloc-quality-gate.sh

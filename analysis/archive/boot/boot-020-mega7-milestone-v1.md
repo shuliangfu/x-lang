@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：COMP-001 阶段 A（thin glue 符号完整性）、BOOT-018 解耦、BOOT-019 Stage2 dogfood  
 > 关联：`parser-thin-glue-symbols.tsv`、`comp-parser-mega7-matrix.tsv`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

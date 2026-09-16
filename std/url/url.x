@@ -24,8 +24,19 @@
 
 export const URL_STRUCT_SIZE: usize = 1600;
 
-/* See implementation. */
+/**
+ * Address family for IPv6 (`AF_INET6`) passed to libc `inet_pton` / `inet_ntop`.
+ * PLATFORM: LINUX — value 10 (linux/socket.h).
+ * PLATFORM: MACOS — value 30 (sys/socket.h); hardcoded 10 made Darwin
+ * `host_is_ipv6` / `host_to_ipv6` always fail (`inet_pton` rejects af).
+ * PLATFORM: WINDOWS — value 23 (winsock2.h) when that cfg is enabled.
+ */
+#[cfg(target_os = "linux")]
 export const AF_INET6: i32 = 10;
+#[cfg(target_os = "macos")]
+export const AF_INET6: i32 = 30;
+#[cfg(target_os = "windows")]
+export const AF_INET6: i32 = 23;
 
 /* See implementation. */
 export const INET6_ADDRSTRLEN: i32 = 46;

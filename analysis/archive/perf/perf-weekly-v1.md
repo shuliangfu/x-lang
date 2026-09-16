@@ -32,6 +32,20 @@
 
 ## 3. 跳过策略
 
-- 无 native `xlang`/`xlang-c`：IO/NET bench 子步骤 SKIP，manifest 仍须全绿。
-- 无 `xlang_asm`：SIMD shuffle/select perf SKIP，autovec strategy gate 仍须 OK。
+- 无 native `xlang`：子门禁硬 die（拒 soft SKIP→OK）；汇总 gate 不 grep-SKIP 假绿。
+- 子门禁 `obs=`／`skip=` 向上传播；子硬红＝汇总硬红。
 - 无 libsqlite3：`sqlite_is_available()==0` 时 DB loop 仍跑 stub 路径。
+
+---
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): refuse soft SKIP→OK / soft FAIL=0 simd swallow /
+missing top-level DOC; DOC=archive; child hard fail = hard fail; propagate
+`obs=`／`skip=`; report `run=`／`obs=`／`skip=`.
+
+`tests/run-perf-weekly-gate.sh`：
+
+1. Archive DOC + manifest（拒顶层 `analysis/perf-weekly-v1.md`）  
+2. 五支柱：SIMD／IO／NET／DB／STD 子门禁依次跑  
+3. 子门禁已 honesty（io-zig／net-zig／simd／…）

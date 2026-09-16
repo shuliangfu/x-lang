@@ -20,7 +20,7 @@ if [ ! -x "$XLANG" ]; then
   XLANG=./xlang
 fi
 if [ ! -x "$XLANG" ]; then
-  echo "build_user_asm_backend: 无 ./xlang_asm 或 ./xlang，跳过（须先 make bootstrap-driver-seed）" >&2
+  echo "build_user_asm_backend: 无 ./xlang_asm 或 ./xlang，跳过（须先 ./xbuild bootstrap-driver-seed）" >&2
   exit 0
 fi
 

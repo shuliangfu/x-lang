@@ -15,7 +15,7 @@ doc07_phase3_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       section)
-        local f="analysis/doc-07-phase3-sync-v1.md"
+        local f="analysis/archive/doc/doc-07-phase3-sync-v1.md"
         if ! grep -qF "$anchor" "$f" 2>/dev/null; then
           echo "doc-07-phase3-sync FAIL: missing section '$anchor'" >&2
           miss=$((miss + 1))
@@ -54,10 +54,11 @@ doc07_phase3_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出门禁报告行。
+# Structured report: run=/obs=/skip= (honesty wave 2026-08-28).
 doc07_phase3_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local skip="$3"
-  echo "${STD171_PREFIX} status=${status} check=${check_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD171_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

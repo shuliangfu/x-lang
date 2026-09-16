@@ -1,7 +1,7 @@
 # STD-086 std.config v1
 
-> 更新时间：2026-06-18  
-> 状态：**可用** — TOML 子集 + ENV 前缀 + merge + 类型化读取 + gate
+> 更新时间：2026-08-29  
+> 状态：**可用** — TOML 子集 + ENV 前缀 + merge + 类型化读取 + gate honesty（残 auto-make 已退役）
 
 ---
 
@@ -35,15 +35,29 @@
 
 ## 3. Gate
 
+Honesty（2026-08-29 残 auto-make）：prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft `xlang_compiler_make` 重建 config.o／env.o／runtime companions；host-C 仅现成 `.o`＝obs；`check` 观测；`layer_smoke.x` exit0 硬失败；报告 `run=`／`obs=`／`skip=`。
+
+```bash
+./tests/run-std-config-gate.sh
 ```
-xlang: [XLANG_STD_CONFIG] status=ok c_smoke=1 x=1 skip=0
+
+```
+xlang: [XLANG_STD_CONFIG] status=ok run=1 obs=2 skip=0
 std-config gate OK
 ```
 
+（Darwin 上 `check` CHK residual＝obs；host-C 现成 `.o` 或缺 `.o` 均为 obs。硬绿信号是 `run=1`。）
+
 ---
 
-## 4. 后续（非 v1 阻塞）
+## 4. Changelog
 
-- YAML 可选后端（文档化链入策略）  
-- 嵌套 TOML 表 / 数组  
-- 与 `std.cli` flag 自动绑定  
+- 2026-08-29：残 soft auto-make（host-C 前 `xlang_compiler_make` 重建 config.o／env.o／runtime companions）退役；host-C 仅现成 `.o`＝obs；报告 `run=`／`obs=`／`skip=`。
+- 2026-08-25：闸／TSV／DOC 假权威诚实化；钉盘不升。
+- 2026-06-18：v1 初版（TOML 子集 + ENV + merge + meta + gate）。
+
+## 5. 后续（非 v1 阻塞）
+
+- YAML 可选后端（STD-119；同波 honesty 见 `std-config-yaml-v1.md`）
+- 嵌套 TOML 表 / 数组
+- 与 `std.cli` flag 自动绑定

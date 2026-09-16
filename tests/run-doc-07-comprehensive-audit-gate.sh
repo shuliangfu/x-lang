@@ -2,10 +2,17 @@
 # STD-168：docs/07 全面审计门禁（STD-156～167 / CORE-018～020 关键词 + Cookbook）
 #
 # 用法：./tests/run-doc-07-comprehensive-audit-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/doc/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/doc-07-comprehensive-audit-v1.md"
+if [ -f analysis/doc-07-comprehensive-audit-v1.md ]; then
+  echo "doc-07-comprehensive-audit-gate gate FAIL: top-level DOC resurrected (live = archive/doc/)" >&2
+  exit 1
+fi
+
+DOC="analysis/archive/doc/doc-07-comprehensive-audit-v1.md"
 MANIFEST="tests/baseline/doc-07-comprehensive-audit.tsv"
 DOC07="docs/07-内置与标准库.md"
 MIN_KW=18

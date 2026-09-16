@@ -1,19 +1,21 @@
 # TOOL-003 LSP 补全质量 manifest
 # 列：item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-24 #8: DOC → analysis/archive/tool/; lsp_diag.c retired;
+# live = lsp_diag.h + runtime_lsp_glue.from_x.c (completionProvider).
 # min_tiers	6
 # min_cases	1
 # min_hits	6
-read_path	section	## 1. 阅读路径	analysis/tool-lsp-completion-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/tool/tool-lsp-completion-v1.md	-	15min
 tiers	section	## 2. 补全分层 C1–C6	tool-lsp-completion.tsv	-	CompletionItem
-metrics	section	## 3. 命中率（hit rate）与 report	analysis/tool-lsp-completion-v1.md	-	hit rate
+metrics	section	## 3. 命中率（hit rate）与 report	analysis/archive/tool/tool-lsp-completion-v1.md	-	hit rate
 fixtures	section	## 4. Golden 用例	tool-lsp-completion.tsv	-	golden
-verify	section	## 6. 验证与门禁	analysis/tool-lsp-completion-v1.md	-	gate
-tier_c1	tiers	C1-function	analysis/tool-lsp-completion-v1.md	3	Function
-tier_c2	tiers	C2-struct	analysis/tool-lsp-completion-v1.md	7	Struct
-tier_c3	tiers	C3-enum	analysis/tool-lsp-completion-v1.md	13	Enum
-tier_c4	tiers	C4-import	analysis/tool-lsp-completion-v1.md	9	Module
-tier_c5	tiers	C5-keyword	analysis/tool-lsp-completion-v1.md	14	Keyword
-tier_c6	tiers	C6-type	analysis/tool-lsp-completion-v1.md	25	TypeParameter
+verify	section	## 6. 验证与门禁	analysis/archive/tool/tool-lsp-completion-v1.md	-	gate
+tier_c1	tiers	C1-function	analysis/archive/tool/tool-lsp-completion-v1.md	3	Function
+tier_c2	tiers	C2-struct	analysis/archive/tool/tool-lsp-completion-v1.md	7	Struct
+tier_c3	tiers	C3-enum	analysis/archive/tool/tool-lsp-completion-v1.md	13	Enum
+tier_c4	tiers	C4-import	analysis/archive/tool/tool-lsp-completion-v1.md	9	Module
+tier_c5	tiers	C5-keyword	analysis/archive/tool/tool-lsp-completion-v1.md	14	Keyword
+tier_c6	tiers	C6-type	analysis/archive/tool/tool-lsp-completion-v1.md	25	TypeParameter
 case_symbols	case	completion_symbols	tests/lsp/completion_symbols.x	-	golden
 expect_fn	expect	add_one	tests/lsp/completion_symbols.x	C1	function
 expect_struct	expect	Point	tests/lsp/completion_symbols.x	C2	struct
@@ -21,8 +23,8 @@ expect_enum	expect	Kind	tests/lsp/completion_symbols.x	C3	enum
 expect_import	expect	core.mem	tests/lsp/completion_symbols.x	C4	import
 expect_kw	expect	function	tests/lsp/completion_symbols.x	C5	keyword
 expect_type	expect	i32	tests/lsp/completion_symbols.x	C6	type
-impl_completion	file	compiler/src/lsp/lsp_diag.c	compiler/src/lsp/lsp_diag.c	lsp	lsp_build_completion_response
-impl_cap	file	compiler/src/lsp/lsp_diag.c	compiler/src/lsp/lsp_diag.c	cap	triggerCharacters
+impl_completion	file	compiler/src/lsp/lsp_diag.h	compiler/src/lsp/lsp_diag.h	lsp	lsp_build_completion_response
+impl_cap	file	compiler/seeds/runtime_lsp_glue.from_x.c	compiler/seeds/runtime_lsp_glue.from_x.c	cap	triggerCharacters
 lib	script	lib/tool-lsp-completion.sh	tests/lib/tool-lsp-completion.sh	-	共享库
 gate	script	run-tool-lsp-completion-gate.sh	tests/run-tool-lsp-completion-gate.sh	-	manifest
 hook_completion	hook_script	run-lsp-completion.sh	run-lsp-completion.sh	-	completion 烟测

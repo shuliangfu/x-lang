@@ -1,45 +1,147 @@
 #!/usr/bin/env bash
-# STD-132：std.env 平台编码 / 环境块边界门禁
-set -e
+# STD-132: std.env platform encoding gate — honesty leftover unused compiler-make →硬绿.
+#
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# platform_encoding.x -o exit0 = hard run (run=1). check / host-C archaeology
+# = obs. Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop
+# unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-env-platform-encoding-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-DOC="analysis/std-env-platform-encoding-v1.md"
-MANIFEST="tests/baseline/std-env-platform-encoding-manifest.tsv"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+
+DOC="${XLANG_STD132_ENV_PLATFORM_ENCODING_DOC:-analysis/archive/std/std-env-platform-encoding-v1.md}"
+MANIFEST="${XLANG_STD132_ENV_PLATFORM_ENCODING_MANIFEST:-tests/baseline/std-env-platform-encoding-manifest.tsv}"
 MOD_X="std/env/mod.x"
 ENV_IMPL="std/env/env.x"
 ENV_GLUE="compiler/seeds/runtime_env_os.from_x.c"
 LIB="tests/lib/std-env-platform-encoding.sh"
 SMOKE_X="tests/env/platform_encoding.x"
+SMOKE_EXPECT=0
+
+# shellcheck source=tests/lib/std-env-platform-encoding.sh
 . "$LIB"
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$ENV_IMPL" "$ENV_GLUE" "$SMOKE_X"; do
-  [ -f "$f" ] || { echo "std-env-platform-encoding gate FAIL: missing $f" >&2; exit 1; }
-done
-grep -qF STD-132 "$DOC" || { echo "std-env-platform-encoding gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(std_env_platform_encoding_symbols_ok "$MOD_X" "$ENV_IMPL" "$ENV_GLUE" "$MANIFEST" || true)"
-[ "${sym_miss:-0}" -eq 0 ] || exit 1
-C_OK=0
+
+RUN_OK=0
+OBS=0
 SKIP=0
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/env/env.o >/dev/null 2>&1 || true
-  ENV_O="$(cd compiler && pwd)/../std/env/env.o"
-  if [ -f "$ENV_O" ] && std_env_platform_encoding_run_c_smoke "$ENV_O"; then
-    C_OK=1
-  else
-    echo "std-env-platform-encoding gate SKIP c smoke (no full env.o)" >&2
-    SKIP=1
+
+die() {
+  echo "std-env-platform-encoding gate FAIL: $*" >&2
+  std_env_platform_encoding_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
-else
-  echo "std-env-platform-encoding gate SKIP c smoke (no xlang-c)" >&2
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== STD-132: env platform-encoding manifest ==="
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+[ ! -f analysis/std-env-platform-encoding-v1.md ] || die "top-level DOC resurrected (live = archive/std/)"
+
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$ENV_IMPL" "$ENV_GLUE" "$SMOKE_X"; do
+  [ -f "$f" ] || die "missing $f"
+done
+
+for kw in STD-132 env_parse_kv_entry platform_encoding; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
+grep -qF -- '## 5. Gate' "$DOC" 2>/dev/null || die "doc missing '## 5. Gate'"
+
+sym_miss="$(std_env_platform_encoding_symbols_ok "$MOD_X" "$ENV_IMPL" "$ENV_GLUE" "$MANIFEST" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+echo "std-env-platform-encoding manifest OK"
+
+if [ "${XLANG_STD132_ENV_PLATFORM_ENCODING_MANIFEST_ONLY:-0}" = "1" ]; then
   SKIP=1
+  std_env_platform_encoding_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-env-platform-encoding gate OK (manifest only)"
+  exit 0
 fi
-X_OK=0
-if [ -x ./compiler/xlang-c ]; then
-  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
-  std_env_platform_encoding_run_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
-  SKIP=0
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-132: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+# Host-C archaeology = obs only; refuse soft ensure/auto-make rebuild.
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+ENV_O="std/env/env.o"
+if [ -f "$ENV_O" ] && nm "$ENV_O" 2>/dev/null | grep -qF 'env_platform_encoding_smoke_c' \
+  && std_env_platform_encoding_run_c_smoke "$ENV_O"; then
+  echo "std-env-platform-encoding c smoke OK (observational)"
 else
-  [ "$SKIP" = "1" ] || SKIP=1
+  echo "std-env-platform-encoding OBS c smoke (host-C archaeology; refuse soft ensure/auto-make)" >&2
+  OBS=$((OBS + 1))
 fi
-std_env_platform_encoding_emit_report ok "$C_OK" "$X_OK" "$SKIP"
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std132_env_pe_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-env-platform-encoding OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+OUT="/tmp/xlang_std132_env_pe_$$"
+LOG="/tmp/xlang_std132_env_pe_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-env-platform-encoding OK: product -o"
+
+std_env_platform_encoding_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-env-platform-encoding gate OK"

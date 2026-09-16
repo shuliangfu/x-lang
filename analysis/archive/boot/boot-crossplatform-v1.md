@@ -1,7 +1,7 @@
 # BOOT-011 自举链路跨平台基线 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-06-17 · **honesty 2026-08-24**  
+> 状态：**定版（v1）归档** — basename `boot-crossplatform-v1.md`；gate default = `analysis/archive/boot/`  
 > 关联：`ENG-003`、`BOOT-003/004/005/012`、`ci-platform-matrix.tsv`
 
 ---

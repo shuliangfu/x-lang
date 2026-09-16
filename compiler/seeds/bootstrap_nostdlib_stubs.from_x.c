@@ -27,7 +27,8 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdarg.h>
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: freestanding vsnprintf authority */
+#include <xlang_fdprint_cap.h> /* Cap residual 9.5.4: format-to-fd write authority */
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -105,9 +106,110 @@ extern void xlang_sys_exit(int code) __attribute__((noreturn));
 #endif
 
 /**
- * NL-07 v5：nostdlib 静态链无 glibc TLS 初始化；gcc -fstack-protector 读 %fs:0x28 会 SIGSEGV。
- * FS 基址设为 &block 后，fs:0x28 即 block.stack_guard（Linux x86_64 TLS 布局）。
+ * NL-07 v5 / 2026-09-05 complete: nostdlib static has no glibc TLS.
+ * x86-64 SysV: FS = TCB; PT_TLS lives at [FS - p_memsz, FS); canary at FS+0x28.
+ *
+ * The original 48-byte block only covered the canary. gcc initial-exec
+ * __thread stores (parser binop-peek PT_TLS memsz=0x70) use negative FS
+ * offsets and wrote into BSS, zeroing `environ`. Then execve(..., NULL)
+ * made gcc 15 posix_spawnp("cc1") ENOENT after L4 wipe (ensure rebuilds
+ * runtime_link_abi_user_env.o via cc).
+ *
+ * G.7: complete this function; do not add a second TLS init.
+ * PLATFORM: LINUX x86_64 nostdlib (crt0_x86_64.s calls this before main).
  */
+#if defined(__linux__) && defined(__x86_64__)
+#ifndef PT_TLS
+#define PT_TLS 7
+#endif
+/* Storage cap: PT_TLS p_memsz + TCB. Today p_memsz=0x70; mmap if larger. */
+#define BOOTSTRAP_TLS_IMG_CAP 4096u
+#define BOOTSTRAP_TCB_LEN 64u
+
+static unsigned char bootstrap_tls_area[BOOTSTRAP_TLS_IMG_CAP + BOOTSTRAP_TCB_LEN]
+    __attribute__((aligned(16)));
+
+struct bootstrap_elf64_ehdr {
+    unsigned char e_ident[16];
+    uint16_t e_type;
+    uint16_t e_machine;
+    uint32_t e_version;
+    uint64_t e_entry;
+    uint64_t e_phoff;
+    uint64_t e_shoff;
+    uint32_t e_flags;
+    uint16_t e_ehsize;
+    uint16_t e_phentsize;
+    uint16_t e_phnum;
+    uint16_t e_shentsize;
+    uint16_t e_shnum;
+    uint16_t e_shstrndx;
+};
+
+struct bootstrap_elf64_phdr {
+    uint32_t p_type;
+    uint32_t p_flags;
+    uint64_t p_offset;
+    uint64_t p_vaddr;
+    uint64_t p_paddr;
+    uint64_t p_filesz;
+    uint64_t p_memsz;
+    uint64_t p_align;
+};
+
+extern char __executable_start[] __attribute__((weak));
+
+static unsigned long bootstrap_read_pt_tls_memsz(void) {
+    const struct bootstrap_elf64_ehdr *eh;
+    const struct bootstrap_elf64_phdr *ph;
+    unsigned int i;
+    unsigned int n;
+    if (!__executable_start)
+        return 0;
+    eh = (const struct bootstrap_elf64_ehdr *)(const void *)__executable_start;
+    if (eh->e_ident[0] != 0x7f || eh->e_ident[1] != 'E' ||
+        eh->e_ident[2] != 'L' || eh->e_ident[3] != 'F')
+        return 0;
+    if (eh->e_phentsize != (uint16_t)sizeof(struct bootstrap_elf64_phdr))
+        return 0;
+    ph = (const struct bootstrap_elf64_phdr *)(const void *)((const char *)eh + eh->e_phoff);
+    n = eh->e_phnum;
+    for (i = 0; i < n; i++) {
+        if (ph[i].p_type == (uint32_t)PT_TLS)
+            return (unsigned long)ph[i].p_memsz;
+    }
+    return 0;
+}
+
+void bootstrap_init_static_tls(void) {
+    unsigned long tls_len;
+    unsigned long fs;
+    unsigned long *guard;
+    unsigned char *img;
+    long ret;
+
+    tls_len = bootstrap_read_pt_tls_memsz();
+    if (tls_len == 0)
+        tls_len = 256;
+    tls_len = (tls_len + 15ul) & ~15ul;
+    img = bootstrap_tls_area;
+    if (tls_len > BOOTSTRAP_TLS_IMG_CAP) {
+        /* PROT_READ|PROT_WRITE=3, MAP_PRIVATE|MAP_ANONYMOUS=0x22 */
+        img = (unsigned char *)xlang_sys_mmap((void *)0, tls_len + BOOTSTRAP_TCB_LEN,
+                                              3, 0x22, -1, 0);
+        if (!img || img == (unsigned char *)(long)-1) {
+            tls_len = BOOTSTRAP_TLS_IMG_CAP;
+            img = bootstrap_tls_area;
+        }
+    }
+    /* FS = TCB; __thread slots are at FS - tls_len .. FS-1. */
+    fs = (unsigned long)(img + tls_len);
+    guard = (unsigned long *)(fs + 0x28);
+    *guard = 0xdeadbeefdeadbeefUL ^ fs;
+    __asm__ volatile("syscall" : "=a"(ret) : "a"(158L), "D"(0x1002L), "S"(fs) : "rcx", "r11", "memory");
+    (void)ret;
+}
+#else
 struct bootstrap_tls_block {
     char pad[0x28];
     unsigned long stack_guard;
@@ -115,19 +217,15 @@ struct bootstrap_tls_block {
 
 static struct bootstrap_tls_block bootstrap_tls;
 
-/**
- * 由 crt0_x86_64.s _start 在 main_entry 之前调用；仅 Linux x86_64 nostdlib 链需要。
- * 不用 libc syscall()（-nostdlib 无 syscall 桩）。
- */
 void bootstrap_init_static_tls(void) {
     long ret;
     unsigned long tls_base = (unsigned long)&bootstrap_tls;
     bootstrap_tls.stack_guard =
         (unsigned long)0xdeadbeefdeadbeefUL ^ tls_base;
-    /* Linux x86_64：arch_prctl(ARCH_SET_FS, tls_base) */
     __asm__ volatile("syscall" : "=a"(ret) : "a"(158L), "D"(0x1002L), "S"(tls_base) : "rcx", "r11", "memory");
     (void)ret;
 }
+#endif
 
 /**
  * NL-07 v5：自定义 crt0 不链 libc _start，须从栈布局 argv[argc+1]… 初始化 environ。
@@ -252,7 +350,7 @@ static unsigned char *bootstrap_heap_limit;
 size_t bootstrap_align16(size_t n);
 int bootstrap_heap_grow(size_t need);
 int bootstrap_format_double(double x, char *out, size_t cap);
-int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap);
+int bootstrap_vfprintf_fd(int fd, const char *fmt, xlang_va_list ap);
 #if defined(__linux__) && defined(__x86_64__)
 long bootstrap_syscall3(long nr, long a0, long a1, long a2);
 long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3);
@@ -603,50 +701,11 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
     return 0;
 }
 
-/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f %F %g %G %e %E
- * （浮点均走 bootstrap_format_double；精度有限，足够 codegen C 字面量 / 诊断）。
- * PLATFORM: LINUX — nostdlib-only TU；g05 动态链不链接本 stub。
- * NL-07 L7：%.17g 曾落 default 吐出字面 'g' + emit 补 ".0" → 非法 C token "g.0"。 */
+/** Cap residual 10.7.2: float decimal — thin wrap over xlang_format_double (G.7).
+ * PLATFORM: SHARED — nostdlib TU; logic lives in xlang_fmt_cap.h. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int bootstrap_format_double_impl(double x, char *out, size_t cap) {
-    size_t n = 0;
-    long ipart;
-    unsigned frac6;
-    int scale;
-    if (cap == 0)
-        return 0;
-    if (x < 0.0) {
-        if (n < cap)
-            out[n++] = '-';
-        x = -x;
-    }
-    ipart = (long)x;
-    frac6 = (unsigned)((x - (double)ipart) * 1000000.0 + 0.5);
-    if (frac6 >= 1000000u) {
-        ipart++;
-        frac6 = 0;
-    }
-    if (ipart == 0) {
-        if (n < cap)
-            out[n++] = '0';
-    } else {
-        char ib[32];
-        int in = 0;
-        long v = ipart;
-        while (v > 0) {
-            ib[in++] = (char)('0' + (v % 10));
-            v /= 10;
-        }
-        while (in > 0 && n < cap)
-            out[n++] = ib[--in];
-    }
-    if (n < cap)
-        out[n++] = '.';
-    for (scale = 100000; scale >= 1; scale /= 10) {
-        if (n < cap)
-            out[n++] = (char)('0' + ((frac6 / (unsigned)scale) % 10u));
-    }
-    return (int)n;
+    return xlang_format_double(x, out, cap);
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
@@ -658,246 +717,39 @@ int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_
 
 
 /**
- * Minimal vsnprintf: %% %c %s %d %u %ld %lu %x %p %f/%F/%g/%G/%e/%E plus width/precision.
+ * Minimal vsnprintf — Cap residual 10.7.2 thin wrap (G.7: body in xlang_fmt_cap.h).
  *
- * PLATFORM: LINUX — nostdlib freestanding face; authority = this TU only (G.7).
+ * PLATFORM: SHARED — nostdlib freestanding face; symbol name remains libc-compatible.
  *
- * NL-07 L4 expose: product diagnostics use `%.*s` (e.g. driver_diagnostic
- * `generic function '%.*s' expects %d...`). Prior stub ignored `*` precision, left
- * literal `*s`, and desynced va_list → garbage expect/got (bstrict run-generic red).
- * Fix: parse `*` width/precision as va_arg(int); honor prec on %s (bounded copy).
+ * NL-07 L4: Cap honors %.*s / * width so product diagnostics stay va-aligned.
  */
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
-    size_t pos = 0;
-    if (!buf || size == 0)
-        return fmt ? (int)strlen(fmt) : 0;
-    if (!fmt) {
-        buf[0] = '\0';
-        return 0;
-    }
-    while (*fmt) {
-        if (*fmt != '%') {
-            if (pos + 1 < size)
-                buf[pos] = *fmt;
-            pos++;
-            fmt++;
-            continue;
-        }
-        fmt++;
-        if (*fmt == '%') {
-            if (pos + 1 < size)
-                buf[pos] = '%';
-            pos++;
-            fmt++;
-            continue;
-        }
-        {
-            char tmp[64];
-            int tn = 0;
-            int width = 0;
-            int prec = -1;
-            int longmod = 0;
-            /* Optional width: digits or '*' (va_arg int). */
-            if (*fmt == '*') {
-                width = va_arg(ap, int);
-                fmt++;
-            } else {
-                while (*fmt >= '0' && *fmt <= '9') {
-                    width = width * 10 + (*fmt - '0');
-                    fmt++;
-                }
-            }
-            /* Optional precision: .digits or .* (va_arg int). */
-            if (*fmt == '.') {
-                fmt++;
-                if (*fmt == '*') {
-                    prec = va_arg(ap, int);
-                    fmt++;
-                } else {
-                    prec = 0;
-                    while (*fmt >= '0' && *fmt <= '9') {
-                        prec = prec * 10 + (*fmt - '0');
-                        fmt++;
-                    }
-                }
-            }
-            if (*fmt == 'l') {
-                longmod = 1;
-                fmt++;
-            }
-            (void)width;
-            switch (*fmt) {
-            case 'c': {
-                char c = (char)va_arg(ap, int);
-                tmp[tn++] = c;
-                break;
-            }
-            case 's': {
-                const char *s = va_arg(ap, const char *);
-                int si = 0;
-                if (!s)
-                    s = "(null)";
-                /* %.*s / %.Ns: stop after prec bytes (when prec >= 0). */
-                while (s[si] && (prec < 0 || si < prec)) {
-                    if (pos + 1 < size)
-                        buf[pos] = s[si];
-                    pos++;
-                    si++;
-                }
-                fmt++;
-                continue;
-            }
-            case 'd': {
-                long v = longmod ? va_arg(ap, long) : va_arg(ap, int);
-                char ib[32];
-                int in = 0;
-                int neg = 0;
-                if (v < 0) {
-                    neg = 1;
-                    v = -v;
-                }
-                if (v == 0)
-                    ib[in++] = '0';
-                while (v > 0) {
-                    ib[in++] = (char)('0' + (v % 10));
-                    v /= 10;
-                }
-                if (neg && in < (int)sizeof(ib))
-                    ib[in++] = '-';
-                while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = ib[--in];
-                break;
-            }
-            case 'u': {
-                unsigned long v = longmod ? va_arg(ap, unsigned long) : va_arg(ap, unsigned int);
-                char ib[32];
-                int in = 0;
-                if (v == 0)
-                    ib[in++] = '0';
-                while (v > 0) {
-                    ib[in++] = (char)('0' + (v % 10));
-                    v /= 10;
-                }
-                while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = ib[--in];
-                break;
-            }
-            case 'x': {
-                unsigned long v = longmod ? va_arg(ap, unsigned long) : va_arg(ap, unsigned int);
-                char ib[32];
-                int in = 0;
-                if (v == 0)
-                    ib[in++] = '0';
-                while (v > 0) {
-                    ib[in++] = "0123456789abcdef"[v & 15];
-                    v >>= 4;
-                }
-                while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = ib[--in];
-                break;
-            }
-            case 'p': {
-                void *p = va_arg(ap, void *);
-                tmp[tn++] = '0';
-                tmp[tn++] = 'x';
-                {
-                    uintptr_t v = (uintptr_t)p;
-                    char ib[2 * sizeof(uintptr_t) + 1];
-                    int in = 0;
-                    if (v == 0)
-                        ib[in++] = '0';
-                    while (v > 0) {
-                        ib[in++] = "0123456789abcdef"[v & 15];
-                        v >>= 4;
-                    }
-                    while (in > 0 && tn < (int)sizeof(tmp) - 1)
-                        tmp[tn++] = ib[--in];
-                }
-                break;
-            }
-            /* %f/%F and %g/%G/%e/%E: freestanding fixed decimal via bootstrap_format_double.
-             * PLATFORM: LINUX nostdlib — not full glibc float conversions; consume va_arg(double)
-             * so subsequent conversions stay aligned (unknown specs still risk desync). */
-            case 'f':
-            case 'F':
-            case 'g':
-            case 'G':
-            case 'e':
-            case 'E': {
-                double dv = va_arg(ap, double);
-                char fb[32];
-                int fn = bootstrap_format_double(dv, fb, sizeof(fb));
-                int fi = 0;
-                if (fn < 0)
-                    fn = 0;
-                while (fi < fn && tn < (int)sizeof(tmp) - 1)
-                    tmp[tn++] = fb[fi++];
-                break;
-            }
-            default:
-                /* Unknown conversion: copy char only (do not invent a second float path). */
-                tmp[tn++] = *fmt;
-                break;
-            }
-            fmt++;
-            {
-                int ti;
-                for (ti = 0; ti < tn; ti++) {
-                    if (pos + 1 < size)
-                        buf[pos] = tmp[ti];
-                    pos++;
-                }
-            }
-        }
-    }
-    if (size > 0)
-        buf[pos < size ? pos : size - 1] = '\0';
-    return (int)pos;
+int vsnprintf(char *buf, size_t size, const char *fmt, xlang_va_list ap) {
+    return xlang_vsnprintf(buf, size, fmt, ap);
 }
 
-/** snprintf 包装 vsnprintf。 */
+/** snprintf — Cap residual 10.7.2 thin wrap over xlang_vsnprintf. */
 int snprintf(char *buf, size_t size, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
-    va_start(ap, fmt);
-    n = vsnprintf(buf, size, fmt, ap);
-    va_end(ap);
+    xlang_va_start(ap, fmt);
+    n = xlang_vsnprintf(buf, size, fmt, ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** 向 fd 格式化输出；返回写入字节数。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
-    char stack_buf[512];
-    char *heap_buf = NULL;
-    char *use_buf = stack_buf;
-    size_t cap = sizeof(stack_buf);
-    va_list ap2;
-    int need;
-    int wrote = 0;
-    if (!fmt)
-        return 0;
-    va_copy(ap2, ap);
-    need = vsnprintf(stack_buf, cap, fmt, ap2);
-    va_end(ap2);
-    if (need >= (int)cap) {
-        cap = (size_t)need + 1u;
-        heap_buf = (char *)malloc(cap);
-        if (!heap_buf)
-            return -1;
-        use_buf = heap_buf;
-        need = vsnprintf(use_buf, cap, fmt, ap);
-    }
-    if (need > 0)
-        wrote = (int)write(fd, use_buf, (unsigned long)need);
-    free(heap_buf);
-    return wrote;
+/* Cap residual 9.5.4: "vsnprintf + write" combo — thin wrap over xlang_vfdprintf
+ * (G.7: body in xlang_fdprint_cap.h). Bounded 512-byte face (no heap): the
+ * nostdlib chain prints short diagnostic lines (spinner, per-line check
+ * summary, usage), so the old malloc heap-grow path is retired. */
+int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, xlang_va_list ap) {
+    return xlang_vfdprintf(fd, fmt, ap);
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl
- * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 va_list，C 链接器不看类型，ABI 兼容 */
-int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
+ * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 xlang_va_list，C 链接器不看类型，ABI 兼容 */
+int bootstrap_vfprintf_fd(int fd, const char *fmt, xlang_va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -905,19 +757,19 @@ int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) { return bootstra
 
 /** fprintf 最小实现；仅 stdout/stderr fd 路径。 */
 int fprintf(FILE *stream, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
     int fd = 1;
     if (stream == stderr)
         fd = 2;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = bootstrap_vfprintf_fd(fd, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** vfprintf 最小实现；供 _FORTIFY_SOURCE 重定向桩使用。 */
-int vfprintf(FILE *stream, const char *fmt, va_list ap) {
+int vfprintf(FILE *stream, const char *fmt, xlang_va_list ap) {
     int fd = 1;
     if (stream == stderr)
         fd = 2;
@@ -928,36 +780,36 @@ int vfprintf(FILE *stream, const char *fmt, va_list ap) {
 
 /** glibc _FORTIFY_SOURCE：nostdlib 链 fmt_check_cmd_driver.o 需要。 */
 int __fprintf_chk(FILE *stream, int flag, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
     (void)flag;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = vfprintf(stream, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** glibc _FORTIFY_SOURCE：nostdlib 链 snprintf 重定向。 */
 int __snprintf_chk(char *s, size_t maxlen, int flag, size_t slen, const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
     (void)flag;
     (void)slen;
     if (!s || maxlen == 0)
         return -1;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = vsnprintf(s, maxlen, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
 /** printf 最小实现。 */
 int printf(const char *fmt, ...) {
-    va_list ap;
+    xlang_va_list ap;
     int n;
-    va_start(ap, fmt);
+    xlang_va_start(ap, fmt);
     n = bootstrap_vfprintf_fd(1, fmt, ap);
-    va_end(ap);
+    xlang_va_end(ap);
     return n;
 }
 
@@ -1603,10 +1455,10 @@ int close(int fd) {
 int open(const char *path, int flags, ...) {
     mode_t mode = 0;
     if (flags & O_CREAT) {
-        va_list ap;
-        va_start(ap, flags);
-        mode = (mode_t)va_arg(ap, int);
-        va_end(ap);
+        xlang_va_list ap;
+        xlang_va_start(ap, flags);
+        mode = (mode_t)xlang_va_arg(ap, int);
+        xlang_va_end(ap);
     }
 #if defined(__linux__) && defined(__x86_64__)
     return (int)bootstrap_syscall3(2L, (long)path, (long)flags, (long)mode);
@@ -2746,19 +2598,19 @@ int execv(const char *path, char *const argv[]) {
 
 /** execlp：可变参数转 argv 后 execvp（签名与 unistd.h 一致）。 */
 int execlp(const char *file, const char *arg, ...) {
-  va_list ap;
+  xlang_va_list ap;
   char *argv[256];
   int i = 0;
   argv[i++] = (char *)file;
   argv[i++] = (char *)arg;
-  va_start(ap, arg);
+  xlang_va_start(ap, arg);
   while (i < 255) {
-    char *a = va_arg(ap, char *);
+    char *a = xlang_va_arg(ap, char *);
     argv[i++] = a;
     if (!a)
       break;
   }
-  va_end(ap);
+  xlang_va_end(ap);
   return execvp(file, argv);
 }
 

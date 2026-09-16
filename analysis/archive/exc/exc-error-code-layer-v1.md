@@ -1,8 +1,13 @@
 # EXC-003 错误码分层（语言 / 库 / 系统）v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual leftover wrap）**  
 > 关联：`EXC-001`（Layer A/B/C）、`EXC-002`（panic 边界）、`STD-011`（std 统一）
+
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
+> **2026-08-26:** gate prefer asm + `XLANG_LINK_XLANG`; check observational; `error_code_layer.x` exit0 hard-fail (no soft SKIP→OK).  
+> **honesty 2026-08-29:** residual XLANG fallthrough retired — explicit-bad `XLANG` hard-dies (no continue to `xlang_asm`). Prefer asm; check remains obs. Keep `## 7. Gate`.  
+> **honesty 2026-08-29 leftover wrap:** leftover `bootstrap-link-xlang.sh` + fossil `$RUN_XLANG build` retired. Product path = existing `exc_error_code_layer_run_smoke` (`"$XLANG_BIN" -L . smoke -o`). Keep `## 7. Gate`.
 
 ---
 
@@ -127,13 +132,25 @@ let t: Result_i32 = err_i32(io_err_timeout());
 
 ---
 
-## 7. 门禁
+## 7. Gate
 
 | 脚本 | 覆盖 |
 |------|------|
-| `tests/run-error.sh` | 全局 `error_ok` |
-| `tests/run-exc-error-code-layer-gate.sh` | manifest + 区间烟测 |
-| `tests/exc/error_code_layer.x` | base 顺序 + span  helper |
+| `tests/run-exc-error-code-layer-gate.sh` | manifest + 符号 + honesty smoke |
+| `tests/lib/exc-error-code-layer.sh` | symbols_ok／run_smoke／emit_report |
+| `tests/exc/error_code_layer.x` | base 顺序 + span helper（exit0 hard） |
+| `tests/run-error.sh` | 全局 `error_ok`（邻域） |
+
+**Honesty contract（2026-08-26）**
+
+| 项 | 规则 |
+|----|------|
+| compiler | prefer `./compiler/xlang_asm` then `xlang-c`／`xlang`；pin `XLANG_LINK_XLANG`；explicit-bad `XLANG` hard-die（refuse leftover fallthrough／leftover wrap／fossil `$RUN_XLANG build`） |
+| check | observational only（check gate paused 2026-08-05） |
+| runnable | `error_code_layer.x` exit0 **hard-fail**（native present → no soft SKIP→OK） |
+| report | `run=`／`obs=`／`skip=`（keep `check=` extra） |
+| DOC | refuse top-level resurrect；live = `analysis/archive/exc/` |
+| product API | short names in `std/error/mod.x`：`ok`／`code_*`／`base_*`／`*_err_*`／`code_in_global_range`／`code_in_module_span`／`code_is_platform_errno`（DOC narrative may still say `error_code_*`／`error_base_*`） |
 
 ---
 
@@ -144,6 +161,6 @@ let t: Result_i32 = err_i32(io_err_timeout());
 | 矩阵 | `tests/baseline/exc-error-code-layer.tsv` |
 | 门禁 | `tests/run-exc-error-code-layer-gate.sh` |
 | 实现 | `std/error/mod.x` |
-| EXC-001 | `analysis/exc-result-error-v1-rfc.md` |
+| EXC-001 | `analysis/archive/exc/exc-result-error-v1-rfc.md` |
 
-**EXC-003 状态：定版 ✅**（v1 登记五段 base；S 层仅侧车；R 层预留。）
+**EXC-003 状态：soft→硬绿 ✅（假权威诚实 · 2026-08-26）**（v1 登记五段 base；S 层仅侧车；R 层预留。）

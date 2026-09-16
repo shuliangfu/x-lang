@@ -3,6 +3,8 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）** — 与 `typeck.c` CTFE、`codegen.c` fold 输出对齐  
 > 关联：`LANG-001`（feature gate）、`COMP-004`（WPO const spec fold）、`tests/run-let-const.sh`
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck.c/codegen.c retired — live CTFE = typeck_expr_is_const_with_module_consts / typeck_fold_expr in typeck.x; const_folded_valid in codegen.x + ast.h.
+> **Hard-green 2026-08-25:** C5 array-len coerce = `typeck_coerce_init_array_lit_to_len_int_decl` (let/const); goldens aligned to live bool/match-subject rules; gate runnable is hard-fail (no observational SKIP).
 
 ---
 
@@ -27,7 +29,7 @@
 | **C2-const-bind** | `const A=3; const B=A+2` 链式绑定 | `typeck.c` const 表 + `eval_const_int` | ✅ |
 | **C3-binop** | `+-*/%` 比较/逻辑/位运算/移位 | `is_const_expr` + `fold_expr` binop | ✅ |
 | **C4-unary** | `-` `~` `!` | `fold_expr` unary | ✅ |
-| **C5-array-len** | 数组字面量在 `i32` 上下文求值为元素个数 | `eval_const_int` `ARRAY_LIT` | ✅ |
+| **C5-array-len** | 数组字面量在 `i32` 上下文求值为元素个数 | `typeck_coerce_init_array_lit_to_len_int_decl` + fold `ARRAY_LIT` | ✅ |
 | **C6-codegen** | 折叠结果写入 `const_folded_valid/val` | `codegen.c` / `pipeline_glue.c` emit | ✅ |
 
 **求值模型**：
@@ -69,7 +71,12 @@ return B * 2;  // → exit 10（见 tests/let-const/const_expr.x）
 
 ---
 
-## 4. Gate 与 report
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c (xlang-c before asm); explicit bad XLANG /
+missing native = hard die (CTFE face is live); DOC=archive; report
+`run=`／`skip=`.
 
 | 组件 | 路径 |
 |------|------|
@@ -78,7 +85,7 @@ return B * 2;  // → exit 10（见 tests/let-const/const_expr.x）
 | gate | `tests/run-lang-const-eval-gate.sh` |
 | hook | `tests/run-lang-const-eval.sh` |
 
-gate 输出 **`lang-const-eval gate OK`**；无 native `xlang` 时 manifest 仍过、bench **SKIP**；有 native `xlang` 时全量 **runnable** report。
+gate 输出 **`lang-const-eval gate OK`** + `status=ok run=…`；缺 native／显式坏 XLANG **硬 die**（拒 soft SKIP→OK）；全量 **runnable** report 硬绿。
 
 ---
 
@@ -93,3 +100,14 @@ gate 输出 **`lang-const-eval gate OK`**；无 native `xlang` 时 manifest 仍�
 - [x] RFC + manifest **6** layer + **≥10** case
 - [x] `tests/lang-const/*.x` 常见算术/位运算/const 链
 - [x] `run-lang-const-eval-gate.sh` + `run-portable-suite.sh`
+
+## Honesty case anchors (2026-08-24 #10)
+
+Additional CTFE golden cases registered in `tests/baseline/lang-const-eval.tsv` (live paths under `tests/lang-const/`):
+
+| Case | Path |
+|------|------|
+| `c_match_const.x` | `tests/lang-const/c_match_const.x` |
+| `c_struct_lit_const.x` | `tests/lang-const/c_struct_lit_const.x` |
+| `c_enum_variant_const.x` | `tests/lang-const/c_enum_variant_const.x` |
+

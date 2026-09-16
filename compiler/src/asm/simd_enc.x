@@ -164,6 +164,28 @@ export function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
   return r;
 }
 
+/** Exported function `simd_x86_subps_xmm0_xmm1`.
+ * SSE subps xmm0, xmm1 — lane-wise f32 subtract (0F 5C C1).
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 SSE.
+ */
+#[no_mangle]
+export function simd_x86_subps_xmm0_xmm1(elf: *u8): i32 {
+  let b0: u8 = 15;
+  let b1: u8 = 92;
+  let b2: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
 /** Exported function `simd_x86_paddd_xmm0_xmm1`.
  * Implements `simd_x86_paddd_xmm0_xmm1`.
  * @param elf *u8
@@ -234,6 +256,81 @@ export function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
   unsafe { r = simd_append(elf, &b3, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b4, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
+/** Exported function `simd_x86_vaddps_ymm0_ymm1`.
+ * AVX vaddps ymm0, ymm1, ymm0 — 8-wide lane-wise f32 add.
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
+ */
+#[no_mangle]
+export function simd_x86_vaddps_ymm0_ymm1(elf: *u8): i32 {
+  let b0: u8 = 197;
+  let b1: u8 = 252;
+  let b2: u8 = 88;
+  let b3: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
+/** Exported function `simd_x86_vmulps_ymm0_ymm1`.
+ * AVX vmulps ymm0, ymm1, ymm0 — 8-wide f32 multiply.
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
+ */
+#[no_mangle]
+export function simd_x86_vmulps_ymm0_ymm1(elf: *u8): i32 {
+  let b0: u8 = 197;
+  let b1: u8 = 252;
+  let b2: u8 = 89;
+  let b3: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = 0; }
+  return r;
+}
+
+/** Exported function `simd_x86_vsubps_ymm0_ymm1`.
+ * AVX vsubps ymm0, ymm1, ymm0 — 8-wide f32 subtract.
+ * @param elf *u8 — ELF codegen ctx
+ * @return i32 — 0 on success, -1 on append failure
+ * PLATFORM: LINUX+MACOS x86_64 AVX (256-bit).
+ */
+#[no_mangle]
+export function simd_x86_vsubps_ymm0_ymm1(elf: *u8): i32 {
+  let b0: u8 = 197;
+  let b1: u8 = 252;
+  let b2: u8 = 92;
+  let b3: u8 = 193;
+  let r: i32 = 0;
+  unsafe { r = simd_append(elf, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b3, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
@@ -594,10 +691,12 @@ export function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 16;
-  let b3: u8 = 133;
+  /* VEX.256 vmovups ymm0, [rbp+disp32] = C4 E1 7C 10 85 disp32 */
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 16;
+  let b4: u8 = 133;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -606,6 +705,8 @@ export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
@@ -619,10 +720,12 @@ export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 16;
-  let b3: u8 = 141;
+  /* VEX.256 vmovups ymm1, [rbp+disp32] = C4 E1 7C 10 8D disp32 */
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 16;
+  let b4: u8 = 141;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -631,6 +734,8 @@ export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
@@ -644,10 +749,12 @@ export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 17;
-  let b3: u8 = 133;
+  /* VEX.256 vmovups [rbp+disp32], ymm0 = C4 E1 7C 11 85 disp32 */
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 17;
+  let b4: u8 = 133;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -656,6 +763,8 @@ export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
@@ -712,16 +821,19 @@ export function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
 }
 
 
-/** Exported function `simd_x86_vpshufd_ymm0_imm8`.
- * Implements `simd_x86_vpshufd_ymm0_imm8`.
- * @param elf *u8
- * @param imm8 i32
- * @return i32
+/**
+ * Emit AVX2 `vpshufd ymm0, ymm0, imm8` as VEX 2-byte `C5 FD 70 C0 imm8`.
+ * VEX.pp must be 01 (66-prefix vpshufd). pp=10 (F3, byte 0xFE) encodes
+ * `vpshufhw` and breaks Vec8i shuffle (L4 gold roundtrip exit=5).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @param imm8 i32 — pshufd control in the low 8 bits
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX2
  */
 #[no_mangle]
 export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
   let b0: u8 = 0xc5;
-  let b1: u8 = 0xfe;
+  let b1: u8 = 0xfd;
   let b2: u8 = 0x70;
   let b3: u8 = 0xc0;
   let ib: u8 = (imm8 & 255) as u8;
@@ -739,18 +851,22 @@ export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
 }
 
 
-/** Exported function `simd_x86_vmovups_ymm2_from_rbp`.
- * Implements `simd_x86_vmovups_ymm2_from_rbp`.
- * @param elf *u8
- * @param disp i32
- * @return i32
+/**
+ * Emit AVX `vmovups ymm2, [rbp+disp32]` as VEX.256.0F `C4 E1 7C 10 95 disp32`.
+ * Same 3-byte VEX as ymm0/ymm1 from_rbp. C5 FE 10 (pp=F3) is vmovss and #UD
+ * when L=1 — L4/L2 gold select SIGILL after Vec8i shuffle.
+ * @param elf *u8 — ElfCodegenCtx
+ * @param disp i32 — rbp displacement
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 254;
-  let b2: u8 = 16;
-  let b3: u8 = 149;
+  let b0: u8 = 196;
+  let b1: u8 = 225;
+  let b2: u8 = 124;
+  let b3: u8 = 16;
+  let b4: u8 = 149;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -759,6 +875,8 @@ export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
   unsafe { r = simd_append(elf, &b2, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
@@ -993,17 +1111,21 @@ export function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vpxor_ymm3_ymm3`.
- * Implements `simd_x86_vpxor_ymm3_ymm3`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX2 `vpxor ymm3, ymm3, ymm3` as VEX 2-byte `C5 E5 EF DB`.
+ * Opcode must be 0xEF (PXOR). 0x77 is EMMS/VZEROUPPER and is #UD under
+ * VEX.256.66 — L2 gold Vec8i select SIGILL after ymm2 vmovups.
+ * VEX.vvvv = ymm3 (byte 0xE5), not ymm1 (0xF5).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX2
  */
 #[no_mangle]
 export function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 245;
-  let b2: u8 = 119;
-  let b3: u8 = 219;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xe5;
+  let b2: u8 = 0xef;
+  let b3: u8 = 0xdb;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1041,17 +1163,20 @@ export function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vpand_ymm0_ymm2`.
- * Implements `simd_x86_vpand_ymm0_ymm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX2 `vpand ymm0, ymm0, ymm2` as VEX 2-byte `C5 FD DB C2`.
+ * VEX.vvvv must be ymm0 (0xFD). 0xE5 encodes vvvv=ymm3 so `a & mask`
+ * becomes `0 & mask` after vpxor ymm3=0 and select always yields b.
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX2
  */
 #[no_mangle]
 export function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 229;
-  let b2: u8 = 219;
-  let b3: u8 = 194;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xfd;
+  let b2: u8 = 0xdb;
+  let b3: u8 = 0xc2;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1065,17 +1190,19 @@ export function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vpandn_ymm2_ymm1`.
- * Implements `simd_x86_vpandn_ymm2_ymm1`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX2 `vpandn ymm2, ymm2, ymm1` as VEX 2-byte `C5 ED DF D1`
+ * (`ymm2 = ~ymm2 & ymm1`). VEX.vvvv must be ymm2 (0xED), not ymm3 (0xE5).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX2
  */
 #[no_mangle]
 export function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 229;
-  let b2: u8 = 223;
-  let b3: u8 = 209;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xed;
+  let b2: u8 = 0xdf;
+  let b3: u8 = 0xd1;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1089,17 +1216,19 @@ export function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vpor_ymm0_ymm2`.
- * Implements `simd_x86_vpor_ymm0_ymm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX2 `vpor ymm0, ymm0, ymm2` as VEX 2-byte `C5 FD EB C2`.
+ * VEX.vvvv must be ymm0 (0xFD), not ymm3 (0xE5).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX2
  */
 #[no_mangle]
 export function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 229;
-  let b2: u8 = 235;
-  let b3: u8 = 194;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xfd;
+  let b2: u8 = 0xeb;
+  let b3: u8 = 0xc2;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1113,17 +1242,19 @@ export function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vxorps_ymm3_ymm3`.
- * Implements `simd_x86_vxorps_ymm3_ymm3`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vxorps ymm3, ymm3, ymm3` as VEX 2-byte `C5 E4 57 DB`.
+ * VEX.vvvv must be ymm3 (0xE4), L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 240;
-  let b2: u8 = 87;
-  let b3: u8 = 219;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xe4;
+  let b2: u8 = 0x57;
+  let b3: u8 = 0xdb;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1137,17 +1268,21 @@ export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vcmpgtps_ymm2_ymm3`.
- * Comparison/utility `simd_x86_vcmpgtps_ymm2_ymm3`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vcmpgtps ymm2, ymm2, ymm3` as VEX 2-byte `C5 EC C2 D3 0E`
+ * (`vcmpps ymm2, ymm2, ymm3, 14`). VEX.vvvv=ymm2, L=1 (256-bit ymm),
+ * opcode 0xC2 (CMPPS), imm 0x0E (GT_OQ).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 232;
-  let b2: u8 = 87;
-  let b3: u8 = 211;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xec;
+  let b2: u8 = 0xc2;
+  let b3: u8 = 0xd3;
+  let b4: u8 = 0x0e;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1157,21 +1292,25 @@ export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
   if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_append(elf, &b4, 1); }
+  if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
 }
 
-/** Exported function `simd_x86_vandps_ymm0_ymm2`.
- * Implements `simd_x86_vandps_ymm0_ymm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vandps ymm0, ymm0, ymm2` as VEX 2-byte `C5 FC 54 C2`.
+ * VEX.vvvv must be ymm0 (0xFC), not ymm3 (0xE0); L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 224;
-  let b2: u8 = 84;
-  let b3: u8 = 194;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xfc;
+  let b2: u8 = 0x54;
+  let b3: u8 = 0xc2;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1185,17 +1324,19 @@ export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vandnps_ymm2_ymm1`.
- * Implements `simd_x86_vandnps_ymm2_ymm1`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vandnps ymm2, ymm2, ymm1` as VEX 2-byte `C5 EC 55 D1`
+ * (`ymm2 = ~ymm2 & ymm1`). VEX.vvvv must be ymm2 (0xEC), L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 232;
-  let b2: u8 = 85;
-  let b3: u8 = 209;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xec;
+  let b2: u8 = 0x55;
+  let b3: u8 = 0xd1;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1209,17 +1350,19 @@ export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
   return r;
 }
 
-/** Exported function `simd_x86_vorps_ymm0_ymm2`.
- * Implements `simd_x86_vorps_ymm0_ymm2`.
- * @param elf *u8
- * @return i32
+/**
+ * Emit AVX `vorps ymm0, ymm0, ymm2` as VEX 2-byte `C5 FC 56 C2`.
+ * VEX.vvvv must be ymm0 (0xFC), not ymm3 (0xE0); L=1 (256-bit ymm).
+ * @param elf *u8 — ElfCodegenCtx; null rejected by simd_append
+ * @return i32 — 0 on success, -1 if any append fails
+ * PLATFORM: SHARED emit / x86 AVX
  */
 #[no_mangle]
 export function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
-  let b0: u8 = 197;
-  let b1: u8 = 224;
-  let b2: u8 = 86;
-  let b3: u8 = 194;
+  let b0: u8 = 0xc5;
+  let b1: u8 = 0xfc;
+  let b2: u8 = 0x56;
+  let b3: u8 = 0xc2;
   let r: i32 = 0;
   unsafe { r = simd_append(elf, &b0, 1); }
   if (r != 0) { return 0 - 1; }
@@ -1302,6 +1445,50 @@ export function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let ib_s: i32 = 0;
+      if (is_sub != 0) { ib_s = 2; }
+      if (lanes == 4) {
+        let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+        let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+        let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+        return simd_arm64_sve_ibinop_i32x4_rbp(elf_ctx, la_s, lb_s, ld_s, ib_s, ta);
+      }
+      if (lanes == 8) {
+        let la0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+        let lb0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+        let ld0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+        let la1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+        let lb1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+        let ld1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+        if (simd_arm64_sve_ibinop_i32x4_rbp(elf_ctx, la0s, lb0s, ld0s, ib_s, ta) != 0) { return 0 - 1; }
+        if (simd_arm64_sve_ibinop_i32x4_rbp(elf_ctx, la1s, lb1s, ld1s, ib_s, ta) != 0) { return 0 - 1; }
+        return 0;
+      }
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    let ib: i32 = 0;
+    if (is_sub != 0) { ib = 2; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_ibinop_128_rbp(elf_ctx, la, lb, ld, ib, ta);
+    }
+    if (lanes == 8) {
+      let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_ibinop_128_rbp(elf_ctx, la0, lb0, ld0, ib, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_ibinop_128_rbp(elf_ctx, la1, lb1, ld1, ib, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    return 0 - 1;
+  }
   if (ta != 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -1411,6 +1598,46 @@ export function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      if (lanes == 4) {
+        let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+        let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+        let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+        return simd_arm64_sve_ibinop_i32x4_rbp(elf_ctx, la_s, lb_s, ld_s, 1, ta);
+      }
+      if (lanes == 8) {
+        let la0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+        let lb0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+        let ld0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+        let la1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+        let lb1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+        let ld1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+        if (simd_arm64_sve_ibinop_i32x4_rbp(elf_ctx, la0s, lb0s, ld0s, 1, ta) != 0) { return 0 - 1; }
+        if (simd_arm64_sve_ibinop_i32x4_rbp(elf_ctx, la1s, lb1s, ld1s, 1, ta) != 0) { return 0 - 1; }
+        return 0;
+      }
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_ibinop_128_rbp(elf_ctx, la, lb, ld, 1, ta);
+    }
+    if (lanes == 8) {
+      let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_ibinop_128_rbp(elf_ctx, la0, lb0, ld0, 1, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_ibinop_128_rbp(elf_ctx, la1, lb1, ld1, 1, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    return 0 - 1;
+  }
   if (ta != 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
@@ -1469,12 +1696,71 @@ export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
-  if (lanes != 4) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0 && lanes == 4) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la_s, lb_s, ld_s, 0, ta);
+    }
+    if ((cpu_features & 512) != 0 && lanes == 8) {
+      let la0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la0s, lb0s, ld0s, 0, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la1s, lb1s, ld1s, 0, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_fbinop_128_rbp(elf_ctx, la, lb, ld, 0, ta);
+    }
+    if (lanes == 8) {
+      let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la0, lb0, ld0, 0, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la1, lb1, ld1, 0, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    return 0 - 1;
+  }
   if (ta != 0) { return 0 - 1; }
-  if ((cpu_features & 1) == 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
   let dd: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
+  if (lanes == 8) {
+    if ((cpu_features & 8) != 0) {
+      if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_vaddps_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      return 0;
+    }
+    /* f32x8 without AVX2: dual 128-bit addps (SSE). PLATFORM: LINUX gold fallback. */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
+      return 0;
+    }
+  }
+  if (lanes != 4) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
   if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
   if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
   if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
@@ -1501,15 +1787,169 @@ export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, s
   if (slot_off_b < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0 && lanes == 4) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la_s, lb_s, ld_s, 1, ta);
+    }
+    if ((cpu_features & 512) != 0 && lanes == 8) {
+      let la0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la0s, lb0s, ld0s, 1, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la1s, lb1s, ld1s, 1, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_fbinop_128_rbp(elf_ctx, la, lb, ld, 1, ta);
+    }
+    if (lanes == 8) {
+      let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la0, lb0, ld0, 1, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_fbinop_128_rbp(elf_ctx, la1, lb1, ld1, 1, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
+  let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
+  let dd: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
+  if (lanes == 8) {
+    if ((cpu_features & 8) != 0) {
+      if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_vmulps_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      return 0;
+    }
+    /* f32x8 without AVX2: dual 128-bit mulps. PLATFORM: LINUX gold fallback. */
+    if ((cpu_features & 1) != 0) {
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+      if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da + 16) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db + 16) != 0) { return 0 - 1; }
+      if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd + 16) != 0) { return 0 - 1; }
+      return 0;
+    }
+  }
   if (lanes != 4) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
+  if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+  if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+  if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+  if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/** Exported function `simd_enc_try_hw_vector_fsub_rbp`.
+ * HW f32 vector subtract for stack-slot operands (SSE subps lanes==4; AVX2 vsubps lanes==8).
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param slot_off_a i32 — rbp-relative home of operand a
+ * @param slot_off_b i32 — rbp-relative home of operand b
+ * @param slot_off_dst i32 — rbp-relative dest home
+ * @param lanes i32 — 4 (xmm) or 8 (ymm / dual-half SSE)
+ * @param esz i32 — must be 4 (f32)
+ * @param ta i32 — target arch (0 = x86_64)
+ * @param cpu_features u32 — SSE2 required; AVX2 bit for lanes==8 fast path
+ * @return i32 — 0 handled, -1 fall back / error
+ * PLATFORM: LINUX+MACOS x86_64 SSE/AVX.
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (slot_off_a < 0) { return 0 - 1; }
+  if (slot_off_b < 0) { return 0 - 1; }
+  if (slot_off_dst < 0) { return 0 - 1; }
+  if (esz != 4) { return 0 - 1; }
+  if (lanes != 4 && lanes != 8) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0 && lanes == 4) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la_s, lb_s, ld_s, 2, ta);
+    }
+    if ((cpu_features & 512) != 0 && lanes == 8) {
+      let la0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld0s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      let la1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+      let lb1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+      let ld1s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+      if (simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la0s, lb0s, ld0s, 2, ta) != 0) { return 0 - 1; }
+      if (simd_arm64_sve_fbinop_f32x4_rbp(elf_ctx, la1s, lb1s, ld1s, 2, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    if (lanes == 4) {
+      let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_fbinop_128_rbp(elf_ctx, la, lb, ld, 2, ta);
+    }
+    let la0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+    let lb0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+    let ld0: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+    let la1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, esz);
+    let lb1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, esz);
+    let ld1: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, esz);
+    if (simd_arm64_fbinop_128_rbp(elf_ctx, la0, lb0, ld0, 2, ta) != 0) { return 0 - 1; }
+    if (simd_arm64_fbinop_128_rbp(elf_ctx, la1, lb1, ld1, 2, ta) != 0) { return 0 - 1; }
+    return 0;
+  }
   if (ta != 0) { return 0 - 1; }
   if ((cpu_features & 1) == 0) { return 0 - 1; }
+  if (lanes == 8) {
+    let da8: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
+    let db8: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
+    let dd8: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
+    if ((cpu_features & 4) != 0) {
+      if (simd_x86_vmovups_ymm0_from_rbp(elf_ctx, da8) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db8) != 0) { return 0 - 1; }
+      if (simd_x86_vsubps_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
+      if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd8) != 0) { return 0 - 1; }
+      return 0;
+    }
+    let da_lo: i32 = simd_rbp_disp32(slot_off_a, 4, esz);
+    let db_lo: i32 = simd_rbp_disp32(slot_off_b, 4, esz);
+    let dd_lo: i32 = simd_rbp_disp32(slot_off_dst, 4, esz);
+    let da_hi: i32 = da_lo + 16;
+    let db_hi: i32 = db_lo + 16;
+    let dd_hi: i32 = dd_lo + 16;
+    if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da_lo) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db_lo) != 0) { return 0 - 1; }
+    if (simd_x86_subps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd_lo) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da_hi) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db_hi) != 0) { return 0 - 1; }
+    if (simd_x86_subps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+    if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd_hi) != 0) { return 0 - 1; }
+    return 0;
+  }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
   let db: i32 = simd_rbp_disp32(slot_off_b, lanes, esz);
   let dd: i32 = simd_rbp_disp32(slot_off_dst, lanes, esz);
   if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
   if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
-  if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+  if (simd_x86_subps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0) { return 0 - 1; }
   return 0;
 }
@@ -1536,6 +1976,22 @@ export function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, sl
   if (slot_off_dst < 0) { return 0 - 1; }
   if (esz != 4) { return 0 - 1; }
   if (lanes != 4) { return 0 - 1; }
+  /* slice9 NEON / 10.5.2 slice1 SVE: dest = a + b*c. Prefer SVE when feat 512. */
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+      let lc_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_c, 0, esz);
+      let ld_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+      return simd_arm64_sve_fma_f32x4_rbp(elf_ctx, la_s, lb_s, lc_s, ld_s, ta);
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, esz);
+    let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, esz);
+    let lc: i32 = simd_arm64_rbp_lea_off_128half(slot_off_c, 0, esz);
+    let ld: i32 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, esz);
+    return simd_arm64_fma_128_rbp(elf_ctx, la, lb, lc, ld, ta);
+  }
   if (ta != 0) { return 0 - 1; }
   if ((cpu_features & 1) == 0) { return 0 - 1; }
   let da: i32 = simd_rbp_disp32(slot_off_a, lanes, esz);
@@ -1612,6 +2068,76 @@ export function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
   if (simd_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_pshufd_xmm1_xmm0(elf_ctx, 85 as u8) != 0) { return 0 - 1; }
   return simd_x86_addps_xmm0_xmm1(elf_ctx);
+}
+
+/**
+ * Hardware f32x4 horizontal sum into xmm0/s0 lane0.
+ * x86: movups + pshufd/addps. aarch64: ld1 + faddp×2 → s0.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param slot_off i32 — Vec4f stack home (frame offset)
+ * @param ta i32 — 0=x86_64 · 1=aarch64
+ * @param cpu_features u32 — bit0 SSE · bit8 NEON · bit9 SVE
+ * @return i32 — 0 ok; -1 unavailable/error
+ * PLATFORM: LINUX|x86_64 SSE · LINUX|aarch64 NEON|SVE
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_hsum_f32x4_rbp(
+  elf_ctx: *u8, slot_off: i32, ta: i32, cpu_features: u32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (slot_off < 0) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off, 0, 4);
+      return simd_arm64_sve_hsum_f32x4_to_s0_rbp(elf_ctx, la_s, ta);
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off, 0, 4);
+    return simd_arm64_hsum_f32x4_to_s0_rbp(elf_ctx, la, ta);
+  }
+  if (ta != 0) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
+  let d: i32 = simd_rbp_disp32(slot_off, 4, 4);
+  if (simd_x86_movups_xmm0_from_rbp(elf_ctx, d) != 0) { return 0 - 1; }
+  return simd_enc_x86_horizontal_addps_xmm0(elf_ctx);
+}
+
+/**
+ * Hardware f32x4 dot product into xmm0/s0 lane0.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param slot_off_a i32 — first Vec4f stack home
+ * @param slot_off_b i32 — second Vec4f stack home
+ * @param ta i32 — 0=x86_64 · 1=aarch64
+ * @param cpu_features u32 — bit0 SSE · bit8 NEON · bit9 SVE
+ * @return i32 — 0 ok; -1 unavailable/error
+ * PLATFORM: LINUX|x86_64 SSE · LINUX|aarch64 NEON|SVE
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_dot_f32x4_rbp(
+  elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, ta: i32, cpu_features: u32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (slot_off_a < 0) { return 0 - 1; }
+  if (slot_off_b < 0) { return 0 - 1; }
+  if (ta == 1) {
+    if ((cpu_features & 512) != 0) {
+      let la_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
+      let lb_s: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, 4);
+      return simd_arm64_sve_dot_f32x4_to_s0_rbp(elf_ctx, la_s, lb_s, ta);
+    }
+    if ((cpu_features & 256) == 0) { return 0 - 1; }
+    let la: i32 = simd_arm64_rbp_lea_off_128half(slot_off_a, 0, 4);
+    let lb: i32 = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, 4);
+    return simd_arm64_dot_f32x4_to_s0_rbp(elf_ctx, la, lb, ta);
+  }
+  if (ta != 0) { return 0 - 1; }
+  if ((cpu_features & 1) == 0) { return 0 - 1; }
+  let da: i32 = simd_rbp_disp32(slot_off_a, 4, 4);
+  let db: i32 = simd_rbp_disp32(slot_off_b, 4, 4);
+  if (simd_x86_movups_xmm0_from_rbp(elf_ctx, da) != 0) { return 0 - 1; }
+  if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0) { return 0 - 1; }
+  if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+  return simd_enc_x86_horizontal_addps_xmm0(elf_ctx);
 }
 
 /** Exported function `simd_enc_x86_movss_xmm0_rbp_disp`.
@@ -1751,6 +2277,360 @@ export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i3
   unsafe { re8 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
   if (re8 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1275099139) != 0) { return 0 - 1; } // st1 v3
+  return 0;
+}
+
+/** Exported function `simd_arm64_fbinop_128_rbp`.
+ * NEON 128-bit lane-wise f32 binop: ld1 v0/v1, fadd|fmul|fsub, st1 v0.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for operand a 16B home (lane0 low-end)
+ * @param lea_b i32 — lea_rbp offset for operand b
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param binop i32 — 0=fadd 1=fmul 2=fsub
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 append/lea error
+ * PLATFORM: MACOS|ARM64 · LINUX aarch64 ELF emit.
+ */
+#[no_mangle]
+export function simd_arm64_fbinop_128_rbp(elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_dst: i32, binop: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re_a: i32 = 0;
+  unsafe { re_a = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re_a != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 {v0.4s}, [x0]
+  let re_b: i32 = 0;
+  unsafe { re_b = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re_b != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293441) != 0) { return 0 - 1; } // ld1 {v1.4s}, [x0]
+  if (binop == 0) {
+    if (simd_append_u32_le(elf_ctx, 1310839808) != 0) { return 0 - 1; } // fadd v0.4s, v0.4s, v1.4s
+  } else if (binop == 1) {
+    if (simd_append_u32_le(elf_ctx, 1847712768) != 0) { return 0 - 1; } // fmul v0.4s, v0.4s, v1.4s
+  } else {
+    if (simd_append_u32_le(elf_ctx, 1319228416) != 0) { return 0 - 1; } // fsub v0.4s, v0.4s, v1.4s
+  }
+  let re_d: i32 = 0;
+  unsafe { re_d = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re_d != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1275099136) != 0) { return 0 - 1; } // st1 {v0.4s}, [x0]
+  return 0;
+}
+
+/**
+ * SVE f32x4 lane binop with fixed VL4 predicate (exactly 4×f32 / 16B home).
+ * Sequence: ptrue p0.s,VL4; ld1w z0/z1; fadd|fmul|fsub; st1w z0.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param binop i32 — 0=fadd 1=fmul 2=fsub
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_fbinop_f32x4_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_dst: i32, binop: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 (exactly 4 active 32-bit lanes). */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z1.s}, p0/z, [x0] — 0xa540a001 */
+  if (simd_append_u32_le(elf_ctx, 2772475905) != 0) { return 0 - 1; }
+  if (binop == 0) {
+    /* fadd z0.s, p0/m, z0.s, z1.s — 0x65808020 */
+    if (simd_append_u32_le(elf_ctx, 1702920224) != 0) { return 0 - 1; }
+  } else if (binop == 1) {
+    /* fmul z0.s, p0/m, z0.s, z1.s — 0x65828020 */
+    if (simd_append_u32_le(elf_ctx, 1703051296) != 0) { return 0 - 1; }
+  } else {
+    /* fsub z0.s, p0/m, z0.s, z1.s — 0x65818020 */
+    if (simd_append_u32_le(elf_ctx, 1702985760) != 0) { return 0 - 1; }
+  }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* st1w {z0.s}, p0, [x0] — 0xe540e000 */
+  if (simd_append_u32_le(elf_ctx, 3846234112) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE i32x4 integer binop: ptrue VL4, ld1w×2, add|mul|sub, st1w.
+ * Encodings verified via llvm-mc -mattr=+sve (add/mul/sub z0.s,p0/m,z0.s,z1.s).
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param binop i32 — 0=add 1=mul 2=sub
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_ibinop_i32x4_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_dst: i32, binop: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z1.s}, p0/z, [x0] — 0xa540a001 */
+  if (simd_append_u32_le(elf_ctx, 2772475905) != 0) { return 0 - 1; }
+  if (binop == 0) {
+    /* add z0.s, p0/m, z0.s, z1.s — 0x04800020 */
+    if (simd_append_u32_le(elf_ctx, 75497504) != 0) { return 0 - 1; }
+  } else if (binop == 1) {
+    /* mul z0.s, p0/m, z0.s, z1.s — 0x04900020 */
+    if (simd_append_u32_le(elf_ctx, 76546080) != 0) { return 0 - 1; }
+  } else {
+    /* sub z0.s, p0/m, z0.s, z1.s — 0x04810020 */
+    if (simd_append_u32_le(elf_ctx, 75563040) != 0) { return 0 - 1; }
+  }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* st1w {z0.s}, p0, [x0] — 0xe540e000 */
+  if (simd_append_u32_le(elf_ctx, 3846234112) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE f32x4 fused multiply-add: dest = a + b*c (ptrue VL4, ld1w×3, fmla, st1w).
+ * Encodings verified via llvm-mc -mattr=+sve (fmla z0,p0/m,z1,z2 = 0x65a20020).
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param lea_c i32 — lea_rbp offset for c
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_fma_f32x4_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_c: i32, lea_dst: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z1.s}, p0/z, [x0] — 0xa540a001 */
+  if (simd_append_u32_le(elf_ctx, 2772475905) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_c, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z2.s}, p0/z, [x0] — 0xa540a002 */
+  if (simd_append_u32_le(elf_ctx, 2772475906) != 0) { return 0 - 1; }
+  /* fmla z0.s, p0/m, z1.s, z2.s — 0x65a20020 (z0 += z1*z2) */
+  if (simd_append_u32_le(elf_ctx, 1705115680) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* st1w {z0.s}, p0, [x0] — 0xe540e000 */
+  if (simd_append_u32_le(elf_ctx, 3846234112) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE f32x4 horizontal sum into s0: ptrue VL4, ld1w z0, faddv s0.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_v i32 — lea_rbp offset for Vec4f home
+ * @param ta i32 — must be 1
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_hsum_f32x4_to_s0_rbp(elf_ctx: *u8, lea_v: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_v, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  /* faddv s0, p0, z0.s — 0x65802000 */
+  if (simd_append_u32_le(elf_ctx, 1702895616) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * SVE f32x4 dot into s0: ptrue VL4, ld1w a/b, fmul, faddv.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param ta i32 — must be 1
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: LINUX|aarch64 SVE cross-emit gold · MACOS|ARM64 when SVE present.
+ */
+#[no_mangle]
+export function simd_arm64_sve_dot_f32x4_to_s0_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  /* ptrue p0.s, VL4 — 0x2598e080 */
+  if (simd_append_u32_le(elf_ctx, 630775936) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z0.s}, p0/z, [x0] — 0xa540a000 */
+  if (simd_append_u32_le(elf_ctx, 2772475904) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  /* ld1w {z1.s}, p0/z, [x0] — 0xa540a001 */
+  if (simd_append_u32_le(elf_ctx, 2772475905) != 0) { return 0 - 1; }
+  /* fmul z0.s, p0/m, z0.s, z1.s — 0x65828020 */
+  if (simd_append_u32_le(elf_ctx, 1703051296) != 0) { return 0 - 1; }
+  /* faddv s0, p0, z0.s — 0x65802000 */
+  if (simd_append_u32_le(elf_ctx, 1702895616) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * NEON f32x4 fma: dest = a + b*c (ld1 a/b/c, fmul v1*=v2, fadd v0+=v1, st1).
+ * Reuses proven fmul/fadd opcodes from simd_arm64_fbinop_128_rbp.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param lea_c i32 — lea_rbp offset for c
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: MACOS|ARM64 · LINUX aarch64 ELF emit.
+ */
+#[no_mangle]
+export function simd_arm64_fma_128_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_c: i32, lea_dst: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 {v0.4s}, [x0]
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293441) != 0) { return 0 - 1; } // ld1 {v1.4s}, [x0]
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_c, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293442) != 0) { return 0 - 1; } // ld1 {v2.4s}, [x0]
+  /* fmul v1.4s, v1.4s, v2.4s — 0x6E22DC21 */
+  if (simd_append_u32_le(elf_ctx, 1847778337) != 0) { return 0 - 1; }
+  /* fadd v0.4s, v0.4s, v1.4s — same as fbinop add */
+  if (simd_append_u32_le(elf_ctx, 1310839808) != 0) { return 0 - 1; }
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1275099136) != 0) { return 0 - 1; } // st1 {v0.4s}, [x0]
+  return 0;
+}
+
+/**
+ * NEON f32x4 horizontal sum into s0: ld1 v0; faddp v0.4s; faddp s0,v0.2s.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_v i32 — lea_rbp offset for Vec4f home
+ * @param ta i32 — must be 1
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: MACOS|ARM64 · LINUX aarch64 ELF emit.
+ */
+#[no_mangle]
+export function simd_arm64_hsum_f32x4_to_s0_rbp(elf_ctx: *u8, lea_v: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_v, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 {v0.4s}, [x0]
+  /* faddp v0.4s, v0.4s, v0.4s — 0x6E20D400 */
+  if (simd_append_u32_le(elf_ctx, 1847596032) != 0) { return 0 - 1; }
+  /* faddp s0, v0.2s — 0x7E30D800 */
+  if (simd_append_u32_le(elf_ctx, 2117146624) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * NEON f32x4 dot into s0: ld1 a/b; fmul; faddp×2.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for a
+ * @param lea_b i32 — lea_rbp offset for b
+ * @param ta i32 — must be 1
+ * @return i32 — 0 ok, -1 error
+ * PLATFORM: MACOS|ARM64 · LINUX aarch64 ELF emit.
+ */
+#[no_mangle]
+export function simd_arm64_dot_f32x4_to_s0_rbp(
+  elf_ctx: *u8, lea_a: i32, lea_b: i32, ta: i32
+): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re: i32 = 0;
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 {v0.4s}, [x0]
+  unsafe { re = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293441) != 0) { return 0 - 1; } // ld1 {v1.4s}, [x0]
+  if (simd_append_u32_le(elf_ctx, 1847712768) != 0) { return 0 - 1; } // fmul v0.4s, v0.4s, v1.4s
+  if (simd_append_u32_le(elf_ctx, 1847596032) != 0) { return 0 - 1; } // faddp v0.4s, v0.4s, v0.4s
+  if (simd_append_u32_le(elf_ctx, 2117146624) != 0) { return 0 - 1; } // faddp s0, v0.2s
+  return 0;
+}
+
+/** Exported function `simd_arm64_ibinop_128_rbp`.
+ * NEON 128-bit lane-wise i32 binop: ld1 v0/v1, add|mul|sub, st1 v0.
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param lea_a i32 — lea_rbp offset for operand a 16B home (lane0 low-end)
+ * @param lea_b i32 — lea_rbp offset for operand b
+ * @param lea_dst i32 — lea_rbp offset for dest
+ * @param binop i32 — 0=add 1=mul 2=sub
+ * @param ta i32 — must be 1 (aarch64)
+ * @return i32 — 0 ok, -1 append/lea error
+ * PLATFORM: MACOS|ARM64 · LINUX aarch64 ELF emit.
+ */
+#[no_mangle]
+export function simd_arm64_ibinop_128_rbp(elf_ctx: *u8, lea_a: i32, lea_b: i32, lea_dst: i32, binop: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ta != 1) { return 0 - 1; }
+  let re_a: i32 = 0;
+  unsafe { re_a = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re_a != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 {v0.4s}, [x0]
+  let re_b: i32 = 0;
+  unsafe { re_b = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re_b != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1279293441) != 0) { return 0 - 1; } // ld1 {v1.4s}, [x0]
+  if (binop == 0) {
+    if (simd_append_u32_le(elf_ctx, 1319207936) != 0) { return 0 - 1; } // add v0.4s, v0.4s, v1.4s
+  } else if (binop == 1) {
+    if (simd_append_u32_le(elf_ctx, 1319214080) != 0) { return 0 - 1; } // mul v0.4s, v0.4s, v1.4s
+  } else {
+    if (simd_append_u32_le(elf_ctx, 1856078848) != 0) { return 0 - 1; } // sub v0.4s, v0.4s, v1.4s
+  }
+  let re_d: i32 = 0;
+  unsafe { re_d = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re_d != 0) { return 0 - 1; }
+  if (simd_append_u32_le(elf_ctx, 1275099136) != 0) { return 0 - 1; } // st1 {v0.4s}, [x0]
   return 0;
 }
 

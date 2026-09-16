@@ -1,7 +1,7 @@
 # STD-138：Windows/macOS 深度边界向量 v1
 
-> 状态：**定版（v1）**  
-> 关联：`NEXT.md` P2、`ENG-003` CI 矩阵
+> 状态：**定版（honesty residual leftover wrap）** · Gate honesty 2026-08-26 · leftover wrap 2026-08-29  
+> 关联：`ENG-003` CI 矩阵 · live roadmap = `analysis/自举进度.md`（勿复活顶层 DOC）
 
 ---
 
@@ -22,14 +22,28 @@
 
 | kind | 验收 |
 |------|------|
-| smoke | 当前平台 policy=must 时 typeck + 运行 |
+| smoke | 当前平台 policy=must 时 **check 观测** + **runnable exit0 硬失败** |
 | gate | 脚本存在 |
 | matrix | TSV 存在且 ≥ min_rows |
 
 ---
 
-## 3. 门禁
+## 3. Gate
 
 `./tests/run-std-xplat-deep-boundary-gate.sh`
 
-报告：`xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]`
+**Honesty（2026-08-28 soft fallthrough residual）**：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c remap 假绿）
+- 显式坏 `XLANG`／缺 native → **硬 die**（禁 soft fallthrough／prefer-c／soft auto-make／soft SKIP→OK）
+- `xlang check` **观测**（check 闸门暂停 2026-08-05；CHK 红不硬失败）
+- must-policy `.x` **exit0 硬失败**（`run+=`）；optional fail＝`obs+=`
+- 报告：`run=`／`obs=`／`skip=`
+- 产品面 asm 本绿；旧闸 prefer `xlang-c`／硬 typeck／无 native soft SKIP／显式坏仍回落＝portable 假红
+- leftover wrap：leftover `bootstrap-link-xlang.sh` + lib `RUN_XLANG` remap **retired**（产品 `"$xlang" -L . src -o`）。Keep `## 3. Gate`。
+
+报告前缀：`xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]`
+
+**Honesty (2026-08-29 leftover wrap)**：G.7 补全既有 `xplat_deep_run_smoke`；拒 leftover wrap／`RUN_XLANG` remap。
+
+**STD-138 状态：定版（honesty residual leftover wrap）**

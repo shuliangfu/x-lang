@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# std-codec-buffer-reuse.sh — STD-139 manifest 与烟测辅助
+# std-codec-buffer-reuse.sh — STD-139 manifest helpers (codec↔bytes buffer reuse).
+#
+# Usage (after source):
+#   std_codec_buffer_reuse_symbols_ok CODEC_X BYTES_X TSV
+#   std_codec_buffer_reuse_run_smoke XLANG SRC
+#   std_codec_buffer_reuse_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
 
 STD_CODEC_BR_PREFIX="${XLANG_STD139_CODEC_BUFFER_REUSE_PREFIX:-xlang: [XLANG_STD139_CODEC_BUFFER_REUSE]}"
 
-# 遍历 manifest 校验 api/file/smoke 锚点。
+# Validate manifest api/file/smoke/script anchors across codec + bytes mods.
+# Echo miss count; return 0 when miss=0.
 std_codec_buffer_reuse_symbols_ok() {
   local codec_x="$1"
   local bytes_x="$2"
@@ -36,7 +43,8 @@ std_codec_buffer_reuse_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 buffer_reuse 烟测（F-04 v7+：codec→gzip 经 .x + 按需 -lz）。
+# Compile and run buffer_reuse smoke (F-04 v7+: codec→gzip via .x + -lz).
+# Tip product UNDEF for std_codec_* is gate-obs (not this helper's soft OK).
 std_codec_buffer_reuse_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -59,9 +67,11 @@ std_codec_buffer_reuse_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check / tip UNDEF = obs).
 std_codec_buffer_reuse_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD_CODEC_BR_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CODEC_BR_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

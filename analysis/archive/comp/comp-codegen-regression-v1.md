@@ -1,7 +1,7 @@
 # COMP-003 codegen 稳定性回归 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-27  
+> 状态：**定版（v1）** · honesty soft→硬绿  
 > 关联：`PERF-004`（compile dogfood）、`run-asm-73-gate.sh`
 
 ---
@@ -36,8 +36,8 @@
 
 | case | 覆盖 |
 |------|------|
-| loop_i32 / mem_copy | 标量 + 内存 |
-| struct_param / call_boundary | ABI / 调用 |
+| loop_i32 / mem_copy | 标量 + 内存（live `bench/r01_loop_i32.x` / `m03_mem_copy.x`） |
+| struct_param / call_boundary | ABI / 调用（live `r10_struct_param.x` / `a01_call_boundary.x`） |
 | float_f64 | 浮点 |
 | match_expr / slice_view | 控制流 / slice |
 | enum_suite | 枚举（hook） |
@@ -45,26 +45,17 @@
 
 ---
 
-## 4. 门禁
+## Gate
 
-`tests/run-codegen-regression-gate.sh`：
+`tests/run-codegen-regression-gate.sh`（honesty 2026-08-27）：
 
-1. manifest：RFC + matrix  
-2. `policy=run`：`-o` 编译并运行，校验 `expected_exit`  
-3. `policy=hook`：调用已有 run-*.sh  
-4. 无 native xlang → manifest + SKIP bench（与 portable gate 一致）
+1. manifest：archive DOC（`## Gate`）+ matrix；拒顶层 DOC／化石 `bench/loop_i32.x` 等复活  
+2. prefer product `xlang_asm`；pin `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native **硬 die**（拒 soft SKIP→OK／prefer-c）  
+3. `policy=run`：`-o` 编译并运行，校验 `expected_exit`（硬）  
+4. `policy=hook`：调用已有 `run-*.sh`；产品残＝obs（非静默 OK）  
+5. 报告 `run=`／`hook=`／`obs=`／`skip=`；arch 不匹配＝`skip=`（非 bare exit0）
 
----
-
-## 5. 变更流程
-
-1. 新增 codegen 特性 → 增 matrix 行 + 烟测 `.x`  
-2. 改 asm 后端 → 确保 asm_compute hook 仍绿（Linux x86_64 CI）  
-3. 本地：`XLANG=./compiler/xlang-c ./tests/run-codegen-regression-gate.sh`
-
----
-
-## 6. 索引
+变更流程：增 matrix 行 + 烟测 `.x`；改 asm 后端确保 asm_compute hook；本地 `XLANG=./compiler/xlang_asm ./tests/run-codegen-regression-gate.sh`。
 
 | 资源 | 路径 |
 |------|------|
@@ -73,4 +64,4 @@
 | asm 深测 | `tests/run-asm-73-gate.sh` |
 | 编译耗时 | `tests/run-perf-compile-dogfood-gate.sh` |
 
-**COMP-003 状态：定版 ✅**
+**COMP-003 状态：定版 ✅ · soft SKIP→OK 池空**

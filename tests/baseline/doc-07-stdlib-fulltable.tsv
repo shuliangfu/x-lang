@@ -64,5 +64,5 @@ anchor_cookbook	anchor	run-doc-cookbook-expand-gate	docs07	DOC-006
 anchor_next	anchor	NEXT.md	both	Phase 2
 readme_file	file	std/README.md	std/README.md	权威状态
 doc07_file	file	docs/07-内置与标准库.md	docs/07-内置与标准库.md	用户文档
-doc	file	doc-07-stdlib-fulltable-v1.md	analysis/doc-07-stdlib-fulltable-v1.md	RFC
+doc	file	doc-07-stdlib-fulltable-v1.md	analysis/archive/doc/doc-07-stdlib-fulltable-v1.md	RFC
 gate	script	run-doc-07-stdlib-fulltable-gate.sh	tests/run-doc-07-stdlib-fulltable-gate.sh	manifest

@@ -12,8 +12,8 @@ export function runtime_sync_os_x_doc_anchor(): i32 {
 }
 
 /* extern bridge declarations — OS-specific _impl functions in runtime_sync_os.from_x.c.
- * PLATFORM: SHARED — Windows uses CRITICAL_SECTION/SRWLOCK/CONDITION_VARIABLE;
- *           POSIX uses pthread_mutex_t/pthread_rwlock_t/pthread_cond_t. */
+ * PLATFORM: SHARED — Cap sync (Linux futex / Darwin pthread / Windows Win32 via xlang_sync_cap);
+ * cond smoke Cap spawn. Other POSIX: pthread mutex/rwlock/cond. */
 
 export extern "C" function sync_mutex_new_impl(): *u8;
 export extern "C" function sync_mutex_lock_impl(m: *u8): i32;

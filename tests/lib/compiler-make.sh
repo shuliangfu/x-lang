@@ -96,6 +96,13 @@ _xlang_cm_dispatch_one() {
       bash scripts/bootstrap_driver_seed.sh
       return $?
       ;;
+    bootstrap-driver-hybrid|bootstrap-driver-asm)
+      # wave872 shell body. Missing this arm made `bash compiler-make.sh
+      # bootstrap-driver-hybrid` fall through to try-heat of the phony name
+      # (Windows catalog parse hang). PLATFORM: SHARED
+      bash scripts/bootstrap_driver_hybrid.sh
+      return $?
+      ;;
     bootstrap-driver-bstrict)
       bash scripts/bootstrap_driver_bstrict.sh
       return $?
@@ -153,7 +160,15 @@ _xlang_cm_dispatch_one() {
       ;;
     clean)
       # Soft product clean — do not wipe seed pins; only common products.
+      # Full wipe (historic `make clean` under compiler/) → scripts/clean_compiler.sh
+      # or `./xbuild clean`. PLATFORM: SHARED
       rm -f xlang xlang_asm xlang-c bootstrap_xlangc 2>/dev/null || true
+      return 0
+      ;;
+    # F-04 v7: compress formats live in .x; historic compress-o-* phonies are
+    # no-ops (runtime links -lz/-lzstd/-lbrotli* on demand). G.7 single hub.
+    # PLATFORM: SHARED
+    compress-o-zlib|compress-o-zlib-zstd|compress-o-brotli|compress-o-zlib-zstd-brotli)
       return 0
       ;;
     # --- leaf .o / path-like targets ---
@@ -161,10 +176,14 @@ _xlang_cm_dispatch_one() {
       _xlang_cm_ensure_one_o "$t"
       return $?
       ;;
-    # net-o-* archaeology phony
-    net-o-stub|net-o-openssl|net-o-mbedtls)
+    # net-o-* / sqlite-o-stub archaeology phonies (G.7 → archaeology_host_pick_phony)
+    net-o-stub|net-o-openssl|net-o-mbedtls|sqlite-o-stub)
       if [ -f scripts/archaeology_host_pick_phony.sh ]; then
         bash scripts/archaeology_host_pick_phony.sh "$t"
+        return $?
+      fi
+      if [ "$t" = "sqlite-o-stub" ]; then
+        _xlang_cm_ensure_one_o ../std/db/sqlite/sqlite.o
         return $?
       fi
       _xlang_cm_ensure_one_o ../std/net/net.o
@@ -239,8 +258,12 @@ xlang_compiler_make() {
     cd "$_cm_dir" || exit 1
     for _a in "${_cm_args[@]}"; do
       _had_target=1
-      if ! _xlang_cm_dispatch_one "$_a"; then
-        _rc=$?
+      # Capture rc before `if`. `if ! cmd; then rc=$?` is always 0 because
+      # the `if` test succeeded — that swallowed bootstrap-driver-seed FAIL
+      # (Windows min-gate then started hybrid and hung). PLATFORM: SHARED
+      _xlang_cm_dispatch_one "$_a"
+      _rc=$?
+      if [ "$_rc" -ne 0 ]; then
         # Match make: continue on later targets only if -k was requested.
         # Default: stop on first failure.
         exit "$_rc"

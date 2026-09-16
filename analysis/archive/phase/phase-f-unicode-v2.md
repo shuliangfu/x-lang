@@ -10,13 +10,16 @@
 | `unicode.o` | `ld -r` glue + x | **纯 xlang → unicode.o** |
 | 依赖 | libc ctype.h/string.h | 内联 ASCII 查表 + `extern memcpy` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_UNICODE_V2_FAIL` retired. STD-037 nfc／STD-114 grapheme-case product residual observational.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-unicode-v2：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／observational nfc／grapheme 不重写）。
 
 ```bash
-XLANG_F_UNICODE_V2_FAIL=1 ./tests/run-f-unicode-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-unicode-v2-gate.sh
 ./tests/run-std-unicode-nfc-gate.sh
 ./tests/run-std-unicode-grapheme-case-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

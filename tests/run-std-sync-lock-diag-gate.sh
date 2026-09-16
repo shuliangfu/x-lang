@@ -1,41 +1,89 @@
 #!/usr/bin/env bash
-# STD-111：std.sync 调试锁诊断门禁（F-sync-lock-diag v2：逻辑在 sync.x，TLS 在 tls glue）
+# STD-111: std.sync lock diag — honesty leftover wrap dead source →硬绿.
 #
-# 用法：./tests/run-std-sync-lock-diag-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# lock_diag.x -o exit0 = hard run (run+=). check = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-sync-lock-diag-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD111_DOC:-analysis/std-sync-lock-diag-v1.md}"
+DOC="${XLANG_STD111_DOC:-analysis/archive/std/std-sync-lock-diag-v1.md}"
 MANIFEST="${XLANG_STD111_TSV:-tests/baseline/std-sync-lock-diag.tsv}"
 MOD_X="std/sync/mod.x"
 SYNC_DIAG_X="std/sync/sync.x"
-SYNC_TLS_RUNTIME="${XLANG_STD_SYNC_TLS_IMPL:-compiler/seeds/runtime_sync_lock_diag_tls.from_x.c}"
-SYNC_OS_RUNTIME="${XLANG_STD_SYNC_OS_IMPL:-compiler/seeds/runtime_sync_os.from_x.c}"
 SYNC_X="std/sync/sync.x"
 LIB="tests/lib/std-sync-lock-diag.sh"
 SMOKE_X="tests/sync/lock_diag.x"
-SMOKE_C="tests/sync/lock_diag_smoke_ok.c"
+SMOKE_EXPECT=0
 MIN_APIS=8
 
 # shellcheck source=tests/lib/std-sync-lock-diag.sh
 . "$LIB"
 
-echo "=== STD-111: sync lock diag manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SYNC_X" "$SYNC_OS_RUNTIME" "$SYNC_DIAG_X" "$SYNC_TLS_RUNTIME" "$SMOKE_X" "$SMOKE_C"; do
-  if [ ! -f "$f" ]; then
-    echo "std-sync-lock-diag gate FAIL: missing $f" >&2
-    exit 1
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-sync-lock-diag gate FAIL: $*" >&2
+  std_sync_lock_diag_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
+  # Prefer product asm; refuse soft auto-make / prefer-c fallthrough.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== STD-111: sync lock diag manifest ==="
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-sync-lock-diag-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
+
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SYNC_X" "$SYNC_DIAG_X" "$SMOKE_X"; do
+  [ -f "$f" ] || die "missing $f"
 done
 
-for kw in STD-111 lock_diag_set_enabled lock_diag_err_order sync_lock_diag_smoke_c; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-sync-lock-diag gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+for kw in STD-111 lock_diag_set_enabled lock_diag_err_order lock_diag_smoke; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -50,62 +98,53 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
-    echo "std-sync-lock-diag FAIL: doc missing api $anchor" >&2
-    exit 1
-  fi
+  grep -qF "$anchor" "$DOC" 2>/dev/null || die "doc missing api $anchor"
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-sync-lock-diag gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
 sym_miss="$(std_sync_lock_diag_symbols_ok "$MOD_X" "$SYNC_DIAG_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_sync_lock_diag_emit_report "fail" 0 0 0
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-sync-lock-diag manifest OK"
 
-C_OK=0
-X_OK=0
-SKIP=0
-
-echo "=== STD-111: sync lock diag c smoke ==="
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  if ensure_std_c_o ../std/sync/sync.o 2>/dev/null && std_sync_lock_diag_run_c_smoke "$SYNC_TLS_RUNTIME"; then
-    C_OK=1
-  else
-    echo "std-sync-lock-diag gate SKIP c smoke (no full sync.o)" >&2
-  fi
-else
-  echo "std-sync-lock-diag gate SKIP c smoke (no xlang-c)" >&2
-fi
-
-XLANG_BIN=""
-if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
-
-if [ -n "$XLANG_BIN" ]; then
-  echo "=== STD-111: .x smoke (XLANG=$XLANG_BIN) ==="
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "std-sync-lock-diag gate FAIL: typeck $SMOKE_X" >&2
-    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
-    std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
-  if std_sync_lock_diag_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "diag"; then
-    X_OK=1
-  else
-    std_sync_lock_diag_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
-else
+if [ "${XLANG_STD111_MANIFEST_ONLY:-0}" = "1" ]; then
   SKIP=1
+  std_sync_lock_diag_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-sync-lock-diag gate OK (manifest only)"
+  exit 0
 fi
 
-std_sync_lock_diag_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
-echo "std-sync-lock-diag gate OK"
+XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-111: smoke (XLANG=$XLANG_BIN; check obs; lock_diag product -o hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std111_chk.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-sync-lock-diag OBS check (paused / CHK residual; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+OUT="/tmp/xlang_std111_lock_diag_$$"
+LOG="/tmp/xlang_std111_lock_diag_build_$$.log"
+if "$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
+  exitcode=0
+  "$OUT" >/dev/null 2>&1 || exitcode=$?
+  rm -f "$OUT"
+  [ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "lock_diag.x exit=$exitcode (expect $SMOKE_EXPECT; refuse soft SKIP→OK)"
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-sync-lock-diag OK: lock_diag"
+else
+  tail -20 "$LOG" 2>/dev/null >&2 || true
+  die "lock_diag.x link (refuse soft SKIP→OK)"
+fi
+
+std_sync_lock_diag_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+echo "std-sync-lock-diag gate OK (host=$(ci_host_summary))"

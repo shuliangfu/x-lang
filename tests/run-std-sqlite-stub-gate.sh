@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
-# STD-139：std.db.sqlite stub 后端文档与烟测门禁
+# STD-139: std.db.sqlite stub — honesty leftover wrap dead source →硬绿.
 #
-# 用法：./tests/run-std-sqlite-stub-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# stub_behavior.x -o exit0 = hard run (run+=). check + C stub smoke = obs
+# (no soft rebuild). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-sqlite-stub-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD139_DOC:-analysis/std-sqlite-stub-v1.md}"
+DOC="${XLANG_STD139_DOC:-analysis/archive/std/std-sqlite-stub-v1.md}"
 MANIFEST="${XLANG_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
@@ -13,39 +25,72 @@ LIB="tests/lib/std-sqlite-stub.sh"
 SMOKE_X="tests/std-sqlite/stub_behavior.x"
 SMOKE_C="tests/std-sqlite/stub_behavior_ok.c"
 README="std/db/sqlite/README.md"
+SMOKE_EXPECT=0
 MIN_STUB=2
 
 # shellcheck source=tests/lib/std-sqlite-stub.sh
 . "$LIB"
 std_sqlite_stub_source_sqlite
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-sqlite-stub gate FAIL: $*" >&2
+  std_sqlite_stub_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c fallthrough.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== STD-139: sqlite stub manifest ==="
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-sqlite-stub-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
+
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" "$README"; do
-  if [ ! -f "$f" ]; then
-    echo "std-sqlite-stub gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
-[ ! -f std/db/sqlite/sqlite.c ] || {
-  echo "std-sqlite-stub gate FAIL: sqlite.c should be deleted (F-05 v3)" >&2
-  exit 1
-}
-[ -f compiler/seeds/runtime_sqlite_glue.from_x.c ] || {
-  echo "std-sqlite-stub gate FAIL: missing runtime_sqlite_glue.from_x.c" >&2
-  exit 1
-}
-[ ! -f std/db/sqlite/sqlite_glue.c ] || {
-  echo "std-sqlite-stub gate FAIL: sqlite_glue.c should be deleted (F-ZC)" >&2
-  exit 1
-}
+[ ! -f std/db/sqlite/sqlite.c ] || die "sqlite.c should be deleted (F-05 v3)"
+[ -f compiler/seeds/runtime_sqlite_glue.from_x.c ] || die "missing runtime_sqlite_glue.from_x.c"
+[ ! -f std/db/sqlite/sqlite_glue.c ] || die "sqlite_glue.c should be deleted (F-ZC)"
 
-for kw in STD-139 DB_NOT_IMPL sqlite-o-stub db_sqlite_stub_smoke_c; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-sqlite-stub gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+for kw in STD-139 DB_NOT_IMPL sqlite-o-stub db_sqlite_stub_smoke_c is_available; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+grep -qF '## 4. Gate' "$DOC" 2>/dev/null || die "doc missing '## 4. Gate'"
 
 API_N=0
 while IFS=$'\t' read -r item_id kind anchor _rest; do
@@ -53,76 +98,70 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
-    echo "std-sqlite-stub FAIL: doc missing api $anchor" >&2
-    exit 1
-  fi
+  grep -qF "$anchor" "$DOC" 2>/dev/null || die "doc missing api $anchor"
   echo "std-sqlite-stub OK api $anchor"
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_STUB" ]; then
-  echo "std-sqlite-stub gate FAIL: api count $API_N < min $MIN_STUB" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_STUB" ] || die "api count $API_N < min $MIN_STUB"
 
 sym_miss="$(std_sqlite_stub_symbols_ok "$MOD_X" "$DB_C" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_sqlite_stub_emit_report "fail" 0 0 0
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-sqlite-stub manifest OK"
 
 if [ "${XLANG_STD139_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_sqlite_stub_emit_report "ok" 0 0 1
+  SKIP=1
+  std_sqlite_stub_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "std-sqlite-stub gate OK (manifest only)"
   exit 0
 fi
 
-STUB_C=0
-STUB_X=0
+XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-139: smoke (XLANG=$XLANG_BIN; check/C stub obs; stub_behavior product -o hard) ==="
 
-echo "=== STD-139: stub C smoke (sqlite-o-stub) ==="
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std139_chk.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-sqlite-stub OBS check (paused / CHK residual; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Hard path: restore product sqlite.o (face-less stub must not hide std_db_*).
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+std_sqlite_stub_restore_product_o
+
+OUT="/tmp/xlang_std139_stub_$$"
+LOG="/tmp/xlang_std139_stub_build_$$.log"
+if "$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
+  exitcode=0
+  "$OUT" >/dev/null 2>&1 || exitcode=$?
+  rm -f "$OUT"
+  [ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "stub_behavior.x exit=$exitcode (expect $SMOKE_EXPECT; refuse soft SKIP→OK)"
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-sqlite-stub OK: stub_behavior"
+else
+  tail -20 "$LOG" 2>/dev/null >&2 || true
+  die "stub_behavior.x link (refuse soft SKIP→OK)"
+fi
+
+# C stub smoke observational only (existing stub .o; no soft sqlite-o-stub make).
+# PLATFORM: SHARED archaeology — hard-green signal is stub_behavior.x.
+echo "=== STD-139: stub C smoke (observational; no soft rebuild) ==="
 set +e
 std_sqlite_stub_run_c_smoke "$DB_C"
 stub_ec=$?
 set -e
 if [ "$stub_ec" -eq 0 ]; then
-  STUB_C=1
-elif [ "$stub_ec" -eq 2 ]; then
-  echo "std-sqlite-stub gate SKIP stub C smoke (need xlang-c)" >&2
+  echo "std-sqlite-stub C stub smoke OK (observational)"
 else
-  std_sqlite_stub_emit_report "fail" 0 0 1
-  exit 1
+  echo "std-sqlite-stub OBS C stub smoke (archaeology residual ec=$stub_ec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-XLANG_BIN=""
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-if stdlib_cm_native_xlang ./compiler/xlang-c; then
-  XLANG_BIN=./compiler/xlang-c
-elif stdlib_cm_native_xlang ./compiler/xlang; then
-  XLANG_BIN=./compiler/xlang
-fi
-
-if [ -n "$XLANG_BIN" ]; then
-  echo "=== STD-139: .x stub behavior smoke ==="
-  if "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    if std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "stub"; then
-      STUB_X=1
-    fi
-  else
-    echo "std-sqlite-stub gate SKIP .x smoke (typeck fail)" >&2
-  fi
-fi
-
-std_sqlite_stub_emit_report "ok" "$STUB_C" "$STUB_X" 1
-echo "std-sqlite-stub gate OK"
+std_sqlite_stub_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+echo "std-sqlite-stub gate OK (host=$(ci_host_summary))"

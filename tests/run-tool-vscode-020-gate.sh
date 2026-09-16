@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# TOOL-009：VS Code 扩展 0.2 稳定发布 manifest + grammar + vsix 门禁
+# TOOL-009：VS Code 扩展 0.2 稳定发布 manifest + grammar + vsix 门禁（假权威诚实）。
 #
 # 用法：./tests/run-tool-vscode-020-gate.sh
+# wave honesty (2026-08-24 #9): DOC → analysis/archive/tool/;
+# live = editors/vscode + VERSION sync.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_TOOL009_DOC:-analysis/tool-vscode-020-v1.md}"
+DOC="${XLANG_TOOL009_DOC:-analysis/archive/tool/tool-vscode-020-v1.md}"
 MANIFEST="${XLANG_TOOL009_MANIFEST:-tests/baseline/tool-vscode-020.tsv}"
 LIB="tests/lib/tool-vscode-020.sh"
 MIN_RULES=8
@@ -16,10 +19,15 @@ MIN_GOLDEN=5
 # shellcheck source=tests/lib/eng-version-release-rhythm.sh
 . tests/lib/eng-version-release-rhythm.sh
 
-echo "=== TOOL-009: vscode 0.2 manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" \
+echo "=== TOOL-009: vscode 0.2 manifest (archive DOC) ==="
+if [ -f analysis/tool-vscode-020-v1.md ]; then
+  echo "tool-vscode-020 gate FAIL: top-level DOC resurrected (live = archive/tool/)" >&2
+  exit 1
+fi
+# PLATFORM: SHARED — VERSION + package.json must stay 0.2.0-synced (TOOL-009).
+for f in "$DOC" "$MANIFEST" "$LIB" VERSION \
   editors/vscode/package.json editors/vscode/grammars/x.tmLanguage.json \
-  VERSION tests/run-tool-vscode-pack.sh; do
+  tests/run-tool-vscode-pack.sh; do
   if [ ! -f "$f" ]; then
     echo "tool-vscode-020 gate FAIL: missing $f" >&2
     exit 1
@@ -47,12 +55,13 @@ if ! tool_vscode_020_grammar_json_ok; then
 fi
 echo "tool-vscode-020 OK grammar JSON"
 
+# Hard gate: root VERSION == package.json == EXPECTED_VER (0.2.0).
 if ! tool_vscode_020_version_sync_ok; then
-  echo "tool-vscode-020 gate FAIL: VERSION/package.json not 0.2.0" >&2
+  echo "tool-vscode-020 gate FAIL: VERSION/package not synced to ${EXPECTED_VER:-0.2.0}" >&2
   exit 1
 fi
 if ! eng_version_vscode_sync_ok "VERSION" "editors/vscode/package.json"; then
-  echo "tool-vscode-020 gate FAIL: ENG-005 version drift" >&2
+  echo "tool-vscode-020 gate FAIL: eng VERSION/vscode package mismatch" >&2
   exit 1
 fi
 echo "tool-vscode-020 OK version sync (0.2.0)"
@@ -119,30 +128,27 @@ fi
 echo "tool-vscode-020 manifest OK (rules=${RULE_N} golden=${GOLDEN_N})"
 
 VSIX_OK=0
-SKIP=1
+SKIP=0
 EXPECTED_VER="${XLANG_TOOL009_VERSION:-0.2.0}"
 VSIX="editors/vscode/vscode-xlang-${EXPECTED_VER}.vsix"
 
+# PLATFORM: SHARED — with node/npm, vsix pack is hard; without node, SKIP pack only.
 if tool_vscode_020_has_node; then
   echo "=== TOOL-009: vsix pack smoke ==="
   chmod +x tests/run-tool-vscode-pack.sh
-  if ./tests/run-tool-vscode-pack.sh; then
-    if [ -f "$VSIX" ]; then
-      VSIX_OK=1
-      echo "tool-vscode-020 runnable OK vsix"
-    else
-      echo "tool-vscode-020 gate FAIL: vsix missing after pack" >&2
-      tool_vscode_020_emit_report "fail" "$GRAMMAR_OK" 0 0
-      exit 1
-    fi
-  else
-    tool_vscode_020_emit_report "fail" "$GRAMMAR_OK" 0 0
+  if ! ./tests/run-tool-vscode-pack.sh; then
+    echo "tool-vscode-020 gate FAIL: vsix pack failed" >&2
     exit 1
   fi
-  SKIP=0
+  if [ ! -f "$VSIX" ]; then
+    echo "tool-vscode-020 gate FAIL: vsix missing after pack ($VSIX)" >&2
+    exit 1
+  fi
+  VSIX_OK=1
+  echo "tool-vscode-020 runnable OK vsix"
 else
+  SKIP=1
   echo "tool-vscode-020 gate SKIP vsix pack (no node/npm)" >&2
-  # 已有预构建 vsix 则计为 ok=0 skip=1
 fi
 
 tool_vscode_020_emit_report "ok" "$GRAMMAR_OK" "$VSIX_OK" "$SKIP"

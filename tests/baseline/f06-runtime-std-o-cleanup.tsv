@@ -1,0 +1,17 @@
+# F-06: runtime / bootstrap cleanup of retired std C .o refs (io/fs/heap/compress)
+# cols: item_id	kind	anchor	mod_path	notes
+absent_monofile	absent	compiler/seeds/runtime.from_x.c		live face = runtime_link_abi
+absent_makefile	absent	compiler/Makefile		use ./xbuild
+link_abi_live	script	compiler/seeds/runtime_link_abi.from_x.c		live link face
+link_abi_f06_marker	symbol	F-06 v1	compiler/seeds/runtime_link_abi.from_x.c	marker
+link_abi_zlib_scan	symbol	link_abi_generated_c_needs_zlib	compiler/seeds/runtime_link_abi.from_x.c	ondemand libs
+link_abi_compress_path	symbol	xlang_std_compress_o_path	compiler/seeds/runtime_link_abi.from_x.c	empty path API
+build_asm	script	compiler/scripts/build_xlang_asm.sh		bootstrap
+build_asm_f06_marker	symbol	F-06 v1	compiler/scripts/build_xlang_asm.sh	marker
+relink_exp	script	compiler/scripts/relink_xlang_asm_experimental_bootstrap.sh		bootstrap
+relink_glue	script	compiler/scripts/relink_xlang_asm_strict_glue.sh		bootstrap
+stage2	script	compiler/verify-selfhost-stage2.sh		no legacy fs/io/heap .o
+boot_contract	script	tests/baseline/boot-std-link-contract.tsv		compress std_x
+doc_v1	script	analysis/archive/phase/phase-f-f06-v1.md		archive DOC
+doc_v2	script	analysis/archive/phase/phase-f-f06-v2.md		archive DOC
+gate_self	script	tests/run-f06-runtime-std-o-cleanup-gate.sh		self

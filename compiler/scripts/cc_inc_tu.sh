@@ -28,12 +28,63 @@ cd "$(dirname "$0")/.."
 #            authoritative for all other callers (72+ call sites unchanged).
 # PLATFORM: SHARED.
 cc_inc_tu_seed_for_out() {
+  # 7.2.1 knives (2026-09-10): leaves with .x authorities regenerate via
+  # the product -x -E; the emitted main signature is fixed to char**
+  # (C main requirement — .x has no char type). Falls back to the seed when
+  # no product binary exists. Prints nothing on fallback so --auto proceeds
+  # to the seed table below.
+  case "$(basename "$1")" in
+  build_tool_main.o|crt0_mingw.o|pipeline_glue_link.o|pipeline_wpo_typecheck_emit_bridge.o|typeck_lsp_io_stub.o|pipeline_wpo_strict_link_alias.o|driver_compile_asm_link_alias.o|pipeline_asm_run_all_alias.o|pipeline_run_x_link_alias.o|pipeline_asm_typecheck_alias.o)
+    local _btm_prod=""
+    for _b in ./xlang_asm ./xlang ./xlang-c; do
+      [ -x "$_b" ] && _btm_prod="$_b" && break
+    done
+    _btm_src=src/build_tool_main.x
+    [ "$(basename "$1")" = "crt0_mingw.o" ] && _btm_src=src/crt0_mingw.x
+    [ "$(basename "$1")" = "pipeline_glue_link.o" ] && _btm_src=src/pipeline_glue_link.x
+    [ "$(basename "$1")" = "pipeline_wpo_typecheck_emit_bridge.o" ] && _btm_src=src/pipeline_wpo_typecheck_emit_bridge.x
+    [ "$(basename "$1")" = "typeck_lsp_io_stub.o" ] && _btm_src=src/typeck_lsp_io_stub.x
+    [ "$(basename "$1")" = "pipeline_wpo_strict_link_alias.o" ] && _btm_src=src/pipeline_wpo_strict_link_alias.x
+    [ "$(basename "$1")" = "driver_compile_asm_link_alias.o" ] && _btm_src=src/driver_compile_asm_link_alias.x
+    [ "$(basename "$1")" = "pipeline_asm_run_all_alias.o" ] && _btm_src=src/pipeline_asm_run_all_alias.x
+    [ "$(basename "$1")" = "pipeline_run_x_link_alias.o" ] && _btm_src=src/pipeline_run_x_link_alias.x
+    [ "$(basename "$1")" = "pipeline_asm_typecheck_alias.o" ] && _btm_src=src/pipeline_asm_typecheck_alias.x
+    if [ -n "$_btm_prod" ] && [ -f "$_btm_src" ]; then
+      # Stable worktree gen (driver_gen.c lifecycle): regenerated on each
+      # ensure, untracked, compiled in place below.
+      local _btm_gen
+      _btm_gen="$(basename "$1" .o)_gen.c"
+      # Entry-leaf validity: main() signature; bridge-leaf validity: the
+      # leaf's own export (pipeline_run_x_pipeline for the glue bridge).
+      _btm_need='^int32_t main('
+      [ "$(basename "$1")" = "pipeline_glue_link.o" ] && _btm_need='^int32_t pipeline_run_x_pipeline('
+      [ "$(basename "$1")" = "pipeline_wpo_typecheck_emit_bridge.o" ] && _btm_need='^int32_t run_x_pipeline_typecheck_entry_emit('
+      [ "$(basename "$1")" = "typeck_lsp_io_stub.o" ] && _btm_need='^ssize_t typeck_read_message('
+      [ "$(basename "$1")" = "pipeline_wpo_strict_link_alias.o" ] && _btm_need='^int32_t pipeline_run_x_pipeline_impl('
+      [ "$(basename "$1")" = "driver_compile_asm_link_alias.o" ] && _btm_need='^int32_t driver_run_compiler_full_x('
+      [ "$(basename "$1")" = "pipeline_asm_run_all_alias.o" ] && _btm_need='^int32_t pipeline_impl_run_all('
+      [ "$(basename "$1")" = "pipeline_run_x_link_alias.o" ] && _btm_need='^int32_t run_x_pipeline_codegen_entry('
+      [ "$(basename "$1")" = "pipeline_asm_typecheck_alias.o" ] && _btm_need='^int32_t pipeline_impl_typecheck('
+      if "$_btm_prod" -x -E -L .. "$_btm_src" >"$_btm_gen" 2>/dev/null \
+         && grep -q "$_btm_need" "$_btm_gen"; then
+        # char** fixup applies to entry leaves only (bridge keeps uint8_t* ABI).
+        if [ "$_btm_need" = '^int32_t main(' ]; then
+          perl -i -pe 's/uint8_t \* \* argv/char **argv/g' "$_btm_gen" 2>/dev/null || \
+            sed -i.bak 's/uint8_t \* \* argv/char **argv/g' "$_btm_gen"
+          rm -f "${_btm_gen}.bak"
+        fi
+        printf '%s\n' "$_btm_gen"
+        return 0
+      fi
+      rm -f "$_btm_gen"
+    fi
+    ;;
+  esac
   case "$(basename "$1")" in
     asm_experimental_symbol_bridge.o) printf '%s\n' seeds/asm_experimental_symbol_bridge.from_x.c ;;
     lsp_diag_pipeline_sizes.o) printf '%s\n' seeds/lsp_diag_pipeline_sizes_weak.from_x.c ;;
     cfg_eval_bootstrap_stub.o) printf '%s\n' seeds/cfg_eval_bootstrap_stub.from_x.c ;;
     typeck_lsp_io_stub.o) printf '%s\n' seeds/typeck_lsp_io_stub.from_x.c ;;
-    build_tool_main.o) printf '%s\n' seeds/build_tool_main.from_x.c ;;
     bootstrap_nostdlib_stubs.o) printf '%s\n' seeds/bootstrap_nostdlib_stubs.from_x.c ;;
     *) return 1 ;;
   esac
@@ -112,6 +163,16 @@ fi
 
 CC="${CC:-cc}"
 BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+# Do not -w swallow; do not raise macho.x minos to 26.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    case " $BASE_CFLAGS " in
+      *" -mmacosx-version-min="*) ;;
+      *) BASE_CFLAGS="$BASE_CFLAGS -mmacosx-version-min=11.0" ;;
+    esac
+    ;;
+esac
 WRAP_DIR="$(dirname "$OUT")"
 mkdir -p "$WRAP_DIR"
 WRAP="$WRAP_DIR/.$(basename "$OUT" .o)_inc_wrap.c"

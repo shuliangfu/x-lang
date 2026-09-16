@@ -26,7 +26,8 @@ TXT=$(wpo_ab_text_bytes "$DRIVER_O") || {
   exit 1
 }
 
-if ! nm "$DRIVER_O" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_x|entry)$'; then
+# PLATFORM: SHARED — Mach-O nm prefixes `_` on text symbols.
+if ! nm "$DRIVER_O" 2>/dev/null | grep -qE ' T (_)?(compile_dispatch_asm_backend|run_compiler_full_x|entry)$'; then
   echo "run-wpo-driver-o-gate FAIL: $DRIVER_O missing WPO export (compile_dispatch_asm_backend/run_compiler_full_x/entry)" >&2
   exit 1
 fi

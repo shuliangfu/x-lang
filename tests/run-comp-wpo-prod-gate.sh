@@ -6,10 +6,13 @@
 # 3) 有 native xlang/xlang_asm 时逐条执行 prod hook
 #
 # 用法：./tests/run-comp-wpo-prod-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP015_DOC:-analysis/comp-wpo-prod-v1.md}"
+DOC="${XLANG_COMP015_DOC:-analysis/archive/comp/comp-wpo-prod-v1.md}"
 WAVE="${XLANG_COMP015_WAVE_TSV:-tests/baseline/comp-wpo-prod-wave.tsv}"
 MANIFEST="${XLANG_COMP015_MANIFEST:-tests/baseline/comp-wpo.tsv}"
 LIB="tests/lib/comp-wpo-prod.sh"

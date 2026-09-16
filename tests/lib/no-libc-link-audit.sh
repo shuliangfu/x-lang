@@ -32,11 +32,12 @@ nolibc_audit_runtime_freestanding_block() {
   return 0
 }
 
-# 登记编译器 bootstrap 脚本中 -lc 命中数（track-only，不失败）。
+# 登记编译器 bootstrap / hosted link 中 -lc 命中数（track-only，不失败）。
+# wave honesty (2026-08-24 #7): monofile retired — track build_xlang_asm + runtime_link_abi.
 nolibc_track_compiler_lc_mentions() {
   local n=0
   local f
-  for f in compiler/scripts/build_xlang_asm.sh compiler/seeds/runtime.from_x.c; do
+  for f in compiler/scripts/build_xlang_asm.sh compiler/seeds/runtime_link_abi.from_x.c; do
     if [ -f "$f" ] && grep -qE '[[:space:]]-lc([[:space:]]|$)|"-lc"' "$f" 2>/dev/null; then
       n=$((n + 1))
     fi

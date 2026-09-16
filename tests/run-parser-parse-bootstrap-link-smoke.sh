@@ -1,18 +1,48 @@
 #!/usr/bin/env bash
-# experimental 链 + parser_parse_bootstrap.o（C seed TU）须能 asm 编任意 .x（parse_into_buf 强符号）。
-# 用法：
-#   ./tests/run-parser-parse-bootstrap-link-smoke.sh
-#   XLANG_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
+# experimental chain + parser_parse_bootstrap.o link smoke honesty gate.
+#
+# Honesty: soft XLANG_PARSER_PARSE_BOOTSTRAP_LINK_FAIL retired — symbol /
+# compile failures soft die→exit0 were portable false-green.
+# Missing bootstrap.o / compiler / runtime libs = honest skip=1 (optional
+# experimental path), not soft PASS pretending green.
+#
+# Report: compiler=/boot=/run=/skip=
+# PLATFORM: LINUX gold · DARWIN N/A (honest skip).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PARSER_PARSE_BOOTSTRAP_LINK_FAIL:-0}
+DOC="analysis/archive/phase/phase-parser-soft-fail0-honesty.md"
+PREFIX="xlang: [XLANG_PARSER_PARSE_BOOTSTRAP_LINK]"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+MIN_TEXT=${XLANG_PARSER_PARSE_BOOTSTRAP_LINK_MIN_TEXT:-8}
+
+COMPILER_OK=0
+BOOT_OK=0
+RUN_OK=0
+SKIP=1
+
+die() {
+  echo "parser-parse-bootstrap-link-smoke FAIL: $*" >&2
+  echo "${PREFIX} status=fail compiler=${COMPILER_OK:-0} boot=${BOOT_OK:-0} run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+report_ok() {
+  echo "${PREFIX} status=ok compiler=${COMPILER_OK:-0} boot=${BOOT_OK:-0} run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate honesty section"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "parser-parse-bootstrap-link-smoke: N/A on Darwin"
+  SKIP=1
+  echo "parser-parse-bootstrap-link-smoke: N/A on Darwin (Linux covers bootstrap link)"
+  report_ok
   exit 0
 fi
+
 
 COMP_IN="./xlang_asm"
 if [ -n "${XLANG_PARSER_PARSE_BOOTSTRAP_COMPILER:-}" ]; then
@@ -23,28 +53,28 @@ if [ -n "${XLANG_PARSER_PARSE_BOOTSTRAP_COMPILER:-}" ]; then
 fi
 if [ ! -x "compiler/$COMP_IN" ] && [ ! -x "$COMP_IN" ]; then
   echo "parser-parse-bootstrap-link-smoke: SKIP (no compiler/$COMP_IN)"
+  report_ok
   exit 0
 fi
+COMPILER_OK=1
 
 BOOT_O="compiler/build_asm/parser_parse_bootstrap.o"
 if [ ! -f "$BOOT_O" ]; then
-  echo "parser-parse-bootstrap-link-smoke: SKIP (missing $BOOT_O; run relink_xlang_asm_experimental_bootstrap.sh)" >&2
-  [ "$FAIL" = "1" ] && exit 1
+  echo "parser-parse-bootstrap-link-smoke: SKIP (missing $BOOT_O; optional experimental bootstrap)"
+  report_ok
   exit 0
 fi
 if ! nm -g "$BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
-  echo "parser-parse-bootstrap-link-smoke: FAIL: $BOOT_O missing parse_into_buf" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "$BOOT_O missing parse_into_buf"
 fi
+BOOT_OK=1
 
-# xlang_asm 链入 liburing；裸容器无运行时库时 SKIP（bootstrap-ci 已装 liburing-dev）。
 if [ -x "compiler/$COMP_IN" ]; then
   LDD_MISS=$(ldd "compiler/$COMP_IN" 2>/dev/null | grep 'not found' || true)
   if [ -n "$LDD_MISS" ]; then
     echo "parser-parse-bootstrap-link-smoke: SKIP (compiler/$COMP_IN missing runtime libs)" >&2
     echo "$LDD_MISS" >&2
-    [ "$FAIL" = "1" ] && exit 1
+    report_ok
     exit 0
   fi
 fi
@@ -63,39 +93,33 @@ if ! (
   env -u XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK=1 \
     "$COMP_IN" -backend asm -o "$OUT" $LIBROOT "$SRC"
 ) > "$LOG" 2>&1; then
-  echo "parser-parse-bootstrap-link-smoke FAIL: compile command failed" >&2
   tail -n 12 "$LOG" 2>/dev/null || true
   rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "compile command failed"
 fi
 
 if grep -q 'asm_codegen_elf_o failed' "$LOG" 2>/dev/null; then
-  echo "parser-parse-bootstrap-link-smoke FAIL: asm_codegen_elf_o failed" >&2
   tail -n 8 "$LOG" 2>/dev/null || true
   rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "asm_codegen_elf_o failed"
 fi
 
 if [ ! -s "$OUT" ]; then
-  echo "parser-parse-bootstrap-link-smoke FAIL: empty output $OUT" >&2
   rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "empty output $OUT"
 fi
 
 TEXT_HEX=$(objdump -h "$OUT" 2>/dev/null | awk '$2 == ".text" { print $3; exit }')
 [ -z "$TEXT_HEX" ] && TEXT_HEX=$(objdump -h "$OUT" 2>/dev/null | awk '$2 == "__text" { print $3; exit }')
 TEXT=$(perl -e 'print hex(shift)' "$TEXT_HEX" 2>/dev/null || echo 0)
-MIN_TEXT=${XLANG_PARSER_PARSE_BOOTSTRAP_LINK_MIN_TEXT:-8}
 rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
 
 if [ "${TEXT:-0}" -lt "$MIN_TEXT" ] 2>/dev/null; then
-  echo "parser-parse-bootstrap-link-smoke FAIL: __text=${TEXT}B < min ${MIN_TEXT}B" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "__text=${TEXT}B < min ${MIN_TEXT}B"
 fi
 
+RUN_OK=1
+SKIP=0
 echo "parser-parse-bootstrap-link-smoke PASS (__text=${TEXT}B; bootstrap.o parse_into_buf linked)"
+report_ok
 exit 0

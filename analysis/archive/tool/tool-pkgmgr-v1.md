@@ -1,8 +1,10 @@
 # TOOL-007 包管理器（package manager）方案 v1
 
-> 更新时间：2026-06-17  
+> 更新时间：2026-06-17（honesty 2026-08-24 #7）  
 > 状态：**定版（v1）**  
-> 关联：`TOOL-006`（脚手架）、`TOOL-008`（依赖锁定）、`resolve_import_file_path`、`import`
+> 关联：`TOOL-006`（脚手架）、`TOOL-008`（依赖锁定）、`resolve_import_file_path`、`import`  
+> **Honesty**：`seeds/runtime.from_x.c` retired；multi-root resolve live =  
+> `xlang_resolve_import_file_path_multi` in `runtime_pipeline_abi.h`（refuse monofile resurrect）。
 
 ---
 
@@ -24,7 +26,7 @@
 | 原则 | 说明 | 现状 / 原型 |
 |------|------|-------------|
 | **K1-package-id** | 包 ID = dotted `import` 路径（`core.mem`） | 编译器已用 |
-| **K2-lib-roots** | 多根解析：`-L` / manifest `lib_root` 行 | `resolve_import_file_path_multi` |
+| **K2-lib-roots** | 多根解析：`-L` / manifest `lib_root` 行 | `xlang_resolve_import_file_path_multi` (`runtime_pipeline_abi.h`) |
 | **K3-manifest** | 项目清单 `xlang.pkg.tsv`（v1 原型，非网络） | `tests/fixtures/pkgmgr/` |
 | **K4-bundled-tier** | `core.*` / `std.*` 为 **bundled**（随仓库） | 仓库根 `core/` `std/` |
 | **K5-resolve-proto** | `xlang-deps-resolve.sh` 校验 require→文件 | `scripts/xlang-deps-resolve.sh` |
@@ -98,5 +100,19 @@ tool-pkgmgr report requires=2/2 roots=1 resolve=OK
 | fixture | `tests/fixtures/pkgmgr/` |
 | 原型 CLI | `scripts/xlang-deps-resolve.sh` |
 | 库 | `tests/lib/tool-pkgmgr.sh` |
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die;
+DOC=archive; report `run=`／`hooks=`／`skip=`.
+
+`tests/run-tool-pkgmgr-gate.sh`:
+
+1. Archive DOC + manifest + catalog + resolve live header（拒 monofile resurrect）
+2. Manifest／catalog 锚点硬绿；`xlang-deps-resolve` 硬跑
+3. Native xlang：`run-pkgmgr-resolve` 硬跑；缺 native／显式坏 XLANG 硬 die
+
+---
 
 **TOOL-007 状态：定版 ✅**

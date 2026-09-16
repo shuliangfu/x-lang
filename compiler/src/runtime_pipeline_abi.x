@@ -29,8 +29,8 @@
 // wave270: ast_pool_type.c pure-owned leave (pipeline_type_* pool accessors +
 //   find_or_alloc slice/ptr/named/compound + init/ensure + region label).
 //   wave276: pipeline_arena_type_ptr/alloc pure-owned leave (ast_pool_arena host leaf deleted).
-//   Type LE: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
-//   region_label[128]@144 region_label_len@272 (size 276). Seed cold twins
+//   Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
+//   region_label[256]@272 region_label_len@528 (size 532). Seed cold twins
 //   under #ifndef FROM_X. Extern Cap calls via unsafe wrappers.
 // wave269: pipeline_asm_block_tree.c pure-owned leave (asm_sum_block_local_slot_bytes +
 //   asm_count_block_stack_slots + asm_sum_block_array_temp_bytes +
@@ -63,7 +63,7 @@
 //   pipeline_module_enum_* full set + try_mark_enum field-access + storage_reset|release).
 //   Cap residual GrowVec module_enums still init/free in sidecar_pool (unused for product
 //   enums after leave). Soft-reset hooked from ast_pool_module_reset; header num_module_enums@64.
-//   Seed cold twins under #ifndef FROM_X. Entry size 33932 LE (name[128]+lens+256×var[128]+lens+export).
+//   Seed cold twins under #ifndef FROM_X. Entry size 66828 LE (name[256]+lens+256×var[256]+lens+export).
 // wave263: ast_pool_module_import.c pure-owned leave (ImportEntry multi-module map +
 //   pipeline_module_import_* full set + storage_release; wave110 pure authority).
 //   Cap residual XLANG_WEAK GrowVec twins deleted; ModuleSidecar.imports /
@@ -130,8 +130,9 @@
 //   panic_elf + panic_int_div_zero + divisor_zero_check_rbx). Cap residual:
 //   emit_expr_elf_c + enc mov/arg/call/test/jne/label + next_label + unary/kind/type faces.
 // wave125: pipeline_asm_ctx_layout.c pure-owned leave (pipeline_asm_ctx_layout cast;
-//   typedef pipeline_glue_AsmFuncCtxLayout stays in pipeline_glue.c shell for residual C
-//   field access). Identity cast only — pure returns same address as *u8.
+//   typedef pipeline_glue_AsmFuncCtxLayout lives in backend_seed_mega_fallback seed
+//   for residual C field access; pipeline_glue.c shell left wave309). Identity cast
+//   only — pure returns same address as *u8.
 // wave124: pipeline_asm_emit_var_decl.c pure-owned leave (glue_var_decl_type_ref_elf_c +
 //   glue_lazy_append_block_let_local). Cap residual: expr/block/module type faces +
 //   emit module/func_index getters + asm_ctx local/slot + asm_local_slot_reg_offset.
@@ -450,6 +451,17 @@ export extern "C" function ast_pool_module_release(m: *u8): void;
 // PLATFORM: SHARED - same ABI as seed cold twin; free() still releases ownership.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+/**
+ * Collect top-level import paths from source bytes into module (no function-body parse).
+ * Thin wrap of parser_collect_imports_buf so collect-deps can skip pipeline_parse_into_bytes.
+ * Caller must parser_parse_into_init the module first (import sidecar live).
+ * @param module *u8 — AST module; already parse_into_init'd; null -> no-op
+ * @param data *u8 — source bytes; null -> no-op
+ * @param len i64 — byte length; <=0 or >INT32_MAX -> no-op
+ * @return void
+ * PLATFORM: SHARED — Darwin / Ubuntu product -o collect; leftover seed ALWAYS provides T.
+ */
+export extern "C" function xlang_module_collect_imports_from_buf(module: *u8, data: *u8, len: i64): void;
 // wave54: xlang_collect_strdup is pure export function below (not Cap residual).
 // Do not export-extern libc strdup by name - conflicts with string.h after -E preamble.
 // wave52: xlang_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
@@ -655,6 +667,12 @@ export extern "C" function ast_pipeline_block_let_init_ref(arena: *u8, block_ref
 export extern "C" function pipeline_asm_abi_f32_xmm_enabled_c(): i32;
 export extern "C" function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+/* AAPCS64 f64 return face: fmov dK, x0 — moves the internal rax-bits value
+ * into the FP return register at callee exit (and mirrors at the x0 harvest
+ * site as fmov x0, d0 with k=0). Defined in the backend_enc_dispatch object.
+ * PLATFORM: MACOS|ARM64 AAPCS64 (ta==1); declared for the return tail in
+ * pipeline_asm_emit_return_elf_impl. */
+export extern "C" function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_load_rbp_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32;
@@ -794,6 +812,12 @@ export extern "C" function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i
 export extern "C" function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+// Declared at file top (not next to its later callers): C twin of this TU
+// needs decl-before-use — pipe_modlet_seed_array_lit_elems_to_rbx calls it.
+export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
+// G.7: STRING_LIT length authority (backend_call_dispatch). Bake intern
+// and the pool-byte estimator reuse this; do not add a third length helper.
+export extern "C" function glue_asm_string_lit_len(arena: *u8, expr_ref: i32): i32;
 // wave151 pure-owned leave: pipeline_expr_field_access_load_byte_sz lives in EOF wave151 section.
 // wave151 pure-owned leave: pipeline_expr_field_access_is_enum_variant lives in EOF wave151 section.
 export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
@@ -809,6 +833,13 @@ export extern "C" function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_re
 export extern "C" function xlang_driver_fputs_opaque(s: *u8, stream: *u8): i32;
 export extern "C" function xlang_driver_stdout_ptr(): *u8;
 export extern "C" function xlang_driver_fclose_opaque(stream: *u8): i32;
+// WPO dump (pipeline_typeck_wpo_dump_callgraph): FILE* cast residuals — same g05 harness
+// as driver_abi / thin runtime_pipeline_abi_wpo_dump_thin.x. Missing decls made mega -E
+// XT001 on wpo_dump_write (check_block: undeclared call). G.7: declare here, do not
+// reimplement fwrite. PLATFORM: SHARED.
+export extern "C" function xlang_driver_fopen_write_opaque(path: *u8): *u8;
+export extern "C" function xlang_driver_fwrite_opaque(data: *u8, len: i32, stream: *u8): i32;
+export extern "C" function xlang_driver_fwrite_stdout_n(data: *u8, len: i32): i32;
 // wave79: g05 harness - libc realpath char* cast residual (labi_path_io same clash avoidance).
 // PLATFORM: SHARED POSIX/APPLE call realpath; non-POSIX harness returns null (seed no-op).
 export extern "C" function xlang_driver_realpath_opaque(path: *u8, resolved: *u8): *u8;
@@ -964,6 +995,9 @@ export extern "C" function write(fd: i32, buf: *u8, count: i64): i64;
 // wave269: asm_sum_block_array_temp_bytes pure (block_tree leave; dual-export ban).
 // wave152 pure-owned faces: pipeline_asm_emit_expr_elf_c body in EOF section (#[no_mangle] export; no dual export extern).
 export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+// Cap-fn-ptr (stage10 10.3.2 slice0): LEA of same-module #[no_mangle] fn into rax/x0.
+// G.7: reuse backend_enc_dispatch authority (vtable LEA co-path); no second encoder.
+export extern "C" function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern "C" function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 // wave123 Cap residual: lea_common pure leave callees (pipeline_elf_ctx still host-cc).
@@ -1305,6 +1339,7 @@ export extern "C" function driver_diagnostic_typeck_struct_padding_before(sname:
 export extern "C" function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void;
 export extern "C" function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void;
 export extern "C" function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void;
+export extern "C" function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, name_len: i32): void;
 export extern "C" function driver_diagnostic_warn_hot_reorder_field(sname: *u8, sname_len: i32, hot: *u8, hot_len: i32, cold: *u8, cold_len: i32): void;
 /* wave235 G.7: env via public pure thin link_abi_getenv (wave222 -> _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -1340,9 +1375,10 @@ export extern "C" function xlang_trait_reg_reset_c(arena: *u8): void;
 export extern "C" function xlang_generic_bound_stash_source_buf_c(data: *u8, len: i32): void;
 
 /* wave1223: extern declarations for pipeline_parse_set_main_from_buf_c body.
- * These mirror the C authority in ast_pool.c L2367-2389 to ensure the
- * .x strong symbol performs identical parse + main_idx set.
- * Without this, the empty .x body (return 0) overrode the C impl, causing
+ * Live G.7 authority is this .x / runtime_pipeline_abi seed (historical C twin
+ * in deleted ast_pool.c left wave309). Keep parse + main_idx set identical to
+ * the pre-leave contract so directory mode does not skip files.
+ * Without this, an empty .x body (return 0) overrode the prior C impl, causing
  * pipeline_run_x_pipeline to skip parsing entirely in directory mode
  * (num_funcs=190 instead of 377 for runtime_driver_abi_thin.x).
  * PLATFORM: SHARED - all externs are platform-agnostic parse/diag helpers. */
@@ -1527,32 +1563,32 @@ export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ct
 
 /** Parse source buffer into module/arena, then set main_func_index.
  *
- * This is the pipeline entry parse function called by
- * run_x_pipeline_parse_entry_do_parse_c (ast_pool.c L2836) during
- * xlang_pipeline_run_x_pipeline_large_stack. It mirrors the C authority
- * in ast_pool.c L2367-2389 exactly.
+ * Pipeline entry parse called by run_x_pipeline_parse_entry_do_parse_c during
+ * xlang_pipeline_run_x_pipeline_large_stack. Live G.7 authority is this .x /
+ * runtime_pipeline_abi seed (historical C twin in deleted ast_pool.c left
+ * wave309); keep the pre-leave parse + main_idx contract.
  *
- * Why: previously this was an empty stub (return 0) that overrode the C
+ * Why: previously this was an empty stub (return 0) that overrode the prior C
  * strong symbol via link order. In directory check mode, the pipeline path
  * calls this function to parse each file; the empty stub caused files to
  * be silently skipped (num_funcs=190 instead of 377 for
  * runtime_driver_abi_thin.x), producing T001 "unresolved function call"
  * errors for functions that were never parsed into the module.
  *
- * wave1224: delegate to pipeline_parse_into_with_init_buf_scalars (C authority
- * ast_pool.c L2301-2323) instead of re-implementing the reset locally.
- * The scalars path calls pipeline_strict_parse_into_init (ast_pool.c L1571-1597)
- * which resets MORE module fields than parser_parse_into_init - including
- * pending_allow_padding / pending_soa_struct / pending_cfg_skip /
- * pending_repr_c_struct / pending_repr_compatible_struct / num_module_enums.
- * Without these resets, stale state from a previous file caused the parser
- * to stop at num_funcs=190 in directory mode for runtime_driver_abi_thin.x
- * (single-file mode was unaffected because no prior file polluted the state).
- * Trait/generic stash is already done inside scalars -> impl_c, so we do NOT
- * call xlang_trait_reg_reset_c / xlang_generic_bound_stash_source_buf_c here
- * (calling them twice would be redundant and could double-stash).
+ * wave1224: delegate to pipeline_parse_into_with_init_buf_scalars instead of
+ * re-implementing the reset locally. The scalars path calls
+ * pipeline_strict_parse_into_init which resets MORE module fields than
+ * parser_parse_into_init - including pending_allow_padding / pending_soa_struct /
+ * pending_cfg_skip / pending_repr_c_struct / pending_repr_compatible_struct /
+ * num_module_enums. Without these resets, stale state from a previous file
+ * caused the parser to stop at num_funcs=190 in directory mode for
+ * runtime_driver_abi_thin.x (single-file mode was unaffected because no prior
+ * file polluted the state). Trait/generic stash is already done inside
+ * scalars -> impl_c, so we do NOT call xlang_trait_reg_reset_c /
+ * xlang_generic_bound_stash_source_buf_c here (calling them twice would be
+ * redundant and could double-stash).
  *
- * Steps (match C authority ast_pool.c L2367-2389):
+ * Steps (match pre-leave parse contract):
  *   1) null/length gate -> -2
  *   2) pipeline_lint_set_source_buf (anchor L7 unused-private warnings)
  *   3) pipeline_parse_into_with_init_buf_scalars (full reset + parse + scalars)
@@ -1564,9 +1600,9 @@ export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ct
  * @param d *u8 - source bytes; null -> -2
  * @param len i32 - byte length; <=0 -> -2
  * @return i32 - 0 on success, -2 on parse failure or null input
- * wave1223: full body matching C authority (was empty stub returning 0).
+ * wave1223: full body matching pre-leave contract (was empty stub returning 0).
  * wave1224: delegate to scalars to guarantee byte-identical reset semantics.
- * PLATFORM: SHARED - pure delegation to platform-agnostic C authority. */
+ * PLATFORM: SHARED - pure delegation to platform-agnostic parse authority. */
 #[no_mangle]
 /**
  * Parse source buffer into module and set main_func_index.
@@ -2713,7 +2749,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
 /**
  * Preprocess raw source into an owned NUL-terminated malloc buffer.
  * @param raw *u8 - source bytes; null only allowed when raw_len == 0
- * @param raw_len i64 - byte count; must fit XLANG_PIPELINE_CTX_BUF_SIZE (4MiB)
+ * @param raw_len i64 - byte count; must fit i32 out_cap (not the 4MiB ctx embed)
  * @param out_src *u8 - char** base as bytes; slot 0 set to owned prep (or null on fail)
  * @param out_src_len *u8 - size_t* base as bytes; slot 0 set to output length (0 on fail)
  * @param path_diag *u8 - path for preprocess diags; may be null
@@ -2729,7 +2765,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  *   G.7 pure preprocess_eval_condition_c (simple) + Cap residual cfg_eval_expr_c (complex);
  *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
  *   G.7 xlang_ptr_slot_set / xlang_size_slot_set for out slots (char** / size_t*);
- *   oversized raw -> pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
+ *   i32-overflow raw -> pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
  * PLATFORM: SHARED - same control flow as historical seed _impl.
  */
 #[no_mangle]
@@ -2741,15 +2777,24 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
   if (out_src_len != 0 as *u8) {
     xlang_size_slot_set(out_src_len, 0, 0);
   }
-  // XLANG_PIPELINE_CTX_BUF_SIZE - fixed 4MiB pipeline ctx buffer (runtime_pipeline_abi.h).
-  let buf_cap: i32 = 4194304;
-  let buf_cap_i64: i64 = buf_cap as i64;
-  if (raw_len > buf_cap_i64) {
+  // Heap scratch: keep 4MiB floor (ctx embed / small-file include headroom) but
+  // size up to raw_len when the entry is larger. out_cap is i32 so reject
+  // lengths that would wrap. PipelineDepCtx loaded_buf stays 4MiB (pin layout).
+  // PLATFORM: SHARED — PP002 is OOM / i32 overflow, not a 4MiB file-size wall.
+  if (raw_len < 0) {
+    return 0 - 1;
+  }
+  let i32_max: i32 = 2147483647;
+  if (raw_len > (i32_max as i64)) {
     if (emit_diag != 0) {
-      // Cold twin uses reportf with sizes; pure keeps fixed PP002 fail (no va_list).
       pipeline_diag_preprocess_fail(path_diag);
     }
     return 0 - 1;
+  }
+  let need: i32 = raw_len as i32;
+  let buf_cap: i32 = 4194304;
+  if (need > buf_cap) {
+    buf_cap = need;
   }
   let scratch: *u8 = 0 as *u8;
   unsafe {
@@ -3536,6 +3581,15 @@ export function xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, d
     driver_x_pipeline_skip_codegen_set(1);
     // G.7 pure large_stack surface (wave56); re-null-checks inside thin gate are fine.
     let ec: i32 = xlang_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    if (ec == 0) {
+      // PLATFORM: SHARED — dep prerun skips typeck, so block parent links stay
+      // unbound in the dep arena. Emit-time scope walks (block-let type fallback
+      // in glue_var_decl_type_ref_elf_c) need the parent chain to resolve local
+      // let types; without it u32 `>>` mis-resolves as signed and emits SAR
+      // (core.builtin clz_u32(0x80000000) never terminates). G.7: reuse the
+      // typeck.x patch authority (same call as the light fallback above).
+      pipeline_typeck_patch_all_body_parent_links_c(dep_mod, dep_arena);
+    }
     driver_x_pipeline_skip_codegen_set(0);
     driver_x_pipeline_skip_typeck_set(0);
     if (one_ctx != 0 as *u8) {
@@ -3628,6 +3682,14 @@ export function xlang_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_aren
     parser_parse_into_init(dep_mod, dep_arena);
     let parse_rc: i32 = pipeline_parse_set_main_from_buf_c(dep_mod, dep_arena, src, len_i32);
     if (parse_rc == 0) {
+      // PLATFORM: SHARED — dep prerun is parse-only (no typeck), so block
+      // parent links stay unbound in the dep arena. Emit-time scope walks
+      // (glue_var_decl_type_ref_elf_c → pipeline_block_resolve_var_type_ref)
+      // need the parent chain to resolve block-let local types; without it
+      // u32 `>>` mis-resolves as signed and emits SAR (core.builtin
+      // clz_u32(0x80000000) never terminates). G.7: reuse the typeck.x patch
+      // authority (same call as the typeck light fallback).
+      pipeline_typeck_patch_all_body_parent_links_c(dep_mod, dep_arena);
       return 0;
     }
     return 0 - 1;
@@ -3882,7 +3944,7 @@ export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i
   if (dep_i < 0) {
     return 0 - 1;
   }
-  let sync_path: u8[128] = [];
+  let sync_path: u8[256] = [];
   unsafe {
     memset(&sync_path[0], 0, 64 as usize);
     let _pl: i32 = parser_copy_module_import_path64(module, dep_i, &sync_path[0]);
@@ -3976,17 +4038,24 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  * @param ctx *u8 - PipelineDepCtx; null -> -1
  * @param import_idx i32 - entry import index / ctx slot; <0 -> -1
  * @return i32 - 0 ok; -1 null; -7 resolve fail; -8 read fail; -9 preprocess fail; -10 parse fail
- * Steps (match historical pipeline_load_import_from_disk_impl_c):
+ * Steps:
  *   1) same-TU pure parser_copy_module_import_path64 (wave99)
- *   2) same-TU pure pipeline_resolve_path_x (wave95)
- *   3) same-TU pure pipeline_read_file_x (wave95)
- *   4) same-TU pure pipeline_preprocess_loaded_into_ctx (wave95)
+ *   2) same-TU pure pipeline_resolve_path_x (wave95) — writes ctx.path_buf
+ *   3) G.7 runtime_read_file_view of resolved path (whole file; no 4MiB cap)
+ *   4) G.7 xlang_preprocess_raw_to_malloc (PP002 heap scratch; i32-fit)
  *   5) pin import path on same slot (path authority for later sync)
  *   6) same-TU pure pipeline_bind_import_dep_buffers
- *   7) same-TU pure pipeline_parse_into_buf (wave96)
- * wave94 pure Cap residual: G.7 single product authority for pipeline_load_import_from_disk_c
- * (historical glue strong _c -> X thin / impl_c). Product pure load_and_sync calls this name.
- * PLATFORM: SHARED - glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ *   7) same-TU pure pipeline_parse_into_buf from the owned heap prep (wave96)
+ *   8) free the heap prep (recursion-safe; does not use ctx embed)
+ * Historical wave94 used pipeline_read_file_x + pipeline_preprocess_loaded_into_ctx
+ * which copy into PipelineDepCtx loaded_buf/preprocess_buf (PIN 4MiB). That
+ * silently truncated imports > 4MiB. Product import orch now reuses the heap
+ * path already owned by pipeline_read_file_stage_prep. Ctx embed stays 4MiB
+ * (pin layout). pipeline_read_file_x (resolve_read) still fills the embed
+ * but rejects files > 4MiB (view; no silent truncate).
+ * G.7 single product authority for pipeline_load_import_from_disk_c
+ * (historical glue strong _c -> X thin / impl_c). Product load_and_sync calls this name.
+ * PLATFORM: SHARED — LINUX gold · MACOS co-path. C thin overlays WEAK mega.
  */
 #[no_mangle]
 export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
@@ -4015,18 +4084,61 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   if (rr != 0) {
     return 0 - 7;
   }
+  // Whole-file view of ctx.path_buf (resolved). ABI: data@0 length@8 (32B pad).
+  let path: *u8 = 0 as *u8;
   unsafe {
-    rr = pipeline_read_file_x(ctx);
+    path = pipeline_dep_ctx_path_buf_ptr(ctx);
   }
-  if (rr != 0) {
+  if (path == 0 as *u8) {
     return 0 - 8;
   }
-  unsafe {
-    rr = pipeline_preprocess_loaded_into_ctx(ctx);
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
   }
-  if (rr != 0) {
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(path, &view[0]);
+  }
+  if (view_rc != 0) {
+    return 0 - 8;
+  }
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&out_len[0], 0, 0);
+  let prep_rc: i32 = 0;
+  unsafe {
+    prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, &out_prep[0], &out_len[0], path, 0 as *u8, 0);
+    runtime_release_file_view(&view[0]);
+  }
+  if (prep_rc != 0) {
     return 0 - 9;
   }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let prep_len64: i64 = xlang_size_slot_get(&out_len[0], 0);
+  // parse_into_buf takes i32 len; malloc_impl already rejects > INT32_MAX raw.
+  let i32_max: i64 = 2147483647;
+  if (prep == 0 as *u8) {
+    return 0 - 9;
+  }
+  if (prep_len64 < 0) {
+    unsafe {
+      free(prep);
+    }
+    return 0 - 9;
+  }
+  if (prep_len64 > i32_max) {
+    unsafe {
+      free(prep);
+    }
+    return 0 - 9;
+  }
+  let prep_len: i32 = prep_len64 as i32;
   // Pin path on the same slot we parse into (authority for path de-dupe / sync).
   if (path_len > 0) {
     unsafe {
@@ -4038,14 +4150,11 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   }
   let dep_arena: *u8 = 0 as *u8;
   let dep_module: *u8 = 0 as *u8;
-  let prep_buf: *u8 = 0 as *u8;
-  let prep_len: i32 = 0;
   unsafe {
     dep_arena = pipeline_dep_ctx_arena_at(ctx, import_idx);
     dep_module = ast_pipeline_dep_ctx_module_at(ctx, import_idx);
-    prep_buf = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
-    prep_len = pipeline_dep_ctx_preprocess_len_get(ctx);
-    rr = pipeline_parse_into_buf(dep_arena, dep_module, prep_buf, prep_len);
+    rr = pipeline_parse_into_buf(dep_arena, dep_module, prep, prep_len);
+    free(prep);
   }
   if (rr != 0) {
     return 0 - 10;
@@ -4253,7 +4362,7 @@ export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: 
               let reg_path: *u8 = driver_dep_path_registry_at(i);
               if (reg_path != 0 as *u8) {
                 let rpl: i32 = pipe_cstr_len(reg_path);
-                if (rpl > 127) {
+                if (rpl > 255) {
                   rpl = 127;
                 }
                 if (rpl > 0) {
@@ -5341,11 +5450,17 @@ export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i3
 /**
  * Read ctx.path_buf file into ctx.loaded_buf and set loaded_len.
  * @param ctx *u8 - PipelineDepCtx; null -> -1
- * @return i32 - 0 ok; -1 null / open-or-read fail
- * Steps (match historical pipeline_read_file_x_impl_c):
+ * @return i32 - 0 ok; -1 null / open-or-read fail / file larger than pin embed
+ * Steps:
  *   1) Cap residual path_buf_ptr + loaded_buf_ptr
- *   2) G.7 pure xlang_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
- *   3) Cap residual pipeline_dep_ctx_set_loaded_len(n) on n>=0
+ *   2) G.7 runtime_read_file_view (whole file; knows actual size)
+ *   3) reject length > 4194304 (pin embed; no silent truncate)
+ *   4) memcpy into loaded_buf; pipeline_dep_ctx_set_loaded_len
+ * Historical xlang_read_file_into_path truncated at cap without error
+ * (n==cap cannot tell exact-fit from overflow). Product import orch
+ * (pipeline_load_import_from_disk_c) heap-reads via view + PP002 malloc
+ * and does not use this helper. resolve_read still fills the pin embed
+ * and now fails honestly when the file does not fit.
  * wave95 pure Cap residual: G.7 product authority for pipeline_read_file_x
  * (historical glue weak -> impl_c). PLATFORM: SHARED - glue XLANG_WEAK cold twin.
  */
@@ -5366,17 +5481,49 @@ export function pipeline_read_file_x(ctx: *u8): i32 {
   if (buf == 0 as *u8) {
     return 0 - 1;
   }
-  // PIPELINE_SOURCE_BUF_CAP - same as historical C / pipeline_loaded_buf_cap.
-  let cap: i64 = 4194304;
-  let n: i32 = 0;
-  unsafe {
-    n = xlang_read_file_into_path(path, buf, cap);
+  // Whole-file view: data@0 length@8 (32B pad). Reject > pin embed.
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
   }
-  if (n < 0) {
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(path, &view[0]);
+  }
+  if (view_rc != 0) {
     return 0 - 1;
   }
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
+  let cap: i64 = 4194304;
+  if (raw_len < 0) {
+    unsafe {
+      runtime_release_file_view(&view[0]);
+    }
+    return 0 - 1;
+  }
+  if (raw_len > cap) {
+    unsafe {
+      runtime_release_file_view(&view[0]);
+    }
+    return 0 - 1;
+  }
+  if (raw_len > 0) {
+    if (raw_data == 0 as *u8) {
+      unsafe {
+        runtime_release_file_view(&view[0]);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      memcpy(buf, raw_data, raw_len as usize);
+    }
+  }
   unsafe {
-    pipeline_dep_ctx_set_loaded_len(ctx, n as i64);
+    runtime_release_file_view(&view[0]);
+    pipeline_dep_ctx_set_loaded_len(ctx, raw_len);
   }
   return 0;
 }
@@ -5828,7 +5975,7 @@ let g_pipe_entry_lib_kw6: u8[7] = [112, 97, 114, 115, 101, 114, 0];
 let g_pipe_entry_lib_kw7: u8[6] = [116, 111, 107, 101, 110, 0];
 let g_pipe_entry_lib_kw8: u8[6] = [108, 101, 120, 101, 114, 0];
 let g_pipe_entry_lib_kw9: u8[4] = [97, 115, 116, 0];
-let g_pipe_entry_lib_stem_buf: u8[128] = [];
+let g_pipe_entry_lib_stem_buf: u8[256] = [];
 
 /**
  * Clear the pure -D define table (ndefines -> 0; slot bytes left stale until overwrite).
@@ -5947,7 +6094,13 @@ export function preprocess_define_has(sym: *u8, sym_len: i32): i32 {
  *   1) trim leading/trailing space/tab;
  *   2) if empty after trim -> 0;
  *   3) if any complex op char (space/tab/=/!/(/)) -> Cap residual cfg_eval_expr_c;
- *   4) else same-TU pure preprocess_define_has (wave85 -D table).
+ *   4) else bare decimal literal -> nonzero digits = true, "0" = false (9.3.3:
+ *      "1"/"0" must not fall into the -D name table, where a digit token is
+ *      never defined and would always read false);
+ *   5) else same-TU pure preprocess_define_has (wave85 -D table).
+ *   Non-decimal literals (hex/octal suffix/`defined()` chains) remain
+ *   unsupported: complex op chars route to cfg_eval (X dialect), digit-led
+ *   identifiers keep identifier lookup. PLATFORM: SHARED.
  * PLATFORM: SHARED - glue keeps XLANG_WEAK cold fallback when pure not linked.
  */
 #[no_mangle]
@@ -6036,6 +6189,36 @@ export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
       return 1;
     }
     return 0;
+  }
+  // Bare decimal literal: C semantics — nonzero value true, "0" false
+  // (9.3.3 root fix at the evaluator authority; digit tokens never exist in
+  // the -D table, so falling through would always read false).
+  k = 0;
+  let all_digits: i32 = 1;
+  let lit_true: i32 = 0;
+  while (k < n) {
+    let d: u8 = 0;
+    unsafe {
+      d = base[k];
+    }
+    if (d < 48) {
+      // Below '0' — not a decimal digit.
+      all_digits = 0;
+      break;
+    }
+    if (d > 57) {
+      // Above '9' — not a decimal digit.
+      all_digits = 0;
+      break;
+    }
+    if (d != 48) {
+      // Any nonzero digit makes the literal true.
+      lit_true = 1;
+    }
+    k = k + 1;
+  }
+  if (all_digits != 0) {
+    return lit_true;
   }
   // Simple identifier: true iff present in pure -D table (same-TU pure).
   return preprocess_define_has(base, n);
@@ -8343,7 +8526,7 @@ export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: 
     let nf: i32 = pipeline_module_num_funcs(module);
     let fi: i32 = 0;
     while (fi < nf) {
-      let raw_name: u8[128] = [];
+      let raw_name: u8[256] = [];
       let name: u8[65] = [];
       let ni: i32 = 0;
       while (ni < 64) {
@@ -8746,7 +8929,7 @@ export function pipeline_diag_merge_dep_missing(import_path: *u8): void {
   let code: u8[8] = [];
   let msg: u8[48] = [];
   let note_k: u8[8] = [];
-  let note_m: u8[128] = [];
+  let note_m: u8[256] = [];
   // "import error"
   kind[0]=105;kind[1]=109;kind[2]=112;kind[3]=111;kind[4]=114;kind[5]=116;kind[6]=32;kind[7]=101;
   kind[8]=114;kind[9]=114;kind[10]=111;kind[11]=114;kind[12]=0;
@@ -9238,7 +9421,9 @@ export function xlang_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n:
  * @return void
  * wave52 pure Cap residual orch:
  *   if *tmp_arena null -> malloc arena_sz + module_sz into both slots;
- *   if both live -> memset zero, pipeline_parse_into_bytes, G.7 pure enqueue_module_imports.
+ *   if both live -> memset zero, parser_parse_into_init, collect_imports (not
+ *   pipeline_parse_into_bytes: collect-deps only needs the import table; hello -o
+ *   sample was ~41% discarded full parse here, then prerun parse_only again).
  *   OOM on malloc: leave null slots and return (same as cold twin skip parse).
  * G.7 process_one / paths_tmp Cap residual call this. PLATFORM: SHARED.
  */
@@ -9278,13 +9463,14 @@ export function xlang_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: 
     memset(ta, 0, arena_sz as usize);
     memset(tm, 0, module_sz as usize);
   }
-  // ParseIntoResult lives in seed; pure only sees rc (unused beyond call).
-  let pr_rc: i32 = 0;
+  // Collect-deps only reads the import table. Full pipeline_parse_into_bytes
+  // parsed every function body into this throwaway tmp and freed it; prerun
+  // parse_only then parsed the same prep bytes into the real slot. Use the
+  // existing parser_collect_imports authority (via *u8 wrapper) instead.
+  // PLATFORM: SHARED — Darwin / Ubuntu product -o; leftover seed twin matches.
   unsafe {
-    pr_rc = pipeline_parse_into_bytes(ta, tm, prep, prep_len);
-  }
-  if (pr_rc != 0) {
-    // Still enqueue whatever imports the partial/failed parse left (same as cold twin).
+    parser_parse_into_init(tm, ta);
+    xlang_module_collect_imports_from_buf(tm, prep, prep_len);
   }
   xlang_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded);
 }
@@ -9357,7 +9543,7 @@ export function xlang_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_r
   }
   let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
   let prep_len: i64 = xlang_size_slot_get(&prep_len_cell[0], 0);
-  // G.7 pure: memset + parse_into_bytes + enqueue (tmp already live from ensure above).
+  // G.7 pure: memset + parse_into_init + collect_imports + enqueue (tmp already live).
   unsafe {
     xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load, to_load_n, dep_paths, n_loaded);
   }
@@ -10362,9 +10548,9 @@ export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
 // PLATFORM: SHARED LP64 - multi-module pointer-keyed map + malloc grow for entries
 // and select name rows. Mirrors ast_pool ModuleSidecar.imports + import_select_* .
 // Product hybrid: pure strong pipeline_module_import_* override Cap XLANG_WEAK cold.
-// Layout of one ImportEntry (340 bytes, packed LE, ≡ C typedef ImportEntry):
-//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[128] @264
-//   | binding_name_len i32 @328 | select_base i32 @332 | select_count i32 @336
+// Layout of one ImportEntry (532 bytes, packed LE, ≡ C typedef ImportEntry):
+//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[256] @264
+//   | binding_name_len i32 @520 | select_base i32 @524 | select_count i32 @528
 // Module.num_imports lives at LP64 offsetof 8 (header field; parser authority read).
 // Soft-reset: when header num_imports==0, pure slot n_imports/sel_n forced 0 so
 // parse reset / module reset does not leave stale pure rows (Cap grow len cleared
@@ -10383,12 +10569,12 @@ let g_pipe_imp_sel_rows: u8[1024] = [];
 let g_pipe_imp_sel_lens: u8[1024] = [];
 
 /**
- * Byte size of one ImportEntry (path 256 + 4 i32 fields + binding 64).
- * @return i32 - 340
+ * Byte size of one ImportEntry (path 256 + binding 256 + 4 i32 fields).
+ * @return i32 - 532
  * PLATFORM: SHARED LP64 - must match C sizeof(ImportEntry).
  */
 function pipe_imp_entry_size(): i32 {
-  return 340;
+  return 532;
 }
 
 /**
@@ -10659,7 +10845,7 @@ export function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
-  // byte offset = idx * 340 via repeated add (no ptr+int in .x)
+  // Cap 4.2.8: byte offset = idx * pipe_imp_entry_size() (532; was 340).
   let off: i32 = idx * pipe_imp_entry_size();
   // return base+off by reconstructing from raw address bits is unavailable;
   // use index into flat table: xlang path indexes base[off + field]
@@ -10746,9 +10932,11 @@ export function pipeline_module_import_alloc(module: *u8): i32 {
     return 0 - 1;
   }
   let off: i32 = pipe_imp_entry_off(n);
-  // zero new entry (340 bytes)
+  // Cap 4.2.8: zero new ImportEntry (532 bytes; was 340). Incomplete zero left
+  // binding_name_len@520 / select_* garbage → T001 "no impl for method".
+  let esz: i32 = pipe_imp_entry_size();
   let k: i32 = 0;
-  while (k < 340) {
+  while (k < esz) {
     unsafe {
       base[off + k] = 0;
     }
@@ -11061,7 +11249,7 @@ export function pipeline_module_import_set_binding_name(module: *u8, idx: i32, b
     }
     i = i + 1;
   }
-  pipe_store_i32_le(base, eoff + 328, len);
+  pipe_store_i32_le(base, eoff + 520, len);
 }
 
 /**
@@ -11091,7 +11279,7 @@ export function pipeline_module_import_binding_name_len(module: *u8, idx: i32): 
   if (base == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 328);
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 520);
 }
 
 /**
@@ -11129,7 +11317,7 @@ export function pipeline_module_import_binding_name_byte_at(module: *u8, idx: i3
     return 0 as u8;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let bl: i32 = pipe_load_i32_le(base, eoff + 328);
+  let bl: i32 = pipe_load_i32_le(base, eoff + 520);
   if (off >= bl) {
     return 0 as u8;
   }
@@ -11168,7 +11356,7 @@ export function pipeline_module_import_set_select_count(module: *u8, idx: i32, n
   if (base == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 336, n);
+  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 528, n);
 }
 
 /**
@@ -11207,9 +11395,9 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
     return 0 - 1;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
   if (scount == 0) {
-    pipe_store_i32_le(base, eoff + 332, g_pipe_imp_sel_n[s]);
+    pipe_store_i32_le(base, eoff + 524, g_pipe_imp_sel_n[s]);
   }
   let vi: i32 = g_pipe_imp_sel_n[s];
   if (pipe_imp_ensure_select(s, vi + 1) == 0) {
@@ -11232,8 +11420,8 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
     z = z + 1;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let i: i32 = 0;
   while (i < n) {
@@ -11244,7 +11432,7 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
   }
   pipe_store_i32_le(lens, vi * 4, n);
   g_pipe_imp_sel_n[s] = vi + 1;
-  pipe_store_i32_le(base, eoff + 336, scount + 1);
+  pipe_store_i32_le(base, eoff + 528, scount + 1);
   return scount;
 }
 
@@ -11275,7 +11463,7 @@ export function pipeline_module_import_select_count_at(module: *u8, idx: i32): i
   if (base == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 336);
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 528);
 }
 
 /**
@@ -11319,7 +11507,7 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
   while (1 == 1) {
-    let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+    let scount: i32 = pipe_load_i32_le(base, eoff + 528);
     if (scount > sel) {
       break;
     }
@@ -11328,12 +11516,12 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
       return;
     }
     // Cap: if sel < scount-1 after append return - only last append fills target.
-    scount = pipe_load_i32_le(base, eoff + 336);
+    scount = pipe_load_i32_le(base, eoff + 528);
     if (sel < scount - 1) {
       return;
     }
   }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
   let abs: i32 = sbase + sel;
   let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
   let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
@@ -11358,8 +11546,8 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
     z = z + 1;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let i: i32 = 0;
   while (i < n) {
@@ -11403,11 +11591,11 @@ export function pipeline_module_import_select_name_len(module: *u8, idx: i32, se
     return 0;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
   if (sel >= scount) {
     return 0;
   }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
   let abs: i32 = sbase + sel;
   if (abs < 0) {
     return 0;
@@ -11458,11 +11646,11 @@ export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32
     return 0 as u8;
   }
   let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
   if (sel >= scount) {
     return 0 as u8;
   }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
   let abs: i32 = sbase + sel;
   if (abs < 0) {
     return 0 as u8;
@@ -11764,7 +11952,7 @@ export function asm_diag_trace_func_idx(func_idx: i32, name: *u8, name_len: i32)
   if (asm_diag_env_truthy(trace) == 0) {
     return;
   }
-  let msg: u8[128];
+  let msg: u8[256];
   let at: i32 = 0;
   if (func_idx >= 0) {
     at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "asm_trace: #");
@@ -14426,7 +14614,7 @@ export function pipeline_codegen_call_num_args_override(prefix: *u8, prefix_len:
 }
 
 /**
- * std.io.driver bridge short names (register/submit_*/wait_readable/register_fixed_buffers).
+ * std.io.driver bridge short names (register/submit_* / wait_readable/register_fixed_buffers).
  * @param name *u8 - function short name; null -> 0
  * @param name_len i32 - name length
  * @return i32 - 1 bridge, 0 otherwise
@@ -15177,7 +15365,7 @@ export function pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w: i32
 export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   let inner: u8[896] = [];
   let eb: u8[896] = [];
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   if (cap < 16) {
     return -1;
   }
@@ -15346,6 +15534,14 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
   if (tk == 17) {
     return cg_ttc_write_bytes(scratch, cap, "struct xlang_dyn_obj", 20);
   }
+  /*
+   * 10.3.1: TYPE_FN (18) — Cap opaque fn-ptr ABI on host-C (`uint8_t *`).
+   * Twin of codegen emit_type_kind TYPE_FN. Full Ret(*)(args) residual.
+   * PLATFORM: SHARED host-C. G.7 single type_to_c_repr authority.
+   */
+  if (tk == 18) {
+    return cg_ttc_write_bytes(scratch, cap, "uint8_t *", 9);
+  }
   // TYPE_SLICE (11): `struct xlang_slice_<elemTag>`.
   // Strip leading "struct " then sanitize like TYPE_ARRAY: keep [A-Za-z0-9_],
   // map `*` → `_p`, skip spaces / brackets. Prior raw copy made `[]*i32` →
@@ -15382,8 +15578,10 @@ export function pipeline_codegen_type_to_c_repr(arena: *u8, scratch: *u8, cap: i
       }
     }
     let plen: i32 = n - sp;
-    // `*` → `_p` can grow; 19 + 2*plen is a conservative cap.
-    if (plen <= 0 || 19 + plen + plen >= cap) {
+    // Header needs 19 bytes. `*` → `_p` growth is the write-loop
+    // `w_sl+2>=cap` below. leftover 19+2*plen rejected nest 64 i32
+    // (tag=782 fits 896; 2*plen of nest 63 ≈ 1545). PLATFORM: SHARED.
+    if (plen <= 0 || 19 >= cap) {
       return -1;
     }
     // "struct xlang_slice_" = 19 bytes
@@ -15616,7 +15814,7 @@ export function pipeline_codegen_struct_tag_try_claim(prefix: *u8, prefix_len: i
   if (tlen >= 128) {
     return -1;
   }
-  let tag: u8[128] = [];
+  let tag: u8[256] = [];
   let i: i32 = 0;
   while (i < plen) {
     unsafe {
@@ -15763,11 +15961,13 @@ function cg_se_out_format_int(out: *u8, val: i32): i32 {
  * @param struct_prefix_len i32 - prefix length
  * @return i32 - 0 ok, -1 fail
  * wave110 pure: private recursive core for emit_struct_field_type.
+ * Leftover seed inner_w110 is the cold twin (scratch/cap 896, same as here).
+ * Product hybrid live is this WEAK .x; do not fork a second field-type emitter.
  * PLATFORM: SHARED.
  */
 function pipeline_codegen_emit_struct_field_type_inner(arena: *u8, out: *u8, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   let scratch: u8[896] = [];
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let ord: i32 = -1;
   if (arena != 0 as *u8 && type_ref > 0) {
     unsafe {
@@ -15999,7 +16199,7 @@ function cg_dep_path_len127(path_buf: *u8): i32 {
     return 0;
   }
   let path_len: i32 = 0;
-  while (path_len < 127) {
+  while (path_len < 255) {
     let b: u8 = 0 as u8;
     unsafe {
       b = path_buf[path_len];
@@ -16072,7 +16272,7 @@ function pipeline_dep_ctx_has_earlier_same_import_path_c(ctx: *u8, dep_j: i32): 
   if (path_len > 128) {
     return 0;
   }
-  let path_buf: u8[128] = [];
+  let path_buf: u8[256] = [];
   unsafe {
     memset(&path_buf[0], 0, 128 as usize);
     pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &path_buf[0]);
@@ -16084,7 +16284,7 @@ function pipeline_dep_ctx_has_earlier_same_import_path_c(ctx: *u8, dep_j: i32): 
       prev_len = pipeline_dep_ctx_import_path_len(ctx, prev_j);
     }
     if (prev_len == path_len && prev_len > 0 && prev_len <= 128) {
-      let prev_buf: u8[128] = [];
+      let prev_buf: u8[256] = [];
       unsafe {
         memset(&prev_buf[0], 0, 128 as usize);
         pipeline_dep_ctx_import_path_copy64(ctx, prev_j, &prev_buf[0]);
@@ -16130,7 +16330,7 @@ export function run_x_pipeline_codegen_one_dep_emit(dep_mod: *u8, out_buf: *u8, 
   if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, dep_j) != 0) {
     return 0;
   }
-  let dep_path_buf: u8[128] = [];
+  let dep_path_buf: u8[256] = [];
   unsafe {
     memset(&dep_path_buf[0], 0, 128 as usize);
     pipeline_dep_ctx_import_path_copy64(ctx, dep_j, &dep_path_buf[0]);
@@ -16398,7 +16598,9 @@ export function run_x_pipeline_fill_dep_import_path_c(module: *u8, ctx: *u8, dep
  * Copy dep path into dst and set current dep path for codegen prefix.
  * @param ctx *u8 - PipelineDepCtx*
  * @param dep_j i32 - slot
- * @param dst *u8 - out path buf (>=128)
+ * @param dst *u8 - out path buf (>=256: import_path_copy64 clears 256 —
+ *   AST name[256] world since Cap 4.2.8; a 128 local gets its canary
+ *   smashed, see the 2026-09-13 L4 std/string SIGABRT)
  * @return i32 - 0 ok, -1 null
  * wave111 pure: G.7 single product authority.
  * PLATFORM: SHARED.
@@ -16480,9 +16682,9 @@ export function run_x_pipeline_codegen_one_dep_c(module: *u8, out_buf: *u8, ctx:
   if (run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j) != 0) {
     return 0 - 1;
   }
-  let dep_path_buf: u8[128] = [];
+  let dep_path_buf: u8[256] = [];
   unsafe {
-    memset(&dep_path_buf[0], 0, 128 as usize);
+    memset(&dep_path_buf[0], 0, 256 as usize);
   }
   if (pipeline_prepare_dep_codegen_path_c(ctx, dep_j, &dep_path_buf[0]) != 0) {
     return 0 - 1;
@@ -16980,7 +17182,10 @@ export function pipeline_typeck_entry_module_c(module: *u8, arena: *u8, ctx: *u8
  * @param ctx *u8 - PipelineDepCtx*
  * @param import_idx i32 - import index
  * @return i32 - 0 ok; -1 null/bad idx; -7 resolve fail; -8 read fail
+ *   (read fail includes file larger than pin embed 4MiB)
  * wave112 pure: G.7 single product authority.
+ * pipeline_read_file_x now views the whole file and rejects length > 4MiB
+ * (no silent truncate). Product disk-load uses heap orch instead.
  * PLATFORM: SHARED - Cap residual path64 + pure resolve/read.
  */
 #[no_mangle]
@@ -19740,6 +19945,46 @@ export function asm_module_top_level_const_lit_i32(m: *u8, a: *u8, name: *u8, na
 }
 
 /**
+ * 9.6.3 pure: does this module already declare a top-level let/const with the
+ * exact given name? Registration-side duplicate guard for the top-level-let
+ * parse authority (P012 kind=2): two module-level bindings with one name used
+ * to compile silently with the second registration winning.
+ * @param m *u8 — Module*; null → 0
+ * @param name *u8 — binding-name bytes (not NUL-terminated)
+ * @param name_len i32 — name length; <= 0 → 0
+ * @return i32 — 1 = name already declared, 0 = no
+ * PLATFORM: SHARED — sole provider after top_level leave; seed twin in
+ * runtime_pipeline_abi.from_x.c must stay in step.
+ */
+#[no_mangle]
+export function asm_module_top_level_let_name_exists(m: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    if (m == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    let ntl: i32 = pipe_mod_get_num_top_level_lets(m);
+    let tl: i32 = 0;
+    while (tl < ntl) {
+      let nl: i32 = pipeline_module_top_level_let_name_len(m, tl);
+      if (nl == name_len && nl > 0) {
+        let k: i32 = 0;
+        while (k < name_len) {
+          if (pipeline_module_top_level_let_name_byte_at(m, tl, k) != (name[k] as i32)) {
+            break;
+          }
+          k = k + 1;
+        }
+        if (k == name_len) {
+          return 1;
+        }
+      }
+      tl = tl + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * wave119 pure: SKIP_TYPECK entry whitelist (1 = do not stub via skip_heavy).
  * @param m *u8 — Module*
  * @param func_index i32 — function index
@@ -21957,7 +22202,7 @@ export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i3
     nlen = pipeline_module_func_name_len_at(m, fi);
   }
   if (nlen == 4) {
-    let name: u8[128];
+    let name: u8[256];
     unsafe {
       pipeline_module_func_name_copy64(m, fi, &name[0]);
     }
@@ -21966,7 +22211,7 @@ export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i3
     }
   }
   if (mode == 1) {
-    let namew: u8[128];
+    let namew: u8[256];
     unsafe {
       pipeline_module_func_name_copy64(m, fi, &namew[0]);
       nlen = pipeline_module_func_name_len_at(m, fi);
@@ -21974,8 +22219,8 @@ export function pipeline_visibility_allow_func(m: *u8, fi: i32, cross_module: i3
     if (nlen < 0) {
       nlen = 0;
     }
-    if (nlen > 127) {
-      nlen = 127;
+    if (nlen > 255) {
+      nlen = 255;
     }
     // warning: 'NAME' is not exported ...
     let msg: u8[256];
@@ -22130,7 +22375,7 @@ function pipeline_report_unused_private(name: *u8, nlen: i32): void {
   if (nl < 0) {
     nl = 0;
   }
-  if (nl > 127) {
+  if (nl > 255) {
     nl = 63;
   }
   let msg: u8[192];
@@ -22213,7 +22458,7 @@ function pipeline_mark_local_call_names(a: *u8, used_flags: *u8, nfuncs: i32, m:
             clen = pipeline_expr_var_name_len(a, callee_ref);
           }
           if (clen > 0) {
-            let cname: u8[128];
+            let cname: u8[256];
             unsafe {
               pipeline_expr_var_name_into(a, callee_ref, &cname[0]);
             }
@@ -22240,7 +22485,7 @@ function pipeline_mark_local_call_names(a: *u8, used_flags: *u8, nfuncs: i32, m:
         mlen = pipeline_expr_method_call_name_len(a, er);
       }
       if (mlen > 0) {
-        let mname: u8[128];
+        let mname: u8[256];
         unsafe {
           pipeline_expr_method_call_name_into(a, er, &mname[0]);
         }
@@ -22351,7 +22596,7 @@ export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
         nlen = pipeline_module_func_name_len_at(m, fi);
       }
       if (nlen == 4) {
-        let nm: u8[128];
+        let nm: u8[256];
         unsafe {
           pipeline_module_func_name_copy64(m, fi, &nm[0]);
         }
@@ -22383,7 +22628,7 @@ export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
         }
       }
       if (skip == 0) {
-        let name: u8[128];
+        let name: u8[256];
         unsafe {
           pipeline_module_func_name_copy64(m, fi, &name[0]);
         }
@@ -22397,6 +22642,1046 @@ export function pipeline_typeck_unused_private_funcs(m: *u8, a: *u8): i32 {
     free(used);
   }
   return nwarn;
+}
+
+/**
+ * Whether L6 unused-binding hint is enabled (XLANG_UNUSED_HINT=1).
+ * @return i32 - 1 enabled
+ * PLATFORM: SHARED — opt-in info lint; default off.
+ */
+function pipeline_unused_hint_enabled(): i32 {
+  let e: *u8 = 0 as *u8;
+  unsafe {
+    e = link_abi_getenv("XLANG_UNUSED_HINT");
+  }
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (e[0] == 49 && e[1] == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Compare name[0..nlen) to buf[0..nlen); 1 if equal.
+ * @param name *u8
+ * @param nlen i32
+ * @param buf *u8
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function pipeline_l6_name_eq(name: *u8, nlen: i32, buf: *u8): i32 {
+  let i: i32 = 0;
+  if (name == 0 as *u8 || buf == 0 as *u8 || nlen <= 0) {
+    return 0;
+  }
+  while (i < nlen) {
+    unsafe {
+      if (name[i] != buf[i]) {
+        return 0;
+      }
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * True if any EXPR_VAR in the arena spells the binding name.
+ * @param a *u8 - ASTArena*
+ * @param name *u8
+ * @param nlen i32
+ * @return i32 - 1 used
+ * PLATFORM: SHARED — EXPR_VAR kind_ord == 3.
+ */
+function pipeline_l6_binding_is_used(a: *u8, name: *u8, nlen: i32): i32 {
+  let nexpr: i32 = 0;
+  let er: i32 = 1;
+  let ko: i32 = 0;
+  let vlen: i32 = 0;
+  let vbuf: u8[256];
+  if (a == 0 as *u8 || name == 0 as *u8 || nlen <= 0) {
+    return 1;
+  }
+  nexpr = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
+  while (er <= nexpr) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(a, er);
+    }
+    if (ko == 3) {
+      unsafe {
+        vlen = pipeline_expr_var_name_len(a, er);
+      }
+      if (vlen == nlen && vlen > 0 && vlen < 128) {
+        unsafe {
+          pipeline_expr_var_name_into(a, er, &vbuf[0]);
+        }
+        if (pipeline_l6_name_eq(name, nlen, &vbuf[0]) != 0) {
+          return 1;
+        }
+      }
+    }
+    er = er + 1;
+  }
+  return 0;
+}
+
+/**
+ * Report one unused binding if not '_' prefixed and never used as VAR.
+ * @param a *u8
+ * @param name *u8
+ * @param nlen i32
+ * @return i32 - 1 if reported
+ * PLATFORM: SHARED — '_' prefix intentional unused.
+ */
+function pipeline_l6_maybe_report(a: *u8, name: *u8, nlen: i32): i32 {
+  let c0: u8 = 0;
+  if (name == 0 as *u8 || nlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    c0 = name[0];
+  }
+  if (c0 == 95) {
+    return 0;
+  }
+  if (pipeline_l6_binding_is_used(a, name, nlen) != 0) {
+    return 0;
+  }
+  unsafe {
+    driver_diagnostic_hint_unused_binding(1, 1, name, nlen);
+  }
+  return 1;
+}
+
+/**
+ * Scan one block's let + const bindings for unused names.
+ * @param a *u8
+ * @param br i32
+ * @return i32 - hint count
+ * PLATFORM: SHARED.
+ */
+function pipeline_l6_scan_block(a: *u8, br: i32): i32 {
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let nlen: i32 = 0;
+  let name: u8[256];
+  let nh: i32 = 0;
+  if (a == 0 as *u8 || br <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = ast_ast_block_num_lets(a, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      nlen = pipeline_block_let_name_len(a, br, i);
+    }
+    if (nlen > 0 && nlen < 128) {
+      unsafe {
+        pipeline_block_let_name_copy64(a, br, i, &name[0]);
+      }
+      nh = nh + pipeline_l6_maybe_report(a, &name[0], nlen);
+    }
+    i = i + 1;
+  }
+  unsafe {
+    n = ast_ast_block_num_consts(a, br);
+  }
+  i = 0;
+  while (i < n) {
+    unsafe {
+      nlen = ast_pipeline_block_const_name_len(a, br, i);
+    }
+    if (nlen > 0 && nlen < 128) {
+      unsafe {
+        ast_pipeline_block_const_name_copy64(a, br, i, &name[0]);
+      }
+      nh = nh + pipeline_l6_maybe_report(a, &name[0], nlen);
+    }
+    i = i + 1;
+  }
+  return nh;
+}
+
+/**
+ * L6 unused-binding hints for a typed module (info; never fails typeck).
+ * Gated by XLANG_UNUSED_HINT=1. Walks each function body block's let/const
+ * and emits driver_diagnostic_hint_unused_binding for names with no EXPR_VAR use.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @return i32 - number of hints emitted
+ * G.7 sole product authority; thin twin runtime_pipeline_abi_unused_hints_thin.x.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_typeck_unused_binding_hints(m: *u8, a: *u8): i32 {
+  let nfuncs: i32 = 0;
+  let fi: i32 = 0;
+  let br: i32 = 0;
+  let nh: i32 = 0;
+  if (m == 0 as *u8 || a == 0 as *u8) {
+    return 0;
+  }
+  if (pipeline_unused_hint_enabled() == 0) {
+    return 0;
+  }
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0) {
+    return 0;
+  }
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      br = pipeline_module_func_body_ref_at(m, fi);
+    }
+    if (br > 0) {
+      nh = nh + pipeline_l6_scan_block(a, br);
+    }
+    fi = fi + 1;
+  }
+  return nh;
+}
+
+/**
+ * WPO_DUMP_CALLGRAPH helpers + pipeline_typeck_wpo_dump_callgraph.
+ * G.7 sole product authority; thin twin runtime_pipeline_abi_wpo_dump_thin.x.
+ * Gated by XLANG_WPO_DUMP_CALLGRAPH. PLATFORM: SHARED.
+ */
+
+function wpo_dump_max_funcs(): i32 {
+  return 256;
+}
+
+/**
+ * Cap for thin dump edges.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_max_edges(): i32 {
+  return 1024;
+}
+
+/**
+ * EXPR_CALL ordinal.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_ek_call(): i32 {
+  return 48;
+}
+
+/**
+ * EXPR_METHOD_CALL ordinal.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_ek_method(): i32 {
+  return 49;
+}
+
+/**
+ * EXPR_RETURN ordinal.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_ek_return(): i32 {
+  return 41;
+}
+
+/**
+ * EXPR_IF ordinal.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_ek_if(): i32 {
+  return 25;
+}
+
+/**
+ * EXPR_BLOCK ordinal.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_ek_block(): i32 {
+  return 26;
+}
+
+/**
+ * EXPR_VAR ordinal.
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_ek_var(): i32 {
+  return 3;
+}
+
+/**
+ * Whether XLANG_WPO_DUMP_CALLGRAPH is set (non-empty).
+ * @param out_path *u8 - receives getenv pointer when enabled; may be null
+ * @return i32 - 1 enabled
+ * PLATFORM: SHARED — opt-in dump; default off.
+ */
+function wpo_dump_env_path(out_path: *u8): i32 {
+  let e: *u8 = 0 as *u8;
+  let key: u8[24] = [
+    88, 76, 65, 78, 71, 95, 87, 80, 79, 95, 68, 85, 77, 80, 95,
+    67, 65, 76, 76, 71, 82, 65, 80, 72
+  ];
+  let keyz: u8[25];
+  let i: i32 = 0;
+  while (i < 24) {
+    unsafe {
+      keyz[i] = key[i];
+    }
+    i = i + 1;
+  }
+  unsafe {
+    keyz[24] = 0;
+    e = link_abi_getenv(&keyz[0]);
+  }
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (e[0] == 0) {
+      return 0;
+    }
+    if (out_path != 0 as *u8) {
+      // store pointer into out_path slot (LP64)
+      let slot: *u8 = out_path;
+      let ep: usize = 0 as usize;
+      ep = e as usize;
+      slot[0] = (ep & 255) as u8;
+      slot[1] = ((ep >> 8) & 255) as u8;
+      slot[2] = ((ep >> 16) & 255) as u8;
+      slot[3] = ((ep >> 24) & 255) as u8;
+      slot[4] = ((ep >> 32) & 255) as u8;
+      slot[5] = ((ep >> 40) & 255) as u8;
+      slot[6] = ((ep >> 48) & 255) as u8;
+      slot[7] = ((ep >> 56) & 255) as u8;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Load pointer previously stored by wpo_dump_env_path.
+ * @param slot *u8 - 8-byte LE pointer slot
+ * @return *u8
+ * PLATFORM: SHARED LP64.
+ */
+function wpo_dump_load_path(slot: *u8): *u8 {
+  let ep: usize = 0 as usize;
+  unsafe {
+    ep = (slot[0] as usize)
+      | ((slot[1] as usize) << 8)
+      | ((slot[2] as usize) << 16)
+      | ((slot[3] as usize) << 24)
+      | ((slot[4] as usize) << 32)
+      | ((slot[5] as usize) << 40)
+      | ((slot[6] as usize) << 48)
+      | ((slot[7] as usize) << 56);
+  }
+  return ep as *u8;
+}
+
+/**
+ * Resolve CALL/METHOD callee to local func index; -1 if unknown.
+ * @param a *u8
+ * @param m *u8
+ * @param er i32
+ * @param nfuncs i32
+ * @return i32
+ * PLATFORM: SHARED — prefer typeck resolved_func_index, else name match.
+ */
+function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
+  let ko: i32 = 0;
+  let rfi: i32 = -1;
+  let callee_ref: i32 = 0;
+  let cko: i32 = 0;
+  let clen: i32 = 0;
+  let cname: u8[256];
+  let fi: i32 = 0;
+  let eq: i32 = 0;
+  let mlen: i32 = 0;
+  if (a == 0 as *u8 || m == 0 as *u8 || er <= 0 || nfuncs <= 0) {
+    return -1;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(a, er);
+  }
+  if (ko == wpo_dump_ek_call()) {
+    unsafe {
+      rfi = pipeline_expr_call_resolved_func_index_at(a, er);
+    }
+    if (rfi >= 0 && rfi < nfuncs) {
+      return rfi;
+    }
+    unsafe {
+      callee_ref = pipeline_expr_call_callee_ref_at(a, er);
+    }
+    if (callee_ref <= 0) {
+      return -1;
+    }
+    unsafe {
+      cko = pipeline_expr_kind_ord_at(a, callee_ref);
+    }
+    if (cko != wpo_dump_ek_var()) {
+      return -1;
+    }
+    unsafe {
+      clen = pipeline_expr_var_name_len(a, callee_ref);
+    }
+    if (clen <= 0 || clen >= 128) {
+      return -1;
+    }
+    unsafe {
+      pipeline_expr_var_name_into(a, callee_ref, &cname[0]);
+    }
+    fi = 0;
+    while (fi < nfuncs) {
+      unsafe {
+        eq = pipeline_module_func_name_equal_at(m, fi, &cname[0], clen);
+      }
+      if (eq != 0) {
+        return fi;
+      }
+      fi = fi + 1;
+    }
+    return -1;
+  }
+  if (ko == wpo_dump_ek_method()) {
+    unsafe {
+      rfi = pipeline_expr_call_resolved_func_index_at(a, er);
+    }
+    if (rfi >= 0 && rfi < nfuncs) {
+      return rfi;
+    }
+    unsafe {
+      mlen = pipeline_expr_method_call_name_len(a, er);
+    }
+    if (mlen <= 0 || mlen >= 128) {
+      return -1;
+    }
+    unsafe {
+      pipeline_expr_method_call_name_into(a, er, &cname[0]);
+    }
+    fi = 0;
+    while (fi < nfuncs) {
+      unsafe {
+        eq = pipeline_module_func_name_equal_at(m, fi, &cname[0], mlen);
+      }
+      if (eq != 0) {
+        return fi;
+      }
+      fi = fi + 1;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Add edge from->to if capacity remains (dedupe not required for reach BFS).
+ * @param edge_from *i32
+ * @param edge_to *i32
+ * @param nedges *i32
+ * @param from i32
+ * @param to i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_add_edge(edge_from: *i32, edge_to: *i32, nedges: *i32, from: i32, to: i32): void {
+  let n: i32 = 0;
+  if (edge_from == 0 as *i32 || edge_to == 0 as *i32 || nedges == 0 as *i32) {
+    return;
+  }
+  if (from < 0 || to < 0) {
+    return;
+  }
+  unsafe {
+    n = nedges[0];
+  }
+  if (n >= wpo_dump_max_edges()) {
+    return;
+  }
+  unsafe {
+    edge_from[n] = from;
+    edge_to[n] = to;
+    nedges[0] = n + 1;
+  }
+}
+
+/**
+ * Recursively collect CALL/METHOD edges from an expression.
+ * @param a *u8
+ * @param m *u8
+ * @param er i32
+ * @param caller i32
+ * @param nfuncs i32
+ * @param edge_from *i32
+ * @param edge_to *i32
+ * @param nedges *i32
+ * @param depth i32
+ * PLATFORM: SHARED — depth-capped walk of common expr shapes.
+ */
+function wpo_dump_collect_expr(
+  a: *u8, m: *u8, er: i32, caller: i32, nfuncs: i32,
+  edge_from: *i32, edge_to: *i32, nedges: *i32, depth: i32
+): void {
+  let ko: i32 = 0;
+  let to: i32 = -1;
+  let nargs: i32 = 0;
+  let ai: i32 = 0;
+  let arg: i32 = 0;
+  let op: i32 = 0;
+  let left: i32 = 0;
+  let right: i32 = 0;
+  let br: i32 = 0;
+  if (a == 0 as *u8 || m == 0 as *u8 || er <= 0 || depth > 64) {
+    return;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(a, er);
+  }
+  if (ko == wpo_dump_ek_call() || ko == wpo_dump_ek_method()) {
+    to = wpo_dump_callee_fi(a, m, er, nfuncs);
+    if (to >= 0) {
+      wpo_dump_add_edge(edge_from, edge_to, nedges, caller, to);
+    }
+    if (ko == wpo_dump_ek_call()) {
+      unsafe {
+        nargs = pipeline_expr_call_num_args_at(a, er);
+      }
+      ai = 0;
+      while (ai < nargs) {
+        unsafe {
+          arg = pipeline_expr_call_arg_ref(a, er, ai);
+        }
+        wpo_dump_collect_expr(a, m, arg, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+        ai = ai + 1;
+      }
+    } else {
+      unsafe {
+        op = pipeline_expr_method_call_base_ref_at(a, er);
+      }
+      wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+      unsafe {
+        nargs = pipeline_expr_method_call_num_args_at(a, er);
+      }
+      ai = 0;
+      while (ai < nargs) {
+        unsafe {
+          arg = pipeline_expr_method_call_arg_ref(a, er, ai);
+        }
+        wpo_dump_collect_expr(a, m, arg, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+        ai = ai + 1;
+      }
+    }
+    return;
+  }
+  if (ko == wpo_dump_ek_return()) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(a, er);
+    }
+    wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+    return;
+  }
+  if (ko == wpo_dump_ek_if()) {
+    unsafe {
+      left = pipeline_expr_if_cond_ref_at(a, er);
+      right = pipeline_expr_if_then_ref_at(a, er);
+      op = pipeline_expr_if_else_ref_at(a, er);
+    }
+    wpo_dump_collect_expr(a, m, left, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+    wpo_dump_collect_expr(a, m, right, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+    wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+    return;
+  }
+  if (ko == wpo_dump_ek_block()) {
+    unsafe {
+      br = pipeline_expr_block_ref_at(a, er);
+    }
+    wpo_dump_collect_block(a, m, br, caller, nfuncs, edge_from, edge_to, nedges);
+    return;
+  }
+  // Binops / assigns share left/right accessors for a useful subset.
+  if (ko >= 4 && ko <= 21) {
+    unsafe {
+      left = pipeline_expr_binop_left_ref_at(a, er);
+      right = pipeline_expr_binop_right_ref_at(a, er);
+    }
+    wpo_dump_collect_expr(a, m, left, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+    wpo_dump_collect_expr(a, m, right, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+    return;
+  }
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 51 || ko == 52 || ko == 42) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(a, er);
+    }
+    wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
+  }
+}
+
+/**
+ * Collect CALL/METHOD edges from a block body.
+ * @param a *u8
+ * @param m *u8
+ * @param br i32
+ * @param caller i32
+ * @param nfuncs i32
+ * @param edge_from *i32
+ * @param edge_to *i32
+ * @param nedges *i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_collect_block(
+  a: *u8, m: *u8, br: i32, caller: i32, nfuncs: i32,
+  edge_from: *i32, edge_to: *i32, nedges: *i32
+): void {
+  let nes: i32 = 0;
+  let i: i32 = 0;
+  let er: i32 = 0;
+  let fin: i32 = 0;
+  if (a == 0 as *u8 || br <= 0) {
+    return;
+  }
+  unsafe {
+    nes = ast_ast_block_num_expr_stmts(a, br);
+  }
+  i = 0;
+  while (i < nes) {
+    unsafe {
+      er = ast_pipeline_block_expr_stmt_ref(a, br, i);
+    }
+    wpo_dump_collect_expr(a, m, er, caller, nfuncs, edge_from, edge_to, nedges, 0);
+    i = i + 1;
+  }
+  unsafe {
+    fin = ast_ast_block_final_expr_ref(a, br);
+  }
+  wpo_dump_collect_expr(a, m, fin, caller, nfuncs, edge_from, edge_to, nedges, 0);
+}
+
+/**
+ * Write raw bytes to dump stream (file or stdout).
+ * @param fp *u8 - FILE* or null for stdout mode
+ * @param use_stdout i32
+ * @param data *u8
+ * @param len i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_write(fp: *u8, use_stdout: i32, data: *u8, len: i32): void {
+  if (data == 0 as *u8 || len <= 0) {
+    return;
+  }
+  if (use_stdout != 0) {
+    unsafe {
+      xlang_driver_fwrite_stdout_n(data, len);
+    }
+    return;
+  }
+  if (fp == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    xlang_driver_fwrite_opaque(data, len, fp);
+  }
+}
+
+/**
+ * Append decimal i32 into buf; return new length.
+ * @param buf *u8
+ * @param cap i32
+ * @param len i32
+ * @param v i32
+ * @return i32 - updated length
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_append_i32(buf: *u8, cap: i32, len: i32, v: i32): i32 {
+  let tmp: u8[16];
+  let n: i32 = 0;
+  let x: i32 = v;
+  let neg: i32 = 0;
+  let i: i32 = 0;
+  if (buf == 0 as *u8 || cap <= 0 || len < 0 || len >= cap) {
+    return len;
+  }
+  if (x == 0) {
+    if (len + 1 >= cap) {
+      return len;
+    }
+    unsafe {
+      buf[len] = 48;
+    }
+    return len + 1;
+  }
+  if (x < 0) {
+    neg = 1;
+    x = 0 - x;
+  }
+  while (x > 0 && n < 16) {
+    unsafe {
+      tmp[n] = ((x % 10) + 48) as u8;
+    }
+    n = n + 1;
+    x = x / 10;
+  }
+  if (neg != 0) {
+    if (len + 1 >= cap) {
+      return len;
+    }
+    unsafe {
+      buf[len] = 45;
+    }
+    len = len + 1;
+  }
+  i = n - 1;
+  while (i >= 0) {
+    if (len + 1 >= cap) {
+      return len;
+    }
+    unsafe {
+      buf[len] = tmp[i];
+    }
+    len = len + 1;
+    i = i - 1;
+  }
+  return len;
+}
+
+/**
+ * Append ASCII literal into buf; return new length.
+ * @param buf *u8
+ * @param cap i32
+ * @param len i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_append_lit(buf: *u8, cap: i32, len: i32, lit: *u8, lit_len: i32): i32 {
+  let i: i32 = 0;
+  if (buf == 0 as *u8 || lit == 0 as *u8 || lit_len <= 0) {
+    return len;
+  }
+  while (i < lit_len) {
+    if (len + 1 >= cap) {
+      return len;
+    }
+    unsafe {
+      buf[len] = lit[i];
+    }
+    len = len + 1;
+    i = i + 1;
+  }
+  return len;
+}
+
+/**
+ * Flush buf[0..len) to stream and reset length to 0.
+ * @param fp *u8
+ * @param use_stdout i32
+ * @param buf *u8
+ * @param len *i32
+ * PLATFORM: SHARED.
+ */
+function wpo_dump_flush(fp: *u8, use_stdout: i32, buf: *u8, len: *i32): void {
+  let n: i32 = 0;
+  if (len == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    n = len[0];
+  }
+  if (n > 0) {
+    wpo_dump_write(fp, use_stdout, buf, n);
+    unsafe {
+      len[0] = 0;
+    }
+  }
+}
+
+/**
+ * WPO-S1 callgraph dump after successful typeck.
+ * Gated by XLANG_WPO_DUMP_CALLGRAPH=<path> or "-" (stdout).
+ * Writes JSON version 2 (modules/functions/edges/call_sites/root) for wpo_dce.pl.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx* (unused in v1 single-module dump; reserved)
+ * @return i32 - 1 if dumped, 0 if skipped/failed open
+ * G.7 sole product authority; thin twin runtime_pipeline_abi_wpo_dump_thin.x.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i32 {
+  let path_slot: u8[8];
+  let path: *u8 = 0 as *u8;
+  let use_stdout: i32 = 0;
+  let fp: *u8 = 0 as *u8;
+  let nfuncs: i32 = 0;
+  let fi: i32 = 0;
+  let root: i32 = -1;
+  let edge_from: i32[1024];
+  let edge_to: i32[1024];
+  let nedges: i32 = 0;
+  let reach: u8[256];
+  let queue: i32[256];
+  let qh: i32 = 0;
+  let qt: i32 = 0;
+  let br: i32 = 0;
+  let ber: i32 = 0;
+  let ei: i32 = 0;
+  let to: i32 = 0;
+  let name: u8[256];
+  let nlen: i32 = 0;
+  let is_ext: i32 = 0;
+  let buf: u8[512];
+  let blen: i32 = 0;
+  let first: i32 = 0;
+  let _ctx_unused: *u8 = ctx;
+  // Named ASCII fragments (no array reassignment → no host memcpy).
+  let s_ver: u8[18] = [123, 10, 32, 32, 34, 118, 101, 114, 115, 105, 111, 110, 34, 58, 32, 50, 44, 10];
+  let s_entry: u8[15] = [32, 32, 34, 101, 110, 116, 114, 121, 34, 58, 32, 34, 34, 44, 10];
+  let s_mods: u8[46] = [
+    32, 32, 34, 109, 111, 100, 117, 108, 101, 115, 34, 58, 32, 91, 10,
+    32, 32, 32, 32, 123, 34, 105, 100, 34, 58, 32, 48, 44, 32, 34, 112, 97, 116, 104, 34, 58, 32, 34, 34, 125, 10,
+    32, 32, 93, 44, 10
+  ];
+  let s_funcs_open: u8[17] = [32, 32, 34, 102, 117, 110, 99, 116, 105, 111, 110, 115, 34, 58, 32, 91, 10];
+  let s_comma_nl: u8[2] = [44, 10];
+  let s_fn_head: u8[11] = [32, 32, 32, 32, 123, 34, 105, 100, 34, 58, 32];
+  let s_fn_mid: u8[24] = [44, 32, 34, 109, 111, 100, 117, 108, 101, 34, 58, 32, 48, 44, 32, 34, 110, 97, 109, 101, 34, 58, 32, 34];
+  let s_ext_key: u8[13] = [34, 44, 32, 34, 101, 120, 116, 101, 114, 110, 34, 58, 32];
+  let s_true: u8[4] = [116, 114, 117, 101];
+  let s_false: u8[5] = [102, 97, 108, 115, 101];
+  let s_reach_key: u8[15] = [44, 32, 34, 114, 101, 97, 99, 104, 97, 98, 108, 101, 34, 58, 32];
+  let s_close_obj: u8[1] = [125];
+  let s_arr_close: u8[6] = [10, 32, 32, 93, 44, 10];
+  let s_edges_open: u8[13] = [32, 32, 34, 101, 100, 103, 101, 115, 34, 58, 32, 91, 10];
+  let s_edge_from: u8[13] = [32, 32, 32, 32, 123, 34, 102, 114, 111, 109, 34, 58, 32];
+  let s_edge_to: u8[8] = [44, 32, 34, 116, 111, 34, 58, 32];
+  let s_tail: u8[30] = [
+    32, 32, 34, 99, 97, 108, 108, 95, 115, 105, 116, 101, 115, 34, 58, 32, 91, 93, 44, 10,
+    32, 32, 34, 114, 111, 111, 116, 34, 58, 32
+  ];
+  let s_end: u8[3] = [10, 125, 10];
+  if (m == 0 as *u8 || a == 0 as *u8) {
+    return 0;
+  }
+  if (wpo_dump_env_path(&path_slot[0]) == 0) {
+    return 0;
+  }
+  path = wpo_dump_load_path(&path_slot[0]);
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (path[0] == 45 && path[1] == 0) {
+      use_stdout = 1;
+    } else {
+      fp = xlang_driver_fopen_write_opaque(path);
+    }
+  }
+  if (use_stdout == 0 && fp == 0 as *u8) {
+    return 0;
+  }
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0) {
+    if (use_stdout == 0) {
+      unsafe {
+        xlang_driver_fclose_opaque(fp);
+      }
+    }
+    return 0;
+  }
+  if (nfuncs > wpo_dump_max_funcs()) {
+    nfuncs = wpo_dump_max_funcs();
+  }
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      reach[fi] = 0;
+    }
+    fi = fi + 1;
+  }
+  // Prefer main, then entry, then first export as root.
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      if (pipeline_module_func_name_equal_at(m, fi, "main", 4) != 0) {
+        root = fi;
+        break;
+      }
+    }
+    fi = fi + 1;
+  }
+  if (root < 0) {
+    fi = 0;
+    while (fi < nfuncs) {
+      unsafe {
+        if (pipeline_module_func_name_equal_at(m, fi, "entry", 5) != 0) {
+          root = fi;
+          break;
+        }
+      }
+      fi = fi + 1;
+    }
+  }
+  if (root < 0) {
+    fi = 0;
+    while (fi < nfuncs) {
+      unsafe {
+        if (pipeline_module_func_is_export_at(m, fi) != 0) {
+          root = fi;
+          break;
+        }
+      }
+      fi = fi + 1;
+    }
+  }
+  if (root < 0) {
+    root = 0;
+  }
+  // Collect edges from every function body (reach BFS filters later).
+  nedges = 0;
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      br = pipeline_module_func_body_ref_at(m, fi);
+    }
+    if (br > 0) {
+      wpo_dump_collect_block(a, m, br, fi, nfuncs, &edge_from[0], &edge_to[0], &nedges);
+    } else {
+      unsafe {
+        ber = pipeline_module_func_body_expr_ref_at(m, fi);
+      }
+      wpo_dump_collect_expr(a, m, ber, fi, nfuncs, &edge_from[0], &edge_to[0], &nedges, 0);
+    }
+    fi = fi + 1;
+  }
+  // BFS reach from root.
+  unsafe {
+    reach[root] = 1;
+    queue[0] = root;
+  }
+  qh = 0;
+  qt = 1;
+  while (qh < qt) {
+    let cur: i32 = 0;
+    unsafe {
+      cur = queue[qh];
+    }
+    qh = qh + 1;
+    ei = 0;
+    while (ei < nedges) {
+      unsafe {
+        if (edge_from[ei] == cur) {
+          to = edge_to[ei];
+          if (to >= 0 && to < nfuncs && reach[to] == 0) {
+            reach[to] = 1;
+            if (qt < wpo_dump_max_funcs()) {
+              queue[qt] = to;
+              qt = qt + 1;
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+  }
+  // Emit JSON v2 (call_sites empty — S1 wpo_dce only needs functions/reachable).
+  blen = 0;
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_ver[0], 18);
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_entry[0], 15);
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_mods[0], 46);
+  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_funcs_open[0], 17);
+  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+  first = 1;
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      nlen = pipeline_module_func_name_len_at(m, fi);
+      is_ext = pipeline_asm_module_func_is_extern_at(m, fi);
+    }
+    if (nlen < 0) {
+      nlen = 0;
+    }
+    if (nlen >= 128) {
+      nlen = 255;
+    }
+    if (nlen > 0) {
+      unsafe {
+        pipeline_module_func_name_copy64(m, fi, &name[0]);
+      }
+    }
+    blen = 0;
+    if (first == 0) {
+      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_comma_nl[0], 2);
+    }
+    first = 0;
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_fn_head[0], 11);
+    blen = wpo_dump_append_i32(&buf[0], 512, blen, fi);
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_fn_mid[0], 24);
+    if (nlen > 0) {
+      blen = wpo_dump_append_lit(&buf[0], 512, blen, &name[0], nlen);
+    }
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_ext_key[0], 13);
+    if (is_ext != 0) {
+      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_true[0], 4);
+    } else {
+      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_false[0], 5);
+    }
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_reach_key[0], 15);
+    unsafe {
+      if (reach[fi] != 0) {
+        blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_true[0], 4);
+      } else {
+        blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_false[0], 5);
+      }
+    }
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_close_obj[0], 1);
+    wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+    fi = fi + 1;
+  }
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_arr_close[0], 6);
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_edges_open[0], 13);
+  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+  first = 1;
+  ei = 0;
+  while (ei < nedges) {
+    blen = 0;
+    if (first == 0) {
+      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_comma_nl[0], 2);
+    }
+    first = 0;
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_edge_from[0], 13);
+    unsafe {
+      blen = wpo_dump_append_i32(&buf[0], 512, blen, edge_from[ei]);
+    }
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_edge_to[0], 8);
+    unsafe {
+      blen = wpo_dump_append_i32(&buf[0], 512, blen, edge_to[ei]);
+    }
+    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_close_obj[0], 1);
+    wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+    ei = ei + 1;
+  }
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_arr_close[0], 6);
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_tail[0], 30);
+  blen = wpo_dump_append_i32(&buf[0], 512, blen, root);
+  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_end[0], 3);
+  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+  if (use_stdout == 0) {
+    unsafe {
+      xlang_driver_fclose_opaque(fp);
+    }
+  }
+  return 1;
 }
 
 /**
@@ -23144,10 +24429,10 @@ export function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref:
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   unsafe {
     pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
   }
@@ -23265,9 +24550,10 @@ export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref
 // G.7 product authority for:
 //   pipeline_asm_ctx_layout
 // Semantics: opaque AsmFuncCtx* → layout view pointer (same address).
-// Residual C keeps pipeline_glue_AsmFuncCtxLayout typedef in pipeline_glue.c
-// (early shell before emit domains) for ly->frame_size / next_offset / …
-// field access; pure cannot host C typedefs for residual TU field syntax.
+// Residual C keeps pipeline_glue_AsmFuncCtxLayout typedef in
+// seeds/backend_seed_mega_fallback.from_x.c (pipeline_glue.c shell left
+// wave309) for ly->frame_size / next_offset / … field access; pure cannot host
+// C typedefs for residual TU field syntax.
 // Cold twin under seed #ifndef FROM_X (void* identity).
 // PLATFORM: SHARED - dual-end L2 after leave.
 // ---------------------------------------------------------------------------
@@ -23275,7 +24561,8 @@ export function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, block_ref
 /**
  * Cast opaque backend AsmFuncCtx* to the residual C layout view address.
  * Identity: returned pointer equals ctx; residual C reinterprets as
- * pipeline_glue_AsmFuncCtxLayout* (typedef lives in pipeline_glue.c shell).
+ * pipeline_glue_AsmFuncCtxLayout* (typedef in backend_seed_mega_fallback seed;
+ * pipeline_glue.c shell left wave309).
  * @param ctx *u8 - backend_AsmFuncCtx* (may be null; null passthrough)
  * @return *u8 - same address as ctx (layout overlay base)
  * wave125 pure: G.7 authority (was static in pipeline_asm_ctx_layout.c).
@@ -23601,7 +24888,7 @@ export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx
       return 0;
     }
   }
-  let ok_lbl: u8[128] = [];
+  let ok_lbl: u8[256] = [];
   let ok_len: i32 = 0;
   unsafe {
     ok_len = pipeline_asm_emit_next_label_c(ctx, &ok_lbl[0], 64);
@@ -23663,8 +24950,8 @@ export function pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx: *u8, ctx
 export function pipeline_asm_emit_logand_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let false_lbl: u8[128] = [];
-  let end_lbl: u8[128] = [];
+  let false_lbl: u8[256] = [];
+  let end_lbl: u8[256] = [];
   let false_len: i32 = 0;
   let end_len: i32 = 0;
   let rc: i32 = 0;
@@ -23768,8 +25055,8 @@ export function pipeline_asm_emit_logand_elf_impl(arena: *u8, elf_ctx: *u8, expr
 export function pipeline_asm_emit_logor_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let true_lbl: u8[128] = [];
-  let end_lbl: u8[128] = [];
+  let true_lbl: u8[256] = [];
+  let end_lbl: u8[256] = [];
   let true_len: i32 = 0;
   let end_len: i32 = 0;
   let rc: i32 = 0;
@@ -23889,14 +25176,17 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   let cond_if: i32 = 0;
   let then_ref: i32 = 0;
   let else_ref: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let then_live: u8[136] = [];
   let else_live: u8[136] = [];
   let rc: i32 = 0;
   let has_ret: i32 = 0;
+  /* Slice11: options(noreturn) CFG join — then/else diverge flags. */
+  let then_div: i32 = 0;
+  let else_div: i32 = 0;
   // stmt_i reserved for residual debug parity; unused in pure path
   if (stmt_i != 0) {
     // no-op keep param live for ABI
@@ -23955,11 +25245,12 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   unsafe {
     glue_block_fill_live_end_for_merge(arena, ctx, then_ref, &then_live[0]);
   }
-  // then already returned: done lands after if; do not jmp done.
+  // then already returned / noreturn: done lands after if; do not jmp done.
   unsafe {
     has_ret = glue_block_stmt_order_has_return(arena, then_ref);
+    then_div = glue_asm_block_diverged_get();
   }
-  if (has_ret == 0) {
+  if (has_ret == 0 && then_div == 0) {
     unsafe {
       rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
     }
@@ -23969,6 +25260,8 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   }
   if (else_ref != 0) {
     unsafe {
+      /* Else is a separate CFG path — clear then's diverged before emitting else. */
+      glue_asm_block_diverged_set(0);
       rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
     }
     if (rc != 0) {
@@ -23987,6 +25280,7 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
     }
     unsafe {
       glue_block_fill_live_end_for_merge(arena, ctx, else_ref, &else_live[0]);
+      else_div = glue_asm_block_diverged_get();
     }
   } else {
     unsafe {
@@ -23999,7 +25293,22 @@ export function pipeline_asm_emit_block_if_stmt_elf(arena: *u8, elf_ctx: *u8, cu
   if (rc != 0) {
     return 0 - 1;
   }
+  /*
+   * Slice11 CFG join for options(noreturn):
+   * - if/else: join diverges only when BOTH arms diverged.
+   * - if-only: false path jumps to done → join is reachable → clear diverged.
+   * PLATFORM: SHARED freestanding emit.
+   */
   unsafe {
+    if (else_ref != 0) {
+      if (then_div != 0 && else_div != 0) {
+        glue_asm_block_diverged_set(1);
+      } else {
+        glue_asm_block_diverged_set(0);
+      }
+    } else {
+      glue_asm_block_diverged_set(0);
+    }
     glue_asm_cache_invalidate_at_cfg_merge_selective(arena, ctx, then_ref, else_ref);
     glue_asm_if_phi_invalidate_both_branch_defs(arena, ctx, then_ref, else_ref);
     glue_asm_if_merge_live_union_from_ends(arena, ctx, &then_live[0], &else_live[0]);
@@ -24139,7 +25448,7 @@ export function glue_wpo_mono_register_thunk_n(base: *u8, nargs: i32, args: *i32
   if (nn > 8) {
     nn = 8;
   }
-  let sym: u8[128] = [];
+  let sym: u8[256] = [];
   let sym_len: i32 = 0;
   unsafe {
     sym_len = codegen_wpo_mono_sym_format(base, nn, args, &sym[0], 128);
@@ -24231,7 +25540,7 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
       if (sym_len <= 0 || sym_len >= 128) {
         return 0 - 1;
       }
-      let sym: u8[128] = [];
+      let sym: u8[256] = [];
       let k: i32 = 0;
       while (k < sym_len) {
         unsafe {
@@ -24283,10 +25592,10 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
 //   glue_async_cps_emit_phase_reset  (preserve rax; reset frame phase)
 //   pipeline_asm_emit_async_cps_entry_elf_c  (phase==1 → resume label)
 //   pipeline_asm_emit_async_cps_end_func_elf_c  (clear CPS bag)
-// Pure-owned bag: GlueAsyncCpsEmitState = 9124B BSS
-//   active@0 ta@4 fn_id@8 next_phase@12 layout@16 (AsyncAsmPoolLayout 8976)
-//   resume_label@8992 resume_label_len@9120
-// LiveVar = 140 (name[128]@0 name_len@128 size@132 frame_data_off@136)
+// Pure-owned bag: GlueAsyncCpsEmitState = 17316B BSS
+//   active@0 ta@4 fn_id@8 next_phase@12 layout@16 (AsyncAsmPoolLayout 17168)
+//   resume_label@17184 resume_label_len@17312
+// LiveVar = 268 (name[256]@0 name_len@256 size@260 frame_data_off@264)
 // Cap residual: async_asm_pool_build_layout + asm_ctx_local_find_offset +
 //   pipeline_asm_ctx_layout + next_label + glue_enc_jz_after_bool_in_eax +
 //   backend_enc_* (mov_imm64/arg/call/lea/push/pop/load32/mov_rbx/cmp/jeq/
@@ -24296,8 +25605,8 @@ export function pipeline_asm_emit_wpo_mono_thunks_elf_c(entry: *u8, arena: *u8, 
 // PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64
 // ---------------------------------------------------------------------------
 
-// wave131: async CPS emit bag (GlueAsyncCpsEmitState = 9124).
-let g_async_cps_emit: u8[9124] = [];
+// wave131: async CPS emit bag (GlueAsyncCpsEmitState = 17316; Cap 4.2.8).
+let g_async_cps_emit: u8[17316] = [];
 
 /**
  * Load imm32 into rax/x0 via Cap residual mov_imm64 (hi=0).
@@ -24446,10 +25755,10 @@ function glue_async_cps_save_live(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
   let fn_id: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 8);
   let i: i32 = 0;
   while (i < num_live) {
-    let live_off: i32 = 28 + i * 140;
-    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 128);
-    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 132);
-    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 136);
+    let live_off: i32 = 28 + i * 268;
+    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 256);
+    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 260);
+    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 264);
     let stack_off: i32 = 0;
     unsafe {
       stack_off = asm_ctx_local_find_offset(ctx, &g_async_cps_emit[live_off], name_len);
@@ -24489,10 +25798,10 @@ function glue_async_cps_restore_live(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
   let fn_id: i32 = pipe_load_i32_le(&g_async_cps_emit[0], 8);
   let i: i32 = 0;
   while (i < num_live) {
-    let live_off: i32 = 28 + i * 140;
-    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 128);
-    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 132);
-    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 136);
+    let live_off: i32 = 28 + i * 268;
+    let name_len: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 256);
+    let size_bytes: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 260);
+    let frame_data_off: i32 = pipe_load_i32_le(&g_async_cps_emit[0], live_off + 264);
     let stack_off: i32 = 0;
     unsafe {
       stack_off = asm_ctx_local_find_offset(ctx, &g_async_cps_emit[live_off], name_len);
@@ -24572,9 +25881,9 @@ export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *
   if (rc != 0) {
     return 0 - 1;
   }
-  resume_len = pipe_load_i32_le(&g_async_cps_emit[0], 9120);
+  resume_len = pipe_load_i32_le(&g_async_cps_emit[0], 17312);
   unsafe {
-    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &g_async_cps_emit[8992], resume_len, ta);
+    rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &g_async_cps_emit[17184], resume_len, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -24588,7 +25897,7 @@ export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *
     return 0 - 1;
   }
   // Copy AsmFuncCtxLayout.tail_join_label@1392 into local (opaque *u8 has no &ly[off]).
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   while (tk < tj_len && tk < 128) {
     unsafe {
@@ -24610,7 +25919,7 @@ export function glue_async_cps_emit_after_await(arena: *u8, elf_ctx: *u8, ctx: *
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_label_arch(elf_ctx, &g_async_cps_emit[8992], resume_len, 0, ta);
+    rc = backend_enc_label_arch(elf_ctx, &g_async_cps_emit[17184], resume_len, 0, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -24696,7 +26005,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
   let fn_id: i32 = 0;
   let rc: i32 = 0;
   unsafe {
-    memset(&g_async_cps_emit[0], 0, 9124 as usize);
+    memset(&g_async_cps_emit[0], 0, 17316 as usize);
   }
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || mod == 0 as *u8 || func_index < 0) {
     return 0;
@@ -24704,7 +26013,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
   if (ta < 0 || ta > 2) {
     return 0;
   }
-  // layout overlay at bag+16 (8976 bytes)
+  // layout overlay at bag+16 (17168 bytes)
   unsafe {
     lr = async_asm_pool_build_layout(arena, mod, func_index, &g_async_cps_emit[16]);
   }
@@ -24717,12 +26026,12 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
   pipe_store_i32_le(&g_async_cps_emit[0], 8, fn_id);
   pipe_store_i32_le(&g_async_cps_emit[0], 12, 1);
   unsafe {
-    resume_len = pipeline_asm_emit_next_label_c(ctx, &g_async_cps_emit[8992], 64);
+    resume_len = pipeline_asm_emit_next_label_c(ctx, &g_async_cps_emit[17184], 64);
   }
   if (resume_len <= 0) {
     return 0 - 1;
   }
-  pipe_store_i32_le(&g_async_cps_emit[0], 9120, resume_len);
+  pipe_store_i32_le(&g_async_cps_emit[0], 17312, resume_len);
   if (glue_async_cps_emit_frame_phase_ptr(elf_ctx, fn_id, ta) != 0) {
     return 0 - 1;
   }
@@ -24748,7 +26057,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_jeq_arch(elf_ctx, &g_async_cps_emit[8992], resume_len, ta);
+    rc = backend_enc_jeq_arch(elf_ctx, &g_async_cps_emit[17184], resume_len, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -24765,7 +26074,7 @@ export function pipeline_asm_emit_async_cps_entry_elf_c(arena: *u8, elf_ctx: *u8
 #[no_mangle]
 export function pipeline_asm_emit_async_cps_end_func_elf_c(): void {
   unsafe {
-    memset(&g_async_cps_emit[0], 0, 9124 as usize);
+    memset(&g_async_cps_emit[0], 0, 17316 as usize);
   }
 }
 
@@ -25016,8 +26325,8 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
   let mid_brs: i32[8] = [];
   let mid_n: i32 = 0;
   let mid_i: i32 = 0;
-  let gt_buf: u8[128] = [];
-  let lb_buf: u8[128] = [];
+  let gt_buf: u8[256] = [];
+  let lb_buf: u8[256] = [];
   let gt_len: i32 = 0;
   let lb_len: i32 = 0;
   let is_g: i32 = 0;
@@ -25246,7 +26555,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
                 pipeline_block_labeled_goto_target_copy32(arena, br, so_idx, &gt_buf[0]);
                 gt_len = pipeline_block_labeled_goto_target_len(arena, br, so_idx);
               }
-              if (gt_len > 0 && gt_len <= 127) {
+              if (gt_len > 0 && gt_len <= 255) {
                 unsafe {
                   extra = backend_enc_jmp_arch(elf_ctx, &gt_buf[0], gt_len, ta);
                 }
@@ -25259,7 +26568,7 @@ function glue_emit_if_arm_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, arm_ref: i
                 pipeline_block_labeled_label_copy32(arena, br, so_idx, &lb_buf[0]);
                 lb_len = pipeline_block_labeled_label_len(arena, br, so_idx);
               }
-              if (lb_len > 0 && lb_len <= 127) {
+              if (lb_len > 0 && lb_len <= 255) {
                 unsafe {
                   extra = backend_enc_label_arch(elf_ctx, &lb_buf[0], lb_len, 0, ta);
                 }
@@ -25635,8 +26944,8 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
   let cmp_val: i32 = 0;
   let is_wild: i32 = 0;
   let guard_ref: i32 = 0;
-  let done_lbl: u8[128] = [];
-  let next_lbl: u8[128] = [];
+  let done_lbl: u8[256] = [];
+  let next_lbl: u8[256] = [];
   let done_len: i32 = 0;
   let next_len: i32 = 0;
   let result_ref: i32 = 0;
@@ -25650,7 +26959,7 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
   let emit_mod: *u8 = 0 as *u8;
   let emit_fi: i32 = 0 - 1;
   let subj_ty: i32 = 0;
-  let mn: u8[128] = [];
+  let mn: u8[256] = [];
   let mln: i32 = 0;
   let ko_m: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0 || dest_spill < 0) {
@@ -25688,7 +26997,7 @@ function glue_emit_match_dest_in_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
         unsafe {
           mln = pipeline_expr_var_name_len(arena, matched_ref);
         }
-        if (mln > 0 && mln <= 127) {
+        if (mln > 0 && mln <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, matched_ref, &mn[0]);
             subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, &mn[0], mln);
@@ -25907,7 +27216,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let dest_spill: i32 = 0;
   let src_spill: i32 = 0;
   let parked: i32 = 0;
-  let bind_name: u8[128] = [];
+  let bind_name: u8[256] = [];
   let bind_len: i32 = 0;
   let bind_mref: i32 = 0;
   let bind_foff: i32 = 0;
@@ -25917,11 +27226,12 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   let if_cond: i32 = 0;
   let if_then: i32 = 0;
   let if_else: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let arm_rc: i32 = 0;
+  let saved_sret_home: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || init_ref <= 0) {
     return 0 - 2;
   }
@@ -26250,8 +27560,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
           return 0 - 1;
         }
       }
+      /* 10.5.1 slice1: lang SIMD i32x8 try_emit reads let sret dest via sret_home_off. */
+      saved_sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+      if (dest_in_rbx == 0) {
+        pipeline_asm_emit_ctx_sret_home_off_set(stack_slot_off);
+      }
       unsafe {
         emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      }
+      if (dest_in_rbx == 0) {
+        pipeline_asm_emit_ctx_sret_home_off_set(saved_sret_home);
       }
       pipeline_asm_emit_set_call_sret_reg_shift_c(0);
       unsafe {
@@ -26425,7 +27743,7 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
       unsafe {
         bind_len = pipeline_expr_var_name_len(arena, init_ref);
       }
-      if (bind_len <= 0 || bind_len > 127) {
+      if (bind_len <= 0 || bind_len > 255) {
         return 0 - 2;
       }
       unsafe {
@@ -26554,24 +27872,30 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
   /* EXPR_FIELD (44) / EXPR_INDEX (47) / EXPR_DEREF (52):
    * `let h: Holder = w.h` / dest-in-rbx `*p = w.h` /
    * dest-in-rbx INDEX whole `*p = arr[i]` / dest-in-rbx DEREF
-   * source `*p = *q` of a 9B+ named struct (Holder / Wrap).
-   * VAR 16B returns -2 so emit_expr + store_retval_pair dual-GP
-   * fall-through stays; FIELD / INDEX emit_expr only loads the
-   * first 8B so that fall-through leaves lanes 2–3 (Darwin 30 / 12).
-   * dest-in-rbx DEREF 9–16B used to return -2; emit_deref dual-GP
-   * then dest re-lea overwrites hi in x1 (Darwin leftover 30).
+   * source `*p = *q` of a named struct (Holder / Wrap) or 8B
+   * TYPE_ARRAY (`[2]i32` MATCH arm `s.a` / `rows[1]` / `*q`).
+   * VAR dest-in-rbx already memcpy at let_sz >= 8 (`[2]i32`).
+   * FIELD / INDEX emit_expr only loads the first 8B so that
+   * fall-through leaves lanes 2–3 (Darwin 30 / 12). dest-in-rbx
+   * DEREF 9–16B used to return -2; emit_deref dual-GP then dest
+   * re-lea overwrites hi in x1 (Darwin leftover 30).
    * G.7: same let-init authority — lea via lvalue_eff_addr, then
    * deref_struct16 + store_retval_pair for 9–16B frame dest (memcpy
    * rejects frame ≤16). >16B frame uses the VAR memcpy twin.
-   * dest-in-rbx: same VAR dest-in-rbx twin (lea src + glue_copy).
+   * dest-in-rbx: same VAR dest-in-rbx twin (lea src + glue_copy),
+   * including 8B TYPE_ARRAY (MATCH arm FIELD used to hit let_sz < 9
+   * → CG002; leftover unique leftover_emit_match_arm_result
+   * rko==44/47/52 dest_tk==10 already dest-parks leftover-PE).
    * FIELD-on-VAR / DEREF-of-VAR lvalue is rax-only (dest rbx/x19
    * stays). INDEX / INDEX-base FIELD / DEREF-of-INDEX var-index
    * / slice lvalue uses rbx — park dest then src addr (VECTOR CALL
    * dest polarity) and restore dest to rbx before memcpy.
    * deref_struct16 mov_rax_to_rbx would clobber dest / x19.
    * Do not change FIELD / INDEX / DEREF emit_expr. Do not lower
-   * frame dest ≤16 memcpy.
-   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 dest-shadow hid rbx. */
+   * frame dest ≤16 memcpy. Do not leftover unique leftover_emit_field
+   * twin. Do not leftover rest unique rec ASSIGN second intercept.
+   * PLATFORM: SHARED dest-in-rbx FIELD 8B ARRAY · LINUX gold ·
+   * MACOS|ARM64 dest-shadow. */
   if ((ko == 44 || ko == 47 || ko == 52) && (ta == 0 || ta == 1)) {
     ty_ref = let_ty_ref;
     if (ty_ref <= 0) {
@@ -26590,7 +27914,16 @@ export function glue_emit_struct_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, i
     if (named_sz > let_sz) {
       let_sz = named_sz;
     }
-    if (let_sz < 9) {
+    /* dest-in-rbx 8B TYPE_ARRAY FIELD/INDEX/DEREF. VAR dest-in-rbx
+     * memcpy already accepts let_sz >= 8 (`[2]i32`). FIELD/INDEX/DEREF
+     * used let_sz < 9 for 9B+ named structs → MATCH arm `s.a` /
+     * `rows[1]` / `*q` of `[2]i32` returned -2 (arr_asg_match_field
+     * CG002). Frame dest 8B FIELD stays emit_expr fall-through.
+     * PLATFORM: SHARED dest-in-rbx FIELD 8B ARRAY. */
+    if (let_sz < 8) {
+      return 0 - 2;
+    }
+    if (dest_in_rbx == 0 && let_sz < 9) {
       return 0 - 2;
     }
     /* dest-in-rbx + INDEX / INDEX-base FIELD / DEREF (`*p = arr[i]` /
@@ -26976,7 +28309,7 @@ export function pipeline_asm_emit_neg_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: 
   let tr_n: i32 = 0;
   let k_n: i32 = 0 - 1;
   let nlen: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let btc32: u8[4] = [];
   let btc64: u8[5] = [];
   let neg_rax: u8[3] = [];
@@ -27012,13 +28345,13 @@ export function pipeline_asm_emit_neg_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: 
       if (ta == 1) {
         // movz w1,#0x8000,lsl#16 ; eor w0,w0,w1
         unsafe {
-          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 1388314625); // 0x52b00001
+          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 1387266049); // 0x52b00001
         }
         if (rc != 0) {
           return 0 - 1;
         }
         unsafe {
-          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 1241587712); // 0x4a010000
+          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 1241579520); // 0x4a010000
         }
         return rc;
       }
@@ -27039,13 +28372,13 @@ export function pipeline_asm_emit_neg_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: 
       if (ta == 1) {
         // movz x1,#0x8000,lsl#48 ; eor x0,x0,x1
         unsafe {
-          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 755023871); // 0xd2f00001 as i32
+          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 756023295); // 0xd2f00001 as i32
         }
         if (rc != 0) {
           return 0 - 1;
         }
         unsafe {
-          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 905969664); // 0xca010000 as i32
+          rc = arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 905904128); // 0xca010000 as i32
         }
         return rc;
       }
@@ -27418,8 +28751,8 @@ export function pipeline_codegen_match_name_is_subject_field_c(module: *u8, aren
   let nf: i32 = 0;
   let fl: i32 = 0;
   let j: i32 = 0;
-  let tnm: u8[128] = [];
-  let fnm: u8[128] = [];
+  let tnm: u8[256] = [];
+  let fnm: u8[256] = [];
   let tnl: i32 = 0;
   let bi: i32 = 0;
   let same: i32 = 0;
@@ -27522,8 +28855,8 @@ export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   let cmp_val: i32 = 0;
   let is_wild: i32 = 0;
   let guard_ref: i32 = 0;
-  let done_lbl: u8[128] = [];
-  let next_lbl: u8[128] = [];
+  let done_lbl: u8[256] = [];
+  let next_lbl: u8[256] = [];
   let done_len: i32 = 0;
   let next_len: i32 = 0;
   let result_ref: i32 = 0;
@@ -27535,7 +28868,7 @@ export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   let emit_mod: *u8 = 0 as *u8;
   let emit_fi: i32 = 0 - 1;
   let subj_ty: i32 = 0;
-  let mn: u8[128] = [];
+  let mn: u8[256] = [];
   let mln: i32 = 0;
   let arm_ok: i32 = 1;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || expr_ref <= 0) {
@@ -27570,7 +28903,7 @@ export function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
         unsafe {
           mln = pipeline_expr_var_name_len(arena, matched_ref);
         }
-        if (mln > 0 && mln <= 127) {
+        if (mln > 0 && mln <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, matched_ref, &mn[0]);
             subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, &mn[0], mln);
@@ -27793,8 +29126,8 @@ export function pipeline_asm_emit_expr_if_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   let cond: i32 = 0;
   let then_ref: i32 = 0;
   let else_ref: i32 = 0;
-  let else_lbl: u8[128] = [];
-  let done_lbl: u8[128] = [];
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
   let else_len: i32 = 0;
   let done_len: i32 = 0;
   let rc: i32 = 0;
@@ -28677,8 +30010,8 @@ export function glue_enc_x86_imul_eax_eax(elf_ctx: *u8): i32 {
 export function glue_fold_expr_var_refs_same_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   let alen: i32 = 0;
   let blen: i32 = 0;
-  let abuf: u8[128] = [];
-  let bbuf: u8[128] = [];
+  let abuf: u8[256] = [];
+  let bbuf: u8[256] = [];
   let k: i32 = 0;
   let ko_a: i32 = 0;
   let ko_b: i32 = 0;
@@ -28696,7 +30029,7 @@ export function glue_fold_expr_var_refs_same_c(arena: *u8, a_ref: i32, b_ref: i3
     alen = pipeline_expr_var_name_len(arena, a_ref);
     blen = pipeline_expr_var_name_len(arena, b_ref);
   }
-  if (alen <= 0 || blen <= 0 || alen != blen || alen > 127) {
+  if (alen <= 0 || blen <= 0 || alen != blen || alen > 255) {
     return 0;
   }
   unsafe {
@@ -28815,11 +30148,11 @@ export function glue_fold_block_let_init_lit_c(arena: *u8, block_ref: i32, var_r
   let vlen: i32 = 0;
   let nlet: i32 = 0;
   let li: i32 = 0;
-  let vbuf: u8[128] = [];
+  let vbuf: u8[256] = [];
   let ko_v: i32 = 0;
   let llen: i32 = 0;
   let is_match: i32 = 0;
-  let lb: u8[128] = [];
+  let lb: u8[256] = [];
   let kk: i32 = 0;
   let init_ref: i32 = 0;
   let ko_init: i32 = 0;
@@ -28836,7 +30169,7 @@ export function glue_fold_block_let_init_lit_c(arena: *u8, block_ref: i32, var_r
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -29166,7 +30499,7 @@ export function glue_fold_func_returns_param0_field_sum_c(arena: *u8, mod: *u8, 
 export function glue_is_field_assign_from_var_c(arena: *u8, er: i32, pair_ref: i32, field_ch: u8, src_ref: i32): i32 {
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let fn: u8[128] = [];
+  let fn: u8[256] = [];
   let ko: i32 = 0;
   let ko_l: i32 = 0;
   let base: i32 = 0;
@@ -29229,7 +30562,7 @@ export function glue_is_field_assign_i_plus_one_c(arena: *u8, er: i32, pair_ref:
   let right_ref: i32 = 0;
   let add_l: i32 = 0;
   let add_r: i32 = 0;
-  let fn: u8[128] = [];
+  let fn: u8[256] = [];
   let ko: i32 = 0;
   let ko_l: i32 = 0;
   let ko_r: i32 = 0;
@@ -29313,7 +30646,7 @@ export function glue_is_assign_s_plus_pair_field_sum_call_c(arena: *u8, mod: *u8
   let inner: i32 = 0;
   let callee_ref: i32 = 0;
   let arg0: i32 = 0;
-  let cname: u8[128] = [];
+  let cname: u8[256] = [];
   let clen: i32 = 0;
   let ko: i32 = 0;
   let ko_r: i32 = 0;
@@ -29547,8 +30880,8 @@ export function glue_is_assign_sum_plus_u8_index_cast_c(arena: *u8, er: i32, out
  */
 #[no_mangle]
 export function glue_expr_var_name_eq_let_idx_c(arena: *u8, var_expr_ref: i32, body_ref: i32, let_idx: i32): i32 {
-  let vname: u8[128] = [];
-  let lname: u8[128] = [];
+  let vname: u8[256] = [];
+  let lname: u8[256] = [];
   let vlen: i32 = 0;
   let llen: i32 = 0;
   let k: i32 = 0;
@@ -29566,7 +30899,7 @@ export function glue_expr_var_name_eq_let_idx_c(arena: *u8, var_expr_ref: i32, b
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
     llen = pipeline_block_let_name_len(arena, body_ref, let_idx);
   }
-  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 127) {
+  if (vlen <= 0 || llen <= 0 || vlen != llen || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -29669,9 +31002,11 @@ export function pipeline_asm_cmp_cc_for_expr_kind_ord(kind_ord: i32): i32 {
 /**
  * Map x86-style condition code to ARM64 CSET machine cond field (0..15).
  * CSET encodes as CSINC with inverted cond; table matches GAS cset semantics.
- * @param cc i32 - 0=eq,1=ne,2=lt,3=le,4=gt,5=ge
- * @return i32 - ARM64 cond encoding; unknown → 0 (EQ)
+ * @param cc i32 - 0=eq,1=ne,2=lt,3=le,4=gt,5=ge,6=ult,7=ule,8=ugt,9=uge
+ * @return i32 - ARM64 invert(cond) field for CSINC/CSET; unknown → 0 (EQ)
  * wave137 pure: G.7 authority (was pipeline_asm_emit_cmp.c; arm64_enc Cap).
+ * Unsigned 6..9: LO/LS/HI/HS inverted to HS/HI/LS/LO (u64 `t > 0` with
+ * t=2^63 must cset hi, not signed gt).
  * PLATFORM: SHARED — ARM64 AAPCS64 consumer + x86 cmp path share symbol.
  */
 #[no_mangle]
@@ -29693,6 +31028,20 @@ export function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32 {
   }
   if (cc == 5) {
     return 11;
+  }
+  // Unsigned: invert(LO=3)→HS=2, invert(LS=9)→HI=8,
+  // invert(HI=8)→LS=9, invert(HS=2)→LO=3.
+  if (cc == 6) {
+    return 2;
+  }
+  if (cc == 7) {
+    return 8;
+  }
+  if (cc == 8) {
+    return 9;
+  }
+  if (cc == 9) {
+    return 3;
   }
   return 0;
 }
@@ -29804,7 +31153,7 @@ export function pipeline_asm_typekind_variant_tag(field_buf: *u8, flen: i32): i3
  */
 function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
   let base_buf: u8[32] = [];
-  let field_buf: u8[128] = [];
+  let field_buf: u8[256] = [];
   let blen: i32 = 0;
   let flen: i32 = 0;
   let tag: i32 = 0;
@@ -29844,7 +31193,7 @@ function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
     pipeline_expr_var_name_into(arena, base_ref, &base_buf[0]);
     flen = pipeline_expr_field_access_name_len(arena, expr_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -29875,7 +31224,8 @@ function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
  * @param left_ref i32 - left operand expr
  * @param right_ref i32 - right operand expr
  * @param is_cmp_64bit i32 - REX.W for int path
- * @param cc i32 - setcc condition 0..5
+ * @param cc i32 - setcc condition 0..5 (signed); 2..5 remapped to 6..9 when
+ *   glue_binop_operand_is_unsigned_elf_c (same authority as SHR/DIV).
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 failure
  * wave137 pure: was static glue_emit_cmp_finish_rbx_rax_elf_c.
@@ -29887,6 +31237,7 @@ function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, 
   let is_f64_r: i32 = 0;
   let is_f32_l: i32 = 0;
   let is_f32_r: i32 = 0;
+  let is_un: i32 = 0;
   if ((ta == 0 || ta == 1) && left_ref > 0 && right_ref > 0) {
     unsafe {
       is_f64_l = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
@@ -29919,6 +31270,17 @@ function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, 
         rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
       }
       return rc;
+    }
+  }
+  // PLATFORM: SHARED — u8/u32/u64/usize relational cmp must use unsigned
+  // setcc (setb/seta / cset lo/hi). Signed gt treats u64 2^63 as negative
+  // (family probe t>0 returned 3). EQ/NE (cc 0/1) are identical either way.
+  if (cc >= 2 && cc <= 5) {
+    unsafe {
+      is_un = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
+    }
+    if (is_un != 0) {
+      cc = cc + 4;
     }
   }
   rc = glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta);
@@ -30039,6 +31401,17 @@ export function pipeline_asm_emit_cmp_elf(arena: *u8, elf_ctx: *u8, cmp_expr_ref
     unsafe {
       lt_ref = pipeline_expr_resolved_type_ref(arena, left_ref);
     }
+    // PLATFORM: SHARED — parse-only deps carry no typeck stamp (resolved=0);
+    // fall back to the param/let decl chain (same authority discipline as the
+    // binop-shift width) or a u64 `t == 0` compares 32-bit and 0x8000...0000
+    // low half "equals" zero (std clz64(2^63) returned 64).
+    if (lt_ref <= 0) {
+      unsafe {
+        if (pipeline_expr_kind_ord_at(arena, left_ref) == 3) {
+          lt_ref = glue_var_expr_type_ref_with_decl_fallback_c(arena, left_ref);
+        }
+      }
+    }
     if (lt_ref > 0) {
       unsafe {
         lt_kind = pipeline_type_kind_ord_at(arena, lt_ref);
@@ -30062,6 +31435,14 @@ export function pipeline_asm_emit_cmp_elf(arena: *u8, elf_ctx: *u8, cmp_expr_ref
   if (is_cmp_64bit == 0 && right_ref > 0) {
     unsafe {
       rt_ref = pipeline_expr_resolved_type_ref(arena, right_ref);
+    }
+    // PLATFORM: SHARED — dep decl fallback (see left side note).
+    if (rt_ref <= 0) {
+      unsafe {
+        if (pipeline_expr_kind_ord_at(arena, right_ref) == 3) {
+          rt_ref = glue_var_expr_type_ref_with_decl_fallback_c(arena, right_ref);
+        }
+      }
     }
     if (rt_ref > 0) {
       unsafe {
@@ -30527,12 +31908,12 @@ export function pipeline_asm_emit_await_sync_elf_impl(arena: *u8, elf_ctx: *u8, 
 #[no_mangle]
 export function pipeline_asm_emit_try_propagate_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let op: i32 = 0;
-  let ok_lbl: u8[128] = [];
+  let ok_lbl: u8[256] = [];
   let ok_len: i32 = 0;
   let rc: i32 = 0;
   let ly: *u8 = 0 as *u8;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
@@ -30754,7 +32135,9 @@ export function glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena: *u8, elf_ctx
  * wave138 pure: G.7 authority (was pipeline_asm_emit_as_elf_impl).
  * Cap residual: emit_expr_elf_c + cast encoders + f32/f64 classifiers +
  *   float_lit face + elf append (u32 zext mov eax,eax).
- * PLATFORM: SHARED freestanding cast emit.
+ * Cap-fn-ptr (10.3.2 slice0): same-module bare fn as *u8 → LEA link
+ *   symbol into rax/x0 (#[no_mangle] only; locals win over same-named funcs).
+ * PLATFORM: SHARED freestanding cast emit · LINUX gold · MACOS underscore.
  */
 #[no_mangle]
 export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -30768,6 +32151,13 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
   let src_is_f64: i32 = 0;
   let rc: i32 = 0;
   let mov_eax: u8[2] = [];
+  // Cap-fn-ptr scratch (slice0 #[no_mangle] LEA); kept at top for .x let discipline.
+  // 9.4.2: the Mach-O '_' / ELF bare spell lives in pipe_modlet_lea_fn_sym_to_rax.
+  let fnptr_off: i32 = 0;
+  let fnptr_vlen: i32 = 0;
+  let fnptr_fi: i32 = 0;
+  let fnptr_mod: *u8 = 0 as *u8;
+  let fnptr_vname: u8[256] = [];
   if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
     return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   }
@@ -31038,6 +32428,47 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
       }
     }
   }
+  // Cap-fn-ptr: (same_module_fn as *u8) → LEA of link symbol (rax/x0).
+  // Complements wave100 typeck Cap-fn-ptr + C codegen_try_emit_fn_as_value.
+  // Locals (stack slot) win over same-named funcs. slice0: #[no_mangle] only.
+  // PLATFORM: SHARED · MACOS Mach-O leading '_' · LINUX ELF bare name.
+  if (tgt > 0) {
+    unsafe {
+      tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+      op_ko = pipeline_expr_kind_ord_at(arena, op);
+    }
+    // TYPE_PTR=9 · TYPE_FN=18 · EXPR_VAR=3
+    if ((tgt_kind == 9 || tgt_kind == 18) && op_ko == 3) {
+      unsafe {
+        fnptr_off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
+      }
+      if (fnptr_off < 0) {
+        unsafe {
+          fnptr_vlen = pipeline_expr_var_name_len(arena, op);
+        }
+        if (fnptr_vlen > 0 && fnptr_vlen < 128) {
+          unsafe {
+            pipeline_expr_var_name_into(arena, op, &fnptr_vname[0]);
+            fnptr_mod = glue_emit_module_from_ctx(ctx);
+          }
+          if (fnptr_mod != (0 as *u8)) {
+            unsafe {
+              fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, &fnptr_vname[0], fnptr_vlen);
+            }
+            if (fnptr_fi >= 0) {
+              // Cap-fn-ptr: load effective address of any same-module function into rax/x0.
+              // 9.4.2: symbol spell (Mach-O '_' / ELF bare) is the
+              // pipe_modlet_lea_fn_sym_to_rax authority.
+              unsafe {
+                rc = pipe_modlet_lea_fn_sym_to_rax(elf_ctx, &fnptr_vname[0], fnptr_vlen, ta);
+              }
+              return rc;
+            }
+          }
+        }
+      }
+    }
+  }
   unsafe {
     rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
   }
@@ -31071,15 +32502,19 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 //   pipeline_asm_modlet_seed_nonzero_inits_elf_c
 //   pipeline_asm_register_module_top_level_lets_c
 //   pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c
-// Table BSS layout ≡ C pipeline_asm_modlet_table_t (XLANG_ASM_MODLET_MAX=64):
+// Table BSS layout ≡ C pipeline_asm_modlet_table_t (XLANG_ASM_MODLET_MAX=256):
 //   n@0 (i32)
-//   name_len[64]@4 (256B)
-//   name[64][128]@260 (8192B)
-//   label_len[64]@8452 (256B)
-//   label[64][24]@8708 (1536B)
-//   init_imm[64]@10244 (256B)
-//   cell_size[64]@10500 (256B) — Stage 12.0.5: COMMON payload bytes (8 scalar; N array)
-//   total 10756B
+//   name_len[256]@4 (1024B)
+//   name[256][256]@1028 (32768B)
+//   label_len[256]@33796 (1024B)
+//   label[256][24]@34820 (6144B)
+//   init_imm[256]@40964 (1024B)
+//   cell_size[256]@41988 (1024B) — Stage 12.0.5: COMMON payload bytes (8 scalar; N array)
+//   total 43012B = 4 + 256*168
+// Cap was 64 (wave139). 9.6.0 made COMMON the unique home for every mutable
+// scalar, so a silent `break` at 64 dropped extras onto stack slots.
+// G.7: complete this existing table (no second growable table). 256 covers
+// product asm TUs (lexer/fmt/thin ≤57) with headroom; pabi mega stays host-cc.
 // Cap residual: top_level is_const/type_ref + common_sym + enc load/store/mov +
 //   hoist_target + let_init_stack_reserve + asm_ctx local faces + pipe module/arena
 //   num getters (LP64).
@@ -31088,49 +32523,101 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 //   MACOS|ARM64 PAGE21/PAGEOFF12 (wave405)
 // ---------------------------------------------------------------------------
 
-// wave139: modlet shared mutable cell table (max 64). Reset each mega emit.
+// wave139: modlet shared mutable cell table. Reset each mega emit.
 // PLATFORM: SHARED - layout matches host-cc pipeline_asm_modlet_table_t.
-// Stage 12.0.5: +cell_size[64] so TYPE_ARRAY module lets emit full COMMON (not stack).
-let g_pipeline_asm_modlet: u8[10756] = [];
+// Stage 12.0.5: +cell_size[N] so TYPE_ARRAY module lets emit full COMMON (not stack).
+// MAX 64→256 (modlet 64-cap knife): 4 + 256*168 = 43012.
+let g_pipeline_asm_modlet: u8[43012] = [];
+// Per-TU sequence for .data string-pool labels (Lxmls_ + hex8(seq) + hex8(fp)).
+// Reset with the modlet table so interned names never leak across modules.
+let g_pipe_modlet_strpool_seq: i32 = 0;
 
+/**
+ * Fixed modlet table capacity (COMMON / .data cells per TU).
+ * @return i32 — XLANG_ASM_MODLET_MAX; index range 0 .. max-1
+ * PLATFORM: SHARED — single authority for offset bases and the prepare cap.
+ * G.7: complete the existing table; do not add a second growable table.
+ */
+function pipe_modlet_max(): i32 {
+  return 256;
+}
+
+/**
+ * Byte offset of n (registered cell count) in the modlet table.
+ * @return i32 — always 0
+ * PLATFORM: SHARED — LP64 table layout.
+ */
 function pipe_modlet_off_n(): i32 {
   return 0;
 }
 
+/**
+ * Byte offset of name_len[i] in the modlet table.
+ * @param i i32 — table index 0 .. pipe_modlet_max()-1
+ * @return i32 — byte offset within g_pipeline_asm_modlet
+ * PLATFORM: SHARED — LP64 table layout.
+ */
 function pipe_modlet_off_name_len(i: i32): i32 {
   return 4 + (i * 4);
 }
 
+/**
+ * Byte offset of name[i][0] in the modlet table (128B slot).
+ * @param i i32 — table index 0 .. pipe_modlet_max()-1
+ * @return i32 — byte offset within g_pipeline_asm_modlet
+ * PLATFORM: SHARED — LP64 table layout. Base = 4 + max*4.
+ */
 function pipe_modlet_off_name(i: i32): i32 {
-  return 260 + (i * 128);
+  return 4 + (pipe_modlet_max() * 4) + (i * 128);
 }
 
+/**
+ * Byte offset of label_len[i] in the modlet table.
+ * @param i i32 — table index 0 .. pipe_modlet_max()-1
+ * @return i32 — byte offset within g_pipeline_asm_modlet
+ * PLATFORM: SHARED — LP64 table layout. Base = name_base + max*128.
+ */
 function pipe_modlet_off_label_len(i: i32): i32 {
-  return 8452 + (i * 4);
+  return pipe_modlet_off_name(0) + (pipe_modlet_max() * 128) + (i * 4);
 }
 
+/**
+ * Byte offset of label[i][0] in the modlet table (24B slot).
+ * @param i i32 — table index 0 .. pipe_modlet_max()-1
+ * @return i32 — byte offset within g_pipeline_asm_modlet
+ * PLATFORM: SHARED — LP64 table layout. Base = label_len_base + max*4.
+ */
 function pipe_modlet_off_label(i: i32): i32 {
-  return 8708 + (i * 24);
+  return pipe_modlet_off_label_len(0) + (pipe_modlet_max() * 4) + (i * 24);
 }
 
+/**
+ * Byte offset of init_imm[i] in the modlet table.
+ * @param i i32 — table index 0 .. pipe_modlet_max()-1
+ * @return i32 — byte offset within g_pipeline_asm_modlet
+ * PLATFORM: SHARED — LP64 table layout. Base = label_base + max*24.
+ */
 function pipe_modlet_off_init_imm(i: i32): i32 {
-  return 10244 + (i * 4);
+  return pipe_modlet_off_label(0) + (pipe_modlet_max() * 24) + (i * 4);
 }
 
 /**
  * Byte offset of cell_size[i] in the modlet table (COMMON payload size).
- * @param i i32 — table index 0..63
+ * @param i i32 — table index 0 .. pipe_modlet_max()-1
  * @return i32 — byte offset within g_pipeline_asm_modlet
- * PLATFORM: SHARED — LP64 table layout Stage 12.0.5.
+ * PLATFORM: SHARED — LP64 table layout Stage 12.0.5. Base = init_imm_base + max*4.
  *
- * Encoding (Stage 12.0.5 / invoke_cc_list):
- *   low 30 bits = payload bytes for SHN_COMMON
+ * Encoding (Stage 12.0.5 / invoke_cc_list + library-TU .data):
+ *   low 29 bits = payload bytes for SHN_COMMON or .data
+ *   bit 29 (0x20000000) = non-empty ARRAY_LIT baked into ELF .data /
+ *     Mach-O __DATA,__const (library TUs have no hoist-target seed)
  *   bit 30 (0x40000000) = TYPE_ARRAY address-decay (LEA-only load)
  * Scalar lit cells store plain 8 (no bit). Arrays store N|bit30 so u8[8]
  * (payload==8) does not collide with scalar load-qword (labi g_labi_icc_oopt_buf).
+ * Product max payload 8 MiB << bit29; mask shrink 30→29 is safe.
  */
 function pipe_modlet_off_cell_size(i: i32): i32 {
-  return 10500 + (i * 4);
+  return pipe_modlet_off_init_imm(0) + (pipe_modlet_max() * 4) + (i * 4);
 }
 
 /**
@@ -31143,13 +32630,24 @@ function pipe_modlet_cell_array_bit(): i32 {
 }
 
 /**
- * Payload bytes for COMMON emit (mask out array flag).
+ * Non-empty ARRAY_LIT baked into .data flag: bit 29 = 0x20000000 = 536870912.
+ * When set, hoist-target seed_nonzero must not store over the cell (may be
+ * RO after final link on Mach-O __const). Library TUs never enter hoist.
+ * @return i32 — flag mask
+ * PLATFORM: SHARED — modlet table encoding · ELF .data + Mach-O __DATA,__const.
+ */
+function pipe_modlet_cell_data_bit(): i32 {
+  return 536870912;
+}
+
+/**
+ * Payload bytes for COMMON / .data emit (mask out array + data flags).
  * @param csz i32 — stored cell_size word
  * @return i32 — size >= 1 (default 8 if empty)
  * PLATFORM: SHARED.
  */
 function pipe_modlet_cell_payload(csz: i32): i32 {
-  let p: i32 = csz & 1073741823;
+  let p: i32 = csz & 536870911;
   if (p <= 0) {
     return 8;
   }
@@ -31167,8 +32665,21 @@ function pipe_modlet_cell_is_array(csz: i32): i32 {
     return 1;
   }
   // Legacy: arrays registered without the bit still used payload!=8.
-  let p: i32 = csz & 1073741823;
+  let p: i32 = csz & 536870911;
   if (p != 8 && p > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether the ARRAY_LIT payload was baked into .data at prepare time.
+ * @param csz i32 — stored cell_size word
+ * @return i32 — 1 .data-backed; 0 COMMON/BSS (needs hoist seed if non-empty)
+ * PLATFORM: SHARED.
+ */
+function pipe_modlet_cell_is_data(csz: i32): i32 {
+  if ((csz & 536870912) != 0) {
     return 1;
   }
   return 0;
@@ -31190,6 +32701,7 @@ function pipe_modlet_set_n(n: i32): void {
  */
 function pipeline_asm_modlet_reset(): void {
   pipe_modlet_set_n(0);
+  g_pipe_modlet_strpool_seq = 0;
 }
 
 /**
@@ -31288,6 +32800,45 @@ function pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx: *u8, idx: i32): i32 {
 }
 
 /**
+ * Emit lea rax, [rip+disp32] for a modlet COMMON cell (x86_64).
+ * Used by load_to_rax so value loads do not clobber cmp's parked left in rbx.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @return i32 - 0 ok; -1 on failure
+ * PLATFORM: LINUX|UBUNTU x86_64 — R_X86_64_PC32 to SHN_COMMON BSS.
+ */
+function pipeline_asm_modlet_lea_rax_rip_x86(elf_ctx: *u8, idx: i32): i32 {
+  let n: i32 = pipe_modlet_get_n();
+  if (elf_ctx == 0 as *u8 || idx < 0 || idx >= n) {
+    return 0 - 1;
+  }
+  let llen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  // REX.W LEA rax, [rip+disp32] = 48 8d 05 disp32
+  let lea7: u8[7] = [];
+  lea7[0] = 0x48 as u8;
+  lea7[1] = 0x8d as u8;
+  lea7[2] = 0x05 as u8;
+  lea7[3] = 0 as u8;
+  lea7[4] = 0 as u8;
+  lea7[5] = 0 as u8;
+  lea7[6] = 0 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &lea7[0], 7);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let rel32_at: i32 = 0;
+  unsafe {
+    rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen);
+  }
+  return rc;
+}
+
+/**
  * Emit adrp x1 + add x1,pageoff for a modlet COMMON cell (arm64).
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param idx i32 - table index
@@ -31342,6 +32893,62 @@ function pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
 }
 
 /**
+ * Emit adrp x0 + add x0,pageoff for a modlet COMMON cell (arm64).
+ * Used by load_to_rax so value loads do not clobber cmp's parked left in x1.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @return i32 - 0 ok; -1 on failure
+ * PLATFORM: MACOS|ARM64 — ARM64_RELOC_PAGE21 + PAGEOFF12.
+ */
+function pipeline_asm_modlet_lea_rax_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
+  let n: i32 = pipe_modlet_get_n();
+  if (elf_ctx == 0 as *u8 || idx < 0 || idx >= n) {
+    return 0 - 1;
+  }
+  let llen: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+  let lbase: i32 = pipe_modlet_off_label(idx);
+  // adrp x0, #0 → 0x90000000
+  let adrp4: u8[4] = [];
+  adrp4[0] = 0x00 as u8;
+  adrp4[1] = 0x00 as u8;
+  adrp4[2] = 0x00 as u8;
+  adrp4[3] = 0x90 as u8;
+  let rc: i32 = 0;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &adrp4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let adrp_at: i32 = 0;
+  unsafe {
+    adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // add x0, x0, #0 → 0x91000000
+  let add4: u8[4] = [];
+  add4[0] = 0x00 as u8;
+  add4[1] = 0x00 as u8;
+  add4[2] = 0x00 as u8;
+  add4[3] = 0x91 as u8;
+  unsafe {
+    rc = pipeline_elf_ctx_append_bytes(elf_ctx, &add4[0], 4);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let add_at: i32 = 0;
+  unsafe {
+    add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0);
+  }
+  return rc;
+}
+
+/**
  * Dispatch lea rbx/x1 to modlet COMMON cell by target arch.
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param idx i32 - table index
@@ -31361,11 +32968,37 @@ function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 
 }
 
 /**
+ * Dispatch lea rax/x0 to modlet COMMON cell by target arch.
+ * Value-load path only — must not touch rbx/x1 (cmp parks left there).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param idx i32 - table index
+ * @param ta i32 - 0 x86_64, 1 arm64
+ * @return i32 - 0 ok; -1 unsupported or encoder fail
+ * PLATFORM: SHARED.
+ */
+function pipeline_asm_modlet_lea_rax_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return pipeline_asm_modlet_lea_rax_adrp_arm64(elf_ctx, idx);
+  }
+  if (ta == 0) {
+    return pipeline_asm_modlet_lea_rax_rip_x86(elf_ctx, idx);
+  }
+  return 0 - 1;
+}
+
+/**
  * Load a shared modlet cell into rax/x0.
- * Scalar cells (cell_size==8, no array bit): LEA base then load qword (value).
- * Array/blob cells (array bit or legacy payload!=8): LEA base then mov base→rax
+ * Scalar cells (cell_size==8, no array bit): LEA base into rax then load qword.
+ * Array/blob cells (array bit or legacy payload!=8): LEA base into rax only
  *   (C array decay). Fixed TYPE_ARRAY module lets need the address for
  *   INDEX / `&arr[0]` / call args; loading the first qword is wrong.
+ *
+ * G.7 root fix (fmt pure-asm format residual): LEA must target rax/x0, NOT
+ * rbx/x1. cmp parks the left operand in rbx/x1; the old lea_rbx + ldr
+ * clobbered it so `i >= g_modlet_n[0]` compared (&n) >= n (always true) and
+ * fmt_file_list_at always returned null → driver_fmt_one_file never ran.
+ * store_from_rax still uses lea_rbx (address in rbx, value in rax).
+ *
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param name *u8 - modlet name
  * @param name_len i32 - length
@@ -31375,8 +33008,7 @@ function pipeline_asm_modlet_lea_rbx_arch(elf_ctx: *u8, idx: i32, ta: i32): i32 
  * Stage 12.0.5: array bit30 on cell_size so u8[8] (e.g. g_labi_icc_oopt_buf)
  *   is LEA-only; prior payload!=8 heuristic collided with scalar 8-byte cells
  *   → pure-asm hybrid SEGV on invoke_cc_list head_flags strb [null].
- * Cap residual: backend_enc_load_qword_from_rbx_to_rax_arch (x86) + append_bytes (arm64 ldr)
- *   + backend_enc_mov_rbx_to_rax_arch (array decay).
+ * Cap residual: append_bytes for arm64 ldr x0,[x0] / x86 movq (%rax),%rax.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -31388,23 +33020,19 @@ export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, n
   if (idx < 0) {
     return 0 - 1;
   }
-  if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) != 0) {
+  if (pipeline_asm_modlet_lea_rax_arch(elf_ctx, idx, ta) != 0) {
     return 0 - 1;
   }
-  // Array/blob COMMON: return address in rax (C array decay), do not load payload.
+  // Array/blob COMMON: address already in rax (C array decay), do not load payload.
   // G.7: bit30 marks TYPE_ARRAY (incl. payload==8); legacy unflagged N!=8 still LEA.
   let csz: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx));
   if (pipe_modlet_cell_is_array(csz) != 0) {
-    let rc_arr: i32 = 0;
-    unsafe {
-      rc_arr = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
-    }
-    return rc_arr;
+    return 0;
   }
   if (ta == 1) {
-    // ldr x0, [x1] = 0xf9400020
+    // ldr x0, [x0] = 0xf9400000
     let ldr4: u8[4] = [];
-    ldr4[0] = 0x20 as u8;
+    ldr4[0] = 0x00 as u8;
     ldr4[1] = 0x00 as u8;
     ldr4[2] = 0x40 as u8;
     ldr4[3] = 0xf9 as u8;
@@ -31414,9 +33042,14 @@ export function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, n
     }
     return rc;
   }
+  // movq (%rax), %rax = 48 8b 00
+  let mov3: u8[3] = [];
+  mov3[0] = 0x48 as u8;
+  mov3[1] = 0x8b as u8;
+  mov3[2] = 0x00 as u8;
   let rc2: i32 = 0;
   unsafe {
-    rc2 = backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
+    rc2 = pipeline_elf_ctx_append_bytes(elf_ctx, &mov3[0], 3);
   }
   return rc2;
 }
@@ -31449,6 +33082,124 @@ export function pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx: *u8, name: *u8
     rc = backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
   }
   return rc;
+}
+
+/**
+ * Spell a same-module function's link name into dst.
+ * Mach-O leading '_' on Darwin, bare ELF name on Linux. Completes the
+ * spelling previously inlined in pipe_modlet_lea_fn_sym_to_rax so LEA
+ * and .data absolute64 relocs share one authority.
+ * @param elf_ctx *u8 - ElfCodegenCtx (reads macho_leading_underscore)
+ * @param name *u8 - source-level function name
+ * @param name_len i32 - 1..255
+ * @param dst *u8 - caller buffer; capacity >= name_len+1 (typically 130)
+ * @return i32 - spelled length; -1 bad args
+ * PLATFORM: SHARED · MACOS Mach-O '_' · LINUX ELF bare name.
+ */
+function pipe_modlet_fn_sym_spell_into(
+  elf_ctx: *u8, name: *u8, name_len: i32, dst: *u8
+): i32 {
+  let macho: i32 = 0;
+  let k: i32 = 0;
+  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || dst == (0 as *u8) || name_len <= 0 || name_len > 255) {
+    return 0 - 1;
+  }
+  unsafe {
+    macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+  }
+  if (macho != 0) {
+    unsafe {
+      dst[0] = 95 as u8;
+    }
+    k = 0;
+    while (k < name_len) {
+      unsafe {
+        dst[k + 1] = name[k];
+      }
+      k = k + 1;
+    }
+    return name_len + 1;
+  }
+  k = 0;
+  while (k < name_len) {
+    unsafe {
+      dst[k] = name[k];
+    }
+    k = k + 1;
+  }
+  return name_len;
+}
+
+/**
+ * LEA a same-module function's link symbol into rax/x0.
+ * 9.4.2 single authority for the Cap-fn-ptr symbol spell (was inlined in
+ * pipeline_asm_emit_as_elf_impl, the VAR fast face, and their twins):
+ * source-level name; Mach-O leading '_' on Darwin, bare ELF symbol on
+ * Linux. Callers must have confirmed the name resolves to a same-module
+ * function (glue_module_func_index_by_name_c >= 0); this face re-checks
+ * bounds only. Spelling is pipe_modlet_fn_sym_spell_into.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param name *u8 - source-level function name
+ * @param name_len i32 - name length (1..255)
+ * @param ta i32 - target arch (0=x86_64 1=arm64)
+ * @return i32 - 0 ok; -1 bad args / encode fail
+ * Exported for the first-wins fnptr_as thin (same spell, one authority).
+ * PLATFORM: SHARED · MACOS Mach-O '_' · LINUX ELF bare name.
+ */
+#[no_mangle]
+export function pipe_modlet_lea_fn_sym_to_rax(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  let sym: u8[130] = [];
+  let len: i32 = 0;
+  let rc: i32 = 0;
+  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1)) {
+    return 0 - 1;
+  }
+  len = pipe_modlet_fn_sym_spell_into(elf_ctx, name, name_len, &sym[0]);
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, &sym[0], len, ta);
+  }
+  return rc;
+}
+
+/**
+ * LEA a non-local named binding's ADDRESS into rax/x0 (9.4.2).
+ * Module-let COMMON cell first (pipeline_asm_modlet_lea_rax_arch — the
+ * same home the generic VAR emit reads, array bit30 included), then the
+ * same-module function link symbol. Returns -1 when the name is neither:
+ * callers loud-fail (ADDR_OF keeps -99; lvalue keeps -1).
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param m *u8 - Module* (fn lookup; null skips the fn branch)
+ * @param name *u8 - source-level name
+ * @param name_len i32 - name length (1..255)
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 not a modlet cell / not a same-module fn
+ * Exported: the FROM_X seed rest lvalue fallback (Ubuntu hybrid) resolves
+ * this WEAK mega face; the cold student uses the _cold static twin.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx: *u8, m: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  let idx: i32 = 0;
+  let fi: i32 = 0;
+  if (elf_ctx == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1)) {
+    return 0 - 1;
+  }
+  idx = pipeline_asm_modlet_find(name, name_len);
+  if (idx >= 0) {
+    return pipeline_asm_modlet_lea_rax_arch(elf_ctx, idx, ta);
+  }
+  if (m != (0 as *u8)) {
+    unsafe {
+      fi = glue_module_func_index_by_name_c(m, name, name_len);
+    }
+    if (fi >= 0) {
+      return pipe_modlet_lea_fn_sym_to_rax(elf_ctx, name, name_len, ta);
+    }
+  }
+  return 0 - 1;
 }
 
 /**
@@ -31559,31 +33310,43 @@ function pipe_modlet_assign_unique_label(idx: i32, module_fp: i64): void {
 }
 
 /**
- * Build the modlet table and emit SHN_COMMON symbols for module lets.
+ * Build the modlet table and emit homes for module lets.
  * Accepts:
  *   (1) mutable scalar LIT/BOOL init (kind 0/2) → 8-byte COMMON (historic wave139)
  *   (2) fixed TYPE_ARRAY (kind 10) with ARRAY_LIT init (kind 46), e.g. `u8[N]=[]`
- *       and `const A:[2]i32=[10,32]` → COMMON of full array payload bytes
+ *       and `const A:[2]i32=[10,32]`:
+ *       · empty lit `[]` → SHN_COMMON / Mach-O __common (BSS zero; correct)
+ *       · non-empty lit that fits in the F7 .data buf (64 KiB, including
+ *         interned STRING_LIT pool + absolute64 RELA on pointer slots,
+ *         including 9.4.2 named-symbol ADDR_OF / fn-ptr elems) →
+ *         ELF .data / Mach-O __DATA baked at prepare time
+ *         (library TUs have no hoist-target entry; COMMON+seed stays zero)
+ *       · non-empty lit that does not fit → COMMON + hoist seed_nonzero (historic)
+ *   (3) scalar ADDR_OF / fn-ptr (tk 9/18, pipe_modlet_scalar_init_is_ptr_addr):
+ *       `let p: *i32 = &g` / `let h: *u8 = inc` / `inc as *u8` → 8-byte
+ *       .data + absolute64 RELA (same reloc authority as (2) elems).
+ *       Hoist skip uses the same predicate (9.6.0 dual-home class).
  * Without (2), pure-asm stacked every module array into each function frame
  * (~sum of all g_labi_* buffers per call) → stack overflow / dangling path
  * returns (labi_path_pure hybrid SEGV on opt/si/hello).
  * Const TYPE_ARRAY used to skip here (is_const) and hoist into main only —
- * non-main INDEX then had no home (CG002). Same COMMON path as mutable
- * when the elem is not TYPE_SLICE; seed_nonzero writes ARRAY_LIT elems.
+ * non-main INDEX then had no home (CG002). Same home path as mutable
+ * when the elem is not TYPE_SLICE; seed_nonzero writes ARRAY_LIT elems
+ * only for COMMON-backed cells (skips .data-backed — may be RO after link).
  * Const `[N][]T` (elem SLICE) still skips — fat rows hoist + durable.
  * Other const (scalars, dest-SLICE) still skip — those hoist / use text cells.
- * COMMON names are Lxml_<name-hash><module-fp> (not Lxlang_ml_<idx>):
+ * COMMON / .data names are Lxml_<name-hash><module-fp> (not Lxlang_ml_<idx>):
  * SHN_COMMON / Mach-O __common merge by name, so per-index labels aliased
  * every TU's N-th module let (check_only 512B leftover).
  * @param m *u8 - Module*
  * @param a *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param ta i32 - target arch
- * @return i32 - 0 ok (incl no-op); -1 COMMON emit fail
+ * @return i32 - 0 ok (incl no-op); -1 COMMON / .data emit fail
  * wave139 pure: G.7 authority (was static prepare_and_emit_elf_c).
  * Cap residual: top_level readers + expr_kind/int_val + type_kind/array size +
- *   common_sym + fixed_array_total_bytes + pipe nlets/nexprs.
- * PLATFORM: SHARED.
+ *   common_sym + F7 .data bake + fixed_array_total_bytes + pipe nlets/nexprs.
+ * PLATFORM: SHARED — ELF .data + Mach-O __DATA,__const for non-empty ARRAY_LIT.
  */
 #[no_mangle]
 export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_ctx: *u8, ta: i32): i32 {
@@ -31598,9 +33361,6 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
   let nexprs: i32 = pipe_load_i32_le(a, pipe_arena_off_num_exprs());
   let tl: i32 = 0;
   while (tl < nlets) {
-    if (pipe_modlet_get_n() >= 64) {
-      break;
-    }
     let is_const: i32 = 0;
     unsafe {
       is_const = pipeline_module_top_level_let_is_const(m, tl);
@@ -31611,7 +33371,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       tl = tl + 1;
       continue;
     }
@@ -31655,7 +33415,19 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
       // const scalar / nested `[K][N]T` arrays. Const `[N][]T` (elem
       // TYPE_SLICE) stays skipped — payload is fat rows, seed writes LIT
       // only; hoist + durable dest_elem_ty is that home (cmns na).
-      // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+      // Scalar ADDR_OF / fn-ptr (tk 9/18): 8-byte .data cell, baked
+      // below via pipe_modlet_bake_ptr_addr_elem_to_data. Predicate
+      // matches hoist skip (9.6.0 dual-home). PLATFORM: SHARED.
+      if (tk == 9 || tk == 18) {
+        let is_pa: i32 = 0;
+        is_pa = pipe_modlet_scalar_init_is_ptr_addr(a, m, init_ref);
+        if (is_pa == 0) {
+          tl = tl + 1;
+          continue;
+        }
+        cell_sz = 8;
+        imm = 0;
+      } else {
       if (tk != 10 || init_kind != 46) {
         tl = tl + 1;
         continue;
@@ -31696,6 +33468,16 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
       // Mark array decay so payload==8 (u8[8]) is not treated as scalar load.
       cell_sz = cell_sz | pipe_modlet_cell_array_bit();
       imm = 0;
+      }
+    }
+    // PLATFORM: SHARED — table is a fixed BSS (pipe_modlet_max).
+    // Silent `break` at 64 used to drop extras: load/store then missed the
+    // cell and fell through to a stack slot (9.6.0 dual-home class).
+    // G.7: complete this existing table — loud-fail (return -1 → CG002)
+    // when a registrable cell would exceed the cap. Skip-only leftover
+    // lets (const scalars, nameless, non-ARRAY) must not trip the cap.
+    if (pipe_modlet_get_n() >= pipe_modlet_max()) {
+      return 0 - 1;
     }
     let idx: i32 = pipe_modlet_get_n();
     pipe_store_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(idx), name_len);
@@ -31726,9 +33508,27 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     let llen2: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(i));
     let lbase2: i32 = pipe_modlet_off_label(i);
     let csz_raw: i32 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(i));
-    // COMMON size = payload only (strip array-decay bit30).
+    // Home size = payload only (strip array-decay bit30 / data bit29).
     let csz2: i32 = pipe_modlet_cell_payload(csz_raw);
     let calign: i32 = 8;
+    let use_data: i32 = 0;
+    let init_ref2: i32 = 0;
+    let type_ref2: i32 = 0;
+    let ik2: i32 = 0;
+    let tk2: i32 = 0;
+    let et2: i32 = 0;
+    let ne2: i32 = 0;
+    let data_off: i32 = 0;
+    let data_len_now: i32 = 0;
+    let pad: i32 = 0;
+    let nbase2: i32 = 0;
+    let nlen2: i32 = 0;
+    let tl2: i32 = 0;
+    let match_tl: i32 = 0;
+    let k2: i32 = 0;
+    let b2: i32 = 0;
+    let rc: i32 = 0;
+    let pool_bytes: i32 = 0;
     if (csz2 == 1) {
       calign = 1;
     } else {
@@ -31744,12 +33544,156 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
         }
       }
     }
-    let rc: i32 = 0;
-    unsafe {
-      rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, csz2, calign);
+    // Resolve the originating top-level let by name (array bake AND
+    // scalar ptr-addr). Non-empty TYPE_ARRAY ARRAY_LIT → F7 .data when
+    // cell+pool fits. Scalar ADDR_OF / fn-ptr → 8-byte .data + absolute64
+    // RELA (library TUs have no hoist-target seed). Empty `u8[N]=[]`
+    // stays COMMON. Oversized falls back to COMMON + hoist seed.
+    // PLATFORM: SHARED library-TU .data.
+    nlen2 = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i));
+    nbase2 = pipe_modlet_off_name(i);
+    match_tl = 0 - 1;
+    tl2 = 0;
+    while (tl2 < nlets) {
+      let tln: i32 = 0;
+      unsafe {
+        tln = pipeline_module_top_level_let_name_len(m, tl2);
+      }
+      if (tln == nlen2 && tln > 0) {
+        k2 = 0;
+        while (k2 < tln) {
+          let mb: i32 = 0;
+          unsafe {
+            b2 = pipeline_module_top_level_let_name_byte_at(m, tl2, k2);
+            mb = g_pipeline_asm_modlet[nbase2 + k2] as i32;
+          }
+          if (b2 != mb) {
+            break;
+          }
+          k2 = k2 + 1;
+        }
+        if (k2 == tln) {
+          match_tl = tl2;
+          break;
+        }
+      }
+      tl2 = tl2 + 1;
     }
-    if (rc != 0) {
-      return 0 - 1;
+    if (match_tl >= 0) {
+      unsafe {
+        init_ref2 = pipeline_module_top_level_let_init_ref(m, match_tl);
+        type_ref2 = pipeline_module_top_level_let_type_ref(m, match_tl);
+      }
+      if (init_ref2 > 0 && init_ref2 <= nexprs && type_ref2 > 0) {
+        unsafe {
+          ik2 = pipeline_expr_kind_ord_at(a, init_ref2);
+          tk2 = pipeline_type_kind_ord_at(a, type_ref2);
+          ne2 = pipeline_expr_array_lit_num_elems_at(a, init_ref2);
+        }
+        if (pipe_modlet_cell_is_array(csz_raw) != 0 && ik2 == 46 && tk2 == 10 && ne2 > 0) {
+          pool_bytes = pipe_modlet_array_lit_string_pool_bytes(a, init_ref2);
+          if (pool_bytes >= 0) {
+            unsafe {
+              data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
+            }
+            if (data_len_now < 0) {
+              data_len_now = 0;
+            }
+            pad = 0;
+            if (calign > 1) {
+              pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+            }
+            if (data_len_now + pad + csz2 + pool_bytes <= 65536) {
+              use_data = 1;
+            }
+          }
+        } else {
+          if (pipe_modlet_cell_is_array(csz_raw) == 0 && (tk2 == 9 || tk2 == 18)) {
+            if (pipe_modlet_scalar_init_is_ptr_addr(a, m, init_ref2) != 0) {
+              unsafe {
+                data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
+              }
+              if (data_len_now < 0) {
+                data_len_now = 0;
+              }
+              pad = 0;
+              if (calign > 1) {
+                pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+              }
+              if (data_len_now + pad + csz2 <= 65536) {
+                use_data = 1;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (use_data != 0) {
+      if (pad > 0) {
+        unsafe {
+          rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, pad);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      }
+      unsafe {
+        data_off = pipeline_elf_ctx_emit_data_len(elf_ctx);
+        pipeline_elf_ctx_set_shndx_override(elf_ctx, 4);
+        rc = pipeline_elf_ctx_add_label(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, data_off);
+      }
+      if (rc != 0) {
+        unsafe {
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        }
+        return 0 - 1;
+      }
+      unsafe {
+        rc = pipeline_elf_ctx_add_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, data_off);
+      }
+      if (rc != 0) {
+        unsafe {
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        }
+        return 0 - 1;
+      }
+      unsafe {
+        rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, csz2);
+      }
+      if (rc != 0) {
+        unsafe {
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        }
+        return 0 - 1;
+      }
+      if (pipe_modlet_cell_is_array(csz_raw) != 0) {
+        unsafe {
+          et2 = pipeline_type_elem_ref_at(a, type_ref2);
+          rc = pipe_modlet_bake_array_lit_elems_to_data(
+            a, elf_ctx, init_ref2, et2, data_off, 0, csz2, m);
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        }
+      } else {
+        unsafe {
+          rc = pipe_modlet_bake_ptr_addr_elem_to_data(
+            a, elf_ctx, m, init_ref2, 8, data_off);
+          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      pipe_store_i32_le(
+        &g_pipeline_asm_modlet[0],
+        pipe_modlet_off_cell_size(i),
+        csz_raw | pipe_modlet_cell_data_bit());
+    } else {
+      unsafe {
+        rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, csz2, calign);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
     }
     i = i + 1;
   }
@@ -31758,20 +33702,33 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
 }
 
 /**
- * Store ARRAY_LIT LIT elems into COMMON already LEA'd in rbx.
- * One nested ARRAY_LIT level is enough for `[K][N]T` rows; deeper
- * nest is a later leaf. Empty lit is a no-op (BSS stays zero).
+ * Bake ARRAY_LIT constant elems into an already-reserved .data cell.
+ * Twin of pipe_modlet_seed_array_lit_elems_to_rbx but writes object-file
+ * bytes (library TUs never enter hoist-target seed). One nested ARRAY_LIT
+ * level for `[K][N]T` rows; deeper nest is a later leaf. Empty lit is a
+ * no-op (zeros already reserved). Elem contract: EXPR_LIT and
+ * EXPR_NEG-over-LIT fold via pipe_modlet_array_lit_elem_const_val;
+ * anything else (FLOAT_LIT, binop, VAR, ...) loud-fails — the historic
+ * silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
+ * .data string pool and record an absolute64 reloc on the pointer slot.
+ * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
+ * named symbol (G.7 complete of pipeline_elf_ctx_append_reloc_absolute64).
+ * slen>4095 loud-fails (parser STRING_LIT overflow cap / L011).
  * @param arena *u8 - ASTArena
  * @param elf_ctx *u8 - ElfCodegenCtx
  * @param init_ref i32 - ARRAY_LIT expr
  * @param elem_ty i32 - dest elem type_ref (scalar or TYPE_ARRAY row)
- * @param ta i32 - 0=x86_64 1=arm64
- * @param base_off i32 - byte offset in the COMMON cell
- * @return i32 - 0 ok; -1 store fail
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ * @param data_base i32 - absolute offset of the cell in g_pipe_elf_data_buf
+ * @param base_off i32 - byte offset within the cell
+ * @param span_bytes i32 - bytes this literal may occupy (cell size at top
+ *     call, row size for nested rows); literal exceeding span = loud fail
+ * @param m *u8 - Module* (fn lookup for address elems; may be null)
+ * @return i32 - 0 ok; -1 poke fail / non-constant elem / span overflow
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 · ELF .data.
  */
-function pipe_modlet_seed_array_lit_elems_to_rbx(
-  arena: *u8, elf_ctx: *u8, init_ref: i32, elem_ty: i32, ta: i32, base_off: i32
+function pipe_modlet_bake_array_lit_elems_to_data(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, elem_ty: i32, data_base: i32, base_off: i32,
+  span_bytes: i32, m: *u8
 ): i32 {
   let ne: i32 = 0;
   let ei: i32 = 0;
@@ -31783,6 +33740,7 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
   let inner_et: i32 = 0;
   let row_sz: i32 = 0;
   let rc: i32 = 0;
+  let bi: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || init_ref <= 0) {
     return 0;
   }
@@ -31800,8 +33758,14 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
     if (row_sz <= 0) {
       row_sz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
     }
-    if (ne <= 0 || ne > 1024) {
+    // ne<=0: empty row lit is a no-op (zeros already reserved). Span guard:
+    // row count must fit this literal's row span — a mismatch (typeck gap
+    // or absurd literal) loud-fails instead of silently leaving rows zero.
+    if (ne <= 0) {
       return 0;
+    }
+    if (row_sz > 0 && ne > span_bytes / row_sz) {
+      return 0 - 1;
     }
     ei = 0;
     while (ei < ne) {
@@ -31813,8 +33777,8 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
           ek = pipeline_expr_kind_ord_at(arena, eref);
         }
         if (ek == 46) {
-          rc = pipe_modlet_seed_array_lit_elems_to_rbx(
-            arena, elf_ctx, eref, inner_et, ta, base_off + ei * row_sz);
+          rc = pipe_modlet_bake_array_lit_elems_to_data(
+            arena, elf_ctx, eref, inner_et, data_base, base_off + ei * row_sz, row_sz, m);
           if (rc != 0) {
             return rc;
           }
@@ -31831,8 +33795,13 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
   unsafe {
     ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   }
-  if (ne <= 0 || ne > 1024) {
+  // ne<=0: empty lit is a no-op (zeros already reserved). Span guard:
+  // elem count must fit this literal's elem span (no silent truncation).
+  if (ne <= 0) {
     return 0;
+  }
+  if (esz > 0 && ne > span_bytes / esz) {
+    return 0 - 1;
   }
   ei = 0;
   while (ei < ne) {
@@ -31843,10 +33812,986 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
       unsafe {
         ek = pipeline_expr_kind_ord_at(arena, eref);
       }
-      if (ek == 0) {
+      // STRING_LIT elem: intern bytes + NUL into the .data pool and
+      // record an absolute64 reloc on this pointer slot. Prepare now
+      // routes string-bearing arrays here when the pool fits.
+      if (ek == 59) {
+        rc = pipe_modlet_bake_string_lit_elem_to_data(
+          arena, elf_ctx, eref, data_base + base_off + ei * esz);
+        if (rc != 0) {
+          return rc;
+        }
+        ei = ei + 1;
+        continue;
+      }
+      // 9.4.2 address-valued elem (bare fn / `fn as *u8` / `&global`):
+      // record an absolute64 reloc on this pointer slot. rc==1 → not an
+      // address literal, fall through to the const fold (loud-fail).
+      if ((etk == 9 || etk == 18) && m != (0 as *u8)) {
+        rc = pipe_modlet_bake_ptr_addr_elem_to_data(
+          arena, elf_ctx, m, eref, esz, data_base + base_off + ei * esz);
+        if (rc < 0) {
+          return 0 - 1;
+        }
+        if (rc == 0) {
+          ei = ei + 1;
+          continue;
+        }
+      }
+      // LIT / EXPR_NEG-over-LIT: fold, then peel two's-complement bytes
+      // little-endian via u32 (unsigned division). The historic signed
+      // `cur / 256` peel corrupted bytes 1..3 of negative elems.
+      if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev) == 0) {
+        return 0 - 1;
+      }
+      let uw: u32 = ev as u32;
+      bi = 0;
+      while (bi < esz) {
         unsafe {
-          ev = pipeline_expr_int_val_at(arena, eref);
-          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, 0, ta);
+          rc = pipeline_elf_ctx_data_poke_u8(
+            elf_ctx, data_base + base_off + ei * esz + bi, (uw & 255) as i32);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        uw = uw / 256;
+        bi = bi + 1;
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/**
+ * Report whether an ARRAY_LIT contains STRING_LIT elements (recursively).
+ * Used by the seeder (COMMON fallback) and by tests; prepare's use_data
+ * gate now allows string-bearing arrays through the bake path when the
+ * interned pool fits (pipe_modlet_array_lit_string_pool_bytes). Nested
+ * `[K][N]*u8` rows are covered (ek==46 recurse).
+ * @param arena *u8 - ASTArena
+ * @param init_ref i32 - ARRAY_LIT expr
+ * @return i32 - 1 = has STRING_LIT elem (any nesting level); 0 = none
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_array_lit_has_string_elem(
+  arena: *u8, init_ref: i32
+): i32 {
+  let ne: i32 = 0;
+  let ei: i32 = 0;
+  let eref: i32 = 0;
+  let ek: i32 = 0;
+  if (arena == (0 as *u8) || init_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  }
+  ei = 0;
+  while (ei < ne) {
+    unsafe {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    }
+    if (eref > 0) {
+      unsafe {
+        ek = pipeline_expr_kind_ord_at(arena, eref);
+      }
+      if (ek == 59) {
+        return 1;
+      }
+      if (ek == 46) {
+        if (pipe_modlet_array_lit_has_string_elem(arena, eref) != 0) {
+          return 1;
+        }
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/**
+ * Sum interned-pool bytes for every STRING_LIT elem (recursively).
+ * Each STRING_LIT contributes slen+1 (payload + NUL). slen>4095 is the
+ * parser STRING_LIT overflow cap: return -1 so prepare keeps the cell
+ * COMMON rather than silently truncating. Nested ARRAY_LIT rows recurse.
+ * @param arena *u8 - ASTArena
+ * @param init_ref i32 - ARRAY_LIT expr
+ * @return i32 - >=0 interned byte count (0 = no strings); -1 too-long/null
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_array_lit_string_pool_bytes(
+  arena: *u8, init_ref: i32
+): i32 {
+  let ne: i32 = 0;
+  let ei: i32 = 0;
+  let eref: i32 = 0;
+  let ek: i32 = 0;
+  let slen: i32 = 0;
+  let sub: i32 = 0;
+  let total: i32 = 0;
+  if (arena == (0 as *u8) || init_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  }
+  ei = 0;
+  while (ei < ne) {
+    unsafe {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    }
+    if (eref > 0) {
+      unsafe {
+        ek = pipeline_expr_kind_ord_at(arena, eref);
+      }
+      if (ek == 59) {
+        unsafe {
+          slen = glue_asm_string_lit_len(arena, eref);
+        }
+        if (slen < 0 || slen > 4095) {
+          return 0 - 1;
+        }
+        total = total + slen + 1;
+      }
+      if (ek == 46) {
+        sub = pipe_modlet_array_lit_string_pool_bytes(arena, eref);
+        if (sub < 0) {
+          return 0 - 1;
+        }
+        total = total + sub;
+      }
+    }
+    ei = ei + 1;
+  }
+  return total;
+}
+
+/**
+ * Intern one STRING_LIT into the F7 .data string pool and record an
+ * absolute64 reloc on the already-reserved pointer slot.
+ *
+ * Label form (22 bytes, TU-unique): Lxmls_ + hex8(seq) + hex8(module_fp).
+ * Seq resets with the modlet table. G.7: reloc authority is
+ * pipeline_elf_ctx_append_reloc_absolute64 (same sentinel the F7 vtable
+ * statics use). Bytes come from the STRING_LIT overflow chain (head
+ * var_name plus int_val-linked chunks); slen>4095 loud-fails.
+ *
+ * Called with shndx_override already 4 (prepare's bake window).
+ * @param arena *u8 - ASTArena
+ * @param elf_ctx *u8 - ElfCodegenCtx
+ * @param eref i32 - STRING_LIT expr
+ * @param slot_off i32 - absolute .data offset of the 8-byte pointer slot
+ * @return i32 - 0 ok; -1 intern/reloc/label fail
+ * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64.
+ */
+function pipe_modlet_bake_string_lit_elem_to_data(
+  arena: *u8, elf_ctx: *u8, eref: i32, slot_off: i32
+): i32 {
+  let slen: i32 = 0;
+  let pool_off: i32 = 0;
+  let rc: i32 = 0;
+  let bi: i32 = 0;
+  let seq: i32 = 0;
+  let fp: i64 = 0;
+  let lab: u8[24] = [];
+  let i: i32 = 0;
+  let shift: i32 = 0;
+  let nib: i32 = 0;
+  let ch: u8 = 0 as u8;
+  let sbuf: u8[256] = [];
+  let cur: i32 = 0;
+  let n: i32 = 0;
+  let copied: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || eref <= 0 || slot_off < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    slen = glue_asm_string_lit_len(arena, eref);
+  }
+  if (slen < 0 || slen > 4095) {
+    return 0 - 1;
+  }
+  unsafe {
+    pool_off = pipeline_elf_ctx_emit_data_len(elf_ctx);
+  }
+  if (pool_off < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, slen + 1);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  copied = 0;
+  cur = eref;
+  while (copied < slen && cur > 0) {
+    unsafe {
+      pipeline_expr_var_name_into(arena, cur, &sbuf[0]);
+    }
+    if (cur == eref) {
+      n = slen;
+      if (n > 255) {
+        n = 255;
+      }
+    } else {
+      unsafe {
+        n = glue_asm_string_lit_len(arena, cur);
+      }
+    }
+    if (n < 0) {
+      n = 0;
+    }
+    if (n > slen - copied) {
+      n = slen - copied;
+    }
+    bi = 0;
+    while (bi < n) {
+      unsafe {
+        rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, pool_off + copied + bi, sbuf[bi] as i32);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      bi = bi + 1;
+    }
+    copied = copied + n;
+    unsafe {
+      cur = pipeline_expr_int_val_at(arena, cur);
+    }
+  }
+  g_pipe_modlet_strpool_seq = g_pipe_modlet_strpool_seq + 1;
+  seq = g_pipe_modlet_strpool_seq;
+  fp = pipe_modlet_module_fp();
+  unsafe {
+    lab[0] = 76 as u8;
+    lab[1] = 120 as u8;
+    lab[2] = 109 as u8;
+    lab[3] = 108 as u8;
+    lab[4] = 115 as u8;
+    lab[5] = 95 as u8;
+  }
+  i = 0;
+  while (i < 8) {
+    shift = (7 - i) * 4;
+    nib = (seq >> shift) & 15;
+    if (nib >= 10) {
+      ch = (87 + nib) as u8;
+    } else {
+      ch = (48 + nib) as u8;
+    }
+    unsafe {
+      lab[6 + i] = ch;
+    }
+    i = i + 1;
+  }
+  i = 0;
+  while (i < 8) {
+    shift = (7 - i) * 4;
+    nib = ((fp >> shift) & 15) as i32;
+    if (nib >= 10) {
+      ch = (87 + nib) as u8;
+    } else {
+      ch = (48 + nib) as u8;
+    }
+    unsafe {
+      lab[14 + i] = ch;
+    }
+    i = i + 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_add_label(elf_ctx, &lab[0], 22, pool_off);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_add_sym(elf_ctx, &lab[0], 22, pool_off);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off, &lab[0], 22);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Bake one address-valued ARRAY_LIT elem as an absolute64 reloc on an
+ * already-reserved .data pointer slot (9.4.2).
+ *
+ * Completes the STRING_LIT intern path: named-symbol addresses (bare
+ * same-module fn, `fn as *u8`, `&global`) cannot be poked as immediates,
+ * so prepare used to keep those tables COMMON and rely on the hoist-target
+ * seeder. Library TUs never seed, leaving the slots NULL. G.7: reloc
+ * authority is pipeline_elf_ctx_append_reloc_absolute64 (F7 vtable +
+ * STRING_LIT intern). Symbol spelling is pipe_modlet_fn_sym_spell_into
+ * (same Mach-O '_' / ELF bare as pipe_modlet_lea_fn_sym_to_rax).
+ *
+ * ADDR_OF prefers the modlet unique label (COMMON or .data cell), then
+ * the same-module function link symbol. A bare VAR that is not a
+ * same-module fn is a VALUE copy, not an address literal: return 1 so
+ * the caller falls through to the const fold (which loud-fails).
+ *
+ * Called with shndx_override already 4 (prepare's bake window).
+ * @param arena *u8 - ASTArena
+ * @param elf_ctx *u8 - ElfCodegenCtx
+ * @param m *u8 - Module* (fn lookup; null → not-an-address-elem)
+ * @param eref i32 - element expr ref
+ * @param esz i32 - dest elem byte size (must be 8)
+ * @param slot_off i32 - absolute .data offset of the 8-byte pointer slot
+ * @return i32 - 0 recorded reloc; 1 not an address elem; -1 loud fail
+ * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64.
+ */
+function pipe_modlet_bake_ptr_addr_elem_to_data(
+  arena: *u8, elf_ctx: *u8, m: *u8, eref: i32, esz: i32, slot_off: i32
+): i32 {
+  let ek: i32 = 0;
+  let is_addr_of: i32 = 0;
+  let nref: i32 = 0;
+  let vlen: i32 = 0;
+  let name: u8[256] = [];
+  let sym: u8[130] = [];
+  let slen: i32 = 0;
+  let fi: i32 = 0;
+  let idx: i32 = 0;
+  let llen: i32 = 0;
+  let lbase: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || eref <= 0 || slot_off < 0) {
+    return 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+  }
+  if (ek == 54) {
+    unsafe {
+      nref = pipeline_expr_as_operand_ref_at(arena, eref);
+    }
+  } else {
+    if (ek == 51) {
+      is_addr_of = 1;
+      unsafe {
+        nref = pipeline_expr_unary_operand_ref_at(arena, eref);
+      }
+    } else {
+      if (ek != 3) {
+        return 1;
+      }
+      nref = eref;
+    }
+  }
+  if (nref <= 0) {
+    return 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, nref);
+  }
+  if (ek != 3) {
+    return 1;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, nref);
+  }
+  if (vlen <= 0 || vlen > 255) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, nref, &name[0]);
+  }
+  if (esz != 8) {
+    return 0 - 1;
+  }
+  if (is_addr_of != 0) {
+    idx = pipeline_asm_modlet_find(&name[0], vlen);
+    if (idx >= 0) {
+      llen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_label_len(idx));
+      lbase = pipe_modlet_off_label(idx);
+      if (llen <= 0 || llen > 24) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = pipeline_elf_ctx_append_reloc_absolute64(
+          elf_ctx, slot_off, &g_pipeline_asm_modlet[lbase], llen);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+    if (m == (0 as *u8)) {
+      return 0 - 1;
+    }
+    unsafe {
+      fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+    }
+    if (fi < 0) {
+      return 0 - 1;
+    }
+    slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]);
+    if (slen <= 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off, &sym[0], slen);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return 0;
+  }
+  if (m == (0 as *u8)) {
+    return 1;
+  }
+  unsafe {
+    fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+  }
+  if (fi < 0) {
+    return 1;
+  }
+  slen = pipe_modlet_fn_sym_spell_into(elf_ctx, &name[0], vlen, &sym[0]);
+  if (slen <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    rc = pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off, &sym[0], slen);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Fold one ARRAY_LIT element to its constant i32 value.
+ * Accepts EXPR_LIT (ek 0) and EXPR_NEG over EXPR_LIT (ek 22) — the parser's
+ * compound-reparse normal form for negative literals, e.g. `[-600, 2]`
+ * produces EXPR_NEG(EXPR_LIT), not a bare negative LIT. Anything else
+ * (FLOAT_LIT, binop, VAR, ...) is not a compile-time constant elem; callers
+ * must loud-fail (return -1) instead of silently dropping the element —
+ * the historic silent drop baked/seeded zeros for `let g: i32[2] = [-1, 2]`.
+ * @param arena *u8 - ASTArena
+ * @param eref i32 - element expr ref
+ * @param out_val *i32 - folded two's-complement i32 value
+ * @return i32 - 1 = folded constant; 0 = not a supported constant elem
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_array_lit_elem_const_val(
+  arena: *u8, eref: i32, out_val: *i32
+): i32 {
+  let ek: i32 = 0;
+  let op: i32 = 0;
+  let v: i32 = 0;
+  if (arena == (0 as *u8) || eref <= 0 || out_val == (0 as *i32)) {
+    return 0;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+  }
+  if (ek == 0) {
+    unsafe {
+      v = pipeline_expr_int_val_at(arena, eref);
+    }
+    unsafe {
+      out_val[0] = v;
+    }
+    return 1;
+  }
+  if (ek == 22) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, eref);
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    unsafe {
+      ek = pipeline_expr_kind_ord_at(arena, op);
+    }
+    if (ek != 0) {
+      return 0;
+    }
+    unsafe {
+      v = pipeline_expr_int_val_at(arena, op);
+    }
+    unsafe {
+      out_val[0] = 0 - v;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * True when a scalar module-let init is a compile-time address that
+ * prepare can bake as an 8-byte .data cell + absolute64 reloc.
+ *
+ * Completes 9.4.2 ARRAY_LIT table bake for the scalar leftover:
+ *   `let p: *i32 = &g` (ADDR_OF 51 over a pass-1 modlet cell or fn)
+ *   `let h: *u8 = inc` (VAR 3 naming a same-module fn)
+ *   TYPE_FN init `inc as ...` (AS 54 over a fn)
+ *
+ * Pass-1 cells (independently knowable at hoist time, before the
+ * modlet table exists): mutable scalar LIT/BOOL (init 0/2,
+ * is_const==0) and TYPE_ARRAY + ARRAY_LIT (tk 10, ik 46).
+ *
+ * Rejects VAR copies of another pointer/fn-ptr let (`let g = f`) so
+ * those keep historic hoist. Rejects ADDR_OF of const scalars
+ * (prepare does not give them a cell).
+ *
+ * Hoist skip and prepare register MUST agree (9.6.0 dual-home class).
+ * @param arena *u8 - ASTArena
+ * @param m *u8 - Module* (fn lookup + top-level let scan; null → 0)
+ * @param init_ref i32 - scalar let init expr
+ * @return i32 - 1 bake-able address init; 0 keep hoist
+ * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64.
+ */
+function pipe_modlet_scalar_init_is_ptr_addr(
+  arena: *u8, m: *u8, init_ref: i32
+): i32 {
+  let ek: i32 = 0;
+  let is_addr_of: i32 = 0;
+  let nref: i32 = 0;
+  let vlen: i32 = 0;
+  let name: u8[256] = [];
+  let fi: i32 = 0;
+  let nlets: i32 = 0;
+  let tl: i32 = 0;
+  let nlen: i32 = 0;
+  let k: i32 = 0;
+  let b: i32 = 0;
+  let same: i32 = 0;
+  let t_init: i32 = 0;
+  let t_ik: i32 = 0;
+  let t_tr: i32 = 0;
+  let t_tk: i32 = 0;
+  let t_const: i32 = 0;
+  let nexprs: i32 = 0;
+  if (arena == (0 as *u8) || m == (0 as *u8) || init_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  if (ek == 54) {
+    unsafe {
+      nref = pipeline_expr_as_operand_ref_at(arena, init_ref);
+    }
+  } else {
+    if (ek == 51) {
+      is_addr_of = 1;
+      unsafe {
+        nref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+      }
+    } else {
+      if (ek != 3) {
+        return 0;
+      }
+      nref = init_ref;
+    }
+  }
+  if (nref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, nref);
+  }
+  if (ek != 3) {
+    return 0;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, nref);
+  }
+  if (vlen <= 0 || vlen > 255) {
+    return 0;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, nref, &name[0]);
+    fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+  }
+  if (fi >= 0) {
+    return 1;
+  }
+  if (is_addr_of == 0) {
+    return 0;
+  }
+  // ADDR_OF of a pass-1 modlet cell. Walk the module lets (not the
+  // live table) so hoist — which runs before prepare — agrees.
+  nlets = pipe_mod_get_num_top_level_lets(m);
+  nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  tl = 0;
+  while (tl < nlets) {
+    unsafe {
+      nlen = pipeline_module_top_level_let_name_len(m, tl);
+    }
+    if (nlen == vlen) {
+      same = 1;
+      k = 0;
+      while (k < nlen) {
+        unsafe {
+          b = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+        }
+        if (b != (name[k] as i32)) {
+          same = 0;
+          break;
+        }
+        k = k + 1;
+      }
+      if (same != 0) {
+        unsafe {
+          t_const = pipeline_module_top_level_let_is_const(m, tl);
+          t_init = pipeline_module_top_level_let_init_ref(m, tl);
+          t_tr = pipeline_module_top_level_let_type_ref(m, tl);
+        }
+        t_ik = 0;
+        t_tk = 0;
+        if (t_init > 0 && t_init <= nexprs) {
+          unsafe {
+            t_ik = pipeline_expr_kind_ord_at(arena, t_init);
+          }
+        }
+        if (t_tr > 0) {
+          unsafe {
+            t_tk = pipeline_type_kind_ord_at(arena, t_tr);
+          }
+        }
+        if (t_const == 0 && (t_ik == 0 || t_ik == 2)) {
+          return 1;
+        }
+        if (t_tk == 10 && t_ik == 46) {
+          return 1;
+        }
+        return 0;
+      }
+    }
+    tl = tl + 1;
+  }
+  return 0;
+}
+
+/**
+ * Detect ARRAY_LIT elems holding compile-time addresses (9.4.2): dest
+ * elem type ptr (9) / fn (18) with elem VAR (3, bare same-module fn),
+ * AS (54, `fn as *u8`), or ADDR_OF (51, `&global` / `&fn`). Recursive
+ * over nested TYPE_ARRAY rows, mirroring the entry seeder walk. Prepare
+ * now bakes such arrays via absolute64 RELA when the cell fits; this
+ * predicate remains for the COMMON+seeder fallback (budget miss) and
+ * documents the address-elem shape. Ptr-typed dest only — a bare global
+ * in an i32 table is a value copy and keeps the fold path.
+ * @param arena *u8 - ASTArena
+ * @param init_ref i32 - ARRAY_LIT expr
+ * @param elem_ty i32 - dest elem type_ref at this nesting level
+ * @return i32 - 1 = has address elem (any level); 0 = none
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_array_lit_has_ptr_addr_elem(
+  arena: *u8, init_ref: i32, elem_ty: i32
+): i32 {
+  let ne: i32 = 0;
+  let ei: i32 = 0;
+  let eref: i32 = 0;
+  let ek: i32 = 0;
+  let etk: i32 = 0;
+  if (arena == (0 as *u8) || init_ref <= 0 || elem_ty <= 0) {
+    return 0;
+  }
+  unsafe {
+    etk = pipeline_type_kind_ord_at(arena, elem_ty);
+  }
+  if (etk != 9 && etk != 18 && etk != 10) {
+    return 0;
+  }
+  unsafe {
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  }
+  ei = 0;
+  while (ei < ne) {
+    unsafe {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    }
+    if (eref > 0) {
+      unsafe {
+        ek = pipeline_expr_kind_ord_at(arena, eref);
+      }
+      if (etk == 10) {
+        // Nested row: recurse with the row's elem type (seeder twin walk).
+        if (ek == 46) {
+          if (pipe_modlet_array_lit_has_ptr_addr_elem(
+              arena, eref, pipeline_type_elem_ref_at(arena, elem_ty)) != 0) {
+            return 1;
+          }
+        }
+      } else {
+        if (ek == 3 || ek == 51 || ek == 54) {
+          return 1;
+        }
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/**
+ * Seed one address-valued ARRAY_LIT elem (9.4.2) at rbx+off.
+ * Accepts bare same-module fn (VAR 3), `fn as *u8` (AS 54), and ADDR_OF
+ * (51) over a global let or fn. The address is resolved at hoist-target
+ * entry: bare/AS fn name → link symbol (pipe_modlet_lea_fn_sym_to_rax),
+ * ADDR_OF → modlet COMMON cell address first, then fn symbol (shared
+ * resolver). A VAR naming a module let is a VALUE copy, not an address
+ * literal: return 1 so the caller's const fold loud-fails (historic
+ * behavior, never a silent zero).
+ * @param arena *u8 - ASTArena
+ * @param elf_ctx *u8 - ElfCodegenCtx
+ * @param m *u8 - Module*
+ * @param eref i32 - element expr ref
+ * @param esz i32 - dest elem byte size (must be 8: pointers/fn addrs)
+ * @param off i32 - byte offset of the elem inside the COMMON cell
+ * @param ta i32 - target arch
+ * @return i32 - 0 = stored; 1 = not an address elem (caller falls back
+ *         to the const fold); -1 = loud fail
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_seed_ptr_addr_elem_to_rbx(
+  arena: *u8, elf_ctx: *u8, m: *u8, eref: i32, esz: i32, off: i32, ta: i32
+): i32 {
+  let ek: i32 = 0;
+  let is_addr_of: i32 = 0;
+  let nref: i32 = 0;
+  let vlen: i32 = 0;
+  let name: u8[256] = [];
+  let fi: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || eref <= 0) {
+    return 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+  }
+  if (ek == 54) {
+    unsafe {
+      nref = pipeline_expr_as_operand_ref_at(arena, eref);
+    }
+  } else {
+    if (ek == 51) {
+      is_addr_of = 1;
+      unsafe {
+        nref = pipeline_expr_unary_operand_ref_at(arena, eref);
+      }
+    } else {
+      if (ek != 3) {
+        return 1;
+      }
+      nref = eref;
+    }
+  }
+  if (nref <= 0) {
+    return 1;
+  }
+  unsafe {
+    ek = pipeline_expr_kind_ord_at(arena, nref);
+  }
+  if (ek != 3) {
+    return 1;
+  }
+  unsafe {
+    vlen = pipeline_expr_var_name_len(arena, nref);
+  }
+  if (vlen <= 0 || vlen > 255) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_expr_var_name_into(arena, nref, &name[0]);
+  }
+  if (is_addr_of != 0) {
+    // &global → COMMON cell address (modlet-first); &fn → link symbol.
+    rc = pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx, m, &name[0], vlen, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  } else {
+    if (m == (0 as *u8)) {
+      return 1;
+    }
+    unsafe {
+      fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+    }
+    if (fi < 0) {
+      // Bare name that is not a same-module fn (module-let value copy):
+      // not an address literal — the const fold loud-fails downstream.
+      return 1;
+    }
+    rc = pipe_modlet_lea_fn_sym_to_rax(elf_ctx, &name[0], vlen, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+  }
+  if (esz != 8) {
+    // Pointer/fn addresses are 8B; narrower elem types never reach here.
+    return 0 - 1;
+  }
+  unsafe {
+    rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, off, esz, ta);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Store ARRAY_LIT LIT elems into COMMON already LEA'd in rbx.
+ * One nested ARRAY_LIT level is enough for `[K][N]T` rows; deeper
+ * nest is a later leaf. Empty lit is a no-op (BSS zero).
+ * 9.4.2: ptr/fn-typed tables with address elems (bare fn / `fn as *u8` /
+ * `&global`) store the link-time address via
+ * pipe_modlet_seed_ptr_addr_elem_to_rbx — `m` feeds the fn lookup.
+ * @param arena *u8 - ASTArena
+ * @param elf_ctx *u8 - ElfCodegenCtx
+ * @param init_ref i32 - ARRAY_LIT expr
+ * @param elem_ty i32 - dest elem type_ref (scalar or TYPE_ARRAY row)
+ * @param ta i32 - 0=x86_64 1=arm64
+ * @param base_off i32 - byte offset in the COMMON cell
+ * @param m *u8 - Module* (address-elem fn lookup; may be null)
+ * @return i32 - 0 ok; -1 store fail
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_seed_array_lit_elems_to_rbx(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, elem_ty: i32, ta: i32, base_off: i32, m: *u8
+): i32 {
+  let ne: i32 = 0;
+  let ei: i32 = 0;
+  let eref: i32 = 0;
+  let ek: i32 = 0;
+  let ev: i32 = 0;
+  let esz: i32 = 4;
+  let etk: i32 = 0;
+  let inner_et: i32 = 0;
+  let row_sz: i32 = 0;
+  let rc: i32 = 0;
+  let hi: i32 = 0;
+  let sa: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || init_ref <= 0) {
+    return 0;
+  }
+  if (elem_ty > 0) {
+    unsafe {
+      etk = pipeline_type_kind_ord_at(arena, elem_ty);
+    }
+  }
+  if (etk == 10) {
+    unsafe {
+      inner_et = pipeline_type_elem_ref_at(arena, elem_ty);
+      ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    }
+    row_sz = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+    if (row_sz <= 0) {
+      row_sz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+    }
+    // ne<=0: empty row lit is a no-op (BSS zero). ne>1024: entry-seed code
+    // bound — loud-fail instead of the historic silent zero fill.
+    if (ne <= 0) {
+      return 0;
+    }
+    if (ne > 1024) {
+      return 0 - 1;
+    }
+    ei = 0;
+    while (ei < ne) {
+      unsafe {
+        eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+      }
+      if (eref > 0) {
+        unsafe {
+          ek = pipeline_expr_kind_ord_at(arena, eref);
+        }
+        if (ek == 46) {
+          rc = pipe_modlet_seed_array_lit_elems_to_rbx(
+            arena, elf_ctx, eref, inner_et, ta, base_off + ei * row_sz, m);
+          if (rc != 0) {
+            return rc;
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+  if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
+    esz = 4;
+  }
+  unsafe {
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  }
+  // ne<=0: empty lit is a no-op (BSS zero). ne>1024: entry-seed code-size
+  // bound (~16B emitted per elem) — loud-fail instead of silent zero fill.
+  if (ne <= 0) {
+    return 0;
+  }
+  if (ne > 1024) {
+    return 0 - 1;
+  }
+  ei = 0;
+  while (ei < ne) {
+    unsafe {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    }
+    if (eref > 0) {
+      unsafe {
+        ek = pipeline_expr_kind_ord_at(arena, eref);
+      }
+      // STRING_LIT elem: emit the string bytes inline in .text and LEA
+      // their address (rax/x0), then store esz bytes at rbx+off. Cells
+      // reach here when the .data bake+pool does not fit (budget or
+      // 9.4.2 ADDR_OF neighbor); loud-fails on len > 126 (jmp-skip cap).
+      if (ek == 59) {
+        unsafe {
+          rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, eref, ta);
+        }
+        if (rc != 0) {
+          return rc;
+        }
+        unsafe {
+          rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      } else {
+        if ((etk == 9 || etk == 18) && m != (0 as *u8)) {
+          // 9.4.2 address-valued elem (bare fn / `fn as *u8` / `&global`):
+          // resolve the link-time address at hoist-target entry and store
+          // 8B into COMMON. sa==1 → not an address literal, fall through
+          // to the const fold (which loud-fails, keeping old behavior).
+          sa = pipe_modlet_seed_ptr_addr_elem_to_rbx(
+            arena, elf_ctx, m, eref, esz, base_off + ei * esz, ta);
+          if (sa < 0) {
+            return 0 - 1;
+          }
+          if (sa == 0) {
+            ei = ei + 1;
+            continue;
+          }
+        }
+        // LIT / EXPR_NEG-over-LIT elem: fold to the constant value. A
+        // negative imm passes hi=-1 so the (hi:lo) imm64 halves rebuild
+        // the two's-complement value in rax before the esz store. Any
+        // other elem kind is not a compile-time constant: loud-fail
+        // (was: silently skipped, leaving the elem zero at runtime).
+        if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev) == 0) {
+          return 0 - 1;
+        }
+        hi = 0;
+        if (ev < 0) {
+          hi = 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta);
         }
         if (rc != 0) {
           return 0 - 1;
@@ -31925,12 +34870,12 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
       let csz: i32 = 0;
       let et: i32 = 0;
       let rc2: i32 = 0;
-      let name_buf: u8[128] = [];
+      let name_buf: u8[256] = [];
       let k: i32 = 0;
       unsafe {
         nlen = pipeline_module_top_level_let_name_len(mod, tl);
       }
-      if (nlen > 0 && nlen <= 127) {
+      if (nlen > 0 && nlen <= 255) {
         k = 0;
         while (k < nlen) {
           unsafe {
@@ -31941,7 +34886,10 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
         idx = pipeline_asm_modlet_find(&name_buf[0], nlen);
         if (idx >= 0) {
           csz = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size(idx));
-          if (pipe_modlet_cell_is_array(csz) != 0) {
+          // Skip .data-backed cells: bytes already baked at prepare; stores
+          // into Mach-O __DATA,__const may fault after final link.
+          // PLATFORM: SHARED — library-TU .data knife.
+          if (pipe_modlet_cell_is_array(csz) != 0 && pipe_modlet_cell_is_data(csz) == 0) {
             unsafe {
               init_ref = pipeline_module_top_level_let_init_ref(mod, tl);
               type_ref = pipeline_module_top_level_let_type_ref(mod, tl);
@@ -31957,7 +34905,7 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
                 }
                 if (pipeline_asm_modlet_lea_rbx_arch(elf_ctx, idx, ta) == 0) {
                   rc2 = pipe_modlet_seed_array_lit_elems_to_rbx(
-                    arena, elf_ctx, init_ref, et, ta, 0);
+                    arena, elf_ctx, init_ref, et, ta, 0, mod);
                   if (rc2 != 0) {
                     return rc2;
                   }
@@ -32012,11 +34960,11 @@ export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, 
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       tl = tl + 1;
       continue;
     }
-    let name_buf: u8[128] = [];
+    let name_buf: u8[256] = [];
     let k: i32 = 0;
     while (k < name_len) {
       let b: i32 = 0;
@@ -32144,11 +35092,11 @@ export function pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a: *u
     unsafe {
       name_len = pipeline_module_top_level_let_name_len(m, tl);
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       tl = tl + 1;
       continue;
     }
-    let name_buf: u8[128] = [];
+    let name_buf: u8[256] = [];
     let k: i32 = 0;
     while (k < name_len) {
       let b: i32 = 0;
@@ -32264,7 +35212,7 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
         flen = pipeline_expr_field_access_name_len(arena, base_ref);
       }
       if (flen == 3) {
-        let fname: u8[128] = [];
+        let fname: u8[256] = [];
         unsafe {
           pipeline_expr_field_access_name_into(arena, base_ref, &fname[0]);
         }
@@ -32282,7 +35230,7 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
             }
           }
           if (vref > 0 && mod != (0 as *u8) && vkind == 3) {
-            let vn: u8[128] = [];
+            let vn: u8[256] = [];
             let vl: i32 = 0;
             let pty: i32 = 0;
             unsafe {
@@ -32302,7 +35250,7 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
             }
             if (pty > 0 && pty_kind == 9) {
               let st: i32 = 0;
-              let sn: u8[128] = [];
+              let sn: u8[256] = [];
               let sl: i32 = 0;
               unsafe {
                 st = pipeline_type_elem_ref_at(arena, pty);
@@ -32344,11 +35292,48 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
     // sizeof(u8)=1 instead of pointer width 8 (argv[i] pure-asm scale1+ldrb
     // SEGV). PLATFORM: SHARED freestanding · pure-asm INDEX stride authority.
     if (tr > 0 && tr_kind == 9) {
+      // PLATFORM: SHARED — `.data` of a TYPE_SLICE base resolves to a bare
+      // PTR (no pointee) for the deref decision; recover the stride from the
+      // slice's element type so []u8 indexes with scale 1 (parse-only dep
+      // previously defaulted to 4 → OOB read, run-slice FAIL). Checked BEFORE
+      // the generic peel (a bare PTR defaults to 4 there).
+      if (base_kind == 44) {
+        let d_vb2: i32 = pipeline_expr_field_access_base_ref(arena, base_ref);
+        if (d_vb2 > 0 && pipeline_expr_kind_ord_at(arena, d_vb2) == 3) {
+          let d_sty2: i32 = glue_var_expr_type_ref_with_decl_fallback_c(arena, d_vb2);
+          if (d_sty2 > 0 && pipeline_type_kind_ord_at(arena, d_sty2) == 11) {
+            let d_elem2: i32 = pipeline_type_elem_ref_at(arena, d_sty2);
+            if (d_elem2 > 0) {
+              let d_esz2: i32 = glue_index_elem_byte_sz_from_type_ref_c(arena, d_elem2);
+              // <=8 (not <8): a u64/f64 slice element strides 8; the generic
+              // bare-PTR peel below would default to 4 (last_u64 OOB-ish read).
+              if (d_esz2 > 0 && d_esz2 <= 8) {
+                return d_esz2;
+              }
+            }
+          }
+        }
+      }
       unsafe {
         esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
       }
       if (esz_base > 0 && esz_base < 8) {
         return esz_base;
+      }
+      if (esz_base <= 0 && base_kind == 44) {
+        let d_vb: i32 = pipeline_expr_field_access_base_ref(arena, base_ref);
+        if (d_vb > 0 && pipeline_expr_kind_ord_at(arena, d_vb) == 3) {
+          let d_sty: i32 = glue_var_expr_type_ref_with_decl_fallback_c(arena, d_vb);
+          if (d_sty > 0 && pipeline_type_kind_ord_at(arena, d_sty) == 11) {
+            let d_elem: i32 = pipeline_type_elem_ref_at(arena, d_sty);
+            if (d_elem > 0) {
+              let d_esz: i32 = glue_index_elem_byte_sz_from_type_ref_c(arena, d_elem);
+              if (d_esz > 0 && d_esz < 8) {
+                return d_esz;
+              }
+            }
+          }
+        }
       }
       // esz_base == 8 (pointer / i64 element): fall through so INDEX result
       // TYPE_PTR arm returns 8; do not early-return here.
@@ -32604,12 +35589,12 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   }
   if (base_kind == 3) {
     let off: i32 = 0;
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     let vlen: i32 = 0;
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, base_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 99;
     }
     unsafe {
@@ -32703,7 +35688,17 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
 }
 
 /**
- * Emit EXPR_ADDR_OF: lea local/param slot, INDEX eff_addr, FIELD/DEREF lvalue.
+ * Emit EXPR_ADDR_OF: lea local/param slot, INDEX eff_addr, FIELD/DEREF
+ * lvalue, or ARRAY_LIT dest-stamp into a temp then lea (rax already holds
+ * the temp address after pipeline_asm_emit_array_lit_elf_c).
+ * Nested extra lit `&[[2],[4]]` of dest extras dest-PTR stamp
+ * `*[2][]i32` is ADDR_OF of ARRAY_LIT (kind 46). Prior path only handled
+ * VAR/INDEX/FIELD/DEREF so ARRAY_LIT fell through to -99 → CG002
+ * `.Lf0_1`. G.7: complete this emit; reuse ARRAY_LIT authority (already
+ * dest-stamps into temp then lea rbp→rax). Do not invent a second
+ * dest-PTR stamp / -3. Twin thin first-wins
+ * pipeline_glue_strict_minimal.x must complete the same case or Ubuntu
+ * stays CG002. PLATFORM: SHARED freestanding · LINUX gold.
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param expr_ref i32 - ADDR_OF expr
@@ -32711,16 +35706,16 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 fail; -99 FAST_UNHANDLED
  * wave140 pure: G.7 authority (was pipeline_asm_emit_addr_of_elf_c).
- * PLATFORM: SHARED freestanding · LINUX gold.
  */
 #[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let op: i32 = 0;
   let ok: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let rc: i32 = 0;
+  let gmod: *u8 = 0 as *u8;
   unsafe {
     op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
@@ -32734,7 +35729,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, op);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -32747,6 +35742,22 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
       }
     }
     if (off < 0) {
+      // 9.4.2: non-local binding — module-let COMMON cell (modlet-first,
+      // the home the generic VAR emit reads) or same-module fn link
+      // symbol. Shared resolver authority; twin of the lvalue_eff_addr
+      // fallback the first-wins thin path exercises. Loud -99 only when
+      // the name is neither (`let p:*i32=&g;` / `&tab` / `&fn`).
+      unsafe {
+        gmod = pipeline_asm_emit_module_ref_c();
+      }
+      if (gmod != (0 as *u8)) {
+        unsafe {
+          rc = pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx, gmod, &vname[0], vlen, ta);
+        }
+        if (rc == 0) {
+          return 0;
+        }
+      }
       return 0 - 99;
     }
     unsafe {
@@ -32780,6 +35791,17 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
   if (ok == 52) {
     unsafe {
       rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
+    }
+    return rc;
+  }
+  /*
+   * EXPR_ARRAY_LIT = 46: dest-stamp into temp then lea (rax = &temp).
+   * dest extras dest-PTR stamp nested extra lit `&[[2],[4]]`.
+   * PLATFORM: SHARED — G.7 complete ADDR_OF of ARRAY_LIT.
+   */
+  if (ok == 46) {
+    unsafe {
+      rc = pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, op, ctx, ta);
     }
     return rc;
   }
@@ -33134,7 +36156,7 @@ export function pipeline_asm_emit_func_index_c(): i32 {
  * @param arena *u8 - ASTArena*
  * @param mod *u8 - Module*
  * @param vname *u8 - param name bytes
- * @param vlen i32 - name length in [1,127]
+ * @param vlen i32 - name length in [1,255]
  * @return i32 - 1 if *T formal, else 0
  * wave141 pure: G.7 authority (was pipeline_asm_emit_func_param_is_ptr_by_name_c).
  * PLATFORM: SHARED freestanding.
@@ -33144,7 +36166,7 @@ export function pipeline_asm_emit_func_param_is_ptr_by_name_c(arena: *u8, mod: *
   let fi: i32 = 0;
   let param_ty: i32 = 0;
   let kind: i32 = 0;
-  if (arena == (0 as *u8) || mod == (0 as *u8) || vname == (0 as *u8) || vlen <= 0 || vlen > 127) {
+  if (arena == (0 as *u8) || mod == (0 as *u8) || vname == (0 as *u8) || vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -33181,7 +36203,7 @@ export function pipeline_asm_emit_func_param_is_ptr_by_name_c(arena: *u8, mod: *
  */
 #[no_mangle]
 export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, asm_ctx: *u8, var_expr_ref: i32): i32 {
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ek: i32 = 0;
   let rc: i32 = 0;
@@ -33201,7 +36223,7 @@ export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, 
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -33219,6 +36241,8 @@ export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, 
  * @param mod *u8 - Module* (may be null)
  * @param func_index i32 - function index
  * @return i32 - 16-aligned frame + scratch + 64 pad (min 64)
+ * Scratch floor 2048 (was 512): emit next_offset can exceed the w157
+ * sum; undersize smashes caller (Darwin invoke_cc_impl c_paths NULL).
  * wave141 pure: G.7 authority (was pipeline_asm_compute_frame_size_c).
  * Cap residual: storage + local_reset/fill tree + home width + return size +
  *   hoist/top-level lets + array/wa/reent/call_spill temps + host_is_arm64.
@@ -33226,7 +36250,7 @@ export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, 
  */
 #[no_mangle]
 export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, func_index: i32): i32 {
-  let ctx_buf: u8[128] = [];
+  let ctx_buf: u8[256] = [];
   let next_off: i32 = 16;
   let num_loc: i32 = 0;
   let size: i32 = 0;
@@ -33314,8 +36338,16 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
     }
   }
   scratch = call_spill;
-  if (scratch < 512) {
-    scratch = 512;
+  /* Min scratch is a safety net when the expr walker under-counts emit
+   * next_offset (void CALL expr_stmts, ADDR_OF/INDEX temps, extra 32B
+   * slot per CALL). wave157 used 512; Darwin `-backend c -o` SEGV showed
+   * invoke_cc_append_argv_head_flags storing at x29+0x898 past a 0x6d0
+   * frame (512 scratch) and smashing caller xlang_invoke_cc_impl's
+   * c_paths context. 2048 covers the observed ~1032B high-water.
+   * PLATFORM: SHARED — ARM64 AAPCS64 smash is the first reporter; x86
+   * SysV has the same under-size, often hidden by red zone / padding. */
+  if (scratch < 2048) {
+    scratch = 2048;
   }
   size = size + scratch;
   return size + 64;
@@ -33335,7 +36367,7 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
   let off: i32 = 16;
   let np: i32 = 0;
   let i: i32 = 0;
-  let pname_buf: u8[128] = [];
+  let pname_buf: u8[256] = [];
   let plen: i32 = 0;
   let arena: *u8 = 0 as *u8;
   let width: i32 = 0;
@@ -33432,6 +36464,9 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   let f32en: i32 = 0;
   let arena: *u8 = 0 as *u8;
   let gp: i32 = 0;
+  let fp_cur: i32 = 0;
+  let is_f64_p: i32 = 0;
+  let pty_h: i32 = 0;
   let stack_pos: i32 = 16;
   let cur: i32 = 16;
   let k: i32 = 0;
@@ -33667,7 +36702,53 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
     }
     home = cur;
-    if (psz > 16) {
+    /* AAPCS64 FP class: f64 formals arrive in v0-v7 (dK), independent of the
+     * GP cursor (x0-x7). Home via fmov x0,dK then the plain 8-byte store —
+     * bits pass through unchanged and no narrow-canonicalization is needed
+     * (the full 64-bit value is significant). FP overflow falls to the
+     * incoming stack word. Callers (CALL packer / UFCS / import METHOD)
+     * classify f64 identically, so both faces agree on v-slots.
+     * PLATFORM: MACOS|ARM64 AAPCS64. */
+    is_f64_p = 0;
+    unsafe {
+      pty_h = pipeline_module_func_param_type_ref_at(mod, func_index, i);
+    }
+    if (pty_h > 0) {
+      unsafe {
+        if (pipeline_type_kind_ord_at(arena, pty_h) == 15) {
+          is_f64_p = 1;
+        }
+      }
+    }
+    if (is_f64_p != 0 && fp_cur < reg_max) {
+      unsafe {
+        rc = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, fp_cur, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      fp_cur = fp_cur + 1;
+    } else if (is_f64_p != 0) {
+      unsafe {
+        rc = backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+      }
+      if (rc != 0) {
+        return -1;
+      }
+      stack_pos = stack_pos + 8;
+    } else if (psz > 16) {
       nbytes = (psz + 7) & (~7);
       k = 0;
       while (k < nbytes) {
@@ -33797,7 +36878,7 @@ export function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i
   let i: i32 = 0;
   let nconst: i32 = 0;
   let nlet: i32 = 0;
-  let name_buf: u8[128] = [];
+  let name_buf: u8[256] = [];
   let nlen: i32 = 0;
   let init_ref: i32 = 0;
   let slot_base: i32 = 0;
@@ -34257,7 +37338,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
   let mod: *u8 = 0 as *u8;
   let base_ref: i32 = 0;
   let field_off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let var_off: i32 = 0;
   let idx_ref: i32 = 0;
@@ -34361,7 +37442,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
             unsafe {
               vlen = pipeline_expr_var_name_len(arena, walk_cur);
             }
-            if (vlen <= 0 || vlen > 127) {
+            if (vlen <= 0 || vlen > 255) {
               return -1;
             }
             unsafe {
@@ -34428,7 +37509,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                 vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
               }
               rty = 0 - 1;
-              if (vlen > 0 && vlen <= 127) {
+              if (vlen > 0 && vlen <= 255) {
                 unsafe {
                   pipeline_expr_field_access_name_into(arena, fa_ref, &vname[0]);
                   rty = glue_field_layout_offset_for_base_field(
@@ -35479,7 +38560,7 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, left_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return -1;
     }
     unsafe {
@@ -35687,6 +38768,14 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
       ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
       rty = glue_float_promote_src_ty_ref_c(arena, right_ref);
       rc = glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, ltr, rty, ta);
+    }
+    if (rc != 0) {
+      return -1;
+    }
+    // f32 dest + f64 rhs: demote to f32 bits before the 4-byte store, else the
+    // store keeps only the low 32 bits of the f64 (shared truncation defect).
+    unsafe {
+      rc = glue_maybe_demote_f64_to_f32_eax_elf_c(arena, elf_ctx, ctx, ltr, right_ref, ta);
     }
     if (rc != 0) {
       return -1;
@@ -35949,10 +39038,14 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
               return 0;
             }
         }
-        /* TYPE_ARRAY CALL returns E* (8B). SLICE CALL is split:
-         * Darwin AAPCS64 take() returns E* to the incoming fat;
-         * x86 SysV take() loads *E* into rax+rdx dual-GP.
-         * PLATFORM: SHARED dest / LINUX+MACOS x86 dual-GP / MACOS|ARM64 E*. */
+        /* dest-in-rbx TYPE_ARRAY / TYPE_SLICE CALL: park dest before emit.
+         * Callee clobbers rbx / AAPCS64 x19 (unsaved in prologue).
+         * For TYPE_SLICE (16B): CALL returns dual-GP {data, len} in rax+rdx
+         * (x0+x1 on ARM64). Spill to a frame temp, restore dest, then copy 16B.
+         * For TYPE_ARRAY: CALL returns payload pointer in rax (x0 on ARM64).
+         * Spill payload pointer, restore dest, reload pointer into rax,
+         * then copy nbytes via glue_copy_large_struct_from_rax_ptr_elf_c.
+         * PLATFORM: SHARED dest-in-rbx CALL · LINUX x86_64 SysV · MACOS|ARM64. */
         if ((ltk == 10 || ltk == 11) && (rko_pre == 48 || rko_pre == 49)) {
           unsafe {
             mod = glue_emit_module_from_ctx(ctx);
@@ -35967,23 +39060,115 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
             }
           }
           if (nbytes >= 8) {
+            glue_align_next_offset(ctx);
+            dst_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+            if (ta == 1) {
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dst_spill + 8);
+            } else {
+              dst_spill = dst_spill + 8;
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dst_spill);
+            }
+            if (ta == 1) {
+              rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+            } else {
+              unsafe {
+                rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+              }
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
             unsafe {
               rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
             }
             if (rc != 0) {
               return 0 - 1;
             }
-            if (ltk == 11 && ta == 0) {
-              unsafe {
-                rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
+            if (ltk == 11) {
+              glue_align_next_offset(ctx);
+              src_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+              if (ta == 1) {
+                pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill + 16);
+              } else {
+                src_spill = src_spill + 16;
+                pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill);
               }
-              if (rc == 0) {
-                rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+              unsafe {
+                rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_store_rdx_to_rbp_arch(
+                    elf_ctx, glue_slice_dual_gp_length_off_c(src_spill, ta), ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_spill, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              unsafe {
+                rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, 16, ta);
               }
               if (rc != 0) {
                 return 0 - 1;
               }
               return 0;
+            }
+            glue_align_next_offset(ctx);
+            src_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+            if (ta == 1) {
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill + 8);
+            } else {
+              src_spill = src_spill + 8;
+              pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), src_spill);
+            }
+            unsafe {
+              rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dst_spill, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, src_spill, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
             }
             unsafe {
               rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
@@ -36258,8 +39443,11 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
     if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
       return 4;
     }
-    // 8-byte: F64=15 U64=4 I64=5 USIZE=6 ISIZE=7 PTR=9
-    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9) {
+    // 8-byte: F64=15 U64=4 I64=5 USIZE=6 ISIZE=7 PTR=9 TYPE_FN=18 (Cap ABI)
+    // 10.3.1 slice13: TYPE_FN miss → return 4 → mov %eax truncates LEA.
+    // PLATFORM: SHARED freestanding.
+    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7
+        || kind_ord == 9 || kind_ord == 18) {
       return 8;
     }
     // TYPE_SLICE fat element = 16
@@ -36362,7 +39550,14 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
   if (ek == 0 || ek == 3 || ek == 13 || ek == 14) {
     return 4;
   }
-  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9) {
+  /*
+   * 10.3.1 slice13: TYPE_FN=18 shares Cap opaque fn-ptr ABI with TYPE_PTR=9 —
+   * array-lit elem store/INDEX stride must be 8B. Prior miss → return 0 →
+   * callers force_esz=4 → `mov %eax` truncates LEA; INDEX 8B load reads
+   * garbage → SEGV on Cap blr. G.7 ≡ glue_type_size_simple kind 18.
+   * PLATFORM: SHARED freestanding.
+   */
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 15 || ek == 9 || ek == 18) {
     return 8;
   }
   if (ek == 8) {
@@ -36474,7 +39669,9 @@ export function glue_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
             esz = 8;
           }
         } else {
-          if (etk == 4 || etk == 5 || etk == 6 || etk == 14) {
+          /* i64/u64/usize/f64/PTR/TYPE_FN → 8. Prior miss TYPE_FN/PTR → 4. */
+          if (etk == 4 || etk == 5 || etk == 6 || etk == 7 || etk == 9 || etk == 14
+              || etk == 15 || etk == 18) {
             esz = 8;
           } else {
             esz = 4;
@@ -37735,7 +40932,7 @@ export function glue_try_return_slice_escape_from_fixed_array_elf_c(arena: *u8, 
   let di: i32 = 0;
   let llen: i32 = 0;
   let end_len: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let label: u8[24] = [];
   let end_lbl: u8[32] = [];
   let digs: u8[8] = [];
@@ -37796,7 +40993,7 @@ export function glue_try_return_slice_escape_from_fixed_array_elf_c(arena: *u8, 
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, ret_op);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -38237,7 +41434,7 @@ export function glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx: *u8, sz: i32, t
  */
 #[no_mangle]
 export function glue_emit_sret_return_from_var_elf_c(arena: *u8, elf_ctx: *u8, var_expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let tr: i32 = 0;
@@ -38257,7 +41454,7 @@ export function glue_emit_sret_return_from_var_elf_c(arena: *u8, elf_ctx: *u8, v
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -38328,6 +41525,48 @@ export function glue_maybe_promote_f32_to_f64_rax_elf_c(arena: *u8, elf_ctx: *u8
 }
 
 /**
+ * Maybe demote f64 bits in rax/x0 to f32 bits in eax/w0 (cvtsd2ss / fcvt).
+ * Symmetric counterpart of glue_maybe_promote_f32_to_f64_rax_elf_c. Scalar
+ * f32-dest store sites (let-init / assign) must call this BEFORE the 4-byte
+ * store whenever the init expr is f64-valued: without it the store keeps only
+ * the low 32 bits of the f64 (both x86_64 and arm64 truncated; wave616 fixed
+ * only the `as f32` cast path).
+ * Source f64-ness uses glue_binop_operand_is_scalar_f64_elf_c — the same
+ * classifier the cmp/binop emitters trust (resolved stamp, VAR decl type,
+ * CALL return kind, FLOAT_LIT default, binop recursion) — because a binop
+ * init usually has no resolved type stamp at emit time.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ctx *u8 - AsmFuncCtx* (VAR decl lookup; may be null)
+ * @param dest_ty_ref i32 - dest type ref; f32 (kind 14) triggers demote
+ * @param src_expr_ref i32 - source expr ref; f64-valued required; <=0 no-op
+ * @param ta i32 - target arch (0 x86_64 / 1 arm64)
+ * @return i32 - 0 ok or no-op; -1 encode failure
+ * PLATFORM: SHARED type gate / LINUX+MACOS x86_64|arm64 encode via arch helper.
+ */
+#[no_mangle]
+export function glue_maybe_demote_f64_to_f32_eax_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, dest_ty_ref: i32, src_expr_ref: i32, ta: i32): i32 {
+  let dk: i32 = 0;
+  let is_f64_src: i32 = 0;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || dest_ty_ref <= 0 || src_expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    dk = pipeline_type_kind_ord_at(arena, dest_ty_ref);
+    is_f64_src = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, src_expr_ref);
+  }
+  // f32 dest (kind 14) with f64-valued source: typeck already permits the
+  // narrowing init/assign; the bit-level convert is owned here (G.7 single
+  // authority — same encoder the `as f32` cast path uses).
+  if (dk == 14 && is_f64_src != 0) {
+    unsafe {
+      return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+    }
+  }
+  return 0;
+}
+
+/**
  * Resolve source type for float promote (decl/param before resolved stamp).
  * @return i32 - type_ref > 0 if resolved; 0 if not found
  * wave144 pure: G.7 authority (was glue_float_promote_src_ty_ref_c).
@@ -38336,7 +41575,7 @@ export function glue_maybe_promote_f32_to_f64_rax_elf_c(arena: *u8, elf_ctx: *u8
 #[no_mangle]
 export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 {
   let tr: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ko: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -38436,9 +41675,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   let len_arg: i32 = 0;
   let rc: i32 = 0;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let ti: i32 = 0;
   let handled: i32 = 0;
+  let ret_off: i32 = 0;
+  let ret_named_sz: i32 = 0;
   let rar_elem: i32 = 0;
   let rar_src: i32 = 0;
   let rar_dst: i32 = 0;
@@ -38464,6 +41705,46 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       ko = pipeline_expr_kind_ord_at(arena, ret_op);
       mod = pipeline_asm_emit_module_ref_c();
       fi = pipeline_asm_emit_func_index_c();
+    }
+    /* Path A0: INTEGER-class ≤8B named struct `return local`. Load the 8
+     * bits into rax/x0. STRUCT_LIT / emit_expr used to lea the slot when
+     * value_bytes sized 0, so Ubuntu SysV returned a callee-local pointer
+     * and `free()` aborted on ArrowColumn. AAPCS64 8B already in x0 bits
+     * (mac false-green). Do not sret (that path is >16B MEMORY).
+     * PLATFORM: LINUX+MACOS x86_64 SysV INTEGER rax; MACOS|ARM64 x0. */
+    if (handled == 0 && ko == 3 && (ta == 0 || ta == 1) && mod != (0 as *u8) && fi >= 0) {
+      unsafe {
+        rty = pipeline_module_func_return_type_at(mod, fi);
+      }
+      if (rty > 0) {
+        unsafe {
+          tk = pipeline_type_kind_ord_at(arena, rty);
+        }
+        if (tk == 8) {
+          ret_named_sz = glue_type_size_simple(mod, arena, rty, 0);
+          force_esz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+          if (force_esz > ret_named_sz) {
+            ret_named_sz = force_esz;
+          }
+          if (ret_named_sz <= 8) {
+            ret_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, ret_op);
+            if (ret_off < 0) {
+              unsafe {
+                ret_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
+              }
+            }
+            if (ret_off >= 0) {
+              unsafe {
+                rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, ret_off, ta);
+              }
+              if (rc != 0) {
+                return 0 - 1;
+              }
+              handled = 1;
+            }
+          }
+        }
+      }
     }
     // Path A: sret return local VAR of large struct
     if (handled == 0 && sret_act != 0 && sret_sz > 16 && (ta == 0 || ta == 1) && ko == 3) {
@@ -38911,6 +42192,29 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
     }
   }
+  /* AAPCS64 f64 boundary: the scalar return value leaves in d0 (call site
+   * harvests with fmov x0,d0). The internal representation stays rax-bits;
+   * this single exit-point convert covers every value path above. sret
+   * struct returns cannot be f64, so the kind check excludes them; bare
+   * `return;` has no value (ret_op == 0).
+   * PLATFORM: MACOS|ARM64 AAPCS64. */
+  if (ta == 1 && ret_op != 0 && mod != (0 as *u8) && fi >= 0) {
+    unsafe {
+      rty = pipeline_module_func_return_type_at(mod, fi);
+    }
+    if (rty > 0) {
+      unsafe {
+        if (pipeline_type_kind_ord_at(arena, rty) == 15) {
+          unsafe {
+            rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
+      }
+    }
+  }
   unsafe {
     rc = glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta);
   }
@@ -38974,7 +42278,7 @@ export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
   if (a == (0 as *u8) || f == (0 as *u8)) {
     return 0;
   }
-  body_ref = pipe_load_i32_le(f, 148);
+  body_ref = pipe_load_i32_le(f, 276);
   nblocks = pipe_load_i32_le(a, 8);
   nexprs = pipe_load_i32_le(a, 4);
   if (body_ref <= 0 || body_ref > nblocks) {
@@ -39010,6 +42314,13 @@ export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
     }
     return fin;
   }
+  /*
+   * Fallback when stmt_order is empty: walk expr_stmts for EXPR_RETURN.
+   * Do not return 0 on RETURN — that assumed emit_block already ran via
+   * stmt_order>0; empty stmt_order (e.g. Windows PE multi-def) then emitted
+   * nothing. Mirror final_expr: return the operand for mega emit_expr.
+   * PLATFORM: SHARED.
+   */
   unsafe {
     nstmt = ast_ast_block_num_expr_stmts(a, body_ref);
   }
@@ -39023,7 +42334,13 @@ export function pipeline_backend_get_return_expr_ref(a: *u8, f: *u8): i32 {
         ko = pipeline_expr_kind_ord_at(a, ers);
       }
       if (ko == 41) {
-        return 0;
+        unsafe {
+          op = pipeline_expr_unary_operand_ref_at(a, ers);
+        }
+        if (op != 0) {
+          return op;
+        }
+        return ers;
       }
     }
     ei = ei - 1;
@@ -39073,7 +42390,7 @@ export function pipeline_arm64_get_return_lit_ref(a: *u8, f: *u8): i32 {
   if (a == (0 as *u8) || f == (0 as *u8)) {
     return 0;
   }
-  body_ref = pipe_load_i32_le(f, 148);
+  body_ref = pipe_load_i32_le(f, 276);
   nblocks = pipe_load_i32_le(a, 8);
   nexprs = pipe_load_i32_le(a, 4);
   if (body_ref <= 0 || body_ref > nblocks) {
@@ -39187,8 +42504,8 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
   let nlen: i32 = 0;
   let is_match: i32 = 0;
   let ci: i32 = 0;
-  let nb: u8[128] = [];
-  let vn: u8[128] = [];
+  let nb: u8[256] = [];
+  let vn: u8[256] = [];
   let tr: i32 = 0;
   let init_ref: i32 = 0;
   let lj: i32 = 0;
@@ -39198,17 +42515,17 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
   let irty: i32 = 0;
   let tk: i32 = 0;
   let avlen: i32 = 0;
-  let aname: u8[128] = [];
+  let aname: u8[256] = [];
   let alen: i32 = 0;
   let am: i32 = 0;
   let ac: i32 = 0;
-  let ab: u8[128] = [];
+  let ab: u8[256] = [];
   let atr: i32 = 0;
   let elem: i32 = 0;
   if (arena == (0 as *u8) || block_ref <= 0 || vname == (0 as *u8) || vlen <= 0 || out_arr_sz == (0 as *i32) || out_elem_tr == (0 as *i32)) {
     return 0;
   }
-  if (vlen > 127) {
+  if (vlen > 255) {
     return 0;
   }
   ci = 0;
@@ -39272,7 +42589,7 @@ export function glue_match_slice_escape_lets_in_block_c(arena: *u8, block_ref: i
                 unsafe {
                   avlen = pipeline_expr_var_name_len(arena, init_ref);
                 }
-                if (avlen > 0 && avlen <= 127) {
+                if (avlen > 0 && avlen <= 255) {
                   unsafe {
                     pipeline_expr_var_name_into(arena, init_ref, &aname[0]);
                   }
@@ -39499,8 +42816,8 @@ export function glue_emit_import_module_const_field_to_rax_elf_c(
   let dep_pipe: *u8 = 0 as *u8;
   let dep_mod: *u8 = 0 as *u8;
   let dep_ar: *u8 = 0 as *u8;
-  let base_name: u8[128] = [];
-  let field_name: u8[128] = [];
+  let base_name: u8[256] = [];
+  let field_name: u8[256] = [];
   if (arr_sz_out != (0 as *i32)) {
     arr_sz_out[0] = 0;
   }
@@ -39532,7 +42849,7 @@ export function glue_emit_import_module_const_field_to_rax_elf_c(
     base_len = pipeline_expr_var_name_len(arena, base_ref);
     field_len = pipeline_expr_field_access_name_len(arena, expr_ref);
   }
-  if (base_len <= 0 || base_len > 127 || field_len <= 0 || field_len > 127) {
+  if (base_len <= 0 || base_len > 255 || field_len <= 0 || field_len > 255) {
     return 1;
   }
   unsafe {
@@ -39699,7 +43016,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let vlen: i32 = 0;
   let arr_off: i32 = 0;
   let init_ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let n_arr: i32 = 0;
   let durable: i32 = 0;
   let force_esz: i32 = 0;
@@ -39708,7 +43025,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
   let nlen: i32 = 0;
   let matched: i32 = 0;
   let ci: i32 = 0;
-  let nb: u8[128] = [];
+  let nb: u8[256] = [];
   let tr: i32 = 0;
   let init_tr: i32 = 0;
   let ftr: i32 = 0;
@@ -39817,7 +43134,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, src);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0;
     }
     unsafe {
@@ -40190,7 +43507,7 @@ export function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *
         unsafe {
           vlen = pipeline_expr_var_name_len(arena, base_ref);
         }
-        if (vlen > 0 && vlen <= 127) {
+        if (vlen > 0 && vlen <= 255) {
           unsafe {
             pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
           }
@@ -40372,7 +43689,7 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
   let init_ref: i32 = 0;
   let slot: i32 = 0;
   let type_ref: i32 = 0;
-  let lnb: u8[128] = [];
+  let lnb: u8[256] = [];
   let llen: i32 = 0;
   let slice_st: i32 = 0;
   let vst: i32 = 0;
@@ -40667,13 +43984,13 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
  */
 #[no_mangle]
 export function glue_let_name_matches_var(arena: *u8, expr_ref: i32, let_nm: *u8, let_nlen: i32): i32 {
-  let vn: u8[128] = [];
-  let ln: u8[128] = [];
+  let vn: u8[256] = [];
+  let ln: u8[256] = [];
   let vlen: i32 = 0;
   let j: i32 = 0;
   let ko: i32 = 0;
   if (arena == (0 as *u8) || let_nm == (0 as *u8) || let_nlen <= 0 || expr_ref <= 0) { return 0; }
-  if (let_nlen > 127) { return 0; }
+  if (let_nlen > 255) { return 0; }
   unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
   if (ko != 3) { return 0; }
   unsafe { vlen = pipeline_expr_var_name_len(arena, expr_ref); }
@@ -40823,7 +44140,7 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
   let ei: i32 = 0;
   let fi: i32 = 0;
   let body_ref: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let tref: i32 = 0;
   let nfuncs: i32 = 0;
@@ -40871,7 +44188,7 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
       while (pi < np) {
         unsafe {
           nlen = pipeline_asm_module_func_param_name_len_at(m, func_index, pi);
-          if (nlen > 0 && nlen <= 127) {
+          if (nlen > 0 && nlen <= 255) {
             pipeline_asm_module_func_param_name_copy32(m, func_index, pi, &nm[0]);
             tref = pipeline_module_func_param_type_ref_at(m, func_index, pi);
             if (tref > 0 && glue_let_name_matches_var(arena, ei, &nm[0], nlen) != 0) {
@@ -40916,7 +44233,7 @@ export function glue_fill_var_types_from_params_for_func(m: *u8, arena: *u8, fun
         while (pi < np) {
           unsafe {
             nlen = pipeline_asm_module_func_param_name_len_at(m, fi, pi);
-            if (nlen > 0 && nlen <= 127) {
+            if (nlen > 0 && nlen <= 255) {
               pipeline_asm_module_func_param_name_copy32(m, fi, pi, &nm[0]);
               tref = pipeline_module_func_param_type_ref_at(m, fi, pi);
               if (tref > 0) {
@@ -40971,7 +44288,7 @@ export function glue_fill_var_types_from_lets_in_block(arena: *u8, block_ref: i3
   let li: i32 = 0;
   let ei: i32 = 0;
   let tref: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let nblocks: i32 = 0;
   let nexprs: i32 = 0;
@@ -41012,7 +44329,7 @@ export function glue_fill_var_types_from_lets_in_block(arena: *u8, block_ref: i3
         unsafe { tref = pipeline_block_let_type_ref(arena, cur, li); }
         if (tref > 0) {
           unsafe { nlen = pipeline_block_let_name_len(arena, cur, li); }
-          if (nlen > 0 && nlen <= 127) {
+          if (nlen > 0 && nlen <= 255) {
             unsafe { pipeline_block_let_name_copy64(arena, cur, li, &nm[0]); }
             matched = glue_let_name_matches_var(arena, ei, &nm[0], nlen);
             if (matched != 0) {
@@ -42122,7 +45439,11 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     if (src_off < 0) {
       return 0 - 1;
     }
-  } else if (iko == 48 || iko == 49 || iko == 47) {
+  } else if (iko == 48 || iko == 49 || iko == 47 || iko == 52) {
+    /* CALL=48 / METHOD=49 / INDEX=47 / DEREF=52: emit leaves E* (TYPE_ARRAY
+     * return / subrow / emit_deref trk==10 leave-ptr). Same payload copy.
+     * `unsafe { let y: [N]T = *p }` used to fall through to -2 → CG002.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path. */
     ly = pipeline_asm_ctx_layout(ctx);
     if (ly == (0 as *u8)) {
       return 0 - 1;
@@ -42522,6 +45843,15 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
   let ai: i32 = 0;
   let src_off: i32 = 0;
   let rc: i32 = 0;
+  let dest_spill: i32 = 0;
+  let if_cond: i32 = 0;
+  let if_then: i32 = 0;
+  let if_else: i32 = 0;
+  let else_lbl: u8[256] = [];
+  let done_lbl: u8[256] = [];
+  let else_len: i32 = 0;
+  let done_len: i32 = 0;
+  let arm_rc: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0 || type_ref <= 0) {
     return 0 - 2;
   }
@@ -42716,7 +46046,317 @@ export function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *
       }
       return 0;
     }
+    /* dest-in-rbx FIELD/INDEX/DEREF `*p = s.a` / `*p = rows[0]` /
+     * `*p = *q`. Previously returned -2 then SAT emit_assign 4B-store
+     * (arr_star_field / arr_star_index / arr_star_deref RUN=0). ARRAY_LIT
+     * elem FIELD already dest-in-rbx lvalue + memcpy (`*p = [w.h]`).
+     * VAR dest FIELD/INDEX/DEREF stay store_fixed_array_field
+     * (arr_asg_field GREEN). leftover rest unique store iko==44 is
+     * WIN_LEFTOVER only. G.7 complete: park dest_spill (INDEX lvalue
+     * clobbers rbx), lvalue_eff_addr, restore dest, copy dest-in-rbx
+     * nbytes. FIELD-on-VAR lvalue is rax-only but park is uniform with
+     * dest-in-rbx IF. Do not leftover unique leftover_emit_slice_lvalue
+     * twin. Do not leftover rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx
+     * FIELD second intercept. Do not pass -3 into store_fixed_array_field
+     * (frame mag of -3). PLATFORM: SHARED dest-in-rbx TYPE_ARRAY FIELD
+     * · MACOS|ARM64 dest-shadow. */
+    if ((iko == 44 || iko == 47 || iko == 52) && (ta == 0 || ta == 1)) {
+      unsafe {
+        nbytes = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      }
+      if (nbytes < 8) {
+        return 0 - 2;
+      }
+      glue_align_next_offset(ctx);
+      dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+      } else {
+        dest_spill = dest_spill + 8;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+      }
+      if (ta == 1) {
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      } else {
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, src, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_push_rax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, nbytes, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+    /* dest-in-rbx IF `*p = if true { [3, 4] } else { [0, 0] }` AND
+     * VAR dest `d = if true { [3, 4] } else { [0, 0] }` (frame dest
+     * parks then recurse dest-in-rbx). leftover rest unique store
+     * iko==25/27 is WIN_LEFTOVER only. POSIX product .x let-init
+     * previously returned -2 then SAT emit_assign 4B-store
+     * (arr_asg_if RUN=1). G.7 complete: same dest-in-rbx IF as
+     * glue_emit_struct_type_let_init (park dest_spill, cond, jz,
+     * glue_emit_if_arm_dest_in_rbx TYPE_ARRAY then/else). ARRAY_LIT
+     * arms reuse dest-in-rbx ARRAY_LIT (`*p = [w]`). Do not
+     * leftover unique leftover_emit_if twin. Do not emit_if_arm (8B).
+     * PLATFORM: SHARED dest-in-rbx TYPE_ARRAY IF · MACOS|ARM64 dest-shadow. */
+    if ((iko == 25 || iko == 27) && (ta == 0 || ta == 1)) {
+      unsafe {
+        if_cond = pipeline_expr_if_cond_ref_at(arena, src);
+        if_then = pipeline_expr_if_then_ref_at(arena, src);
+        if_else = pipeline_expr_if_else_ref_at(arena, src);
+      }
+      if (if_cond <= 0 || if_then <= 0) {
+        return 0 - 1;
+      }
+      glue_align_next_offset(ctx);
+      dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+      } else {
+        dest_spill = dest_spill + 8;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+      }
+      if (ta == 1) {
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      } else {
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, if_cond, ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        else_len = pipeline_asm_emit_next_label_c(ctx, &else_lbl[0], 64);
+        done_len = pipeline_asm_emit_next_label_c(ctx, &done_lbl[0], 64);
+      }
+      if (else_len <= 0 || done_len <= 0) {
+        return 0 - 1;
+      }
+      if (if_else != 0) {
+        unsafe {
+          rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &else_lbl[0], else_len, ta);
+        }
+      } else {
+        unsafe {
+          rc = glue_enc_jz_after_bool_in_eax(elf_ctx, &done_lbl[0], done_len, ta);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_then, ctx, ta, type_ref, dest_spill);
+      if (arm_rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_jmp_arch(elf_ctx, &done_lbl[0], done_len, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_label_arch(elf_ctx, &else_lbl[0], else_len, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      if (if_else != 0) {
+        unsafe {
+          rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, dest_spill, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, if_else, ctx, ta, type_ref, dest_spill);
+        if (arm_rc != 0) {
+          return 0 - 1;
+        }
+      }
+      unsafe {
+        rc = backend_enc_label_arch(elf_ctx, &done_lbl[0], done_len, 0, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+    /* dest-in-rbx BLOCK `*p = { [3, 4] }` AND VAR dest `d = { [3, 4] }`.
+     * glue_emit_if_arm_dest_in_rbx peels BLOCK wrappers then dest-in-rbx
+     * ARRAY_LIT. Park dest_spill first (cond-less). PLATFORM: SHARED. */
+    if (iko == 26 && (ta == 0 || ta == 1)) {
+      glue_align_next_offset(ctx);
+      dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+      } else {
+        dest_spill = dest_spill + 8;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+      }
+      if (ta == 1) {
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      } else {
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      arm_rc = glue_emit_if_arm_dest_in_rbx_elf_c(arena, elf_ctx, src, ctx, ta, type_ref, dest_spill);
+      if (arm_rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
+    /* dest-in-rbx MATCH `*p = match 1 { 1 => [3, 4]; _ => [0, 0] }` AND
+     * VAR dest `d = match 1 { 1 => [3, 4]; _ => [0, 0] }` (frame dest
+     * parks then recurse dest-in-rbx). leftover rest unique rec ASSIGN
+     * VAR dest TYPE_ARRAY MATCH already calls this at mag=-3 (leftover-PE
+     * first-wins). POSIX hybrid thin emit_assign first-wins: SAT frame
+     * dest then this let-init previously returned -2 (iko==43 unhandled)
+     * then store_fixed_array_field / SAT 4B-store (arr_asg_match RUN=1;
+     * arr_match_let CG002). G.7 complete: park dest_spill then
+     * glue_emit_match_dest_in_rbx (same struct let-init MATCH; arms
+     * reuse dest-in-rbx ARRAY_LIT via glue_emit_if_arm). Do not
+     * leftover unique leftover_emit_match twin. Do not emit_match (8B).
+     * PLATFORM: SHARED dest-in-rbx TYPE_ARRAY MATCH · MACOS|ARM64 dest-shadow. */
+    if (iko == 43 && (ta == 0 || ta == 1)) {
+      glue_align_next_offset(ctx);
+      dest_spill = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+      if (ta == 1) {
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill + 8);
+      } else {
+        dest_spill = dest_spill + 8;
+        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_spill);
+      }
+      if (ta == 1) {
+        rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+      } else {
+        unsafe {
+          rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
+        }
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      unsafe {
+        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, dest_spill, ta);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      arm_rc = glue_emit_match_dest_in_rbx_elf_c(arena, elf_ctx, src, ctx, ta, type_ref, dest_spill);
+      if (arm_rc != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
     return 0 - 2;
+  }
+  /* Frame dest TYPE_ARRAY IF/BLOCK/MATCH: park dest in rbx then dest-in-rbx.
+   * G.7 complete leftover rest unique rec ASSIGN VAR dest TYPE_ARRAY
+   * IF/BLOCK/MATCH sibling on POSIX product .x (leftover rest unique store
+   * WIN_LEFTOVER only). ARRAY_LIT/CALL/FIELD stay store_fixed_array_field.
+   * PLATFORM: SHARED. */
+  src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  if (src <= 0) {
+    src = init_ref;
+  }
+  unsafe {
+    iko = pipeline_expr_kind_ord_at(arena, src);
+  }
+  if ((iko == 25 || iko == 27 || iko == 26 || iko == 43) && (ta == 0 || ta == 1) && stack_slot_off >= 0) {
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    return glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, src, ctx, ta, type_ref, 0 - 3);
   }
   return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0, stack_slot_off, 0, type_ref);
 }
@@ -43007,7 +46647,7 @@ export function glue_try_index_base_rax_index_rbx_elf_c(arena: *u8, elf_ctx: *u8
 export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32): i32 {
   let base_ko: i32 = 0;
   let off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let rc: i32 = 0;
   unsafe {
@@ -43017,7 +46657,7 @@ export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, base_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -43079,7 +46719,7 @@ export function glue_finish_index_base_rax_index_rbx_slow_elf_c(arena: *u8, elf_
 #[no_mangle]
 export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, base_ref: i32): i32 {
   let base_ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let bty: i32 = 0;
@@ -43095,7 +46735,7 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, base_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -43314,8 +46954,8 @@ export function glue_emit_index_bounds_guard_elf_c(arena: *u8, elf_ctx: *u8, ctx
   let lit_idx: i32 = 0;
   let lit_slot: i32[1] = [];
   let array_sz: i32 = 0;
-  let ok_lo: u8[128] = [];
-  let ok_hi: u8[128] = [];
+  let ok_lo: u8[256] = [];
+  let ok_hi: u8[256] = [];
   let ok_lo_len: i32 = 0;
   let ok_hi_len: i32 = 0;
   let proven: i32 = 0;
@@ -43489,8 +47129,8 @@ export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8,
   let lit_slot: i32[1] = [];
   let ok_lo_len: i32 = 0;
   let ok_hi_len: i32 = 0;
-  let ok_lo: u8[128] = [];
-  let ok_hi: u8[128] = [];
+  let ok_lo: u8[256] = [];
+  let ok_hi: u8[256] = [];
   let is_lit: i32 = 0;
   let off: i32 = 0;
   let nd: i32 = 0;
@@ -44030,7 +47670,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
   let trk: i32 = 0;
   let fb_ref: i32 = 0;
   let field_off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let is_enum: i32 = 0;
@@ -44068,7 +47708,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, fb_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -44114,7 +47754,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -44195,7 +47835,7 @@ export function glue_emit_index_eff_addr_base_text_c(arena: *u8, out: *u8, ix_re
   let trk: i32 = 0;
   let fb_ref: i32 = 0;
   let field_off: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let is_enum: i32 = 0;
@@ -44233,7 +47873,7 @@ export function glue_emit_index_eff_addr_base_text_c(arena: *u8, out: *u8, ix_re
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, fb_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -44271,7 +47911,7 @@ export function glue_emit_index_eff_addr_base_text_c(arena: *u8, out: *u8, ix_re
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -44466,13 +48106,13 @@ export extern "C" function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, m: i3
 export extern "C" function pipeline_asm_emit_vector_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 
 // BSS scratch for callee names / labels (avoid large stack locals typeck debt).
-let g_wave148_cname: u8[128] = [];
-let g_wave148_vname: u8[128] = [];
-let g_wave148_pbuf: u8[128] = [];
-let g_wave148_vbuf: u8[128] = [];
-let g_wave148_fb: u8[128] = [];
-let g_wave148_lbl_a: u8[128] = [];
-let g_wave148_lbl_b: u8[128] = [];
+let g_wave148_cname: u8[256] = [];
+let g_wave148_vname: u8[256] = [];
+let g_wave148_pbuf: u8[256] = [];
+let g_wave148_vbuf: u8[256] = [];
+let g_wave148_fb: u8[256] = [];
+let g_wave148_lbl_a: u8[256] = [];
+let g_wave148_lbl_b: u8[256] = [];
 let g_wave148_tname: u8[64] = [];
 
 /**
@@ -44739,7 +48379,7 @@ export function glue_asm_local_var_stack_off_scoped(arena: *u8, ctx: *u8, var_ex
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -44769,7 +48409,7 @@ export function glue_module_func_index_by_name_c(mod: *u8, name: *u8, name_len: 
   let flen: i32 = 0;
   let nfuncs: i32 = 0;
   let k: i32 = 0;
-  if (mod == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 127) {
+  if (mod == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -45043,7 +48683,7 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
   let walk_cur: i32 = 0;
   let walk_i: i32 = 0;
   let fa_ref: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   if (arena == (0 as *u8) || ctx == (0 as *u8) || var_expr_ref <= 0 || lane < 0 || esz <= 0) {
     return 0 - 1;
@@ -45145,7 +48785,7 @@ export function glue_vector_var_lane_stack_off_elf_c(arena: *u8, ctx: *u8, var_e
         vlen = pipeline_expr_field_access_name_len(arena, fa_ref);
       }
       field_off = 0 - 1;
-      if (vlen > 0 && vlen <= 127) {
+      if (vlen > 0 && vlen <= 255) {
         unsafe {
           pipeline_expr_field_access_name_into(arena, fa_ref, &vname[0]);
           field_off = glue_field_layout_offset_for_base_field(
@@ -46230,8 +49870,8 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   let is_match: i32 = 0;
   let init_ref: i32 = 0;
   let depth: i32 = 0;
-  let vbuf: u8[128] = [];
-  let lb: u8[128] = [];
+  let vbuf: u8[256] = [];
+  let lb: u8[256] = [];
   if (arena == (0 as *u8) || mask_ref <= 0) {
     return 0;
   }
@@ -46253,7 +49893,7 @@ export function glue_peel_comptime_array_lit_mask_c(arena: *u8, ctx: *u8, mask_r
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, mask_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -47438,7 +51078,7 @@ export function pipeline_asm_simd_try_inline_identity_call_elf_c(arena: *u8, elf
   unsafe {
     clen = pipeline_expr_var_name_len(arena, callee_ref);
   }
-  if (clen <= 0 || clen > 127) {
+  if (clen <= 0 || clen > 255) {
     return 0;
   }
   unsafe {
@@ -47567,7 +51207,7 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
     unsafe {
       clen = pipeline_expr_var_name_len(arena, callee_ref);
     }
-    if (clen <= 0 || clen > 127) {
+    if (clen <= 0 || clen > 255) {
       return 0;
     }
     unsafe {
@@ -48231,7 +51871,8 @@ export extern "C" function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_c
 // wave154 pure-owned: pipeline_asm_emit_struct_lit_elf_c body in EOF section.
 // wave162 pure-owned: pipeline_asm_emit_break_elf_c / continue_elf_c body in EOF.
 export extern "C" function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
+/** Stage10 10.2.1: EXPR_ASM (60) template emit — authority in backend_call_dispatch. */
+export extern "C" function pipeline_asm_try_emit_inline_asm_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 // wave203 pure-owned: glue_call_arg_resolve_var_stack_off_elf_c at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave193 pure-owned: glue_load_var_as_value_to_rax_rdx_elf_c at EOF (#[no_mangle]).
@@ -48459,7 +52100,7 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
          * emit_expr_elf_fast VAR path: top-level const lit → imm into rax/rbx.
          * PLATFORM: SHARED freestanding emit.
          */
-        let vname: u8[128] = [];
+        let vname: u8[256] = [];
         let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
         let mod_imm: i32 = 0;
         let mod: *u8 = 0 as *u8;
@@ -49108,40 +52749,57 @@ export function glue_try_binop_commutative_rax_rbx_elf_c(arena: *u8, elf_ctx: *u
     if (cr == -1) {
       return -1;
     }
-    /*c*/
-    r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1);
-    if (r == 0) {
-      let save_rbx: i32 = 0;
-      save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, left_ref);
-      if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+    /*
+     * wave660 rbx-park guard: only take a simple-operand-first branch when the
+     * OPPOSITE side cannot stage temps into rbx while being emitted. Loading
+     * right->rbx first and then emitting a complex left (nested binop staging
+     * a literal through backend_enc_mov_imm32_to_rbx_arch, calls, INDEX/FIELD
+     * addressing) silently overwrites the parked operand: `(cn*4) + (nargs as
+     * usize)` emitted cn*4+4, shifting g_call_typearg_lens rows by
+     * GENERIC_CALL_MAX_ARGS (pure-asm bound_method T001; transpiled lane hid).
+     * wave338 fixed the ADD face for a bare-VAR right only; this is the shared
+     * commutative authority, so cast-wrapped VAR operands and every
+     * commutative op are covered here. Skipping a guard falls through to the
+     * left-first tail below, which emits left->rax before any rbx use.
+     * PLATFORM: SHARED freestanding emit.
+     */
+    if (glue_expr_emit_may_clobber_rbx_elf_c(arena, left_ref) == 0) {
+      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1);
+      if (r == 0) {
+        let save_rbx: i32 = 0;
+        save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, left_ref);
+        if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 0);
+        if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        if (r != -2) {
+          return r;
+        }
+      } else if (r == -1) {
         return -1;
       }
-      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 0);
-      if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
-        return -1;
-      }
-      if (r != -2) {
-        return r;
-      }
-    } else if (r == -1) {
-      return -1;
     }
-    r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 1);
-    if (r == 0) {
-      let save_rbx: i32 = 0;
-      save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, right_ref);
-      if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+    if (glue_expr_emit_may_clobber_rbx_elf_c(arena, right_ref) == 0) {
+      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, left_ref, ctx, ta, 1);
+      if (r == 0) {
+        let save_rbx: i32 = 0;
+        save_rbx = glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, right_ref);
+        if (save_rbx != 0 && glue_binop_preserve_rbx_for_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0);
+        if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        if (r != -2) {
+          return r;
+        }
+      } else if (r == -1) {
         return -1;
       }
-      r = glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 0);
-      if (save_rbx != 0 && glue_binop_restore_rbx_after_index_elf_c(elf_ctx, ta) != 0) {
-        return -1;
-      }
-      if (r != -2) {
-        return r;
-      }
-    } else if (r == -1) {
-      return -1;
     }
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0) {
       return -1;
@@ -51420,7 +55078,7 @@ function glue_enum_field_name_equal(field_buf: *u8, flen: i32, expect: *u8, elen
  * PLATFORM: SHARED LP64 Expr layout (pipeline_gen product).
  */
 function pipe_expr_off_fa_is_enum(): i32 {
-  return 340;
+  return 596;
 }
 
 /**
@@ -51428,7 +55086,7 @@ function pipe_expr_off_fa_is_enum(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_expr_off_fa_offset(): i32 {
-  return 344;
+  return 600;
 }
 
 /**
@@ -51436,7 +55094,7 @@ function pipe_expr_off_fa_offset(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_expr_off_fa_soa_stride(): i32 {
-  return 348;
+  return 604;
 }
 
 /**
@@ -51444,7 +55102,7 @@ function pipe_expr_off_fa_soa_stride(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_expr_off_enum_variant_tag(): i32 {
-  return 692;
+  return 1204;
 }
 
 /**
@@ -52042,7 +55700,7 @@ export function pipeline_token_kind_variant_tag(variant_name: *u8, variant_len: 
 #[no_mangle]
 export function glue_field_access_layout_field_type_ref_by_name_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let k: i32 = 0;
   let j: i32 = 0;
   let nsl: i32 = 0;
@@ -52050,14 +55708,14 @@ export function glue_field_access_layout_field_type_ref_by_name_c(arena: *u8, mo
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   if (arena == (0 as *u8) || mod == (0 as *u8) || fa_ref <= 0) {
     return 0;
   }
   unsafe {
     flen = pipeline_expr_field_access_name_len(arena, fa_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return 0;
   }
   unsafe {
@@ -52199,11 +55857,13 @@ export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_
 }
 
 /**
- * Load width for a type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr=8).
+ * Load width for a type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr/TYPE_FN=8).
  * @param a *u8 - ASTArena*
  * @param ty_ref i32 - type ref
  * @return i32 - byte size
  * wave151 pure: G.7 authority (was static glue_field_access_load_bytes_for_type_ref).
+ * 10.3.3: TYPE_FN (18) is opaque Cap-fn-ptr ABI — pointer-sized load, not scalar miss→4
+ * (miss caused `mov (%rax),%eax; cltq` SEGV on field load of function pointers).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -52228,7 +55888,9 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
     return 4;
   }
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+  /* i64/u64/usize/isize/f64/ptr/TYPE_FN → 8 (Cap-fn-ptr opaque ABI). */
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
     return 8;
   }
   if (kind_ord == 8) {
@@ -52239,14 +55901,20 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
 
 /**
  * Struct layout field offset by field name within layout li.
+ * Prefer the synced table over a live recompute. Import merge copies
+ * stored offsets into the caller module, but remapped field type_refs
+ * often miss in the caller arena (0). Recompute then treats every
+ * field as empty/4-byte and returns 0 — product import of gzip
+ * `ZStream.zalloc` stores at next_in and libz deflateInit2_ SEGV.
  * @param m *u8 - Module*
- * @param a *u8 - ASTArena*
+ * @param a *u8 - ASTArena* (used only when the table is unsynced)
  * @param li i32 - layout index
  * @param field_name *u8 - field name
  * @param flen i32 - name length
  * @return i32 - offset or -1
  * wave151 pure: G.7 authority (was static glue_struct_layout_field_offset_by_name_c).
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED — Darwin AAPCS64 import emit used SP mag from the
+ * same table; Linux x86_64 store_offset consumes this return.
  */
 #[no_mangle]
 export function glue_struct_layout_field_offset_by_name_c(m: *u8, a: *u8, li: i32, field_name: *u8, flen: i32): i32 {
@@ -52255,7 +55923,9 @@ export function glue_struct_layout_field_offset_by_name_c(m: *u8, a: *u8, li: i3
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let stored: i32 = 0;
+  let computed: i32 = 0;
+  let fb: u8[256] = [];
   if (m == (0 as *u8) || a == (0 as *u8) || li < 0 || field_name == (0 as *u8) || flen <= 0) {
     return 0 - 1;
   }
@@ -52285,8 +55955,21 @@ export function glue_struct_layout_field_offset_by_name_c(m: *u8, a: *u8, li: i3
     }
     if (feq != 0) {
       unsafe {
-        return glue_struct_layout_compute_field_offset_c(m, a, li, j);
+        stored = pipeline_module_struct_layout_field_offset_at(m, li, j);
+        computed = glue_struct_layout_compute_field_offset_c(m, a, li, j);
       }
+      if (stored != 0) {
+        return stored;
+      }
+      if (computed != 0) {
+        return computed;
+      }
+      /* j==0 is a real 0. j>0 with both 0 is an unsynced/remap miss —
+       * return -1 so callers try dep stored offsets (gzip import). */
+      if (j == 0) {
+        return 0;
+      }
+      return 0 - 1;
     }
     j = j + 1;
   }
@@ -52314,7 +55997,10 @@ export function glue_dep_layout_field_offset_by_name_c(ctx: *u8, field_name: *u8
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
+  let da: *u8 = 0 as *u8;
+  let stored: i32 = 0;
+  let computed: i32 = 0;
   if (ctx == (0 as *u8) || field_name == (0 as *u8) || flen <= 0) {
     return 0 - 1;
   }
@@ -52358,8 +56044,26 @@ export function glue_dep_layout_field_offset_by_name_c(ctx: *u8, field_name: *u8
           }
           if (feq != 0) {
             unsafe {
-              return pipeline_module_struct_layout_field_offset_at(dm, k, j);
+              stored = pipeline_module_struct_layout_field_offset_at(dm, k, j);
             }
+            if (stored != 0) {
+              return stored;
+            }
+            unsafe {
+              da = pipeline_dep_ctx_arena_at(ctx, di);
+            }
+            if (da != (0 as *u8)) {
+              unsafe {
+                computed = glue_struct_layout_compute_field_offset_c(dm, da, k, j);
+              }
+              if (computed != 0) {
+                return computed;
+              }
+            }
+            if (j == 0) {
+              return 0;
+            }
+            /* j>0 both 0: unsynced import layout; try next dep. */
           }
           j = j + 1;
         }
@@ -52387,9 +56091,9 @@ export function glue_dep_layout_field_offset_by_name_c(ctx: *u8, field_name: *u8
 export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base_var_ref: i32, field_name: *u8, flen: i32): i32 {
   let base_ty: i32 = 0;
   let fi: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let off: i32 = 0;
@@ -52401,7 +56105,12 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
   let dep: *u8 = 0 as *u8;
   let dep_off: i32 = 0;
   let kord: i32 = 0;
-  if (a == (0 as *u8) || m == (0 as *u8) || base_var_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 127) {
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  let da: *u8 = 0 as *u8;
+  let k2: i32 = 0;
+  if (a == (0 as *u8) || m == (0 as *u8) || base_var_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 255) {
     return 0 - 1;
   }
   base_ty = 0;
@@ -52491,7 +56200,7 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
   unsafe {
     nlen = pipeline_type_named_name_into(a, base_ty, &struct_name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -52504,12 +56213,38 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
     if (off >= 0) {
       return off;
     }
-    return 0 - 1;
+    /* Caller layout exists but stored/computed are both 0 for j>0
+     * (import merge remapped type_refs). Fall through to the defining
+     * module+arena. PLATFORM: SHARED. */
   }
   unsafe {
     dep = pipeline_asm_emit_dep_pipe_c();
   }
   if (dep != (0 as *u8)) {
+    unsafe {
+      nd = pipeline_dep_ctx_ndep(dep);
+    }
+    di = 0;
+    while (di < nd) {
+      unsafe {
+        dm = pipeline_dep_ctx_module_at(dep, di);
+        da = pipeline_dep_ctx_arena_at(dep, di);
+      }
+      if (dm != (0 as *u8) && da != (0 as *u8)) {
+        unsafe {
+          k2 = glue_struct_layout_index_by_type_name_c(dm, &struct_name[0], nlen);
+        }
+        if (k2 >= 0) {
+          unsafe {
+            off = glue_struct_layout_field_offset_by_name_c(dm, da, k2, field_name, flen);
+          }
+          if (off >= 0) {
+            return off;
+          }
+        }
+      }
+      di = di + 1;
+    }
     unsafe {
       dep_off = typeck_get_field_offset_from_layout_deps(m, dep, &struct_name[0], nlen, field_name, flen);
     }
@@ -52534,7 +56269,7 @@ export function glue_field_layout_offset_for_var_base_field(a: *u8, m: *u8, base
 #[no_mangle]
 export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref: i32, field_name: *u8, flen: i32): i32 {
   let base_ty: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let off: i32 = 0;
@@ -52543,7 +56278,12 @@ export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref
   let kord: i32 = 0;
   let dep: *u8 = 0 as *u8;
   let dep_off: i32 = 0;
-  if (a == (0 as *u8) || m == (0 as *u8) || base_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 127) {
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  let da: *u8 = 0 as *u8;
+  let k2: i32 = 0;
+  if (a == (0 as *u8) || m == (0 as *u8) || base_ref <= 0 || field_name == (0 as *u8) || flen <= 0 || flen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -52582,7 +56322,7 @@ export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref
   unsafe {
     nlen = pipeline_type_named_name_into(a, base_ty, &struct_name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -52600,6 +56340,30 @@ export function glue_field_layout_offset_for_base_field(a: *u8, m: *u8, base_ref
     dep = pipeline_asm_emit_dep_pipe_c();
   }
   if (dep != (0 as *u8)) {
+    unsafe {
+      nd = pipeline_dep_ctx_ndep(dep);
+    }
+    di = 0;
+    while (di < nd) {
+      unsafe {
+        dm = pipeline_dep_ctx_module_at(dep, di);
+        da = pipeline_dep_ctx_arena_at(dep, di);
+      }
+      if (dm != (0 as *u8) && da != (0 as *u8)) {
+        unsafe {
+          k2 = glue_struct_layout_index_by_type_name_c(dm, &struct_name[0], nlen);
+        }
+        if (k2 >= 0) {
+          unsafe {
+            off = glue_struct_layout_field_offset_by_name_c(dm, da, k2, field_name, flen);
+          }
+          if (off >= 0) {
+            return off;
+          }
+        }
+      }
+      di = di + 1;
+    }
     unsafe {
       dep_off = typeck_get_field_offset_from_layout_deps(m, dep, &struct_name[0], nlen, field_name, flen);
     }
@@ -52636,7 +56400,7 @@ export function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, fa_re
 #[no_mangle]
 export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_ref: i32): i32 {
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let stored: i32 = 0;
   let typed_off: i32 = 0;
   let base_ref: i32 = 0;
@@ -52654,7 +56418,7 @@ export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_re
     stored = pipeline_expr_field_access_offset(a, expr_ref);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return stored;
   }
   unsafe {
@@ -52713,8 +56477,13 @@ export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_re
  * FIELD_ACCESS load width (base-layout / resolved / is_some|is_none heuristic).
  *
  * Order (G.7 typed-first — do not scan all layouts by bare field name):
- *  1. Base TYPE_NAMED layout match then field type width (Option_u8.value → 1).
- *  2. Field expr resolved scalar type width.
+ *  1. Field expr resolved scalar type width (typeck mono stamp).
+ *     CORE-016: must beat generic-layout `T`/`U` (TYPE_NAMED → 8) so
+ *     `Option<i32>.value` / `Wrap<i32>.v` emit `ldr w` not `ldr x0` with
+ *     garbage high bits (multi-let / multi-mono compare false-red).
+ *  2. Base TYPE_NAMED layout match then field type width (Option_u8.value → 1).
+ *     When layout field is free TYPE_NAMED (type-param), fall through rather
+ *     than returning 8 from glue_field_access_load_bytes_for_type_ref.
  *  3. is_some / is_none name → 1.
  *  4. Default 8.
  *
@@ -52734,20 +56503,21 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let tr: i32 = 0;
   let base_tr: i32 = 0;
   let base_ref: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let k: i32 = 0;
   let j: i32 = 0;
   let ftr: i32 = 0;
   let kind_ord: i32 = 0;
+  let ftr_kind: i32 = 0;
   let nsl: i32 = 0;
   let nf: i32 = 0;
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   let ln: i32 = 0;
   let eq: i32 = 0;
   let nm_is_some: u8[7] = [105, 115, 95, 115, 111, 109, 101];
@@ -52759,19 +56529,48 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
   }
-  if (base_ref <= 0 || flen <= 0 || flen > 127) {
+  if (base_ref <= 0 || flen <= 0 || flen > 255) {
     return 8;
   }
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
   }
-  // 1) Typed base: match layout by base TYPE_NAMED name, then field type width.
+  /*
+   * CORE-016: prefer typeck-resolved scalar (mono stamp) before generic layout
+   * field TYPE_NAMED T/U. glue_field_access_load_bytes_for_type_ref maps any
+   * TYPE_NAMED → 8, which made Option<i32>.value / Wrap<i32>.v load 64-bit and
+   * fail compares when high bytes were dirty (multi-let same frame).
+   * Skip NAMED/ARRAY/SLICE/VECTOR — those stay on layout / default paths.
+   * PLATFORM: SHARED.
+   */
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(a, expr_ref);
+  }
+  if (tr > 0) {
+    unsafe {
+      kind_ord = pipeline_type_kind_ord_at(a, tr);
+    }
+    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
+      return glue_field_access_load_bytes_for_type_ref(a, tr);
+    }
+  }
+  // 2) Typed base: match layout by base TYPE_NAMED name, then field type width.
+  // PLATFORM: SHARED — peel TYPE_PTR base (s: *S) so the layout match runs.
   unsafe {
     base_tr = pipeline_expr_resolved_type_ref(a, base_ref);
   }
   if (base_tr > 0) {
     unsafe {
       kind_ord = pipeline_type_kind_ord_at(a, base_tr);
+    }
+    if (kind_ord == 9) {
+      unsafe {
+        let elem_tr_lbs: i32 = pipeline_type_elem_ref_at(a, base_tr);
+        if (elem_tr_lbs > 0) {
+          base_tr = elem_tr_lbs;
+          kind_ord = pipeline_type_kind_ord_at(a, base_tr);
+        }
+      }
     }
     if (kind_ord == 8) {
       unsafe {
@@ -52829,6 +56628,14 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
               if (feq != 0) {
                 unsafe {
                   ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
+                  ftr_kind = pipeline_type_kind_ord_at(a, ftr);
+                }
+                /*
+                 * Free type-param fields are TYPE_NAMED — do not return 8 here;
+                 * fall through to is_some heuristic / default. Concrete layout
+                 * field types (i32/u8/…) still use layout width.
+                 */
+                if (ftr_kind != 8) {
                   return glue_field_access_load_bytes_for_type_ref(a, ftr);
                 }
               }
@@ -52838,18 +56645,6 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
           k = k + 1;
         }
       }
-    }
-  }
-  // 2) Field expr resolved scalar type (typeck stamp).
-  unsafe {
-    tr = pipeline_expr_resolved_type_ref(a, expr_ref);
-  }
-  if (tr > 0) {
-    unsafe {
-      kind_ord = pipeline_type_kind_ord_at(a, tr);
-    }
-    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
-      return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
   }
   // 3) Option tag fields (bool byte).
@@ -52965,7 +56760,7 @@ export function pipeline_expr_enum_field_tag_via_module(enum_name: *u8, enum_len
 #[no_mangle]
 export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i32 {
   let base_buf: u8[32] = [];
-  let field_buf: u8[128] = [];
+  let field_buf: u8[256] = [];
   let blen: i32 = 0;
   let flen: i32 = 0;
   let base_ref: i32 = 0;
@@ -53018,7 +56813,7 @@ export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i
     }
     pipeline_expr_var_name_into(a, base_ref, &base_buf[0]);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
-    if (flen <= 0 || flen > 127) {
+    if (flen <= 0 || flen > 255) {
       return 0 - 1;
     }
     pipeline_expr_field_access_name_into(a, expr_ref, &field_buf[0]);
@@ -53079,10 +56874,10 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
   let var_off: i32 = 0;
   let field_off: i32 = 0;
   let load_sz: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let base_ty_sl: i32 = 0;
   let flen_sl: i32 = 0;
-  let fn_sl: u8[128] = [];
+  let fn_sl: u8[256] = [];
   let nm_length: u8[6] = [108, 101, 110, 103, 116, 104];
   let nm_data: u8[4] = [100, 97, 116, 97];
   let agg: i32 = 0;
@@ -53094,7 +56889,7 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
       return 0 - 99;
     }
     vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 99;
     }
     pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
@@ -53457,7 +57252,7 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
   let fa_base2: i32 = 0;
   let blen2: i32 = 0;
   let flen_arr: i32 = 0;
-  let fn_arr: u8[128] = [];
+  let fn_arr: u8[256] = [];
   let base_ref_arr: i32 = 0;
   let base_ty_arr: i32 = 0;
   let bk_arr: i32 = 0;
@@ -53466,8 +57261,8 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
   let load_sz: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let call_fa: i32 = 0;
-  let bn: u8[128] = [];
-  let fb: u8[128] = [];
+  let bn: u8[256] = [];
+  let fb: u8[256] = [];
   let flen2: i32 = 0;
   let tk: i32 = 0;
   let sl: i32 = 0;
@@ -53555,7 +57350,7 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
           if (tk < 0) {
             // strlen fallback for trailing NUL in field_len
             sl = 0;
-            while (sl < flen2 && sl < 127) {
+            while (sl < flen2 && sl < 255) {
               if (fb[sl] == (0 as u8)) {
                 break;
               }
@@ -53692,13 +57487,13 @@ export function glue_try_emit_match_subject_field_var_elf_c(arena: *u8, elf_ctx:
   let load_sz: i32 = 4;
   let mod: *u8 = 0 as *u8;
   let subj_ty: i32 = 0;
-  let tnm: u8[128] = [];
+  let tnm: u8[256] = [];
   let tnl: i32 = 0;
   let k: i32 = 0;
   let nf: i32 = 0;
   let fi: i32 = 0;
   let fnl: i32 = 0;
-  let fnm: u8[128] = [];
+  let fnm: u8[256] = [];
   let j: i32 = 0;
   let matchb: i32 = 1;
   let ftr: i32 = 0;
@@ -53808,7 +57603,7 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
   let wpo_nofold: *u8 = 0 as *u8;
   let cfold_tr: i32 = 0;
   let cfold_k: i32 = 0;
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let fb: i32 = 0;
   let flo: i32 = 0;
@@ -53818,12 +57613,20 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
   let rk: i32 = 0;
   let lo: i32 = 0;
   let hi: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let mod_imm: i32 = 0;
   let vtr: i32 = 0;
+  /* Cap-fn-ptr bare VAR LEA scratch (10.3.1 slice3 / 10.3.2). PLATFORM: SHARED.
+   * 9.4.2: the Mach-O '_' / ELF bare spell lives in pipe_modlet_lea_fn_sym_to_rax. */
+  let fnptr_fi: i32 = 0;
+  let cap_tr: i32 = 0;
+  let cap_ko: i32 = 0;
+  let cap_er: i32 = 0;
+  let cap_eko: i32 = 0;
+  let cap_ok: i32 = 0;
   // INT32_MAX for non-negative imm32 range
   let int32_max: i64 = 2147483647;
   if (expr_ref == 0) {
@@ -53969,6 +57772,42 @@ export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_r
         }
         if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, &vname[0], vlen) == 0) {
           return 0;
+        }
+        /*
+         * Cap-fn-ptr bare name (10.3.1 slice3): wave100 types same-module fn
+         * as Cap *u8 / TYPE_FN but there is no stack slot. LEA link symbol
+         * (same algorithm as EXPR_AS Cap path). Locals already failed above.
+         * #[no_mangle] only. PLATFORM: SHARED · MACOS '_' · LINUX bare.
+         */
+        cap_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        cap_ok = 0;
+        if (cap_tr > 0) {
+          cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
+          if (cap_ko == 18) {
+            cap_ok = 1;
+          } else if (cap_ko == 9) {
+            cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
+            if (cap_er > 0) {
+              cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
+              if (cap_eko == 2) {
+                cap_ok = 1;
+              }
+            }
+          }
+        }
+        if (cap_ok != 0 && vlen > 0 && vlen < 128) {
+          mod = glue_emit_module_from_ctx(ctx);
+          if (mod != (0 as *u8)) {
+            fnptr_fi = glue_module_func_index_by_name_c(mod, &vname[0], vlen);
+            if (fnptr_fi >= 0) {
+              // Cap-fn-ptr: load effective address of any same-module function into rax/x0.
+              // 9.4.2: symbol spell (Mach-O '_' / ELF bare) is the
+              // pipe_modlet_lea_fn_sym_to_rax authority.
+              unsafe {
+                return pipe_modlet_lea_fn_sym_to_rax(elf_ctx, &vname[0], vlen, ta);
+              }
+            }
+          }
         }
         return 0 - 1;
       }
@@ -54136,7 +57975,12 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
                               out_rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, expr_ref, ta);
                             }
                           } else {
-                            if (ko >= 14 && ko <= 19) {
+                            if (ko == 60) {
+                              unsafe {
+                                out_rc = pipeline_asm_try_emit_inline_asm_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+                              }
+                            } else {
+                              if (ko >= 14 && ko <= 19) {
                               unsafe {
                                 out_rc = pipeline_asm_emit_cmp_elf(arena, elf_ctx, expr_ref, ctx, ta);
                               }
@@ -54215,6 +58059,7 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
                                   }
                                 }
                               }
+                            }
                             }
                           }
                         }
@@ -54582,6 +58427,118 @@ export function glue_expr_tree_has_call_index_c(arena: *u8, expr_ref: i32): i32 
 }
 
 /**
+ * True when expr tree reads a VAR that does not resolve to a block local
+ * (i.e. a module global / extern). EXPR_VAR = 3; resolution goes through
+ * the wave188 authority glue_asm_local_var_stack_off_scoped, so param homes
+ * and enclosing-scope locals count as local and modlet-backed globals fail
+ * the lookup. Callers must only consult this when
+ * glue_expr_tree_has_call_index_c already returned 0 (that walker claims
+ * INDEX/CALL/METHOD_CALL nodes first, so they never reach us here).
+ * 9.6.0 pass1-defer: a let whose init reads a global must stay in pass 1
+ * source order — pass 0 would read the global before prior statements
+ * mutate it (probe pd: non-main `g=g+1; g=g+1; let c=g; return c` returned
+ * the pre-statement value). Previously this only worked in the hoist
+ * target because hoisting turned globals into block locals.
+ * @param arena *u8 — ASTArena*
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param expr_ref i32 — expr pool ref; <=0 → 0
+ * @return i32 — 1 if a non-local VAR leaf is read; 0 otherwise
+ * 9.6.0: G.7 有则补全 on pass1-defer authority (wave153 family).
+ * PLATFORM: SHARED freestanding emit · LINUX gold · MACOS co-path.
+ */
+#[no_mangle]
+export function glue_expr_tree_has_nonlocal_var_c(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let op_ref: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  // EXPR_VAR = 3: local table miss ⇒ non-local (global) read.
+  if (ko == 3) {
+    unsafe {
+      if (glue_asm_local_var_stack_off_scoped(arena, ctx, expr_ref) < 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  // binop family 4..21
+  if (ko >= 4 && ko <= 21) {
+    unsafe {
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
+      return 1;
+    }
+    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, right_ref);
+  }
+  // unary / LOGNOT / return operand
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+    unsafe {
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    }
+    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, op_ref);
+  }
+  // EXPR_AS
+  unsafe {
+    op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  }
+  if (op_ref > 0) {
+    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, op_ref);
+  }
+  // field access = 44 (walk base only; a FieldAccess never reads a bare VAR)
+  if (ko == 44) {
+    unsafe {
+      left_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    }
+    return glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref);
+  }
+  // ARRAY_LIT = 46
+  if (ko == 46) {
+    unsafe {
+      n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, i);
+      }
+      if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  // STRUCT_LIT = 45
+  if (ko == 45) {
+    unsafe {
+      n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        left_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, i);
+      }
+      if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, left_ref) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
  * Mark lets that must stay in pass 1 (stmt_order position).
  * Pass 0 hoists pure lets; INDEX/CALL/METHOD_CALL (any depth in init tree)
  * + stack-reading past barriers stay pass1.
@@ -54624,6 +58581,13 @@ export function glue_block_compute_pass1_deferred_lets(arena: *u8, ctx: *u8, blo
         deferred[li] = 1 as u8;
       } else {
         deferred[li] = 0 as u8;
+        // 9.6.0: init reading a non-local VAR (module global) must stay in
+        // pass 1 source order — pass 0 would read the global before prior
+        // statements mutate it. Over-deferral is harmless (pass 1 = source
+        // order); under-deferral is the pd miscompile.
+        if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, init_ref) != 0) {
+          deferred[li] = 1 as u8;
+        }
       }
     }
     li = li + 1;
@@ -54763,16 +58727,25 @@ export function pipeline_asm_block_final_expr_ref_at(arena: *u8, block_ref: i32)
 
 
 /**
- * backend.x: read Block.num_stmt_order.
+ * backend.x: read Block.num_stmt_order @0x54 via arena block pointer.
  * wave153 pure: G.7 authority (was pipeline_asm_emit_block_body.c).
+ * Avoid ast_ast_block_num_stmt_order (PE multi-def / block_get twin).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_asm_block_num_stmt_order_at(arena: *u8, block_ref: i32): i32 {
+  let b: *u8 = 0 as *u8;
   let n: i32 = 0;
-  unsafe {
-    n = ast_ast_block_num_stmt_order(arena, block_ref);
+  if (arena == (0 as *u8) || block_ref <= 0) {
+    return 0;
   }
+  unsafe {
+    b = pipeline_arena_block_ptr(arena, block_ref);
+  }
+  if (b == (0 as *u8)) {
+    return 0;
+  }
+  n = pipe_load_i32_le(b, 84);
   return n;
 }
 
@@ -54841,12 +58814,13 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
   let init_ko: i32 = 0;
   let let_ty2: i32 = 0;
   let src_ty: i32 = 0;
-  let vn: u8[128] = [];
+  let vn: u8[256] = [];
   let vl: i32 = 0;
   let bt: i32 = 0;
   let vtype_ref: i32 = 0;
   let rc: i32 = 0;
   let slot_off: i32 = 0;
+  let init_f32_lit: i32 = 0;
 
   unsafe {
     slot_off = backend_asm_ctx_slot_offset(ctx, slot);
@@ -54992,6 +58966,8 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
       init_ko = pipeline_expr_kind_ord_at(arena, init_ref);
       // GLUE_TYPE_KIND_F32_ORD = 14; EXPR_LIT = 1
       if (let_ty > 0 && pipeline_type_kind_ord_at(arena, let_ty) == 14 && init_ko == 1) {
+        // Dest-typed literal emit: value already f32 bits — skip demote at store.
+        init_f32_lit = 1;
         rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, init_ref, ta, let_ty, 0);
       } else {
         rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
@@ -55008,6 +58984,18 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
   if (let_ty2 > 0) {
     unsafe {
       if (pipeline_type_kind_ord_at(arena, let_ty2) == 14) {
+        // f32 dest with f64-typed init: demote to f32 bits before the 4-byte
+        // store — else the store keeps only the low 32 bits of the f64.
+        // Skip when the dest-typed literal fast path already emitted f32 bits
+        // or the index-cache init provided the value.
+        if (ix_init == 0 && init_f32_lit == 0) {
+          unsafe {
+            rc = glue_maybe_demote_f64_to_f32_eax_elf_c(arena, elf_ctx, ctx, let_ty2, init_ref, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+        }
         rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, slot_off, ta);
         if (rc != 0) {
           return 0 - 1;
@@ -55082,7 +59070,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let init_ref: i32 = 0;
   let ix_ko: i32 = 0;
   let slot: i32 = 0;
-  let lnb: u8[128] = [];
+  let lnb: u8[256] = [];
   let llen: i32 = 0;
   let tref_empty: i32 = 0;
   let slice_st: i32 = 0;
@@ -55094,7 +59082,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let init_ko: i32 = 0;
   let let_ty2: i32 = 0;
   let src_ty: i32 = 0;
-  let vn: u8[128] = [];
+  let vn: u8[256] = [];
   let vl: i32 = 0;
   let bt: i32 = 0;
   let expr_ref: i32 = 0;
@@ -55103,16 +59091,16 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   let wa_cap: i32 = 0;
   let wa_off: i32 = 0;
   let is_g: i32 = 0;
-  let gt_buf: u8[128] = [];
+  let gt_buf: u8[256] = [];
   let gt_len: i32 = 0;
-  let lb_buf: u8[128] = [];
+  let lb_buf: u8[256] = [];
   let lb_len: i32 = 0;
   let ret_ref_lab: i32 = 0;
   let ly: *u8 = 0 as *u8;
   let rty_lab: i32 = 0;
   let sty_lab: i32 = 0;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   let rc: i32 = 0;
   let n_ex: i32 = 0;
@@ -55284,6 +59272,14 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
   while (pass < 2) {
     i = 0;
     while (i < nso) {
+      /* Slice9: after options(noreturn), skip remaining pass-1 stmts (unreachable). */
+      if (pass == 1) {
+        unsafe {
+          if (glue_asm_block_diverged_get() != 0) {
+            break;
+          }
+        }
+      }
       unsafe {
         item_kind = ast_ast_block_stmt_order_kind(arena, block_ref, i);
         idx = ast_ast_block_stmt_order_idx(arena, block_ref, i);
@@ -55319,6 +59315,11 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                 if (init_ref > 0) {
                   if (glue_expr_tree_has_call_index_c(arena, init_ref) != 0) {
                     defer_bit = 1;
+                  } else {
+                    // 9.6.0: non-local (global) VAR read must stay pass 1.
+                    if (glue_expr_tree_has_nonlocal_var_c(arena, ctx, init_ref) != 0) {
+                      defer_bit = 1;
+                    }
                   }
                 }
               }
@@ -55605,7 +59606,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                               pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
                               gt_len = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
                             }
-                            if (gt_len > 0 && gt_len <= 127) {
+                            if (gt_len > 0 && gt_len <= 255) {
                               unsafe {
                                 rc = backend_enc_jmp_arch(elf_ctx, &gt_buf[0], gt_len, ta);
                               }
@@ -55618,7 +59619,7 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
                               pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
                               lb_len = pipeline_block_labeled_label_len(arena, block_ref, idx);
                             }
-                            if (lb_len > 0 && lb_len <= 127) {
+                            if (lb_len > 0 && lb_len <= 255) {
                               unsafe {
                                 rc = backend_enc_label_arch(elf_ctx, &lb_buf[0], lb_len, 0, ta);
                               }
@@ -55715,15 +59716,20 @@ export function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, 
    * Mirrors codegen.x emit_run_defers (host-C). Trailing `return x` is final_expr
    * when next token is RBRACE (parser.x return_ends_block); mid-body early
    * return stays stmt_order and matches C (defers not rewound on that path).
+   * Slice9: skip defer + final_expr when options(noreturn) diverged (unreachable).
    * PLATFORM: SHARED freestanding pure-asm. */
-  rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
+  unsafe {
+    done = glue_asm_block_diverged_get();
   }
-
-  rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
+  if (done == 0) {
+    rc = glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    rc = glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta);
+    if (rc != 0) {
+      return 0 - 1;
+    }
   }
 
   unsafe {
@@ -55812,7 +59818,7 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
   let fb: i32 = 0;
   let ly: *u8 = 0 as *u8;
   let tj_len: i32 = 0;
-  let tj_lbl: u8[128] = [];
+  let tj_lbl: u8[256] = [];
   let tk: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || block_ref <= 0) {
     return 0;
@@ -55943,6 +59949,8 @@ export function pipeline_asm_emit_expr_if_arm_elf_c(arena: *u8, elf_ctx: *u8, ar
 #[no_mangle]
 export function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
+    /* Slice9: clear diverged at function-body entry (nested regions keep the flag). */
+    glue_asm_block_diverged_set(0);
     glue_block_body_bind_module_dep_from_ctx(ctx);
   }
   return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
@@ -55963,7 +59971,7 @@ export function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block
 //   typeck_struct_layouts_same_shape_c
 //   pipeline_typeck_pad_fields_warn_layout / hot_reorder_warn_layout
 // Sentinels: GLUE_ASM_MAX_STRUCT_LIT_FIELDS=64, DEST_IN_RBX=-3, REHOME_CPU_STACK=-4
-// LP64 Expr peels: struct_lit_struct_name@536 name_len@664 num_fields@672
+// LP64 Expr peels: struct_lit_struct_name@920 name_len@1176 num_fields@1184
 // Omits XLANG_ASM_EMIT_TRACE / XLANG_ASM_DEBUG fprintf (wave soft OK).
 // Cap residual: typeck_soa_array_storage_size_glue / typeck_x_type_size_from_layout_glue
 //   + dual_gp/named_layout size + backend_enc_* + driver_diagnostic_* + layout pool
@@ -55986,17 +59994,17 @@ function glue_struct_lit_rehome_cpu_stack(): i32 {
 
 /** LP64 offsetof(struct ast_Expr, struct_lit_struct_name). PLATFORM: SHARED. */
 function pipe_expr_off_struct_lit_name(): i32 {
-  return 536;
+  return 920;
 }
 
 /** LP64 offsetof(struct ast_Expr, struct_lit_struct_name_len). PLATFORM: SHARED. */
 function pipe_expr_off_struct_lit_name_len(): i32 {
-  return 664;
+  return 1176;
 }
 
 /** LP64 offsetof(struct ast_Expr, struct_lit_num_fields). PLATFORM: SHARED. */
 function pipe_expr_off_struct_lit_num_fields(): i32 {
-  return 672;
+  return 1184;
 }
 
 /**
@@ -56042,7 +60050,7 @@ function glue_struct_layout_name_eq_c(m: *u8, k: i32, name: *u8, nlen: i32): i32
  */
 #[no_mangle]
 export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32, depth: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nf: i32 = 0;
@@ -56070,7 +60078,7 @@ export function glue_type_is_empty_struct_c(module: *u8, arena: *u8, ty_ref: i32
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   unsafe {
@@ -56128,7 +60136,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let soa_sz: i32 = 0;
   let vl: i32 = 0;
   let ves: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -56165,8 +60173,10 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) {
     return 4;
   }
-  // i64/u64/usize/isize/ptr/f64: 5,4,6,7,15,9 → 8
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+  // i64/u64/usize/isize/ptr/f64/TYPE_FN: 5,4,6,7,15,9,18 → 8
+  // 10.3.3: TYPE_FN is opaque Cap-fn-ptr ABI (pointer-sized), not scalar miss→0.
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
     return 8;
   }
   // SLICE=11 → 16
@@ -56208,7 +60218,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     unsafe {
       nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
     }
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return 4;
     }
     if (m != (0 as *u8)) {
@@ -56284,7 +60294,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   let kind_ord: i32 = 0;
   let nt: i32 = 0;
   let elem_ref: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let vl: i32 = 0;
@@ -56313,7 +60323,8 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) {
     return 4;
   }
-  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9) {
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
     return 8;
   }
   if (kind_ord == 11) {
@@ -56332,7 +60343,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
     unsafe {
       nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
     }
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return 4;
     }
     if (m == (0 as *u8)) {
@@ -56398,8 +60409,8 @@ export function glue_struct_layout_metrics_c(module: *u8, arena: *u8, li: i32, d
   let current: i32 = 0;
   let max_align: i32 = 1;
   let j: i32 = 0;
-  let layout_nm: u8[128] = [];
-  let field_nm: u8[128] = [];
+  let layout_nm: u8[256] = [];
+  let field_nm: u8[256] = [];
   let is_pk: i32 = 0;
   let nlayouts: i32 = 0;
   let ftr: i32 = 0;
@@ -56611,7 +60622,7 @@ export function glue_struct_layout_compute_field_offset_c(m: *u8, a: *u8, li: i3
 export function glue_struct_layout_index_by_type_name_c(m: *u8, struct_name: *u8, nlen: i32): i32 {
   let k: i32 = 0;
   let nlayouts: i32 = 0;
-  if (m == (0 as *u8) || struct_name == (0 as *u8) || nlen <= 0 || nlen > 127) {
+  if (m == (0 as *u8) || struct_name == (0 as *u8) || nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -56720,7 +60731,7 @@ export function pipeline_expr_struct_lit_type_name_into(a: *u8, expr_ref: i32, o
   unsafe {
     ex = glue_arena_expr_at_ref(a, expr_ref);
     if (ex == (0 as *u8)) {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
       return;
     }
     base = pipe_expr_off_struct_lit_name();
@@ -56734,7 +60745,7 @@ export function pipeline_expr_struct_lit_type_name_into(a: *u8, expr_ref: i32, o
 
 /**
  * Backfill struct_lit_struct_name on anonymous STRUCT_LIT.
- * Contract: name_len in [0,127]; no-op on invalid.
+ * Contract: name_len in [0,255]; no-op on invalid.
  * wave154 pure: G.7 authority. PLATFORM: SHARED typeck contextual backfill.
  */
 #[no_mangle]
@@ -56746,7 +60757,7 @@ export function pipeline_expr_struct_lit_type_name_set(a: *u8, expr_ref: i32, na
   if (a == (0 as *u8) || name == (0 as *u8) || expr_ref <= 0) {
     return;
   }
-  if (name_len < 0 || name_len > 127) {
+  if (name_len < 0 || name_len > 255) {
     return;
   }
   unsafe {
@@ -56780,7 +60791,7 @@ export function pipeline_expr_struct_lit_type_name_set(a: *u8, expr_ref: i32, na
 #[no_mangle]
 export function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let k: i32 = 0;
   let nf: i32 = 0;
   let nlayouts: i32 = 0;
@@ -56795,7 +60806,7 @@ export function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_re
     return field_ix * 8;
   }
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     unsafe {
       nlayouts = pipeline_module_num_struct_layouts_at(m);
       nf = pipeline_module_struct_layout_num_fields(m, 0);
@@ -56825,7 +60836,7 @@ export function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_re
 #[no_mangle]
 export function pipeline_expr_struct_lit_field_type_ref_at(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let k: i32 = 0;
   let nlayouts: i32 = 0;
   let nf: i32 = 0;
@@ -56840,7 +60851,7 @@ export function pipeline_expr_struct_lit_field_type_ref_at(a: *u8, m: *u8, expr_
     return 0;
   }
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   pipeline_expr_struct_lit_type_name_into(a, expr_ref, &name[0]);
@@ -56872,7 +60883,7 @@ export function pipeline_expr_struct_lit_field_type_ref_at(a: *u8, m: *u8, expr_
 #[no_mangle]
 export function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i32): i32 {
   let nlen: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let k: i32 = 0;
   let nlayouts: i32 = 0;
   let sz_out: i32 = 0;
@@ -56888,7 +60899,7 @@ export function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i
     return 0;
   }
   nlen = pipeline_expr_struct_lit_type_name_len(a, expr_ref);
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   pipeline_expr_struct_lit_type_name_into(a, expr_ref, &name[0]);
@@ -57699,6 +61710,29 @@ export function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *
     }
   }
   vb = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
+  /* Nameless / missed-layout STRUCT_LIT sized 0 and fell through to lea
+   * (return a callee-local pointer). Recover field span; INTEGER-class
+   * default is 8. PLATFORM: SHARED — SysV rax bits; AAPCS64 x0 bits. */
+  if (vb <= 0) {
+    fi = 0;
+    while (fi < nf) {
+      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
+      fsz = glue_struct_lit_field_store_sz(arena, expr_ref, fi);
+      if (foff < 0) {
+        foff = 0;
+      }
+      if (fsz < 0) {
+        fsz = 0;
+      }
+      if (foff + fsz > vb) {
+        vb = foff + fsz;
+      }
+      fi = fi + 1;
+    }
+    if (vb <= 0) {
+      vb = 8;
+    }
+  }
   if (vb > 0 && vb <= 8) {
     unsafe {
       if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
@@ -57833,7 +61867,7 @@ function glue_field_type_atomic_sized(m: *u8, a: *u8, ftr: i32): i32 {
  */
 #[no_mangle]
 export function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -57850,7 +61884,7 @@ export function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32 
   unsafe {
     nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   unsafe {
@@ -57873,7 +61907,7 @@ export function typeck_type_is_named_struct_c(m: *u8, a: *u8, ty_ref: i32): i32 
  */
 #[no_mangle]
 export function typeck_layout_index_for_named_type_c(m: *u8, a: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -57890,7 +61924,7 @@ export function typeck_layout_index_for_named_type_c(m: *u8, a: *u8, ty_ref: i32
   unsafe {
     nlen = pipeline_type_named_name_into(a, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -57962,7 +61996,7 @@ export function typeck_struct_layouts_same_shape_c(m: *u8, a: *u8, la: i32, lb: 
 export function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, li: i32): void {
   let nf: i32 = 0;
   let j: i32 = 0;
-  let layout_nm: u8[128] = [];
+  let layout_nm: u8[256] = [];
   let layout_nlen: i32 = 0;
   let off0: i32 = 0;
   let off1: i32 = 0;
@@ -57970,8 +62004,8 @@ export function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, 
   let ftr1: i32 = 0;
   let al0: i32 = 0;
   let al1: i32 = 0;
-  let fn0: u8[128] = [];
-  let fn1: u8[128] = [];
+  let fn0: u8[256] = [];
+  let fn1: u8[256] = [];
   let fl0: i32 = 0;
   let fl1: i32 = 0;
   if (glue_pad_fields_warn_enabled() == 0 || module == (0 as *u8) || arena == (0 as *u8) || li < 0) {
@@ -58029,15 +62063,15 @@ export function pipeline_typeck_hot_reorder_warn_layout(module: *u8, arena: *u8,
   let nf: i32 = 0;
   let j: i32 = 0;
   let i: i32 = 0;
-  let layout_nm: u8[128] = [];
+  let layout_nm: u8[256] = [];
   let layout_nlen: i32 = 0;
   let ftr: i32 = 0;
   let sz: i32 = 0;
-  let hot_nm: u8[128] = [];
+  let hot_nm: u8[256] = [];
   let hot_len: i32 = 0;
   let ftr_c: i32 = 0;
   let sz_c: i32 = 0;
-  let cold_nm: u8[128] = [];
+  let cold_nm: u8[256] = [];
   let cold_len: i32 = 0;
   if (glue_hot_reorder_warn_enabled() == 0 || module == (0 as *u8) || arena == (0 as *u8) || li < 0) {
     return;
@@ -58471,8 +62505,8 @@ function glue_try_fold_u8_fill_index_while_elf_c(arena: *u8, elf_ctx: *u8, block
   let si: i32 = 0;
   let found_store: i32 = 0;
   let found_inc: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let i_slot: i32[1] = [];
@@ -58595,8 +62629,8 @@ function glue_try_fold_u8_sum_index_while_elf_c(arena: *u8, elf_ctx: *u8, block_
   let si: i32 = 0;
   let found_sum: i32 = 0;
   let found_inc: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let i_slot: i32[1] = [];
@@ -59072,7 +63106,7 @@ function glue_try_fold_lcg_xor_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: 
   let found_t: i32 = 0;
   let found_xor: i32 = 0;
   let found_i: i32 = 0;
-  let loop_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let n_cmp: i32 = 0;
   let unroll: i32 = 1;
@@ -59234,8 +63268,8 @@ function glue_fold_expr_is_func_param0_c(arena: *u8, mod: *u8, func_idx: i32, ex
   let plen: i32 = 0;
   let vlen: i32 = 0;
   let k: i32 = 0;
-  let pbuf: u8[128] = [];
-  let vbuf: u8[128] = [];
+  let pbuf: u8[256] = [];
+  let vbuf: u8[256] = [];
   let ko: i32 = 0;
   let np: i32 = 0;
   if (arena == (0 as *u8) || mod == (0 as *u8) || expr_ref <= 0) { return 0; }
@@ -59279,7 +63313,7 @@ function glue_fold_func_x_plus_k_chain_c(arena: *u8, mod: *u8, func_idx: i32, de
   let inner_k: i32 = 0;
   let clen: i32 = 0;
   let rk: i32 = 0;
-  let cname: u8[128] = [];
+  let cname: u8[256] = [];
   let is_ext: i32 = 0;
   let np: i32 = 0;
   let ko: i32 = 0;
@@ -59326,7 +63360,7 @@ function glue_fold_func_x_plus_k_chain_c(arena: *u8, mod: *u8, func_idx: i32, de
   unsafe {
     clen = pipeline_expr_var_name_len(arena, callee_ref);
   }
-  if (clen <= 0 || clen > 127) { return 0 - 1; }
+  if (clen <= 0 || clen > 255) { return 0 - 1; }
   unsafe {
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
   }
@@ -59353,7 +63387,7 @@ function glue_fold_affine_i_plus_k_expr_c(arena: *u8, mod: *u8, expr_ref: i32, i
   let kk: i32 = 0;
   let callee_ref: i32 = 0;
   let arg0: i32 = 0;
-  let cname: u8[128] = [];
+  let cname: u8[256] = [];
   let ko: i32 = 0;
   if (arena == (0 as *u8) || expr_ref <= 0) { return 0; }
   unsafe { rk = pipeline_expr_kind_ord_at(arena, expr_ref); }
@@ -59368,7 +63402,7 @@ function glue_fold_affine_i_plus_k_expr_c(arena: *u8, mod: *u8, expr_ref: i32, i
     unsafe { ko = pipeline_expr_kind_ord_at(arena, callee_ref); }
     if (ko != 3) { return 0; }
     unsafe { clen = pipeline_expr_var_name_len(arena, callee_ref); }
-    if (clen <= 0 || clen > 127) { return 0; }
+    if (clen <= 0 || clen > 255) { return 0; }
     unsafe { pipeline_expr_var_name_into(arena, callee_ref, &cname[0]); }
     fi = glue_module_func_index_by_name_c(mod, &cname[0], clen);
     if (fi < 0) { return 0; }
@@ -59640,8 +63674,8 @@ export function backend_emit_while_loop_elf_sync(arena: *u8, elf_ctx: *u8, block
   let fold_rc: i32 = 0;
   let cond_ref: i32 = 0;
   let body_ref: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -59734,9 +63768,9 @@ export function backend_emit_for_loop_elf_sync(arena: *u8, elf_ctx: *u8, block_r
   let cond_ref: i32 = 0;
   let step_ref: i32 = 0;
   let body_ref: i32 = 0;
-  let loop_buf: u8[128] = [];
-  let exit_buf: u8[128] = [];
-  let step_buf: u8[128] = [];
+  let loop_buf: u8[256] = [];
+  let exit_buf: u8[256] = [];
+  let step_buf: u8[256] = [];
   let loop_len: i32 = 0;
   let exit_len: i32 = 0;
   let step_len: i32 = 0;
@@ -60050,7 +64084,7 @@ export function glue_index_expr_struct_key_elf_c(arena: *u8, ref: i32): i64 {
   let ko: i32 = 0;
   let left_ref: i32 = 0;
   let right_ref: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let i: i32 = 0;
   let h: i64 = 0;
@@ -60072,7 +64106,7 @@ export function glue_index_expr_struct_key_elf_c(arena: *u8, ref: i32): i64 {
     unsafe {
       nlen = pipeline_expr_var_name_len(arena, ref);
     }
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return h;
     }
     unsafe {
@@ -60710,7 +64744,7 @@ export function glue_binop_kill_assign_lhs_slots_elf_c(arena: *u8, ctx: *u8, ass
 // Last-wins reentrancy (matches historical Cap residual statics).
 let g_w157_spill_total: i32 = 0;
 let g_w157_spill_visits: i32 = 0;
-let g_w157_walk_stack: i32[256] = [];
+let g_w157_walk_stack: i32[8192] = [];
 
 /**
  * Recursive sum of permanent call-arg spill bytes under one expression.
@@ -60760,8 +64794,11 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
       i = i + 1;
     }
-    // 32B per reg-class arg (GLUE_ASM_CALL_SPILL_SLOT_BYTES).
-    g_w157_spill_total = g_w157_spill_total + n * 32;
+    // 32B per reg-class arg (GLUE_ASM_CALL_SPILL_SLOT_BYTES) plus one
+    // extra 32B slot: ARM64 emit uses 5 homes for a 4-arg CALL
+    // (glue_sysv_spill_rax_rdx_to_frame_c stride 32, plus ADDR_OF/INDEX
+    // temp). METHOD already counted receiver as +1.
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
     return;
   }
   // EXPR_METHOD_CALL = 49
@@ -60791,6 +64828,41 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
     g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
     return;
   }
+  // P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind
+  // ordinals with the binop set — an else-if chain parses into a nested
+  // EXPR_IF chain whose arms are EXPR_BLOCK-wrapped blocks (parser
+  // if_stmt_parts_to_if_expr). Routing them through the binop branch loses
+  // the else arm, so every chain beyond the first arm vanished from the
+  // call-spill estimate (big-function frames under-reserved; spill peaks
+  // crossed the frame top into the caller). Try the if/block accessors
+  // first; fall through to binop when they read empty (shared ordinals
+  // stay honored). PLATFORM: SHARED — twin in seeds .c.
+  if (ko == 25) {
+    unsafe {
+      arg_ref = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+    }
+    if (arg_ref > 0) {
+      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      unsafe {
+        op = pipeline_expr_if_then_ref_at(arena, expr_ref);
+      }
+      w157_sum_expr_call_spill_bytes(arena, op);
+      unsafe {
+        op = pipeline_expr_if_else_ref_at(arena, expr_ref);
+      }
+      w157_sum_expr_call_spill_bytes(arena, op);
+      return;
+    }
+  }
+  if (ko == 26) {
+    unsafe {
+      op = pipeline_expr_block_ref_at(arena, expr_ref);
+    }
+    if (op > 0) {
+      w157_walk_block_rec_x(arena, op, 40);
+      return;
+    }
+  }
   // binops (4..21, 25, 26) + ASSIGN / *ASSIGN (28..38).
   // ASSIGN reuses binop left/right (ast.h AST_EXPR_ASSIGN). Without this walk,
   // pure-asm frame sizing under-counts sequential `x = f(g())` expr stmts:
@@ -60807,8 +64879,11 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
     w157_sum_expr_call_spill_bytes(arena, op);
     return;
   }
-  // unary / LOGNOT / RETURN-style operand (22..24, 41)
-  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+  // unary / LOGNOT / RETURN-style operand (22..24, 41) + ADDR_OF (51).
+  // ADDR_OF of INDEX (`&buf[0]` as a CALL arg) must be walked so nested
+  // calls inside the operand count; emit also parks INDEX temps on
+  // next_offset which the CALL n*32 term does not cover alone.
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41 || ko == 51) {
     unsafe {
       op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     }
@@ -61007,14 +65082,14 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
       unsafe {
         ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61028,7 +65103,7 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = pipeline_block_while_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61042,7 +65117,7 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = pipeline_block_for_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61056,7 +65131,7 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
       unsafe {
         ch = pipeline_block_region_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61076,6 +65151,156 @@ export function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32
  * wave157 pure-owned. PLATFORM: SHARED freestanding frame layout.
  */
 #[no_mangle]
+function w157_walk_block_rec_x(arena: *u8, cur: i32, depth: i32): void {
+  let i: i32 = 0;
+  let n: i32 = 0;
+  let ch: i32 = 0;
+  let er: i32 = 0;
+  let fin: i32 = 0;
+  let nso: i32 = 0;
+  let sok: i32 = 0;
+  let soi: i32 = 0;
+  if (arena == (0 as *u8) || cur <= 0 || depth <= 0) {
+    return;
+  }
+  if (g_w157_spill_visits > 65536) {
+    return;
+  }
+  unsafe {
+    nso = ast_ast_block_num_stmt_order(arena, cur);
+  }
+  if (nso > 0) {
+    i = 0;
+    while (i < nso) {
+      unsafe {
+        sok = ast_ast_block_stmt_order_kind(arena, cur, i);
+        soi = ast_ast_block_stmt_order_idx(arena, cur, i);
+      }
+      if (soi >= 0) {
+        if (sok == 2) {
+          unsafe { er = ast_pipeline_block_expr_stmt_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+        } else if (sok == 1) {
+          unsafe { er = ast_pipeline_block_let_init_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+        } else if (sok == 0) {
+          unsafe { er = ast_pipeline_block_const_init_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+        } else if (sok == 5) {
+          unsafe { er = ast_pipeline_block_if_cond_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { ch = ast_pipeline_block_if_then_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+          unsafe { ch = ast_pipeline_block_if_else_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 3) {
+          unsafe { er = ast_ast_block_while_cond_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { ch = pipeline_block_while_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 4) {
+          unsafe { er = ast_ast_block_for_init_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { er = ast_ast_block_for_cond_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { er = ast_ast_block_for_step_ref(arena, cur, soi); }
+          w157_sum_expr_call_spill_bytes(arena, er);
+          unsafe { ch = pipeline_block_for_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 6) {
+          unsafe { ch = pipeline_block_region_body_ref(arena, cur, soi); }
+          if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+        } else if (sok == 7) {
+          unsafe {
+            if (pipeline_block_labeled_is_goto(arena, cur, soi) == 0) {
+              er = pipeline_block_labeled_return_expr_ref(arena, cur, soi);
+              if (er > 0) { w157_sum_expr_call_spill_bytes(arena, er); }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+    unsafe { fin = ast_ast_block_final_expr_ref(arena, cur); }
+    if (fin > 0) { w157_sum_expr_call_spill_bytes(arena, fin); }
+    return;
+  }
+  unsafe {
+    n = ast_ast_block_num_consts(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_const_init_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    n = ast_ast_block_num_lets(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_let_init_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    n = ast_ast_block_num_expr_stmts(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_expr_stmt_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      i = i + 1;
+    }
+    fin = ast_ast_block_final_expr_ref(arena, cur);
+    if (fin > 0) { w157_sum_expr_call_spill_bytes(arena, fin); }
+    n = ast_ast_block_num_if_stmts(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_pipeline_block_if_cond_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = ast_ast_block_num_loops(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_ast_block_while_cond_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      ch = pipeline_block_while_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = ast_ast_block_num_for_loops(arena, cur);
+    i = 0;
+    while (i < n) {
+      er = ast_ast_block_for_init_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      er = ast_ast_block_for_cond_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      er = ast_ast_block_for_step_ref(arena, cur, i);
+      w157_sum_expr_call_spill_bytes(arena, er);
+      ch = pipeline_block_for_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = ast_ast_block_num_regions(arena, cur);
+    i = 0;
+    while (i < n) {
+      ch = pipeline_block_region_body_ref(arena, cur, i);
+      if (ch > 0) { w157_walk_block_rec_x(arena, ch, depth - 1); }
+      i = i + 1;
+    }
+    n = pipeline_block_num_labeled_stmts(arena, cur);
+    i = 0;
+    while (i < n) {
+      if (pipeline_block_labeled_is_goto(arena, cur, i) == 0) {
+        er = pipeline_block_labeled_return_expr_ref(arena, cur, i);
+        if (er > 0) { w157_sum_expr_call_spill_bytes(arena, er); }
+      }
+      i = i + 1;
+    }
+  }
+}
+
 export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32 {
   let sp: i32 = 0;
   let seen: i32 = 0;
@@ -61085,6 +65310,9 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
   let ch: i32 = 0;
   let fin: i32 = 0;
   let er: i32 = 0;
+  let nso: i32 = 0;
+  let sok: i32 = 0;
+  let soi: i32 = 0;
   if (arena == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
@@ -61097,6 +65325,123 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
     sp = sp - 1;
     cur = g_w157_walk_stack[sp];
     if (cur <= 0) {
+      continue;
+    }
+    // P12g root fix (2026-09-15): when a block carries a stmt_order it is the
+    // emitter's sequencing authority — deep else-chains are only fully visible
+    // there (the per-kind array view truncates with nesting depth, under-
+    // reserving call-spill scratch so big functions' spill peaks cross the
+    // frame top into the caller's frame). Dispatch kinds against the SAME
+    // pools the emitter reads (idx = pool index); the raw-array walk below
+    // stays for nso==0 blocks only, so nothing is double counted. Over-
+    // reserving is safe; under-reserving is the bug class.
+    // PLATFORM: SHARED — twin in seeds/runtime_pipeline_abi.from_x.c.
+    unsafe {
+      nso = ast_ast_block_num_stmt_order(arena, cur);
+    }
+    if (nso > 0) {
+      i = 0;
+      while (i < nso) {
+        unsafe {
+          sok = ast_ast_block_stmt_order_kind(arena, cur, i);
+          soi = ast_ast_block_stmt_order_idx(arena, cur, i);
+        }
+        if (soi >= 0) {
+          if (sok == 2) {
+            unsafe {
+              er = ast_pipeline_block_expr_stmt_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+          } else if (sok == 1) {
+            unsafe {
+              er = ast_pipeline_block_let_init_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+          } else if (sok == 0) {
+            unsafe {
+              er = ast_pipeline_block_const_init_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+          } else if (sok == 5) {
+            unsafe {
+              er = ast_pipeline_block_if_cond_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              ch = ast_pipeline_block_if_then_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+            unsafe {
+              ch = ast_pipeline_block_if_else_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 3) {
+            unsafe {
+              er = ast_ast_block_while_cond_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              ch = pipeline_block_while_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 4) {
+            unsafe {
+              er = ast_ast_block_for_init_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              er = ast_ast_block_for_cond_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              er = ast_ast_block_for_step_ref(arena, cur, soi);
+            }
+            w157_sum_expr_call_spill_bytes(arena, er);
+            unsafe {
+              ch = pipeline_block_for_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 6) {
+            unsafe {
+              ch = pipeline_block_region_body_ref(arena, cur, soi);
+            }
+            if (ch > 0 && sp < 8192) {
+              g_w157_walk_stack[sp] = ch;
+              sp = sp + 1;
+            }
+          } else if (sok == 7) {
+            unsafe {
+              if (pipeline_block_labeled_is_goto(arena, cur, soi) == 0) {
+                er = pipeline_block_labeled_return_expr_ref(arena, cur, soi);
+                if (er > 0) {
+                  w157_sum_expr_call_spill_bytes(arena, er);
+                }
+              }
+            }
+          }
+        }
+        i = i + 1;
+      }
+      // final expr may not be a stmt_order item on every parse path; walking
+      // it unconditionally can only over-reserve (safe direction).
+      unsafe {
+        fin = ast_ast_block_final_expr_ref(arena, cur);
+      }
+      if (fin > 0) {
+        w157_sum_expr_call_spill_bytes(arena, fin);
+      }
       continue;
     }
     unsafe {
@@ -61150,14 +65495,14 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
       unsafe {
         ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61175,7 +65520,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = pipeline_block_while_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61201,7 +65546,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = pipeline_block_for_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
       }
@@ -61215,9 +65560,29 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
       unsafe {
         ch = pipeline_block_region_body_ref(arena, cur, i);
       }
-      if (ch > 0 && sp < 256) {
+      if (ch > 0 && sp < 8192) {
         g_w157_walk_stack[sp] = ch;
         sp = sp + 1;
+      }
+      i = i + 1;
+    }
+    // Labeled return expressions (C / .x parser).
+    // Without this walk, calls in return expressions (e.g. return f(a, b, c, d, e))
+    // are not counted in call_spill, leading to stack under-allocation in pure-asm frames.
+    unsafe {
+      n = pipeline_block_num_labeled_stmts(arena, cur);
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        if (pipeline_block_labeled_is_goto(arena, cur, i) == 0) {
+          er = pipeline_block_labeled_return_expr_ref(arena, cur, i);
+        } else {
+          er = 0;
+        }
+      }
+      if (er > 0) {
+        w157_sum_expr_call_spill_bytes(arena, er);
       }
       i = i + 1;
     }
@@ -61894,7 +66259,7 @@ export function pipeline_asm_emit_break_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8
   let ly: *u8 = 0 as *u8;
   let break_len: i32 = 0;
   let n: i32 = 0;
-  let lbl: u8[128] = [];
+  let lbl: u8[256] = [];
   let rc: i32 = 0;
   // Touch arena for ABI parity with residual (void)arena.
   if (arena == (0 as *u8) && elf_ctx == (0 as *u8)) {
@@ -61940,7 +66305,7 @@ export function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: 
   let ly: *u8 = 0 as *u8;
   let cont_len: i32 = 0;
   let n: i32 = 0;
-  let lbl: u8[128] = [];
+  let lbl: u8[256] = [];
   let rc: i32 = 0;
   if (arena == (0 as *u8) && elf_ctx == (0 as *u8)) {
     // no-op: ABI parity with residual (void)arena
@@ -65085,7 +69450,10 @@ export function glue_index_deref_ptr_field_slot_rbx_elf_c(arena: *u8, elf_ctx: *
 
 /**
  * Total payload bytes of a fixed TYPE_ARRAY, recursive for multi-dim
- * (`[2][3]i32` → 24). Element TYPE_PTR=9 is pointer width 8 (`*i32[2]` → 16).
+ * (`[2][3]i32` → 24). Element TYPE_PTR=9 / TYPE_FN=18 is pointer width 8
+ * (`*i32[2]` → 16; `[2]function(i32):i32` → 16). G.7 complete of the
+ * 10.3.1 TYPE_FN 8B ABI (force_esz already had kind 18; this size face
+ * missed it and baked `[2]TYPE_FN` as 8 bytes → span overflow CG002).
  * @param arena *u8 - ASTArena*; null → 0
  * @param ty_ref i32 - type pool ref; must be TYPE_ARRAY (ord 10)
  * @param depth i32 - recursion depth; depth > 8 → 0 (cycle/depth guard)
@@ -65130,7 +69498,8 @@ export function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i
     esz = 1;
   } else if (ek == 0 || ek == 3 || ek == 13 || ek == 14) {
     esz = 4;
-  } else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9) {
+  } else if (ek == 15 || ek == 4 || ek == 5 || ek == 6 || ek == 7 || ek == 9 || ek == 18) {
+    // TYPE_FN=18 is Cap opaque fn-ptr ABI (8B), twin of force_esz / seed C.
     esz = 8;
   } else if (ek == 8) {
     unsafe {
@@ -65244,8 +69613,8 @@ export function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i3
       if (kind_ord == 15) {
         return 8;
       }
-      // array/slice of pointer: element is pointer (8), not pointee
-      if (kind_ord == 9) {
+      // array/slice of pointer / TYPE_FN: Cap opaque 8B
+      if (kind_ord == 9 || kind_ord == 18) {
         return 8;
       }
       // multi-dim: outer stride = sizeof(inner array)
@@ -65319,7 +69688,7 @@ export function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref:
   let scope_br: i32 = 0;
   let body_ref: i32 = 0;
   let mod: *u8 = 0 as *u8;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   if (arena == (0 as *u8) || var_ref <= 0) {
     return 0;
   }
@@ -65340,7 +69709,7 @@ export function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, var_ref:
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -66032,12 +70401,12 @@ export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ct
     // Stage 12.0.5: module fixed arrays → SHN_COMMON modlet (no stack).
     // LEA address into rax for INDEX base (load_to_rax decays arrays).
     if (boff < 0) {
-      let vn: u8[128] = [];
+      let vn: u8[256] = [];
       let vnlen: i32 = 0;
       unsafe {
         vnlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vnlen <= 0 || vnlen > 127) {
+      if (vnlen <= 0 || vnlen > 255) {
         return 0 - 2;
       }
       unsafe {
@@ -69339,7 +73708,7 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
 #[no_mangle]
 export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let base_ref: i32 = 0;
@@ -69363,7 +73732,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, lval_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -69371,6 +73740,21 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
       off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
     }
     if (off < 0) {
+      // 9.4.2: non-local binding → module-let COMMON cell (modlet-first,
+      // twin of the generic VAR rvalue path) or same-module fn link
+      // symbol. Address lands in rax/x0 — correct for ADDR_OF consumers
+      // and for store targets alike. Loud -1 only when the name is
+      // neither (`&g` via the first-wins strict_minimal thin reaches
+      // exactly here).
+      mod = pipeline_asm_emit_module_ref_c();
+      if (mod != (0 as *u8)) {
+        unsafe {
+          rc = pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx, mod, &vname[0], vlen, ta);
+        }
+        if (rc == 0) {
+          return 0;
+        }
+      }
       return 0 - 1;
     }
     // Lvalue VAR defaults to lea; *T/T[N] load via holds_indirect + decl type.
@@ -69395,7 +73779,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -69524,7 +73908,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
 #[no_mangle]
 export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let off: i32 = 0;
   let base_ref: i32 = 0;
@@ -69546,7 +73930,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
     unsafe {
       vlen = pipeline_expr_var_name_len(arena, lval_ref);
     }
-    if (vlen <= 0 || vlen > 127) {
+    if (vlen <= 0 || vlen > 255) {
       return 0 - 1;
     }
     unsafe {
@@ -69575,7 +73959,7 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
       unsafe {
         vlen = pipeline_expr_var_name_len(arena, base_ref);
       }
-      if (vlen <= 0 || vlen > 127) {
+      if (vlen <= 0 || vlen > 255) {
         return 0 - 1;
       }
       unsafe {
@@ -69864,17 +74248,17 @@ function glue_struct_layout_name_matches_type_name_c(mod: *u8, li: i32, type_nam
 #[no_mangle]
 export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32 {
   let flen: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let base_ref: i32 = 0;
   let base_ko: i32 = 0;
   let base_ty: i32 = 0;
   let fi: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let nfuncs: i32 = 0;
   let scope_br: i32 = 0;
   let kord: i32 = 0;
-  let struct_name: u8[128] = [];
+  let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let nsl: i32 = 0;
   let k: i32 = 0;
@@ -69883,7 +74267,7 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
   let fnlen: i32 = 0;
   let feq: i32 = 0;
   let fi2: i32 = 0;
-  let fb: u8[128] = [];
+  let fb: u8[256] = [];
   let tr: i32 = 0;
   if (arena == (0 as *u8) || fa_ref <= 0) {
     return 0;
@@ -69891,7 +74275,7 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
   unsafe {
     flen = pipeline_expr_field_access_name_len(arena, fa_ref);
   }
-  if (flen <= 0 || flen > 127) {
+  if (flen <= 0 || flen > 255) {
     return 0;
   }
   unsafe {
@@ -69962,6 +74346,29 @@ export function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref:
         } else {
           kord = 0;
         }
+      }
+      // TYPE_SLICE = 11 — builtin fat fields (no layout table):
+      // `.data` behaves as a pointer field (kind 9) so INDEX base helpers
+      // like glue_index_deref_ptr_field_slot_rax emit the fat deref;
+      // `.length` is usize (kind 6). Parse-only deps previously missed
+      // both (resolver returned 0 → slice param `.data` indexed through
+      // the slot raw → OOB read, run-slice FAIL).
+      if (kord == 11) {
+        if (flen == 4
+            && field_name[0] == 100 && field_name[1] == 97
+            && field_name[2] == 116 && field_name[3] == 97) {
+          unsafe {
+            return pipeline_type_ensure_by_kind_ord(arena, 9);
+          }
+        }
+        if (flen == 6
+            && field_name[0] == 108 && field_name[1] == 101 && field_name[2] == 110
+            && field_name[3] == 103 && field_name[4] == 116 && field_name[5] == 104) {
+          unsafe {
+            return pipeline_type_ensure_by_kind_ord(arena, 6);
+          }
+        }
+        return 0;
       }
       // TYPE_NAMED = 8
       if (kord == 8) {
@@ -70112,14 +74519,21 @@ export function glue_emit_module_from_ctx(ctx: *u8): *u8 {
 }
 
 /**
- * Whether stack_off maps to a *T formal param home (fp-relative 8,16,...).
+ * Whether stack_off maps to a *T formal param home.
+ * Homes match pipeline_asm_fill_param_slots: param 0 starts at 16, then
+ * +8 (or +width when width>8; x86 high-end for wide homes). The old
+ * `(stack_off-8)/8` mapped the by-value NAMED self at 16 onto param
+ * index 1 — when that extra is TYPE_PTR, `self.v` pointer-loaded the
+ * value (dyn extra `*i32` / PTR-outer `*[N][]T` sit-red 139). SLICE
+ * extras stay kind 11 so they never hit this helper (dest-SLICE +
+ * `self.v` already 7).
  * @param arena *u8 — ASTArena*
  * @param mod *u8 — Module*
  * @param func_index i32 — emit function index
  * @param stack_off i32 — frame magnitude (>=8, 8-aligned)
- * @return i32 — 1 if param slot is TYPE_PTR (kind 9); else 0
- * wave189 pure private helper (was Cap residual static).
+ * @return i32 — 1 if this home is a TYPE_PTR (kind 9) formal; else 0
  * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
+ * G.7: complete this walk (same homes as fill_param_slots; no second mapper).
  */
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   let pi: i32 = 0;
@@ -70127,6 +74541,10 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
   let pty: i32 = 0;
   let nf: i32 = 0;
   let tk: i32 = 0;
+  let off: i32 = 16;
+  let is_arm: i32 = 0;
+  let width: i32 = 0;
+  let slot_off: i32 = 0;
   if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || stack_off < 8) {
     return 0;
   }
@@ -70139,25 +74557,51 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
   if ((stack_off & 7) != 0) {
     return 0;
   }
-  pi = (stack_off - 8) / 8;
   unsafe {
+    is_arm = pipeline_asm_host_is_arm64_c();
     np = pipeline_module_func_num_params_at(mod, func_index);
   }
-  if (pi < 0 || pi >= np) {
-    return 0;
-  }
-  unsafe {
-    pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
-  }
-  if (pty <= 0) {
-    return 0;
-  }
-  unsafe {
-    tk = pipeline_type_kind_ord_at(arena, pty);
-  }
-  // TYPE_PTR == 9
-  if (tk == 9) {
-    return 1;
+  pi = 0;
+  while (pi < np) {
+    unsafe {
+      width = glue_func_param_home_width_c(arena, mod, func_index, pi);
+    }
+    if (width <= 0) {
+      width = 8;
+    }
+    if (is_arm != 0) {
+      slot_off = off;
+      if (width > 8) {
+        off = off + width;
+      } else {
+        off = off + 8;
+      }
+    } else {
+      if (width > 8) {
+        slot_off = off + width;
+        off = slot_off + 8;
+      } else {
+        slot_off = off;
+        off = off + 8;
+      }
+    }
+    if (slot_off == stack_off) {
+      unsafe {
+        pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+      }
+      if (pty <= 0) {
+        return 0;
+      }
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, pty);
+      }
+      /* TYPE_PTR == 9 */
+      if (tk == 9) {
+        return 1;
+      }
+      return 0;
+    }
+    pi = pi + 1;
   }
   return 0;
 }
@@ -70174,7 +74618,7 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
  */
 #[no_mangle]
 export function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *u8, var_expr_ref: i32): i32 {
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let fi: i32 = 0;
   let pty: i32 = 0;
@@ -70200,7 +74644,7 @@ export function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8, mod: *
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -70257,7 +74701,7 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
   let holds: i32 = 0;
   let fi: i32 = 0;
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let pty: i32 = 0;
   let tk: i32 = 0;
@@ -70341,7 +74785,7 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
  */
 #[no_mangle]
 export function glue_type_ref_is_named_struct_layout_elf_c(arena: *u8, mod: *u8, ty_ref: i32): i32 {
-  let nm: u8[128] = [];
+  let nm: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let ln: i32 = 0;
@@ -70416,7 +74860,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   let mod: *u8 = 0 as *u8;
   let holds: i32 = 0;
   let ko: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let fi: i32 = 0;
   let nf: i32 = 0;
@@ -70445,7 +74889,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0;
   }
   unsafe {
@@ -70491,13 +74935,20 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
     return 0;
   }
   if (glue_type_ref_is_named_struct_layout_elf_c(arena, mod, decl_ty) != 0) {
-    // PLATFORM: LINUX+MACOS x86_64 SysV — ≤16B INTEGER by-value (load);
-    // >16B MEMORY class lea of stack slot.
+    /* PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER class ≤16B by-value (load
+     * bits into GP). MEMORY class >16B lea of the stack slot.
+     * size_simple==0 used to fall into lea: imported 8B POD (ArrowColumn)
+     * then passed a wrapper address, and Ubuntu free() aborted. Unknown
+     * size is INTEGER 8, not MEMORY.
+     * PLATFORM: MACOS|ARM64 AAPCS64 — same load-vs-lea split (x0 bits). */
     sz = glue_type_size_simple(mod, arena, decl_ty, 0);
-    if (sz > 0 && sz <= 16) {
-      return 0;
+    if (sz <= 0) {
+      sz = glue_type_named_layout_size_any_module_elf_c(arena, decl_ty);
     }
-    return 1;
+    if (sz > 16) {
+      return 1;
+    }
+    return 0;
   }
   if (glue_type_is_fixed_array(arena, decl_ty) != 0) {
     // Formal T[N] home is E* (8B): load slot. Local T[N] lea payload.
@@ -70546,7 +74997,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
  */
 #[no_mangle]
 export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let base_off: i32 = 0;
   let base_len: i32 = 0;
@@ -70583,7 +75034,7 @@ export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref:
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return sz;
   }
   base_off = 0;
@@ -70659,7 +75110,12 @@ export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref:
       di = di + 1;
     }
   }
-  return 0;
+  /* INTEGER-class ≤8B named structs (ArrowColumn { handle: i64 }) must keep
+   * size_simple's 8, not fall through as 0. 0 made STRUCT_LIT / CALL-arg
+   * treat the slot as MEMORY (lea a dangling pointer) while SysV INTEGER
+   * and AAPCS64 both return/pass the 8 bits in rax/x0.
+   * PLATFORM: SHARED — LINUX|x86_64 SysV INTEGER class; MACOS|ARM64 x0. */
+  return sz;
 }
 
 /**
@@ -70714,7 +75170,7 @@ export function glue_call_param_named_struct_pass_addr_elf_c(arena: *u8, pty: i3
  */
 #[no_mangle]
 export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let sz: i32 = 0;
   let base_off: i32 = 0;
@@ -70738,7 +75194,7 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
   unsafe {
     nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   base_off = 0;
@@ -70891,6 +75347,8 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
   let rty: i32 = 0;
   let k: i32 = 0;
   let nf: i32 = 0;
+  let sz: i32 = 0;
+  let nsz: i32 = 0;
   if (mod == (0 as *u8) || arena == (0 as *u8) || func_index < 0) {
     return 0;
   }
@@ -70917,7 +75375,21 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
   if (k == 10) {
     return 8;
   }
-  return glue_type_size_simple(mod, arena, rty, 0);
+  sz = glue_type_size_simple(mod, arena, rty, 0);
+  /* TYPE_NAMED INTEGER-class 8B (ArrowColumn) must not size as 0=void:
+   * a 0 here skipped sret (correct) but also starved STRUCT_LIT / return
+   * packers of the 8B width so they lea'd the slot.
+   * PLATFORM: SHARED — LINUX SysV INTEGER rax; MACOS|ARM64 x0. */
+  if (k == 8) {
+    nsz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+    if (nsz > sz) {
+      sz = nsz;
+    }
+    if (sz <= 0) {
+      return 8;
+    }
+  }
+  return sz;
 }
 
 // end wave192 pure-owned leave
@@ -71886,9 +76358,9 @@ export function glue_asm_resolve_call_target_module_c(
   let call_ord: i32 = 0;
   let callee_ord: i32 = 0;
   let base_ref: i32 = 0;
-  let base_name: u8[128] = [];
+  let base_name: u8[256] = [];
   let base_len: i32 = 0;
-  let field_name: u8[128] = [];
+  let field_name: u8[256] = [];
   let field_len: i32 = 0;
   let j: i32 = 0;
   let dm: *u8 = 0 as *u8;
@@ -71900,7 +76372,7 @@ export function glue_asm_resolve_call_target_module_c(
   let ndep: i32 = 0;
   let dep_pipe: *u8 = 0 as *u8;
   let rty: i32 = 0;
-  let cv_nm: u8[128] = [];
+  let cv_nm: u8[256] = [];
   let cv_len: i32 = 0;
   // Import kind constants (glue residual GLUE_TYPECK_IMPORT_* single authority).
   let import_binding: i32 = 1;
@@ -72780,9 +77252,9 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
           return 0 - 1;
         }
       } else {
-        if (ko == 44 || ko == 47) {
+        if (ko == 44 || ko == 47 || ko == 52) {
           /*
-           * 4) FIELD_ACCESS / INDEX: copy aggregate from lvalue address into temp.
+           * 4) FIELD_ACCESS / INDEX / DEREF: copy aggregate from lvalue address into temp.
            * INDEX lvalue_eff_addr is scaled lea (same pointer emit_index leaves
            * for esz>16). G.7: one copy loop — do not add a second INDEX matcher.
            * PLATFORM: SHARED freestanding · LINUX+MACOS x86_64 SysV.
@@ -72851,7 +77323,7 @@ export function pipeline_asm_push_sysv_memory_by_value_elf_c(
 /**
  * Store a MEMORY-class (>16B) by-value aggregate to SP+offset for AAPCS64.
  * Materializes arg from VAR / nested CALL sret (x8) / STRUCT_LIT / FIELD_ACCESS /
- * INDEX into a low-end frame temp, then copies qwords to SP+sp_off. Nested
+ * INDEX / DEREF into a low-end frame temp, then copies qwords to SP+sp_off. Nested
  * CALL saves/restores incoming x8 (outer sret dest) around the inner lea so
  * id32(id32(x)) still writes the outer slot. INDEX shares the FIELD
  * lvalue_eff_addr copy loop.
@@ -72975,7 +77447,7 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
           return 0 - 1;
         }
       } else {
-        if (ko == 44 || ko == 47) {
+        if (ko == 44 || ko == 47 || ko == 52) {
           /*
            * 4) FIELD_ACCESS / INDEX: copy aggregate from lvalue address into temp.
            * INDEX lvalue_eff_addr is scaled lea. G.7: same loop as x86 push.
@@ -73067,7 +77539,7 @@ export function pipeline_asm_store_memory_by_value_to_sp_elf_c(
  * Such names must not be used for sidecar matching; fall back to anon let path.
  * @param name_buf *u8 — name bytes; null → unusable (1)
  * @param name_len i32 — declared length; <=0 → unusable (1)
- * @return i32 — 1 if unusable; 0 if any non-zero byte in [0,min(name_len,127))
+ * @return i32 — 1 if unusable; 0 if any non-zero byte in [0,min(name_len,255))
  *
  * wave203 pure: private G.7 helper for resolve_var_stack_off (was Cap residual static).
  * PLATFORM: SHARED freestanding SKIP_TYPECK name gate.
@@ -73078,7 +77550,7 @@ function glue_block_let_name_is_unusable_c(name_buf: *u8, name_len: i32): i32 {
     return 1;
   }
   k = 0;
-  while (k < name_len && k < 127) {
+  while (k < name_len && k < 255) {
     if (name_buf[k] != 0) {
       return 0;
     }
@@ -73183,12 +77655,12 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
   let body_ref: i32 = 0;
   let li: i32 = 0;
   let nlet: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ko: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let fi: i32 = 0 - 1;
-  let lb: u8[128] = [];
+  let lb: u8[256] = [];
   let llen: i32 = 0;
   let k: i32 = 0;
   let eq: i32 = 0;
@@ -73216,7 +77688,7 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
   unsafe {
     vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
   }
-  if (vlen <= 0 || vlen > 127) {
+  if (vlen <= 0 || vlen > 255) {
     return 0 - 1;
   }
   unsafe {
@@ -75955,6 +80427,8 @@ let g_block_live_cfg_parent: i32 = 0;
 let g_block_live_fwd_active: i32 = 0;
 let g_block_emit_stmt_i: i32 = 0;
 let g_asm73_linear_max_live_n: i32 = 0;
+/* stage10 10.2.1 slice9: 1 after options(noreturn) asm — skip unreachable emit. */
+let g_asm_block_diverged: i32 = 0;
 
 // wave213: Chaitin interf graph (max 32 verts; undirected adj bitmasks as i32).
 let g_asm73_interf_n: i32 = 0;
@@ -76062,6 +80536,37 @@ export function glue_block_emit_stmt_i_set(v: i32): void {
 #[no_mangle]
 export function glue_block_emit_stmt_i_get(): i32 {
   return g_block_emit_stmt_i;
+}
+
+/**
+ * Stamp block-emit diverged flag (stage10 10.2.1 slice9).
+ * Set by inline asm options(noreturn) after ud2; consumers skip trailing
+ * stmt_order entries and final_expr until the next function body entry clears.
+ * Slice11: if-stmt CFG join clears or ANDs arm flags (if-only → clear;
+ * if/else → set only when both arms diverged).
+ *
+ * @param v i32 — non-zero ⇒ diverged
+ * @return void
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_asm_block_diverged_set(v: i32): void {
+  if (v != 0) {
+    g_asm_block_diverged = 1;
+  } else {
+    g_asm_block_diverged = 0;
+  }
+}
+
+/**
+ * Return 1 when block emit should skip unreachable trailing code.
+ *
+ * @return i32 — 0 or 1
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_asm_block_diverged_get(): i32 {
+  return g_asm_block_diverged;
 }
 
 /**
@@ -77311,7 +81816,7 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   let ko: i32 = 0;
   let off: i32 = 0;
   let vlen: i32 = 0;
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   let want_slice: i32 = 0;
   let arg_ty: i32 = 0;
   let decl_ty: i32 = 0;
@@ -77950,14 +82455,14 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
 // Why stack copy (not live arena ptr): match historical get_copy snapshot so a
 //   partial that mutates e cannot corrupt the arena row (same as Cap residual).
 // ABI: LP64 large-struct-by-value ≡ pointer-to-temp; pure passes *u8 snapshot.
-// sizeof(struct ast_Expr) = 712 (mac arm64 + Ubuntu x86_64 dual-end; seed layout).
+// sizeof(struct ast_Expr) = 1224 (Cap 4.2.8 name[256]; mac+Ubuntu dual-end).
 // Deferred: pipeline_x mega host-cc.
 // PLATFORM: SHARED — pure delegation, no arch branch.
 // ===========================================================================
 
 /** LP64 byte size of struct ast_Expr (seed/parser layout). PLATFORM: SHARED. */
 function pipeline_ast_expr_sizeof_c(): i32 {
-  return 712;
+  return 1224;
 }
 
 /**
@@ -78015,7 +82520,7 @@ export extern "C" function backend_emit_expr_method_call(arena: *u8, out: *u8, e
 #[no_mangle]
 export function pipeline_asm_emit_expr_call_c(
     arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32 {
-  // Stack snapshot of C-layout Expr (sizeof 712); matches Cap get_copy temp.
+  // Stack snapshot of C-layout Expr (sizeof 1224); matches Cap get_copy temp.
   let ebuf: u8[712] = [];
   let ep: *u8 = 0 as *u8;
   let esz: i32 = 0;
@@ -78687,7 +83192,7 @@ export function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void {
 // module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
 // keyed by Module* (same pattern as wave110 ImportEntry storage).
 // Layout of one TypeAliasEntry (136 bytes LE, ≡ C typedef TypeAliasEntry):
-//   name[128] @0 | name_len i32 @128 | target_type_ref i32 @132
+//   name[256] @0 | name_len i32 @256 | target_type_ref i32 @260
 // Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
 // Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
 // Cold twins under seed #ifndef FROM_X (malloc map, freestanding).
@@ -78702,11 +83207,11 @@ let g_pipe_ta_entries: u8[1024] = [];
 
 /**
  * Byte size of one TypeAliasEntry (name[128] + name_len + target_type_ref).
- * @return i32 - 136
+ * @return i32 - 264
  * PLATFORM: SHARED LP64 - must match C sizeof(TypeAliasEntry).
  */
 function pipe_ta_entry_size(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
@@ -78715,16 +83220,16 @@ function pipe_ta_entry_size(): i32 {
  * PLATFORM: SHARED LP64.
  */
 function pipe_ta_off_name_len(): i32 {
-  return 128;
+  return 256;
 }
 
 /**
  * Byte offset of target_type_ref within TypeAliasEntry.
- * @return i32 - 132
+ * @return i32 - 260
  * PLATFORM: SHARED LP64.
  */
 function pipe_ta_off_target(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
@@ -78953,10 +83458,10 @@ export function pipeline_module_type_alias_alloc(module: *u8): i32 {
  * @param module *u8 - module
  * @param idx i32 - alias index
  * @param name *u8 - alias name bytes
- * @param name_len i32 - content length 1..127 (storage name[128])
+ * @param name_len i32 - content length 1..255 (storage name[256])
  * @param target_type_ref i32 - target type ref
  * @return void
- * wave582 Cap residual: name content max 127 (match AST / TypeAliasEntry).
+ * wave582 Cap residual: name content max 255 (match AST / TypeAliasEntry).
  * PLATFORM: SHARED - ≡ Cap pipeline_module_type_alias_set; DEBUG_PIPE notes cold-only.
  */
 #[no_mangle]
@@ -78971,7 +83476,7 @@ export function pipeline_module_type_alias_set(module: *u8, idx: i32, name: *u8,
   if (name_len <= 0) {
     return;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return;
   }
   let s: i32 = pipe_ta_find_slot(module);
@@ -79113,10 +83618,10 @@ export function pipeline_module_num_type_aliases_at(module: *u8): i32 {
 // Historical Cap residual grew ModuleSidecar.module_enums GrowVec (static
 // module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
 // keyed by Module* (same pattern as wave110 ImportEntry / wave262 TypeAlias).
-// Layout of one ModuleEnumEntry (33932 bytes LE, ≡ C typedef ModuleEnumEntry):
-//   name[128] @0 | name_len i32 @128 | num_variants i32 @132
-//   | variant_name[256][128] @136 | variant_name_len[256] i32 @32904
-//   | is_export i32 @33928
+// Layout of one ModuleEnumEntry (66828 bytes LE, ≡ C typedef ModuleEnumEntry):
+//   name[256] @0 | name_len i32 @256 | num_variants i32 @260
+//   | variant_name[256][256] @264 | variant_name_len[256] i32 @65800
+//   | is_export i32 @66824
 // Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
 // Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
 // Soft-sync: when header num_module_enums@64 == 0, pure n forced 0 (parse/module reset).
@@ -79133,11 +83638,11 @@ let g_pipe_en_entries: u8[1024] = [];
 
 /**
  * Byte size of one ModuleEnumEntry (name + lens + 256 variant rows + lens + export).
- * @return i32 - 33932
+ * @return i32 - 66828
  * PLATFORM: SHARED LP64 - must match C sizeof(ModuleEnumEntry).
  */
 function pipe_en_entry_size(): i32 {
-  return 33932;
+  return 66828;
 }
 
 /**
@@ -79151,42 +83656,42 @@ function pipe_en_max_variants(): i32 {
 
 /**
  * Byte offset of name_len within ModuleEnumEntry.
- * @return i32 - 128
+ * @return i32 - 256
  */
 function pipe_en_off_name_len(): i32 {
-  return 128;
+  return 256;
 }
 
 /**
  * Byte offset of num_variants within ModuleEnumEntry.
- * @return i32 - 132
+ * @return i32 - 260
  */
 function pipe_en_off_num_variants(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
  * Byte offset of variant_name[0][0] within ModuleEnumEntry.
- * @return i32 - 136
+ * @return i32 - 264
  */
 function pipe_en_off_variant_name0(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
  * Byte offset of variant_name_len[0] within ModuleEnumEntry.
- * @return i32 - 32904
+ * @return i32 - 65800
  */
 function pipe_en_off_variant_name_len0(): i32 {
-  return 32904;
+  return 65800;
 }
 
 /**
  * Byte offset of is_export within ModuleEnumEntry.
- * @return i32 - 33928
+ * @return i32 - 66824
  */
 function pipe_en_off_is_export(): i32 {
-  return 33928;
+  return 66824;
 }
 
 /**
@@ -79475,9 +83980,9 @@ export function pipeline_module_enum_alloc(module: *u8): i32 {
  * @param module *u8 - module
  * @param idx i32 - enum index
  * @param bytes *u8 - name bytes
- * @param len i32 - content length 1..127 (storage name[128])
+ * @param len i32 - content length 1..255 (storage name[256])
  * @return void
- * wave582 Cap residual: name content max 127. PLATFORM: SHARED.
+ * wave582 Cap residual: name content max 255. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_set_name(module: *u8, idx: i32, bytes: *u8, len: i32): void {
@@ -79490,7 +83995,7 @@ export function pipeline_module_enum_set_name(module: *u8, idx: i32, bytes: *u8,
   if (len <= 0) {
     return;
   }
-  if (len > 127) {
+  if (len > 255) {
     return;
   }
   pipe_en_soft_sync(module);
@@ -79574,9 +84079,14 @@ export function pipeline_module_enum_is_export_at(module: *u8, idx: i32): i32 {
  * @param module *u8 - module
  * @param idx i32 - enum index
  * @param bytes *u8 - variant name bytes
- * @param len i32 - content length 1..127
+ * @param len i32 - content length 1..255
  * @return i32 - variant tag or -1 (full / OOB / null)
- * wave582 Cap residual: variant rows u8[128]; content cap 127. PLATFORM: SHARED.
+ * wave582 Cap residual; rows are u8[256] since Cap 4.2.8 (name[256]
+ * world, variant_name_len@65800 ⇒ 256 stride — a 128 stride wrote
+ * variant #1+ into the middle of row 0's tail and readers at
+ * 264+vi*256 saw empty names: every multi-variant enum failed
+ * typeck T001; see the 2026-09-13 L4 std/http run).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes: *u8, len: i32): i32 {
@@ -79589,7 +84099,7 @@ export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes
   if (len <= 0) {
     return 0 - 1;
   }
-  if (len > 127) {
+  if (len > 255) {
     return 0 - 1;
   }
   pipe_en_soft_sync(module);
@@ -79605,9 +84115,9 @@ export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes
   if (nv >= pipe_en_max_variants()) {
     return 0 - 1;
   }
-  let voff: i32 = pipe_en_off_variant_name0() + nv * 128;
+  let voff: i32 = pipe_en_off_variant_name0() + nv * 256;
   let k: i32 = 0;
-  while (k < 128) {
+  while (k < 256) {
     unsafe {
       e[voff + k] = 0;
     }
@@ -79678,7 +84188,7 @@ function pipe_en_variant_tag_in_entry(e: *u8, variant_name: *u8, variant_len: i3
     let loff: i32 = pipe_en_off_variant_name_len0() + vi * 4;
     let vlen: i32 = pipe_load_i32_le(e, loff);
     if (vlen == variant_len) {
-      let voff: i32 = pipe_en_off_variant_name0() + vi * 128;
+      let voff: i32 = pipe_en_off_variant_name0() + vi * 256;
       let j: i32 = 0;
       let ok: i32 = 1;
       while (j < variant_len) {
@@ -79956,7 +84466,7 @@ export function pipeline_module_enum_variant_name_byte_at(module: *u8, idx: i32,
   if (off >= vlen) {
     return 0 as u8;
   }
-  let voff: i32 = pipe_en_off_variant_name0() + variant_idx * 128;
+  let voff: i32 = pipe_en_off_variant_name0() + variant_idx * 256;
   let b: u8 = 0 as u8;
   unsafe {
     b = e[voff + off];
@@ -79996,10 +84506,10 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
     if (elen <= 0) {
       return 0;
     }
-    if (elen > 127) {
+    if (elen > 255) {
       elen = 127;
     }
-    let tmp: u8[128] = [];
+    let tmp: u8[256] = [];
     unsafe {
       pipeline_expr_var_name_into(arena, base_ref, &tmp[0]);
     }
@@ -80021,10 +84531,10 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
     if (elen2 <= 0) {
       return 0;
     }
-    if (elen2 > 127) {
-      elen2 = 127;
+    if (elen2 > 255) {
+      elen2 = 255;
     }
-    let tmp2: u8[128] = [];
+    let tmp2: u8[256] = [];
     unsafe {
       pipeline_expr_field_access_name_into(arena, base_ref, &tmp2[0]);
     }
@@ -80074,7 +84584,7 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   unsafe {
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
   }
-  let ename: u8[128] = [];
+  let ename: u8[256] = [];
   let elen: i32 = pipe_en_name_from_fa_base(a, base_ref, &ename[0]);
   if (elen <= 0) {
     return;
@@ -80086,10 +84596,10 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   if (vlen <= 0) {
     return;
   }
-  if (vlen > 127) {
+  if (vlen > 255) {
     return;
   }
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &vname[0]);
   }
@@ -80135,7 +84645,7 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   unsafe {
     base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
   }
-  let ename: u8[128] = [];
+  let ename: u8[256] = [];
   let elen: i32 = pipe_en_name_from_fa_base(a, base_ref, &ename[0]);
   if (elen <= 0) {
     return;
@@ -80147,10 +84657,10 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   if (vlen <= 0) {
     return;
   }
-  if (vlen > 127) {
+  if (vlen > 255) {
     return;
   }
-  let vname: u8[128] = [];
+  let vname: u8[256] = [];
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &vname[0]);
   }
@@ -80206,8 +84716,8 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
 // module_sidecar_get + grow_vec_*). Product pure owns multi-module malloc map
 // keyed by Module* (same pattern as wave110 Import / wave262 TypeAlias / wave264 Enum).
 // Layout of one TopLevelLetEntry (148 bytes LE, ≡ C typedef TopLevelLetEntry):
-//   name[128] @0 | name_len i32 @128 | type_ref i32 @132 | init_ref i32 @136
-//   | is_const i32 @140 | is_export i32 @144
+//   name[256] @0 | name_len i32 @256 | type_ref i32 @260 | init_ref i32 @264
+//   | is_const i32 @268 | is_export i32 @272
 // Soft-reset: ast_pool_module_reset calls storage_reset (zero live n, keep cap).
 // Hard free: ast_pool_module_release calls storage_release (free tables + clear slot).
 // Soft-sync: when header num_top_level_lets@12 == 0, pure n forced 0.
@@ -80227,11 +84737,11 @@ let g_pipe_tl_entries: u8[1024] = [];
 
 /**
  * Byte size of one TopLevelLetEntry (name + 5 i32 fields).
- * @return i32 - 148
+ * @return i32 - 276
  * PLATFORM: SHARED LP64 - must match C sizeof(TopLevelLetEntry).
  */
 function pipe_tl_entry_size(): i32 {
-  return 148;
+  return 276;
 }
 
 /**
@@ -80239,23 +84749,23 @@ function pipe_tl_entry_size(): i32 {
  * @return i32 - 128
  */
 function pipe_tl_off_name_len(): i32 {
-  return 128;
+  return 256;
 }
 
 /**
  * Byte offset of type_ref within TopLevelLetEntry.
- * @return i32 - 132
+ * @return i32 - 260
  */
 function pipe_tl_off_type_ref(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
  * Byte offset of init_ref within TopLevelLetEntry.
- * @return i32 - 136
+ * @return i32 - 264
  */
 function pipe_tl_off_init_ref(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
@@ -80263,15 +84773,15 @@ function pipe_tl_off_init_ref(): i32 {
  * @return i32 - 140
  */
 function pipe_tl_off_is_const(): i32 {
-  return 140;
+  return 268;
 }
 
 /**
  * Byte offset of is_export within TopLevelLetEntry.
- * @return i32 - 144
+ * @return i32 - 272
  */
 function pipe_tl_off_is_export(): i32 {
-  return 144;
+  return 272;
 }
 
 /**
@@ -80559,12 +85069,12 @@ export function pipeline_module_top_level_let_alloc(module: *u8): i32 {
  * @param module *u8 - module
  * @param idx i32 - let index
  * @param name *u8 - name bytes
- * @param name_len i32 - content length 1..127
+ * @param name_len i32 - content length 1..255
  * @param type_ref i32 - type ref
  * @param init_ref i32 - init expr ref
  * @param is_const i32 - 0/1 const
  * @return void
- * wave581 Cap residual: name content max 127. PLATFORM: SHARED.
+ * wave581 Cap residual: name content max 255. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_module_top_level_let_set(module: *u8, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void {
@@ -80577,7 +85087,7 @@ export function pipeline_module_top_level_let_set(module: *u8, idx: i32, name: *
   if (name_len <= 0) {
     return;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return;
   }
   pipe_tl_soft_sync(module);
@@ -80926,6 +85436,26 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
  * TYPE_SLICE fat rows) still hoist — prepare skips those (seed is LIT
  * only; durable dest_elem_ty is the fat-row home).
  *
+ * 9.6.0: do NOT hoist mutable scalar LIT/BOOL top-level lets either.
+ * prepare registers them as 8-byte SHN_COMMON (wave139 gate: init_kind
+ * 0/2 with is_const==0) and seed_nonzero_inits seeds the home once on
+ * hoist-target entry. Hoisting stacked a second stale main frame slot
+ * beside the COMMON home — slot-first consumers (compare fast path /
+ * lit-left twin / INDEX base) read the slot while RMW reads COMMON
+ * (probe p12: `g=g+1; g=g+1; if g==2` compared a never-updated slot and
+ * returned false; p14 proved the init reaches COMMON). Skipping keeps
+ * COMMON the single home; every consumer then falls to the generic
+ * modlet-first VAR emit (= proven non-hoist-function behavior, p16).
+ * The skip re-checks init_ref validity because ik_h is sampled only when
+ * init_ref is in range — an un-initialized let must still hoist (prepare
+ * skips it too, so no COMMON cell exists for it).
+ *
+ * Scalar ADDR_OF / fn-ptr (tk 9/18, pipe_modlet_scalar_init_is_ptr_addr)
+ * also stay un-hoisted: prepare bakes an 8-byte .data cell + absolute64
+ * RELA so non-hoist functions / library TUs see the pointer. Dual-home
+ * would leave other() reading an unseeded slot (q4-shaped main-only was
+ * the historic hoist green).
+ *
  * prepend_lets count must equal the number actually appended (not raw n), else
  * skipped COMMON arrays would desync stmt_order vs block lets.
  *
@@ -80992,7 +85522,7 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
   while (tl < n) {
     let name_len: i32 = pipeline_module_top_level_let_name_len(module, tl);
     if (name_len > 0) {
-      if (name_len <= 127) {
+      if (name_len <= 255) {
         let type_ref: i32 = pipeline_module_top_level_let_type_ref(module, tl);
         let init_ref: i32 = pipeline_module_top_level_let_init_ref(module, tl);
         // Skip COMMON-bound fixed arrays (match prepare/sum/register).
@@ -81043,11 +85573,36 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
               if (is_c_h == 0) {
                 skip_common_arr = 1;
               }
+            } else {
+              // 9.6.0: mutable scalar LIT/BOOL init is modlet COMMON-owned
+              // (prepare registers init_kind 0/2 with is_const==0). Hoisting
+              // stacked a stale main frame slot beside the COMMON home and
+              // slot-first consumers read the slot (p12 miscompile). ik_h is
+              // only meaningful when init_ref was in range, so re-check it:
+              // an un-initialized let has no COMMON cell and must still
+              // hoist. Const scalars keep hoisting (prepare skips those).
+              // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+              if ((ik_h == 0 || ik_h == 2) && init_ref > 0 && init_ref <= nexprs) {
+                let is_c_sc: i32 = 0;
+                unsafe {
+                  is_c_sc = pipeline_module_top_level_let_is_const(module, tl);
+                }
+                if (is_c_sc == 0) {
+                  skip_common_arr = 1;
+                }
+              }
+            }
+          }
+          // Scalar ADDR_OF / fn-ptr: same predicate as prepare register.
+          // PLATFORM: SHARED — 9.6.0 dual-home class.
+          if (skip_common_arr == 0 && (tk_h == 9 || tk_h == 18) && init_ref > 0 && init_ref <= nexprs) {
+            if (pipe_modlet_scalar_init_is_ptr_addr(arena, module, init_ref) != 0) {
+              skip_common_arr = 1;
             }
           }
         }
         if (skip_common_arr == 0) {
-          let name_buf: u8[128] = [];
+          let name_buf: u8[256] = [];
           let k: i32 = 0;
           while (k < name_len) {
             name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
@@ -81117,7 +85672,7 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
       }
       let name_len: i32 = pipeline_module_top_level_let_name_len(mod, tl);
       if (skip == 0 && name_len > 0) {
-        let name_buf: u8[128] = [];
+        let name_buf: u8[256] = [];
         let k: i32 = 0;
         while (k < name_len) {
           name_buf[k] = pipeline_module_top_level_let_name_byte_at(mod, tl, k) as u8;
@@ -81165,15 +85720,15 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
 //   keyed by Module* (same pattern as wave110 Import / wave262 TypeAlias /
 //   wave264 Enum / wave265 TopLevelLet).
 // Layout entry pure (168 bytes LE):
-//   name[128]@0 | name_len@128 | field_base@132 | num_fields@136
-//   | allow_padding@140 | soa@144 | packed@148 | repr_compatible@152
+//   name[256]@0 | name_len@256 | field_base@260 | num_fields@264
+//   | allow_padding@268 | soa@272 | packed@276 | repr_compatible@280
 //   | is_export@156 | tp_base@160 | tp_count@164
 //   (C ast_StructLayout is 160B; pure extends +8 for type-param meta formerly
 //    in LayoutTypeParamMeta GrowVec; Cap GrowVec residual unused for product.)
 // Field entry (144 bytes LE ≡ StructLayoutFieldEntry):
-//   name[128]@0 | name_len@128 | field_offset@132 | type_ref@136 | field_align@140
+//   name[256]@0 | name_len@256 | field_offset@260 | type_ref@264 | field_align@268
 // Type-param entry (132 bytes LE ≡ LayoutTypeParamEntry):
-//   name[128]@0 | name_len@128
+//   name[256]@0 | name_len@256
 // Soft-reset: ast_pool_module_reset -> storage_reset (zero live n for layouts/
 //   fields/tp, keep caps). Soft-sync: header num_struct_layouts@16 == 0 -> pure n=0.
 // Sizing: next_field_offset uses pure glue_type_size_simple / align_simple /
@@ -81195,52 +85750,52 @@ let g_pipe_sl_tp: u8[1024] = [];
 
 /**
  * Byte size of one pure StructLayout entry (C 160 + tp meta 8).
- * @return i32 - 168
+ * @return i32 - 296
  * PLATFORM: SHARED LP64.
  */
 function pipe_sl_layout_size(): i32 {
-  return 168;
+  return 296;
 }
 
 /**
  * Byte size of one StructLayoutFieldEntry.
- * @return i32 - 144
+ * @return i32 - 272
  * PLATFORM: SHARED LP64 - must match C sizeof(StructLayoutFieldEntry).
  */
 function pipe_sl_field_size(): i32 {
-  return 144;
+  return 272;
 }
 
 /**
  * Byte size of one LayoutTypeParamEntry.
- * @return i32 - 132
+ * @return i32 - 260
  * PLATFORM: SHARED LP64 - must match C sizeof(LayoutTypeParamEntry).
  */
 function pipe_sl_tp_size(): i32 {
-  return 132;
+  return 260;
 }
 
 /**
  * Offsets within pure layout entry.
  */
-function pipe_sl_off_name_len(): i32 { return 128; }
-function pipe_sl_off_field_base(): i32 { return 132; }
-function pipe_sl_off_num_fields(): i32 { return 136; }
-function pipe_sl_off_allow_padding(): i32 { return 140; }
-function pipe_sl_off_soa(): i32 { return 144; }
-function pipe_sl_off_packed(): i32 { return 148; }
-function pipe_sl_off_repr_compatible(): i32 { return 152; }
-function pipe_sl_off_is_export(): i32 { return 156; }
-function pipe_sl_off_tp_base(): i32 { return 160; }
-function pipe_sl_off_tp_count(): i32 { return 164; }
+function pipe_sl_off_name_len(): i32 { return 256; }
+function pipe_sl_off_field_base(): i32 { return 260; }
+function pipe_sl_off_num_fields(): i32 { return 264; }
+function pipe_sl_off_allow_padding(): i32 { return 268; }
+function pipe_sl_off_soa(): i32 { return 272; }
+function pipe_sl_off_packed(): i32 { return 276; }
+function pipe_sl_off_repr_compatible(): i32 { return 280; }
+function pipe_sl_off_is_export(): i32 { return 284; }
+function pipe_sl_off_tp_base(): i32 { return 288; }
+function pipe_sl_off_tp_count(): i32 { return 292; }
 
 /**
  * Offsets within field entry.
  */
-function pipe_sl_foff_name_len(): i32 { return 128; }
-function pipe_sl_foff_offset(): i32 { return 132; }
-function pipe_sl_foff_type_ref(): i32 { return 136; }
-function pipe_sl_foff_align(): i32 { return 140; }
+function pipe_sl_foff_name_len(): i32 { return 256; }
+function pipe_sl_foff_offset(): i32 { return 260; }
+function pipe_sl_foff_type_ref(): i32 { return 264; }
+function pipe_sl_foff_align(): i32 { return 268; }
 
 /**
  * LP64 offsetof(struct ast_Module, num_struct_layouts) == 16.
@@ -81778,7 +86333,7 @@ export function pipeline_module_struct_layout_reset_slot(module: *u8, idx: i32):
 }
 
 /**
- * Set layout name (content 1..127).
+ * Set layout name (content 1..255).
  * @param module *u8 - module
  * @param idx i32 - layout index
  * @param bytes *u8 - name bytes
@@ -81797,7 +86352,7 @@ export function pipeline_module_struct_layout_set_name(module: *u8, idx: i32, by
   if (len <= 0) {
     return;
   }
-  if (len > 127) {
+  if (len > 255) {
     return;
   }
   pipe_sl_soft_sync(module);
@@ -81842,7 +86397,7 @@ export function pipeline_module_struct_layout_set_field(module: *u8, li: i32, j:
   if (fname_len <= 0) {
     return;
   }
-  if (fname_len > 127) {
+  if (fname_len > 255) {
     return;
   }
   if (j < 0) {
@@ -81911,7 +86466,7 @@ export function pipeline_module_struct_layout_name_into(module: *u8, idx: i32, o
   }
   if (module == 0 as *u8) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
@@ -81919,19 +86474,19 @@ export function pipeline_module_struct_layout_name_into(module: *u8, idx: i32, o
   let s: i32 = pipe_sl_find_slot(module);
   if (s < 0) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   let sl: *u8 = pipe_sl_layout_at(s, idx);
   if (sl == 0 as *u8) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   unsafe {
-    memcpy(out64, sl, 128 as usize);
+    memcpy(out64, sl, 256 as usize);
   }
 }
 
@@ -82038,7 +86593,7 @@ export function pipeline_module_struct_layout_field_type_ref(module: *u8, li: i3
 }
 
 /**
- * Read field name length (content 1..127 valid).
+ * Read field name length (content 1..255 valid).
  * @param module *u8 - module
  * @param li i32 - layout index
  * @param j i32 - field index
@@ -82055,7 +86610,7 @@ export function pipeline_module_struct_layout_field_name_len(module: *u8, li: i3
   }
   let fl: i32 = pipe_load_i32_le(fe, pipe_sl_foff_name_len());
   if (fl > 0) {
-    if (fl <= 127) {
+    if (fl <= 255) {
       return fl;
     }
   }
@@ -82077,19 +86632,19 @@ export function pipeline_module_struct_layout_field_name_into(module: *u8, li: i
   }
   if (j < 0) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   let fe: *u8 = pipe_sl_field_entry(module, li, j, 0);
   if (fe == 0 as *u8) {
     unsafe {
-      memset(out64, 0, 128 as usize);
+      memset(out64, 0, 256 as usize);
     }
     return;
   }
   unsafe {
-    memcpy(out64, fe, 128 as usize);
+    memcpy(out64, fe, 256 as usize);
   }
 }
 
@@ -82179,7 +86734,7 @@ export function pipeline_module_struct_layout_set_field_align(module: *u8, li: i
  * @param module *u8 - module
  * @param li i32 - layout index
  * @param name *u8 - param name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @return i32 - 0 ok, -1 fail
  * PLATFORM: SHARED.
  */
@@ -82197,7 +86752,7 @@ export function pipeline_module_struct_layout_append_type_param(module: *u8, li:
   if (name_len <= 0) {
     return 0 - 1;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0 - 1;
   }
   pipe_sl_soft_sync(module);
@@ -82325,7 +86880,7 @@ export function pipeline_module_struct_layout_type_param_name_len(module: *u8, l
   let ent: *u8 = tbase + (abs * pipe_sl_tp_size());
   let nl: i32 = pipe_load_i32_le(ent, 128);
   if (nl > 0) {
-    if (nl <= 127) {
+    if (nl <= 255) {
       return nl;
     }
   }
@@ -82346,7 +86901,7 @@ export function pipeline_module_struct_layout_type_param_name_into(module: *u8, 
     return;
   }
   unsafe {
-    memset(out64, 0, 128 as usize);
+    memset(out64, 0, 256 as usize);
   }
   if (module == 0 as *u8) {
     return;
@@ -82391,7 +86946,7 @@ export function pipeline_module_struct_layout_type_param_name_into(module: *u8, 
     return;
   }
   unsafe {
-    memcpy(out64, ent, 128 as usize);
+    memcpy(out64, ent, 256 as usize);
   }
 }
 
@@ -82703,7 +87258,7 @@ export function pipeline_struct_layout_next_field_offset(m: *u8, a: *u8, layout_
 //   block_refs/slot_bases). Product pure owns 64-slot maps keyed by AsmFuncCtx*
 //   (same pattern as wave114 asm_ctx_loop_*).
 // Local entry pure (136 bytes LE ≡ C AsmLocalSlotEntry):
-//   name[128]@0 | name_len@128 | offset@132
+//   name[256]@0 | name_len@256 | offset@132
 // Block tables: parallel i32 arrays (block_ref, slot_base).
 // Reset zeros live n (keeps malloc capacity); local_reset also clears block slots.
 // Cap residual: asm_ctx_local_find_offset_scoped (bootstrap_glue) still host-cc;
@@ -82723,11 +87278,11 @@ let g_pipe_al_bbases: u8[512] = [];
 
 /**
  * Byte size of one pure AsmLocalSlotEntry.
- * @return i32 - 136
+ * @return i32 - 264
  * PLATFORM: SHARED LP64 - must match C sizeof(AsmLocalSlotEntry).
  */
 function pipe_al_entry_size(): i32 {
-  return 136;
+  return 264;
 }
 
 /**
@@ -82741,8 +87296,8 @@ function pipe_al_max_slots(): i32 {
 /**
  * Offsets within local entry.
  */
-function pipe_al_off_name_len(): i32 { return 128; }
-function pipe_al_off_offset(): i32 { return 132; }
+function pipe_al_off_name_len(): i32 { return 256; }
+function pipe_al_off_offset(): i32 { return 260; }
 
 /**
  * Find map slot for AsmFuncCtx key (create optional).
@@ -83016,8 +87571,8 @@ export function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset:
     memset(base, 0, pipe_al_entry_size() as usize);
   }
   let n: i32 = name_len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let k: i32 = 0;
   while (k < n) {
@@ -83036,7 +87591,7 @@ export function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset:
  * Name length of local slot idx (0 if OOB).
  * @param ctx *u8 - AsmFuncCtx* key
  * @param idx i32 - local index
- * @return i32 - stored name_len (may exceed 127 if historical clamp only on bytes)
+ * @return i32 - stored name_len (may exceed 255 if historical clamp only on bytes)
  * wave267 pure: G.7 single product authority.
  * PLATFORM: SHARED.
  */
@@ -83105,7 +87660,7 @@ export function asm_ctx_local_name_copy64(ctx: *u8, idx: i32, dst: *u8): void {
     return;
   }
   unsafe {
-    memset(dst, 0, 128 as usize);
+    memset(dst, 0, 256 as usize);
   }
   let s: i32 = pipe_al_find(ctx, 0);
   if (s < 0) {
@@ -83117,8 +87672,8 @@ export function asm_ctx_local_name_copy64(ctx: *u8, idx: i32, dst: *u8): void {
   }
   let nlen: i32 = pipe_load_i32_le(ent, pipe_al_off_name_len());
   let n: i32 = nlen;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let k: i32 = 0;
   while (k < n) {
@@ -83177,7 +87732,7 @@ export function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i
         let k: i32 = 0;
         let ok: i32 = 1;
         while (k < name_len) {
-          // Compare against stored bytes (clamp 127); beyond clamp must be zero names only if name_len>127 rare.
+          // Compare against stored bytes (clamp 255); beyond clamp must be zero names only if name_len>255 rare.
           let eb: u8 = 0 as u8;
           if (k < 127) {
             unsafe { eb = ent[k]; }
@@ -83364,6 +87919,14 @@ function pipe_asm_ctx_module_ref(ctx: *u8): *u8 {
  * TYPE_NAMED struct layout stack slot bytes in one module.
  * Metrics OK + sz==0 => true ZST (return 0); metrics fail => invent last_off+fsz.
  * Strips trailing module prefix after last '.' before layout name match.
+ *
+ * NL-04 (2026-08-24): when metrics succeed, also raise sz to cover stored
+ * field offsets (max_j foff_j+fsz_j). Import STRUCT_LIT can leave thin
+ * field types (i32 from untyped 0) while glue_sync / dep merge stamps
+ * wide AoS offsets (e.g. PageMmapHeap off@16) — metrics then return 16
+ * while stores write 24B and smash the previous local (freestanding
+ * fs smoke exit=5). G.7: single sizing authority must respect offsets.
+ *
  * @param arena *u8 - ASTArena*
  * @param type_ref i32 - TYPE_NAMED type ref
  * @param mod *u8 - Module*; null -> 0
@@ -83372,7 +87935,7 @@ function pipe_asm_ctx_module_ref(ctx: *u8): *u8 {
  * PLATFORM: SHARED freestanding nest ZST · LINUX gold.
  */
 function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let k: i32 = 0;
   let nlayouts: i32 = 0;
@@ -83399,7 +87962,7 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
   unsafe {
     nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
   }
-  if (nlen <= 0 || nlen > 127) {
+  if (nlen <= 0 || nlen > 255) {
     return 0;
   }
   // Strip module prefix: "heap.PageMmapHeap" -> "PageMmapHeap".
@@ -83454,9 +88017,30 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
         }
         sz = sz_slot[0];
         // TRACE soft-dropped.
+        unsafe {
+          nf = pipeline_module_struct_layout_num_fields(mod, k);
+        }
         if (mrc == 0) {
           if (sz <= 0) {
             return 0;
+          }
+          // Raise to stored-offset extent (NL-04 import lit thin types).
+          if (nf > 0) {
+            j = 0;
+            while (j < nf) {
+              unsafe {
+                foff = pipeline_module_struct_layout_field_offset_at(mod, k, j);
+                fty = pipeline_module_struct_layout_field_type_ref(mod, k, j);
+              }
+              fsz = pipe_local_slot_bytes_mod(arena, fty, mod);
+              if (fsz <= 0) {
+                fsz = 8;
+              }
+              if ((foff + fsz) > sz) {
+                sz = foff + fsz;
+              }
+              j = j + 1;
+            }
           }
           if (sz % 8 != 0) {
             sz = sz + (8 - (sz % 8));
@@ -83464,9 +88048,6 @@ function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 
           return sz;
         }
         // Metrics failed: invent last_off + field slot bytes.
-        unsafe {
-          nf = pipeline_module_struct_layout_num_fields(mod, k);
-        }
         if (nf > 0) {
           last = nf - 1;
           unsafe {
@@ -83511,7 +88092,7 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
   let elem_ref: i32 = 0;
   let ek: i32 = 0;
   let soa_sz: i32 = 0;
-  let ename: u8[128] = [];
+  let ename: u8[256] = [];
   let elen: i32 = 0;
   let nlayouts: i32 = 0;
   let lk: i32 = 0;
@@ -83624,7 +88205,7 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let ek: i32 = 0;
   let bytes: i32 = 0;
   let lanes: i32 = 0;
-  let name: u8[128] = [];
+  let name: u8[256] = [];
   let nlen: i32 = 0;
   let cur: i32 = 0;
   let prod: i32 = 0;
@@ -83635,6 +88216,18 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let lek: i32 = 0;
   let ssz: i32 = 0;
   let simd: i32 = 0;
+  let da: *u8 = 0 as *u8;
+  let nlayouts2: i32 = 0;
+  let k2: i32 = 0;
+  let ln2: i32 = 0;
+  let eq2: i32 = 0;
+  let j2: i32 = 0;
+  let b2: i32 = 0;
+  let sz2: i32 = 0;
+  let dot2: i32 = 0;
+  let bo: i32 = 0;
+  let bl: i32 = 0;
+  let ji: i32 = 0;
   if (arena == 0 as *u8 || type_ref <= 0) {
     return 8;
   }
@@ -83654,32 +88247,94 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
     return 16;
   }
   // TYPE_NAMED = 8: layout metrics + dep walk.
+  // NL-04: never return the first emit-module hit alone. Import STRUCT_LIT
+  // can register a thin-typed PageMmapHeap (metrics 16) while the defining
+  // dep keeps the authoritative 24B layout that FIELD_ACCESS / lit stores
+  // already use — take max(emit, dep) so the stack slot covers the stores.
+  // PLATFORM: SHARED freestanding · LINUX gold.
   if (ko == 8) {
     if (mod == 0 as *u8) {
       mod = pipeline_asm_glue_emit_module_ref();
     }
     sz = pipe_slot_bytes_named_in_mod(arena, type_ref, mod);
-    if (sz > 0) {
-      return sz;
-    }
     dep = pipeline_asm_emit_dep_pipe_c();
     if (dep != 0 as *u8) {
       unsafe {
         nd = pipeline_dep_ctx_ndep(dep);
+        nlen = pipeline_type_named_name_into(arena, type_ref, &name[0]);
+      }
+      // Strip one module prefix so "heap.PageMmapHeap" matches dep "PageMmapHeap".
+      if (nlen > 0 && nlen <= 255) {
+        dot2 = 0 - 1;
+        ji = 0;
+        while (ji < nlen) {
+          if (name[ji] == 46) {
+            dot2 = ji;
+          }
+          ji = ji + 1;
+        }
+        if (dot2 >= 0) {
+          bo = dot2 + 1;
+          bl = nlen - bo;
+          if (bl > 0) {
+            ji = 0;
+            while (ji < bl) {
+              name[ji] = name[bo + ji];
+              ji = ji + 1;
+            }
+            nlen = bl;
+          }
+        }
       }
       di = 0;
       while (di < nd) {
         unsafe {
           dm = pipeline_dep_ctx_module_at(dep, di);
+          da = pipeline_dep_ctx_arena_at(dep, di);
         }
-        if (dm != 0 as *u8 && dm != mod) {
-          sz = pipe_slot_bytes_named_in_mod(arena, type_ref, dm);
-          if (sz > 0) {
-            return sz;
+        if (dm != 0 as *u8 && da != 0 as *u8 && dm != mod && nlen > 0) {
+          unsafe {
+            nlayouts2 = pipeline_module_num_struct_layouts_at(dm);
+          }
+          k2 = 0;
+          while (k2 < nlayouts2) {
+            unsafe {
+              ln2 = pipeline_module_struct_layout_name_len(dm, k2);
+            }
+            if (ln2 == nlen) {
+              eq2 = 1;
+              j2 = 0;
+              while (j2 < nlen) {
+                unsafe {
+                  b2 = pipeline_module_struct_layout_name_byte_at(dm, k2, j2);
+                }
+                if (b2 != (name[j2] as i32)) {
+                  eq2 = 0;
+                  j2 = nlen;
+                } else {
+                  j2 = j2 + 1;
+                }
+              }
+              if (eq2 != 0) {
+                unsafe {
+                  sz2 = typeck_x_type_size_from_layout_glue(dm, da, k2, 0);
+                }
+                if (sz2 > sz) {
+                  sz = sz2;
+                }
+              }
+            }
+            k2 = k2 + 1;
           }
         }
         di = di + 1;
       }
+    }
+    if (sz > 0) {
+      if (sz % 8 != 0) {
+        sz = sz + (8 - (sz % 8));
+      }
+      return sz;
     }
   }
   // TYPE_ARRAY = 10 fixed T[N].
@@ -83945,7 +88600,7 @@ export function asm_ctx_ensure_block_locals(ctx: *u8, arena: *u8, block_ref: i32
   let nlen: i32 = 0;
   let type_ref: i32 = 0;
   let init_ref: i32 = 0;
-  let name_buf: u8[128] = [];
+  let name_buf: u8[256] = [];
   let nconst: i32 = 0;
   let nlet: i32 = 0;
   let prev: i32 = 0;
@@ -84474,8 +89129,8 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
 // =============================================================================
 // G.7 product authority for type pool cold accessors (was host-cc residual
 // ast_pool_type.c ~416 LOC). dual-export ban: pure T; pipeline_x U.
-// Type LE: kind@0 name[128]@4 name_len@132 elem@136 array_size@140
-//   region_label[128]@144 region_label_len@272 size=276
+// Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
+//   region_label[256]@272 region_label_len@528 size=532
 // Cap residual: pipeline_arena_type_ptr/alloc via unsafe wrappers only.
 // PLATFORM: SHARED freestanding type pool · LINUX gold · MACOS co-path.
 // =============================================================================
@@ -84483,7 +89138,7 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
 function pipe_ty_ord_named(): i32 { return 8; }
 function pipe_ty_ord_ptr(): i32 { return 9; }
 function pipe_ty_ord_slice(): i32 { return 11; }
-function pipe_ty_slot_size(): i32 { return 276; }
+function pipe_ty_slot_size(): i32 { return 532; }
 
 /**
  * Clamp kind ordinal to TypeKind range; invalid -> TYPE_I32 (0).
@@ -84502,7 +89157,7 @@ function pipe_ty_kind_from_ord(ord: i32): i32 {
 }
 
 /**
- * Zero one Type slot (276 bytes).
+ * Zero one Type slot (532 bytes).
  * @param t *u8 - Type*; null -> no-op
  * PLATFORM: SHARED.
  */
@@ -84658,10 +89313,10 @@ export function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8):
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 132);
+  let n: i32 = pipe_load_i32_le(t, pipe_ar_ty_name_len());
   let cn: i32 = n;
-  if (cn > 64) {
-    cn = 64;
+  if (cn > 255) {
+    cn = 255;
   }
   if (cn > 0) {
     pipe_ty_copy_bytes(out64, t + 4, cn);
@@ -84687,16 +89342,16 @@ export function pipeline_type_region_label_into(arena: *u8, ref: i32, out64: *u8
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 272);
+  let n: i32 = pipe_load_i32_le(t, 528);
   if (n <= 0) {
     return 0;
   }
   let cn: i32 = n;
-  if (cn > 64) {
-    cn = 64;
+  if (cn > 255) {
+    cn = 255;
   }
   if (cn > 0) {
-    pipe_ty_copy_bytes(out64, t + 144, cn);
+    pipe_ty_copy_bytes(out64, t + 272, cn);
   }
   return n;
 }
@@ -84715,7 +89370,7 @@ export function pipeline_type_region_label_len_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 272);
+  let n: i32 = pipe_load_i32_le(t, 528);
   if (n > 0) {
     return n;
   }
@@ -84740,7 +89395,7 @@ export function pipeline_type_set_region_label_at(arena: *u8, ref: i32, label: *
   if (label_len <= 0) {
     return 0;
   }
-  if (label_len > 127) {
+  if (label_len > 255) {
     return 0;
   }
   let t: *u8 = pipe_ty_slot_at(arena, ref);
@@ -84760,8 +89415,8 @@ export function pipeline_type_set_region_label_at(arena: *u8, ref: i32, label: *
     }
     z = z + 1;
   }
-  pipe_ty_copy_bytes(t + 144, label, label_len);
-  pipe_store_i32_le(t, 272, label_len);
+  pipe_ty_copy_bytes(t + 272, label, label_len);
+  pipe_store_i32_le(t, 528, label_len);
   return 1;
 }
 
@@ -84784,7 +89439,7 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
   if (region_len < 0) {
     return 0;
   }
-  if (region_len > 127) {
+  if (region_len > 255) {
     return 0;
   }
   if (region_len > 0) {
@@ -84804,26 +89459,26 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 136) != elem_ref) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_elem()) != elem_ref) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 140) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_arr()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 132) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 272) != region_len) {
+    if (pipe_load_i32_le(t, 528) != region_len) {
       k = k + 1;
       continue;
     }
     if (region_len == 0) {
       return k;
     }
-    if (pipe_ty_bytes_eq(t + 144, reg_lab, region_len) != 0) {
+    if (pipe_ty_bytes_eq(t + 272, reg_lab, region_len) != 0) {
       return k;
     }
     k = k + 1;
@@ -84838,11 +89493,11 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, pipe_ty_ord_slice());
-  pipe_store_i32_le(t2, 136, elem_ref);
+  pipe_store_i32_le(t2, pipe_ar_ty_elem(), elem_ref);
   if (region_len > 0) {
     if (reg_lab != 0 as *u8) {
-      pipe_ty_copy_bytes(t2 + 144, reg_lab, region_len);
-      pipe_store_i32_le(t2, 272, region_len);
+      pipe_ty_copy_bytes(t2 + 272, reg_lab, region_len);
+      pipe_store_i32_le(t2, 528, region_len);
     }
   }
   return k;
@@ -84870,7 +89525,7 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
   if (region_len < 0) {
     return 0;
   }
-  if (region_len > 127) {
+  if (region_len > 255) {
     return 0;
   }
   if (region_len > 0) {
@@ -84890,26 +89545,26 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 136) != elem_ref) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_elem()) != elem_ref) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 140) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_arr()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 132) != 0) {
+    if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 272) != region_len) {
+    if (pipe_load_i32_le(t, 528) != region_len) {
       k = k + 1;
       continue;
     }
     if (region_len == 0) {
       return k;
     }
-    if (pipe_ty_bytes_eq(t + 144, reg_lab, region_len) != 0) {
+    if (pipe_ty_bytes_eq(t + 272, reg_lab, region_len) != 0) {
       return k;
     }
     k = k + 1;
@@ -84924,11 +89579,11 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, pipe_ty_ord_ptr());
-  pipe_store_i32_le(t2, 136, elem_ref);
+  pipe_store_i32_le(t2, pipe_ar_ty_elem(), elem_ref);
   if (region_len > 0) {
     if (reg_lab != 0 as *u8) {
-      pipe_ty_copy_bytes(t2 + 144, reg_lab, region_len);
-      pipe_store_i32_le(t2, 272, region_len);
+      pipe_ty_copy_bytes(t2 + 272, reg_lab, region_len);
+      pipe_store_i32_le(t2, 528, region_len);
     }
   }
   return k;
@@ -84965,7 +89620,7 @@ export function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(t, 136);
+  return pipe_load_i32_le(t, pipe_ar_ty_elem());
 }
 
 /**
@@ -84984,8 +89639,8 @@ export function pipeline_type_set_elem_array_size_at(arena: *u8, ref: i32, elem_
   if (t == 0 as *u8) {
     return 0;
   }
-  pipe_store_i32_le(t, 136, elem_ref);
-  pipe_store_i32_le(t, 140, array_size);
+  pipe_store_i32_le(t, pipe_ar_ty_elem(), elem_ref);
+  pipe_store_i32_le(t, pipe_ar_ty_arr(), array_size);
   return 1;
 }
 
@@ -85003,7 +89658,7 @@ export function pipeline_type_array_size_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(t, 140);
+  return pipe_load_i32_le(t, pipe_ar_ty_arr());
 }
 
 /**
@@ -85032,9 +89687,9 @@ export function pipeline_type_ensure_by_kind_ord(a: *u8, kind_ord: i32): i32 {
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
       if (pipe_load_i32_le(t, 0) == kind) {
-        if (pipe_load_i32_le(t, 132) == 0) {
-          if (pipe_load_i32_le(t, 136) == 0) {
-            if (pipe_load_i32_le(t, 140) == 0) {
+        if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) == 0) {
+          if (pipe_load_i32_le(t, pipe_ar_ty_elem()) == 0) {
+            if (pipe_load_i32_le(t, pipe_ar_ty_arr()) == 0) {
               return k;
             }
           }
@@ -85097,7 +89752,7 @@ export function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32, kind_ord:
  * @param a *u8 - ASTArena*
  * @param ref i32 - type ref
  * @param name *u8 - name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @return i32 - 1 ok, 0 fail
  * wave270 pure Cap leave.
  * PLATFORM: SHARED.
@@ -85116,7 +89771,7 @@ export function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_le
   if (name_len <= 0) {
     return 0;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0;
   }
   let nt: i32 = pipe_ty_num_types(a);
@@ -85129,7 +89784,7 @@ export function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_le
   }
   pipe_ty_zero_slot(t);
   pipe_store_i32_le(t, 0, pipe_ty_ord_named());
-  pipe_store_i32_le(t, 132, name_len);
+  pipe_store_i32_le(t, pipe_ar_ty_name_len(), name_len);
   pipe_ty_copy_bytes(t + 4, name, name_len);
   return 1;
 }
@@ -85170,8 +89825,8 @@ export function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: 
   }
   pipe_ty_zero_slot(t);
   pipe_store_i32_le(t, 0, pipe_ty_kind_from_ord(kind_ord));
-  pipe_store_i32_le(t, 136, elem_ref);
-  pipe_store_i32_le(t, 140, array_size);
+  pipe_store_i32_le(t, pipe_ar_ty_elem(), elem_ref);
+  pipe_store_i32_le(t, pipe_ar_ty_arr(), array_size);
   return 1;
 }
 
@@ -85179,7 +89834,7 @@ export function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: 
  * Find or allocate TYPE_NAMED by name.
  * @param a *u8 - ASTArena*
  * @param name *u8 - name
- * @param name_len i32 - 1..127
+ * @param name_len i32 - 1..255
  * @return i32 - type ref or 0
  * wave270 pure Cap leave.
  * PLATFORM: SHARED.
@@ -85195,7 +89850,7 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
   if (name_len <= 0) {
     return 0;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0;
   }
   let nt: i32 = pipe_ty_num_types(a);
@@ -85204,7 +89859,7 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
       if (pipe_load_i32_le(t, 0) == pipe_ty_ord_named()) {
-        if (pipe_load_i32_le(t, 132) == name_len) {
+        if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) == name_len) {
           if (pipe_ty_bytes_eq(t + 4, name, name_len) != 0) {
             return k;
           }
@@ -85223,7 +89878,7 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, pipe_ty_ord_named());
-  pipe_store_i32_le(t2, 132, name_len);
+  pipe_store_i32_le(t2, pipe_ar_ty_name_len(), name_len);
   pipe_ty_copy_bytes(t2 + 4, name, name_len);
   return k;
 }
@@ -85257,10 +89912,10 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
       if (pipe_load_i32_le(t, 0) == kind) {
-        if (pipe_load_i32_le(t, 136) == elem_ref) {
-          if (pipe_load_i32_le(t, 140) == array_size) {
-            if (pipe_load_i32_le(t, 132) == 0) {
-              if (pipe_load_i32_le(t, 272) == 0) {
+        if (pipe_load_i32_le(t, pipe_ar_ty_elem()) == elem_ref) {
+          if (pipe_load_i32_le(t, pipe_ar_ty_arr()) == array_size) {
+            if (pipe_load_i32_le(t, pipe_ar_ty_name_len()) == 0) {
+              if (pipe_load_i32_le(t, 528) == 0) {
                 return k;
               }
             }
@@ -85280,8 +89935,8 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
   }
   pipe_ty_zero_slot(t2);
   pipe_store_i32_le(t2, 0, kind);
-  pipe_store_i32_le(t2, 136, elem_ref);
-  pipe_store_i32_le(t2, 140, array_size);
+  pipe_store_i32_le(t2, pipe_ar_ty_elem(), elem_ref);
+  pipe_store_i32_le(t2, pipe_ar_ty_arr(), array_size);
   return k;
 }
 
@@ -85834,8 +90489,14 @@ function pipe_pctx_off_current_codegen_module(): i32 { return 8389720; }
 function pipe_pctx_off_current_codegen_arena(): i32 { return 8389728; }
 function pipe_pctx_off_current_codegen_dep_index(): i32 { return 8389736; }
 function pipe_pctx_off_current_codegen_prefix_mirror(): i32 { return 8389740; }
-function pipe_pctx_off_current_codegen_prefix_len(): i32 { return 8389868; }
-function pipe_pctx_off_asm_entry_module_only(): i32 { return 8389872; }
+function pipe_pctx_off_current_codegen_prefix_len(): i32 { return 8389996; }
+function pipe_pctx_off_asm_entry_module_only(): i32 { return 8390000; }
+
+/** Byte size of PipelineDepCtx (Cap 4.2.8 name mirrors [256]). PLATFORM: SHARED LP64. */
+export function pipeline_sizeof_dep_ctx(): usize {
+  return 8390600 as usize;
+}
+
 
 // Flat BSS table: 64 * 272 = 17408 bytes. Zero-initialized; used flags start 0.
 let g_pipe_dep_sc_blob: u8[17408] = [];
@@ -85940,7 +90601,7 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
         return 0 as *u8;
       }
       // path rows: 128-byte elems (wave579)
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 128, ic) == 0) {
+      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 256, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
@@ -86225,8 +90886,8 @@ export function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8,
     return;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   unsafe {
     memset(row, 0, 128 as usize);
@@ -86314,7 +90975,7 @@ export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8
     return;
   }
   unsafe {
-    memset(dst, 0, 128 as usize);
+    memset(dst, 0, 256 as usize);
   }
   if (ctx == 0 as *u8 || idx < 0) {
     return;
@@ -86334,8 +90995,8 @@ export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8
     return;
   }
   let n: i32 = pipe_load_i32_le(pl, 0);
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   let k: i32 = 0;
   while (k < n) {
@@ -86467,8 +91128,8 @@ export function pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: *u8,
     return;
   }
   let n: i32 = len;
-  if (n > 127) {
-    n = 127;
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -87270,7 +91931,7 @@ export function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *u8): i32 {
 // live here (#[no_mangle]). Residual host-cc leaves deleted; seed cold twins under
 // #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PipelineElfCtxAccess LE layout (match elf.x ElfCodegenCtx prefix + glue offsetof):
-//   code_len@0 labels[16384]@4 num_labels@2228228 patches@2228232 num_patches@4521992
+//   code_len@0 labels[16384]@4 num_labels@4325380 patches@4325384 num_patches@8716296
 //   relocs@4521996 reloc_sym_names@4653068 num_relocs@6750220 syms@6750224
 //   num_syms@9043984 sym_name_len@9043988 e_machine@9043992 reloc_type_r_pc32@9043996
 //   current_frame_size@9044000 macho_leading_underscore@9044004 code_hot_len@9044008
@@ -87302,53 +91963,53 @@ function pipe_elf_pgo_undef_cap(): i32 { return 32; }
 function pipe_elf_codegen_out_cap(): i32 { return 9437184; }
 
 // Entry sizes
-function pipe_elf_label_esz(): i32 { return 136; }
-function pipe_elf_patch_esz(): i32 { return 140; }
+function pipe_elf_label_esz(): i32 { return 264; }
+function pipe_elf_patch_esz(): i32 { return 268; }
 function pipe_elf_reloc_esz(): i32 { return 8; }
-function pipe_elf_reloc_name_esz(): i32 { return 128; }
-function pipe_elf_sym_esz(): i32 { return 140; }
+function pipe_elf_reloc_name_esz(): i32 { return 256; }
+function pipe_elf_sym_esz(): i32 { return 268; }
 function pipe_elf_reloc_heap_esz(): i32 { return 12; }
 
 // Field offsets inside PipelineElfCtxAccess
 function pipe_elf_off_code_len(): i32 { return 0; }
 function pipe_elf_off_labels(): i32 { return 4; }
-function pipe_elf_off_num_labels(): i32 { return 2228228; }
-function pipe_elf_off_patches(): i32 { return 2228232; }
-function pipe_elf_off_num_patches(): i32 { return 4521992; }
-function pipe_elf_off_relocs(): i32 { return 4521996; }
-function pipe_elf_off_reloc_sym_names(): i32 { return 4653068; }
-function pipe_elf_off_num_relocs(): i32 { return 6750220; }
-function pipe_elf_off_syms(): i32 { return 6750224; }
-function pipe_elf_off_num_syms(): i32 { return 9043984; }
-function pipe_elf_off_sym_name_len(): i32 { return 9043988; }
-function pipe_elf_off_e_machine(): i32 { return 9043992; }
-function pipe_elf_off_reloc_type_r_pc32(): i32 { return 9043996; }
-function pipe_elf_off_current_frame_size(): i32 { return 9044000; }
-function pipe_elf_off_macho_uscore(): i32 { return 9044004; }
-function pipe_elf_off_code_hot_len(): i32 { return 9044008; }
-function pipe_elf_off_emit_hot(): i32 { return 9044012; }
-function pipe_elf_sizeof_access(): i32 { return 9044016; }
-function pipe_elf_off_code_data(): i32 { return 9044016; }
-function pipe_elf_off_code_hot_data(): i32 { return 17760304; }
-function pipe_elf_off_sym_name_data(): i32 { return 18808880; }
+function pipe_elf_off_num_labels(): i32 { return 4325380; }
+function pipe_elf_off_patches(): i32 { return 4325384; }
+function pipe_elf_off_num_patches(): i32 { return 8716296; }
+function pipe_elf_off_relocs(): i32 { return 8716300; }
+function pipe_elf_off_reloc_sym_names(): i32 { return 8847372; }
+function pipe_elf_off_num_relocs(): i32 { return 13041676; }
+function pipe_elf_off_syms(): i32 { return 13041680; }
+function pipe_elf_off_num_syms(): i32 { return 17432592; }
+function pipe_elf_off_sym_name_len(): i32 { return 17432596; }
+function pipe_elf_off_e_machine(): i32 { return 17432600; }
+function pipe_elf_off_reloc_type_r_pc32(): i32 { return 17432604; }
+function pipe_elf_off_current_frame_size(): i32 { return 17432608; }
+function pipe_elf_off_macho_uscore(): i32 { return 17432612; }
+function pipe_elf_off_code_hot_len(): i32 { return 17432616; }
+function pipe_elf_off_emit_hot(): i32 { return 17432620; }
+function pipe_elf_sizeof_access(): i32 { return 17432624; }
+function pipe_elf_off_code_data(): i32 { return 17432624; }
+function pipe_elf_off_code_hot_data(): i32 { return 26148912; }
+function pipe_elf_off_sym_name_data(): i32 { return 27197488; }
 
 // Label entry sub-offsets
 function pipe_elf_lab_off_name(): i32 { return 0; }
-function pipe_elf_lab_off_name_len(): i32 { return 128; }
-function pipe_elf_lab_off_offset(): i32 { return 132; }
+function pipe_elf_lab_off_name_len(): i32 { return 256; }
+function pipe_elf_lab_off_offset(): i32 { return 260; }
 // Patch entry
 function pipe_elf_pat_off_rel32(): i32 { return 0; }
 function pipe_elf_pat_off_name(): i32 { return 4; }
-function pipe_elf_pat_off_name_len(): i32 { return 132; }
-function pipe_elf_pat_off_imm_bits(): i32 { return 136; }
+function pipe_elf_pat_off_name_len(): i32 { return 260; }
+function pipe_elf_pat_off_imm_bits(): i32 { return 264; }
 // Reloc entry
 function pipe_elf_rel_off_offset(): i32 { return 0; }
 function pipe_elf_rel_off_name_len(): i32 { return 4; }
 // Sym entry
 function pipe_elf_sym_off_name(): i32 { return 0; }
-function pipe_elf_sym_off_name_len(): i32 { return 128; }
-function pipe_elf_sym_off_offset(): i32 { return 132; }
-function pipe_elf_sym_off_shndx(): i32 { return 136; }
+function pipe_elf_sym_off_name_len(): i32 { return 256; }
+function pipe_elf_sym_off_offset(): i32 { return 260; }
+function pipe_elf_sym_off_shndx(): i32 { return 264; }
 // Heap reloc entry
 function pipe_elf_rh_off_offset(): i32 { return 0; }
 function pipe_elf_rh_off_name_len(): i32 { return 4; }
@@ -87359,7 +92020,8 @@ function pipe_elf_rh_off_shndx(): i32 { return 8; }
 // ---------------------------------------------------------------------------
 let g_pipe_elf_reloc_sidecar_owner: *u8 = 0 as *u8;
 let g_pipe_elf_reloc_heap: u8[196608] = [];
-let g_pipe_elf_reloc_sym_heap: u8[2097152] = [];
+// Cap 4.2.8: RELOC_HEAP_CAP(16384) × 256-byte name rows (was 128 → 2097152).
+let g_pipe_elf_reloc_sym_heap: u8[4194304] = [];
 
 let g_pipe_elf_shndx_sidecar_owner: *u8 = 0 as *u8;
 let g_pipe_elf_label_shndx: u8[65536] = [];
@@ -87384,15 +92046,15 @@ let g_pipe_elf_ws_undef_lens: u8[1024] = [];
 let g_pipe_elf_ws_und_src: u8[1024] = [];
 let g_pipe_elf_ws_und_lens: u8[1024] = [];
 let g_pipe_elf_ws_pgo_undef_names: u8[4096] = [];
-let g_pipe_elf_ws_pgo_undef_lens: u8[128] = [];
-let g_pipe_elf_ws_ehdr: u8[128] = [];
+let g_pipe_elf_ws_pgo_undef_lens: u8[256] = [];
+let g_pipe_elf_ws_ehdr: u8[256] = [];
 let g_pipe_elf_ws_shdr: u8[1280] = [];
 let g_pipe_elf_ws_ent: u8[256] = [];
 let g_pipe_elf_ws_seg: u8[152] = [];
 let g_pipe_elf_ws_hdr32: u8[32] = [];
 let g_pipe_elf_ws_lc: u8[48] = [];
-let g_pipe_elf_ws_name: u8[128] = [];
-let g_pipe_elf_ws_name2: u8[128] = [];
+let g_pipe_elf_ws_name: u8[256] = [];
+let g_pipe_elf_ws_name2: u8[256] = [];
 let g_pipe_elf_ws_rela: u8[24] = [];
 /* F7: shstrtab is 63 bytes once .data + .rela.data are appended after the
  * historic 46-byte ".text.symtab.strtab.shstrtab.rela.text" blob.
@@ -87539,7 +92201,8 @@ function pipe_elf_reloc_sym_heap_at(hi: i32): *u8 {
   if (hi < 0 || hi >= pipe_elf_reloc_heap_cap()) {
     return 0 as *u8;
   }
-  let off: i64 = (hi as i64) * 128;
+  // Cap 4.2.8: row stride 256 (was wave580 128).
+  let off: i64 = (hi as i64) * 256;
   return &g_pipe_elf_reloc_sym_heap[0] + (off as usize);
 }
 
@@ -87678,6 +92341,59 @@ export function pipeline_elf_ctx_append_data_u32_le(ctx_bytes: *u8, word: u32): 
     g_pipe_elf_data_buf[off + 3] = (((word / 16777216) & 255) as u32) as u8;
   }
   g_pipe_elf_data_len = off + 4;
+  return 0;
+}
+
+/**
+ * F7: Append `n` zero bytes to the data section buffer (reserve + clear).
+ * Used by modlet prepare to place a .data cell before poking ARRAY_LIT bytes.
+ * @param ctx_bytes *u8 — ElfCodegenCtx*
+ * @param n i32 — byte count; n<=0 is a no-op success
+ * @return i32 — 0 ok; -1 overflow/null
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32 {
+  if (ctx_bytes == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (n <= 0) {
+    return 0;
+  }
+  if (g_pipe_elf_data_len < 0) {
+    g_pipe_elf_data_len = 0;
+  }
+  if (g_pipe_elf_data_len + n > 65536) {
+    return 0 - 1;
+  }
+  let off: i32 = g_pipe_elf_data_len;
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      g_pipe_elf_data_buf[off + i] = 0 as u8;
+    }
+    i = i + 1;
+  }
+  g_pipe_elf_data_len = off + n;
+  return 0;
+}
+
+/**
+ * F7: Poke one byte into an already-reserved data-section offset.
+ * @param ctx_bytes *u8 — ElfCodegenCtx*
+ * @param off i32 — absolute offset within g_pipe_elf_data_buf
+ * @param b i32 — byte value (low 8 bits)
+ * @return i32 — 0 ok; -1 OOB/null
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32 {
+  if (ctx_bytes == 0 as *u8 || off < 0 || off >= g_pipe_elf_data_len) {
+    return 0 - 1;
+  }
+  unsafe {
+    g_pipe_elf_data_buf[off] = (b & 255) as u8;
+  }
   return 0;
 }
 
@@ -88083,8 +92799,9 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
   let li: i32 = nl;
   let lab2: *u8 = pipe_elf_label_at(ctx_bytes, li);
   let n: i32 = name_len;
-  if (n > 128) {
-    n = 128;
+  // Cap 4.2.8: labels.name[256] content ≤255 (was wave580 128 → asm -o long-name CG002).
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -88161,8 +92878,9 @@ export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i3
     pipe_elf_common_sidecar_reset(ctx_bytes);
   }
   let copy_len: i32 = name_len;
-  if (copy_len > 128) {
-    copy_len = 128;
+  // Cap 4.2.8: sym name pool holds '_' + ≤255 AST content (was wave580 128).
+  if (copy_len > 256) {
+    copy_len = 256;
   }
   if (copy_len < 0) {
     copy_len = 0;
@@ -88267,8 +92985,9 @@ export function pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32,
   let ent: *u8 = pipe_elf_patch_at(ctx_bytes, pi);
   pipe_store_i32_le(ent, pipe_elf_pat_off_rel32(), rel32_offset);
   let n: i32 = name_len;
-  if (n > 128) {
-    n = 128;
+  // Cap 4.2.8: patches.name[256] content ≤255 (was wave580 128).
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -88527,12 +93246,13 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
     sym_row = pipe_elf_reloc_sym_heap_at(hi);
   }
   pipe_elf_reloc_shndx_set(ctx_bytes, ri, pipe_elf_current_shndx(ctx_bytes));
+  // Cap 4.2.8: reloc_sym_names.bytes[256] (was wave580 memset/clamp 128).
   unsafe {
-    memset(sym_row, 0, 128 as usize);
+    memset(sym_row, 0, 256 as usize);
   }
   let n: i32 = name_len;
-  if (n > 128) {
-    n = 128;
+  if (n > 255) {
+    n = 255;
   }
   if (n < 0) {
     n = 0;
@@ -88648,7 +93368,7 @@ export function pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes: *u8, idx: i32): *
 }
 
 /**
- * Copy reloc name row into dst[128] (ABI name kept as copy64; payload 128).
+ * Copy reloc name row into dst[256] (ABI name kept as copy64; Cap 4.2.8 payload 256).
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
  */
@@ -88658,7 +93378,7 @@ export function pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes: *u8, idx: i32,
     return;
   }
   unsafe {
-    memset(dst, 0, 128 as usize);
+    memset(dst, 0, 256 as usize);
   }
   let src: *u8 = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
   if (src == 0 as *u8) {
@@ -89818,6 +94538,41 @@ function pipe_macho_link_name_extra_byte(name_ptr: *u8): i32 {
 }
 
 /**
+ * Encode Mach-O common-symbol alignment into n_desc (GET_COMM_ALIGN).
+ * Apple ld: when n_desc align bits are 0, section __DATA,__common alignment is
+ * size-derived (up to 0x8000 for multi-MiB commons) and then reduced to the
+ * segment max 0x4000 with a warning. Explicit log2(align) in n_desc stops
+ * that derivation. Floor at 8 (log2=3) so n_desc is never 0; cap at 2^14 so
+ * we never request more than the segment maximum.
+ * @param calign i32 — byte alignment from add_common_sym (usually 1..16)
+ * @return i32 — log2 to store in n_desc[15:8]
+ * PLATFORM: MACOS|DARWIN — Mach-O nlist_64 n_desc only; ELF uses st_value.
+ */
+function pipe_macho_common_align_log2(calign: i32): i32 {
+  let a: i32 = calign;
+  if (a < 8) {
+    a = 8;
+  }
+  if (a > 16384) {
+    a = 16384;
+  }
+  let lg: i32 = 3;
+  while (lg < 14) {
+    let step: i32 = 1;
+    let k: i32 = 0;
+    while (k < lg) {
+      step = step * 2;
+      k = k + 1;
+    }
+    if (step >= a) {
+      return lg;
+    }
+    lg = lg + 1;
+  }
+  return 14;
+}
+
+/**
  * Mach-O MH_OBJECT writer for pure-asm -o .o (product g05 Darwin).
  * @return i32 - out length on success, -1 fail
  * wave273 pure-owned leave.
@@ -89999,8 +94754,12 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   unsafe {
     seg2[56] = 7; seg2[60] = 3;  /* maxprot=rwx, initprot=rw- */
     seg2[64] = 1;  /* nsects = 1 */
-    /* section_64.sectname = "__const" at seg2+72 */
-    seg2[72] = 95; seg2[73] = 95; seg2[74] = 99; seg2[75] = 111; seg2[76] = 110; seg2[77] = 115; seg2[78] = 116;
+    /* section_64.sectname = "__data" at seg2+72.
+     * Was "__const": final ld maps __const RO, so mutable modlet ARRAY_LIT
+     * counters (fmt g_fmt_*_n = [0]/[1]) SIGBUS on store. Library-TU .data
+     * bake needs a writable home; vtable statics are fine in __data too.
+     * PLATFORM: MACOS|DARWIN — __DATA,__data (writable); ELF stays .data. */
+    seg2[72] = 95; seg2[73] = 95; seg2[74] = 100; seg2[75] = 97; seg2[76] = 116; seg2[77] = 97;
     /* section_64.segname = "__DATA" at seg2+88 */
     seg2[88] = 95; seg2[89] = 95; seg2[90] = 68; seg2[91] = 65; seg2[92] = 84; seg2[93] = 65;
   }
@@ -90102,11 +94861,25 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
     }
     if (is_common != 0) {
       let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
+      let alg: i32 = 0;
+      let ndesc: i32 = 0;
       if (csize <= 0) {
         csize = 8;
       }
+      if (calign <= 0) {
+        calign = 8;
+      }
+      /* N_UNDF|N_EXT + n_value=size + n_desc GET_COMM_ALIGN (see
+       * pipe_macho_common_align_log2). Leaving n_desc=0 made Apple ld
+       * size-derive __common section align to 0x8000 for 4MiB fmt paths.
+       * PLATFORM: MACOS|DARWIN. */
+      alg = pipe_macho_common_align_log2(calign);
+      ndesc = alg * 256;
       unsafe {
         ent[4] = 1; ent[5] = 0;
+        ent[6] = (ndesc & 255) as u8;
+        ent[7] = ((ndesc / 256) & 255) as u8;
       }
       pipe_elf_store_i32_bytes(ent, 8, csize);
     } else {
@@ -90320,16 +95093,18 @@ export function platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: *u8):
 // Authority: pipeline_asm_wpo_* live here (#[no_mangle]). Residual host-cc deleted.
 // Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (WAVE274).
 // Flat BSS + accessors; G.7 dual-export ban for public faces.
-// Caps: ASM_WPO_MAX_FUNCS=1024 MAX_MODS=64 MAX_EDGES=4096
+// Caps: ASM_WPO_MAX_FUNCS=2048 MAX_MODS=64 MAX_EDGES=8192
+// 2026-08-24: raised FUNCS 1024→2048 (abi pipeline_wpo hit exactly 1024 T =
+// silent truncate). Edges 4096→8192 same ratio. PLATFORM: SHARED WPO leave.
 // =============================================================================
 
 // Overload pick (Cap residual typeck) — not declared earlier in this file.
 export extern "C" function pipeline_typeck_pick_overload_func_index_for_call_c(m: *u8, a: *u8, call_ref: i32): i32;
 
 // Cap constants (private).
-function asm_wpo_max_funcs(): i32 { return 1024; }
+function asm_wpo_max_funcs(): i32 { return 2048; }
 function asm_wpo_max_mods(): i32 { return 64; }
-function asm_wpo_max_edges(): i32 { return 4096; }
+function asm_wpo_max_edges(): i32 { return 8192; }
 
 // ExprKind ordinals used by walk (product pool).
 function asm_wpo_ek_neg(): i32 { return 22; }
@@ -90362,24 +95137,24 @@ let g_aw_entry: u8[8] = [];
 let g_aw_dep_ctx: u8[8] = [];
 let g_aw_mods: u8[512] = [];
 let g_aw_arenas: u8[512] = [];
-let g_aw_func_mod: u8[8192] = [];
-let g_aw_func_fi: i32[1024] = [];
-let g_aw_reachable: u8[1024] = [];
-let g_aw_edge_from: i32[4096] = [];
-let g_aw_edge_to: i32[4096] = [];
+let g_aw_func_mod: u8[16384] = [];
+let g_aw_func_fi: i32[2048] = [];
+let g_aw_reachable: u8[2048] = [];
+let g_aw_edge_from: i32[8192] = [];
+let g_aw_edge_to: i32[8192] = [];
 let g_aw_nmods: i32 = 0;
 let g_aw_nfuncs: i32 = 0;
 let g_aw_nedges: i32 = 0;
 let g_aw_root_id: i32 = -1;
 let g_aw_valid: i32 = 0;
-let g_aw_pgo_hot: u8[1024] = [];
-let g_aw_pgo_depth: i32[1024] = [];
+let g_aw_pgo_hot: u8[2048] = [];
+let g_aw_pgo_depth: i32[2048] = [];
 let g_aw_pgo_emit_mod: u8[8] = [];
-let g_aw_pgo_emit_order: i32[1024] = [];
+let g_aw_pgo_emit_order: i32[2048] = [];
 let g_aw_pgo_emit_n: i32 = 0;
 
 // BFS workspace (avoid huge pure stack frames).
-let g_aw_queue: i32[1024] = [];
+let g_aw_queue: i32[2048] = [];
 
 /**
  * Clear asm WPO reach/PGO process state.
@@ -90394,9 +95169,9 @@ export function pipeline_asm_wpo_reach_clear(): void {
     memset(&g_aw_dep_ctx[0], 0, 8 as usize);
     memset(&g_aw_mods[0], 0, 512 as usize);
     memset(&g_aw_arenas[0], 0, 512 as usize);
-    memset(&g_aw_func_mod[0], 0, 8192 as usize);
-    memset(&g_aw_reachable[0], 0, 1024 as usize);
-    memset(&g_aw_pgo_hot[0], 0, 1024 as usize);
+    memset(&g_aw_func_mod[0], 0, 16384 as usize);
+    memset(&g_aw_reachable[0], 0, 2048 as usize);
+    memset(&g_aw_pgo_hot[0], 0, 2048 as usize);
     memset(&g_aw_pgo_emit_mod[0], 0, 8 as usize);
   }
   g_aw_nmods = 0;
@@ -90406,14 +95181,14 @@ export function pipeline_asm_wpo_reach_clear(): void {
   g_aw_valid = 0;
   g_aw_pgo_emit_n = 0;
   let i: i32 = 0;
-  while (i < 1024) {
+  while (i < asm_wpo_max_funcs()) {
     g_aw_func_fi[i] = 0;
     g_aw_pgo_depth[i] = -1;
     g_aw_pgo_emit_order[i] = 0;
     i = i + 1;
   }
   i = 0;
-  while (i < 4096) {
+  while (i < asm_wpo_max_edges()) {
     g_aw_edge_from[i] = 0;
     g_aw_edge_to[i] = 0;
     i = i + 1;
@@ -90627,7 +95402,7 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
       return -1;
     }
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     let clen: i32 = asm_wpo_call_callee_name(a, callee_ref, &cname[0]);
     if (clen > 0 && caller_mod != 0 as *u8) {
       let ov_n: i32 = 0;
@@ -90923,7 +95698,7 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
       let mlen: i32 = pipeline_expr_method_call_name_len(a, expr_ref);
       let mbase: i32 = pipeline_expr_method_call_base_ref_at(a, expr_ref);
       let mnargs: i32 = pipeline_expr_method_call_num_args_at(a, expr_ref);
-      let mnm: u8[128] = [];
+      let mnm: u8[256] = [];
       if (r_fn >= 0 && r_dep < 0 && caller_mod != 0 as *u8) {
         mcid = asm_wpo_func_id_of(caller_mod, r_fn);
       }
@@ -91206,7 +95981,7 @@ function asm_wpo_user_pgo_force_main_callee_edge(entry: *u8, a: *u8): i32 {
       let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(a, er);
       let r_dep: i32 = pipeline_expr_call_resolved_dep_index_at(a, er);
       let nlen: i32 = pipeline_expr_method_call_name_len(a, er);
-      let mnm: u8[128] = [];
+      let mnm: u8[256] = [];
       let cid: i32 = -1;
       if (r_fn >= 0 && r_dep < 0) {
         cid = asm_wpo_func_id_of(entry, r_fn);
@@ -91461,7 +96236,7 @@ function asm_wpo_close_std_heap_helpers(): void {
 function asm_wpo_mark_pgo_hot(): void {
   unsafe {
     let i: i32 = 0;
-    while (i < 1024) {
+    while (i < asm_wpo_max_funcs()) {
       g_aw_pgo_hot[i] = 0;
       i = i + 1;
     }
@@ -91524,7 +96299,7 @@ function asm_wpo_mark_pgo_depth_user_from_main(): void {
     return;
   }
   let i: i32 = 0;
-  while (i < 1024) {
+  while (i < asm_wpo_max_funcs()) {
     g_aw_pgo_depth[i] = -1;
     i = i + 1;
   }
@@ -91561,7 +96336,7 @@ function asm_wpo_mark_pgo_depth_user_from_main(): void {
 function asm_wpo_mark_pgo_depth(): void {
   unsafe {
     let i: i32 = 0;
-    while (i < 1024) {
+    while (i < asm_wpo_max_funcs()) {
       g_aw_pgo_depth[i] = -1;
       i = i + 1;
     }
@@ -92002,12 +96777,18 @@ export function pipeline_asm_wpo_pgo_emit_order_prepare(m: *u8): void {
     let n: i32 = 0;
     let nf: i32 = pipeline_module_num_funcs(m);
     let fi: i32 = 0;
+    // PLATFORM: SHARED — g_aw_pgo_emit_order is i32[ASM_WPO_MAX_FUNCS].
+    // Historical bug: n kept growing past capacity while the array stopped
+    // being written; g_aw_pgo_emit_n = n then made order_at() read OOB into
+    // adjacent BSS (emit_n / queue), re-emitting the same bogus body hundreds
+    // of times as T _strchr and inflating abi-scale pipeline_wpo.o ~800KiB+.
+    // Only increment n when a slot is stored; emit_n never exceeds capacity.
     while (fi < nf) {
       if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 && pipeline_asm_wpo_should_emit_func(m, fi) != 0) {
         if (n < asm_wpo_max_funcs()) {
           g_aw_pgo_emit_order[n] = fi;
+          n = n + 1;
         }
-        n = n + 1;
       }
       fi = fi + 1;
     }
@@ -92018,8 +96799,8 @@ export function pipeline_asm_wpo_pgo_emit_order_prepare(m: *u8): void {
         if (pipeline_asm_module_func_is_extern_at(m, fi) == 0) {
           if (n < asm_wpo_max_funcs()) {
             g_aw_pgo_emit_order[n] = fi;
+            n = n + 1;
           }
-          n = n + 1;
         }
         fi = fi + 1;
       }
@@ -92076,7 +96857,9 @@ export function pipeline_asm_wpo_pgo_emit_order_at(m: *u8, order_index: i32): i3
     if (m != asm_wpo_get_emit_mod()) {
       pipeline_asm_wpo_pgo_emit_order_prepare(m);
     }
-    if (order_index < 0 || order_index >= g_aw_pgo_emit_n) {
+    // Belt: reject OOB past array capacity even if emit_n were stale/corrupt.
+    if (order_index < 0 || order_index >= g_aw_pgo_emit_n ||
+        order_index >= asm_wpo_max_funcs()) {
       return -1;
     }
     return g_aw_pgo_emit_order[order_index];
@@ -92132,6 +96915,12 @@ export function pipeline_asm_wpo_pgo_is_hot_func(m: *u8, fi: i32): i32 {
 // Caps: MAX_ARENA=512 MAX_MODULE=512 MAX_ONEFUNC=1024 (codegen M1 peak)
 // BSS: 512*816 + 512*432 + 1024*944 = 1605632 bytes total
 // G.7 single authority — no residual g_arena_sc dual table.
+// P2 Darwin -o compile: sidecar_get linear-scanned MAX slots on every field
+// access (hello -o sample: onefunc_sidecar_get 2nd-hottest after binop chain).
+// Arena/module keep 2-slot MRU (copy src/dst ping-pong). Onefunc uses a 16-slot
+// ring: parse_one_function dummy-wire lives ~9 stack keys (out / out_clean /
+// impl_snap / six _w), so 2-slot still missed into the MAX=1024 walk. used_hi
+// stops the miss walk at the last occupied slot. Free of a cached slot drops it.
 // =============================================================================
 
 function pipe_arena_sc_size(): i32 { return 816; }
@@ -92145,6 +96934,251 @@ function pipe_onefunc_sc_max(): i32 { return 1024; }
 let g_pipe_arena_sc_blob: u8[417792] = [];
 let g_pipe_module_sc_blob: u8[221184] = [];
 let g_pipe_onefunc_sc_blob: u8[966656] = [];
+// Arena/module: 2-slot MRU (copy src/dst ping-pong). Onefunc: 16-slot ring
+// + used_hi (dummy-wire live keys). Miss walk for onefunc stops at used_hi.
+// PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
+let g_pipe_arena_sc_last_key0: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_sc0: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_key1: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_sc1: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_key0: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_sc0: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_key1: *u8 = 0 as *u8;
+let g_pipe_module_sc_last_sc1: *u8 = 0 as *u8;
+// Onefunc 16-slot ring: slot i stores key at ptr-index 2*i and sidecar at 2*i+1
+// (LP64 8-byte cells; 16*(key+sc) = 256 bytes). Clock is next insert index.
+// used_hi is exclusive end of occupied process-table slots (0..MAX).
+// PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
+let g_pipe_onefunc_mru_blob: u8[256] = [];
+let g_pipe_onefunc_mru_clock: i32 = 0;
+let g_pipe_onefunc_sc_used_hi: i32 = 0;
+
+/**
+ * True if sidecar slot is used and its key pointer equals `key`.
+ * @param sc *u8 — sidecar base; null -> 0
+ * @param key *u8 — lookup key
+ * @return i32 — 1 ok, 0 miss
+ * PLATFORM: SHARED — 2-slot MRU helper for sidecar_get.
+ */
+function pipe_sc_last_slot_ok(sc: *u8, key: *u8): i32 {
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (pipe_load_i32_le(sc, 8) == 0) {
+    return 0;
+  }
+  if (pipe_load_ptr_slot(sc, 0) != key) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * 2-slot MRU lookup for the arena sidecar table.
+ * @param key *u8 — arena pointer key
+ * @return *u8 — cached sidecar or null
+ */
+function pipe_arena_sc_recall(key: *u8): *u8 {
+  if (g_pipe_arena_sc_last_key0 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc0, key) != 0) {
+      return g_pipe_arena_sc_last_sc0;
+    }
+  }
+  if (g_pipe_arena_sc_last_key1 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc1, key) != 0) {
+      return g_pipe_arena_sc_last_sc1;
+    }
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Remember arena sidecar as MRU slot 0; previous slot 0 shifts to 1.
+ * @param key *u8 — arena pointer key
+ * @param sc *u8 — sidecar base
+ */
+function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
+  if (g_pipe_arena_sc_last_key0 == key) {
+    g_pipe_arena_sc_last_sc0 = sc;
+    return;
+  }
+  g_pipe_arena_sc_last_key1 = g_pipe_arena_sc_last_key0;
+  g_pipe_arena_sc_last_sc1 = g_pipe_arena_sc_last_sc0;
+  g_pipe_arena_sc_last_key0 = key;
+  g_pipe_arena_sc_last_sc0 = sc;
+}
+
+/**
+ * Drop arena last-hit slots that point at `sc` (called from free).
+ * @param sc *u8 — sidecar being freed
+ */
+function pipe_arena_sc_drop_last(sc: *u8): void {
+  if (g_pipe_arena_sc_last_sc0 == sc) {
+    g_pipe_arena_sc_last_key0 = 0 as *u8;
+    g_pipe_arena_sc_last_sc0 = 0 as *u8;
+  }
+  if (g_pipe_arena_sc_last_sc1 == sc) {
+    g_pipe_arena_sc_last_key1 = 0 as *u8;
+    g_pipe_arena_sc_last_sc1 = 0 as *u8;
+  }
+}
+
+/**
+ * 2-slot MRU lookup for the module sidecar table.
+ * @param key *u8 — module pointer key
+ * @return *u8 — cached sidecar or null
+ */
+function pipe_module_sc_recall(key: *u8): *u8 {
+  if (g_pipe_module_sc_last_key0 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_module_sc_last_sc0, key) != 0) {
+      return g_pipe_module_sc_last_sc0;
+    }
+  }
+  if (g_pipe_module_sc_last_key1 == key) {
+    if (pipe_sc_last_slot_ok(g_pipe_module_sc_last_sc1, key) != 0) {
+      return g_pipe_module_sc_last_sc1;
+    }
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Remember module sidecar as MRU slot 0; previous slot 0 shifts to 1.
+ * @param key *u8 — module pointer key
+ * @param sc *u8 — sidecar base
+ */
+function pipe_module_sc_remember(key: *u8, sc: *u8): void {
+  if (g_pipe_module_sc_last_key0 == key) {
+    g_pipe_module_sc_last_sc0 = sc;
+    return;
+  }
+  g_pipe_module_sc_last_key1 = g_pipe_module_sc_last_key0;
+  g_pipe_module_sc_last_sc1 = g_pipe_module_sc_last_sc0;
+  g_pipe_module_sc_last_key0 = key;
+  g_pipe_module_sc_last_sc0 = sc;
+}
+
+/**
+ * Drop module last-hit slots that point at `sc` (called from free).
+ * @param sc *u8 — sidecar being freed
+ */
+function pipe_module_sc_drop_last(sc: *u8): void {
+  if (g_pipe_module_sc_last_sc0 == sc) {
+    g_pipe_module_sc_last_key0 = 0 as *u8;
+    g_pipe_module_sc_last_sc0 = 0 as *u8;
+  }
+  if (g_pipe_module_sc_last_sc1 == sc) {
+    g_pipe_module_sc_last_key1 = 0 as *u8;
+    g_pipe_module_sc_last_sc1 = 0 as *u8;
+  }
+}
+
+/**
+ * Onefunc ring capacity (covers dummy-wire live keys without MAX walk).
+ * @return i32 — 16
+ */
+function pipe_onefunc_mru_n(): i32 {
+  return 16;
+}
+
+/**
+ * 16-slot ring lookup for the onefunc sidecar table.
+ * @param key *u8 — onefunc pointer key
+ * @return *u8 — cached sidecar or null
+ */
+function pipe_onefunc_sc_recall(key: *u8): *u8 {
+  let n: i32 = pipe_onefunc_mru_n();
+  let i: i32 = 0;
+  let blob: *u8 = 0 as *u8;
+  unsafe {
+    blob = &g_pipe_onefunc_mru_blob[0];
+  }
+  while (i < n) {
+    let k: *u8 = pipe_load_ptr_slot(blob, i * 2);
+    if (k == key) {
+      let sc: *u8 = pipe_load_ptr_slot(blob, i * 2 + 1);
+      if (pipe_sc_last_slot_ok(sc, key) != 0) {
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Remember onefunc sidecar in the 16-slot ring (update in place, else clock insert).
+ * @param key *u8 — onefunc pointer key
+ * @param sc *u8 — sidecar base
+ */
+function pipe_onefunc_sc_remember(key: *u8, sc: *u8): void {
+  let n: i32 = pipe_onefunc_mru_n();
+  let i: i32 = 0;
+  let blob: *u8 = 0 as *u8;
+  let slot: i32 = 0;
+  unsafe {
+    blob = &g_pipe_onefunc_mru_blob[0];
+  }
+  while (i < n) {
+    let k: *u8 = pipe_load_ptr_slot(blob, i * 2);
+    if (k == key) {
+      pipe_store_ptr_slot(blob, i * 2 + 1, sc);
+      return;
+    }
+    i = i + 1;
+  }
+  slot = g_pipe_onefunc_mru_clock;
+  if (slot < 0) {
+    slot = 0;
+  }
+  if (slot >= n) {
+    slot = 0;
+  }
+  pipe_store_ptr_slot(blob, slot * 2, key);
+  pipe_store_ptr_slot(blob, slot * 2 + 1, sc);
+  slot = slot + 1;
+  if (slot >= n) {
+    slot = 0;
+  }
+  g_pipe_onefunc_mru_clock = slot;
+}
+
+/**
+ * Drop onefunc ring slots that point at `sc` (called from free).
+ * @param sc *u8 — sidecar being freed
+ */
+function pipe_onefunc_sc_drop_last(sc: *u8): void {
+  let n: i32 = pipe_onefunc_mru_n();
+  let i: i32 = 0;
+  let blob: *u8 = 0 as *u8;
+  unsafe {
+    blob = &g_pipe_onefunc_mru_blob[0];
+  }
+  while (i < n) {
+    let s: *u8 = pipe_load_ptr_slot(blob, i * 2 + 1);
+    if (s == sc) {
+      pipe_store_ptr_slot(blob, i * 2, 0 as *u8);
+      pipe_store_ptr_slot(blob, i * 2 + 1, 0 as *u8);
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Exclusive end of occupied onefunc process-table slots (0..MAX).
+ * @return i32 — used_hi clamped to [0, MAX]
+ */
+function pipe_onefunc_sc_used_lim(): i32 {
+  let lim: i32 = g_pipe_onefunc_sc_used_hi;
+  let mx: i32 = pipe_onefunc_sc_max();
+  if (lim < 0) {
+    return 0;
+  }
+  if (lim > mx) {
+    return mx;
+  }
+  return lim;
+}
 
 /**
  * Pointer to ArenaSidecar slot i (0..511).
@@ -92197,11 +97231,25 @@ function pipe_onefunc_sc_at(i: i32): *u8 {
   return &g_pipe_onefunc_sc_blob[0] + (off as usize);
 }
 
+/**
+ * After a slot is marked unused, drop trailing empty slots from used_hi.
+ */
+function pipe_onefunc_sc_shrink_hi(): void {
+  while (g_pipe_onefunc_sc_used_hi > 0) {
+    let last: *u8 = pipe_onefunc_sc_at(g_pipe_onefunc_sc_used_hi - 1);
+    if (pipe_load_i32_le(last, 8) != 0) {
+      return;
+    }
+    g_pipe_onefunc_sc_used_hi = g_pipe_onefunc_sc_used_hi - 1;
+  }
+}
+
 
 function pipe_arena_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
+  pipe_arena_sc_drop_last(sc);
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -92236,6 +97284,7 @@ function pipe_module_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
+  pipe_module_sc_drop_last(sc);
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -92258,6 +97307,7 @@ function pipe_onefunc_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
+  pipe_onefunc_sc_drop_last(sc);
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -92290,6 +97340,7 @@ function pipe_onefunc_sc_free(sc: *u8): void {
   unsafe {
     memset(sc, 0, pipe_onefunc_sc_size() as usize);
   }
+  pipe_onefunc_sc_shrink_hi();
 }
 
 /**
@@ -92331,12 +97382,17 @@ export function onefunc_sidecar_free(sc: *u8): void {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
+ * P2 Darwin -o: 2-slot MRU before the MAX=512 linear walk.
  * PLATFORM: SHARED freestanding arena Cap leave.
  */
 #[no_mangle]
 export function arena_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
+  }
+  let hit: *u8 = pipe_arena_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
   }
   let i: i32 = 0;
   while (i < pipe_arena_sc_max()) {
@@ -92345,6 +97401,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
+        pipe_arena_sc_remember(key, sc);
         return sc;
       }
     }
@@ -92361,11 +97418,11 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
       pipe_store_ptr_slot(sc2, 0, key);
       pipe_store_i32_le(sc2, 8, 1);
       let ic: i32 = pipe_gv_init_cap();
-      if (grow_vec_init(sc2 + (16 as usize), 276, ic) == 0) {
+      if (grow_vec_init(sc2 + (16 as usize), 532, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (48 as usize), 712, ic) == 0) {
+      if (grow_vec_init(sc2 + (48 as usize), 1224, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92373,15 +97430,15 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (112 as usize), 196, ic) == 0) {
+      if (grow_vec_init(sc2 + (112 as usize), 324, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (144 as usize), 140, ic) == 0) {
+      if (grow_vec_init(sc2 + (144 as usize), 268, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (176 as usize), 140, ic) == 0) {
+      if (grow_vec_init(sc2 + (176 as usize), 268, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92389,7 +97446,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (240 as usize), 140, ic) == 0) {
+      if (grow_vec_init(sc2 + (240 as usize), 268, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92405,7 +97462,11 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (368 as usize), 272, ic) == 0) {
+      /* Cap 4.2.8 sync: W277_LabeledStmt is 528 (label[256]+goto_target[256]);
+       * the stale 272 (128-era) stride made the 2nd+ labeled stmt's 528-byte
+       * write smash the neighboring slot — same class as the onefunc region
+       * stride fix (2026-09-13). */
+      if (grow_vec_init(sc2 + (368 as usize), 528, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92449,7 +97510,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (720 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (720 as usize), 264, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92457,10 +97518,11 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (784 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (784 as usize), 264, ic) == 0) {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
+      pipe_arena_sc_remember(key, sc2);
       return sc2;
     }
     i = i + 1;
@@ -92474,12 +97536,17 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
+ * P2 Darwin -o: 2-slot MRU before the MAX=512 linear walk.
  * PLATFORM: SHARED freestanding module Cap leave.
  */
 #[no_mangle]
 export function module_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
+  }
+  let hit: *u8 = pipe_module_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
   }
   let i: i32 = 0;
   while (i < pipe_module_sc_max()) {
@@ -92488,6 +97555,7 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
+        pipe_module_sc_remember(key, sc);
         return sc;
       }
     }
@@ -92504,7 +97572,7 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
       pipe_store_ptr_slot(sc2, 0, key);
       pipe_store_i32_le(sc2, 8, 1);
       let ic: i32 = pipe_gv_init_cap();
-      if (grow_vec_init(sc2 + (16 as usize), 196, ic) == 0) {
+      if (grow_vec_init(sc2 + (16 as usize), 324, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92512,27 +97580,27 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (80 as usize), 404, ic) == 0) {
+      if (grow_vec_init(sc2 + (80 as usize), 532, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (112 as usize), 160, ic) == 0) {
+      if (grow_vec_init(sc2 + (112 as usize), 288, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (144 as usize), 148, ic) == 0) {
+      if (grow_vec_init(sc2 + (144 as usize), 276, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (176 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (176 as usize), 264, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (208 as usize), 33932, ic) == 0) {
+      if (grow_vec_init(sc2 + (208 as usize), 66828, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (240 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (240 as usize), 256, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92540,15 +97608,15 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (304 as usize), 136, ic) == 0) {
+      if (grow_vec_init(sc2 + (304 as usize), 264, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (336 as usize), 144, ic) == 0) {
+      if (grow_vec_init(sc2 + (336 as usize), 272, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (368 as usize), 132, ic) == 0) {
+      if (grow_vec_init(sc2 + (368 as usize), 260, ic) == 0) {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92556,6 +97624,7 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_module_sc_free(sc2);
         return 0 as *u8;
       }
+      pipe_module_sc_remember(key, sc2);
       return sc2;
     }
     i = i + 1;
@@ -92569,6 +97638,8 @@ export function module_sidecar_get(key: *u8, create: i32): *u8 {
  * @param create i32 — non-zero to allocate free slot + init GrowVecs
  * @return *u8 — sidecar base or null
  * wave275 pure-owned leave; G.7 single process table.
+ * P2 Darwin -o: 16-slot ring before the used_hi linear walk (dummy-wire live
+ * keys miss a 2-slot src/dst cache; miss walk stops at last occupied slot).
  * PLATFORM: SHARED freestanding onefunc Cap leave.
  */
 #[no_mangle]
@@ -92576,13 +97647,19 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
   }
+  let hit: *u8 = pipe_onefunc_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
+  }
   let i: i32 = 0;
-  while (i < pipe_onefunc_sc_max()) {
+  let lim: i32 = pipe_onefunc_sc_used_lim();
+  while (i < lim) {
     let sc: *u8 = pipe_onefunc_sc_at(i);
     let used: i32 = pipe_load_i32_le(sc, 8);
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
+        pipe_onefunc_sc_remember(key, sc);
         return sc;
       }
     }
@@ -92598,6 +97675,9 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
     if (used2 == 0) {
       pipe_store_ptr_slot(sc2, 0, key);
       pipe_store_i32_le(sc2, 8, 1);
+      if (i + 1 > g_pipe_onefunc_sc_used_hi) {
+        g_pipe_onefunc_sc_used_hi = i + 1;
+      }
       let ic: i32 = pipe_gv_init_cap();
       if (grow_vec_init(sc2 + (16 as usize), 4, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
@@ -92611,7 +97691,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (112 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (112 as usize), 256, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92631,7 +97711,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (272 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (272 as usize), 256, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92687,7 +97767,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (720 as usize), 128, ic) == 0) {
+      if (grow_vec_init(sc2 + (720 as usize), 256, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92703,7 +97783,12 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (848 as usize), 140, ic) == 0) {
+      /* Cap 4.2.8 missed mirror (live thin authority): W281_RegionEntry is
+       * 268 (label[256]) — the stale 140 stride made entry N+1's 268-byte
+       * write overlap entry N's tail, smashing body_ref/with_arena_cap_ref
+       * (offsets 260/264) with label bytes: consecutive unsafe/region
+       * statements lost all but the last (2026-09-13 L4 forensics m5/m9). */
+      if (grow_vec_init(sc2 + (848 as usize), 268, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -92711,10 +97796,11 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(sc2 + (912 as usize), 272, ic) == 0) {
+      if (grow_vec_init(sc2 + (912 as usize), 528, ic) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
+      pipe_onefunc_sc_remember(key, sc2);
       return sc2;
     }
     i = i + 1;
@@ -92738,15 +97824,15 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
 // Layout LE (match product seeds / wave275 GrowVec elem sizes):
 //   ASTArena: num_types@0 num_exprs@4 num_blocks@8 num_funcs@12 (16B)
 //   ArenaSidecar: types@16 exprs@48 blocks@80 funcs@112 (GrowVec 32 each)
-//   Type 276 · Expr 712 · Block 92 · Func 196
+//   Type 532 · Expr 1224 · Block 92 · Func 324
 // Cap: AST_POOL_NO_LIMIT = 2147483647
 // G.7 single authority — residual host leaf deleted; dual-export ban.
 // =============================================================================
 
-function pipe_ar_ty_sz(): i32 { return 276; }
-function pipe_ar_ex_sz(): i32 { return 712; }
+function pipe_ar_ty_sz(): i32 { return 532; }
+function pipe_ar_ex_sz(): i32 { return 1224; }
 function pipe_ar_bl_sz(): i32 { return 92; }
-function pipe_ar_fn_sz(): i32 { return 196; }
+function pipe_ar_fn_sz(): i32 { return 324; }
 function pipe_ar_no_limit(): i32 { return 2147483647; }
 function pipe_ar_off_num_types(): i32 { return 0; }
 function pipe_ar_off_num_exprs(): i32 { return 4; }
@@ -92759,32 +97845,32 @@ function pipe_ar_sc_funcs(): i32 { return 112; }
 function pipe_ar_ex_kind(): i32 { return 0; }
 function pipe_ar_ex_resolved_ty(): i32 { return 4; }
 function pipe_ar_ex_var_name(): i32 { return 32; }
-function pipe_ar_ex_var_name_len(): i32 { return 160; }
-function pipe_ar_ex_binop_l(): i32 { return 164; }
-function pipe_ar_ex_binop_r(): i32 { return 168; }
-function pipe_ar_ex_match_arm_base(): i32 { return 196; }
-function pipe_ar_ex_fa_base(): i32 { return 204; }
-function pipe_ar_ex_fa_name(): i32 { return 208; }
-function pipe_ar_ex_fa_len(): i32 { return 336; }
-function pipe_ar_ex_fa_is_enum(): i32 { return 340; }
-function pipe_ar_ex_fa_off(): i32 { return 344; }
-function pipe_ar_ex_call_res_fi(): i32 { return 704; }
-function pipe_ar_ex_call_res_di(): i32 { return 708; }
-function pipe_ar_ex_enum_tag(): i32 { return 692; }
+function pipe_ar_ex_var_name_len(): i32 { return 288; }
+function pipe_ar_ex_binop_l(): i32 { return 292; }
+function pipe_ar_ex_binop_r(): i32 { return 296; }
+function pipe_ar_ex_match_arm_base(): i32 { return 324; }
+function pipe_ar_ex_fa_base(): i32 { return 332; }
+function pipe_ar_ex_fa_name(): i32 { return 336; }
+function pipe_ar_ex_fa_len(): i32 { return 592; }
+function pipe_ar_ex_fa_is_enum(): i32 { return 596; }
+function pipe_ar_ex_fa_off(): i32 { return 600; }
+function pipe_ar_ex_call_res_fi(): i32 { return 1216; }
+function pipe_ar_ex_call_res_di(): i32 { return 1220; }
+function pipe_ar_ex_enum_tag(): i32 { return 1204; }
 function pipe_ar_ty_kind(): i32 { return 0; }
 function pipe_ar_ty_name(): i32 { return 4; }
-function pipe_ar_ty_name_len(): i32 { return 132; }
-function pipe_ar_ty_elem(): i32 { return 136; }
-function pipe_ar_ty_arr(): i32 { return 140; }
+function pipe_ar_ty_name_len(): i32 { return 260; }
+function pipe_ar_ty_elem(): i32 { return 264; }
+function pipe_ar_ty_arr(): i32 { return 268; }
 function pipe_ar_fn_name(): i32 { return 0; }
-function pipe_ar_fn_name_len(): i32 { return 128; }
-function pipe_ar_fn_param_base(): i32 { return 132; }
-function pipe_ar_fn_num_params(): i32 { return 136; }
-function pipe_ar_fn_ret(): i32 { return 144; }
-function pipe_ar_fn_body(): i32 { return 148; }
-function pipe_ar_fn_body_expr(): i32 { return 152; }
-function pipe_ar_fn_is_extern(): i32 { return 156; }
-function pipe_ar_fn_is_async(): i32 { return 160; }
+function pipe_ar_fn_name_len(): i32 { return 256; }
+function pipe_ar_fn_param_base(): i32 { return 260; }
+function pipe_ar_fn_num_params(): i32 { return 264; }
+function pipe_ar_fn_ret(): i32 { return 272; }
+function pipe_ar_fn_body(): i32 { return 276; }
+function pipe_ar_fn_body_expr(): i32 { return 280; }
+function pipe_ar_fn_is_extern(): i32 { return 284; }
+function pipe_ar_fn_is_async(): i32 { return 288; }
 function pipe_ar_bl_num_consts(): i32 { return 4; }
 function pipe_ar_bl_num_lets(): i32 { return 12; }
 function pipe_ar_bl_num_early_lets(): i32 { return 16; }
@@ -92877,6 +97963,25 @@ function pipe_ar_load_i32(base: *u8, off: i32): i32 {
 export extern "C" function ast_pool_block_on_alloc(a: *u8, br: i32): void;
 export extern "C" function pipeline_module_func_alloc_slot(m: *u8): i32;
 export extern "C" function pipeline_module_func_name_write(m: *u8, fi: i32, name: *u8, name_len: i32): void;
+export extern "C" function pipeline_module_parse_impl_owner_set(nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_module_parse_impl_owner_clear(): void;
+export extern "C" function pipeline_module_func_owner_from_impl(m: *u8, fi: i32): void;
+export extern "C" function pipeline_module_func_owner_binds_base_at(m: *u8, fi: i32, base: *u8, base_len: i32): i32;
+export extern "C" function pipeline_module_func_set_abi_kind(m: *u8, fi: i32, abi_kind: i32): void;
+export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
+export extern "C" function pipeline_expr_set_int_val(a: *u8, er: i32, v: i64): void;
+export extern "C" function pipeline_expr_set_float_val(a: *u8, er: i32, v: f64): void;
+export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
+export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_method_call_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_set_index_c(a: *u8, er: i32, base_ref: i32, index_ref: i32, is_slice: i32): void;
+export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref: i32, num_type_args: i32): void;
+export extern "C" function pipeline_expr_set_struct_lit_finish_c(a: *u8, er: i32, nm: *u8, nlen: i32): void;
+export extern "C" function pipeline_expr_field_name_len_at(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_field_name_into(a: *u8, er: i32, dst: *u8): void;
+export extern "C" function pipeline_module_func_abi_kind_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
 export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;
 export extern "C" function pipeline_module_func_set_body_ref(m: *u8, fi: i32, br: i32): void;
@@ -93146,11 +98251,12 @@ export function pipeline_arena_func_cap(): i32 {
 }
 
 /**
- * Initialize EXPR_VAR slot in C layout (avoid X whole-struct set).
+ * Initialize EXPR_VAR slot in Cap 4.2.8 C layout (avoid X whole-struct set).
  * @param a *u8 - ASTArena*
  * @param ref i32 - expr ref
  * @param name *u8 - name bytes
- * @param name_len i32 - length
+ * @param name_len i32 - length (content max 255; oversize clamps to 255)
+ * Layout: name[256]@32, name_len@288, call_res_fi/di@1216/1220.
  * wave276 pure Cap leave. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -93174,8 +98280,9 @@ export function pipeline_arena_expr_write_var(a: *u8, ref: i32, name: *u8, name_
   pipe_ar_zero(ep, pipe_ar_ex_sz());
   pipe_ar_store_i32(ep, pipe_ar_ex_kind(), pipe_ar_ek_var());
   let n: i32 = name_len;
-  if (n > 127) {
-    n = 63;
+  // Cap 4.2.8: storage name[256] holds ≤255 content bytes; clamp oversize.
+  if (n > 255) {
+    n = 255;
   }
   pipe_ar_store_i32(ep, pipe_ar_ex_var_name_len(), n);
   let i: i32 = 0;
@@ -93674,7 +98781,7 @@ export function pipeline_parser_extern_init_arena_func_and_register_c(arena: *u8
   if (name_len < 0) {
     return 0 - 1;
   }
-  if (name_len > 127) {
+  if (name_len > 255) {
     return 0 - 1;
   }
   let fp: *u8 = pipeline_arena_func_ptr(arena, func_ref);

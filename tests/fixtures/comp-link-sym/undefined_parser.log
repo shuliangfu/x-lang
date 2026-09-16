@@ -1,0 +1,3 @@
+ld: undefined symbol: parser_parse_into_buf
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+link failed while building xlang_asm.strict

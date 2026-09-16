@@ -4,6 +4,9 @@
 > 状态：**定版（v1）**  
 > 读者：需覆盖 STD-013～040 与 CORE-006 的开发者  
 > 前置：[`doc-stdlib-cookbook-v1.md`](doc-stdlib-cookbook-v1.md)（DOC-001，§2～§5 共 12 食谱）
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
+
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
 
 ---
 
@@ -140,7 +143,7 @@ DOC-001 已覆盖 NET-01～03：`examples/cookbook/net_listen_bind.x`、`net_udp
 ### IO-04：`examples/cookbook/io_fallback_read.x`
 
 `read_fd` / `write_fd` 非 Linux 回退 typeck（STD-026）。  
-深潜：`analysis/std-io-fallback-v1.md`。
+深潜：`analysis/archive/std/std-io-fallback-v1.md`。
 
 DOC-001 已覆盖 IO-01～03：`examples/cookbook/io_batch_rw.x`、`io_read_chunk.x`、`io_mmap_read.x`。
 
@@ -297,3 +300,17 @@ DB-03 见 §17；API 见 docs/07 STD-DB-001 与 `std/db/README.md`。
 1. Cookbook 总数是否 ≥57？→ `./tests/run-doc-cookbook-expand-gate.sh`
 2. §11 收口 API 是否在 docs/07？→ `./tests/run-doc-07-phase3-sync-gate.sh`
 3. 与 DOC-001 关系？→ DOC-001 保 12 条基线；DOC-006 扩充至 57
+
+## Gate
+
+Honesty gate for DOC-006 (`tests/run-doc-cookbook-expand-gate.sh`):
+
+- Live DOC = this archive file; refuse top-level `analysis/doc-cookbook-expand-v1.md` resurrect.
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG / missing
+  native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest sections / recipes / xrefs = hard green.
+- Product `-o` smoke (`io_batch_rw` / `runtime_panic_hook` / `http_chunked_decode`)
+  + run exit 0 = hard green.
+- `xlang check` CHK002 / paused / parse residual = obs (not soft silence; do not
+  hard-bind all recipes to check).
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.

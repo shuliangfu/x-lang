@@ -11,7 +11,6 @@
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Prove：seeds/labi_std_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 
@@ -24,13 +23,14 @@
  */
 
 int labi_std_plan_count(void) {
-  return 60;
+  /* PLATFORM: SHARED — was 60; +option +result (=heavy return 62). */
+  return 62;
 }
 
 int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out) {
   if (i < 0)
     return 0;
-  if (i >= 60)
+  if (i >= 62)
     return 0;
   if (i == 0) {
     if (op_out)
@@ -565,7 +565,27 @@ int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_ki
       *flag_kind_out = 0;
     return 1;
   }
+  /* PLATFORM: SHARED — std/option/option.o (STD-080); fk0 gated std_option_*. */
   if (i == 59) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/option/option.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  /* PLATFORM: SHARED — std/result/result.o (STD-081); fk0 gated std_result_*. */
+  if (i == 60) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/result/result.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 61) {
     if (op_out)
       *op_out = 30;
     if (rel_out)
@@ -579,7 +599,8 @@ int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_ki
 
 /* Pure: count of OP_STD entries with std/ prefix (audit / unit). */
 int labi_std_default_std_rel_count(void) {
-  return 43;
+  /* PLATFORM: SHARED — was 43; +option +result (=heavy return 45). */
+  return 45;
 }
 
 const char *labi_std_default_std_rel_at(int j) {
@@ -671,6 +692,10 @@ const char *labi_std_default_std_rel_at(int j) {
     return "std/vec/vec.o";
   if (j == 42)
     return "std/fs/fs.o";
+  if (j == 43)
+    return "std/option/option.o";
+  if (j == 44)
+    return "std/result/result.o";
   return NULL;
 }
 

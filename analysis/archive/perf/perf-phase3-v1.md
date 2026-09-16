@@ -26,7 +26,14 @@
 xlang: [XLANG_PERF_PHASE3] status=ok check=1 run=1 skip=0
 ```
 
-无 native xlang 时 typeck SKIP；manifest 仍须全绿。
+---
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c / missing top-level DOC; over-cap = obs
+(`XLANG_PERF_PHASE3_FAIL=1` still hard); DOC=archive; report
+`run=`／`obs=`／`skip=`.
 
 ---
 

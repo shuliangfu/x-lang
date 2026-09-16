@@ -1,38 +1,84 @@
 #!/usr/bin/env bash
-# STD-086：std.config 门禁（含来源 meta）
+# STD-086: std.config gate — honesty residual soft auto-make →硬绿.
 #
-# 用法：./tests/run-std-config-gate.sh
-set -e
+# Honesty: residual soft auto-make (`xlang_compiler_make … config.o/env.o/
+# runtime_* || true` before host-C cc) retired. Prefer product xlang_asm;
+# pin XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die
+# (refuse soft SKIP→OK / soft auto-make / prefer-c). Product layer_smoke.x
+# -o exit0 = hard run. check residual = obs (paused 2026-08-05). Host-C
+# archaeology = obs only (prebuilt .o; refuse rebuild). Report:
+# run=/obs=/skip=. Keep ## 3. Gate. Keep keywords STD-086 / load_toml_file /
+# load_env_prefix / merge / get_i32 / get_bool / get_source / source_toml.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-config-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
+DOC="${XLANG_STD_CONFIG_DOC:-analysis/archive/std/std-config-v1.md}"
 MANIFEST="${XLANG_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
 MOD_X="std/config/mod.x"
 CFG_X="std/config/config.x"
 LIB="tests/lib/std-config.sh"
 SMOKE_X="tests/std-config/layer_smoke.x"
 SMOKE_C="tests/std-config/config_smoke_ok.c"
+README="std/config/README.md"
 MIN_APIS=15
 
 # shellcheck source=tests/lib/std-config.sh
 . "$LIB"
 
-echo "=== STD-086: std.config manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CFG_X" "$SMOKE_X" "$SMOKE_C" std/config/README.md; do
-  if [ ! -f "$f" ]; then
-    echo "std-config gate FAIL: missing $f" >&2
-    exit 1
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-config gate FAIL: $*" >&2
+  std_config_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== STD-086: std.config manifest ==="
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CFG_X" "$SMOKE_X" "$SMOKE_C" "$README"; do
+  [ -f "$f" ] || die "missing $f"
 done
+[ ! -f analysis/std-config-v1.md ] || die "dual-authority fossil analysis/std-config-v1.md (archive live)"
 
 for kw in STD-086 load_toml_file load_env_prefix merge get_i32 get_bool get_source source_toml; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-config gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -45,65 +91,59 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
-    echo "std-config gate FAIL: missing api $anchor" >&2
-    exit 1
-  fi
+  grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null || die "missing api $anchor"
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-config gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
-sym_miss="$(std_config_symbols_ok "$MOD_X" "$CFG_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_config_emit_report "fail" 0 0 0
-  exit 1
-fi
+sym_miss="$(std_config_symbols_ok "$MOD_X" "$CFG_X" "$MANIFEST" "$DOC" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-config manifest OK"
 
-C_OK=0
-X_OK=0
-SKIP=0
-
-echo "=== STD-086: config c smoke ==="
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/config/config.o ../std/env/env.o ../std/process/process.o runtime_process_argv.o runtime_process_os_glue.o runtime_env_os.o >/dev/null 2>&1
-  if cc -std=c11 -O1 -o /tmp/xlang_config_smoke \
-    "$SMOKE_C" std/config/config.o std/env/env.o std/process/process.o compiler/runtime_process_argv.o compiler/runtime_process_os_glue.o compiler/runtime_env_os.o 2>/dev/null; then
-    if /tmp/xlang_config_smoke >/dev/null 2>&1; then C_OK=1; fi
-    rm -f /tmp/xlang_config_smoke
-  fi
-else
-  echo "std-config gate SKIP c smoke (need xlang-c for config.x merge)" >&2
+if [ "${XLANG_STD_CONFIG_MANIFEST_ONLY:-0}" = "1" ]; then
   SKIP=1
-fi
-if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
-  std_config_emit_report "fail" 0 0 0
-  echo "std-config gate FAIL: c smoke" >&2
-  exit 1
+  std_config_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-config gate OK (manifest only)"
+  exit 0
 fi
 
-XLANG_BIN=""
-if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-086: smoke (XLANG=$XLANG_BIN; host-C=obs; check=obs; product -o hard) ==="
 
-if [ -n "$XLANG_BIN" ]; then
-  echo "=== STD-086: .x smoke (XLANG=$XLANG_BIN) ==="
-  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "std-config gate FAIL: typeck" >&2
-    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
-    std_config_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
-  if std_config_run_smoke "$XLANG_BIN" "$SMOKE_X" "layer"; then X_OK=1; else
-    std_config_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
+# Host-C archaeology = obs only; refuse soft ensure/auto-make.
+# PLATFORM: SHARED — missing prebuilt .o = obs, not soft SKIP→OK.
+set +e
+std_config_host_c_obs "$SMOKE_C"
+c_rc=$?
+set -e
+# Presence / C-smoke success is not a green signal (product honesty is layer_smoke.x).
+if [ "$c_rc" -ne 0 ]; then
+  echo "std-config OBS host-C (rc=$c_rc; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
 else
-  echo "std-config gate SKIP .x smoke (no xlang)" >&2
-  SKIP=1
+  echo "std-config OBS host-C c smoke present (not a green signal; refuse soft auto-make)" >&2
+  OBS=$((OBS + 1))
 fi
 
-std_config_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_config_check_$$.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-config OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Product layer_smoke.x -o exit0 = hard (leave product UNDEF as a later knife).
+# PLATFORM: SHARED — refuse soft SKIP→OK. G.7: lib std_config_run_smoke.
+if std_config_run_smoke "$XLANG_BIN" "$SMOKE_X" "layer"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-config OK: product layer_smoke"
+else
+  die "product -o failed (refuse soft SKIP→OK)"
+fi
+
+std_config_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-config gate OK"

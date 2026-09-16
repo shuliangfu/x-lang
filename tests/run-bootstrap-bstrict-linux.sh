@@ -29,7 +29,7 @@ fi
 if [ -n "${XLANG_BSTRICT_SKIP_BUILD:-}" ] && [ -x compiler/xlang_asm ]; then
   echo "run-bootstrap-bstrict-linux: reuse bstrict xlang_asm (XLANG_BSTRICT_SKIP_BUILD=1, skip crt0 rebuild)"
 else
-  echo "run-bootstrap-bstrict-linux: make bootstrap-driver-crt0 ..."
+  echo "run-bootstrap-bstrict-linux: xlang_compiler_make bootstrap-driver-crt0 ..."
   xlang_compiler_make bootstrap-driver-crt0
 fi
 

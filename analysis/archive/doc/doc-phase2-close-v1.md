@@ -1,7 +1,7 @@
 # DOC-008：Phase 2 收尾文档同步 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-28  
+> 状态：**定版（v1）** · archive Gate authority  
 > 触发：Phase 2 任务表（§2.1～§2.11）全部 ✅；STD-033 完成后 `std.http` 文档漂移  
 > 读者：维护 `std/README.md`、`docs/07`、`examples/cookbook` 的贡献者
 
@@ -24,9 +24,9 @@
 | `decode_chunked_body` | `std/http/README.md` | STD-033 API 表 |
 | `STD-033` | `std/README.md` | std.http 行 gate 引用 |
 | `STD-033` | `docs/07-内置与标准库.md` | std.http 已完善表 |
-| `HTTP-02` | `analysis/doc-cookbook-expand-v1.md` | chunked 食谱 |
-| `http_chunked_decode.x` | `examples/cookbook/` | Cookbook 可 typeck |
-| `Phase 2` | `NEXT.md` §3 | 审计快照与 STD-033 一致 |
+| `HTTP-02` | `analysis/archive/doc/doc-cookbook-expand-v1.md` | chunked 食谱 |
+| `http_chunked_decode.x` | `examples/cookbook/` | Cookbook product `-o` 硬绿 |
+| `Phase 2` | `analysis/自举进度.md` | 审计快照与 STD-033 一致（NEXT.md 已退役） |
 
 ---
 
@@ -38,14 +38,24 @@ DOC-006 manifest 食谱数由 35 增至 **36**（`min_recipes` 仍为 35，gate 
 
 ---
 
-## 4. Gate
+## Gate
+
+Honesty gate for DOC-008 (`tests/run-doc-phase2-close-gate.sh`):
+
+- Live DOC = this archive file; refuse top-level `analysis/doc-phase2-close-v1.md` resurrect.
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG / missing
+  native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest anchors = hard green.
+- Cookbook HTTP-02 product `-o` + run exit 0 = hard green.
+- `xlang check` CHK002 / paused = obs (not soft silence).
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.
 
 ```bash
 ./tests/run-doc-phase2-close-gate.sh
 ```
 
 ```
-xlang: [XLANG_DOC08_PHASE2_CLOSE] status=ok anchors=6 cookbook=1 skip=0
+xlang: [XLANG_DOC08_PHASE2_CLOSE] status=ok run=1 obs=0 skip=0
 ```
 
 ---

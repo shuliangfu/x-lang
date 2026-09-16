@@ -70,3 +70,20 @@ xlang: [XLANG_STD_MEM_BOUNDARY] status=ok core_only=4 std_only=4 no_cross_import
 ## 6. 维护
 
 新增 mem 类 API 时先判定层级：core 原语 vs std OS/堆门面；更新本 RFC + `std/mem/README.md` §边界。
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + symbols + no-cross-import + README = hard.
+- `tests/mem/std_mem_boundary.x` tip product `-o` UNDEF (`std_mem_*`) = obs.
+- `xlang check` = obs (paused 2026-08-05).
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-std-mem-boundary-gate.sh
+```
+
+manifest: `tests/baseline/std-mem-boundary.tsv`

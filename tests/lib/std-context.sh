@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# std-context.sh — STD-071 manifest 与烟测辅助（F-context v2：纯 context.x）
+# std-context.sh — STD-071: context manifest helpers (F-context v2: pure context.x).
+#
+# Usage (after source):
+#   std_context_symbols_ok MOD_X CTX_X TSV
+#   std_context_run_c_smoke CTX_X   # observational host-C archaeology only
+#   std_context_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_CONTEXT_PREFIX="${XLANG_STD_CONTEXT_PREFIX:-xlang: [XLANG_STD_CONTEXT]}"
 
-# 遍历 manifest 校验 symbol/file/smoke；symbol 在 context.x。
+# Validate manifest api/symbol/file/smoke anchors; symbols live in context.x.
+# Echo miss count; return 0 when miss=0.
 std_context_symbols_ok() {
   local mod_x="$1"
   local ctx_x="$2"
@@ -44,24 +49,22 @@ std_context_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：context.o + time.o（需 xlang-c 产出 context.o）。
+# Observational C smoke: existing context.o + time.o + runtime_time_os.o only.
+# Refuse soft ensure/auto-make; missing .o → caller counts obs.
+# PLATFORM: SHARED archaeology — product honesty is cancel_smoke.x via asm.
 std_context_run_c_smoke() {
   local ctx_x="$1"
   local src="tests/std-context/context_smoke_ok.c"
-  local out="/tmp/xlang_std_context_$$"
-  local ctx_o time_o
+  local out="/tmp/xlang_std_context_c_$$"
+  local ctx_o time_o rt_o
   ctx_o="$(dirname "$ctx_x")/context.o"
   time_o="std/time/time.o"
-  if [ ! -f "$ctx_o" ]; then
-    echo "std-context FAIL: missing $ctx_o" >&2
-    return 1
-  fi
-  if [ ! -f "$time_o" ]; then
-    xlang_compiler_make ../std/time/time.o >/dev/null 2>&1 || true
-  fi
-  xlang_compiler_make runtime_time_os.o >/dev/null 2>&1 || true
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$ctx_o" "$time_o" compiler/runtime_time_os.o 2>/dev/null; then
-    echo "std-context FAIL: compile c smoke" >&2
+  rt_o="compiler/runtime_time_os.o"
+  [ -f "$ctx_o" ] || return 1
+  [ -f "$time_o" ] || return 1
+  [ -f "$rt_o" ] || return 1
+  [ -f "$src" ] || return 1
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$ctx_o" "$time_o" "$rt_o" 2>/dev/null; then
     return 1
   fi
   set +e
@@ -69,41 +72,14 @@ std_context_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-context FAIL: c smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
+  [ "$ec" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
-std_context_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-ctx}"
-  local exe="/tmp/xlang_std_context_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-context FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-context FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_context_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_CONTEXT_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_CONTEXT_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

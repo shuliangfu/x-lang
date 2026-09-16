@@ -1,21 +1,23 @@
 # TOOL-005 调试符号 manifest
 # 列：item_id	kind	anchor	src	tier	notes
+# honesty 2026-08-24 #6: DOC → analysis/archive/tool/; monofile retired;
+# strip/NDEBUG live = labi_invoke_cc_list; backtrace = runtime_backtrace_platform.
 # min_rules	6
 # min_cases	2
-read_path	section	## 1. 阅读路径	analysis/tool-debug-symbols-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/tool/tool-debug-symbols-v1.md	-	15min
 rules	section	## 2. 契约 D1–D6	tool-debug-symbols.tsv	-	contract
-fixtures	section	## 3. Golden 用例与 report	analysis/tool-debug-symbols-v1.md	-	golden
-verify	section	## 6. 验证与门禁	analysis/tool-debug-symbols-v1.md	-	gate
-rule_d1	rules	D1-o0-no-strip	analysis/tool-debug-symbols-v1.md	build	strip
-rule_d2	rules	D2-o0-no-ndebug	analysis/tool-debug-symbols-v1.md	build	NDEBUG
-rule_d3	rules	D3-symtab-main	analysis/tool-debug-symbols-v1.md	symtab	nm main
-rule_d4	rules	D4-backtrace-capture	analysis/tool-debug-symbols-v1.md	stack	backtrace
-rule_d5	rules	D5-ast-line-col	analysis/tool-debug-symbols-v1.md	map	LSP line
-rule_d6	rules	D6-release-strip	analysis/tool-debug-symbols-v1.md	release	-O2 strip
-sym_strip	symbol	strip	compiler/seeds/runtime.from_x.c	D1	invoke_cc
-sym_ndebug	symbol	NDEBUG	compiler/seeds/runtime.from_x.c	D2	cc argv
+fixtures	section	## 3. Golden 用例与 report	analysis/archive/tool/tool-debug-symbols-v1.md	-	golden
+verify	section	## 6. 验证与门禁	analysis/archive/tool/tool-debug-symbols-v1.md	-	gate
+rule_d1	rules	D1-o0-no-strip	analysis/archive/tool/tool-debug-symbols-v1.md	build	strip
+rule_d2	rules	D2-o0-no-ndebug	analysis/archive/tool/tool-debug-symbols-v1.md	build	NDEBUG
+rule_d3	rules	D3-symtab-main	analysis/archive/tool/tool-debug-symbols-v1.md	symtab	nm main
+rule_d4	rules	D4-backtrace-capture	analysis/archive/tool/tool-debug-symbols-v1.md	stack	backtrace
+rule_d5	rules	D5-ast-line-col	analysis/archive/tool/tool-debug-symbols-v1.md	map	LSP line
+rule_d6	rules	D6-release-strip	analysis/archive/tool/tool-debug-symbols-v1.md	release	-O2 strip
+sym_strip	symbol	invoke_cc_maybe_strip_out	compiler/seeds/labi_invoke_cc_list.from_x.c	D1	invoke_cc
+sym_ndebug	symbol	NDEBUG	compiler/seeds/labi_invoke_cc_list.from_x.c	D2	cc argv
 sym_backtrace	symbol	backtrace_capture_c	compiler/seeds/runtime_backtrace_platform.from_x.c	D4	capture
-sym_lsp_line	symbol	lsp_definition_at	compiler/src/lsp/lsp_diag.c	D5	line/col
+sym_lsp_line	symbol	lsp_definition_at	compiler/src/lsp/lsp_diag.h	D5	line/col
 case_marker	case	symbols_marker	tests/debug/symbols_marker.x	debug	marker
 case_backtrace	case	main.x	tests/backtrace/main.x	stack	capture
 lib	script	lib/tool-debug-symbols.sh	tests/lib/tool-debug-symbols.sh	-	共享库

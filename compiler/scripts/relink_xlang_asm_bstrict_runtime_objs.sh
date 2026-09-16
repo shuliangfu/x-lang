@@ -76,7 +76,7 @@ fi
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -d build_asm ] || [ ! -f build_asm/pipeline.o ]; then
-  fail "need prior bootstrap (make bootstrap-driver-bstrict) — missing build_asm/pipeline.o"
+  fail "need prior bootstrap (bash scripts/bootstrap_driver_bstrict.sh / g05) — missing build_asm/pipeline.o"
 fi
 
 # Skip flags: strict relink-only. Caller env override wins when already set.

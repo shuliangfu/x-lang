@@ -1,8 +1,8 @@
 # STD-HTTP-H2：std.http HTTP/2 v0 线格式文档
 
-> 更新时间：2026-06-19  
-> 状态：**v8（h2c TCP 会话 + push 读路径 + HttpRequestOwned）**  
-> 关联：RFC 7540、`std/http/http2.inc.c`、`std.http` HTTPS/ALPN
+> 更新时间：2026-08-28  
+> 状态：**v8（h2c TCP 会话 + push 读路径 + HttpRequestOwned）＋ honesty Gate**  
+> 关联：RFC 7540、`compiler/seeds/http/http2.inc`、`std.http` HTTPS/ALPN
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-http-h2.tsv` |
 | 3 | `./tests/run-std-http-h2-gate.sh` |
-| 4 | 烟测：`tests/http/wire.x` |
+| 4 | 烟测：`tests/http/http2_wire.x` |
 
 ---
 
@@ -465,4 +465,16 @@ std.http HTTP/2 生产子集已覆盖 RFC 7540 常用路径：线格式、HPACK�
 
 ---
 
-## 5. 验证与门禁
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；host-C 拒 soft `ensure_std_c_o`／auto-make／prefer-c／SKIP→OK（无 dedicated h2 C harness；不因 Docker／无 native 假绿）；check＝obs（暂停）；tip 产品 `-o` SEGV／UNDEF＝obs（产品另案）。报告 `run=`／`obs=`／`skip=`（退役 `wire=`／`client=`／`network=`／`flow=`）。父 STD-009 仅文件存在。http-context／reqresp／server-pool／unbounded 产品红跳过。
+
+```bash
+./tests/run-std-http-h2-gate.sh
+```
+
+```
+xlang: [XLANG_STD_HTTP_H2] status=ok run=N obs=M skip=K
+```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.

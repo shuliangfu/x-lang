@@ -24,17 +24,27 @@
 
 ## 子 gate 委托
 
-- `run-std-c-inventory-gate.sh` — F-01 std/core 存量不增
-- `run-f04-std-crypto-closure-gate.sh` — crypto 模块闭合
-- `run-f05-std-db-closure-gate.sh` — db 模块闭合
-- `run-e-soft-retire-gate.sh`（manifest only）— 编译器 C 软退役跟踪
+- `run-std-c-inventory-gate.sh` — F-01 std/core 存量不增（hard）
+- `run-f04-std-crypto-closure-gate.sh` — crypto 模块闭合（hard）
+- `run-f04-std-net-closure-gate.sh` — net 模块闭合（hard）
+- `run-f05-std-db-closure-gate.sh` — db 模块闭合（hard）
+- `run-f-path-v1-gate.sh` / `run-f-uuid-v1-gate.sh` / `run-f-sort-v1-gate.sh`（hard）
+- `run-g02f-src-no-inc-gate.sh` — src `.inc=0`（hard）
+- `run-e-soft-retire-gate.sh`（manifest only）— 编译器 C 软退役跟踪（hard）
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-27): hard-fail own whitelist audit + F-01
+inventory + all product dogfood children. No soft `die→exit 0`. Soft
+`XLANG_NO_HANDWRITTEN_C_FAIL` and soft WARN wrapper
+`XLANG_F09_PRODUCT_FAIL` retired. Aggregates that must not re-dogfood
+product children use `XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY=1`.
 
 ```bash
 ./tests/run-no-handwritten-c-gate.sh
-XLANG_NO_HANDWRITTEN_C_FAIL=1 ./tests/run-no-handwritten-c-gate.sh
 XLANG_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh   # 迁移后刷新
+XLANG_NO_HANDWRITTEN_C_STRICT=1 XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY=1 \
+  ./tests/run-no-handwritten-c-gate.sh
 ```
 
 ## 下一项

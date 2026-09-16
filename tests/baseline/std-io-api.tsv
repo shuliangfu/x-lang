@@ -1,6 +1,16 @@
 # std.io Tier-S stable public API (import std.io)
 # One symbol per line; run-std-io-api-gate.sh greps std/io/mod.x
 # Updated: 2026-06-27 (API short names)
+# honesty 2026-08-26: DOC ## 7. Gate; prefer asm; run-io hard; no soft SKIP
+# honesty 2026-08-29 residual auto-make: leftover tests/run-io-read-ptr-slice.sh
+# / tests/run-io-unified-gate.sh (xlang_compiler_make -q || make + process.o
+# / io.o + bootstrap-link wrap + xlang-c-first prefer-c) retired. Prefer asm;
+# explicit-bad XLANG hard-die; missing native FAIL; product -o
+# read_ptr_slice / batch_rw_smoke hard; check=obs; report run=/obs=/skip=.
+# io-multishot / provided-buffers still host-c leave.
+# honesty 2026-08-29 leftover wrap dead source: run-std-io-api-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product run-io hook hard.
 stdin
 stdout
 stderr
@@ -20,7 +30,7 @@ ptr_view
 ptr_view_valid
 stdin_ptr_view
 ptr_slice
-stdin_ptr_slice
+# honesty 2026-08-24 #10: stdin_ptr_slice retired → stdin_ptr_view (listed above)
 read_stdin_ptr
 write_stdout
 write_stderr
@@ -30,7 +40,7 @@ read_batch_fd
 write_batch_fd
 readv
 writev
-print
+# honesty 2026-08-24 #10: print moved to std.fmt / std.debug; not std.io export
 register_buffers
 read_fixed_fd
 write_fixed_fd

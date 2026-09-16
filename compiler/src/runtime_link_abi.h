@@ -513,6 +513,23 @@ void xlang_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *
     int need_pt, const char **argv, int *la, int max_la);
 
 /**
+ * Record the active -O level for link decisions (dead_strip / --gc-sections).
+ * Empty/NULL resets to "2" (product default). Used by Darwin bare-ld and
+ * invoke_cc so -O 0 debug builds keep a usable symtab (TOOL-005 nsyms).
+ * PLATFORM: SHARED — set before product -o link; Darwin ld and invoke_cc read.
+ */
+void xlang_link_set_opt_level(const char *opt_level);
+
+/** Current link opt level string; never NULL (defaults to "2"). */
+const char *xlang_link_get_opt_level(void);
+
+/**
+ * Scan compiler argv for `-O <level>` and call xlang_link_set_opt_level.
+ * No match → "2". PLATFORM: SHARED — call at asm-backend entry before ld.
+ */
+void xlang_link_capture_opt_level_from_argv(int argc, char **argv);
+
+/**
  * ASM -o exe：fork 子进程执行 clang/ld 或 lld-link/ld；调用方须先 xlang_asm_ld_prepare_for_exe_link。
  * 参数：driver_freestanding 同 xlang_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。

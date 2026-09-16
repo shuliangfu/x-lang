@@ -21,6 +21,7 @@
        `impact --max-results 40`，再只打开高风险文件；**禁止**默认全库  
        `dead-code` 或把 CRG 整份 JSON 灌进上下文；图只导航，不替代 Ubuntu 金标
      - **一条债一层一个 commit**；禁止批量改 std、改测试期望、soft-skip 糊绿顶编译器债
+     - **Git 提交**：相关文件可同波一次 commit（**不**再要求一文件一 commit；见 `.cursor/rules/03-操作规则.mdc`）
      - seed 与 `.x` / glue 副本同 commit；改后 Ubuntu 重建对应 `.o` + g05
      - 探针 + 邻域矩阵绿后才扩全量 bstrict
 
@@ -78,5 +79,5 @@
   - **真冷全测**以 **整体功能 / 一波 Cap·R·M 收口** 为主闸门，**日终兜底**（当天动过产品面却未 L4）
   - 禁止每微 commit 全量 L4，禁止只靠晚上、白天工程轨假绿
   - 细则：`analysis/自举方法.md` §0.2 / §0.2.0 · `analysis/自举验证.md` §4.0 · skill §3.3 / §3.3.0
-- 修改 `pipeline_glue.c` 或 `ast_pool.c` 后需在 Ubuntu 重建 `pipeline_x.o`
+- `pipeline_glue.c` / `ast_pool.c` 已于 wave309 退役；活面权威在 `runtime_pipeline_abi.x`／`pipeline.x`／相关 seed。改 ABI／pool／orch 后须在 Ubuntu 重建对应 `.o` + g05（勿再点名已删 mega）
 - 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05

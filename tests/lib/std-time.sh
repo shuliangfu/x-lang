@@ -1,45 +1,32 @@
 #!/usr/bin/env bash
-# std-time.sh — STD-005 共享：std.time API 与烟测辅助
+# std-time.sh — STD-005: precision / timezone manifest helpers.
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_time_api_count [manifest_tsv]
 #   std_time_has_api MOD_X fn_name
-#   std_time_run_smoke XLANG_BIN smoke_x
+#   std_time_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# 统计 manifest 中 api 行数（不含注释）。
+STD_TIME_PREFIX="${XLANG_STD005_TIME_PREFIX:-xlang: [XLANG_STD005_TIME]}"
+
+# Count api rows in manifest (comments excluded).
 std_time_api_count() {
   local man="${1:-tests/baseline/std-time-manifest.tsv}"
   awk -F'\t' '$2=="api" && $1 !~ /^#/ { n++ } END { print n+0 }' "$man"
 }
 
-# 检查 mod.x 是否导出指定函数。
+# Check that mod.x exports the named function.
 std_time_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 编译并运行烟测 .x；期望退出码 0。
-std_time_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_time_${tag}_$$"
-  if [ ! -f "$src" ]; then
-    echo "std-time FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-time FAIL: $tag exit=$ec ($src)" >&2
-    return 1
-  fi
-  return 0
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
+std_time_emit_report() {
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_TIME_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

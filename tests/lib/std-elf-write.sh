@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# std-elf-write.sh — STD-121 manifest 与烟测辅助
+# std-elf-write.sh — STD-121 manifest helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_elf_write_symbols_ok MOD_X ELF_X TSV
+#   std_elf_write_run_c_smoke   # prebuilt std/elf/elf.o only
+#   std_elf_write_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
+# Honesty: refuse soft auto-make / soft SKIP→OK; report run=/obs=/skip=.
 
 STD_ELF_WRITE_PREFIX="${XLANG_STD121_ELF_WRITE_PREFIX:-xlang: [XLANG_STD121_ELF_WRITE]}"
 
+# Validate manifest api/symbol/file/smoke/section/script anchors. Echo miss count.
 std_elf_write_symbols_ok() {
   local mod_x="$1"
   local elf_x="$2"
@@ -14,16 +22,33 @@ std_elf_write_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-elf-write FAIL: missing api '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
         ;;
       symbol)
         local path="$mod_path"
-        [ "$path" = "std/elf/elf.x" ] && path="$elf_x"
-        [ "$path" = "std/elf/elf_glue.c" ] && path="$elf_x"
-        grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
+        case "$path" in
+          std/elf/elf.x|std/elf/elf_glue.c) path="$elf_x" ;;
+        esac
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-elf-write FAIL: missing '$anchor' in $path" >&2
+          miss=$((miss + 1))
+        fi
         ;;
-      file|smoke|vectors)
-        [ -f "$anchor" ] || miss=$((miss + 1))
+      section)
+        local doc="${XLANG_STD121_ELF_WRITE_DOC:-analysis/archive/std/std-elf-write-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-elf-write FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|vectors|script)
+        if [ ! -f "$anchor" ]; then
+          echo "std-elf-write FAIL: missing '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
         ;;
     esac
   done < "$tsv"
@@ -31,31 +56,36 @@ std_elf_write_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
+# Host-C archaeology smoke: prebuilt std/elf/elf.o only (refuse soft auto-make).
+# Returns 0 on green run, 1 on link/run fail, 2 on missing prebuilt .o.
 std_elf_write_run_c_smoke() {
-  local elf_o="$1"
+  local src="tests/std-elf/write_smoke_ok.c"
   local out="/tmp/xlang_std_elf_write_c_$$"
-  cc -std=c11 -O1 -o "$out" tests/std-elf/write_smoke_ok.c "$elf_o" 2>/dev/null || return 1
-  set +e
+  local elf_o="std/elf/elf.o"
+  if [ ! -f "$elf_o" ]; then
+    echo "std-elf-write OBS c smoke (missing prebuilt $elf_o; refuse soft auto-make)" >&2
+    return 2
+  fi
+  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$elf_o" 2>/tmp/std_elf_write_c_$$.log; then
+    echo "std-elf-write OBS c smoke link (refuse soft ensure)" >&2
+    return 1
+  fi
+  # Do not toggle set -e here — it would leak and make `return 1` kill the gate.
   "$out" >/dev/null 2>&1
   local ec=$?
-  set -e
   rm -f "$out"
-  [ "$ec" -eq 0 ]
+  if [ "$ec" -ne 0 ]; then
+    echo "std-elf-write OBS c smoke run exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
-std_elf_write_run_x_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std_elf_write_$$"
-  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  [ "$ec" -eq 0 ]
-}
-
+# Structured report line (honesty: run=/obs=/skip=; retired c=/x=).
 std_elf_write_emit_report() {
-  echo "${STD_ELF_WRITE_PREFIX} status=$1 c=$2 x=$3 skip=$4"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_ELF_WRITE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

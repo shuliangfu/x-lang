@@ -1,8 +1,9 @@
 # PERF-006 CPU cache miss 重点治理 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
-> 关联：`DOD-S1`（SoA/AoS）、`PERF-005`（flamegraph）、`OBS-003`（结构化日志）
+> 更新时间：2026-08-27  
+> 状态：**定版（v1）** · archive authority  
+> 关联：`DOD-S1`（SoA/AoS）、`PERF-005`（flamegraph）、`OBS-003`（结构化日志）  
+> PLATFORM: SHARED archaeology — Ubuntu gold for L1; Darwin = manifest + skip.
 
 ---
 
@@ -24,8 +25,8 @@
 | 项 | 说明 |
 |----|------|
 | 工具 | Linux `perf stat`（L1-dcache-loads/misses，回落 cache-references/misses） |
-| Bench | `tests/bench/dod_soa_sum_x.x` vs `dod_aos_sum_x.x` |
-| f32 | `dod_f32_soa_sum_x.x` vs `dod_f32_aos_sum_x.x` |
+| Bench | `bench/r03_dod_soa_sum.x` vs `bench/r03_dod_aos_sum.x` |
+| f32 | `bench/r03_dod_f32_soa_sum.x` vs `bench/r03_dod_f32_aos_sum.x` |
 | 默认 N | `XLANG_DOD_BENCH_N=4096` |
 
 环境：
@@ -33,9 +34,10 @@
 | 变量 | 默认 | 说明 |
 |------|------|------|
 | `XLANG_DOD_SOA_MAX_L1_MISS_PCT` | `1.0` | SoA i32 cap（%） |
-| `XLANG_DOD_SOA_FAIL` | `0` | `1` 时超 cap 硬失败 |
-| `XLANG_DOD_SOA_REQUIRE_L1` | `0` | CI Linux 可设 `1` 禁止 SKIP |
+| `XLANG_DOD_SOA_FAIL` | `0` | `1` 时超 cap／正确性／disasm 硬失败；默认 under＝obs |
+| `XLANG_DOD_SOA_REQUIRE_L1` | `0` | CI Linux 可设 `1` 禁止 L1 SKIP |
 | `XLANG_CACHE_MISS_PREFIX` | `xlang: [XLANG_CACHE_MISS]` | 报告前缀 |
+| `XLANG_DOD_SOA` | — | runner 状态行 `run=`／`obs=`／`skip=` |
 
 ---
 
@@ -52,9 +54,25 @@
 
 ```text
 xlang: [XLANG_CACHE_MISS] case=dod_soa_sum_x layout=soa l1_miss_pct=0.4200 cap_pct=1.0 ok=1
+xlang: [XLANG_DOD_SOA] status=ok run=1 obs=0 skip=0 host=Linux/x86_64
 ```
 
 实现：`perf_cm_report_emit()` in `tests/lib/perf-cache-miss.sh`；`run-perf-dod-soa.sh` 在 L1 测量后 emit。
+
+---
+
+## Gate
+
+Honesty (2026-08-27): soft `XLANG_DOD_SOA_FAIL:-0` under-cap / correctness /
+disasm silent OK retired → **obs** (FAIL=1 still hard). Prefer `xlang_asm`.
+Refuse soft SKIP→OK / soft auto-make / fossil `bench/dod_*`. Explicit bad XLANG
+= hard die. Report `run=`／`obs=`／`skip=`.
+
+`tests/run-perf-cache-miss-gate.sh`：
+
+1. Archive DOC + manifest + baseline + lib（拒顶层 `analysis/perf-cache-miss-v1.md`）  
+2. `run-perf-dod-soa.sh` 引用 `perf-cache-miss.sh`；bench→`r03_dod_*`  
+3. Linux + perf：L1 smoke；其它平台 manifest OK + skip=1  
 
 ---
 
@@ -67,17 +85,7 @@ xlang: [XLANG_CACHE_MISS] case=dod_soa_sum_x layout=soa l1_miss_pct=0.4200 cap_p
 
 ---
 
-## 6. 门禁
-
-`tests/run-perf-cache-miss-gate.sh`：
-
-1. RFC + manifest + baseline + lib  
-2. `run-perf-dod-soa.sh` 引用 `perf-cache-miss.sh`  
-3. Linux + perf 可选烟测；其它平台 manifest OK + SKIP bench  
-
----
-
-## 7. 索引
+## 6. 索引
 
 | 资源 | 路径 |
 |------|------|

@@ -46,14 +46,26 @@ _DRIVER_SEED_LINK_FLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE
 
 case "$UNAME_S" in
   Darwin)
-  _ASM_GLUE_DUP_LDFLAGS="-Wl,-multiply_defined,suppress"
+  # PLATFORM: MACOS — `-multiply_defined` is obsolete on Apple ld (g05 pure-ld
+  # warned every relink; experimental_bootstrap already cleared this). G.7
+  # single authority owns duplicates; do not pass the dead flag via G05_CFLAGS.
+  _ASM_GLUE_DUP_LDFLAGS=""
   case "$UNAME_M" in
   arm64|aarch64)
-  _MAIN_LINK_O="src/asm/crt0_arm64.o"
+  # PLATFORM: MACOS arm64 — runtime_asm_io_stubs.o (XLANG_WEAK io twin) provides
+  # xlang_sys_write/read/writev for src/runtime_driver_no_c.o: rt_entry.x is
+  # SHARED and since Cap 9.1.8 declares `export extern xlang_sys_write` (raw
+  # write leaf). The freestanding_io strong twin is Linux-x86_64-only asm, so
+  # without this slot the Darwin g05 pure-ld fails U _xlang_sys_write from
+  # _rt_entry_strlen. G.7: same face as the Linux MAIN_LINK_O freestanding_io
+  # slot; the weak twin loses to any strong twin when both are linked.
+  _MAIN_LINK_O="src/asm/crt0_arm64.o runtime_asm_io_stubs.o"
   _MAIN_LINK_FLAGS="-e _start -nostartfiles"
   ;;
   x86_64|amd64)
-  _MAIN_LINK_O="src/asm/crt0_darwin_x86_64.o"
+  # PLATFORM: MACOS x86_64 — same xlang_sys_* provider slot as arm64 above
+  # (rt_entry.x SHARED Cap 9.1.8 leaf; freestanding_io is Linux-only).
+  _MAIN_LINK_O="src/asm/crt0_darwin_x86_64.o runtime_asm_io_stubs.o"
   _MAIN_LINK_FLAGS="-e _start -nostartfiles"
   ;;
   *)
@@ -104,7 +116,13 @@ case "$UNAME_S" in
   _ASM_GLUE_DUP_LDFLAGS="-Wl,--allow-multiple-definition"
   case "$UNAME_M" in
   x86_64|amd64)
-  _MAIN_LINK_O="src/asm/crt0_mingw.o"
+  # PLATFORM: WINDOWS — same xlang_sys_* provider slot as Darwin: rt_entry.x is
+  # SHARED and since Cap 9.1.8 references xlang_sys_write (freestanding_io
+  # strong twin is Linux-x86_64-only). PE XLANG_WEAK expands empty (strong def)
+  # and --allow-multiple-definition is first-wins, so a real strong twin linked
+  # ahead would still win. Needs MSYS2 gate confirmation (not covered by
+  # macOS/Ubuntu L2).
+  _MAIN_LINK_O="src/asm/crt0_mingw.o runtime_asm_io_stubs.o"
   _MAIN_LINK_FLAGS="-Wl,--stack,268435456"
   ;;
   *)
@@ -114,10 +132,16 @@ case "$UNAME_S" in
   esac
   # wave309: empty pipeline mega on Windows product path too.
   _PIPELINE_LINK_O=""
-  _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
+  # PLATFORM: WINDOWS | MSYS | MINGW — PE XLANG_WEAK is empty (strong stubs) and
+  # --allow-multiple-definition is FIRST-wins (see include/xlang_weak.h + _GLUE_SUFFIX).
+  # Real arch_*_enc_* bodies (backend_x86_64_enc_c.o) MUST precede asm_full_link_stubs.o
+  # and asm_backend_compat_stubs.o; otherwise stub arch_x86_64_enc_enc_label (mov $-1;ret)
+  # wins → mega_body_c enc_label fail → CG002 code_len=0 on every user -backend asm.
+  # Linux ELF keeps stubs-first (weak override). Darwin uses filtered objs + weak.
+  _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/user_asm_seed_bridge.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_full_link_stubs.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   *)
-  echo "g05_relink_env: unsupported host $UNAME_S/$UNAME_M (use Makefile cold path)" >&2
+  echo "g05_relink_env: unsupported host $UNAME_S/$UNAME_M (use ./xbuild bootstrap-driver-seed cold path)" >&2
   exit 1
   ;;
 esac
@@ -242,6 +266,10 @@ _sq() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g"
 }
 
+# PLATFORM: SHARED — surface platform link faces for archaeology / Stage2 X dogfood
+# (verify-selfhost-stage2). Same values already folded into G05_CFLAGS / G05_OBJS;
+# export named keys so consumers do not re-hardcode Darwin crt0 / multiply_defined.
+# G.7 有则补全 — do not invent a second platform table in Stage2.
 echo "G05_CC='$(_sq "$G05_CC")'"
 echo "G05_CFLAGS='$(_sq "$G05_CFLAGS")'"
 echo "G05_OUT='$(_sq "$G05_OUT")'"
@@ -249,5 +277,9 @@ echo "G05_XLANG_C='$(_sq "$G05_XLANG_C")'"
 echo "G05_BOOTSTRAP='$(_sq "$G05_BOOTSTRAP")'"
 echo "G05_OBJS='$(_sq "$G05_OBJS")'"
 echo "G05_HOT_C_OBJS='$(_sq "$G05_HOT_C_OBJS")'"
+echo "G05_MAIN_LINK_O='$(_sq "$_MAIN_LINK_O")'"
+echo "G05_MAIN_LINK_FLAGS='$(_sq "$_MAIN_LINK_FLAGS")'"
+echo "G05_ASM_GLUE_DUP_LDFLAGS='$(_sq "$_ASM_GLUE_DUP_LDFLAGS")'"
+echo "G05_USER_ASM_LINK='$(_sq "$_USER_ASM_LINK")'"
 echo "G05_UNAME_S='$(_sq "$UNAME_S")'"
 echo "G05_UNAME_M='$(_sq "$UNAME_M")'"

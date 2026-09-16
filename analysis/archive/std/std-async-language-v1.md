@@ -85,3 +85,12 @@
 manifest：`tests/baseline/std-async-language.tsv`
 
 **STD-042**：IO await 与 CPS suspend 统一见 `analysis/std-async-io-cps-v1.md`。
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c; explicit bad XLANG / missing native = hard
+die; `xlang check` = obs (check paused); run/mod product residual
+(Darwin crash／Ubuntu exit≠0／coop UNDEF) = obs; 1m delegate via
+`run-std-async-1m-gate.sh`; DOC=archive; report
+`run=`／`mod=`／`obs=`／`skip_1m=`.

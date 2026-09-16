@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 读者：标准库/性能路径开发者  
 > 关联：`ZC-001..005` 门禁、`TYPE-002`（slice 域）、`std.io` / `std.fs` / `std.string`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -119,7 +120,7 @@
 
 - `read_ptr_slice` 返回 `u8[]<io_read_ptr>`；**不得**赋给未标注 `u8[]`。
 - `region ra { let s: i32[] = arr; }` — 块内数组转 slice 为视图。
-- 详 `analysis/type-region-v1-rfc.md`。
+- 详 `analysis/archive/type/type-region-v1-rfc.md`。
 
 ---
 
@@ -171,7 +172,7 @@
 4. 大文件是否考虑 `mmap` 而非 slurp 到 vec？  
 5. Linux 专有路径是否有 documented 回退？
 
-ZC-007 PR 声明与证明测试模板见 `analysis/zc-copy-proof-v1.md`、`tests/templates/zc-pr-copy-declaration.txt`。
+ZC-007 PR 声明与证明测试模板见 `analysis/archive/zc/zc-copy-proof-v1.md`、`tests/templates/zc-pr-copy-declaration.txt`。
 
 ---
 
@@ -179,10 +180,34 @@ ZC-007 PR 声明与证明测试模板见 `analysis/zc-copy-proof-v1.md`、`tests
 
 | 资源 | 路径 |
 |------|------|
-| slice 域 | `analysis/type-region-v1-rfc.md` |
+| slice 域 | `analysis/archive/type/type-region-v1-rfc.md` |
 | IO 模块头 | `std/io/mod.x`（Z2/ZC-1 生命周期） |
 | FS 零拷贝 | `std/fs/README.md` |
 | String ZC-4 | `std/string/mod.x` |
 | 内存安全指南 | `analysis/doc-memory-safety-error-v1.md` |
+
+---
+
+## Gate
+
+Honesty (2026-08-27): soft SKIP→OK / prefer-c / soft auto-make / check-bound
+green retired for **ZC-2** (`tests/run-zc2-gate.sh`).
+
+| Rule | Behavior |
+|------|----------|
+| Prefer | product `xlang_asm`; pin `XLANG_LINK_XLANG` |
+| Missing native / explicit bad `XLANG` | **hard die** (refuse soft SKIP→OK / soft auto-make) |
+| Product `-o` gen + slice / slice_param exit 0 | **hard run** |
+| mmap / view tip wrong exit | **obs** (product residual; not soft silence) |
+| `xlang check` CHK002 / paused | **obs** |
+| Windows mmap exit 9 | **skip** (capability N/A) |
+| Report | `run=` / `obs=` / `skip=` |
+| DOC authority | this archive path (`analysis/archive/zc/zc-semantics-v1.md`) |
+| Out of scope | zc3／zc4／zc5 host-c postponed; brotli ld; mega; pin raise |
+| Manifest gate | `run-zc-semantics-gate.sh` — DOC=archive; no NEXT.md fossil; hooks opt-in only |
+
+**2026-08-30 leftover native_xlang 已收**（zc-semantics：leftover `native_xlang` 收敛 `dod_native_exe`；G.7 补全既有 `resolve_shu`；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested zc3／zc4／zc5 hooks opt-in 不重写）。
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
 **ZC-006 状态：定版 ✅**

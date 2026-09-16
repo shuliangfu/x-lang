@@ -1,22 +1,41 @@
 #!/usr/bin/env bash
-# B-SIZE 门禁：xlang_asm stripped 体积追踪（ENG-002 advisory；默认不 block CI）。
+# B-SIZE: xlang_asm stripped size track (ENG-002 advisory; default does not
+# block CI).
 #
-# 用法：
+# Honesty: soft XLANG_SIZE_FAIL:-0 overage still printed WARN then exit 0
+# without obs= was portable false-green for B-SIZE. Missing xlang_asm soft
+# SKIP→OK retired — refuse soft silence when the product binary is absent.
+# Overage = obs (advisory residual; XLANG_SIZE_FAIL=1 still hard). Prefer
+# product xlang_asm. Report run=/obs=/skip=.
+#
+# Usage:
 #   ./tests/run-size-xlang-asm-gate.sh
 #   XLANG_ASM=./compiler/xlang_asm ./tests/run-size-xlang-asm-gate.sh
-# 环境变量：
-#   XLANG_SIZE_XLANG_ASM_MAX_BYTES — 上限字节（默认 8388608 = 8MiB）
-#   XLANG_SIZE_FAIL=1 — 超 cap 时 exit 1（仅显式 opt-in；CI 默认 0）
+# Env:
+#   XLANG_SIZE_XLANG_ASM_MAX_BYTES — cap bytes (default 8388608 = 8MiB)
+#   XLANG_SIZE_FAIL=1 — overage hard-fail (opt-in only; CI default 0)
+# PLATFORM: SHARED archaeology (ENG-002; Ubuntu gold still required).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 XLANG_ASM="${XLANG_ASM:-./compiler/xlang_asm}"
 MAX_BYTES="${XLANG_SIZE_XLANG_ASM_MAX_BYTES:-$((8 * 1024 * 1024))}"
 BASELINE="tests/baseline/xlang-asm-size.tsv"
+PREFIX="xlang: [XLANG_SIZE_XLANG_ASM]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "size gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
 if [ ! -x "$XLANG_ASM" ]; then
-  echo "size gate SKIP (no xlang_asm at $XLANG_ASM)"
-  exit 0
+  die "no xlang_asm at $XLANG_ASM (refuse soft SKIP→OK)"
 fi
 
 file_bytes() {
@@ -36,18 +55,17 @@ fi
 
 SZ=$(file_bytes "$STRIPPED")
 rm -f "$STRIPPED"
+RUN_OK=1
 
 echo "size gate: xlang_asm stripped=${SZ}B cap=${MAX_BYTES}B ($(awk -v s="$SZ" 'BEGIN { printf "%.2f", s/1048576 }')MiB)"
 
-FAIL=0
-if [ "${XLANG_SIZE_FAIL:-0}" = "1" ]; then
-  FAIL=1
-fi
-
 if [ "$SZ" -gt "$MAX_BYTES" ]; then
-  echo "size gate FAIL: xlang_asm stripped ${SZ}B > cap ${MAX_BYTES}B (B-SIZE stretch ≤8MiB)" >&2
-  [ "$FAIL" -eq 1 ] && exit 1
-  echo "size gate WARN (XLANG_SIZE_FAIL=0)"
+  # Advisory residual: report obs, do not soft-silence as plain OK.
+  echo "size gate OBS: xlang_asm stripped ${SZ}B > cap ${MAX_BYTES}B (B-SIZE stretch ≤8MiB)" >&2
+  OBS=1
+  if [ "${XLANG_SIZE_FAIL:-0}" = "1" ]; then
+    die "xlang_asm stripped ${SZ}B > cap ${MAX_BYTES}B (XLANG_SIZE_FAIL=1)"
+  fi
 else
   echo "size gate OK (≤8MiB)"
 fi
@@ -62,4 +80,5 @@ if [ "${XLANG_PERF_UPDATE_SIZE_BASELINE:-0}" = "1" ]; then
   echo "size gate: updated $BASELINE"
 fi
 
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} stripped=${SZ} cap=${MAX_BYTES} host=$(ci_host_summary)"
 exit 0

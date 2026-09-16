@@ -13,7 +13,7 @@
 - **标准 handle**：`stdin()` / `stdout()` / `stderr()` / `from_fd(fd, 0)`
 - **Context 超时**：`timeout_from_ctx` + `read_ctx` / `write_ctx`
 
-底层：`std.io.core` + `std.io.driver` + `io.c`（Linux io_uring / macOS kqueue / Windows IOCP）。
+底层：`std.io.core` + `std.io.driver` + `std.io.backend`（`sync.x`／`win32.x`；**`io.c` 已退役**）。
 
 ## 快速示例
 
@@ -44,7 +44,7 @@ let s: u8[]<io_read_ptr> = stdin_ptr_slice();
 ## 稳定化与兼容
 
 - **API 分级、三平台矩阵、变更流程**：[`analysis/std-io-api-v1.md`](../../analysis/std-io-api-v1.md)
-- **非 Linux io_uring 回退（STD-026）**：[`analysis/std-io-fallback-v1.md`](../../analysis/std-io-fallback-v1.md) — macOS kqueue/readv、Windows IOCP 矩阵
+- **非 Linux io_uring 回退（STD-026）**：[`analysis/archive/std/std-io-fallback-v1.md`](../../analysis/archive/std/std-io-fallback-v1.md) — macOS readv/poll、Windows ReadFile／WSA 矩阵
 - **稳定符号清单**：`tests/baseline/std-io-api.tsv`
 - **CI**：`tests/run-std-io-api-gate.sh`、`tests/run-std-io-fallback-gate.sh`、`tests/run-io-unified-gate.sh`
 

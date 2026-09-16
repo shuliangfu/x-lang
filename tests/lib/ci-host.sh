@@ -33,6 +33,28 @@ ci_is_windows_msys() {
   return 1
 }
 
+# Pin TMPDIR/TEMP/TMP to a short Windows path native gcc/cc1.exe can open.
+# MSYS /tmp (and Git Bash mktemp /tmp/foo) is invisible to MinGW cc1.exe →
+# "fatal error: /tmp/rtpref_x.*: No such file" and seed can_run false-negatives.
+# POSIX hosts: no-op (keep caller TMPDIR or /tmp).
+# PLATFORM: WINDOWS — call from MSYS2 min-gate before bootstrap-driver-seed.
+ci_windows_pin_tmpdir() {
+  if ! ci_is_windows_msys; then
+    return 0
+  fi
+  _win_tmp="${XLANG_WIN_TMPDIR:-C:/xlang_tmp}"
+  mkdir -p "$_win_tmp" 2>/dev/null || true
+  if [ ! -d "$_win_tmp" ]; then
+    echo "ci_windows_pin_tmpdir: cannot create $_win_tmp" >&2
+    return 1
+  fi
+  export TMPDIR="$_win_tmp"
+  export TEMP="$_win_tmp"
+  export TMP="$_win_tmp"
+  unset _win_tmp
+  return 0
+}
+
 # 是否为 FreeBSD。
 ci_is_freebsd() {
   [ "$(ci_host_os)" = "FreeBSD" ]

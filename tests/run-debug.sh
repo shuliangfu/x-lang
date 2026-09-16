@@ -1,36 +1,133 @@
 #!/usr/bin/env bash
-# 测试 debug 相关模块（合并自 run-debug.sh + run-core-assert.sh + run-std-debug.sh）：
-# - core.debug (alias): assert/debug_assert/assert_eq_i32/assert_ne_i32/assert_eq_u32/assert_ne_u32/assert_eq_bool (tests/debug/main.x)
-# - core.assert: assert(true)/assert_eq_i32(1,1) (tests/core-assert/main.x) — merged from run-core-assert.sh
-# - std.debug: stderr print + assert 重导出 (tests/std-debug/main.x) — merged from run-std-debug.sh
-set -e
+# Debug modules gate (bstrict catalog: run-debug.sh).
+# Merged: core.debug + core.assert + std.debug.
+#
+# Honesty: soft default `./compiler/xlang-c` + soft auto-make (prefer-c /
+# false authority) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make / prefer-c).
+#   - hard: product -o tests/{debug,core-assert,std-debug}/main.x + run exit 0
+#   - hard: std-debug stderr contains "debug line"
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make xlang-c
-XLANG=${XLANG:-./compiler/xlang-c}
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# === core.debug (alias) + assert 变体 ===
-$XLANG build -L . tests/debug/main.x -o /tmp/xlang_debug 2>&1
-exitcode=0
-/tmp/xlang_debug >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (assert(true)), got $exitcode"; exit 1; }
-echo "core.debug test OK"
+PREFIX="${XLANG_DEBUG_PREFIX:-xlang: [XLANG_DEBUG]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# === core.assert (merged from run-core-assert.sh) ===
-# tests/core-assert/main.x: import core.assert; assert(true) + assert_eq_i32(1,1) → exit 0
-$XLANG build -L . tests/core-assert/main.x -o /tmp/xlang_core_assert 2>&1
-ec=0
-/tmp/xlang_core_assert >/dev/null 2>&1 || ec=$?
-[ "$ec" -ne 0 ] && { echo "core-assert: expected exit 0, got $ec"; exit 1; }
-echo "core.assert test OK"
+die() {
+  echo "debug test FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-# === std.debug (merged from run-std-debug.sh) ===
-$XLANG build -L . tests/std-debug/main.x -o /tmp/xlang_std_debug 2>&1
-ec=0
-/tmp/xlang_std_debug >/dev/null 2>/tmp/xlang_std_debug_err.log || ec=$?
-[ "$ec" -ne 0 ] && { echo "std-debug: run failed ec=$ec"; exit 1; }
-grep -q 'debug line' /tmp/xlang_std_debug_err.log || { echo "std-debug: missing stderr output"; exit 1; }
-echo "std.debug test OK"
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    # Explicit XLANG that is not native = hard die (refuse soft fallthrough).
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Compile SRC to OUT and require run exit 0. Optional: require stderr needle.
+# PLATFORM: SHARED — product -o path; Ubuntu gold still required.
+run_product_case() {
+  local label="$1"
+  local src="$2"
+  local out="$3"
+  local err_log="$4"
+  local stderr_needle="${5:-}"
+  local o_ec r_ec run_out run_err
+
+  [ -f "$src" ] || die "missing $src"
+  rm -f "$out" "$err_log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$out" >"$err_log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$label product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$out" ]; then
+    die "$label product -o failed (ec=$o_ec); $(tail -5 "$err_log" 2>/dev/null | tr '\n' ' ')"
+  fi
+
+  run_out="${out}.stdout"
+  run_err="${out}.stderr"
+  rm -f "$run_out" "$run_err"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$out" >"$run_out" 2>"$run_err"
+  r_ec=$?
+  set -e
+  if [ "$r_ec" -eq 124 ]; then
+    die "$label run timeout"
+  elif [ "$r_ec" -ne 0 ]; then
+    die "$label run exit=$r_ec (expect 0)"
+  fi
+  if [ -n "$stderr_needle" ]; then
+    grep -q "$stderr_needle" "$run_err" || die "$label missing stderr '$stderr_needle'"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  echo "debug OK: $label exit=0"
+  rm -f "$out" "$run_out" "$run_err"
+}
+
+echo "=== debug gate: core.debug + core.assert + std.debug (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+run_product_case "core.debug" \
+  "tests/debug/main.x" \
+  "/tmp/xlang_debug_$$" \
+  "/tmp/xlang_debug_$$.log"
+
+run_product_case "core.assert" \
+  "tests/core-assert/main.x" \
+  "/tmp/xlang_core_assert_$$" \
+  "/tmp/xlang_core_assert_$$.log"
+
+run_product_case "std.debug" \
+  "tests/std-debug/main.x" \
+  "/tmp/xlang_std_debug_$$" \
+  "/tmp/xlang_std_debug_$$.log" \
+  "debug line"
 
 echo "debug test OK"
+ok_report

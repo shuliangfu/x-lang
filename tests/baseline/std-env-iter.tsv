@@ -1,5 +1,13 @@
 # STD-025 std.env env_iter / args_iter manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 residual auto-make: leftover tests/run-env.sh
+# (xlang_compiler_make -q || make + env.o + xlang-c + bootstrap-link wrap)
+# retired. Prefer asm; explicit-bad XLANG hard-die; missing native FAIL;
+# product -o main/env_iter/platform_encoding hard; check=obs;
+# report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-env-iter-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/env/env_iter.x hard.
 min_iter_apis	4
 env_iter_struct	symbol	EnvIter	std/env/mod.x
 args_iter_struct	symbol	ArgsIter	std/env/mod.x
@@ -15,5 +23,5 @@ c_args_count	symbol	args_iter_count_c	std/env/env.x
 c_args_at	symbol	args_iter_at_c	std/env/env.x
 test_smoke	file	env_iter.x	tests/env/env_iter.x	烟测
 runner	script	run-env.sh	tests/run-env.sh	回归
-doc	file	std-env-iter-v1.md	analysis/std-env-iter-v1.md	RFC
+doc	file	std-env-iter-v1.md	analysis/archive/std/std-env-iter-v1.md	RFC
 gate	script	run-std-env-iter-gate.sh	tests/run-std-env-iter-gate.sh	manifest

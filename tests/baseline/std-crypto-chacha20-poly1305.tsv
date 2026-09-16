@@ -1,11 +1,17 @@
 # STD-113 std.crypto ChaCha20-Poly1305 manifest
+# 列：item_id	kind	anchor	mod_path	notes
+# KEY_LEN is export function (not const); _c symbols live in chacha20_aead.x (f04 v18).
 min_apis	3
+api_doc	section	## API	analysis/archive/std/std-crypto-chacha20-poly1305-v1.md
+verify	section	## Gate	analysis/archive/std/std-crypto-chacha20-poly1305-v1.md
 api_seal	api	chacha20_poly1305_seal	std/crypto/mod.x
 api_open	api	chacha20_poly1305_open	std/crypto/mod.x
 api_smoke	api	chacha20_poly1305_smoke	std/crypto/mod.x
-const_key	const	CHACHA20_POLY1305_KEY_LEN	std/crypto/mod.x
-symbol_seal_c	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_poly1305.x
-symbol_open_c	symbol	crypto_chacha20_poly1305_open_c	std/crypto/chacha20_poly1305.x
-symbol_smoke_c	symbol	crypto_chacha20_poly1305_smoke_c	std/crypto/chacha20_poly1305.x
+api_key_len	api	CHACHA20_POLY1305_KEY_LEN	std/crypto/mod.x
+symbol_seal_c	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_aead.x
+symbol_open_c	symbol	crypto_chacha20_poly1305_open_c	std/crypto/chacha20_aead.x
+symbol_smoke_c	symbol	crypto_chacha20_poly1305_smoke_c	std/crypto/chacha20_aead.x
 smoke_x	smoke	tests/std-crypto/chacha20_poly1305_roundtrip.x
-gate	script	run-std-crypto-chacha20-poly1305-gate.sh	tests/run-std-crypto-chacha20-poly1305-gate.sh
+smoke_c	file	tests/std-crypto/chacha_smoke_ok.c
+lib	script	tests/lib/std-crypto-chacha20-poly1305.sh	lib
+gate	script	tests/run-std-crypto-chacha20-poly1305-gate.sh	gate

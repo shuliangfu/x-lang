@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # C5 §5.3 / X9：16B Result × regalloc spill 回归门禁
 #
-# 1) manifest：合成用例 + pipeline_glue struct16 spill 符号
+# 1) manifest: synthetic case + struct16 spill symbols
+#    (live: seeds/backend_call_dispatch.from_x.c; pipeline_glue.c left wave309)
+# DOC default archived under analysis/archive/narrative/.
 # 2) typeck + -o exit=225（可用时）；gen1 OOM/SIGSEGV 时 manifest+typeck 降级仍 OK
 #
 # 用法：./tests/run-comp-regalloc-result-spill-gate.sh
@@ -14,7 +16,7 @@ source tests/lib/gate-progress.sh
 
 SRC="tests/codegen/regalloc_result_spill.x"
 WANT_EXIT=225
-DOC="analysis/自举前必须清单.md"
+DOC="analysis/archive/narrative/自举前必须清单.md"
 GLUE="compiler/seeds/backend_call_dispatch.from_x.c"
 
 gate_progress "§五 C5: regalloc Result spill manifest ..."
@@ -52,6 +54,9 @@ gate_progress "§五 C5: typeck（多编译器回退）..."
 set +e
 XLANG_BIN="$(p0_gate_run_typeck_prefer_seed "$SRC" 2>/tmp/regalloc_rs_typeck_try.log)"
 typeck_pick_ec=$?
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 
 if [ "$typeck_pick_ec" -ne 0 ] || [ -z "$XLANG_BIN" ]; then

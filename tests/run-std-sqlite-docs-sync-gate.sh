@@ -2,10 +2,13 @@
 # STD-154：std.db.sqlite 文档与 docs/07 统一门禁
 #
 # 用法：./tests/run-std-sqlite-docs-sync-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-sqlite-docs-sync-v1.md"
+DOC="analysis/archive/std/std-sqlite-docs-sync-v1.md"
 MANIFEST="tests/baseline/std-sqlite-docs-sync-manifest.tsv"
 DOC07="docs/07-内置与标准库.md"
 README_SQLITE="std/db/sqlite/README.md"

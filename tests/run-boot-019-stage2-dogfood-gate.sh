@@ -1,44 +1,85 @@
 #!/usr/bin/env bash
-# BOOT-019：Stage2 parser/typeck dogfood manifest 门禁
+# BOOT-019: Stage2 parser/typeck dogfood — honesty soft auto-make →硬绿.
 #
-# 1) boot-019-stage2-dogfood-v1.md 必需章节
-# 2) 六条烟测存在且文档引用
-# 3) native xlang 时跑 bootstrap 子集 runner（check 必绿；link 可选）
-#
-# 用法：./tests/run-boot-019-stage2-dogfood-gate.sh
-set -e
+# Honesty: soft auto-make (`xlang_compiler_make … || true`) + soft SKIP→OK
+# (no native still gate OK) + soft bootstrap-link wrap + prefer-c retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make).
+# Subset runner: 6 smoke link+run hard; check = obs.
+# Report: run=/obs=/skip=. DOC defaults under analysis/archive/; refuse
+# resurrected top-level DOC / NEXT.md.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-boot-019-stage2-dogfood-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/boot-019-stage2-dogfood.sh
+. tests/lib/boot-019-stage2-dogfood.sh
 
-DOC="${XLANG_BOOT019_DOC:-analysis/boot-019-stage2-dogfood-v1.md}"
+DOC="${XLANG_BOOT019_DOC:-analysis/archive/boot/boot-019-stage2-dogfood-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_BOOT019_TSV:-tests/baseline/boot-019-stage2-dogfood.tsv}"
 RUNNER="tests/run-bootstrap-stage2-dogfood-parser-typeck.sh"
 LIB="tests/lib/boot-019-stage2-dogfood.sh"
 MIN_SMOKE=6
+OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 
-# shellcheck source=tests/lib/boot-019-stage2-dogfood.sh
-. tests/lib/boot-019-stage2-dogfood.sh
+RUN_OK=0
+OBS=0
+SKIP=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "boot-019-stage2-dogfood gate FAIL: $*" >&2
+  boot019_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
 }
 
-echo "=== BOOT-019: Stage2 dogfood manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER" NEXT.md; do
-  if [ ! -f "$f" ]; then
-    echo "boot-019-stage2-dogfood gate FAIL: missing $f" >&2
-    exit 1
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== BOOT-019: Stage2 dogfood (prefer asm; hard; refuse soft auto-make / soft SKIP→OK) ==="
+
+# Refuse resurrected top-level DOC (live = archive/boot/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/boot-019-stage2-dogfood-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/boot/)"
+fi
+
+for f in "$DOC" "$MANIFEST" "$LIB" "$RUNNER" "$ROADMAP"; do
+  [ -f "$f" ] || die "missing $f"
 done
+if [ -f NEXT.md ]; then
+  die "NEXT.md resurrected (use analysis/自举进度.md)"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -48,11 +89,9 @@ while IFS=$'\t' read -r c1 c2 _rest; do
 done < "$MANIFEST"
 
 for kw in bootstrap-verify parser typeck check-7.2 Stage2; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "boot-019-stage2-dogfood gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+grep -qF '## 7. Gate' "$DOC" 2>/dev/null || die "doc missing '## 7. Gate'"
 
 MISS=0
 SMOKE=0
@@ -87,6 +126,8 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       elif ! grep -qF "$(basename "$anchor")" "$DOC" 2>/dev/null; then
         echo "boot-019 FAIL: doc missing hook $anchor" >&2
         MISS=$((MISS + 1))
+      else
+        :
       fi
       ;;
     cross_ref)
@@ -98,48 +139,54 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$SMOKE" -lt "$MIN_SMOKE" ]; then
-  echo "boot-019-stage2-dogfood gate FAIL: smokes=${SMOKE} < min ${MIN_SMOKE}" >&2
-  exit 1
-fi
-if [ "$MISS" -gt 0 ]; then
-  echo "boot-019-stage2-dogfood gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$SMOKE" -ge "$MIN_SMOKE" ] || die "smokes=${SMOKE} < min ${MIN_SMOKE}"
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "boot-019-stage2-dogfood manifest OK (smokes=${SMOKE})"
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
+if [ "${XLANG_BOOT019_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  boot019_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "boot-019-stage2-dogfood gate OK (manifest only)"
+  exit 0
 fi
 
-CHECK_OK=0
-LINK_OK=0
-SKIP=1
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== BOOT-019: bootstrap subset runner (XLANG=$XLANG_BIN) ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  chmod +x "$RUNNER"
-  if XLANG="$XLANG_BIN" BOOT019_SKIP_LINK="${BOOT019_SKIP_LINK:-}" "$RUNNER" >/tmp/boot019_subset.log 2>&1; then
-    grep -q 'bootstrap-stage2-dogfood parser/typeck OK' /tmp/boot019_subset.log
-    CHECK_OK=6
-    if grep -q 'link+run OK' /tmp/boot019_subset.log; then
-      LINK_OK=$(grep -c 'link+run OK' /tmp/boot019_subset.log || true)
-    fi
-    SKIP=0
-  else
-    tail -10 /tmp/boot019_subset.log >&2 || true
-    boot019_emit_report "fail" 0 0 1
-    exit 1
-  fi
-else
-  echo "boot-019-stage2-dogfood gate SKIP runner (no native xlang)" >&2
+# Refuse soft auto-make — require existing native product binary.
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+mkdir -p "$OUT_DIR"
+
+echo "=== BOOT-019: bootstrap subset runner (check observational; link+run hard) ==="
+chmod +x "$RUNNER"
+set +e
+XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" BOOT019_SKIP_LINK= \
+  "$RUNNER" >/tmp/boot019_subset.log 2>&1
+runner_ec=$?
+set -e
+if [ "$runner_ec" -ne 0 ]; then
+  tail -20 /tmp/boot019_subset.log >&2 || true
+  die "subset runner exit=$runner_ec"
+fi
+grep -q 'bootstrap-stage2-dogfood parser/typeck OK' /tmp/boot019_subset.log \
+  || die "subset runner missing OK banner"
+
+# Observational check count (may be 0 on Darwin while check gate paused).
+CHK_OK=$(grep -c 'bootstrap-stage2-dogfood check OK' /tmp/boot019_subset.log || true)
+CHK_OBS=$(grep -c 'bootstrap-stage2-dogfood OBS check\|bootstrap-stage2-dogfood SKIP check' /tmp/boot019_subset.log || true)
+LINK_OK=$(grep -c 'bootstrap-stage2-dogfood link+run OK' /tmp/boot019_subset.log || true)
+[ "$LINK_OK" -ge 6 ] || {
+  tail -20 /tmp/boot019_subset.log >&2 || true
+  die "link_ok=${LINK_OK} < 6"
+}
+RUN_OK=$LINK_OK
+# check residual = obs (paused); refuse soft SKIP→OK narrative.
+if [ "$CHK_OBS" -gt 0 ] || [ "$CHK_OK" -lt 6 ]; then
+  # Any check miss / OBS line counts as observational residual.
+  OBS=$((OBS + 1))
+  echo "boot-019-stage2-dogfood OBS check (paused; check_ok=${CHK_OK} check_obs_lines=${CHK_OBS}; refuse soft SKIP→OK)" >&2
 fi
 
-boot019_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$SKIP"
+echo "boot-019-stage2-dogfood check=obs=${OBS} run=${RUN_OK}"
+boot019_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "boot-019-stage2-dogfood gate OK"

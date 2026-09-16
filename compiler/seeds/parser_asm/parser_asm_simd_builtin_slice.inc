@@ -3,6 +3,13 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select。
+ *
+ * Hybrid P7b/P7c: XLANG_PTHIN_SIMD_BODIES_FROM_X skips the portable ident pack /
+ * callee-name fill region and the callee VAR + CALL wrap soup (bodies in
+ * src/asm/pthin_simd.x + slice trampoline in this .inc / the seed TU).
+ * Parse dest-buffer is P7d (pthin_simd.x); C trampoline under BODIES
+ * starts from r0.next_lex (IDENT after `@`) and publishes next_lex.
+ * Cold: no define, full twin. PLATFORM: SHARED
  */
 #ifndef PARSER_ASM_SIMD_BUILTIN_SLICE_INCLUDED
 #define PARSER_ASM_SIMD_BUILTIN_SLICE_INCLUDED
@@ -15,14 +22,20 @@ extern int32_t ast_ast_arena_expr_alloc(void *arena);
 extern struct ast_Expr ast_ast_arena_expr_get(void *arena, int32_t ref);
 extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
 extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
-extern int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(struct parser_asm_lexer_result r_at,
-                                                                  struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_simd_builtin_deep_audit_c(struct parser_asm_lexer lex,
-                                                          struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
-                                                       struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_simd_builtin_deep_from_at_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                                  struct parser_asm_slice_u8 *source,
+                                                                  size_t ident_start, int32_t ident_len,
+                                                                  void *lex_after_ident);
+extern int32_t parser_asm_stretch_simd_builtin_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_simd_builtin_audit_c(int32_t at_kind, int32_t ident_kind,
+                                                       struct parser_asm_slice_u8 *source,
+                                                       size_t ident_start, int32_t ident_len);
 
-/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
+#ifndef XLANG_PTHIN_SIMD_BODIES_FROM_X
+/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。
+ * PLATFORM: SHARED — cold twin only; hybrid P7c dest-buffer wrap uses
+ * pabi set_common_zeros_c + init_call_resolve_at_ref. Gated so hybrid
+ * -Werror does not see an unused static. */
 static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -92,29 +105,118 @@ static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r,
 }
 
 /**
+ * Write lowered callee name (`simd_shuffle` / `simd_select`) into out[0..64).
+ * PLATFORM: SHARED — cold twin of pthin_simd.x parser_asm_simd_callee_name_fill_c.
+ */
+int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out) {
+  int32_t nlen;
+  int32_t i;
+  if (!out)
+    return 0;
+  if (is_shuffle) {
+    out[0] = 115;
+    out[1] = 105;
+    out[2] = 109;
+    out[3] = 100;
+    out[4] = 95;
+    out[5] = 115;
+    out[6] = 104;
+    out[7] = 117;
+    out[8] = 102;
+    out[9] = 102;
+    out[10] = 108;
+    out[11] = 101;
+    nlen = 12;
+  } else {
+    out[0] = 115;
+    out[1] = 105;
+    out[2] = 109;
+    out[3] = 100;
+    out[4] = 95;
+    out[5] = 115;
+    out[6] = 101;
+    out[7] = 108;
+    out[8] = 101;
+    out[9] = 99;
+    out[10] = 116;
+    nlen = 11;
+  }
+  for (i = nlen; i < 64; i++)
+    out[i] = 0;
+  return nlen;
+}
+#endif /* !XLANG_PTHIN_SIMD_BODIES_FROM_X */
+
+#ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
+extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
+extern int32_t parser_asm_simd_call_wrap_into_c(void *arena, uint8_t *name, int32_t nlen);
+
+/* PLATFORM: SHARED — 7.2.1 P7c B-minus. C trampoline holds name[256]
+ * (language has no local u8[N]), reuses callee_name_fill (G.7), and
+ * forwards to dest-buffer wrap. P7d parse calls this (not static: .x
+ * lives in a separate TU). Not a second wrap authority. */
+int32_t parser_asm_simd_call_wrap_c(void *arena, int32_t is_shuffle) {
+  uint8_t name[256];
+  int32_t nlen;
+  if (!arena)
+    return 0;
+  memset(name, 0, sizeof(name));
+  nlen = parser_asm_simd_callee_name_fill_c(is_shuffle, name);
+  return parser_asm_simd_call_wrap_into_c(arena, name, nlen);
+}
+#endif
+
+/**
  * parse_at_simd_builtin_into：r0 为 @ 后 LexerResult；成功写 out.expr_ref / out.next_lex。
  */
 void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexer_result r0,
                                            struct parser_asm_slice_u8 *source,
                                            struct parser_asm_parse_expr_result *out) {
+#ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
+  /* PLATFORM: SHARED — P7d trampoline. AUDIT stays on the cold twin
+   * (product AUDIT_CALL is nop). .x starts at IDENT = r0.next_lex.
+   * Publish next_lex from the live cursor. */
+  {
+    extern int32_t parser_asm_parse_at_simd_builtin_x_into_c(void *arena, void *lex_inout, void *source,
+                                                            int32_t *out_ok, int32_t *out_expr_ref);
+    struct parser_asm_lexer cur;
+    int32_t ok;
+    int32_t ref;
+    if (!arena || !source || !out)
+      return;
+    out->ok = 0;
+    cur = r0.next_lex;
+    ok = 0;
+    ref = 0;
+    if (parser_asm_parse_at_simd_builtin_x_into_c(arena, &cur, source, &ok, &ref) == 0 || ok == 0) {
+      out->ok = 0;
+      return;
+    }
+    out->ok = 1;
+    out->expr_ref = ref;
+    out->next_lex = cur;
+    return;
+  }
+#else
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
-  int32_t callee_ref;
   int32_t need_args;
   int32_t is_shuffle;
-  struct ast_Expr ce;
-  int32_t ci;
   int32_t call_ref;
+  int32_t callee_ref;
+  struct ast_Expr ce;
   struct ast_Expr call_e;
   int32_t got;
   struct parser_asm_parse_expr_result arg_res;
   if (!arena || !source || !out)
     return;
   out->ok = 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_audit_c(r0, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_deep_from_at_audit_c(r0, source));
   lex = r0.next_lex;
   lexer_next_into(&r, lex, source);
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_audit_c((int32_t)r0.tok.kind, (int32_t)r.tok.kind,
+                                                                       source, r.token_start, r.tok.ident_len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_deep_from_at_audit_c((int32_t)r0.tok.kind, (int32_t)r.tok.kind,
+                                                                       source, r.token_start, r.tok.ident_len, &r.next_lex));
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   if (!parser_asm_simd_builtin_kind_c(&r, source, &need_args, &is_shuffle))
@@ -130,36 +232,7 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   ce = ast_ast_arena_expr_get(arena, callee_ref);
   ce.kind = 3; /* EXPR_VAR */
   parser_asm_simd_expr_common_zeros_c(&ce);
-  if (is_shuffle) {
-    ce.var_name[0] = 115;
-    ce.var_name[1] = 105;
-    ce.var_name[2] = 109;
-    ce.var_name[3] = 100;
-    ce.var_name[4] = 95;
-    ce.var_name[5] = 115;
-    ce.var_name[6] = 104;
-    ce.var_name[7] = 117;
-    ce.var_name[8] = 102;
-    ce.var_name[9] = 102;
-    ce.var_name[10] = 108;
-    ce.var_name[11] = 101;
-    ce.var_name_len = 12;
-  } else {
-    ce.var_name[0] = 115;
-    ce.var_name[1] = 105;
-    ce.var_name[2] = 109;
-    ce.var_name[3] = 100;
-    ce.var_name[4] = 95;
-    ce.var_name[5] = 115;
-    ce.var_name[6] = 101;
-    ce.var_name[7] = 108;
-    ce.var_name[8] = 101;
-    ce.var_name[9] = 99;
-    ce.var_name[10] = 116;
-    ce.var_name_len = 11;
-  }
-  for (ci = ce.var_name_len; ci < 64; ci++)
-    ce.var_name[ci] = 0;
+  ce.var_name_len = parser_asm_simd_callee_name_fill_c(is_shuffle, ce.var_name);
   ast_ast_arena_expr_set(arena, callee_ref, ce);
   call_ref = ast_ast_arena_expr_alloc(arena);
   if (call_ref == 0)
@@ -203,6 +276,7 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   out->ok = 1;
   out->expr_ref = call_ref;
   out->next_lex = lex;
+#endif /* XLANG_PTHIN_SIMD_BODIES_FROM_X parse_at_simd_builtin */
 }
 
 #endif /* PARSER_ASM_SIMD_BUILTIN_SLICE_INCLUDED */

@@ -11,6 +11,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <xlang_io_cap.h>
+/* Cap residual 9.7.1: stream params are opaque fd handles. */
+#include "xlang_driver_stream_cap.h"
 
 #include "token.h"
 #include "codegen/codegen.h"
@@ -113,7 +116,7 @@ XLANG_WEAK char *preprocess(const char *source, size_t source_len, const char **
 
 XLANG_WEAK void driver_print_usage_c(void) {
   static const char msg[] = "Xlang (stub)\nUsage: xlang [options] file.x\n";
-  (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1u);
+  (void)xlang_io_write(STDOUT_FILENO, msg, sizeof(msg) - 1u);
 }
 
 XLANG_WEAK int xlang_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
@@ -248,11 +251,14 @@ XLANG_WEAK void codegen_compute_used_types(struct ASTModule *entry, struct ASTMo
   if (n_out) *n_out = 0;
 }
 
-XLANG_WEAK void codegen_dump_wpo_callgraph_json(FILE *out,
+XLANG_WEAK void codegen_dump_wpo_callgraph_json(uint8_t *out,
     struct ASTModule *entry, const char *entry_path,
     struct ASTModule **all_mods, const char **all_paths, int n_all) {
   (void)entry; (void)entry_path; (void)all_mods; (void)all_paths; (void)n_all;
-  if (out) fputs("{\"version\":2,\"nodes\":[]}\n", out);
+  if (out) {
+    static const char json[] = "{\"version\":2,\"nodes\":[]}\n";
+    (void)xlang_io_write(xlang_driver_handle_to_fd(out), json, sizeof(json) - 1);
+  }
 }
 
 /* ---- G-02e-10：原 _stubs_driver.c（pipeline_gen asm_driver_* → driver_*）---- */
@@ -366,19 +372,22 @@ int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const char *te
 
 
 
-void lsp_codegen_emit_heap_alias_block(FILE *out) {
+void lsp_codegen_emit_heap_alias_block(uint8_t *out) {
   if (out)
-    fputs(lsp_heap_alias_block, out);
+    (void)xlang_io_write(xlang_driver_handle_to_fd(out), lsp_heap_alias_block,
+                         strlen(lsp_heap_alias_block));
 }
 
-void lsp_codegen_emit_io_extern_block(FILE *out) {
+void lsp_codegen_emit_io_extern_block(uint8_t *out) {
   if (out)
-    fputs(lsp_io_extern_block, out);
+    (void)xlang_io_write(xlang_driver_handle_to_fd(out), lsp_io_extern_block,
+                         strlen(lsp_io_extern_block));
 }
 
-void lsp_codegen_emit_gen_extern_block(FILE *out) {
+void lsp_codegen_emit_gen_extern_block(uint8_t *out) {
   if (out)
-    fputs(lsp_gen_extern_block, out);
+    (void)xlang_io_write(xlang_driver_handle_to_fd(out), lsp_gen_extern_block,
+                         strlen(lsp_gen_extern_block));
 }
 
 int lsp_codegen_emit_heap_alias_to_buf(struct codegen_CodegenOutBuf *out) {
@@ -409,15 +418,35 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 
-/** asm 后端 ELF 生成桩；冷启动 xlang-c 不走 asm 分支。 */
-XLANG_WEAK int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ctx, void *out_buf) {
-    (void)module;
-    (void)arena;
-    (void)ctx;
-    (void)elf_ctx;
-    (void)out_buf;
-    return -1;
-}
+/*
+ * The PREFIX XLANG_WEAK asm_asm_codegen_elf_o that returned -1 was
+ * deleted (G-02e-12 xlang-c cold stub).
+ *
+ * Why: ELF and Mach-O pick the first weak definition of a name.
+ * Product g05 links this TU at _GLUE_SUFFIX (link END). Product emit
+ * is PREFIX asm_asm_codegen_elf_o from strong user_asm_seed_bridge.
+ * A second PREFIX def here is the first-wins / archive-presatisfy
+ * hazard (Darwin Stage2 historically had to filter_o_export omit
+ * this name so the real bridge member was extracted; without the
+ * omit, weak -1 pre-satisfied U → CG002 code_len=0).
+ *
+ * PLATFORM: WINDOWS — XLANG_WEAK is empty, so this was a STRONG -1
+ * and PE --allow-multiple-definition FIRST-wins. Stubs at END was
+ * the only reason the real body won; a reordered link line would
+ * silently emit -1.
+ *
+ * Invariant: every product/strict/experimental link that needs
+ * asm_asm_codegen_elf_o must provide a real body
+ * (user_asm_seed_bridge). Missing provider → link UNDEF, not a
+ * silent -1. Same class as the experimental_symbol_bridge 5-arg
+ * leftover deleted at 81b2a6f98.
+ *
+ * Darwin Stage2 filter_o_export --omit-sym stays as defense-in-depth
+ * against a stale .o; the produce-point body is gone.
+ *
+ * PLATFORM: SHARED — first-weak-wins is ELF + Mach-O; PE first-wins
+ * via allow-multiple-definition.
+ */
 
 /** driver 模块查询桩。 */
 XLANG_WEAK int32_t driver_get_module_num_funcs(void *module) {
@@ -690,10 +719,10 @@ XLANG_WEAK int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t 
 extern int cfg_eval_expr_c(const char *start, int len);
 
 struct ast_LabeledStmt {
-  uint8_t label[128];
+  uint8_t label[256];
   int32_t label_len;
   int32_t is_goto;
-  uint8_t goto_target[128];
+  uint8_t goto_target[256];
   int32_t goto_target_len;
   int32_t return_expr_ref;
 };
@@ -750,7 +779,8 @@ static int32_t g_typeck_layout_metrics_sz_depth[64];
 static int32_t g_typeck_layout_metrics_al_depth[64];
 static int32_t g_typeck_call_resolve_dep_idx_slot;
 static int32_t g_typeck_call_resolve_func_idx_slot;
-/* PLATFORM: SHARED — weak fallback; strong def in ast_pool.c on product link. */
+/* PLATFORM: SHARED — weak fallback; strong def in runtime_pipeline_abi on product link
+ * (ast_pool.c left wave309). */
 static int32_t g_typeck_overload_expected_ret_slot;
 
 XLANG_WEAK uint8_t *typeck_scratch64_slot(int32_t slot) {
@@ -930,6 +960,24 @@ XLANG_WEAK int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond
     if (c == ' ' || c == '\t' || c == '=' || c == '!' || c == '(' || c == ')')
       return cfg_eval_expr_c((const char *)cond, cond_len) ? 1 : 0;
   }
+  /* Bare decimal literal: nonzero value true, "0" false (9.3.3; digit tokens
+   * never exist in the -D table, so identifier lookup would always be false).
+   * Same semantics as pure runtime_pipeline_abi authority. PLATFORM: SHARED. */
+  {
+    int all_digits = cond_len > 0;
+    int lit_true = 0;
+    for (k = 0; k < cond_len; k++) {
+      char d = (char)cond[k];
+      if (d < '0' || d > '9') {
+        all_digits = 0;
+        break;
+      }
+      if (d != '0')
+        lit_true = 1;
+    }
+    if (all_digits)
+      return lit_true;
+  }
   return preprocess_define_has(cond, cond_len) ? 1 : 0;
 }
 
@@ -943,16 +991,16 @@ void pipeline_block_labeled_set_names(struct ast_ASTArena *a, int32_t br, int32_
   if (!ls)
     return;
   if (label && label_len > 0) {
-    /* wave586 Cap residual: label content ≤127 (LabeledStmt.label[128]). */
-    if (label_len > 127)
+    /* wave586 Cap residual: label content ≤255 (LabeledStmt.label[128]). */
+    if (label_len > 255)
       label_len = 127;
     memcpy(ls->label, label, (size_t)label_len);
     ls->label[label_len] = 0;
     ls->label_len = label_len;
   }
   if (goto_target && goto_target_len > 0) {
-    /* wave586 Cap residual: goto target content ≤127. */
-    if (goto_target_len > 127)
+    /* wave586 Cap residual: goto target content ≤255. */
+    if (goto_target_len > 255)
       goto_target_len = 127;
     memcpy(ls->goto_target, goto_target, (size_t)goto_target_len);
     ls->goto_target[goto_target_len] = 0;

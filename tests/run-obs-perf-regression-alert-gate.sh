@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# OBS-004：性能回归自动告警 manifest 门禁
+# OBS-004：性能回归自动告警 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-obs-perf-regression-alert-gate.sh
+# wave honesty (2026-08-24 #10): DOC → analysis/archive/obs/.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_OBS_PERF_ALERT_DOC:-analysis/obs-perf-regression-alert-v1.md}"
+DOC="${XLANG_OBS_PERF_ALERT_DOC:-analysis/archive/obs/obs-perf-regression-alert-v1.md}"
 MANIFEST="${XLANG_OBS_PERF_ALERT_TSV:-tests/baseline/obs-perf-regression-alert.tsv}"
 REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 LIB="tests/lib/obs-perf-regression-alert.sh"
@@ -18,7 +20,11 @@ MIN_ALERTS=6
 # shellcheck source=tests/lib/perf-baseline-governance.sh
 . tests/lib/perf-baseline-governance.sh
 
-echo "=== OBS-004: perf regression alert manifest ==="
+echo "=== OBS-004: perf regression alert manifest (archive DOC) ==="
+if [ -f analysis/obs-perf-regression-alert-v1.md ]; then
+  echo "obs-perf-regression-alert gate FAIL: top-level DOC resurrected (live = archive/obs/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$REG" "$LIB" "$RUNNER" "$DOGFOOD"; do
   if [ ! -f "$f" ]; then
     echo "obs-perf-regression-alert gate FAIL: missing $f" >&2

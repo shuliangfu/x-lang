@@ -29,9 +29,21 @@ arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; esac
 case "$os" in darwin) os="darwin" ;; linux) os="linux" ;; freebsd) os="freebsd" ;; esac
 
+# PLATFORM: SHARED — post-Makefile phys-del (wave941+): clean + cold seed via
+# shell authorities (G.7). Ban residual bare `make` — MF absent hard-fails.
+#   clean  → scripts/clean_compiler.sh
+#   seed   → scripts/bootstrap_driver_seed.sh
+# Escape: XLANG_CAPTURE_SEEDS_VIA_MAKE=1 + Makefile present → historic make.
 echo "capture_bootstrap_seeds: LEGACY build (${os}.${arch}) ..."
-make clean
-make bootstrap-driver-seed
+if [ "${XLANG_CAPTURE_SEEDS_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+  echo "capture_bootstrap_seeds: VIA_MAKE escape → make clean + bootstrap-driver-seed" >&2
+  make clean
+  make bootstrap-driver-seed
+else
+  echo "capture_bootstrap_seeds: clean_compiler.sh + bootstrap_driver_seed.sh (0-make)" >&2
+  bash scripts/clean_compiler.sh
+  bash scripts/bootstrap_driver_seed.sh
+fi
 
 mkdir -p seeds
 ./scripts/bootstrap_xlangc_create.sh ./xlang

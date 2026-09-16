@@ -125,7 +125,9 @@ export function gzip_zstream_clear_alloc(strm: *ZStream): void {
  * See implementation.
  */
 export function xlang_gzip_stream_cast(state: *u8, state_cap: i32): *GzipStream {
-  let need: i32 = gzip_stream_state_bytes();
+  // PLATFORM: SHARED — cap is 128; do not call gzip_stream_state_bytes()
+  // (co-emitted short name aliases std.compress facade → recurse).
+  let need: i32 = 128;
   if (state == 0 || state_cap < need) {
     return 0 as *GzipStream;
   }
@@ -146,7 +148,12 @@ export function compress_gzip_compress_c(in: *u8, in_len: i32, out: *u8, out_cap
   let strm: ZStream;
   gzip_zstream_clear_alloc(&strm);
   let init_ret: i32 = 0;
-  unsafe { init_ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY); }
+  // Level -1 is Z_DEFAULT_COMPRESSION. Use 0-1 (not the named const):
+  // x86_64 product emit of export const -1 as a call arg leaves an unread
+  // stack slot (Ubuntu Init2 then Z_STREAM_ERROR). compress2 already passes
+  // a -1 literal; match that. Named const stays for the public API.
+  // PLATFORM: SHARED — Darwin AAPCS64 folds the named const; Linux x86_64 does not.
+  unsafe { init_ret = deflateInit2(&strm, 0 - 1, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY); }
   if (init_ret != Z_OK) {
     return -1;
   }
@@ -197,14 +204,18 @@ export function compress_gzip_decompress_c(in: *u8, in_len: i32, out: *u8, out_c
  * See implementation.
  */
 export function compress_gzip_stream_state_bytes_c(): i32 {
-  return gzip_stream_state_bytes();
+  // PLATFORM: SHARED — literal cap (same as gzip_stream_state_bytes). Calling
+  // the short export from a co-emitted lib.x aliases std.compress facade and
+  // infinite-recurses (Ubuntu xlang build). Darwin c_face hides this via
+  // -dead_strip of the co-emitted T.
+  return 128;
 }
 
 /**
  * See implementation.
  */
 export function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
-  let need: i32 = gzip_stream_state_bytes();
+  let need: i32 = 128;
   if (state == 0 || state_cap < need) {
     return -1;
   }
@@ -214,7 +225,9 @@ export function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32)
   s.hdr.mode = 0;
   gzip_zstream_clear_alloc(&s.strm);
   let init_ret: i32 = 0;
-  unsafe { init_ret = deflateInit2(&s.strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY); }
+  // Same 0-1 as compress_gzip_compress_c (x86_64 named-const -1 call-arg).
+  // PLATFORM: SHARED
+  unsafe { init_ret = deflateInit2(&s.strm, 0 - 1, Z_DEFLATED, GZIP_WBITS, 8, Z_DEFAULT_STRATEGY); }
   if (init_ret != Z_OK) {
     return -1;
   }
@@ -226,7 +239,7 @@ export function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32)
  * See implementation.
  */
 export function compress_gzip_stream_init_decompress_c(state: *u8, state_cap: i32): i32 {
-  let need: i32 = gzip_stream_state_bytes();
+  let need: i32 = 128;
   if (state == 0 || state_cap < need) {
     return -1;
   }
@@ -340,7 +353,9 @@ export function compress_gzip_stream_decompress_c(state: *u8, state_cap: i32, in
  * See implementation.
  */
 export function compress_gzip_stream_end_c(state: *u8, state_cap: i32): i32 {
-  let hdr_need: i32 = gzip_stream_hdr_bytes();
+  // PLATFORM: SHARED — hdr cap is 16; do not call gzip_stream_hdr_bytes()
+  // (same co-emit short-name alias as state_bytes).
+  let hdr_need: i32 = 16;
   if (state == 0 || state_cap < hdr_need) {
     return 0;
   }

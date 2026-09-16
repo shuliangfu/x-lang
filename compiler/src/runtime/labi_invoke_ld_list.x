@@ -80,6 +80,8 @@ export extern "C" function link_abi_obj_needs_brotli(obj_o: *u8): i32;
 
 // Peer pure (ondemand L8b): user.o needs any compress lib (zlib|zstd|brotli aggregate).
 export extern "C" function link_abi_user_o_needs_compress_libs(user_o: *u8): i32;
+// Peer pure (ondemand L8b): exact UNDEF probe (nm -u; strip optional U/_).
+export extern "C" function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 
 // Cap residual: ensure zlib macro-wrapper glue .o + resolve its path for ld argv.
 export extern "C" function xlang_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
@@ -452,12 +454,24 @@ export function labi_ld_flag_lm(): *u8 {
   return p;
 }
 
-/** Exported function `labi_ld_flag_lsqlite3`.
- * Implements `labi_ld_flag_lsqlite3`.
- * @return *u8
+/**
+ * ld flag that pulls libsqlite3.
+ * PLATFORM: LINUX — Ubuntu gold ships libsqlite3-0 (SONAME .so.0) without
+ * libsqlite3-dev, so raw `ld -lsqlite3` fails (`libsqlite3.so` missing).
+ * `-l:libsqlite3.so.0` is the exact filename in the default search dir.
+ * PLATFORM: MACOS|DARWIN / WINDOWS — `-lsqlite3` (SDK / MinGW name).
+ * @return *u8 — static flag string; never null
  */
 #[no_mangle]
 export function labi_ld_flag_lsqlite3(): *u8 {
+  let linux: i32 = 0;
+  unsafe {
+    linux = xlang_host_is_linux();
+  }
+  if (linux != 0) {
+    let p: *u8 = "-l:libsqlite3.so.0";
+    return p;
+  }
   let p: *u8 = "-lsqlite3";
   return p;
 }
@@ -856,8 +870,7 @@ export function labi_ld_common_tail_flag_at(i: i32): *u8 {
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "-lsqlite3";
-    return p;
+    return labi_ld_flag_lsqlite3();
   }
   if (i == 2) {
     let p: *u8 = "-pthread";
@@ -1209,20 +1222,51 @@ export function xlang_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o:
   if (need_comp != 0) {
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
   }
-  // -lsqlite3 when sqlite std linked.
+  // -lsqlite3 only when glue.o actually U sqlite3_open (real libsqlite3 TU).
+  // Stub glue (no sqlite3.h) defines xlang_sqlite3_*_c without that U; adding
+  // -lsqlite3 then fails Ubuntu gold `ld: cannot find -lsqlite3`.
+  // PLATFORM: SHARED — G.7 complete have_sqlite tail; glue already OP 18.
   if (have_sqlite != 0) {
-    let curs: i32 = la[0];
-    if (curs < max_la - 1) {
-      let fs: *u8 = labi_ld_flag_lsqlite3();
-      argv[curs] = fs;
-      la[0] = curs + 1;
+    let gp: *u8 = 0 as *u8;
+    let need_lib: i32 = 1;
+    unsafe {
+      gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    }
+    if (gp == 0 as *u8) {
+      unsafe {
+        gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+      }
+    }
+    if (gp != 0 as *u8) {
+      unsafe {
+        need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+      }
+    }
+    if (need_lib != 0) {
+      let curs: i32 = la[0];
+      if (curs < max_la - 1) {
+        let fs: *u8 = labi_ld_flag_lsqlite3();
+        argv[curs] = fs;
+        la[0] = curs + 1;
+      }
     }
   }
-  // -pthread when thread/sync/channel.
+  // -lpthread when thread/sync/channel.
+  // PLATFORM: MACOS — bare /usr/bin/ld (used by asm -o exe path) does not
+  // recognize the -pthread driver flag (it is a cc/clang driver option).
+  // Use -lpthread instead so the library is resolved via libSystem on
+  // Darwin and via libpthread on Linux. This matches the unix_gcc twin
+  // (labi_invoke_ld_list.x !have_io && need_pt branch) which already uses
+  // labi_ld_flag_lpthread(). Before wave955: mach tail unconditionally used
+  // labi_ld_flag_pthread() = "-pthread" → macOS ld: "unknown options:
+  // -pthread" → BLD001 for any user program importing std.net/thread/sync/
+  // channel (e.g. examples/cookbook/net_listen_bind.x). G.7: fix at the
+  // single authority (mach tail libs) — no second path. G.8: SHARED, both
+  // .x and from_x.c twin updated in same commit.
   if (need_pt != 0) {
     let curp: i32 = la[0];
     if (curp < max_la - 1) {
-      let fp: *u8 = labi_ld_flag_pthread();
+      let fp: *u8 = labi_ld_flag_lpthread();
       argv[curp] = fp;
       la[0] = curp + 1;
     }
@@ -1331,13 +1375,32 @@ export function xlang_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, use
   if (need_comp != 0) {
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
   }
-  // -lsqlite3 when sqlite std linked.
+  // -lsqlite3 only when glue.o actually U sqlite3_open (real libsqlite3 TU).
+  // Stub glue (no sqlite3.h) must not pull -lsqlite3 (Ubuntu gold).
+  // PLATFORM: SHARED — G.7 complete have_sqlite tail; ≡ mach twin.
   if (have_sqlite != 0) {
-    let curs: i32 = la[0];
-    if (curs < max_la - 1) {
-      let fs: *u8 = labi_ld_flag_lsqlite3();
-      argv[curs] = fs;
-      la[0] = curs + 1;
+    let gp: *u8 = 0 as *u8;
+    let need_lib: i32 = 1;
+    unsafe {
+      gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    }
+    if (gp == 0 as *u8) {
+      unsafe {
+        gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+      }
+    }
+    if (gp != 0 as *u8) {
+      unsafe {
+        need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+      }
+    }
+    if (need_lib != 0) {
+      let curs: i32 = la[0];
+      if (curs < max_la - 1) {
+        let fs: *u8 = labi_ld_flag_lsqlite3();
+        argv[curs] = fs;
+        la[0] = curs + 1;
+      }
     }
   }
   // -ldl only on Linux when dynlib (mega #if __linux__; peer pure host_is_linux).
@@ -2374,6 +2437,9 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
           unsafe {
             _pe = link_abi_asm_ld_push_obj(env_p, link_argv0, "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
           }
+          // PLATFORM: SHARED — formal env.o U process_xlang_* under args_iter / process_* weak chain.
+          // G.7 complete existing env companion; reuse process_argv append leaf (no second path).
+          labi_std_append_process_argv_if(1, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
       }
     }
@@ -2423,6 +2489,42 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
           let _pt: i32 = 0;
           unsafe {
             _pt = link_abi_asm_ld_push_obj(tm_p, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  // PLATFORM: SHARED — formal datetime.o U time_now_wall_*_c / time_wall_local_offset_min_c
+  // (datetime.x now_utc / local_offset) and std_time_sleep_ns / duration_ns (mod.x).
+  // User.o for datetime_iana only U std_datetime_timezone_iana so fk0 time needles miss.
+  // Companion ≡ time.o → time_os. G.7 complete ensure_for_rel; no second group.
+  let eq_dt: i32 = 0;
+  unsafe {
+    eq_dt = strcmp(rel, "std/datetime/datetime.o");
+  }
+  if (eq_dt == 0) {
+    let _ftm: i32 = 0;
+    unsafe {
+      _ftm = xlang_ensure_formal_std_make_o(include_root, "std/time/time.o", "../std/time/time.o");
+    }
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _ptm: i32 = 0;
+        unsafe {
+          _ptm = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/time/time.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+        let trdt: i32 = 0;
+        unsafe {
+          trdt = xlang_ensure_runtime_time_os_o(link_argv0);
+        }
+        if (trdt == 0) {
+          let tm_pdt: *u8 = 0 as *u8;
+          unsafe {
+            tm_pdt = xlang_runtime_time_os_o_path(link_argv0);
+          }
+          let _ptdt: i32 = 0;
+          unsafe {
+            _ptdt = link_abi_asm_ld_push_obj(tm_pdt, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
           }
         }
       }
@@ -2992,12 +3094,17 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
     return;
   }
   // op 6: PRIMARY_ENV_OS
+  // PLATFORM: SHARED — leftover asm: reusing `let need` across op4/op5/op6 made op6's
+  // if read a stale zero slot (needs() wrote a different slot), so runtime_env_os.o
+  // never pushed (Ubuntu UNDEF). Use a uniquely named gate local (need_env).
+  // Caller (append_std_objs) parks+restores `bank` around this leaf — op6 push path
+  // otherwise smashes the plan-loop bank slot (Darwin bank_push SEGV on next env.o).
   if (op == 6) {
-    let need: i32 = 0;
+    let need_env: i32 = 0;
     unsafe {
-      need = labi_user_needs_runtime_env_os(user_o);
+      need_env = labi_user_needs_runtime_env_os(user_o);
     }
-    if (need == 0) {
+    if (need_env == 0) {
       return;
     }
     if (rel_ok == 0) {
@@ -3611,7 +3718,12 @@ export function xlang_asm_ld_append_std_objs_for_user(link_argv0: *u8, user_o: *
         labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
       }
       if (op == 6) {
+        // PLATFORM: SHARED — leftover asm: primary op6 push path smashes this frame's
+        // `bank` slot (next OP_STD env.o then bank_push SEGV on Darwin). Park+restore.
+        // Ubuntu also needs op6 gate to actually push runtime_env_os.o (see need_env below).
+        let bank_save: *u8 = bank;
         labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+        bank = bank_save;
       }
       // OP_STD=1 → wave195 pure leaf.
       if (op == 1) {

@@ -1,7 +1,7 @@
 # COMP-014：isel 回归矩阵 P0 扩展 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）**  
 > 前置：COMP-006 `comp-isel-v1.md`、`comp-isel.tsv`  
 > 关联：asm 7.3、`run-asm-73-gate.sh`、COMP-013 regalloc wave
 
@@ -29,6 +29,9 @@ bench 扩展见 `comp-isel-bench.tsv`（`bench_field_p0`、`bench_nested_p0`、`
 ---
 
 ## 3. Gate
+
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired;
+explicit-bad XLANG hard-dies (no SKIP runnable → gate OK). Keep `## 3. Gate`.
 
 ```bash
 ./tests/run-comp-isel-p0-gate.sh

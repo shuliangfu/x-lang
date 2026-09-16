@@ -31,24 +31,39 @@
 
 ---
 
-## 3. 烟测与门禁
+## 3. Smokes
 
-| 用例 | 路径 |
+| Case | Path |
 |------|------|
-| 聚合 | `tests/process/xplat_behavior.x` |
-| 边界 | `tests/process/boundary.x`（TST-002） |
-| Windows spawn | `tests/process/spawn_wait_win.x` |
-| pipe 重定向 | `tests/process/spawn_pipe_echo.x` |
+| Aggregate | `tests/process/xplat_behavior.x` (hard green) |
+| Boundary | `tests/process/boundary.x` (TST-002; hard green) |
+| Windows spawn | `tests/process/spawn_wait_win.x` (observational; XT001) |
+| Pipe redirect | `tests/process/spawn_pipe_echo.x` (observational; XT001) |
+
+---
+
+## 4. Gate
+
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). `xplat_behavior.x` + `boundary.x` exit 0
+hard-fail (`run+=`). `spawn_wait_win` / `spawn_pipe_echo` observational only
+(`obs+=`; product XT001; not soft). Report `run=` / `obs=` / `skip=`.
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-process.sh`（`xlang_compiler_make -q xlang-c || make` + `ensure_std_c_o process.o` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` live smokes hard（`main.x` exit 99；POSIX spawn_wait hard；Windows spawn_wait skip＝N/A）；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [PROCESS]`。Keep `## 4. Gate`。
+
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-process-xplat-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `xplat_behavior.x`／`boundary.x` hard；check／win／pipe＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
 
 ```bash
 ./tests/run-std-process-xplat-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD142_PROCESS_XPLAT]`
+Report prefix: `xlang: [XLANG_STD142_PROCESS_XPLAT]`
 
 ---
 
-## 4. 演进
+## 5. Evolution
 
-- Windows `spawn_simple` 默认可执行探测（`where.exe`）
-- 子进程环境块继承与 `std.env` 编码联动（STD-132）
+- Windows `spawn_simple` default executable probe (`where.exe`)
+- Child env-block inheritance linked with `std.env` encoding (STD-132)

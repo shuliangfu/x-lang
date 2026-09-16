@@ -12,8 +12,8 @@ hook_parent	hook_ref	run-boot-022-mega7-emit-gate.sh	BOOT-022
 bisect_baseline	file	tests/baseline/parser-mega-bisect.tsv	delta 8192
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	B1–B7 emit_target
 wave_tsv	file	tests/baseline/parser-mega7-emit-wave.tsv	7 rows
-parent_boot022	cross_ref	analysis/boot-022-mega7-emit-v1.md	emit lead
-parent_gap	cross_ref	analysis/boot-mega7-gap.md	阶段 C3
-doc	file	boot-023-mega7-full-emit-v1.md	analysis/boot-023-mega7-full-emit-v1.md	RFC
+parent_boot022	cross_ref	analysis/archive/boot/boot-022-mega7-emit-v1.md	emit lead
+parent_gap	cross_ref	analysis/archive/boot/boot-mega7-gap.md	阶段 C3
+doc	file	boot-023-mega7-full-emit-v1.md	analysis/archive/boot/boot-023-mega7-full-emit-v1.md	RFC
 lib	script	lib/boot-023-mega7-full-emit.sh	tests/lib/boot-023-mega7-full-emit.sh
 gate	script	run-boot-023-mega7-full-emit-gate.sh	tests/run-boot-023-mega7-full-emit-gate.sh

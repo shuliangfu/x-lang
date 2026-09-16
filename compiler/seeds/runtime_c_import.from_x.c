@@ -22,6 +22,10 @@
 #include "diag.h"
 
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: c_import dep path → Cap snprintf */
+/* G.7: Cap after stdio for runtime_c_import product TU. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <stdlib.h>
 #include <string.h>
 

@@ -1,12 +1,15 @@
 # STD-017 std.heap XLANG_HEAP_TRACE manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-heap-trace-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/heap/trace_stats.x hard.
 min_trace_apis	3
 trace_enabled	symbol	trace_on	std/heap/mod.x
 trace_stats	symbol	trace_stats	std/heap/mod.x
 trace_reset	symbol	trace_reset	std/heap/mod.x
 stats_struct	symbol	HeapTraceStats	std/heap/mod.x
 c_impl	symbol	heap_trace_enabled_c	std/heap/libc.x	XLANG_HEAP_TRACE
-env_var	anchor	XLANG_HEAP_TRACE	analysis/std-heap-trace-v1.md	RFC
+env_var	anchor	XLANG_HEAP_TRACE	analysis/archive/std/std-heap-trace-v1.md	RFC
 test_smoke	file	tests/heap/trace_stats.x		烟测
-doc	file	std-heap-trace-v1.md	analysis/std-heap-trace-v1.md	RFC
+doc	file	std-heap-trace-v1.md	analysis/archive/std/std-heap-trace-v1.md	RFC
 gate	script	run-std-heap-trace-gate.sh	tests/run-std-heap-trace-gate.sh	manifest

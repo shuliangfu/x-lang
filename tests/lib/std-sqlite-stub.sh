@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# std-sqlite-stub.sh — STD-139 manifest 与 stub 烟测辅助
+# std-sqlite-stub.sh — STD-139 manifest and stub smoke helpers (honesty).
+# Honesty 2026-08-28: report run=/obs=/skip=; prefer asm; no soft rebuild.
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Parent STD-139 already Honesty
+# (resolve_shu / prefer-asm). leftover nested product path (manifest /
+# stub_behavior -o / observational C stub) stay. Do not fork a third
+# resolver here. PLATFORM: SHARED archaeology — Ubuntu gold still required.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_DB_STUB_PREFIX="${XLANG_STD139_PREFIX:-xlang: [XLANG_STD139_DB_STUB]}"
 
 # 复用 STD-057 SQLite 探测。
@@ -65,49 +69,64 @@ std_sqlite_stub_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 构建 stub sqlite.o 并运行 C 烟测（不链 libsqlite3）。
+# Restore product sqlite.o after sqlite-o-stub overwrite.
+# Face-less stub (no std_db_sqlite_*) must be deleted so -L . rebuilds via
+# formal_mod mod|1. Do NOT call ensure_std_c_o here when host lacks libsqlite3:
+# it re-runs sqlite-o-stub and recreates a face-less object (Ubuntu gold UNDEF).
+# PLATFORM: SHARED — Ubuntu without libsqlite3-dev is the gold stub path.
+std_sqlite_stub_restore_product_o() {
+  local sqlite_o="std/db/sqlite/sqlite.o"
+  if [ -f "$sqlite_o" ]; then
+    if ! nm "$sqlite_o" 2>/dev/null | grep -q 'std_db_sqlite_is_available'; then
+      rm -f "$sqlite_o" std/db/sqlite/sqlite_main.o
+    fi
+  fi
+}
+
+# Run C stub smoke against an existing stub sqlite.o (no soft sqlite-o-stub make).
+# Observational only. Always restores product sqlite.o before return.
+# PLATFORM: SHARED archaeology — hard-green signal is .x stub_behavior.x.
 std_sqlite_stub_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/stub_behavior_ok.c"
   local out="/tmp/xlang_std_sqlite_stub_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
-  if ! xlang_compiler_make sqlite-o-stub >/dev/null 2>&1; then
-    echo "std-sqlite-stub FAIL: make sqlite-o-stub" >&2
-    return 1
-  fi
+  # Refuse soft auto-make of sqlite-o-stub; only exercise an existing stub .o.
   if [ ! -f "$sqlite_o" ]; then
-    echo "std-sqlite-stub FAIL: missing $sqlite_o after stub build" >&2
-    return 1
+    echo "std-sqlite-stub OBS c smoke (missing stub sqlite.o; no soft rebuild)" >&2
+    return 2
   fi
   if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
-    echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols; need xlang-c)" >&2
-    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+    echo "std-sqlite-stub OBS c smoke (sqlite.o missing .x symbols)" >&2
+    std_sqlite_stub_restore_product_o
     return 2
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" 2>/dev/null; then
-    echo "std-sqlite-stub FAIL: compile $src (stub.o)" >&2
-    xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
-    return 1
+    echo "std-sqlite-stub OBS c smoke (compile residual)" >&2
+    std_sqlite_stub_restore_product_o
+    return 2
   fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
+  local ec=0
+  "$out" >/dev/null 2>&1 || ec=$?
   rm -f "$out"
-  xlang_compiler_make ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
+  std_sqlite_stub_restore_product_o
   if [ "$ec" -ne 0 ]; then
-    echo "std-sqlite-stub FAIL: c smoke exit=$ec" >&2
-    return 1
+    echo "std-sqlite-stub OBS c smoke (run residual exit=$ec)" >&2
+    return 2
   fi
   return 0
 }
 
-# 输出门禁报告行。
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product stub_behavior.x hard green count
+# @param $3 obs — check/C stub observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_sqlite_stub_emit_report() {
   local status="$1"
-  local stub_c="$2"
-  local stub_x="$3"
-  local doc="$4"
-  echo "${STD_DB_STUB_PREFIX} status=${status} stub_c=${stub_c} stub_x=${stub_x} doc=${doc}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_DB_STUB_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

@@ -1,135 +1,135 @@
 #!/usr/bin/env bash
-# 切片 T[]：从数组初始化、下标访问；core.slice len_i32；u8[] 字段 .data/.length
-set -e
+# slice T[] smoke: init/index, data_field, core.slice len/subslice, subscript NEG
+#
+# Honesty: soft auto-make + soft bootstrap-link + soft host-cc fallback + soft
+# check→link skip (false authority) retired. Prefer product xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit bad XLANG / missing native = hard die (refuse soft
+# SKIP→OK / soft auto-make / prefer-c / soft bootstrap-link). Report:
+# run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
-fi
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-if [ -n "$XLANG" ]; then
-  :
-elif [ -x ./compiler/xlang ]; then
-  XLANG=./compiler/xlang
-elif [ -x ./compiler/xlang-c ]; then
-  XLANG=./compiler/xlang-c
-else
-  XLANG=./compiler/xlang-c
-fi
+PREFIX="${XLANG_SLICE_PREFIX:-xlang: [SLICE]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# 非 x86_64：seed xlang -o 可能走 asm 产出 x86_64 .o，链接 EM:62 失败；可执行链用 xlang-c。
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-LINK_XLANG="$RUN_XLANG"
-# 【Why】xlang-c 不支持 -backend 参数；默认空，仅 xlang_asm/xlang_asm2 需显式 -backend asm。
-SLICE_LINK_BACKEND_ARGS="${XLANG_LINK_BACKEND_ARGS:-}"
+die() {
+  echo "slice FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
-# bstrict：-o 用本波 product xlang_asm；**禁止**默认抢陈旧 xlang_asm2（July-14 wrong-binary）。
-# Stage2 仅 XLANG_BSTRICT_USE_ASM2=1。禁止清空 SLICE_LINK_BACKEND_ARGS（Linux 假路径）。
-# 保留 bootstrap-link-xlang / XLANG_FORCE_LINK_BACKEND 注入的 -backend c。
-# PLATFORM: SHARED
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
-  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
-    LINK_XLANG=./compiler/xlang_asm2
-  elif [ -x ./compiler/xlang_asm ]; then
-    LINK_XLANG=./compiler/xlang_asm
-  fi
-fi
-# Product pure-asm default. Host-cc -backend c only with FORCE/ALLOW (≡ void-main / hello).
-# PLATFORM: SHARED — silent -backend c hits host-cc-requires-allow after ALLOW gate.
-case "$(basename "$LINK_XLANG")" in
-  xlang|xlang_asm|xlang_asm2|xlang_asm_stage1)
-    if [ -z "$SLICE_LINK_BACKEND_ARGS" ]; then
-      if [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-        SLICE_LINK_BACKEND_ARGS="-backend ${XLANG_FORCE_LINK_BACKEND}"
-      elif [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ]; then
-        SLICE_LINK_BACKEND_ARGS="-backend c"
-      else
-        SLICE_LINK_BACKEND_ARGS=""
-      fi
-    fi
-    ;;
-esac
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
-# core/slice C 实现（length.x / subslice_split_chunks 等依赖 runtime_slice_glue）。
-# PLATFORM: SHARED — 始终确保 slice.o 存在。XLANG_SKIP_SUBSCRIPT_MAKE 只跳过 xlang-c
-# 重建（防 seed 挂起），不得跳过本 glue；冷树缺 slice.o 时 -o 会 UNDEF core_subslice_*。
-xlang_compiler_make -q ../core/slice/slice.o 2>/dev/null \
-  || xlang_compiler_make ../core/slice/slice.o 2>/dev/null || true
-
-# main.x / data_field.x：asm slice 栈槽问题或 exit 不符时回退 seed -E+cc。
-slice_simple_link_o() {
-  local x="$1" out="$2" struct_decl="$3" want_exit="$4"
-  set +e
-  $LINK_XLANG build $SLICE_LINK_BACKEND_ARGS "$x" -o "$out" 2>&1
-  local ec=$?
-  set -e
-  if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
-    exitcode=0
-    "$out" >/dev/null 2>&1 || exitcode=$?
-    # asm 路径 exit 正确且非 SIGABRT(134) 时接受；否则回退 -E+cc（data_field 常见 exit 2≠0）。
-    if [ "$exitcode" -ne 134 ] && [ "$exitcode" -eq "$want_exit" ]; then
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
+    return 1
   fi
-  # Optional host-cc fallback only when ALLOW (no silent -backend c).
-  if [ "${XLANG_ALLOW_HOST_CC:-}" = "1" ] || [ -n "${XLANG_FORCE_LINK_BACKEND:-}" ]; then
-    set +e
-    $LINK_XLANG build -backend c "$x" -o "$out" 2>&1
-    ec=$?
-    set -e
-    if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
-      exitcode=0
-      "$out" >/dev/null 2>&1 || exitcode=$?
-      if [ "$exitcode" -ne 134 ] && [ "$exitcode" -eq "$want_exit" ]; then
-        return 0
-      fi
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && dod_native_exe ./compiler/xlang_asm2; then
+    echo "$(pwd)/compiler/xlang_asm2"
+    return 0
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
-  fi
-  echo "slice_simple_link_o FAIL: $x (pure-asm product -o; host-cc only with ALLOW/FORCE)" >&2
+  done
   return 1
 }
 
-slice_simple_link_o tests/slice/main.x /tmp/xlang_slice \
-  'struct xlang_slice_int32_t { int32_t *data; int64_t length; };' 20
-exitcode=0; /tmp/xlang_slice >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 20 ] && { echo "expected 20 (slice s[1]), got $exitcode"; exit 1; }
-
-slice_simple_link_o tests/slice/data_field.x /tmp/xlang_slice_data_field \
-  'struct xlang_slice_uint8_t { uint8_t *data; int64_t length; };' 0
-exitcode=0; /tmp/xlang_slice_data_field >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected exit 0 (data_field), got $exitcode"; exit 1; }
-
-# core.slice + core.option 全链：bootstrap asm 对多 dep -o 易缺 core_slice_* 符号；check 绿则链接失败可跳过（同 run-core-slice-api-gate）。
-slice_dep_link_or_check() {
-  local x="$1" out="$2" label="$3"
-  local ck="${TYPECK_XLANG:-$XLANG}"
-  if ! "$ck" check -L . "$x" >/dev/null 2>&1; then
-    echo "expected typeck OK ($label)" >&2
-    "$ck" check -L . "$x" 2>&1 | tail -8 >&2 || true
-    return 1
+run_exit() {
+  local tag="$1" src="$2" want="$3"
+  shift 3
+  local exe="/tmp/xlang_slice_${tag}_$$"
+  local log="/tmp/xlang_slice_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$@" "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
   fi
   set +e
-  # Product pure-asm -o (SLICE_LINK_BACKEND_ARGS empty by default); no silent host-cc.
-  $LINK_XLANG build $SLICE_LINK_BACKEND_ARGS -L . "$x" -o "$out" 2>/tmp/xlang_slice_dep_link.log
-  local ec=$?
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
   set -e
-  if [ "$ec" -ne 0 ] || [ ! -x "$out" ]; then
-    tail -8 /tmp/xlang_slice_dep_link.log 2>/dev/null >&2 || true
-    echo "slice_dep_link FAIL: $label (check OK but -o failed)" >&2
-    return 1
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    die "$tag expected exit $want, got $r_ec"
   fi
-  exitcode=0
-  "$out" >/dev/null 2>&1 || exitcode=$?
-  [ "$exitcode" -eq 0 ] || { echo "expected exit 0 ($label), got $exitcode"; return 1; }
+  RUN_OK=$((RUN_OK + 1))
 }
 
-slice_dep_link_or_check tests/slice/length.x /tmp/xlang_slice_length "len_i32"
-slice_dep_link_or_check tests/slice/subslice_split_chunks.x /tmp/xlang_slice_subsplit "subslice_split_chunks"
+run_neg() {
+  local tag="$1" src="$2" needle="$3"
+  local exe="/tmp/xlang_slice_${tag}_$$"
+  local log="/tmp/xlang_slice_${tag}_$$.log"
+  local o_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag timeout"
+  elif [ "$o_ec" -eq 0 ]; then
+    die "$tag expected compile fail, got success"
+  fi
+  grep -q "$needle" "$log" \
+    || die "$tag expected '$needle'; $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  rm -f "$exe" "$log"
+  RUN_OK=$((RUN_OK + 1))
+}
 
-# 边界：对非数组/切片取下标，应报 subscript base must be array, slice or pointer
-err=$(${TYPECK_XLANG:-$XLANG} check tests/slice/subscript_not_slice.x 2>&1) || true
-echo "$err" | grep -q "subscript base must be array" || { echo "expected subscript base error, got: $err"; exit 1; }
+echo "=== slice gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
+run_exit main tests/slice/main.x 20
+run_exit data_field tests/slice/data_field.x 0
+# core.slice dep arms (product -o hard; no soft check→skip)
+run_exit length tests/slice/length.x 0 -L .
+run_exit subslice_split_chunks tests/slice/subslice_split_chunks.x 0 -L .
+# NEG: subscript on non-slice → hard typeck on product -o
+run_neg subscript_not_slice tests/slice/subscript_not_slice.x "subscript base must be array"
+
+ok_report
 echo "slice test OK"

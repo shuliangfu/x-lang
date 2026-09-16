@@ -1,7 +1,9 @@
 # LANG-002 import 跨平台一致性 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = archive + import smoke matrix.**
+> **2026-08-29:** residual auto-make (`xlang_compiler_make` / scheduler.o) retired.
+> 状态：**定版（honesty residual auto-make）**  
 > 关联：`compiler/docs/X与C流水线同步状态.md`、`tests/run-import.sh`
 
 ---
@@ -118,4 +120,23 @@
 | 解析实现 | `compiler/src/runtime.c` |
 | 同步状态 | `compiler/docs/X与C流水线同步状态.md` |
 
-**LANG-002 状态：定版 ✅**
+**LANG-002 状态：定版 ✅（honesty residual leftover wrap）**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / force-xlang-c LINK; explicit bad XLANG = hard die;
+missing native = hard die (import smoke is the live face); `observe`
+policy = obs (product debt — not soft silence); DOC=archive; report
+`run=`／`hooks=`／`obs=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make` / scheduler.o) retired.
+**2026-08-29 leftover wrap／fossil `$LINK_XLANG build`:** leftover
+`run-stdlib-import.sh` prefer-c / auto-make / fossil build retired
+(product `-o`; check＝obs). Gate hook still `run-stdlib-import.sh`.
+Leave wrap body / ensure_std family.
+
+`tests/run-lang-import-gate.sh`:
+
+1. Archive DOC + matrix（拒 top-level DOC resurrect）
+2. Native xlang：hook／run 硬绿；observe 失败＝obs
+3. 缺 native／显式坏 XLANG 硬 die

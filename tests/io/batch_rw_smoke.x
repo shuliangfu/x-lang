@@ -9,11 +9,13 @@ const fs = import("std.fs");
  * @return i32
  */
 function main(): i32 {
-  // See implementation.
+  // Temp file lives at repo-root bench/ (v1.2 git-mv from tests/bench/).
+  // Bytes: "bench/.io_batch_rw_smoke_tmp" + NUL; remaining slots stay 0.
+  // PLATFORM: SHARED — fixture path; leftover runner cleans the same file.
   let path: u8[35] = [
-    116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95,
-    98, 97, 116, 99, 104, 95, 114, 119, 95, 115, 109, 111, 107, 101, 95, 116,
-    109, 112, 0
+    98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 98, 97, 116, 99, 104, 95,
+    114, 119, 95, 115, 109, 111, 107, 101, 95, 116, 109, 112, 0, 0, 0, 0,
+    0, 0, 0
   ];
   let w0: u8[8] = [115, 104, 117, 105, 111, 99, 112, 48];
   let w1: u8[8] = [115, 104, 117, 105, 111, 99, 112, 49];

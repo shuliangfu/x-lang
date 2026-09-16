@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# 仅 strict 重链 xlang_asm：更新 pipeline_glue_standalone.o（含 ast_pool.c）后快速激活 EMIT_HEAVY，无需全量 build_xlang_asm。
-# 用法：cd compiler && ./scripts/relink_xlang_asm_strict_glue.sh
+# Strict re-link xlang_asm: refresh partials / glue companions / EMIT_HEAVY without
+# full build_xlang_asm. wave309: pipeline_glue_standalone seed + ast_pool.c retired;
+# product authority = runtime_pipeline_abi.o (+ strict_minimal when present).
+# Usage: cd compiler && ./scripts/relink_xlang_asm_strict_glue.sh
 set -e
 cd "$(dirname "$0")/.."
 BUILD_DIR="build_asm"
@@ -143,7 +145,8 @@ ld_supports_exported_symbols_list() {
 
 # 从符号列表（每行一个，可带 Mach-O 前缀 _）做 ld -r 局部导出；与 build_xlang_asm.sh 一致。
 # PLATFORM: SHARED — keep g_xlang_depctx_sc global when present (NL-07 pure static; see
-# build_xlang_asm.sh ld_partial_export + ast_pool.c). Must stay in lockstep with that helper.
+# build_xlang_asm.sh ld_partial_export + runtime_pipeline_abi depctx table;
+# ast_pool.c left wave309). Must stay in lockstep with that helper.
 ld_partial_export() {
   local syms_file="$1"
   local out_o="$2"
@@ -198,13 +201,16 @@ ensure_typeck_c_user_precheck_obj() {
   echo "$BUILD_DIR/typeck_c_orchestration_partial.o"
   return 0
   fi
+  # Fallback stubs are a valid precheck object; must return 0 so set -e callers
+  # (ST_TYPECK_C_STUBS=$(ensure_...)) do not abort the strict_glue relink.
+  # PLATFORM: SHARED.
   strict_glue_warn "typeck_c_orchestration_partial failed; using fallback stubs"
   if [ ! -f "$BUILD_DIR/typeck_c_module_stubs.o" ] || [ seeds/typeck_c_module_stubs.from_x.c -nt "$BUILD_DIR/typeck_c_module_stubs.o" ]; then
   strict_glue_info "cc -c seeds/typeck_c_module_stubs.from_x.c -> $BUILD_DIR/typeck_c_module_stubs.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/typeck_c_module_stubs.o" seeds/typeck_c_module_stubs.from_x.c
   fi
   echo "$BUILD_DIR/typeck_c_module_stubs.o"
-  return 1
+  return 0
 }
 
 # strict 链：C 编排 partial（run_x_pipeline_impl 等），与 build_xlang_asm.sh 一致。
@@ -244,6 +250,14 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   if ! asm_pipeline_wpo_strict_reach_ok; then
   return 1
   fi
+  # G.7: when runtime_pipeline_abi is already on strict LD argv, helpers extract from
+  # pipeline_wpo overlaps (~1k T stubs) and Darwin ld -r rejects multi-LC_SEGMENT /
+  # Ubuntu may hit internal multi-def. Soft-skip; abi covers orch (reach gate still
+  # validates pipeline_wpo.o). strchr OOB dup emit fixed 2026-08-24. PLATFORM: SHARED.
+  if asm_strict_pipeline_selfhosted; then
+  strict_glue_info "skip pipeline_wpo_helpers_partial (runtime_pipeline_abi on LD argv; avoid dual/WPO ld -r)"
+  return 1
+  fi
   if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ]; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
   '^(run_x_pipeline_impl|run_x_pipeline_parse_entry_do_parse|run_x_pipeline_parse_entry_if_needed|run_x_pipeline_typecheck_entry|parse_into_with_init_buf|parse_into_with_init|pipeline_run_x_pipeline_impl|pipeline_run_x_pipeline)$' \
@@ -252,7 +266,11 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   [ -s "$SYMS" ] || return 1
   if [ ! -f "$PARTIAL" ] || [ "$WPO_E" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   strict_glue_info "ld partial export pipeline_wpo helpers -> $PARTIAL"
-  ld_partial_export "$SYMS" "$PARTIAL" "$WPO_E" || return 1
+  if ! ld_partial_export "$SYMS" "$PARTIAL" "$WPO_E"; then
+  strict_glue_warn "pipeline_wpo_helpers ld -r failed (Darwin LC_SEGMENT / internal multi-def); soft-skip"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  return 1
+  fi
   nm "$PARTIAL" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$BUILD_DIR/.pipeline_wpo_helpers_export_syms.txt"
   fi
   return 0
@@ -331,12 +349,23 @@ ensure_diag_seed_obj() {
 
 # strict 链：自 build_asm/pipeline.o 导出除 impl/parse/typecheck 外符号，避免与 orchestration partial 重复。
 ensure_pipeline_o_strict_link_partial_obj() {
-  local PARTIAL SYMS PO WPO_E
+  local PARTIAL SYMS PO WPO_E n_t
   PARTIAL="$BUILD_DIR/pipeline_strict_link_partial.o"
   SYMS="$BUILD_DIR/pipeline_strict_link_export.txt"
   PO="$BUILD_DIR/pipeline.o"
   WPO_E="$BUILD_DIR/pipeline_wpo.o"
   if [ ! -f "$PO" ] || [ ! -s "$PO" ]; then
+  return 1
+  fi
+  # G.7: wave335+ pipeline.x is pure-extern (0 bodies). Live orch is
+  # runtime_pipeline_abi (.o already on strict LD argv; pipeline_wpo dogfood).
+  # Empty stub has 0 T → partial export is meaningless; do not hard-error.
+  # PLATFORM: SHARED — Darwin and Linux tip both carry empty build_asm/pipeline.o.
+  n_t=$(nm "$PO" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${n_t:-0}" -eq 0 ] && asm_pipeline_wpo_strict_reach_ok; then
+  strict_glue_info "skip pipeline_strict_link_partial (pipeline.o 0 T pure-extern; WPO/abi covers)"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  : >"$SYMS"
   return 1
   fi
   # X 编排：partial 不得再 export C 版 run_x_pipeline_*（runtime bootstrap 提供 pipeline_run_x_pipeline_impl）。
@@ -366,7 +395,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   strict_glue_warn "stale pipeline_strict_link export (missing W resolve_path); regen"
   rm -f "$SYMS" "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" -nt "$SYMS" ]; }; then
   # PLATFORM: SHARED — pipeline.x emits resolve_path helpers as weak (W); bridge needs them.
@@ -399,6 +428,13 @@ ensure_pipeline_o_strict_link_partial_obj() {
   strict_glue_info "nm pipeline.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') symbols T+W, minus parse/typecheck/impl entry)"
   fi
   if [ ! -s "$SYMS" ]; then
+  # G.7: empty after WPO subtract is expected when pipeline.o is pure-extern stub
+  # (or full overlap with pipeline_wpo). Soft-skip; abi/WPO covers orch.
+  # PLATFORM: SHARED — was a hard error that aborted Darwin/Ubuntu tip dogfood.
+  if asm_pipeline_wpo_strict_reach_ok || asm_strict_pipeline_selfhosted; then
+  strict_glue_info "pipeline_strict_link 0 symbols after WPO subtract (pure-extern/overlap); skip partial"
+  return 1
+  fi
   strict_glue_error "pipeline_strict_link has 0 symbols after WPO subtract; cannot build partial"
   return 1
   fi
@@ -440,21 +476,33 @@ asm_pipeline_wpo_strict_link_full_ok() {
   return 0
 }
 
-# build_asm pipeline.o 第二遍：path/resolve/load + run_x_pipeline_impl 均 X 真 emit（阈值 6144B）。
+# G.7 authority: runtime_pipeline_abi.o is the pipeline implementation (already on
+# strict LD argv). pipeline.x is pure-extern; build_asm/pipeline.o is a 0-T stub.
+# Must match build_xlang_asm.sh twin — checking the stub was a false residual.
+# PLATFORM: SHARED.
 asm_strict_pipeline_selfhosted() {
   local t
-  t=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
+  t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
   [ "$t" -ge 6144 ] 2>/dev/null || return 1
-  nm -g "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
-  nm -g "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
+  nm -g src/runtime_pipeline_abi.o 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
+  nm -g src/runtime_pipeline_abi.o 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
   return 0
 }
 
-# X 编排（build_asm pipeline.o）替代 C orchestration alias；用户 .x 编译与 experimental 对齐。
+# X 编排（abi / pipeline_wpo）替代 C orchestration alias；与 build_xlang_asm.sh 对齐。
 asm_strict_x_orchestration_ok() {
+  local p_x_t=0
   [ "${XLANG_ASM_STRICT_C_ORCHESTRATION:-0}" = "1" ] && return 1
   [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ] || return 1
-  asm_strict_pipeline_selfhosted || return 1
+  if asm_strict_pipeline_selfhosted; then
+  return 0
+  fi
+  # Fallback: pipeline_x.o companion when abi not yet selfhosted.
+  [ -f pipeline_x.o ] || return 1
+  p_x_t=$(asm_o_text_bytes pipeline_x.o 2>/dev/null || echo 0)
+  [ "$p_x_t" -ge 6144 ] 2>/dev/null || return 1
+  nm -g pipeline_x.o 2>/dev/null | grep -qE '(_)?path_append_from_buf_256|(_)?resolve_path_.*su' || return 1
+  nm -g pipeline_x.o 2>/dev/null | grep -qE '(_)?run_x_pipeline_impl' || return 1
   return 0
 }
 
@@ -465,18 +513,18 @@ asm_strict_typeck_x_glue_via_pipeline_x() {
   return 0
 }
 
-# ast_pool.c / pipeline_glue.c / PIPELINE_X_DEPS 变更后须重建 pipeline_x.o（与 build_xlang_asm.sh 一致）。
+# pipeline_x.o freshness (G.7 single authority; twin of build_xlang_asm.sh).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; dead -nt on those paths never fired. pipeline_x.o producer =
+# src/pipeline/pipeline.x via try-gen-x — NOT runtime_pipeline_abi.x (abi freshness
+# is ensure_experimental_ast_pool_for_wpo / runtime_pipeline_abi.o). Authority =
+# PIPELINE_X_DEPS only; do not retarget to abi (forever need=1 on stub .o).
 ensure_pipeline_x_o_fresh() {
   local need=0
   if [ ! -f pipeline_x.o ] || [ ! -f pipeline_gen.c ]; then
   need=1
   fi
-  if [ "$need" -eq 0 ] && [ "ast_pool.c" -nt "pipeline_x.o" ]; then
-  need=1
-  fi
-  if [ "$need" -eq 0 ] && [ "pipeline_glue.c" -nt "pipeline_x.o" ]; then
-  need=1
-  fi
+  # (Deleted ast_pool.c / pipeline_glue.c -nt removed — never fired post-leave.)
   for dep in \
   src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x \
   src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x src/asm/asm.x \
@@ -487,8 +535,16 @@ ensure_pipeline_x_o_fresh() {
   fi
   done
   if [ "$need" -eq 1 ]; then
-  strict_glue_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer)"
-  make bootstrap-pipeline pipeline_x.o
+  # PLATFORM: SHARED — post-Makefile phys-del: rebuild pipeline_x.o via try-heat
+  # (twin of build_xlang_asm wave929 / xlang_x_pipeline wave947). Ban bare make.
+  # Escape: XLANG_STRICT_GLUE_VIA_MAKE=1 + Makefile → historic bootstrap-pipeline.
+  strict_glue_info "rebuild pipeline_x.o (PIPELINE_X_DEPS newer; 0-make try-heat)"
+  if [ "${XLANG_STRICT_GLUE_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    make bootstrap-pipeline pipeline_x.o || return 1
+  else
+    PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o \
+      || { strict_glue_error "try-heat pipeline_x.o failed (ensure_pipeline_x_o_fresh)"; return 1; }
+  fi
   fi
   if [ -f pipeline_x.o ]; then
   # PLATFORM: SHARED — re-promote when pipeline.o missing, older, or reduced to WPO-helpers-only
@@ -514,9 +570,17 @@ ensure_pipeline_x_o_fresh() {
 }
 
 # strict 回退：从 pipeline_x.o 部分链接 pipeline_run_x_pipeline_impl（与 experimental X 编排一致）。
+# G.7: when runtime_pipeline_abi.o is selfhosted (already on strict LD argv), skip —
+# pipeline_x.o is a pure-extern stub (0 T); ld -r for _pipeline_run_x_pipeline_impl UNDEFs.
+# PLATFORM: SHARED — twin of build_xlang_asm.sh.
 ensure_pipeline_runtime_bootstrap_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
+  if asm_strict_pipeline_selfhosted; then
+  strict_glue_info "skip pipeline_runtime_bootstrap_partial (runtime_pipeline_abi on LD argv)"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  return 1
+  fi
   SYMS="$BUILD_DIR/pipeline_runtime_export.txt"
   SUO="$BUILD_DIR/gen_driver/pipeline_x.o"
   ensure_pipeline_x_o_fresh
@@ -527,8 +591,9 @@ ensure_pipeline_runtime_bootstrap_partial_obj() {
   if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   printf '%s\n' '_pipeline_run_x_pipeline_impl' > "$SYMS"
   strict_glue_info "ld partial export $SYMS pipeline_x.o -> $PARTIAL"
-  ld_partial_export "$SYMS" "$PARTIAL" "$SUO"
+  ld_partial_export "$SYMS" "$PARTIAL" "$SUO" || return 1
   fi
+  return 0
 }
 
 # strict X 编排：从 pipeline_x.o 导出 glue/astpool 桥接；替代 glue_standalone 避免双 astpool SIGSEGV。
@@ -550,7 +615,7 @@ ensure_pipeline_x_glue_support_partial_obj() {
   ensure_typeck_o_strict_link_partial_obj || true
   TCK_SYMS="$BUILD_DIR/typeck_strict_link_export.txt"
   fi
-  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || \
   { [ -f "$TCK_SYMS" ] && [ "$TCK_SYMS" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" -nt "$SYMS" ]; }; then
@@ -642,7 +707,7 @@ ensure_typeck_wpo_helpers_partial_obj() {
   if [ -f "$PARTIAL" ]; then
   nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?typeck_x_ast$' && rm -f "$PARTIAL" "$SYMS"
   fi
-  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ]; then
+  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ]; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE "$EXCLUDE_RE" >"$SYMS"
   strict_glue_info "nm typeck_wpo.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') layout syms, minus check_block/check_expr/typeck_x_ast*)"
   fi
@@ -676,11 +741,12 @@ typeck_wpo_strict_partial_export_syms_stale() {
 }
 
 # pipeline_glue_standalone.o 全局 T 导出表：与 build_asm/typeck.o 并列链时会 duplicate ast_pool/glue → fill_cl SIGSEGV。
+# PLATFORM: SHARED — freshness authority = GLUE_O only (deleted pipeline_glue.c -nt never fired).
 ensure_pipeline_glue_standalone_export_syms_txt() {
   local GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
   local OUT="$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt"
   [ -f "$GLUE_O" ] || return 1
-  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ] || [ "pipeline_glue.c" -nt "$OUT" ]; then
+  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ]; then
   nm "$GLUE_O" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$OUT"
   fi
   [ -s "$OUT" ] || return 1
@@ -718,7 +784,7 @@ ensure_typeck_o_strict_link_partial_obj() {
   if [ -f "$PARTIAL" ] && [ -f "$GLUE_O" ] && [ "$GLUE_O" -nt "$PARTIAL" ]; then
   rm -f "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$TCKO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$TCKO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$GLUE_O" ] && [ "$GLUE_O" -nt "$SYMS" ]; }; then
   nm "$TCKO" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS"
@@ -907,7 +973,7 @@ ensure_backend_o_strict_link_partial_obj() {
   if [ -f "$PARTIAL" ] && [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
   nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?arch_emit_add_imm_to_rax$' || rm -f "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$BACKO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$BACKO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; }; then
   nm "$BACKO" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS"
   if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && [ -f "$WPO_E" ] && asm_backend_wpo_strict_reach_ok; then
@@ -977,20 +1043,29 @@ strict_asm_backend_companion_objs() {
 }
 
 # Linux reach OK 时默认链 pipeline_wpo FULL；显式 XLANG_ASM_STRICT_LINK_PIPELINE_WPO=0 关闭。
+# Darwin：亦默认开 WPO；FULL 默认 0（abi 已在 LD argv，整颗 pipeline_wpo 与 abi 双权威重叠；
+# helpers ld -r 在 Darwin multi-LC_SEGMENT / Ubuntu 内部 strchr multi-def 上仍软残 → abi 覆盖）。
+# PLATFORM: SHARED default enable; MACOS soft FULL=0 residual documented.
 maybe_default_pipeline_wpo_strict_link() {
   if [ -n "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO+x}" ]; then
   return 0
   fi
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Linux-x86_64|Linux-amd64|Linux-aarch64|Linux-arm64)
+  Linux-x86_64|Linux-amd64|Linux-aarch64|Linux-arm64|Darwin-arm64|Darwin-x86_64)
   if asm_pipeline_wpo_strict_reach_ok; then
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1
   if [ "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-1}" = "0" ]; then
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=0
-  strict_glue_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers)"
+  strict_glue_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers; abi covers orch)"
+  else
+  # Prefer helpers when abi already selfhosted (avoid dual-authority FULL+abi).
+  if asm_strict_pipeline_selfhosted; then
+  export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=0
+  strict_glue_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 helpers (abi on LD argv; skip FULL dual)"
   else
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1
   strict_glue_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 + FULL=1"
+  fi
   fi
   fi
   ;;
@@ -1021,9 +1096,10 @@ fi
 # symbols with pipeline_resolve_path_* names) with a WPO-helpers-only object. Bare resolve_path_* live
 # in pipeline_wpo.o / helpers partial; overwriting full pipeline.o made strict_link residual 0 after
 # WPO subtract (Stage2 WPO 2h tip L4 residual after Cap pure).
+# G.7: live orch source is runtime_pipeline_abi.x (pipeline.x pure-extern). Prefer EMIT_HEAVY=0.
 rebuild_pipeline_o_wpo_strict_helpers_if_needed() {
   local po="$BUILD_DIR/pipeline.o"
-  local comp tmp pt n_t
+  local comp tmp pt n_t src heavy
   [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] || return 0
   asm_pipeline_wpo_strict_reach_ok || return 0
   [ -f "$po" ] || return 1
@@ -1035,26 +1111,35 @@ rebuild_pipeline_o_wpo_strict_helpers_if_needed() {
   if nm "$po" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
   return 0
   fi
+  # Empty pure-extern stub + pipeline_wpo already has resolve → nothing to rebuild.
+  if [ "${n_t:-0}" -eq 0 ] && \
+  nm "$BUILD_DIR/pipeline_wpo.o" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
+  strict_glue_info "skip pipeline.o rebuild (0 T stub; pipeline_wpo has resolve_path)"
+  return 0
+  fi
+  src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
   tmp="$BUILD_DIR/pipeline.wpo_strict_helpers.o"
+  for heavy in 0 1; do
   for comp in ./xlang_asm.experimental ./xlang_asm ./xlang ./xlang-x; do
   [ -x "$comp" ] || continue
-  strict_glue_info "rebuild pipeline.o EMIT_HEAVY for WPO helpers via $comp"
+  strict_glue_info "rebuild pipeline.o from $src (EMIT_HEAVY=$heavy) via $comp"
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   rm -f "$tmp" 2>/dev/null || true
   if env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE=0 \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$heavy" XLANG_ASM_WPO_DCE=0 \
   "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src \
-  src/pipeline/pipeline.x 2>/dev/null; then
+  "$src" 2>/dev/null; then
   pt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   if [ "$pt" -gt 512 ] 2>/dev/null \
   && nm "$tmp" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
   mv -f "$tmp" "$po"
   rm -f "$BUILD_DIR/pipeline_strict_link_partial.o" "$BUILD_DIR/pipeline_strict_link_export.txt" 2>/dev/null || true
-  strict_glue_info "pipeline.o WPO helpers OK (__text=${pt}B)"
+  strict_glue_info "pipeline.o WPO helpers OK (__text=${pt}B, src=$(basename "$src"), heavy=$heavy)"
   return 0
   fi
   fi
   rm -f "$tmp" 2>/dev/null || true
+  done
   done
   strict_glue_warn "pipeline.o WPO helper rebuild failed"
   return 1
@@ -1067,6 +1152,15 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -ne 1 ] || ! asm_pipeline_wpo_strict_reach_ok; then
   return 0
   fi
+  # 7.2.1 seventh knife: .x authority via cc_inc_tu --auto prefer lane.
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_wpo_strict_link_alias.x -nt "$ALIAS_O" ] \
+       || { [ -f "$ALIAS_SRC" ] && [ "$ALIAS_SRC" -nt "$ALIAS_O" ]; }; then
+      strict_glue_info "cc_inc_tu --auto (src/pipeline_wpo_strict_link_alias.x) -> $ALIAS_O"
+      sh scripts/cc_inc_tu.sh --auto "$ALIAS_O" || return 1
+    fi
+    return 0
+  fi
   if [ ! -f "$ALIAS_SRC" ]; then
   return 1
   fi
@@ -1077,7 +1171,7 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   return 0
 }
 
-# 重编 pipeline_glue_standalone.o（含 ast_pool.c EMIT_HEAVY 修复）
+# Glue companion detect + optional archaeology standalone (seed retired wave309).
 detect_gen() {
   PIPELINE_GEN_CFLAGS="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
   case "$(uname -s)" in
@@ -1111,10 +1205,13 @@ if asm_strict_typeck_x_glue_via_pipeline_x; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   strict_glue_info "ST_GLUE glue_strict_minimal + pipeline_x glue support (X orch)"
 else
-  strict_glue_info "cc pipeline_glue_standalone.o <- ast_pool.c"
-  # wave309: pipeline_glue_standalone.from_x.c seed retired; skip when absent.
+  # wave309: standalone seed + ast_pool.c retired; skip when seed absent.
+  # Authority = runtime_pipeline_abi.o (LD argv); do not claim ast_pool producer.
   if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
+  strict_glue_info "cc pipeline_glue_standalone.o <- seeds/pipeline_glue_standalone.from_x.c (archaeology)"
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
+  else
+  strict_glue_info "skip pipeline_glue_standalone (wave309 seed retired; abi authority)"
   fi
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   # PLATFORM: SHARED — match build_xlang_asm BSTRICT_MINIMAL_GLUE_COMPANION (Linux).
@@ -1216,7 +1313,14 @@ filter_strict_asm_objs() {
   if ensure_pipeline_o_strict_link_partial_obj; then
   FILTERED="$FILTERED $BUILD_DIR/pipeline_strict_link_partial.o"
   else
+  # G.7: empty pure-extern stub — do not drag 0-T pipeline.o onto LD argv when
+  # WPO/abi already covers orch. PLATFORM: SHARED.
+  _po_t=$(nm "$o" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${_po_t:-0}" -eq 0 ] && { asm_pipeline_wpo_strict_reach_ok || asm_strict_pipeline_selfhosted; }; then
+  strict_glue_info "skip empty pipeline.o on strict LD (WPO/abi covers)"
+  else
   FILTERED="$FILTERED $o"
+  fi
   fi
   fi
   continue
@@ -1224,9 +1328,15 @@ filter_strict_asm_objs() {
   if [ "$base" = "parser.o" ]; then
   continue
   fi
+  # PLATFORM: SHARED — keep skip list twin of build_xlang_asm.sh filter_strict_asm_objs /
+  # filter_experimental_asm_objs. Darwin filt / complement / host MH objects are linked
+  # via dedicated ST_* vars (or Darwin-only stubs slot); never re-admit via build_asm glob
+  # or they multiply_define against the explicit stubs / runtime_asm_build authority.
   case "$base" in
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
-  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
+  runtime_driver_strict_glue_stubs.o|\
   parser.o|backend.o|asm.o|main.o|lsp.o|std_fs.o|backend_x86_64_enc_c.o|\
   codegen.o|pipeline_glue_link.o|pipeline_run_impl_alias.o|pipeline_glue_standalone.o|pipeline_glue_strict_minimal.o|\
   parser_bootstrap_partial.o|parser_from_x_partial.o|parser_strict_merged.o|\
@@ -1248,7 +1358,7 @@ filter_strict_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|backend_seed_mega_fallback.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|\
+  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o|\
   \
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
@@ -1298,6 +1408,28 @@ filter_strict_asm_objs() {
   esac
   ;;
   esac
+  # G.7 twin of build_xlang_asm filter_strict_asm_objs: skip tiny enc stubs.
+  case "$base" in
+  x86_64_enc.o|arm64_enc.o|riscv64_enc.o)
+  enc_stub_bytes=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
+  if [ "${enc_stub_bytes:-0}" -lt 512 ] 2>/dev/null; then
+  strict_glue_info "strict skip stub $base (__text=${enc_stub_bytes}B)"
+  continue
+  fi
+  ;;
+  esac
+  # PLATFORM: DARWIN — Apple ld rejects multiple _xlang_asm_ci_text_stub across
+  # first-pass CI placeholders (arm64/ast/token/types/preprocess …). Skip pure
+  # CI text stubs (≤64B, no other global T). Twin of build_xlang_asm.sh.
+  _stub_t=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
+  if [ "${_stub_t:-0}" -le 64 ] 2>/dev/null \
+    && nm "$o" 2>/dev/null | grep -qE '(_)?xlang_asm_ci_text_stub$'; then
+  _other_t=$(nm -g "$o" 2>/dev/null | awk '/ [Tt] / && $3 !~ /xlang_asm_ci_text_stub/ { c++ } END { print c+0 }')
+  if [ "${_other_t:-0}" = "0" ]; then
+  strict_glue_info "strict skip CI text stub $base (__text=${_stub_t}B)"
+  continue
+  fi
+  fi
   FILTERED="$FILTERED $o"
   done
 }
@@ -1364,10 +1496,19 @@ ST_ASYNC_CPS_SEED=$(asm_seed_st_async_support_link)
 ST_PREPROCESS_SEED=$(asm_seed_st_preprocess_link)
 
 # strict 自举链须 typeck_x.o（与 experimental 一致；缺则 X typeck 桥接不全）。
+# PLATFORM: SHARED — post-Makefile phys-del: migrate_x_objs (G.7 twin of
+# build_xlang_asm wave929). Escape: XLANG_STRICT_GLUE_VIA_MAKE=1 + MF.
 ensure_typeck_x_o_for_strict_link() {
-  if [ ! -f typeck_x.o ] && command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-  strict_glue_info "make typeck_x.o"
-  make -s typeck_x.o
+  if [ -f typeck_x.o ]; then
+    return 0
+  fi
+  if [ "${XLANG_STRICT_GLUE_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    strict_glue_info "make typeck_x.o"
+    make -s typeck_x.o
+  else
+    strict_glue_info "migrate_x_objs typeck_x.o (0-make)"
+    bash scripts/migrate_x_objs.sh typeck_x.o || true
   fi
   [ -f typeck_x.o ] || return 1
   return 0
@@ -1422,8 +1563,22 @@ if [ "${STRICT_LINK_BUILD_ASM_DRIVER:-0}" -eq 1 ] && [ -f "$BUILD_DIR/driver_com
   dc_sz=$(asm_o_text_bytes "$BUILD_DIR/driver_compile.o" 2>/dev/null || echo 0)
   fi
   if [ "$dc_sz" -ge 5120 ] 2>/dev/null; then
+  # PLATFORM: MACOS — link.o may be libtool ar (F7 two LC_SEGMENT via
+  # pure_ld_partial_merge). Expand to MH_OBJECT members for Apple ld (G.7 twin
+  # build_xlang_asm filter_strict_asm_objs). PLATFORM: LINUX — keep ET_REL link.o.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
+    && file "$BUILD_DIR/driver_compile_link.o" 2>/dev/null | grep -qi 'ar archive'; then
+  ST_DRIVER_COMPILE_O="$BUILD_DIR/driver_compile_emit_heavy.o $BUILD_DIR/driver_compile_asm_link_alias.o"
+  if [ -f "$BUILD_DIR/driver_compile_parse_argv_loop_partial.o" ] \
+    && nm "$BUILD_DIR/driver_compile_emit_heavy.o" 2>/dev/null \
+      | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
+  ST_DRIVER_COMPILE_O="$ST_DRIVER_COMPILE_O $BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
+  fi
+  strict_glue_info "driver selfhosted (__text=${dc_sz}B, Darwin eh+alias MH, STRICT_LINK_BUILD_ASM_DRIVER=1)"
+  else
   ST_DRIVER_COMPILE_O="$BUILD_DIR/driver_compile_link.o"
   strict_glue_info "driver selfhosted (__text=${dc_sz}B, link.o, STRICT_LINK_BUILD_ASM_DRIVER=1)"
+  fi
   fi
 fi
 # orchestration partial 已含 pipeline_run_x_pipeline_impl；勿再链 trampoline（与 build_xlang_asm strict_support 一致）。
@@ -1583,7 +1738,7 @@ if [ -f parser_x.o ]; then
   if [ -f lexer_x.o ]; then
   ST_PARSER_X_TAIL="$ST_PARSER_X_TAIL lexer_x.o"
   else
-  strict_glue_warn "missing lexer_x.o (make lexer_x.o); strict link may have undefined symbols"
+  strict_glue_warn "missing lexer_x.o (ensure try-gen-x / migrate); strict link may have undefined symbols"
   fi
   # parser_x.o 已导出 parse_expr_into / parser_copy_module_import_path64 等；勿再链 partial。
   # 弱 parse 桩 / parse_expr 桥在 src/asm/parser_asm_parse_expr_link.o（ST_BSTRICT_LINK_EXTRA）。
@@ -1657,7 +1812,9 @@ ensure_runtime_pipeline_abi_obj() {
   if [ "${XLANG_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   cf="$cf -DXLANG_LEGACY_PREPROCESS_C"
   fi
-  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+  # PLATFORM: SHARED — freshness authority = seed only (wave941 Makefile deleted;
+  # dead Makefile -nt never fired; same debt layer as ast_pool/glue SYMS ensure).
+  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- seeds/runtime_pipeline_abi.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c seeds/runtime_pipeline_abi.from_x.c -o "$o"
   fi
@@ -1720,6 +1877,54 @@ ensure_runtime_driver_strict_glue_stubs_obj() {
   strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
   fi
+}
+
+# PLATFORM: DARWIN — G.7 twin of build_xlang_asm ensure_bstrict_darwin_strict_glue_stubs_filt_obj.
+# Full stubs.o exports strong asm_driver_* / asm_asm_codegen_* that collide with
+# runtime_asm_build / user_asm bridge (Darwin ld rejects multiply_defined; Linux
+# --allow-multiple-definition papers it over). Authority = filtered MH_OBJECT that
+# omits those symbols. Prefer/libtool may leave src stubs as ar → force MH_OBJECT.
+ensure_strict_glue_darwin_stubs_filt_obj() {
+  local src_o="src/runtime_driver_strict_glue_stubs.o"
+  local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
+  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
+  local need_cc=0
+  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
+  need_cc=1
+  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
+  need_cc=1
+  fi
+  if [ "$need_cc" = "1" ]; then
+  strict_glue_info "cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
+  fi
+  [ -f "$src_o" ] || return 1
+  if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  rm -f "$out_o"
+  fi
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ]; then
+  strict_glue_info "filter_o_export $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_* + asm_asm_codegen_*)"
+  bash scripts/filter_o_export_against_deps.sh \
+    --src "$src_o" --out "$out_o" --stem bstrict_strict_glue_stubs_darwin \
+    --omit-sym asm_driver_set_current_dep_path_for_codegen \
+    --omit-sym asm_driver_skip_codegen_dep_0_get \
+    --omit-sym asm_asm_codegen_elf_o \
+    --omit-sym asm_asm_codegen_ast \
+    --require-keep || return 1
+  fi
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'codegen_set_dep_slots_for_x_pipeline'; then
+  strict_glue_warn "Darwin stubs filt missing codegen_set_dep_slots_for_x_pipeline"
+  return 1
+  fi
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'pipeline_block_labeled_set_names'; then
+  strict_glue_warn "Darwin stubs filt missing pipeline_block_labeled_set_names"
+  return 1
+  fi
+  if nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  strict_glue_warn "Darwin stubs filt still exports asm_asm_codegen_*"
+  return 1
+  fi
+  return 0
 }
 ensure_runtime_asm_build_obj() {
   local o="src/asm/runtime_asm_build.o"
@@ -1852,6 +2057,39 @@ if [ -f "$BUILD_DIR/backend_x86_64_enc_c.o" ]; then
 fi
 ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $ST_X86_64_ENC_FALLBACK"
 
+# G.7: match product g05_relink_env — async_asm_pool (abi CPS layout) + Darwin
+# backend_arm64_enc_c (strong arch_arm64_enc_* overriding weak -1 stubs).
+# Missing these left strict_glue final link UNDEF after 0-symbol lift.
+# PLATFORM: SHARED async; MACOS arm64 enc required on Darwin product path.
+ensure_async_asm_pool_obj() {
+  local o="src/async/async_asm_pool.o"
+  local src="seeds/async_asm_pool.from_x.c"
+  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- $src (product DRIVER_SEED_SUPPORT twin)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o" || return 1
+  fi
+  return 0
+}
+ensure_backend_arm64_enc_c_obj() {
+  local o="src/asm/backend_arm64_enc_c.o"
+  local src="seeds/backend_arm64_enc_c.from_x.c"
+  [ -f "$src" ] || return 1
+  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- $src (Darwin arch_arm64_enc_* strong)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o" || return 1
+  fi
+  return 0
+}
+ensure_async_asm_pool_obj
+ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/async/async_asm_pool.o"
+case "$(uname -s)-$(uname -m 2>/dev/null)" in
+Darwin-arm64|Darwin-aarch64)
+  if ensure_backend_arm64_enc_c_obj; then
+  ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/asm/backend_arm64_enc_c.o"
+  fi
+  ;;
+esac
+
 # PLATFORM: SHARED — RT Cap residual slices (Makefile RT_SEED_SLICE_OBJS); product
 # g05/build_xlang_asm links them via asm_bootstrap_support_extra_link. runtime_driver_abi
 # needs driver_preamble_fs_path_lines{,_n} from rt_preamble.o.
@@ -1925,6 +2163,18 @@ ST_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"
 fi
+# PLATFORM: DARWIN — single stubs authority = filtered darwin.o (omit asm_driver_*).
+# Linux keeps full build_asm stubs (GNU ld --allow-multiple-definition). Never link
+# both full stubs.o and bstrict_strict_glue_stubs_darwin.o (G.7 dual-authority ban).
+ST_STRICT_GLUE_STUBS_O="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  if ensure_strict_glue_darwin_stubs_filt_obj; then
+  ST_STRICT_GLUE_STUBS_O="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
+  strict_glue_info "Darwin final link: stubs = bstrict_strict_glue_stubs_darwin.o (filt; omit asm_driver_*)"
+  else
+  strict_glue_warn "Darwin stubs filt failed; linking unfiltered build_asm stubs.o (may multiply_define)"
+  fi
+fi
 dbg_event B "invoke final link"
 LINK_START_S=$(date +%s 2>/dev/null || echo 0)
 # PLATFORM: SHARED — G-02e link line: no runtime_abi/proc_abi/std_fs_shim .o (see build_xlang_asm.sh).
@@ -1937,7 +2187,7 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_abi.o \
   src/runtime_pipeline_abi.o \
-  "$BUILD_DIR/runtime_driver_strict_glue_stubs.o" \
+  "$ST_STRICT_GLUE_STUBS_O" \
   $ST_RUNTIME_PANIC \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_MINIMAL_GLUE_COMPANION \

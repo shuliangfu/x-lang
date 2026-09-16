@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# std-runtime-panic-hook.sh — STD-028：panic 钩子 manifest 辅助
+# std-runtime-panic-hook.sh — STD-028: panic hook manifest helpers
 #
-# 用法（source 后）：
-#   std_runtime_panic_manifest_ok DOC README RUNTIME_X TSV [extra files...]
-#   std_runtime_panic_emit_report status matrix_ok check_ok exc_ok skip
+# Usage (after source):
+#   std_runtime_panic_manifest_ok DOC README RUNTIME_X TSV
+#   std_runtime_panic_run_smoke XLANG_BIN smoke_x tag
+#   std_runtime_panic_emit_report status run_ok obs skip
+# 2026-08-28: report run=/obs=/skip= (soft fallthrough residual closed).
+# 2026-08-29: leftover `$RUN_XLANG build` / bootstrap-link wrap retired.
+# PLATFORM: SHARED archaeology.
 
 STD_RUNTIME_PANIC_PREFIX="${XLANG_STD_RUNTIME_PANIC_PREFIX:-xlang: [XLANG_STD_RUNTIME_PANIC]}"
 
-# 校验 manifest；echo "miss"。
+# Validate manifest; echo "miss" count; return 0 iff miss==0.
 std_runtime_panic_manifest_ok() {
   local doc="$1"
   local readme="$2"
@@ -75,12 +79,49 @@ std_runtime_panic_manifest_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Compile and run smoke .x; expect exit 0.
+# Product path is `"$xlang" -L . src -o` (refuse leftover `$RUN_XLANG build`
+# / bootstrap-link wrap remap). Gate pins XLANG_LINK_XLANG for hooks.
+# PLATFORM: SHARED archaeology — product honesty path.
+std_runtime_panic_run_smoke() {
+  local xlang="$1"
+  local src="$2"
+  local tag="${3:-smoke}"
+  local exe="/tmp/xlang_std_runtime_panic_${tag}_$$"
+  local log="/tmp/xlang_std_runtime_panic_build_${tag}_$$.log"
+  if [ ! -f "$src" ]; then
+    echo "std-runtime-panic FAIL: missing $src" >&2
+    return 1
+  fi
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap.
+  # PLATFORM: SHARED
+  if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
+    echo "std-runtime-panic FAIL: compile $src" >&2
+    tail -12 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$ec" -ne 0 ]; then
+    echo "std-runtime-panic FAIL: run $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — product hook+ready hard green count
+# @param $3 obs — check/EXC observational residuals
+# @param $4 skip — 1 only for manifest-only
 std_runtime_panic_emit_report() {
   local status="$1"
-  local matrix_ok="$2"
-  local check_ok="$3"
-  local exc_ok="$4"
-  local skip="$5"
-  echo "${STD_RUNTIME_PANIC_PREFIX} status=${status} matrix=${matrix_ok} check=${check_ok} exc=${exc_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_RUNTIME_PANIC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

@@ -6,10 +6,13 @@
 # 3) 有 xlang_asm / .o 产物时逐条执行 default hook
 #
 # 用法：./tests/run-comp-wpo-default-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP017_DOC:-analysis/comp-wpo-default-v1.md}"
+DOC="${XLANG_COMP017_DOC:-analysis/archive/comp/comp-wpo-default-v1.md}"
 WAVE="${XLANG_COMP017_WAVE_TSV:-tests/baseline/comp-wpo-default-wave.tsv}"
 MANIFEST="${XLANG_COMP017_MANIFEST:-tests/baseline/comp-wpo.tsv}"
 LIB="tests/lib/comp-wpo-default.sh"
@@ -22,7 +25,7 @@ MIN_DEFAULT=5
 
 echo "=== COMP-017: WPO default wave manifest ==="
 for f in "$DOC" "$WAVE" "$MANIFEST" "$LIB" \
-  analysis/comp-wpo-prod-v1.md tests/run-comp-wpo-prod-gate.sh \
+  analysis/archive/comp/comp-wpo-prod-v1.md tests/run-comp-wpo-prod-gate.sh \
   tests/run-comp-wpo-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-wpo-default gate FAIL: missing $f" >&2

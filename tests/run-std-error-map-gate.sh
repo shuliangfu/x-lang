@@ -1,107 +1,135 @@
 #!/usr/bin/env bash
-# STD-020：std.error 错误码映射与 last_error 门禁
+# STD-020: std.error code map / last_error — leftover unused compiler-make →硬绿.
 #
-# 用法：./tests/run-std-error-map-gate.sh
-set -e
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product error_map_smoke.x +
+# cookbook error_module_base.x -o exit0 = hard run (run=2). check = obs
+# (paused 2026-08-05; leave ensure_std family alone). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-error-map-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_ERROR_MAP_DOC:-analysis/std-error-map-v1.md}"
-UNIFY_DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+DOC="${XLANG_STD_ERROR_MAP_DOC:-analysis/archive/std/std-error-map-v1.md}"
+UNIFY_DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/archive/std/std-error-unify-v1.md}"
 MANIFEST="${XLANG_STD_ERROR_MAP_TSV:-tests/baseline/std-error-map.tsv}"
 ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 LIB="tests/lib/std-error-map.sh"
 SMOKE="tests/std/error_map_smoke.x"
+COOKBOOK="examples/cookbook/error_module_base.x"
+SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-error-map.sh
 . tests/lib/std-error-map.sh
 
-echo "=== STD-020: error map manifest ==="
-for f in "$DOC" "$UNIFY_DOC" "$MANIFEST" "$LIB" "$ERR_MOD" "$SMOKE"; do
-  if [ ! -f "$f" ]; then
-    echo "std-error-map gate FAIL: missing $f" >&2
-    exit 1
-  fi
-done
+RUN_OK=0
+OBS=0
+SKIP=0
 
-for kw in code_to_module_base last_error fs_last_error sidecar_db_struct; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "std-error-map gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
-done
-
-if ! grep -qF 'std-error-map.tsv' "$DOC" 2>/dev/null; then
-  echo "std-error-map gate FAIL: doc missing matrix ref" >&2
+die() {
+  echo "std-error-map gate FAIL: $*" >&2
+  std_error_map_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
   exit 1
-fi
-
-map_miss="$(std_error_map_manifest_ok "$ERR_MOD" "$MANIFEST" || true)"
-if [ "${map_miss:-0}" -gt 0 ]; then
-  std_error_map_emit_report "fail" 0 0 0
-  echo "std-error-map gate FAIL: manifest_miss=${map_miss}" >&2
-  exit 1
-fi
-echo "std-error-map manifest OK"
-
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
 }
+
 resolve_shu() {
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
   return 1
 }
 
-CHECK_OK=0
-RUN_OK=0
-SKIP=1
-if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-020: typeck (XLANG=$XLANG_BIN) ==="
-  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    CHECK_OK=1
-  else
-    echo "std-error-map gate FAIL: typeck" >&2
-    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
-    std_error_map_emit_report "fail" 0 0 0
-    exit 1
-  fi
-  SKIP=0
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
-  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
-  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_error_map 2>/tmp/xlang_std_error_map_build.log; then
-    exitcode=0
-    /tmp/xlang_std_error_map >/dev/null 2>&1 || exitcode=$?
-    if [ "$exitcode" -eq 0 ]; then
-      RUN_OK=1
-    else
-      echo "std-error-map gate FAIL: runnable exit=$exitcode" >&2
-      std_error_map_emit_report "fail" "$CHECK_OK" 0 0
-      exit 1
-    fi
-  else
-    echo "std-error-map gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/xlang_std_error_map_build.log 2>/dev/null >&2 || true
-    SKIP=1
-  fi
-else
-  echo "std-error-map gate SKIP typeck (no native xlang)" >&2
+echo "=== STD-020: error map manifest ==="
+for f in "$DOC" "$UNIFY_DOC" "$MANIFEST" "$LIB" "$ERR_MOD" "$SMOKE" "$COOKBOOK"; do
+  [ -f "$f" ] || die "missing $f"
+done
+
+for kw in code_to_module_base last_error fs_last_error sidecar_db_struct; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
+grep -qF -- 'std-error-map.tsv' "$DOC" 2>/dev/null || die "doc missing matrix ref"
+
+map_miss="$(std_error_map_manifest_ok "$ERR_MOD" "$MANIFEST" || true)"
+[ "${map_miss:-0}" -eq 0 ] || die "manifest_miss=${map_miss}"
+echo "std-error-map manifest OK"
+
+if [ "${XLANG_STD_ERROR_MAP_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_error_map_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-error-map gate OK (manifest only)"
+  exit 0
 fi
 
-std_error_map_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-020: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std_error_map_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-error-map OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+for pair in "smoke:$SMOKE" "cookbook:$COOKBOOK"; do
+  tag="${pair%%:*}"
+  src="${pair#*:}"
+  OUT="/tmp/xlang_std_error_map_${tag}_$$"
+  LOG="/tmp/xlang_std_error_map_${tag}_build_$$.log"
+  rm -f "$OUT" "$LOG"
+  set +e
+  "$XLANG_BIN" -L . "$src" -o "$OUT" >"$LOG" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+    tail -n 20 "$LOG" 2>/dev/null || true
+    rm -f "$OUT"
+    die "product -o $src failed (ec=$o_ec; refuse soft SKIP→OK)"
+  fi
+  set +e
+  "$OUT" >/dev/null 2>&1
+  exitcode=$?
+  set -e
+  rm -f "$OUT"
+  [ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable $src exit=$exitcode (expect $SMOKE_EXPECT)"
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-error-map OK: product -o $tag"
+done
+
+std_error_map_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-error-map gate OK"

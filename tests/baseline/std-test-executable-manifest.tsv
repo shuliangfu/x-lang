@@ -1,7 +1,7 @@
 # STD-143 std.test 可执行 bench/fuzz manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 目标	analysis/std-test-executable-v1.md
-api_doc	section	## 2. 可执行 API	analysis/std-test-executable-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-test-executable-v1.md
+api_doc	section	## 2. 可执行 API	analysis/archive/std/std-test-executable-v1.md
 api_bench_noop	api	bench_run_noop	std/test/mod.x	STD-143
 api_fuzz_noop	api	fuzz_run_noop	std/test/mod.x	STD-143
 symbol_bench_noop	symbol	test_bench_run_noop_c	std/test/test.x	C

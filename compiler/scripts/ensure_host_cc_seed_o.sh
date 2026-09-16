@@ -161,10 +161,10 @@
 #            ensure_one also refreshes on seeds/parser_asm/*.inc (Makefile prereq twin).
 #   wave759: R4 residual glue standalone → R1 seed-map (G.7 有则补全):
 #            build_asm/pipeline_glue_standalone.o ← seeds/pipeline_glue_standalone.from_x.c
-#            + -Wno-error=return-type -Ibuild_asm; ensure_one refreshes on
-#            pipeline_glue.c / ast_pool.c / build_asm/pipeline_glue_types.inc
-#            (Makefile prereq twin). Body = ensure_one direct cc (seed accepts
-#            cc -c; former Makefile/g05 used cc_inc_tu wrap — same seed TU).
+#            + -Wno-error=return-type -Ibuild_asm. wave309 seed retired; ensure_one
+#            early-exits when seed absent. Freshness residual (archaeology path):
+#            build_asm/pipeline_glue_types.inc only — deleted pipeline_glue.c /
+#            ast_pool.c -nt never fire (same debt layer as SYMS／glue ensure).
 #   wave760: R2 panic cold body — `try-r2 OUT` resolves OUT against catalog
 #            DRIVER_SEED_PANIC_OBJS (lists = mk). Cold path selects source by
 #            host uname (Linux x86_64 → runtime_panic_x86_64.s when present;
@@ -177,7 +177,7 @@
 #            DRIVER_SEED_TYPECK_F64_OBJS + DRIVER_SEED_CRT0_OBJS (lists = mk).
 #            typeck_f64_bits.o: host picks platform .s (Linux/Darwin/Windows).
 #            crt0*.o / freestanding_io_x86_64.o: fixed o→.s map; crt0_mingw.o
-#            uses seeds/crt0_mingw.from_x.c via cc_inc_tu (+ WIN32_O_CFLAGS).
+#            uses src/crt0_mingw.x via cc_inc_tu --auto (+ WIN32_O_CFLAGS).
 #            G.7 有则补全 on try-r2 (no second helper name).
 #
 # Authority (G.7):
@@ -387,6 +387,18 @@ if [ -z "${CFLAGS+x}" ] || [ -z "${PIPELINE_GEN_CFLAGS+x}" ]; then
 fi
 # Match g05 / Makefile product includes; PIPELINE_GEN_CFLAGS optional when empty.
 BASE_CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+# Catalog CFLAGS already completes this when unset; keep the flag if env CFLAGS
+# omitted it so always-linked companions (stubs/panic/user_env) match product-asm.
+# Do not -w swallow; do not raise macho.x minos to 26.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    case " $BASE_CFLAGS " in
+      *" -mmacosx-version-min="*) ;;
+      *) BASE_CFLAGS="$BASE_CFLAGS -mmacosx-version-min=11.0" ;;
+    esac
+    ;;
+esac
 PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS:-}"
 
 # Default multi-flag mirrors for family mode when env empty.
@@ -505,21 +517,21 @@ EOF
 # wave794: Makefile mtime for flag-sensitive FORCE-thin leaves (G.7 single body).
 #
 # These leaves historically listed Makefile as a make prereq so CFLAGS / -D
-# macro changes (USE_X_PIPELINE / USE_X_DRIVER / NO_C / …) forced recompile.
-# FORCE thin removes that edge; shell must mirror it here only for the leaves
-# that still need flag freshness (not every FORCE leaf — Makefile edits must
-# not mass-rebuild pure seed+.x leaves).
-# Exit 0 if Makefile is newer than OUT for a flag-sensitive leaf; else 1.
+# Historic FORCE-thin edge: Makefile mtime drove macro-flag rebuilds
+# (USE_X_PIPELINE / USE_X_DRIVER / NO_C / …). wave941 deleted Makefile —
+# dead `[ Makefile -nt OUT ]` never fires (bash missing -nt → false).
+# Authority now = FORCE / catalog / seed+.x (ensure_one); this helper stays
+# as a named no-op so callers keep a single G.7 hook.
+# Exit 0 if flags source is newer than OUT; else 1 (always 1 post-MG).
 # PLATFORM: SHARED — portable shell; no make graph.
 # ---------------------------------------------------------------------------
 force_thin_makefile_flags_newer() {
   local out="$1"
   case "$out" in
     # wave794: main/runtime/pipeline macro flags · wave795: crt0_mingw WIN32_O_CFLAGS
+    # wave941: Makefile absent — never refresh via deleted make graph.
     src/main_driver.o|src/runtime_driver.o|src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/asm/crt0_mingw.o)
-      if [ -f Makefile ] && [ Makefile -nt "$out" ]; then
-        return 0
-      fi
+      return 1
       ;;
   esac
   return 1
@@ -580,10 +592,11 @@ ensure_one() {
         fi
       done
     fi
-    # wave759: pipeline_glue_standalone embeds pipeline_glue.c + ast_pool + types.inc;
-    # Makefile lists them as prereqs — mirror freshness here (G.7 single body).
+    # wave759→wave309: glue_standalone seed retired; deleted pipeline_glue.c /
+    # ast_pool.c -nt never fire. Residual freshness = types.inc only when the
+    # archaeology seed path is still invoked (G.7 single body). PLATFORM: SHARED.
     if [ "$need" -eq 0 ] && [ "$stem" = "pipeline_glue_standalone" ]; then
-      for cand in pipeline_glue.c ast_pool.c build_asm/pipeline_glue_types.inc; do
+      for cand in build_asm/pipeline_glue_types.inc; do
         if [ -f "$cand" ] && [ "$cand" -nt "$out" ]; then
           need=1
           break
@@ -849,7 +862,14 @@ extras_for_extra_cflags() {
       printf '%s' '-fPIE'
       ;;
     runtime_sqlite_glue.o)
-      printf '%s' '-DXLANG_DB_USE_SQLITE3'
+      # PLATFORM: SHARED — seed has #ifdef XLANG_DB_USE_SQLITE3 / stub #else.
+      # Always defining it makes cc -c require sqlite3.h (Ubuntu gold may not
+      # ship libsqlite3). Probe the header; omit the define so stub T
+      # xlang_db_use_sqlite3_c still lands. G.7 complete extra-cflags; product
+      # -o must not hard-fail on missing sqlite3.h (cookbook sqlite_available).
+      if echo '#include <sqlite3.h>' | ${CC:-cc} -E - >/dev/null 2>&1; then
+        printf '%s' '-DXLANG_DB_USE_SQLITE3'
+      fi
       ;;
     runtime_sqlite_glue_stub.o)
       ;;
@@ -1481,7 +1501,22 @@ ensure_r3_prefer() {
 # Residual after: rt multi-slice · pipeline_abi · ldpc · target_cpu · pure-ld · physical delete.
 # ---------------------------------------------------------------------------
 
+# True when this host's product -E binary is a leftover Windows PE that cannot
+# compile tip .x sources (e.g. pipeline_abi mega 92k LOC or labi multi-slice).
+# PLATFORM: WINDOWS — 2026-07-31 leftover PE is present for Track L / can_run
+# egg pick, but attempting -E with it hangs or corrupts stdout.
+windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
 labi_prefer_pick_xlang() {
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip slices; fallback to cold seed.
+  if windows_leftover_pe_cannot_e; then
+    return 1
+  fi
   # stdout: first executable product binary.
   local b
   for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
@@ -1680,6 +1715,9 @@ ensure_labi_prefer_one() {
       l8c_ok=1
       log "labi L8b+L8c ← $l8b_x + $l8c_x (capacity split)"
     elif [ -f "$l8b_seed" ]; then
+      # PLATFORM: SHARED — L8c prefer of heavy.x often fails (fn#142 typeck).
+      # This seed then first-wins as the live L8b table. Counts/needles must
+      # stay twin of labi_ondemand_list.x (g15 24 vs 28 was seed-count drift).
       # shellcheck disable=SC2086
       if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$l8b_o" "$l8b_seed" 2>/dev/null; then
         l8b_ok=1
@@ -1931,7 +1969,11 @@ rt_prefer_try_x_to_o() {
     echo '#include <stdlib.h>'
     echo '#include <string.h>'
     echo '#include <stdio.h>'
-    echo '#ifndef _WIN32'
+    echo '#ifdef _WIN32'
+    # PLATFORM: WINDOWS — -E dumps call POSIX read/write/rmdir; MinGW CRT is
+    # _read/_write/_rmdir. win32_compat.h is the alias authority (access too).
+    echo '#include "win32_compat.h"'
+    echo '#else'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'
@@ -1939,75 +1981,72 @@ rt_prefer_try_x_to_o() {
     # 下方 sed 会删掉 -E 自带 #include <poll.h> 等，故在 prologue 补齐。
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
-    # PLATFORM: POSIX — fmt_check walk/path_stat pure *u8 wrappers (DIR* cast safe).
-    echo '#include <dirent.h>'
+    # Cap residual 9.1.10: fmt walk *u8 wrappers via xlang_dir_cap.h (no libc opendir).
+    echo '#include <xlang_dir_cap.h>'
     echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) {'
-    echo '  return (uint8_t *)opendir((const char *)name);'
+    echo '  return name ? (uint8_t *)xlang_dir_open((const char *)(void *)name) : (uint8_t *)0;'
     echo '}'
     echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) {'
-    echo '  return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1;'
+    echo '  return dirp ? (int32_t)xlang_dir_close((void *)dirp) : (int32_t)-1;'
     echo '}'
     echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {'
     echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
     echo '}'
     echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {'
-    echo '  struct dirent *ent;'
+    echo '  char *n;'
     echo '  if (!dirp) return (uint8_t *)0;'
-    echo '  ent = readdir((DIR *)(void *)dirp);'
-    echo '  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;'
+    echo '  n = xlang_dir_readdir_name((void *)dirp);'
+    echo '  return (uint8_t *)(void *)n;'
     echo '}'
     echo '#endif'
-    # PLATFORM: SHARED — wave22 Cap residual: opaque *u8 → FILE* fputs cast.
-    # .x cannot name FILE*; direct fputs(*u8,*u8) trips -Werror=incompatible-pointer-types.
-    # Pure driver_preamble_fputs (runtime_driver_abi_thin.x) calls this harness helper.
-    # Outside _WIN32 guard: stdio fputs is available on Windows host-cc too.
+    # PLATFORM: SHARED — Cap residual 9.7.1: opaque *u8 stream face → fd-handle.
+    # Authority: include/xlang_driver_stream_cap.h (handle = fd+1, NULL invalid;
+    # std fds 0/1/2 never closed). Write/open/close route through the Cap
+    # authorities (xlang_io_write / xlang_io_open_write / xlang_proc_close_fd),
+    # so generated TUs carry zero stdio UNDEFs. Signatures stay `uint8_t *` —
+    # .x consumers are source-compatible.
+    echo '#include "xlang_driver_stream_cap.h"'
     echo 'static inline int32_t xlang_driver_fputs_opaque(uint8_t *s, uint8_t *stream) {'
-    echo '  return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);'
+    echo '  int fd = xlang_driver_handle_to_fd(stream);'
+    echo '  if (!s || fd < 0) return -1;'
+    echo '  return (int32_t)xlang_io_write(fd, s, strlen((const char *)(void *)s));'
     echo '}'
-    # PLATFORM: SHARED — wave26 Cap residual: stdout identity + fclose/fwrite for pure
-    # driver_parsed_fclose / fclose_rc / write_out (runtime_driver_abi_thin.x).
-    # .x cannot name FILE* or compare to stdout without these harness casts.
     echo 'static inline uint8_t *xlang_driver_stdout_ptr(void) {'
-    echo '  return (uint8_t *)(void *)stdout;'
+    echo '  return xlang_driver_handle_from_fd(1);'
     echo '}'
     echo 'static inline int32_t xlang_driver_fclose_opaque(uint8_t *stream) {'
-    echo '  if (!stream) return 0;'
-    echo '  return fclose((FILE *)(void *)stream) == 0 ? 0 : 1;'
+    echo '  return (int32_t)xlang_driver_handle_close(stream);'
     echo '}'
     echo 'static inline int32_t xlang_driver_fwrite_opaque(uint8_t *data, int32_t len, uint8_t *stream) {'
-    echo '  size_t n;'
+    echo '  long n;'
+    echo '  int fd;'
     echo '  if (!data || len < 0 || !stream) return 1;'
     echo '  if (len == 0) return 0;'
-    echo '  n = fwrite((const void *)(void *)data, 1, (size_t)len, (FILE *)(void *)stream);'
+    echo '  fd = xlang_driver_handle_to_fd(stream);'
+    echo '  if (fd < 0) return 1;'
+    echo '  n = xlang_io_write(fd, data, (size_t)len);'
     echo '  return n == (size_t)len ? 0 : 1;'
     echo '}'
-    # PLATFORM: SHARED — wave27 Cap residual: fopen(path,"w") as opaque *u8 for pure
-    # driver_parsed_open_out_file (runtime_driver_abi_thin.x). .x cannot name FILE*.
     echo 'static inline uint8_t *xlang_driver_fopen_write_opaque(uint8_t *path) {'
+    echo '  int fd;'
     echo '  if (!path) return (uint8_t *)0;'
-    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");'
+    echo '  fd = xlang_io_open_write((const char *)(void *)path);'
+    echo '  return fd < 0 ? (uint8_t *)0 : xlang_driver_handle_from_fd(fd);'
     echo '}'
-    # PLATFORM: SHARED — wave40 Cap residual: stderr identity + fflush(stdout) + fopen "wb"
-    # for pure driver_stdio_stderr / driver_asm_fflush_stdout / driver_asm_fopen_wb
-    # (runtime_driver_abi_thin.x). "wb" is intentionally not "w" (binary metric/asm out;
-    # G.7: separate surface from fopen_write_opaque text "w").
     echo 'static inline uint8_t *xlang_driver_stderr_ptr(void) {'
-    echo '  return (uint8_t *)(void *)stderr;'
+    echo '  return xlang_driver_handle_from_fd(2);'
     echo '}'
     echo 'static inline void xlang_driver_fflush_stdout(void) {'
-    echo '  (void)fflush(stdout);'
     echo '}'
     echo 'static inline uint8_t *xlang_driver_fopen_wb_opaque(uint8_t *path) {'
+    echo '  int fd;'
     echo '  if (!path) return (uint8_t *)0;'
-    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");'
+    echo '  fd = xlang_io_open_write((const char *)(void *)path);'
+    echo '  return fd < 0 ? (uint8_t *)0 : xlang_driver_handle_from_fd(fd);'
     echo '}'
-    # PLATFORM: SHARED — wave41 Cap residual: fdopen(fd,"wb") as opaque *u8 for pure
-    # driver_asm_mkstemp_fdopen (runtime_driver_abi_thin.x). .x cannot name FILE*.
     echo 'static inline uint8_t *xlang_driver_fdopen_wb_opaque(int32_t fd) {'
-    echo '  FILE *fp;'
     echo '  if (fd < 0) return (uint8_t *)0;'
-    echo '  fp = fdopen((int)fd, "wb");'
-    echo '  return (uint8_t *)(void *)fp;'
+    echo '  return xlang_driver_handle_from_fd(fd);'
     echo '}'
     # PLATFORM: SHARED — wave79 Cap residual: libc realpath as opaque *u8 for pure
     # xlang_path_try_realpath_inplace (runtime_pipeline_abi.x). .x must not name char*
@@ -3102,11 +3141,41 @@ ensure_pipeline_abi_prefer_one() {
 
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
     stale=0
+    # Incomplete Darwin libtool archive masquerading as .o → always rebuild.
+    # PLATFORM: MACOS Cap residual (10.3.2); LINUX never matches.
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      local arch_sz
+      arch_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -z "$arch_sz" ] || [ "$arch_sz" -lt 1000000 ]; then
+        log "pipeline_abi prefer: incomplete libtool archive $o (${arch_sz:-0}B) → force rebuild"
+        stale=1
+      fi
+    fi
     [ "$seed" -nt "$o" ] && stale=1
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
       stale=1
     fi
     if [ -f src/runtime_pipeline_abi.h ] && [ src/runtime_pipeline_abi.h -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_param_ptr_slot_thin.x ] \
+      && [ src/runtime_pipeline_abi_param_ptr_slot_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_slot_bytes_thin.x ] \
+      && [ src/runtime_pipeline_abi_slot_bytes_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_fnptr_as_thin.x ] \
+      && [ src/runtime_pipeline_abi_fnptr_as_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_asm_expr_thin.x ] \
+      && [ src/runtime_pipeline_abi_asm_expr_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_fnptr_array_esz_thin.x ] \
+      && [ src/runtime_pipeline_abi_fnptr_array_esz_thin.x -nt "$o" ]; then
       stale=1
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
@@ -3122,25 +3191,377 @@ ensure_pipeline_abi_prefer_one() {
       # Still inject thin leaves (small -E) when present.
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_slot_bytes_thin "$o" || true
+      pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_unused_hints_thin "$o" || true
+      pipeline_abi_inject_wpo_dump_thin "$o" || true
+      pipeline_abi_inject_fnptr_as_thin "$o" || true
+      pipeline_abi_inject_asm_expr_thin "$o" || true
+      pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
+      pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+      pipeline_abi_inject_import_heap_thin "$o" || true
+      pipeline_abi_inject_read_file_x_view_thin "$o" || true
       # ttc-thin only when seed/x is newer (inject-only below). Re-injecting
       # on every up-to-date g05 stacks static inner copies.
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
     # OUT already exists, inject-only instead of full hybrid rebuild.
-    # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer.
-    # PLATFORM: SHARED shell · LINUX gold + MACOS.
-    if [ -s "$o" ] && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
+    # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer
+    # on POSIX gold. PLATFORM: SHARED shell · LINUX gold + MACOS.
+    # PLATFORM: WINDOWS — leftover PE cannot -E mega; FORCE skip is below.
+    if [ -s "$o" ] && ! pipeline_abi_o_is_libtool_archive "$o" \
+      && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
       || [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; }; then
       log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_slot_bytes_thin "$o" || true
+      pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_unused_hints_thin "$o" || true
+      pipeline_abi_inject_wpo_dump_thin "$o" || true
       # ttc-thin merge-fail is pre-existing (already-strong dup); do not
       # abort before blkpeel (same as arrcopy || true before ttc).
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
-      pipeline_abi_inject_binop_block_peel_thin "$o" || return 1
+      # blkpeel merge-fail is pre-existing on Ubuntu leftover (already-strong
+      # dup). Do not abort before ptrslot (this leaf).
+      pipeline_abi_inject_binop_block_peel_thin "$o" || true
+      pipeline_abi_inject_param_ptr_slot_thin "$o" || return 1
+      pipeline_abi_inject_fnptr_as_thin "$o" || return 1
+      pipeline_abi_inject_asm_expr_thin "$o" || return 1
+      pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
+      pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+      pipeline_abi_inject_import_heap_thin "$o" || true
+      pipeline_abi_inject_read_file_x_view_thin "$o" || true
       return 0
     fi
+  fi
+
+  # PLATFORM: WINDOWS — leftover PE (Track L / can_run egg) is executable so
+  # hybrid rt_prefer_try_x_to_o would launch ./xlang -E of mega
+  # runtime_pipeline_abi.x (92k LOC; hang / multi-GB RSS, stderr discarded).
+  # SAT rebuild sets XLANG_HOST_CC_SEED_FORCE=1 which skips the inject-only
+  # keep above. Do NOT keep leftover hybrid $o: Windows leftover pabi is tens
+  # of KiB (FROM_X rest without thin) vs ~1.4MiB POSIX hybrid, and omits
+  # pipeline_type_* / pipeline_asm_* / ast_pool_* that tip glue UNDEF at phase1.
+  # Cold full seed (no FROM_X) hits 251 void*/struct* dual-decls in
+  # seeds/runtime_pipeline_abi.from_x.c — not a viable identity path (wave176).
+  # G.7 有则补全 of the POSIX hybrid rest CC line + pure_ld_partial_merge:
+  #   rest = host-cc seed under -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X (3s, 220KiB)
+  #          plus WIN_LEFTOVER_GROW_VEC so leftover-PE rest compiles seed
+  #          ifndef-FROM_X cold twins POSIX .x thin -E would provide T:
+  #          grow_vec/sidecar + wave123 glue_arm64_mov_*/lea + wave125
+  #          pipeline_asm_ctx_layout + wave133 glue_enc_sxt/zxt (closed out
+  #          of wave132 so WIN rest does not take ty_ref / append_bytes
+  #          dual-decl) + wave273 F7 data-section (emit_data_len /
+  #          append_data_u32_le / set_shndx_override; BSS moved before first
+  #          use; rest of wave273 stays closed — append_bytes dual-decl) +
+  #          wave74 driver_dep_* + wave77 typeck_ndep/sidecar + wave73
+  #          pipeline_diag_* + path wrappers (import_path_to_file_path /
+  #          get_entry_dir / cstr_ends_with_dot_x / import_path_is_file_path /
+  #          path_try_realpath_inplace / resolve_file_import_path /
+  #          resolve_import_file_path_multi; _impl already always compiled) +
+  #          wave67 path_bufs_reset / copy_entry_dir / fill_ctx_path_buffers /
+  #          pctx_seed_dep_slots / pctx_seed_dep_import_paths_only /
+  #          pctx_update_dep_slots_no_reset / set_use_asm_backend +
+  #          wave68/70 entry_dir BSS+set/get + dep arena/module slots
+  #          (set_dep_slots / get_dep_arena_slot; independent ifndefs) +
+  #          is_object/_magic + fclose_asm_out cluster (fp_is_stdout /
+  #          fclose_file; independent ifndefs) + user_std_net/skip_typeck
+  #          cluster (std_dep_skip_x_typeck / std_net_dep_path /
+  #          std_io_driver_dep_path / dep_parse_skip_typeck_path;
+  #          independent ifndefs; wrappers call always-extern pipeline.x
+  #          faces; leftover standalone defines 0 of remaining unique) +
+  #          dep_prerun_entry_dir + _pick (independent ifndefs; entry_dir
+  #          calls _pick; leftover standalone defines 0 of remaining unique) +
+  #          merge_deps_path_already_out + _scan + merge_direct_then_transitive
+  #          deps / dep_paths (independent ifndefs; wrappers call always-
+  #          compiled _impl; _impl already calls already_out; leftover
+  #          standalone defines 0 of remaining unique) +
+  #          one_ctx_for_dep_prerun + map_impl + find_loaded_import_index +
+  #          _scan (independent ifndefs; wrapper calls always-compiled _impl;
+  #          _impl already calls map_impl; map_impl calls find_loaded_import_index
+  #          which calls _scan; leftover standalone defines 0 of remaining unique) +
+  #          load_direct_imports_for_asm_layout + _impl + module_num_imports +
+  #          load_one_direct_resolve_read_preprocess + load_one_direct_import_at +
+  #          load_direct_fail_cleanup + preprocess_raw_to_malloc / _impl
+  #          (independent ifndefs; unlike merge/one_ctx, _impl is still ifndef —
+  #          convert it with the wrapper; resolve_read calls already-OR'd path
+  #          wrappers / pipeline_diag plus preprocess_raw_to_malloc; leftover
+  #          standalone defines 0 of remaining unique) +
+  #          public xlang_preprocess / with_path / quiet (one independent
+  #          ifndef; wrappers call already-T _impl; leftover rest compiles
+  #          with XLANG_USE_X_PIPELINE so LEGACY preprocess_c_fallback #else
+  #          is not parsed; unique lists preprocess + with_path; leftover
+  #          standalone defines 0 of remaining unique) +
+  #          xlang_lsp_free_loaded_imports (independent ifndef; wrapper
+  #          calls already-T _impl with void**; header struct ast_Module **
+  #          @304 is prototype+definition, not a dual-decl; leftover
+  #          standalone defines 0 of remaining unique; do not convert
+  #          neighboring xlang_lsp_ptr_slot_clear — not unique) +
+  #          collect leftover cluster (12 independent ifndefs: strdup /
+  #          to_load_has / seed_to_load / enqueue_module_imports /
+  #          tmp_parse_and_enqueue / deps_process_one / deps_transitive_impl /
+  #          deps_transitive / paths_tmp_resolve_parse_enqueue /
+  #          paths_process_one / dep_paths_transitive_impl /
+  #          dep_paths_transitive; unlike merge/one_ctx, _impl is still
+  #          ifndef — convert with the wrapper; wrappers call _impl;
+  #          _impl calls seed_to_load + process_one; process_one calls
+  #          already-OR'd load_one_direct_import_at + find_loaded_import_index
+  #          + tmp_parse; unique lists deps_transitive + dep_paths_transitive;
+  #          leftover standalone defines 0 of remaining unique; do not
+  #          convert neighboring xlang_driver_asm_prepare_entry_elf_emit —
+  #          it calls closed debug_trace) +
+  #          dep_prerun leftover cluster (6 independent ifndefs: thread_fn
+  #          impl+wrapper / large_stack impl+wrapper / parse_skip
+  #          impl+wrapper / typeck_only impl+wrapper / parse_only
+  #          impl+wrapper / for_asm_module_o; unlike merge/one_ctx, _impl
+  #          is still ifndef — convert with the wrapper; parse_skip_impl
+  #          calls large_stack; large_stack_impl calls thread_fn;
+  #          thread_fn_impl calls always-extern pipeline_run_x_pipeline;
+  #          unique lists thread_fn + large_stack + four dep_prerun
+  #          wrappers; leftover standalone defines 0 of remaining unique;
+  #          do not convert neighboring pipeline_run_x_thread_fn_ptr —
+  #          not unique — or xlang_asm_codegen_elf_o_product_emit /
+  #          thread_fn_ptr — not unique; elf_o leftover cluster converts
+  #          thread_fn+large_stack only — or
+  #          xlang_driver_asm_prepare_entry_elf_emit — calls closed
+  #          debug_trace; pipeline_run_x_pipeline_impl is a separate
+  #          leftover cluster after closing enclosing wave101) +
+  #          elf_o leftover cluster (2 independent ifndefs: thread_fn
+  #          impl+wrapper / large_stack impl+wrapper; unlike merge/one_ctx,
+  #          _impl is still ifndef — convert with the wrapper; thread_fn_impl
+  #          calls always-extern asm_asm_codegen_elf_o; large_stack_impl
+  #          calls thread_fn + driver_run_thread_on_large_stack; unique
+  #          lists thread_fn + large_stack; leftover standalone defines 0
+  #          of remaining unique; do not convert neighboring
+  #          xlang_asm_codegen_elf_o_product_emit / thread_fn_ptr — not
+  #          unique — or xlang_driver_asm_prepare_entry_elf_emit — calls
+  #          closed debug_trace) +
+  #          glue_type leftover cluster (surgical extract at start of
+  #          independent wave154 ifndef: size_simple + align_simple +
+  #          helpers empty_struct / layout_metrics / w154_layout_name_eq;
+  #          unique lists size_simple + align_simple; leftover standalone
+  #          defines 0 of remaining unique; glue_vector_type_lanes_esz_c
+  #          stays closed — not unique — leftover rest externs it; do not
+  #          convert neighboring typeck_typeck_struct_layout_metrics — not
+  #          unique — or glue_type_named_layout_size_any_module_elf_c —
+  #          nested in wave178) +
+  #          rec leftover cluster (surgical extract of inner wave152
+  #          ifndef after closing enclosing wave149: rec + lit_i32 /
+  #          match_subject_field / emit_expr_elf_c wrapper / emit_expr_elf_fast;
+  #          rec calls fast — convert together; unique lists rec; leftover
+  #          standalone defines 0 of remaining unique; wave149 binop helpers
+  #          stay closed; wave153 block_body stays its own ifndef) +
+  #          append_reloc leftover cluster (surgical extract of nested
+  #          wave273 after closing enclosing wave154/wave178/wave273
+  #          reopen-after-F7: pipeline_elf_ctx_append_reloc_absolute64
+  #          only; unique lists absolute64; leftover standalone defines 0
+  #          of remaining unique; callee append_reloc_typed stays closed —
+  #          not unique — leftover rest U it; SAT / leftover standalone
+  #          provide T; do not convert neighboring append_reloc / typed —
+  #          not unique — or reloc_sym_name_ptr — not unique — or
+  #          glue_type_named_layout_size_any_module_elf_c — nested in
+  #          wave178 stub) +
+  #          sret leftover cluster (surgical extract of nested wave223
+  #          after closing enclosing wave154 reopen-after-glue_type +
+  #          wave178: three sret setters + getters sharing BSS cells;
+  #          unique lists the three setters; leftover standalone defines
+  #          0 of remaining unique; getters not unique — SAT / leftover
+  #          standalone provide T; convert together so setters have a
+  #          cell; do not convert neighboring wave222 module/dep_pipe —
+  #          not unique — or named_layout — seed body is a stub — or
+  #          pipeline_module_*_storage_* — nested wave178 sidecar) +
+  #          pipeline_run_x_pipeline_impl leftover cluster (surgical
+  #          extract after closing enclosing wave101: impl only; unique
+  #          lists impl; leftover standalone defines 0 of remaining unique;
+  #          callees parse_entry/load_deps/typecheck/codegen wrappers not
+  #          unique — SAT / leftover standalone provide T; do not convert
+  #          neighboring driver_emit_lib_root_release — nested wave101
+  #          sidecar BSS) +
+  #          modlet leftover cluster (surgical extract of nested wave139
+  #          after closing enclosing wave136: four unique prepare/seed/
+  #          register/lit_inits faces + BSS g_pipeline_asm_modlet_cold +
+  #          helpers name_is_shared/load/store; unique lists the four;
+  #          leftover standalone defines 0 of remaining unique; name_is_shared
+  #          / load / store not unique — SAT / leftover standalone provide T;
+  #          convert together so unique faces have a cell; do not convert
+  #          neighboring wave140 index — not unique) +
+  #          array_lit leftover cluster (surgical extract of nested wave143
+  #          unique after closing enclosing remaining wave136:
+  #          pipeline_asm_array_lit_elem_byte_sz_c + helper
+  #          pipeline_asm_array_lit_elem_type_ref; unique lists
+  #          elem_byte_sz_c; leftover standalone defines 0 of remaining
+  #          unique; elem_type_ref not unique — SAT / leftover standalone
+  #          provide T; convert together so unique has a helper; do not
+  #          convert neighboring wave140 index — not unique — or remaining
+  #          wave143 emit/empty/force_esz — not unique) +
+  #          stack_off leftover unique (surgical extract of nested wave148
+  #          unique after closing enclosing remaining wave136:
+  #          glue_asm_local_var_stack_off_scoped; unique lists this face;
+  #          leftover standalone defines 0 of remaining unique; callees
+  #          var_name_len/into leftover rest already T; find_offset_scoped
+  #          leftover rest already T uint8_t*; find_offset leftover rest U —
+  #          SAT / leftover standalone provide T; do not convert neighboring
+  #          remaining wave143 emit/empty/force_esz — not unique — or
+  #          remaining wave148 vector-lane emit — not unique) +
+  #          glue_func_return leftover unique (surgical extract of nested
+  #          wave192 unique after closing enclosing wave154 reopen-after-
+  #          glue_type + wave178 INDEX-peel: glue_func_return_byte_size_c;
+  #          unique lists this face; leftover standalone defines 0 of
+  #          remaining unique; seed body was a stub return 0 — port the
+  #          real .x body instead of OR'ing the stub; callees size_simple
+  #          leftover rest already T; kind_ord leftover rest already extern
+  #          void*; num_funcs always-compiled void* — do not re-extern;
+  #          func_return_type_at leftover rest T later so extract carries
+  #          a void* extern; leftover rest U num_funcs — SAT / leftover
+  #          standalone provide T; do not convert neighboring dual_gp /
+  #          param_home_width — not unique) +
+  #          named_layout leftover unique (surgical extract of nested
+  #          wave191 unique after closing enclosing wave154 reopen-after-
+  #          glue_type + wave178 INDEX-peel: glue_type_named_layout_size_any_module_elf_c;
+  #          unique lists this face; leftover standalone defines 0 of
+  #          remaining unique; seed body was a stub return 0 — port the
+  #          real .x body instead of OR'ing the stub; callees leftover rest
+  #          already T/extern from glue_type + array_lit clusters; ndep
+  #          always-compiled struct* — do not re-extern; leftover rest U
+  #          emit_module_ref_c / emit_dep_pipe_c defs — SAT / leftover
+  #          standalone provide T; do not convert neighboring pass_addr /
+  #          dual_gp / param_home_width — not unique) +
+  #          glue_call_return leftover unique (surgical extract of nested
+  #          wave194 unique after closing enclosing wave154 reopen-after-
+  #          glue_type + wave178 INDEX-peel: glue_call_return_byte_size_c;
+  #          unique lists this face; leftover standalone defines 0 of
+  #          remaining unique; seed body was a stub return -1 — port the
+  #          real .x body instead of OR'ing the stub; callees size_simple
+  #          leftover rest already T; kind_ord / func_return_type_at /
+  #          emit_dep_pipe / emit_module_ref leftover rest already extern;
+  #          extract carries resolve + get_dep_return_type void* externs;
+  #          leftover rest U glue_asm_resolve — SAT / leftover standalone
+  #          provide T; do not convert neighboring param_agg / load_var /
+  #          wave195–199 — not unique — or glue_asm_resolve — seed stub) +
+  #          type_alias leftover unique (surgical extract of nested
+  #          wave262 unique after closing enclosing wave154 reopen-after-
+  #          sret + wave178 INDEX-peel: pipeline_module_type_alias_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot together so leftover
+  #          rest WAVE279 ast_pool_module_reset/release has a cell;
+  #          remaining wave262 alloc/set/getters stay closed on leftover
+  #          rest — not unique; SAT / leftover standalone provide T; do
+  #          not convert neighboring wave224 / wave261 — not unique) +
+  #          enum leftover unique (surgical extract of nested wave264
+  #          unique after closing enclosing wave154 reopen-after-
+  #          type_alias + wave178 INDEX-peel: pipeline_module_enum_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot + header_n/set_header_n
+  #          together so leftover rest WAVE279 ast_pool_module_reset/release
+  #          has a cell; remaining wave264 alloc/set/getters stay closed
+  #          on leftover rest — not unique; SAT / leftover standalone
+  #          provide T; do not convert neighboring wave263 import — not
+  #          unique — or remaining tl/sl unique — own extracts) +
+  #          top_level_let leftover unique (surgical extract of nested
+  #          wave265 unique after closing enclosing wave154 reopen-after-
+  #          enum + wave178 INDEX-peel: pipeline_module_top_level_let_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot + header_n/set_header_n
+  #          together so leftover rest WAVE279 ast_pool_module_reset/release
+  #          has a cell; remaining wave265 alloc/set/getters stay closed
+  #          on leftover rest — not unique; SAT / leftover standalone
+  #          provide T; do not convert neighboring remaining wave264
+  #          alloc/set — not unique — or remaining sl unique — own extract) +
+  #          struct_layout leftover unique (surgical extract of nested
+  #          wave266 unique after closing enclosing wave154 reopen-after-
+  #          tl + wave178 INDEX-peel: pipeline_module_struct_layout_storage_reset
+  #          / storage_release; unique lists these two faces; leftover
+  #          standalone defines 0 of remaining unique; seed bodies are
+  #          real — convert unique + BSS + find_slot + header_n/set_header_n
+  #          together so leftover rest WAVE279 ast_pool_module_reset/release
+  #          has a cell; remaining wave266 alloc/set/getters stay closed
+  #          on leftover rest — not unique; SAT / leftover standalone
+  #          provide T; do not convert neighboring remaining wave265
+  #          alloc/set — not unique) +
+  #          block_diverged leftover unique (independent ifndef after
+  #          lsp_free; no seed twin in wave213 cluster: glue_asm_block_diverged_set
+  #          + getter + BSS together so leftover rest SET/GET share leftover
+  #          rest BSS; unique lists setter only — leftover standalone already
+  #          T getter; leftover standalone defines 0 of remaining unique;
+  #          port from .x @77841/@77856; do not add faces to wave213 cluster
+  #          — cold full seed compiles this OR; a second def would dual-def
+  #          in the same TU) +
+  #          driver_emit leftover unique (surgical extract of nested
+  #          wave104 emit sidecar after closing enclosing wave101:
+  #          driver_emit_lib_root_release + reset/append/count/len/copy +
+  #          BSS + find together so leftover rest SET/GET/release share
+  #          leftover rest BSS; unique lists release only — leftover
+  #          standalone already T reset/append; leftover standalone
+  #          defines 0 of remaining unique; seed bodies are real; do not
+  #          convert neighboring asm_qual_sym_layer_* — not unique,
+  #          separate BSS family) +
+  #          debug_trace leftover unique (independent ifndefs: match +
+  #          impl + wrapper together so leftover rest wrapper calls
+  #          leftover rest impl; unique lists wrapper only; leftover
+  #          standalone defines 0 of remaining unique; leftover rest
+  #          FROM_X proto @49851 is void* — the struct* extern @18600
+  #          is inside FALSE #ifndef FROM_X wave144/145 nest, not a
+  #          leftover-rest dual-decl; do not convert neighboring
+  #          pipeline_asm_debug_enabled / mega_pre_reset wrappers —
+  #          not unique) +
+  #          prepare_entry leftover unique (independent ifndef: unique
+  #          lists xlang_driver_asm_prepare_entry_elf_emit; leftover
+  #          standalone defines 0 of remaining unique; header @292
+  #          prototype+definition; calls leftover rest T debug_trace;
+  #          do not convert neighboring product_emit / thread_fn_ptr —
+  #          not unique; pabi leftover unique coding is exhausted
+  #          after this extract).
+  #          pipeline_resolve_path / read_file stay closed this wave.
+  #          FROM_X rest otherwise only externs them.
+  #   thin = leftover build_asm/pipeline_glue_standalone.o (7/31 archaeology;
+  #          ASM_GLUE_STANDALONE_O is empty on product; this file is the only
+  #          on-disk provider of pipeline_type_* / ast_pool_* ifndef-FROM_X
+  #          twins when PE cannot -E; it does NOT define grow_vec/sidecar)
+  # Merge rest-first so tip FROM_X wins overlaps; leftover fills missing twins.
+  # POSIX (Linux gold / Darwin): FORCE hybrid -E stays the product path.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    local win_rest win_thin win_sz
+    win_thin="build_asm/pipeline_glue_standalone.o"
+    mkdir -p "$(dirname "$o")"
+    if [ ! -s "$win_thin" ]; then
+      echo "ensure_host_cc_seed_o: Windows leftover PE cannot -E; missing $win_thin (cold twins)" >&2
+      return 1
+    fi
+    win_rest="$(mktemp "${TMPDIR:-/tmp}/pabi_win_rest.XXXXXX")"
+    log "pipeline_abi prefer: leftover PE cannot -E mega; host-cc FROM_X rest + grow_vec/sidecar twins + leftover standalone thin"
+    # shellcheck disable=SC2086
+    if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+         -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+         -DXLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC \
+         -c -o "$win_rest" "$seed"; then
+      echo "ensure_host_cc_seed_o: Windows FROM_X rest cc failed for $o" >&2
+      rm -f "$win_rest"
+      return 1
+    fi
+    if ! pure_ld_partial_merge "$o" "$win_rest" "$win_thin"; then
+      echo "ensure_host_cc_seed_o: Windows rest+standalone merge failed for $o" >&2
+      rm -f "$win_rest"
+      return 1
+    fi
+    rm -f "$win_rest"
+    # PLATFORM: WINDOWS — thin mega / thin wrapper keep relative calls to thin
+    # twins (PE first-wins does not rewrite intra-object). Rest WIN_LEFTOVER:
+    # get_return/nso/body_ref + WAVE290 mega_body void-main mov-imm-0.
+    # G.7: one post-merge redirect script (proved by return-42 / void-main).
+    if ! bash scripts/win_pe_pabi_redirect_return_helpers.sh "$o"; then
+      echo "ensure_host_cc_seed_o: Windows thin→rest return-helper redirect failed for $o" >&2
+      return 1
+    fi
+    win_sz=$(wc -c <"$o" | tr -d ' ')
+    log "prefer Windows leftover-PE hybrid $o <- FROM_X rest + grow_vec/sidecar + $win_thin (${win_sz:-0}B) + return-helper redirect"
+    return 0
   fi
 
   mkdir -p "$(dirname "$o")"
@@ -3152,7 +3573,9 @@ ensure_pipeline_abi_prefer_one() {
   # ensure_prereqs → pure-ld phase1 missing src/runtime_pipeline_abi.o.
   # Cold full seed is not a viable identity path until seed dual-decls are
   # cleaned; egg hybrid is the single working product cold path for this leaf.
+  # PLATFORM: WINDOWS — leftover PE cannot -E; skip this block (predicate).
   if [ -f "$x_src" ] \
+    && ! pipeline_abi_windows_leftover_pe_cannot_e \
     && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_rest.XXXXXX")"
@@ -3167,8 +3590,26 @@ ensure_pipeline_abi_prefer_one() {
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm skip Cap-residual RT=0)"
-      done=1
+      # PLATFORM: MACOS — libtool -static fallback yields ar named .o; Cap LEA
+      # and product force_load need a complete hybrid or cold MH_OBJECT, not a
+      # thin+rest archive leftover. Discard and fall through to cold seed.
+      if pipeline_abi_o_is_libtool_archive "$o"; then
+        # Accept complete Darwin prefer archives (thin+rest); discard tiny leftovers.
+        # Incomplete Cap residual was ~260KiB (fnptr_thin + pabi_rest_try only).
+        local hyb_sz
+        hyb_sz=$(wc -c <"$o" | tr -d ' ')
+        if [ -n "$hyb_sz" ] && [ "$hyb_sz" -ge 1000000 ]; then
+          log "prefer thin+rest $o <- $x_src + seed-rest (Darwin libtool archive ≥1MiB; prefer=${prefer})"
+          done=1
+        else
+          log "pipeline_abi hybrid produced incomplete libtool archive (${hyb_sz:-0}B); discard → cold/seed"
+          rm -f "$o"
+          done=0
+        fi
+      else
+        log "prefer thin+rest $o <- $x_src + seed-rest (try-pipeline-abi-prefer; prefer=${prefer}; pure-asm skip Cap-residual RT=0)"
+        done=1
+      fi
     else
       log "pipeline_abi hybrid failed; fallback full seed (prefer=${prefer})"
     fi
@@ -3182,8 +3623,20 @@ ensure_pipeline_abi_prefer_one() {
     # (same body as mega pure leave) and first-wins ld -r over weak pure.
     pipeline_abi_inject_reent_deep_copy_thin "$o" || true
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+    pipeline_abi_inject_slot_bytes_thin "$o" || true
+    pipeline_abi_inject_field_load_sz_thin "$o" || true
+    pipeline_abi_inject_unused_hints_thin "$o" || true
+      pipeline_abi_inject_wpo_dump_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
     pipeline_abi_inject_binop_block_peel_thin "$o" || true
+    pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+    pipeline_abi_inject_fnptr_as_thin "$o" || true
+    pipeline_abi_inject_asm_expr_thin "$o" || true
+    pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
+    pipeline_abi_inject_assign_thin "$o" || true
+    pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+    pipeline_abi_inject_import_heap_thin "$o" || true
+    pipeline_abi_inject_read_file_x_view_thin "$o" || true
     return 0
   fi
 
@@ -3195,12 +3648,53 @@ ensure_pipeline_abi_prefer_one() {
   cold_flags="$(pipeline_abi_prefer_cflags)"
   # shellcheck disable=SC2086
   if [ -s "$o" ]; then
-    log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
-    pipeline_abi_inject_reent_deep_copy_thin "$o" || true
-    pipeline_abi_inject_fixed_array_copy_thin "$o" || true
-    pipeline_abi_inject_type_to_c_repr_thin "$o" || true
-    pipeline_abi_inject_binop_block_peel_thin "$o" || true
-    return 0
+    # Cap residual (10.3.2): never "keep" an incomplete Darwin libtool archive.
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      local keep_sz
+      keep_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -z "$keep_sz" ] || [ "$keep_sz" -lt 1000000 ]; then
+        log "pipeline_abi discard incomplete libtool archive $o (${keep_sz:-0}B); try cold seed (10.3.2)"
+        rm -f "$o"
+      else
+        log "pipeline_abi keep Darwin libtool archive $o (${keep_sz}B ≥1MiB)"
+        pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+        pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+        pipeline_abi_inject_slot_bytes_thin "$o" || true
+        pipeline_abi_inject_field_load_sz_thin "$o" || true
+        pipeline_abi_inject_unused_hints_thin "$o" || true
+          pipeline_abi_inject_wpo_dump_thin "$o" || true
+        pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+        pipeline_abi_inject_binop_block_peel_thin "$o" || true
+        pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+        pipeline_abi_inject_fnptr_as_thin "$o" || true
+        pipeline_abi_inject_asm_expr_thin "$o" || true
+        pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
+        pipeline_abi_inject_assign_thin "$o" || true
+        pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+        pipeline_abi_inject_import_heap_thin "$o" || true
+        pipeline_abi_inject_read_file_x_view_thin "$o" || true
+        return 0
+      fi
+    else
+      log "pipeline_abi skip cold wipe; keep existing $o (wave176; cold seed type conflicts)"
+      pipeline_abi_inject_reent_deep_copy_thin "$o" || true
+      pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+      pipeline_abi_inject_slot_bytes_thin "$o" || true
+      pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_unused_hints_thin "$o" || true
+        pipeline_abi_inject_wpo_dump_thin "$o" || true
+      pipeline_abi_inject_type_to_c_repr_thin "$o" || true
+      pipeline_abi_inject_binop_block_peel_thin "$o" || true
+      pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+      pipeline_abi_inject_fnptr_as_thin "$o" || true
+      pipeline_abi_inject_asm_expr_thin "$o" || true
+      pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
+      pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+      pipeline_abi_inject_import_heap_thin "$o" || true
+      pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      return 0
+    fi
   fi
   if ! ensure_one "$o" "$seed" $cold_flags; then
     echo "ensure_host_cc_seed_o: pipeline_abi cold seed failed and no hybrid $o" >&2
@@ -3213,8 +3707,20 @@ ensure_pipeline_abi_prefer_one() {
   fi
   pipeline_abi_inject_reent_deep_copy_thin "$o" || true
   pipeline_abi_inject_fixed_array_copy_thin "$o" || true
+  pipeline_abi_inject_slot_bytes_thin "$o" || true
+  pipeline_abi_inject_field_load_sz_thin "$o" || true
+  pipeline_abi_inject_unused_hints_thin "$o" || true
+      pipeline_abi_inject_wpo_dump_thin "$o" || true
   pipeline_abi_inject_type_to_c_repr_thin "$o" || true
   pipeline_abi_inject_binop_block_peel_thin "$o" || true
+  pipeline_abi_inject_param_ptr_slot_thin "$o" || true
+  pipeline_abi_inject_fnptr_as_thin "$o" || true
+  pipeline_abi_inject_asm_expr_thin "$o" || true
+  pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
+  pipeline_abi_inject_assign_thin "$o" || true
+  pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+  pipeline_abi_inject_import_heap_thin "$o" || true
+  pipeline_abi_inject_read_file_x_view_thin "$o" || true
   return 0
 }
 
@@ -3222,6 +3728,51 @@ ensure_pipeline_abi_prefer_one() {
 # Thin .x body MUST match the same-named export in runtime_pipeline_abi.x;
 # regenerate the thin when that function changes. First-wins ld -r: thin.o then pabi.o.
 # G.7: one helper; 4.2.7 nested SLICE esz + dest-ARRAY [K][N]T memcpy both reuse it.
+# True if PATH is a Darwin libtool/ar archive (magic "!<arch>"), not MH_OBJECT.
+# PLATFORM: MACOS — prefer/inject ld -r fallback uses libtool -static; a later
+# inject into that archive can leave a tiny incomplete .o (Cap LEA missing).
+# LINUX ELF never matches. G.7 single gate for pabi recover / inject refuse.
+pipeline_abi_o_is_libtool_archive() {
+  local p="$1"
+  local mag
+  [ -f "$p" ] || return 1
+  # PLATFORM: MACOS — magic "!<arch>" (7 bytes). Avoid tr on binary (Darwin LC_CTYPE).
+  mag="$(head -c 7 "$p" 2>/dev/null || true)"
+  [ "$mag" = '!<arch>' ]
+}
+
+# True when this host's product -E binary is a leftover Windows PE that cannot
+# compile tip pipeline_abi sources (mega hang; thin -E fail).
+# PLATFORM: WINDOWS — 2026-07-31 leftover PE is present for Track L / can_run
+# so the "no xlang binary" skip does not fire. POSIX gold xlang_asm CAN -E.
+# G.7: one predicate; prefer FORCE hybrid + thin inject both consult it
+# BEFORE launching leftover PE -E (post-fail keep is not enough: mega hangs).
+pipeline_abi_windows_leftover_pe_cannot_e() {
+  windows_leftover_pe_cannot_e
+}
+
+# Return 0 if every global text symbol in THIN is already a global T in BASE.
+# PLATFORM: SHARED nm (Darwin leading underscore accepted as-is).
+pipeline_abi_thin_already_defined() {
+  local base="$1"
+  local thin="$2"
+  local sym
+  local thin_syms
+  [ -f "$base" ] && [ -f "$thin" ] || return 1
+  thin_syms="$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')"
+  [ -n "$thin_syms" ] || return 1
+  while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
+      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
+      END { exit !found }
+    ' || return 1
+  done <<EOF
+$thin_syms
+EOF
+  return 0
+}
+
 pipeline_abi_inject_thin_leaf() {
   local o="$1"
   local thin_x="$2"
@@ -3229,6 +3780,19 @@ pipeline_abi_inject_thin_leaf() {
   local xlang_bin=""
   local gen_c thin_o base_o
   if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  # Cap residual (10.3.2 Darwin): do not inject into a libtool archive named .o.
+  # Caller (prefer) must rebuild MH_OBJECT / ELF first. PLATFORM: MACOS.
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi ${tag} inject skip: $o is libtool archive (rebuild pabi first)"
+    return 1
+  fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins (fail or hang).
+  # Do not launch; keep existing hybrid $o (same as no-binary skip).
+  # POSIX (Linux gold / Darwin): continue with product -E.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi ${tag} inject skip: Windows leftover PE cannot -E tip thins; keep $o"
     return 0
   fi
   if [ -x ./xlang_asm ]; then
@@ -3255,9 +3819,35 @@ pipeline_abi_inject_thin_leaf() {
     rm -f "$gen_c" "$thin_o" "$base_o"
     return 1
   fi
+  # PLATFORM: MACOS — g05 re-injects after bootstrap already overlaid this leaf.
+  # Second strong overlay cannot Darwin ld -r (two LC_SEGMENT / two T); libtool
+  # -static then keeps both members. Final -force_load of a ≤2-member archive
+  # pulls both → duplicate `_glue_slice_let_reent_deep_copy_after_dual_gp_elf_c`
+  # (L4 @7f2754d80). Skip when thin's global T symbols are already T in $o.
+  if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
+    log "pipeline_abi ${tag} inject skip: already defined in $o"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
   cp -f "$o" "$base_o"
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+    # PLATFORM: MACOS — ld -r may fall back to libtool -static. Accept only if
+    # the archive still contains the full base (≥ base size). Tiny incomplete
+    # archives (Cap residual 10.3.2: thin+rest_try leftover) are refused.
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      local base_sz out_sz
+      base_sz=$(wc -c <"$base_o" | tr -d ' ')
+      out_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -z "$base_sz" ] || [ -z "$out_sz" ] || [ "$out_sz" -lt "$base_sz" ]; then
+        cp -f "$base_o" "$o"
+        log "pipeline_abi ${tag} inject: incomplete libtool archive; restored base"
+        rm -f "$gen_c" "$thin_o" "$base_o"
+        return 1
+      fi
+      log "pipeline_abi ${tag} inject OK (Darwin libtool archive ≥ base; force_load)"
+    else
+      log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+    fi
     rm -f "$gen_c" "$thin_o" "$base_o"
     return 0
   fi
@@ -3268,6 +3858,122 @@ pipeline_abi_inject_thin_leaf() {
 }
 
 # 4.2.7 nested TYPE_SLICE reent deep-copy inject.
+# PP002 heap scratch overlay: C thin (matches runtime_pipeline_abi.x).
+# Mega malloc_impl is WEAK; Darwin ld -r of two strong T fails, so only
+# overlay while the pabi symbol is still weak. PLATFORM: SHARED.
+pipeline_abi_inject_preprocess_malloc_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_preprocess_malloc_thin.c"
+  local thin_o base_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi pp-malloc inject skip: $o is libtool archive"
+    return 1
+  fi
+  if nm -m "$o" 2>/dev/null | grep -E 'xlang_preprocess_raw_to_malloc_impl' | grep -vq 'weak'; then
+    log "pipeline_abi pp-malloc inject skip: already strong in $o"
+    return 0
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pp_malloc.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pp_malloc_base.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi pp-malloc inject: cc thin failed"
+    rm -f "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  # PLATFORM: SHARED — GNU ld -r needs --allow-multiple-definition (pure_ld_partial_merge);
+  # Darwin ld -r first-wins weak without the flag. Do not call bare `ld -r`.
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi pp-malloc inject OK (strong over weak)"
+    rm -f "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi pp-malloc inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o"
+  return 1
+}
+
+# Import ctx 4MiB wall: overlay pipeline_load_import_from_disk_c with heap
+# read+pp (view + PP002 malloc). Mega _c is WEAK; Darwin ld -r of two strong
+# T fails, so only overlay while the pabi symbol is still weak.
+# PLATFORM: SHARED — LINUX gold · MACOS co-path. Pin embed stays 4MiB.
+pipeline_abi_inject_import_heap_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_import_heap_thin.c"
+  local thin_o base_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi import-heap inject skip: $o is libtool archive"
+    return 1
+  fi
+  if nm -m "$o" 2>/dev/null | grep -E 'pipeline_load_import_from_disk_c' | grep -vq 'weak'; then
+    log "pipeline_abi import-heap inject skip: already strong in $o"
+    return 0
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_import_heap.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_import_heap_base.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi import-heap inject: cc thin failed"
+    rm -f "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  # PLATFORM: SHARED — GNU ld -r needs --allow-multiple-definition (pure_ld_partial_merge);
+  # Darwin ld -r first-wins weak without the flag. Do not call bare `ld -r`.
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi import-heap inject OK (strong over weak)"
+    rm -f "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi import-heap inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o"
+  return 1
+}
+
+# resolve_read 4MiB wall: overlay pipeline_read_file_x with view+reject>cap.
+# Mega symbol is WEAK; Darwin ld -r of two strong T fails, so only overlay
+# while the pabi symbol is still weak. Pin embed stays 4MiB.
+# PLATFORM: SHARED — LINUX gold · MACOS co-path.
+pipeline_abi_inject_read_file_x_view_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_read_file_x_view_thin.c"
+  local thin_o base_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi read-file-x-view inject skip: $o is libtool archive"
+    return 1
+  fi
+  if nm -m "$o" 2>/dev/null | grep -E 'pipeline_read_file_x$' | grep -vq 'weak'; then
+    log "pipeline_abi read-file-x-view inject skip: already strong in $o"
+    return 0
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_read_file_x_view.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_read_file_x_view_base.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi read-file-x-view inject: cc thin failed"
+    rm -f "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  # PLATFORM: SHARED — GNU ld -r needs --allow-multiple-definition (pure_ld_partial_merge);
+  # Darwin ld -r first-wins weak without the flag. Do not call bare `ld -r`.
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi read-file-x-view inject OK (strong over weak)"
+    rm -f "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi read-file-x-view inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o"
+  return 1
+}
+
 pipeline_abi_inject_reent_deep_copy_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_reent_deep_copy_thin.x" "reent-thin"
 }
@@ -3275,6 +3981,264 @@ pipeline_abi_inject_reent_deep_copy_thin() {
 # dest-ARRAY [K][N]T memcpy / return Path B0 row stride inject.
 pipeline_abi_inject_fixed_array_copy_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fixed_array_copy_thin.x" "arrcopy-thin"
+}
+
+# NL-04: asm_local_slot_bytes dep-max (import PageMmapHeap thin lit vs dep 24B).
+# G.7: thin body matches runtime_pipeline_abi.x; first-wins over weak pure.
+# Keeps thin-first hybrid (seed-first dropped Ubuntu driver_diag).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_slot_bytes_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_slot_bytes_thin.x" "slotbytes-thin"
+}
+
+# CORE-016: FIELD_ACCESS load width — prefer typeck mono scalar stamp over
+# generic-layout free TYPE_NAMED T/U (which glue maps to 8 → ldr x0 garbage).
+# G.7: thin body matches runtime_pipeline_abi.x pipeline_expr_field_access_load_byte_sz.
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_field_load_sz_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_field_load_sz_thin.x" "fieldloadsz-thin"
+}
+
+# L6 unused-binding hints (XLANG_UNUSED_HINT=1). G.7: thin body matches
+# runtime_pipeline_abi.x pipeline_typeck_unused_binding_hints.
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_unused_hints_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_unused_hints_thin.x" "unusedhints-thin"
+}
+
+# Cap-fn-ptr (10.3.2): EXPR_AS same-module fn as *u8 / TYPE_FN → LEA.
+# G.7: thin body matches pipeline_asm_emit_as_elf_impl / _c in mega .x;
+# Cap-fn-ptr LEA spell is pipe_modlet_lea_fn_sym_to_rax (not inlined here).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_fnptr_as_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_fnptr_as_thin.x"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi fnptr-as-thin inject skip: $o is libtool archive"
+    return 1
+  fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi fnptr-as-thin inject skip: Windows leftover PE cannot -E; keep $o"
+    return 0
+  fi
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi fnptr-as-thin inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_fnas.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnas.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnas_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi fnptr-as-thin inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi fnptr-as-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    "$oc" --weaken-symbol=pipeline_asm_emit_as_elf_impl "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_pipeline_asm_emit_as_elf_impl "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=pipeline_asm_emit_as_elf_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_pipeline_asm_emit_as_elf_c "$base_o" 2>/dev/null || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi fnptr-as-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi fnptr-as-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
+}
+
+# Stage10 10.2.1: EXPR_ASM emit_expr_elf_rec override (ko==60 → try_emit).
+# G.7: thin body matches seed/mega emit_expr_elf_rec asm branch.
+pipeline_abi_inject_asm_expr_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm_expr_thin.x" "asm-expr-thin"
+}
+
+# 10.3.1 slice13: TYPE_FN array-lit esz / fixed-array temp bytes.
+# Seed rest holds strong glue_array_lit_force_esz_from_elem_type_c /
+# glue_fixed_array_temp_bytes — weaken then first-wins thin (no mega -E).
+# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED shell ·
+# LINUX gold + MACOS.
+pipeline_abi_inject_fnptr_array_esz_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_fnptr_array_esz_thin.x"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi fnptr-arr-esz inject skip: $o is libtool archive"
+    return 1
+  fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi fnptr-arr-esz inject skip: Windows leftover PE cannot -E; keep $o"
+    return 0
+  fi
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi fnptr-arr-esz inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi fnptr-arr-esz inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi fnptr-arr-esz inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    # Seed rest holds strong defs; weaken so thin first-wins. ELF + Mach-O.
+    "$oc" --weaken-symbol=glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=pipeline_asm_array_lit_elem_byte_sz_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_pipeline_asm_array_lit_elem_byte_sz_c "$base_o" 2>/dev/null || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi fnptr-arr-esz inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi fnptr-arr-esz inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
+}
+
+# WPO_DUMP_CALLGRAPH (XLANG_WPO_DUMP_CALLGRAPH). G.7: thin body matches
+# runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_wpo_dump_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_wpo_dump_thin.x" "wpodump-thin"
+}
+
+
+# *T formal home vs by-value NAMED self (w189 fill_param_slots walk).
+# Mega leftover may hold a strong/weak glue_local_var_slot_needs_ptr_load_elf_c
+# (hybrid thin+rest). Weaken then first-wins ld -r of the small .x thin so
+# product need not full mega -E (Darwin 22-40GB RSS). G.7: thin body matches
+# runtime_pipeline_abi.x. PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_param_ptr_slot_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_param_ptr_slot_thin.x"
+  local xlang_bin=""
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
+  if pipeline_abi_windows_leftover_pe_cannot_e; then
+    log "pipeline_abi ptrslot-thin inject skip: Windows leftover PE cannot -E; keep $o"
+    return 0
+  fi
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    log "pipeline_abi ptrslot-thin inject skip: no xlang binary"
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot_base.XXXXXX.o")"
+  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi ptrslot-thin inject: -E failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi ptrslot-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
+    log "pipeline_abi ptrslot-thin inject skip: already defined in $o"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    # Try both ELF (no prefix) and Mach-O (_ prefix). Do not short-circuit:
+    # GNU objcopy may exit 0 on a missing Darwin-prefixed name.
+    "$oc" --weaken-symbol=glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=w189_stack_off_is_emit_param_ptr_slot "$base_o" 2>/dev/null || true
+    "$oc" --weaken-symbol=_w189_stack_off_is_emit_param_ptr_slot "$base_o" 2>/dev/null || true
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi ptrslot-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi ptrslot-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
 }
 
 # host-C type_to_c_repr SLICE `*`→`_p` sanitizer. Product hybrid keeps this
@@ -3393,6 +4357,76 @@ pipeline_abi_inject_binop_block_peel_thin() {
   fi
   cp -f "$base_o" "$o"
   log "pipeline_abi blkpeel-thin inject: merge failed; restored base"
+  rm -f "$gen_c" "$thin_o" "$base_o"
+  return 1
+}
+
+# wave142 dest-in-rbx assign thin inject.
+# Seed rest holds strong assign cluster in leftover; weaken then first-wins.
+# G.7: one C body (markers in from_x.c). PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_assign_thin() {
+  local o="$1"
+  local seed="seeds/runtime_pipeline_abi.from_x.c"
+  local gen_c thin_o base_o oc
+  if [ ! -s "$o" ] || [ ! -f "$seed" ]; then
+    return 0
+  fi
+  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_asg.XXXXXX.c")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_asg.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_asg_base.XXXXXX.o")"
+  if ! awk '
+    /XLANG_PABI_ASSIGN_THIN_BEGIN/ {p=1; next}
+    /XLANG_PABI_ASSIGN_THIN_END/ {p=0; next}
+    p {print}
+  ' "$seed" >"$gen_c" || [ ! -s "$gen_c" ]; then
+    log "pipeline_abi asg-thin inject: extract failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--Wall -I. -Iinclude -Isrc} -Wno-implicit-function-declaration -Wno-int-conversion -Wno-unused -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    log "pipeline_abi asg-thin inject: cc thin failed"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc=llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    oc=objcopy
+  fi
+  if [ -n "$oc" ]; then
+    # Every non-static def inside the XLANG_PABI_ASSIGN_THIN markers compiles
+    # into BOTH the thin member and the full-compile base member; it MUST be
+    # listed here or Darwin -force_load links fail with a duplicate symbol
+    # (Ubuntu archive member selection hides it — verify on BOTH ends).
+    # wave661: +w157_walk_block_rec (w157 wave added it inside the region
+    # without updating this list; Darwin cold L4 g05 link caught it).
+    for s in \
+      glue_assign_lhs_f32_type_ref_elf_c \
+      glue_emit_assign_rhs_elf_c \
+      glue_emit_assign_rhs_to_rax_elf_c \
+      pipeline_asm_emit_assign_elf_c \
+      glue_field_assign_pair_base_ref_c \
+      glue_body_expr_stmt_at_c \
+      glue_asm_sum_block_call_spill_bytes \
+      w157_walk_block_rec
+    do
+      "$oc" --weaken-symbol="_$s" "$base_o" 2>/dev/null \
+        || "$oc" --weaken-symbol="$s" "$base_o" 2>/dev/null \
+        || true
+    done
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi asg-thin inject OK (first-wins over weakened leftover)"
+    rm -f "$gen_c" "$thin_o" "$base_o"
+    return 0
+  fi
+  cp -f "$base_o" "$o"
+  log "pipeline_abi asg-thin inject: merge failed; restored base"
   rm -f "$gen_c" "$thin_o" "$base_o"
   return 1
 }
@@ -4446,7 +5480,14 @@ std_core_prefer_spec_for_out() {
       printf '%s' "seeds/runtime_slice_glue.from_x.c|src/asm/runtime_slice_glue.x|direct"
       ;;
     std/process/process.o)
-      printf '%s' "seeds/runtime_process_args_thin.from_x.c||process_merge"
+      # 7.2.1 fourth knife: .x authority (src/runtime_process_args_thin.x)
+      # via product -x -E into a stable gen; seed remains the no-product
+      # cold fallback.
+      if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+        printf '%s' "runtime_process_args_thin_gen.c|src/runtime_process_args_thin.x|process_merge"
+      else
+        printf '%s' "seeds/runtime_process_args_thin.from_x.c||process_merge"
+      fi
       ;;
     std/net/net.o)
       printf '%s' "||net_merge"
@@ -4476,21 +5517,24 @@ _std_core_try_xlang_c_direct() {
   XLANG_KEEP_C=1 "$xx" -L .. -L src -L src/asm -lib-name "" -o "$out_o" "$x_src"
 }
 
-# ld -r multi-obj merge with platform multidef (Makefile LD_R_MULTIDEF twin).
-# PLATFORM: DARWIN -multiply_defined suppress · LINUX/PE --allow-multiple-definition
+# Relocatable multi-obj merge for std/core prefer (process_merge / net_merge / fast).
+#
+# G.7: single authority = `pure_ld_partial_merge` (already sourced above).
+# Do NOT keep a second body with bare `ld -r -multiply_defined suppress`:
+#   - `-multiply_defined` is obsolete on current Apple ld
+#   - no Darwin libtool fallback → when an input is a prefer **libtool archive
+#     named `.o`** (e.g. `runtime_process_argv.o` thin+rest after F7 two-segment
+#     `ld -r` failure), Apple `ld -r` errors
+#     "more than one LC_SEGMENT found in object file" and process_merge fails →
+#     no `std/process/process.o` → product `-o` UNDEF `std_process_*` (tip L4
+#     run-process BLD001 after CG002 force_load wave left process_argv as archive)
+#
+# PLATFORM: SHARED — pure_ld_partial_merge owns Linux ELF -r + Darwin libtool
+#           -static fallback; callers (process_merge / net_merge) unchanged.
 _std_core_ld_r() {
   local out="$1"
   shift
-  local uname_s
-  uname_s="$(uname -s 2>/dev/null || echo Unknown)"
-  if [ "$uname_s" = "Darwin" ]; then
-    ld -r -multiply_defined suppress -o "$out" "$@"
-  else
-    if ld -r --allow-multiple-definition -o "$out" "$@" 2>/dev/null; then
-      return 0
-    fi
-    ld -r -o "$out" "$@"
-  fi
+  pure_ld_partial_merge "$out" "$@"
 }
 
 # PLATFORM: SHARED — after ld -r product .o, keep only export faces as global T.
@@ -4632,6 +5676,7 @@ ensure_std_core_prefer_one() {
          [ seeds/runtime_process_import_alias.from_x.c -nt "$o" ]; then
         stale=1
       fi
+
     fi
     # wave796: net multi-merge source mtime (FORCE thin; G.7 single body).
     # Mirrors historic Makefile prereqs + net_merge body inputs.
@@ -4641,7 +5686,7 @@ ensure_std_core_prefer_one() {
         ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x \
         ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x \
         ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x \
-        ../std/net/udp_batch.x ../std/net/workers.x \
+        ../std/net/udp_batch.x ../std/net/workers.x ../std/net/tcp_pool.x \
         seeds/runtime_net_dns_fast.from_x.c \
         seeds/runtime_net_io_batch_fast.from_x.c \
         seeds/runtime_net_addr_fast.from_x.c \
@@ -4702,6 +5747,17 @@ ensure_std_core_prefer_one() {
       # PLATFORM: SHARED — process.o = args_thin + argv + os_glue + import_alias.
       # import_alias exports std_process_* for pure-asm import METHOD (G.7 complete
       # process_merge; C-path co-emit of mod.x is not used on pure-asm product).
+      # 7.2.1 fourth knife: when the map pointed at the .x authority, regen the
+      # stable gen via the product -x -E first (both bare wrappers verified);
+      # $seed then names the gen file for the shared compile below.
+      if [ -n "$x_src" ] && [ -f "$x_src" ] && [ -x ./xlang_asm ]; then
+        if ! ./xlang_asm -x -E -L .. "$x_src" >"$seed" 2>/dev/null \
+           || ! grep -q '^int32_t process_args_count_c(' "$seed" \
+           || ! grep -q '^uint8_t \* process_arg_c(' "$seed"; then
+          echo "ensure_host_cc_seed_o: process args .x regen failed; cold seed needed" >&2
+          return 1
+        fi
+      fi
       if [ ! -f "$seed" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
         return 1
@@ -4717,6 +5773,10 @@ ensure_std_core_prefer_one() {
           || return 1
       fi
       _proc_alias_c="seeds/runtime_process_import_alias.from_x.c"
+      # 7.2.1 twelfth knife (reverted on Ubuntu red): std_process_exit needs
+      # the static-inline xlang_proc_exit Cap body (raw syscall; .x cannot
+      # express it as extern — no exported definer). Stays seed until the
+      # exit face gets an exported symbol or the Cap inline strategy lands.
       if [ ! -f "$_proc_alias_c" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing $_proc_alias_c for $o" >&2
         return 1
@@ -4743,9 +5803,14 @@ ensure_std_core_prefer_one() {
       ;;
 
     net_merge)
-      # PLATFORM: SHARED net.o — mod.x + alpn/udp/tcp/udp_batch/workers + five fast
-      # pieces. PLATFORM: MACOS — force xlang-c for net submodules (post-wave102
-      # pure-asm arm64 leaves tls_stub/tcp_pool UNDEFs under product -dead_strip).
+      # PLATFORM: SHARED net.o — mod.x + alpn/udp/tcp/udp_batch/workers/tls_stub/tcp_pool
+      # + five fast pieces. PLATFORM: MACOS — force xlang-c for net submodules
+      # (post-wave102 pure-asm arm64 left tls_stub UNDEFs under product -dead_strip).
+      # F-04 tcp_pool.x must be in this merge: before this leaf, only weak
+      # std_net_tcp_pool_net_tcp_pool_*_c stubs (return 0) were merged, so
+      # cookbook net_tcp_pool built but create handle was always 0 (run=1).
+      # G.7: complete net_merge with real tcp_pool.o + strong import aliases
+      # (≡ tls_stub); do not keep a second weak body. PLATFORM: SHARED.
       xlang="${XLANG:-}"
       if [ -z "$xlang" ] || [ ! -x "$xlang" ]; then
         if [ -x ./xlang_asm ]; then xlang=./xlang_asm
@@ -4767,21 +5832,22 @@ ensure_std_core_prefer_one() {
           ;;
       esac
       objs=""
-      # PLATFORM: SHARED — include tls_stub (mod.x import std.net.tls_stub).
+      # PLATFORM: SHARED — include tls_stub + tcp_pool (mod.x import both).
       # OpenSSL/mbedTLS variants remain separate product overlays.
-      for x in alpn udp tcp udp_batch workers tls_stub; do
+      for x in alpn udp tcp udp_batch workers tls_stub tcp_pool; do
         sh scripts/xlang_compile_std_x.sh "$net_sub_xlang" "../std/net/$x.x" "../std/net/$x.o" || return 1
         objs="$objs ../std/net/$x.o"
       done
-      # Import-binding face: bare net_tls_*_c → std_net_tls_stub_net_tls_*_c.
+      # Import-binding face: bare net_tls_*_c → std_net_tls_stub_net_tls_*_c
+      # and bare net_tcp_pool_*_c → std_net_tcp_pool_net_tcp_pool_*_c.
       # xlang_compile_std_x emits bare C symbols; mod.x import path prefixes both
-      # leaf and name. G.7: single alias .o after stub compile (no second TLS body).
-      if [ -f ../std/net/tls_stub.o ]; then
+      # leaf and name. G.7: single alias .o after stub/pool compile (no second body).
+      if [ -f ../std/net/tls_stub.o ] || [ -f ../std/net/tcp_pool.o ]; then
         # Keep alias .o under std/net/ (not TMPDIR) so ld -r sees a stable path.
         _tls_alias_c="../std/net/tls_stub_import_alias.c"
         _tls_alias_o="../std/net/tls_stub_import_alias.o"
         {
-          echo '/* net_merge: import-binding aliases for std.net.tls_stub */'
+          echo '/* net_merge: import-binding aliases for std.net.tls_stub + tcp_pool */'
           echo '#include <stdint.h>'
           echo '#include <stddef.h>'
           cat <<'TEOF'
@@ -4805,8 +5871,8 @@ int32_t std_net_tls_stub_net_tls_write_c(int64_t h, uint8_t *buf, int32_t len) {
 int32_t std_net_tls_stub_net_tls_last_error_c(void) { return net_tls_last_error_c(); }
 int32_t std_net_tls_stub_net_tls_alpn_selected_c(int64_t h, uint8_t *out, int32_t out_cap) { return net_tls_alpn_selected_c(h, out, out_cap); }
 int32_t std_net_tls_stub_net_tls_alpn_is_h2_c(int64_t h) { return net_tls_alpn_is_h2_c(h); }
-/* Residual faces pulled by alpn/pool co-emit when product only needs connect_ctx.
- * Weak so real io/tcp_pool .o can override when linked. PLATFORM: SHARED. */
+/* Residual io faces when product only needs connect_ctx.
+ * Weak so real io .o can override when linked. PLATFORM: SHARED. */
 __attribute__((weak)) int32_t std_io_read_fixed_fd(int32_t a, uint32_t b, size_t c, size_t d, uint32_t e) {
   (void)a;(void)b;(void)c;(void)d;(void)e; return -1;
 }
@@ -4816,24 +5882,35 @@ __attribute__((weak)) int32_t std_io_write_fixed_fd(int32_t a, uint32_t b, size_
 __attribute__((weak)) uint8_t *xlang_io_read_ptr_len(size_t h, size_t *out_len) {
   (void)h; if (out_len) *out_len = 0; return (uint8_t *)0;
 }
-__attribute__((weak)) int64_t std_net_tcp_pool_net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c) {
-  (void)a;(void)b;(void)c; return 0;
+/* Strong import aliases for std.net.tcp_pool (≡ tls_stub). Bare bodies live in
+ * tcp_pool.o from tcp_pool.x. Do NOT weaken these — weak return-0 stubs were the
+ * net_tcp_pool cookbook run=1 root cause. PLATFORM: SHARED. */
+extern int64_t net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c);
+extern int32_t net_tcp_pool_acquire_c(int64_t h, uint32_t t);
+extern int32_t net_tcp_pool_release_c(int64_t h, int32_t fd);
+extern void net_tcp_pool_drain_c(int64_t h);
+extern void net_tcp_pool_destroy_c(int64_t h);
+extern int32_t net_tcp_pool_connect_count_c(int64_t h);
+extern int32_t net_tcp_pool_idle_count_c(int64_t h);
+extern int32_t net_tcp_pool_smoke_c(void);
+int64_t std_net_tcp_pool_net_tcp_pool_create_c(uint32_t a, uint32_t b, int32_t c) {
+  return net_tcp_pool_create_c(a, b, c);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_acquire_c(int64_t h, uint32_t t) {
-  (void)h;(void)t; return -1;
+int32_t std_net_tcp_pool_net_tcp_pool_acquire_c(int64_t h, uint32_t t) {
+  return net_tcp_pool_acquire_c(h, t);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_release_c(int64_t h, int32_t fd) {
-  (void)h;(void)fd; return -1;
+int32_t std_net_tcp_pool_net_tcp_pool_release_c(int64_t h, int32_t fd) {
+  return net_tcp_pool_release_c(h, fd);
 }
-__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_drain_c(int64_t h) { (void)h; }
-__attribute__((weak)) void std_net_tcp_pool_net_tcp_pool_destroy_c(int64_t h) { (void)h; }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_connect_count_c(int64_t h) {
-  (void)h; return 0;
+void std_net_tcp_pool_net_tcp_pool_drain_c(int64_t h) { net_tcp_pool_drain_c(h); }
+void std_net_tcp_pool_net_tcp_pool_destroy_c(int64_t h) { net_tcp_pool_destroy_c(h); }
+int32_t std_net_tcp_pool_net_tcp_pool_connect_count_c(int64_t h) {
+  return net_tcp_pool_connect_count_c(h);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_idle_count_c(int64_t h) {
-  (void)h; return 0;
+int32_t std_net_tcp_pool_net_tcp_pool_idle_count_c(int64_t h) {
+  return net_tcp_pool_idle_count_c(h);
 }
-__attribute__((weak)) int32_t std_net_tcp_pool_net_tcp_pool_smoke_c(void) { return 0; }
+int32_t std_net_tcp_pool_net_tcp_pool_smoke_c(void) { return net_tcp_pool_smoke_c(); }
 /* Fast-path addr helpers sometimes only on asm leaves; weak for pure host-C net.o. */
 __attribute__((weak)) int64_t net_tcp_local_addr_c(int32_t fd) { (void)fd; return 0; }
 __attribute__((weak)) int64_t net_tcp_peer_addr_c(int32_t fd) { (void)fd; return 0; }
@@ -5744,8 +6821,9 @@ r2_crt0_src_for_out() {
     src/asm/freestanding_io_x86_64.o)
       printf '%s\n' "asm src/asm/freestanding_io_x86_64.s" ;;
     src/asm/crt0_mingw.o)
-      # PLATFORM: WINDOWS — seed via cc_inc_tu (Makefile twin).
-      printf '%s\n' "cc_inc_tu seeds/crt0_mingw.from_x.c" ;;
+      # PLATFORM: WINDOWS — .x authority prefer lane (7.2.1 second knife);
+      # seed remains the no-product cold fallback.
+      printf '%s\n' "cc_inc_tu_x src/crt0_mingw.x" ;;
     *)
       echo "ensure_host_cc_seed_o r2-crt0: no source map for $o" >&2
       return 1
@@ -5775,6 +6853,15 @@ ensure_r2_crt0_one() {
       log "cc -c $src → $o"
       # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
       pure_as_compile "$o" "$src"
+      ;;
+    cc_inc_tu_x)
+      # 7.2.1: prefer-.x leaf — cc_inc_tu --auto (product -x -E + char**
+      # fixup); WIN32_O_CFLAGS pass-through like cc_inc_tu below.
+      if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+        log "skip $o (prefer-.x lane: FORCE to rebuild)"
+        return 0
+      fi
+      sh scripts/cc_inc_tu.sh --auto "$o" ${WIN32_O_CFLAGS:-}
       ;;
     cc_inc_tu)
       # PLATFORM: WINDOWS — WIN32_O_CFLAGS from env when set by caller (wave866:
@@ -6040,8 +7127,9 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
     check_family "R1_ALIAS_STUBS_OBJS" 8 "alias-stubs" "basename" ""
     check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
-    check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
-    check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
+    # Floors track mk/driver_seed_r_lists.mk (post_ship; was misc=9 seed-map=5).
+    check_family "R1_MISC_BASENAME_OBJS" 8 "misc-basename" "basename" ""
+    check_family "R1_SEED_MAP_OBJS" 4 "seed-map" "seed-map" ""
     check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
     {
       local panic_list panic_n=0 po pick
@@ -6352,9 +7440,11 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
   # extra-cflags: mixed paths; multi-flag map.
   check_family "R1_EXTRA_CFLAGS_OBJS" 5 "extra-cflags" "extra-cflags" ""
   # misc-basename: mixed cwd-root / src/ / build_asm/ paths; pure basename.
-  check_family "R1_MISC_BASENAME_OBJS" 9 "misc-basename" "basename" ""
-  # seed-map: mismatch stems + orch extras + thin_glue (wave758) + glue standalone (wave759).
-  check_family "R1_SEED_MAP_OBJS" 5 "seed-map" "seed-map" ""
+  # Floor tracks mk (post_ship; was 9).
+  check_family "R1_MISC_BASENAME_OBJS" 8 "misc-basename" "basename" ""
+  # seed-map: mismatch stems + orch extras + thin_glue (wave758).
+  # Floor tracks mk (post_ship; was 5).
+  check_family "R1_SEED_MAP_OBJS" 4 "seed-map" "seed-map" ""
   # R3 cold-else: thin+rest leaves cold path = pure basename host-cc.
   check_family "R3_COLD_SEED_OBJS" 9 "r3-cold-seed" "basename" ""
   # R2 panic: catalog list must resolve; seed/asm pick must work on this host.

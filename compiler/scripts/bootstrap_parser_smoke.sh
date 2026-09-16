@@ -85,7 +85,7 @@ case "$MODE" in
 esac
 
 if [ ! -x "$XLANG" ] && [ ! -f "$XLANG" ]; then
-  log "missing executable $XLANG (build product first: make relink-xlang / bootstrap-driver-seed)"
+  log "missing executable $XLANG (build product first: ./xbuild bootstrap-driver-seed / g05 relink)"
   exit 1
 fi
 
@@ -100,7 +100,7 @@ for f in ../std/sys/sys.o runtime_panic.o; do
 done
 if [ "$need_std" -ne 0 ]; then
   log "std/runtime objects missing (e.g. ../std/sys/sys.o, runtime_panic.o)"
-  log "hint: ./xbuild compiler-make std-objs  # product path builds std .o
+  log "hint: ./xbuild compiler-make std-objs  # product path builds std .o"
   exit 1
 fi
 
@@ -119,7 +119,7 @@ case "$MODE" in
     # 9.1 dual-path: .x parser binary + host product xlang both print "parse OK"
     # Requires prior bootstrap-parser (PARSER_BIN present); make prereq enforces.
     if [ ! -x "$PARSER_BIN" ] && [ ! -f "$PARSER_BIN" ]; then
-      fail "missing $PARSER_BIN (run bootstrap-parser first; make keeps prereq)"
+      fail "missing $PARSER_BIN (run bootstrap-parser first; shell smoke owns prereq)"
     fi
     # Minimal fixture
     printf 'function main(): i32 { return 0; }\0' > "$PARSE_FIXTURE"

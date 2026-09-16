@@ -63,6 +63,24 @@
 
 ---
 
+
+## Gate
+
+```bash
+./tests/run-std-process-pipe-spawn-gate.sh
+```
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；产品 `-o` 硬绿（或 tip 残＝obs）；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
+
+**gate report**：stdout 须含 `std-process-pipe-spawn gate OK`；失败打印 `std-process-pipe-spawn gate FAIL:` 行。
+
+| 资源 | 路径 |
+|------|------|
+| 本文 | `analysis/archive/std/std-process-pipe-spawn-v1.md` |
+| manifest | `tests/baseline/std-process-pipe-spawn.tsv` |
+
+**状态：定版 ✅（honesty soft→硬绿）**
+
 ## 5. 演进
 
 - `spawn_io` 合并环境变量 / cwd 选项  

@@ -19,12 +19,11 @@
  *   + tcp_parse_named + xlang_target_cpu_resolve + tcp_eq5 + tcp_eq6
  *   + xlang_simd_is_vector_type_spelling + xlang_simd_vector_lanes_esz_from_spelling
  *   + append_feat_name + flags_has_token
- * Cap residual（mega rest 冷路径）：xlang_target_cpu_print (FILE/fprintf) +
- *   OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
+ * Cap residual（mega rest 冷路径）：xlang_target_cpu_print（全平台 Cap io write，
+ *   fd-handle 脸 9.7.2 与 .x 权威一致）+ OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
  * FROM_X 下本文件业务 H=0（仅 extern 声明 + slice marker）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Prove：seeds/target_cpu_pure_surface.from_x.c（-E 同构）nm IDENTICAL。
  *
  * Exports: pending, resolve, simd spelling, print.
  * G-02f-6: also embeds OS detect_host / generic_for_host (#if/sysctl/proc).
@@ -32,7 +31,6 @@
  */
 #include <stdint.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 #include "target_cpu.h"
 
@@ -293,9 +291,84 @@ int target_cpu_pure_slice_marker(void) {
 
 /* --- Cap residual: language-limit funcs (always compiled) --- */
 
-/* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
+/* --- G-02f-5：print（Cap io write，fd-handle 脸 9.7.2；逻辑与原 target_cpu.inc 一致）--- */
 
-void xlang_target_cpu_print(FILE *out, uint32_t features) {
+/* PLATFORM: SHARED (LINUX | DARWIN | WINDOWS | POSIX) Cap 9.1.12 / 9.5.2 */
+#include <xlang_io_cap.h>
+#define HAVE_XLANG_IO_PRINT_CAP 1
+
+#if defined(HAVE_XLANG_IO_PRINT_CAP)
+
+/**
+ * Write entire buffer to fd via Cap io (handles partial writes).
+ * @param fd   stdout=1
+ * @param buf  bytes to emit
+ * @param len  byte count
+ * PLATFORM: SHARED (LINUX | DARWIN | WINDOWS) Cap residual 9.5.2
+ */
+static void tcp_cap_write_all(int fd, const char *buf, size_t len) {
+  size_t off = 0;
+  while (off < len) {
+    long n = xlang_io_write(fd, buf + off, len - off);
+    if (n <= 0)
+      break;
+    off += (size_t)n;
+  }
+}
+
+/**
+ * Format u32 as 8 lowercase hex digits into dst[8] (no NUL).
+ * PLATFORM: SHARED helper for Cap print
+ */
+static void tcp_fmt_u32_hex8(uint32_t v, char *dst) {
+  static const char hex[] = "0123456789abcdef";
+  int i;
+  for (i = 7; i >= 0; i--) {
+    dst[i] = hex[v & 0xfu];
+    v >>= 4;
+  }
+}
+
+/**
+ * Append fixed prefix + '=' + 0x + 8-digit hex + newline; write to fd.
+ * Byte-identical output to the libc fprintf path this replaced (gate grep
+ * depends on the exact `target_cpu_features=0x…` lines).
+ * PLATFORM: LINUX|DARWIN Cap residual 9.5.2
+ */
+static void tcp_cap_print_hex_line(int fd, const char *prefix, uint32_t val) {
+  char line[64];
+  char hex[8];
+  size_t plen;
+  size_t pos;
+  if (!prefix)
+    return;
+  plen = strlen(prefix);
+  if (plen + 1 + 2 + 8 + 1 > sizeof(line))
+    return;
+  memcpy(line, prefix, plen);
+  pos = plen;
+  line[pos++] = '=';
+  line[pos++] = '0';
+  line[pos++] = 'x';
+  tcp_fmt_u32_hex8(val, hex);
+  memcpy(line + pos, hex, 8);
+  pos += 8;
+  line[pos++] = '\n';
+  tcp_cap_write_all(fd, line, pos);
+}
+
+#endif /* HAVE_XLANG_IO_PRINT_CAP */
+
+/**
+ * Print the feature mask as stable key=value lines via Cap io (fd 1).
+ * @param out Opaque stdout handle (*u8, e.g. driver_stdio_stdout()); kept for
+ *            face parity with the .x authority — the Cap implementation always
+ *            writes through raw fd 1 and ignores the handle (NULL allowed).
+ * @param features Feature bitmask (XLANG_CPU_FEAT_*).
+ * Cap residual 9.7.2: face unified with .x authority — no libc FILE*, no fprintf.
+ * PLATFORM: SHARED (LINUX | DARWIN | WINDOWS) — Cap io write, fd 1.
+ */
+void xlang_target_cpu_print(uint8_t *out, uint32_t features) {
   char list[256];
   size_t pos = 0;
 
@@ -322,9 +395,31 @@ void xlang_target_cpu_print(FILE *out, uint32_t features) {
     append_feat_name(list, sizeof(list), &pos, "sve");
   if (features & 65536u) /* RVV */
     append_feat_name(list, sizeof(list), &pos, "rvv");
-  fprintf(out, "target_cpu_features=0x%08x\n", features);
-  fprintf(out, "target_cpu_features_list=%s\n", list[0] ? list : "(none)");
-  fprintf(out, "target_cpu_host_features=0x%08x\n", xlang_target_cpu_detect_host());
+#if defined(HAVE_XLANG_IO_PRINT_CAP)
+  {
+    char line[320];
+    size_t lpos;
+    const char *feat_list;
+    size_t flen;
+    /* stdout fd; out is the opaque *u8 handle from driver_stdio_stdout() —
+     * product always prints to raw fd 1 (face parity with .x authority). */
+    const int fd = 1;
+    (void)out;
+    tcp_cap_print_hex_line(fd, "target_cpu_features", features);
+    lpos = 0;
+    memcpy(line, "target_cpu_features_list=", 25);
+    lpos = 25;
+    feat_list = list[0] ? list : "(none)";
+    flen = strlen(feat_list);
+    if (lpos + flen + 1 <= sizeof(line)) {
+      memcpy(line + lpos, feat_list, flen);
+      lpos += flen;
+      line[lpos++] = '\n';
+      tcp_cap_write_all(fd, line, lpos);
+    }
+    tcp_cap_print_hex_line(fd, "target_cpu_host_features", xlang_target_cpu_detect_host());
+  }
+#endif
 }
 
 /* --- G-02f-6：OS detect（原 target_cpu.inc 语言限制 #if / sysctl /proc）--- */
@@ -336,10 +431,14 @@ void xlang_target_cpu_print(FILE *out, uint32_t features) {
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#include <xlang_proc_cap.h>
+#define HAVE_XLANG_PROC_CAP 1
 #endif
 #if defined(__APPLE__)
-#include <sys/sysctl.h>
-#include <sys/types.h>
+#if defined(__x86_64__)
+#include <cpuid.h>
+#define HAVE_XLANG_CPUID_MACOS 1
+#endif
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
@@ -375,39 +474,43 @@ uint32_t xlang_target_cpu_detect_x86_macro_fallback(void) {
 }
 #if defined(__linux__)
 /**
- * Linux x86：解析 /proc/cpuinfo 首条 flags 行。
+ * Linux x86：解析 /proc/cpuinfo 首条 flags 行（Cap 9.1.12，无 libc fopen/fgets）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_x86_linux(void) {
-    FILE *fp;
-    char line[512];
+    char buf[8192];
+    char *line;
+    char *next;
+    long n;
     uint32_t f = 0;
 
-    fp = fopen("/proc/cpuinfo", "r");
-    if (!fp)
+    n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+    if (n <= 0)
         return xlang_target_cpu_detect_x86_macro_fallback();
-    while (fgets(line, (int)sizeof(line), fp)) {
-        if (strncmp(line, "flags", 5) != 0)
-            continue;
-        if (flags_has_token(line, "sse2"))
-            f |= XLANG_CPU_FEAT_SSE2;
-        if (flags_has_token(line, "sse4_1"))
-            f |= XLANG_CPU_FEAT_SSE41;
-        if (flags_has_token(line, "avx"))
-            f |= XLANG_CPU_FEAT_AVX;
-        if (flags_has_token(line, "avx2"))
-            f |= XLANG_CPU_FEAT_AVX2;
-        if (flags_has_token(line, "avx512f"))
-            f |= XLANG_CPU_FEAT_AVX512F;
-        if (flags_has_token(line, "popcnt"))
-            f |= XLANG_CPU_FEAT_POPCNT;
-        if (flags_has_token(line, "bmi2"))
-            f |= XLANG_CPU_FEAT_BMI2;
-        if (flags_has_token(line, "fma"))
-            f |= XLANG_CPU_FEAT_FMA;
-        break;
+    line = buf;
+    while (line) {
+        next = xlang_proc_next_line(line);
+        if (strncmp(line, "flags", 5) == 0) {
+            if (flags_has_token(line, "sse2"))
+                f |= XLANG_CPU_FEAT_SSE2;
+            if (flags_has_token(line, "sse4_1"))
+                f |= XLANG_CPU_FEAT_SSE41;
+            if (flags_has_token(line, "avx"))
+                f |= XLANG_CPU_FEAT_AVX;
+            if (flags_has_token(line, "avx2"))
+                f |= XLANG_CPU_FEAT_AVX2;
+            if (flags_has_token(line, "avx512f"))
+                f |= XLANG_CPU_FEAT_AVX512F;
+            if (flags_has_token(line, "popcnt"))
+                f |= XLANG_CPU_FEAT_POPCNT;
+            if (flags_has_token(line, "bmi2"))
+                f |= XLANG_CPU_FEAT_BMI2;
+            if (flags_has_token(line, "fma"))
+                f |= XLANG_CPU_FEAT_FMA;
+            break;
+        }
+        line = next;
     }
-    fclose(fp);
     if (f == 0)
         f = xlang_target_cpu_detect_x86_macro_fallback();
     return f;
@@ -415,16 +518,21 @@ uint32_t xlang_target_cpu_detect_x86_linux(void) {
 #endif
 
 #if defined(__APPLE__)
-/** macOS x86：sysctl machdep.cpu.leaf7_features / machdep.cpu.feature_bits。 */
+/** macOS x86：CPUID leaf7 + leaf1 feature bits（Cap 9.1.12 s1，无 sysctlbyname）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_x86_macos(void) {
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
     uint64_t leaf7 = 0;
     uint64_t feat = 0;
-    size_t sz;
     uint32_t f = XLANG_CPU_FEAT_SSE2 | XLANG_CPU_FEAT_SSE41;
 
-    sz = sizeof(leaf7);
-    if (sysctlbyname("machdep.cpu.leaf7_features", &leaf7, &sz, NULL, 0) == 0) {
+#if defined(HAVE_XLANG_CPUID_MACOS)
+    if (__get_cpuid_max(0, NULL) >= 7) {
+        __cpuid_count(7, 0, &eax, &ebx, &ecx, &edx);
+        leaf7 = (uint64_t)(uint32_t)ebx;
         if (leaf7 & (1ULL << 5))
             f |= XLANG_CPU_FEAT_AVX2;
         if (leaf7 & (1ULL << 16))
@@ -434,13 +542,15 @@ uint32_t xlang_target_cpu_detect_x86_macos(void) {
         if (leaf7 & (1ULL << 12))
             f |= XLANG_CPU_FEAT_FMA;
     }
-    sz = sizeof(feat);
-    if (sysctlbyname("machdep.cpu.feature_bits", &feat, &sz, NULL, 0) == 0) {
+    if (__get_cpuid_max(0, NULL) >= 1) {
+        __cpuid(1, &eax, &ebx, &ecx, &edx);
+        feat = ((uint64_t)edx << 32) | (uint64_t)(uint32_t)ecx;
         if (feat & (1ULL << 28))
             f |= XLANG_CPU_FEAT_AVX;
         if (feat & (1ULL << 14))
             f |= XLANG_CPU_FEAT_POPCNT;
     }
+#endif
     if (f == 0)
         f = xlang_target_cpu_detect_x86_macro_fallback();
     return f;
@@ -463,42 +573,44 @@ uint32_t xlang_target_cpu_detect_x86(void) {
 
 #if defined(__linux__)
 /**
- * Linux arm64：/proc/cpuinfo Features 行（asimd=NEON，sve=SVE）。
+ * Linux arm64：/proc/cpuinfo Features 行（asimd=NEON，sve=SVE，Cap 9.1.12，无 libc fopen/fgets）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_arm64_linux(void) {
-    FILE *fp;
-    char line[512];
+    char buf[8192];
+    char *line;
+    char *next;
+    long n;
     uint32_t f = XLANG_CPU_FEAT_NEON;
 
-    fp = fopen("/proc/cpuinfo", "r");
-    if (!fp)
+    n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+    if (n <= 0)
         return f;
-    while (fgets(line, (int)sizeof(line), fp)) {
-        if (strncmp(line, "Features", 8) != 0)
-            continue;
-        if (flags_has_token(line, "asimd") || flags_has_token(line, "neon"))
-            f |= XLANG_CPU_FEAT_NEON;
-        if (flags_has_token(line, "sve"))
-            f |= XLANG_CPU_FEAT_SVE;
-        break;
+    line = buf;
+    while (line) {
+        next = xlang_proc_next_line(line);
+        if (strncmp(line, "Features", 8) == 0) {
+            if (flags_has_token(line, "asimd") || flags_has_token(line, "neon"))
+                f |= XLANG_CPU_FEAT_NEON;
+            if (flags_has_token(line, "sve"))
+                f |= XLANG_CPU_FEAT_SVE;
+            break;
+        }
+        line = next;
     }
-    fclose(fp);
     return f;
 }
 #endif
 
 #if defined(__APPLE__)
-/** macOS arm64：NEON 为 mandatory；SVE 通过 hw.optional.arm.FEAT_SVE 探测。 */
+/**
+ * macOS arm64：NEON mandatory；SVE sysctl 在 Apple Silicon 消费级芯片上不存在。
+ * Cap 9.1.12 s1：去掉 sysctlbyname（与旧路径失败时等价，仅 NEON）。
+ * PLATFORM: MACOS|DARWIN|arm64
+ */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_arm64_macos(void) {
-    uint32_t f = XLANG_CPU_FEAT_NEON;
-    int sve = 0;
-    size_t sz = sizeof(sve);
-
-    if (sysctlbyname("hw.optional.arm.FEAT_SVE", &sve, &sz, NULL, 0) == 0 && sve)
-        f |= XLANG_CPU_FEAT_SVE;
-    return f;
+    return XLANG_CPU_FEAT_NEON;
 }
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -517,31 +629,35 @@ uint32_t xlang_target_cpu_detect_arm64(void) {
 #if defined(__riscv) && __riscv_xlen == 64
 
 #if defined(__linux__)
-/** Linux riscv64：isa 行含 'v' 时认为有 RVV。 */
+/** Linux riscv64：isa 行含 'v' 时认为有 RVV（Cap 9.1.12，无 libc fopen/fgets）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t xlang_target_cpu_detect_riscv64_linux(void) {
-    FILE *fp;
-    char line[256];
+    char buf[4096];
+    char *line;
+    char *next;
+    long n;
     uint32_t f = 0;
 
-    fp = fopen("/proc/cpuinfo", "r");
-    if (!fp)
+    n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+    if (n <= 0)
         return 0;
-    while (fgets(line, (int)sizeof(line), fp)) {
+    line = buf;
+    while (line) {
         const char *isa;
-        if (strncmp(line, "isa", 3) != 0)
-            continue;
-        isa = strchr(line, ':');
-        if (!isa)
-            break;
-        isa++;
-        while (*isa == ' ' || *isa == '\t')
+        next = xlang_proc_next_line(line);
+        if (strncmp(line, "isa", 3) == 0) {
+            isa = strchr(line, ':');
+            if (!isa)
+                break;
             isa++;
-        if (strchr(isa, 'v') != NULL)
-            f |= XLANG_CPU_FEAT_RVV;
-        break;
+            while (*isa == ' ' || *isa == '\t')
+                isa++;
+            if (strchr(isa, 'v') != NULL)
+                f |= XLANG_CPU_FEAT_RVV;
+            break;
+        }
+        line = next;
     }
-    fclose(fp);
     return f;
 }
 #endif

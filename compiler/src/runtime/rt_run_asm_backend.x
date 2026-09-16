@@ -93,6 +93,13 @@ export extern function xlang_asm_codegen_elf_o_large_stack(
 export extern function xlang_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho: i32, use_coff: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib: i32): i32;
+/**
+ * Capture compiler `-O <level>` into link_abi before product -o ld.
+ * @param argc i32 — compiler argc
+ * @param argv *u8 — opaque char**; null-safe inside callee
+ * PLATFORM: SHARED — Darwin bare-ld skips -dead_strip at -O 0 (TOOL-005).
+ */
+export extern function xlang_link_capture_opt_level_from_argv(argc: i32, argv: *u8): void;
 /** G.7 single authority: CLI user .o table shared with invoke_cc (historical name).
  * PLATFORM: SHARED — set before invoke_ld; clear after (stale argv pointers). */
 export extern function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
@@ -1241,6 +1248,7 @@ export function rt_ab_step_prerun(): i32 {
   let prerun_dir: *u8 = 0 as *u8;
   let ec_loop: i32 = 0;
   let skip_tk: i32 = 0;
+  let need_import_map: i32 = 0;
   unsafe {
     n_deps = driver_asm_work_i_get(ai_ndeps());
     emit_elf = driver_asm_work_i_get(ai_emit_elf());
@@ -1310,10 +1318,46 @@ export function rt_ab_step_prerun(): i32 {
       rt_ab_diag(0 as *u8, 3, 6, 7);
       return 1;
     }
-    unsafe {
-      prerun_dir = xlang_dep_prerun_entry_dir(entry, lib, nlib);
-      xlang_pipeline_fill_ctx_path_buffers(one, prerun_dir, lib, nlib);
-      xlang_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len);
+    /* Import-map ctx is consumed only by parse_skip_typeck / for_asm_module_o.
+     * parse_only does not take ctx. map_impl full-parses this dep source into a
+     * throwaway tmp arena (import paths only) and frees it; the next parse_only
+     * then parses the same bytes into the real slot. Hello -o prerun sample was
+     * ~50% discarded tmp parse + ~50% parse_only. Skip the tmp parse when this
+     * dep's next step is parse_only.
+     * PLATFORM: SHARED — Darwin / Ubuntu product -o; leftover seed twin matches.
+     */
+    need_import_map = 1;
+    if (smoke != 0) {
+      need_import_map = 0;
+    } else {
+      if (emit_elf != 0) {
+        unsafe {
+          if (xlang_asm_user_std_dep_skip_x_typeck(dep_path) != 0) {
+            need_import_map = 0;
+          } else {
+            if (xlang_asm_user_dep_parse_skip_typeck_path(dep_path) != 0) {
+              need_import_map = 1;
+            } else {
+              if (skip_tk == 0) {
+                if (eo != 0) {
+                  need_import_map = 0;
+                } else {
+                  if (driver_asm_use_compiler_impl_c() != 0) {
+                    need_import_map = 0;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (need_import_map != 0) {
+      unsafe {
+        prerun_dir = xlang_dep_prerun_entry_dir(entry, lib, nlib);
+        xlang_pipeline_fill_ctx_path_buffers(one, prerun_dir, lib, nlib);
+        xlang_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len);
+      }
     }
     if (smoke != 0) {
       unsafe {
@@ -1822,6 +1866,8 @@ export function driver_run_asm_backend(
   let tlen: i32 = 0;
   unsafe {
     driver_bump_stack_limit();
+    // Record -O before ld so Darwin skips -dead_strip at -O 0 (TOOL-005 nsyms).
+    xlang_link_capture_opt_level_from_argv(argc, argv);
     driver_asm_work_reset();
     path = input_path;
     if (path == 0 as *u8) {

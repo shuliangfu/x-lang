@@ -1,24 +1,48 @@
 #!/usr/bin/env bash
-# C-08 v1 + G-05 收尾：根 build.x 构建策略 + build_tool / 统一入口 / Makefile 边界。
+# C-08 v1 + G-05 收尾：根 build.x 构建策略 + build_tool / 统一入口 / 零 Makefile。
 #
 # 用法：./tests/run-c08-build-x-gate.sh
+# wave honesty (2026-08-24 #4): DOC under analysis/archive/; compiler/Makefile +
+# root Makefile deleted MG wave941 — entry = ./xbuild → xlang-build.sh;
+# build-tool = scripts/build_tool.sh (refuse MF resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_C08_DOC:-analysis/archive/phase/phase-c-c08-v1.md}"
+
 echo "=== C-08 / G-05: build.x + daily entry policy ==="
-for f in build.x analysis/phase-c-c08-v1.md xlang-build.sh \
+for f in build.x "$DOC" xlang-build.sh xbuild \
          compiler/scripts/g05_build_xlang_asm.sh \
+         compiler/scripts/build_tool.sh \
          compiler/seeds/build_tool_libc_bridge.from_x.c; do
   [ -f "$f" ] || { echo "c08 build-x FAIL: missing $f" >&2; exit 1; }
 done
 grep -q 'build_use_asm_only' build.x || { echo "c08 build-x FAIL: build.x missing build_use_asm_only" >&2; exit 1; }
 grep -q 'build_tool' build.x || { echo "c08 build-x FAIL: build.x missing build_tool ref" >&2; exit 1; }
-[ -f compiler/seeds/build_runtime.from_x.c ] || { echo "c08 build-x FAIL: missing build_runtime.inc" >&2; exit 1; }
-grep -q 'build-tool' compiler/Makefile || { echo "c08 build-x FAIL: Makefile missing build-tool target" >&2; exit 1; }
+[ -f compiler/seeds/build_runtime.from_x.c ] || { echo "c08 build-x FAIL: missing build_runtime.from_x.c" >&2; exit 1; }
+
+# MG: Makefiles deleted — refuse resurrect; build-tool via shell + xbuild.
+if [ -f compiler/Makefile ]; then
+  echo "c08 build-x FAIL: compiler/Makefile resurrected (use ./xbuild + scripts/build_tool.sh)" >&2
+  exit 1
+fi
+if [ -f Makefile ]; then
+  echo "c08 build-x FAIL: root Makefile resurrected (use ./xbuild → xlang-build.sh)" >&2
+  exit 1
+fi
+grep -q 'build-tool' xlang-build.sh || {
+  echo "c08 build-x FAIL: xlang-build.sh missing build-tool command" >&2
+  exit 1
+}
+grep -q 'scripts/build_tool.sh' xlang-build.sh || {
+  echo "c08 build-x FAIL: xlang-build.sh must invoke scripts/build_tool.sh" >&2
+  exit 1
+}
 
 # G-05：统一入口与 build_tool
 grep -q 'build_tool' xlang-build.sh || { echo "c08 build-x FAIL: xlang-build.sh missing build_tool" >&2; exit 1; }
-grep -q 'g05_build_xlang_asm' xlang-build.sh || true  # optional mention in help
+grep -q 'g05_build_xlang_asm\|g05_prepare_and_relink\|xlang-build' xbuild || true
 
 # G-05 单点：libc bridge 必须调 g05 脚本（不再裸 make xlang_asm 字符串作默认路径）
 grep -q 'g05_build_xlang_asm.sh' compiler/seeds/build_tool_libc_bridge.from_x.c || {
@@ -35,7 +59,7 @@ grep -q 'bootstrap-driver-bstrict' compiler/scripts/g05_build_xlang_asm.sh || {
   exit 1
 }
 for s in g05_relink_xlang.sh g05_prepare_and_relink.sh g05_build_xlang_asm.sh \
-         g05_relink_env.sh g05_ensure_relink_prereqs.sh; do
+         g05_relink_env.sh g05_ensure_relink_prereqs.sh build_tool.sh; do
   [ -f "compiler/scripts/$s" ] || { echo "c08 build-x FAIL: missing compiler/scripts/$s" >&2; exit 1; }
 done
 # 产品路径零 make：prepare/ensure 不得调用 make 目标图
@@ -53,34 +77,10 @@ grep -q 'g05_ensure_relink_prereqs' compiler/scripts/g05_prepare_and_relink.sh |
   echo "c08 build-x FAIL: prepare must call g05_ensure_relink_prereqs.sh" >&2
   exit 1
 }
-# Makefile 兼容薄包装仍可保留 g05-ensure / g05-export 别名（委托 shell）
-grep -q 'g05-ensure-relink-prereqs' compiler/Makefile || {
-  echo "c08 build-x FAIL: Makefile missing g05-ensure-relink-prereqs" >&2
-  exit 1
-}
-grep -q 'g05_relink_env' compiler/Makefile || {
-  echo "c08 build-x FAIL: Makefile g05-export-relink must delegate g05_relink_env.sh" >&2
-  exit 1
-}
-# 薄包装：make xlang_asm / relink-xlang 须委托 shell
-grep -q 'g05_prepare_and_relink' compiler/Makefile || {
-  echo "c08 build-x FAIL: Makefile xlang_asm/relink must delegate g05_prepare_and_relink" >&2
-  exit 1
-}
 
-# 根 Makefile 日常目标委托 xlang-build.sh（G-05 物理收缩：顶层不再直调 compiler）
-grep -q 'xlang-build.sh' Makefile || {
-  echo "c08 build-x FAIL: root Makefile must delegate to xlang-build.sh" >&2
-  exit 1
-}
-grep -q 'G-05' Makefile || {
-  echo "c08 build-x FAIL: root Makefile should document G-05 daily entry" >&2
-  exit 1
-}
-
-# compiler/Makefile 顶注释：兜底角色
-head -10 compiler/Makefile | grep -q 'G-05\|兜底\|build_tool' || {
-  echo "c08 build-x FAIL: compiler/Makefile header should mark G-05 fallback role" >&2
+# Daily entry documents G-05 / xbuild (root Makefile left).
+grep -q 'G-05\|g05\|xlang-build' xbuild xlang-build.sh || {
+  echo "c08 build-x FAIL: xbuild/xlang-build.sh should document G-05 daily entry" >&2
   exit 1
 }
 
@@ -107,4 +107,4 @@ if [ "${XLANG_G05_LEGACY_SMOKE:-}" = "1" ] && [ -x compiler/build_tool ]; then
   fi
 fi
 
-echo "c08 build-x gate OK (G-05 entry + g05_build_xlang_asm choke point)"
+echo "c08 build-x gate OK (G-05 entry + g05_build_xlang_asm choke point + xbuild)"

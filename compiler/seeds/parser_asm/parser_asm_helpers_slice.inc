@@ -2,11 +2,25 @@
  * Hybrid: XLANG_PTHIN_HELPERS_FROM_X via seeds/pthin_helpers.from_x.c
  * import_path/label/struct_field, lex rewind/advance/peek, align_lex, first_token_kind
  * (lexer_init + expr zeros stay in thin rest for shared foundation)
+ *
+ * Hybrid P19b/P19c/P19d: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
+ * kind/copy/pos/match-kw/run_len extra/lex_at_token/rewind/struct_field_name/
+ * ident_is_unsafe region (bodies in src/asm/pthin_helpers.x + by-value
+ * trampolines in the seed TU). P19e align_lex + P19f return_end_tail trampolines live here.
+ * P5d (2026-09-13): lex_at_token_pos_c / ident_is_unsafe_stmt_kind_c /
+ * rewind_following_stmt_kind_c gained cold C twins (#ifndef gate) because
+ * pthin_ctrl.x realign references them cross-lane; cold must not UNDEF.
+ * P1d ASI advance_past_* and P1e parse_peek_function_name /
+ * first_token_kind twins skip under XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+ * (bodies in pthin_lex_skip.x). first_token_kind_buf AUDIT_CALL padding
+ * is compiled only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL
+ * is already nop). Cold: no BODIES define, this file is the full twin.
  */
 #ifndef PARSER_ASM_HELPERS_SLICE_INC
 #define PARSER_ASM_HELPERS_SLICE_INC
 
 /* ---- thin L3908-4287 ---- */
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * import_path_dot_segment_len：import 路径段长度（IDENT/I32/ASYNC），非法 token 返回 -1。
  */
@@ -19,6 +33,7 @@ int32_t parser_asm_import_path_dot_segment_len_c(struct parser_asm_token tok) {
     return 5;
   return -1;
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * import_path_dot_segment_len_glue：thin delegate / extern bl 共用 C 实现。
@@ -42,6 +57,7 @@ int32_t parser_token_is_label_start_glue(struct parser_asm_lexer_result r, struc
   return parser_asm_parser_token_is_label_start_slice_c(r, source);
 }
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * import_path_dot_segment_copy：将 source[token_start..+seg_len) 写入 path_buf[path_len..]。
  */
@@ -55,19 +71,36 @@ void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 
       path_buf[path_len + i] = source->data[token_start + (size_t)i];
   }
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * struct_field_name_from_tok：结构体字段名（ident / keyword-as-ident）。
  * PLATFORM: SHARED — field names may reuse keyword tokens (soa/packed/type).
  * Root fix for std/schema: field `type: i32` was TOKEN_TYPE; prior code returned
  * -1 here → layout parse aborted mid-struct → later fields "unknown field".
+ * Hybrid P19d: body in pthin_helpers.x (kind + P1b at_end copy / literals).
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_struct_field_name_from_kind_c(int32_t kind, uint8_t *data, int32_t length, size_t next_pos,
+                                                        int32_t ident_len, uint8_t *out);
+int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_result r,
+                                                      struct parser_asm_slice_u8 *source, uint8_t *out) {
+  int32_t slen;
+  if (!out)
+    return -1;
+  slen = 0;
+  if (source && source->length > 0)
+    slen = source->length > (size_t)2147483647 ? 2147483647 : (int32_t)source->length;
+  return parser_asm_struct_field_name_from_kind_c(r.tok.kind, source ? source->data : (uint8_t *)0, slen,
+                                                  r.next_lex.pos, r.tok.ident_len, out);
+}
+#else
 int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_result r,
                                                       struct parser_asm_slice_u8 *source, uint8_t *out) {
   if (!out)
     return -1;
-  /* wave583 Cap residual: field name content ≤127 (StructLayoutFieldEntry.name[128]). */
-  if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 127) {
+  /* wave583 Cap residual: field name content ≤255 (StructLayoutFieldEntry.name[256]). */
+  if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0 && r.tok.ident_len <= 255) {
     parser_asm_copy_slice_to_name64_at_end_slice_c(source, r.next_lex.pos, r.tok.ident_len, out);
     return r.tok.ident_len;
   }
@@ -96,7 +129,9 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
   }
   return -1;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X struct_field_name */
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * struct_field_name_tok_kind：token kind 是否为合法字段名起点。
  * PLATFORM: SHARED — include TOKEN_TYPE (keyword-as-field-name).
@@ -119,6 +154,7 @@ int32_t parser_asm_struct_field_continues_tok_kind_c(int32_t k) {
     return 1;
   return parser_asm_struct_field_name_tok_kind_c(k) != 0 || k == (int32_t)TOKEN_ALIGN;
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * parser_token_is_label_start：当前 IDENT 且下一 token 为 COLON（标号语句 label:）。
@@ -134,16 +170,28 @@ int32_t parser_asm_parser_token_is_label_start_slice_c(struct parser_asm_lexer_r
   return parser_asm_stretch_token_is_label_start_c((int32_t)r.tok.kind, (int32_t)nx.tok.kind);
 }
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * lexer_pos_before_run：由 token 结束位置与 run_len 反推起点。
  */
 size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len) {
   return end_pos - (size_t)run_len;
 }
+#else
+extern size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
  * lexer_token_run_len：token_start==0 时按 kind 推断关键字/字面量字节长度。
+ * Hybrid P19c: body in pthin_helpers.x (kind split). Dual numbering stays:
+ * stretch compact table first, token.h extra cases in .x. Do not merge.
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_lexer_token_run_len_kind_c(int32_t kind);
+int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
+  return parser_asm_lexer_token_run_len_kind_c(tok.kind);
+}
+#else
 int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
   int32_t stretch = parser_asm_stretch_token_run_len_c(tok.kind);
   if (stretch > 0)
@@ -210,7 +258,9 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
     return 1;
   }
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X run_len */
 
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
 /**
  * parser_match_kw_immediately_before：ident 前是否为 "match "（6 字节）。
  */
@@ -224,23 +274,41 @@ int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_
          source->data[p + 2] == (uint8_t)'t' && source->data[p + 3] == (uint8_t)'c' &&
          source->data[p + 4] == (uint8_t)'h' && source->data[p + 5] == (uint8_t)' ';
 }
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
- * ident 是否为语句关键字 unsafe。
+ * ident 是否为语句关键字 unsafe（标量体）。
+ * Hybrid P19d: body authority in pthin_helpers.x. Do not merge into P4b.
+ * P5d (2026-09-13): pthin_ctrl.x realign references this symbol cross-lane,
+ * so the cold twin must define it too (same #ifndef/#else-extern gate as
+ * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
+                                               size_t next_pos, uint8_t *data, size_t length) {
+  size_t start;
+  if (!data || kind != (int32_t)TOKEN_IDENT || ident_len != 6)
+    return 0;
+  start = token_start;
+  if (start == 0)
+    start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+  if (start + 6 > length)
+    return 0;
+  return data[start] == (uint8_t)'u' && data[start + 1] == (uint8_t)'n' &&
+         data[start + 2] == (uint8_t)'s' && data[start + 3] == (uint8_t)'a' &&
+         data[start + 4] == (uint8_t)'f' && data[start + 5] == (uint8_t)'e';
+}
+#else
+extern int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
+                                                      size_t next_pos, uint8_t *data, size_t length);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X ident_is_unsafe kind */
+
 int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r,
                                                 struct parser_asm_slice_u8 *source) {
-  size_t start;
-  if (!source || !source->data || r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len != 6)
+  if (!source)
     return 0;
-  start = r.token_start;
-  if (start == 0)
-    start = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, r.tok.ident_len);
-  if (start + 6 > source->length)
-    return 0;
-  return source->data[start] == (uint8_t)'u' && source->data[start + 1] == (uint8_t)'n' &&
-         source->data[start + 2] == (uint8_t)'s' && source->data[start + 3] == (uint8_t)'a' &&
-         source->data[start + 4] == (uint8_t)'f' && source->data[start + 5] == (uint8_t)'e';
+  return parser_asm_ident_is_unsafe_stmt_kind_c(r.tok.kind, r.tok.ident_len, r.token_start, r.next_lex.pos,
+                                               source->data, source->length);
 }
 
 /**
@@ -258,26 +326,45 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
  * Fix: for TOKEN_STRING, back up one byte from content token_start to the `"`.
  * tok.line/col already name the opening quote (lexer line0/col0).
  */
+/**
+ * lex_at_token_from_result 的标量 pos 体（token_start 优先；STRING 回退开引号；
+ * 0 时按 next_pos 回推 run）。
+ * Hybrid P19c: body authority in pthin_helpers.x.
+ * P5d (2026-09-13): pthin_ctrl.x realign references this symbol cross-lane,
+ * so the cold twin must define it too (same #ifndef/#else-extern gate as
+ * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
+ */
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos) {
+  struct parser_asm_token t;
+  int32_t span;
+  if (token_start == 0) {
+    if (kind == (int32_t)TOKEN_STRING) {
+      span = ident_len + 2;
+      if (span < 2)
+        span = 2;
+      return parser_asm_lexer_pos_before_run_c(next_pos, span);
+    }
+    if (kind == (int32_t)TOKEN_IDENT && ident_len > 0)
+      return parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+    memset(&t, 0, sizeof(t));
+    t.kind = kind;
+    t.ident_len = ident_len;
+    return parser_asm_lexer_pos_before_run_c(next_pos, parser_asm_lexer_token_run_len_c(t));
+  }
+  if (kind == (int32_t)TOKEN_STRING)
+    return token_start - (size_t)1;
+  return token_start;
+}
+#else
+extern size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X lex_at_token pos */
+
 static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct parser_asm_lexer_result r) {
   struct parser_asm_lexer lex;
-  size_t p;
-  p = r.token_start;
-  if (p == 0) {
-    if (r.tok.kind == (int32_t)TOKEN_STRING) {
-      /* content len + opening + closing quotes; next_lex is past closer. */
-      int32_t run = r.tok.ident_len + 2;
-      if (run < 2)
-        run = 2;
-      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, run);
-    } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0)
-      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, r.tok.ident_len);
-    else
-      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, parser_asm_lexer_token_run_len_c(r.tok));
-  } else if (r.tok.kind == (int32_t)TOKEN_STRING) {
-    /* token_start = first content byte; re-lex needs the opening quote. */
-    p = p - (size_t)1;
-  }
-  lex.pos = p;
+  /* PLATFORM: SHARED — P19c. .x owns pos in hybrid; line/col stay here
+   * (language has no struct-by-value lexer). */
+  lex.pos = parser_asm_lex_at_token_pos_c(r.tok.kind, r.token_start, r.tok.ident_len, r.next_lex.pos);
   lex.line = r.tok.line;
   lex.col = r.tok.col;
   return lex;
@@ -292,12 +379,24 @@ struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_
 
 /**
  * parser_rewind_lex_for_following_stmt：let/if 初值后若后继为 stmt 关键字则回绕 lex。
+ * Hybrid P19c: kind predicate in pthin_helpers.x; this trampoline keeps
+ * the by-value lexer ABI.
+ * P5d (2026-09-13): pthin_ctrl.x realign references this symbol cross-lane,
+ * so the cold twin must define it too (same #ifndef/#else-extern gate as
+ * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
+#ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind) {
+  return kind == (int32_t)TOKEN_RETURN || kind == (int32_t)TOKEN_IF || kind == (int32_t)TOKEN_WHILE ||
+         kind == (int32_t)TOKEN_FOR || kind == (int32_t)TOKEN_MATCH || kind == (int32_t)TOKEN_RBRACE;
+}
+#else
+extern int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind);
+#endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X rewind kind */
+
 struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct parser_asm_lexer lex_in,
                                                                           struct parser_asm_lexer_result r) {
-  if (r.tok.kind == (int32_t)TOKEN_RETURN || r.tok.kind == (int32_t)TOKEN_IF ||
-      r.tok.kind == (int32_t)TOKEN_WHILE || r.tok.kind == (int32_t)TOKEN_FOR ||
-      r.tok.kind == (int32_t)TOKEN_MATCH || r.tok.kind == (int32_t)TOKEN_RBRACE)
+  if (parser_asm_rewind_following_stmt_kind_c(r.tok.kind) != 0)
     return parser_asm_lex_at_token_from_result_inner(r);
   return lex_in;
 }
@@ -305,7 +404,29 @@ struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct
 /**
  * parse_block return 语句尾：r 已在 RBRACE 时置 *block_break=1 结束块循环（勿 lexer_next 吞 sibling if）；
  * 否则 advance lex 并置 *stmt_tok_ready=1。
+ * Hybrid P19f: decide+flags in pthin_helpers.x; this TU keeps sync+next_into.
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+/* PLATFORM: SHARED — P19f (2026-09-16): RBRACE vs advance decision lives
+ * in pthin_helpers.x. C trampoline keeps sync-from-next_lex +
+ * lexer_next_into (P1d face; .x never sees lexer_result). Lane rides
+ * the existing HELPERS_BODIES_FROM_X / _pthin_p9a_ok gate (same as P19e). */
+extern int32_t parser_asm_parse_block_return_end_tail_into_c(int32_t tok_kind, int32_t *stmt_tok_ready,
+                                                             int32_t *block_break);
+void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
+                                              struct parser_asm_lexer *lex_cur,
+                                              struct parser_asm_slice_u8 *source, int32_t *stmt_tok_ready,
+                                              int32_t *block_break) {
+  if (!r || !lex_cur || !source || !stmt_tok_ready || !block_break)
+    return;
+  if (parser_asm_parse_block_return_end_tail_into_c(r->tok.kind, stmt_tok_ready, block_break) == 0)
+    return;
+  lex_cur->pos = r->next_lex.pos;
+  lex_cur->line = r->next_lex.line;
+  lex_cur->col = r->next_lex.col;
+  lexer_next_into(r, *lex_cur, source);
+}
+#else
 void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
                                               struct parser_asm_lexer *lex_cur,
                                               struct parser_asm_slice_u8 *source, int32_t *stmt_tok_ready,
@@ -322,6 +443,7 @@ void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
   lexer_next_into(r, *lex_cur, source);
   *stmt_tok_ready = 1;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X parse_block_return_end_tail */
 
 /**
  * advance_past_stmt_semicolon_into: sync past `;` after an expression statement,
@@ -342,6 +464,26 @@ void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
  * PLATFORM: SHARED — parse ASI; docs/08 still recommends `;` mid-block;
  * product accepts keyword ASI (wave361+) and IDENT/control heads here.
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1d trampoline. *r_out is the consumed following
+ * token (C lexer_next_into from the entry cursor). .x already stepped
+ * once; replay next_into so callers still read r_out->tok. Do not add
+ * P9a as a hard gate to P19 (this define comes from P1b try_x_to_o). */
+extern int32_t parser_asm_advance_past_stmt_semicolon_into_c(void *lex_inout, void *source);
+int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_lexer_result *r_out,
+                                                            struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!r_out || !source)
+    return 0;
+  cur = lex;
+  rc = parser_asm_advance_past_stmt_semicolon_into_c(&cur, source);
+  lexer_next_into(r_out, lex, source);
+  (void)cur;
+  return rc;
+}
+#else
 int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                             struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source) {
@@ -363,11 +505,32 @@ int32_t parser_asm_advance_past_stmt_semicolon_into_slice_c(struct parser_asm_le
     return 1;
   return 0;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X advance_past_stmt_semicolon */
 
 /**
  * advance_past_cond_rparen_into：if/while 条件后同步到 ) 之后（或已见 {）。
  * PLATFORM: SHARED — paren form `if (cond) {` and bare form `if cond {` (docs/03; wave361).
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1d trampoline. Replay C's next_into (+ extra next
+ * after `)`) so *r_out is the token callers inspect. .x already stepped. */
+extern int32_t parser_asm_advance_past_cond_rparen_into_c(void *lex_inout, void *source);
+int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer_result *r_out,
+                                                         struct parser_asm_lexer lex,
+                                                         struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!r_out || !source)
+    return 0;
+  cur = lex;
+  rc = parser_asm_advance_past_cond_rparen_into_c(&cur, source);
+  lexer_next_into(r_out, lex, source);
+  if (rc && r_out->tok.kind == (int32_t)TOKEN_RPAREN)
+    lexer_next_into(r_out, r_out->next_lex, source);
+  (void)cur;
+  return rc;
+}
+#else
 int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer_result *r_out,
                                                          struct parser_asm_lexer lex,
                                                          struct parser_asm_slice_u8 *source) {
@@ -386,18 +549,36 @@ int32_t parser_asm_advance_past_cond_rparen_into_slice_c(struct parser_asm_lexer
     return 1;
   return 0;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X advance_past_cond_rparen */
 
 /**
  * parse_peek_function_name_buf 的 C 实现；EMIT_HEAVY 桩 bl 目标。
  * lex 位于 function 关键字；成功返回 name_len，失败返回 0。
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1e trampoline. Wrap (data,len) as a slice; caller
+ * lex is by-value and is not written back. Leftover AUDIT stays in the
+ * cold twin only. */
+extern int32_t parser_asm_parse_peek_function_name_into_c(void *lex_inout, void *source, uint8_t *out);
+int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+                                                  uint8_t *out) {
+  struct parser_asm_slice_u8 source;
+  struct parser_asm_lexer cur;
+  if (!data || !out)
+    return 0;
+  source.data = data;
+  source.length = len >= 0 ? (size_t)len : 0;
+  cur = lex;
+  return parser_asm_parse_peek_function_name_into_c(&cur, &source, out);
+}
+#else
 int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
                                                   uint8_t *out) {
   struct parser_asm_lexer_result r;
   size_t name_start;
   if (!data || !out)
     return 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_peek_function_name_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_peek_function_name_buf_audit_c(&lex, data, len));
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_FUNCTION)
     return 0;
@@ -420,6 +601,7 @@ int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, u
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(out, r.tok.ident_len));
   return r.tok.ident_len;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X parse_peek_function_name */
 
 /* G-02f-281: moved to parser_asm_lex_skip_slice.inc (was L4320-L4447) */
 
@@ -427,6 +609,23 @@ int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, u
  * 将 lex 对齐到 trait/impl 关键字起点；统一跳过空白与注释，并用 lexer 复核 token kind。
  * hybrid 跨 TU：P10 glue 以 extern 引用，故非 static（G-02f-326）。
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+/* PLATFORM: SHARED — P19e (2026-09-14): body lives in pthin_helpers.x
+ * (P9b ws skip + P9a peek family/cursor trio + P19c at_token_pos).
+ * By-value lexer face stays here; the .x mutates the local copy in
+ * place. Lane gates on _pthin_p9a_ok (see g05_ensure_relink_prereqs). */
+extern void parser_asm_align_lex_to_keyword_prefix_into_c(void *lex_inout, void *source,
+                                                          const uint8_t *kw, size_t kw_len);
+struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_asm_lexer lex,
+                                                                 struct parser_asm_slice_u8 *source,
+                                                                 const char *kw, size_t kw_len) {
+  struct parser_asm_lexer out = lex;
+  if (!source || !source->data || !kw || kw_len == 0)
+    return out;
+  parser_asm_align_lex_to_keyword_prefix_into_c(&out, source, (const uint8_t *)kw, kw_len);
+  return out;
+}
+#else
 struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_asm_lexer lex,
                                                                         struct parser_asm_slice_u8 *source,
                                                                         const char *kw, size_t kw_len) {
@@ -446,11 +645,24 @@ struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct parser_a
     return parser_asm_lex_at_token_from_result_inner(r);
   return lex;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X align_lex */
 
 /* ---- thin L4303-5080 ---- */
 /**
  * first_token_kind：诊断用，返回 source 首 token 的 kind（整型）。
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* PLATFORM: SHARED — P1e trampoline. Language has no lexer_init; this
+ * inits then calls .x (one step, return kind). buf stays a wrap over slice. */
+extern int32_t parser_asm_first_token_kind_into_c(void *lex_inout, void *source);
+int32_t parser_asm_first_token_kind_slice_c(struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer lex;
+  if (!source)
+    return (int32_t)TOKEN_EOF;
+  lex = parser_asm_lexer_init_c();
+  return parser_asm_first_token_kind_into_c(&lex, source);
+}
+#else
 int32_t parser_asm_first_token_kind_slice_c(struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
@@ -460,6 +672,7 @@ int32_t parser_asm_first_token_kind_slice_c(struct parser_asm_slice_u8 *source) 
   lexer_next_into(&r, lex, source);
   return r.tok.kind;
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X first_token_kind */
 
 /**
  * first_token_kind_buf：buf 路径诊断首 token kind。
@@ -469,44 +682,78 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
   if (!data || len <= 0)
     return (int32_t)TOKEN_EOF;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_first_token_kind_buf_audit_c(data, len));
+#ifdef XLANG_PARSER_STRETCH_AUDIT
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_first_token_kind_buf_audit_c(&lex_init, data, len));
+}
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_call_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_expr_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultra_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_super_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -514,7 +761,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -523,7 +773,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -533,7 +786,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -544,7 +800,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -556,7 +815,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -569,7 +831,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -583,7 +848,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -598,7 +866,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -614,7 +885,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -631,7 +905,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -649,7 +926,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -668,7 +948,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -688,7 +971,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -709,7 +995,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -731,7 +1020,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -754,7 +1046,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -778,7 +1073,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -803,7 +1101,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -829,7 +1130,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -856,7 +1160,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -884,7 +1191,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -913,7 +1223,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -943,7 +1256,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -974,7 +1290,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1006,7 +1325,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1039,7 +1361,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1073,7 +1398,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1108,7 +1436,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1144,7 +1475,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1181,7 +1515,10 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -1219,9 +1556,19 @@ int32_t parser_asm_first_token_kind_buf_c(uint8_t *data, int32_t len) {
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_expr_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_primary_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_simd_builtin_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_expr_deep_buf_audit_c(&lex_init, data, len));
+  }
+#endif /* XLANG_PARSER_STRETCH_AUDIT */
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_first_token_kind_slice_c(&source);

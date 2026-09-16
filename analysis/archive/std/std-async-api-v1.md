@@ -139,4 +139,52 @@ XLANG_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench
 | 1M 压测 | `tests/run-std-async-1m-gate.sh` |
 | 全量烟测 | `tests/run-async.sh` |
 
-**STD-004 状态：定版 ✅**
+---
+
+## 10. Gate
+
+```bash
+./tests/run-std-async-api-gate.sh
+```
+
+Honesty (2026-08-26): prefer `xlang_asm` + `XLANG_LINK_XLANG`; `check` observational
+(check gate paused 2026-08-05); `bench/i06_async_switch.x` + cookbook
+`async_mod_import.x` / `async_drain_idle.x` exit 0 hard-fail; `i06_async_1m_coop`
+(`coop_pingpong*`) observational (product UNDEF residual — not soft); no native
+xlang → **FAIL** (not soft SKIP→OK). Report `check=` / `switch=` / `imp=` /
+`drain=` / `coop=` / `skip=`.
+
+```
+xlang: [XLANG_STD_ASYNC_API] status=ok check=1 switch=1 imp=1 drain=1 coop=0 skip=0
+```
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-async-api-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` switch＋imp＋drain hard；check／coop＝obs；report `run=`／`obs=`／`skip=`。Keep `## 10. Gate`。 Leave wrap body / ensure_std family.
+
+**STD-004 状态：定版 ✅**（Gate honesty soft→硬绿 2026-08-26）
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27) `run-perf-async.sh`: prefer xlang_asm; refuse soft auto-make / soft FAIL_ON_ASYNC_REGRESSION:-0 silent OK; over-cap = obs; bench→`i06_async_switch*`; report run=/obs=/skip=.
+
+Honesty soft→硬绿 (2026-08-27) `run-std-async-1m-gate.sh`: prefer `xlang_asm` +
+`XLANG_LINK_XLANG`; refuse soft SKIP→OK / silent asm→c fallback; fossil
+`async_switch.x`／`async_switch_sched.x` → live `i06_*`; `async_1m_coop`
+(`coop_pingpong*`) UNDEF = obs (product residual — not soft); platform
+must/skip from TSV stays honest; missing native／显式坏 XLANG = hard die;
+report `run=`／`obs=`／`skip=`.
+
+Honesty soft→硬绿 (2026-08-28) `run-std-async-future-gate.sh`: prefer
+`xlang_asm` + `XLANG_LINK_XLANG`; refuse soft SKIP→OK / prefer-c / soft
+auto-make (`future.o … || true`); missing native／显式坏 XLANG = hard die;
+host-c archaeology = obs (prebuilt `future.o` only; refuse soft ensure);
+`xlang check` = obs (paused); tip product `-o`／run UNDEF = obs; `-E` tool
+fail = hard die; CPS emit marker miss = obs; report `run=`／`obs=`／`skip=`
+(retired `c=`／`x=`／`emit=`).
+
+Honesty soft→硬绿 (2026-08-28) `run-std-async-context-gate.sh`: prefer
+`xlang_asm` + `XLANG_LINK_XLANG`; refuse soft SKIP→OK / prefer-c
+(`xlang-c` first, no asm) / soft `ensure_std_c_o` rebuild of migrated
+scheduler／context／time／task; missing native／显式坏 XLANG = hard die;
+host-c archaeology = obs (prebuilt `.o` only; F-07); `xlang check` = obs;
+tip product `-o`／run UNDEF = obs; report `run=`／`obs=`／`skip=` (PREFIX
+`XLANG_STD_ASYNC_CTX`; historical STD090 label retired — STD-090 is schema).

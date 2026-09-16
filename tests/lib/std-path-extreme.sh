@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
-# std-path-extreme.sh — STD-140 manifest 与烟测辅助
+# std-path-extreme.sh — STD-140 manifest helpers (path extreme clean/resolve).
+#
+# Usage (after source):
+#   std_path_extreme_symbols_ok MOD_X TSV
+#   std_path_extreme_vectors_ok VECTORS_TSV [MIN_ROWS]
+#   std_path_extreme_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check retired to obs; prefer asm product -o hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_PATH_EXTREME_PREFIX="${XLANG_STD140_PATH_EXTREME_PREFIX:-xlang: [XLANG_STD140_PATH_EXTREME]}"
 
-# 校验 manifest 中 api/file/smoke 锚点；echo 缺失数。
+# Validate manifest api/file/smoke/script/section anchors.
+# Echo miss count; return 0 when miss=0.
 std_path_extreme_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -36,7 +44,7 @@ std_path_extreme_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 校验向量 TSV 最少行数。
+# Validate vectors TSV has at least min_rows data lines.
 std_path_extreme_vectors_ok() {
   local tsv="$1"
   local min_rows="${2:-8}"
@@ -52,32 +60,12 @@ std_path_extreme_vectors_ok() {
   return 0
 }
 
-# 编译并运行 extreme_clean 烟测。
-std_path_extreme_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local exe="/tmp/xlang_std_path_extreme_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-path-extreme FAIL: compile $src" >&2
-    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-path-extreme FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal is product -o extreme_clean.x; check = obs.
 std_path_extreme_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD_PATH_EXTREME_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_PATH_EXTREME_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

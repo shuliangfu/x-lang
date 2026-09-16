@@ -22,7 +22,7 @@ uint8_t *typeck_named_scratch64(void) {
 }
 
 /** typeck.x: multi-slot 128B scratch (wave577 Cap: 64->128). */
-static uint8_t g_typeck_scratch64[16][128];
+static uint8_t g_typeck_scratch64[16][256];
 
 uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0 || slot >= 16)
@@ -117,6 +117,7 @@ extern int32_t pipeline_expr_match_arm_is_enum_variant(struct ast_ASTArena *a, i
 extern int32_t pipeline_expr_match_arm_variant_index(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 extern int32_t pipeline_expr_match_arm_lit_val(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 extern int32_t pipeline_expr_match_arm_result_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_guard_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
@@ -244,7 +245,8 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    *
    *      We resolve the chicken-and-egg by pre-marking here using the
    *      global g_typeck_active_module, which is set at module typeck
-   *      entry (ast_pool.c L6428 / pipeline_glue.c L22027) before any
+   *      entry (runtime_pipeline_abi pipeline_typeck_active_module_set_c;
+   *      historical ast_pool.c/pipeline_glue.c L* left wave309) before any
    *      block-level typeck runs. The marker is idempotent — early-
    *      returns if already marked — so re-marking at L6850 is a no-op.
    *
@@ -296,7 +298,8 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    * `if cond { then } else { else }` is a const expression iff cond, then,
    * and else are all const expressions. EXPR_IF and EXPR_TERNARY share the
    * same field layout (if_cond_ref / if_then_ref / if_else_ref, see
-   * ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844), so one
+   * runtime_pipeline_abi.x::asm_wpo_collect_edges_from_expr;
+   * historical ast_pool.c L14836-14844 left wave309), so one
    * branch covers both kinds.
    *
    * Why: Lets `const Y: i32 = (X == 2) ? 100 : 200;` and
@@ -323,7 +326,9 @@ static int typeck_is_const_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_re
    *           (~24 bytes). Also unlocks parent binop folds.
    *
    * PLATFORM: SHARED — EXPR_IF / EXPR_TERNARY field layout is identical on
-   *           macOS arm64 and Ubuntu x86_64 (ast_pool.c L14836).
+   *           macOS arm64 and Ubuntu x86_64 (runtime_pipeline_abi.x
+   *           asm_wpo_collect_edges_from_expr; historical ast_pool.c
+   *           L14836 left wave309).
    */
   if (kd == ast_ExprKind_EXPR_TERNARY || kd == ast_ExprKind_EXPR_IF) {
     int32_t cond_ref = pipeline_expr_if_cond_ref_at(a, expr_ref);
@@ -835,12 +840,15 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    * PLATFORM: SHARED — C5-enum-variant CTFE (TypeName.Variant folds to tag).
    *
    * Why: Enum variants are statically assigned a discriminator tag at parse
-   *      time via pipeline_module_enum_variant_tag_for_names (ast_pool.c
-   *      L4204). The same source feeds both:
-   *        - MatchArmEntry.variant_index (pipeline_expr_append_match_arm,
-   *          ast_pool.c L5200) — drives arm comparison in EXPR_MATCH fold.
-   *        - Expr.enum_variant_tag (set by pipeline_expr_try_mark_enum_field_access,
-   *          ast_pool.c L4312) — drives emit's `mov w0,#tag` fast path.
+   *      time via pipeline_module_enum_variant_tag_for_names
+   *      (runtime_pipeline_abi.x; historical ast_pool.c L4204 left wave309).
+   *      The same source feeds both:
+   *        - MatchArmEntry.variant_index (pipeline_expr_append_match_arm in
+   *          runtime_pipeline_abi; historical ast_pool.c L5200 left wave309)
+   *          — drives arm comparison in EXPR_MATCH fold.
+   *        - Expr.enum_variant_tag (set by pipeline_expr_try_mark_enum_field_access
+   *          in runtime_pipeline_abi; historical ast_pool.c L4312 left wave309)
+   *          — drives emit's `mov w0,#tag` fast path.
    *      Folding Color.Red into const_folded_val=tag enables two key wins:
    *        (1) `const X: Color = Color.Red;` stamps X with the tag so
    *            downstream `match X { Color.Red => ... }` folds to a single
@@ -855,7 +863,9 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *            field_access_is_enum_variant=0, so this branch correctly
    *            skips stamping (const_folded_valid stays 0, set at L13664).
    *            The marker needs the active module — g_typeck_active_module
-   *            is set at module typeck entry (ast_pool.c L6428 / glue L22027)
+   *            is set at module typeck entry
+   *            (runtime_pipeline_abi pipeline_typeck_active_module_set_c;
+   *            historical ast_pool.c/glue L* left wave309)
    *            and remains live throughout block-level typeck.
    *
    * Asm/Perf: Replaces runtime tag-load sequence (`adrp xN, .enum_table;
@@ -902,7 +912,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     int32_t av0;
     int32_t av1;
     int32_t folded;
-    uint8_t cname[128];
+    uint8_t cname[256];
     struct ast_Module *mod;
     struct ast_Expr *ea0;
     struct ast_Expr *ea1;
@@ -932,7 +942,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(a, callee_ref) != 3)
       return;
     clen = pipeline_expr_var_name_len(a, callee_ref);
-    if (clen <= 0 || clen > 127)
+    if (clen <= 0 || clen > 255)
       return;
     pipeline_expr_var_name_into(a, callee_ref, cname);
     /* PLATFORM: SHARED — prefer typeck call_resolved_func_index for overloads.
@@ -1004,7 +1014,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       int32_t inner_callee_ref;
       int32_t ilen;
       int32_t inner_fi;
-      uint8_t iname[128];
+      uint8_t iname[256];
 
       arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
       if (arg0 <= 0)
@@ -1043,7 +1053,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       if (inner_callee_ref <= 0 || pipeline_expr_kind_ord_at(a, inner_callee_ref) != 3)
         return;
       ilen = pipeline_expr_var_name_len(a, inner_callee_ref);
-      if (ilen <= 0 || ilen > 127)
+      if (ilen <= 0 || ilen > 255)
         return;
       pipeline_expr_var_name_into(a, inner_callee_ref, iname);
       /* PLATFORM: SHARED — same overload rule as outer CALL fold above. */
@@ -1100,21 +1110,24 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *      emit emit a single mov imm32 instead of a runtime cmp/branch dispatch.
    * Invariant: Only stamps const_folded_valid=1 when (1) subject folds to a constant and
    *            (2) the first matching arm (literal or wildcard) result also folds to a
-   *            constant. Enum-variant arms compare variant_index; guarded arms
-   *            (would need guard eval) are left unfolded (const_folded_valid stays 0).
+   *            constant. Enum-variant arms compare variant_index. Const guards
+   *            (`_ if 0` / `_ if false`) fold then skip (0) or take (nonzero);
+   *            non-const guards leave the match unfolded.
    * Asm/Perf: Replaces `mov rbx,subj; cmp;jmp;armN;mov w0,result;done` (~30 bytes)
    *           with `mov w0, #const` (4 bytes); also enables parent binop folds.
    */
   if (kd == ast_ExprKind_EXPR_MATCH) {
     int32_t matched_ref;
     int32_t num_arms;
-    int32_t wild_idx;
     int32_t i;
     int32_t cmp_val;
     int32_t arm_result_ref;
     int32_t matched_val;
+    int32_t is_wild;
+    int32_t guard_ref;
     struct ast_Expr *em;
     struct ast_Expr *er;
+    struct ast_Expr *eg;
 
     matched_ref = pipeline_expr_match_matched_ref_at(a, expr_ref);
     if (matched_ref <= 0)
@@ -1129,20 +1142,29 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     if (num_arms <= 0 || num_arms > 32)
       return;
 
-    /* First-match wins (mirrors ELF emit semantics). Wildcard only fires as fallback. */
-    wild_idx = -1;
+    /* First-match wins (mirrors leftover rest emit_match). A guarded
+     * `_ if 0` is not an unguarded default — skip when the const guard
+     * is 0, take when nonzero, leave unfolded when the guard is not const.
+     * PLATFORM: SHARED — complete C5 MATCH CTFE (G.7). */
     for (i = 0; i < num_arms; i++) {
-      if (pipeline_expr_match_arm_is_wildcard(a, expr_ref, i) != 0) {
-        if (wild_idx < 0)
-          wild_idx = i;
-        continue;
+      is_wild = pipeline_expr_match_arm_is_wildcard(a, expr_ref, i);
+      if (is_wild == 0) {
+        if (pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i) != 0)
+          cmp_val = pipeline_expr_match_arm_variant_index(a, expr_ref, i);
+        else
+          cmp_val = pipeline_expr_match_arm_lit_val(a, expr_ref, i);
+        if (cmp_val != matched_val)
+          continue;
       }
-      if (pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i) != 0)
-        cmp_val = pipeline_expr_match_arm_variant_index(a, expr_ref, i);
-      else
-        cmp_val = pipeline_expr_match_arm_lit_val(a, expr_ref, i);
-      if (cmp_val != matched_val)
-        continue;
+      guard_ref = pipeline_expr_match_arm_guard_ref(a, expr_ref, i);
+      if (guard_ref > 0) {
+        typeck_fold_expr_ref_impl(a, guard_ref, const_names, const_values, n_const_names);
+        eg = glue_arena_expr_at_ref(a, guard_ref);
+        if (!eg || !eg->const_folded_valid)
+          return;
+        if (eg->const_folded_val == 0)
+          continue;
+      }
       arm_result_ref = pipeline_expr_match_arm_result_ref(a, expr_ref, i);
       if (arm_result_ref <= 0)
         return;
@@ -1154,26 +1176,14 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       }
       return;
     }
-
-    /* Wildcard arm fallback (only if no lit/variant arm matched). */
-    if (wild_idx >= 0) {
-      arm_result_ref = pipeline_expr_match_arm_result_ref(a, expr_ref, wild_idx);
-      if (arm_result_ref > 0) {
-        typeck_fold_expr_ref_impl(a, arm_result_ref, const_names, const_values, n_const_names);
-        er = glue_arena_expr_at_ref(a, arm_result_ref);
-        if (er && er->const_folded_valid) {
-          e->const_folded_val = er->const_folded_val;
-          e->const_folded_valid = 1;
-        }
-      }
-    }
     return;
   }
   /**
    * C5-ternary-if: fold `cond ? then : else` and `if cond { then } else { else }`
    * to the selected branch's constant when cond folds. EXPR_IF and EXPR_TERNARY
    * share the if_cond_ref / if_then_ref / if_else_ref field layout (see
-   * ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844), so one branch
+   * runtime_pipeline_abi.x::asm_wpo_collect_edges_from_expr;
+   * historical ast_pool.c L14836-14844 left wave309), so one branch
    * covers both kinds.
    *
    * Why: Pure-const ternaries/if-exprs (`const Y = (X==2) ? 100 : 200;` or
@@ -1263,7 +1273,8 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
    *
    * PLATFORM: SHARED — Mirrors whitelist case in glue_is_const_expr_ref
    *           above. ast_ast_block_final_expr_ref returns Block.final_expr_ref
-   *           directly (verified at pipeline_glue.c L23405-23411).
+   *           directly (runtime_pipeline_abi / Block.final_expr_ref;
+   *           historical pipeline_glue.c L23405-23411 left wave309).
    */
   if (kd == ast_ExprKind_EXPR_BLOCK) {
     int32_t block_ref = pipeline_expr_block_ref_at(a, expr_ref);

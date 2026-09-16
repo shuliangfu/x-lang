@@ -3,6 +3,16 @@
  * Hybrid: XLANG_PTHIN_FN_BLOCK_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Bodies: struct_layout + library + one_function_buf + block_from_res
+ *
+ * Hybrid P6b/P6c/P6d/P6e (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
+ * struct-layout name-match helpers, packed/soa modifier predicates,
+ * and library-shape TYPE/EXPR wrap come from pthin_fn_block.x.
+ * XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips parse_struct_record_layout
+ * (P6e dest-buffer; C trampoline holds the name pack). This TU keeps
+ * library scan / one_function / block_from_res. Cold: no BODIES define,
+ * full .inc.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e bodies.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +22,24 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+_Static_assert((int)TOKEN_LET == 2, "fn_block.x TOKEN_LET pin");
+_Static_assert((int)TOKEN_CONST == 3, "fn_block.x TOKEN_CONST pin");
+_Static_assert((int)TOKEN_PACKED == 21, "fn_block.x TOKEN_PACKED pin");
+_Static_assert((int)TOKEN_SOA == 22, "fn_block.x TOKEN_SOA pin");
+_Static_assert((int)TOKEN_ALIGN == 46, "fn_block.x TOKEN_ALIGN pin");
+_Static_assert((int)TOKEN_IDENT == 59, "fn_block.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_INT == 80, "fn_block.x TOKEN_INT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "fn_block.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "fn_block.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "fn_block.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "fn_block.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_COMMA == 90, "fn_block.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "fn_block.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "fn_block.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_PLUS == 96, "fn_block.x TOKEN_PLUS pin");
+_Static_assert((int)TOKEN_LT == 120, "fn_block.x TOKEN_LT pin");
+_Static_assert((int)TOKEN_GT == 121, "fn_block.x TOKEN_GT pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -44,7 +72,7 @@ struct parser_asm_library_parse_result {
   uint8_t ok;
   uint8_t _pad[4];
   struct parser_asm_lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   uint8_t _pad_tail[4];
 };
@@ -53,13 +81,13 @@ struct parser_asm_library_parse_scan_result {
   uint8_t ok;
   uint8_t _pad[4];
   struct parser_asm_lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
-  uint8_t param_name[128];
+  uint8_t param_name[256];
   int32_t param_name_len;
-  uint8_t param_type_name[128];
+  uint8_t param_type_name[256];
   int32_t param_type_len;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t field_len;
   uint8_t _pad_tail[4];
 };
@@ -67,7 +95,7 @@ struct parser_asm_library_parse_scan_result {
 struct parser_asm_onefunc_result {
   int32_t ok;
   struct parser_asm_lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t num_params;
   int32_t num_generic_params;
@@ -87,9 +115,9 @@ struct parser_asm_onefunc_result {
   int32_t has_unary_neg;
   int32_t return_val;
   int32_t has_call_expr;
-  uint8_t call_callee_name[128];
+  uint8_t call_callee_name[256];
   int32_t call_callee_len;
-  uint8_t return_var_name[128];
+  uint8_t return_var_name[256];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
   int32_t has_final_expr;
@@ -113,13 +141,24 @@ struct parser_asm_parse_expr_result {
   struct parser_asm_lexer next_lex;
 };
 
+/* 9.6.3 wave-fix: parser_asm_top_level_let_result used by the static-desugar hook in
+ * parser_asm_one_function_buf_slice.inc (function-local `static let/const` → module
+ * top-level let). Defined in sibling pthin TUs (glue/seed_parse/thin_c) but missing
+ * here → incomplete-type error. Single authority layout matches pthin_glue.from_x.c.
+ * PLATFORM: SHARED. */
+struct parser_asm_top_level_let_result {
+  int32_t ok;
+  uint8_t _pad[4];
+  struct parser_asm_lexer next_lex;
+};
+
 struct ast_Type {
   int32_t kind;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[128];
+  uint8_t region_label[256];
   int32_t region_label_len;
 };
 
@@ -150,7 +189,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -163,7 +202,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -176,14 +215,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;

@@ -111,6 +111,22 @@ export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32
  * PLATFORM: SHARED — gates mutable top-level let decl-site init vs init_globals. */
 export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
+/**
+ * Stamp anonymous STRUCT_LIT dest name (typeck / host-C emit pair).
+ * Why setter (not Expr get_copy/set_copy): ~400-byte Expr sret SIGBUS on arm64.
+ * PLATFORM: SHARED — glue pipeline_expr_struct_lit_type_name_set.
+ */
+export extern function pipeline_expr_struct_lit_type_name_set(arena: *ASTArena, expr_ref: i32,
+name: *u8, name_len: i32): void;
+/**
+ * Stamp expr resolved_type_ref without copying the whole Expr row.
+ * @param arena *ASTArena — expression pool
+ * @param expr_ref i32 — expr
+ * @param type_ref i32 — dest type
+ * PLATFORM: SHARED
+ */
+export extern function pipeline_expr_set_resolved_type_ref(arena: *ASTArena, expr_ref: i32,
+type_ref: i32): void;
 export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -120,6 +136,16 @@ export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i3
  * bypassing the concrete→dyn impl-lookup gate. @param rhs_type_ref reserved
  * (unused; kept for API symmetry with typeck). PLATFORM: SHARED. */
 export extern function typeck_dyn_rhs_is_null_sentinel(arena: *ASTArena, rhs_type_ref: i32, rhs_expr_ref: i32): i32;
+/**
+ * Cap 10.7.1 name table (typeck.x). Host-C must not emit `extern void va_start`
+ * / `va_end` / `va_copy` / `va_arg*` — those are typeck faces rewritten to
+ * xlang_va_* macros; clang treats va_start/va_end as builtins (redeclare hard-error).
+ * @param name *u8 — bare identifier
+ * @param name_len i32 — byte length
+ * @return i32 — 1 Cap va builtin, 0 otherwise
+ * PLATFORM: SHARED — G.7 single name table; skip-emit calls this, does not copy names.
+ */
+export extern function typeck_is_cap_va_builtin_name(name: *u8, name_len: i32): i32;
 /*
  * F3 TYPE_DYN(17) vtable-dispatch authority — G.7 accessors over the trait
  * registry `g_xlang_skip_trait_reg[]`. Method declaration order in the trait
@@ -193,7 +219,8 @@ export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, e
 /** wave700: optional match-arm guard expr (`pat if cond =>`); 0 = none. */
 export extern function pipeline_expr_match_arm_guard_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
 /**
- * wave707: host-C match field-bind emit context (see pipeline_glue.c).
+ * wave707: host-C match field-bind emit context (see runtime_pipeline_abi.x;
+ * pipeline_glue.c left wave309).
  * PLATFORM: SHARED — set around match arm/guard emit; clear or restore after.
  */
 export extern function pipeline_codegen_match_set_subject_c(module: *Module, matched_ref: i32, subject_ty: i32): void;
@@ -237,7 +264,8 @@ export extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32
 /**
  * wave343 Cap residual: find `let s: T[] = a` where a is fixed TYPE_ARRAY under
  * body_ref (top-level and nested if/while/for/region/EXPR_BLOCK). Authority in
- * pipeline_glue.c (shared with freestanding escape). Soft: reassign; untyped-let.
+ * runtime_pipeline_abi.x (pipeline_glue.c left wave309; shared freestanding escape).
+ * Soft: reassign; untyped-let.
  * @param arena *ASTArena — AST arena
  * @param body_ref i32 — function body block ref
  * @param vname *u8 — return VAR name bytes
@@ -444,7 +472,7 @@ export function codegen_find_dep_index_by_path(ctx: *PipelineDepCtx, path: *u8, 
     let di: i32 = 0;
     let nd: i32 = pipeline_dep_ctx_ndep(ctx);
     while (di < nd) {
-      let dep_path: u8[128] = [];
+      let dep_path: u8[256] = [];
       let dep_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
       if (dep_len == path_len) {
         let eq: bool = true;
@@ -476,10 +504,10 @@ export function codegen_find_seeded_global_dep_slot_by_path(path: *u8, path_len:
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    if (path == 0 as *u8 || path_len <= 0 || path_len > 127) {
+    if (path == 0 as *u8 || path_len <= 0 || path_len > 255) {
       return -1;
     }
-    let path_buf: u8[128] = [];
+    let path_buf: u8[256] = [];
     let i: i32 = 0;
     while (i < path_len && i < 63) {
       path_buf[i] = path[i];
@@ -545,7 +573,7 @@ export function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8,
     buf[pi] = 0 as u8;
     return pi;
   }
-  let path_buf: u8[128] = [];
+  let path_buf: u8[256] = [];
   let path_len: i32 = 0;
   if (ctx.current_codegen_dep_index >= 0) {
     path_len = codegen_dep_import_path_len_at(ctx, ctx.current_codegen_dep_index, &path_buf[0]);
@@ -611,7 +639,7 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
   unsafe {
 
     let sched_prefix: u8[18] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
-    let fn_name: u8[128] = [];
+    let fn_name: u8[256] = [];
     let fn_len: i32 = 0;
     if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
       return -1;
@@ -674,7 +702,7 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
 
     let submit_name: u8[23] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
     let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
-    let fn_name: u8[128] = [];
+    let fn_name: u8[256] = [];
     let fn_len: i32 = 0;
     if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
       return -1;
@@ -757,8 +785,8 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
 
     let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
-    let dep_path: u8[128] = [];
-    let prefix_buf: u8[128] = [];
+    let dep_path: u8[256] = [];
+    let prefix_buf: u8[256] = [];
     let dep_ix: i32 = -1;
     let n_args: i32 = 0;
     let ai: i32 = 0;
@@ -969,7 +997,7 @@ export function codegen_find_module_func_index_by_name(module: *Module, nm: *u8,
     while (fi < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len == nm_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
@@ -1013,7 +1041,7 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
       return -1;
     }
     let base_e: Expr = ast.ast_arena_expr_get(arena, callee_e.field_access_base_ref);
-    if ((base_e.kind as i32) != (ExprKind.EXPR_VAR as i32) || base_e.var_name_len <= 0 || base_e.var_name_len > 127) {
+    if ((base_e.kind as i32) != (ExprKind.EXPR_VAR as i32) || base_e.var_name_len <= 0 || base_e.var_name_len > 255) {
       return -1;
     }
     let cur_mod: *Module = ctx.current_codegen_module;
@@ -1035,7 +1063,7 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
             }
           }
           if (matched != 0) {
-            let import_path: u8[128] = [];
+            let import_path: u8[256] = [];
             let import_path_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &import_path[0]);
             if (import_path_len <= 0) {
               return -1;
@@ -1084,7 +1112,7 @@ call_expr_ref: i32, nm: *u8, nm_len: i32): i32 {
     while (fi < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len == nm_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
@@ -1222,7 +1250,7 @@ export function expr_var_matches_func_param_index(arena: *ASTArena, var_ref: i32
     }
     let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, param_idx);
     if (p_name_len > 0) {
-      let pname_buf: u8[128] = [];
+      let pname_buf: u8[256] = [];
       pipeline_module_func_param_name_copy32(mod, func_index, param_idx, &pname_buf[0]);
       if (pname_buf[0] > 32) {
         if (base.var_name_len != p_name_len) {
@@ -1603,10 +1631,10 @@ export function codegen_should_skip_later_same_name_body(arena: *ASTArena, modul
       return 0;
     }
     let nlen: i32 = pipeline_module_func_name_len_at(module, fi);
-    if (nlen <= 0 || nlen > 127) {
+    if (nlen <= 0 || nlen > 255) {
       return 0;
     }
-    let name: u8[128] = [];
+    let name: u8[256] = [];
     pipeline_module_func_name_copy64(module, fi, &name[0]);
     let np: i32 = pipeline_module_func_num_params_at(module, fi);
     let ret_fi: i32 = pipeline_module_func_return_type_at(module, fi);
@@ -1615,7 +1643,7 @@ export function codegen_should_skip_later_same_name_body(arena: *ASTArena, modul
       if (pipeline_module_func_is_extern_at(module, j) == 0) {
         let jlen: i32 = pipeline_module_func_name_len_at(module, j);
         if (jlen == nlen && pipeline_module_func_num_params_at(module, j) == np) {
-          let jname: u8[128] = [];
+          let jname: u8[256] = [];
           pipeline_module_func_name_copy64(module, j, &jname[0]);
           let eq: i32 = 1;
           let k: i32 = 0;
@@ -2054,12 +2082,12 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     let fn_len: i32 = 0;
     let nparams: i32 = 0;
     /* wave585 Cap residual: param name scratch 32→128 for *copy32 payload. */
-    let p0: u8[128] = [];
-    let p1: u8[128] = [];
+    let p0: u8[256] = [];
+    let p1: u8[256] = [];
     let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
     let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
     let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
@@ -2190,7 +2218,7 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     let callee: Expr = e;
     let path: u8[128] = [];
     let path_len: i32 = 0;
-    let pre: u8[128] = [];
+    let pre: u8[256] = [];
     let pre_len: i32 = 0;
     let name_ptr: *u8 = 0 as *u8;
     let name_len: i32 = 0;
@@ -2456,6 +2484,430 @@ export extern function codegen_get_host_call_arg_param_ty(): i32;
 export extern function codegen_next_host_call_array_tmp_id(): i32;
 
 /**
+ * Stage 10 S3.1 slice 1 (10.1.1): host-C raw syscall intrinsic for
+ * `raw_syscall0..raw_syscall6(nr, a1..aN)` — Linux x86_64 kernel ABI.
+ *
+ * Product surface (`std.sys.linux`, cfg target_os="linux"):
+ *   - import-qualified: `linux.raw_syscall3(1, fd, buf, len)` (write)
+ *   - bare same-module calls also match (callee EXPR_VAR)
+ *
+ * Authority (G.7): expand at the CALL site to
+ *   `((int64_t)(__xlang_raw_syscallN((long)(nr),(long)(a1),...)))`
+ * — same single-authority shape as the wave463 size_of/align_of intrinsic;
+ * do not open a second lowering path for syscalls. The static-inline helpers
+ * (register constraints + `syscall`, clobber rcx/r11/memory) are emitted once
+ * per TU by codegen_emit_raw_syscall_helpers behind
+ * `#if linux && x86_64` / `#elif linux && aarch64`: the host cc preprocessor
+ * is the platform truth (Darwin drops both; Ubuntu x86_64 takes syscall;
+ * Linux aarch64 takes svc #0). The `.x` bodies in std.sys.linux panic —
+ * asm intercept (10.1.1 x86_64 / 10.1.2 ELF aarch64) is the product `-o` path.
+ *
+ * @param arena *ASTArena — expr / callee slots
+ * @param out *CodegenOutBuf — host-C text buffer
+ * @param expr_ref i32 — EXPR_CALL site
+ * @param ctx *PipelineDepCtx — arg emit context
+ * @return i32 — 1 fully emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED host-C emit; runtime LINUX x86_64 or LINUX aarch64 (#if helpers).
+ */
+export function codegen_try_emit_raw_syscall_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let arity: i32 = -1;
+    let n_args: i32 = 0;
+    let ai: i32 = 0;
+    let pi: i32 = 0;
+    let is_method: i32 = 0;
+    let arg_ref: i32 = 0;
+    /* ((int64_t)(__xlang_raw_syscall — arity digit + '(' appended after match. */
+    let open_pre: u8[30] = [40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
+    /* (long)( */
+    let arg_open: u8[7] = [40, 108, 111, 110, 103, 41, 40];
+    /* , */
+    let comma_sp: u8[2] = [44, 32];
+    /* ))) — close call paren, int64_t cast, outer wrap. */
+    let close3: u8[3] = [41, 41, 41];
+    /* raw_syscall — 11 prefix bytes; callee must be exactly raw_syscall<digit>. */
+    let pfx: u8[11] = [114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    /*
+     * Dot calls parse as METHOD_CALL (kind 49, fmt.println default shape);
+     * bare calls and the alt FIELD_ACCESS-callee shape are EXPR_CALL (48).
+     * Both shapes name the same builtin and lower identically (fmt_lit twin).
+     */
+    if ((e.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)) {
+      if (e.method_call_name_len <= 0) {
+        return 0;
+      }
+      name_ptr = &e.method_call_name[0];
+      name_len = e.method_call_name_len;
+      n_args = e.method_call_num_args;
+      is_method = 1;
+    } else if ((e.kind as i32) == (ExprKind.EXPR_CALL as i32)) {
+      callee_ref = e.call_callee_ref;
+      if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+        return 0;
+      }
+      callee = ast.ast_arena_expr_get(arena, callee_ref);
+      if ((callee.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee.field_access_field_len > 0) {
+        name_ptr = &callee.field_access_field_name[0];
+        name_len = callee.field_access_field_len;
+      } else if ((callee.kind as i32) == (ExprKind.EXPR_VAR as i32) && callee.var_name_len > 0) {
+        name_ptr = &callee.var_name[0];
+        name_len = callee.var_name_len;
+      } else {
+        return 0;
+      }
+      n_args = e.call_num_args;
+    } else {
+      return 0;
+    }
+    /* Exact shape: raw_syscall0..raw_syscall6 (len 12; suffix digit = arity). */
+    if (name_len != 12) {
+      return 0;
+    }
+    while (pi < 11) {
+      if (name_ptr[pi] != pfx[pi]) {
+        return 0;
+      }
+      pi = pi + 1;
+    }
+    arity = name_ptr[11] as i32 - 48;
+    if (arity < 0 || arity > 6) {
+      return 0;
+    }
+    if (n_args != arity + 1) {
+      return 0;
+    }
+    if (emit_bytes_from_ptr(out, &open_pre[0], 30) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 48 + arity) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    /* Scalar i64 formals only: clear the host slice-formal sidecar (wave395). */
+    codegen_set_host_call_arg_param_ty(0);
+    while (ai < n_args) {
+      if (ai > 0) {
+        if (emit_bytes_from_ptr(out, &comma_sp[0], 2) != 0) {
+          return -1;
+        }
+      }
+      if (emit_bytes_from_ptr(out, &arg_open[0], 7) != 0) {
+        return -1;
+      }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+      }
+      if (emit_call_arg_slice_abi(arena, out, arg_ref, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    if (emit_bytes_from_ptr(out, &close3[0], 3) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Cap 10.7.1 language slice7: rewrite Cap va builtins to xlang_va_* macros.
+ *
+ * Call names (typeck via export-extern in user TU; not libc):
+ *   va_start(ap, last) → xlang_va_start(ap, last)
+ *   va_end(ap)         → xlang_va_end(ap)
+ *   va_copy(dst, src)  → xlang_va_copy(dst, src)
+ *   va_arg_i32(ap)     → ((int32_t)(xlang_va_arg(ap, int32_t)))
+ *   va_arg_i64(ap)     → ((int64_t)(xlang_va_arg(ap, int64_t)))
+ *   va_arg_ptr(ap)     → ((uint8_t *)(xlang_va_arg(ap, uint8_t *)))
+ *   va_arg<T>(ap)      → ((CType)(xlang_va_arg(ap, CType)))  [slice14]
+ *   va_arg<f32>(ap)    → ((float)(xlang_va_arg(ap, double))) [slice16; C promote]
+ *
+ * Typed form reuses existing turbofish `id<T>(…)` (G.7 size_of<T> pattern);
+ * no type-as-value parse. Header face: emit_header `#include <xlang_va_cap.h>`.
+ * VaList TYPE_NAMED → xlang_va_list in emit_type.
+ *
+ * @param arena *ASTArena — expr / callee slots
+ * @param out *CodegenOutBuf — host-C text buffer
+ * @param expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL site
+ * @param ctx *PipelineDepCtx — arg emit context
+ * @return i32 — 1 fully emitted; 0 not applicable; -1 emit error
+ * PLATFORM: SHARED host-C (GCC/Clang Cap; MSVC residual).
+ */
+export function codegen_try_emit_va_cap_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — Cap va macro rewrite (host-C only).
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let n_args: i32 = 0;
+    let is_method: i32 = 0;
+    let which: i32 = 0;
+    let expect_args: i32 = 0;
+    let ai: i32 = 0;
+    let arg_ref: i32 = 0;
+    /* xlang_va_start( / xlang_va_end( / xlang_va_copy( — shared "xlang_va_" prefix. */
+    let pfx: u8[9] = [120, 108, 97, 110, 103, 95, 118, 97, 95];
+    /* start( end( copy( suffixes after prefix (lengths 6/4/5). */
+    let s_start: u8[6] = [115, 116, 97, 114, 116, 40];
+    let s_end: u8[4] = [101, 110, 100, 40];
+    let s_copy: u8[5] = [99, 111, 112, 121, 40];
+    /* ((int32_t)(xlang_va_arg( */
+    let open_i32: u8[24] = [40, 40, 105, 110, 116, 51, 50, 95, 116, 41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40];
+    /* ((int64_t)(xlang_va_arg( */
+    let open_i64: u8[24] = [40, 40, 105, 110, 116, 54, 52, 95, 116, 41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40];
+    /* ((uint8_t *)(xlang_va_arg( */
+    let open_ptr: u8[26] = [40, 40, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40];
+    /* , int32_t))) */
+    let close_i32: u8[13] = [44, 32, 105, 110, 116, 51, 50, 95, 116, 41, 41, 41, 0];
+    /* , int64_t))) */
+    let close_i64: u8[13] = [44, 32, 105, 110, 116, 54, 52, 95, 116, 41, 41, 41, 0];
+    /* , uint8_t *))) */
+    let close_ptr: u8[15] = [44, 32, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 41, 41, 0];
+    let comma_sp: u8[2] = [44, 32];
+    /* slice14 typed va_arg<T>: `((` + emit_type(T) + `)(xlang_va_arg(` + ap + `, ` + T + `)))` */
+    let open2: u8[2] = [40, 40];
+    let mid_typed: u8[16] = [41, 40, 120, 108, 97, 110, 103, 95, 118, 97, 95, 97, 114, 103, 40, 0];
+    let close3t: u8[3] = [41, 41, 41];
+    let n_ta: i32 = 0;
+    let ta_ref: i32 = 0;
+    let ta_is_f32: i32 = 0;
+    let nm_double: u8[6] = [100, 111, 117, 98, 108, 101]; /* double */
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    if ((e.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)) {
+      if (e.method_call_name_len <= 0) {
+        return 0;
+      }
+      name_ptr = &e.method_call_name[0];
+      name_len = e.method_call_name_len;
+      n_args = e.method_call_num_args;
+      is_method = 1;
+    } else if ((e.kind as i32) == (ExprKind.EXPR_CALL as i32)) {
+      callee_ref = e.call_callee_ref;
+      if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+        return 0;
+      }
+      callee = ast.ast_arena_expr_get(arena, callee_ref);
+      if ((callee.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee.field_access_field_len > 0) {
+        name_ptr = &callee.field_access_field_name[0];
+        name_len = callee.field_access_field_len;
+      } else if ((callee.kind as i32) == (ExprKind.EXPR_VAR as i32) && callee.var_name_len > 0) {
+        name_ptr = &callee.var_name[0];
+        name_len = callee.var_name_len;
+      } else {
+        return 0;
+      }
+      n_args = e.call_num_args;
+    } else {
+      return 0;
+    }
+    /* Match Cap names (byte-exact; FIELD_ACCESS leaf / bare VAR).
+     * va_arg_i32 / va_arg_i64 / va_arg_ptr are 10 bytes each. */
+    if (name_len == 8 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 115 && name_ptr[4] == 116 && name_ptr[5] == 97
+        && name_ptr[6] == 114 && name_ptr[7] == 116) {
+      which = 1;
+      expect_args = 2;
+    } else if (name_len == 6 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 101 && name_ptr[4] == 110 && name_ptr[5] == 100) {
+      which = 2;
+      expect_args = 1;
+    } else if (name_len == 7 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 99 && name_ptr[4] == 111 && name_ptr[5] == 112
+        && name_ptr[6] == 121) {
+      which = 3;
+      expect_args = 2;
+    } else if (name_len == 10 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103
+        && name_ptr[6] == 95 && name_ptr[7] == 105 && name_ptr[8] == 51
+        && name_ptr[9] == 50) {
+      which = 4;
+      expect_args = 1;
+    } else if (name_len == 10 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103
+        && name_ptr[6] == 95 && name_ptr[7] == 105 && name_ptr[8] == 54
+        && name_ptr[9] == 52) {
+      which = 5;
+      expect_args = 1;
+    } else if (name_len == 10 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103
+        && name_ptr[6] == 95 && name_ptr[7] == 112 && name_ptr[8] == 116
+        && name_ptr[9] == 114) {
+      which = 6;
+      expect_args = 1;
+    } else if (name_len == 6 && name_ptr[0] == 118 && name_ptr[1] == 97 && name_ptr[2] == 95
+        && name_ptr[3] == 97 && name_ptr[4] == 114 && name_ptr[5] == 103) {
+      /* Cap 10.7.1 slice14: va_arg<T>(ap) turbofish. Distinct from va_end. */
+      which = 7;
+      expect_args = 1;
+    } else {
+      return 0;
+    }
+    if (n_args != expect_args) {
+      return 0;
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    if (which == 7) {
+      n_ta = pipeline_expr_call_num_type_args_at(arena, expr_ref);
+      ta_ref = pipeline_expr_call_type_arg_ref_at(arena, expr_ref, 0);
+      if (n_ta < 1 || ta_ref <= 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return 0;
+      }
+      /* C default promotions: unnamed float is passed as double. */
+      ta_is_f32 = 0;
+      if (pipeline_type_kind_ord_at(arena, ta_ref) == 14) {
+        ta_is_f32 = 1;
+      }
+      if (emit_bytes_from_ptr(out, &open2[0], 2) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_type(arena, out, ta_ref, 0 as *u8, 0, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &mid_typed[0], 15) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+      }
+      if (emit_call_arg_slice_abi(arena, out, arg_ref, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &comma_sp[0], 2) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (ta_is_f32 != 0) {
+        if (emit_bytes_from_ptr(out, &nm_double[0], 6) != 0) {
+          codegen_set_host_call_arg_param_ty(0);
+          return -1;
+        }
+      } else if (emit_type(arena, out, ta_ref, 0 as *u8, 0, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &close3t[0], 3) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      codegen_set_host_call_arg_param_ty(0);
+      return 1;
+    }
+    if (which == 1) {
+      if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &s_start[0], 6) != 0) {
+        return -1;
+      }
+    } else if (which == 2) {
+      if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &s_end[0], 4) != 0) {
+        return -1;
+      }
+    } else if (which == 3) {
+      if (emit_bytes_from_ptr(out, &pfx[0], 9) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &s_copy[0], 5) != 0) {
+        return -1;
+      }
+    } else if (which == 4) {
+      if (emit_bytes_from_ptr(out, &open_i32[0], 24) != 0) {
+        return -1;
+      }
+    } else if (which == 5) {
+      if (emit_bytes_from_ptr(out, &open_i64[0], 24) != 0) {
+        return -1;
+      }
+    } else if (which == 6) {
+      if (emit_bytes_from_ptr(out, &open_ptr[0], 26) != 0) {
+        return -1;
+      }
+    } else {
+      return 0;
+    }
+    while (ai < n_args) {
+      if (ai > 0) {
+        if (emit_bytes_from_ptr(out, &comma_sp[0], 2) != 0) {
+          return -1;
+        }
+      }
+      if (is_method != 0) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
+      } else {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, ai);
+      }
+      if (emit_call_arg_slice_abi(arena, out, arg_ref, ctx) != 0) {
+        codegen_set_host_call_arg_param_ty(0);
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    if (which >= 1 && which <= 3) {
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+    } else if (which == 4) {
+      if (emit_bytes_from_ptr(out, &close_i32[0], 12) != 0) {
+        return -1;
+      }
+    } else if (which == 5) {
+      if (emit_bytes_from_ptr(out, &close_i64[0], 12) != 0) {
+        return -1;
+      }
+    } else if (which == 6) {
+      if (emit_bytes_from_ptr(out, &close_ptr[0], 14) != 0) {
+        return -1;
+      }
+    }
+    codegen_set_host_call_arg_param_ty(0);
+    return 1;
+  }
+}
+
+/**
  * wave409 Cap residual pure: finish TYPE_SLICE let from CALL/METHOD with frame deep-copy.
  * Type+name already written. Emits `; E __xlang_ldN[1024]; { S __sp = call; copy; name=fat(ld); }`.
  * Fixes true recursion last-wins on callee static `__xlang_al` (walk 18→36).
@@ -2525,7 +2977,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           while (pi < np) {
             let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
             if (p_name_len > 0 && p_name_len == base.var_name_len) {
-              let pname_buf: u8[128] = [];
+              let pname_buf: u8[256] = [];
               pipeline_module_func_param_name_copy32(mod, fi, pi, &pname_buf[0]);
               let matched: bool = true;
               let j: i32 = 0;
@@ -2640,7 +3092,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             while (li < nlets) {
               let nl: i32 = pipeline_block_let_name_len(arena, br, li);
               if (nl == arg.var_name_len && nl > 0) {
-                let nb: u8[128] = [];
+                let nb: u8[256] = [];
                 pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
                 let eq: bool = true;
                 let j2: i32 = 0;
@@ -2856,7 +3308,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           while (li < nlets) {
             let nl: i32 = pipeline_block_let_name_len(arena, br, li);
             if (nl == arg.var_name_len && nl > 0) {
-              let nb: u8[128] = [];
+              let nb: u8[256] = [];
               pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
               let eq: bool = true;
               let j2: i32 = 0;
@@ -3221,7 +3673,7 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
     while (pi < np) {
       let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (p_name_len > 0 && p_name_len == base.var_name_len) {
-        let pname_buf: u8[128] = [];
+        let pname_buf: u8[256] = [];
         pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
         let matched: bool = true;
         let j: i32 = 0;
@@ -3280,7 +3732,7 @@ export function field_access_base_is_pointer_local(arena: *ASTArena, base_ref: i
     while (li < nlets) {
       let nl: i32 = pipeline_block_let_name_len(arena, br, li);
       if (nl == base.var_name_len && nl > 0) {
-        let nb: u8[128] = [];
+        let nb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
         let eq: bool = true;
         let j: i32 = 0;
@@ -3331,7 +3783,7 @@ export function field_access_base_param_type_known(arena: *ASTArena, base_ref: i
     while (pi < np) {
       let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
       if (p_name_len > 0 && p_name_len == base.var_name_len) {
-        let pname_buf: u8[128] = [];
+        let pname_buf: u8[256] = [];
         pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
         let matched: bool = true;
         let j: i32 = 0;
@@ -4048,6 +4500,17 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
       let s: u8[22] = [115, 116, 114, 117, 99, 116, 32, 120, 108, 97, 110, 103, 95, 100, 121, 110, 95, 111, 98, 106, 0, 0];
       return emit_bytes_from_ptr(out, &s[0], 20);
     }
+    /*
+     * 10.3.1: TYPE_FN (18) non-declarator fallthrough stays Cap opaque
+     * `uint8_t *` (emit_type_kind). Named declarator / Cap assign cast →
+     * emit_c_fnptr_decl; Cap *u8 CALL cast → codegen_try_emit_cap_u8_call
+     * (slice15). Unblocks -E CG003 (emit_type_kind miss → -1).
+     * PLATFORM: SHARED host-C. G.7 twin type_to_c_repr / type_kind_append.
+     */
+    if (kind_ord == (TypeKind.TYPE_FN as i32)) {
+      let s: u8[10] = [117, 105, 110, 116, 56, 95, 116, 32, 42, 0];
+      return emit_bytes_from_ptr(out, &s[0], 9);
+    }
     return -1;
   }
 }
@@ -4056,19 +4519,26 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
  * Emit the host-C dyn-dispatch function-pointer suffix after the return type.
  *
  * Completes the F3 call-site cast so extras match codegen_emit_vtable_wrapper_def.
- * The old hardcoded `(*)(void*, ...)` let C default-promote f32 extras to f64,
- * so wrapper `(void* data, float a1)` read a 0 low-32 (dyn_add_f32 host-C).
+ * Scalar extras already used emit_type_kind (f32 leftover). NAMED / PTR / SLICE
+ * / ARRAY extras used to keep `, ...)` — Darwin AAPCS64 then stacks the extra
+ * while the wrapper reads it from x1 (sit-red dyn_add_named/ptr/slice true
+ * host-C 98/153/95; i32 extras already 7). Ubuntu SysV GP extras often fake-
+ * green through the same registers as variadic.
  *
- * Shape: `(*)(void*` + `, <C-type>` for each extra + `)`. Extra kinds come from
- * xlang_skip_trait_method_param_kind_c (extra i → param i+1; self is data).
- * Unemittable kinds (NAMED/PTR/SLICE/...) keep `, ...)` so those leftovers stay
- * on the old variadic path. Zero extras emit `(*)(void*)`.
+ * Shape: `(*)(void*` + `, <C-type>` for each extra + `)`. Prefer dest-stamped
+ * extra arg type_ref + the same emit_type / named-array / SLICE-pointer ABI as
+ * the wrapper (G.7 complete this function; no second suffix). Registry
+ * param_kind remains the scalar fallback when the extra has no type_ref.
+ * LINEAR / VECTOR extras still `, ...)` (not this leaf). Zero extras emit
+ * `(*)(void*)`. First formal stays void* data.
  *
  * Extracted from emit_expr so the METHOD_CALL nest does not rise (nest freeze 64).
  * Not a second dispatch path: emit_expr still owns the call site.
  *
  * @param out *CodegenOutBuf — destination buffer
- * @param arena *ASTArena — receiver type + trait-name lookup
+ * @param arena *ASTArena — extra arg type_ref + receiver trait-name lookup
+ * @param ctx *PipelineDepCtx — prefix for emit_type; may be null
+ * @param expr_ref i32 — METHOD_CALL expr (extra i → method_call arg i)
  * @param base_ref i32 — receiver expr_ref (TYPE_DYN; trait name source)
  * @param slot i32 — vtable slot (call_resolved_func_index)
  * @param nargs i32 — explicit extra count (not including data)
@@ -4076,7 +4546,7 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
  * PLATFORM: SHARED host-C; Ubuntu gold. First formal stays void* data.
  */
 export function codegen_emit_dyn_host_c_fn_ptr_suffix(out: *CodegenOutBuf, arena: *ASTArena,
-        base_ref: i32, slot: i32, nargs: i32): i32 {
+        ctx: *PipelineDepCtx, expr_ref: i32, base_ref: i32, slot: i32, nargs: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (out == 0 as *CodegenOutBuf) {
@@ -4095,47 +4565,93 @@ export function codegen_emit_dyn_host_c_fn_ptr_suffix(out: *CodegenOutBuf, arena
         trait_nlen = pipeline_type_named_name_into(arena, base_ty, &trait_nm[0]);
       }
     }
+    let pref: *u8 = 0 as *u8;
+    let pref_len: i32 = 0;
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_prefix_len > 0) {
+      pref = &ctx.current_codegen_prefix_mirror[0];
+      pref_len = ctx.current_codegen_prefix_len;
+    }
     let typed: i32 = 1;
-    if (nargs > 0 && trait_nlen <= 0) {
+    if (nargs > 0 && trait_nlen <= 0 && expr_ref <= 0) {
       typed = 0;
     }
     let chk: i32 = 0;
     while (chk < nargs) {
-      let pk: i32 = -1;
-      if (trait_nlen > 0) {
-        pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, chk + 1);
+      let can: i32 = 0;
+      let ty: i32 = 0;
+      if (arena != 0 as *ASTArena && expr_ref > 0) {
+        let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, chk);
+        if (arg_ref > 0 && !ast.ref_is_null(arg_ref)) {
+          ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
       }
-      let pk_ok: i32 = 0;
-      if (pk == (TypeKind.TYPE_I32 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_BOOL as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_U8 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_U32 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_U64 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_I64 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_USIZE as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_ISIZE as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_F32 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_F64 as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_VOID as i32)) { pk_ok = 1; }
-      if (pk == (TypeKind.TYPE_DYN as i32)) { pk_ok = 1; }
-      if (pk_ok == 0) {
+      if (ty > 0) {
+        let tk: i32 = pipeline_type_kind_ord_at(arena, ty);
+        /* LINEAR / VECTOR stay the variadic leftover (not this leaf). */
+        if (tk != (TypeKind.TYPE_LINEAR as i32) && tk != (TypeKind.TYPE_VECTOR as i32)) {
+          can = 1;
+        }
+      }
+      if (can == 0) {
+        let pk: i32 = -1;
+        if (trait_nlen > 0) {
+          pk = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen, slot, chk + 1);
+        }
+        if (pk == (TypeKind.TYPE_I32 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_BOOL as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_U8 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_U32 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_U64 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_I64 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_USIZE as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_ISIZE as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_F32 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_F64 as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_VOID as i32)) { can = 1; }
+        if (pk == (TypeKind.TYPE_DYN as i32)) { can = 1; }
+      }
+      if (can == 0) {
         typed = 0;
       }
       chk = chk + 1;
     }
     if (typed == 0) {
-      /* ", ...)" — 6 bytes. Leftover for NAMED/PTR/SLICE extras. */
+      /* ", ...)" — 6 bytes. Leftover only when an extra still cannot emit. */
       let varargs: u8[6] = [44, 32, 46, 46, 46, 41];
       return emit_bytes_from_ptr(out, &varargs[0], 6);
     }
     chk = 0;
     while (chk < nargs) {
-      let pk2: i32 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
-              slot, chk + 1);
       if (append_byte(out, 44) != 0) { return -1; }
       if (append_byte(out, 32) != 0) { return -1; }
-      if (emit_type_kind(out, pk2) != 0) {
-        return -1;
+      let ty2: i32 = 0;
+      if (arena != 0 as *ASTArena && expr_ref > 0) {
+        let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, chk);
+        if (arg_ref2 > 0 && !ast.ref_is_null(arg_ref2)) {
+          ty2 = pipeline_expr_resolved_type_ref(arena, arg_ref2);
+        }
+      }
+      if (ty2 > 0) {
+        /* Same C form as wrapper extras: named-array / emit_type / SLICE *. */
+        if (type_uses_named_array_decl(arena, ty2) != 0) {
+          if (emit_c_ptr_to_fixed_array_decl(arena, out, ty2, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+        } else {
+          if (emit_type(arena, out, ty2, pref, pref_len, ctx) != 0) {
+            return -1;
+          }
+          if (pipeline_type_kind_ord_at(arena, ty2) == (TypeKind.TYPE_SLICE as i32)) {
+            if (append_byte(out, 32) != 0) { return -1; }
+            if (append_byte(out, 42) != 0) { return -1; }
+          }
+        }
+      } else {
+        let pk2: i32 = xlang_skip_trait_method_param_kind_c(&trait_nm[0], trait_nlen,
+                slot, chk + 1);
+        if (emit_type_kind(out, pk2) != 0) {
+          return -1;
+        }
       }
       chk = chk + 1;
     }
@@ -4311,6 +4827,20 @@ export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind
     }
     return w;
   }
+  /* 10.3.1: TYPE_FN → uint8_t * (Cap opaque ABI). Twin emit_type_kind. */
+  if (kind_ord == (TypeKind.TYPE_FN as i32)) {
+    let s: u8[10] = [117, 105, 110, 116, 56, 95, 116, 32, 42, 0];
+    let i: i32 = 0;
+    while (i < 9) {
+      if (w >= cap - 1) {
+        return -1;
+      }
+      scratch[w] = s[i];
+      w = w + 1;
+      i = i + 1;
+    }
+    return w;
+  }
   return -1;
 }
 
@@ -4431,7 +4961,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     let arr_sz: i32 = 0;
     let elem_kind: i32 = 0;
     let name_len: i32 = 0;
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
 
     if (ast.ref_is_null(type_ref)) {
       let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
@@ -4486,14 +5016,14 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
        * equality. Mirrors codegen_find_impl_method_for_type C6 name-match fallback.
        * wave447: also skip when concrete == type_ref (self-map).
        */
-      let fb_nm: u8[128] = [];
+      let fb_nm: u8[256] = [];
       let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
       if (fb_len > 0) {
         let mi2: i32 = 0;
         while (mi2 < ctx.mono_num_types && mi2 < 8) {
           let conc2: i32 = ctx.mono_concrete_type_refs[mi2];
           if (conc2 > 0 && conc2 != type_ref) {
-            let gnm: u8[128] = [];
+            let gnm: u8[256] = [];
             let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
             if (gname_len == fb_len && gname_len > 0) {
               let names_eq: i32 = 1;
@@ -4548,8 +5078,14 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     }
     name_len = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
     if (tk == TypeKind.TYPE_NAMED as i32 && name_len > 0) {
-      let dep_prefix_buf: u8[128] = [];
+      let dep_prefix_buf: u8[256] = [];
       let dep_prefix_len: i32 = 0;
+      /* Cap 10.7.1 slice7: VaList → xlang_va_list (header from emit_header). */
+      if (name_len == 6 && nm[0] == 86 && nm[1] == 97 && nm[2] == 76
+          && nm[3] == 105 && nm[4] == 115 && nm[5] == 116) {
+        let vl: u8[14] = [120, 108, 97, 110, 103, 95, 118, 97, 95, 108, 105, 115, 116, 0];
+        return emit_bytes_from_ptr(out, &vl[0], 13);
+      }
       /* See implementation. */
       if (name_len == 6 && nm[0] == 66 && nm[1] == 117 && nm[2] == 102 && nm[3] == 102
           && nm[4] == 101 && nm[5] == 114) {
@@ -4712,7 +5248,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx) {
-        let dep_enum_prefix: u8[128] = [];
+        let dep_enum_prefix: u8[256] = [];
         let dep_enum_prefix_len: i32 = codegen_type_dep_enum_prefix_into(ctx, arena, type_ref, &dep_enum_prefix[0], 128);
         if (dep_enum_prefix_len > 0) {
           let e: u8[8] = [101, 110, 117, 109, 32, 0, 0, 0];
@@ -4758,7 +5294,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
           qi = qi + 1;
         }
         if (qhas_dot && qmod_end > 0 && qmod_end < 64) {
-          let mod_path: u8[128] = [];
+          let mod_path: u8[256] = [];
           let mi: i32 = 0;
           while (mi < qmod_end) {
             mod_path[mi] = nm[mi];
@@ -4784,7 +5320,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
           && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, type_ref) != 0) {
         /* See implementation. */
-        let cur_pre: u8[128] = [];
+        let cur_pre: u8[256] = [];
         let cur_pre_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
         if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
           return -1;
@@ -4815,9 +5351,10 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         ci = ci + 1;
       }
       /*
-       * wave481: generic struct multi mono C tag — append `__A` / `__i32_i32` when
-       * TYPE_NAMED carries concrete type-pos args (Wrap&lt;A&gt;). Matches mangled defs
-       * from codegen_emit_module_struct_definitions. PLATFORM: SHARED host-C.
+       * wave481 + tag unify: generic struct multi mono C tag — append `_A` /
+       * `_i32_i32` when TYPE_NAMED carries concrete type-pos args (Wrap&lt;A&gt;).
+       * Matches typeck named-inst + mangled defs from
+       * codegen_emit_module_struct_definitions. PLATFORM: SHARED host-C.
        */
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
         if (codegen_maybe_emit_generic_struct_mono_suffix_for_type(ctx.current_codegen_module, arena, out, type_ref, ctx) != 0) {
@@ -4891,7 +5428,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     if (tk == TypeKind.TYPE_SLICE as i32 && !ast.ref_is_null(elem_ref)) {
       if (ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
         if (pipeline_type_kind_ord_at(arena, elem_ref) == (TypeKind.TYPE_NAMED as i32)) {
-          let cur_sl_nm: u8[128] = [];
+          let cur_sl_nm: u8[256] = [];
           let cur_sl_nl: i32 = pipeline_type_named_name_into(arena, elem_ref, &cur_sl_nm[0]);
           if (cur_sl_nl > 0) {
             let mi_sl: i32 = 0;
@@ -4904,7 +5441,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
                 let e_gen_sl: i32 = pipeline_type_elem_ref_at(arena, g_sl);
                 if (e_gen_sl > 0
                     && pipeline_type_kind_ord_at(arena, e_gen_sl) == (TypeKind.TYPE_NAMED as i32)) {
-                  let g_sl_nm: u8[128] = [];
+                  let g_sl_nm: u8[256] = [];
                   let g_sl_nl: i32 = pipeline_type_named_name_into(arena, e_gen_sl, &g_sl_nm[0]);
                   if (g_sl_nl == cur_sl_nl && g_sl_nl > 0) {
                     let eq_sl: i32 = 1;
@@ -4935,7 +5472,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
               let c_bt: i32 = ctx.mono_concrete_type_refs[mi_bt];
               if (c_bt > 0 && c_bt != type_ref && g_bt > 0
                   && pipeline_type_kind_ord_at(arena, g_bt) == (TypeKind.TYPE_NAMED as i32)) {
-                let g_bt_nm: u8[128] = [];
+                let g_bt_nm: u8[256] = [];
                 let g_bt_nl: i32 = pipeline_type_named_name_into(arena, g_bt, &g_bt_nm[0]);
                 if (g_bt_nl == cur_sl_nl && g_bt_nl > 0) {
                   let eq_bt: i32 = 1;
@@ -4992,7 +5529,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       let ek: i32 = pipeline_type_kind_ord_at(arena, elem_ref);
       if (ek == (TypeKind.TYPE_NAMED as i32)) {
-        let enm: u8[128] = [];
+        let enm: u8[256] = [];
         let enl: i32 = pipeline_type_named_name_into(arena, elem_ref, &enm[0]);
         /* wave619: short int aliases → stdint slice tags via type_to_c_repr. */
         let is_short_int: i32 = 0;
@@ -5013,7 +5550,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
             return -1;
           }
           /* Mirror TYPE_NAMED prefix resolution for the element tag. */
-          let dep_prefix_buf2: u8[128] = [];
+          let dep_prefix_buf2: u8[256] = [];
           let dep_prefix_len2: i32 = codegen_type_dep_struct_prefix_into(ctx, arena, elem_ref, &dep_prefix_buf2[0], 128);
           if (dep_prefix_len2 == 0) {
             let qmod_end2: i32 = 0;
@@ -5027,7 +5564,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
               qi2 = qi2 + 1;
             }
             if (qhas_dot2 && qmod_end2 > 0 && qmod_end2 < 64) {
-              let mod_path2: u8[128] = [];
+              let mod_path2: u8[256] = [];
               let mi2: i32 = 0;
               while (mi2 < qmod_end2) {
                 mod_path2[mi2] = enm[mi2];
@@ -5051,7 +5588,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
             }
           } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
               && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, elem_ref) != 0) {
-            let cur_pre2: u8[128] = [];
+            let cur_pre2: u8[256] = [];
             let cur_pre_len2: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre2[0], 128);
             if (cur_pre_len2 > 0 && emit_bytes_from_ptr(out, &cur_pre2[0], cur_pre_len2) != 0) {
               return -1;
@@ -5093,7 +5630,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
        */
       let pfx_use: *u8 = struct_prefix;
       let pfx_len_use: i32 = struct_prefix_len;
-      let cur_pre_sl: u8[128] = [];
+      let cur_pre_sl: u8[256] = [];
       if ((pfx_use == 0 as *u8 || pfx_len_use <= 0) && ctx != 0 as *PipelineDepCtx) {
         let pl_sl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre_sl[0], 128);
         if (pl_sl > 0) {
@@ -5123,6 +5660,14 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     /* See implementation. */
     if (tk == TypeKind.TYPE_LINEAR as i32 && !ast.ref_is_null(elem_ref)) {
       return emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx);
+    }
+    /*
+     * 10.3.1: TYPE_FN → abstract C fnptr `Ret (*)(T0,…)`.
+     * Named locals/params use emit_c_fnptr_decl with name (like *[N]T).
+     * PLATFORM: SHARED host-C. G.7 single declarator authority.
+     */
+    if (tk == TypeKind.TYPE_FN as i32) {
+      return emit_c_fnptr_decl(arena, out, type_ref, 0 as *u8, 0, 0, ctx);
     }
     return emit_type_kind_ord(out, tk);
   }
@@ -5171,7 +5716,7 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
         while (li < dep_mod.num_struct_layouts) {
           let dep_name_len: i32 = pipeline_module_struct_layout_name_len(dep_mod, li);
           if (dep_name_len == bare_len) {
-            let dep_nm: u8[128] = [];
+            let dep_nm: u8[256] = [];
             let eq: bool = true;
             let j: i32 = 0;
             pipeline_module_struct_layout_name_into(dep_mod, li, &dep_nm[0]);
@@ -5243,7 +5788,7 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     let owner: i32 = -1;
     if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || dst == 0 as *u8 || dst_cap <= 0 || ast.ref_is_null(type_ref)) {
       return 0;
@@ -5267,7 +5812,7 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
     let bare_len: i32 = name_len - bare_off;
     owner = codegen_type_dep_struct_owner_index(ctx, &ty_nm[bare_off], bare_len);
     if (owner >= 0) {
-      let dep_path: u8[128] = [];
+      let dep_path: u8[256] = [];
       let plen: i32 = codegen_dep_import_path_len_at(ctx, owner, &dep_path[0]);
       if (plen > 0) {
         codegen_import_path_to_c_prefix_into(&dep_path[0], dst, dst_cap);
@@ -5315,13 +5860,17 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
  * wave636: TYPE_PTR → TYPE_ARRAY (`*[N]T`) must be `E (*name)[N]`, not `E * *`.
  * dest-SLICE return/assign of INDEX: TYPE_ARRAY → TYPE_ARRAY (`[K][N]T` param)
  * decays to a pointer to the row, the same C form `E (*name)[N]…`.
+ * `[K]*[N]T` (ARRAY of PTR-to-ARRAY) param-decays to a pointer to `*[N]T`,
+ * so the C form is `E (**name)[N]…` (abstract `E (**)[N]…`). Sit-red
+ * dyn_add_arr_ptr_arr host-C INDEX `(*((p)[0]))[0]` when p was `E **`
+ * (`*(p[0])` is a scalar, not an array).
  * Abstract emit_type peels ARRAY to `E *` twice → `int32_t ** a` and
  * `(a)[0]` reads the first row's scalars as a pointer (memcpy SEGV).
  * C form: `E (*name)[N][M]…` (name_len==0 → abstract `E (*)[N]…`).
  * Reuses emit_local_fixed_array_elem_type + suffix (G.7; no third peel).
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
- * @param ptr_type_ref i32 — TYPE_PTR→TYPE_ARRAY or TYPE_ARRAY→TYPE_ARRAY
+ * @param ptr_type_ref i32 — TYPE_PTR→TYPE_ARRAY, TYPE_ARRAY→TYPE_ARRAY, or TYPE_ARRAY→TYPE_PTR→TYPE_ARRAY
  * @param name *u8 — optional declarator name (may be null when name_len==0)
  * @param name_len i32 — 0 for abstract type (casts / sizeof)
  * @param ctx *PipelineDepCtx — nested named/struct emit
@@ -5341,6 +5890,45 @@ export function emit_c_ptr_to_fixed_array_decl(arena: *ASTArena, out: *CodegenOu
       return -1;
     }
     arr_tr = pipeline_type_elem_ref_at(arena, ptr_type_ref);
+    /*
+     * `[K]*[N]T` param decay: pointer to `*[N]T` → `E (**name)[N]`.
+     * Do not fall through to ARRAY-of-ARRAY (`arr_tr` is PTR, not ARRAY).
+     * Kind checks are inlined (this function is defined before
+     * type_is_ptr_to_fixed_array). PLATFORM: SHARED host-C.
+     */
+    if (decl_tk == (TypeKind.TYPE_ARRAY as i32) && !ast.ref_is_null(arr_tr)
+        && pipeline_type_kind_ord_at(arena, arr_tr) == (TypeKind.TYPE_PTR as i32)) {
+      let inner_arr: i32 = pipeline_type_elem_ref_at(arena, arr_tr);
+      if (ast.ref_is_null(inner_arr)
+          || pipeline_type_kind_ord_at(arena, inner_arr) != (TypeKind.TYPE_ARRAY as i32)) {
+        return -1;
+      }
+      if (emit_local_fixed_array_elem_type(arena, out, inner_arr, ctx) != 0) {
+        return -1;
+      }
+      /* " (**" */
+      if (append_byte(out, 32) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 42) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 42) != 0) {
+        return -1;
+      }
+      if (name_len > 0 && name != 0 as *u8) {
+        if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+          return -1;
+        }
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      return emit_local_fixed_array_suffix(arena, out, inner_arr);
+    }
     if (ast.ref_is_null(arr_tr) || pipeline_type_kind_ord_at(arena, arr_tr) != (TypeKind.TYPE_ARRAY as i32)) {
       return -1;
     }
@@ -5419,8 +6007,9 @@ export function type_is_array_of_fixed_array(arena: *ASTArena, type_ref: i32): i
 
 /**
  * Host-C: true when a param/abstract type needs a named C array declarator
- * (`E (*name)[N]…`) instead of emit_type + trailing name.
- * Covers `*[N]T` and `[K][N]T` (same C form; G.7 single emit_c_ptr path).
+ * (`E (*name)[N]…` / `E (**name)[N]…`) instead of emit_type + trailing name.
+ * Covers `*[N]T`, `[K][N]T`, and `[K]*[N]T` (G.7 single emit_c_ptr path).
+ * `[K]*T` (ARRAY of PTR-to-leaf) stays emit_type `E **` — not this leaf.
  * @param arena *ASTArena — type pool
  * @param type_ref i32 — candidate type
  * @return i32 — 1 if named declarator required, else 0
@@ -5429,10 +6018,353 @@ export function type_is_array_of_fixed_array(arena: *ASTArena, type_ref: i32): i
 export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0.
   unsafe {
+    let elem: i32 = 0;
     if (type_is_ptr_to_fixed_array(arena, type_ref) != 0) {
       return 1;
     }
-    return type_is_array_of_fixed_array(arena, type_ref);
+    if (type_is_array_of_fixed_array(arena, type_ref) != 0) {
+      return 1;
+    }
+    /* `[K]*[N]T`: ARRAY whose element is PTR-to-fixed-ARRAY. */
+    if (ast.ref_is_null(type_ref) || pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_ARRAY as i32)) {
+      return 0;
+    }
+    elem = pipeline_type_elem_ref_at(arena, type_ref);
+    return type_is_ptr_to_fixed_array(arena, elem);
+  }
+}
+
+/**
+ * True when type_ref is Cap fn-ptr surface `*u8` (TYPE_PTR → TYPE_U8).
+ * Host-C Cap→fn assign cast / Cap CALL cast gate (10.3.1 slice15).
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — resolved type
+ * @return i32 — 1 Cap *u8, 0 otherwise
+ * PLATFORM: SHARED host-C.
+ */
+export function codegen_type_is_cap_u8_ptr(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let er: i32 = 0;
+    if (arena == 0 as *ASTArena || type_ref <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_PTR as i32)) {
+      return 0;
+    }
+    er = pipeline_type_elem_ref_at(arena, type_ref);
+    if (er <= 0) {
+      return 0;
+    }
+    if (pipeline_type_kind_ord_at(arena, er) == (TypeKind.TYPE_U8 as i32)) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Host-C abstract fnptr type from CALL site: `Ret (*)(T0, …)`.
+ * Used when Cap *u8 is called (no TYPE_FN node on callee). Ret/arg types from
+ * stamped CALL / arg resolved types; missing → int32_t; 0-arg → void.
+ * @param arena *ASTArena — type/expr pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param call_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — nested emit_type
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C. Complements emit_c_fnptr_decl (TYPE_FN authority).
+ */
+export function codegen_emit_c_fnptr_abstract_from_call(arena: *ASTArena, out: *CodegenOutBuf,
+call_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ret_ty: i32 = 0;
+    let n: i32 = 0;
+    let i: i32 = 0;
+    let arg_ref: i32 = 0;
+    let arg_ty: i32 = 0;
+    let i32t: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
+    let void5: u8[5] = [118, 111, 105, 100, 0];
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || call_ref <= 0) {
+      return -1;
+    }
+    ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
+    if (ret_ty <= 0) {
+      if (emit_bytes_8(out, &i32t[0], 7) != 0) {
+        return -1;
+      }
+    } else if (emit_type(arena, out, ret_ty, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    /* " (*(" */
+    if (append_byte(out, 32) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 42) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    n = pipeline_expr_call_num_args_at(arena, call_ref);
+    if (n <= 0) {
+      if (emit_bytes_from_ptr(out, &void5[0], 4) != 0) {
+        return -1;
+      }
+    } else {
+      i = 0;
+      while (i < n) {
+        if (i > 0) {
+          let comma: u8[3] = [44, 32, 0];
+          if (emit_bytes_3(out, &comma[0], 2) != 0) {
+            return -1;
+          }
+        }
+        arg_ref = pipeline_expr_call_arg_ref(arena, call_ref, i);
+        arg_ty = 0;
+        if (!ast.ref_is_null(arg_ref) && arg_ref > 0) {
+          arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
+        if (arg_ty <= 0) {
+          if (emit_bytes_8(out, &i32t[0], 7) != 0) {
+            return -1;
+          }
+        } else if (emit_type(arena, out, arg_ty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        i = i + 1;
+      }
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Host-C Cap `*u8` CALL → `((Ret (*)(T…))(callee))(args)`.
+ * Without cast, gcc: called object type 'uint8_t *' is not a function.
+ * TYPE_FN / named declarator callees return 0 (unhandled).
+ * @param arena *ASTArena — expr pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param expr_ref i32 — EXPR_CALL
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 1 emitted, 0 not Cap surface, -1 failure
+ * PLATFORM: SHARED host-C. 10.3.1 slice15.
+ */
+export function codegen_try_emit_cap_u8_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let cal_ty: i32 = 0;
+    let n: i32 = 0;
+    let ai: i32 = 0;
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf) {
+      return -1;
+    }
+    if ((e.kind as i32) != (ExprKind.EXPR_CALL as i32)) {
+      return 0;
+    }
+    callee_ref = e.call_callee_ref;
+    if (ast.ref_is_null(callee_ref) || callee_ref <= 0 || callee_ref > arena.num_exprs) {
+      return 0;
+    }
+    cal_ty = pipeline_expr_resolved_type_ref(arena, callee_ref);
+    if (codegen_type_is_cap_u8_ptr(arena, cal_ty) == 0) {
+      return 0;
+    }
+    /* ((abstract)(callee))(args) */
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (codegen_emit_c_fnptr_abstract_from_call(arena, out, expr_ref, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, callee_ref, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    n = e.call_num_args;
+    ai = 0;
+    while (ai < n) {
+      if (ai > 0) {
+        let comma: u8[3] = [44, 32, 0];
+        if (emit_bytes_3(out, &comma[0], 2) != 0) {
+          return -1;
+        }
+      }
+      if (ast.ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {
+        if (append_byte(out, 48) != 0) {
+          return -1;
+        }
+      } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+}
+
+/**
+ * Host-C: emit a C function-pointer declarator for TYPE_FN (10.3.1).
+ *
+ * Storage (parser): elem=return, array_size=n_params, type_args=params.
+ * Form: `Ret (*name)(T0, T1, …)` or abstract `Ret (*)(T0, …)` when name_len==0.
+ * Zero params → `(void)` (ISO C empty-prototype ban). Nested TYPE_FN params
+ * recurse via emit_type → abstract form.
+ *
+ * 10.3.1 slice11: when `array_ty` is TYPE_ARRAY… peeling to `fn_ty`, emit
+ * dims after the name inside the pointer parens:
+ *   `Ret (*name[N][M])(args)` — not invalid `Ret (*)(args) name[N]`.
+ * Pass array_ty==0 for bare TYPE_FN / abstract / params.
+ *
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param fn_ty i32 — TYPE_FN type_ref (leaf)
+ * @param name *u8 — optional declarator name (null when name_len==0)
+ * @param name_len i32 — 0 for abstract type (casts / emit_type)
+ * @param array_ty i32 — 0 or outermost TYPE_ARRAY of fn_ty; dims after name
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C. G.7 single TYPE_FN declarator authority.
+ */
+export function emit_c_fnptr_decl(arena: *ASTArena, out: *CodegenOutBuf, fn_ty: i32, name: *u8,
+name_len: i32, array_ty: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let ret_ty: i32 = 0;
+    let n: i32 = 0;
+    let i: i32 = 0;
+    let pty: i32 = 0;
+    let dims_ref: i32 = 0;
+    let depth: i32 = 0;
+    let asz: i32 = 0;
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || fn_ty <= 0) {
+      return -1;
+    }
+    if (pipeline_type_kind_ord_at(arena, fn_ty) != (TypeKind.TYPE_FN as i32)) {
+      return -1;
+    }
+    ret_ty = pipeline_type_elem_ref_at(arena, fn_ty);
+    if (ret_ty <= 0) {
+      /* Missing ret → void. */
+      let v: u8[5] = [118, 111, 105, 100, 0];
+      if (emit_bytes_from_ptr(out, &v[0], 4) != 0) {
+        return -1;
+      }
+    } else if (emit_type(arena, out, ret_ty, 0 as *u8, 0, ctx) != 0) {
+      return -1;
+    }
+    /* " (*" */
+    if (append_byte(out, 32) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 42) != 0) {
+      return -1;
+    }
+    if (name_len > 0 && name != 0 as *u8) {
+      if (emit_bytes_from_ptr(out, name, name_len) != 0) {
+        return -1;
+      }
+    }
+    /*
+     * Array-of-fnptr: dims bind to the pointer name, not after the prototype.
+     * PLATFORM: SHARED host-C (ISO C `Ret (*a[N])(T)`).
+     */
+    if (array_ty > 0 && pipeline_type_kind_ord_at(arena, array_ty) == (TypeKind.TYPE_ARRAY as i32)) {
+      dims_ref = array_ty;
+      depth = 0;
+      while (!ast.ref_is_null(dims_ref)
+          && pipeline_type_kind_ord_at(arena, dims_ref) == (TypeKind.TYPE_ARRAY as i32)
+          && depth < 8) {
+        asz = pipeline_type_array_size_at(arena, dims_ref);
+        if (append_byte(out, 91) != 0) {
+          return -1;
+        }
+        if (format_int(out, asz) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 93) != 0) {
+          return -1;
+        }
+        dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+        depth = depth + 1;
+      }
+    }
+    /* ")(" */
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    n = pipeline_type_array_size_at(arena, fn_ty);
+    if (n < 0) {
+      n = 0;
+    }
+    if (n == 0) {
+      let vd: u8[5] = [118, 111, 105, 100, 0];
+      if (emit_bytes_from_ptr(out, &vd[0], 4) != 0) {
+        return -1;
+      }
+    } else {
+      i = 0;
+      while (i < n) {
+        if (i > 0) {
+          if (append_byte(out, 44) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 32) != 0) {
+            return -1;
+          }
+        }
+        pty = pipeline_type_type_arg_ref_at(arena, fn_ty, i);
+        if (pty <= 0) {
+          return -1;
+        }
+        if (emit_type(arena, out, pty, 0 as *u8, 0, ctx) != 0) {
+          return -1;
+        }
+        i = i + 1;
+      }
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    return 0;
   }
 }
 
@@ -5521,11 +6453,14 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
  * @param name *u8 — C local identifier bytes (may be placeholder `_lN`)
  * @param name_len i32 — byte length of name; must match what was just emitted
  * @param linit_ref i32 — init expression ref; null/invalid → zero brace init
+ * @param dest_type_ref i32 — let dest TYPE_ARRAY (may be 0); stamps ARRAY_LIT
+ *   resolved_type_ref when dep typeck left it empty so braced STRUCT_LIT elems
+ *   can recover Iovec (fs_formal posix readv4 incomplete `struct std_fs_posix_`).
  * @param ctx *PipelineDepCtx — emit context for nested expr
  * @return i32 — 0 on success, -1 on hard emit failure
  * PLATFORM: SHARED host-C emit (string.h memcpy already in product preamble).
  */
-export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
+export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, name: *u8, name_len: i32, linit_ref: i32, dest_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
@@ -5542,6 +6477,19 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
       }
     }
     if (use_brace != 0) {
+      /* Dep co-emit can leave ARRAY_LIT resolved_type_ref empty; let dest is
+       * the authority (already used for `E name[N]`). Stamp so braced
+       * STRUCT_LIT elems recover TYPE_NAMED (Iovec) instead of empty prefix.
+       * PLATFORM: SHARED host-C. */
+      if (!ast.ref_is_null(dest_type_ref) && dest_type_ref > 0 && dest_type_ref <= arena.num_types) {
+        let dk: i32 = pipeline_type_kind_ord_at(arena, dest_type_ref);
+        if (dk == (TypeKind.TYPE_ARRAY as i32) || dk == (TypeKind.TYPE_SLICE as i32)) {
+          let ie_d: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+          if (ast.ref_is_null(ie_d.resolved_type_ref) || ie_d.resolved_type_ref <= 0) {
+            pipeline_expr_set_resolved_type_ref(arena, linit_ref, dest_type_ref);
+          }
+        }
+      }
       let eqb: u8[4] = [32, 61, 32, 0];
       if (emit_bytes_4(out, &eqb[0], 3) != 0) {
         return -1;
@@ -5608,6 +6556,8 @@ export function emit_local_fixed_array_let_finish(arena: *ASTArena, out: *Codege
  * @param ctx *PipelineDepCtx — current module + dep table; null → 0
  * @return i32 — 1 callee return TYPE_SLICE; 0 otherwise
  * PLATFORM: SHARED host-C (let-init reent gate).
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+ * Do not fork a second let-init reent gate.
  */
 export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5700,6 +6650,9 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for scalar []i32
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit (mirror freestanding glue_emit_slice_from_array_let_init).
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+ * Do not fork a second CALL/METHOD wrap, dest-SLICE non-VAR FIELD wrap,
+ * or dest-SLICE VAR parent-block const scan.
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5725,7 +6678,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         let nlen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
         if (nlen == init_e.var_name_len && nlen > 0) {
           let matched: i32 = 1;
-          let nb: u8[128] = [];
+          let nb: u8[256] = [];
           pipeline_block_let_name_copy64(arena, block_ref, li, &nb[0]);
           let ci: i32 = 0;
           while (ci < nlen) {
@@ -5754,7 +6707,9 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       /*
        * Typeck stamps `[a]` row resolved_type_ref to TYPE_SLICE, so the fallback
        * above misses N. Decl type is still TYPE_ARRAY: scan same-block consts,
-       * then parent lets/consts. PLATFORM: SHARED host-C.
+       * then parent lets/consts. Seed twin: codegen_gen.linux.x86_64.c
+       * (live `-E` is host-cc of that seed). Do not fork a second dest-SLICE
+       * VAR parent-block const scan. PLATFORM: SHARED host-C.
        */
       if (arr_sz <= 0) {
         let brw: i32 = block_ref;
@@ -5770,7 +6725,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
                 let nlen_w: i32 = pipeline_block_let_name_len(arena, brw, liw);
                 if (nlen_w == init_e.var_name_len && nlen_w > 0) {
                   let matched_w: i32 = 1;
-                  let nbw: u8[128] = [];
+                  let nbw: u8[256] = [];
                   pipeline_block_let_name_copy64(arena, brw, liw, &nbw[0]);
                   let ciw: i32 = 0;
                   while (ciw < nlen_w) {
@@ -5797,7 +6752,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
               let clen: i32 = pipeline_block_const_name_len(arena, brw, ci_c);
               if (clen == init_e.var_name_len && clen > 0) {
                 let matched_c: i32 = 1;
-                let nbc: u8[128] = [];
+                let nbc: u8[256] = [];
                 pipeline_block_const_name_copy64(arena, brw, ci_c, &nbc[0]);
                 let cic: i32 = 0;
                 while (cic < clen) {
@@ -5833,6 +6788,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
        * base TYPE_NAMED layout (same as glue_field_access_field_type_ref).
        * CALL/METHOD return temps die — .data memcpy into unique static[N].
        * STRUCT_LIT C compound has block duration; INDEX/VAR view the object.
+       * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+       * Do not fork a second dest-SLICE non-VAR FIELD wrap.
        * PLATFORM: SHARED host-C.
        */
       is_field = 1;
@@ -5844,7 +6801,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
         }
       }
       if (arr_sz <= 0 && ctx != 0 as *PipelineDepCtx) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         let snl: i32 = 0;
         if (field_base_ko == 45 && base_e.struct_lit_struct_name_len > 0) {
           snl = base_e.struct_lit_struct_name_len;
@@ -6231,6 +7188,8 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
  * try_emit_dest_slice_from_module_array_var when linit is FIELD so
  * every try_emit==0 caller is covered. Do not add this walk to
  * try_emit. Do not add an 8th pointer param.
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that
+ * seed). Do not fork a second import-const FIELD wrap.
  *
  * @param arena *ASTArena — caller type/expr pool (dest_type_ref)
  * @param out *CodegenOutBuf — C text sink
@@ -6481,6 +7440,89 @@ export function try_emit_dest_slice_from_module_array_var(
 }
 
 /**
+ * Peel TYPE_ARRAY / TYPE_PTR / TYPE_SLICE (and aliases) down to TYPE_NAMED.
+ * Anonymous `{ fields }` inside `let x: Iovec[4] = [{...}]` must recover dest
+ * Iovec, not the enclosing function return (often i64) and not empty prefix.
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — dest type; 0/null → 0
+ * @return i32 — TYPE_NAMED ref or 0
+ * PLATFORM: SHARED host-C STRUCT_LIT dest peel (pair skip_abi_dup Iovec).
+ */
+export function codegen_peel_named_dest_type(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let rec: i32 = type_ref;
+    let peel: i32 = 0;
+    if (arena == 0 as *ASTArena || ast.ref_is_null(type_ref) || type_ref <= 0) {
+      return 0;
+    }
+    while (peel < 4) {
+      if (ast.ref_is_null(rec) || rec <= 0 || rec > arena.num_types) {
+        return 0;
+      }
+      rec = pipeline_typeck_resolve_type_alias_ref_c(arena, rec);
+      if (ast.ref_is_null(rec) || rec <= 0 || rec > arena.num_types) {
+        return 0;
+      }
+      let k: i32 = pipeline_type_kind_ord_at(arena, rec);
+      if (k == (TypeKind.TYPE_NAMED as i32)) {
+        return rec;
+      }
+      if (k == (TypeKind.TYPE_ARRAY as i32) || k == (TypeKind.TYPE_PTR as i32)
+          || k == (TypeKind.TYPE_SLICE as i32)) {
+        rec = pipeline_type_elem_ref_at(arena, rec);
+        peel = peel + 1;
+        continue;
+      }
+      return 0;
+    }
+    return 0;
+  }
+}
+
+/**
+ * Stamp anonymous STRUCT_LIT dest name from dest TYPE_NAMED (peel compounds).
+ * Dep co-emit leaves struct_lit_struct_name empty; typeck only backfills entry.
+ * Let `buf: Buffer = {…}` and array `{f}` elems both use this (G.7 one stamp).
+ * @param arena *ASTArena — expression pool
+ * @param expr_ref i32 — EXPR_STRUCT_LIT
+ * @param dest_type_ref i32 — let/array dest; 0 ok (falls back to expr resolved)
+ * @return i32 — 1 stamped, 0 not applicable
+ * PLATFORM: SHARED host-C. Why setter: Expr sret SIGBUS on arm64.
+ */
+export function codegen_stamp_anon_struct_lit_dest(arena: *ASTArena, expr_ref: i32, dest_type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(expr_ref) || expr_ref <= 0
+        || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != (ExprKind.EXPR_STRUCT_LIT as i32)) {
+      return 0;
+    }
+    let el: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    if (el.struct_lit_struct_name_len > 0) {
+      return 0;
+    }
+    let dest_n: i32 = codegen_peel_named_dest_type(arena, dest_type_ref);
+    if (ast.ref_is_null(dest_n) || dest_n <= 0) {
+      dest_n = codegen_peel_named_dest_type(arena, el.resolved_type_ref);
+    }
+    if (ast.ref_is_null(dest_n) || dest_n <= 0) {
+      return 0;
+    }
+    let dnm: u8[256] = [];
+    let dnl: i32 = pipeline_type_named_name_into(arena, dest_n, &dnm[0]);
+    if (dnl <= 0 || dnl > 255) {
+      return 0;
+    }
+    pipeline_expr_struct_lit_type_name_set(arena, expr_ref, &dnm[0], dnl);
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, dest_n);
+    return 1;
+  }
+}
+
+/**
  * Host-C: emit `{ e0, e1, … }` for ARRAY_LIT (fixed TYPE_ARRAY / vector let-init).
  * wave357 Cap residual pure: nested ARRAY_LIT rows recurse (multi-dim `{{1,2},{3,4}}`).
  * Prior: each row went through emit_expr → `(int32_t[]){…}` compound → illegal for `E a[N][M]`.
@@ -6498,6 +7540,8 @@ export function try_emit_dest_slice_from_module_array_var(
  * @param ctx *PipelineDepCtx — nested emit
  * @return i32 — 0 success
  * PLATFORM: SHARED host-C emit
+ * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+ * Do not fork a second dest-ARRAY `[N][]T` wrap_br.
  */
 export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf, init_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6607,6 +7651,17 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
         if (wrap_br < 0) {
           return -1;
         }
+        /*
+         * Stamp dest TYPE_NAMED onto anonymous STRUCT_LIT elems so emit_expr
+         * skip_abi_dup sees Iovec → std_io_sync_, not empty prefix std_fs_posix_
+         * (fs_formal KEEP_C host-cc incomplete type → missing fs.o → BLD001).
+         * ARRAY_LIT dest is stamped by typeck or emit_local_fixed_array_let_finish.
+         * PLATFORM: SHARED host-C. G.7 complete STRUCT_LIT dest (pair http Result).
+         */
+        if (wrap_br == 0 && !ast.ref_is_null(elem_ref)) {
+          let _st: i32 = codegen_stamp_anon_struct_lit_dest(arena, elem_ref, self_e.resolved_type_ref);
+          _st = _st;
+        }
         if (wrap_br == 0 && emit_expr(arena, out, elem_ref, ctx) != 0) {
           return -1;
         }
@@ -6668,7 +7723,7 @@ export function codegen_lookup_struct_field_type_ref(
     if (bare_len <= 0) {
       return 0;
     }
-    /* wave588 Cap residual: field name content ≤127 (StructLitFieldEntry / layout name[128]). */
+    /* wave588 Cap residual: field name content ≤255 (StructLitFieldEntry / layout name[256]). */
     let flen_use: i32 = field_name_len;
     if (flen_use > 127) {
       flen_use = 127;
@@ -6699,7 +7754,7 @@ export function codegen_lookup_struct_field_type_ref(
           while (k < try_mod.num_struct_layouts) {
             let snl: i32 = pipeline_module_struct_layout_name_len(try_mod, k);
             if (snl == bare_len && snl > 0) {
-              let snm: u8[128] = [];
+              let snm: u8[256] = [];
               pipeline_module_struct_layout_name_into(try_mod, k, &snm[0]);
               let eq: bool = true;
               let sj: i32 = 0;
@@ -6716,7 +7771,7 @@ export function codegen_lookup_struct_field_type_ref(
                 while (j < nf) {
                   let fnl: i32 = pipeline_module_struct_layout_field_name_len(try_mod, k, j);
                   if (fnl == flen_use && fnl > 0) {
-                    let fnm: u8[128] = [];
+                    let fnm: u8[256] = [];
                     pipeline_module_struct_layout_field_name_into(try_mod, k, j, &fnm[0]);
                     let feq: bool = true;
                     let fj: i32 = 0;
@@ -6887,7 +7942,7 @@ export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTA
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(type_ref)) {
       return 0;
     }
@@ -6902,7 +7957,7 @@ export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTA
     while (k < module.num_struct_layouts) {
       let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
       if (nl == name_len) {
-        let lay_nm: u8[128] = [];
+        let lay_nm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, k, &lay_nm[0]);
         let eq: bool = true;
         let j: i32 = 0;
@@ -6935,7 +7990,7 @@ export function codegen_type_is_module_user_enum(module: *Module, arena: *ASTAre
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     if (module == 0 as *Module || arena == 0 as *ASTArena || ast.ref_is_null(type_ref)) {
       return 0;
     }
@@ -6983,7 +8038,7 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
   unsafe {
 
     let name_len: i32 = 0;
-    let ty_nm: u8[128] = [];
+    let ty_nm: u8[256] = [];
     let di: i32 = 0;
     if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || dst == 0 as *u8 || dst_cap <= 0 || ast.ref_is_null(type_ref)) {
       return 0;
@@ -7022,7 +8077,7 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
               j = j + 1;
             }
             if (eq) {
-              let dep_path: u8[128] = [];
+              let dep_path: u8[256] = [];
               let plen: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
               if (plen > 0) {
                 codegen_import_path_to_c_prefix_into(&dep_path[0], dst, dst_cap);
@@ -7082,7 +8137,7 @@ export function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTAr
     if (k != (TypeKind.TYPE_NAMED as i32)) {
       return 1;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nl: i32 = pipeline_type_named_name_into(arena, ty, &nm[0]);
     if (nl <= 0) {
       return 0;
@@ -7091,7 +8146,7 @@ export function codegen_type_ref_is_host_concrete(module: *Module, arena: *ASTAr
     while (sk < module.num_struct_layouts) {
       let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl == nl) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let bi: i32 = 0;
         /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
@@ -7166,7 +8221,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     if (pipeline_type_kind_ord_at(arena, ftr) != (TypeKind.TYPE_NAMED as i32)) {
       return ftr;
     }
-    let ftn: u8[128] = [];
+    let ftn: u8[256] = [];
     let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
     if (ftnl <= 0) {
       return ftr;
@@ -7176,7 +8231,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     while (sk < module.num_struct_layouts) {
       let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl == ftnl) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let bi: i32 = 0;
         /* name_eq: not `match` — `match` is a reserved keyword (match expr). */
@@ -7199,7 +8254,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     while (sk < module.num_struct_layouts) {
       let sl2: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl2 == layout_nl && layout_nl > 0) {
-        let snm2: u8[128] = [];
+        let snm2: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm2[0]);
         let eq2: i32 = 1;
         let bi2: i32 = 0;
@@ -7217,7 +8272,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
             while (tj < ntp) {
               let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, sk, tj);
               if (tpl == ftnl) {
-                let tpn: u8[128] = [];
+                let tpn: u8[256] = [];
                 pipeline_module_struct_layout_type_param_name_into(module, sk, tj, &tpn[0]);
                 let peq: i32 = 1;
                 let pi: i32 = 0;
@@ -7247,7 +8302,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
     let ti: i32 = 1;
     while (ti <= arena.num_types) {
       if (pipeline_type_kind_ord_at(arena, ti) == (TypeKind.TYPE_NAMED as i32)) {
-        let tnm: u8[128] = [];
+        let tnm: u8[256] = [];
         let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
         if (tnl == layout_nl && tnl > 0) {
           let eq: i32 = 1;
@@ -7294,7 +8349,7 @@ export function codegen_resolve_generic_struct_field_type(module: *Module, arena
             while (fj < nf) {
               let fl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, fj);
               if (fl == field_nl) {
-                let fnb: u8[128] = [];
+                let fnb: u8[256] = [];
                 pipeline_expr_struct_lit_field_name_into(arena, ei, fj, &fnb[0]);
                 let feq: i32 = 1;
                 let fi: i32 = 0;
@@ -7343,7 +8398,7 @@ export function codegen_module_struct_layout_index_by_name(module: *Module, layo
     while (sk < module.num_struct_layouts) {
       let sl: i32 = pipeline_module_struct_layout_name_len(module, sk);
       if (sl == layout_nl) {
-        let snm: u8[128] = [];
+        let snm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, sk, &snm[0]);
         let eq: i32 = 1;
         let bi: i32 = 0;
@@ -7395,7 +8450,7 @@ function codegen_generic_struct_resolve_arg_via_ctx(module: *Module, arena: *AST
       }
       mi = mi + 1;
     }
-    let fb_nm: u8[128] = [];
+    let fb_nm: u8[256] = [];
     let fb_len: i32 = pipeline_type_named_name_into(arena, ty, &fb_nm[0]);
     if (fb_len <= 0) {
       return 0;
@@ -7405,7 +8460,7 @@ function codegen_generic_struct_resolve_arg_via_ctx(module: *Module, arena: *AST
       let gen2: i32 = ctx.mono_generic_type_refs[mi];
       let conc2: i32 = ctx.mono_concrete_type_refs[mi];
       if (gen2 > 0 && conc2 > 0 && conc2 != ty) {
-        let gnm: u8[128] = [];
+        let gnm: u8[256] = [];
         let gnl: i32 = pipeline_type_named_name_into(arena, gen2, &gnm[0]);
         if (gnl == fb_len && gnl > 0) {
           let eq: i32 = 1;
@@ -7456,7 +8511,7 @@ function codegen_generic_struct_resolve_arg_via_map(module: *Module, arena: *AST
       }
       mi = mi + 1;
     }
-    let fb_nm: u8[128] = [];
+    let fb_nm: u8[256] = [];
     let fb_len: i32 = pipeline_type_named_name_into(arena, ty, &fb_nm[0]);
     if (fb_len <= 0) {
       return 0;
@@ -7464,7 +8519,7 @@ function codegen_generic_struct_resolve_arg_via_map(module: *Module, arena: *AST
     mi = 0;
     while (mi < nmono && mi < 8) {
       if (mono_gen[mi] > 0 && mono_conc[mi] > 0 && mono_conc[mi] != ty) {
-        let gnm: u8[128] = [];
+        let gnm: u8[256] = [];
         let gnl: i32 = pipeline_type_named_name_into(arena, mono_gen[mi], &gnm[0]);
         if (gnl == fb_len && gnl > 0) {
           let eq: i32 = 1;
@@ -7530,7 +8585,10 @@ export function codegen_generic_struct_fill_concrete_args(module: *Module, arena
 }
 
 /**
- * wave481: build mangled generic struct tag `Name__suf0[_suf1…]` into out_nm.
+ * wave481 + host-C STRUCT_LIT tag unify: build mangled generic struct tag
+ * `Name_suf0[_suf1…]` into out_nm (single `_`, same spelling as typeck
+ * `typeck_named_inst_mangle_into` / LANG-009 `Box_i32` / `Option_i32`).
+ * Prior `__` outer joiner dual-emitted `Box__i32` beside typeck `Box_i32`.
  * @param arena *ASTArena
  * @param layout_nm *u8
  * @param layout_nl i32
@@ -7539,7 +8597,7 @@ export function codegen_generic_struct_fill_concrete_args(module: *Module, arena
  * @param out_nm *u8 — capacity out_cap
  * @param out_cap i32
  * @return i32 — mangled length, or 0 on failure
- * PLATFORM: SHARED — reuses codegen_type_ref_to_suffix (function mono authority)
+ * PLATFORM: SHARED — G.7 one host-C mono tag authority with typeck named-inst
  */
 function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *u8, layout_nl: i32, mono_tys: *i32, ntp: i32, out_nm: *u8, out_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7547,7 +8605,7 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
     if (arena == 0 as *ASTArena || layout_nm == 0 as *u8 || layout_nl <= 0 || mono_tys == 0 as *i32 || out_nm == 0 as *u8) {
       return 0;
     }
-    if (ntp <= 0 || out_cap <= layout_nl + 2) {
+    if (ntp <= 0 || out_cap <= layout_nl + 1) {
       return 0;
     }
     let o: i32 = 0;
@@ -7557,12 +8615,11 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
       o = o + 1;
       bi = bi + 1;
     }
-    // "__"
-    if (o + 2 >= out_cap) {
+    // Single `_` — matches typeck named-inst (`Box_i32`); try_claim then
+    // dedupes phase-1 mono against phase-0 mangled layouts.
+    if (o + 1 >= out_cap) {
       return 0;
     }
-    out_nm[o] = 95;
-    o = o + 1;
     out_nm[o] = 95;
     o = o + 1;
     let mi: i32 = 0;
@@ -7574,7 +8631,7 @@ function codegen_generic_struct_mangled_name_into(arena: *ASTArena, layout_nm: *
         out_nm[o] = 95;
         o = o + 1;
       }
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let sl: i32 = codegen_type_ref_to_suffix(arena, mono_tys[mi], &suf[0], 64);
       if (sl <= 0) {
         return 0;
@@ -7638,7 +8695,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
       let tj: i32 = 0;
       while (tj < ntp && tj < 4) {
         let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-        let tpn: u8[128] = [];
+        let tpn: u8[256] = [];
         pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
         let found: i32 = 0;
         let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
@@ -7646,7 +8703,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
         while (fj < nf) {
           let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
           if (pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_NAMED as i32)) {
-            let ftn: u8[128] = [];
+            let ftn: u8[256] = [];
             let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
             if (ftnl == tpl && ftnl > 0) {
               let peq: i32 = 1;
@@ -7659,14 +8716,14 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
               }
               if (peq != 0) {
                 let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
-                let fnm: u8[128] = [];
+                let fnm: u8[256] = [];
                 pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
                 let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, init_ref);
                 let li: i32 = 0;
                 while (li < lit_nf) {
                   let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, init_ref, li);
                   if (lfl == flen && flen > 0) {
-                    let lfn: u8[128] = [];
+                    let lfn: u8[256] = [];
                     pipeline_expr_struct_lit_field_name_into(arena, init_ref, li, &lfn[0]);
                     let feq: i32 = 1;
                     let fi: i32 = 0;
@@ -7678,7 +8735,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
                     }
                     if (feq != 0) {
                       let iref: i32 = pipeline_expr_struct_lit_init_ref(arena, init_ref, li);
-                      let asuf: u8[128] = [];
+                      let asuf: u8[256] = [];
                       let al: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref, &asuf[0], 64, ctx);
                       // wave485: leaf may lack resolved_type under mono body; map layout T via mono.
                       if (al <= 0 && ctx != 0 as *PipelineDepCtx && ctx.mono_active != 0 && ctx.mono_num_types > 0) {
@@ -7687,7 +8744,7 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
                           let gtr_f: i32 = ctx.mono_generic_type_refs[mi_f];
                           let ctr_f: i32 = ctx.mono_concrete_type_refs[mi_f];
                           if (gtr_f > 0 && ctr_f > 0) {
-                            let gnm_f: u8[128] = [];
+                            let gnm_f: u8[256] = [];
                             let gnl_f: i32 = pipeline_type_named_name_into(arena, gtr_f, &gnm_f[0]);
                             if (gnl_f == tpl && gnl_f > 0) {
                               let geq_f: i32 = 1;
@@ -7758,10 +8815,11 @@ function codegen_mono_suffix_bytes_from_init(arena: *ASTArena, module: *Module, 
 }
 
 /**
- * wave484/485: emit STRUCT_LIT mono `__suf…` from field structure (not ambient type).
+ * wave484/485 + tag unify: emit STRUCT_LIT mono `_suf…` from field structure
+ * (not ambient type). Single `_` matches typeck named-inst / mangled defs.
  * @param ctx *PipelineDepCtx — mono map for leaf free type params
  * @return i32 — 1 emitted, 0 not applicable, -1 fail
- * PLATFORM: SHARED host-C
+ * PLATFORM: SHARED host-C — G.7 one mono tag authority with typeck
  */
 export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, layout_nm: *u8, layout_nl: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7783,10 +8841,10 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
     // Probe fillable.
     let tj: i32 = 0;
     while (tj < ntp) {
-      let asuf: u8[128] = [];
+      let asuf: u8[256] = [];
       let al: i32 = 0;
       let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-      let tpn: u8[128] = [];
+      let tpn: u8[256] = [];
       pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
       let found: i32 = 0;
       let nf: i32 = pipeline_module_struct_layout_num_fields(module, lk);
@@ -7794,7 +8852,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
       while (fj < nf) {
         let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj);
         if (pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_NAMED as i32)) {
-          let ftn: u8[128] = [];
+          let ftn: u8[256] = [];
           let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
           if (ftnl == tpl && ftnl > 0) {
             let peq: i32 = 1;
@@ -7807,14 +8865,14 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
             }
             if (peq != 0) {
               let flen: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj);
-              let fnm: u8[128] = [];
+              let fnm: u8[256] = [];
               pipeline_module_struct_layout_field_name_into(module, lk, fj, &fnm[0]);
               let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
               let li: i32 = 0;
               while (li < lit_nf) {
                 let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li);
                 if (lfl == flen && flen > 0) {
-                  let lfn: u8[128] = [];
+                  let lfn: u8[256] = [];
                   pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li, &lfn[0]);
                   let feq: i32 = 1;
                   let fi: i32 = 0;
@@ -7847,16 +8905,15 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
       }
       tj = tj + 1;
     }
-    // Emit __suf0[_suf1…]
-    let sep: u8[2] = [95, 95];
-    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+    // Emit _suf0[_suf1…] (single `_`; was `__`)
+    if (append_byte(out, 95) != 0) {
       return -1;
     }
     let first: i32 = 1;
     tj = 0;
     while (tj < ntp) {
       let tpl2: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-      let tpn2: u8[128] = [];
+      let tpn2: u8[256] = [];
       pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn2[0]);
       let done: i32 = 0;
       let nf2: i32 = pipeline_module_struct_layout_num_fields(module, lk);
@@ -7864,7 +8921,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
       while (fj2 < nf2) {
         let ftr2: i32 = pipeline_module_struct_layout_field_type_ref(module, lk, fj2);
         if (pipeline_type_kind_ord_at(arena, ftr2) == (TypeKind.TYPE_NAMED as i32)) {
-          let ftn2: u8[128] = [];
+          let ftn2: u8[256] = [];
           let ftnl2: i32 = pipeline_type_named_name_into(arena, ftr2, &ftn2[0]);
           if (ftnl2 == tpl2 && ftnl2 > 0) {
             let peq2: i32 = 1;
@@ -7877,14 +8934,14 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
             }
             if (peq2 != 0) {
               let flen2: i32 = pipeline_module_struct_layout_field_name_len(module, lk, fj2);
-              let fnm2: u8[128] = [];
+              let fnm2: u8[256] = [];
               pipeline_module_struct_layout_field_name_into(module, lk, fj2, &fnm2[0]);
               let lit_nf2: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
               let li2: i32 = 0;
               while (li2 < lit_nf2) {
                 let lfl2: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li2);
                 if (lfl2 == flen2 && flen2 > 0) {
-                  let lfn2: u8[128] = [];
+                  let lfn2: u8[256] = [];
                   pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li2, &lfn2[0]);
                   let feq2: i32 = 1;
                   let fi2: i32 = 0;
@@ -7896,7 +8953,7 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
                   }
                   if (feq2 != 0) {
                     let iref2: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, li2);
-                    let asuf2: u8[128] = [];
+                    let asuf2: u8[256] = [];
                     let al2: i32 = codegen_mono_suffix_bytes_from_init(arena, module, iref2, &asuf2[0], 64, ctx);
                     if (al2 <= 0) {
                       return -1;
@@ -7932,13 +8989,14 @@ export function codegen_try_emit_struct_lit_mono_from_fields(module: *Module, ar
 }
 
 /**
- * wave481: emit mono suffix `__suf0[_suf1…]` after a base C struct tag name.
+ * wave481 + tag unify: emit mono suffix `_suf0[_suf1…]` after a base C struct
+ * tag name. Single `_` matches typeck named-inst / STRUCT_LIT (`Box_i32`).
  * @param out *CodegenOutBuf
  * @param arena *ASTArena
  * @param mono_tys *i32
  * @param ntp i32
  * @return i32 — 0 ok, -1 fail
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — G.7 one host-C mono tag authority with typeck
  */
 export function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, arena: *ASTArena, mono_tys: *i32, ntp: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7946,8 +9004,8 @@ export function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, are
     if (out == 0 as *CodegenOutBuf || arena == 0 as *ASTArena || mono_tys == 0 as *i32 || ntp <= 0) {
       return -1;
     }
-    let sep: u8[2] = [95, 95];
-    if (emit_bytes_from_ptr(out, &sep[0], 2) != 0) {
+    /* Single `_` joiner (was `__`); aligns emit_type + STRUCT_LIT with typeck. */
+    if (append_byte(out, 95) != 0) {
       return -1;
     }
     let mi: i32 = 0;
@@ -7957,7 +9015,7 @@ export function codegen_emit_generic_struct_mono_suffix(out: *CodegenOutBuf, are
           return -1;
         }
       }
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let sl: i32 = codegen_type_ref_to_suffix(arena, mono_tys[mi], &suf[0], 64);
       if (sl <= 0) {
         return -1;
@@ -7992,7 +9050,7 @@ function codegen_generic_struct_field_type_from_mono(module: *Module, arena: *AS
     if (pipeline_type_kind_ord_at(arena, ftr) != (TypeKind.TYPE_NAMED as i32)) {
       return ftr;
     }
-    let ftn: u8[128] = [];
+    let ftn: u8[256] = [];
     let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
     if (ftnl <= 0) {
       return ftr;
@@ -8001,7 +9059,7 @@ function codegen_generic_struct_field_type_from_mono(module: *Module, arena: *AS
     while (tj < ntp) {
       let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, tj);
       if (tpl == ftnl) {
-        let tpn: u8[128] = [];
+        let tpn: u8[256] = [];
         pipeline_module_struct_layout_type_param_name_into(module, layout_k, tj, &tpn[0]);
         let peq: i32 = 1;
         let pi: i32 = 0;
@@ -8046,8 +9104,8 @@ export function codegen_type_refs_same_for_mono(arena: *ASTArena, a: i32, b: i32
       return 0;
     }
     if (ka == (TypeKind.TYPE_NAMED as i32)) {
-      let nma: u8[128] = [];
-      let nmb: u8[128] = [];
+      let nma: u8[256] = [];
+      let nmb: u8[256] = [];
       let nla: i32 = pipeline_type_named_name_into(arena, a, &nma[0]);
       let nlb: i32 = pipeline_type_named_name_into(arena, b, &nmb[0]);
       if (nla <= 0 || nla != nlb) {
@@ -8204,7 +9262,7 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
     let ti: i32 = 1;
     while (ti <= arena.num_types) {
       if (pipeline_type_kind_ord_at(arena, ti) == (TypeKind.TYPE_NAMED as i32)) {
-        let tnm: u8[128] = [];
+        let tnm: u8[256] = [];
         let tnl: i32 = pipeline_type_named_name_into(arena, ti, &tnm[0]);
         if (tnl == layout_nl && tnl > 0) {
           let eq: i32 = 1;
@@ -8282,14 +9340,14 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
             while (fj < nf) {
               let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, layout_k, fj);
               if (pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_NAMED as i32)) {
-                let ftn: u8[128] = [];
+                let ftn: u8[256] = [];
                 let ftnl: i32 = pipeline_type_named_name_into(arena, ftr, &ftn[0]);
                 let slot: i32 = -1;
                 let pj: i32 = 0;
                 while (pj < ntp) {
                   let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, pj);
                   if (tpl == ftnl && ftnl > 0) {
-                    let tpn: u8[128] = [];
+                    let tpn: u8[256] = [];
                     pipeline_module_struct_layout_type_param_name_into(module, layout_k, pj, &tpn[0]);
                     let peq: i32 = 1;
                     let pi: i32 = 0;
@@ -8309,14 +9367,14 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
                 if (slot >= 0) {
                   // Match STRUCT_LIT field by layout field name.
                   let flen: i32 = pipeline_module_struct_layout_field_name_len(module, layout_k, fj);
-                  let fnm: u8[128] = [];
+                  let fnm: u8[256] = [];
                   pipeline_module_struct_layout_field_name_into(module, layout_k, fj, &fnm[0]);
                   let lit_nf: i32 = pipeline_expr_struct_lit_num_fields(arena, ei);
                   let li: i32 = 0;
                   while (li < lit_nf) {
                     let lfl: i32 = pipeline_expr_struct_lit_field_name_len(arena, ei, li);
                     if (lfl == flen && flen > 0) {
-                      let lfn: u8[128] = [];
+                      let lfn: u8[256] = [];
                       pipeline_expr_struct_lit_field_name_into(arena, ei, li, &lfn[0]);
                       let feq: i32 = 1;
                       let fi: i32 = 0;
@@ -8434,7 +9492,7 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
                   try_tr = pipeline_module_func_param_type_ref_at(module, fi_h, tr_i);
                 }
                 if (try_tr > 0 && pipeline_type_kind_ord_at(arena, try_tr) == (TypeKind.TYPE_NAMED as i32)) {
-                  let tnm_r: u8[128] = [];
+                  let tnm_r: u8[256] = [];
                   let tnl_r: i32 = pipeline_type_named_name_into(arena, try_tr, &tnm_r[0]);
                   if (tnl_r == layout_nl && tnl_r > 0) {
                     let eq_r: i32 = 1;
@@ -8473,13 +9531,13 @@ export function codegen_collect_generic_struct_mono_combos(module: *Module, aren
                         si_r = 0;
                         while (si_r < ntp) {
                           let tpl_h: i32 = pipeline_module_struct_layout_type_param_name_len(module, layout_k, si_r);
-                          let tpn_h: u8[128] = [];
+                          let tpn_h: u8[256] = [];
                           pipeline_module_struct_layout_type_param_name_into(module, layout_k, si_r, &tpn_h[0]);
                           let found_slot: i32 = 0;
                           let mi_m: i32 = 0;
                           while (mi_m < nmono && mi_m < 8) {
                             if (mono_gen[mi_m] > 0 && mono_conc[mi_m] > 0) {
-                              let gnm_h: u8[128] = [];
+                              let gnm_h: u8[256] = [];
                               let gnl_h: i32 = pipeline_type_named_name_into(arena, mono_gen[mi_m], &gnm_h[0]);
                               if (gnl_h == tpl_h && gnl_h > 0) {
                                 let geq_h: i32 = 1;
@@ -8570,7 +9628,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
     if (pipeline_type_kind_ord_at(arena, type_ref) != (TypeKind.TYPE_NAMED as i32)) {
       return 0;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nl: i32 = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
     if (nl <= 0) {
       return 0;
@@ -8609,7 +9667,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
       let ok: i32 = 1;
       while (tj < ntp) {
         let tpl: i32 = pipeline_module_struct_layout_type_param_name_len(module, lk, tj);
-        let tpn: u8[128] = [];
+        let tpn: u8[256] = [];
         pipeline_module_struct_layout_type_param_name_into(module, lk, tj, &tpn[0]);
         mono[tj] = 0;
         let found: i32 = 0;
@@ -8618,7 +9676,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
           let gtr: i32 = ctx.mono_generic_type_refs[mi_m];
           let ctr: i32 = ctx.mono_concrete_type_refs[mi_m];
           if (gtr > 0 && ctr > 0) {
-            let gnm: u8[128] = [];
+            let gnm: u8[256] = [];
             let gnl: i32 = pipeline_type_named_name_into(arena, gtr, &gnm[0]);
             if (gnl == tpl && gnl > 0) {
               let geq: i32 = 1;
@@ -8654,7 +9712,7 @@ export function codegen_maybe_emit_generic_struct_mono_suffix_for_type(module: *
      * `Box&lt;i32&gt;` uses). fill_concrete fails on free T; mono_active map is off when
      * emitting the free function signature (impl methods hoist as free fns, not under
      * generic-function mono). Reuse collect authority: if unique combo, append that
-     * suffix so host-C matches monomorphized receivers (`struct Box__i32`) instead of
+     * suffix so host-C matches monomorphized receivers (`struct Box_i32`) instead of
      * incomplete bare `struct Box` BLD001.
      * Multi-combo `impl for Box<T>` with Box<A>+Box<B>: wave498 fixed via per-combo
      * mangled methods emitted by codegen_try_emit_generic_impl_method_mono + call-side
@@ -8757,7 +9815,7 @@ function codegen_build_func_param_mono_map(module: *Module, arena: *ASTArena, fi
         p = p + 1;
         continue;
       }
-      let nm: u8[128] = [];
+      let nm: u8[256] = [];
       let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
       if (nl <= 0) {
         p = p + 1;
@@ -8831,23 +9889,59 @@ function codegen_build_func_param_mono_map(module: *Module, arena: *ASTArena, fi
 }
 
 /**
- * See implementation.
- * See implementation.
+ * Host-C: emit one struct field declarator (`<type> <name>` or TYPE_FN form).
+ *
+ * Fixed arrays peel to scalar/base then append `[N]` dims (same as locals).
+ * TYPE_FN (10.3.1 slice10): `Ret (*field)(args)` via emit_c_fnptr_decl —
+ * abstract `Ret (*)(args) field` is invalid C.
+ * `[N]function(...)` (slice11): `Ret (*field[N])(args)` via array_ty dims.
+ *
+ * @param arena *ASTArena — type pool
+ * @param out *CodegenOutBuf — C text sink
+ * @param type_ref i32 — field type (may be TYPE_ARRAY nest)
+ * @param field_name *u8 — field identifier bytes
+ * @param field_name_len i32 — name length; must be > 0
+ * @param struct_prefix *u8 — optional named-struct tag prefix
+ * @param struct_prefix_len i32 — prefix length
+ * @param ctx *PipelineDepCtx — nested emit
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED host-C. G.7 single struct-field declarator path.
  */
 export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
     let base_ref: i32 = type_ref;
+    let array_ty: i32 = 0;
     if (ast.ref_is_null(type_ref) || field_name == 0 as *u8 || field_name_len <= 0) {
       return -1;
     }
+    /*
+     * 10.3.1 slice10/11: bare TYPE_FN → Ret (*name)(args); ARRAY of TYPE_FN →
+     * Ret (*name[N]…)(args). Peel first so one G.7 emit_c_fnptr_decl path.
+     * PLATFORM: SHARED host-C.
+     */
     while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_ARRAY as i32)) {
       let inner: i32 = pipeline_type_elem_ref_at(arena, base_ref);
       if (ast.ref_is_null(inner)) {
         break;
       }
       base_ref = inner;
+    }
+    if (pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_FN as i32)) {
+      if (pipeline_type_kind_ord_at(arena, type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+        array_ty = type_ref;
+      }
+      return emit_c_fnptr_decl(arena, out, base_ref, field_name, field_name_len, array_ty, ctx);
+    }
+    /* Reset peel for non-FN arrays (scalar/struct leaf + trailing dims). */
+    base_ref = type_ref;
+    while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+      let inner2: i32 = pipeline_type_elem_ref_at(arena, base_ref);
+      if (ast.ref_is_null(inner2)) {
+        break;
+      }
+      base_ref = inner2;
     }
     if (emit_type(arena, out, base_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
       return -1;
@@ -9251,7 +10345,8 @@ function codegen_emit_vector_typedefs(out: *CodegenOutBuf): i32 {
  * After `struct TAG { ... };` emit nest 1..64 companion fat layouts
  * (`struct xlang_slice_×k_TAG { struct xlang_slice_×(k-1)_TAG *data; size_t length; }`,
  * nest=1 pointee is `struct TAG`). 4.2.3: loop through codegen_emit_slice_fat_one
- * (wave698 unrolled only to 7; nest>16 soft 17..52; nest>52 jump 53..64).
+ * (seed twin was wave698 unrolled 1..7 leftover; now the same 1..64 loop.
+ * nest>16 soft 17..52; nest>52 jump 53..64).
  * @param out *CodegenOutBuf — C text buffer
  * @param pfx *u8 — struct tag prefix (empty for entry bare)
  * @param pfx_len i32 — prefix byte count; 0 means bare tag
@@ -9336,6 +10431,9 @@ function codegen_array_lit_tree_is_const(arena: *ASTArena, expr_ref: i32): i32 {
  * @param ctx *PipelineDepCtx — emit_type prefix; null OK for []i32
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C (C static initializer only)
+ * Seed twin: codegen_gen.linux.x86_64.c
+ * codegen_emit_file_scope_dest_slice_array_lit (live `-E` is host-cc of
+ * that seed). Do not fork a second file-scope dest-SLICE ARRAY_LIT wrap.
  */
 function emit_file_scope_dest_slice_array_lit(
   arena: *ASTArena,
@@ -9496,6 +10594,8 @@ function emit_file_scope_dest_slice_array_lit(
  * slice-of-ARRAY-of-NAMED / slice-of-slice-of-ARRAY emitter).
  * Tag matches type_to_c_repr. Do not invent -3 / a second dest-SLICE
  * stamp. nest walk cap 64.
+ * Seed twin: codegen_gen.linux.x86_64.c codegen_emit_slice_of_fixed_array_layouts
+ * (live `-E` is host-cc of that seed). Do not fork a second walker.
  * @param arena *ASTArena — type pool
  * @param out *CodegenOutBuf — C text sink
  * @param ctx *PipelineDepCtx — optional prefix for NAMED leaves
@@ -9510,7 +10610,7 @@ export function codegen_emit_slice_of_fixed_array_layouts(arena: *ASTArena, out:
     }
     let pfx_use: *u8 = 0 as *u8;
     let pfx_len_use: i32 = 0;
-    let cur_pre: u8[128] = [];
+    let cur_pre: u8[256] = [];
     if (ctx != 0 as *PipelineDepCtx) {
       let pl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
       if (pl > 0) {
@@ -9730,7 +10830,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           k = k + 1;
           continue;
         }
-        let ty_nm: u8[128] = [];
+        let ty_nm: u8[256] = [];
         pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
         if (ctx != 0 as *PipelineDepCtx) {
           let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
@@ -9743,11 +10843,11 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           k = k + 1;
           continue;
         }
-        let claim_pfx: u8[128] = [];
+        let claim_pfx: u8[256] = [];
         let claim_plen: i32 = 0;
         if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
           claim_plen = struct_prefix_len;
-          if (claim_plen > 127) {
+          if (claim_plen > 255) {
             claim_plen = 127;
           }
           let ci: i32 = 0;
@@ -9812,7 +10912,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             if (emit_indent(out, 2) != 0) {
               return -1;
             }
-            let fnm: u8[128] = [];
+            let fnm: u8[256] = [];
             pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
             ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
             if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
@@ -9901,7 +11001,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             ji = ji + 1;
             continue;
           }
-          let jty: u8[128] = [];
+          let jty: u8[256] = [];
           pipeline_module_struct_layout_name_into(module, jk, &jty[0]);
           let mono_c: i32[4] = [];
           let ms: i32 = 0;
@@ -9909,7 +11009,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             mono_c[ms] = job_mono[ji * 4 + ms];
             ms = ms + 1;
           }
-          let claim_pfx2: u8[128] = [];
+          let claim_pfx2: u8[256] = [];
           let claim_plen2: i32 = 0;
           if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
             claim_plen2 = struct_prefix_len;
@@ -9972,7 +11072,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             if (emit_indent(out, 2) != 0) {
               return -1;
             }
-            let fnm_m: u8[128] = [];
+            let fnm_m: u8[256] = [];
             pipeline_module_struct_layout_field_name_into(module, jk, j_m, &fnm_m[0]);
             ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, jk, ftr_m, &mono_c[0], jntp);
             if (codegen_emit_struct_field_decl_x(arena, out, ftr_m, &fnm_m[0], flen_m, 0 as *u8, 0, ctx) != 0) {
@@ -10038,7 +11138,7 @@ export function codegen_emit_module_struct_forward_declarations_ctx(module: *Mod
         k = k + 1;
         continue;
       }
-      let ty_nm: u8[128] = [];
+      let ty_nm: u8[256] = [];
       pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
       /* PLATFORM: SHARED — same owner skip as codegen_emit_module_struct_definitions (entry + dep). */
       if (ctx != 0 as *PipelineDepCtx) {
@@ -10087,7 +11187,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
         ei = ei + 1;
         continue;
       }
-      let enm: u8[128] = [];
+      let enm: u8[256] = [];
       let hdr: u8[8] = [101, 110, 117, 109, 32, 0, 0, 0];
       let open: u8[4] = [32, 123, 32, 0];
       let close: u8[6] = [32, 125, 59, 10, 0, 0];
@@ -10099,7 +11199,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
         nk = nk + 1;
       }
       /* See implementation. */
-      let claim_pfx: u8[128] = [];
+      let claim_pfx: u8[256] = [];
       let claim_plen: i32 = 0;
       claim_pfx[0] = 101;
       claim_plen = 1;
@@ -10137,7 +11237,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
       let vi: i32 = 0;
       while (vi < nv) {
         let vlen: i32 = pipeline_module_enum_variant_name_len(module, ei, vi);
-        let vnm: u8[128] = [];
+        let vnm: u8[256] = [];
         let vk: i32 = 0;
         if (vi > 0) {
           if (emit_bytes_3(out, &comma[0], 2) != 0) {
@@ -10196,7 +11296,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
     let saved_arena: *ASTArena = ctx.current_codegen_arena;
     let saved_dep_index: i32 = ctx.current_codegen_dep_index;
     let saved_prefix_len: i32 = ctx.current_codegen_prefix_len;
-    let saved_prefix: u8[128] = [];
+    let saved_prefix: u8[256] = [];
     let sp: i32 = 0;
     while (sp < 64) {
       saved_prefix[sp] = ctx.current_codegen_prefix_mirror[sp];
@@ -10215,7 +11315,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
     while (di_count < nd) {
       let dep_mod0: *Module = pipeline_dep_ctx_module_at(ctx, di_count);
       let dep_arena0: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di_count);
-      let dep_path0: u8[128] = [];
+      let dep_path0: u8[256] = [];
       let plen0: i32 = codegen_dep_import_path_len_at(ctx, di_count, &dep_path0[0]);
       if (dep_mod0 != 0 as *Module && dep_arena0 != 0 as *ASTArena && plen0 > 0) {
         remaining = remaining + 1;
@@ -10236,7 +11336,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
         }
         let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
         let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
-        let dep_path: u8[128] = [];
+        let dep_path: u8[256] = [];
         let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
         if (dep_mod == 0 as *Module || dep_arena == 0 as *ASTArena || dep_path_len <= 0) {
           done[di] = 1;
@@ -10248,7 +11348,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
         let n_imp: i32 = codegen_module_num_imports(dep_mod);
         let ii: i32 = 0;
         while (ii < n_imp) {
-          let ipath: u8[128] = [];
+          let ipath: u8[256] = [];
           let ilen: i32 = codegen_module_import_path_len_at(dep_mod, ii, &ipath[0]);
           if (ilen > 0) {
             let idi: i32 = codegen_find_dep_index_by_path(ctx, &ipath[0], ilen);
@@ -10272,7 +11372,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
         let seen_before: i32 = 0;
         let pj: i32 = 0;
         while (pj < di) {
-          let prev_path: u8[128] = [];
+          let prev_path: u8[256] = [];
           let prev_len: i32 = codegen_dep_import_path_len_at(ctx, pj, &prev_path[0]);
           if (prev_len == dep_path_len) {
             let eq_prev: bool = true;
@@ -10295,7 +11395,7 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
           pj = pj + 1;
         }
         if (seen_before == 0) {
-          let prefix_buf: u8[128] = [];
+          let prefix_buf: u8[256] = [];
           let prefix_len: i32 = 0;
           if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
             codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
@@ -10333,10 +11433,10 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
           if (done[dj] == 0) {
             let dep_mod2: *Module = pipeline_dep_ctx_module_at(ctx, dj);
             let dep_arena2: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dj);
-            let dep_path2: u8[128] = [];
+            let dep_path2: u8[256] = [];
             let plen2: i32 = codegen_dep_import_path_len_at(ctx, dj, &dep_path2[0]);
             if (dep_mod2 != 0 as *Module && dep_arena2 != 0 as *ASTArena && plen2 > 0) {
-              let prefix_buf2: u8[128] = [];
+              let prefix_buf2: u8[256] = [];
               let prefix_len2: i32 = 0;
               if (codegen_path_is_std_io_core_bytes(&dep_path2[0]) == 0) {
                 codegen_import_path_to_c_prefix_into(&dep_path2[0], &prefix_buf2[0], 128);
@@ -10401,9 +11501,9 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
     while (di < nd) {
       let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
       if (dep_mod != 0 as *Module) {
-        let dep_path: u8[128] = [];
+        let dep_path: u8[256] = [];
         let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
-        let prefix_buf: u8[128] = [];
+        let prefix_buf: u8[256] = [];
         let prefix_len: i32 = 0;
         if (dep_path_len > 0 && codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
           codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
@@ -10429,13 +11529,13 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
           let nl: i32 = pipeline_module_struct_layout_name_len(dep_mod2, k);
           let nf: i32 = pipeline_module_struct_layout_num_fields(dep_mod2, k);
           if (nl > 0 && nf > 0) {
-            let ty_nm: u8[128] = [];
+            let ty_nm: u8[256] = [];
             pipeline_module_struct_layout_name_into(dep_mod2, k, &ty_nm[0]);
             let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
             if (owner >= 0) {
-              let opath: u8[128] = [];
+              let opath: u8[256] = [];
               let oplen: i32 = codegen_dep_import_path_len_at(ctx, owner, &opath[0]);
-              let opfx: u8[128] = [];
+              let opfx: u8[256] = [];
               let opfx_len: i32 = 0;
               if (oplen > 0 && codegen_path_is_std_io_core_bytes(&opath[0]) == 0) {
                 codegen_import_path_to_c_prefix_into(&opath[0], &opfx[0], 128);
@@ -10609,7 +11709,7 @@ export function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenO
     if ((e.kind as i32) != (ExprKind.EXPR_FIELD_ACCESS as i32) || dep_path_len <= 0) {
       return -1;
     }
-    let pre: u8[128] = [];
+    let pre: u8[256] = [];
     codegen_import_path_to_c_prefix_into(&dep_path[0], &pre[0], 128);
     let plen: i32 = 0;
     while (plen < 128 && pre[plen] != 0) {
@@ -11797,6 +12897,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
        * [N]T → []T assign: stack-view fat. Same frame as let s = a (no escape).
        * Do not stamp SLICE — RHS stays TYPE_ARRAY so .data is the array.
        * PLATFORM: SHARED host-C. G.7 reuse fat compound (try_emit / call-arg).
+       * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+       * Do not fork a second dest-SLICE ASSIGN ARRAY wrap.
        */
       if (lt_ref > 0 && pipeline_type_kind_ord_at(arena, lt_ref) == (TypeKind.TYPE_SLICE as i32)) {
         let rt_as: i32 = pipeline_expr_resolved_type_ref(arena, e.binop_right_ref);
@@ -12331,9 +13433,42 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
       }
+      /* stage10 S3.1 slice1 (10.1.1): raw_syscall0..6 → __xlang_raw_syscallN
+       * (Linux x86_64 kernel ABI; before bare call, after size_of authority). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let rs_rc: i32 = codegen_try_emit_raw_syscall_call(arena, out, expr_ref, ctx);
+        if (rs_rc < 0) {
+          return -1;
+        }
+        if (rs_rc > 0) {
+          return 0;
+        }
+      }
+      /* Cap 10.7.1 slice7: va_start/end/copy/va_arg_* → xlang_va_* macros. */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let va_rc: i32 = codegen_try_emit_va_cap_call(arena, out, expr_ref, ctx);
+        if (va_rc < 0) {
+          return -1;
+        }
+        if (va_rc > 0) {
+          return 0;
+        }
+      }
+      /* 10.3.1 slice15: Cap *u8 CALL → ((Ret (*)(T…))(callee))(args).
+       * Before import/bare; TYPE_FN declarator callees stay uncast.
+       * PLATFORM: SHARED host-C. */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let cap_call_rc: i32 = codegen_try_emit_cap_u8_call(arena, out, expr_ref, ctx);
+        if (cap_call_rc < 0) {
+          return -1;
+        }
+        if (cap_call_rc > 0) {
+          return 0;
+        }
+      }
       /* See implementation. */
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
-        let sym_buf: u8[128] = [];
+        let sym_buf: u8[256] = [];
         let imp_j: i32 = -1;
         let sym_len: i32 = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, ctx.current_codegen_module, callee_ref, &sym_buf[0], &imp_j);
         if (sym_len > 0 && sym_len < 128) {
@@ -12411,7 +13546,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             while (fi_c < dep_mod_chk.num_funcs) {
               let fl: i32 = pipeline_module_func_name_len_at(dep_mod_chk, fi_c);
               if (fl == callee_fast.field_access_field_len && fl > 0) {
-                let fnc: u8[128] = [];
+                let fnc: u8[256] = [];
                 pipeline_module_func_name_copy64(dep_mod_chk, fi_c, &fnc[0]);
                 let eqc: i32 = 1;
                 let ic: i32 = 0;
@@ -12435,9 +13570,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             }
           }
           if (field_in_dep != 0) {
-          let dep_path_fast: u8[128] = [];
+          let dep_path_fast: u8[256] = [];
           pipeline_dep_ctx_import_path_copy64(ctx, dep_ix_fast, &dep_path_fast[0]);
-          let pre_fast: u8[128] = [];
+          let pre_fast: u8[256] = [];
           codegen_import_path_to_c_prefix_into(&dep_path_fast[0], &pre_fast[0], 128);
           let pre_fast_len: i32 = 0;
           while (pre_fast_len < 128 && pre_fast[pre_fast_len] != 0) {
@@ -12524,7 +13659,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   kk = kk + 1;
                 }
                 if (eq) {
-                  let dep_path_bind: u8[128] = [];
+                  let dep_path_bind: u8[256] = [];
                   let dep_path_bind_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &dep_path_bind[0]);
                   if (dep_path_bind_len <= 0) {
                     j = j + 1;
@@ -12560,7 +13695,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       while (fi_b < dep_mod_bind.num_funcs) {
                         let fl: i32 = pipeline_module_func_name_len_at(dep_mod_bind, fi_b);
                         if (fl == callee.field_access_field_len && fl > 0) {
-                          let fnb: u8[128] = [];
+                          let fnb: u8[256] = [];
                           pipeline_module_func_name_copy64(dep_mod_bind, fi_b, &fnb[0]);
                           let eqb: i32 = 1;
                           let bi_b: i32 = 0;
@@ -12649,7 +13784,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     kk = kk + 1;
                   }
                   if (eq) {
-                    let dep_path_sel: u8[128] = [];
+                    let dep_path_sel: u8[256] = [];
                     let dep_path_sel_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &dep_path_sel[0]);
                     if (dep_path_sel_len <= 0) {
                       k = k + 1;
@@ -12717,7 +13852,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             while (lfi < cur_mod.num_funcs) {
               let lnl: i32 = pipeline_module_func_name_len_at(cur_mod, lfi);
               if (lnl == callee.var_name_len) {
-                let lnm: u8[128] = [];
+                let lnm: u8[256] = [];
                 pipeline_module_func_name_copy64(cur_mod, lfi, &lnm[0]);
                 let leq: i32 = 1;
                 let li: i32 = 0;
@@ -12742,17 +13877,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_mod.num_funcs > 0) {
               let fi: i32 = 0;
               while (fi < dep_mod.num_funcs) {
-                let func_ref: i32 = pipeline_module_func_ref_at(dep_mod, fi);
-                if (ast.ref_is_null(func_ref) || func_ref <= 0 || func_ref > dep_arena.num_funcs) {
-                  fi = fi + 1;
-                  continue;
-                }
-                let df: Func = ast.ast_arena_func_get(dep_arena, func_ref);
-                if (df.name_len == callee.var_name_len) {
+                /* Cap 4.2.8: compare via module name faces (not arena Func by-value).
+                 * Arena Func get can tear name_len after layout raise; module faces are
+                 * the same authority as local_has_name above (G.7 single path). */
+                let dnl: i32 = pipeline_module_func_name_len_at(dep_mod, fi);
+                if (dnl == callee.var_name_len && dnl > 0) {
+                  let dnm: u8[256] = [];
+                  pipeline_module_func_name_copy64(dep_mod, fi, &dnm[0]);
                   let eq: bool = true;
                   let k: i32 = 0;
-                  while (k < callee.var_name_len && k < 64) {
-                    if (callee.var_name[k] != df.name[k]) {
+                  while (k < callee.var_name_len) {
+                    if (callee.var_name[k] != dnm[k]) {
                       eq = false;
                       break;
                     }
@@ -12761,7 +13896,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   if (eq && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {
                     /* Why extern: dep extern symbols must match emit_func_extern_declaration or the linker fails. */
                     let callee_is_extern: i32 = pipeline_module_func_is_extern_at(dep_mod, fi);
-                    let dep_path_call: u8[128] = [];
+                    let dep_path_call: u8[256] = [];
                     pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path_call[0]);
                     let pre_buf: u8[128] = [];
                     codegen_import_path_to_c_prefix_into(&dep_path_call[0], &pre_buf[0], 128);
@@ -12784,7 +13919,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       if (pre_len > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], pre_len, callee.var_name, callee.var_name_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], pre_len) != 0) {
                         return -1;
                       }
-                      if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, cur_mod, &callee.var_name[0], callee.var_name_len) != 0) {
+                      /* Pass dep_mod (not cur_mod): emit_call_func_name rejects
+                       * call_resolved when res_mod != current_module, which dropped the
+                       * bare name after the prefix → link `_core_option_` (empty fn). */
+                      if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, dep_mod, &callee.var_name[0], callee.var_name_len) != 0) {
                         return -1;
                       }
                       if (codegen_path_is_std_io_core_bytes(&dep_path_call[0]) != 0 && codegen_use_buf_wrapper(&callee.var_name[0], callee.var_name_len, e.call_num_args) != 0) {
@@ -12912,7 +14050,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   k = k + 1;
                 }
                 if (eq) {
-                  let cur_pre: u8[128] = [];
+                  let cur_pre: u8[256] = [];
                   /*
                    * Same-module bare call prefix (align pin seed CALL callee2 path).
                    * Purpose: prefer path of current_codegen_module in the dep pool
@@ -12923,7 +14061,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                    * Authority: seeds/codegen_gen.linux.x86_64.c same-module VAR CALL.
                    * PLATFORM: SHARED — Cap force si (result→result, not option).
                    */
-                  let cur_dep_path_buf: u8[128] = [];
+                  let cur_dep_path_buf: u8[256] = [];
                   let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
                   let pl: i32 = 0;
                   if (cur_dep_plen > 0) {
@@ -13086,10 +14224,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (append_byte(out, 40) != 0) {
         return -1;
       }
-      let fallback_pre: u8[128] = [];
+      let fallback_pre: u8[256] = [];
       let fallback_pl: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx) {
-        let fb_dep_path_buf: u8[128] = [];
+        let fb_dep_path_buf: u8[256] = [];
         let fb_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &fb_dep_path_buf[0]);
         if (fb_dep_plen > 0) {
           codegen_import_path_to_c_prefix_into(&fb_dep_path_buf[0], &fallback_pre[0], 64);
@@ -13597,9 +14735,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         let mod: *Module = ctx.current_codegen_module;
         if (ctx.current_func_index < mod.num_funcs) {
           let cfi: i32 = ctx.current_func_index;
-          let pref: u8[128] = [];
+          let pref: u8[256] = [];
           let plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &pref[0], 128);
-          let cfn: u8[128] = [];
+          let cfn: u8[256] = [];
           pipeline_module_func_name_copy64(mod, cfi, &cfn[0]);
           let cfn_len: i32 = pipeline_module_func_name_len_at(mod, cfi);
           if (codegen_force_param_ptrdiff_t(&pref[0], plen, &cfn[0], cfn_len, 0) != 0) {
@@ -13752,6 +14890,27 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
       }
+      /* stage10 S3.1 slice1 (10.1.1): dot-call raw_syscall0..6 shape
+       * (linux.raw_syscall3(...) parses here, fmt.println default shape). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let rs_mc_rc: i32 = codegen_try_emit_raw_syscall_call(arena, out, expr_ref, ctx);
+        if (rs_mc_rc < 0) {
+          return -1;
+        }
+        if (rs_mc_rc > 0) {
+          return 0;
+        }
+      }
+      /* Cap 10.7.1 slice7: method-shape va_* → xlang_va_* (same leaf names). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let va_mc_rc: i32 = codegen_try_emit_va_cap_call(arena, out, expr_ref, ctx);
+        if (va_mc_rc < 0) {
+          return -1;
+        }
+        if (va_mc_rc > 0) {
+          return 0;
+        }
+      }
       /*
        * F3 TYPE_DYN(17) vtable indirect-dispatch call-site emit.
        *
@@ -13803,8 +14962,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         /* Fn-ptr suffix: typed extras matching the wrapper (not variadic). */
-        if (codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, e.method_call_base_ref,
-                dyn_slot, e.method_call_num_args) != 0) {
+        if (codegen_emit_dyn_host_c_fn_ptr_suffix(out, arena, ctx, expr_ref,
+                e.method_call_base_ref, dyn_slot, e.method_call_num_args) != 0) {
           return -1;
         }
         /* ")" cast close. */
@@ -13917,7 +15076,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let parm_i: i32 = 0;
           let nparm: i32 = pipeline_module_func_num_params_at(mono_mod, mono_fi);
           while (parm_i < nparm) {
-            let pname: u8[128] = [];
+            let pname: u8[256] = [];
             let pnl: i32 = pipeline_module_func_param_name_len_at(mono_mod, mono_fi, parm_i);
             pipeline_module_func_param_name_copy32(mono_mod, mono_fi, parm_i, &pname[0]);
             if (pnl == base_mono.var_name_len && pnl > 0) {
@@ -13954,7 +15113,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let nlets: i32 = ast.ast_block_num_lets(arena, blk);
           let li: i32 = 0;
           while (li < nlets) {
-            let lname: u8[128] = [];
+            let lname: u8[256] = [];
             let lnl: i32 = pipeline_block_let_name_len(arena, blk, li);
             pipeline_block_let_name_copy64(arena, blk, li, &lname[0]);
             if (lnl == base_mono.var_name_len && lnl > 0) {
@@ -14069,7 +15228,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (dep_ix >= 0 && func_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
           let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
           if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
-            let fn_name: u8[128] = [];
+            let fn_name: u8[256] = [];
             let fn_len: i32 = pipeline_module_func_name_len_at(dep_mod, func_ix);
             let name_ok: i32 = 0;
             if (fn_len > 0) {
@@ -14100,7 +15259,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (mc_resolved_ok != 0) {
               let bind_path: u8[128] = [];
               let bind_plen: i32 = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &bind_path[0]);
-              let dep_path_chk: u8[128] = [];
+              let dep_path_chk: u8[256] = [];
               pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path_chk[0]);
               let dep_plen_chk: i32 = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
               if (bind_plen > 0) {
@@ -14120,7 +15279,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
             }
             if (mc_resolved_ok != 0) {
-            let dep_path: u8[128] = [];
+            let dep_path: u8[256] = [];
             pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path[0]);
             let pre_buf: u8[128] = [];
             codegen_import_path_to_c_prefix_into(&dep_path[0], &pre_buf[0], 128);
@@ -14230,7 +15389,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             let fb_dep_mod: *Module = 0 as *Module;
             let dj: i32 = 0;
             while (dj < pipeline_dep_ctx_ndep(ctx)) {
-              let dj_path: u8[128] = [];
+              let dj_path: u8[256] = [];
               pipeline_dep_ctx_import_path_copy64(ctx, dj, &dj_path[0]);
               let dj_plen: i32 = pipeline_dep_ctx_import_path_len(ctx, dj);
               if (dj_plen == dep_path_fb_len && dj_plen > 0) {
@@ -14305,8 +15464,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
            * method_call_num_args (no receiver) and rejects UFCS (nparams=nargs+1),
            * then falls back to bare name without file prefix → host-cc BLD001.
            */
-          let cur_pre: u8[128] = [];
-          let cur_dep_path_buf: u8[128] = [];
+          let cur_pre: u8[256] = [];
+          let cur_dep_path_buf: u8[256] = [];
           let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
           let pl: i32 = 0;
           if (cur_dep_plen > 0) {
@@ -14482,7 +15641,47 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     /* See implementation. */
     if ((e.kind as i32) == (ExprKind.EXPR_STRUCT_LIT as i32)) {
-      let sl_pfx: u8[128] = [];
+      /*
+       * Anonymous `{ fields }` (no type name) must still emit a complete C tag.
+       * Entry-module typeck backfills struct_lit_struct_name (typeck.x); dep
+       * co-emit under host-C `-o` can leave the name empty, so the module prefix
+       * alone becomes incomplete `struct core_result_` while signatures use
+       * `struct core_result_Result_i32` (cookbook http_chunked_decode BLD001).
+       * Recover dest TYPE_NAMED from resolved_type_ref (peel TYPE_ARRAY/PTR/SLICE
+       * so `{f}` inside `Iovec[4] = [{...}]` is Iovec, not empty prefix), else
+       * the enclosing function return type; existing skip_abi_dup / prefix rewrite
+       * then applies (Result_* → core_result_; Iovec → std_io_sync_).
+       * Mutates the local Expr copy only.
+       * G.7: complete this STRUCT_LIT emit (pair typeck backfill); no second tagger.
+       * PLATFORM: SHARED host-C.
+       */
+      if (e.struct_lit_struct_name_len <= 0) {
+        let rec_ty: i32 = e.resolved_type_ref;
+        if (ast.ref_is_null(rec_ty)) {
+          rec_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        }
+        rec_ty = codegen_peel_named_dest_type(arena, rec_ty);
+        if (ast.ref_is_null(rec_ty) && ctx != 0 as *PipelineDepCtx
+            && ctx.current_codegen_module != 0 as *Module
+            && ctx.current_func_index >= 0) {
+          rec_ty = codegen_peel_named_dest_type(arena,
+            pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index));
+        }
+        if (!ast.ref_is_null(rec_ty)
+            && pipeline_type_kind_ord_at(arena, rec_ty) == (TypeKind.TYPE_NAMED as i32)) {
+          let rec_nm: u8[256] = [];
+          let rec_nl: i32 = pipeline_type_named_name_into(arena, rec_ty, &rec_nm[0]);
+          if (rec_nl > 0 && rec_nl <= 255) {
+            let rec_i: i32 = 0;
+            while (rec_i < rec_nl) {
+              e.struct_lit_struct_name[rec_i] = rec_nm[rec_i];
+              rec_i = rec_i + 1;
+            }
+            e.struct_lit_struct_name_len = rec_nl;
+          }
+        }
+      }
+      let sl_pfx: u8[256] = [];
       let sl_plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &sl_pfx[0], 128);
       let bare_user_lit: i32 = 0;
       /*
@@ -14504,7 +15703,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (lit_bare_len > 0) {
           let lit_owner: i32 = codegen_type_dep_struct_owner_index(ctx, &e.struct_lit_struct_name[lit_bare_off], lit_bare_len);
           if (lit_owner >= 0) {
-            let lit_path: u8[128] = [];
+            let lit_path: u8[256] = [];
             let lit_plen: i32 = codegen_dep_import_path_len_at(ctx, lit_owner, &lit_path[0]);
             if (lit_plen > 0) {
               codegen_import_path_to_c_prefix_into(&lit_path[0], &sl_pfx[0], 128);
@@ -14522,7 +15721,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         while (sk < modu.num_struct_layouts) {
           let snl: i32 = pipeline_module_struct_layout_name_len(modu, sk);
           if (snl == e.struct_lit_struct_name_len && snl > 0) {
-            let snm: u8[128] = [];
+            let snm: u8[256] = [];
             pipeline_module_struct_layout_name_into(modu, sk, &snm[0]);
             let eq2: bool = true;
             let sj: i32 = 0;
@@ -14671,10 +15870,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (!ast.ref_is_null(iref_s)) {
           let ie_s: Expr = ast.ast_arena_expr_get(arena, iref_s);
           if ((ie_s.kind as i32) == (ExprKind.EXPR_CALL as i32) || (ie_s.kind as i32) == (ExprKind.EXPR_METHOD_CALL as i32)) {
-            let fnbuf_s: u8[128] = [];
+            let fnbuf_s: u8[256] = [];
             pipeline_expr_struct_lit_field_name_into(arena, expr_ref, si_scan, &fnbuf_s[0]);
             let flen_s: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, si_scan);
-            /* wave588 Cap residual: content ≤127 (name[128]); do not clamp designator lookup to 64. */
+            /* wave588 Cap residual: content ≤255 (name[256]); do not clamp designator lookup to 64. */
             if (flen_s > 127) {
               flen_s = 127;
             }
@@ -14716,10 +15915,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             mi = mi + 1;
             continue;
           }
-          let fnbuf_m: u8[128] = [];
+          let fnbuf_m: u8[256] = [];
           pipeline_expr_struct_lit_field_name_into(arena, expr_ref, mi, &fnbuf_m[0]);
           let flen_m: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, mi);
-          /* wave588 Cap residual: content ≤127 (name[128]). */
+          /* wave588 Cap residual: content ≤255 (name[256]). */
           if (flen_m > 127) {
             flen_m = 127;
           }
@@ -14852,7 +16051,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
        * (and keep module prefix) so host C gets `struct …_A` not incomplete T.
        * PLATFORM: SHARED — G.7 same mono map as emit_type C5.
        */
-      let sl_emit_name: u8[128] = [];
+      let sl_emit_name: u8[256] = [];
       let sl_emit_nlen: i32 = e.struct_lit_struct_name_len;
       let sl_ni: i32 = 0;
       while (sl_ni < sl_emit_nlen && sl_ni < 64) {
@@ -14866,7 +16065,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let gtr_sl: i32 = ctx.mono_generic_type_refs[mi_sl];
           let ctr_sl: i32 = ctx.mono_concrete_type_refs[mi_sl];
           if (gtr_sl > 0 && ctr_sl > 0 && ctr_sl != gtr_sl) {
-            let gnm_sl: u8[128] = [];
+            let gnm_sl: u8[256] = [];
             let gnl_sl: i32 = pipeline_type_named_name_into(arena, gtr_sl, &gnm_sl[0]);
             if (gnl_sl == sl_emit_nlen && gnl_sl > 0) {
               let eq_sl: i32 = 1;
@@ -14880,7 +16079,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 }
               }
               if (eq_sl != 0) {
-                let cnm_sl: u8[128] = [];
+                let cnm_sl: u8[256] = [];
                 let cnl_sl: i32 = pipeline_type_named_name_into(arena, ctr_sl, &cnm_sl[0]);
                 if (cnl_sl > 0 && cnl_sl <= 64) {
                   let ci_sl: i32 = 0;
@@ -14944,14 +16143,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               while (fj_sl < nf_lay) {
                 let ftr_sl: i32 = pipeline_module_struct_layout_field_type_ref(mod_sl, lk2, fj_sl);
                 if (pipeline_type_kind_ord_at(arena, ftr_sl) == (TypeKind.TYPE_NAMED as i32)) {
-                  let ftn_sl: u8[128] = [];
+                  let ftn_sl: u8[256] = [];
                   let ftnl_sl: i32 = pipeline_type_named_name_into(arena, ftr_sl, &ftn_sl[0]);
                   let slot_sl: i32 = -1;
                   let pj_sl: i32 = 0;
                   while (pj_sl < ntp2) {
                     let tpl_sl: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk2, pj_sl);
                     if (tpl_sl == ftnl_sl && ftnl_sl > 0) {
-                      let tpn_sl: u8[128] = [];
+                      let tpn_sl: u8[256] = [];
                       pipeline_module_struct_layout_type_param_name_into(mod_sl, lk2, pj_sl, &tpn_sl[0]);
                       let peq_sl: i32 = 1;
                       let pi_sl: i32 = 0;
@@ -14970,14 +16169,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   }
                   if (slot_sl >= 0) {
                     let flen_sl: i32 = pipeline_module_struct_layout_field_name_len(mod_sl, lk2, fj_sl);
-                    let fnm_sl: u8[128] = [];
+                    let fnm_sl: u8[256] = [];
                     pipeline_module_struct_layout_field_name_into(mod_sl, lk2, fj_sl, &fnm_sl[0]);
                     let lit_nf_sl: i32 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
                     let li_sl: i32 = 0;
                     while (li_sl < lit_nf_sl) {
                       let lfl_sl: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, li_sl);
                       if (lfl_sl == flen_sl && flen_sl > 0) {
-                        let lfn_sl: u8[128] = [];
+                        let lfn_sl: u8[256] = [];
                         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, li_sl, &lfn_sl[0]);
                         let feq_sl: i32 = 1;
                         let fi_sl: i32 = 0;
@@ -15053,14 +16252,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               while (tj_m < ntp_m) {
                 combo_m[tj_m] = 0;
                 let tpl_m: i32 = pipeline_module_struct_layout_type_param_name_len(mod_sl, lk_m, tj_m);
-                let tpn_m: u8[128] = [];
+                let tpn_m: u8[256] = [];
                 pipeline_module_struct_layout_type_param_name_into(mod_sl, lk_m, tj_m, &tpn_m[0]);
                 let mi_m: i32 = 0;
                 while (mi_m < ctx.mono_num_types && mi_m < 8) {
                   let gtr_m: i32 = ctx.mono_generic_type_refs[mi_m];
                   let ctr_m: i32 = ctx.mono_concrete_type_refs[mi_m];
                   if (gtr_m > 0 && ctr_m > 0) {
-                    let gnm_m: u8[128] = [];
+                    let gnm_m: u8[256] = [];
                     let gnl_m: i32 = pipeline_type_named_name_into(arena, gtr_m, &gnm_m[0]);
                     if (gnl_m == tpl_m && gnl_m > 0) {
                       let geq: i32 = 1;
@@ -15109,13 +16308,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (append_byte(out, 46) != 0) {
           return -1;
         }
-        let sl_fnbuf: u8[128] = [];
+        let sl_fnbuf: u8[256] = [];
         pipeline_expr_struct_lit_field_name_into(arena, expr_ref, fi, &sl_fnbuf[0]);
         let flen: i32 = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, fi);
-        /* wave588 Cap residual: host-C field designator content ≤127 (StructLitFieldEntry.name[128]).
+        /* wave588 Cap residual: host-C field designator content ≤255 (StructLitFieldEntry.name[256]).
          * Prior flen>64 trunc to 64 → designator mismatch vs layout field decl (fldh 75/127 BLD001).
          * PLATFORM: SHARED host-C; seed pin same commit. */
-        if (flen > 127) {
+        if (flen > 255) {
           flen = 127;
         }
         if (flen > 0 && emit_bytes_from_ptr(out, &sl_fnbuf[0], flen) != 0) {
@@ -15356,6 +16555,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * INDEX `(x).data[0][1]` was i32[1] (BLD001). G.7: same durable static
          * as scalar slices; payload is `E al[][N]` / memcpy rows. Tag comes
          * from type_to_c_repr (`xlang_slice_xlang_arrN_…`).
+         * Seed twin: codegen_gen.linux.x86_64.c dest-SLICE ARRAY_LIT elem=ARRAY
+         * (live `-E` is host-cc of that seed). Do not fork a second init.
          * PLATFORM: SHARED host-C emit.
          */
         let elem_is_arr: i32 = 0;
@@ -15366,6 +16567,33 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         if (elem_is_arr != 0) {
           let row_const: i32 = codegen_array_lit_tree_is_const(arena, expr_ref);
+          /*
+           * `[][N][]T`: tree_is_const is 1 (every leaf is LIT) but
+           * emit_braced of ARRAY-of-SLICE injects GNU stmt-expr rows
+           * `({ static E inner[]={…}; (slice){.data=inner,.length=K}; })`.
+           * Those are not C constant expressions, so
+           * `static E al[][N] = {{ stmt-expr, … }}` is BLD001
+           * (initializer element is not a compile-time constant).
+           * Sit-red dyn_add_slice_arr_slice true host-C cc fail
+           * (asm already 7; Darwin `--backend c -o` is often an
+           * asm-sized fake host-C binary).
+           * Do not broaden tree_is_const — file-scope dest-SLICE
+           * ARRAY_LIT still needs "leaf lits" = 1 with
+           * emit_file_scope_dest_slice_array_lit (block-scope
+           * `(E[]){…}` would dangle).
+           * ADDR_OF `[][N]*T` already fails tree_is_const (not LIT).
+           * G.7: same memcpy path as non-const `[][N]T` rows (wave341).
+           * One peel: elem of `[N][]T` is TYPE_SLICE.
+           * PLATFORM: SHARED host-C.
+           */
+          if (row_const != 0 && !ast.ref_is_null(elem_type_ref)
+              && elem_type_ref > 0 && elem_type_ref <= arena.num_types) {
+            let row_e: i32 = pipeline_type_elem_ref_at(arena, elem_type_ref);
+            if (!ast.ref_is_null(row_e) && row_e > 0 && row_e <= arena.num_types
+                && pipeline_type_kind_ord_at(arena, row_e) == (TypeKind.TYPE_SLICE as i32)) {
+              row_const = 0;
+            }
+          }
           /* ({ static  */
           let ar_open: u8[12] = [40, 123, 32, 115, 116, 97, 116, 105, 99, 32, 0, 0];
           if (emit_bytes_from_ptr(out, &ar_open[0], 10) != 0) {
@@ -15650,6 +16878,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
            * Dest-elem TYPE_SLICE + VAR/FIELD TYPE_ARRAY (`[][]T = [a]`):
            * assign a typed fat, not `__xlang_al[i]=a` (array into slice = BLD001).
            * G.7: reuse try_emit_slice_init_from_array_var. PLATFORM: SHARED host-C.
+           * Seed twin: codegen_gen.linux.x86_64.c dest-SLICE ARRAY_LIT wrap_nc
+           * (live `-E` is host-cc of that seed). Do not fork a second wrap.
            */
           let er_nc: i32 = pipeline_expr_array_lit_elem_ref(arena, expr_ref, ai_nc);
           let wrap_nc: i32 = 0;
@@ -15719,9 +16949,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
          * (twin of [][N]T slice path). PLATFORM: SHARED host-C.
          */
         let elem_is_arr: i32 = 0;
+        let elem_is_ptr_arr: i32 = 0;
         if (!ast.ref_is_null(elem_type_ref) && elem_type_ref > 0 && elem_type_ref <= arena.num_types) {
           if (pipeline_type_kind_ord_at(arena, elem_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
             elem_is_arr = 1;
+          }
+          if (type_is_ptr_to_fixed_array(arena, elem_type_ref) != 0) {
+            elem_is_ptr_arr = 1;
           }
         }
         if (elem_is_arr != 0) {
@@ -15741,6 +16975,41 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return -1;
           }
           if (emit_local_fixed_array_suffix(arena, out, elem_type_ref) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 41) != 0) {
+            return -1;
+          }
+          if (emit_braced_array_lit_init(arena, out, expr_ref, ctx) != 0) {
+            return -1;
+          }
+          return 0;
+        }
+        /*
+         * `[K]*[N]T` ARRAY_LIT extra: emit_type(`*[N]T`) peels to `E *` so
+         * this path produced `(int32_t *[]){&r0,&r1}` vs wrapper
+         * `int32_t (**)[2]`. Sit-red dyn_add_arr_ptr_arr host-C
+         * incompatible-pointer-types. G.7: `(E (*[])[N]){…}` twin of
+         * dest-SLICE `E (*al[n])[N]`. Scalar `[K]*T` stays `(E[]){…}`.
+         * PLATFORM: SHARED host-C.
+         */
+        if (elem_is_ptr_arr != 0) {
+          let pal_arr: i32 = pipeline_type_elem_ref_at(arena, elem_type_ref);
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_elem_type(arena, out, pal_arr, ctx) != 0) {
+            let fb_pa: u8[9] = [105, 110, 116, 51, 50, 95, 116, 0, 0];
+            if (emit_bytes_9(out, &fb_pa[0], 7) != 0) {
+              return -1;
+            }
+          }
+          /*  (*[]) */
+          let pa_mid: u8[8] = [32, 40, 42, 91, 93, 41, 0, 0];
+          if (emit_bytes_from_ptr(out, &pa_mid[0], 6) != 0) {
+            return -1;
+          }
+          if (emit_local_fixed_array_suffix(arena, out, pal_arr) != 0) {
             return -1;
           }
           if (append_byte(out, 41) != 0) {
@@ -15940,7 +17209,7 @@ export function codegen_current_func_is_named_main(ctx: *PipelineDepCtx): i32 {
     if (nlen != 4) {
       return 0;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     codegen_copy_func_name64_from_module(mod, ctx.current_func_index, &nm[0]);
     if (nm[0] == 109 && nm[1] == 97 && nm[2] == 105 && nm[3] == 110) {
       return 1;
@@ -16248,6 +17517,8 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
        * already-typed VAR/FIELD/STRUCT_LIT.field need the same COMMON-like
        * static. Do not stamp SLICE (operand stays TYPE_ARRAY).
        * PLATFORM: SHARED host-C emit. G.7 complete emit_return wrap.
+       * Seed twin: codegen_gen.linux.x86_64.c (live `-E` is host-cc of that seed).
+       * Do not fork a second dest-SLICE RETURN ARRAY wrap.
        */
       if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_SLICE as i32)
           && !ast.ref_is_null(operand_ref)) {
@@ -16455,7 +17726,7 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
               return -1;
             }
             /* ){ .data = __xlang_esc, .length = __xlang_esc_n }; })\n */
-            let end1: u8[128] = [
+            let end1: u8[256] = [
               41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 95, 95, 120, 108, 97, 110, 103, 95, 101, 115, 99, 95, 110, 32, 125, 59, 32, 125, 41, 59, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0
             ];
             if (emit_bytes_from_ptr(out, &end1[0], 55) != 0) {
@@ -16622,7 +17893,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     let skip_wrap_dest: i32 = g_codegen_skip_wrap_dest;
     g_codegen_skip_wrap_dest = 0;
 
-    let blk_prefix: u8[128] = [];
+    let blk_prefix: u8[256] = [];
     let blk_prefix_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &blk_prefix[0], 128);
     let fn_ret_void: i32 = codegen_current_func_returns_void(arena, ctx);
     if (ast.ref_is_null(block_ref)) {
@@ -16656,7 +17927,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       let pre_li: i32 = 0;
       while (pre_li < ast.ast_block_num_lets(arena, block_ref)) {
         if (block_stmt_order_has_let(arena, block_ref, pre_li) == 0) {
-          let lname_pre: u8[128] = [];
+          let lname_pre: u8[256] = [];
           pipeline_block_let_name_copy64(arena, block_ref, pre_li, &lname_pre[0]);
           let lname_len_pre: i32 = pipeline_block_let_name_len(arena, block_ref, pre_li);
           let let_type_pre: i32 = pipeline_block_let_type_ref(arena, block_ref, pre_li);
@@ -16684,7 +17955,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             return -1;
           }
           /* Emit C local name into emit_nm_pre so memcpy finish can reuse it. */
-          let emit_nm_pre: u8[128] = [];
+          let emit_nm_pre: u8[256] = [];
           let emit_nml_pre: i32 = 0;
           if (lname_len_pre > 0 && (lname_pre[0] > 32)) {
             let ci: i32 = 0;
@@ -16737,7 +18008,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
           /* wave353: fixed TYPE_ARRAY local — brace lit or memcpy (not T t[N]=ptr). */
           if (use_local_array_pre != 0) {
-            if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_pre[0], emit_nml_pre, linit_pre, ctx) != 0) {
+            if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_pre[0], emit_nml_pre, linit_pre, let_type_pre, ctx) != 0) {
               return -1;
             }
           } else {
@@ -16808,6 +18079,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 }
               }
             }
+            let _stp: i32 = codegen_stamp_anon_struct_lit_dest(arena, linit_pre, let_type_pre);
+            _stp = _stp;
             if (emit_expr(arena, out, linit_pre, ctx) != 0) {
               return -1;
             }
@@ -16845,7 +18118,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         }
         if (k == 0) {
           if (idx >= 0 && idx < ast.ast_block_num_consts(arena, block_ref)) {
-            let cname_buf: u8[128] = [];
+            let cname_buf: u8[256] = [];
             pipeline_block_const_name_copy64(arena, block_ref, idx, &cname_buf[0]);
             let cname_len: i32 = pipeline_block_const_name_len(arena, block_ref, idx);
             let ctype_ref: i32 = pipeline_block_const_type_ref(arena, block_ref, idx);
@@ -16907,7 +18180,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         } else if (k == 1) {
           if (idx >= 0 && idx < ast.ast_block_num_lets(arena, block_ref)) {
-            let lname_buf: u8[128] = [];
+            let lname_buf: u8[256] = [];
             pipeline_block_let_name_copy64(arena, block_ref, idx, &lname_buf[0]);
             let lname_len: i32 = pipeline_block_let_name_len(arena, block_ref, idx);
             let let_type_ref: i32 = pipeline_block_let_type_ref(arena, block_ref, idx);
@@ -16919,6 +18192,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             let type_emitted: i32 = 0;
             let use_local_array: i32 = 0;
             let use_ptr_to_array: i32 = 0;
+            let use_fnptr: i32 = 0;
+            let fnptr_array_ty: i32 = 0;
+            let use_fnptr_array_init: i32 = 0;
+            let fn_leaf: i32 = 0;
             if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
               use_local_array = 1;
             }
@@ -16928,6 +18205,34 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              */
             if (use_local_array == 0 && !ast.ref_is_null(let_type_ref) && type_is_ptr_to_fixed_array(arena, let_type_ref) != 0) {
               use_ptr_to_array = 1;
+            }
+            /*
+             * 10.3.1: `let f: function(T): R = …` → `R (*f)(T)`.
+             * Bare emit_type abstract + name → invalid `R (*)(T) f`.
+             * slice11: `let a: [N]function(...)=…` → `R (*a[N])(…)` (not abstract+suffix).
+             * PLATFORM: SHARED host-C. G.7 emit_c_fnptr_decl.
+             */
+            if (use_local_array != 0 && !ast.ref_is_null(let_type_ref)) {
+              fn_leaf = let_type_ref;
+              while (!ast.ref_is_null(fn_leaf)
+                  && pipeline_type_kind_ord_at(arena, fn_leaf) == (TypeKind.TYPE_ARRAY as i32)) {
+                let inn: i32 = pipeline_type_elem_ref_at(arena, fn_leaf);
+                if (ast.ref_is_null(inn)) {
+                  break;
+                }
+                fn_leaf = inn;
+              }
+              if (pipeline_type_kind_ord_at(arena, fn_leaf) == (TypeKind.TYPE_FN as i32)) {
+                use_fnptr = 1;
+                fnptr_array_ty = let_type_ref;
+                use_fnptr_array_init = 1;
+                use_local_array = 0;
+              }
+            }
+            if (use_local_array == 0 && use_ptr_to_array == 0 && use_fnptr == 0
+                && !ast.ref_is_null(let_type_ref)
+                && pipeline_type_kind_ord_at(arena, let_type_ref) == (TypeKind.TYPE_FN as i32)) {
+              use_fnptr = 1;
             }
             if (use_local_array != 0) {
               if (emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {
@@ -16986,7 +18291,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
             }
             /* Emit C local name into emit_nm so wave353 memcpy finish can reuse it. */
-            let emit_nm: u8[128] = [];
+            let emit_nm: u8[256] = [];
             let emit_nml: i32 = 0;
             if (lname_len > 0 && (lname_buf[0] > 32)) {
               let ci2: i32 = 0;
@@ -17038,6 +18343,23 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
               type_emitted = 1;
+            } else if (use_fnptr != 0 && type_emitted == 0) {
+              fn_leaf = let_type_ref;
+              if (fnptr_array_ty > 0) {
+                fn_leaf = fnptr_array_ty;
+                while (!ast.ref_is_null(fn_leaf)
+                    && pipeline_type_kind_ord_at(arena, fn_leaf) == (TypeKind.TYPE_ARRAY as i32)) {
+                  let inn2: i32 = pipeline_type_elem_ref_at(arena, fn_leaf);
+                  if (ast.ref_is_null(inn2)) {
+                    break;
+                  }
+                  fn_leaf = inn2;
+                }
+              }
+              if (emit_c_fnptr_decl(arena, out, fn_leaf, &emit_nm[0], emit_nml, fnptr_array_ty, ctx) != 0) {
+                return -1;
+              }
+              type_emitted = 1;
             } else if (type_emitted == 0) {
               if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
                 let init_e: Expr = ast.ast_arena_expr_get(arena, linit_ref);
@@ -17049,7 +18371,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
             }
-            if (use_ptr_to_array == 0) {
+            if (use_ptr_to_array == 0 && use_fnptr == 0) {
               if (append_byte(out, 32) != 0) {
                 return -1;
               }
@@ -17068,7 +18390,12 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
              * Authority: emit_local_fixed_array_let_finish — brace lit or memcpy once-eval.
              */
             if (use_local_array != 0) {
-              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, ctx) != 0) {
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, let_type_ref, ctx) != 0) {
+                return -1;
+              }
+            } else if (use_fnptr_array_init != 0) {
+              /* slice11: declarator already has [N]; reuse ARRAY let-finish for init. */
+              if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm[0], emit_nml, linit_ref, fnptr_array_ty, ctx) != 0) {
                 return -1;
               }
             } else if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 11
@@ -17111,6 +18438,28 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                   return -1;
                 }
               }
+              /*
+               * 10.3.1 slice15: TYPE_FN let = Cap/opaque → `(Ret (*)(args))init`.
+               * Without cast gcc: incompatible pointer types assigning to
+               * 'int32_t (*)(int32_t)' from 'uint8_t *'. Skip [N]TYPE_FN
+               * (use_fnptr_array_init). G.7 reuse emit_c_fnptr_decl abstract.
+               * PLATFORM: SHARED host-C.
+               */
+              if (use_fnptr != 0 && use_fnptr_array_init == 0 && !ast.ref_is_null(linit_ref)) {
+                let cast_fn: i32 = fn_leaf;
+                if (cast_fn <= 0) {
+                  cast_fn = let_type_ref;
+                }
+                if (append_byte(out, 40) != 0) {
+                  return -1;
+                }
+                if (emit_c_fnptr_decl(arena, out, cast_fn, 0 as *u8, 0, 0, ctx) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 41) != 0) {
+                  return -1;
+                }
+              }
               let slice_init: i32 = 0;
               if (!ast.ref_is_null(linit_ref)) {
                 slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref, ctx);
@@ -17138,7 +18487,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                   if (tk_z == TypeKind.TYPE_VECTOR as i32) {
                     is_vec_ty = 1;
                   } else if (tk_z == TypeKind.TYPE_NAMED as i32) {
-                    let vzn: u8[128] = [];
+                    let vzn: u8[256] = [];
                     let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
                     let vi: i32 = 0;
                     while (vi < vzn_l) {
@@ -17228,6 +18577,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                       }
                     }
                   }
+                  let _stn: i32 = codegen_stamp_anon_struct_lit_dest(arena, linit_ref, let_type_ref);
+                  _stn = _stn;
                   if (emit_expr(arena, out, linit_ref, ctx) != 0) {
                     return -1;
                   }
@@ -17477,11 +18828,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               if (emit_bytes_from_ptr(out, &gkw[0], 5) != 0) {
                 return -1;
               }
-              /* wave586 Cap residual: label/goto name scratch 128 (content ≤127). */
-              let gt_buf: u8[128] = [];
+              /* wave586 Cap residual: label/goto name scratch 128 (content ≤255). */
+              let gt_buf: u8[256] = [];
               pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, &gt_buf[0]);
               let gt_len: i32 = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
-              if (gt_len > 0 && gt_len <= 127) {
+              if (gt_len > 0 && gt_len <= 255) {
                 if (emit_bytes_from_ptr(out, &gt_buf[0], gt_len) != 0) {
                   return -1;
                 }
@@ -17491,11 +18842,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 return -1;
               }
             } else {
-              /* wave586 Cap residual: label name scratch 128 (content ≤127). */
-              let lb_buf: u8[128] = [];
+              /* wave586 Cap residual: label name scratch 128 (content ≤255). */
+              let lb_buf: u8[256] = [];
               pipeline_block_labeled_label_copy32(arena, block_ref, idx, &lb_buf[0]);
               let lb_len: i32 = pipeline_block_labeled_label_len(arena, block_ref, idx);
-              if (lb_len > 0 && lb_len <= 127) {
+              if (lb_len > 0 && lb_len <= 255) {
                 if (emit_indent(out, indent) != 0) {
                   return -1;
                 }
@@ -17536,7 +18887,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     /* See implementation. */
     let i: i32 = 0;
     while (i < ast.ast_block_num_consts(arena, block_ref)) {
-      let cname_fb: u8[128] = [];
+      let cname_fb: u8[256] = [];
       pipeline_block_const_name_copy64(arena, block_ref, i, &cname_fb[0]);
       let cname_len_fb: i32 = pipeline_block_const_name_len(arena, block_ref, i);
       let ctype_fb: i32 = pipeline_block_const_type_ref(arena, block_ref, i);
@@ -17580,7 +18931,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     }
     i = 0;
     while (i < ast.ast_block_num_lets(arena, block_ref)) {
-      let lname_fb: u8[128] = [];
+      let lname_fb: u8[256] = [];
       pipeline_block_let_name_copy64(arena, block_ref, i, &lname_fb[0]);
       let lname_len_fb: i32 = pipeline_block_let_name_len(arena, block_ref, i);
       let let_type_ref: i32 = pipeline_block_let_type_ref(arena, block_ref, i);
@@ -17591,8 +18942,34 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       /* See implementation. */
       let type_emitted: i32 = 0;
       let use_local_array: i32 = 0;
+      let use_fnptr: i32 = 0;
+      let fnptr_array_ty: i32 = 0;
+      let use_fnptr_array_init: i32 = 0;
+      let fn_leaf_fb: i32 = 0;
       if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
         use_local_array = 1;
+      }
+      /* 10.3.1 fallback let: TYPE_FN → named fnptr declarator (mirror primary path). */
+      if (use_local_array != 0 && !ast.ref_is_null(let_type_ref)) {
+        fn_leaf_fb = let_type_ref;
+        while (!ast.ref_is_null(fn_leaf_fb)
+            && pipeline_type_kind_ord_at(arena, fn_leaf_fb) == (TypeKind.TYPE_ARRAY as i32)) {
+          let inn_fb: i32 = pipeline_type_elem_ref_at(arena, fn_leaf_fb);
+          if (ast.ref_is_null(inn_fb)) {
+            break;
+          }
+          fn_leaf_fb = inn_fb;
+        }
+        if (pipeline_type_kind_ord_at(arena, fn_leaf_fb) == (TypeKind.TYPE_FN as i32)) {
+          use_fnptr = 1;
+          fnptr_array_ty = let_type_ref;
+          use_fnptr_array_init = 1;
+          use_local_array = 0;
+        }
+      }
+      if (use_local_array == 0 && use_fnptr == 0 && !ast.ref_is_null(let_type_ref)
+          && pipeline_type_kind_ord_at(arena, let_type_ref) == (TypeKind.TYPE_FN as i32)) {
+        use_fnptr = 1;
       }
       if (use_local_array != 0) {
         if (emit_local_fixed_array_elem_type(arena, out, let_type_ref, ctx) != 0) {
@@ -17645,21 +19022,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         }
       }
-      if (type_emitted == 0) {
-        if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_fb) && linit_fb > 0 && linit_fb <= arena.num_exprs) {
-          let init_e: Expr = ast.ast_arena_expr_get(arena, linit_fb);
-          if (!ast.ref_is_null(init_e.resolved_type_ref)) {
-            let_type_ref = init_e.resolved_type_ref;
-          }
-        }
-        if (emit_type(arena, out, let_type_ref, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
-          return -1;
-        }
-      }
-      if (append_byte(out, 32) != 0) {
-        return -1;
-      }
-      let emit_nm_fb: u8[128] = [];
+      /* Build local name before type emit (fnptr embeds name in declarator). */
+      let emit_nm_fb: u8[256] = [];
       let emit_nml_fb: i32 = 0;
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
         let ci3: i32 = 0;
@@ -17702,8 +19066,41 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           pi3 = pi3 + 1;
         }
       }
-      if (emit_bytes_64(out, &emit_nm_fb[0], emit_nml_fb) != 0) {
-        return -1;
+      if (use_fnptr != 0 && type_emitted == 0) {
+        fn_leaf_fb = let_type_ref;
+        if (fnptr_array_ty > 0) {
+          fn_leaf_fb = fnptr_array_ty;
+          while (!ast.ref_is_null(fn_leaf_fb)
+              && pipeline_type_kind_ord_at(arena, fn_leaf_fb) == (TypeKind.TYPE_ARRAY as i32)) {
+            let inn_fb2: i32 = pipeline_type_elem_ref_at(arena, fn_leaf_fb);
+            if (ast.ref_is_null(inn_fb2)) {
+              break;
+            }
+            fn_leaf_fb = inn_fb2;
+          }
+        }
+        if (emit_c_fnptr_decl(arena, out, fn_leaf_fb, &emit_nm_fb[0], emit_nml_fb, fnptr_array_ty, ctx) != 0) {
+          return -1;
+        }
+        type_emitted = 1;
+      } else if (type_emitted == 0) {
+        if (ast.ref_is_null(let_type_ref) && !ast.ref_is_null(linit_fb) && linit_fb > 0 && linit_fb <= arena.num_exprs) {
+          let init_e: Expr = ast.ast_arena_expr_get(arena, linit_fb);
+          if (!ast.ref_is_null(init_e.resolved_type_ref)) {
+            let_type_ref = init_e.resolved_type_ref;
+          }
+        }
+        if (emit_type(arena, out, let_type_ref, &blk_prefix[0], blk_prefix_len, ctx) != 0) {
+          return -1;
+        }
+      }
+      if (use_fnptr == 0) {
+        if (append_byte(out, 32) != 0) {
+          return -1;
+        }
+        if (emit_bytes_64(out, &emit_nm_fb[0], emit_nml_fb) != 0) {
+          return -1;
+        }
       }
       if (use_local_array != 0) {
         if (emit_local_fixed_array_suffix(arena, out, let_type_ref) != 0) {
@@ -17712,7 +19109,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       }
       /* wave353: fixed TYPE_ARRAY local let finish (brace or memcpy). */
       if (use_local_array != 0) {
-        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, ctx) != 0) {
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, let_type_ref, ctx) != 0) {
+          return -1;
+        }
+      } else if (use_fnptr_array_init != 0) {
+        if (emit_local_fixed_array_let_finish(arena, out, indent, &emit_nm_fb[0], emit_nml_fb, linit_fb, fnptr_array_ty, ctx) != 0) {
           return -1;
         }
       } else {
@@ -17720,12 +19121,30 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         if (emit_bytes_4(out, &eq[0], 3) != 0) {
           return -1;
         }
+        /* 10.3.1 slice15: TYPE_FN let init Cap cast (fallback block path). */
+        if (use_fnptr != 0 && use_fnptr_array_init == 0 && !ast.ref_is_null(linit_fb)) {
+          let cast_fn_fb: i32 = fn_leaf_fb;
+          if (cast_fn_fb <= 0) {
+            cast_fn_fb = let_type_ref;
+          }
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (emit_c_fnptr_decl(arena, out, cast_fn_fb, 0 as *u8, 0, 0, ctx) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 41) != 0) {
+            return -1;
+          }
+        }
         if (ast.ref_is_null(linit_fb)) {
           let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
           if (emit_bytes_6(out, &zinit_omit[0], 5) != 0) {
             return -1;
           }
         } else {
+          let _stf: i32 = codegen_stamp_anon_struct_lit_dest(arena, linit_fb, let_type_ref);
+          _stf = _stf;
           if (emit_expr(arena, out, linit_fb, ctx) != 0) {
             return -1;
           }
@@ -17935,7 +19354,8 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
     /*
      * TYPE_NAMED: base name, then nested type-pos args as `_` + recursive suffixes.
      * Examples: A → "A"; Wrap&lt;A&gt; → "Wrap_A"; Wrap&lt;Wrap&lt;A&gt;&gt; → "Wrap_Wrap_A";
-     * Pair&lt;A,B&gt; → "Pair_A_B". Outer mono tags still use Name__… (double underscore).
+     * Pair&lt;A,B&gt; → "Pair_A_B". Outer mono tags also use Name_… (single `_`;
+     * same as typeck named-inst — no dual `Name__…` authority).
      * PLATFORM: SHARED — uses pipeline_type_type_arg_ref_at (wave466/467 sidecar).
      */
     if (tk == (TypeKind.TYPE_NAMED as i32)) {
@@ -17955,7 +19375,7 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
         if (arg <= 0) {
           ai = 4;
         } else {
-          let asuf: u8[128] = [];
+          let asuf: u8[256] = [];
           let al: i32 = codegen_type_ref_to_suffix(arena, arg, &asuf[0], 64);
           if (al <= 0) {
             ai = 4;
@@ -18149,7 +19569,7 @@ export function codegen_module_func_overload_count(module: *Module, name_ptr: *u
     while (i < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, i);
       if (fn_len == name_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, i, &fn_name[0]);
@@ -18186,8 +19606,8 @@ export function codegen_func_param_sig_equal(arena: *ASTArena, mod_a: *Module, f
     }
     let pi: i32 = 0;
     while (pi < np_a) {
-      let sa: u8[128] = [];
-      let sb: u8[128] = [];
+      let sa: u8[256] = [];
+      let sb: u8[256] = [];
       let na: i32 = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(mod_a, fi_a, pi), &sa[0], 64);
       let nb: i32 = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(mod_b, fi_b, pi), &sb[0], 64);
       if (na != nb) {
@@ -18218,7 +19638,7 @@ export function codegen_module_overload_param_sig_count(arena: *ASTArena, module
     if (module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
@@ -18228,7 +19648,7 @@ export function codegen_module_overload_param_sig_count(arena: *ASTArena, module
     while (i < module.num_funcs) {
       let g_len: i32 = pipeline_module_func_name_len_at(module, i);
       if (g_len == fn_len && g_len > 0) {
-        let g_name: u8[128] = [];
+        let g_name: u8[256] = [];
         let matched: i32 = 1;
         let bi: i32 = 0;
         pipeline_module_func_name_copy64(module, i, &g_name[0]);
@@ -18395,7 +19815,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
   unsafe {
 
     /* Hoist-safe: zero locals first; fill via statements after the early-return gate. */
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     let fn_len: i32 = 0;
     let overload_count: i32 = 0;
     let np: i32 = 0;
@@ -18425,7 +19845,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     np = pipeline_module_func_num_params_at(module, fi);
     pi = 0;
     while (pi < np) {
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let param_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
       /*
        * PLATFORM: SHARED — param type_ref is indexed in the function's module arena.
@@ -18450,7 +19870,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     sig_count = codegen_module_overload_param_sig_count(arena, module, fi);
     if (sig_count > 1) {
       let ret_ref: i32 = pipeline_module_func_return_type_at(module, fi);
-      let rs: u8[128] = [];
+      let rs: u8[256] = [];
       let rsl: i32 = codegen_type_ref_to_suffix(arena, ret_ref, &rs[0], 64);
       if (rsl > 0) {
         /* "_ret_" */
@@ -18493,7 +19913,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (pi < np) {
         let pl: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
         if (pl == name_len && pl > 0) {
-          let pb: u8[128] = [];
+          let pb: u8[256] = [];
           let ok: i32 = 1;
           let j: i32 = 0;
           pipeline_module_func_param_name_copy32(mod, fi, pi, &pb[0]);
@@ -18520,7 +19940,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (li < nlets) {
         let nl: i32 = pipeline_block_let_name_len(arena, br, li);
         if (nl == name_len && nl > 0) {
-          let nb: u8[128] = [];
+          let nb: u8[256] = [];
           let ok2: i32 = 1;
           let j2: i32 = 0;
           pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
@@ -18543,7 +19963,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
       while (ci < nconsts) {
         let cl: i32 = pipeline_block_const_name_len(arena, br, ci);
         if (cl == name_len && cl > 0) {
-          let cb: u8[128] = [];
+          let cb: u8[256] = [];
           let ok3: i32 = 1;
           let j3: i32 = 0;
           pipeline_block_const_name_copy64(arena, br, ci, &cb[0]);
@@ -18689,7 +20109,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
             if (rlen != fallback_len) {
               ok_res = 0;
             } else {
-              let rnm: u8[128] = [];
+              let rnm: u8[256] = [];
               pipeline_module_func_name_copy64(res_mod, func_ix, &rnm[0]);
               let ri: i32 = 0;
               while (ri < rlen) {
@@ -18795,7 +20215,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         while (fi_s < search_mod.num_funcs) {
           let fn_len: i32 = pipeline_module_func_name_len_at(search_mod, fi_s);
           if (fn_len == fallback_len && fn_len > 0) {
-            let fn_name: u8[128] = [];
+            let fn_name: u8[256] = [];
             pipeline_module_func_name_copy64(search_mod, fi_s, &fn_name[0]);
             let matched: i32 = 1;
             let bi: i32 = 0;
@@ -18835,7 +20255,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                         && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
                       let av_len: i32 = pipeline_expr_var_name_len(arena, arg_ref);
                       if (av_len > 0 && av_len <= 63) {
-                        let av_buf: u8[128] = [];
+                        let av_buf: u8[256] = [];
                         pipeline_expr_var_name_into(arena, arg_ref, &av_buf[0]);
                         let apt: i32 = pipeline_module_func_param_type_ref_for_name(
                             ctx.current_codegen_module, ctx.current_func_index, &av_buf[0], av_len);
@@ -18857,8 +20277,8 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                       is_str_lit = 1;
                     }
                     let param_ty: i32 = pipeline_module_func_param_type_ref_at(search_mod, fi_s, pi);
-                    let sa: u8[128] = [];
-                    let sb: u8[128] = [];
+                    let sa: u8[256] = [];
+                    let sb: u8[256] = [];
                     let na: i32 = 0;
                     let nb: i32 = 0;
                     /* See implementation. */
@@ -18952,7 +20372,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
             while (fi_p < search_mod.num_funcs) {
               let fl: i32 = pipeline_module_func_name_len_at(search_mod, fi_p);
               if (fl == fallback_len && fl > 0 && pipeline_module_func_num_params_at(search_mod, fi_p) == 1) {
-                let fnm_p: u8[128] = [];
+                let fnm_p: u8[256] = [];
                 pipeline_module_func_name_copy64(search_mod, fi_p, &fnm_p[0]);
                 let me: i32 = 1;
                 let bi: i32 = 0;
@@ -19006,7 +20426,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           while (fi_a < search_mod.num_funcs) {
             let fn_len_a: i32 = pipeline_module_func_name_len_at(search_mod, fi_a);
             if (fn_len_a == fallback_len && fn_len_a > 0) {
-              let fn_name_a: u8[128] = [];
+              let fn_name_a: u8[256] = [];
               pipeline_module_func_name_copy64(search_mod, fi_a, &fn_name_a[0]);
               let matched_a: i32 = 1;
               let bi_a: i32 = 0;
@@ -19061,7 +20481,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
           while (fi_x < dm.num_funcs) {
             let fn_x: i32 = pipeline_module_func_name_len_at(dm, fi_x);
             if (fn_x == fallback_len && fn_x > 0) {
-              let fnm: u8[128] = [];
+              let fnm: u8[256] = [];
               pipeline_module_func_name_copy64(dm, fi_x, &fnm[0]);
               let mx: i32 = 1;
               let bx: i32 = 0;
@@ -19188,7 +20608,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
   unsafe {
 
     /* Hoist-safe name locals: fill via statements before any name-dependent test. */
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     let fn_len: i32 = 0;
     let name_is_main: bool = false;
     let force_entry_main: bool = false;
@@ -19369,7 +20789,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
            * (`int32_t (*a)[2]`), not emit_type peel `int32_t ** a`.
            * PLATFORM: SHARED host-C.
            */
-          let pta_nm: u8[128] = [];
+          let pta_nm: u8[256] = [];
           let pta_nl: i32 = 0;
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
             codegen_copy_param_name32_from_module(module, fi, p, &pta_nm[0]);
@@ -19416,6 +20836,35 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
           if (emit_c_ptr_to_fixed_array_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &pta_nm[0], pta_nl, ctx) != 0) {
             return -1;
           }
+        } else if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p))
+            == (TypeKind.TYPE_FN as i32)) {
+          /* 10.3.1: param `f: function(T): R` → `R (*f)(T)`. PLATFORM: SHARED. */
+          let pfn_nm: u8[256] = [];
+          let pfn_nl: i32 = 0;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            codegen_copy_param_name32_from_module(module, fi, p, &pfn_nm[0]);
+            pfn_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+            if (pfn_nm[0] <= 32) {
+              pfn_nl = 0;
+            }
+          }
+          if (pfn_nl <= 0) {
+            pfn_nm[0] = 95;
+            pfn_nm[1] = 112;
+            pfn_nl = 2;
+            if (p < 10) {
+              pfn_nm[2] = ((p + 48) as u8);
+              pfn_nl = 3;
+            } else {
+              pfn_nm[2] = ((p / 10) + 48) as u8;
+              pfn_nm[3] = ((p % 10) + 48) as u8;
+              pfn_nl = 4;
+            }
+          }
+          if (emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p),
+              &pfn_nm[0], pfn_nl, 0, ctx) != 0) {
+            return -1;
+          }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
@@ -19423,6 +20872,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
          * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
          * Emit: `struct xlang_slice_T * name` so field access uses -> and calls pass &local. */
         if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)
             && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -19431,13 +20881,14 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             return -1;
           }
         }
-        /* wave636: PTR→ARRAY / ARRAY-of-ARRAY already emitted name inside declarator — skip space+name. */
-        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
+        /* wave636 / 10.3.1: named-array / TYPE_FN already emitted name — skip space+name. */
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
           }
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-            let plocal: u8[128] = [];
+            let plocal: u8[256] = [];
             codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
             if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
               return -1;
@@ -19453,6 +20904,18 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
           }
         }
         p = p + 1;
+      }
+    }
+    /*
+     * Cap 10.7.1 slice6: emit `, ...` on function *definitions* when is_variadic.
+     * Declarations already emit via codegen_emit_import_dep / extern proto path;
+     * defs closed `)` without ellipsis → prototype/def mismatch (host-cc error).
+     * PLATFORM: SHARED host-C.
+     */
+    if (pipeline_module_func_is_variadic_at(module, fi) != 0 && pipeline_module_func_num_params_at(module, fi) > 0) {
+      let ellipsis_def: u8[5] = [44, 32, 46, 46, 46];
+      if (emit_bytes_from_ptr(out, &ellipsis_def[0], 5) != 0) {
+        return -1;
       }
     }
     let rpar: u8[3] = [41, 32, 0];
@@ -19670,16 +21133,26 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
  *
  * Covered (historical g05 sed + read/write + wave30 mkstemp/rename): libc I/O,
  * alloc (incl. realloc / posix_memalign), string, env, path (unlink/mkstemp/
- * rename/access). g05 sed remains a defense layer for harness helpers and
- * #include strip; libc name authority is this predicate only (G.7).
+ * rename/access), sendfile. g05 sed remains a defense layer for harness helpers
+ * and #include strip; libc name authority is this predicate only (G.7).
  * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h +
  * unistd.h (`codegen_x_ast_emit_header` for bare `-E`, plus rt_preamble
  * io_net for `-o`). Skipping without those headers → implicit int /
  * undeclared getcwd (L0 labi_path_pure.x host-cc).
+ * sendfile leftover: LINUX 4-arg prototype via fs_formal `<sys/sendfile.h>`;
+ * MACOS 6-arg already in `<sys/socket.h>` (Darwin net Cap).
+ * Cap 10.7.1: also skip language va_* faces (typeck_is_cap_va_builtin_name) —
+ * call sites rewrite to xlang_va_*; emitting `extern void va_start(...)`
+ * redeclares the clang builtin (Darwin host-cc hard-error).
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
     return 0;
+  }
+  /* Cap 10.7.1: va_start/va_end/va_copy/va_arg* are macros, not C functions.
+   * PLATFORM: SHARED skip; MACOS|DARWIN clang redeclare is the live face. */
+  if (typeck_is_cap_va_builtin_name(name, name_len) != 0) {
+    return 1;
   }
   /* read 4 */
   if (name_len == 4 && name[0] == 114 && name[1] == 101 && name[2] == 97 && name[3] == 100) {
@@ -19838,6 +21311,16 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   if (name_len == 6 && name[0] == 114 && name[1] == 101 && name[2] == 110 && name[3] == 97 && name[4] == 109 && name[5] == 101) {
     return 1;
   }
+  /* sendfile 8 — Darwin <sys/socket.h> 6-arg (off_t *, struct sf_hdtr *) vs
+   * XLANG extern i64* / u8* -> "conflicting types for 'sendfile'" in fs_formal
+   * KEEP_C, so std/fs/fs.o never lands and product -o UNDEF _std_fs_invalid.
+   * Linux 4-arg leftover (fs_libc_sendfile) keeps a prototype via fs_formal
+   * #include <sys/sendfile.h>. Darwin 6-arg FFI is unused (fs_libc_sendfile_mac
+   * returns -1 without calling sendfile).
+   * PLATFORM: SHARED skip; LINUX header in fs_formal; MACOS via socket.h. */
+  if (name_len == 8 && name[0] == 115 && name[1] == 101 && name[2] == 110 && name[3] == 100 && name[4] == 102 && name[5] == 105 && name[6] == 108 && name[7] == 101) {
+    return 1;
+  }
   return 0;
 }
 
@@ -19856,7 +21339,7 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
     if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
@@ -19978,44 +21461,20 @@ function codegen_call_mono_type_at(arena: *ASTArena, ei: i32, arg_idx: i32, num_
  * PLATFORM: SHARED
  */
 /**
- * wave458: mono combo slot equality (type_ref id or TYPE_NAMED same name).
- * Turbofish / fixup allocate distinct TYPE_NAMED nodes for the same A; raw
- * type_ref equality then fails dedup and emits mk__A four times → redefinition.
- * @return i32 — 1 equal, 0 unequal
- * PLATFORM: SHARED
+ * Mono combo slot equality for generic-function collect.
+ * G.7: forwards to codegen_type_refs_same_for_mono (struct-layout authority).
+ * TYPE_NAMED-only missed builtin i32/f64 and TYPE_PTR (*u8): distinct type_ref
+ * nodes share one mangle (va_arg__VaList_i32 twice → host-C redefinition).
+ * @param arena *ASTArena — type_ref table; null → 0 via callee
+ * @param a i32 — combo slot type_ref
+ * @param b i32 — other slot type_ref
+ * @return i32 — 1 equal mono key, 0 unequal
+ * PLATFORM: SHARED host-C (one definition per mangled name; MSVC same rule)
  */
 function codegen_mono_combo_slot_equal(arena: *ASTArena, a: i32, b: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    if (a == b) {
-      return 1;
-    }
-    if (a <= 0 || b <= 0 || arena == 0 as *ASTArena) {
-      return 0;
-    }
-    let ka: i32 = pipeline_type_kind_ord_at(arena, a);
-    let kb: i32 = pipeline_type_kind_ord_at(arena, b);
-    if (ka != kb) {
-      return 0;
-    }
-    if (ka == TypeKind.TYPE_NAMED as i32) {
-      let na: u8[128] = [];
-      let nb: u8[128] = [];
-      let la: i32 = pipeline_type_named_name_into(arena, a, &na[0]);
-      let lb: i32 = pipeline_type_named_name_into(arena, b, &nb[0]);
-      if (la <= 0 || la != lb) {
-        return 0;
-      }
-      let i: i32 = 0;
-      while (i < la) {
-        if (na[i] != nb[i]) {
-          return 0;
-        }
-        i = i + 1;
-      }
-      return 1;
-    }
-    return 0;
+    return codegen_type_refs_same_for_mono(arena, a, b);
   }
 }
 
@@ -20029,7 +21488,7 @@ function codegen_func_ret_type_param_extra(arena: *ASTArena, module: *Module, fi
     if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != (TypeKind.TYPE_NAMED as i32)) {
       return 0;
     }
-    let ret_nm: u8[128] = [];
+    let ret_nm: u8[256] = [];
     let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
     if (ret_nl <= 0) {
       return 0;
@@ -20039,7 +21498,7 @@ function codegen_func_ret_type_param_extra(arena: *ASTArena, module: *Module, fi
     while (pi < np) {
       let pty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
       if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (TypeKind.TYPE_NAMED as i32)) {
-        let pnm: u8[128] = [];
+        let pnm: u8[256] = [];
         let pnl: i32 = pipeline_type_named_name_into(arena, pty, &pnm[0]);
         if (pnl == ret_nl && pnl > 0) {
           let eq: i32 = 1;
@@ -20139,7 +21598,7 @@ function codegen_collect_mono_combos_for_generic_func(arena: *ASTArena, module: 
     if (num_params < 0 || ret_extra < 0 || ret_extra > 1) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
@@ -20275,7 +21734,7 @@ export function codegen_try_emit_impl_method_mono_call_name(out: *CodegenOutBuf,
     if (pipeline_type_kind_ord_at(arena, p0_ty) != (TypeKind.TYPE_NAMED as i32)) {
       return 0;
     }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &nm[0]);
     if (nl <= 0) {
       return 0;
@@ -20361,7 +21820,7 @@ function codegen_emit_mono_mangled_name(out: *CodegenOutBuf, arena: *ASTArena, m
     }
     let mi: i32 = 0;
     while (mi < num_mono) {
-      let suf: u8[128] = [];
+      let suf: u8[256] = [];
       let ty: i32 = mono_tys[mi];
       let sl: i32 = codegen_type_ref_to_suffix(arena, ty, &suf[0], 64);
       if (sl <= 0) {
@@ -20413,13 +21872,13 @@ function codegen_mono_subst_type(ctx: *PipelineDepCtx, arena: *ASTArena, type_re
      * Single authority: emit_type C5 and C6 both rely on this name match.
      * PLATFORM: SHARED — mirrors codegen_gen.linux.x86_64.c.
      */
-    let fb_nm: u8[128] = [];
+    let fb_nm: u8[256] = [];
     let fb_len: i32 = pipeline_type_named_name_into(arena, type_ref, &fb_nm[0]);
     if (fb_len > 0) {
       let mi2: i32 = 0;
       while (mi2 < ctx.mono_num_types && mi2 < 8) {
         if (ctx.mono_concrete_type_refs[mi2] > 0) {
-          let gnm: u8[128] = [];
+          let gnm: u8[256] = [];
           let gname_len: i32 = pipeline_type_named_name_into(arena, ctx.mono_generic_type_refs[mi2], &gnm[0]);
           if (gname_len == fb_len && gname_len > 0) {
             let names_eq: i32 = 1;
@@ -20470,7 +21929,7 @@ export function codegen_find_impl_method_for_type(module: *Module, arena: *ASTAr
     while (fi < module.num_funcs) {
       let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len == method_name_len && fn_len > 0) {
-        let fn_name: u8[128] = [];
+        let fn_name: u8[256] = [];
         pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
         let matched: i32 = 1;
         let bi: i32 = 0;
@@ -20502,9 +21961,9 @@ export function codegen_find_impl_method_for_type(module: *Module, arena: *ASTAr
               if (pipeline_typeck_type_refs_equal_c(arena, p0_ty, receiver_type_ref) != 0) {
                 return fi;
               }
-              let p0_nm: u8[128] = [];
+              let p0_nm: u8[256] = [];
               let p0_nlen: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
-              let recv_nm: u8[128] = [];
+              let recv_nm: u8[256] = [];
               let recv_nlen: i32 = pipeline_type_named_name_into(arena, receiver_type_ref, &recv_nm[0]);
               if (p0_nlen > 0 && p0_nlen == recv_nlen) {
                 let neq: i32 = 1;
@@ -21502,7 +22961,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       if (ret_ty <= 0) {
         return 0;
       }
-      let fn_local0: u8[128] = [];
+      let fn_local0: u8[256] = [];
       codegen_copy_func_name64_from_module(module, fi, &fn_local0[0]);
       let fn_len0: i32 = pipeline_module_func_name_len_at(module, fi);
       if (fn_len0 <= 0) {
@@ -21759,8 +23218,8 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     if (num_params > 0
         && pipeline_type_kind_ord_at(arena, ret_ty) == (TypeKind.TYPE_NAMED as i32)
         && pipeline_type_kind_ord_at(arena, p0_ty) == (TypeKind.TYPE_NAMED as i32)) {
-      let ret_nm: u8[128] = [];
-      let p0_nm: u8[128] = [];
+      let ret_nm: u8[256] = [];
+      let p0_nm: u8[256] = [];
       let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
       let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
       if (ret_nl > 0 && ret_nl == p0_nl) {
@@ -21797,7 +23256,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
       return 0;
     }
     let pn_len: i32 = 1;
-    let pn: u8[128] = [];
+    let pn: u8[256] = [];
     pn[0] = 120;
     if (num_params > 0) {
       pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
@@ -21807,7 +23266,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
         pn_len = 1;
       }
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -22104,7 +23563,7 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
           return -1;
         }
         let pni_len: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
-        let pni: u8[128] = [];
+        let pni: u8[256] = [];
         pipeline_module_func_param_name_copy32(module, fi, pi, &pni[0]);
         if (pni_len <= 0) {
           pni[0] = 120;
@@ -22294,7 +23753,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
     let found_lk: i32 = -1;
     let found_pty: i32 = 0;
     let found_ntp: i32 = 0;
-    let found_nm: u8[128] = [];
+    let found_nm: u8[256] = [];
     let found_bare_off: i32 = 0;
     let found_bare_len: i32 = 0;
     while (p < num_params) {
@@ -22312,7 +23771,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
         p = p + 1;
         continue;
       }
-      let nm: u8[128] = [];
+      let nm: u8[256] = [];
       let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
       if (nl <= 0) {
         p = p + 1;
@@ -22369,7 +23828,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
     if (nc <= 1) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -22488,7 +23947,7 @@ export function codegen_try_emit_generic_impl_method_mono(arena: *ASTArena, out:
           }
           return -1;
         }
-        let pname: u8[128] = [];
+        let pname: u8[256] = [];
         let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
         pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
         if (plen <= 0) {
@@ -22621,7 +24080,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
     let found_lk: i32 = -1;
     let found_pty: i32 = 0;
     let found_ntp: i32 = 0;
-    let found_nm: u8[128] = [];
+    let found_nm: u8[256] = [];
     let found_bare_off: i32 = 0;
     let found_bare_len: i32 = 0;
     while (p < num_params) {
@@ -22639,7 +24098,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
         p = p + 1;
         continue;
       }
-      let nm: u8[128] = [];
+      let nm: u8[256] = [];
       let nl: i32 = pipeline_type_named_name_into(arena, pty, &nm[0]);
       if (nl <= 0) {
         p = p + 1;
@@ -22696,7 +24155,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
     if (nc <= 1) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
@@ -22847,7 +24306,7 @@ function codegen_try_emit_generic_impl_method_extern_mono(arena: *ASTArena, out:
           }
           return -1;
         }
-        let pname: u8[128] = [];
+        let pname: u8[256] = [];
         let plen: i32 = pipeline_module_func_param_name_len_at(module, fi, pi);
         pipeline_module_func_param_name_copy32(module, fi, pi, &pname[0]);
         if (plen <= 0) {
@@ -22926,7 +24385,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (w498_ext_rc > 0) {
       return 0;
     }
-    let fn_local: u8[128] = [];
+    let fn_local: u8[256] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     /* See implementation. */
@@ -23097,7 +24556,7 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           }
         } else if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != 0) {
           /* Proto twin of emit_func: `*[N]T` / `[K][N]T` → `E (*name)[N]`. */
-          let pta_nm: u8[128] = [];
+          let pta_nm: u8[256] = [];
           let pta_nl: i32 = 0;
           if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
             codegen_copy_param_name32_from_module(module, fi, p, &pta_nm[0]);
@@ -23122,11 +24581,41 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           if (emit_c_ptr_to_fixed_array_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), &pta_nm[0], pta_nl, ctx) != 0) {
             return -1;
           }
+        } else if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p))
+            == (TypeKind.TYPE_FN as i32)) {
+          /* Proto twin: `function(T): R` param → `R (*name)(T)`. PLATFORM: SHARED. */
+          let pfn_nm: u8[256] = [];
+          let pfn_nl: i32 = 0;
+          if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
+            codegen_copy_param_name32_from_module(module, fi, p, &pfn_nm[0]);
+            pfn_nl = pipeline_module_func_param_name_len_at(module, fi, p);
+            if (pfn_nm[0] <= 32) {
+              pfn_nl = 0;
+            }
+          }
+          if (pfn_nl <= 0) {
+            pfn_nm[0] = 95;
+            pfn_nm[1] = 112;
+            pfn_nl = 2;
+            if (p < 10) {
+              pfn_nm[2] = ((p + 48) as u8);
+              pfn_nl = 3;
+            } else {
+              pfn_nm[2] = ((p / 10) + 48) as u8;
+              pfn_nm[3] = ((p % 10) + 48) as u8;
+              pfn_nl = 4;
+            }
+          }
+          if (emit_c_fnptr_decl(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p),
+              &pfn_nm[0], pfn_nl, 0, ctx) != 0) {
+            return -1;
+          }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
         /* PLATFORM: SHARED — TYPE_SLICE params as pointers (mirror emit_func body; seed/glue ABI). */
         if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)
             && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -23135,12 +24624,13 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
             return -1;
           }
         }
-        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0) {
+        if (type_uses_named_array_decl(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == 0
+            && pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) != (TypeKind.TYPE_FN as i32)) {
         if (append_byte(out, 32) != 0) {
           return -1;
         }
         if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
-          let plocal: u8[128] = [];
+          let plocal: u8[256] = [];
           codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
           if (plocal[0] > 32 && emit_bytes_from_ptr(out, &plocal[0], pipeline_module_func_param_name_len_at(module, fi, p)) != 0) {
             return -1;
@@ -23193,7 +24683,7 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
     let saved_arena: *ASTArena = ctx.current_codegen_arena;
     let saved_dep_index: i32 = ctx.current_codegen_dep_index;
     let saved_prefix_len: i32 = ctx.current_codegen_prefix_len;
-    let saved_prefix: u8[128] = [];
+    let saved_prefix: u8[256] = [];
     let sp: i32 = 0;
     while (sp < 64) {
       saved_prefix[sp] = ctx.current_codegen_prefix_mirror[sp];
@@ -23208,7 +24698,7 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
         let seen_before: i32 = 0;
         let prev_i: i32 = 0;
         while (prev_i < imp_i) {
-          let prev_path: u8[128] = [];
+          let prev_path: u8[256] = [];
           let prev_len: i32 = codegen_module_import_path_len_at(module, prev_i, &prev_path[0]);
           if (prev_len == dep_path_len) {
             let eq_prev: bool = true;
@@ -23245,7 +24735,7 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
             }
           }
           if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_mod.num_funcs > 0) {
-              let prefix_buf: u8[128] = [];
+              let prefix_buf: u8[256] = [];
               let prefix_len: i32 = 0;
               if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
                 codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
@@ -23350,6 +24840,375 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
  * SIMD: XLANG_VECTOR_TYPES (i32x4_t / u32x8_t / f32x4_t …) so bare `-E`
  * host-cc matches emit_vector_c_type_out; `-o` already has rt_preamble §10.
  */
+/**
+ * Stage 10 S3.1 (10.1.1+10.1.2): emit the raw syscall static-inline helpers
+ * `__xlang_raw_syscall0..6` into the host-C preamble, behind
+ * `#if defined(__linux__) && defined(__x86_64__)` then
+ * `#elif defined(__linux__) && defined(__aarch64__)`.
+ *
+ * x86_64 map: nr→rax; a1→rdi; a2→rsi; a3→rdx; a4→r10; a5→r8; a6→r9;
+ * return rax; rcx/r11 clobbered by `syscall`. r10/r8/r9 use register locals.
+ * aarch64 map (10.1.2): nr→x8; a1→x0; a2→x1; a3→x2; a4→x3; a5→x4; a6→x5;
+ * return x0; `svc #0`. Host cc preprocessor is the platform truth:
+ * Darwin (not linux) drops both blocks; Ubuntu x86_64 takes the first;
+ * Linux aarch64 takes the elif. `__attribute__((unused))` keeps helper-only
+ * TUs warning-free under -Wall -Wextra.
+ *
+ * Consumed only by codegen_try_emit_raw_syscall_call call-site expansion;
+ * emitting here is safe for both bare `-E` and full `-o` because this runs
+ * once per C TU via the prologue gate (pipeline_codegen_c_file_prologue_done).
+ *
+ * @param out *CodegenOutBuf — destination C text buffer
+ * @return i32 — 0 on success; -1 if any emit fails
+ * PLATFORM: SHARED host-C emit; runtime LINUX x86_64 or LINUX aarch64.
+ */
+export function codegen_emit_raw_syscall_helpers(out: *CodegenOutBuf): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    /* #if defined(__linux__) && defined(__x86_64__)\n */
+    let guard_open: u8[46] = [35, 105, 102, 32, 100, 101, 102, 105, 110, 101, 100, 40, 95, 95, 108, 105,
+      110, 117, 120, 95, 95, 41, 32, 38, 38, 32, 100, 101, 102, 105, 110, 101,
+      100, 40, 95, 95, 120, 56, 54, 95, 54, 52, 95, 95, 41, 10];
+    /* static inline __attribute__((unused)) long __xlang_raw_syscall0(long n){long r;__asm__ __volatile__("syscall":"=a"(r):"a"(n):"rcx","r11","memory");return r;}\n */
+    let h0: u8[158] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 48, 40,
+      108, 111, 110, 103, 32, 110, 41, 123, 108, 111, 110, 103, 32, 114, 59, 95,
+      95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108,
+      101, 95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61,
+      97, 34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 58, 34, 114, 99,
+      120, 34, 44, 34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121,
+      34, 41, 59, 114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall1(long n,long a) — arg1 in rdi ("D"). */
+    let h1: u8[172] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 49, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 41, 123, 108,
+      111, 110, 103, 32, 114, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95,
+      118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99,
+      97, 108, 108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34,
+      40, 110, 41, 44, 34, 68, 34, 40, 97, 41, 58, 34, 114, 99, 120, 34,
+      44, 34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41,
+      59, 114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall2(long n,long a,long b) — arg2 in rsi ("S"). */
+    let h2: u8[186] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 50, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 41, 123, 108, 111, 110, 103, 32, 114, 59, 95, 95, 97,
+      115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95,
+      95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97, 34,
+      40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40, 97,
+      41, 44, 34, 83, 34, 40, 98, 41, 58, 34, 114, 99, 120, 34, 44, 34,
+      114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114,
+      101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall3(long n,long a,long b,long c) — arg3 in rdx ("d"); write/read shape. */
+    let h3: u8[200] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 51, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 41, 123, 108, 111, 110,
+      103, 32, 114, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111,
+      108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99, 97, 108,
+      108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34, 40, 110,
+      41, 44, 34, 68, 34, 40, 97, 41, 44, 34, 83, 34, 40, 98, 41, 44,
+      34, 100, 34, 40, 99, 41, 58, 34, 114, 99, 120, 34, 44, 34, 114, 49,
+      49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116,
+      117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall4 — arg4 in r10 (register local var; no single-letter constraint). */
+    let h4: u8[251] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 52, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 41, 123, 108, 111, 110, 103, 32, 114, 59, 114, 101, 103, 105, 115,
+      116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 49, 48, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 114, 49, 48, 34, 41, 61, 100, 59, 95, 95,
+      97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101,
+      95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97,
+      34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40,
+      97, 41, 44, 34, 83, 34, 40, 98, 41, 44, 34, 100, 34, 40, 99, 41,
+      44, 34, 114, 34, 40, 120, 49, 48, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall5 — arg4 r10 + arg5 r8 (register locals). */
+    let h5: u8[299] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 53, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 41, 123, 108, 111, 110, 103, 32,
+      114, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32,
+      120, 49, 48, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 114, 49, 48,
+      34, 41, 61, 100, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111,
+      110, 103, 32, 120, 56, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 114,
+      56, 34, 41, 61, 101, 59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95,
+      118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 121, 115, 99,
+      97, 108, 108, 34, 58, 34, 61, 97, 34, 40, 114, 41, 58, 34, 97, 34,
+      40, 110, 41, 44, 34, 68, 34, 40, 97, 41, 44, 34, 83, 34, 40, 98,
+      41, 44, 34, 100, 34, 40, 99, 41, 44, 34, 114, 34, 40, 120, 49, 48,
+      41, 44, 34, 114, 34, 40, 120, 56, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* __xlang_raw_syscall6 — arg4 r10 + arg5 r8 + arg6 r9 (register locals). */
+    let h6: u8[347] = [115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 54, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 44, 108, 111, 110, 103, 32, 102,
+      41, 123, 108, 111, 110, 103, 32, 114, 59, 114, 101, 103, 105, 115, 116, 101,
+      114, 32, 108, 111, 110, 103, 32, 120, 49, 48, 32, 95, 95, 97, 115, 109,
+      95, 95, 40, 34, 114, 49, 48, 34, 41, 61, 100, 59, 114, 101, 103, 105,
+      115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 56, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 114, 56, 34, 41, 61, 101, 59, 114, 101, 103,
+      105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 57, 32, 95, 95,
+      97, 115, 109, 95, 95, 40, 34, 114, 57, 34, 41, 61, 102, 59, 95, 95,
+      97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101,
+      95, 95, 40, 34, 115, 121, 115, 99, 97, 108, 108, 34, 58, 34, 61, 97,
+      34, 40, 114, 41, 58, 34, 97, 34, 40, 110, 41, 44, 34, 68, 34, 40,
+      97, 41, 44, 34, 83, 34, 40, 98, 41, 44, 34, 100, 34, 40, 99, 41,
+      44, 34, 114, 34, 40, 120, 49, 48, 41, 44, 34, 114, 34, 40, 120, 56,
+      41, 44, 34, 114, 34, 40, 120, 57, 41, 58, 34, 114, 99, 120, 34, 44,
+      34, 114, 49, 49, 34, 44, 34, 109, 101, 109, 111, 114, 121, 34, 41, 59,
+      114, 101, 116, 117, 114, 110, 32, 114, 59, 125, 10];
+    /* #endif\n */
+    let guard_close: u8[7] = [35, 101, 110, 100, 105, 102, 10];
+    /* #elif defined(__linux__) && defined(__aarch64__) */
+    let elif_open: u8[49] = [
+      35, 101, 108, 105, 102, 32, 100, 101, 102, 105, 110, 101, 100, 40, 95, 95,
+      108, 105, 110, 117, 120, 95, 95, 41, 32, 38, 38, 32, 100, 101, 102, 105,
+      110, 101, 100, 40, 95, 95, 97, 97, 114, 99, 104, 54, 52, 95, 95, 41,
+      10
+    ];
+    /* aarch64 __xlang_raw_syscall0 svc #0 */
+    let a0: u8[205] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 48, 40,
+      108, 111, 110, 103, 32, 110, 41, 123, 114, 101, 103, 105, 115, 116, 101, 114,
+      32, 108, 111, 110, 103, 32, 120, 56, 32, 95, 95, 97, 115, 109, 95, 95,
+      40, 34, 120, 56, 34, 41, 61, 110, 59, 114, 101, 103, 105, 115, 116, 101,
+      114, 32, 108, 111, 110, 103, 32, 120, 48, 32, 95, 95, 97, 115, 109, 95,
+      95, 40, 34, 120, 48, 34, 41, 59, 95, 95, 97, 115, 109, 95, 95, 32,
+      95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115, 118,
+      99, 32, 35, 48, 34, 58, 34, 61, 114, 34, 40, 120, 48, 41, 58, 34,
+      114, 34, 40, 120, 56, 41, 58, 34, 109, 101, 109, 111, 114, 121, 34, 41,
+      59, 114, 101, 116, 117, 114, 110, 32, 120, 48, 59, 125, 10
+    ];
+    /* aarch64 __xlang_raw_syscall1 svc #0 */
+    let a1: u8[214] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 49, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 41, 123, 114,
+      101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 56, 32,
+      95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 56, 34, 41, 61, 110, 59,
+      114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 48,
+      32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 48, 34, 41, 61, 97,
+      59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116,
+      105, 108, 101, 95, 95, 40, 34, 115, 118, 99, 32, 35, 48, 34, 58, 34,
+      43, 114, 34, 40, 120, 48, 41, 58, 34, 114, 34, 40, 120, 56, 41, 58,
+      34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116, 117, 114, 110,
+      32, 120, 48, 59, 125, 10
+    ];
+    /* aarch64 __xlang_raw_syscall2 svc #0 */
+    let a2: u8[262] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 50, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 41, 123, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108,
+      111, 110, 103, 32, 120, 56, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34,
+      120, 56, 34, 41, 61, 110, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32,
+      108, 111, 110, 103, 32, 120, 48, 32, 95, 95, 97, 115, 109, 95, 95, 40,
+      34, 120, 48, 34, 41, 61, 97, 59, 114, 101, 103, 105, 115, 116, 101, 114,
+      32, 108, 111, 110, 103, 32, 120, 49, 32, 95, 95, 97, 115, 109, 95, 95,
+      40, 34, 120, 49, 34, 41, 61, 98, 59, 95, 95, 97, 115, 109, 95, 95,
+      32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115,
+      118, 99, 32, 35, 48, 34, 58, 34, 43, 114, 34, 40, 120, 48, 41, 58,
+      34, 114, 34, 40, 120, 56, 41, 44, 34, 114, 34, 40, 120, 49, 41, 58,
+      34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116, 117, 114, 110,
+      32, 120, 48, 59, 125, 10
+    ];
+    /* aarch64 __xlang_raw_syscall3 svc #0 */
+    let a3: u8[310] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 51, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 41, 123, 114, 101, 103,
+      105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 56, 32, 95, 95,
+      97, 115, 109, 95, 95, 40, 34, 120, 56, 34, 41, 61, 110, 59, 114, 101,
+      103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 48, 32, 95,
+      95, 97, 115, 109, 95, 95, 40, 34, 120, 48, 34, 41, 61, 97, 59, 114,
+      101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 49, 32,
+      95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 49, 34, 41, 61, 98, 59,
+      114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 50,
+      32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 50, 34, 41, 61, 99,
+      59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116,
+      105, 108, 101, 95, 95, 40, 34, 115, 118, 99, 32, 35, 48, 34, 58, 34,
+      43, 114, 34, 40, 120, 48, 41, 58, 34, 114, 34, 40, 120, 56, 41, 44,
+      34, 114, 34, 40, 120, 49, 41, 44, 34, 114, 34, 40, 120, 50, 41, 58,
+      34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116, 117, 114, 110,
+      32, 120, 48, 59, 125, 10
+    ];
+    /* aarch64 __xlang_raw_syscall4 svc #0 */
+    let a4: u8[358] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 52, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 41, 123, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110,
+      103, 32, 120, 56, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 56,
+      34, 41, 61, 110, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111,
+      110, 103, 32, 120, 48, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120,
+      48, 34, 41, 61, 97, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108,
+      111, 110, 103, 32, 120, 49, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34,
+      120, 49, 34, 41, 61, 98, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32,
+      108, 111, 110, 103, 32, 120, 50, 32, 95, 95, 97, 115, 109, 95, 95, 40,
+      34, 120, 50, 34, 41, 61, 99, 59, 114, 101, 103, 105, 115, 116, 101, 114,
+      32, 108, 111, 110, 103, 32, 120, 51, 32, 95, 95, 97, 115, 109, 95, 95,
+      40, 34, 120, 51, 34, 41, 61, 100, 59, 95, 95, 97, 115, 109, 95, 95,
+      32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115,
+      118, 99, 32, 35, 48, 34, 58, 34, 43, 114, 34, 40, 120, 48, 41, 58,
+      34, 114, 34, 40, 120, 56, 41, 44, 34, 114, 34, 40, 120, 49, 41, 44,
+      34, 114, 34, 40, 120, 50, 41, 44, 34, 114, 34, 40, 120, 51, 41, 58,
+      34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116, 117, 114, 110,
+      32, 120, 48, 59, 125, 10
+    ];
+    /* aarch64 __xlang_raw_syscall5 svc #0 */
+    let a5: u8[406] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 53, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 41, 123, 114, 101, 103, 105, 115,
+      116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 56, 32, 95, 95, 97, 115,
+      109, 95, 95, 40, 34, 120, 56, 34, 41, 61, 110, 59, 114, 101, 103, 105,
+      115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 48, 32, 95, 95, 97,
+      115, 109, 95, 95, 40, 34, 120, 48, 34, 41, 61, 97, 59, 114, 101, 103,
+      105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 49, 32, 95, 95,
+      97, 115, 109, 95, 95, 40, 34, 120, 49, 34, 41, 61, 98, 59, 114, 101,
+      103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 50, 32, 95,
+      95, 97, 115, 109, 95, 95, 40, 34, 120, 50, 34, 41, 61, 99, 59, 114,
+      101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 51, 32,
+      95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 51, 34, 41, 61, 100, 59,
+      114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32, 120, 52,
+      32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 52, 34, 41, 61, 101,
+      59, 95, 95, 97, 115, 109, 95, 95, 32, 95, 95, 118, 111, 108, 97, 116,
+      105, 108, 101, 95, 95, 40, 34, 115, 118, 99, 32, 35, 48, 34, 58, 34,
+      43, 114, 34, 40, 120, 48, 41, 58, 34, 114, 34, 40, 120, 56, 41, 44,
+      34, 114, 34, 40, 120, 49, 41, 44, 34, 114, 34, 40, 120, 50, 41, 44,
+      34, 114, 34, 40, 120, 51, 41, 44, 34, 114, 34, 40, 120, 52, 41, 58,
+      34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116, 117, 114, 110,
+      32, 120, 48, 59, 125, 10
+    ];
+    /* aarch64 __xlang_raw_syscall6 svc #0 */
+    let a6: u8[454] = [
+      115, 116, 97, 116, 105, 99, 32, 105, 110, 108, 105, 110, 101, 32, 95, 95,
+      97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 110, 117,
+      115, 101, 100, 41, 41, 32, 108, 111, 110, 103, 32, 95, 95, 120, 108, 97,
+      110, 103, 95, 114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108, 54, 40,
+      108, 111, 110, 103, 32, 110, 44, 108, 111, 110, 103, 32, 97, 44, 108, 111,
+      110, 103, 32, 98, 44, 108, 111, 110, 103, 32, 99, 44, 108, 111, 110, 103,
+      32, 100, 44, 108, 111, 110, 103, 32, 101, 44, 108, 111, 110, 103, 32, 102,
+      41, 123, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103, 32,
+      120, 56, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 56, 34, 41,
+      61, 110, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110, 103,
+      32, 120, 48, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 48, 34,
+      41, 61, 97, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111, 110,
+      103, 32, 120, 49, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120, 49,
+      34, 41, 61, 98, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108, 111,
+      110, 103, 32, 120, 50, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34, 120,
+      50, 34, 41, 61, 99, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32, 108,
+      111, 110, 103, 32, 120, 51, 32, 95, 95, 97, 115, 109, 95, 95, 40, 34,
+      120, 51, 34, 41, 61, 100, 59, 114, 101, 103, 105, 115, 116, 101, 114, 32,
+      108, 111, 110, 103, 32, 120, 52, 32, 95, 95, 97, 115, 109, 95, 95, 40,
+      34, 120, 52, 34, 41, 61, 101, 59, 114, 101, 103, 105, 115, 116, 101, 114,
+      32, 108, 111, 110, 103, 32, 120, 53, 32, 95, 95, 97, 115, 109, 95, 95,
+      40, 34, 120, 53, 34, 41, 61, 102, 59, 95, 95, 97, 115, 109, 95, 95,
+      32, 95, 95, 118, 111, 108, 97, 116, 105, 108, 101, 95, 95, 40, 34, 115,
+      118, 99, 32, 35, 48, 34, 58, 34, 43, 114, 34, 40, 120, 48, 41, 58,
+      34, 114, 34, 40, 120, 56, 41, 44, 34, 114, 34, 40, 120, 49, 41, 44,
+      34, 114, 34, 40, 120, 50, 41, 44, 34, 114, 34, 40, 120, 51, 41, 44,
+      34, 114, 34, 40, 120, 52, 41, 44, 34, 114, 34, 40, 120, 53, 41, 58,
+      34, 109, 101, 109, 111, 114, 121, 34, 41, 59, 114, 101, 116, 117, 114, 110,
+      32, 120, 48, 59, 125, 10
+    ];
+    if (out == 0 as *CodegenOutBuf) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &guard_open[0], 46) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h0[0], 158) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h1[0], 172) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h2[0], 186) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h3[0], 200) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h4[0], 251) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h5[0], 299) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &h6[0], 347) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &elif_open[0], 49) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a0[0], 205) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a1[0], 214) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a2[0], 262) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a3[0], 310) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a4[0], 358) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a5[0], 406) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &a6[0], 454) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &guard_close[0], 7) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
 export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -23378,6 +25237,29 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
       35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 117, 110, 105, 115, 116, 100, 46, 104, 62, 10,
       0, 0, 0, 0, 0, 0, 0, 0];
     if (emit_bytes_64(out, &h2[0], 40) != 0) {
+      return -1;
+    }
+    /*
+     * Cap 10.7.1 slice7: Cap va_list face for language builtins.
+     * `#include <xlang_va_cap.h>` — xlang_va_list / xlang_va_start/arg/end/copy.
+     * Consumed by codegen_try_emit_va_cap_call + VaList emit_type.
+     * Product -o also has -Iinclude; bare -E needs the same include path.
+     * PLATFORM: SHARED host-C. G.7: emit_header is the -E authority.
+     */
+    /* #include <xlang_va_cap.h>\n — 26 bytes exact. */
+    let hva: u8[26] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 120, 108, 97, 110, 103, 95, 118, 97, 95, 99, 97, 112, 46, 104, 62, 10];
+    if (emit_bytes_from_ptr(out, &hva[0], 26) != 0) {
+      return -1;
+    }
+    /*
+     * Stage 10 S3.1 (10.1.1+10.1.2): raw syscall helpers behind
+     * `#if linux && x86_64` / `#elif linux && aarch64` (host cc preprocessor
+     * is the platform truth; Darwin drops both). Consumed only by
+     * codegen_try_emit_raw_syscall_call call sites; __attribute__((unused))
+     * keeps TUs without syscalls warning-free.
+     * PLATFORM: SHARED host-C. G.7: emit_header is the -E authority.
+     */
+    if (codegen_emit_raw_syscall_helpers(out) != 0) {
       return -1;
     }
     /* SIMD typedefs after libc includes (int32_t / float available).
@@ -24428,9 +26310,9 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       ctx.current_codegen_dep_index = dep_index;
     }
     /* See implementation. */
-    let prefix_buf: u8[128] = [];
+    let prefix_buf: u8[256] = [];
     let prefix_len: i32 = 0;
-    let dep_path_prefix: u8[128] = [];
+    let dep_path_prefix: u8[256] = [];
     let dep_path_prefix_len: i32 = 0;
     if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx) {
       dep_path_prefix_len = codegen_dep_import_path_len_at(ctx, dep_index, &dep_path_prefix[0]);
@@ -24620,11 +26502,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           while (ti < module.num_top_level_lets) {
             let is_const: i32 = pipeline_module_top_level_let_is_const(module, ti);
             let name_len: i32 = pipeline_module_top_level_let_name_len(module, ti);
-            if (name_len <= 0 || name_len > 127) {
+            if (name_len <= 0 || name_len > 255) {
               ti = ti + 1;
               continue;
             }
-            let tl_name_buf: u8[128] = [];
+            let tl_name_buf: u8[256] = [];
             let tni: i32 = 0;
             while (tni < name_len && tni < 64) {
               tl_name_buf[tni] = pipeline_module_top_level_let_name_byte_at(module, ti, tni);
@@ -24858,7 +26740,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             let dep_scan_i: i32 = 0;
             let dep_ndep: i32 = pipeline_dep_ctx_ndep(ctx);
             while (dep_scan_i < dep_ndep) {
-              let scan_path: u8[128] = [];
+              let scan_path: u8[256] = [];
               let scan_plen: i32 = codegen_dep_import_path_len_at(ctx, dep_scan_i, &scan_path[0]);
               if (scan_plen > 0 && pipeline_codegen_std_dep_link_only(&scan_path[0]) != 0) {
                 dep_scan_i = dep_scan_i + 1;
@@ -24909,7 +26791,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               }
               let nlen: i32 = pipeline_module_top_level_let_name_len(module, ti);
               if (nlen > 0 && nlen <= 63) {
-                let tl_init_name: u8[128] = [];
+                let tl_init_name: u8[256] = [];
                 let tni2: i32 = 0;
                 while (tni2 < nlen && tni2 < 64) {
                   tl_init_name[tni2] = pipeline_module_top_level_let_name_byte_at(module, ti, tni2);
@@ -24961,7 +26843,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               ndep = pipeline_dep_ctx_ndep(ctx);
             }
             while (dep_i < ndep) {
-              let lo_path: u8[128] = [];
+              let lo_path: u8[256] = [];
               let lo_plen: i32 = codegen_dep_import_path_len_at(ctx, dep_i, &lo_path[0]);
               if (lo_plen > 0 && pipeline_codegen_std_dep_link_only(&lo_path[0]) != 0) {
                 dep_i = dep_i + 1;
@@ -24984,7 +26866,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                     }
                     let dnlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, dti);
                     if (dnlen > 0 && dnlen <= 63) {
-                      let dtl_name: u8[128] = [];
+                      let dtl_name: u8[256] = [];
                       let dtni: i32 = 0;
                       while (dtni < dnlen && dtni < 64) {
                         dtl_name[dtni] = pipeline_module_top_level_let_name_byte_at(dep_mod, dti, dtni);
@@ -25050,7 +26932,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         break;
       }
       /* See implementation. */
-      let skip_name: u8[128] = [];
+      let skip_name: u8[256] = [];
       codegen_copy_func_name64_from_module(module, i, &skip_name[0]);
       let skip_nl: i32 = pipeline_module_func_name_len_at(module, i);
       /* See implementation. */

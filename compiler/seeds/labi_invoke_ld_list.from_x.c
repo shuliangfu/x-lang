@@ -54,7 +54,6 @@
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -69,6 +68,7 @@ int link_abi_obj_needs_zlib(const char *obj_o);
 int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
+int xlang_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
 /* Cap residual always (wave215/255): multi-slot realpath pool body only (mega). */
@@ -159,6 +159,10 @@ const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 int xlang_ensure_runtime_link_abi_user_env_o(const char *argv0);
 int xlang_ensure_runtime_process_argv_o(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
+/* Forward: defined later; formal env companion calls it. */
+void labi_std_append_process_argv_if(int need, const char *link_argv0,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
 
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -242,7 +246,15 @@ const char *labi_ld_compress_flag_at(int i) {
 }
 
 const char *labi_ld_flag_lm(void) { return "-lm"; }
-const char *labi_ld_flag_lsqlite3(void) { return "-lsqlite3"; }
+const char *labi_ld_flag_lsqlite3(void) {
+  /* PLATFORM: LINUX — SONAME; no libsqlite3-dev on Ubuntu gold.
+   * PLATFORM: MACOS|WINDOWS — -lsqlite3. Twin of labi_invoke_ld_list.x. */
+#if defined(__linux__)
+  return "-l:libsqlite3.so.0";
+#else
+  return "-lsqlite3";
+#endif
+}
 const char *labi_ld_flag_pthread(void) { return "-pthread"; }
 const char *labi_ld_flag_lpthread(void) { return "-lpthread"; }
 const char *labi_ld_flag_ldl(void) { return "-ldl"; }
@@ -306,7 +318,7 @@ const char *labi_ld_common_tail_flag_at(int i) {
   if (i == 0)
     return "-lm";
   if (i == 1)
-    return "-lsqlite3";
+    return labi_ld_flag_lsqlite3();
   if (i == 2)
     return "-pthread";
   if (i == 3)
@@ -411,10 +423,20 @@ void xlang_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char 
     need_comp = link_abi_user_o_needs_compress_libs(user_o);
   if (need_comp)
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-  if (flags->have_sqlite && *la < max_la - 1)
-    argv[(*la)++] = labi_ld_flag_lsqlite3();
+  /* PLATFORM: SHARED — -lsqlite3 only when glue.o U sqlite3_open (real lib).
+   * Stub glue (no sqlite3.h) must not pull -lsqlite3 (Ubuntu gold). Twin of .x. */
+  if (flags->have_sqlite && *la < max_la - 1) {
+    const char *gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    int need_lib = 1;
+    if (!gp)
+      gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+    if (gp)
+      need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+    if (need_lib)
+      argv[(*la)++] = labi_ld_flag_lsqlite3();
+  }
   if (need_pt && *la < max_la - 1)
-    argv[(*la)++] = labi_ld_flag_pthread();
+    argv[(*la)++] = labi_ld_flag_lpthread();
   if (append_lsystem && *la < max_la - 1)
     argv[(*la)++] = labi_ld_flag_lSystem();
 }
@@ -442,8 +464,17 @@ void xlang_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const c
     need_comp = link_abi_user_o_needs_compress_libs(user_o);
   if (need_comp)
     asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-  if (flags->have_sqlite && *la < max_la - 1)
-    argv[(*la)++] = labi_ld_flag_lsqlite3();
+  /* PLATFORM: SHARED — -lsqlite3 only when glue.o U sqlite3_open. Twin of .x. */
+  if (flags->have_sqlite && *la < max_la - 1) {
+    const char *gp = asm_link_obj_skip_missing("compiler/runtime_sqlite_glue.o");
+    int need_lib = 1;
+    if (!gp)
+      gp = asm_link_obj_skip_missing("runtime_sqlite_glue.o");
+    if (gp)
+      need_lib = xlang_link_obj_needs_undef_sym(gp, "sqlite3_open");
+    if (need_lib)
+      argv[(*la)++] = labi_ld_flag_lsqlite3();
+  }
   /* -ldl only on Linux when dynlib (mega #if __linux__). */
   if (flags->have_dynlib && xlang_host_is_linux() && *la < max_la - 1)
     argv[(*la)++] = labi_ld_flag_ldl();
@@ -856,6 +887,8 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
       (void)link_abi_asm_ld_push_obj(xlang_runtime_env_os_o_path(link_argv0), link_argv0,
                                      "compiler/runtime_env_os.o", lib_roots, n_lib_roots,
                                      bank, argv, la, max_la, NULL);
+      /* PLATFORM: SHARED — env.o U process_xlang_*; mirror .x process_argv companion. */
+      labi_std_append_process_argv_if(1, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
   }
   if (strcmp(rel, "std/random/random.o") == 0) {
@@ -870,6 +903,22 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
       (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
                                      "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
                                      bank, argv, la, max_la, NULL);
+    }
+  }
+  /* PLATFORM: SHARED — formal datetime.o U time_now_wall_*_c / time_wall_local_offset_min_c
+   * (datetime.x now_utc / local_offset) and std_time_sleep_ns / duration_ns (mod.x).
+   * User.o for datetime_iana only U std_datetime_timezone_iana so fk0 time needles miss.
+   * Companion ≡ time.o → time_os. G.7 complete ensure_for_rel; no second group. */
+  if (strcmp(rel, "std/datetime/datetime.o") == 0) {
+    (void)xlang_ensure_formal_std_make_o(include_root, "std/time/time.o", "../std/time/time.o");
+    if (argv && la) {
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/time/time.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      if (xlang_ensure_runtime_time_os_o(link_argv0) == 0) {
+        (void)link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                                       "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                       bank, argv, la, max_la, NULL);
+      }
     }
   }
   /* PLATFORM: SHARED — formal fs.o U error/context (+ atomic/time_os via context).

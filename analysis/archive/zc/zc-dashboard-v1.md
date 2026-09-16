@@ -2,7 +2,15 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`ZC-001~007`、`PERF-008/009`、`analysis/zc-semantics-v1.md`
+> 关联：`ZC-001~007`、`PERF-008/009`、`analysis/archive/zc/zc-semantics-v1.md`
+>
+> Honesty leftover residual (2026-08-29): leftover fossil top-level
+> `analysis/zc-dashboard-v1.md` as live DOC + leftover catalog no Honesty
+> on `tests/run-zc-dashboard-gate.sh` retired (report `run=`／`obs=`／
+> `skip=`; no XLANG face; G.7 do not fork a resolver). Live DOC = this
+> archive file. Refuse top-level resurrect. Nested leftover
+> `run-zc-dashboard.sh` not rewritten; zc3／zc4／zc5 host-c still leave.
+> **Did not create `## Gate`**.
 
 ---
 

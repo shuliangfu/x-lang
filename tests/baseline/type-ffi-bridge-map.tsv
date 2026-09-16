@@ -1,5 +1,6 @@
-# TYPE-004 Shu → C type mapping（FFI bridge）
-# 列：xlang_type	c_type	extern_ok	notes
+# TYPE-004 Shu → C type mapping (FFI bridge)
+# cols: xlang_type	c_type	extern_ok	notes
+# honesty 2026-08-28: live mapping authority = codegen.x type_to_c_repr / emit_type.
 # min_mappings	12
 i32	int32_t	yes	scalar
 u32	uint32_t	yes	scalar
@@ -11,6 +12,6 @@ f32	float	yes	xmm ABI
 f64	double	yes	scalar
 usize	size_t	yes	scalar
 isize	ptrdiff_t	yes	scalar
-ptr_star	<T>*	yes	recursive c_type_to_buf
+ptr_star	<T>*	yes	recursive type_to_c_repr
 ptr_u8_bridge	uint8_t *	yes	void pointer interop
 slice_arr	struct xlang_slice_*	no	codegen only

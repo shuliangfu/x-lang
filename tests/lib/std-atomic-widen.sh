@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# std-atomic-widen.sh — STD-146 manifest 与烟测辅助
+# std-atomic-widen.sh — STD-146 i16/u16/i64/u64 widen helpers.
+#
+# Usage (after source):
+#   std_atomic_widen_symbols_ok MOD_X ATOMIC_RUNTIME TSV
+#   std_atomic_widen_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
 
 STD146_PREFIX="${XLANG_STD146_ATOMIC_WIDEN_PREFIX:-xlang: [XLANG_STD146_ATOMIC_WIDEN]}"
 
-# 校验 manifest；echo 缺失数。
+# Validate manifest api/symbol/section/smoke anchors. Echo miss count.
+# Section paths come from TSV mod_path (archive DOC); refuse fossil top-level DOC.
 std_atomic_widen_symbols_ok() {
   local mod_x="$1"
   local atomic_c="$2"
@@ -22,27 +28,25 @@ std_atomic_widen_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/atomic/atomic_glue.c" ] || [ "$path" = "compiler/seeds/runtime_atomic_glue.from_x.c" ]; then path="$atomic_c"; fi
+        if [ "$path" = "std/atomic/atomic_glue.c" ] || [ "$path" = "compiler/seeds/runtime_atomic_glue.from_x.c" ]; then
+          path="$atomic_c"
+        fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-atomic-widen FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
         fi
         ;;
-      smoke|gate)
-        if [ ! -f "$anchor" ]; then
-          echo "std-atomic-widen FAIL: missing '$anchor'" >&2
-          miss=$((miss + 1))
-        fi
-        ;;
-      script)
+      smoke|gate|script)
         if [ ! -f "$anchor" ]; then
           echo "std-atomic-widen FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       section)
-        if ! grep -qF "$anchor" "analysis/std-atomic-widen-v1.md" 2>/dev/null; then
-          echo "std-atomic-widen FAIL: missing section '$anchor'" >&2
+        # Use TSV mod_path (archive); refuse hard-coded top-level DOC dual-authority.
+        local doc_path="${mod_path:-analysis/archive/std/std-atomic-widen-v1.md}"
+        if ! grep -qF "$anchor" "$doc_path" 2>/dev/null; then
+          echo "std-atomic-widen FAIL: missing section '$anchor' in $doc_path" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -52,38 +56,11 @@ std_atomic_widen_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 widen 烟测（需链接 atomic.o + runtime_atomic_glue.o）。
-std_atomic_widen_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local atomic_o="$3"
-  local atomic_rt_o="${4:-}"
-  local exe="/tmp/xlang_std_atomic_widen_$$"
-  local extra=()
-  if [ -n "$atomic_rt_o" ] && [ -f "$atomic_rt_o" ]; then
-    extra=("$atomic_rt_o")
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" >/dev/null 2>&1; then
-    echo "std-atomic-widen FAIL: compile $src" >&2
-    "$xlang" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" 2>&1 | tail -12 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-atomic-widen FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=; retired exec=).
 std_atomic_widen_emit_report() {
   local status="$1"
-  local exec_ok="$2"
-  local skip="$3"
-  echo "${STD146_PREFIX} status=${status} exec=${exec_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD146_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

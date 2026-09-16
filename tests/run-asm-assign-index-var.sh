@@ -1,30 +1,120 @@
 #!/usr/bin/env bash
-# asm 7.3：INDEX 变量下标 assign 直 scratch 缩放寻址，main 内无 mov x2。
-set -e
+# asm 7.3: INDEX variable-subscript assign uses scratch scaled addressing; no mov x2.
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+#   - hard: assign_index_{var_to_var,lit_to_var}.x product -o run exit 15
+#   - hard (Darwin+otool): main has no `mov x2`
+#   - skip: non-Darwin / no otool disasm N/A
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required; Darwin arm64 disasm.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-XLANG=${XLANG:-./compiler/xlang}
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-run_one() {
-  local src="$1"
-  local out="$2"
-  local want="$3"
-  $XLANG build "$src" -o "$out" 2>&1
-  local exitcode=0
-  "$out" >/dev/null 2>&1 || exitcode=$?
-  [ "$exitcode" -ne "$want" ] && {
-    echo "run-asm-assign-index-var FAIL: $src expected exit $want, got $exitcode"
-    exit 1
-  }
-  if otool -tv "$out" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
-    echo "run-asm-assign-index-var FAIL: $src main still uses mov x2"
-    exit 1
-  fi
+PREFIX="${XLANG_ASM_ASSIGN_INDEX_VAR_PREFIX:-xlang: [XLANG_ASM_ASSIGN_INDEX_VAR]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "asm-assign-index-var FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-run_one tests/asm/assign_index_var_to_var.x /tmp/xlang_asm_assign_index_var_to_var 15
-run_one tests/asm/assign_index_lit_to_var.x /tmp/xlang_asm_assign_index_lit_to_var 15
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Product -o + expected exit; optional Darwin otool forbid-needle.
+run_case() {
+  local tag="$1" src="$2" want="$3" forbid_x2="$4"
+  local exe="/tmp/xlang_asm_assign_index_var_${tag}_$$"
+  local log="/tmp/xlang_asm_assign_index_var_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  if [ "$r_ec" -eq 124 ]; then
+    rm -f "$exe"
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    rm -f "$exe"
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  if [ "$forbid_x2" = "1" ]; then
+    # PLATFORM: DARWIN — otool arm64 main disasm. Non-Darwin = skip= honesty.
+    if [ "$(uname -s)" = Darwin ] && command -v otool >/dev/null 2>&1; then
+      if otool -tv "$exe" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'mov x2'; then
+        rm -f "$exe"
+        die "$tag main still uses mov x2"
+      fi
+      RUN_OK=$((RUN_OK + 1))
+    else
+      SKIP=$((SKIP + 1))
+    fi
+  fi
+  rm -f "$exe"
+}
+
+echo "=== asm-assign-index-var gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+run_case var_to_var tests/asm/assign_index_var_to_var.x 15 1
+run_case lit_to_var tests/asm/assign_index_lit_to_var.x 15 1
+
+ok_report
 echo "asm assign index var OK"

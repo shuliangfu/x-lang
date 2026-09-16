@@ -1,4 +1,5 @@
 # COMP-010 size attribution artifact matrix
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired; measure existing artifacts only.
 # 列：artifact_id	kind	path	policy	notes
 # min_artifacts	8
 art_xlang_asm	exec	compiler/xlang_asm	optional	stripped in B-SIZE

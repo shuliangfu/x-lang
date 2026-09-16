@@ -22,18 +22,19 @@ net_net_c	x	deleted	std/net/mod.x	F-04 v14：net.c 删；hosted net.o 纯 .x+胶
 link_nostdlib	driver	done	compiler/seeds/runtime_link_abi.from_x.c	NL-05 freestanding user ld -nostdlib
 link_no_lc	user_gate	done	tests/run-no-libc-link-gate.sh	用户链无 -lc；编译器 track
 nolibc_link_gate	gate	done	tests/run-no-libc-link-gate.sh	NL-05 链接策略
-n06_doc	doc	done	analysis/phase-f-n06-v1.md	NL-06 v1 首批发
+# honesty 2026-08-24 #7: phase-f NL DOC → analysis/archive/phase/
+n06_doc	doc	done	analysis/archive/phase/phase-f-n06-v1.md	NL-06 v1 首批发
 n06_manifest	manifest	done	tests/baseline/nolibc-n06-freestanding-replacements.tsv	freestanding 替换登记
 n06_gate	gate	done	tests/run-nolibc-n06-std-track-gate.sh	NL-06 track + F-01 委托
-n07_doc	doc	done	analysis/phase-f-n07-v1.md	NL-07 v1 bootstrap 准备
+n07_doc	doc	done	analysis/archive/phase/phase-f-n07-v1.md	NL-07 v1 bootstrap 准备
 n07_manifest	manifest	done	tests/baseline/nolibc-n07-bootstrap-prep.tsv	-lc 链入登记
 n07_lc_baseline	manifest	done	tests/baseline/nolibc-n07-bootstrap-lc-track.tsv	lc 行数基线
 n07_gate	gate	done	tests/run-nolibc-n07-bootstrap-prep-gate.sh	NL-07 track + B-32 委托
-n07_v2_doc	doc	done	analysis/phase-f-n07-v2.md	bootstrap nostdlib 首试
+n07_v2_doc	doc	done	analysis/archive/phase/phase-f-n07-v2.md	bootstrap nostdlib 首试
 n07_v2_stubs	file	done	compiler/seeds/bootstrap_nostdlib_stubs.from_x.c	最小 libc 桩
 n07_v2_gate	gate	done	tests/run-nolibc-n07-v2-prep-gate.sh	v2 prep gate
-n07_v3_doc	doc	done	analysis/phase-f-n07-v3.md	bootstrap nostdlib 链入烟测
+n07_v3_doc	doc	done	analysis/archive/phase/phase-f-n07-v3.md	bootstrap nostdlib 链入烟测
 n07_v3_gate	gate	done	tests/run-nolibc-n07-v3-link-gate.sh	v3 link smoke gate
-n07_v4_doc	doc	done	analysis/phase-f-n07-v4.md	v4 全链试跑 track
+n07_v4_doc	doc	done	analysis/archive/phase/phase-f-n07-v4.md	v4 全链试跑 track
 n07_v4_gate	gate	done	tests/run-nolibc-n07-v4-build-gate.sh	v4 build gate
 std_c_migrate	track	todo	tests/baseline/std-c-inventory.tsv	107 .c 全量迁移 NL-06 v2+

@@ -35,10 +35,10 @@
  * M8 自举：含 Expr/Type 按值访问的 X 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
  */
 #include <stdint.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: try_inline debugf → xlang_vsnprintf */
 
 #include "diag.h"
 #ifdef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -63,7 +63,6 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *asm_ctx);
 uint8_t *glue_asm_ctx_module_ref_c_impl(uint8_t *asm_ctx);
-#define glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl
 int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out);
 int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len);
@@ -107,13 +106,14 @@ extern char *link_abi_getenv(const char *name);
 
 static void backend_try_inline_debugf(const char *fmt, ...) {
   char buf[256];
-  va_list ap;
+  xlang_va_list ap;
   /* wave232 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv). */
   if (!link_abi_getenv("XLANG_ASM_DEBUG"))
     return;
-  va_start(ap, fmt);
-  (void)vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
-  va_end(ap);
+  xlang_va_start(ap, fmt);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
+  (void)xlang_vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
+  xlang_va_end(ap);
   buf[sizeof buf - 1] = '\0';
   diag_report(NULL, 0, 0, "note", buf, NULL);
 }
@@ -146,12 +146,9 @@ struct glue_AsmFuncCtx {
   void *dep_pipe;
 };
 
-/* G-02f-368：供 thin local_slot 读 module_ref（始终在 seed，不 omit） */
-uint8_t *glue_asm_ctx_module_ref_c(uint8_t *asm_ctx) {
-  if (!asm_ctx)
-    return 0;
-  return (uint8_t *)((struct glue_AsmFuncCtx *)asm_ctx)->module_ref;
-}
+/* G-02f-368：module_ref accessor body is always emitted after the FROM_X
+ * endif (full.x is `export extern "C"` only). Do not define it here: a
+ * `#define` onto `_impl` plus FROM_X H=0 skip caused L4 phase1 UNDEF. */
 
 
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -291,7 +288,8 @@ extern int32_t backend_fold_func_x_plus_k_chain(struct ast_ASTArena *arena, stru
                                                 int32_t depth);
 
 /**
- * C 路径读函数 return 操作数（与 pipeline_glue.c glue_fold_func_return_operand_ref_c 一致）。
+ * C 路径读函数 return 操作数（与 runtime_pipeline_abi glue_fold_func_return_operand_ref_c 一致；
+ * pipeline_glue.c left wave309）。
  * B-strict backend.o 桩 fold 失败时供 struct/field 内联 fold 使用。
  */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -470,7 +468,8 @@ int32_t glue_align_up8_c(int32_t n) {
 
 
 /**
- * ARRAY_LIT 元素字节宽；与 pipeline_glue.c pipeline_asm_array_lit_elem_byte_sz_c 一致。
+ * ARRAY_LIT 元素字节宽；与 runtime_pipeline_abi pipeline_asm_array_lit_elem_byte_sz_c 一致
+ * （pipeline_glue.c left wave309）。
  */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -553,8 +552,10 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
 #endif
 
 /**
- * 解析 CALL 的 callee（同模块或 typeck 填写的 import dep/func）；写 callee 模块/arena/函数下标。
- * 返回 1=命中，0=未匹配。
+ * Resolve CALL / METHOD_CALL callee (same module or typeck import dep/func).
+ * METHOD prefers apply_call_resolve stamp; name scan is fallback.
+ * Writes callee module/arena/func index. Returns 1=hit, 0=miss.
+ * PLATFORM: SHARED — Darwin L2 product body; .x prefer twin same stamp path.
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-379 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -567,7 +568,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   int32_t dep_ix;
   int32_t func_ix;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t j;
   if (!caller_arena || call_ref <= 0 || !ctx || !out_ca || !out_cm || !out_fi)
     return 0;
@@ -577,11 +578,43 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   *out_ca = caller_arena;
   *out_cm = entry_mod;
   *out_fi = -1;
-  /* METHOD_CALL=49: name lookup only. CALL resolve slots can hand a stale
-   * dep_ix → non-module pointer → pipeline_module_func_body_ref_at SIGSEGV. */
+  /* METHOD_CALL=49: prefer typeck apply_call_resolve stamp (same slots as CALL).
+   * PLATFORM: SHARED — name-first first-wins inlined Vec_i32.new (default_alloc,
+   * 32B) into Vec_u64/u16/f64 slots (16B). typeck dest-type pick already stamps
+   * the matching overload (let v: Vec_u64 = vec.new()).
+   * Bounded dep: a stale dep_ix used to SIGSEGV Ubuntu increment().field —
+   * consume only when 0<=dep_ix<ndep, module_at non-null, func_ix < nfuncs.
+   * dep_ix==-2 is dyn vtable slot: do not inline (CALL emit handles dyn).
+   * Name scan remains fallback when unresolved / stamp OOB. */
   if (pipeline_expr_kind_ord_at(caller_arena, call_ref) == GLUE_EXPR_METHOD_CALL) {
+    func_ix = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
+    if (func_ix >= 0) {
+      if (dep_ix == -2)
+        return 0;
+      if (dep_ix >= 0) {
+        pctx = (struct ast_PipelineDepCtx *)ctx->dep_pipe;
+        if (!pctx)
+          pctx = pipeline_asm_emit_dep_pipe_c();
+        if (pctx && dep_ix < pipeline_dep_ctx_ndep(pctx)) {
+          struct ast_Module *rdm = pipeline_dep_ctx_module_at(pctx, dep_ix);
+          struct ast_ASTArena *rda = pipeline_dep_ctx_arena_at(pctx, dep_ix);
+          if (rdm && func_ix < pipeline_module_num_funcs(rdm)) {
+            *out_cm = rdm;
+            if (rda)
+              *out_ca = rda;
+            *out_fi = func_ix;
+            return 1;
+          }
+        }
+        /* stale / OOB dep: fall through to name scan */
+      } else if (func_ix < pipeline_module_num_funcs(entry_mod)) {
+        *out_fi = func_ix;
+        return 1;
+      }
+    }
     clen = pipeline_expr_method_call_name_len(caller_arena, call_ref);
-    if (clen <= 0 || clen > 127)
+    if (clen <= 0 || clen > 255)
       return 0;
     pipeline_expr_method_call_name_into(caller_arena, call_ref, cname);
     *out_fi = glue_module_func_index_by_name(entry_mod, cname, clen);
@@ -633,7 +666,7 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
   /** import binding：`vec.vec_u8_new()` 等 FIELD_ACCESS callee。 */
   if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) == 44) {
     int32_t field_len = pipeline_expr_field_access_name_len(caller_arena, callee_ref);
-    uint8_t field_name[128];
+    uint8_t field_name[256];
     if (field_len > 0 && field_len <= 63) {
       pipeline_expr_field_access_name_into(caller_arena, callee_ref, field_name);
       pctx = (struct ast_PipelineDepCtx *)ctx->dep_pipe;
@@ -710,9 +743,10 @@ int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, 
 int32_t glue_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
-  uint8_t fb[128];
+  /* Cap 4.2.8: func_name_copy64 memset(dst,0,256). */
+  uint8_t fb[256];
   int32_t k;
-  if (!mod || !name || name_len <= 0 || name_len > 127)
+  if (!mod || !name || name_len <= 0 || name_len > 255)
     return -1;
   for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
     flen = pipeline_asm_module_func_name_len_at(mod, fi);
@@ -885,7 +919,7 @@ int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t
 /* G-02f-370 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_type_ref_is_named_struct_layout_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                     int32_t ty_ref) {
-  uint8_t nm[128];
+  uint8_t nm[256];
   int32_t nlen;
   if (ty_ref <= 0 || !mod)
     return 0;
@@ -919,7 +953,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr_impl(struct ast_ASTArena *arena, i
   int32_t decl_ty;
   int32_t scope_br;
   int32_t has_block_decl;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   if (!arena || expr_ref <= 0)
     return 0;
@@ -980,7 +1014,8 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
 #endif
 
 /**
- * INDEX 元素字节宽；委托 pipeline_glue.c（避免 X Type 按值 emit）。
+ * INDEX 元素字节宽；委托 runtime_pipeline_abi（避免 X Type 按值 emit；
+ * pipeline_glue.c left wave309）。
  */
 /* G-02f-196：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
@@ -1064,8 +1099,9 @@ int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena
 /* G-02f-371 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_expr_is_func_param_at_impl(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                           int32_t expr_ref, int32_t param_ix) {
-  uint8_t pbuf[128];
-  uint8_t vbuf[128];
+  /* Cap 4.2.8: copy32 / var_name_into write 256 bytes. */
+  uint8_t pbuf[256];
+  uint8_t vbuf[256];
   int32_t plen;
   int32_t vlen;
   int32_t k;
@@ -1182,7 +1218,10 @@ int32_t glue_struct_lit_field_index_by_name_impl(struct ast_ASTArena *arena, int
                                                    int32_t fnlen) {
   int32_t nf;
   int32_t j;
-  uint8_t sb[128];
+  /* Cap 4.2.8 sync (.x twin is u8[256]): struct_lit_field_name_into
+   * zero-pads 256 bytes — a [128] row here smashed the canary
+   * (2026-09-13 L4 run-struct struct_mk_field_inline ec=6). */
+  uint8_t sb[256];
   int32_t slen;
   int32_t k;
   nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
@@ -1239,7 +1278,7 @@ int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, st
   int32_t arg;
   int32_t nargs;
   int32_t nparams;
-  uint8_t fname[128];
+  uint8_t fname[256];
   if (!out_arg_ref || !arena || inner_call_ref <= 0 || outer_field_ref <= 0 || !ctx)
     return 0;
   iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
@@ -1311,7 +1350,7 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
   int32_t off;
   int32_t arg_ref;
   int32_t ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t slot_off;
   struct ast_Module *layout_mod;
@@ -1343,6 +1382,15 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
     }
   }
   if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
+    return 0;
+  /*
+   * PLATFORM: SHARED — do not single-field-inline across import/dep modules.
+   * Import METHOD already returns before try_inline; bare CALL to std_* looked
+   * up the dep module and could fold the wrong helper (chain_leaf/root → depth
+   * load). G.7: same-module only; host CALL emits the real symbol (arm64
+   * host-indirect MEMORY via emit_call_with_cleanup).
+   */
+  if (ctx && ctx->module_ref && callee_mod && callee_mod != ctx->module_ref)
     return 0;
   /* PLATFORM: SHARED — 1=match only; <=0 refuse (weak -1 stubs must not match). */
   if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0)
@@ -1433,7 +1481,8 @@ int32_t glue_dep_module_field_offset_by_name_impl(struct ast_PipelineDepCtx *pct
           if (fnlen != flen)
             continue;
           for (fi = 0; fi < fnlen; fi++) {
-            uint8_t fb[128];
+            /* Cap 4.2.8: layout_field_name_into memset/memcpy 256. */
+            uint8_t fb[256];
             pipeline_module_struct_layout_field_name_into(dm, k, j, fb);
             if (fb[fi] != field_name[fi]) {
               feq = 0;
@@ -1471,11 +1520,11 @@ int32_t glue_inline_var_field_access_offset_impl(struct ast_ASTArena *arena, str
   int32_t base_ty;
   int32_t scope_br;
   int32_t kind;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   uint8_t struct_name[128];
   int32_t nlen;
-  uint8_t field_name[128];
+  uint8_t field_name[256];
   int32_t flen;
   int32_t off;
   int32_t fi;
@@ -1558,7 +1607,7 @@ int32_t try_inline_var_field_sum_binop_elf_impl(struct ast_ASTArena *arena, stru
   int32_t base_r;
   int32_t off_a;
   int32_t off_b;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t slot_off;
   if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
@@ -1597,8 +1646,9 @@ int32_t try_inline_var_field_sum_binop_elf_impl(struct ast_ASTArena *arena, stru
       di = di + 1;
     }
     if (off_a < 0 || off_b < 0) {
-      uint8_t fname_a[128];
-      uint8_t fname_b[128];
+      /* Cap 4.2.8: field_access_name_into memset(out,0,256) even when flen≤63. */
+      uint8_t fname_a[256];
+      uint8_t fname_b[256];
       int32_t flen_a;
       int32_t flen_b;
       flen_a = pipeline_expr_field_access_name_len(arena, left_ref);
@@ -1673,7 +1723,7 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
   int32_t off_b;
   int32_t arg_ref;
   int32_t ko;
-  uint8_t vname[128];
+  uint8_t vname[256];
   int32_t vlen;
   int32_t slot_off;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
@@ -1848,8 +1898,9 @@ int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct pla
    */
   if (k == 0) {
     int32_t ret_ref;
-    uint8_t pname[128];
-    uint8_t rname[128];
+    /* Cap 4.2.8: param_name_copy32 memcpy 256 bytes. */
+    uint8_t pname[256];
+    uint8_t rname[256];
     int32_t plen;
     int32_t rlen;
     ret_ref = glue_fold_func_return_operand_ref_module(callee_arena, callee_mod, fi);
@@ -2223,9 +2274,9 @@ int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct pla
   int32_t av1;
   int32_t folded;
   int32_t args[2];
-  char sym[128];
+  char sym[256];
   int sym_len;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t clen;
   int32_t ko;
   /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
@@ -2320,9 +2371,9 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena
   int32_t mono_args[GLUE_WPO_MONO_MAX_ARGS];
   int32_t nargs;
   int32_t li;
-  char sym[128];
+  char sym[256];
   int sym_len;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t clen;
   int32_t ko;
   int32_t iko;
@@ -2425,7 +2476,7 @@ extern int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, s
                                                      int32_t field_ix);
 extern int32_t backend_enc_store_rax_to_rbx_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                           int32_t store_size, int32_t ta);
-/** MEM-C1：with_arena scope 内 default_alloc 内联（pipeline_glue.c）。 */
+/** MEM-C1：with_arena scope 内 default_alloc 内联（runtime_pipeline_abi；pipeline_glue.c left wave309）。 */
 extern int32_t glue_with_arena_scope_active_c(void);
 extern int32_t glue_with_arena_scope_top_off_c(void);
 
@@ -2442,7 +2493,7 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
   int32_t nlen;
   int32_t narg;
   int32_t ko;
-  uint8_t nm[128];
+  uint8_t nm[256];
   if (!arena || call_ref <= 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, call_ref);
@@ -2455,7 +2506,7 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
       return 0;
     }
     nlen = pipeline_expr_method_call_name_len(arena, call_ref);
-    if (nlen <= 0 || nlen > 127)
+    if (nlen <= 0 || nlen > 255)
       return 0;
     pipeline_expr_method_call_name_into(arena, call_ref, nm);
     return (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0) ? 1 : 0;
@@ -2470,14 +2521,14 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
     return 0;
   if (pipeline_expr_kind_ord_at(arena, callee_ref) == GLUE_EXPR_VAR) {
     nlen = pipeline_expr_var_name_len(arena, callee_ref);
-    if (nlen <= 0 || nlen > 127)
+    if (nlen <= 0 || nlen > 255)
       return 0;
     pipeline_expr_var_name_into(arena, callee_ref, nm);
     return (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0) ? 1 : 0;
   }
   if (pipeline_expr_kind_ord_at(arena, callee_ref) == 44) {
     nlen = pipeline_expr_field_access_name_len(arena, callee_ref);
-    if (nlen <= 0 || nlen > 127)
+    if (nlen <= 0 || nlen > 255)
       return 0;
     pipeline_expr_field_access_name_into(arena, callee_ref, nm);
     if (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0)
@@ -2528,7 +2579,12 @@ int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struc
 
 
 /**
- * default_alloc() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_alloc。
+ * default_alloc() inline: with_arena writes kind=arena + stack Arena64*;
+ * else CALL runtime default_alloc then store the 16B Allocator.
+ * PLATFORM: SHARED. MACOS|ARM64 (ta==1): AAPCS64 returns Allocator in x0+x1
+ * which clobbers dest-in-x1; enc_store store_size>=16 uses dest-shadow x19
+ * + dual-GP. LINUX|x86_64: rbx callee-saved; leftover fsz==8 zeros high 8
+ * (heap arena is null). Do not change enc_store sz>=16 globally.
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 try：实现体始终 seed；public PREFER 时 thin forward */
@@ -2550,6 +2606,12 @@ int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodege
   }
   if (backend_enc_call_arch(elf_ctx, (uint8_t *)da_sym, 27, ta) != 0)
     return -1;
+  /* ta==1: ignore leftover fsz==8; 16B store uses x19 dest + x0/x1 payload. */
+  if (ta == 1) {
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 16, ta) != 0)
+      return -1;
+    return 0;
+  }
   if (fsz <= 0)
     fsz = 8;
   if (fsz > 16)
@@ -2813,3 +2875,34 @@ int backend_try_inline_dispatch_slice_marker(void) {
   return 0;
 }
 #endif /* XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X */
+
+/* PLATFORM: SHARED — always emit module_ref accessor.
+ * full.x only `export extern "C"` (U). FROM_X rest used to skip the body
+ * (H=0) → L4 phase1 UNDEF glue_asm_ctx_module_ref_c.
+ * THIN: public wrapper lives in backend_try_inline_dispatch_thin.x; seed
+ * provides `_impl` only. Cold (no -D): seed provides both.
+ * G.7: single body; do not `#define` the public name onto `_impl`. */
+#ifdef XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X
+#include <stdint.h>
+struct ast_Module;
+/* Prefix-compatible view of glue_AsmFuncCtx (module_ref is field 5 / off 16 LP64). */
+struct glue_AsmFuncCtx {
+  int32_t frame_size;
+  int32_t next_offset;
+  int32_t num_locals;
+  int32_t label_counter;
+  struct ast_Module *module_ref;
+};
+#endif
+
+uint8_t *glue_asm_ctx_module_ref_c_impl(uint8_t *asm_ctx) {
+  if (!asm_ctx)
+    return 0;
+  return (uint8_t *)((struct glue_AsmFuncCtx *)asm_ctx)->module_ref;
+}
+
+#ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
+uint8_t *glue_asm_ctx_module_ref_c(uint8_t *asm_ctx) {
+  return glue_asm_ctx_module_ref_c_impl(asm_ctx);
+}
+#endif

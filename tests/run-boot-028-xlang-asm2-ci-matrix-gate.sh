@@ -2,10 +2,13 @@
 # BOOT-028：parser C6 xlang_asm2 CI 矩阵门禁
 #
 # 用法：./tests/run-boot-028-xlang-asm2-ci-matrix-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT028_DOC:-analysis/boot-028-xlang-asm2-ci-matrix-v1.md}"
+DOC="${XLANG_BOOT028_DOC:-analysis/archive/boot/boot-028-xlang-asm2-ci-matrix-v1.md}"
 MANIFEST="${XLANG_BOOT028_TSV:-tests/baseline/boot-028-xlang-asm2-ci-matrix.tsv}"
 WAVE="${XLANG_BOOT028_WAVE_TSV:-tests/baseline/xlang-asm2-ci-matrix-wave.tsv}"
 PLAT_MATRIX="${XLANG_BOOT028_PLAT_TSV:-tests/baseline/xlang-asm2-ci-platform-matrix.tsv}"

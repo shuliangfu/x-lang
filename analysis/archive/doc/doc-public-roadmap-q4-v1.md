@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：DOC-009 Q3 刷新、`NEXT.md` §2.12 Phase 3 首批全 ✅  
 > 触发：Phase 3 收官后按 `doc-public-roadmap-v1.md` §6 季度流程执行 Q3→Q4 bump
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -12,7 +13,7 @@
 | 步骤 | 动作 |
 |------|------|
 | 1 | 读本文 §2 变更摘要 |
-| 2 | 对照 `analysis/doc-public-roadmap-v1.md` §3～§5 |
+| 2 | 对照 `analysis/archive/doc/doc-public-roadmap-v1.md` §3～§5 |
 | 3 | `./tests/run-doc-public-roadmap-q4-gate.sh` |
 
 ---

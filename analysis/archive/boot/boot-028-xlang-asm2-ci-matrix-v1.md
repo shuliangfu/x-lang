@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 前置：BOOT-027 C5 跨平台烟测、`eng-crossplatform-ci-v1.md` ENG-003  
 > 关联：`boot-027-xlang-asm2-cross-v1.md`、CI `ci-platform-matrix.tsv`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 

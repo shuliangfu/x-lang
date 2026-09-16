@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# CORE-014：core 全模块 manifest 门禁
+# CORE-014：core 全模块 manifest 门禁（假权威诚实）。
 #
 # 验收：11 个 core 模块在注册表中有 manifest，符号锚点存在，专项 gate 脚本存在。
 #
 # 用法：./tests/run-core-api-gate.sh
+# wave honesty (2026-08-24 #11): DOC → analysis/archive/core/.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_CORE_API_DOC:-analysis/core-api-gate-v1.md}"
+DOC="${XLANG_CORE_API_DOC:-analysis/archive/core/core-api-gate-v1.md}"
 REGISTRY="${XLANG_CORE_API_TSV:-tests/baseline/core-api.tsv}"
 MATRIX="${XLANG_CORE_API_MATRIX:-tests/baseline/stdlib-check-matrix.tsv}"
 LIB="tests/lib/core-api.sh"
@@ -16,7 +18,11 @@ MIN_MOD=11
 # shellcheck source=tests/lib/core-api.sh
 . "$LIB"
 
-echo "=== CORE-014: core manifest registry ==="
+echo "=== CORE-014: core manifest registry (archive DOC) ==="
+if [ -f analysis/core-api-gate-v1.md ]; then
+  echo "core-api gate FAIL: top-level DOC resurrected (live = archive/core/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$REGISTRY" "$LIB" "$MATRIX"; do
   if [ ! -f "$f" ]; then
     echo "core-api gate FAIL: missing $f" >&2

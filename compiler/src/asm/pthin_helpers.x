@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -14,9 +14,673 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// pthin_helpers.x — G-02f-328 P19 parser thin helpers (logic source stub)
-// Product: seeds/pthin_helpers.from_x.c (#include parser_asm_helpers_slice.inc ≈1170)
-// Hybrid: XLANG_PTHIN_HELPERS_FROM_X + ld -r into parser_asm_thin_glue.o
+// pthin_helpers.x — G-02f-328 P19 parser thin helpers product bodies.
 //
-// import_path/label/struct_field, lex rewind/advance/peek, align_lex, first_token_kind.
-// lexer_init + expr_set_common_zeros remain in thin rest (shared foundation).
+// 7.2.1 Route C productize (2026-09-12): after P1b lex_skip, the helpers
+// .inc is the next still-host-cc product slice with a portable scalar /
+// buf-copy region. Kind predicates and pos-before-run are Route C
+// (int32 / usize). Import-path copy and "match " byte-probe are buf-path
+// Route C (*u8 + length). By-value token / lexer_result / Lexer returns
+// stay as C trampolines in seeds/pthin_helpers.from_x.c (language has no
+// struct-by-value). parse_block_return_end_tail is P19f (decide+flags in .x).
+// ident_is_unsafe_stmt is P19d Route C (kind + buf bytes; do not merge
+// into P4b). first_token_kind_buf's already-T
+// AUDIT_CALL padding is gated in the .inc under XLANG_PARSER_STRETCH_AUDIT
+// (product AUDIT_CALL is already ((void)0); compiling 50 lexer_init nops
+// is not a host-cc reduction of combinators — it is dead preprocess).
+//
+// Hybrid P19b/P19c/P19d: g05_try_x_to_o this file; XLANG_PTHIN_HELPERS_BODIES_FROM_X
+// skips the portable .inc region. token.h remains the TOKEN_* authority
+// via P19 C _Static_assert pins. Cold: no define, full .inc stays.
+// Stretch field-name/continues tables live in pthin_stretch.x (P9b);
+// this file wraps them and adds token.h IDENT/SOA/PACKED/TYPE/LET/CONST.
+// 7.2.1 P19c Route C (2026-09-13): 有则补全 run_len extra cases,
+// lex_at_token pos, and rewind kind. Dual numbering stays: stretch
+// table first (compact STRETCH_TOKEN_*), then token.h extra cases
+// here — do not merge the extra cases into stretch run_len.
+// lex_at_token is pos arithmetic (STRING quote backup); C trampoline
+// copies line/col. rewind is a kind predicate; C trampoline calls
+// lex_at_token. 7.2.1 P19d Route C (2026-09-13): 有则补全
+// struct_field_name (IDENT via P1b at_end copy; SOA/PACKED/TYPE
+// literals) and ident_is_unsafe_stmt (6-byte `unsafe` at token_start
+// or pos_before_run). C trampolines keep by-value lexer_result.
+// 7.2.1 P19e Route C (2026-09-14): align_lex moved here as the
+// in-place _into_c body (P9b ws skip + P9a peek family/cursor trio +
+// P19c at_token_pos). The old "align stays C (P9a hard gate)" note is
+// superseded: P12b+ lanes already hard-gate on _pthin_p9a_ok, so the
+// P19 lane gates the same way. The at-token write stays inline (same
+// leaf idiom as ctrl realign_finish_peek) — no cross-thin .x edge.
+// 7.2.1 P19f Route C (2026-09-16): parse_block_return_end_tail decide+flags
+// live here (RBRACE → block_break; else stmt_tok_ready). C trampoline in
+// helpers.inc keeps sync-from-next_lex + lexer_next_into (P1d face; .x
+// never sees lexer_result). Do not open a new P-lane.
+// Do not merge ident_is_unsafe into P4b buf probes.
+// Do not open a new P-lane.
+// PLATFORM: SHARED freestanding.
+
+/** Stretch table: compact/mixed kind check for struct field-name start. */
+export extern "C" function parser_asm_stretch_struct_field_name_kind_c(kind: i32): i32;
+/** Stretch table: compact/mixed kind check for field-list continuation. */
+export extern "C" function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32;
+/** Stretch compact run_len table; 0 means "not in the 64-slot table". */
+export extern "C" function parser_asm_stretch_token_run_len_c(kind: i32): i32;
+/** P1b: copy nlen bytes ending at end_pos into out (IDENT field-name path). */
+export extern "C" function parser_asm_copy_slice_to_name64_at_end_buf_c(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void;
+
+// TOKEN_* pin copies of include/token.h. P19 C _Static_assert fires if
+// the pin drifts; do not treat these as a second enum authority.
+const TOKEN_FUNCTION: i32 = 1;
+const TOKEN_LET: i32 = 2;
+const TOKEN_CONST: i32 = 3;
+const TOKEN_IF: i32 = 4;
+const TOKEN_ELSE: i32 = 5;
+const TOKEN_WHILE: i32 = 6;
+const TOKEN_FOR: i32 = 8;
+const TOKEN_RETURN: i32 = 11;
+const TOKEN_MATCH: i32 = 18;
+const TOKEN_STRUCT: i32 = 19;
+const TOKEN_TYPE: i32 = 20;
+const TOKEN_PACKED: i32 = 21;
+const TOKEN_SOA: i32 = 22;
+const TOKEN_ALIGN: i32 = 46;
+const TOKEN_ENUM: i32 = 47;
+const TOKEN_TRAIT: i32 = 49;
+const TOKEN_IMPL: i32 = 50;
+const TOKEN_IMPORT: i32 = 53;
+const TOKEN_EXTERN: i32 = 54;
+const TOKEN_ASYNC: i32 = 55;
+const TOKEN_IDENT: i32 = 59;
+const TOKEN_I32: i32 = 60;
+const TOKEN_TRUE: i32 = 75;
+const TOKEN_FALSE: i32 = 76;
+const TOKEN_RBRACE: i32 = 85;
+const TOKEN_FATARROW: i32 = 89;
+const TOKEN_LSHIFT: i32 = 104;
+const TOKEN_RSHIFT: i32 = 105;
+const TOKEN_PLUS_EQ: i32 = 106;
+const TOKEN_MINUS_EQ: i32 = 107;
+const TOKEN_STAR_EQ: i32 = 108;
+const TOKEN_SLASH_EQ: i32 = 109;
+const TOKEN_PERCENT_EQ: i32 = 110;
+const TOKEN_AMP_EQ: i32 = 111;
+const TOKEN_PIPE_EQ: i32 = 112;
+const TOKEN_CARET_EQ: i32 = 113;
+const TOKEN_LSHIFT_EQ: i32 = 114;
+const TOKEN_RSHIFT_EQ: i32 = 115;
+const TOKEN_EQ: i32 = 118;
+const TOKEN_NE: i32 = 119;
+const TOKEN_LE: i32 = 122;
+const TOKEN_GE: i32 = 123;
+const TOKEN_AMPAMP: i32 = 124;
+const TOKEN_PIPEPIPE: i32 = 125;
+const TOKEN_STRING: i32 = 130;
+const TOKEN_NULL: i32 = 132;
+
+// P19e align_lex bridges — all resolve from seed C (P9a peek family /
+// cursor trio, P9b ws-comment skip) or from this file's own P19c
+// at_token_pos authority. No cross-thin .x references (a cross-file edge
+// would UNDEF when the peer .x thin fails while this one compiles).
+export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
+export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+export extern "C" function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize, pos: usize): usize;
+export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_next_pos_c(lex_inout: *u8, source: *u8): usize;
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function parser_asm_lex_set_pos_c(lex: *u8, pos: usize): void;
+export extern "C" function parser_asm_lex_set_line_c(lex: *u8, line: i32): void;
+export extern "C" function parser_asm_lex_set_col_c(lex: *u8, col: i32): void;
+
+/**
+ * Import-path segment length from token kind + ident_len.
+ * IDENT with ident_len>0 returns ident_len; I32 is 3 (`i32`); ASYNC is 5
+ * (`async`); anything else is -1 (illegal path segment).
+ * @param kind i32 — lexer token kind (token.h numbering)
+ * @param ident_len i32 — IDENT payload length; ignored unless kind is IDENT
+ * @return i32 — segment byte length, or -1 if the token cannot be a segment
+ * PLATFORM: SHARED — scalar split of the by-value token C twin.
+ */
+#[no_mangle]
+export function parser_asm_import_path_dot_segment_len_kind_c(kind: i32, ident_len: i32): i32 {
+  if (kind == TOKEN_IDENT && ident_len > 0) {
+    return ident_len;
+  }
+  if (kind == TOKEN_I32) {
+    return 3;
+  }
+  if (kind == TOKEN_ASYNC) {
+    return 5;
+  }
+  return -1;
+}
+
+/**
+ * Copy `seg_len` bytes from `data[token_start..)` into
+ * `path_buf[path_len..)`. Bytes past `length` are skipped (not zero-filled).
+ * @param data *u8 — source bytes; null skips every store
+ * @param length usize — source length
+ * @param token_start usize — first source byte
+ * @param seg_len i32 — byte count; <= 0 is a no-op
+ * @param path_buf *u8 — destination; null is a no-op
+ * @param path_len i32 — destination write offset
+ * PLATFORM: SHARED — buf-path authority; slice wrapper stays a C trampoline.
+ */
+#[no_mangle]
+export function parser_asm_import_path_dot_segment_copy_buf_c(data: *u8, length: usize, token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
+  let i: i32 = 0;
+  let off: usize = 0;
+  let dst: usize = 0;
+  let c: u8 = 0;
+  if (path_buf == 0 as *u8 || seg_len <= 0) {
+    return;
+  }
+  while (i < seg_len) {
+    off = token_start + i as usize;
+    if (data != 0 as *u8 && off < length) {
+      dst = (path_len + i) as usize;
+      unsafe {
+        c = data[off];
+        path_buf[dst] = c;
+      }
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * True when `k` can start a struct field name (ident / keyword-as-ident).
+ * Stretch table is consulted first (P9b); token.h IDENT/SOA/PACKED/TYPE
+ * are then accepted so product kinds (not compact STRETCH_TOKEN_*) work.
+ * @param k i32 — lexer token kind
+ * @return i32 — 1 if a field-name start; 0 otherwise
+ * PLATFORM: SHARED — include TOKEN_TYPE (std/schema `type: i32` field).
+ */
+#[no_mangle]
+export function parser_asm_struct_field_name_tok_kind_c(k: i32): i32 {
+  let stretch: i32 = 0;
+  unsafe {
+    stretch = parser_asm_stretch_struct_field_name_kind_c(k);
+  }
+  if (stretch != 0) {
+    return 1;
+  }
+  if (k == TOKEN_IDENT || k == TOKEN_SOA || k == TOKEN_PACKED || k == TOKEN_TYPE) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * True when a struct field list can continue after `;` (name kind, `let` /
+ * `const` field prefix, or `align(N)`).
+ * @param k i32 — lexer token kind
+ * @return i32 — 1 if the list continues; 0 otherwise
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_struct_field_continues_tok_kind_c(k: i32): i32 {
+  let stretch: i32 = 0;
+  unsafe {
+    stretch = parser_asm_stretch_struct_field_continues_kind_c(k);
+  }
+  if (stretch != 0) {
+    return 1;
+  }
+  if (k == TOKEN_LET || k == TOKEN_CONST) {
+    return 1;
+  }
+  if (parser_asm_struct_field_name_tok_kind_c(k) != 0) {
+    return 1;
+  }
+  if (k == TOKEN_ALIGN) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Back up from a token end position by `run_len` bytes (token_start==0
+ * reconstruction). Unsigned wrap matches the C twin if run_len > end_pos.
+ * @param end_pos usize — lexer pos after the token
+ * @param run_len i32 — reconstructed token byte length
+ * @return usize — start pos (`end_pos - run_len`)
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function parser_asm_lexer_pos_before_run_c(end_pos: usize, run_len: i32): usize {
+  return end_pos - run_len as usize;
+}
+
+/**
+ * True when `data[ident_start-6 .. ident_start)` is the six bytes `match `.
+ * @param data *u8 — source bytes; null is 0
+ * @param length usize — source length (unused; C also did not bound-check
+ *   the 6-byte window against length, only ident_start >= 6)
+ * @param ident_start usize — byte index of the IDENT that follows `match `
+ * @return i32 — 1 if the six bytes match; 0 otherwise
+ * PLATFORM: SHARED — buf-path authority; slice wrapper stays a C trampoline.
+ */
+#[no_mangle]
+export function parser_asm_parser_match_kw_immediately_before_buf_c(data: *u8, length: usize, ident_start: usize): i32 {
+  let p: usize = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  if (data == 0 as *u8 || ident_start < 6) {
+    return 0;
+  }
+  // `length` is the C slice ABI width. The C twin never compared p+6
+  // against source->length (only ident_start >= 6 and non-null data),
+  // so this body does the same and does not read `length`.
+  p = ident_start - 6;
+  unsafe {
+    c0 = data[p];
+    c1 = data[p + 1];
+    c2 = data[p + 2];
+    c3 = data[p + 3];
+    c4 = data[p + 4];
+    c5 = data[p + 5];
+  }
+  if (c0 == 109 && c1 == 97 && c2 == 116 && c3 == 99 && c4 == 104 && c5 == 32) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Byte length of a token when `token_start==0` (reconstruct from next_pos).
+ * Stretch compact table first (P9b; STRETCH_TOKEN_* numbering, 64 slots).
+ * A 0 stretch result falls through to token.h extra cases here (keywords
+ * and two/three-byte operators the compact table does not carry).
+ * Do not merge these extra cases into stretch run_len (dual numbering).
+ * @param kind i32 — lexer token kind (token.h numbering)
+ * @return i32 — reconstructed span; default 1 for unknown kinds
+ * PLATFORM: SHARED — Route C split of the by-value token C twin.
+ */
+#[no_mangle]
+export function parser_asm_lexer_token_run_len_kind_c(kind: i32): i32 {
+  let stretch: i32 = 0;
+  unsafe {
+    stretch = parser_asm_stretch_token_run_len_c(kind);
+  }
+  if (stretch > 0) {
+    return stretch;
+  }
+  if (kind == TOKEN_FATARROW) {
+    return 2;
+  }
+  if (kind == TOKEN_RETURN) {
+    return 6;
+  }
+  if (kind == TOKEN_FUNCTION) {
+    return 8;
+  }
+  if (kind == TOKEN_CONST) {
+    return 5;
+  }
+  if (kind == TOKEN_WHILE) {
+    return 5;
+  }
+  if (kind == TOKEN_FALSE) {
+    return 5;
+  }
+  if (kind == TOKEN_STRUCT) {
+    return 6;
+  }
+  if (kind == TOKEN_IMPORT) {
+    return 6;
+  }
+  if (kind == TOKEN_EXTERN) {
+    return 6;
+  }
+  if (kind == TOKEN_ASYNC) {
+    return 5;
+  }
+  if (kind == TOKEN_LET) {
+    return 3;
+  }
+  if (kind == TOKEN_IF) {
+    return 2;
+  }
+  if (kind == TOKEN_FOR) {
+    return 3;
+  }
+  if (kind == TOKEN_ELSE) {
+    return 4;
+  }
+  if (kind == TOKEN_TRUE) {
+    return 4;
+  }
+  // wave668: keyword null span length. PLATFORM: SHARED.
+  if (kind == TOKEN_NULL) {
+    return 4;
+  }
+  if (kind == TOKEN_ENUM) {
+    return 4;
+  }
+  if (kind == TOKEN_MATCH) {
+    return 5;
+  }
+  if (kind == TOKEN_LSHIFT) {
+    return 2;
+  }
+  if (kind == TOKEN_RSHIFT) {
+    return 2;
+  }
+  if (kind == TOKEN_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_NE) {
+    return 2;
+  }
+  if (kind == TOKEN_LE) {
+    return 2;
+  }
+  if (kind == TOKEN_GE) {
+    return 2;
+  }
+  if (kind == TOKEN_AMPAMP) {
+    return 2;
+  }
+  if (kind == TOKEN_PIPEPIPE) {
+    return 2;
+  }
+  if (kind == TOKEN_PLUS_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_MINUS_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_STAR_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_SLASH_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_PERCENT_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_AMP_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_PIPE_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_CARET_EQ) {
+    return 2;
+  }
+  if (kind == TOKEN_LSHIFT_EQ) {
+    return 3;
+  }
+  if (kind == TOKEN_RSHIFT_EQ) {
+    return 3;
+  }
+  return 1;
+}
+
+/**
+ * Reconstruct the lexer pos at the start of the current token.
+ * `token_start==0` means the lexer did not record a start: STRING uses
+ * content-len+2 (opening+closing quotes; floor 2), IDENT uses ident_len,
+ * anything else uses run_len_kind. A live STRING `token_start` is the
+ * first *content* byte, so re-lex backs up one to the opening quote.
+ * @param kind i32 — token kind (token.h)
+ * @param token_start usize — recorded start, or 0
+ * @param ident_len i32 — IDENT payload or STRING content length
+ * @param next_pos usize — lexer pos after the token
+ * @return usize — pos at which re-lex should start
+ * PLATFORM: SHARED — STRING quote backup is the wave280 Cap residual.
+ */
+#[no_mangle]
+export function parser_asm_lex_at_token_pos_c(kind: i32, token_start: usize, ident_len: i32, next_pos: usize): usize {
+  let span_n: i32 = 0;
+  if (token_start == 0) {
+    if (kind == TOKEN_STRING) {
+      span_n = ident_len + 2;
+      if (span_n < 2) {
+        span_n = 2;
+      }
+      return parser_asm_lexer_pos_before_run_c(next_pos, span_n);
+    }
+    if (kind == TOKEN_IDENT && ident_len > 0) {
+      return parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+    }
+    span_n = parser_asm_lexer_token_run_len_kind_c(kind);
+    return parser_asm_lexer_pos_before_run_c(next_pos, span_n);
+  }
+  if (kind == TOKEN_STRING) {
+    return token_start - 1;
+  }
+  return token_start;
+}
+
+/**
+ * True when a following token starts a statement so let/if init must rewind.
+ * return / if / while / for / match / `}` match the C twin's allowlist.
+ * @param kind i32 — peeked following token kind
+ * @return i32 — 1 to rewind to that token; 0 to keep lex_in
+ * PLATFORM: SHARED — kind split of the by-value rewind C twin.
+ */
+#[no_mangle]
+export function parser_asm_rewind_following_stmt_kind_c(kind: i32): i32 {
+  if (kind == TOKEN_RETURN) {
+    return 1;
+  }
+  if (kind == TOKEN_IF) {
+    return 1;
+  }
+  if (kind == TOKEN_WHILE) {
+    return 1;
+  }
+  if (kind == TOKEN_FOR) {
+    return 1;
+  }
+  if (kind == TOKEN_MATCH) {
+    return 1;
+  }
+  if (kind == TOKEN_RBRACE) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Fill `out` with a struct field name from the current token.
+ * IDENT (ident_len 1..255) copies via P1b at_end (next_pos - ident_len).
+ * SOA / PACKED / TYPE write the keyword spelling (keyword-as-ident).
+ * Anything else is -1. Null `out` is -1.
+ * @param kind i32 — lexer token kind (token.h)
+ * @param data *u8 — source bytes; IDENT copy no-ops if null
+ * @param length i32 — source length for the P1b copy
+ * @param next_pos usize — lexer pos after the token (IDENT end)
+ * @param ident_len i32 — IDENT payload length
+ * @param out *u8 — destination; caller owns (layout name[256])
+ * @return i32 — written byte count, or -1 if not a field-name token
+ * PLATFORM: SHARED — Route C split of the by-value lexer_result C twin.
+ * Do not duplicate P1b copy_slice (G.7: call at_end_buf).
+ */
+#[no_mangle]
+export function parser_asm_struct_field_name_from_kind_c(kind: i32, data: *u8, length: i32, next_pos: usize, ident_len: i32, out: *u8): i32 {
+  if (out == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    if (kind == TOKEN_IDENT && ident_len > 0 && ident_len <= 255) {
+      parser_asm_copy_slice_to_name64_at_end_buf_c(data, length, next_pos, ident_len, out);
+      return ident_len;
+    }
+    if (kind == TOKEN_SOA) {
+      out[0] = 115;
+      out[1] = 111;
+      out[2] = 97;
+      return 3;
+    }
+    if (kind == TOKEN_PACKED) {
+      out[0] = 112;
+      out[1] = 97;
+      out[2] = 99;
+      out[3] = 107;
+      out[4] = 101;
+      out[5] = 100;
+      return 6;
+    }
+    if (kind == TOKEN_TYPE) {
+      out[0] = 116;
+      out[1] = 121;
+      out[2] = 112;
+      out[3] = 101;
+      return 4;
+    }
+  }
+  return -1;
+}
+
+/**
+ * True when the current IDENT is the six-byte statement keyword `unsafe`.
+ * `token_start==0` reconstructs the start via pos_before_run(next_pos, 6)
+ * (the C twin passes ident_len, which is already required to be 6).
+ * @param kind i32 — lexer token kind
+ * @param ident_len i32 — IDENT payload length; must be 6
+ * @param token_start usize — recorded start, or 0
+ * @param next_pos usize — lexer pos after the token
+ * @param data *u8 — source bytes; null is 0
+ * @param length usize — source length (bounds the 6-byte window)
+ * @return i32 — 1 if the six bytes are `unsafe`; 0 otherwise
+ * PLATFORM: SHARED — Route C split of the by-value lexer_result C twin.
+ * Do not merge into P4b buf probes (different ABI).
+ */
+#[no_mangle]
+export function parser_asm_ident_is_unsafe_stmt_kind_c(kind: i32, ident_len: i32, token_start: usize, next_pos: usize, data: *u8, length: usize): i32 {
+  let start: usize = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  if (data == 0 as *u8 || kind != TOKEN_IDENT || ident_len != 6) {
+    return 0;
+  }
+  start = token_start;
+  if (start == 0) {
+    start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+  }
+  if (start + 6 > length) {
+    return 0;
+  }
+  unsafe {
+    c0 = data[start];
+    c1 = data[start + 1];
+    c2 = data[start + 2];
+    c3 = data[start + 3];
+    c4 = data[start + 4];
+    c5 = data[start + 5];
+  }
+  if (c0 == 117 && c1 == 110 && c2 == 115 && c3 == 97 && c4 == 102 && c5 == 101) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Align a lexer cursor to a `trait`/`impl` keyword prefix (P19e).
+ * Mirrors the C twin parser_asm_align_lex_to_keyword_prefix_c: skip
+ * whitespace and comments from the cursor, then peek the next token.
+ * On a kind match, rewrite the cursor AT the token (P19c at_token_pos
+ * authority plus the token's own line/col). On mismatch, or when kw is
+ * neither "trait" nor "impl", leave the cursor at the post-whitespace
+ * position with line/col untouched — the C twin returns the lexer by
+ * value; this in-place variant is what the C trampoline drives.
+ * @param lex_inout *u8 — cursor, mutated in place; null is a no-op
+ * @param source *u8 — opaque slice; null source or null data is a no-op
+ * @param kw *u8 — keyword bytes; only "trait" (5) / "impl" (4) map kinds
+ * @param kw_len usize — keyword byte length; 0 is a no-op
+ * @return void
+ * PLATFORM: SHARED — Route C split of the by-value lexer C twin.
+ * The at-token write below is the same leaf idiom as pthin_ctrl.x
+ * realign_finish_peek (both wrap P19c at_token_pos); it stays inline
+ * here so a failing P5 .x thin can never UNDEF this lane.
+ */
+#[no_mangle]
+export function parser_asm_align_lex_to_keyword_prefix_into_c(lex_inout: *u8, source: *u8, kw: *u8, kw_len: usize): void {
+  let data: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let kind: i32 = 0;
+  let want_kind: i32 = 0;
+  let ts: usize = 0;
+  let il: i32 = 0;
+  let np: usize = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8 || kw == 0 as *u8 || kw_len == 0 as usize) {
+    return;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+  }
+  if (data == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    len = parser_asm_lex_source_length_c(source);
+    parser_asm_lex_set_pos_c(lex_inout, parser_asm_stretch_skip_ws_and_comments_c(data, len, parser_asm_lex_pos_c(lex_inout)));
+    if (kw_len == 5 as usize) {
+      if (kw[0 as usize] == 116 && kw[1 as usize] == 114 && kw[2 as usize] == 97 && kw[3 as usize] == 105 && kw[4 as usize] == 116) {
+        want_kind = TOKEN_TRAIT;
+      }
+    } else if (kw_len == 4 as usize) {
+      if (kw[0 as usize] == 105 && kw[1 as usize] == 109 && kw[2 as usize] == 112 && kw[3 as usize] == 108) {
+        want_kind = TOKEN_IMPL;
+      }
+    }
+    if (want_kind == 0) {
+      return;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == want_kind) {
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      il = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      np = parser_asm_lex_peek_next_pos_c(lex_inout, source);
+      tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+      tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+      parser_asm_lex_set_pos_c(lex_inout, parser_asm_lex_at_token_pos_c(kind, ts, il, np));
+      parser_asm_lex_set_line_c(lex_inout, tl);
+      parser_asm_lex_set_col_c(lex_inout, tc);
+    }
+  }
+}
+
+/**
+ * parse_block return-stmt tail decision (P19f).
+ * Mirrors the control flow of parser_asm_parse_block_return_end_tail_c:
+ * when `tok_kind` is RBRACE, set *block_break=1 and return 0 (do NOT
+ * advance — advancing would swallow a sibling `if`). Otherwise set
+ * *stmt_tok_ready=1 and return 1 so the C trampoline can sync lex_cur
+ * from r->next_lex and call lexer_next_into (P1d face; .x never sees
+ * lexer_result / token structs).
+ * @param tok_kind i32 — r->tok.kind from the C trampoline
+ * @param stmt_tok_ready *i32 — out: 1 when the next stmt token is ready
+ * @param block_break *i32 — out: 1 when the block loop should end
+ * @return i32 — 1 = trampoline must sync+next_into; 0 = done / no-op
+ * PLATFORM: SHARED — Route C split of the helpers.inc C twin.
+ */
+#[no_mangle]
+export function parser_asm_parse_block_return_end_tail_into_c(tok_kind: i32, stmt_tok_ready: *i32, block_break: *i32): i32 {
+  if (stmt_tok_ready == 0 as *i32 || block_break == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    if (tok_kind == TOKEN_RBRACE) {
+      block_break[0] = 1;
+      return 0;
+    }
+    stmt_tok_ready[0] = 1;
+  }
+  return 1;
+}

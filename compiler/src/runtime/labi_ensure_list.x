@@ -753,9 +753,18 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   } else {
     if (flags == 2) {
       // LABI_ENS_FLAG_SQLITE
+      // PLATFORM: SHARED — seed #ifdef XLANG_DB_USE_SQLITE3 / stub #else.
+      // Try real libsqlite3 first; if cc fails (no sqlite3.h, Ubuntu gold)
+      // retry with no extra so stub T xlang_db_use_sqlite3_c still lands.
+      // G.7 complete SQLITE ensure; product -o must not hard-fail missing header.
       let flag_sql: *u8 = "-DXLANG_DB_USE_SQLITE3";
       unsafe {
         crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_sql);
+      }
+      if (crc != 0) {
+        unsafe {
+          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+        }
       }
     } else {
       if (flags == 3) {

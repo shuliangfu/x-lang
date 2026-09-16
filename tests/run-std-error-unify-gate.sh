@@ -1,161 +1,141 @@
 #!/usr/bin/env bash
-# STD-011：标准库错误码统一 manifest 门禁
+# STD-011: std.error unify gate — leftover unused compiler-make →硬绿.
 #
-# 1) std-error-unify-v1.md + matrix
-# 2) error_base_* / <mod>_err_* 符号；sidecar 存在
-# 3) native xlang：tests/std/error_unify_smoke.x
-#
-# 用法：./tests/run-std-error-unify-gate.sh
-set -e
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c). Product error_unify_smoke.x -o
+# exit0 = hard run. check residual = obs (paused 2026-08-05). Report:
+# run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. Matrix: error_base_* / <mod>_err_* / sidecar / EXC
+# layer+RFC fossils. PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-error-unify-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/archive/std/std-error-unify-v1.md}"
 MATRIX="${XLANG_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
 ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
-MIN_MOD=6
+LIB="tests/lib/std-error-unify.sh"
+LAYER_DOC="${XLANG_EXC_ERROR_CODE_LAYER_DOC:-analysis/archive/exc/exc-error-code-layer-v1.md}"
+RESULT_RFC="${XLANG_EXC_RESULT_ERROR_RFC:-analysis/archive/exc/exc-result-error-v1-rfc.md}"
 SMOKE="tests/std/error_unify_smoke.x"
+SMOKE_EXPECT=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+# shellcheck source=tests/lib/std-error-unify.sh
+. "$LIB"
+
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-error-unify gate FAIL: $*" >&2
+  std_error_unify_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== STD-011: std error unify manifest ==="
-for f in \
-  "$DOC" \
-  "$MATRIX" \
-  "$ERR_MOD" \
-  analysis/exc-error-code-layer-v1.md \
-  analysis/exc-result-error-v1-rfc.md; do
-  if [ ! -f "$f" ]; then
-    echo "std-error-unify gate FAIL: missing $f" >&2
-    exit 1
-  fi
+for f in "$DOC" "$MATRIX" "$ERR_MOD" "$LIB" "$LAYER_DOC" "$RESULT_RFC" "$SMOKE"; do
+  [ -f "$f" ] || die "missing $f"
 done
 
-while IFS=$'\t' read -r c1 c2 _rest; do
-  case "$c1" in min_modules) MIN_MOD="$c2" ;; esac
-done < "$MATRIX"
+grep -qF -- 'STD-011' "$DOC" 2>/dev/null || die "doc missing STD-011"
+grep -qF -- 'std-error-unify.tsv' "$DOC" 2>/dev/null || die "doc missing matrix ref"
 
-MISS=0
-MOD_N=0
 echo "=== STD-011: module matrix ==="
-while IFS=$'\t' read -r module_id exc_layer base_fn sidecar_fn src tier notes; do
-  [ -z "${module_id:-}" ] && continue
-  case "$module_id" in \#*|min_modules|global_codes|sidecar_*|symbol_*|smoke_case) continue ;; esac
-  MOD_N=$((MOD_N + 1))
-  if [ ! -f "$src" ]; then
-    echo "std-error-unify FAIL: missing src $src ($module_id)" >&2
-    MISS=$((MISS + 1))
-    continue
-  fi
-  if [ -n "$base_fn" ] && [ "$base_fn" != "-" ]; then
-    if ! grep -qE "function ${base_fn}\\(" "$ERR_MOD" 2>/dev/null; then
-      echo "std-error-unify FAIL: missing ${base_fn} in $ERR_MOD ($module_id)" >&2
-      MISS=$((MISS + 1))
-    fi
-  fi
-  if [ -n "$sidecar_fn" ] && [ "$sidecar_fn" != "-" ]; then
-    if ! grep -qE "function ${sidecar_fn}\\(" "$src" 2>/dev/null; then
-      echo "std-error-unify FAIL: missing sidecar ${sidecar_fn} in $src" >&2
-      MISS=$((MISS + 1))
-    fi
-  fi
-  echo "std-error-unify OK module $module_id ($exc_layer)"
-done < "$MATRIX"
+miss="$(std_error_unify_manifest_ok "$ERR_MOD" "$MATRIX" || true)"
+[ "${miss:-0}" -eq 0 ] || die "missing=${miss}"
 
-# global + symbols
-while IFS=$'\t' read -r module_id exc_layer base_fn sidecar_fn src tier notes; do
+# Allow smoke path override from matrix smoke_case row (same as historical gate).
+while IFS=$'\t' read -r module_id _exc _base _side src _tier _notes; do
   [ -z "${module_id:-}" ] && continue
   case "$module_id" in
-    global_codes)
-      if ! grep -qE "function ${base_fn}\\(" "$ERR_MOD" 2>/dev/null; then
-        echo "std-error-unify FAIL: missing global ${base_fn}" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
-    sidecar_fs)
-      if [ ! -f "$src" ] || ! grep -qE "function last_error|fs_last_error" "$src" 2>/dev/null; then
-        echo "std-error-unify FAIL: fs sidecar" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
-    symbol_*)
-      sym="$base_fn"
-      if ! grep -qE "function ${sym}\\(" "$ERR_MOD" 2>/dev/null; then
-        echo "std-error-unify FAIL: missing symbol ${sym}" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
     smoke_case)
       SMOKE="$src"
       ;;
   esac
 done < "$MATRIX"
+[ -f "$SMOKE" ] || die "missing $SMOKE"
+echo "std-error-unify manifest OK"
 
-if [ "$MOD_N" -lt "$MIN_MOD" ]; then
-  echo "std-error-unify gate FAIL: modules=${MOD_N} < min ${MIN_MOD}" >&2
-  exit 1
-fi
-if [ "$MISS" -gt 0 ]; then
-  echo "std-error-unify gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
-
-if ! grep -qF 'STD-011' "$DOC" 2>/dev/null; then
-  echo "std-error-unify gate FAIL: doc missing STD-011" >&2
-  exit 1
-fi
-if ! grep -qF 'std-error-unify.tsv' "$DOC" 2>/dev/null; then
-  echo "std-error-unify gate FAIL: doc missing matrix ref" >&2
-  exit 1
-fi
-echo "std-error-unify manifest OK (modules=${MOD_N})"
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
-
-if [ -z "$XLANG_BIN" ]; then
-  echo "std-error-unify gate SKIP smoke (no native xlang)" >&2
-  echo "std-error-unify gate OK"
+if [ "${XLANG_STD_ERROR_UNIFY_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_error_unify_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-error-unify gate OK (manifest only)"
   exit 0
 fi
 
-if [ ! -f "$SMOKE" ]; then
-  echo "std-error-unify gate FAIL: missing $SMOKE" >&2
-  exit 1
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-011: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std_error_unify_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-error-unify OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-OUT=/tmp/xlang_std_error_unify
-echo "=== STD-011: error unify smoke (XLANG=$XLANG_BIN) ==="
-if ! "$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_std_error_unify_compile.log 2>&1; then
-  cat /tmp/xlang_std_error_unify_compile.log >&2
-  exit 1
+OUT="/tmp/xlang_std_error_unify_$$"
+LOG="/tmp/xlang_std_error_unify_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
 fi
-EC=0
-"$OUT" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -ne 0 ]; then
-  echo "std-error-unify gate FAIL: smoke exit=$EC" >&2
-  exit 1
-fi
-echo "std-error-unify smoke OK"
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-error-unify OK: product -o"
 
+std_error_unify_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-error-unify gate OK"

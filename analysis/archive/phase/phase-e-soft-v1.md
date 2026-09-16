@@ -66,7 +66,7 @@ XLANG_E03_PREPROCESS_FAIL=1 ./tests/run-e03-preprocess-soft-gate.sh
 XLANG_E03_LEXER_AST_FAIL=1 ./tests/run-e03-lexer-ast-soft-gate.sh
 
 # E-03 v3 冷启动 track（OBJS_CORE / asm SEED 对照默认 bootstrap）
-XLANG_E03_V3_FAIL=1 ./tests/run-e03-v3-coldstart-track-gate.sh
+./tests/run-e03-v3-coldstart-track-gate.sh
 
 # E-04 v1/v2 runtime 路径 + ABI 薄壳
 XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh

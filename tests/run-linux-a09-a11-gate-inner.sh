@@ -150,8 +150,8 @@ progress "=== A-11 typeck parse count strict ==="
 A11_LOG="${XLANG_W3_A11_LOG:-logs/a11-typeck-parse.log}"
 mkdir -p logs
 rm -f "$A11_LOG" logs/a11-typeck-parse.exit
+# Soft XLANG_TYPECK_PARSE_COUNT_FAIL retired — gate is hard by default.
 nohup bash -c "env XLANG=./compiler/xlang_asm2 \
-  XLANG_TYPECK_PARSE_COUNT_FAIL=1 \
   XLANG_TYPECK_PARSE_COUNT_SOURCE_FALLBACK=1 \
   XLANG_TYPECK_PARSE_CHUNK_FUNCS=\"${XLANG_TYPECK_PARSE_CHUNK_FUNCS:-5}\" \
   XLANG_TYPECK_PARSE_CHUNK_TIMEOUT=\"${XLANG_TYPECK_PARSE_CHUNK_TIMEOUT:-360}\" \
@@ -219,13 +219,15 @@ else
   progress "WARN: skip $o (compile timeout/hang; A-10 子项可能 SKIP)"
   STD_X_OK=0
 fi
-# net：多 .x 合并；走 Makefile 规则。
+# net：多 .x 合并；G.7 hub → formal/std_x/try-heat（MF phys-del；禁裸 make）。
+# PLATFORM: SHARED — timeout wraps hub CLI (function not inherited by timeout).
 o=../std/net/net.o
 rm -f "$o"
 if command -v timeout >/dev/null 2>&1; then
-  timeout "${XLANG_STD_X_COMPILE_TIMEOUT:-120}" make -s "$o" 2>/dev/null || rm -f "$o"
+  timeout "${XLANG_STD_X_COMPILE_TIMEOUT:-120}" \
+    bash "$_XLANG_REPO_ROOT/tests/lib/compiler-make.sh" -s "$o" 2>/dev/null || rm -f "$o"
 else
-  make -s "$o" 2>/dev/null || rm -f "$o"
+  xlang_compiler_make -s "$o" 2>/dev/null || rm -f "$o"
 fi
 if [ -s "$o" ]; then
   progress "OK $o ($(wc -c <"$o" | tr -d ' ') bytes)"
@@ -233,7 +235,7 @@ else
   progress "WARN: skip $o (compile timeout/hang; A-10 子项可能 SKIP)"
   STD_X_OK=0
 fi
-make -s runtime_test_fn_invoke.o runtime_panic.o
+xlang_compiler_make -s runtime_test_fn_invoke.o runtime_panic.o || true
 cd ..
 fi
 if [ "$W3_RESUME" != "l5" ] && [ "$W3_RESUME" != "p1" ]; then

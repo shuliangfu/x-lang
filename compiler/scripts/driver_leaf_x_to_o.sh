@@ -427,7 +427,22 @@ _load_driver_leaf_base_cflags_via_make() {
   [ -n "${BASE_CFLAGS:-}" ]
 }
 
+# True when this host's product -E binary is a leftover Windows PE that cannot
+# compile tip .x sources without name mangling (_reti32) or stdout clashes.
+# PLATFORM: WINDOWS — 2026-07-31 leftover PE fallback to cold seeds.
+driver_leaf_windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
+# Pick first usable xlang binary for -E preprocessing of driver/lsp leaves.
+# PLATFORM: SHARED — on Windows leftover-PE, returns 1 to force cold seed fallback.
 pick_xlang() {
+  if driver_leaf_windows_leftover_pe_cannot_e; then
+    return 1
+  fi
   for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
     if [ -x "$b" ]; then
       printf '%s\n' "$b"
@@ -598,7 +613,16 @@ driver_leaf_build() {
         echo '#include <stdlib.h>'
         echo '#include <string.h>'
         echo '#include <stdio.h>'
-        echo '#ifndef _WIN32'
+        # Cap residual 10.7.2 (slice18): Track L -E C may still embed
+        # CRASH_EVIDENCE snprintf from older emit; redirect at compile face.
+        # PLATFORM: SHARED — Cap header lives under compiler/include.
+        echo '#include <xlang_fmt_cap.h>'
+        echo '#undef snprintf'
+        echo '#define snprintf xlang_snprintf'
+        echo '#ifdef _WIN32'
+        # PLATFORM: WINDOWS — twin of ensure_host_cc_seed_o rt-prefer prologue.
+        echo '#include "win32_compat.h"'
+        echo '#else'
         echo '#include <unistd.h>'
         echo '#include <fcntl.h>'
         echo '#include <errno.h>'
@@ -636,6 +660,23 @@ driver_leaf_build() {
         python3 scripts/post_E_fixup.py "$tmp" "$tmp_fix" \
           $SCRUB_INIT_GLOBALS_FLAG $APPEND_TYPECK_BODIES_FLAG ) \
       && mv "$tmp_fix" "$tmp"
+      # PLATFORM: SHARED — per-TU static panic stub (2026-09-13). The -E
+      # output references extern xlang_panic_ but no phase1/leaf link obj
+      # provides it (runtime_panic.o is a POST-link satellite, step 12).
+      # Cold _gen.c seeds always carried their own static inline
+      # xlang_panic_ (lexer_gen.c:61); the PREFER_X_O path used to fall
+      # back to cold seed (old egg -E of main.x took ~36s > the 30s leaf
+      # alarm), masking the gap. A faster egg makes -E succeed and the
+      # UNDEF surfaces. Mirror the cold twin: absorb the extern with a
+      # static per-TU definition (abort = panic semantics).
+      if grep -q "xlang_panic_(" "$tmp" 2>/dev/null; then
+        printf '%s\n' \
+          'static void xlang_panic_(int has_msg, long msg_val)' \
+          '    __attribute__((noreturn, cold, unused));' \
+          'static void xlang_panic_(int has_msg, long msg_val) {' \
+          '  (void)has_msg; (void)msg_val; abort();' \
+          '}' >> "$tmp"
+      fi
       # shellcheck disable=SC2086
       if $CC $BASE_CFLAGS -x c -c -o "$OUT_O" "$tmp" 2>/dev/null; then
         rm -f "$tmp"
@@ -713,10 +754,25 @@ driver_leaf_ensure() {
   # wave828: FORCE-thin mtime — shell owns catalog source freshness (G.7).
   # Makefile always invokes via FORCE; skip recompile when OUT is newer than the
   # catalog .x source. FORCE=1 forces rebuild (tests / explicit). PLATFORM: SHARED.
+  # 7.4.4 配套基建 (2026-09-10): the B4 leaves (driver_x / preprocess_x /
+  # pipeline_x / lsp_x) also have a pin-derived gen twin (driver_gen.c ←
+  # seeds/<stem>.linux.x86_64.c) that feeds the cold path and the product
+  # link's expectations. A pin-only edit refreshed the gen but left the .o
+  # "up-to-date" w.r.t. the untouched .x (2026-09-10 driver_x trap: parse
+  # guard shipped without its first layer until a manual try-heat FORCE).
+  # The gen.c (worktree, when present) is therefore a first-class staleness
+  # input alongside the .x source. PLATFORM: SHARED.
   if [ "${FORCE:-0}" != "1" ] && [ -f "$OUT_O" ]; then
     _dl_stale=0
     if [ -f "$_src" ] && [ "$_src" -nt "$OUT_O" ]; then
       _dl_stale=1
+    fi
+    if [ "$_dl_stale" = "0" ] && [ -n "$_seed" ] && [ "$_seed" != "-" ]; then
+      # gen twin lives at the compiler root (driver_gen.c ← seeds/driver_gen.linux.x86_64.c)
+      _dl_gen="$(basename "${_seed%.linux.x86_64.c}").c"
+      if [ -f "$_dl_gen" ] && [ "$_dl_gen" -nt "$OUT_O" ]; then
+        _dl_stale=1
+      fi
     fi
     if [ "$_dl_stale" = "0" ]; then
       echo "driver_leaf_x_to_o: skip up-to-date $OUT_O (driver_leaf/$_key)" >&2

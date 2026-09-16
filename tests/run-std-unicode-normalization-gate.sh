@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # STD-082：std.unicode NFD/NFKC/NFKD 门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_UNICODE_NORM_DOC:-analysis/std-unicode-normalization-v1.md}"
+DOC="${XLANG_STD_UNICODE_NORM_DOC:-analysis/archive/std/std-unicode-normalization-v1.md}"
 MANIFEST="${XLANG_STD_UNICODE_NORM_MANIFEST:-tests/baseline/std-unicode-normalization-manifest.tsv}"
 MOD_X="std/unicode/mod.x"
 UNI_IMPL="std/unicode/unicode.x"

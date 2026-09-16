@@ -5,6 +5,22 @@
 
 ---
 
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；拒 soft SKIP→OK／soft `std_compress_try_libs`／soft auto-make；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案；brotli ld 仍跳）。报告 `run=`／`obs=`／`skip=`（退役 `stream=`）。
+
+```bash
+./tests/run-std-compress-unified-stream-gate.sh
+```
+
+```
+xlang: [XLANG_STD122_COMPRESS_UNIFIED] status=ok run=N obs=M skip=K
+```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
+
+---
+
 ## 1. 阅读路径
 
 | 步骤 | 动作 |
@@ -33,7 +49,7 @@
 
 ---
 
-## 4. Gate
+## 4. Gate（见文首 ## Gate）
 
 ```bash
 ./tests/run-std-compress-unified-stream-gate.sh

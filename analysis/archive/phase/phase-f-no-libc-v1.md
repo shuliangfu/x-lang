@@ -98,3 +98,10 @@ XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 ./tests/run-freestanding-hello.sh
 ./tests/run-std-sys-gate.sh
 ```
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-no-libc-gate.sh` + NL-02～05 child gates
+(`run-no-libc-{socket,heap,fs,link}-gate.sh`).
+Soft `XLANG_NOLIBC_*_FAIL` retired — hard die; prefer `xlang_asm`;
+Linux x86_64 runtime live; other hosts static+skip=1.
+PLATFORM: SHARED archaeology / LINUX freestanding.

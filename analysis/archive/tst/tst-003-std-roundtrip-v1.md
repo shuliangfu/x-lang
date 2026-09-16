@@ -47,10 +47,26 @@
 ```
 
 ```
-xlang: [XLANG_TST003_ROUNDTRIP] status=ok vectors=4 pass=4 skip=0
+xlang: [XLANG_TST003_ROUNDTRIP] status=ok run=4 obs=0 skip=0
 ```
 
 便携回归：`tests/run-portable-suite.sh`
+
+## Gate
+
+Honesty leftover residual (2026-08-29):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no leftover SKIP→OK /
+  leftover auto-make / leftover prefer-c / leftover unused compiler-make /
+  leftover `stdlib_cm_native_xlang` / leftover `ensure_std_c_o`).
+- Manifest + archive DOC = hard. Live DOC = this archive file; refuse
+  top-level `analysis/tst-003-std-roundtrip-v1.md`.
+- Four roundtrip product `-o` exit0 = hard run (`run=`).
+- `xlang check` = obs (paused 2026-08-05).
+- libzstd link env remains `skip=` (existing leftover).
+- Report: `run=` / `obs=` / `skip=` (legacy `vectors=` / `pass=` folded).
+
 
 ---
 

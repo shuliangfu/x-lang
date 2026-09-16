@@ -1,5 +1,7 @@
 # 阶段 C-08 完成标准 v1（NEXT §6）
 
+> **honesty 2026-08-24 #4**：archived; gate default = `analysis/archive/phase/phase-c-c08-v1.md`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left). Monofile `seeds/runtime.from_x.c` retired wave321; `compiler/Makefile` / root `Makefile` deleted MG wave941. Live: `rt_*` multi-slice · `mk/driver_subcmd_objs.mk` · `./xbuild`.
+>
 > **目标**：`main.c` 仅保留进程入口；驱动/构建编排迁 `.x`（`main.x` + `src/driver/*.x` + 根 `build.x`）；`runtime.c` 仅 ABI/C glue。
 
 ## v1 完成（✅）
@@ -23,6 +25,21 @@
 - **runtime.c**：pipeline 桥接、ld 链接、read_file、LSP glue、asm -o `fopen`（B-20 track）
 - **main.c**：3 行有效代码 + 文件头注释
 - **fmt_check_cmd.c** 等 driver C 实现（driver.x 为薄委托）
+
+## Gate
+
+```bash
+./tests/run-c08-runtime-driver-gate.sh
+# Children (also runnable alone):
+#   ./tests/run-c08-main-entry-gate.sh
+#   ./tests/run-c08-driver-x-gate.sh
+#   ./tests/run-c08-build-x-gate.sh
+#   ./tests/run-c08-runtime-inventory-gate.sh
+# Report: ok=/skip= (aggregate)
+# Soft XLANG_C08_FAIL retired (incomplete ok<4 was portable false-green; die always hard).
+```
+
+PLATFORM: SHARED archaeology.
 
 ## 延后（C-08 v2+）
 

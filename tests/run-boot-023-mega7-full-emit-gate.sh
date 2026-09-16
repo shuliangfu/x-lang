@@ -2,10 +2,13 @@
 # BOOT-023：mega7 7/7 全量 emit 门禁
 #
 # 用法：./tests/run-boot-023-mega7-full-emit-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT023_DOC:-analysis/boot-023-mega7-full-emit-v1.md}"
+DOC="${XLANG_BOOT023_DOC:-analysis/archive/boot/boot-023-mega7-full-emit-v1.md}"
 MANIFEST="${XLANG_BOOT023_TSV:-tests/baseline/boot-023-mega7-full-emit.tsv}"
 WAVE="${XLANG_BOOT023_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"

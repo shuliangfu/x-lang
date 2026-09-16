@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# std-codec.sh — STD-073 manifest 与烟测辅助
+# std-codec.sh — STD-073 manifest helpers (block/stream codec facade).
+#
+# Usage (after source):
+#   std_codec_symbols_ok MOD_X TSV
+#   std_codec_run_smoke XLANG SRC [TAG]
+#   std_codec_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CODEC_PREFIX="${XLANG_STD_CODEC_PREFIX:-xlang: [XLANG_STD_CODEC]}"
 
-# 遍历 manifest 校验 api/file/smoke。
+# Validate manifest api/file/smoke/vectors anchors.
+# Echo miss count; return 0 when miss=0.
 std_codec_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -31,7 +38,9 @@ std_codec_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x round-trip 烟测（F-04 v7+：gzip 符号在 .x，xlang 按需 -lz）。
+# Compile and run .x round-trip smoke (F-04 v7+: gzip via .x; xlang pulls -lz).
+# Prefer callers pin XLANG_LINK_XLANG to product asm before invoke.
+# Tip product UNDEF for std_codec_* is gate-obs (not this helper's soft OK).
 std_codec_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -55,9 +64,11 @@ std_codec_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check / tip UNDEF = obs).
 std_codec_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD_CODEC_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CODEC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

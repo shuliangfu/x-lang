@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# type-borrow-conflict.sh — TYPE-003 借用冲突诊断共享辅助
+# type-borrow-conflict.sh — TYPE-003 borrow conflict shared helpers
+# Honesty soft→硬绿 (2026-08-28): product -o hard; check=obs; DOC=archive/type.
 
 # 判断本机能否直接执行给定 xlang 二进制。
 type_borrow_native_xlang() {

@@ -40,17 +40,13 @@
 
 ---
 
-## 4. Gate
+## Gate
 
 ```bash
 ./tests/run-std-elf-phdr-gate.sh
 ```
 
-```
-xlang: [XLANG_STD064_ELF_PHDR] status=ok phdr_c=1 phdr_x=0 skip=1
-```
-
----
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/elf/elf.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
 
 ## 5. 联动
 

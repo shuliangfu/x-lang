@@ -4,22 +4,22 @@
 # Authority (G.7 有则补全 / 无才新增):
 #   Single implementation for Makefile phony check-6.4.
 #   Historic dual body lived inline in Makefile:
-#     make bootstrap-driver-seed
+#     bootstrap-driver-seed
 #       && ./TARGET return-value -o /tmp/check64.c
 #       && $(CC) $(CFLAGS) -o /tmp/check64 /tmp/check64.c
 #       && /tmp/check64; [ $? -eq 42 ]
 #
 #   What this owns:
-#     1) Require executable TARGET (seed path; Makefile keeps
-#        bootstrap-driver-seed as prereq so TARGET should exist)
+#     1) Require executable TARGET (seed path; caller runs
+#        bash scripts/bootstrap_driver_seed.sh / ./xbuild first)
 #     2) Emit C via seed-style -o (writes .c, not host Mach-O/ELF)
 #     3) Host-cc link the emitted C → /tmp/check64
 #     4) Run binary; require exit status 42
-#     5) Print historical OK line for make / CI consumers
+#     5) Print historical OK line for CI consumers
 #
-#   Why shell-primary (not physical delete)?
-#     bootstrap-driver-seed prereq + leaf .o graph still make residual; this is
-#     only the 6.4 acceptance smoke orchestration body.
+#   Why shell-primary (post Makefile phys-del)?
+#     Seed prereq is bootstrap_driver_seed.sh (0-make); this script is only
+#     the 6.4 acceptance smoke orchestration body.
 #
 #   Related but NOT the same as:
 #     - tests/run-return-value.sh (product -o binary path; may not use seed C emit)
@@ -84,7 +84,7 @@ fi
 # Product path (seed-path return-value=42 · historic Makefile check-6.4)
 # ---------------------------------------------------------------------------
 if [ ! -x "./$TARGET" ]; then
-  fail "missing executable ./$TARGET (run make bootstrap-driver-seed first)"
+  fail "missing executable ./$TARGET (run bash scripts/bootstrap_driver_seed.sh / ./xbuild bootstrap-driver-seed first)"
 fi
 
 # Seed path: -o writes C source (not a native binary). Host cc then links.

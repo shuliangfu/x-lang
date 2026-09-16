@@ -1,5 +1,5 @@
-# PERF-006 L1 cache miss 基线（%）
-# 列：case_id	layout	max_l1_miss_pct	soa_lt_aos	bench_source
-# 更新：跑 run-perf-dod-soa.sh 后按 SoA 实测留 ~2× 余量
-dod_soa_sum_x	soa	1.0	yes	bench/dod_soa_sum_x.x
-dod_f32_soa_sum_x	soa	1.5	yes	bench/dod_f32_soa_sum_x.x
+# PERF-006 L1 cache miss baseline (%)
+# cols: case_id	layout	max_l1_miss_pct	soa_lt_aos	bench_source
+# PLATFORM: SHARED — bench paths follow r03_ id (wave1191 rename; refuse fossil dod_*).
+dod_soa_sum_x	soa	1.0	yes	bench/r03_dod_soa_sum.x
+dod_f32_soa_sum_x	soa	1.5	yes	bench/r03_dod_f32_soa_sum.x

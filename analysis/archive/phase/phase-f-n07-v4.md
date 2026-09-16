@@ -184,3 +184,8 @@ unique UNDEF（L6 后 err）= **0**（L5=9；L4+ ≈41；L3b ≈147；L3 ≈156�
 - pure static si -o dual-depctx — ✅ **L8+ 已达**
 - 默认 `XLANG_BOOTSTRAP_NOSTDLIB=1`
 - pthread/io_uring 去系统库
+## Gate
+
+Honesty gate (2026-08-27): `tests/run-nolibc-n07-v4-build-gate.sh`.
+Soft `XLANG_NOLIBC_N07_V4_FAIL` retired — hard die on missing DOC/manifest;
+TRY_BUILD opt-in on Linux x86_64. PLATFORM: SHARED archaeology / LINUX try.

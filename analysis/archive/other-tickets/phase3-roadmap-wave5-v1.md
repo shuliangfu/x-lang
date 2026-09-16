@@ -44,10 +44,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-024 | 自举 | parser C2 139 函数全量 emit | P0 | `run-boot-024-parser-bootstrap-emit-gate.sh` |
-| COMP-018 | 编译器 | riscv64 QEMU 用户态烟测 | P1 | `run-comp-riscv64-qemu-gate.sh` |
-| STD-066 | 标准库 | `std.db` query_rows 原型 | P2 | `run-std-db-query-rows-gate.sh` |
-| PLAN-005 | 治理 | Phase 3 第五批路线图定版 | P2 | `run-phase3-roadmap-wave5-gate.sh` |
+| BOOT-024 | 自举 | parser C2 139 函数全量 emit | P0 | ✅ | `run-boot-024-parser-bootstrap-emit-gate.sh` |
+| COMP-018 | 编译器 | riscv64 QEMU 用户态烟测 | P1 | ✅ | `run-comp-riscv64-qemu-gate.sh` |
+| STD-066 | 标准库 | `std.db` query_rows 原型 | P2 | ✅ | `run-std-db-query-rows-gate.sh` |
+| PLAN-005 | 治理 | Phase 3 第五批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave5-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.16。
 

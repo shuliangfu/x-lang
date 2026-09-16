@@ -42,8 +42,17 @@
 #   XLANG_L4_LOG       log path (default: /tmp/xlang_l4_<host>_<sha>.log)
 #   XLANG_L4_NO_BSTRICT=1  same as --no-bstrict
 #   XLANG_L4_REBUILD_ONLY=1 same as --rebuild-only
-#   XLANG_BSTRICT_SCRIPT_TIMEOUT  forwarded to run-all-bstrict (default there)
-#   XLANG_BSTRICT_JOBS            forwarded to run-all-bstrict (default 1)
+#   XLANG_BSTRICT_SCRIPT_TIMEOUT  forwarded to run-all-bstrict
+#                                 Darwin L4 default 1200s (mega asm gates
+#                                 ~840s serial). Ubuntu keeps 300s.
+#   XLANG_BSTRICT_JOBS            forwarded to run-all-bstrict
+#                                 Darwin L4 default 4 (M5 Max 18-core/64GB;
+#                                 packing floor ~35–40 min bstrict). Ubuntu
+#                                 default 1 (~17 min). JOBS=8 OOMed this box
+#                                 (Killed:9). Override to 2/1 if Darwin OOM.
+#   XLANG_CASE_TIMEOUT            forwarded to gate scripts. Darwin L4
+#                                 default 180s (typeck default 30s flakes
+#                                 under JOBS>1). Ubuntu keeps script defaults.
 #
 # Step wall-clock: each major step logs `stepN: … wall=Ns` and a final
 # `step walls summary` table (wipe/pin are sub-second; bootstrap + g05 +
@@ -95,6 +104,48 @@ SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 HOST_OS="$(uname -s 2>/dev/null || echo unknown)"
 HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
 HOST="${HOST_OS}-${HOST_ARCH}"
+# PLATFORM: MACOS — Darwin L4 packing. Pin L4 @ b5be5ed97 was wall-dominated
+# by serial asm gates (assign-index-expr 712s / binop-cfg-merge 658s) because
+# xlang_link_obj_needs_undef_sym_impl popen("nm -u") per on_demand probe.
+# After the one-slot UNDEF cache + Mach-O scan, those gates are ~19s / ~17s
+# L2; hello -o 17s → ~1.9s. Sibling 1: has_defined_sym_impl T/t in the same
+# mmap. Sibling 2: compress exports_marker / has_undef substring (hello 11
+# full-nm on one user.o) now all-names + UNDEF-substr in the same mmap.
+# JOBS=8 / 4 / 2 still hit Killed:9 on this
+# 18-core/64GB box while Cursor/Chrome/iTerm hold most RAM (peak is N×
+# xlang_asm + host-cc, RSS still ~104MB each). Default JOBS=1 is the only
+# packing that dual-L4 greened here. gate_case_jobs Darwin auto-inner=2
+# when outer==1 would recreate the JOBS=2 OOM, so L4 also pins
+# GATE_CASE_JOBS=1. Ubuntu gold stays JOBS=1 (~17 min). Explicit
+# XLANG_BSTRICT_JOBS / XLANG_GATE_CASE_JOBS always win. Cap is 8.
+if [ -z "${XLANG_BSTRICT_JOBS:-}" ]; then
+  export XLANG_BSTRICT_JOBS=1
+fi
+if [ -z "${XLANG_GATE_CASE_JOBS:-}" ]; then
+  case "$HOST_OS" in
+    Darwin) export XLANG_GATE_CASE_JOBS=1 ;;
+  esac
+fi
+# PLATFORM: MACOS — inner gate_run_timeout defaults (typeck 30s) assume
+# idle Darwin -o. Under JOBS>1 the same -o contends past 30s and false-FAIL
+# as "timeout" (or SIGKILL mapped to 124). Darwin L4 floor 180s. Ubuntu
+# keeps each script's own default. Explicit XLANG_CASE_TIMEOUT always wins.
+if [ -z "${XLANG_CASE_TIMEOUT:-}" ]; then
+  case "$HOST_OS" in
+    Darwin) export XLANG_CASE_TIMEOUT=180 ;;
+  esac
+fi
+# PLATFORM: MACOS — mega asm gates (~840s serial) exceed the product
+# default 300s per-script timeout. Darwin often has no timeout(1), so
+# JOBS=1 historically ran unbounded; if coreutils timeout/gtimeout is
+# present, 300s would false-FAIL those gates under JOBS>1. Darwin L4
+# default 1200s. Ubuntu stays 300s (same scripts ~10–20s). Explicit
+# XLANG_BSTRICT_SCRIPT_TIMEOUT always wins.
+if [ -z "${XLANG_BSTRICT_SCRIPT_TIMEOUT:-}" ]; then
+  case "$HOST_OS" in
+    Darwin) export XLANG_BSTRICT_SCRIPT_TIMEOUT=1200 ;;
+  esac
+fi
 LOG="${XLANG_L4_LOG:-/tmp/xlang_l4_${HOST_OS}_${SHA}.log}"
 WALL_START="$(date +%s)"
 # Per-step walls: "name secs" lines; printed at end (and on early exit).
@@ -284,6 +335,7 @@ log "step8: run-all-bstrict (XLANG_BSTRICT_SKIP_BUILD=1 JOBS=${XLANG_BSTRICT_JOB
 set +e
 XLANG_BSTRICT_SKIP_BUILD=1 \
   XLANG="$XLANG" \
+  XLANG_BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}" \
   bash tests/run-all-bstrict.sh 2>&1 | tee -a "$LOG"
 BSTRICT_RC=$?
 set -e

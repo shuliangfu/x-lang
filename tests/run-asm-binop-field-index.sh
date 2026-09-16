@@ -1,24 +1,118 @@
 #!/usr/bin/env bash
-# asm 7.3：FIELD/INDEX 与 VAR 混合 binop 直 load（无 push/pop 保存操作数）。
-# 含 struct：xlang_asm 用户 -o struct emit 在 Linux 仍 SIGSEGV；-o 走 bootstrap LINK（bstrict 为 xlang-c）。
-set -e
+# asm 7.3: FIELD/INDEX mixed with VAR binop loads directly (no push/pop).
+# Fixture has struct; product path is prefer-asm (no soft prefer-c).
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make xlang-c (prefer-c
+# false authority) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make / prefer-c).
+#   - hard: tests/asm/binop_field_index_fast.x product -o run exit 205
+#   - hard (Darwin+otool): main has no `sub sp, sp, #0x10` binop spill
+#   - skip: non-Darwin / no otool disasm N/A
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required; Darwin arm64 disasm.
+# Historical note: Linux xlang_asm struct emit once SIGSEGV'd; tip prefer-asm
+# must prove both ends — do not soft-fallback to xlang-c.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-XLANG=${XLANG:-./compiler/xlang}
-LINK_XLANG="${XLANG_LINK_XLANG:-${RUN_XLANG:-$XLANG}}"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-$LINK_XLANG build tests/asm/binop_field_index_fast.x -o /tmp/xlang_asm_binop_field_index 2>&1
-exitcode=0
-/tmp/xlang_asm_binop_field_index >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 205 ] && { echo "run-asm-binop-field-index FAIL: expected exit 205, got $exitcode"; exit 1; }
+PREFIX="${XLANG_ASM_BINOP_FIELD_INDEX_PREFIX:-xlang: [XLANG_ASM_BINOP_FIELD_INDEX]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-if otool -tv /tmp/xlang_asm_binop_field_index 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
-  echo "run-asm-binop-field-index FAIL: main still uses stack push for binop"
+die() {
+  echo "asm-binop-field-index FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== asm-binop-field-index gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+SRC="tests/asm/binop_field_index_fast.x"
+[ -f "$SRC" ] || die "missing $SRC"
+exe="/tmp/xlang_asm_binop_field_index_$$"
+log="/tmp/xlang_asm_binop_field_index_$$.log"
+rm -f "$exe" "$log"
+
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$SRC" -o "$exe" >"$log" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -eq 124 ]; then
+  die "product -o timeout"
+elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  die "product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
 fi
 
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+r_ec=$?
+set -e
+if [ "$r_ec" -eq 124 ]; then
+  rm -f "$exe"
+  die "run timeout"
+elif [ "$r_ec" -ne 205 ]; then
+  rm -f "$exe"
+  die "expected exit 205, got $r_ec"
+fi
+RUN_OK=$((RUN_OK + 1))
+
+# PLATFORM: DARWIN — otool arm64 main disasm. Non-Darwin = skip= honesty.
+if [ "$(uname -s)" = Darwin ] && command -v otool >/dev/null 2>&1; then
+  if otool -tv "$exe" 2>/dev/null | sed -n '/^_main:/,/^_[a-z]/p' | grep -q 'sub.*sp, sp, #0x10'; then
+    rm -f "$exe"
+    die "main still uses stack push for binop"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+else
+  SKIP=$((SKIP + 1))
+fi
+rm -f "$exe"
+
+ok_report
 echo "asm binop field/index fast OK"

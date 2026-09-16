@@ -59,8 +59,11 @@
 
 ---
 
-## 5. 门禁
+## Gate
 
 ```bash
 ./tests/run-std-elf-parse-gate.sh
 ```
+
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/elf/elf.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
+

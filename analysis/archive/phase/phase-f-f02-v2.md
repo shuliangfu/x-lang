@@ -20,9 +20,26 @@
 | win32 I/O + WSA | ✅ v2 |
 | **std/sys 手写 .c** | **0**（F-03 起 io/fs/mem） |
 
-## 复现
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + B-17/B-18 facades + F-01 inventory. No soft
+`die→exit 0`. Soft `XLANG_F02_WIN32_FAIL` retired. Report `static=` /
+`b17=` / `b18=` / `inventory=` / `skip=`. Windows hosted smoke remains N/A
+on non-Windows; facade static checks run on all hosts.
+
+**2026-08-29 leftover XLANG fallthrough 已收**（f02-win32：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested b17／b18／inventory 不重写）。
 
 ```bash
-XLANG_F02_WIN32_FAIL=1 ./tests/run-f02-std-sys-win32-gate.sh
-XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=107
+./tests/run-f02-std-sys-win32-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f02-std-sys-win32-gate.sh
+```
+
+## 复现
+
+Same as **## Gate** (soft `XLANG_F02_WIN32_FAIL` path retired; gate always
+hard). Neighbor inventory still owns its own FAIL knife when run standalone:
+
+```bash
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```

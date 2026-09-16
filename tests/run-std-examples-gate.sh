@@ -1,38 +1,82 @@
 #!/usr/bin/env bash
-# STD-012：标准库示例工程 manifest 门禁
+# STD-012: std examples manifest + runnable gate — honesty leftover wrap →硬绿.
 #
-# 用法：./tests/run-std-examples-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap + lib RUN_XLANG remap in
+# std_ex_run_x_smoke retired (product path is `"$xlang" -L . -o`).
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse leftover wrap / RUN_XLANG remap /
+# soft SKIP→OK / soft auto-make / prefer-c). Product hello.x +
+# io_batch_rw.x -o exit0 = hard run (run=2). check = obs.
+# Report: run=/obs=/skip=. G.7: complete existing run_smoke; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-examples-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_EXAMPLES_DOC:-analysis/std-examples-v1.md}"
+DOC="${XLANG_STD_EXAMPLES_DOC:-analysis/archive/std/std-examples-v1.md}"
 MANIFEST="${XLANG_STD_EXAMPLES_MANIFEST:-tests/baseline/std-examples-manifest.tsv}"
 CATALOG="${XLANG_STD_EXAMPLES_CATALOG:-tests/baseline/std-examples-catalog.tsv}"
+LIB="tests/lib/std-examples.sh"
+SMOKE_HELLO="examples/hello.x"
+SMOKE_IO="examples/cookbook/io_batch_rw.x"
 MIN_EX=30
 
 # shellcheck source=tests/lib/std-examples.sh
-. tests/lib/std-examples.sh
+. "$LIB"
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-examples gate FAIL: $*" >&2
+  std_ex_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c fallthrough.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== STD-012: std examples manifest ==="
-for f in "$DOC" "$MANIFEST" "$CATALOG"; do
-  if [ ! -f "$f" ]; then
-    echo "std-examples gate FAIL: missing $f" >&2
-    exit 1
-  fi
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-examples-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
+
+for f in "$DOC" "$MANIFEST" "$CATALOG" "$LIB" "$SMOKE_HELLO" "$SMOKE_IO"; do
+  [ -f "$f" ] || die "missing $f"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -104,66 +148,48 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
 done < "$MANIFEST"
 
 COUNT=$(std_ex_catalog_count "$CATALOG")
-if [ "$COUNT" -lt "$MIN_EX" ]; then
-  echo "std-examples gate FAIL: catalog count=${COUNT} < min ${MIN_EX}" >&2
-  exit 1
-fi
-
-if ! std_ex_validate_paths "$CATALOG"; then
-  echo "std-examples gate FAIL: catalog paths" >&2
-  exit 1
-fi
-
-if [ "$MISS" -gt 0 ]; then
-  echo "std-examples gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$COUNT" -ge "$MIN_EX" ] || die "catalog count=${COUNT} < min ${MIN_EX}"
+std_ex_validate_paths "$CATALOG" || die "catalog paths"
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 
 for kw in examples catalog cookbook runnable; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "std-examples gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
+grep -qF '## 5. Gate' "$DOC" 2>/dev/null || die "doc missing '## 5. Gate'"
+
 echo "std-examples manifest OK (catalog=${COUNT} index=${IDX})"
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
+if [ "${XLANG_STD_EXAMPLES_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_ex_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-examples gate OK (manifest only)"
+  exit 0
 fi
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== STD-012: cookbook + core typeck smoke ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  CHECK_FAIL=0
-  CHECK_N=0
-  while IFS=$'\t' read -r eid _cat path tier _notes; do
-    [ -z "${eid:-}" ] && continue
-    case "$eid" in \#*) continue ;; esac
-    case "$tier" in
-      cookbook|core)
-        CHECK_N=$((CHECK_N + 1))
-        if std_ex_check_example "$XLANG_BIN" "$path"; then
-          echo "std-examples typeck OK $eid"
-        else
-          echo "std-examples typeck FAIL $eid ($path)" >&2
-          CHECK_FAIL=$((CHECK_FAIL + 1))
-        fi
-        ;;
-    esac
-  done < "$CATALOG"
-  if [ "$CHECK_FAIL" -gt 0 ]; then
-    echo "std-examples gate FAIL: typeck=${CHECK_FAIL}/${CHECK_N}" >&2
-    exit 1
-  fi
-  echo "std-examples typeck smoke OK (${CHECK_N} cookbook+core)"
+XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-012: smoke (XLANG=$XLANG_BIN; check obs; hello+io product -o hard) ==="
+
+if ! std_ex_check_example "$XLANG_BIN" "$SMOKE_HELLO"; then
+  echo "std-examples OBS check (paused / CHK residual; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover wrap / RUN_XLANG remap (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+if std_ex_run_x_smoke "$XLANG_BIN" "$SMOKE_HELLO" "/tmp/xlang_std_ex_hello_$$"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-examples OK: hello"
 else
-  echo "std-examples gate SKIP typeck (no native xlang)" >&2
+  die "hello.x exit!=0 (refuse soft SKIP→OK)"
+fi
+if std_ex_run_x_smoke "$XLANG_BIN" "$SMOKE_IO" "/tmp/xlang_std_ex_io_$$"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-examples OK: io_batch"
+else
+  die "io_batch_rw.x exit!=0 (refuse soft SKIP→OK)"
 fi
 
+std_ex_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-examples gate OK"

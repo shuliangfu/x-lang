@@ -12,10 +12,19 @@
 | 发布物 | 单 `compiler/xlang` + 全 `.x` 树（D-05） |
 | Tag 格式 | `v<major>.<minor>.<patch>-selfhost` |
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): hard-fail archive DOC + hard-delegate d05 /
+e-soft / F-09 STRICT / d03 / d04 / g-ffi5 policy. No soft `die→exit 0`.
+Soft `XLANG_F11_SELFHOST_RELEASE_PREP_FAIL` retired. G-FFI-5 defaults to
+`XLANG_G_FFI5_SKIP_LANG_UNSAFE=1` (policy only); set
+`XLANG_F11_RUN_G_FFI5_RUNTIME=1` for full LANG-007 suite. Report
+`doc=` / `d05=` / `e_soft=` / `f09=` / `d03=` / `d04=` / `gffi5=` /
+`skip=`.
 
 ```bash
-XLANG_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate.sh
+./tests/run-f11-selfhost-release-prep-gate.sh
+XLANG_F11_RUN_G_FFI5_RUNTIME=1 ./tests/run-f11-selfhost-release-prep-gate.sh
 ```
 
 ## 人工发布（v1 文档）

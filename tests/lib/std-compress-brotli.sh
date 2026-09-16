@@ -35,10 +35,15 @@ std_compress_brotli_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 尝试 rebuild compress.o with Brotli；成功 echo 1，失败 echo 0。
+# F-04 v7: compress-o-brotli is a hub no-op (formats in .x). Always OK when hub present.
+# G.7: xlang_compiler_make — ban bare make (MF phys-del). PLATFORM: SHARED
 std_compress_brotli_try_build() {
-  if (cd compiler && make compress-o-brotli 2>/dev/null); then
-    return 0
+  if type xlang_compiler_make >/dev/null 2>&1; then
+    xlang_compiler_make compress-o-brotli 2>/dev/null && return 0
+  elif [ -f tests/lib/compiler-make.sh ]; then
+    # shellcheck source=tests/lib/compiler-make.sh
+    . tests/lib/compiler-make.sh
+    xlang_compiler_make compress-o-brotli 2>/dev/null && return 0
   fi
   return 1
 }

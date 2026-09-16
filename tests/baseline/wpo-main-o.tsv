@@ -1,4 +1,6 @@
-# build_asm/main.o WPO 生产链：post-strict 重编后 __text 上限（entry TU 压缩）
-# WPO on + main.x 仅 export entry：历史 ~656B；2026-07-17 Ubuntu 真 DCE entry-only ~1610–1660B
-# （entry 体含 argv 分派，栈帧增大；仍远小于全量 ~14KiB）
+# build_asm/main.o WPO 生产链：post-strict 重编后 __text 上限（CLI entry TU）
+# Product ABI symbol = main_entry (legacy bare entry still accepted).
+# WPO on + main.x 仅 export entry：历史 ~656B；2026-07-17 Ubuntu 真 DCE ~1610–1660B
+# Tip multi-export：live full emit Ubuntu ~21KiB / Darwin ~52KiB；gate soft-size WARN
+# unless XLANG_WPO_MAIN_O_STRICT_SIZE=1.
 main_o_max_text_bytes	2048

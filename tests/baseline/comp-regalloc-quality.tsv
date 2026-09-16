@@ -1,4 +1,5 @@
 # COMP-005/COMP-013 register allocation quality report
+# honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired.
 # 列：metric_id	arch	strategy	threshold	script	notes
 # min_metrics	9
 metric_no_push	arm64	linear+x10-15	no stack push	run-asm-binop-block-var.sh	block-var

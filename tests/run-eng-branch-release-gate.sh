@@ -6,10 +6,17 @@
 # 3) release_gate 脚本存在；烟测 run-eng-release-precheck.sh
 #
 # 用法：./tests/run-eng-branch-release-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_ENG_RELEASE_DOC:-analysis/eng-branch-release-gate-v1.md}"
+if [ -f analysis/eng-branch-release-gate-v1.md ]; then
+  echo "eng-branch-release-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
+
+DOC="${XLANG_ENG_RELEASE_DOC:-analysis/archive/eng/eng-branch-release-gate-v1.md}"
 MANIFEST="${XLANG_ENG_RELEASE_MANIFEST:-tests/baseline/eng-branch-release-gate.tsv}"
 LIB="tests/lib/eng-branch-release-gate.sh"
 PRECHECK="tests/run-eng-release-precheck.sh"

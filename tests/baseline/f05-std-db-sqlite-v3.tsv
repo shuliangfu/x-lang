@@ -1,0 +1,10 @@
+# F-05 v3 std.db.sqlite C-removal manifest
+# cols: item_id	kind	anchor	mod_path	notes
+symbol_open	symbol	db_open_c	std/db/sqlite/sqlite.x	sqlite open ABI
+symbol_smoke	symbol	db_sqlite_exec_smoke_c	std/db/sqlite/sqlite.x	sqlite smoke ABI
+symbol_glue_open	symbol	xlang_sqlite3_open_c	compiler/seeds/runtime_sqlite_glue.from_x.c	libsqlite3 open glue
+symbol_use	symbol	xlang_db_use_sqlite3_c	compiler/seeds/runtime_sqlite_glue.from_x.c	use-sqlite3 probe
+absent_c	absent	std/db/sqlite/sqlite.c		deleted sqlite.c
+absent_glue	absent	std/db/sqlite/sqlite_glue.c		moved to runtime seed
+glue_runtime	file	compiler/seeds/runtime_sqlite_glue.from_x.c		runtime sqlite glue
+x_sqlite	file	std/db/sqlite/sqlite.x		sqlite pure .x

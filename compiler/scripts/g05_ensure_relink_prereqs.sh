@@ -54,6 +54,19 @@ fi
 #      "cc: command not found" on Windows.
 CC="${G05_CC:-${CC:-cc}}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0 (same authority
+# as ensure_host_cc_seed_o.sh / cc_inc_tu.sh). Host-cc refreshes done here (e.g.
+# the runtime_asm_io_stubs.o seed-newer rule) otherwise stamp minos=<host SDK>
+# and ld warns "newer macOS version than being linked" on every product /
+# user-program link. Do not -w swallow; do not raise macho.x minos to 26.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    case " $BASE_CFLAGS " in
+      *" -mmacosx-version-min="*) ;;
+      *) BASE_CFLAGS="$BASE_CFLAGS -mmacosx-version-min=11.0" ;;
+    esac
+    ;;
+esac
 
 # Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
 # on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
@@ -122,6 +135,17 @@ g05_cc_c() {
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 # 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
 #       （strict_glue 等与 bootstrap_seed_pipeline_filtered 同名符号需 weak，对齐 seed）
+# True if OBJ defines SYM as a text symbol (Darwin nm prefixes '_').
+# Reject incomplete -E fallbacks that still exit 0 after a silent
+# parse-drop of a dest-buffer export (P4bh `break` nest). PLATFORM: SHARED.
+g05_obj_defines() {
+  _g05_obj="$1"
+  _g05_sym="$2"
+  # Linux nm: "ADDR T name" or "T name"; Darwin: "ADDR T _name".
+  # G05_X_O_WEAK may stamp W rather than T.
+  nm -gU "$_g05_obj" 2>/dev/null | grep -E " [TWtw] (_)?${_g05_sym}\$" >/dev/null
+}
+
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -206,7 +230,21 @@ g05_try_x_to_o() {
     echo '#include <stdlib.h>'
     echo '#include <string.h>'
     echo '#include <stdio.h>'
-    echo '#ifndef _WIN32'
+    # G05_X_O_WEAK perl marks defs XLANG_WEAK; the define authority is this
+    # header (PLATFORM: SHARED — Darwin ld + Ubuntu ld.bfd both honor the
+    # __attribute__((weak)) branch). P9a stretch_audit was the first lane to
+    # reach the -E fallback with weak marking on (PEL always won pure-asm).
+    echo '#include <xlang_weak.h>'
+    # Cap residual 10.7.2 (slice18): Track L -E may embed CRASH_EVIDENCE snprintf;
+    # redirect at compile face (same authority as driver_leaf_x_to_o prologue).
+    # PLATFORM: SHARED — Cap header under compiler/include.
+    echo '#include <xlang_fmt_cap.h>'
+    echo '#undef snprintf'
+    echo '#define snprintf xlang_snprintf'
+    echo '#ifdef _WIN32'
+    # PLATFORM: WINDOWS — twin of ensure_host_cc_seed_o rt-prefer prologue.
+    echo '#include "win32_compat.h"'
+    echo '#else'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'
@@ -214,75 +252,72 @@ g05_try_x_to_o() {
     # 下方 sed 会删掉 -E 自带 #include <poll.h> 等，故在 prologue 补齐。
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
-    # PLATFORM: POSIX — fmt_check walk/path_stat pure *u8 wrappers (DIR* cast safe).
-    echo '#include <dirent.h>'
+    # Cap residual 9.1.10: fmt walk *u8 wrappers via xlang_dir_cap.h (no libc opendir).
+    echo '#include <xlang_dir_cap.h>'
     echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) {'
-    echo '  return (uint8_t *)opendir((const char *)name);'
+    echo '  return name ? (uint8_t *)xlang_dir_open((const char *)(void *)name) : (uint8_t *)0;'
     echo '}'
     echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) {'
-    echo '  return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1;'
+    echo '  return dirp ? (int32_t)xlang_dir_close((void *)dirp) : (int32_t)-1;'
     echo '}'
     echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {'
     echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
     echo '}'
     echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {'
-    echo '  struct dirent *ent;'
+    echo '  char *n;'
     echo '  if (!dirp) return (uint8_t *)0;'
-    echo '  ent = readdir((DIR *)(void *)dirp);'
-    echo '  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;'
+    echo '  n = xlang_dir_readdir_name((void *)dirp);'
+    echo '  return (uint8_t *)(void *)n;'
     echo '}'
     echo '#endif'
-    # PLATFORM: SHARED — wave22 Cap residual: opaque *u8 → FILE* fputs cast.
-    # .x cannot name FILE*; direct fputs(*u8,*u8) trips -Werror=incompatible-pointer-types.
-    # Pure driver_preamble_fputs (runtime_driver_abi_thin.x) calls this harness helper.
-    # Outside _WIN32 guard: stdio fputs is available on Windows host-cc too.
+    # PLATFORM: SHARED — Cap residual 9.7.1: opaque *u8 stream face → fd-handle.
+    # Authority: include/xlang_driver_stream_cap.h (handle = fd+1, NULL invalid;
+    # std fds 0/1/2 never closed). Write/open/close route through the Cap
+    # authorities (xlang_io_write / xlang_io_open_write / xlang_proc_close_fd),
+    # so generated TUs carry zero stdio UNDEFs. Signatures stay `uint8_t *` —
+    # .x consumers are source-compatible.
+    echo '#include "xlang_driver_stream_cap.h"'
     echo 'static inline int32_t xlang_driver_fputs_opaque(uint8_t *s, uint8_t *stream) {'
-    echo '  return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);'
+    echo '  int fd = xlang_driver_handle_to_fd(stream);'
+    echo '  if (!s || fd < 0) return -1;'
+    echo '  return (int32_t)xlang_io_write(fd, s, strlen((const char *)(void *)s));'
     echo '}'
-    # PLATFORM: SHARED — wave26 Cap residual: stdout identity + fclose/fwrite for pure
-    # driver_parsed_fclose / fclose_rc / write_out (runtime_driver_abi_thin.x).
-    # .x cannot name FILE* or compare to stdout without these harness casts.
     echo 'static inline uint8_t *xlang_driver_stdout_ptr(void) {'
-    echo '  return (uint8_t *)(void *)stdout;'
+    echo '  return xlang_driver_handle_from_fd(1);'
     echo '}'
     echo 'static inline int32_t xlang_driver_fclose_opaque(uint8_t *stream) {'
-    echo '  if (!stream) return 0;'
-    echo '  return fclose((FILE *)(void *)stream) == 0 ? 0 : 1;'
+    echo '  return (int32_t)xlang_driver_handle_close(stream);'
     echo '}'
     echo 'static inline int32_t xlang_driver_fwrite_opaque(uint8_t *data, int32_t len, uint8_t *stream) {'
-    echo '  size_t n;'
+    echo '  long n;'
+    echo '  int fd;'
     echo '  if (!data || len < 0 || !stream) return 1;'
     echo '  if (len == 0) return 0;'
-    echo '  n = fwrite((const void *)(void *)data, 1, (size_t)len, (FILE *)(void *)stream);'
+    echo '  fd = xlang_driver_handle_to_fd(stream);'
+    echo '  if (fd < 0) return 1;'
+    echo '  n = xlang_io_write(fd, data, (size_t)len);'
     echo '  return n == (size_t)len ? 0 : 1;'
     echo '}'
-    # PLATFORM: SHARED — wave27 Cap residual: fopen(path,"w") as opaque *u8 for pure
-    # driver_parsed_open_out_file (runtime_driver_abi_thin.x). .x cannot name FILE*.
     echo 'static inline uint8_t *xlang_driver_fopen_write_opaque(uint8_t *path) {'
+    echo '  int fd;'
     echo '  if (!path) return (uint8_t *)0;'
-    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");'
+    echo '  fd = xlang_io_open_write((const char *)(void *)path);'
+    echo '  return fd < 0 ? (uint8_t *)0 : xlang_driver_handle_from_fd(fd);'
     echo '}'
-    # PLATFORM: SHARED — wave40 Cap residual: stderr identity + fflush(stdout) + fopen "wb"
-    # for pure driver_stdio_stderr / driver_asm_fflush_stdout / driver_asm_fopen_wb
-    # (runtime_driver_abi_thin.x). "wb" is intentionally not "w" (binary metric/asm out;
-    # G.7: separate surface from fopen_write_opaque text "w").
     echo 'static inline uint8_t *xlang_driver_stderr_ptr(void) {'
-    echo '  return (uint8_t *)(void *)stderr;'
+    echo '  return xlang_driver_handle_from_fd(2);'
     echo '}'
     echo 'static inline void xlang_driver_fflush_stdout(void) {'
-    echo '  (void)fflush(stdout);'
     echo '}'
     echo 'static inline uint8_t *xlang_driver_fopen_wb_opaque(uint8_t *path) {'
+    echo '  int fd;'
     echo '  if (!path) return (uint8_t *)0;'
-    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");'
+    echo '  fd = xlang_io_open_write((const char *)(void *)path);'
+    echo '  return fd < 0 ? (uint8_t *)0 : xlang_driver_handle_from_fd(fd);'
     echo '}'
-    # PLATFORM: SHARED — wave41 Cap residual: fdopen(fd,"wb") as opaque *u8 for pure
-    # driver_asm_mkstemp_fdopen (runtime_driver_abi_thin.x). .x cannot name FILE*.
     echo 'static inline uint8_t *xlang_driver_fdopen_wb_opaque(int32_t fd) {'
-    echo '  FILE *fp;'
     echo '  if (fd < 0) return (uint8_t *)0;'
-    echo '  fp = fdopen((int)fd, "wb");'
-    echo '  return (uint8_t *)(void *)fp;'
+    echo '  return xlang_driver_handle_from_fd(fd);'
     echo '}'
     # PLATFORM: SHARED — wave79 Cap residual: libc realpath as opaque *u8 for pure
     # xlang_path_try_realpath_inplace (runtime_pipeline_abi.x). .x must not name char*
@@ -428,6 +463,19 @@ g05_ensure_l2_or_seed() {
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
+  # Cap 9.1.8 Darwin/Windows relink provider freshness: g05 MAIN_LINK_O carries
+  # runtime_asm_io_stubs.o (weak xlang_sys_write/read/writev for rt_entry.x SHARED
+  # Cap leaf; freestanding_io strong twin is Linux-x86_64-only). The g05 path does
+  # not run build_xlang_asm.sh (its seed-newer rule lives there), so refresh here
+  # with the same command; also keeps the 9.5.3 Cap print template current in the
+  # product link. Same flags as build_xlang_asm.sh line ~5294.
+  # PLATFORM: SHARED compile (slot only linked on MACOS|WINDOWS; Linux rebuild is
+  # a harmless SHARED-surface compile validation).
+  if [ -f seeds/runtime_asm_io_stubs.from_x.c ] && { [ ! -f runtime_asm_io_stubs.o ] || [ seeds/runtime_asm_io_stubs.from_x.c -nt runtime_asm_io_stubs.o ]; }; then
+    echo "g05_ensure: cc seeds/runtime_asm_io_stubs.from_x.c → runtime_asm_io_stubs.o (seed-newer refresh)"
+    # shellcheck disable=SC2086
+    $CC $BASE_CFLAGS -fPIE -c seeds/runtime_asm_io_stubs.from_x.c -o runtime_asm_io_stubs.o
+  fi
   # wave765 G.7: labi multi-slice product PREFER → ensure try-labi-prefer
   # (single body; L0..L9+L8b+L8c + rest FROM_X → cc -r; cold full seed fallback).
   # Leaf = src/runtime_link_abi.o (R1_CORE cold twin). No dual inline hybrid.
@@ -455,6 +503,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
       bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
       || echo "g05_ensure: try-rt-prefer failed (non-fatal if unused)" >&2
+    # 7.4.4 配套基建 (2026-09-10): G05_OBJS also links the five STANDALONE rt
+    # seed slices (rt_arena_buf/rt_emit_state/rt_preamble/rt_stack/rt_parse_diag
+    # via _RT_SEED_SLICE_OBJS) but nothing in the g05 chain refreshed them —
+    # only the asm-strict lane's ensure_rt_seed_slice_objs did. A stale slice
+    # survived g05 green and broke the link later (rt_emit_state trap: new seed
+    # functions missing until a manual rm+try-heat). Delegate to the existing
+    # rt-slice family authority (seed -nt .o → cc -c). PLATFORM: SHARED.
+    echo "g05_ensure: rt-slice standalone refresh (G05_OBJS members)"
+    bash scripts/ensure_host_cc_seed_o.sh rt-slice \
+      || echo "g05_ensure: rt-slice refresh failed (non-fatal if unused)" >&2
+    # Same class: driver_x.o compiles from driver_gen.c (gen-x family), but a
+    # driver_gen.c regen above never re-triggered the .o in the warm g05 path
+    # (2026-09-10 trap: pin gained a helper, gen refreshed, .o stayed old).
+    # try-heat dispatches the gen-x ladder (driver_gen.c → driver_x.o).
+    echo "g05_ensure: driver_x.o gen-x refresh (driver_gen.c staleness)"
+    bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o \
+      || echo "g05_ensure: driver_x.o refresh failed (non-fatal if unused)" >&2
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; rt prefer residual" >&2
   fi
@@ -605,15 +670,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
   # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
   # wave309 G.7 8.3 structure floor leave: product pure-ld no longer links
-  # pipeline_x / filtered / standalone mega. Glue shell sources deleted; do not
-  # host-cc empty mega for product. Soft no-op when residual files still on disk
-  # (archaeology). PLATFORM: SHARED freestanding pipeline mega shell retire.
-  if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
-    echo "g05_ensure: skip pipeline_x.o host-cc (wave309 product mega retired)"
-  fi
-  if [ -f seeds/pipeline_glue_standalone.from_x.c ]; then
-    echo "g05_ensure: skip pipeline_glue_standalone (wave309 product shell retire)"
-  fi
+  # pipeline_x / filtered / standalone mega. pipeline_glue.c / ast_pool.c /
+  # glue_standalone seed permanently absent — always skip (do not gate on
+  # deleted paths; dead -f checks hid the honesty message). PLATFORM: SHARED.
+  echo "g05_ensure: skip pipeline_x.o host-cc (wave309 product mega retired)"
+  echo "g05_ensure: skip pipeline_glue_standalone (wave309 product shell retire)"
   # wave309: Darwin product no longer consumes bootstrap_seed_pipeline_filtered.o.
   if [ -f pipeline_x.o ] && [ "${XLANG_FILTER_PIPELINE_FORCE:-0}" = "1" ]; then
     _filt=build_asm/bootstrap_seed_pipeline_filtered.o
@@ -688,54 +749,124 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # P9 stretch+suite hybrid；P10 glue tail hybrid（G-02f-319）
   _pthin=seeds/parser_asm_thin_c.from_x.c
   _pthin_p1_seed=seeds/pthin_lex_skip.from_x.c
+  # 7.2.1 P1b Route C + B-minus: lex_skip .x bodies (kind/copy/skip walks)
+  _pthin_p1b_x=src/asm/pthin_lex_skip.x
   _pthin_p2_seed=seeds/pthin_let_alias.from_x.c
+  # 7.2.1 P2b B-minus: let/alias .x bodies (top_level_let + type_alias dest-buffer)
+  _pthin_p2b_x=src/asm/pthin_let_alias.x
   _pthin_p3_seed=seeds/pthin_type_ref.from_x.c
+  # 7.2.1 P3b/P3c/P3d/P3e Route C: type_ref .x bodies (kind / dyn / TypeKind / vector ident / type-inst mangle / consume_qualified / TYPE_DYN wrap)
+  _pthin_p3b_x=src/asm/pthin_type_ref.x
   _pthin_p4p_seed=seeds/pthin_expr_primary.from_x.c
+  # 7.2.1 P4b Route C: primary .x bodies (ident spelling / asm-option-bit)
+  _pthin_p4pb_x=src/asm/pthin_expr_primary.x
   _pthin_p4u_seed=seeds/pthin_expr_unary.from_x.c
+  # 7.2.1 P4ub Route C: unary .x bodies (TOKEN→ExprKind)
+  _pthin_p4ub_x=src/asm/pthin_expr_unary.x
   _pthin_p4b_seed=seeds/pthin_expr_binop.from_x.c
+  # 7.2.1 P4bb/P4bc/P4bd Route C: binop .x bodies (TOKEN→ExprKind + wrap + parse dest-buffer)
+  _pthin_p4bb_x=src/asm/pthin_expr_binop.x
   _pthin_p4as_seed=seeds/pthin_expr_as_suffix.from_x.c
+  # 7.2.1 P4as/P4ad Route C: as_suffix .x bodies (TRY_PROPAGATE + EXPR_AS wrap + parse dest-buffer)
+  _pthin_p4as_x=src/asm/pthin_expr_as_suffix.x
   _pthin_p4t_seed=seeds/pthin_expr_ternary.from_x.c
+  # 7.2.1 P4tb/P4tc Route C: ternary wrap + assign wrap dest-buffer
+  _pthin_p4tb_x=src/asm/pthin_expr_ternary.x
   _pthin_p5_seed=seeds/pthin_ctrl.from_x.c
+  # 7.2.1 P5b/P5c/P5d/P5e/P5f/P5g Route C: ctrl .x bodies (brace skip / kw /
+  # scan_sync / realign / dest-tag / parse_if_expr / match wrap)
+  _pthin_p5b_x=src/asm/pthin_ctrl.x
   _pthin_p6_seed=seeds/pthin_fn_block.from_x.c
+  # 7.2.1 P6b/P6c/P6d B-minus: fn_block .x bodies (name-match trio + packed/soa + library wrap)
+  _pthin_p6b_x=src/asm/pthin_fn_block.x
   _pthin_p7_seed=seeds/pthin_simd.from_x.c
+  # 7.2.1 P7b Route C: simd .x bodies (ident pack / callee name fill)
+  _pthin_p7b_x=src/asm/pthin_simd.x
   _pthin_p8_seed=seeds/pthin_seed_parse.from_x.c
   _pthin_p9_seed=seeds/pthin_stretch.from_x.c
+  # G-02f-318a / 7.2.1 B-minus pilot (RFC §5c): stretch-audit .x thin + lexer-step bridge
+  _pthin_p9a_x=src/asm/pthin_stretch_audit.x
+  _pthin_p9a_bridge=seeds/parser_asm_lex_step_bridge.from_x.c
+  # 7.2.1 Route C productize: stretch lite .x (no bridge; pure scalar tables)
+  _pthin_p9b_x=src/asm/pthin_stretch.x
   _pthin_p10_seed=seeds/pthin_glue.from_x.c
+  # 7.2.1 P10b B-minus: glue .x bodies (skip_one_function_full walk)
+  _pthin_p10b_x=src/asm/pthin_glue.x
   _pthin_p11_seed=seeds/pthin_imports.from_x.c
+  # 7.2.1 P11b/P11c/P11d B-minus: imports .x bodies (skip_imports + consume_path/try_skip + collect_imports)
+  _pthin_p11b_x=src/asm/pthin_imports.x
   _pthin_p12_seed=seeds/pthin_skip_tl.from_x.c
+  # 7.2.1 P12b–P12i B-minus: skip_tl .x bodies (struct/enum/extern + impl header + generic_bound_scan + enum_register + parse_one_extern_skip + parse_one_extern_and_add + skip_name_is_self + self_matches_for)
+  _pthin_p12b_x=src/asm/pthin_skip_tl.x
   _pthin_p13_seed=seeds/pthin_try_skip_allow.from_x.c
+  # 7.2.1 P13b B-minus: try_skip_allow .x bodies (padding paren walk)
+  _pthin_p13b_x=src/asm/pthin_try_skip_allow.x
   _pthin_p14_seed=seeds/pthin_skip_if.from_x.c
+  # 7.2.1 P14b/P14c B-minus: skip_if .x bodies (trait/impl + if-core/statement + enum register)
+  _pthin_p14b_x=src/asm/pthin_skip_if.x
   _pthin_p15_seed=seeds/pthin_library.from_x.c
+  # 7.2.1 P15b B-minus: library .x bodies (library_scan walk)
+  _pthin_p15b_x=src/asm/pthin_library.x
   _pthin_p16_seed=seeds/pthin_diag_pipeline.from_x.c
   _pthin_p17_seed=seeds/pthin_diag_late.from_x.c
+  # 7.2.1 P17b/P17c B-minus: diag_late .x bodies (after_structs + fail)
+  # + G.7 diag_skip_let_const_buf trampoline over P18b into
+  _pthin_p17b_x=src/asm/pthin_diag_late.x
   _pthin_p18_seed=seeds/pthin_body_tl.from_x.c
+  # 7.2.1 P18b Route C + B-minus: body_tl .x bodies (scalar table + skip walks)
+  _pthin_p18b_x=src/asm/pthin_body_tl.x
   _pthin_p19_seed=seeds/pthin_helpers.from_x.c
+  # 7.2.1 P19b Route C: helpers .x bodies (kind/copy/pos/match-kw)
+  _pthin_p19b_x=src/asm/pthin_helpers.x
   _pthin_p20_seed=seeds/pthin_foundation.from_x.c
   if [ -f "$_pthin" ]; then
     if [ ! -f parser_asm_thin_glue.o ] || [ "$_pthin" -nt parser_asm_thin_glue.o ] \
       || { [ -f "$_pthin_p1_seed" ] && [ "$_pthin_p1_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p1b_x" ] && [ "$_pthin_p1b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p2_seed" ] && [ "$_pthin_p2_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p2b_x" ] && [ "$_pthin_p2b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p3_seed" ] && [ "$_pthin_p3_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p3b_x" ] && [ "$_pthin_p3b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4p_seed" ] && [ "$_pthin_p4p_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4pb_x" ] && [ "$_pthin_p4pb_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4u_seed" ] && [ "$_pthin_p4u_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4ub_x" ] && [ "$_pthin_p4ub_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4b_seed" ] && [ "$_pthin_p4b_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4bb_x" ] && [ "$_pthin_p4bb_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4as_seed" ] && [ "$_pthin_p4as_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4as_x" ] && [ "$_pthin_p4as_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4t_seed" ] && [ "$_pthin_p4t_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4tb_x" ] && [ "$_pthin_p4tb_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p5_seed" ] && [ "$_pthin_p5_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p5b_x" ] && [ "$_pthin_p5b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p6_seed" ] && [ "$_pthin_p6_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p6b_x" ] && [ "$_pthin_p6b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p7_seed" ] && [ "$_pthin_p7_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p7b_x" ] && [ "$_pthin_p7b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p8_seed" ] && [ "$_pthin_p8_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p9_seed" ] && [ "$_pthin_p9_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p9a_x" ] && [ "$_pthin_p9a_x" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p9a_bridge" ] && [ "$_pthin_p9a_bridge" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p9b_x" ] && [ "$_pthin_p9b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p10_seed" ] && [ "$_pthin_p10_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p10b_x" ] && [ "$_pthin_p10b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p11_seed" ] && [ "$_pthin_p11_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p11b_x" ] && [ "$_pthin_p11b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p12_seed" ] && [ "$_pthin_p12_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p12b_x" ] && [ "$_pthin_p12b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p13_seed" ] && [ "$_pthin_p13_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p13b_x" ] && [ "$_pthin_p13b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p14_seed" ] && [ "$_pthin_p14_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p14b_x" ] && [ "$_pthin_p14b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p15_seed" ] && [ "$_pthin_p15_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p15b_x" ] && [ "$_pthin_p15b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p16_seed" ] && [ "$_pthin_p16_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p17_seed" ] && [ "$_pthin_p17_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p17b_x" ] && [ "$_pthin_p17b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p18_seed" ] && [ "$_pthin_p18_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p18b_x" ] && [ "$_pthin_p18b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p19_seed" ] && [ "$_pthin_p19_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p19b_x" ] && [ "$_pthin_p19b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p20_seed" ] && [ "$_pthin_p20_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_glue_tail_slice.inc ] && [ seeds/parser_asm/parser_asm_glue_tail_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_library_wrap_slice.inc ] && [ seeds/parser_asm/parser_asm_library_wrap_slice.inc -nt parser_asm_thin_glue.o ]; } \
@@ -758,210 +889,717 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       _pthin_done=0
       if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && { [ -f "$_pthin_p1_seed" ] || [ -f "$_pthin_p2_seed" ] || [ -f "$_pthin_p3_seed" ] || [ -f "$_pthin_p4p_seed" ] || [ -f "$_pthin_p4u_seed" ] || [ -f "$_pthin_p4b_seed" ] || [ -f "$_pthin_p4as_seed" ] || [ -f "$_pthin_p4t_seed" ] || [ -f "$_pthin_p5_seed" ] || [ -f "$_pthin_p6_seed" ] || [ -f "$_pthin_p7_seed" ] || [ -f "$_pthin_p9_seed" ] || [ -f "$_pthin_p10_seed" ] || [ -f "$_pthin_p11_seed" ] || [ -f "$_pthin_p12_seed" ] || [ -f "$_pthin_p13_seed" ] || [ -f "$_pthin_p14_seed" ] || [ -f "$_pthin_p15_seed" ] || [ -f "$_pthin_p16_seed" ] || [ -f "$_pthin_p17_seed" ] || [ -f "$_pthin_p18_seed" ] || [ -f "$_pthin_p19_seed" ] || [ -f "$_pthin_p20_seed" ]; }; then
         _pthin_p1_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p1.XXXXXX") || true
+        _pthin_p1b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p1b_thin.XXXXXX") || true
         _pthin_p2_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p2.XXXXXX") || true
+        _pthin_p2b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p2b_thin.XXXXXX") || true
         _pthin_p3_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p3.XXXXXX") || true
+        _pthin_p3b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p3b_thin.XXXXXX") || true
         _pthin_p4p_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4p.XXXXXX") || true
+        _pthin_p4pb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4pb_thin.XXXXXX") || true
         _pthin_p4u_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4u.XXXXXX") || true
+        _pthin_p4ub_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4ub.XXXXXX") || true
         _pthin_p4b_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4b.XXXXXX") || true
+        _pthin_p4bb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4bb.XXXXXX") || true
         _pthin_p4as_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4as.XXXXXX") || true
+        _pthin_p4asb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4asb.XXXXXX") || true
         _pthin_p4t_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4t.XXXXXX") || true
+        _pthin_p4tb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4tb.XXXXXX") || true
         _pthin_p5_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p5.XXXXXX") || true
+        _pthin_p5b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p5b_thin.XXXXXX") || true
         _pthin_p6_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p6.XXXXXX") || true
+        _pthin_p6b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p6b_thin.XXXXXX") || true
         _pthin_p7_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p7.XXXXXX") || true
+        _pthin_p7b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p7b_thin.XXXXXX") || true
         _pthin_p9_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p9.XXXXXX") || true
+        _pthin_p9a_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p9a_thin.XXXXXX") || true
+        _pthin_p9a_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p9a.XXXXXX") || true
+        _pthin_p9b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p9b_thin.XXXXXX") || true
         _pthin_p10_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p10.XXXXXX") || true
+        _pthin_p10b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p10b_thin.XXXXXX") || true
         _pthin_p11_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p11.XXXXXX") || true
+        _pthin_p11b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p11b_thin.XXXXXX") || true
         _pthin_p12_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p12.XXXXXX") || true
+        _pthin_p12b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p12b_thin.XXXXXX") || true
         _pthin_p13_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p13.XXXXXX") || true
+        _pthin_p13b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p13b_thin.XXXXXX") || true
         _pthin_p14_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p14.XXXXXX") || true
+        _pthin_p14b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p14b_thin.XXXXXX") || true
         _pthin_p15_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p15.XXXXXX") || true
+        _pthin_p15b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p15b_thin.XXXXXX") || true
         _pthin_p16_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p16.XXXXXX") || true
         _pthin_p17_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p17.XXXXXX") || true
+        _pthin_p17b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p17b_thin.XXXXXX") || true
         _pthin_p18_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p18.XXXXXX") || true
+        _pthin_p18b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p18b_thin.XXXXXX") || true
         _pthin_p19_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p19.XXXXXX") || true
+        _pthin_p19b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p19b_thin.XXXXXX") || true
         _pthin_p20_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p20.XXXXXX") || true
         _pthin_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_rest.XXXXXX") || true
         _pthin_p1_ok=0
+        _pthin_p1b_ok=0
         _pthin_p2_ok=0
+        _pthin_p2b_ok=0
         _pthin_p3_ok=0
+        _pthin_p3b_ok=0
         _pthin_p4p_ok=0
+        _pthin_p4pb_ok=0
         _pthin_p4u_ok=0
+        _pthin_p4ub_ok=0
         _pthin_p4b_ok=0
+        _pthin_p4bb_ok=0
         _pthin_p4as_ok=0
+        _pthin_p4asb_ok=0
         _pthin_p4t_ok=0
+        _pthin_p4tb_ok=0
         _pthin_p5_ok=0
+        _pthin_p5b_ok=0
         _pthin_p6_ok=0
+        _pthin_p6b_ok=0
         _pthin_p7_ok=0
+        _pthin_p7b_ok=0
         _pthin_p9_ok=0
+        _pthin_p9a_ok=0
+        _pthin_p9a_audit_ok=0
+        _pthin_p9b_ok=0
         _pthin_p10_ok=0
+        _pthin_p10b_ok=0
         _pthin_p11_ok=0
+        _pthin_p11b_ok=0
         _pthin_p12_ok=0
+        _pthin_p12b_ok=0
         _pthin_p13_ok=0
+        _pthin_p13b_ok=0
         _pthin_p14_ok=0
+        _pthin_p14b_ok=0
         _pthin_p15_ok=0
+        _pthin_p15b_ok=0
         _pthin_p16_ok=0
         _pthin_p17_ok=0
+        _pthin_p17b_ok=0
         _pthin_p18_ok=0
+        _pthin_p18b_ok=0
         _pthin_p19_ok=0
+        _pthin_p19b_ok=0
         _pthin_p20_ok=0
         _pthin_rest_defs="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
-        if [ -n "$_pthin_p1_o" ] && [ -f "$_pthin_p1_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p1_o" "$_pthin_p1_seed"; then
-            _pthin_p1_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_LEX_SKIP_FROM_X"
-            echo "g05_ensure: P1 lex/skip ← $_pthin_p1_seed (G-02f-281 seed slice)"
+        # P1 C is compiled after P9a so P1b BODIES_FROM_X can require the
+        # lexer-step bridge (skip_balanced U symbols). See P1b block below.
+        # PLATFORM: SHARED — 7.2.1 P2b/P2c/P2d B-minus (2026-09-16).
+        # pthin_let_alias.x holds dest-buffer parse_one_top_level_let and
+        # parse_one_type_alias (P9a peek/step; P9a is linked later into
+        # the same thin_glue, same as P6e/P7d/P4ud). BODIES is a separate
+        # define so a missing parse_x keeps the C parse twins without
+        # dropping the P2 seed TU. COND is a further separate define
+        # (P6e PARSE_LAYOUT pattern) so a missing parse_cond_expr_x keeps
+        # the C cond twin without dropping P2b. BRACKET is a further
+        # separate define so a missing body_let_bracket_x keeps the C
+        # bracket twin without dropping P2b/P2c. Cold: no define, full .inc.
+        _pthin_p2_extra=""
+        if [ -n "$_pthin_p2b_thin_o" ] && [ -f "$_pthin_p2b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p2b_x" "$_pthin_p2b_thin_o" \
+            && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_top_level_let_x_into_c" \
+            && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_type_alias_x_into_c"; then
+            _pthin_p2b_ok=1
+            _pthin_p2_extra="-DXLANG_PTHIN_LET_ALIAS_BODIES_FROM_X"
+            if g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_cond_expr_x_into_c"; then
+              _pthin_p2_extra="$_pthin_p2_extra -DXLANG_PTHIN_LET_ALIAS_COND_FROM_X"
+              if g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_body_let_bracket_compound_init_ref_x_into_c"; then
+                _pthin_p2_extra="$_pthin_p2_extra -DXLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X"
+                echo "g05_ensure: P2b/P2c/P2d let/alias bodies ← $_pthin_p2b_x (7.2.1 B-minus)"
+              else
+                echo "g05_ensure: P2b/P2c let/alias bodies ← $_pthin_p2b_x (P2d body_let_bracket C twin)"
+              fi
+            else
+              echo "g05_ensure: P2b let/alias bodies ← $_pthin_p2b_x (P2c parse_cond_expr C twin)"
+            fi
+          else
+            echo "g05_ensure: P2b let/alias .x thin failed or missing parse_x; P2 C twins stay full" >&2
           fi
         fi
         if [ -n "$_pthin_p2_o" ] && [ -f "$_pthin_p2_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p2_o" "$_pthin_p2_seed"; then
+               $_pthin_p2_extra -c -o "$_pthin_p2_o" "$_pthin_p2_seed"; then
             _pthin_p2_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_LET_ALIAS_FROM_X"
             echo "g05_ensure: P2 let/alias ← $_pthin_p2_seed (G-02f-279 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l Route C (2026-09-13/15/16).
+        # pthin_type_ref.x holds kind / dyn / builtin TypeKind / vector ident
+        # plus type-inst mangle dest-buffer, consume_qualified / angle close,
+        # TYPE_DYN wrap dest-buffer, P3g postfix array/slice dest-buffer,
+        # P3h prefix `[N]T` / `[]T` dest-buffer, P3i type-position
+        # `function(...): Ret` dest-buffer, P3j prefix `*T` dest-buffer,
+        # P3k IDENT `Linear(T)` dest-buffer, P3l builtin vec-token
+        # dest-buffer, P3m alloc_vector_type_ref, and P3n builtin scalar tokens.
+        # Runs before P3 C so BODIES_FROM_X skips the portable .inc region.
+        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR are separate defines (P6e PARSE_LAYOUT / P2c COND)
+        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x keeps that C twin without dropping
+        # P3b–P3e. No lexer-step bridge. Cold: no define, full .inc.
+        _pthin_p3_extra=""
+        if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o" \
+            && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_append_type_inst_mangle_into_c"; then
+            _pthin_p3b_ok=1
+            _pthin_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
+            _pthin_p3_lane="P3b/P3c/P3d/P3e"
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_postfix_slice_x_into_c" \
+              && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_postfix_array_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3g"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_prefix_array_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_PREFIX_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3h"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_fn_type_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_FN_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3i"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_star_type_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_STAR_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3j"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_linear_type_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_LINEAR_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3k"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_builtin_vec_type_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_VEC_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3l"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_alloc_vector_type_ref_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3m"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_builtin_scalar_type_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_SCALAR_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3n"
+            fi
+            echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
+          else
+            echo "g05_ensure: P3b type_ref .x thin failed or missing mangle_into; P3 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p3_o" ] && [ -f "$_pthin_p3_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p3_o" "$_pthin_p3_seed"; then
+               $_pthin_p3_extra -c -o "$_pthin_p3_o" "$_pthin_p3_seed"; then
             _pthin_p3_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_TYPE_REF_FROM_X"
             echo "g05_ensure: P3 type_ref ← $_pthin_p3_seed (G-02f-280 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P4b/P4be/P4bf/P4bg/P4bh/P4bi Route C (2026-09-13/15/16).
+        # pthin_expr_primary.x holds IDENT spelling probes, the asm!
+        # options bit table, suffix_loop, IDENT/INT heads, P4bh
+        # remaining parse_primary dest-buffer, and P4bi
+        # parse_struct_lit_fields dest-buffer. P4be completed TOKEN/writer
+        # pins so `-E` typeck of suffix_loop passes (was XT001 undeclared
+        # names). P4bf publishes next_lex from the C trampoline (C-twin
+        # stop contract) so IDENT callers do not re-parse `mod.fn(...)`
+        # until RSS blows up. P4bg dispatches ident_x_into_c (zeros THEN
+        # set_var_name so arena zeros do not wipe var_name_len). P4bh
+        # dest-buffers remaining primary arms (STRING/RETURN/PANIC/paren/
+        # array/LBRACE); MATCH/AT stay C ptr shims. P4bi dest-buffers
+        # parse_struct_lit_fields (C trampoline holds name[256]). Incomplete
+        # -E that still exits 0 without parse_struct_lit_fields_x falls
+        # back to the C twin (same class as P5i g05_obj_defines).
+        # Cold: no define, full .inc.
+        # P3c mangle trampoline in primary.inc needs TYPE_REF_BODIES too.
+        _pthin_p4p_extra=""
+        if [ -n "$_pthin_p4pb_thin_o" ] && [ -f "$_pthin_p4pb_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o" \
+            && g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_primary_x_into_c" \
+            && g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_struct_lit_fields_x_into_c"; then
+            _pthin_p4pb_ok=1
+            _pthin_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X"
+            if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_anonymous_struct_lit_x_into_c"; then
+              _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X"
+              echo "g05_ensure: P4b–P4bi/P4bj primary + anon-struct alloc ← $_pthin_p4pb_x"
+            else
+              echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bj anon C twin)"
+            fi
+          else
+            echo "g05_ensure: P4b primary .x thin failed or missing parse_primary/struct_lit_fields dest-buffer; P4 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p4p_o" ] && [ -f "$_pthin_p4p_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p4p_o" "$_pthin_p4p_seed"; then
+               $_pthin_p4p_extra $_pthin_p3_extra -c -o "$_pthin_p4p_o" "$_pthin_p4p_seed"; then
             _pthin_p4p_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
             echo "g05_ensure: P4 primary ← $_pthin_p4p_seed (G-02f-282 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P4ub/P4uc/P4ud Route C (2026-09-13/15).
+        # pthin_expr_unary.x holds TOKEN→ExprKind + wrap dest-buffer +
+        # parse_unary dest-buffer (P9a peek/step; primary ptr shim).
+        # Runs before P4u C so BODIES_FROM_X skips the portable .inc
+        # region. No lexer-step bridge. Cold: no define, full .inc.
+        _pthin_p4u_extra=""
+        if [ -n "$_pthin_p4ub_thin_o" ] && [ -f "$_pthin_p4ub_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4ub_x" "$_pthin_p4ub_thin_o"; then
+            _pthin_p4ub_ok=1
+            _pthin_p4u_extra="-DXLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X"
+            echo "g05_ensure: P4ub/P4uc/P4ud unary bodies ← $_pthin_p4ub_x (7.2.1 Route C)"
+          else
+            echo "g05_ensure: P4ub unary .x thin failed; P4u C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p4u_o" ] && [ -f "$_pthin_p4u_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p4u_o" "$_pthin_p4u_seed"; then
+               $_pthin_p4u_extra -c -o "$_pthin_p4u_o" "$_pthin_p4u_seed"; then
             _pthin_p4u_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_UNARY_FROM_X"
             echo "g05_ensure: P4 unary ← $_pthin_p4u_seed (G-02f-283 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P4bb/P4bc/P4bd Route C (2026-09-13/15).
+        # pthin_expr_binop.x holds TOKEN→ExprKind + wrap + parse dest-buffer.
+        # Runs before P4b C so BODIES_FROM_X skips the portable .inc
+        # region. No lexer-step bridge. Cold: no define, full .inc.
+        # Setter pipeline_expr_set_binop_operands_c lives in the P4b
+        # seed (inject-only pabi does not pick up new rest symbols).
+        _pthin_p4b_extra=""
+        if [ -n "$_pthin_p4bb_thin_o" ] && [ -f "$_pthin_p4bb_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4bb_x" "$_pthin_p4bb_thin_o"; then
+            _pthin_p4bb_ok=1
+            _pthin_p4b_extra="-DXLANG_PTHIN_EXPR_BINOP_BODIES_FROM_X"
+            echo "g05_ensure: P4bb/P4bc/P4bd binop bodies ← $_pthin_p4bb_x (7.2.1 Route C)"
+          else
+            echo "g05_ensure: P4bb binop .x thin failed; P4b C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p4b_o" ] && [ -f "$_pthin_p4b_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p4b_o" "$_pthin_p4b_seed"; then
+               $_pthin_p4b_extra -c -o "$_pthin_p4b_o" "$_pthin_p4b_seed"; then
             _pthin_p4b_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_BINOP_FROM_X"
             echo "g05_ensure: P4 binop ← $_pthin_p4b_seed (G-02f-284 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P4as/P4ad Route C (2026-09-15/16).
+        # pthin_expr_as_suffix.x holds TRY_PROPAGATE + EXPR_AS wrap dest-buffer
+        # plus parse dest-buffer (P9a peek/step; type_ref ptr shim in primary).
+        # Runs before P4as C so BODIES_FROM_X skips the portable wrap twins
+        # and the parse body. set_unary lives in the P4u seed (G.7 unary
+        # operand slot; do not FORCE pabi mega). set_as lives in this seed.
+        # Cold: no define, full .inc.
+        _pthin_p4as_extra=""
+        if [ -n "$_pthin_p4asb_thin_o" ] && [ -f "$_pthin_p4as_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4as_x" "$_pthin_p4asb_thin_o"; then
+            _pthin_p4asb_ok=1
+            _pthin_p4as_extra="-DXLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X"
+            echo "g05_ensure: P4as/P4ad as_suffix wrap+parse ← $_pthin_p4as_x (7.2.1 Route C)"
+          else
+            echo "g05_ensure: P4as as_suffix .x thin failed; P4as C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p4as_o" ] && [ -f "$_pthin_p4as_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p4as_o" "$_pthin_p4as_seed"; then
+               $_pthin_p4as_extra -c -o "$_pthin_p4as_o" "$_pthin_p4as_seed"; then
             _pthin_p4as_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X"
             echo "g05_ensure: P4 as_suffix ← $_pthin_p4as_seed (G-02f-285 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P4tb/P4tc/P4td/P4te (2026-09-16).
+        # pthin_expr_ternary.x holds EXPR_TERNARY wrap + assign wrap
+        # dest-buffer + parse_ternary dest-buffer + parse_assign
+        # dest-buffer. Runs before P4t C so BODIES_FROM_X skips the
+        # portable wrap twins and the parse bodies. No lexer-step
+        # bridge. set_if lives in the P5 seed (G.7 if_* slots);
+        # set_binop lives in the P4bc seed (G.7 left/right slots; do
+        # not FORCE pabi mega; do not extend P4bc wrap with line/col).
+        # Cold: no define, full .inc.
+        _pthin_p4t_extra=""
+        if [ -n "$_pthin_p4tb_thin_o" ] && [ -f "$_pthin_p4tb_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4tb_x" "$_pthin_p4tb_thin_o"; then
+            _pthin_p4tb_ok=1
+            _pthin_p4t_extra="-DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X"
+            echo "g05_ensure: P4tb/P4tc/P4td/P4te ternary wrap+parse ← $_pthin_p4tb_x (7.2.1 Route C)"
+          else
+            echo "g05_ensure: P4tb ternary .x thin failed; P4t C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p4t_o" ] && [ -f "$_pthin_p4t_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p4t_o" "$_pthin_p4t_seed"; then
+               $_pthin_p4t_extra -c -o "$_pthin_p4t_o" "$_pthin_p4t_seed"; then
             _pthin_p4t_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_TERNARY_FROM_X"
             echo "g05_ensure: P4 ternary ← $_pthin_p4t_seed (G-02f-285 seed slice)"
           fi
         fi
-        if [ -n "$_pthin_p5_o" ] && [ -f "$_pthin_p5_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p5_o" "$_pthin_p5_seed"; then
-            _pthin_p5_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_CTRL_FROM_X"
-            echo "g05_ensure: P5 ctrl ← $_pthin_p5_seed (G-02f-286 seed slice)"
+        # P5 C is compiled after P9a (P5d realign .x calls the bridge
+        # peek family). See the P5b/P5c/P5d block below.
+        # PLATFORM: SHARED — 7.2.1 P6b/P6c/P6d/P6e B-minus (2026-09-15 / 2026-09-16).
+        # pthin_fn_block.x holds the three struct-layout name matchers,
+        # packed/soa modifier predicates, library-shape wrap, and
+        # parse_struct_record_layout dest-buffer (P9a peek/step; P9a is
+        # linked later into the same thin_glue, same as P7d/P4ud).
+        # PARSE_LAYOUT is a separate define so a missing parse_x keeps
+        # the C parse twin without dropping P6b/P6c/P6d. Cold: no
+        # define, full .inc.
+        _pthin_p6_extra=""
+        if [ -n "$_pthin_p6b_thin_o" ] && [ -f "$_pthin_p6b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o" \
+            && g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_struct_layout_first_name_match_idx_c"; then
+            _pthin_p6b_ok=1
+            _pthin_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_struct_record_layout_x_into_c"; then
+              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
+              echo "g05_ensure: P6b/P6c/P6d/P6e fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
+            else
+              echo "g05_ensure: P6b/P6c/P6d fn_block bodies ← $_pthin_p6b_x (P6e parse C twin)"
+            fi
+          else
+            echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p6_o" ] && [ -f "$_pthin_p6_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p6_o" "$_pthin_p6_seed"; then
+               $_pthin_p6_extra -c -o "$_pthin_p6_o" "$_pthin_p6_seed"; then
             _pthin_p6_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_FN_BLOCK_FROM_X"
             echo "g05_ensure: P6 fn/block ← $_pthin_p6_seed (G-02f-287 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P7b/P7c/P7d Route C (2026-09-13 / 2026-09-15 / 2026-09-16).
+        # pthin_simd.x holds ident pack / callee name fill / callee+CALL wrap
+        # plus parse_at_simd_builtin dest-buffer (P9a peek/step; expr ptr
+        # shim). Runs before P7 C so BODIES_FROM_X skips the portable .inc
+        # region. P9a is linked later into the same thin_glue (same as
+        # P4ud/P4bh). Cold: no define, full .inc.
+        _pthin_p7_extra=""
+        if [ -n "$_pthin_p7b_thin_o" ] && [ -f "$_pthin_p7b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p7b_x" "$_pthin_p7b_thin_o" \
+            && g05_obj_defines "$_pthin_p7b_thin_o" "parser_asm_parse_at_simd_builtin_x_into_c"; then
+            _pthin_p7b_ok=1
+            _pthin_p7_extra="-DXLANG_PTHIN_SIMD_BODIES_FROM_X"
+            echo "g05_ensure: P7b/P7c/P7d simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
+          else
+            echo "g05_ensure: P7b simd .x thin failed or missing parse dest-buffer; P7 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p7_o" ] && [ -f "$_pthin_p7_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p7_o" "$_pthin_p7_seed"; then
+               $_pthin_p7_extra -c -o "$_pthin_p7_o" "$_pthin_p7_seed"; then
             _pthin_p7_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_SIMD_FROM_X"
             echo "g05_ensure: P7 simd ← $_pthin_p7_seed (G-02f-288 seed slice)"
           fi
         fi
+        # G-02f-318a / 7.2.1 B-minus pilot (RFC §5c): lexer-step BRIDGE is
+        # the peek/step authority used by dest-buffer parse (P4ud/P4bh/P5/P7d).
+        # Compile the bridge even when stretch-audit .x thin fails (audit
+        # mega -E typeck/check_block flakes; coupling it with && dropped
+        # peek/step from the product glue and UNDEF'd every dest-buffer
+        # lane). STRETCH_AUDIT_FROM_X still requires the audit .x thin.
+        # PLATFORM: SHARED
+        _pthin_p9_extra=""
+        if [ -n "$_pthin_p9a_o" ] && [ -f "$_pthin_p9a_bridge" ]; then
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm \
+               -c -o "$_pthin_p9a_o" "$_pthin_p9a_bridge"; then
+            _pthin_p9a_ok=1
+            echo "g05_ensure: P9a lexer-step bridge ← $_pthin_p9a_bridge (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P9a lexer-step bridge -c failed; peek/step stay absent" >&2
+          fi
+        fi
+        if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p9a_thin_o" ] && [ -f "$_pthin_p9a_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9a_x" "$_pthin_p9a_thin_o"; then
+            _pthin_p9a_audit_ok=1
+            _pthin_p9_extra="-DXLANG_PTHIN_STRETCH_AUDIT_FROM_X"
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_STRETCH_AUDIT_FROM_X"
+            echo "g05_ensure: P9a stretch_audit ← $_pthin_p9a_x (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P9a stretch_audit .x thin failed; audit C twin stays (bridge still linked)" >&2
+          fi
+        fi
+        # PLATFORM: SHARED — 7.2.1 P1b/P1c/P1d/P1e/P1f/P1g Route C + B-minus (2026-09-13/15/16).
+        # pthin_lex_skip.x holds kind predicates, buf copies, B-minus
+        # skip_balanced/generic_into, P1c generic_count (peek+step via
+        # P9a bridge; dest buffers for pending names), P1d ASI
+        # advance_past_stmt_semicolon / advance_past_cond_rparen, P1e
+        # parse_peek_function_name / first_token_kind (C twins in
+        # helpers.inc trampoline when this define is set on P19), P1f
+        # copy_token_bytes buf-path (128-byte zero-fill; slice trampoline
+        # stays in imports.inc), and P1g register_pending (guards + call
+        # register_type_params_c; C owns g_gp_pending_*).
+        # PENDING is a separate define so a missing pending_x keeps the C
+        # twin without dropping P1b–f.
+        # Runs after P9a so BODIES_FROM_X is only set when the bridge
+        # will be linked (otherwise skip_balanced/count/ASI/peek would UNDEF).
+        # Cold: no define, full .inc. Do not add P9a as a hard gate to P19.
+        _pthin_p1_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p1b_thin_o" ] && [ -f "$_pthin_p1b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_pthin_p1b_thin_o"; then
+            _pthin_p1b_ok=1
+            _pthin_p1_extra="-DXLANG_PTHIN_LEX_SKIP_BODIES_FROM_X"
+            if g05_obj_defines "$_pthin_p1b_thin_o" "xlang_generic_func_register_pending_type_params_x_into_c"; then
+              _pthin_p1_extra="$_pthin_p1_extra -DXLANG_PTHIN_LEX_SKIP_PENDING_FROM_X"
+              echo "g05_ensure: P1b/P1c/P1d/P1e/P1f/P1g lex_skip bodies ← $_pthin_p1b_x (7.2.1 B-minus + register_pending)"
+            else
+              echo "g05_ensure: P1b/P1c/P1d/P1e/P1f lex_skip bodies ← $_pthin_p1b_x (P1g register_pending C twin)"
+            fi
+          else
+            echo "g05_ensure: P1b lex_skip .x thin failed; P1 C twin stays full" >&2
+          fi
+        fi
+        if [ -n "$_pthin_p1_o" ] && [ -f "$_pthin_p1_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_pthin_p1_extra -c -o "$_pthin_p1_o" "$_pthin_p1_seed"; then
+            _pthin_p1_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_LEX_SKIP_FROM_X"
+            echo "g05_ensure: P1 lex/skip ← $_pthin_p1_seed (G-02f-281 seed slice)"
+          fi
+        fi
+        # PLATFORM: SHARED — 7.2.1 Route C productize (2026-09-12).
+        # pthin_stretch.x already holds the 13 lite scalar-table bodies.
+        # Runs BEFORE P9 C so LITE_FROM_X skips emit_heavy_stretch_slice.inc
+        # (same skip-include pattern as P9a/suite). Pure-asm may CG002 on
+        # global u8[] inits; g05_try_x_to_o then -E+cc. Cold: no define, lite
+        # C stays. token.h remains the classify-enum authority via P9 C
+        # _Static_assert pins.
+        if [ -n "$_pthin_p9b_thin_o" ] && [ -f "$_pthin_p9b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9b_x" "$_pthin_p9b_thin_o"; then
+            _pthin_p9b_ok=1
+            _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
+            echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
+          else
+            echo "g05_ensure: P9b stretch .x thin failed; lite C twin stays" >&2
+          fi
+        fi
         if [ -n "$_pthin_p9_o" ] && [ -f "$_pthin_p9_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p9_o" "$_pthin_p9_seed"; then
+               $_pthin_p9_extra -c -o "$_pthin_p9_o" "$_pthin_p9_seed"; then
             _pthin_p9_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_STRETCH_FROM_X"
             echo "g05_ensure: P9 stretch+suite ← $_pthin_p9_seed (G-02f-318 seed slice)"
           fi
         fi
-        if [ -n "$_pthin_p10_o" ] && [ -f "$_pthin_p10_seed" ]; then
+        # PLATFORM: SHARED — 7.2.1 P5b/P5c Route C + P5d/P5e/P5f/P5g/P5h/P5i/P5j B-minus + P5k T-shrink.
+        # pthin_ctrl.x holds comment-aware brace skip / kw_at_pos /
+        # scan_sync pos + the six-stage realign walk + dest-typed enum
+        # tag scan (P5e; C trampoline holds ename[256]) + parse_if_expr
+        # (P5f) + match wrap-family dest-buffer (P5g; VAR trampoline
+        # holds name[256]) + parse_match_subject dest-buffer (P5h) +
+        # parse_match_struct_fields dest-buffer (P5i; field wrap src
+        # trampoline holds name[256]) + parse_match_into dest-buffer
+        # (P5j; C trampoline holds 16-pattern pack + name[128]) + P5k
+        # leftover if_stmt C-twin T-shrink (requires parse_if_stmt_x).
+        # P5d/P5f/P5h/P5i/P5j require the P9a lexer-step bridge (peek family +
+        # cursor trio; otherwise those would UNDEF), so this lane runs
+        # AFTER P9a and gates on its ok flag. Incomplete -E that still
+        # exits 0 without parse_match_into_x / parse_if_stmt_x falls back to the C twin
+        # (same class as P7d g05_obj_defines). P19 scalars
+        # (pos_before_run / lex_at_token_pos / ident_is_unsafe_kind /
+        # rewind_kind) resolve from pthin_helpers.x or the P19 cold C
+        # twins. Runs before P5 C so BODIES_FROM_X skips the portable
+        # .inc region. Cold: no define, full .inc.
+        _pthin_p5_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] && [ -n "$_pthin_p5b_thin_o" ] && [ -f "$_pthin_p5b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o" \
+            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_subject_x_into_c" \
+            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_struct_fields_x_into_c" \
+            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_into_x_into_c" \
+            && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_if_stmt_x_into_c"; then
+            _pthin_p5b_ok=1
+            _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
+            echo "g05_ensure: P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr + match wrap + match subject parse + match struct fields + match into + if_stmt T-shrink)"
+          else
+            echo "g05_ensure: P5b ctrl .x thin failed or missing match-subject/struct-fields/into/if_stmt dest-buffer; P5 C twin stays full" >&2
+          fi
+        fi
+        if [ -n "$_pthin_p5_o" ] && [ -f "$_pthin_p5_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p10_o" "$_pthin_p10_seed"; then
-            _pthin_p10_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_GLUE_FROM_X"
-            echo "g05_ensure: P10 glue tail ← $_pthin_p10_seed (G-02f-319 seed slice)"
+               $_pthin_p5_extra -c -o "$_pthin_p5_o" "$_pthin_p5_seed"; then
+            _pthin_p5_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_CTRL_FROM_X"
+            echo "g05_ensure: P5 ctrl ← $_pthin_p5_seed (G-02f-286 seed slice)"
+          fi
+        fi
+        # P10 C is compiled after P12b (skip_one_function_full .x calls
+        # P12b skip_one_extern). See P10b block below.
+        # PLATFORM: SHARED — 7.2.1 P11b/P11c/P11d B-minus (2026-09-13).
+        # pthin_imports.x holds skip_imports + consume_path/try_skip +
+        # collect_imports. Requires P9a lexer-step bridge (otherwise
+        # peek/step would UNDEF). copy_slice / stretch validate resolve
+        # from P1b / P9b (or their cold C twins). P1f copy_token_bytes
+        # buf-path resolves from pthin_lex_skip.x (slice trampoline in
+        # this .inc). Runs before P11 C so BODIES_FROM_X skips the
+        # portable .inc region. Cold: no define, full .inc. Do not reuse
+        # XLANG_PTHIN_IMPORTS_FROM_X.
+        _pthin_p11_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] \
+          && [ -n "$_pthin_p11b_thin_o" ] && [ -f "$_pthin_p11b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p11b_x" "$_pthin_p11b_thin_o"; then
+            _pthin_p11b_ok=1
+            _pthin_p11_extra="-DXLANG_PTHIN_IMPORTS_BODIES_FROM_X"
+            echo "g05_ensure: P11b/P11c/P11d imports bodies ← $_pthin_p11b_x (7.2.1 B-minus skip_imports/consume_path/try_skip/collect_imports)"
+          else
+            echo "g05_ensure: P11b imports .x thin failed; P11 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p11_o" ] && [ -f "$_pthin_p11_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p11_o" "$_pthin_p11_seed"; then
+               $_pthin_p11_extra -c -o "$_pthin_p11_o" "$_pthin_p11_seed"; then
             _pthin_p11_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_IMPORTS_FROM_X"
             echo "g05_ensure: P11 imports ← $_pthin_p11_seed (G-02f-320 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P12b–P12m B-minus (2026-09-13 / P12m 2026-09-15).
+        # pthin_skip_tl.x holds skip_one_struct/enum/extern + impl header
+        # + generic_bound_scan + enum_register + parse_one_extern_skip
+        # + parse_one_extern_and_add + skip_name_is_self + self_matches_for
+        # + named_eq_self + rewrite_self + register_type_params +
+        # type_param_index + concrete_implements_trait +
+        # bound_check_type_args.
+        # Requires P9a lexer-step bridge AND P1b skip_balanced /
+        # skip_generic_angle / copy_slice (otherwise those would UNDEF).
+        # Runs before P12 C so BODIES_FROM_X skips the portable .inc
+        # region. Cold: no define, full .inc. Do not reuse
+        # XLANG_PTHIN_SKIP_TL_FROM_X. Do not open a new P12c–m lane.
+        _pthin_p12_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ -n "$_pthin_p12b_thin_o" ] && [ -f "$_pthin_p12b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_pthin_p12b_thin_o"; then
+            _pthin_p12b_ok=1
+            _pthin_p12_extra="-DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X"
+            if g05_obj_defines "$_pthin_p12b_thin_o" "xlang_skip_trait_check_param_shape_x_into_c"; then
+              _pthin_p12_extra="$_pthin_p12_extra -DXLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X"
+              echo "g05_ensure: P12b–P12u/P12v skip_tl + param/ret_shape ← $_pthin_p12b_x"
+            else
+              echo "g05_ensure: P12b–P12u skip_tl bodies ← $_pthin_p12b_x (P12v param_shape C twin)"
+            fi
+          else
+            echo "g05_ensure: P12b skip_tl .x thin failed; P12 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p12_o" ] && [ -f "$_pthin_p12_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p12_o" "$_pthin_p12_seed"; then
+               $_pthin_p12_extra -c -o "$_pthin_p12_o" "$_pthin_p12_seed"; then
             _pthin_p12_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_SKIP_TL_FROM_X"
             echo "g05_ensure: P12 skip_tl ← $_pthin_p12_seed (G-02f-321 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P10b B-minus (2026-09-13).
+        # pthin_glue.x holds skip_one_function_full. Requires P9a lexer-step
+        # bridge AND P1b skip_balanced AND P12b skip_one_extern (otherwise
+        # those would UNDEF). Runs before P10 C so BODIES_FROM_X skips the
+        # portable .inc region. Cold: no define, full .inc. Do not reuse
+        # XLANG_PTHIN_GLUE_FROM_X. Compile after P12b so _pthin_p12b_ok is set.
+        _pthin_p10_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ "$_pthin_p12b_ok" = "1" ] \
+          && [ -n "$_pthin_p10b_thin_o" ] && [ -f "$_pthin_p10b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p10b_x" "$_pthin_p10b_thin_o"; then
+            _pthin_p10b_ok=1
+            _pthin_p10_extra="-DXLANG_PTHIN_GLUE_BODIES_FROM_X"
+            echo "g05_ensure: P10b glue bodies ← $_pthin_p10b_x (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P10b glue .x thin failed; P10 C twin stays full" >&2
+          fi
+        fi
+        if [ -n "$_pthin_p10_o" ] && [ -f "$_pthin_p10_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_pthin_p10_extra -c -o "$_pthin_p10_o" "$_pthin_p10_seed"; then
+            _pthin_p10_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_GLUE_FROM_X"
+            echo "g05_ensure: P10 glue tail ← $_pthin_p10_seed (G-02f-319 seed slice)"
+          fi
+        fi
+        # PLATFORM: SHARED — 7.2.1 P13b/P13c B-minus (2026-09-13).
+        # pthin_try_skip_allow.x holds the padding paren walk plus
+        # write_result fields store and parse_into core (tri-state gate).
+        # Requires P9a lexer-step bridge AND P1b skip_balanced (otherwise
+        # those would UNDEF). Runs before P13 C so BODIES_FROM_X skips
+        # the portable .inc region. Cold: no define, full .inc. Do not
+        # reuse XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X.
+        _pthin_p13_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ -n "$_pthin_p13b_thin_o" ] && [ -f "$_pthin_p13b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p13b_x" "$_pthin_p13b_thin_o"; then
+            _pthin_p13b_ok=1
+            _pthin_p13_extra="-DXLANG_PTHIN_TRY_SKIP_ALLOW_BODIES_FROM_X"
+            echo "g05_ensure: P13b/P13c try_skip_allow bodies ← $_pthin_p13b_x (7.2.1 B-minus padding + write_result/parse_into)"
+          else
+            echo "g05_ensure: P13b try_skip_allow .x thin failed; P13 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p13_o" ] && [ -f "$_pthin_p13_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p13_o" "$_pthin_p13_seed"; then
+               $_pthin_p13_extra -c -o "$_pthin_p13_o" "$_pthin_p13_seed"; then
             _pthin_p13_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X"
             echo "g05_ensure: P13 try_skip_allow ← $_pthin_p13_seed (G-02f-322 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P14b/P14c B-minus (2026-09-13/15).
+        # pthin_skip_if.x holds trait/impl + if-core/statement walks
+        # and module_try_register_enum_name. Requires P9a lexer-step
+        # bridge AND P1b skip_balanced (otherwise skip_balanced would
+        # UNDEF). Runs before P14 C so BODIES_FROM_X skips the portable
+        # .inc region. Cold: no define, full .inc.
+        _pthin_p14_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ -n "$_pthin_p14b_thin_o" ] && [ -f "$_pthin_p14b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p14b_x" "$_pthin_p14b_thin_o"; then
+            _pthin_p14b_ok=1
+            _pthin_p14_extra="-DXLANG_PTHIN_SKIP_IF_BODIES_FROM_X"
+            echo "g05_ensure: P14b/P14c skip_if bodies ← $_pthin_p14b_x (7.2.1 B-minus)"
+          else
+            echo "g05_ensure: P14b skip_if .x thin failed; P14 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p14_o" ] && [ -f "$_pthin_p14_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p14_o" "$_pthin_p14_seed"; then
+               $_pthin_p14_extra -c -o "$_pthin_p14_o" "$_pthin_p14_seed"; then
             _pthin_p14_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_SKIP_IF_FROM_X"
             echo "g05_ensure: P14 skip_if ← $_pthin_p14_seed (G-02f-323 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P15b B-minus (2026-09-13).
+        # pthin_library.x holds library_scan. Requires P9a lexer-step
+        # bridge AND P1b copies (otherwise peek/step/copy would UNDEF).
+        # Runs before P15 C so BODIES_FROM_X skips the portable .inc
+        # region. Cold: no define, full .inc. Do not reuse
+        # XLANG_PTHIN_LIBRARY_FROM_X.
+        _pthin_p15_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ -n "$_pthin_p15b_thin_o" ] && [ -f "$_pthin_p15b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p15b_x" "$_pthin_p15b_thin_o"; then
+            _pthin_p15b_ok=1
+            _pthin_p15_extra="-DXLANG_PTHIN_LIBRARY_BODIES_FROM_X"
+            echo "g05_ensure: P15b library bodies ← $_pthin_p15b_x (7.2.1 B-minus scan)"
+          else
+            echo "g05_ensure: P15b library .x thin failed; P15 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p15_o" ] && [ -f "$_pthin_p15_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p15_o" "$_pthin_p15_seed"; then
+               $_pthin_p15_extra -c -o "$_pthin_p15_o" "$_pthin_p15_seed"; then
             _pthin_p15_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_LIBRARY_FROM_X"
             echo "g05_ensure: P15 library ← $_pthin_p15_seed (G-02f-324 seed slice)"
@@ -978,28 +1616,92 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P16 diag_pipeline ← $_pthin_p16_seed (G-02f-325 seed slice)"
           fi
         fi
-        if [ -n "$_pthin_p17_o" ] && [ -f "$_pthin_p17_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p17_o" "$_pthin_p17_seed"; then
-            _pthin_p17_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_DIAG_LATE_FROM_X"
-            echo "g05_ensure: P17 diag_late ← $_pthin_p17_seed (G-02f-326 seed slice)"
+        # PLATFORM: SHARED — 7.2.1 P18b/P18c/P18d Route C + B-minus.
+        # pthin_body_tl.x holds is_fn_sig_scalar + diag/body skip walks +
+        # skip_one_top_level let/const + cfg_skip + diag_first_ident +
+        # P010–P014 reports + onefunc_param_name_dup.
+        # Requires P9a lexer-step bridge AND P14b skip_one_if_statement
+        # AND P12b skip_one_struct AND P10b skip_one_function_full
+        # (otherwise those would UNDEF). Runs after P10b/P12b/P14b so
+        # those ok flags are set; before P18 C so BODIES_FROM_X skips
+        # the portable .inc region. Cold: no define, full .inc. Do not
+        # reuse XLANG_PTHIN_BODY_TL_FROM_X. 有则补全 P18b, no new P-lane.
+        _pthin_p18_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p14b_ok" = "1" ] \
+          && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p10b_ok" = "1" ] \
+          && [ -n "$_pthin_p18b_thin_o" ] && [ -f "$_pthin_p18b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p18b_x" "$_pthin_p18b_thin_o"; then
+            _pthin_p18b_ok=1
+            _pthin_p18_extra="-DXLANG_PTHIN_BODY_TL_BODIES_FROM_X"
+            echo "g05_ensure: P18b/P18c/P18d body_tl bodies ← $_pthin_p18b_x (7.2.1 B-minus P010-P014/dup)"
+          else
+            echo "g05_ensure: P18b body_tl .x thin failed; P18 C twin stays full" >&2
           fi
         fi
         if [ -n "$_pthin_p18_o" ] && [ -f "$_pthin_p18_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p18_o" "$_pthin_p18_seed"; then
+               $_pthin_p18_extra -c -o "$_pthin_p18_o" "$_pthin_p18_seed"; then
             _pthin_p18_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_BODY_TL_FROM_X"
             echo "g05_ensure: P18 body_tl ← $_pthin_p18_seed (G-02f-327 seed slice)"
           fi
         fi
+        # PLATFORM: SHARED — 7.2.1 P17b B-minus + P17c G.7 (2026-09-13).
+        # pthin_diag_late.x holds after_structs + fail_at_token_kind.
+        # P17c: diag_skip_let_const_buf trampolines over P18b into
+        # (no new .x export; G.7 kill of the buf C walk twin).
+        # Requires P9a + P1b + P12b + P18b (peek/step, is_pointee,
+        # skip_one_struct, is_fn_sig/body_skip/diag_skip). Moved after
+        # P18b so _pthin_p18b_ok is set before BODIES_FROM_X. Cold: no
+        # define, full .inc. Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X.
+        _pthin_p17_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
+          && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p18b_ok" = "1" ] \
+          && [ -n "$_pthin_p17b_thin_o" ] && [ -f "$_pthin_p17b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p17b_x" "$_pthin_p17b_thin_o"; then
+            _pthin_p17b_ok=1
+            _pthin_p17_extra="-DXLANG_PTHIN_DIAG_LATE_BODIES_FROM_X"
+            echo "g05_ensure: P17b/P17c diag_late bodies ← $_pthin_p17b_x (7.2.1 B-minus after_structs/fail + G.7 buf trampoline)"
+          else
+            echo "g05_ensure: P17b diag_late .x thin failed; P17 C twin stays full" >&2
+          fi
+        fi
+        if [ -n "$_pthin_p17_o" ] && [ -f "$_pthin_p17_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_pthin_p17_extra -c -o "$_pthin_p17_o" "$_pthin_p17_seed"; then
+            _pthin_p17_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_DIAG_LATE_FROM_X"
+            echo "g05_ensure: P17 diag_late ← $_pthin_p17_seed (G-02f-326 seed slice)"
+          fi
+        fi
+        # PLATFORM: SHARED — 7.2.1 P19b/P19c/P19d/P19e/P19f Route C
+        # (2026-09-12/13/14/16). pthin_helpers.x holds kind predicates,
+        # pos-before-run, buf copy, match-kw byte probe, run_len extra
+        # cases, lex_at_token pos, rewind kind, struct_field_name,
+        # ident_is_unsafe, (P19e) align_lex in place, and (P19f)
+        # parse_block_return_end_tail decide+flags. P19e/P19f need the
+        # P9a peek family + cursor trio, so this lane gates on
+        # _pthin_p9a_ok exactly like the P5d/P12b lanes (cold or P9a
+        # failure keeps the full .inc twin). Runs before P19 C so
+        # BODIES_FROM_X skips the portable .inc region. Stretch
+        # field-name / compact run_len tables come from P9b (or P9 lite C);
+        # do not add more bridges here. Do not open a new P-lane.
+        _pthin_p19_extra=""
+        if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p19b_thin_o" ] && [ -f "$_pthin_p19b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p19b_x" "$_pthin_p19b_thin_o"; then
+            _pthin_p19b_ok=1
+            _pthin_p19_extra="-DXLANG_PTHIN_HELPERS_BODIES_FROM_X"
+            echo "g05_ensure: P19b/P19c/P19d/P19e/P19f helpers bodies ← $_pthin_p19b_x (7.2.1 Route C kind/copy/pos/match-kw + run_len extra/lex_at_token/rewind + struct_field_name/ident_is_unsafe + align_lex + parse_block_return_end_tail)"
+          else
+            echo "g05_ensure: P19b helpers .x thin failed; P19 C twin stays full" >&2
+          fi
+        fi
         if [ -n "$_pthin_p19_o" ] && [ -f "$_pthin_p19_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p19_o" "$_pthin_p19_seed"; then
+               $_pthin_p19_extra $_pthin_p1_extra -c -o "$_pthin_p19_o" "$_pthin_p19_seed"; then
             _pthin_p19_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_HELPERS_FROM_X"
             echo "g05_ensure: P19 helpers ← $_pthin_p19_seed (G-02f-328 seed slice)"
@@ -1032,50 +1734,104 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p1_ok" = "1" ]; then
           _pthin_link="$_pthin_p1_o"
         fi
+        if [ "$_pthin_p1b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p1b_thin_o"
+        fi
         if [ "$_pthin_p3_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p3_o"
+        fi
+        if [ "$_pthin_p3b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p3b_thin_o"
         fi
         if [ "$_pthin_p2_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p2_o"
         fi
+        if [ "$_pthin_p2b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p2b_thin_o"
+        fi
         if [ "$_pthin_p6_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p6_o"
+        fi
+        if [ "$_pthin_p6b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p6b_thin_o"
         fi
         if [ "$_pthin_p4as_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4as_o"
         fi
+        if [ "$_pthin_p4asb_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4asb_thin_o"
+        fi
         if [ "$_pthin_p4p_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4p_o"
+        fi
+        if [ "$_pthin_p4pb_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4pb_thin_o"
         fi
         if [ "$_pthin_p4u_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4u_o"
         fi
+        if [ "$_pthin_p4ub_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4ub_thin_o"
+        fi
         if [ "$_pthin_p4b_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4b_o"
+        fi
+        if [ "$_pthin_p4bb_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4bb_thin_o"
         fi
         if [ "$_pthin_p4t_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4t_o"
         fi
+        if [ "$_pthin_p4tb_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4tb_thin_o"
+        fi
         if [ "$_pthin_p5_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p5_o"
+        fi
+        if [ "$_pthin_p5b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p5b_thin_o"
         fi
         if [ "$_pthin_p7_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p7_o"
         fi
+        if [ "$_pthin_p7b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p7b_thin_o"
+        fi
         if [ "$_pthin_p9_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p9_o"
+        fi
+        if [ "$_pthin_p9a_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p9a_o"
+        fi
+        if [ "$_pthin_p9a_audit_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p9a_thin_o"
+        fi
+        if [ "$_pthin_p9b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p9b_thin_o"
         fi
         if [ "$_pthin_p11_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p11_o"
         fi
+        if [ "$_pthin_p11b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p11b_thin_o"
+        fi
         if [ "$_pthin_p12_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p12_o"
+        fi
+        if [ "$_pthin_p12b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p12b_thin_o"
         fi
         if [ "$_pthin_p14_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p14_o"
         fi
+        if [ "$_pthin_p14b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p14b_thin_o"
+        fi
         if [ "$_pthin_p15_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p15_o"
+        fi
+        if [ "$_pthin_p15b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p15b_thin_o"
         fi
         if [ "$_pthin_p16_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p16_o"
@@ -1083,11 +1839,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p17_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p17_o"
         fi
+        if [ "$_pthin_p17b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p17b_thin_o"
+        fi
         if [ "$_pthin_p18_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p18_o"
         fi
+        if [ "$_pthin_p18b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p18b_thin_o"
+        fi
         if [ "$_pthin_p19_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p19_o"
+        fi
+        if [ "$_pthin_p19b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p19b_thin_o"
         fi
         if [ "$_pthin_p20_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p20_o"
@@ -1095,8 +1860,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p13_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p13_o"
         fi
+        if [ "$_pthin_p13b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p13b_thin_o"
+        fi
         if [ "$_pthin_p10_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p10_o"
+        fi
+        if [ "$_pthin_p10b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p10b_thin_o"
         fi
         # G-02f-330：全产品切片齐（P1–P7+P9–P20）时 mega rest 无全局 T，跳过 rest 编译与 ld -r
         _pthin_full=0
@@ -1137,7 +1908,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_done" = "0" ]; then
           echo "g05_ensure: parser thin P1–P7+P9–P20 hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_pthin_p1_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p4p_o" "$_pthin_p4u_o" "$_pthin_p4b_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p9_o" "$_pthin_p10_o" "$_pthin_p11_o" "$_pthin_p12_o" "$_pthin_p13_o" "$_pthin_p14_o" "$_pthin_p15_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p18_o" "$_pthin_p19_o" "$_pthin_p20_o" "$_pthin_rest_o"
+        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p2b_thin_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
@@ -1415,13 +2186,41 @@ esac
 #      Makefile rule, not a second generator.
 mkdir -p build_asm/seed_host
 if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full_link_stubs.pl ]; then
-  _stubs_scan="pipeline_x.o build_asm/pipeline_glue_standalone.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
-  [ -f build_asm/seed_host/asm_full.o ] && _stubs_scan="build_asm/seed_host/asm_full.o $_stubs_scan"
-  _stubs_scan="build_asm/seed_host/asm_backend_partial.o $_stubs_scan"
-  if perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $_stubs_scan 2>&1; then
-    if [ build_asm/seed_host/asm_full_link_stubs.c -nt build_asm/seed_host/asm_full_link_stubs.o ] 2>/dev/null; then
-      echo "g05_ensure: cc -c build_asm/seed_host/asm_full_link_stubs.o (stubs.c updated)" >&2
-      $CC $BASE_CFLAGS -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c
+  # G.7: single scan inventory = catalog DRIVER_SEED_HOST_STUBS_SCAN_BASE
+  # (mk/driver_seed_export_lists.mk → ASM_GLUE_STANDALONE_O empty since wave309).
+  # Do NOT hardcode pipeline_glue_standalone.o — seed retired; nm on missing .o
+  # was soft Darwin noise on every g05. Mirror bootstrap_driver_seed_host_stubs.sh.
+  # PLATFORM: SHARED.
+  _g05_stubs_cat_query() {
+    if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
+      sed -n "s|^$1=||p" "${XLANG_CATALOG_CACHE_FILE}" | tail -n 1
+    else
+      bash scripts/driver_seed_obj_catalog.sh --shell 2>/dev/null \
+        | sed -n "s|^$1=||p" | tail -n 1
+    fi
+  }
+  _stubs_scan="$(_g05_stubs_cat_query DRIVER_SEED_HOST_STUBS_SCAN_BASE)"
+  if [ -z "$_stubs_scan" ]; then
+    echo "g05_ensure: WARN stubs scan base empty (catalog); skip asm_full_link_stubs regen" >&2
+  else
+    # Optional peers under seed_host (same order as bootstrap_driver_seed_host_stubs).
+    [ -f build_asm/seed_host/asm_full.o ] && _stubs_scan="build_asm/seed_host/asm_full.o $_stubs_scan"
+    _stubs_scan="build_asm/seed_host/asm_backend_partial.o $_stubs_scan"
+    # Drop missing paths so gen_asm_full_link_stubs never nm-errors on retired leaves.
+    _stubs_scan_present=""
+    for _so in $_stubs_scan; do
+      if [ -f "$_so" ]; then
+        _stubs_scan_present="${_stubs_scan_present} ${_so}"
+      else
+        echo "g05_ensure: stubs scan skip missing ${_so}" >&2
+      fi
+    done
+    _stubs_scan="${_stubs_scan_present# }"
+    if [ -n "$_stubs_scan" ] && perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $_stubs_scan 2>&1; then
+      if [ build_asm/seed_host/asm_full_link_stubs.c -nt build_asm/seed_host/asm_full_link_stubs.o ] 2>/dev/null; then
+        echo "g05_ensure: cc -c build_asm/seed_host/asm_full_link_stubs.o (stubs.c updated)" >&2
+        $CC $BASE_CFLAGS -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c
+      fi
     fi
   fi
 fi

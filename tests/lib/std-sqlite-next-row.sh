@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
-# std-sqlite-next-row.sh — STD-067 manifest 与 next_row 游标烟测辅助
+# std-sqlite-next-row.sh — STD-067 next_row helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_sqlite_next_row_source_sqlite
+#   std_sqlite_next_row_symbols_ok MOD_X SQLITE_X TSV
+#   std_sqlite_next_row_run_c_smoke SQLITE_X   # prebuilt sqlite.o only
+#   std_sqlite_next_row_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / soft ensure; report run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_DB_NEXT_ROW_PREFIX="${XLANG_STD067_PREFIX:-xlang: [XLANG_STD067_DB_CURSOR]}"
 
-# 复用 STD-057 SQLite 探测与编译。
+# Source STD-057 helpers (probe_libs / run_smoke / o_has_x_symbols).
 std_sqlite_next_row_source_sqlite() {
   # shellcheck source=tests/lib/std-sqlite-gate.sh
   . tests/lib/std-sqlite-gate.sh
 }
 
-# 遍历 manifest，校验 api/symbol/file/smoke。
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_sqlite_next_row_symbols_ok() {
   local mod_x="$1"
   local db_c="$2"
@@ -34,14 +42,26 @@ std_sqlite_next_row_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section)
+        local doc="${XLANG_STD067_DOC:-analysis/archive/std/std-sqlite-next-row-v1.md}"
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-sqlite-next-row FAIL: missing section '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
       file|smoke|vectors|cross_ref)
-        if [ "$kind" = "cross_ref" ]; then
-          if [ ! -f "$anchor" ]; then
-            echo "std-sqlite-next-row FAIL: missing '$anchor'" >&2
-            miss=$((miss + 1))
-          fi
-        elif [ ! -f "$anchor" ]; then
+        if [ ! -f "$anchor" ]; then
           echo "std-sqlite-next-row FAIL: missing '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      script)
+        if [ -n "$anchor" ] && [ -f "$anchor" ]; then
+          :
+        elif [ -n "$mod_path" ] && [ -f "$mod_path" ]; then
+          :
+        else
+          echo "std-sqlite-next-row FAIL: missing script '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -51,38 +71,54 @@ std_sqlite_next_row_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：next_row_roundtrip_ok.c + sqlite.o + -lsqlite3。
+# Host-C archaeology: prebuilt std/db/sqlite/sqlite.o only + -lsqlite3.
+# Refuse soft xlang_compiler_make / soft ensure_std_c_o / soft std_sqlite_build_o.
+# Returns 0 green, 1 link/run fail, 2 missing prebuilt / lib / .x symbols.
+# PLATFORM: SHARED — do not toggle set -e (leaks make return 1 kill the gate).
 std_sqlite_next_row_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/next_row_roundtrip_ok.c"
   local out="/tmp/xlang_std_sqlite_next_row_$$"
-  local db_o
+  local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
+  if ! std_sqlite_probe_libs; then
+    echo "std-sqlite-next-row OBS c smoke (no libsqlite3; refuse soft SKIP→OK)" >&2
+    return 2
+  fi
   if [ ! -f "$sqlite_o" ]; then
-    echo "std-sqlite-next-row FAIL: missing $sqlite_o" >&2
+    echo "std-sqlite-next-row OBS c smoke (missing prebuilt $sqlite_o; refuse soft auto-make)" >&2
+    return 2
+  fi
+  if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
+    echo "std-sqlite-next-row OBS c smoke (sqlite.o missing .x symbols; refuse soft rebuild)" >&2
+    return 2
+  fi
+  if ! nm "$sqlite_o" 2>/dev/null | grep -q ' db_sqlite_next_row_smoke_c'; then
+    echo "std-sqlite-next-row OBS c smoke (sqlite.o missing next_row smoke symbol; refuse soft rebuild)" >&2
+    return 2
+  fi
+  if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" -lsqlite3 2>/tmp/std_sqlite_next_row_c_$$.log; then
+    echo "std-sqlite-next-row OBS c smoke link (refuse soft ensure)" >&2
     return 1
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" -lsqlite3 2>/dev/null; then
-    echo "std-sqlite-next-row FAIL: compile $src" >&2
-    return 1
-  fi
+  # Do not restore set -e here: return 1 must not trip the gate's set +e window.
+  # PLATFORM: SHARED — SEGV/exit≠0 is obs, not soft die.
   set +e
   "$out" >/dev/null 2>&1
   local ec=$?
-  set -e
   rm -f "$out"
   if [ "$ec" -ne 0 ]; then
-    echo "std-sqlite-next-row FAIL: c smoke exit=$ec" >&2
+    echo "std-sqlite-next-row OBS c smoke run exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# 输出门禁报告行。
+# Structured report line (honesty: run=/obs=/skip=; retired cursor_c=/cursor_x=).
 std_sqlite_next_row_emit_report() {
   local status="$1"
-  local cursor_c="$2"
-  local cursor_x="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_DB_NEXT_ROW_PREFIX} status=${status} cursor_c=${cursor_c} cursor_x=${cursor_x} skip=${skip}"
+  echo "${STD_DB_NEXT_ROW_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

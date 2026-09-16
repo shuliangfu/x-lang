@@ -1,13 +1,23 @@
 # STD-015 std.set Set_u64/Set_str 扩展 manifest
 # 列：item_id	kind	anchor	mod_path	notes
+# 2026-08-25: anchors aligned to product overload names (insert/remove/str_*),
+# not legacy set_u64_insert-style names that never existed in std/set/mod.x.
+# honesty 2026-08-29 residual auto-make: leftover tests/run-set.sh
+# (xlang_compiler_make … heap.o/set.o + collection gcc fallback +
+# bootstrap-link wrap) retired. Prefer asm; explicit-bad XLANG hard-die;
+# missing native FAIL; product -o tests/set/main.x hard; check=obs;
+# report run=/obs=/skip=.
+# honesty 2026-08-29 leftover unused compiler-make: run-std-set-extend-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o tests/set/extend.x hard.
 min_set_types	2
 set_u64	symbol	Set_u64	std/set/mod.x
 set_str	symbol	Set_str	std/set/mod.x
-set_u64_insert	symbol	set_u64_insert	std/set/mod.x
-set_str_insert	symbol	set_str_insert	std/set/mod.x
-set_u64_remove	symbol	set_u64_remove	std/set/mod.x
-set_str_remove	symbol	set_str_remove	std/set/mod.x
+set_u64_insert	symbol	insert	std/set/mod.x	Set_u64 overload insert (product)
+set_str_insert	symbol	str_insert	std/set/mod.x
+set_u64_remove	symbol	remove	std/set/mod.x	Set_u64 overload remove (product)
+set_str_remove	symbol	str_remove	std/set/mod.x
 hash_link	symbol	hash_bytes	std/set/mod.x	std.hash 联动
 test_smoke	file	tests/set/extend.x		边界烟测
-doc	file	std-set-extend-v1.md	analysis/std-set-extend-v1.md	RFC
+doc	file	std-set-extend-v1.md	analysis/archive/std/std-set-extend-v1.md	RFC
 gate	script	run-std-set-extend-gate.sh	tests/run-std-set-extend-gate.sh	manifest

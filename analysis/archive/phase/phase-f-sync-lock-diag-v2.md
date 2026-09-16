@@ -20,13 +20,17 @@
 - `sync_lock_diag_set_enabled_c` / `is_enabled_c` / `mutex_set_id_c` / `last_err_c` / `clear_c` / `snapshot_c` / `smoke_c`
 - 全局 `g_sync_lock_diag` 元数据表；快照手动格式化（无 snprintf）
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_SYNC_LOCK_DIAG_V2_FAIL` retired. Delegates STD-sync lock-diag hard.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-sync-lock-diag-v2：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-sync-lock-diag 不重写）。
 
 ```bash
-XLANG_F_SYNC_LOCK_DIAG_V2_FAIL=1 ./tests/run-f-sync-lock-diag-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-sync-lock-diag-v2-gate.sh
 ./tests/run-std-sync-lock-diag-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
+
 
 ## 下一项
 

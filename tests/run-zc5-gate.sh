@@ -134,7 +134,8 @@ fi
 
 SINK_BIN="/tmp/xlang_zc5_splice_sink"
 SINK_PORT=38460
-cc -O2 bench/zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
+# PLATFORM: SHARED — sink remapped with i07_ bench id (wave rename).
+cc -O2 bench/i07_zero_copy_sendfile_sink.c -o "$SINK_BIN" 2>/dev/null || {
   echo "zc5: bench SKIP (compile sink failed)"
   echo "zc5 gate OK"
   exit 0

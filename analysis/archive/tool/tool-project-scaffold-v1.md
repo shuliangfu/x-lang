@@ -1,6 +1,7 @@
 # TOOL-006 项目模板脚手架 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = analysis/archive/tool/ + templates/xlang-new.**
 > 状态：**定版（v1）**  
 > 关联：`xlang build`/`xlang run`、`tests/templates/`、TOOL-001（fmt）
 
@@ -88,5 +89,19 @@ tool-scaffold report template=project-hello exit=42 runnable=OK
 | 库 | `tests/lib/tool-scaffold.sh` |
 | 门禁 | `tests/run-tool-scaffold-gate.sh` |
 | 初始化 | `scripts/xlang-new.sh` |
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c when hooks are the live face; explicit bad XLANG = hard die;
+missing native = hard die; DOC=archive; report `run=`／`hooks=`／`skip=`.
+
+`tests/run-tool-scaffold-gate.sh`:
+
+1. Archive DOC + manifest + template + `xlang-new.sh`（拒顶层 DOC）
+2. Manifest rules／template／script／hook 锚点硬绿
+3. Native xlang：scaffold hook + `xlang-new` 硬跑；缺 native／显式坏 XLANG 硬 die
+
+---
 
 **TOOL-006 状态：定版 ✅**

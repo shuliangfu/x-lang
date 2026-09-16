@@ -1,64 +1,80 @@
 #!/usr/bin/env bash
-# TST-004：std 模块 sanitizer 夜跑（ASAN heap/channel）
+# TST-004: std module sanitizer nightly (ASAN heap/channel) — honesty soft→硬绿.
 #
-# 用法：./tests/run-tst-004-std-sanitize-nightly.sh
-# 环境：
-#   XLANG_TST004_FAIL_ON_ERROR=1 — 任一案失败则 exit 1（默认）
-set -e
+# Honesty: soft SKIP→OK (no native) + prefer-c + soft auto-make retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die. No-ASAN = skip= (platform N/A) only when
+# invoked standalone; parent gate already classifies non-Linux.
+# Usage: ./tests/run-tst-004-std-sanitize-nightly.sh
+# Env:
+#   XLANG_TST004_FAIL_ON_ERROR=1 — any case fail → exit 1 (default)
+# PLATFORM: LINUX ASAN primary — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/tst-004-std-sanitize.sh
+. tests/lib/tst-004-std-sanitize.sh
 
 MANIFEST="${XLANG_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
-LIB="tests/lib/tst-004-std-sanitize.sh"
-# shellcheck source=tests/lib/tst-004-std-sanitize.sh
-. "$LIB"
-
 [ "${XLANG_TST004_FAIL_ON_ERROR:-1}" = "1" ] && FAIL_ON_ERR=1 || FAIL_ON_ERR=0
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "tst-004-sanitize-nightly FAIL: $*" >&2
+  tst004_sanitize_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
 }
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
   done
-fi
+  return 1
+}
 
 echo "=== TST-004: std sanitizer nightly (ASAN) ==="
 
 if ! safe_leak_asan_ok; then
-  echo "tst-004-sanitize-nightly SKIP: cc missing -fsanitize=address" >&2
-  tst004_sanitize_emit_report skip 0 0 1
+  echo "tst-004-sanitize-nightly SKIP: cc missing -fsanitize=address (platform N/A)" >&2
+  SKIP=1
+  tst004_sanitize_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   exit 0
 fi
 
-if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
-  echo "tst-004-sanitize-nightly SKIP: no native xlang" >&2
-  tst004_sanitize_emit_report skip 0 0 1
-  exit 0
-fi
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
 if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
   export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
 fi
 
-xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-
-OK=0
 FAIL=0
 while IFS=$'\t' read -r item_id kind _anchor src needs_o _notes; do
   [ -z "${item_id:-}" ] && continue
@@ -67,8 +83,10 @@ while IFS=$'\t' read -r item_id kind _anchor src needs_o _notes; do
       tst004_sanitize_ensure_o "${needs_o:--}"
       if tst004_sanitize_run_case "$XLANG_BIN" "$src" "$item_id"; then
         echo "tst-004-sanitize-nightly OK $item_id"
-        OK=$((OK + 1))
+        RUN_OK=$((RUN_OK + 1))
       else
+        echo "tst-004-sanitize-nightly OBS $item_id (ASAN/product residual; refuse soft SKIP→OK)" >&2
+        OBS=$((OBS + 1))
         FAIL=$((FAIL + 1))
       fi
       ;;
@@ -76,12 +94,12 @@ while IFS=$'\t' read -r item_id kind _anchor src needs_o _notes; do
 done < "$MANIFEST"
 
 if [ "$FAIL" -gt 0 ]; then
-  tst004_sanitize_emit_report fail "$OK" "$FAIL" 0
+  tst004_sanitize_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
   if [ "$FAIL_ON_ERR" -eq 1 ]; then
     exit 1
   fi
 else
-  tst004_sanitize_emit_report ok "$OK" 0 0
+  tst004_sanitize_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 fi
 
 echo "tst-004-std-sanitize-nightly OK"

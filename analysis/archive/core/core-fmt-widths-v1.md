@@ -3,6 +3,8 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 关联：`NEXT.md` CORE-010、`core/fmt/mod.x`、`std/fmt/mod.x`
+> **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/.  
+> **Hard-green 2026-08-25:** smoke uses live `fmt_*_to_buf` long names; gate runnable hard-fail (check still observational / paused).
 
 ---
 
@@ -48,6 +50,24 @@
 - 报告：`xlang: [XLANG_CORE_FMT_WIDTHS] status=ok`
 
 ---
+
+
+## Gate
+
+```bash
+./tests/run-core-fmt-widths-gate.sh
+```
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；产品 `-o` 硬绿（或 tip 残＝obs）；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
+
+**gate report**：stdout 须含 `core-fmt-widths gate OK`；失败打印 `core-fmt-widths gate FAIL:` 行。
+
+| 资源 | 路径 |
+|------|------|
+| 本文 | `analysis/archive/core/core-fmt-widths-v1.md` |
+| manifest | `tests/baseline/core-fmt-widths.tsv` |
+
+**状态：定版 ✅（honesty soft→硬绿）**
 
 ## 5. 演进
 

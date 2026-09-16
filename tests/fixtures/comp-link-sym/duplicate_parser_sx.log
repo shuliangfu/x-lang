@@ -1,0 +1,4 @@
+ld: duplicate symbol 'parse_into_buf' in:
+    build_asm/parser_sx.o
+    build_asm/parser.o
+parser_sx multiple definition during bootstrap relink

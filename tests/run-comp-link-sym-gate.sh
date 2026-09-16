@@ -2,10 +2,13 @@
 # COMP-008：链接符号冲突诊断 manifest 门禁
 #
 # 用法：./tests/run-comp-link-sym-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP_LINK_SYM_DOC:-analysis/comp-link-sym-v1.md}"
+DOC="${XLANG_COMP_LINK_SYM_DOC:-analysis/archive/comp/comp-link-sym-v1.md}"
 MANIFEST="${XLANG_COMP_LINK_SYM_MANIFEST:-tests/baseline/comp-link-sym.tsv}"
 PATTERNS="${XLANG_LINK_SYM_PATTERNS:-tests/baseline/comp-link-sym-patterns.tsv}"
 CASES="${XLANG_LINK_SYM_CASES:-tests/baseline/comp-link-sym-cases.tsv}"

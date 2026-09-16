@@ -1,12 +1,13 @@
 # C-08 runtime/driver 迁移盘点（manifest）
 # 列：item_id	layer	file	symbol_or_region	notes
-main_entry	x	main.x	entry()→main_entry	程序入口（C main 转发）
+# honesty 2026-08-24 #4: monofile runtime.from_x.c retired wave321; live = rt_* multi-slice.
+main_entry	x	main.x	main_entry()	程序入口（C main → xlang_forward_main_to_main_entry）
 driver_fmt	x	driver/fmt.x	cmd_fmt	委托 driver_run_fmt C
 driver_check	x	driver/check.x	cmd_check	fmt/check 子命令
 driver_build	x	driver/build.x	cmd_build	build 子命令
 driver_run	x	driver/run.x	cmd_run	run 子命令
 driver_emit	x	driver/emit.x	cmd_emit	-E 烟测路径
 build_policy	x	build.x	build_use_asm_only	根构建策略
-runtime_driver	c	runtime.c	XLANG_USE_X_DRIVER	.x 驱动宏分区
-runtime_pipeline	c	runtime.c	driver_run_compiler_full	asm 链编排仍 C
-runtime_fopen_track	c	runtime.c	fopen(out_path	asm -o 写产物（B-20 track）
+runtime_driver	c	rt_dispatch_impl.from_x.c	XLANG_USE_X_DRIVER	.x 驱动宏分区（live slice）
+runtime_pipeline	c	rt_dispatch_thin_surface.from_x.c	driver_run_compiler_full	asm 链编排入口（live thin）
+runtime_fopen_track	c	rt_run_x_emit.from_x.c	XLANG_USE_X_DRIVER	emit 路径仍受 USE_X_DRIVER 门控

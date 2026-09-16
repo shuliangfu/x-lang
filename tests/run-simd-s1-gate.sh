@@ -1,68 +1,81 @@
 #!/usr/bin/env bash
-# SIMD-S1 门禁：`-target-cpu` 解析 + 宿主机 feature 探测（--print-target-cpu）。
-# 用法：
-#   ./tests/run-simd-s1-gate.sh
-#   XLANG=./compiler/xlang ./tests/run-simd-s1-gate.sh
+# SIMD-S1 gate: -target-cpu parse + host feature probe (--print-target-cpu).
+#
+# Honesty: soft SKIP→OK when no native xlang retired. Prefer product
+# xlang_asm via dod_native_exe; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die. Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-simd-s1-gate.sh
+# 2026-08-27: soft SKIP→OK →硬绿.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-XLANG_BIN="${XLANG:-}"
-case "$XLANG_BIN" in
-  /*) XLANG_ABS="$XLANG_BIN" ;;
-  "") XLANG_ABS="" ;;
-  *) XLANG_ABS="$(pwd)/$XLANG_BIN" ;;
-esac
+PREFIX="${XLANG_SIMD_S1_PREFIX:-xlang: [XLANG_SIMD_S1]}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# 优先选择与宿主机 ABI 匹配的可执行文件（避免 Linux xlang-c 在 macOS 上误选）。
-simd_s1_native_exe() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "simd-s1 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-if [ -z "$XLANG_ABS" ] || ! simd_s1_native_exe "$XLANG_ABS"; then
-  XLANG_ABS=""
-  for cand in ./compiler/xlang_asm ./compiler/xlang; do
-    case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
-    if simd_s1_native_exe "$abs"; then
-      XLANG_ABS="$abs"
-      break
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
   done
-fi
+  return 1
+}
 
 echo "=== SIMD-S1: --print-target-cpu (host probe) ==="
-
-if [ -z "$XLANG_ABS" ] || ! simd_s1_native_exe "$XLANG_ABS"; then
-  echo "simd-s1 gate SKIP (no native xlang/xlang_asm)"
-  exit 0
-fi
+XLANG_ABS="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_ABS"
+export XLANG_LINK_XLANG="$XLANG_ABS"
 
 OUT="$(mktemp)"
-trap 'rm -f "$OUT"' EXIT
+GEN_OUT="$(mktemp)"
+trap 'rm -f "$OUT" "$GEN_OUT"' EXIT
 
 if ! "$XLANG_ABS" --print-target-cpu >"$OUT" 2>&1; then
-  echo "simd-s1 FAIL: --print-target-cpu exit non-zero" >&2
-  cat "$OUT" >&2
-  exit 1
+  die "--print-target-cpu exit non-zero"
 fi
 
 if ! grep -q '^target_cpu_features=0x' "$OUT"; then
-  echo "simd-s1 FAIL: missing target_cpu_features line" >&2
-  cat "$OUT" >&2
-  exit 1
+  die "missing target_cpu_features line"
 fi
 
 if ! grep -q '^target_cpu_host_features=0x' "$OUT"; then
-  echo "simd-s1 FAIL: missing target_cpu_host_features line" >&2
-  cat "$OUT" >&2
-  exit 1
+  die "missing target_cpu_host_features line"
 fi
 
 ARCH="$(uname -m 2>/dev/null || echo unknown)"
@@ -75,27 +88,21 @@ echo "simd-s1: host arch=$ARCH features=$FEAT_LINE"
 case "$ARCH" in
   x86_64|amd64)
     if [ "$FEAT_VAL" -eq 0 ]; then
-      echo "simd-s1 FAIL: x86_64 host features=0 (expect at least SSE2)" >&2
-      exit 1
+      die "x86_64 host features=0 (expect at least SSE2)"
     fi
     ;;
   aarch64|arm64)
     NEON_MASK=256
     if [ $((FEAT_VAL & NEON_MASK)) -eq 0 ]; then
-      echo "simd-s1 FAIL: arm64 host missing NEON bit" >&2
-      exit 1
+      die "arm64 host missing NEON bit"
     fi
     ;;
 esac
+RUN_OK=$((RUN_OK + 1))
 
 echo "=== SIMD-S1: -target-cpu generic (baseline subset) ==="
-GEN_OUT="$(mktemp)"
-trap 'rm -f "$OUT" "$GEN_OUT"' EXIT
-
 if ! "$XLANG_ABS" --print-target-cpu -target-cpu generic >"$GEN_OUT" 2>&1; then
-  echo "simd-s1 FAIL: --print-target-cpu -target-cpu generic" >&2
-  cat "$GEN_OUT" >&2
-  exit 1
+  die "--print-target-cpu -target-cpu generic"
 fi
 
 GEN_LINE="$(grep '^target_cpu_features=' "$GEN_OUT" | head -1)"
@@ -103,9 +110,10 @@ GEN_HEX="${GEN_LINE#target_cpu_features=0x}"
 GEN_VAL=$((16#$GEN_HEX))
 
 if [ "$GEN_VAL" -gt "$FEAT_VAL" ]; then
-  echo "simd-s1 FAIL: generic ($GEN_LINE) > native ($FEAT_LINE)" >&2
-  exit 1
+  die "generic ($GEN_LINE) > native ($FEAT_LINE)"
 fi
 
 echo "simd-s1: generic baseline OK ($GEN_LINE <= $FEAT_LINE)"
+RUN_OK=$((RUN_OK + 1))
 echo "simd-s1 gate OK"
+ok_report

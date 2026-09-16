@@ -93,4 +93,4 @@ done
 
 echo "check-7.2-bstrict OK (xlang_asm gen1/gen2: stage2 + lexer + typeck + vec/map/heap + parser/typeck dogfood)"
 echo "bootstrap-verify-bstrict OK"
-echo "bootstrap-verify OK (B-strict primary; seed path: make bootstrap-verify-seed)"
+echo "bootstrap-verify OK (B-strict primary; shell: ./xbuild bootstrap-verify)"

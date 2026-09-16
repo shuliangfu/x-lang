@@ -12,7 +12,10 @@
  * moved to .x (thin); this file now provides _impl OS bridge implementations
  * only, with cold-mode fallback wrappers under #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X.
  *
- * PLATFORM: SHARED (Windows BCrypt / Linux getrandom / macOS getentropy)
+ * PLATFORM: SHARED Cap (9.1.6)
+ *
+ * Cap residual 9.1.6: SHARED Cap convergence (Linux raw syscall getrandom /
+ * Darwin raw syscall getentropy / Windows BCrypt via xlang_random_cap.h; no libc).
  */
 
 #include <stdint.h>
@@ -28,22 +31,8 @@ int32_t random_fill_bytes_c(uint8_t *buf, int32_t len);
 #include <bcrypt.h>
 #include <synchapi.h>
 #pragma comment(lib, "bcrypt.lib")
-#elif defined(__linux__)
-#include <sys/random.h>
-#include <errno.h>
-#else
-#if defined(__APPLE__)
-#include <sys/random.h>
-#else
-/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW.
- * macOS/Linux delegate to system <unistd.h> via #include_next. */
-#include <unistd.h>
 #endif
-#include <errno.h>
-#ifndef GETENTROPY_MAX
-#define GETENTROPY_MAX 256
-#endif
-#endif
+#include <xlang_random_cap.h>
 
 /* ========== random_get_alg_impl (Windows: BCrypt lazy init; non-Windows: stub) ========== */
 #if defined(_WIN32) || defined(_WIN64)
@@ -81,44 +70,15 @@ void *random_get_alg(void) {
 #endif
 
 /* ========== random_fill_bytes_impl ========== */
+/**
+ * OS bridge: fill buffer with CSPRNG bytes via unified Cap xlang_random_fill_bytes.
+ * Windows: BCryptGenRandom (xlang_random_cap.h)
+ * Linux: Cap raw syscall getrandom (xlang_random_cap.h, no libc)
+ * Darwin: Cap raw syscall getentropy (xlang_random_cap.h, no libc)
+ * PLATFORM: SHARED Cap (9.1.6)
+ */
 int32_t random_fill_bytes_impl(uint8_t *buf, int32_t len) {
-    if (!buf || len < 0) return -1;
-    if (len == 0) return 0;
-
-#if defined(_WIN32) || defined(_WIN64)
-    {
-        BCRYPT_ALG_HANDLE alg = random_get_alg_impl();
-        if (!alg) return -1;
-        return (BCryptGenRandom(alg, buf, (ULONG)(size_t)len, 0) == 0) ? len : -1;
-    }
-#elif defined(__linux__)
-    {
-        size_t done = 0;
-        size_t want = (size_t)len;
-        while (done < want) {
-            ssize_t n = getrandom(buf + done, want - done, 0);
-            if (n < 0) {
-                if (errno == EINTR) continue;
-                return (int32_t)(done > 0 ? (int32_t)done : -1);
-            }
-            done += (size_t)n;
-        }
-        return len;
-    }
-#else
-    {
-        size_t done = 0;
-        size_t total = (size_t)len;
-        while (done < total) {
-            size_t chunk = total - done;
-            if (chunk > (size_t)GETENTROPY_MAX) chunk = (size_t)GETENTROPY_MAX;
-            if (getentropy(buf + done, chunk) != 0)
-                return (int32_t)(done > 0 ? (int32_t)done : -1);
-            done += chunk;
-        }
-        return len;
-    }
-#endif
+    return xlang_random_fill_bytes(buf, len);
 }
 
 #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X

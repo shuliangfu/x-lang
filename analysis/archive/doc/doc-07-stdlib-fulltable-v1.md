@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：STBL-002（`std/README.md`）、CORE-015（core 表）、DOC-006（Cookbook）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

@@ -2,6 +2,8 @@
 # Format: symbol<TAB>kind<TAB>module<TAB>mode<TAB>source_file
 # kind: struct | function ; mode: U1|U2|U3 (LANG-007)
 # Updated: 2026-06-17 (SAFE-002)
+# leftover residual (2026-08-29): leftover accept top-level DOC retired;
+# live = analysis/archive/safe/. TSV identity kept.
 Arena64	struct	std.heap	U1	std/heap/mod.x
 Map_i32_i32	struct	std.map	U1	std/map/mod.x
 Set_i32	struct	std.set	U1	std/set/mod.x

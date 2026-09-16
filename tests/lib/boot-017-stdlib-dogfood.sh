@@ -1,43 +1,59 @@
 #!/usr/bin/env bash
-# boot-017-stdlib-dogfood.sh — BOOT-017：std/core 分模块 check 耗时辅助
+# boot-017-stdlib-dogfood.sh — BOOT-017 helpers for std/core per-module check timing.
 #
-# 用法（source 后）：
+# Honesty (2026-08-27): soft FAIL_ON_REGRESSION / prefer-xlang-c retired.
+# Honesty (2026-08-29): residual XLANG fallthrough retired — explicit-bad
+# XLANG no longer continues to xlang_asm. Prefer product asm; pin
+# XLANG_LINK_XLANG via callers. Report run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
+#
+# Usage (source):
 #   boot017_resolve_shu
 #   boot017_list_modules MATRIX_TSV
-#   boot017_emit_report status modules slow p50 p95 skip
+#   boot017_emit_report status modules slow p50 p95 skip [run] [obs]
 
 BOOT017_PREFIX="${XLANG_BOOT017_PREFIX:-xlang: [XLANG_BOOT017_STDLIB_DOGFOOD]}"
 
-# 判断 xlang 是否可在本机执行。
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/dod-native-exe.sh"
+
+# G.7: native exe check converges on dod_native_exe (single authority).
 boot017_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+  dod_native_exe "$1"
 }
 
-# 解析 check 用 xlang（优先 xlang-c）。
+# Prefer product asm; refuse prefer-c / soft auto-make / XLANG fallthrough.
+# Explicit XLANG that is missing or non-native returns 1 (caller hard-dies).
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
 boot017_resolve_shu() {
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if boot017_native_xlang "$cand"; then
-      echo "$cand"
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
       return 0
     fi
   done
-  if [ -n "${XLANG:-}" ] && boot017_native_xlang "$XLANG"; then
-    echo "$XLANG"
-    return 0
-  fi
   return 1
 }
 
-# 从 BOOT-013 矩阵列出 module 行（module_id layer）；每行一个模块。
+# List module rows from BOOT-013 matrix (module_id\tlayer).
 boot017_list_modules() {
   local tsv="$1"
   while IFS=$'\t' read -r item_id kind anchor layer _notes; do
@@ -48,7 +64,7 @@ boot017_list_modules() {
   done < "$tsv"
 }
 
-# 输出结构化报告行。
+# Emit structured report line (gate greps PREFIX).
 boot017_emit_report() {
   local status="$1"
   local modules="$2"
@@ -56,5 +72,7 @@ boot017_emit_report() {
   local p50="$4"
   local p95="$5"
   local skip="$6"
-  echo "${BOOT017_PREFIX} status=${status} modules=${modules} slow=${slow} p50=${p50} p95=${p95} skip=${skip}"
+  local run="${7:-0}"
+  local obs="${8:-0}"
+  echo "${BOOT017_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip} modules=${modules} slow=${slow} p50=${p50} p95=${p95}"
 }

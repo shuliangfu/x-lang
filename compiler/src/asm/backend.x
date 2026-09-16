@@ -22,7 +22,6 @@
 // Future (7.3): simple register allocation to reduce fixed rax/rbx push/pop;
 // peephole to merge adjacent mov/arith.
 
-// ï¼åå°åºå® rax/rbx å¸¦æ¥ç push/popï¼çª¥å­å¯åå¹¶ç¸é» mov/ç®æ¯ã
 
 const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
@@ -96,41 +95,37 @@ export extern "C" function enc_dispatch_backend_enc_sub_rbx_rax_then_mov_arch(el
 export extern "C" function enc_dispatch_backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function enc_dispatch_backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
-/** è¯æ­ï¼asm ä¸æ¯æç ExprKind æ¶ç± runtime.c æå°ï¼ä¾¿äºå®ä½ rc=-6ã */
+/** Diagnostic: print unsupported ExprKind from runtime (helps locate rc=-6). */
 export extern function driver_diagnostic_asm_unsupported_expr(kind: i32): void;
-/** C æ¡©ï¼å° imm32 è£
-å
-¥ w0/eax/a0ï¼ä¸åå° epilogueï¼é¿å
-ä¸ enc_ret_imm32 å¨ arm64 ä¸æå retï¼ã */
+/** C stub: move imm32 into w0/eax/a0 without emitting epilogue
+ * (avoids early ret vs enc_ret_imm32 on arm64).
+ */
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32;
-/** è¯æ­ï¼return -1 åè°ç¨ï¼loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue 9=tail_join_labelã */
+/** Diagnostic before return -1; loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue 9=tail_join_label. */
 export extern function driver_diagnostic_asm_fail_at(loc: i32): void;
-/** è¯æ­ï¼è®°å½å½åæ­£å¨ emit ç ExprKind åºæ°ï¼ä¾ fail_at æ¶æå°ã */
+/** Diagnostic: record ExprKind ordinal currently being emitted (printed by fail_at). */
 export extern function driver_diagnostic_asm_set_last_expr_kind(k: i32): void;
-/** è¯æ­ï¼EXPR_VAR æªæ¾å°æ¶è°ç¨ï¼first_slot/first_len ä¸º ctx é¦æ§½åï¼num_locals>0 æ¶ä¼  asm_ctx_local é¦æ§½ï¼ã */
+/** Diagnostic: EXPR_VAR not found; first_slot/first_len = ctx first slot name (pass asm_ctx_local first when num_locals>0). */
 export extern function driver_diagnostic_asm_var_not_found(name: *u8, name_len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
-/** è¯æ­ï¼æ¯å½æ° codegen åè®¾ç½®å½åå½æ°åï¼ä¾ var_not_found æå°ã */
+/** Diagnostic: set current function name before each function codegen (for var_not_found). */
 export extern function driver_diagnostic_asm_set_current_func(name: *u8, name_len: i32): void;
 /* See implementation. */
 export extern function driver_freestanding_get(): i32;
-/** build_xlang_asmï¼å¤§æ¨¡åæ¡© emit å¤å®ï¼ast_pool.cï¼é¡»å
- asm_skip_heavy_set_pipeline_ctxï¼ã */
+/** build_xlang_asm: heavy-module emit gate (runtime_pipeline_abi; call asm_skip_heavy_set_pipeline_ctx first). Historical ast_pool.c left wave309. */
 export extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTArena, func_index: i32): i32;
-/** XLANG_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
+/** XLANG_ASM_START_FUNC: skip emit for the first N functions of the module (debug). */
 export extern function asm_diag_start_func_skip(): i32;
-/** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå
-¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
+/** parser_gen / C ABI: write cur_mod import i logical path into out_buf (max 64 bytes, NUL-terminated). */
 export extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: u8[128]): void;
 export extern function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
-/** codegenï¼é¨å std/c shim è°ç¨å¨ AST ä¸­ä¸çå® C ååå®åä¸ªæ°ä¸ä¸è´ï¼ç± codegen.x æ ¡æ­£ã */
+/** codegen: some std/c shim calls in AST disagree with real C prototype arity; codegen.x corrects. */
 export extern function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32;
-/** Module import è·¯å¾/ç»å® sidecarï¼ast_pool.cï¼ã */
+/** Module import path/binding sidecar (runtime_pipeline_abi). Historical ast_pool.c left wave309. */
 export extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
 /**
- * å° module é¡¶å± let/const æåºå¹¶å
-¥ main å½æ°ä½ï¼åå
- letï¼ï¼ä¾ asm å¨æ æ§½åå§åã
- * ä¸ C codegen ç static+init_globals ç­ä»·ï¼é¡»å¨ asm_codegen_ast* ç¼å½æ°åè°ç¨ï¼ast_pool.cï¼ã
+ * Hoist module top-level let/const into main as block lets for asm stack init.
+ * Equivalent to C codegen static+init_globals; call before asm_codegen_ast*.
+ * G.7: runtime_pipeline_abi (historical ast_pool.c left wave309).
  */
 export extern function pipeline_module_hoist_top_level_lets_into_main(module: *Module, arena: *ASTArena): void;
 
@@ -150,7 +145,7 @@ export extern function pipeline_module_import_path_byte_at(module: *Module, idx:
 export extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
 export extern function pipeline_module_import_binding_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx: i32, off: i32): u8;
-/** Expr call/match/struct_lit/array_lit sidecarï¼ast_pool.cï¼ã */
+/** Expr call/match/struct_lit/array_lit sidecar (runtime_pipeline_abi). Historical ast_pool.c left wave309. */
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -182,17 +177,15 @@ export extern function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *AST
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 export extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
-/** è¯» binop å­è¡¨è¾¾å¼ refï¼å¿ç¨ ast_arena_expr_get å e.binop_*ï¼èªä¸¾ asm ä¸å­æ®µæè£ï¼return 1+2 ä»
-å¾ 1ï¼ã */
+/** Read binop child expr refs; do not use ast_arena_expr_get then e.binop_* (self-host asm field tear; 1+2 would become 1). */
 export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *ASTArena, expr_ref: i32): i32;
-/** C åæ­¥åä½ stmt_order åå°ï¼pipeline_glue.cï¼å¿å¨ X å
- while æ« stmt_orderï¼ã */
+/** C-synced block-body stmt_order emit (runtime_pipeline_abi / backend seed; do not scan stmt_order in X while). Historical pipeline_glue.c left wave309. */
 export extern function backend_emit_block_body_sync_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 /* See implementation. */
-export extern function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module): i32;
+export extern function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_fill_param_slots(ctx: *AsmFuncCtx, mod: *Module, func_index: i32): void;
 /* See implementation. */
 export extern function pipeline_asm_emit_param_home_elf_c(elf_ctx: *ElfCodegenCtx, ctx: *AsmFuncCtx, mod: *Module, func_index: i32, ta: i32): i32;
@@ -257,14 +250,11 @@ export extern function pipeline_backend_asm_codegen_ast_c(module: *Module, arena
 export extern function pipeline_backend_asm_codegen_ast_to_elf_c(module: *Module, arena: *ASTArena, elf_ctx: *ElfCodegenCtx, pipeline_ctx: *PipelineDepCtx): i32;
 /* See implementation. */
 export extern function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *ASTArena, cur_mod: *Module, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32;
-/** Block ä¾§è½¦å­æ®µç» C è¯»ï¼é¿å
- ast_arena_block_get æè£ num_stmt_order / final_expr_refã */
+/** Block sidecar fields via C readers; avoid ast_arena_block_get tearing num_stmt_order / final_expr_ref. */
 export extern function pipeline_asm_block_num_stmt_order_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_asm_block_final_expr_ref_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_asm_block_stmt_order_has_return(arena: *ASTArena, block_ref: i32): i32;
-/** äºå
-å·¦/å³å­è¡¨è¾¾å¼ refï¼emit_expr* å
-ç»ä¸ç» glue è¯»åï¼ã */
+/** Binary left/right child expr refs (emit_expr* reads uniformly via glue). */
 export function asm_expr_binop_left(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -283,16 +273,14 @@ export function asm_expr_binop_right(arena: *ASTArena, expr_ref: i32): i32 {
     return pipeline_expr_binop_right_ref_at(arena, expr_ref);
   }
 }
-/** Block sidecarï¼ast.x èå°è£
- + pipeline_block_*ï¼ã */
+/** Block sidecar (ast.x thin wrappers + pipeline_block_*). */
 export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
 export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_const_init_ref(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
 export extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
 export extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li: i32): i32;
-/** asm ä¸»å¾ªç¯è¯» Func æ± ï¼pipeline_glue.c è½¬åï¼é¿å
- codegen_ åç¼ï¼ã */
+/** Asm main-loop Func pool readers (runtime_pipeline_abi forwarders; avoid codegen_ prefix). Historical pipeline_glue.c left wave309. */
 export extern function pipeline_asm_module_func_is_extern_at(mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_module_func_body_ref_at(mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_module_func_name_len_at(mod: *Module, func_index: i32): i32;
@@ -301,14 +289,20 @@ export extern function pipeline_asm_module_func_num_params_at(mod: *Module, func
 export extern function pipeline_asm_module_func_param_name_len_at(mod: *Module, func_index: i32, param_index: i32): i32;
 export extern function pipeline_asm_module_func_param_name_copy32(mod: *Module, func_index: i32, param_index: i32, dst: *u8): void;
 export extern function pipeline_asm_get_return_expr_ref_at(arena: *ASTArena, module: *Module, func_index: i32): i32;
-/** import éå®ç¬¦å· field å± scratchï¼ast_pool.cï¼ä¸ typeck.x å
-±ç¨ï¼ã */
+/* Declared in backend_call_dispatch.x; used by the implicit-tail f64 return
+ * conversion (AAPCS64 boundary wave). Same authority, extern re-declaration. */
+export extern function pipeline_module_func_return_type_at(m: *u8, fi: i32): i32;
+/* fmov dK, x0 dispatcher; defined alongside the other backend_enc_*_arch
+ * dispatchers (backend_enc_dispatch seed object). Single authority — no new
+ * encoder body here. */
+export extern function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+/** Import-qualified symbol field-layer scratch (runtime_pipeline_abi; shared with typeck.x). Historical ast_pool.c left wave309. */
 export extern function asm_qual_sym_layer_reset(): void;
 export extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
 export extern function asm_qual_sym_layer_count(): i32;
 export extern function asm_qual_sym_layer_len(i: i32): i32;
 export extern function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
-/** AsmFuncCtx å±é¨æ§½ sidecarï¼ast_pool.cï¼é® = ctx æéï¼ã */
+/** AsmFuncCtx local-slot sidecar (runtime_pipeline_abi; key = ctx pointer). Historical ast_pool.c left wave309. */
 export extern function asm_ctx_local_reset(ctx: *u8): void;
 export extern function asm_ctx_local_count(ctx: *u8): i32;
 export extern function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
@@ -319,8 +313,7 @@ export extern function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 
-/** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æ
-ç¨åæ¯æ¾å¼æ å°ã */
+/** Map ExprKind to ordinal (0..60) for diagnostics; typeck lacks enum-as-i32, so branch-map explicitly. */
 export function expr_kind_ordinal(k: ExprKind): i32 {
   let o: i32 = k as i32;
   let lo: i32 = ExprKind.EXPR_LIT as i32;
@@ -332,13 +325,12 @@ export function expr_kind_ordinal(k: ExprKind): i32 {
 }
 
 /**
- * æ¯å¦ä¸ºç©ºçæ°ç»å­é¢é []ï¼é¶å
-ç´ ï¼ã
- * let buf: T[N] = [] æ¶è·³è¿ emit/storeï¼ç±æ æ§½å°åç´æ¥ä½ä¸º buf é¦åï¼INDEX èµ° VAR+LEAï¼ã
+ * True when init is empty array literal [] (zero elements).
+ * For `let buf: T[N] = []`, skip emit/store; stack-slot address is buf base (INDEX uses VAR+LEA).
  */
 /**
- * å·¦å¨ raxãå³ä¸ºç«å³æ°å¨ rbx æ¶ enc_cmp_setcc ä½¿ç¨ cmp w1,w0ï¼
- * å° left OP right ç lt/le/gt/ge æ¡ä»¶ç å¯¹è°ï¼eq/ne ä¸åï¼ã
+ * When left is in rax and immediate right is in rbx, enc_cmp_setcc uses cmp w1,w0;
+ * swap lt/le/gt/ge condition codes for left OP right (eq/ne unchanged).
  */
 export function asm_cmp_cc_when_rhs_imm_in_rbx(cc: i32): i32 {
   if (cc == 2) { return 4; }
@@ -428,9 +420,7 @@ export function enc_mov_imm32_to_rbx_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, t
     return backend_enc_dispatch.backend_enc_mov_imm32_to_rbx_arch(elf_ctx as *u8, imm32, ta);
   }
 }
-/** å° 64 ä½ç«å³æ°è£
-å
-¥ rax/x0ï¼ç¨äº EXPR_FLOAT_LITï¼double ä½æ¨¡å¼ï¼ã */
+/** Move 64-bit immediate into rax/x0; used by EXPR_FLOAT_LIT (double bit pattern). */
 export function enc_mov_imm64_to_rax_arch(elf_ctx: *ElfCodegenCtx, lo: i32, hi: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -485,8 +475,7 @@ export function enc_add_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
     return backend_enc_dispatch.backend_enc_add_rax_rbx_arch(elf_ctx as *u8, ta);
   }
 }
-/** w0/eax = w0 - w1ï¼å·¦å¨ w0ãå³/ç«å³æ°å¨ w1ï¼ï¼ä»
- arm64 æ enc_sub_rax_rbxï¼x86/rv èµ° C glueã */
+/** w0/eax = w0 - w1 (left in w0, right/imm in w1); arm64 has enc_sub_rax_rbx, x86/rv via C glue. */
 export function enc_sub_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -661,8 +650,7 @@ export function enc_mov_edx_to_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
     return backend_enc_dispatch.backend_enc_mov_edx_to_eax_arch(elf_ctx as *u8, ta);
   }
 }
-/** MODï¼arm64 ç¨ sdiv+msubï¼å¿å
- idiv è¦çè¢«é¤æ°ï¼ï¼x86 ä¸º cltd+idiv+edxâeaxã */
+/** MOD: arm64 uses sdiv+msub (do not let idiv clobber dividend); x86 is cltd+idiv+edx->eax. */
 export function enc_rem_mod_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -777,8 +765,7 @@ export function enc_cmp_w0_imm12_arch(elf_ctx: *ElfCodegenCtx, imm12: i32, ta: i
     return backend_enc_dispatch.backend_enc_cmp_w0_imm12_arch(elf_ctx as *u8, imm12, ta);
   }
 }
-/** ä»
- cset å° w0ï¼é¡»å·² cmpï¼ã */
+/** Only cset into w0 (cmp must already have run). */
 export function enc_cset_w0_from_cc_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -851,8 +838,8 @@ export function enc_lea_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta
   }
 }
 /**
- * å±é¨æ§½æ¯å¦ä¸ºãæå temp åºå¯¹è±¡ãç 8 å­èæéï¼ARRAY_LIT / STRUCT_LIT åå¼ï¼ã
- * INDEX / FIELD_ACCESS åºåºä¸º VAR æ¶é¡» load è¯¥æéï¼ä¸è½ lea æ§½åã
+ * Whether a local slot is an 8-byte pointer to a temp-area object (ARRAY_LIT / STRUCT_LIT init).
+ * INDEX / FIELD_ACCESS with VAR base must load that pointer; do not lea the slot address.
  */
 export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var: Expr, mod: *Module): i32 {
 
@@ -886,9 +873,9 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var
 }
 
 /**
- * ELFï¼å±é¨ VAR ä¸ºæéæ¶ç¨ loadï¼æ§½å
-å«æåå¯¹è±¡çå°åï¼ï¼å¦å leaï¼æ§½å³å¯¹è±¡/æ°ç»é¦ï¼ã
- * ä¸ text è·¯å¾ arch_emit_local_slot_ptr_or_addr ä¸è´ã
+ * ELF: when local VAR is a pointer, load (slot holds object address); else lea (slot is object/array base).
+ * Matches text path arch_emit_local_slot_ptr_or_addr.
+ */
  */
 export function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
@@ -908,22 +895,21 @@ export function enc_rax_plus_rbx_scale4_arch(elf_ctx: *ElfCodegenCtx, ta: i32): 
     return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale4_arch(elf_ctx as *u8, ta);
   }
 }
-/** INDEX åç§»ï¼rbxÃ1ï¼u8ï¼ã */
+/** INDEX scale: rbx*1 (u8). */
 export function enc_rax_plus_rbx_scale1_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale1_arch(elf_ctx as *u8, ta);
   }
 }
-/** INDEX åç§»ï¼rbxÃ8ï¼æé/å®½æ´ï¼ã */
+/** INDEX scale: rbx*8 (pointer / wide int). */
 export function enc_rax_plus_rbx_scale8_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale8_arch(elf_ctx as *u8, ta);
   }
 }
-/** å° rax å­å
-¥ [rbx]ï¼å®½åº¦ elem_sz â {1,4,8}ï¼INDEX èµå¼ï¼ã */
+/** Store rax to [rbx]; width elem_sz in {1,4,8} (INDEX assign). */
 export function enc_store_rax_to_rbx_indirect_arch(elf_ctx: *ElfCodegenCtx, elem_sz: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -942,7 +928,7 @@ export function enc_load_32_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32
     return backend_enc_dispatch.backend_enc_load_32_from_rax_arch(elf_ctx as *u8, ta);
   }
 }
-/** u8 INDEX è¯»åºï¼movzbl/ldrb/lbuï¼é¶æ©å±ä¸ºç®æ å¯å­å¨ï¼ã */
+/** u8 INDEX load: movzbl/ldrb/lbu (zero-extend into destination register). */
 export function enc_load_zext8_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -1014,14 +1000,14 @@ export function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: 
     return backend_enc_dispatch.backend_enc_jz_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
-/** cmp åæç¸ç­åæ¯ï¼match èï¼ï¼arm64 ä¸º beqï¼x86 ä¸º jeã */
+/** After cmp, branch on equal (match arm); arm64 beq, x86 je. */
 export function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return backend_enc_dispatch.backend_enc_jeq_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
-/** cmp å i>=n åæ¯ï¼è®¡æ° while ä¼åï¼ï¼arm64 b.ge / x86 jge / riscv bge a0,a1ã */
+/** After cmp, branch when i>=n (counted-while opt); arm64 b.ge / x86 jge / riscv bge a0,a1. */
 export function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -1084,44 +1070,42 @@ export function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: u8[128], name_len: 
   }
 }
 
-/** å½åå½æ°ä¸ä¸æï¼æ å¸§å¤§å°ãå±é¨åéè¡¨ï¼sidecarï¼ãæ ç­¾è®¡æ°å¨ï¼å¾ªç¯æ¶å¡«å
-¥ break/continue ç®æ æ ç­¾æ ï¼
- * æ°å¢å­æ®µåä¸ C/driver å¯¹é½æ¶å
-è®¸ç¼è¯å¨å°¾é paddingï¼typeck padding é¨ç¦ï¼ã */
+/** Current function context: frame size, local table (sidecar), label counter;
+ * loop break/continue target stacks; trailing padding OK when aligning new fields with C/driver (typeck padding gate).
+ */
 allow(padding) struct AsmFuncCtx {
   frame_size: i32;
   next_offset: i32;
   num_locals: i32;
   label_counter: i32;
-  /** å½å codegen æå±æ¨¡åæéï¼ç¨äº FIELD_ACCESS å¤æ­å
-·åå­æ®µæ¯å¦ä¸º struct_layout ä¸­çèåç±»åï¼ä¸çº¯æä¸¾åºåï¼ãä¸ºç©ºæ¶ææ§è¡ä¸ºéå 64 ä½å è½½ã */
+  /** Module under codegen; FIELD_ACCESS uses it to tell aggregate struct_layout fields from plain enums. Null → legacy 64-bit load. */
   module_ref: *Module;
-  /** åµå¥å¾ªç¯ break æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
+  /** Nested-loop break label stack: 8 levels × 64 bytes = 512 bytes. */
   loop_break_label_stack: u8[512];
   loop_break_len_stack: i32[8];
-  /** åµå¥å¾ªç¯ continue æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
+  /** Nested-loop continue label stack: 8 levels × 64 bytes = 512 bytes. */
   loop_continue_label_stack: u8[512];
   loop_continue_len_stack: i32[8];
-  /** å½åçæç break/continue æ ç­¾ï¼æ é¡¶ï¼ï¼ä¾ EXPR_BREAK/EXPR_CONTINUE å¿«éè¯»åã */
+  /** Active break/continue labels (stack top); fast path for EXPR_BREAK/EXPR_CONTINUE. */
   break_label: u8[128];
   break_len: i32;
   continue_label: u8[128];
   continue_len: i32;
-  /** å¾ªç¯æ ç­¾æ æ·±åº¦ï¼push æ¶ d>=8 åå¤±è´¥ã */
+  /** Loop-label stack depth; push fails when d>=8. */
   loop_label_depth: i32;
-  /** Pipeline ä¾èµï¼dep_paths / ndepï¼ï¼ä¾ç»å® import è°ç¨ `mod.fn` æ¶ä¸ codegen ä¸è´å°æ¼ç¬¦å·åã */
+  /** Pipeline deps (dep_paths / ndep); bind import calls `mod.fn` with the same symbol spelling as codegen. */
   dep_pipe: *PipelineDepCtx;
-  /** å½æ°å°¾æ±åæ ç­¾ï¼emit_next_label çæï¼ï¼`return;`ï¼æ æä½æ°ï¼å jmp è³æ­¤ï¼åä¸å°¾ return è¡¨è¾¾å¼ãepilogue è¡æ¥ã */
+  /** Function tail-join label (from emit_next_label): bare `return;` jmps here, then joins tail return expr + epilogue. */
   tail_join_label: u8[128];
   tail_join_label_len: i32;
 }
 
-/** å° AsmFuncCtx æéè½¬ä¸º asm_ctx_local_* sidecar é®ï¼*u8ï¼ã */
+/** Cast AsmFuncCtx pointer to asm_ctx_local_* sidecar key (*u8). */
 export function asm_ctx_key(ctx: *AsmFuncCtx): *u8 {
   return ctx as *u8;
 }
 
-/** åç¼ä¸º ASCII ãbuild_ãï¼6 å­èï¼ä¸ name å·²å«æ­¤åç¼æ¶è¿å 1ï¼ä¸ codegen_c_prefix_redundant_with_name å¯¹é½ã */
+/** Return 1 when prefix is ASCII "build_" (6 bytes) and name already contains it; mirrors codegen_c_prefix_redundant_with_name. */
 export function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
   if (prefix == 0 as *u8 || name == 0 as *u8) {
     return 0;
@@ -1145,8 +1129,7 @@ export function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, n
   return 1;
 }
 
-/** å° C åç¼å­èä¸å­æ®µåæ¼æè³å¤ 63 å­èç call ç¬¦å·åå
-¥ out_nameï¼æåè¿åé¿åº¦ï¼1..63ï¼ï¼å¤±è´¥ -1ã */
+/** Concat C prefix bytes + field name into out_name (max 63); return length 1..63 on success, -1 on failure. */
 export function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -1154,7 +1137,7 @@ export function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_
   }
 }
 
-/** import è·¯å¾ç¼å²åºä¸­ '.' åæ®µæ°ï¼ä¸ typeck_import_path_segment_count ä¸è´ï¼ã */
+/** Number of "." segments in import path buffer (matches typeck_import_path_segment_count). */
 export function asm_import_path_segment_count_local(path: *u8, path_len: i32): i32 {
   if (path_len <= 0 || path == 0 as *u8) {
     return 0;
@@ -1170,7 +1153,7 @@ export function asm_import_path_segment_count_local(path: *u8, path_len: i32): i
   return n;
 }
 
-/** æ¯è¾ module ç¬¬ imp_ix æ¡ import è·¯å¾åç [off..off+seg_len) ä¸å¤é¨å­èåºåæ¯å¦ç¸ç­ã */
+/** Compare module import imp_ix path slice [off..off+seg_len) to an external byte sequence. */
 export function asm_import_path_slice_equal(module: *Module, imp_ix: i32, off: i32, seg_len: i32, nm: *u8, nm_len: i32): bool {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1190,7 +1173,7 @@ export function asm_import_path_slice_equal(module: *Module, imp_ix: i32, off: i
   }
 }
 
-/** æ¯è¾ import ç»å®åä¸å¤é¨å­èåºåæ¯å¦ç¸ç­ã */
+/** Compare import binding name to an external byte sequence. */
 export function asm_import_binding_name_equal(module: *Module, imp_ix: i32, nm: *u8, nm_len: i32): bool {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1211,8 +1194,7 @@ export function asm_import_binding_name_equal(module: *Module, imp_ix: i32, nm: 
   }
 }
 
-/** pipeline_module_import_path å
-ç¬¬ want_seg æ®µèµ·ç¹åç§»ä¸é¿åº¦ï¼ä¸ typeck_import_segment_at ä¸è´ï¼ã */
+/** Start offset and length of the want_seg-th segment in pipeline_module_import_path (aligned with typeck_import_segment_at). */
 export function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_seg: i32,
   ostr: *i32, olen: *i32): bool {
 
@@ -1256,8 +1238,9 @@ export function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_s
   }
 }
 
-/** å°æ­£å¨ codegen ç module å¨ç¬¬ imp_ix æ§½ç import é»è¾è·¯å¾è½¬æ C ABI åç¼åå
-¥ pre_bufï¼æåè¿ååç¼é¿åº¦ï¼å­èï¼ï¼è·¯å¾ç©ºæåç¼ç©ºè¿å -1ã */
+/** Convert cur_mod import[imp_ix] logical path to a C ABI prefix into pre_buf.
+ * @return i32 — prefix byte length on success; -1 if path/prefix empty.
+ */
 export function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i32, pre_buf: *u8): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1280,18 +1263,14 @@ export function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i
   }
 }
 
-/** è¥ä¸º `import a.bâ¦` + `a.bâ¦.method(args)` å½¢å¼ï¼æ¼è£
-ä¸ codegen ä¸è´ç C ABI ç¬¦å·å¹¶åå
-¥ sym_flatï¼è¿åå­èé¿åº¦ï¼-1 æªå¹é
-ã
- * æåæ¶åæ¶å°å¯¹åº module import æ§½ä¸æ åå
-¥ *out_match_imp_jã
- * pipe ä»
-ä¿çåæ°å
-¼å®¹ï¼åç¼ä¸å¾ä» cur_mod ç import æ§½åè·¯å¾ï¼codegen dep æ¨¡åæ¶ PipelineDepCtx.ndep å¸¸ä¸ºå
-¥å£ direct ä¾èµæ°ï¼
- * ä¸ cur_mod.num_imports ä¸ä¸è´ï¼ä¸å¯ç¨ dep_j &lt; pipe.ndep æªæ­æ¥æ¾ï¼ãæªå¹é
-ä¸å *outã */
+/** Resolve `import a.b…` + `a.b….method(args)` into a codegen-aligned C ABI symbol in sym_flat.
+ * @param sym_flat *u8 — out buffer; returns byte length, or -1 on miss.
+ * On success also writes the matching module import slot index to *out_match_imp_j.
+ * `pipe` is retained for ABI capacity: prefix always comes from cur_mod import path
+ * (PipelineDepCtx.ndep is often the entry direct-dep count under codegen dep modules and
+ * need not match cur_mod.num_imports — do not use dep_j < pipe.ndep as a miss filter).
+ * On miss leave *out unchanged.
+ */
 export function asm_resolve_whole_import_qualified_symbol(
   arena: *ASTArena, cur_mod: *Module, pipe: *PipelineDepCtx, callee_expr_ref: i32, sym_flat: *u8,
   out_match_imp_j: *i32): i32 {
@@ -1340,8 +1319,7 @@ export function asm_emit_call_args_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx
 }
 
 
-/** æ¯è¾ä¸¤æ®µæ è¯ç¬¦å­èåºåæ¯å¦ç¸ç­ï¼ä¸ typeck.name_equal ç­ä»·ï¼ä¾ asm å
-æ¥ struct_layoutï¼ã */
+/** Compare two identifier byte sequences for equality (same role as typeck.name_equal; used by asm struct_layout lookup). */
 export function asm_names_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   if (a_len != b_len || a_len <= 0) {
     return false;
@@ -1393,8 +1371,8 @@ export function asm_module_named_type_has_struct_layout(module: *Module, name: *
 }
 
 /**
- * FIELD_ACCESS å¨ effective address [rax+x0]+offset å¤åºå è½½çå­èå®½åº¦ã
- * module_ref ä¸ºç©ºæ¶éå 8 å­èä»¥ä¿æåå²è¡ä¸ºã
+ * Byte width to load at FIELD_ACCESS effective address [rax/x0]+offset.
+ * When module_ref is null, fall back to 8 bytes to preserve historical behavior.
  */
 export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: i32, module: *Module): i32 {
 
@@ -1413,8 +1391,11 @@ export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: 
     if (kind == TypeKind.TYPE_U8 as i32) {
       return 1;
     }
-    if (kind == TypeKind.TYPE_PTR as i32 || kind == TypeKind.TYPE_I64 as i32 || kind == TypeKind.TYPE_U64 as i32
-        || kind == TypeKind.TYPE_USIZE as i32 || kind == TypeKind.TYPE_ISIZE as i32 || kind == TypeKind.TYPE_F64 as i32) {
+    /* 10.3.3: TYPE_FN shares Cap-fn-ptr opaque ABI — 8-byte field load. */
+    if (kind == TypeKind.TYPE_PTR as i32 || kind == TypeKind.TYPE_FN as i32
+        || kind == TypeKind.TYPE_I64 as i32 || kind == TypeKind.TYPE_U64 as i32
+        || kind == TypeKind.TYPE_USIZE as i32 || kind == TypeKind.TYPE_ISIZE as i32
+        || kind == TypeKind.TYPE_F64 as i32) {
       return 8;
     }
     if (kind == TypeKind.TYPE_NAMED as i32 && module != 0 as *Module) {
@@ -1428,8 +1409,7 @@ export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: 
   }
 }
 
-/** éç½®å½æ°ä¸ä¸æï¼ç¨äºæ°å½æ°å¼å§ãmod è®°å
-¥ module_refï¼ä¾ emit_expr FIELD_ACCESS ç­ä½¿ç¨ã */
+/** Reset per-function asm context for a new function. Records mod into module_ref for emit_expr FIELD_ACCESS etc. */
 /** Exported function `ctx_reset`.
  * Implements `ctx_reset`.
  * @param ctx *AsmFuncCtx
@@ -1453,25 +1433,25 @@ export function ctx_reset(ctx: *AsmFuncCtx, mod: *Module): void {
   }
 }
 
-/** æå½¢å + åä¸­ const + let æ°éè®¡ç®æ å¸§å¤§å°ï¼æ¯æ§½ 8 å­èï¼åä¸åæ´å° 16ï¼ï¼å¹¶é¢ç 64 å­è temp åºä¾ STRUCT_LIT/ARRAY_LITã */
+/** Compute stack frame size from params + block const/let count (8 bytes/slot, round up to 16), reserving 64-byte temp for STRUCT_LIT/ARRAY_LIT. */
 /** Exported function `compute_frame_size`.
  * Implements `compute_frame_size`.
  * @param num_params i32
  * @param arena *ASTArena
  * @param block_ref i32
  * @param mod *Module
+ * @param func_index i32
  * @return i32
  */
-export function compute_frame_size(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module): i32 {
+export function compute_frame_size(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module, func_index: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return pipeline_asm_compute_frame_size_c(num_params, arena, block_ref, mod);
+    return pipeline_asm_compute_frame_size_c(num_params, arena, block_ref, mod, func_index);
   }
 }
 
 
-/** å°å½æ°çå½¢åå¡«å
-¥ ctx å±é¨ sidecarï¼åç§» 8, 16, 24, ...ï¼ï¼é¡»å¨ fill_local_slots åè°ç¨ã */
+/** Fill function params into ctx local sidecar (offsets 8, 16, 24, …). Must run before fill_local_slots. */
 /** Exported function `fill_param_slots`.
  * Implements `fill_param_slots`.
  * @param ctx *AsmFuncCtx
@@ -1489,8 +1469,7 @@ export function fill_param_slots(ctx: *AsmFuncCtx, mod: *Module, func_index: i32
 }
 
 
-/** å°åç const/let å¡«å
-¥ ctx å±é¨ sidecarï¼åç§»ä» ctx.next_offset èµ·ï¼fill_param_slots åè°ç¨ï¼ã */
+/** Fill block const/let into ctx local sidecar starting at ctx.next_offset (after fill_param_slots). */
 /** Exported function `fill_local_slots`.
  * Implements `fill_local_slots`.
  * @param ctx *AsmFuncCtx
@@ -1509,10 +1488,9 @@ export function fill_local_slots(ctx: *AsmFuncCtx, arena: *ASTArena, block_ref: 
 
 
 /**
- * If è¯­å¥ç then åå¯å«ç¬ç« const/letï¼é¡»å
-å
-¥ ctx.locals æ å°æå¯è§£æ EXPR_VARã
- * ä¸ EXPR_BLOCK è·¯å¾ä¸è´ï¼æå¢æ§½è¡¨ï¼å®æåæ¢å¤ num_locals/next_offsetï¼åµå¥åæ¯æ åç§»å¯åæ¶å¤ç¨ã
+ * If-stmt then-block may hold independent const/let; they must be entered into ctx.locals
+ * before EXPR_VAR resolution. Same pattern as EXPR_BLOCK: temporarily grow the slot table,
+ * then restore num_locals/next_offset so nested branch stack offsets can be reused.
  */
 /** Exported function `emit_if_then_block_body_text`.
  * Implements `emit_if_then_block_body_text`.
@@ -1531,8 +1509,7 @@ export function emit_if_then_block_body_text(arena: *ASTArena, out: *CodegenOutB
 }
 
 
-/** ELF è·¯å¾ï¼`emit_if_then_block_body_text` çé
-å¯¹å®ç°ãta ä¸ºç®æ æ¶æç´¢å¼ã */
+/** ELF path: machine counterpart of `emit_if_then_block_body_text`. ta is target-arch index. */
 /* See implementation. */
 export function emit_if_then_block_body_elf(
   arena: *ASTArena,
@@ -1548,7 +1525,7 @@ export function emit_if_then_block_body_elf(
 }
 
 
-/** å¨ ctx å±é¨ sidecar ä¸­æ¥æ¾åå­ï¼è¿ååç§»ï¼æªæ¾å°è¿å -1ã */
+/** Look up name in ctx local sidecar; return stack offset, or -1 if not found. */
 /** Exported function `local_offset`.
  * Implements `local_offset`.
  * @param ctx *AsmFuncCtx
@@ -1579,9 +1556,7 @@ export function arch_emit_ret_imm32(out: *CodegenOutBuf, imm: i32, ta: i32): i32
     return x86_64.emit_ret_imm32(out, imm);
   }
 }
-/** å° 64 ä½ç«å³æ°ï¼lo/hi ä¸ºä½/é« 32 ä½ï¼è£
-å
-¥ rax/x0ãç¨äº EXPR_FLOAT_LIT åå° double ä½æ¨¡å¼ã */
+/** Move a 64-bit immediate (lo/hi = low/high 32 bits) into rax/x0. Used for EXPR_FLOAT_LIT double bit patterns. */
 export function arch_emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1591,9 +1566,7 @@ export function arch_emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32
     return x86_64.emit_mov_imm64_to_rax(out, lo, hi);
   }
 }
-/** 7.3ï¼ç«å³æ°å
-¥ rbx/w1ï¼ADD å·¦æä½æ°ä¸ºå­é¢éæ¶å
- push/popã */
+/** 7.3: immediate into rbx/w1; avoids push/pop when ADD left operand is a literal. */
 export function arch_emit_mov_imm32_to_rbx(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1641,8 +1614,7 @@ export function arch_emit_test_setz(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** ä»
-æ¯è¾ rbx ä¸ raxï¼ç½®æ å¿/ç»æä¾ jzï¼ãmatch åæ¯ç¸ç­æ¯è¾ç¨ã */
+/** Compare rbx vs rax (set flags/result for jz). Used by match-arm equality. */
 export function arch_emit_cmp_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1653,7 +1625,7 @@ export function arch_emit_cmp_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** æ¯è¾è¿ç®ï¼left å·²å¨ rbxï¼right å¨ raxï¼æ ¹æ® cc ç½®ç»æä¸º 0/1ãcc: 0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=geã */
+/** Compare: left already in rbx, right in rax; set result 0/1 from cc. cc: 0=eq,1=ne,2=lt,3=le,4=gt,5=ge. */
 export function arch_emit_cmp_setcc(out: *CodegenOutBuf, cc: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1836,7 +1808,7 @@ export function arch_emit_store_rax_to_rbp(out: *CodegenOutBuf, off: i32, ta: i3
     return x86_64.emit_store_rax_to_rbp(out, off);
   }
 }
-/** LEA å±é¨åéå°åå° raxï¼x86/arm64ï¼ãç¨äº EXPR_INDEX base ä¸º VARãSTRUCT_LIT/ARRAY_LIT temp åºã */
+/** LEA local-variable address into rax (x86/arm64). For EXPR_INDEX base=VAR and STRUCT_LIT/ARRAY_LIT temp. */
 export function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1847,9 +1819,9 @@ export function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32)
   }
 }
 /**
- * Textï¼å±é¨ VAR ä¸ºæéåä»æ æ§½è½½å
-¥æéå° raxï¼å¦å rax = æ æ§½å°åï¼å°±å°ç»æ/æ°ç»ï¼ã
- * codegen.x ä¸­ `fn(..., out: *CodegenOutBuf)` ç­å¯¹ `out.field` é¡»èµ° loadï¼ä¸è½ lea slotã
+ * Text path: if local VAR is a pointer, load pointer from stack slot into rax;
+ * otherwise rax = stack-slot address (in-place struct/array).
+ * In codegen.x, `fn(..., out: *CodegenOutBuf)` style `out.field` must load — never lea the slot.
  */
 export function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *CodegenOutBuf, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
@@ -1857,8 +1829,7 @@ export function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *Codegen
     return pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, stack_off, ta, ctx as *u8);
   }
 }
-/** rax/x0 = rax/x0 + rbx/x1*4ãç¨äº EXPR_INDEX ä¸æ ä¹å
-ç´ å¤§å° 4ã */
+/** rax/x0 = rax/x0 + rbx/x1*4. For EXPR_INDEX with element size 4. */
 export function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1868,7 +1839,7 @@ export function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32
     return x86_64.emit_rax_plus_rbx_scale4(out);
   }
 }
-/** rbxÃ1 åå å°å°åï¼u8 æ°ç»ï¼ã */
+/** Add rbx×1 to address (u8 arrays). */
 export function arch_emit_rax_plus_rbx_scale1(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1878,7 +1849,7 @@ export function arch_emit_rax_plus_rbx_scale1(out: *CodegenOutBuf, ta: i32): i32
     return x86_64.emit_rax_plus_rbx_scale1(out);
   }
 }
-/** rbxÃ8ï¼æéåçç­ï¼ã */
+/** rbx×8 (pointer slices, etc.). */
 export function arch_emit_rax_plus_rbx_scale8(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1888,7 +1859,7 @@ export function arch_emit_rax_plus_rbx_scale8(out: *CodegenOutBuf, ta: i32): i32
     return x86_64.emit_rax_plus_rbx_scale8(out);
   }
 }
-/** INDEX èµå¼ï¼store è³ [rbx]ã */
+/** INDEX store: write to [rbx]. */
 export function arch_emit_store_rax_to_rbx_indirect(out: *CodegenOutBuf, elem_sz: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1898,8 +1869,7 @@ export function arch_emit_store_rax_to_rbx_indirect(out: *CodegenOutBuf, elem_sz
     return x86_64.emit_store_rax_to_rbx_indirect(out, elem_sz);
   }
 }
-/** ä» [rax]/[x0] å è½½ 4 å­èå° rax/w0ãç¨äº EXPR_INDEX è¯»å
-ç´ ã */
+/** Load 4 bytes from [rax]/[x0] into rax/w0. For EXPR_INDEX element reads. */
 export function arch_emit_load_32_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1909,8 +1879,7 @@ export function arch_emit_load_32_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
     return x86_64.emit_load_32_from_rax(out);
   }
 }
-/** u8 å
-ç´ è¯»åï¼é¶æ©å±å°ç®æ è¿åå¯å­å¨ã */
+/** Load u8 element and zero-extend into the return register. */
 export function arch_emit_load_zext8_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1930,7 +1899,7 @@ export function arch_emit_add_imm_to_rax(out: *CodegenOutBuf, imm: i32, ta: i32)
     return x86_64.emit_add_imm_to_rax(out, imm);
   }
 }
-/** ä» [rax]/[x0] å è½½ 8 å­èå° rax/x0ãç¨äº EXPR_FIELD_ACCESSã */
+/** Load 8 bytes from [rax]/[x0] into rax/x0. For EXPR_FIELD_ACCESS. */
 export function arch_emit_load_64_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1940,8 +1909,7 @@ export function arch_emit_load_64_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
     return x86_64.emit_load_64_from_rax(out);
   }
 }
-/** å° rax å­å° [rbx+offset]ãstore_size 4=ARRAY_LIT å
-ç´ ï¼8=STRUCT_LIT å­æ®µãç¨äº STRUCT_LIT/ARRAY_LIT temp åºã */
+/** Store rax to [rbx+offset]. store_size 4=ARRAY_LIT element, 8=STRUCT_LIT field. For STRUCT_LIT/ARRAY_LIT temp. */
 export function arch_emit_store_rax_to_rbx_offset(out: *CodegenOutBuf, offset: i32, store_size: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1951,7 +1919,7 @@ export function arch_emit_store_rax_to_rbx_offset(out: *CodegenOutBuf, offset: i
     return x86_64.emit_store_rax_to_rbx_offset(out, offset, store_size);
   }
 }
-/** å° rbx æ·å° raxï¼åºå/å¼ï¼ãç¨äº STRUCT_LIT/ARRAY_LIT è¿å temp åºåºåã */
+/** Copy rbx to rax (base/value). For STRUCT_LIT/ARRAY_LIT returning temp base. */
 export function arch_emit_mov_rbx_to_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1961,7 +1929,7 @@ export function arch_emit_mov_rbx_to_rax(out: *CodegenOutBuf, ta: i32): i32 {
     return x86_64.emit_mov_rbx_to_rax(out);
   }
 }
-/** å°å½å rax æ·å°ç¬¬ k ä¸ªåæ°å¯å­å¨ï¼System Vï¼0=rdi..5=r9ï¼ãarm64 å¤åéè¿æ æ§½ + ä¸æ load å®ç°ï¼æ­¤å¤ x86 æ movã */
+/** Copy current rax into arg register k (System V: 0=rdi..5=r9). arm64 multi-arg uses stack slots + later load; x86 mov here. */
 export function arch_emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1972,9 +1940,7 @@ export function arch_emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32, ta: i3
   }
 }
 
-/** arm64ï¼ä» [sp + i*16] è£
-å
-¥ wiï¼ç¨äºå¤å call åãx86 ä¸è°ç¨ã */
+/** arm64: load [sp + i*16] into wi before multi-arg calls. Not used on x86. */
 export function arch_emit_ldr_sp_offset_to_wi(out: *CodegenOutBuf, i: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1984,7 +1950,7 @@ export function arch_emit_ldr_sp_offset_to_wi(out: *CodegenOutBuf, i: i32, ta: i
   }
 }
 
-/** arm64ï¼add sp, sp, #nï¼å¤å call ååæ¶æ ãx86 ä¸è°ç¨ã */
+/** arm64: add sp, sp, #n — reclaim stack after multi-arg call. Not used on x86. */
 export function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1994,7 +1960,7 @@ export function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 
   }
 }
 
-/** åç¬å¤ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeï¼å¯¹é½ codegenï¼ï¼å¦åè¦æ± EXPR_VARã */
+/** Handle EXPR_CALL alone: support import-bound FIELD_ACCESS callee (align with codegen); otherwise require EXPR_VAR. */
 /** Exported function `emit_expr_call`.
  * Implements `emit_expr_call`.
  * @param arena *ASTArena
@@ -2013,7 +1979,7 @@ export function emit_expr_call(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: 
 }
 
 
-/** EXPR_METHOD_CALLï¼receiver ä½ä¸ºç¬¬ä¸åï¼arg0ï¼ï¼åä¼  method call å®åï¼arg1..argNï¼ï¼æå call method_call_nameã */
+/** EXPR_METHOD_CALL: receiver as arg0, then method args arg1..argN, then call method_call_name. */
 /** Exported function `emit_expr_method_call`.
  * Implements `emit_expr_method_call`.
  * @param arena *ASTArena
@@ -2032,7 +1998,7 @@ export function emit_expr_method_call(arena: *ASTArena, out: *CodegenOutBuf, exp
 }
 
 
-/** ELF è·¯å¾ç EXPR_METHOD_CALLï¼receiver ä½ arg0ï¼å arg1..argNï¼enc_call(method_name)ã */
+/** ELF EXPR_METHOD_CALL: receiver as arg0, then arg1..argN, enc_call(method_name). */
 /** Exported function `emit_expr_elf_method_call`.
  * Implements `emit_expr_elf_method_call`.
  * @param arena *ASTArena
@@ -2051,7 +2017,7 @@ export function emit_expr_elf_method_call(arena: *ASTArena, elf_ctx: *ElfCodegen
 }
 
 
-/** æåç§°æ¥æ¬æ¨¡åå½æ°ä¸æ ï¼-1 æªæ¾å°ã */
+/** Look up function index in this module by name; -1 if missing. */
 export function asm_module_func_index_by_name(mod: *Module, name: *u8, name_len: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2062,7 +2028,7 @@ export function asm_module_func_index_by_name(mod: *Module, name: *u8, name_len:
     while (fi < mod.num_funcs) {
       let flen: i32 = pipeline_asm_module_func_name_len_at(mod, fi);
       if (flen == name_len) {
-        let fb: u8[128] = [];
+        let fb: u8[256] = [];
         pipeline_asm_module_func_name_copy64(mod, fi, &fb[0]);
         let same: i32 = 1;
         let k: i32 = 0;
@@ -2078,7 +2044,7 @@ export function asm_module_func_index_by_name(mod: *Module, name: *u8, name_len:
   }
 }
 
-/** expr_ref æ¯å¦ä¸º func_idx çç¬¬ 0 å½¢ååå VARã */
+/** Whether expr_ref is a VAR naming func_idx's parameter 0. */
 export function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_idx: i32, expr_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2090,7 +2056,7 @@ export function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_id
     let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
     if (plen <= 0 || plen != vlen) { return 0; }
     let pbuf: u8[128] = [];
-    let vbuf: u8[128] = [];
+    let vbuf: u8[256] = [];
     pipeline_asm_module_func_param_name_copy32(mod, func_idx, 0, &pbuf[0]);
     pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
     let k: i32 = 0;
@@ -2102,7 +2068,7 @@ export function fold_expr_is_func_param0(arena: *ASTArena, mod: *Module, func_id
   }
 }
 
-/** è¯»åå½æ°ä½åä¸ return çæä½æ° refï¼å«æ¾å¼ `return expr;` è¯­å¥ï¼ï¼å¤±è´¥è¿å 0ã */
+/** Read the operand ref of a function body's single return (including explicit `return expr;`); 0 on failure. */
 export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, func_idx: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2110,14 +2076,11 @@ export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, fun
 
     let body_ref: i32 = pipeline_asm_module_func_body_ref_at(mod, func_idx);
     if (body_ref <= 0) { return 0; }
-    let fin: i32 = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
-    if (fin != 0) {
-      if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
-        let op_f: i32 = pipeline_expr_unary_operand_ref_at(arena, fin);
-        if (op_f != 0) { return op_f; }
-      }
-      return fin;
-    }
+    /*
+     * PLATFORM: SHARED — unique-return only (seed twin seed_link_compat).
+     * Historic final_expr short-circuit ignored earlier RETURNs → multi-return
+     * helpers (e.g. chain_leaf) falsely matched single-field inline.
+     */
     let nes: i32 = ast.ast_block_num_expr_stmts(arena, body_ref);
     let found: i32 = 0;
     let op_ref: i32 = 0;
@@ -2133,12 +2096,30 @@ export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, fun
       }
       ei = ei + 1;
     }
+    let fin: i32 = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
+    if (fin != 0) {
+      if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
+        let op_f: i32 = pipeline_expr_unary_operand_ref_at(arena, fin);
+        if (op_f != 0) {
+          if (found == 0) {
+            found = 1;
+            op_ref = op_f;
+          } else {
+            return 0;
+          }
+        }
+      } else if (found == 0) {
+        return fin;
+      } else {
+        return 0;
+      }
+    }
     if (found == 1) { return op_ref; }
     return 0;
   }
 }
 
-/** è¡¨è¾¾å¼æ¯å¦ä¸º ADDï¼å« EXPR_BINOP å ä½ï¼ã */
+/** Whether expression is ADD (including EXPR_BINOP placeholder). */
 export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2153,9 +2134,8 @@ export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
 }
 
 /**
- * è¥å½æ°ä½ä¸º `return param0 + k` æ `return callee(param0) + k`ï¼åæ¨¡åååé¾ï¼ï¼
- * è¿åç´¯è®¡å¸¸æ° kï¼ä¸å¯å
-èæ¶è¿å -1ãdepth éå¶éå½æ·±åº¦ã
+ * If function body is `return param0 + k` or `return callee(param0) + k` (same-module unary chain),
+ * return accumulated constant k; return -1 when not linkable. depth caps recursion.
  */
 export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_idx: i32, depth: i32): i32 {
 
@@ -2184,7 +2164,7 @@ export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_id
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, left_ref);
     if (callee_ref <= 0) { return -1; }
     if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return -1; }
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
     let inner_fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
     if (inner_fi < 0) { return -1; }
@@ -2195,12 +2175,9 @@ export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_id
 }
 
 /**
- * ELF CALL å
-èï¼åæ¨¡å `f(arg0)` ä¸ f ä¸º `return p.f0 + p.f1`ï¼param0 ä¸¤å­æ®µ i32 æ±åï¼æ¶ï¼
- * å¯¹å®ååå­æ®µ load + addï¼è·³è¿ call/retï¼é const struct äº¦éç¨ï¼ã
- * è¿å 1=å·²å
-èï¼0=æªå¹é
-ï¼-1=éè¯¯ã
+ * ELF CALL fold: when same-module `f(arg0)` and f is `return p.f0 + p.f1` (param0 two i32 fields),
+ * emit field loads + add and skip call/ret (also helps const struct cases).
+ * @return 1=folded, 0=no match, -1=error.
  */
 export function try_inline_param0_field_sum_call_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr,
@@ -2245,11 +2222,8 @@ export function try_inline_param0_field_sum_call_elf(
 }
 
 /**
- * ELF CALL ç®åå
-èï¼åæ¨¡å `f(x)` ä¸ f ä¸º x+K é¾æ¶ï¼emit å®åå add Kï¼è·³è¿ call/retã
- * è¿å 1=å·²å
-èï¼0=æªå¹é
-ï¼-1=éè¯¯ã
+ * ELF CALL simple fold: when same-module `f(x)` and f is an x+K chain, emit arg then add K; skip call/ret.
+ * @return 1=folded, 0=no match, -1=error.
  */
 export function try_inline_x_plus_k_call_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr,
@@ -2278,7 +2252,7 @@ export function try_inline_x_plus_k_call_elf(
   }
 }
 
-/** ELF è·¯å¾ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeã */
+/** ELF EXPR_CALL: support import-bound FIELD_ACCESS callee. */
 /** Exported function `emit_expr_elf_call`.
  * Implements `emit_expr_elf_call`.
  * @param arena *ASTArena
@@ -2331,7 +2305,7 @@ export function arch_emit_jz(out: *CodegenOutBuf, label: u8[128], label_len: i32
     return x86_64.emit_jz(out, label, label_len);
   }
 }
-/** match èç¸ç­åæ¯ï¼cmp å beq/jeï¼ã */
+/** Match-arm equal branch (beq/je after cmp). */
 export function arch_emit_jeq(out: *CodegenOutBuf, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2359,7 +2333,7 @@ export function arch_emit_jmp(out: *CodegenOutBuf, label: u8[128], label_len: i3
   }
 }
 
-/** æ¡ä»¶è·³è½¬ï¼rax é 0 åè·³ï¼ç¨äº LOGOR ç­è·¯ï¼ã */
+/** Conditional jump: branch if rax != 0 (LOGOR short-circuit). */
 export function arch_emit_jnz(out: *CodegenOutBuf, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2370,7 +2344,7 @@ export function arch_emit_jnz(out: *CodegenOutBuf, label: u8[128], label_len: i3
   }
 }
 
-/** ä½ååï¼not/mvn åæä½æ°å¨ raxã */
+/** Bitwise not/mvn; unary operand in rax. */
 export function arch_emit_not_eax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2381,7 +2355,7 @@ export function arch_emit_not_eax(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** ä½ä¸/æ/å¼æï¼left å¨ rbxï¼right å¨ raxï¼ç»æå¨ raxã */
+/** Bitwise and/or/xor: left in rbx, right in rax, result in rax. */
 export function arch_emit_and_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2422,7 +2396,7 @@ export function arch_emit_xor_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** å° rbx æ·å° ecxï¼x86 ç§»ä½è®¡æ°ï¼ï¼arm64 æ éæ­¤æ­¥ã */
+/** Copy rbx to ecx (x86 shift count); unnecessary on arm64. */
 export function arch_emit_mov_rbx_to_ecx(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2433,8 +2407,7 @@ export function arch_emit_mov_rbx_to_ecx(out: *CodegenOutBuf, ta: i32): i32 {
   }
 }
 
-/** å·¦ç§»/é»è¾å³ç§»/ç®æ¯å³ç§»ï¼å¼å¨ raxï¼è®¡æ°å·²å¨ rbxï¼x86 ä¼å
- mov rbxâecxï¼ã */
+/** Left / logical-right / arithmetic-right shift: value in rax, count already in rbx (x86 may mov rbx→ecx). */
 export function arch_emit_shl_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2557,7 +2530,7 @@ export function arch_emit_epilogue(out: *CodegenOutBuf, frame_sz: i32, ta: i32):
   }
 }
 
-/** è¯»å ctx å±é¨ sidecar ä¸­ç¬¬ slot_idx æ§½çæ åç§»ã */
+/** Read stack offset of local sidecar slot slot_idx. */
 export function asm_ctx_slot_offset(ctx: *AsmFuncCtx, slot_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -2565,8 +2538,7 @@ export function asm_ctx_slot_offset(ctx: *AsmFuncCtx, slot_idx: i32): i32 {
   }
 }
 
-/** æ é/å
-ç´ ç±»åçæ å­å®½åº¦ï¼å­èï¼ã */
+/** Stack store width in bytes for a scalar/element type. */
 export function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2584,8 +2556,7 @@ export function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
   }
 }
 
-/** INDEX ç»æçå
-ç´ å­èå®½ï¼åèª typeck å¨ INDEX ç»ç¹ä¸ç resolved_type_refãé»è®¤ 4ã */
+/** INDEX result element byte width from typeck resolved_type_ref on the INDEX node; default 4. */
 export function asm_index_elem_byte_sz(arena: *ASTArena, index_expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -2713,8 +2684,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
 
 
 /**
- * ä¸ emit_expr å¯¹ç­ç ELF æºå¨ç è·¯å¾ï¼ç»æå¨ %rax/w0ï¼ä½¿ç¨ enc_* åå
-¥ elf_ctx.codeï¼ta 0=x86_64ï¼1=arm64ã
+ * ELF machine-code counterpart of emit_expr: result in %rax/w0, write via enc_* into elf_ctx.code;
+ * ta 0=x86_64, 1=arm64.
  */
 /** Exported function `emit_expr_elf`.
  * Implements `emit_expr_elf`.
@@ -2732,11 +2703,7 @@ export function emit_expr_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_re
   }
 }
 
-
-/** ELF è·¯å¾ INDEX ææå°åè£
-å
-¥ rax/x0ï¼æ  loadï¼ãé¡»å¨ emit_expr_elf ä¹åå®ä¹ä¾å
-¶è°ç¨ã */
+/** ELF INDEX effective address into rax/x0 (no load). Must be defined after emit_expr_elf for mutual calls. */
 /** Exported function `emit_index_eff_addr_elf`.
  * Implements `emit_index_eff_addr_elf`.
  * @param arena *ASTArena
@@ -2788,8 +2755,7 @@ export function emit_block_inits_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, 
 }
 
 
-/** ä¸¤ EXPR_VAR èç¹æ¯å¦ååï¼ç» pipeline è¯»åï¼é¿å
- ast å­æ®µæè£ï¼ã */
+/** Whether two EXPR_VAR nodes share a name (via pipeline name readers; avoid AST field tear). */
 export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2800,8 +2766,8 @@ export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32
     let alen: i32 = pipeline_expr_var_name_len(arena, a_ref);
     let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
     if (alen <= 0 || alen != blen) { return 0; }
-    let abuf: u8[128] = [];
-    let bbuf: u8[128] = [];
+    let abuf: u8[256] = [];
+    let bbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, a_ref, &abuf[0]);
     pipeline_expr_var_name_into(arena, b_ref, &bbuf[0]);
     let k: i32 = 0;
@@ -2814,9 +2780,8 @@ export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32
 }
 
 /**
- * æ¯å¦ä¸º `target = target + addend`ï¼addend ä¸º EXPR_LIT ç«å³æ°ï¼ã
- * æåæ¶ *out_addend åå
-¥å æ°ï¼target_ref ä¸ºå·¦å¼ VAR ç expr refã
+ * Whether `target = target + addend` with addend an EXPR_LIT immediate.
+ * On success write addend into *out_addend; target_ref is the LHS VAR expr ref.
  */
 export function fold_is_assign_var_add_lit(arena: *ASTArena, expr_ref: i32, target_ref: i32, out_addend: *i32): i32 {
 
@@ -2840,7 +2805,7 @@ export function fold_is_assign_var_add_lit(arena: *ASTArena, expr_ref: i32, targ
   }
 }
 
-/** å stmt_order æ¯å¦å« call / åµå¥å¾ªç¯ï¼ä¸å¯åå¸¸éæå ï¼ã */
+/** Whether block stmt_order contains call / nested loop (blocks constant fold). */
 export function fold_body_has_call_or_nested_loop(arena: *ASTArena, body_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2868,8 +2833,8 @@ export function fold_body_has_call_or_nested_loop(arena: *ASTArena, body_ref: i3
 }
 
 /**
- * è§£æ `while (i < n)`ï¼å·¦ä¸º VAR iï¼å³ä¸º VAR n æ LIT nã
- * æåå *out_i_refã*out_n_is_litã*out_n_litï¼å­é¢éæ¶ï¼æ *out_n_refï¼åéæ¶ï¼ã
+ * Parse `while (i < n)`: left VAR i; right VAR n or LIT n.
+ * On success write *out_i_ref, *out_n_is_lit, and *out_n_lit (literal) or *out_n_ref (var).
  */
 export function fold_parse_while_lt_i_n(
   arena: *ASTArena, cond_ref: i32,
@@ -2902,7 +2867,7 @@ export function fold_parse_while_lt_i_n(
 }
 
 /**
- * æ¯å¦ä¸º `s = s + (i + K)` æ `s = s + f(i)`ï¼f ä¸º x+K é¾ï¼ï¼æåå out_s_refãout_kã
+ * Whether `s = s + (i + K)` or `s = s + f(i)` (f is x+K chain); on success write out_s_ref, out_k.
  */
 export function fold_affine_i_plus_k_expr(arena: *ASTArena, mod: *Module, expr_ref: i32, i_ref: i32, out_k: *i32): i32 {
 
@@ -2916,7 +2881,7 @@ export function fold_affine_i_plus_k_expr(arena: *ASTArena, mod: *Module, expr_r
       if (fold_expr_var_refs_same(arena, arg0, i_ref) == 0) { return 0; }
       let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
       if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-      let cname: u8[128] = [];
+      let cname: u8[256] = [];
       pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
       let fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
       if (fi < 0) { return 0; }
@@ -2969,7 +2934,7 @@ export function fold_is_assign_s_plus_affine_i(
   }
 }
 
-/** è§£æ `s += (i+K); i++` åè¯­å¥å¾ªç¯ä½ï¼call_boundary ç­ï¼ã */
+/** Parse `s += (i+K); i++` two-statement loop body (call_boundary etc.). */
 export function fold_parse_affine_sum_body(
   arena: *ASTArena, mod: *Module, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_k: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3012,7 +2977,7 @@ export function fold_parse_affine_sum_body(
   }
 }
 
-/** è¡¨è¾¾å¼æ¯å¦ä¸º func ç¬¬ 0 å½¢åçå­æ®µè®¿é®ï¼`p.a` ç­ï¼ã */
+/** Whether expression is a field access on func's parameter 0 (`p.a` etc.). */
 export function fold_expr_is_param0_field_access(arena: *ASTArena, mod: *Module, func_idx: i32, expr_ref: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3024,7 +2989,7 @@ export function fold_expr_is_param0_field_access(arena: *ASTArena, mod: *Module,
   }
 }
 
-/** å½æ°ä½æ¯å¦ä¸º `return p.f0 + p.f1`ï¼ä¸¤å­æ®µåæ¥èª param0ï¼ã */
+/** Whether function body is `return p.f0 + p.f1` (both fields from param0). */
 export function fold_func_returns_param0_field_sum(arena: *ASTArena, mod: *Module, func_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3058,9 +3023,8 @@ export function fold_func_returns_param0_single_field(arena: *ASTArena, mod: *Mo
 }
 
 /**
- * è¥ var å¨åå let ä¸åå¼ä¸º STRUCT_LITï¼å°ææ i32 å­é¢éå­æ®µæ±ååå
-¥ *out_sumã
- * ç¨äº `let p = Pair { a: 1, b: 2 }` â 3ã
+ * If var is a same-block let whose init is STRUCT_LIT, sum all i32 literal fields into *out_sum.
+ * Used for `let p = Pair { a: 1, b: 2 }` → 3.
  */
 export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i32, var_ref: i32, out_sum: *i32): i32 {
 
@@ -3070,7 +3034,7 @@ export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i
     if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
     if (vlen <= 0 || vlen > 127) { return 0; }
-    let vbuf: u8[128] = [];
+    let vbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
     let nlet: i32 = ast.ast_block_num_lets(arena, block_ref);
     let li: i32 = 0;
@@ -3078,7 +3042,7 @@ export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
       if (llen == vlen) {
         let is_match: i32 = 1;
-        let lb: u8[128] = [];
+        let lb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
         let kk: i32 = 0;
         while (kk < vlen) {
@@ -3141,7 +3105,7 @@ export function fold_is_field_assign_from_var(
       return 0;
     }
     if (pipeline_expr_field_access_name_len(arena, left_ref) != 1) { return 0; }
-    let fn: u8[128] = [];
+    let fn: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
     if (fn[0] != field_ch) { return 0; }
     return fold_expr_var_refs_same(arena, right_ref, src_ref);
@@ -3169,7 +3133,7 @@ export function fold_is_field_assign_i_plus_one(arena: *ASTArena, er: i32, pair_
       return 0;
     }
     if (pipeline_expr_field_access_name_len(arena, left_ref) != 1) { return 0; }
-    let fn: u8[128] = [];
+    let fn: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, left_ref, &fn[0]);
     if (fn[0] != 98 as u8) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, right_ref) != 4) { return 0; }
@@ -3202,7 +3166,7 @@ export function fold_is_assign_s_plus_pair_field_sum_call(
     if (fold_expr_var_refs_same(arena, arg0, pair_ref) == 0) { return 0; }
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner);
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
     let fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
     if (fi < 0) { return 0; }
@@ -3263,8 +3227,8 @@ export function fold_parse_struct_pair_n2_body(
 }
 
 /**
- * æ¯å¦ä¸º `s = s + add_pair(p)`ï¼ä¸ add_pair ä¸º param0 å­æ®µæ±åãp ä¸º const struct litã
- * æåå out_s_refãout_stepï¼æ¯è½®å¸¸æ°å¢éï¼ã
+ * Whether `s = s + add_pair(p)` with add_pair = param0 field-sum and p a const struct lit.
+ * On success write out_s_ref, out_step (per-iteration constant delta).
  */
 export function fold_is_assign_s_plus_const_field_call(
   arena: *ASTArena, mod: *Module, block_ref: i32, expr_ref: i32, out_s_ref: *i32, out_step: *i32): i32 {
@@ -3288,7 +3252,7 @@ export function fold_is_assign_s_plus_const_field_call(
     if (pipeline_expr_kind_ord_at(arena, arg0) != 3) { return 0; }
     let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner);
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
     let fi: i32 = asm_module_func_index_by_name(mod, &cname[0], pipeline_expr_var_name_len(arena, callee_ref));
     if (fi < 0) { return 0; }
@@ -3301,7 +3265,7 @@ export function fold_is_assign_s_plus_const_field_call(
   }
 }
 
-/** è§£æ `s += add_pair(const p); i++`ï¼struct_param ç­ï¼ã */
+/** Parse `s += add_pair(const p); i++` (struct_param etc.). */
 export function fold_parse_count_up_const_field_call_body(
   arena: *ASTArena, mod: *Module, block_ref: i32, body_ref: i32, i_ref: i32,
   out_s_ref: *i32, out_step: *i32): i32 {
@@ -3345,8 +3309,7 @@ export function fold_parse_count_up_const_field_call_body(
   }
 }
 
-/** è§£æè®¡æ°å¾ªç¯ä½ï¼ä»
- `s = s + step` ä¸ `i = i + 1` ä¸¤æ¡èµå¼ï¼é¡ºåºä»»æï¼ã */
+/** Parse count-up loop body: the two assigns `s = s + step` and `i = i + 1` (order irrelevant). */
 export function fold_parse_count_up_body(
   arena: *ASTArena, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_step: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3390,9 +3353,8 @@ export function fold_parse_count_up_body(
 }
 
 /**
- * è¥ var_ref å¨åå let ç»å®ä¸åå¼ä¸ºæ´æ°å­é¢éï¼åå
-¥ *out_lit å¹¶è¿å 1ã
- * ç¨äº `let n: i32 = 1000000000; while (i < n)` çå¸¸éä¼ æ­ã
+ * If var_ref is a same-block let bound to an integer literal, write *out_lit and return 1.
+ * Used for const-prop of `let n: i32 = 1000000000; while (i < n)`.
  */
 export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
 
@@ -3402,7 +3364,7 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
     if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
     if (vlen <= 0 || vlen > 127) { return 0; }
-    let vbuf: u8[128] = [];
+    let vbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
     let nlet: i32 = ast.ast_block_num_lets(arena, block_ref);
     let li: i32 = 0;
@@ -3410,7 +3372,7 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
       if (llen == vlen) {
         let is_match: i32 = 1;
-        let lb: u8[128] = [];
+        let lb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
         let kk: i32 = 0;
         while (kk < vlen) {
@@ -3434,7 +3396,7 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
   }
 }
 
-/** åå° `i >= n` åæ¯å° exitï¼é¡»ç´§æ¥ cmpï¼ï¼n ä¸ºå­é¢éæ¶ç¨ imm cmpã */
+/** Emit `i >= n` branch to exit (must follow cmp); use imm cmp when n is literal. */
 export function fold_emit_i_ge_n_branch_exit_elf(
   elf_ctx: *ElfCodegenCtx, off_i: i32, off_n: i32, n_is_lit: i32, n_lit: i32,
   exit_buf: u8[128], exit_len: i32, ta: i32): i32 {
@@ -3455,12 +3417,10 @@ export function fold_emit_i_ge_n_branch_exit_elf(
 }
 
 /**
- * ELFï¼å°è¯ä¼å `while (i < n) { s += step; i += 1; }`ã
- * 1) n ä¸ºç¼è¯æå¸¸éä¸æ  call â ç´æ¥æ n*step åå
-¥ sï¼
- * 2) å¦åè¥æ¡ä»¶ä¸º i<n â ç¨ cmp+jge æ¿ä»£ cset æ¡ä»¶ï¼ååå°åå¾ªç¯ä½ã
- * è¿å 1=å·²å¤çï¼0=æªå¹é
-ï¼-1=éè¯¯ã
+ * ELF: try optimize `while (i < n) { s += step; i += 1; }`.
+ * 1) If n is a compile-time constant and body has no call → write n*step into s directly;
+ * 2) Else if condition is i<n → replace cset condition with cmp+jge, then emit original body.
+ * @return 1=folded, 0=no match, -1=error.
  */
 export function try_fold_count_up_while_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, loop_idx: i32,
@@ -3500,7 +3460,7 @@ export function try_fold_count_up_while_elf(
         n_const_ok = 1;
       }
     }
-    /** å¸¸é n + `s += (i+K); i++`ï¼â(i+K)=n(n-1)/2+Knï¼call_boundary ç­ï¼ã */
+    /** Const n + `s += (i+K); i++`: ∑(i+K)=n(n-1)/2+Kn (call_boundary etc.). */
     let affine_s: i32 = 0;
     let affine_k: i32 = 0;
     let s_ea: Expr = ast.ast_arena_expr_get(arena, affine_s);
@@ -3538,7 +3498,7 @@ export function try_fold_count_up_while_elf(
         return 1;
       }
     }
-    /** å¸¸é n + `s += add_pair(const p); i++`ï¼s = n * âfieldsï¼struct_param ç­ï¼ã */
+    /** Const n + `s += add_pair(const p); i++`: s = n * ∑fields (struct_param etc.). */
     let struct_s: i32 = 0;
     let struct_step: i32 = 0;
     let s_es: Expr = ast.ast_arena_expr_get(arena, 0);
@@ -3554,7 +3514,7 @@ export function try_fold_count_up_while_elf(
       if (enc_store_rax_to_rbp_arch(elf_ctx, off_ss, ta) != 0) { return -1; }
       return 1;
     }
-    /** å¸¸é n + çº¯éå¢ä½ï¼æå ä¸º s = n * stepï¼loop_i32 ç­ï¼ã */
+    /** Const n + pure increment body: fold to s = n * step (loop_i32 etc.). */
     let s_e: Expr = ast.ast_arena_expr_get(arena, s_ref);
     let off_s: i32 = -1;
     let prod: i32 = 0;
@@ -3566,7 +3526,7 @@ export function try_fold_count_up_while_elf(
       if (enc_store_rax_to_rbp_arch(elf_ctx, off_s, ta) != 0) { return -1; }
       return 1;
     }
-    /** å« call æéçº¯éå¢ä½ï¼ä¼åæ¡ä»¶æ£æ¥ + åå¾ªç¯ä½ï¼call_boundary / struct_param ç­ï¼ã */
+    /** Const n + `s += (i+K); i++`: ∑(i+K)=n(n-1)/2+Kn (call_boundary etc.). */
     let loop_buf: u8[128] = [];
     let exit_buf: u8[128] = [];
     let loop_len: i32 = emit_next_label(ctx, loop_buf, 20);
@@ -3589,7 +3549,7 @@ export function try_fold_count_up_while_elf(
   }
 }
 
-/** ELF è·¯å¾ï¼while å¾ªç¯ãta 0=x86_64ï¼1=arm64ã */
+/** ELF path: while loop. ta 0=x86_64, 1=arm64. */
 /** Exported function `emit_while_loop_elf`.
  * Implements `emit_while_loop_elf`.
  * @param arena *ASTArena
@@ -3608,7 +3568,7 @@ export function emit_while_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, b
 }
 
 
-/** ELF è·¯å¾ï¼for å¾ªç¯ãta 0=x86_64ï¼1=arm64ã */
+/** ELF path: for loop. ta 0=x86_64, 1=arm64. */
 /** Exported function `emit_for_loop_elf`.
  * Implements `emit_for_loop_elf`.
  * @param arena *ASTArena
@@ -3628,9 +3588,10 @@ export function emit_for_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, blo
 
 
 /**
- * ELF è·¯å¾ï¼æ stmt_order åå°åä½ï¼ç» pipeline_glue.c ç C for å¾ªç¯ + expr å¿«è·¯å¾ï¼ã
- * èªä¸¾ xlang_asm ä¸ X ç while(i<nso) ç» xlang-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä»
- emit å·¦æä½æ°ã
+ * ELF path: emit block body by stmt_order via backend_emit_block_body_sync_elf
+ * (runtime_pipeline_abi / backend seed; historical pipeline_glue.c C for-loop
+ * left wave309). X while(i<nso) under selfhost xlang-c -E may run only one
+ * iteration and drop the return 1+2 left operand — prefer the C sync path.
  */
 export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
@@ -3640,10 +3601,9 @@ export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, b
 }
 
 /**
- * åå°åç const/let åå§åï¼slot_base ä¸ºè¯¥åå¨ ctx å±é¨ sidecar ä¸­çèµ·å§ä¸æ ã
- * åµå¥åå¨ EXPR_BLOCK ä¸­å
- fill_local_slots åè°ç¨æ¬å½æ°ï¼slot_base ä¸ºå¡«å
-¥åç ctx.num_localsã
+ * Emit block const/let initializers; slot_base is this block's start index in ctx local sidecar.
+ * Nested blocks under EXPR_BLOCK call fill_local_slots then this function; slot_base is
+ * ctx.num_locals before the fill.
  */
 /** Exported function `emit_block_inits`.
  * Implements `emit_block_inits`.
@@ -3663,7 +3623,7 @@ export function emit_block_inits(arena: *ASTArena, out: *CodegenOutBuf, block_re
 }
 
 
-/** çæå¯ä¸å±é¨æ ç­¾å° bufï¼è¿åé¿åº¦ãbuf æ ¼å¼ä¸º ".L_" + æ°å­ã */
+/** Generate a unique local label into buf; return length. Format ".L_" + digits. */
 /** Exported function `emit_next_label`.
  * Implements `emit_next_label`.
  * @param ctx *AsmFuncCtx
@@ -3679,8 +3639,7 @@ export function emit_next_label(ctx: *AsmFuncCtx, buf: *u8, buf_size: i32): i32 
 }
 
 
-/** å° label åºå· id æ ¼å¼åä¸º ".L_<id>" åå
-¥ bufï¼è¿åé¿åº¦ï¼ä¸æ¨è¿ ctx.label_counterï¼ãç¨äº match å¤åæ¯æ ç­¾ã */
+/** Format label ordinal id as ".L_<id>" into buf; return length (does not advance ctx.label_counter). For match multi-arm labels. */
 /** Exported function `format_label_id`.
  * Implements `format_label_id`.
  * @param buf *u8
@@ -3696,8 +3655,7 @@ export function format_label_id(buf: *u8, buf_size: i32, id: i32): i32 {
 }
 
 
-/** å° break/continue æ ç­¾åå
-¥ 8 å±æ å¹¶è®¾ä¸ºå½åçææ ç­¾ï¼d>=8 æ¶è¿å -1ã */
+/** Push break/continue labels onto the 8-deep stack and make them current; return -1 if d>=8. */
 export function ctx_push_loop_labels(ctx: *AsmFuncCtx, exit_buf: *u8, exit_len: i32, loop_buf: *u8, loop_len: i32): i32 {
   let d: i32 = ctx.loop_label_depth;
   if (d >= 8) {
@@ -3732,8 +3690,7 @@ export function ctx_push_loop_labels(ctx: *AsmFuncCtx, exit_buf: *u8, exit_len: 
   return 0;
 }
 
-/** å¼¹åºå¾ªç¯æ ç­¾æ é¡¶ï¼æ¢å¤å¤å± break/continue ææ¸
-é¶ã */
+/** Pop loop-label stack top; restore outer break/continue or clear to empty. */
 export function ctx_pop_loop_labels(ctx: *AsmFuncCtx): void {
   if (ctx.loop_label_depth <= 0) {
     ctx.break_len = 0;
@@ -3815,7 +3772,7 @@ export function emit_while_loop(arena: *ASTArena, out: *CodegenOutBuf, block_ref
 }
 
 
-/** åå° for å¾ªç¯ï¼è®¾ç½® break/continue å¹¶åå°å¾ªç¯ä½ã */
+/** Emit for-loop; set break/continue and emit loop body. */
 /** Exported function `emit_for_loop`.
  * Implements `emit_for_loop`.
  * @param arena *ASTArena
@@ -3834,7 +3791,7 @@ export function emit_for_loop(arena: *ASTArena, out: *CodegenOutBuf, block_ref: 
 }
 
 
-/** æ stmt_order åå°åä½ï¼target_arch ç¨äºåæ´¾ emit_expr / store / while / forã */
+/** Emit block body in stmt_order; target_arch dispatches emit_expr / store / while / for. */
 /** Exported function `emit_block_body`.
  * Implements `emit_block_body`.
  * @param arena *ASTArena
@@ -3868,8 +3825,8 @@ export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *Codegen
 }
 
 /**
- * build_xlang_asm SKIP_TYPECK æ¡©ï¼ä»
- mov w0/x0/eax,#0 + epilogueï¼å¿ fill/emit_blockï¼å¤§æ¨¡åå®¿ä¸»æ  SIGSEGVï¼ã
+ * build_xlang_asm SKIP_TYPECK stub: only mov w0/x0/eax,#0 + epilogue; do not fill/emit_block
+ * (large-module host stack would SIGSEGV).
  */
 export function emit_skip_heavy_stub_elf(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
 
@@ -3915,7 +3872,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
     let co_stk: u8[512] = [];
     let br_lens: i32[8] = [];
     let co_lens: i32[8] = [];
-    let lbl: u8[128] = [];
+    let lbl: u8[256] = [];
     let ctx: AsmFuncCtx = {
       frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
       module_ref: 0 as *Module,
@@ -3925,7 +3882,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
       loop_label_depth: 0, dep_pipe: 0 as *PipelineDepCtx,
       tail_join_label: lbl, tail_join_label_len: 0
     };
-    let fname_buf: u8[128] = [];
+    let fname_buf: u8[256] = [];
     pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
     pipeline_asm_emit_set_module(module);
     pipeline_asm_emit_set_arena(arena);
@@ -3964,7 +3921,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
       let body_ref: i32 = pipeline_asm_module_func_body_ref_at(module, i);
       let frame_sz: i32 = 0;
       if (body_ref != 0) {
-        frame_sz = compute_frame_size(pipeline_asm_module_func_num_params_at(module, i), arena, body_ref, module);
+        frame_sz = compute_frame_size(pipeline_asm_module_func_num_params_at(module, i), arena, body_ref, module, i);
         fill_local_slots(&ctx, arena, body_ref);
       }
       if (arch_emit_prologue(out, frame_sz, ta) != 0) {
@@ -4051,7 +4008,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
       loop_label_depth: 0, dep_pipe: 0 as *PipelineDepCtx,
       tail_join_label: lbl2, tail_join_label_len: 0
     };
-    let fname_buf2: u8[128] = [];
+    let fname_buf2: u8[256] = [];
     pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
     pipeline_asm_emit_set_module(module);
     pipeline_asm_emit_set_arena(arena);
@@ -4066,6 +4023,12 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
         continue;
       }
       if (i < start_skip) {
+        k = k + 1;
+        continue;
+      }
+      // PLATFORM: SHARED — extern must stay U (text-asm path already skips).
+      // Defense in depth if emit_order ever leaks an extern index (OOB/stale).
+      if (pipeline_asm_module_func_is_extern_at(module, i) != 0) {
         k = k + 1;
         continue;
       }
@@ -4091,7 +4054,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
       let body_ref: i32 = pipeline_asm_module_func_body_ref_at(module, i);
       let frame_sz: i32 = 0;
       if (body_ref != 0) {
-        frame_sz = compute_frame_size(pipeline_asm_module_func_num_params_at(module, i), arena, body_ref, module);
+        frame_sz = compute_frame_size(pipeline_asm_module_func_num_params_at(module, i), arena, body_ref, module, i);
         pipeline_debug_trace_body_x_mega_post_frame(module, arena);
         if (pipeline_asm_block_num_stmt_order_at(arena, body_ref) == 0) {
           fill_local_slots(&ctx, arena, body_ref);
@@ -4120,6 +4083,23 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
       }
       if (result_ref != 0) {
         if (emit_expr_elf(arena, elf_ctx, result_ref, &ctx, ta) != 0) { return -1; }
+      }
+      /* AAPCS64 f64 boundary: implicit-tail exit (single-expression body or
+       * empty body with a return expr). The value leaves in d0 to match the
+       * explicit-return common tail in pipeline_asm_emit_return_elf_impl.
+       * f64 cannot be sret, so no sret guard; ta==0 needs no conversion.
+       * PLATFORM: MACOS|ARM64 AAPCS64. */
+      if (ta == 1 && result_ref != 0) {
+        let rty_tail: i32 = pipeline_module_func_return_type_at(module as *u8, i);
+        if (rty_tail > 0) {
+          unsafe {
+            if (pipeline_type_kind_ord_at(arena, rty_tail) == 15) {
+              unsafe {
+                if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx as *u8, 0, ta) != 0) { return -1; }
+              }
+            }
+          }
+        }
       }
       if (enc_epilogue_arch(elf_ctx, ta) != 0) { return -1; }
       pipeline_asm_emit_async_cps_end_func_elf_c();

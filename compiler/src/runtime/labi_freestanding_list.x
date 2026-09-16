@@ -85,7 +85,7 @@ export function labi_fs_env_freestanding(): *u8 {
  */
 #[no_mangle]
 export function labi_fs_io_sym_count(): i32 {
-  return 13;
+  return 16;
 }
 
 /** Exported function `labi_fs_io_sym_at`.
@@ -148,6 +148,18 @@ export function labi_fs_io_sym_at(i: i32): *u8 {
   }
   if (i == 12) {
     let p: *u8 = "xlang_sys_accept";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "backtrace_capture_c";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "backtrace_symbolicate_c";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "xlang_target_cpu_detect_host";
     return p;
   }
   return 0 as *u8;

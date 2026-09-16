@@ -52,7 +52,7 @@
 | `case_dup_macho` | `duplicate_darwin.log` | duplicate | `main_entry` | `double_main` | `bstrict_build` |
 | `case_wpo_undef` | `undefined_wpo.log` | undefined | `run_x_pipeline_impl` | `wpo_orchestration` | `wpo_strict_link` |
 | `case_link_failed` | `linker_failed_generic.log` | link_failed | — | `generic_ld` | `bstrict_build` |
-| `case_parser_dup` | `duplicate_parser_x.log` | duplicate | `parse_into_buf` | `parser_double_link` | `parser_second_pass` |
+| `case_parser_dup` | `duplicate_parser_sx.log` | duplicate | `parse_into_buf` | `parser_double_link` | `parser_second_pass` |
 
 ---
 
@@ -96,7 +96,7 @@ comp-link-sym: kind=undefined symbol=parser_parse_into_buf hint=missing_export r
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/comp-link-sym-v1.md` |
+| 本文 | `analysis/archive/comp/comp-link-sym-v1.md` |
 | manifest | `tests/baseline/comp-link-sym.tsv` |
 | patterns | `tests/baseline/comp-link-sym-patterns.tsv` |
 | cases | `tests/baseline/comp-link-sym-cases.tsv` |

@@ -49,8 +49,9 @@
 xlang: [XLANG_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.000 total_ms=15.555
 ```
 
-实现：`compiler/src/runtime_driver_abi.c`（`driver_compile_phase_timing_*`）  
-编排：`compiler/src/pipeline/pipeline.x`（`run_x_pipeline_impl`）
+实现：`compiler/seeds/runtime_driver_abi.from_x.c`（`driver_compile_phase_timing_*`）  
+编排：`compiler/src/pipeline/pipeline.x`（`run_x_pipeline_impl`）  
+Honesty 2026-08-24 #7：DOC archived；smoke fixture = `examples/hello.x`；check 闸门暂停时 observational SKIP。
 
 ---
 
@@ -62,7 +63,10 @@ xlang: [XLANG_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0
 
 ---
 
-## 6. 门禁
+## Gate
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／prefer-c／soft auto-make；phase timing tip miss＝obs；报告 `run=`／`obs=`／`skip=`。
+
 
 `tests/run-obs-compile-phase-timing-gate.sh`：
 
@@ -75,8 +79,8 @@ xlang: [XLANG_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0
 ## 7. 用法示例
 
 ```bash
-XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c check tests/bench/loop_i32.x
-XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c tests/bench/loop_i32.x -o /tmp/loop_i32
+XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c check examples/hello.x
+XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c examples/hello.x -o /tmp/hello_obs
 ```
 
 ---
@@ -87,5 +91,5 @@ XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c tests/bench/loop_i32.x -o /tmp/l
 |------|------|
 | 矩阵 | `tests/baseline/obs-compile-phase-timing.tsv` |
 | 门禁 | `tests/run-obs-compile-phase-timing-gate.sh` |
-| 实现 | `compiler/src/runtime_driver_abi.c` |
+| 实现 | `compiler/seeds/runtime_driver_abi.from_x.c` |
 | 编排 | `compiler/src/pipeline/pipeline.x` |

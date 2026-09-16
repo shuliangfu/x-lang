@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# COMP-004：WPO v1 manifest 门禁
+# COMP-004：WPO v1 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-comp-wpo-gate.sh
+# wave honesty (2026-08-24 #6): monofile seeds/runtime.from_x.c retired wave321;
+# XLANG_WPO_DUMP_CALLGRAPH product = pipeline_typeck_wpo_dump_callgraph (thin);
+# live WPO env peers (MONO/NO_FOLD/…) in runtime_pipeline_abi / labi.
+# DOC remains analysis/comp-wpo-v1.md (still top-level; not archived).
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -11,13 +17,21 @@ PROTO="${XLANG_COMP_WPO_PROTO:-tests/baseline/comp-wpo-prototype.tsv}"
 MIN_STAGES=6
 MIN_CASES=4
 MIN_CAPS=6
+DUMP_SRC="${XLANG_COMP_WPO_DUMP_SRC:-compiler/src/runtime_pipeline_abi_wpo_dump_thin.x}"
 
 # shellcheck source=tests/lib/comp-wpo.sh
 . tests/lib/comp-wpo.sh
 
-echo "=== COMP-004: WPO v1 manifest ==="
-for f in "$DOC" "$MANIFEST" "$PROTO" \
-  compiler/seeds/runtime.from_x.c compiler/scripts/wpo_dce.pl compiler/scripts/wpo_const_spec.pl \
+echo "=== COMP-004: WPO v1 manifest (monofile retired) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "comp-wpo gate FAIL: seeds/runtime.from_x.c resurrected (WPO dump face = codegen.h)" >&2
+  exit 1
+fi
+
+for f in "$DOC" "$MANIFEST" "$PROTO" "$DUMP_SRC" \
+  compiler/scripts/wpo_dce.pl compiler/scripts/wpo_const_spec.pl \
   tests/wpo/dead_fn.x tests/wpo/dead_user.x tests/wpo/if_block_reach.x tests/wpo/const_spec.x \
   tests/run-wpo-dce-emit.sh tests/run-pipeline-wpo-optin-smoke.sh; do
   if [ ! -f "$f" ]; then

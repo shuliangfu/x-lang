@@ -1,10 +1,10 @@
 # STD-037 std.unicode NFC 与非 BMP manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	3
-read_path	section	## 1. 阅读路径	15min
-nfc_api	section	## 2. NFC 规范化	nfc_buf
-supplementary_api	section	## 3. 非 BMP 码点	is_supplementary
-verify	section	## 4. 验证与门禁	gate
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-unicode-nfc-v1.md
+nfc_api	section	## 2. NFC 规范化	analysis/archive/std/std-unicode-nfc-v1.md
+supplementary_api	section	## 3. 非 BMP 码点	analysis/archive/std/std-unicode-nfc-v1.md
+verify	section	## Gate	analysis/archive/std/std-unicode-nfc-v1.md
 api_nfc	api	nfc_buf	std/unicode/mod.x	缓冲 NFC
 api_supplementary	api	is_supplementary	std/unicode/mod.x	>U+FFFF
 api_rune_len	api	rune_utf8_len	std/unicode/mod.x	UTF-8 长
@@ -12,5 +12,5 @@ symbol_nfc_c	symbol	nfc_buf	std/unicode/unicode.x	C NFC
 symbol_supp_c	symbol	is_supplementary	std/unicode/unicode.x	C 非 BMP
 smoke_nfc	smoke	tests/unicode/nfc_gold.x	金样
 smoke_main	smoke	tests/unicode/main.x	分类
-lib	script	lib/std-unicode-nfc.sh	tests/lib/std-unicode-nfc.sh
-gate	script	run-std-unicode-nfc-gate.sh	tests/run-std-unicode-nfc-gate.sh
+lib	script	tests/lib/std-unicode-nfc.sh	tests/lib/std-unicode-nfc.sh
+gate	script	tests/run-std-unicode-nfc-gate.sh	tests/run-std-unicode-nfc-gate.sh

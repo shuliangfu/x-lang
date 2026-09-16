@@ -21,7 +21,8 @@ struct ast_Module;
 struct ast_ASTArena;
 
 /**
- * 与 ast.x PipelineDepCtx 布局一致（含内嵌源缓冲）；dep/lib_root sidecar 在 ast_pool.c 堆上 grow。
+ * 与 ast.x PipelineDepCtx 布局一致（含内嵌源缓冲）；dep/lib_root sidecar 由
+ * runtime_pipeline_abi 堆上 grow（ast_pool.c left wave309）。
  * C 侧 pipeline / dep 预跑通过本结构向 .x pipeline 传路径与 dep 槽。
  */
 struct ast_PipelineDepCtx {
@@ -52,21 +53,21 @@ struct ast_PipelineDepCtx {
     void *current_codegen_arena;
     int32_t current_codegen_dep_index;
     /*
-     * wave577 Cap / wave579: name and path mirrors are u8[128] (63→127 usable).
+     * wave577 Cap / wave579: name and path mirrors are u8[256] (Cap 4.2.8; content ≤255).
      * Must match ast.x PipelineDepCtx and seed pipeline_gen (G.7 single layout).
      * History: residual [64] made driver_pipeline_dep_ctx_calloc undersized
      * (0x800588 vs 0x800600); typeck stack-escape memset of region_label stomped
      * the following heap chunk (dep_modules grow_vec) → hello SEGV on Ubuntu.
      * PLATFORM: SHARED — mac + Ubuntu product matrix after any size change.
      */
-    uint8_t current_codegen_prefix_mirror[128];
+    uint8_t current_codegen_prefix_mirror[256];
     int32_t current_codegen_prefix_len;
     int32_t asm_entry_module_only;
-    uint8_t entry_module_import_path_mirror[128];
+    uint8_t entry_module_import_path_mirror[256];
     int32_t entry_module_import_path_len;
     /** M-3 typeck：与 ast.x PipelineDepCtx.typeck_scope_region_* 对齐。 */
     int32_t typeck_scope_region_len;
-    uint8_t typeck_scope_region_label[128];
+    uint8_t typeck_scope_region_label[256];
     /*
      * wave445 C5: monomorphization type-substitution state for generic function
      * body emit. When mono_active=1, emit_type replaces any type_ref matching
@@ -175,11 +176,12 @@ const char *xlang_dep_prerun_entry_dir(const char *main_entry_dir, const char **
  */
 const char *xlang_entry_lib_name_from_path(const char *input_path);
 
-/** -E pipeline.x 时向 stdout 输出 #include "pipeline_glue.c"。 */
+/** Historical -E surface; wave309 no-op (pipeline_glue.c shell retired). */
 void xlang_emit_pipeline_glue_include(void);
 
-/** asm 后端：stdout 仅 fflush，其它 fclose。 */
-void driver_asm_fclose_asm_out(FILE *fp);
+/** asm 后端：stdout 句柄（fd 1）无缓冲无需 flush，其它句柄经 Cap 关闭。
+ *  Cap residual 9.7.1: opaque fd handle（见 xlang_driver_stream_cap.h）。 */
+void driver_asm_fclose_asm_out(uint8_t *fp);
 
 /** 判断 codegen 输出缓冲是否已为 Mach-O/ELF 对象魔数。 */
 int xlang_asm_out_buf_is_object(const unsigned char *data, size_t len);
@@ -309,7 +311,8 @@ void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_
 char *xlang_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
 /**
- * 传递闭包 seed 的 ctx.ndep 与 entry 直接 import 数不一致时清零 ndep（实现于 ast_pool.c / pipeline_x.o）。
+ * 传递闭包 seed 的 ctx.ndep 与 entry 直接 import 数不一致时清零 ndep
+ * （实现于 runtime_pipeline_abi；ast_pool.c / pipeline_x mega left wave309）。
  */
 void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
 

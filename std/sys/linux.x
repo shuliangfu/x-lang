@@ -122,6 +122,42 @@ export function linux_syscall_nr_mmap_amd64(): i64 {
   return 9;
 }
 
+/**
+ * Linux x86_64 getpid syscall number (arch/x86 entry syscall_64.tbl).
+ * @return i64 — 39
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_getpid_amd64(): i64 {
+  return 39;
+}
+
+/**
+ * Linux x86_64 getppid syscall number.
+ * @return i64 — 110
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_getppid_amd64(): i64 {
+  return 110;
+}
+
+/**
+ * Linux x86_64 getcwd syscall number.
+ * @return i64 — 79
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_getcwd_amd64(): i64 {
+  return 79;
+}
+
+/**
+ * Linux x86_64 chdir syscall number.
+ * @return i64 — 80
+ * PLATFORM: LINUX|x86_64
+ */
+export function linux_syscall_nr_chdir_amd64(): i64 {
+  return 80;
+}
+
 // --- aarch64（AAPCS64：x8=nr, x0-x5=args）---
 
 /** Exported function `linux_syscall_nr_read_arm64`.
@@ -170,6 +206,42 @@ export function linux_syscall_nr_exit_arm64(): i64 {
  */
 export function linux_syscall_nr_mmap_arm64(): i64 {
   return 222;
+}
+
+/**
+ * Linux aarch64 getpid syscall number (asm-generic unistd).
+ * @return i64 — 172
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_getpid_arm64(): i64 {
+  return 172;
+}
+
+/**
+ * Linux aarch64 getppid syscall number.
+ * @return i64 — 173
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_getppid_arm64(): i64 {
+  return 173;
+}
+
+/**
+ * Linux aarch64 getcwd syscall number.
+ * @return i64 — 17
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_getcwd_arm64(): i64 {
+  return 17;
+}
+
+/**
+ * Linux aarch64 chdir syscall number.
+ * @return i64 — 49
+ * PLATFORM: LINUX|aarch64
+ */
+export function linux_syscall_nr_chdir_arm64(): i64 {
+  return 49;
 }
 
 /**
@@ -233,6 +305,161 @@ export function linux_syscall_exit(code: i32): void {
   unsafe {
     xlang_sys_exit(code);
   }
+}
+
+/**
+ * Raw Linux syscall, zero arguments: `raw_syscall0(39)` = getpid on x86_64
+ * (aarch64 getpid is 172). Stage 10 S3.1: C backend (`-E` / `-backend c`)
+ * expands call sites to `__xlang_raw_syscall0` behind `#if linux && x86_64`
+ * (`syscall`) / `#elif linux && aarch64` (`svc #0`). Asm backend intercepts
+ * CALL/METHOD_CALL: x86_64 encodes `syscall` (0F 05); Linux ELF aarch64
+ * encodes `svc #0` (nr x8; a1..a6 x0..x5). This body panics on miss /
+ * Darwin Mach-O / other arches (honest fail — Darwin is not the Linux ABI).
+ * @param nr i64 — Linux syscall number for the target ISA
+ * @return i64 — raw kernel return; -1..-4095 means -errno (no libc errno)
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall0(nr: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Cap residual 9.1.3: getpid via raw_syscall0 (x86_64 nr=39).
+ * Asm product intercepts the call; body panics if not lowered.
+ * @return i32 — kernel pid
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_arch = "x86_64")]
+export function linux_getpid(): i32 {
+  return raw_syscall0(39) as i32;
+}
+
+/**
+ * Cap residual 9.1.3: getpid via raw_syscall0 (aarch64 nr=172).
+ * @return i32 — kernel pid
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_arch = "aarch64")]
+export function linux_getpid(): i32 {
+  return raw_syscall0(172) as i32;
+}
+
+/**
+ * Cap residual 9.1.3: getppid via raw_syscall0 (x86_64 nr=110).
+ * @return i32 — kernel ppid
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_arch = "x86_64")]
+export function linux_getppid(): i32 {
+  return raw_syscall0(110) as i32;
+}
+
+/**
+ * Cap residual 9.1.3: getppid via raw_syscall0 (aarch64 nr=173).
+ * @return i32 — kernel ppid
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_arch = "aarch64")]
+export function linux_getppid(): i32 {
+  return raw_syscall0(173) as i32;
+}
+
+/**
+ * Raw Linux syscall, one argument (x86_64: nr rax a1 rdi; aarch64: nr x8 a1 x0).
+ * Same lowering and honest-fail contract as `raw_syscall0`.
+ * @param nr i64 — Linux syscall number for the target ISA
+ * @param a1 i64 — first argument, e.g. fd for close/exit_group
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall1(nr: i64, a1: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, two arguments (nr in rax, a1 rdi, a2 rsi).
+ * Same lowering and honest-fail contract as `raw_syscall0`.
+ * @param nr i64 — Linux syscall number for the target ISA
+ * @param a1 i64 — first argument (x86_64 rdi / aarch64 x0)
+ * @param a2 i64 — second argument (x86_64 rsi / aarch64 x1)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall2(nr: i64, a1: i64, a2: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, three arguments (nr rax, a1 rdi, a2 rsi, a3 rdx) —
+ * the write(1, fd, buf, count) / read(0, fd, buf, count) shape.
+ * Same lowering and honest-fail contract as `raw_syscall0`.
+ * @param nr i64 — Linux syscall number for the target ISA (e.g. 0/63 read, 1/64 write)
+ * @param a1 i64 — first argument (x86_64 rdi / aarch64 x0), e.g. fd
+ * @param a2 i64 — second argument (x86_64 rsi / aarch64 x1), e.g. `*u8` as i64
+ * @param a3 i64 — third argument (x86_64 rdx / aarch64 x2), e.g. byte count
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall3(nr: i64, a1: i64, a2: i64, a3: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, four arguments (nr rax, a1 rdi, a2 rsi, a3 rdx, a4 r10)
+ * — the openat(257, dirfd, path, flags, mode) shape.
+ * Same lowering and honest-fail contract as `raw_syscall0`.
+ * @param nr i64 — Linux syscall number for the target ISA
+ * @param a1 i64 — first argument (x86_64 rdi / aarch64 x0)
+ * @param a2 i64 — second argument (x86_64 rsi / aarch64 x1)
+ * @param a3 i64 — third argument (x86_64 rdx / aarch64 x2)
+ * @param a4 i64 — fourth argument (x86_64 r10 / aarch64 x3)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall4(nr: i64, a1: i64, a2: i64, a3: i64, a4: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, five arguments (nr rax, a1 rdi, a2 rsi, a3 rdx, a4 r10,
+ * a5 r8) — the mmap(9, addr, len, prot, flags, fd) prefix shape.
+ * Same lowering and honest-fail contract as `raw_syscall0`.
+ * @param nr i64 — Linux syscall number for the target ISA
+ * @param a1 i64 — first argument (x86_64 rdi / aarch64 x0)
+ * @param a2 i64 — second argument (x86_64 rsi / aarch64 x1)
+ * @param a3 i64 — third argument (x86_64 rdx / aarch64 x2)
+ * @param a4 i64 — fourth argument (x86_64 r10 / aarch64 x3)
+ * @param a5 i64 — fifth argument (x86_64 r8 / aarch64 x4)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall5(nr: i64, a1: i64, a2: i64, a3: i64, a4: i64, a5: i64): i64 {
+  panic();
+  return 0;
+}
+
+/**
+ * Raw Linux syscall, six arguments (nr rax, a1 rdi, a2 rsi, a3 rdx, a4 r10,
+ * a5 r8, a6 r9) — the full mmap(9) shape.
+ * Same lowering and honest-fail contract as `raw_syscall0`.
+ * @param nr i64 — Linux syscall number for the target ISA
+ * @param a1 i64 — first argument (x86_64 rdi / aarch64 x0)
+ * @param a2 i64 — second argument (x86_64 rsi / aarch64 x1)
+ * @param a3 i64 — third argument (x86_64 rdx / aarch64 x2)
+ * @param a4 i64 — fourth argument (x86_64 r10 / aarch64 x3)
+ * @param a5 i64 — fifth argument (x86_64 r8 / aarch64 x4)
+ * @param a6 i64 — sixth argument (x86_64 r9 / aarch64 x5)
+ * @return i64 — raw kernel return; -1..-4095 means -errno
+ * PLATFORM: LINUX x86_64 or LINUX aarch64
+ */
+export function raw_syscall6(nr: i64, a1: i64, a2: i64, a3: i64, a4: i64, a5: i64, a6: i64): i64 {
+  panic();
+  return 0;
 }
 
 /* See implementation. */
@@ -382,7 +609,11 @@ export const LINUX_SOCK_STREAM: i32 = 1;
 export const LINUX_SOCK_DGRAM: i32 = 2;
 
 /**
- * See implementation.
+ * Cap residual 9.1.7: socket via xlang_sys_socket (sock_fast Cap body).
+ * @param domain address family (e.g. AF_INET)
+ * @param sock_type SOCK_STREAM / SOCK_DGRAM
+ * @param protocol IPPROTO_* or 0
+ * @return i32 fd or -1
  */
 export function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32): i32 {
   let _rc: i32 = 0;
@@ -391,7 +622,11 @@ export function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32)
 }
 
 /**
- * See implementation.
+ * Cap residual 9.1.7: connect via xlang_sys_connect (sock_fast Cap body).
+ * @param sockfd socket fd
+ * @param addr sockaddr bytes
+ * @param addrlen address length
+ * @return i32 0 ok, -1 fail
  */
 export function linux_syscall_connect(sockfd: i32, addr: *u8, addrlen: i32): i32 {
   if (addr == 0 || addrlen <= 0) {

@@ -3,6 +3,16 @@
  * Hybrid: XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_as_suffix_slice.inc
+ *
+ * Hybrid P4as/P4ad (XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X): portable
+ * TRY_PROPAGATE + EXPR_AS wrap dest-buffer and parse dest-buffer come from
+ * pthin_expr_as_suffix.x; this TU keeps wrap trampolines plus peek-after
+ * / parse trampolines. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies.
+ * G.7: pipeline_expr_set_unary_operand_c lives in the P4u seed
+ * (unary_operand_ref); pipeline_expr_set_as_c lives here (as_* slots).
+ * Do not copy set_unary into this seed and do not FORCE pabi mega.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +22,26 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P4ad. pthin_expr_as_suffix.x TOKEN_* are pin
+ * copies of this enum. token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_RPAREN == 83, "as_suffix.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "as_suffix.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_RBRACKET == 87, "as_suffix.x TOKEN_RBRACKET pin");
+_Static_assert((int)TOKEN_COMMA == 90, "as_suffix.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "as_suffix.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_QUESTION == 127, "as_suffix.x TOKEN_QUESTION pin");
+_Static_assert((int)TOKEN_AS == 128, "as_suffix.x TOKEN_AS pin");
+
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+/* .x product bodies (same C names for Route C wraps + parse dest-buffer). */
+extern int32_t parser_asm_try_propagate_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref,
+                                                    int32_t inner_ref);
+extern int32_t parser_asm_as_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t inner_ref,
+                                         int32_t type_ref);
+extern int32_t parser_asm_parse_as_suffix_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                   int32_t *out_expr_ref);
+#endif
 
 struct parser_asm_token {
   int32_t kind;
@@ -53,7 +83,7 @@ struct parser_asm_ast_expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -66,7 +96,7 @@ struct parser_asm_ast_expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -79,14 +109,14 @@ struct parser_asm_ast_expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -108,7 +138,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -121,7 +151,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -134,14 +164,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -156,14 +186,34 @@ struct ast_Expr {
   int32_t call_resolved_dep_index;
 };
 
+/* PLATFORM: SHARED — 7.2.1 P4as B-minus. ExprKind pins + consumer-wave
+ * writer. pabi inject-only skips new rest symbols, so this T lives in
+ * the P4as seed (recompiled every g05). Pointer = pipeline_arena_expr_ptr.
+ * Layout ≡ W278_Expr; P4uc already pinned unary_operand_ref==300.
+ * as_operand_ref=1208 / as_target_type_ref=1212 (late offsets). */
+_Static_assert(offsetof(struct ast_Expr, unary_operand_ref) == 300, "P4as unary_operand_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, as_operand_ref) == 1208, "P4as as_operand_ref offset ≡ W278_Expr");
+_Static_assert(offsetof(struct ast_Expr, as_target_type_ref) == 1212, "P4as as_target_type_ref offset ≡ W278_Expr");
+extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);
+void pipeline_expr_set_as_c(void *a, int32_t er, int32_t operand_ref, int32_t type_ref) {
+  struct ast_Expr *ex;
+  if (!a || er <= 0)
+    return;
+  ex = (struct ast_Expr *)pipeline_arena_expr_ptr(a, er);
+  if (!ex)
+    return;
+  ex->as_operand_ref = operand_ref;
+  ex->as_target_type_ref = type_ref;
+}
+
 /* 与 type_ref_slice / mega rest TypeKind 一致。 */
 struct ast_Type {
   int32_t kind;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[128];
+  uint8_t region_label[256];
   int32_t region_label_len;
 };
 
@@ -260,6 +310,10 @@ extern void parser_lex_from_lexer_result_ptr_into(struct parser_asm_lexer *out,
                                                  struct parser_asm_lexer_result *r);
 
 #include "parser_asm_as_suffix_slice.inc"
+
+/* PLATFORM: SHARED — 7.2.1 P4as. pthin_expr_as_suffix.x ExprKind pins. */
+_Static_assert(PARSER_ASM_EXPR_AS == 54, "as_suffix.x EXPR_AS pin");
+_Static_assert(PARSER_ASM_EXPR_TRY_PROPAGATE == 58, "as_suffix.x EXPR_TRY_PROPAGATE pin");
 
 int labi_pthin_expr_as_suffix_slice_marker(void) {
   return 1;

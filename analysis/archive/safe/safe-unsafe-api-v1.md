@@ -71,9 +71,13 @@
 
 | 资源 | 路径 |
 |------|------|
-| 模式 RFC | `analysis/lang-unsafe-v1-rfc.md` |
+| 模式 RFC | `analysis/archive/lang/lang-unsafe-v1-rfc.md` |
 | Tier-U 清单 | `tests/baseline/safe-unsafe-api.tsv` |
 | Tier-E 清单 | `tests/baseline/safe-unsafe-extern.tsv` |
 | 门禁 | `tests/run-safe-unsafe-api-gate.sh` |
 
 **SAFE-002 状态：定版 ✅**
+
+## Gate
+
+**2026-08-29 leftover accept top-level DOC 已收**（SAFE-002：退役 “prefer archive when present; accept top-level until SAFE soft knife”；live = `analysis/archive/safe/`；顶层复活硬 die；nested LANG-007 仍硬委托；报告 `run=`／`obs=`／`skip=`）。

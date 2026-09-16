@@ -1,6 +1,9 @@
 # std.fs cross-platform smoke matrix (STD-003)
 # Format: case_id<TAB>script<TAB>linux<TAB>macos<TAB>windows<TAB>notes
 # Policy: must=exit0 required; skip=不跑; optional=跑但失败仅 WARN
+# honesty 2026-08-29 leftover wrap dead source: run-std-fs-crossplatform-gate.sh
+# bootstrap-link-xlang.sh sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer asm; product must-policy / -o hard.
 core_rw	crossplatform_core.x	must	must	must	open/read/write/pread/mmap/readv/io_fd
 fs_suite	run-fs.sh	must	must	must	existing run-fs.sh wrapper
 splice_smoke	splice_smoke.x	must	skip	skip	Linux ZC-5 pipe splice

@@ -15,10 +15,15 @@
 - `time_now_monotonic_ns_c` 等 5 个 OS 符号 — compiler runtime
 - `time_now_monotonic_us_c` / `time_sleep_ms_c` / `time_format_timezone_smoke_c` — `time.x`
 
-## 门禁
+## Gate
+
+Honesty (2026-08-26): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_TIME_V1_FAIL` retired. Orphan Makefile `die/fi` syntax fixed.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-time-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-time 不重写）。
+
 
 ```bash
-XLANG_F_TIME_V1_FAIL=1 ./tests/run-f-time-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-time-v1-gate.sh
 ./tests/run-std-time-gate.sh
 ./tests/run-std-time-format-timezone-gate.sh
 ```

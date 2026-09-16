@@ -3,6 +3,16 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：`STBL-002`、`tests/run-stdlib-import.sh`
+>
+> Honesty leftover residual (2026-08-29): leftover fossil top-level
+> `analysis/boot-stdlib-check-matrix-v1.md` as live DOC + leftover catalog
+> no Honesty + leftover `xlang_compiler_make` xlang-c auto-make + leftover
+> prefer-c `stdlib_cm_resolve_shu` + leftover SKIP→OK + leftover hard
+> `xlang check` on `tests/run-stdlib-check-matrix-gate.sh` retired
+> (report `run=`／`obs=`／`skip=`; nested check postponed skip=1; G.7 do
+> not fork a resolver). Live DOC = this archive file. Refuse top-level
+> resurrect. Nested leftover runner not rewritten. **Did not create
+> `## Gate`**.
 
 ---
 

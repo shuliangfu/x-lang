@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
-# STD-SIMD-INTRINSIC：std.simd mul/sub/dot/fma 门禁
+# STD-SIMD-INTRINSIC: std.simd mul/sub/dot/fma gate — honesty leftover wrap dead source →硬绿.
 #
-# 用法：./tests/run-std-simd-intrinsic-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native asm = hard die (refuse leftover wrap
+# dead source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# intrinsic_binop_dot.x -o exit0 = hard run (run=1). check = obs.
+# Report: run=/obs=/skip=.
+# SIMD Vec bodies need asm backend (skip xlang-c).
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-simd-intrinsic-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="analysis/std-simd-intrinsic-v1.md"
+DOC="analysis/archive/std/std-simd-intrinsic-v1.md"
 MANIFEST="tests/baseline/std-simd-intrinsic.tsv"
 MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-intrinsic.sh"
@@ -15,23 +28,65 @@ MIN_APIS=11
 # shellcheck source=tests/lib/std-simd-intrinsic.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-simd-intrinsic gate FAIL: $*" >&2
+  std_simd_intrinsic_emit_report fail "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      case "$abs" in
+        */xlang-c|*/xlang-x*) return 1 ;;
+      esac
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c / xlang-c (no Vec emit).
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-simd-intrinsic-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
+
 echo "=== STD-SIMD-INTRINSIC: manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X" std/simd/README.md; do
-  [ -f "$f" ] || { echo "std-simd-intrinsic gate FAIL: missing $f" >&2; exit 1; }
+  [ -f "$f" ] || die "missing $f"
 done
 
 # Product names are overload mul/dot/fma. Historical vec4f_mul is not a second export.
 for kw in STD-SIMD-INTRINSIC mul dot fma vfmadd binop; do
-  grep -qF -- "$kw" "$DOC" 2>/dev/null || {
-    echo "std-simd-intrinsic gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  }
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
-
-grep -qF fma std/simd/README.md 2>/dev/null || {
-  echo "std-simd-intrinsic gate FAIL: README missing fma" >&2
-  exit 1
-}
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
+grep -qF fma std/simd/README.md 2>/dev/null || die "README missing fma"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -42,91 +97,49 @@ API_N=0
 while IFS=$'\t' read -r item_id kind anchor _rest; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*|min_*) continue ;; esac
-  case "$kind" in api) API_N=$((API_N + 1)) ;; esac
+  case "$kind" in
+    api) API_N=$((API_N + 1)) ;;
+    section)
+      grep -qF "$anchor" "$DOC" 2>/dev/null || die "doc missing section $anchor"
+      ;;
+  esac
 done < "$MANIFEST"
-[ "$API_N" -ge "$MIN_APIS" ] || {
-  echo "std-simd-intrinsic gate FAIL: api count $API_N < $MIN_APIS" >&2
-  exit 1
-}
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < $MIN_APIS"
 
 sym_miss="$(std_simd_intrinsic_symbols_ok "$MOD_X" "$MANIFEST" || true)"
-[ "${sym_miss:-0}" -eq 0 ] || {
-  std_simd_intrinsic_emit_report fail 0 0
-  echo "std-simd-intrinsic gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-}
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-simd-intrinsic manifest OK"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-stdlib_cm_native_simd_asm() {
-  local f="$1"
-  stdlib_cm_native_xlang "$f" || return 1
-  case "$f" in
-    */xlang-c|*/xlang-x*) return 1 ;;
-  esac
-  return 0
-}
-
-stdlib_cm_pick_xlang_asm() {
-  local cand
-  for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm_working; do
-    if stdlib_cm_native_simd_asm "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
-
-X_OK=0
-SKIP=1
-XLANG_ASM=""
-XLANG_TYPECK=""
-if cand="$(stdlib_cm_pick_xlang_asm)"; then
-  XLANG_ASM="$cand"
+if [ "${XLANG_STD_SIMD_INTRINSIC_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_simd_intrinsic_emit_report ok "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-simd-intrinsic gate OK (manifest only)"
+  exit 0
 fi
-for cand in ./compiler/xlang-c ./compiler/xlang; do
-  if stdlib_cm_native_xlang "$cand"; then
-    XLANG_TYPECK="$cand"
-    break
-  fi
-done
 
-# Self-host pause (2026-08-05): do not use `xlang check` as a product gate.
-# Authority is -L . -o + run via std_simd_intrinsic_run_smoke.
-if [ -n "$XLANG_TYPECK" ]; then
-  echo "std-simd-intrinsic SKIP typeck check (self-host pause; smoke is authority)"
+XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-SIMD-INTRINSIC: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_simd_intrinsic_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-simd-intrinsic OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+if std_simd_intrinsic_run_smoke "$XLANG_BIN" "$SMOKE_X" "binop"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-simd-intrinsic OK: intrinsic_binop_dot"
 else
-  echo "std-simd-intrinsic gate SKIP typeck (no native xlang)" >&2
+  die "intrinsic_binop_dot.x exit!=0 (refuse soft SKIP→OK)"
 fi
 
-if [ -n "$XLANG_ASM" ]; then
-  rc=0
-  std_simd_intrinsic_run_smoke "$XLANG_ASM" "$SMOKE_X" || rc=$?
-  if [ "$rc" -eq 0 ]; then
-    X_OK=1
-    SKIP=0
-  elif [ "$rc" -eq 2 ]; then
-    echo "std-simd-intrinsic WARN: asm runtime smoke failed; manifest+typeck OK (skip)" >&2
-    SKIP=1
-  else
-    std_simd_intrinsic_emit_report fail 0 0
-    exit 1
-  fi
-else
-  echo "std-simd-intrinsic gate SKIP smoke (no asm xlang)" >&2
-fi
-
-std_simd_intrinsic_emit_report ok "$X_OK" "$SKIP"
+std_simd_intrinsic_emit_report ok "$RUN_OK" "$OBS" "$SKIP"
 echo "std-simd-intrinsic gate OK"
