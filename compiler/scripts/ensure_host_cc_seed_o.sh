@@ -3224,6 +3224,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_w157_sum_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_binop_var_slot_cache_thin.x ] \
+      && [ src/runtime_pipeline_abi_binop_var_slot_cache_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3250,6 +3254,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
+      pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3283,6 +3288,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
+      pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3687,6 +3693,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     pipeline_abi_inject_assign_thin "$o" || true
     pipeline_abi_inject_w157_sum_thin "$o" || true
+    pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3725,6 +3732,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         pipeline_abi_inject_assign_thin "$o" || true
         pipeline_abi_inject_w157_sum_thin "$o" || true
+        pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3747,6 +3755,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
+      pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3777,6 +3786,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   pipeline_abi_inject_assign_thin "$o" || true
   pipeline_abi_inject_w157_sum_thin "$o" || true
+  pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -4279,6 +4289,12 @@ pipeline_abi_inject_assign_thin() {
 # G.7: bodies match mega wave157 leave. PLATFORM: SHARED.
 pipeline_abi_inject_w157_sum_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_w157_sum_thin.x" "w157-sum-thin"
+}
+
+# wave210 binop VAR slot cache. G.7: bodies match mega wave210 leave.
+# PLATFORM: SHARED.
+pipeline_abi_inject_binop_var_slot_cache_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_var_slot_cache_thin.x" "bvsc-thin"
 }
 
 

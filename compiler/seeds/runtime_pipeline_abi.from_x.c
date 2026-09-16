@@ -19714,7 +19714,7 @@ int32_t glue_body_expr_stmt_at_c(void *arena, int32_t body_ref, int32_t si, int3
 }
 
 
-/* XLANG_PABI_ASSIGN_THIN_END — assign cluster only; w157/sum_block stay leftover/mega */
+/* XLANG_PABI_ASSIGN_THIN_END — assign cluster only; w157/bvsc are separate thins */
 
 /* ============================================================================
  * wave157 call-spill calculation: w157_sum_expr_call_spill_bytes +
@@ -39341,6 +39341,7 @@ int32_t glue_index_scratch_caches_hit_var(void *arena, int32_t var_ref) {
   return 0;
 }
 
+/* XLANG_PABI_BINOP_VAR_SLOT_CACHE_THIN_BEGIN */
 /*
  * wave210 cold twins: binop VAR slot cache BSS + thin accessors
  * (G.7 pure leave). Working freestanding BSS twins of pure flattened
@@ -39498,6 +39499,8 @@ void glue_binop_var_slot_cache_set_valid_x12(int32_t v) { g_wave210_var_valid_x1
 void glue_binop_var_slot_cache_set_valid_x13(int32_t v) { g_wave210_var_valid_x13 = v; }
 void glue_binop_var_slot_cache_set_valid_x14(int32_t v) { g_wave210_var_valid_x14 = v; }
 void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { g_wave210_var_valid_x15 = v; }
+
+/* XLANG_PABI_BINOP_VAR_SLOT_CACHE_THIN_END */
 
 /*
  * wave211 cold twin: binop stack-spill try_reload enc public face.
