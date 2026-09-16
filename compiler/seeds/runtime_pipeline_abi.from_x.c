@@ -39598,6 +39598,7 @@ void glue_asm73_cfg_final_expr_use_n_set(int32_t n) { g_wave212_cfg_final_expr_u
 
 /* XLANG_PABI_ASM73_CHAITIN_THIN_END — pin/color only; stack_spill_enabled uses wave213 BSS below */
 
+/* XLANG_PABI_ASM73_LIVE_INTERF_THIN_BEGIN */
 /*
  * wave213 cold twins: live control scalars + Chaitin interf BSS + linear_ctx
  * (G.7 pure leave). Working freestanding BSS twins of pure control/interf.
@@ -39824,6 +39825,8 @@ int32_t glue_asm73_linear_slot_base_get(void) { return g_wave213_linear_slot_bas
 int32_t glue_asm73_linear_nconst_get(void) { return g_wave213_linear_nconst; }
 int32_t glue_asm73_linear_nlet_get(void) { return g_wave213_linear_nlet; }
 int32_t glue_asm73_linear_nso_get(void) { return g_wave213_linear_nso; }
+
+/* XLANG_PABI_ASM73_LIVE_INTERF_THIN_END */
 
 /*
  * wave214 cold twins: live set arrays + opaque u8 overlay thins (G.7 pure leave).
