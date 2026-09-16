@@ -187,8 +187,8 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_asm_label_format.c|8.3.2|asm label format Cap residual (wave288 seed ALWAYS leave; M2 C thin)|0|absent"
   "compiler/pipeline_codegen_outbuf.c|8.3.2|codegen outbuf Cap residual (wave289 seed ALWAYS leave; M2 C thin)|0|absent"
   "compiler/pipeline_asm_codegen_mega_body.c|8.3.2|asm codegen mega_body Cap residual (wave290 seed ALWAYS leave; M2 C thin)|0|absent"
-  "compiler/pipeline_elf_codegen_forwarders.c|8.3.2|elf/codegen prefix forwarders Cap residual (wave291 seed ALWAYS leave; M2 C thin)|0|absent"
-  "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration host wrapper retired (wave292 seed-only .o)|0|absent"
+  "compiler/pipeline_elf_codegen_forwarders.c|8.3.2|elf/codegen prefix forwarders Cap residual (wave291 seed ALWAYS; wave292 M2 C→.x)|0|absent"
+  "compiler/pipeline_bootstrap_orchestration.c|8.3.4|orchestration host wrapper retired (wave292 seed-only .o; not g05)|0|absent"
   # --- 8.3 product weak twin / standalone seed ---
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed retired wave309 (product pure-ld no mega)|0|absent"
   "compiler/seeds/pipeline_glue_strict_minimal.from_x.c|8.3.6|strict_minimal seed shell retired wave304 (0 T after wave303; product g05 unlinked)|0|absent"

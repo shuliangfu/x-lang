@@ -95,6 +95,9 @@ Thumbs.db
 !tests/fixtures/bootstrap-stage-diag/*.log
 !tests/fixtures/comp-link-sym/*.log
 
+# local thin-inject stamps (prefer IF_NEWER bypass; not product)
+compiler/src/.pabi_*.stamp
+
 # --- compiler 目录：构建产物与生成文件（不提交） ---
 # 根目录 build_asm/（gen_driver、seed_host 等；compiler/build_asm/ 见下）
 /build_asm/

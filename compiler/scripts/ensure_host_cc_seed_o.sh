@@ -3388,8 +3388,8 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_asm_codegen_mega_body_thin.c -nt "$o" ]; then
       stale=1
     fi
-    if [ -f src/runtime_pipeline_abi_elf_codegen_forwarders_thin.c ] \
-      && [ src/runtime_pipeline_abi_elf_codegen_forwarders_thin.c -nt "$o" ]; then
+    if [ -f src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x ] \
+      && [ src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x -nt "$o" ]; then
       stale=1
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
@@ -6251,49 +6251,36 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
 }
 
 
-# wave291 elf_codegen_forwarders Cap residual (C thin; rename shims + sizeof_elf_ctx).
-# Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
-# G.7: match seed WAVE291_ELF_CODEGEN_FORWARDERS_ALWAYS. PLATFORM: SHARED.
+# wave292 M2: elf_codegen_forwarders Cap residual C→.x (was wave291 C thin).
+# PREFER_ASM via inject_thin_leaf. Stamp gate: C thins bump $o mtime before
+# this leaf under INJECT_IF_NEWER, which would false-skip a new .x; stamp
+# tracks successful overlay so daily prefer stays cheap.
+# G.7 match seed WAVE291_ELF_CODEGEN_FORWARDERS_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_elf_codegen_forwarders_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_elf_codegen_forwarders_thin.c"
-  local thin_o base_o restore_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi w291-elf-fwd inject skip: $o is libtool archive"
-    return 1
-  fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_elfwd.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_elfwd_base.XXXXXX.o")"
-  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_elfwd_restore.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi w291-elf-fwd inject: cc thin failed"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  cp -f "$o" "$restore_o"
-  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-    log "pipeline_abi w291-elf-fwd inject skip: cannot weaken leftover T"
-    rm -f "$thin_o" "$base_o" "$restore_o"
+  local thin_x="src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x"
+  local stamp="src/.pabi_w292_elf_fwd.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local had_newer=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # Skip when stamp is up-to-date vs .x (already overlaid this leaf content).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    if pipeline_abi_o_is_libtool_archive "$o"; then
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w291-elf-fwd inject: libtool archive; restored base"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-    log "pipeline_abi w291-elf-fwd inject OK (first-wins over leftover)"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 0
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
   fi
-  cp -f "$restore_o" "$o"
-  log "pipeline_abi w291-elf-fwd inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o" "$restore_o"
-  return 1
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w292-elf-fwd"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 

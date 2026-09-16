@@ -67758,8 +67758,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
  * names → authoritative unprefixed pipeline_elf_* / codegen_out_buf_* /
  * pipeline_scratch_buf64* (pure ELF wave273 + codegen_x.o scratch).
  * plus pipeline_sizeof_elf_ctx (LP64 layout size; no host sizeof(struct)).
- * M2 Class E: C thin leave = runtime_pipeline_abi_elf_codegen_forwarders_thin.c
- * (inject via weaken leftover T then first-wins ld -r).
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_elf_codegen_forwarders_thin.x
+ * (wave292 C→.x PREFER_ASM inject; was wave291 C thin).
  * Not gated by FROM_X. dual-export ban: only seed ALWAYS defines these bodies.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
