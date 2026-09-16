@@ -45870,6 +45870,7 @@ void glue_block_body_bind_module_dep_from_ctx(void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_TYPE_ALIAS_THIN_BEGIN */
 #define WAVE262_TA_SLOTS 128
 #define WAVE262_TA_ENTRY_SZ 264
 static void *g_wave262_ta_mod[WAVE262_TA_SLOTS];
@@ -46078,6 +46079,7 @@ int32_t pipeline_module_num_type_aliases_at(void *module) {
     return 0;
   return g_wave262_ta_n[s];
 }
+/* XLANG_PABI_TYPE_ALIAS_THIN_END */
 
 /*
  * wave263 cold twins: ast_pool_module_import Cap residual pure leave.
