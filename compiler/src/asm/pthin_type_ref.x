@@ -25,13 +25,14 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
-// STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X are separate
-// defines (P6e PARSE_LAYOUT / P2c COND pattern) so a missing postfix_x /
-// prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x keeps that C twin
-// without dropping P3b–P3e.
+// STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X /
+// SCALAR_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
+// linear_x / vec_x / alloc_x / scalar_x keeps that C twin without
+// dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -147,6 +148,19 @@
 // separate define so a missing alloc_x keeps the C twin without
 // dropping P3l. Do not merge into parse_type_ref_impl (P3f red).
 // Do not open a new P-lane. Do not FORCE pabi mega.
+// 7.2.1 P3n B-minus (2026-09-16): 有则补全 builtin scalar/void token
+// dest-buffer. The TOKEN_I32 / BOOL / I64 / U8 / U32 / U64 / USIZE /
+// ISIZE / VOID / F32 / F64 arm was inlined in parse_type_ref_impl
+// (always host-cc). P9a peek/step consumes the token; kind_ord is
+// the existing builtin_kind_ord table (G.7). Writer =
+// init_primitive_kind_at (0..16, including VOID=16). Postfix
+// `i32[]` / `i32[N]` stays in the C impl (already P3g). Not-scalar
+// leaves lex unchanged so IDENT still sees the token. SCALAR is a
+// separate define so a missing scalar_x keeps the C twin without
+// dropping P3m. Do not dest-buffer parse_type_ref (P3f red). Do not
+// dest-buffer IDENT generic type-arg. Do not dest-buffer IDENT
+// vector spelling consume. Do not open a new P-lane. Do not FORCE
+// pabi mega. Do not touch pthin_expr_primary.x (current xlang T001).
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -1650,6 +1664,51 @@ export function parser_asm_alloc_vector_type_ref_x_into_c(arena: *u8, elem_ord: 
       return 0;
     }
     return vec_ref;
+  }
+  return 0;
+}
+
+/**
+ * Parse type-position builtin scalar/void tokens (`i32` / `bool` /
+ * `i64` / `u8` / `u32` / `u64` / `usize` / `isize` / `void` / `f32` /
+ * `f64`) into a primitive Type slot. Peek must map through
+ * builtin_kind_ord else 0 (lex unchanged) so the C IDENT arm still
+ * sees the token. Postfix `T[]` / `T[N]` stays in the C impl (P3g).
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @return i32 — primitive type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3n dest-buffer split of the former
+ * inlined scalar-token arm. Writer = init_primitive_kind_at (0..16).
+ * Kind table = builtin_kind_ord (G.7). Do not dest-buffer
+ * parse_type_ref. Do not dest-buffer IDENT generic type-arg.
+ * parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_builtin_scalar_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let ord: i32 = 0;
+  let type_ref: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    ord = parser_asm_type_ref_builtin_kind_ord_c(kind);
+    if (ord < 0) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    type_ref = ast_ast_arena_type_alloc(arena);
+    if (type_ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_primitive_kind_at(arena, type_ref, ord);
+    if (ok == 0) {
+      return 0;
+    }
+    return type_ref;
   }
   return 0;
 }

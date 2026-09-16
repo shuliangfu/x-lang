@@ -3,14 +3,15 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * skips the portable token_starts_type / ident_is_dyn / builtin_kind_ord /
  * vector-ident-pack region, (P3d) consume_qualified / type_angle_close, and
  * (P3e) TYPE_DYN wrap (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC are separate
- * defines for P3g–P3m. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
- * alloc_vector_type_ref C twin. parse_type_ref_impl stays C. Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC define, full twin.
+ * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR are separate
+ * defines for P3g–P3n. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
+ * alloc_vector_type_ref C twin. XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X (P3n) skips
+ * builtin scalar-token C twin. parse_type_ref_impl stays C. Cold: no
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -1196,6 +1197,56 @@ static int32_t parser_asm_parse_builtin_vec_type_ref_c(void *arena, struct parse
 }
 #endif /* XLANG_PTHIN_TYPE_REF_VEC_FROM_X builtin vec tokens */
 
+#ifdef XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X
+extern int32_t parser_asm_parse_builtin_scalar_type_x_into_c(void *arena, void *lex_inout, void *source);
+/**
+ * PLATFORM: SHARED — P3n trampoline. Entry cursor is unconsumed scalar
+ * token; parse_type_ref_impl stays C and only calls this on I32/BOOL/…
+ * VOID/F32/F64. Not-scalar leaves lex unchanged so IDENT still sees
+ * the token. Primitive writer lives in .x. Postfix stays in the impl.
+ */
+static int32_t parser_asm_parse_builtin_scalar_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                         struct parser_asm_slice_u8 *source,
+                                                         struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  ref = parser_asm_parse_builtin_scalar_type_x_into_c(arena, &cur, source);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Parse type-position builtin scalar/void tokens (`i32` / `bool` / `void` / `f32`).
+ * lex is unconsumed. Postfix stays in parse_type_ref_impl.
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_parse_builtin_scalar_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                         struct parser_asm_slice_u8 *source,
+                                                         struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  int32_t type_ref_scalar;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_I32 && r.tok.kind != (int32_t)TOKEN_BOOL
+      && r.tok.kind != (int32_t)TOKEN_I64 && r.tok.kind != (int32_t)TOKEN_U8
+      && r.tok.kind != (int32_t)TOKEN_U32 && r.tok.kind != (int32_t)TOKEN_U64
+      && r.tok.kind != (int32_t)TOKEN_USIZE && r.tok.kind != (int32_t)TOKEN_ISIZE
+      && r.tok.kind != (int32_t)TOKEN_VOID && r.tok.kind != (int32_t)TOKEN_F32
+      && r.tok.kind != (int32_t)TOKEN_F64) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  type_ref_scalar = parser_asm_type_ref_from_builtin_token_c(arena, r.tok.kind);
+  parser_asm_lex_from_result_val_into(&lex, r);
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return type_ref_scalar;
+}
+#endif /* XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X builtin scalar tokens */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -1283,13 +1334,19 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
     vec_tok_ref = parser_asm_parse_builtin_vec_type_ref_c(arena, lex, source, out_lex);
     return vec_tok_ref;
   }
+  /*
+   * P3n dest-buffer: helper owns the unconsumed scalar-token cursor
+   * (same as P3l vec owning unconsumed I32X4). Not-scalar leaves
+   * lex unchanged so IDENT still consume `r`. Postfix `i32[]` /
+   * `i32[N]` stays here (already P3g).
+   * PLATFORM: SHARED type grammar.
+   */
   if (r.tok.kind == (int32_t)TOKEN_I32 || r.tok.kind == (int32_t)TOKEN_BOOL || r.tok.kind == (int32_t)TOKEN_I64
       || r.tok.kind == (int32_t)TOKEN_U8 || r.tok.kind == (int32_t)TOKEN_U32 || r.tok.kind == (int32_t)TOKEN_U64
       || r.tok.kind == (int32_t)TOKEN_USIZE || r.tok.kind == (int32_t)TOKEN_ISIZE || r.tok.kind == (int32_t)TOKEN_VOID
       || r.tok.kind == (int32_t)TOKEN_F32 || r.tok.kind == (int32_t)TOKEN_F64) {
-    type_ref_scalar = parser_asm_type_ref_from_builtin_token_c(arena, r.tok.kind);
-    parser_asm_lex_from_result_val_into(&lex, r);
-    return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_scalar, lex, source, out_lex);
+    type_ref_scalar = parser_asm_parse_builtin_scalar_type_ref_c(arena, lex, source, out_lex);
+    return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_scalar, *out_lex, source, out_lex);
   }
   if (r.tok.kind == (int32_t)TOKEN_IDENT) {
     /*
