@@ -61670,9 +61670,12 @@ void ast_pool_onefunc_release(uint8_t *out) {
  * pool Func; same residual class as wave277–279). G.7: sole product authority for
  * pipeline_module_func_* / pipeline_arena_func_param_write|copy_slot_from_module
  * / pipeline_asm_module_func_* / arch_arm64_pipeline_asm_module_func_* below.
- * Pure keeps export-extern only (no body dual-export). PLATFORM: SHARED —
- * runtime_pipeline_abi.o.
+ * Pure keeps export-extern only (no body dual-export).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_module_func_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
+ * PLATFORM: SHARED — runtime_pipeline_abi.o.
  * ============================================================================= */
+/* XLANG_PABI_MODULE_FUNC_THIN_BEGIN */
 #ifndef WAVE280_MODULE_FUNC_DOMAIN_ALWAYS
 #define WAVE280_MODULE_FUNC_DOMAIN_ALWAYS 1
 
@@ -62561,6 +62564,7 @@ void arch_arm64_pipeline_asm_module_func_name_copy64(void *m, int32_t func_index
 }
 
 
+/* XLANG_PABI_MODULE_FUNC_THIN_END */
 #endif /* WAVE280_MODULE_FUNC_DOMAIN_ALWAYS */
 
 /* =============================================================================
