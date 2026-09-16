@@ -21,7 +21,9 @@
  * loop (body in pthin_expr_primary.x). append_byte stays C.
  * P4bn: XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X trampolines
  * finish_from_type_ident (body in pthin_expr_primary.x; C holds
- * name[256]). Cold: no define, full twin.
+ * name[256]). P4bo: XLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X trampolines
+ * parse_asm_bang (C holds tmpl[256]+regs[128]; parse_unsafe stays C).
+ * Cold: no define, full twin.
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.
@@ -1566,9 +1568,57 @@ static void parser_asm_primary_parse_panic_c(void *arena, struct parser_asm_slic
  * Slice6: `out`/`lateout` place may be `_` (clobber discard); trailing `options(name…)`.
  * Reg spellings packed comma-separated in method_call_name (matches call_arg order).
  * GNU `:` operands still rejected.
- * Escape decode matches STRING_LIT (G.7). Template → var_name; kind=EXPR_ASM(60).
- * PLATFORM: SHARED.
+ * Escape decode matches STRING_LIT known escapes; invalid `\x` / unknown
+ * escape write the backslash (C twin; STRING decode_span consumes the
+ * follower — P4bo does not reuse decode_span). Template → var_name;
+ * kind=EXPR_ASM(60). PLATFORM: SHARED.
  */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X
+extern int32_t parser_asm_primary_parse_asm_bang_x_into_c(void *arena, void *lex_inout, void *source,
+                                                         uint8_t *tmpl_buf, uint8_t *regs_buf,
+                                                         int32_t *out_ok, int32_t *out_expr_ref);
+/**
+ * PLATFORM: SHARED — P4bo trampoline. Language has no local u8[N]; this
+ * C face holds tmpl[256] (template decode cap 127) and regs[128]
+ * (comma-separated register spellings). Entry cursor is unconsumed BANG
+ * (`*lex` at `!`; `*r` already holds that token). parse_unsafe stays C.
+ */
+static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
+                                                struct parser_asm_parse_expr_result *out) {
+  uint8_t tmpl_buf[256];
+  uint8_t regs_buf[128];
+  int32_t ok;
+  int32_t ref;
+  int32_t ni;
+  if (!arena || !source || !lex || !r || !out)
+    return;
+  out->ok = 0;
+  out->expr_ref = 0;
+  if (r->tok.kind != (int32_t)TOKEN_BANG)
+    return;
+  ni = 0;
+  while (ni < 256) {
+    tmpl_buf[ni] = 0;
+    ni = ni + 1;
+  }
+  ni = 0;
+  while (ni < 128) {
+    regs_buf[ni] = 0;
+    ni = ni + 1;
+  }
+  ok = 0;
+  ref = 0;
+  if (parser_asm_primary_parse_asm_bang_x_into_c(arena, lex, source, tmpl_buf, regs_buf, &ok, &ref) == 0 ||
+      ok == 0) {
+    out->ok = 0;
+    return;
+  }
+  out->ok = 1;
+  out->expr_ref = ref;
+  out->next_lex = *lex;
+}
+#else
 static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_slice_u8 *source,
                                                 struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
                                                 struct parser_asm_parse_expr_result *out) {
@@ -1833,6 +1883,7 @@ static void parser_asm_primary_parse_asm_bang_c(void *arena, struct parser_asm_s
   out->expr_ref = pref;
   out->next_lex = *lex;
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X parse_asm_bang */
 
 /** `[ e0, ... ]` / `[]` 数组字面量 primary。 */
 static void parser_asm_primary_parse_array_lit_c(void *arena, struct parser_asm_slice_u8 *source,

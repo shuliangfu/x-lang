@@ -83,6 +83,7 @@ export extern "C" function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_ino
 export extern "C" function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: i32, type_ref: i32): i32;
 export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
 export extern "C" function pipeline_expr_append_array_lit_elem(a: *u8, er: i32, elem_ref: i32): i32;
+export extern "C" function lexer_note_string_lit_overflow(line: i32, col: i32): void;
 const EXPR_BLOCK: i32 = 26;
 const EXPR_BREAK: i32 = 39;
 const EXPR_CONTINUE: i32 = 40;
@@ -91,6 +92,9 @@ const EXPR_PANIC: i32 = 42;
 const EXPR_FIELD_ACCESS: i32 = 44;
 const EXPR_ARRAY_LIT: i32 = 46;
 const EXPR_STRING_LIT: i32 = 59;
+const EXPR_ASM: i32 = 60;
+const TOKEN_UNDERSCORE: i32 = 52;
+const TOKEN_BANG: i32 = 126;
 export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_skip_angle_count_ptr_into_c(lex_inout: *u8, source: *u8, out_count: *i32): void;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
@@ -192,6 +196,18 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // stay P4bi. Independent FINISH_TYPE_IDENT gate so a missing finish_x
 // keeps the C twin without dropping P4bh/P4bj/P4bm. Do not dest-buffer
 // append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bo B-minus (2026-09-16): 有则补全 parse_asm_bang dest-buffer.
+// ident_pre_dispatch still C (thin compositor); parse_unsafe stays C.
+// Template decode writes a C-owned tmpl[256] (cap 127 + overflow note,
+// same as the C twin; do NOT reuse STRING decode_span — invalid-escape
+// fallthrough writes the backslash, STRING consumed the follower).
+// Register spellings pack into C-owned regs[128] then
+// set_method_call_c (does not change kind). Option bits go through
+// set_call_c(callee=0, bits) onto call_num_type_args. n_in is
+// set_int_val. Independent ASM_BANG gate so a missing asm_x keeps
+// the C twin without dropping P4bh/P4bj/P4bm/P4bn. Nested while
+// uses flags (no break). Do not dest-buffer append_byte /
+// parse_type_ref / parse_unsafe. Do not FORCE pabi mega.
 // 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
 // C twin keeps *lex at `<` until follower is `(` / committed `{` struct
 // lit. .x type_ref walk and count-only skip both advance lex_inout;
@@ -1937,6 +1953,556 @@ export function parser_asm_finish_struct_lit_from_type_ident_x_into_c(arena: *u8
       out_expr_ref[0] = 0;
       return 0;
     }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Hex nibble for asm! template `\xHH` (and the STRING walk). 0..15 or -1.
+ * @param h u8 — ASCII hex digit
+ * @return i32 — nibble, or -1 if not hex
+ * PLATFORM: SHARED — G.7 single nibble table.
+ */
+function parser_asm_primary_hex_val_x(h: u8): i32 {
+  if (h >= 48 && h <= 57) {
+    return (h as i32) - 48;
+  }
+  if (h >= 97 && h <= 102) {
+    return (h as i32) - 97 + 10;
+  }
+  if (h >= 65 && h <= 70) {
+    return (h as i32) - 65 + 10;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Decode one TOKEN_STRING span into a C-owned buffer (asm! template).
+ * Cap 127 + overflow note then stop (C twin; do not raise to 255).
+ * Invalid `\x` / unknown escape write the backslash and consume 1
+ * (C twin; STRING decode_span consumes the follower — do not reuse).
+ * @param source *u8 — opaque slice
+ * @param q0 usize — first payload byte
+ * @param nlen i32 — payload length; <0 treated as 0
+ * @param tmpl_buf *u8 — C trampoline scratch; NUL-terminated when wi<256
+ * @param line i32 — overflow diag line
+ * @param col i32 — overflow diag col
+ * @return i32 — decoded length wi (>=0); 0 on null buf
+ * PLATFORM: SHARED — P4bo template face. Do not dest-buffer append_byte.
+ */
+function parser_asm_primary_asm_template_decode_x(source: *u8, q0: usize, nlen: i32, tmpl_buf: *u8, line: i32, col: i32): i32 {
+  let ri: i32 = 0;
+  let wi: i32 = 0;
+  let c: u8 = 0;
+  let n: u8 = 0;
+  let h1: u8 = 0;
+  let h2: u8 = 0;
+  let v1: i32 = 0;
+  let v2: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let consumed: i32 = 0;
+  let b: u8 = 0;
+  if (source == 0 as *u8 || tmpl_buf == 0 as *u8) {
+    return 0;
+  }
+  if (nlen < 0) {
+    nlen = 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ri = 0;
+    wi = 0;
+    while (ri < nlen) {
+      if (wi >= 127) {
+        lexer_note_string_lit_overflow(line, col);
+        if (wi < 256) {
+          tmpl_buf[wi] = 0;
+        }
+        return wi;
+      }
+      c = 0;
+      consumed = 1;
+      if (q0 + (ri as usize) < slen && data != 0 as *u8) {
+        c = parser_asm_primary_ident_byte(data, q0, ri);
+      }
+      b = c;
+      if (c == 92 && (ri + 1) < nlen) {
+        n = 0;
+        if (q0 + ((ri + 1) as usize) < slen && data != 0 as *u8) {
+          n = parser_asm_primary_ident_byte(data, q0, ri + 1);
+        }
+        if (n == 110) {
+          b = 10;
+          consumed = 2;
+        } else if (n == 116) {
+          b = 9;
+          consumed = 2;
+        } else if (n == 114) {
+          b = 13;
+          consumed = 2;
+        } else if (n == 48) {
+          b = 0;
+          consumed = 2;
+        } else if (n == 92 || n == 34) {
+          b = n;
+          consumed = 2;
+        } else if (n == 120 && (ri + 3) < nlen) {
+          h1 = 0;
+          h2 = 0;
+          v1 = 0 - 1;
+          v2 = 0 - 1;
+          if (q0 + ((ri + 2) as usize) < slen && data != 0 as *u8) {
+            h1 = parser_asm_primary_ident_byte(data, q0, ri + 2);
+          }
+          if (q0 + ((ri + 3) as usize) < slen && data != 0 as *u8) {
+            h2 = parser_asm_primary_ident_byte(data, q0, ri + 3);
+          }
+          v1 = parser_asm_primary_hex_val_x(h1);
+          v2 = parser_asm_primary_hex_val_x(h2);
+          if (v1 >= 0 && v2 >= 0) {
+            b = ((v1 * 16) + v2) as u8;
+            consumed = 4;
+          }
+        }
+      }
+      tmpl_buf[wi] = b;
+      wi = wi + 1;
+      ri = ri + consumed;
+    }
+    if (wi < 256) {
+      tmpl_buf[wi] = 0;
+    }
+    return wi;
+  }
+  return 0;
+}
+
+/**
+ * Pack one TOKEN_STRING register spelling into regs_buf (comma-separated,
+ * first operand has no leading comma). rlen capped at 16 (C twin).
+ * @param source *u8 — opaque slice
+ * @param lex_inout *u8 — cursor on TOKEN_STRING (not consumed)
+ * @param regs_buf *u8 — C trampoline 128-byte scratch
+ * @param regs_len i32 — live packed length
+ * @return i32 — new packed length, or -1 if base+1+rlen >= 128
+ * PLATFORM: SHARED — P4bo register pack. Do not FORCE pabi mega.
+ */
+function parser_asm_primary_asm_pack_reg_x(source: *u8, lex_inout: *u8, regs_buf: *u8, regs_len: i32): i32 {
+  let kind: i32 = 0;
+  let q0: usize = 0;
+  let rlen: i32 = 0;
+  let rwi: i32 = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let rc: u8 = 0;
+  let base: i32 = 0;
+  if (source == 0 as *u8 || lex_inout == 0 as *u8 || regs_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 0 - 1;
+    }
+    q0 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    rlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (rlen < 0) {
+      rlen = 0;
+    }
+    if (rlen > 16) {
+      rlen = 16;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (regs_len == 0) {
+      rwi = 0;
+      while (rwi < rlen) {
+        rc = 0;
+        if (data != 0 as *u8 && q0 + (rwi as usize) < slen) {
+          rc = parser_asm_primary_ident_byte(data, q0, rwi);
+        }
+        regs_buf[rwi] = rc;
+        rwi = rwi + 1;
+      }
+      if (rwi < 128) {
+        regs_buf[rwi] = 0;
+      }
+      return rwi;
+    }
+    base = regs_len;
+    if (base + 1 + rlen >= 128) {
+      return 0 - 1;
+    }
+    regs_buf[base] = 44;
+    rwi = 0;
+    while (rwi < rlen) {
+      rc = 0;
+      if (data != 0 as *u8 && q0 + (rwi as usize) < slen) {
+        rc = parser_asm_primary_ident_byte(data, q0, rwi);
+      }
+      regs_buf[base + 1 + rwi] = rc;
+      rwi = rwi + 1;
+    }
+    base = base + 1 + rlen;
+    if (base < 128) {
+      regs_buf[base] = 0;
+    }
+    return base;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Parse `options(name[, name…])` after the opening `(` is consumed.
+ * Empty `()` returns 0. Unknown names fail. Single while (no nested
+ * break — P4bh parse-drop).
+ * @param lex_inout *u8 — cursor inside `(`; parked after `)` on success
+ * @param source *u8 — opaque slice
+ * @return i32 — bitmask, or -1 on failure
+ * PLATFORM: SHARED — P4bo options list. G.7 bit table = asm_option_bit_buf.
+ */
+function parser_asm_primary_asm_parse_options_x(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let bits: i32 = 0;
+  let done: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let obit: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      return 0;
+    }
+    bits = 0;
+    done = 0;
+    while (done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_IDENT) {
+        return 0 - 1;
+      }
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      obit = parser_asm_primary_asm_option_bit_buf_c(data, slen, ts, ilen);
+      if (obit == 0) {
+        return 0 - 1;
+      }
+      bits = bits | obit;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_RPAREN) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        done = 1;
+      } else if (kind != TOKEN_COMMA) {
+        return 0 - 1;
+      } else {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+      }
+    }
+    return bits;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Parse one in/out/lateout operand. Entry cursor is the direction IDENT.
+ * Underscore discard reuses tmpl_buf[0] after the template is copied.
+ * @param arena *u8 — opaque AST arena
+ * @param lex_inout *u8 — cursor on in/out/lateout
+ * @param source *u8 — opaque slice
+ * @param regs_buf *u8 — register pack buffer; underscore writes 95 at packed end
+ * @param regs_len_io *i32 — in/out packed length
+ * @param pref i32 — EXPR_ASM ref to append call_args onto
+ * @return i32 — 1=in, 2=out/lateout, 0=fail
+ * PLATFORM: SHARED — P4bo one operand. No nested while.
+ */
+function parser_asm_primary_asm_parse_operand_x(arena: *u8, lex_inout: *u8, source: *u8, regs_buf: *u8, regs_len_io: *i32, pref: i32): i32 {
+  let kind: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let is_out_op: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (regs_buf == 0 as *u8 || regs_len_io == 0 as *i32 || pref == 0) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    is_out_op = 0;
+    if (parser_asm_primary_ident_is_in_buf_c(data, slen, ts, ilen) != 0) {
+      is_out_op = 0;
+    } else if (parser_asm_primary_ident_is_out_buf_c(data, slen, ts, ilen) != 0) {
+      is_out_op = 1;
+    } else if (parser_asm_primary_ident_is_lateout_buf_c(data, slen, ts, ilen) != 0) {
+      is_out_op = 1;
+    } else {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 0;
+    }
+    ilen = regs_len_io[0];
+    kind = parser_asm_primary_asm_pack_reg_x(source, lex_inout, regs_buf, ilen);
+    if (kind < 0) {
+      return 0;
+    }
+    regs_len_io[0] = kind;
+    pipeline_expr_set_method_call_c(arena, pref, 0, regs_buf, kind);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (ilen != TOKEN_RPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (is_out_op != 0 && ilen == TOKEN_UNDERSCORE) {
+      eok = ast_ast_arena_expr_alloc(arena);
+      if (eok == 0) {
+        return 0;
+      }
+      pipeline_expr_set_kind(arena, eok, EXPR_VAR);
+      pipeline_expr_set_line_col(arena, eok, parser_asm_lex_peek_tok_line_c(lex_inout, source), parser_asm_lex_peek_tok_col_c(lex_inout, source));
+      pipeline_expr_set_common_zeros_c(arena, eok);
+      eref = regs_len_io[0];
+      if (eref < 0) {
+        eref = 0;
+      }
+      if (eref > 126) {
+        eref = 126;
+      }
+      regs_buf[eref] = 95;
+      pipeline_expr_set_var_name(arena, eok, regs_buf + eref, 1);
+      regs_buf[eref] = 0;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      if (pipeline_expr_append_call_arg(arena, pref, eok) < 0) {
+        return 0;
+      }
+      return 2;
+    }
+    eok = 0;
+    eref = 0;
+    if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0 || eref <= 0) {
+      return 0;
+    }
+    if (pipeline_expr_append_call_arg(arena, pref, eref) < 0) {
+      return 0;
+    }
+    if (is_out_op != 0) {
+      return 2;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse asm-bang (template STRING, optional in/out/lateout operands,
+ * optional trailing options). Entry cursor is unconsumed TOKEN_BANG
+ * (caller already matched IDENT asm).
+ * GNU colon operands fail-closed (C twin). Options/operand walks live in
+ * helpers so this function has a single comma while (P4bh nested-while
+ * parse-drop).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at `!`; parked after closing `)` on success
+ * @param source *u8 — opaque slice
+ * @param tmpl_buf *u8 — C trampoline 256-byte template scratch
+ * @param regs_buf *u8 — C trampoline 128-byte register-name scratch
+ * @param out_ok *i32 — 1 on parse success
+ * @param out_expr_ref *i32 — EXPR_ASM ref on success
+ * @return i32 — 1 handled (check out_ok); 0 not BANG / null args
+ * PLATFORM: SHARED — product P4bo. Writers = set_kind / set_var_name /
+ * set_method_call_c / set_call_c / set_int_val / append_call_arg (G.7).
+ * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+ * Do not dest-buffer parse_unsafe. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_primary_parse_asm_bang_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let pref: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let q0: usize = 0;
+  let nlen: i32 = 0;
+  let wi: i32 = 0;
+  let nops: i32 = 0;
+  let n_in: i32 = 0;
+  let saw_out: i32 = 0;
+  let saw_options: i32 = 0;
+  let opt_bits: i32 = 0;
+  let comma_done: i32 = 0;
+  let fail: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let regs_len: i32 = 0;
+  let opc: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  if (tmpl_buf == 0 as *u8) {
+    return 0;
+  }
+  if (regs_buf == 0 as *u8) {
+    return 0;
+  }
+  if (out_ok == 0 as *i32) {
+    return 0;
+  }
+  if (out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_BANG) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 1;
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    q0 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    pref = ast_ast_arena_expr_alloc(arena);
+    if (pref == 0) {
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, pref, EXPR_ASM);
+    pipeline_expr_set_line_col(arena, pref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, pref);
+    wi = parser_asm_primary_asm_template_decode_x(source, q0, nlen, tmpl_buf, tl, tc);
+    pipeline_expr_set_var_name(arena, pref, tmpl_buf, wi);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_COLON) {
+      return 1;
+    }
+    nops = 0;
+    n_in = 0;
+    saw_out = 0;
+    saw_options = 0;
+    regs_len = 0;
+    fail = 0;
+    comma_done = 0;
+    while (comma_done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_COMMA) {
+        comma_done = 1;
+      } else {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_IDENT) {
+          fail = 1;
+          comma_done = 1;
+        } else {
+          data = parser_asm_lex_source_data_c(source);
+          slen = parser_asm_lex_source_length_c(source);
+          ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+          ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+          if (parser_asm_primary_ident_is_options_buf_c(data, slen, ts, ilen) != 0) {
+            if (saw_options != 0) {
+              fail = 1;
+              comma_done = 1;
+            } else {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (kind != TOKEN_LPAREN) {
+                fail = 1;
+                comma_done = 1;
+              } else {
+                parser_asm_lex_step_kind_c(lex_inout, source);
+                opt_bits = parser_asm_primary_asm_parse_options_x(lex_inout, source);
+                if (opt_bits < 0) {
+                  fail = 1;
+                  comma_done = 1;
+                } else {
+                  saw_options = 1;
+                  pipeline_expr_set_call_c(arena, pref, 0, opt_bits);
+                }
+              }
+            }
+          } else if (saw_options != 0) {
+            fail = 1;
+            comma_done = 1;
+          } else if (nops >= 6) {
+            fail = 1;
+            comma_done = 1;
+          } else if (parser_asm_primary_ident_is_in_buf_c(data, slen, ts, ilen) != 0 && saw_out != 0) {
+            fail = 1;
+            comma_done = 1;
+          } else {
+            opc = parser_asm_primary_asm_parse_operand_x(arena, lex_inout, source, regs_buf, &regs_len, pref);
+            if (opc == 0) {
+              fail = 1;
+              comma_done = 1;
+            } else {
+              if (opc == 1) {
+                n_in = n_in + 1;
+              } else {
+                saw_out = 1;
+              }
+              nops = nops + 1;
+            }
+          }
+        }
+      }
+    }
+    if (fail != 0) {
+      return 1;
+    }
+    pipeline_expr_set_int_val(arena, pref, n_in);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RPAREN) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    out_ok[0] = 1;
+    out_expr_ref[0] = pref;
     return 1;
   }
   return 0;
