@@ -3,19 +3,21 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r/P3s: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * skips the portable token_starts_type / ident_is_dyn / builtin_kind_ord /
  * vector-ident-pack region, (P3d) consume_qualified / type_angle_close, and
  * (P3e) TYPE_DYN wrap (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL are separate
- * defines for P3g–P3r. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
+ * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL/POINTEE are separate
+ * defines for P3g–P3s. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
  * alloc_vector_type_ref C twin. XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X (P3n) skips
  * builtin scalar-token C twin. XLANG_PTHIN_TYPE_REF_NAMED_FROM_X (P3o) skips
  * dyn/impl peel + IDENT NAMED C twins. XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X (P3p)
  * skips IDENT generic `<T,U>` C loop. XLANG_PTHIN_TYPE_REF_IDENT_VEC_FROM_X (P3q)
  * skips IDENT vector spelling consume C compositor. XLANG_PTHIN_TYPE_REF_IMPL_FROM_X
- * (P3r) skips parse_type_ref_impl C compositor (ptr shim still C). Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL define, full twin.
+ * (P3r) skips parse_type_ref_impl C compositor (ptr shim still C).
+ * XLANG_PTHIN_TYPE_REF_POINTEE_FROM_X (P3s) skips alloc_pointee C twin
+ * (IDENT consume_qualified stays on the published C face). Cold: no
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL/POINTEE define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -513,7 +515,32 @@ int32_t parser_asm_vector_type_ref_from_ident_spelling_c(void *arena, struct par
 
 /**
  * alloc_pointee_type_ref_from_tok：在 r 指向「*」后首 token 时写入 arena 元素类型 ref。
+ * PLATFORM: SHARED — P3s trampoline when POINTEE_FROM_X; cold twin below.
+ * Language has no lexer_result by-value; IDENT consume_qualified stays on
+ * the published C face (mutates *r). C holds name[256] + qn_len.
  */
+#ifdef XLANG_PTHIN_TYPE_REF_POINTEE_FROM_X
+extern int32_t parser_asm_alloc_pointee_type_ref_x_into_c(void *arena, int32_t kind, uint8_t *name, int32_t nlen);
+int32_t parser_asm_alloc_pointee_type_ref_from_tok_c(void *arena, struct parser_asm_slice_u8 *source,
+                                                       struct parser_asm_lexer_result *r) {
+  uint8_t name[256];
+  int32_t qn_len;
+  int32_t kind;
+  if (!r || !source)
+    return 0;
+  kind = r->tok.kind;
+  if (!parser_asm_is_pointee_type_token_c(kind))
+    return 0;
+  memset(name, 0, sizeof(name));
+  qn_len = 0;
+  if (kind == (int32_t)TOKEN_IDENT) {
+    if (parser_asm_consume_qualified_type_ident_name_c(source, r, name, &qn_len) != 0)
+      return 0;
+    return parser_asm_alloc_pointee_type_ref_x_into_c(arena, kind, name, qn_len);
+  }
+  return parser_asm_alloc_pointee_type_ref_x_into_c(arena, kind, (uint8_t *)0, 0);
+}
+#else
 int32_t parser_asm_alloc_pointee_type_ref_from_tok_c(void *arena, struct parser_asm_slice_u8 *source,
                                                        struct parser_asm_lexer_result *r) {
   int32_t elem_ref;
@@ -563,6 +590,7 @@ int32_t parser_asm_alloc_pointee_type_ref_from_tok_c(void *arena, struct parser_
   ast_arena_type_set(arena, elem_ref, te);
   return elem_ref;
 }
+#endif /* XLANG_PTHIN_TYPE_REF_POINTEE_FROM_X alloc_pointee */
 
 /**
  * 解析 `T[]<label>` 后缀：空 `[]` 为 slice，可选 `<ident>` 域标签（M-3）。

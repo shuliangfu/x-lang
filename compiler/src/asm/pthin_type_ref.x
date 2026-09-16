@@ -25,14 +25,14 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r/P3s: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
 // STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X /
 // SCALAR_FROM_X / NAMED_FROM_X / GENERIC_FROM_X / IDENT_VEC_FROM_X /
-// IMPL_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// IMPL_FROM_X / POINTEE_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
 // pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x / impl_x keeps that C twin without
+// linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x / impl_x / pointee_x keeps that C twin without
 // dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
@@ -220,6 +220,18 @@
 // and keeps AUDIT_CALL (product no-op). IMPL is a separate define
 // so a missing impl_x keeps the C compositor without dropping
 // P3q. Do not FORCE pabi mega. Do not open a new P-lane.
+// 7.2.1 P3s B-minus (2026-09-16): dest-buffer alloc_pointee_type_ref
+// (complete existing type_ref.x). Historical ban was Type by-value
+// get/set. Re-ranked live after P3r: writers already exist
+// (init_named_at / init_primitive_kind_at / is_pointee_type_token /
+// builtin_kind_ord). IDENT consume_qualified stays on the published
+// C face (mutates lexer_result; language has no lexer_result
+// by-value). C trampoline holds name[256] + qn_len. STAR path
+// already P3j (do not merge). glue_tail stays a one-line
+// trampoline. POINTEE is a separate define so a missing pointee_x
+// keeps the C twin without dropping P3r. Do not dest-buffer
+// parse_type_ref (P3f). Do not dest-buffer append_byte. Do not
+// FORCE pabi mega. Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -2234,4 +2246,61 @@ export function parser_asm_parse_type_ref_impl_x_into_c(arena: *u8, lex_inout: *
     return 0;
   }
   return 0;
+}
+
+/**
+ * Allocate a pointee Type for a token that already sits in the
+ * caller's lexer_result (after `*`). IDENT spelling arrives
+ * pre-copied (C trampoline ran consume_qualified into name[256]);
+ * scalars including VOID use builtin_kind_ord (unknown → VOID,
+ * matching the C twin else-arm).
+ * @param arena *u8 — AST arena; null → 0
+ * @param kind i32 — pointee token kind (TOKEN_IDENT or builtin)
+ * @param name *u8 — IDENT spelling dest; ignored for scalars;
+ *   caller owns ≥256 bytes; null/empty fails the IDENT path
+ * @param nlen i32 — IDENT spelling length; <=0 fails IDENT
+ * @return i32 — TYPE_NAMED or primitive type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3s dest-buffer of
+ * alloc_pointee_type_ref_from_tok. Writers = init_named_at /
+ * init_primitive_kind_at (G.7). Do not dest-buffer parse_type_ref
+ * (P3f). Do not merge into parse_star_type_x. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_alloc_pointee_type_ref_x_into_c(arena: *u8, kind: i32, name: *u8, nlen: i32): i32 {
+  let ref: i32 = 0;
+  let ord: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (parser_asm_is_pointee_type_token_c(kind) == 0) {
+    return 0;
+  }
+  if (kind == TOKEN_IDENT) {
+    if (name == 0 as *u8 || nlen <= 0) {
+      return 0;
+    }
+    ref = ast_ast_arena_type_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_named_at(arena, ref, name, nlen);
+    if (ok == 0) {
+      return 0;
+    }
+    return ref;
+  }
+  ord = parser_asm_type_ref_builtin_kind_ord_c(kind);
+  if (ord < 0) {
+    ord = TYPE_VOID;
+  }
+  ref = ast_ast_arena_type_alloc(arena);
+  if (ref == 0) {
+    return 0;
+  }
+  ok = pipeline_type_init_primitive_kind_at(arena, ref, ord);
+  if (ok == 0) {
+    return 0;
+  }
+  return ref;
 }

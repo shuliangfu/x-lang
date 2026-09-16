@@ -1035,11 +1035,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # dest-buffer, P3m alloc_vector_type_ref, P3n builtin scalar tokens,
         # P3o IDENT named / dyn / impl peel dest-buffer, P3p IDENT
         # generic `<T,U>` type-arg dest-buffer, P3q IDENT vector
-        # spelling consume dest-buffer, and P3r parse_type_ref_impl
-        # dispatcher dest-buffer (ptr shim still C; P3f ban stays).
+        # spelling consume dest-buffer, P3r parse_type_ref_impl
+        # dispatcher dest-buffer (ptr shim still C; P3f ban stays),
+        # and P3s alloc_pointee dest-buffer (C holds name[256];
+        # IDENT consume_qualified stays on the published C face).
         # Runs before P3 C so BODIES_FROM_X skips the portable .inc region.
-        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR / NAMED / GENERIC / IDENT_VEC / IMPL are separate defines (P6e PARSE_LAYOUT / P2c COND)
-        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x / impl_x keeps that C twin without dropping
+        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR / NAMED / GENERIC / IDENT_VEC / IMPL / POINTEE are separate defines (P6e PARSE_LAYOUT / P2c COND)
+        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x / impl_x / pointee_x keeps that C twin without dropping
         # P3b–P3e. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
         if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
@@ -1098,6 +1100,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_type_ref_impl_ident_x"; then
               _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_IMPL_FROM_X"
               _pthin_p3_lane="$_pthin_p3_lane/P3r"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_alloc_pointee_type_ref_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_POINTEE_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3s"
             fi
             echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else
