@@ -40072,6 +40072,7 @@ void glue_asm73_cfg_interf_prepare(void) {
 #endif /* close remaining wave178 FROM_X for leftover-PE for_call_args unique */
 #endif /* close remaining wave154 FROM_X after glue_type for leftover-PE for_call_args unique */
 
+/* XLANG_PABI_FOR_CALL_ARGS_THIN_BEGIN */
 /*
  * leftover-PE unique: pipeline_asm_emit_expr_elf_for_call_args.
  * SAT egg glue_emit_one_call_arg UNDEF-calls this face. Remaining wave216
@@ -40592,6 +40593,8 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE for_call_args unique */
+/* XLANG_PABI_FOR_CALL_ARGS_THIN_END */
+
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE for_call_args unique */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave178 FROM_X after leftover-PE for_call_args unique */
