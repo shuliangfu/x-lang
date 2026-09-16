@@ -58998,8 +58998,11 @@ void ast_ast_expr_apply_call_resolve(void *a, int32_t call_expr_ref, int32_t dep
  * class as wave277 block mutators). G.7: sole product authority for pipeline_expr_*
  * Cap faces below (pure keeps export-extern + a few pure-owned struct_lit/enum
  * field helpers already live in .x — do not re-export those pure bodies here).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_expr_sidecar_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED — runtime_pipeline_abi.o.
  * ============================================================================= */
+/* XLANG_PABI_EXPR_SIDECAR_THIN_BEGIN */
 #ifndef WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS
 #define WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS 1
 
@@ -61159,6 +61162,7 @@ int32_t backend_pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_
   return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
 }
 
+/* XLANG_PABI_EXPR_SIDECAR_THIN_END */
 #endif /* WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS */
 
 /* =============================================================================
