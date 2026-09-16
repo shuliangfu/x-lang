@@ -18,8 +18,10 @@
  * struct-lit `{` must leave *lex at `<` for relcompare (C already does;
  * .x dest-buffer must restore after type_ref walk / count-only skip).
  * P4bm: XLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X skips the decode
- * loop (body in pthin_expr_primary.x). append_byte stays C. Cold: no
- * define, full twin.
+ * loop (body in pthin_expr_primary.x). append_byte stays C.
+ * P4bn: XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X trampolines
+ * finish_from_type_ident (body in pthin_expr_primary.x; C holds
+ * name[256]). Cold: no define, full twin.
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.

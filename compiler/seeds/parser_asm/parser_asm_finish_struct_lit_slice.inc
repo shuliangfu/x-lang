@@ -9,7 +9,9 @@
  * parse_struct_lit_fields (body in src/asm/pthin_expr_primary.x).
  * C trampolines hold name[256] (append/shorthand) and bump
  * struct_field_value_depth around parse_expr. P4bj anonymous alloc trampolines when
- * XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X; finish_struct_lit_from_type_ident stays here. Cold: no define, full twin.
+ * XLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X. P4bn finish_from_type_ident
+ * trampolines when XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X
+ * (C holds name[256]; writer = set_struct_lit_finish). Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
 #define PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED
@@ -372,7 +374,48 @@ void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexe
 /**
  * finish_struct_lit_from_type_ident_into：lit_ref 为 IDENT 占位；lex_in_brace 为 `{` 后 lexer。
  * 成功写 out.expr_ref 为 EXPR_STRUCT_LIT。
+ * P4bn: XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X trampolines to
+ * dest-buffer (.x copies var_name via the 256-byte Cap face, then
+ * set_struct_lit_finish). C holds name[256]. Cold: no define, this twin.
+ * PLATFORM: SHARED — product Type { } finish.
  */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X
+extern int32_t parser_asm_finish_struct_lit_from_type_ident_x_into_c(void *arena, int32_t lit_ref,
+                                                                    void *lex_inout, void *source,
+                                                                    uint8_t *name_buf, int32_t *out_ok,
+                                                                    int32_t *out_expr_ref);
+void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t lit_ref,
+                                                         struct parser_asm_lexer lex_in_brace,
+                                                         struct parser_asm_slice_u8 *source,
+                                                         struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_lexer cur;
+  int32_t ok = 0;
+  int32_t ref = 0;
+  uint8_t name_buf[256];
+  int32_t ni;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  out->expr_ref = 0;
+  if (lit_ref == 0)
+    return;
+  ni = 0;
+  while (ni < 256) {
+    name_buf[ni] = 0;
+    ni = ni + 1;
+  }
+  cur = lex_in_brace;
+  if (parser_asm_finish_struct_lit_from_type_ident_x_into_c(arena, lit_ref, &cur, source, name_buf, &ok,
+                                                           &ref) == 0 ||
+      ok == 0) {
+    out->ok = 0;
+    return;
+  }
+  out->ok = 1;
+  out->expr_ref = ref;
+  out->next_lex = cur;
+}
+#else
 void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t lit_ref,
                                                          struct parser_asm_lexer lex_in_brace,
                                                          struct parser_asm_slice_u8 *source,
@@ -414,5 +457,6 @@ void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t li
   ast_ast_arena_expr_set(arena, lit_ref, le);
   parser_asm_parse_struct_lit_fields_c(arena, lit_ref, lex_in_brace, source, out);
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X */
 
 #endif /* PARSER_ASM_FINISH_STRUCT_LIT_SLICE_INCLUDED */

@@ -182,9 +182,16 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // overflow stays C: Expr by-value + var_name[N]). Decode itself has
 // no local u8[N]. Independent STRING_DECODE gate so a missing
 // decode_x keeps the C loop without dropping P4bh/P4bj. Do not
-// dest-buffer append_byte. Do not dest-buffer
-// finish_struct_lit_from_type_ident. Do not dest-buffer parse_type_ref.
+// dest-buffer append_byte. Do not dest-buffer parse_type_ref.
 // Do not FORCE pabi mega.
+// 7.2.1 P4bn B-minus (2026-09-16): 有则补全 finish_struct_lit_from_type_ident
+// dest-buffer. IDENT VAR placeholder -> EXPR_STRUCT_LIT (kind 45) via
+// existing var_name_len / var_name_into + set_common_zeros +
+// set_struct_lit_finish (same writer as suffix FIELD_ACCESS and P4bj).
+// C trampoline holds name[256] (language has no local u8[N]). Fields
+// stay P4bi. Independent FINISH_TYPE_IDENT gate so a missing finish_x
+// keeps the C twin without dropping P4bh/P4bj/P4bm. Do not dest-buffer
+// append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
 // 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
 // C twin keeps *lex at `<` until follower is `(` / committed `{` struct
 // lit. .x type_ref walk and count-only skip both advance lex_inout;
@@ -205,9 +212,9 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // pipeline_expr_append_struct_lit_field / shorthand VAR alloc.
 // Field-value parse_expr bumps struct_field_value_depth in C
 // (wave367 empty Type {} vs prefer-block). ident_len<=0 or >255
-// fails (C twin; do not clamp 127). Anonymous alloc and
-// finish_struct_lit_from_type_ident stay C. P4bj anonymous-struct alloc
-// (set_struct_lit_finish nlen=0 + fields). Do not grow
+// fails (C twin; do not clamp 127). P4bj anonymous-struct alloc
+// (set_struct_lit_finish nlen=0 + fields). P4bn finish_from_type_ident
+// (IDENT placeholder name + same writer). Do not grow
 // suffix_loop. Do not merge wrap. Do not dest-buffer
 // parse_type_ref / parse_match_into. Do not FORCE pabi mega.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
@@ -1853,7 +1860,8 @@ export function parser_asm_parse_struct_lit_fields_x_into_c(arena: *u8, lit_ref:
  * @param out_expr_ref *i32
  * @return i32 — 1 success; 0 failure
  * PLATFORM: SHARED — product P4bj. Do not dest-buffer whole primary.
- * Do not merge wrap. Do not open a new lane.
+ * Do not merge wrap. Do not open a new lane. Named Type { } finish
+ * is P4bn (same writer, IDENT placeholder name).
  */
 #[no_mangle]
 export function parser_asm_parse_anonymous_struct_lit_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
@@ -1871,6 +1879,59 @@ export function parser_asm_parse_anonymous_struct_lit_x_into_c(arena: *u8, lex_i
     }
     /* kind=45 + empty struct name + field_base/num_fields=0 */
     pipeline_expr_set_struct_lit_finish_c(arena, lit_ref, empty, 0);
+    if (parser_asm_parse_struct_lit_fields_x_into_c(arena, lit_ref, lex_inout, source, out_ok, out_expr_ref) == 0 || out_ok[0] == 0) {
+      out_ok[0] = 0;
+      out_expr_ref[0] = 0;
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Convert an IDENT VAR placeholder into EXPR_STRUCT_LIT and parse fields.
+ * lex_inout sits after `{` (caller already consumed LBRACE). Mirror of
+ * parser_asm_finish_struct_lit_from_type_ident_into_c. Copy the live
+ * var_name into the C-owned name_buf BEFORE arena zeros wipe
+ * var_name_len (P4bg contract: arena zeros DO wipe the count; C local
+ * zeros did not). Writer is the existing set_struct_lit_finish (G.7;
+ * same as suffix FIELD_ACCESS conversion and P4bj nlen=0). Fields stay
+ * P4bi. Name copy uses the 256-byte Cap 4.2.8 face (C twin still
+ * truncated through a 128-byte stack copy).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lit_ref i32 — IDENT VAR placeholder already allocated; 0 → 0
+ * @param lex_inout *u8 — C lexer blob after `{`; fields walk advances it
+ * @param source *u8 — source slice
+ * @param name_buf *u8 — C trampoline 256-byte scratch (language has no
+ *   local u8[N]); var_name_into writes here before zeros
+ * @param out_ok *i32 — 1 on parse success
+ * @param out_expr_ref *i32 — lit_ref on success
+ * @return i32 — 1 success; 0 failure
+ * PLATFORM: SHARED — product P4bn. Do not dest-buffer append_byte.
+ * Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+ * Do not grow suffix_loop. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_finish_struct_lit_from_type_ident_x_into_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, name_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let tlen: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || name_buf == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32 || lit_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    tlen = pipeline_expr_var_name_len(arena, lit_ref);
+    if (tlen <= 0 || tlen > 255) {
+      return 0;
+    }
+    /* Copy IDENT placeholder name first: set_common_zeros wipes var_name_len. */
+    pipeline_expr_var_name_into(arena, lit_ref, name_buf);
+    pipeline_expr_set_common_zeros_c(arena, lit_ref);
+    pipeline_expr_set_struct_lit_finish_c(arena, lit_ref, name_buf, tlen);
+    pipeline_expr_set_line_col(arena, lit_ref, 0, 0);
+    pipeline_expr_set_int_val(arena, lit_ref, 0);
+    pipeline_expr_set_float_val(arena, lit_ref, 0.0);
     if (parser_asm_parse_struct_lit_fields_x_into_c(arena, lit_ref, lex_inout, source, out_ok, out_expr_ref) == 0 || out_ok[0] == 0) {
       out_ok[0] = 0;
       out_expr_ref[0] = 0;
