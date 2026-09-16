@@ -3194,11 +3194,60 @@ int32_t xlang_skip_trait_check_diag_param_count_c(int32_t si, const uint8_t *mnm
   return -1;
 }
 
+
+int32_t xlang_skip_trait_check_diag_param_type_c(int32_t si, const uint8_t *mnm, int32_t mlen) {
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return -1;
+  if (!mnm || mlen <= 0)
+    return -1;
+  lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                         "method %.*s parameter type mismatch", (int)mlen, (const char *)mnm);
+  return -1;
+}
+
+int32_t xlang_skip_trait_check_diag_self_type_c(int32_t si, const uint8_t *mnm, int32_t mlen) {
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return -1;
+  if (!mnm || mlen <= 0)
+    return -1;
+  lsp_diag_report_typeck((int)g_xlang_skip_impl_line[si], (int)g_xlang_skip_impl_col[si],
+                         "method %.*s self type mismatch", (int)mlen, (const char *)mnm);
+  return -1;
+}
+
 /**
- * dest-SLICE param soup + untyped/annotated self for-type match (wave428/429/441).
- * Caller already confirmed arity match. Returns -1 on mismatch (diag emitted).
- * PLATFORM: SHARED — P12u language-permanent shape walk.
+ * dest-SLICE param soup + self for-type match (wave428/429/441).
+ * PLATFORM: SHARED — P12v shape核 (param); P12u outer stays separate.
  */
+#ifdef XLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X
+extern int32_t xlang_skip_trait_check_param_shape_x_into_c(
+    void *module, void *arena, int32_t found_fi, int32_t si, int32_t ti, int32_t mi,
+    const uint8_t *mnm, int32_t mlen, int32_t expect_np,
+    uint8_t *table, int32_t stride,
+    int32_t *for_kinds, int32_t *for_is_ptr, uint8_t *for_names, int32_t *for_name_lens,
+    uint8_t *gnm);
+int32_t xlang_skip_trait_check_param_shape_c(void *module, void *arena,
+    int32_t found_fi, int32_t si, int32_t ti, int32_t mi,
+    const uint8_t *mnm, int32_t mlen, int32_t expect_np) {
+  uint8_t gnm[64];
+  if (!module || !arena || found_fi < 0)
+    return 0;
+  if (si < 0 || si >= XLANG_SKIP_IMPL_SEEN_MAX)
+    return 0;
+  if (ti < 0 || ti >= XLANG_SKIP_TRAIT_REG_MAX)
+    return 0;
+  if (mi < 0 || mi >= XLANG_SKIP_TRAIT_METH_MAX)
+    return 0;
+  if (!mnm || mlen <= 0 || expect_np < 0)
+    return 0;
+  memset(gnm, 0, sizeof(gnm));
+  return xlang_skip_trait_check_param_shape_x_into_c(
+      module, arena, found_fi, si, ti, mi, mnm, mlen, expect_np,
+      (uint8_t *)g_xlang_skip_trait_reg, (int32_t)sizeof(xlang_skip_trait_reg_ent_t),
+      g_xlang_skip_impl_for_kinds, g_xlang_skip_impl_for_is_ptr,
+      (uint8_t *)g_xlang_skip_impl_for_names, g_xlang_skip_impl_for_name_lens, gnm);
+}
+#else
 int32_t xlang_skip_trait_check_param_shape_c(void *module, void *arena,
     int32_t found_fi, int32_t si, int32_t ti, int32_t mi,
     const uint8_t *mnm, int32_t mlen, int32_t expect_np) {
@@ -4105,6 +4154,7 @@ int32_t xlang_skip_trait_check_param_shape_c(void *module, void *arena,
           }
   return 0;
 }
+#endif /* XLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X param_shape */
 
 /**
  * dest-SLICE ret soup (wave425/427/430/431). Returns -1 on mismatch (diag emitted).
