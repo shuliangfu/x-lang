@@ -66986,8 +66986,11 @@ void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t 
  * Deps (same seed/pure TU):
  *   pipeline_asm_ctx_layout (pure identity; seed cold twin under #ifndef FROM_X)
  *   pipeline_elf_label_mod_scope_active (pure; seed cold twin under #ifndef FROM_X)
+ * M2 Class E: C thin leave = runtime_pipeline_abi_asm_label_format_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_ASM_LABEL_FORMAT_THIN_BEGIN */
 #ifndef WAVE288_ASM_LABEL_FORMAT_ALWAYS
 #define WAVE288_ASM_LABEL_FORMAT_ALWAYS 1
 
@@ -67097,6 +67100,7 @@ int32_t pipeline_asm_format_label_id_c(uint8_t *buf, int32_t buf_size, int32_t i
   return 3 + n;
 }
 
+/* XLANG_PABI_ASM_LABEL_FORMAT_THIN_END */
 #endif /* WAVE288_ASM_LABEL_FORMAT_ALWAYS */
 
 
