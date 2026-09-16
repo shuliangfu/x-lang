@@ -9,9 +9,11 @@
  * + slice trampolines in the seed TU). P4bg also skips the C IDENT/SELF
  * head twin (ident_x_into_c is the VAR-fill authority). P4bh dest-buffer
  * parse_primary_x_into_c is the remaining-arm dispatcher (STRING/RETURN/
- * PANIC/paren/array/LBRACE + IF/MATCH/AT shims); C trampoline keeps AUDIT
- * and publishes next_lex. parse_primary AUDIT_CALL padding is compiled
- * only under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is nop).
+ * PANIC/paren/array/LBRACE + IF/MATCH/AT shims + P4bk BREAK/CONTINUE);
+ * C trampoline keeps AUDIT and publishes next_lex. parse_primary AUDIT_CALL
+ * padding is compiled only under XLANG_PARSER_STRETCH_AUDIT (product
+ * AUDIT_CALL is nop). P4bk: C BREAK/CONTINUE arm below is the cold twin;
+ * under BODIES the .x dispatcher is the authority (unhandled → out_ok=0).
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.

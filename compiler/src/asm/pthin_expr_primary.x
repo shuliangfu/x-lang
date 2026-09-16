@@ -18,6 +18,8 @@
  * ELSE=5/IF=4) and bridges. */
 const TOKEN_EOF: i32 = 0;
 const TOKEN_IF: i32 = 4;
+const TOKEN_BREAK: i32 = 9;
+const TOKEN_CONTINUE: i32 = 10;
 const TOKEN_RETURN: i32 = 11;
 const TOKEN_PANIC: i32 = 12;
 const TOKEN_MATCH: i32 = 18;
@@ -81,6 +83,8 @@ export extern "C" function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, 
 export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
 export extern "C" function pipeline_expr_append_array_lit_elem(a: *u8, er: i32, elem_ref: i32): i32;
 const EXPR_BLOCK: i32 = 26;
+const EXPR_BREAK: i32 = 39;
+const EXPR_CONTINUE: i32 = 40;
 const EXPR_RETURN: i32 = 41;
 const EXPR_PANIC: i32 = 42;
 const EXPR_FIELD_ACCESS: i32 = 44;
@@ -165,6 +169,13 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // ptr shims). Dispatcher is a new function — do not grow suffix_loop
 // (XT001). Decode / match parse / simd parse
 // stay C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
+// 7.2.1 P4bk (2026-09-16): 有则补全 TOKEN_BREAK / TOKEN_CONTINUE primary
+// dest-buffer that P4bh missed. The C twin still had the arm, but the
+// .x dispatcher returns 1 with out_ok=0 for unhandled tokens so the
+// C arm is unreachable under BODIES. Missing EXPR_BREAK poisoned the
+// next function (T001 arity 0:0) — that is the pipeline_abi mega
+// "hang/CG002" typeck wall on LARGE xlang. Do not use `break` inside
+// this file's nested while (P4bh parse-drop). Do not grow suffix_loop.
 // Block wrap reuses P5f wrap_block_ref (G.7; type_ref=0). Unary
 // operand reuses P4uc set_unary_operand_c. C trampoline keeps AUDIT
 // and publishes next_lex. Do not dest-buffer parse_type_ref /
@@ -1167,6 +1178,57 @@ function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: 
 }
 
 /**
+ * BREAK / CONTINUE primary (`break;` / `continue;` as a statement expr).
+ * Mirrors the C twin in parser_asm_primary_slice.inc (PARSER_ASM_EXPR_BREAK=39
+ * / CONTINUE=40). Peek, step the keyword, alloc, set kind + line/col +
+ * common zeros. No operand. Semicolon stays for parse_block.
+ * @param arena *u8 — opaque ASTArena; null → 0
+ * @param lex_inout *u8 — cursor; advanced only when the token is handled
+ * @param source *u8 — opaque source slice
+ * @param out_ok *i32 — 1 on success, 0 on alloc failure
+ * @param out_expr_ref *i32 — fresh Expr ref on success
+ * @return i32 — 1 handled (BREAK or CONTINUE); 0 not those tokens
+ * PLATFORM: SHARED — P4bk 有则补全 of P4bh remaining parse_primary.
+ * Do not `break` out of a while in this helper (P4bh parse-drop).
+ */
+function parser_asm_primary_break_continue_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let ek: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_BREAK && kind != TOKEN_CONTINUE) {
+      return 0;
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    if (kind == TOKEN_BREAK) {
+      ek = EXPR_BREAK;
+    } else {
+      ek = EXPR_CONTINUE;
+    }
+    pipeline_expr_set_kind(arena, ref, ek);
+    pipeline_expr_set_line_col(arena, ref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * RETURN primary (`return` / `return expr`) for match-arm results.
  * Terminator peek does not consume (`;` `}` EOF `,` `=>` stay for the
  * caller). Operand parse reuses parse_expr_ptr (G.7).
@@ -1463,6 +1525,10 @@ export function parser_asm_parse_primary_x_into_c(arena: *u8, lex_inout: *u8, so
       return 1;
     }
     rc = parser_asm_primary_literal_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    rc = parser_asm_primary_break_continue_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
     if (rc != 0) {
       return 1;
     }
