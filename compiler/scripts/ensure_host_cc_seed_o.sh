@@ -3252,6 +3252,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_call_method_wrappers_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_al_nc_seq_thin.x ] \
+      && [ src/runtime_pipeline_abi_al_nc_seq_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3285,6 +3289,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
+      pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3325,6 +3330,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
+      pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3736,6 +3742,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm73_live_set_thin "$o" || true
     pipeline_abi_inject_for_call_args_thin "$o" || true
     pipeline_abi_inject_call_method_wrappers_thin "$o" || true
+    pipeline_abi_inject_al_nc_seq_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3781,6 +3788,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm73_live_set_thin "$o" || true
         pipeline_abi_inject_for_call_args_thin "$o" || true
         pipeline_abi_inject_call_method_wrappers_thin "$o" || true
+        pipeline_abi_inject_al_nc_seq_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3810,6 +3818,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
+      pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3847,6 +3856,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm73_live_set_thin "$o" || true
   pipeline_abi_inject_for_call_args_thin "$o" || true
   pipeline_abi_inject_call_method_wrappers_thin "$o" || true
+  pipeline_abi_inject_al_nc_seq_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -4391,6 +4401,12 @@ pipeline_abi_inject_for_call_args_thin() {
 # PLATFORM: SHARED.
 pipeline_abi_inject_call_method_wrappers_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_call_method_wrappers_thin.x" "w217-call-method"
+}
+
+# wave219 al_nc_seq mega leave. G.7: match mega entry (220/221 deferred).
+# PLATFORM: SHARED.
+pipeline_abi_inject_al_nc_seq_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_al_nc_seq_thin.x" "w219-al-nc-seq"
 }
 
 

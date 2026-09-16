@@ -40599,6 +40599,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE for_call_args unique */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave178 FROM_X after leftover-PE for_call_args unique */
 
+/* XLANG_PABI_AL_NC_SEQ_THIN_BEGIN */
 /*
  * wave219 cold twin: ARRAY_LIT / escape / deep-copy COMMON seq take (G.7 pure leave).
  * Working freestanding BSS twin of pure g_pipeline_asm_al_nc_seq (same clamp).
@@ -40615,6 +40616,8 @@ int32_t glue_pipeline_asm_al_nc_seq_take_c(void) {
   g_wave219_pipeline_asm_al_nc_seq = seq + 1;
   return seq;
 }
+
+/* XLANG_PABI_AL_NC_SEQ_THIN_END */
 
 /*
  * wave220 cold twin: if/ternary arm emit depth get/set (G.7 pure leave).
@@ -40691,6 +40694,7 @@ int32_t pipeline_asm_host_is_arm64_c(void) {
   return 0;
 #endif
 }
+
 
 /*
  * wave222 cold twins: emit_ctx module + dep_pipe BSS (G.7 pure leave).
