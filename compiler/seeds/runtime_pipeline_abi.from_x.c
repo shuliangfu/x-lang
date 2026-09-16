@@ -48486,10 +48486,11 @@ int32_t pipeline_struct_layout_next_field_offset(void *m, void *a, int32_t layou
 
 /* ============================================================================
  * WAVE267: pipeline_asm_locals pure-owned leave cold twins
- * AsmLocalSlot (136B) + AsmBlockSlot parallel i32 tables, 64 ctx slots.
+ * AsmLocalSlot (264B name[256]) + AsmBlockSlot parallel i32 tables, 64 ctx slots.
  * Product pure owns full path under FROM_X; freestanding cold keeps twins.
  * PLATFORM: SHARED freestanding asm_locals Cap leave.
  * ============================================================================ */
+/* XLANG_PABI_ASM_LOCALS_THIN_BEGIN */
 #define WAVE267_AL_SLOTS 64
 #define WAVE267_AL_ENTRY_SZ 264
 static void *g_wave267_al_ctx[WAVE267_AL_SLOTS];
@@ -48807,6 +48808,7 @@ int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref) {
   }
   return -1;
 }
+/* XLANG_PABI_ASM_LOCALS_THIN_END */
 /* end wave267 asm_locals cold twins */
 
 /*
