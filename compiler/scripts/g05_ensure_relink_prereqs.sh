@@ -1109,8 +1109,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # parse_struct_lit_fields dest-buffer, P4bm STRING decode
         # dest-buffer (append_byte stays C), P4bn finish_from_type_ident
         # dest-buffer (C holds name[256]), P4bo parse_asm_bang
-        # dest-buffer (C holds tmpl[256]+regs[128]), and P4bp parse_unsafe
-        # dest-buffer (ident_pre_dispatch stays C compositor).
+        # dest-buffer (C holds tmpl[256]+regs[128]), P4bp parse_unsafe
+        # dest-buffer (ident_pre_dispatch stays C compositor), and P4bq
+        # lbrace_looks_like_block / empty_ident_braces dest-buffer
+        # (C trampoline passes struct_field_value_depth).
         # P4be completed TOKEN/writer
         # pins so `-E` typeck of suffix_loop passes (was XT001 undeclared
         # names). P4bf publishes next_lex from the C trampoline (C-twin
@@ -1145,7 +1147,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             fi
             if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_primary_parse_unsafe_x_into_c"; then
               _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X"
-              echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe ← $_pthin_p4pb_x"
+              if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_primary_lbrace_looks_like_block_x_into_c" \
+                && g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_primary_empty_ident_braces_x_into_c"; then
+                _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X"
+                echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp/P4bq primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe + lbrace lookahead ← $_pthin_p4pb_x"
+              else
+                echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe ← $_pthin_p4pb_x (P4bq lbrace C twin)"
+              fi
             else
               echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi/P4bj/P4bm/P4bn/P4bo primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bp unsafe C twin)"
             fi

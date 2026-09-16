@@ -17,12 +17,21 @@
 /* Primary literal wave: token ordinals (token.h enum, validated
  * ELSE=5/IF=4) and bridges. */
 const TOKEN_EOF: i32 = 0;
+const TOKEN_LET: i32 = 2;
+const TOKEN_CONST: i32 = 3;
 const TOKEN_IF: i32 = 4;
+const TOKEN_WHILE: i32 = 6;
+const TOKEN_LOOP: i32 = 7;
+const TOKEN_FOR: i32 = 8;
 const TOKEN_BREAK: i32 = 9;
 const TOKEN_CONTINUE: i32 = 10;
 const TOKEN_RETURN: i32 = 11;
 const TOKEN_PANIC: i32 = 12;
+const TOKEN_DEFER: i32 = 13;
+const TOKEN_REGION: i32 = 16;
+const TOKEN_WITH_ARENA: i32 = 17;
 const TOKEN_MATCH: i32 = 18;
+const TOKEN_GOTO: i32 = 48;
 const TOKEN_TRUE: i32 = 75;
 const TOKEN_FALSE: i32 = 76;
 const TOKEN_NULL: i32 = 132;
@@ -31,6 +40,7 @@ const TOKEN_INT: i32 = 80;
 const TOKEN_SELF: i32 = 51;
 const TOKEN_FATARROW: i32 = 89;
 const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_AS: i32 = 128;
 const TOKEN_AT: i32 = 129;
 const TOKEN_STRING: i32 = 130;
 const EXPR_VAR_LIT: i32 = 3;
@@ -218,8 +228,16 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // body is the inner block; wrap as EXPR_BLOCK via P5f wrap_block_ref
 // (G.7; type_ref=0). Independent UNSAFE gate so a missing unsafe_x
 // keeps the C twin without dropping P4bh/P4bj/P4bm/P4bn/P4bo.
-// Do not dest-buffer lbrace_looks_like_block / empty_ident_braces.
-// Do not dest-buffer append_byte / parse_type_ref. Do not FORCE pabi mega.
+// lbrace lookahead is P4bq. Do not dest-buffer append_byte /
+// parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bq B-minus (2026-09-16): 有则补全 lbrace_looks_like_block
+// + empty_ident_braces dest-buffer. Published faces stay ptr_c
+// (copy-lexer; do not step the caller's cursor). C trampoline
+// passes parser_asm_struct_field_value_depth into empty_x (G.7;
+// no new getter). Independent LBRACE_LOOKAHEAD gate so a missing
+// pair keeps the C twins without dropping P4bp. ident_pre_dispatch
+// stays C compositor. Do not dest-buffer append_byte /
+// parse_type_ref. Do not FORCE pabi mega.
 // 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
 // C twin keeps *lex at `<` until follower is `(` / committed `{` struct
 // lit. .x type_ref walk and count-only skip both advance lex_inout;
@@ -2537,9 +2555,9 @@ export function parser_asm_primary_parse_asm_bang_x_into_c(arena: *u8, lex_inout
  * PLATFORM: SHARED — product P4bp. Writers = parse_block_ptr /
  * ast_ast_arena_block_alloc / pipeline_block_append_unsafe /
  * pipeline_block_append_stmt_order / wrap_block_ref (G.7).
- * ident_pre_dispatch stays C compositor. Do not dest-buffer
- * lbrace_looks_like_block / empty_ident_braces. Do not dest-buffer
- * append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+ * ident_pre_dispatch stays C compositor. lbrace lookahead is P4bq.
+ * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+ * Do not FORCE pabi mega.
  */
 #[no_mangle]
 export function parser_asm_primary_parse_unsafe_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
@@ -2597,5 +2615,184 @@ export function parser_asm_primary_parse_unsafe_x_into_c(arena: *u8, lex_inout: 
     return 1;
   }
   return 0;
+}
+
+/**
+ * True when the first token inside `{` is a statement / control head
+ * that must take the block-expr path (not anonymous struct lit).
+ * Mirrors the C twin keyword list; IDENT `unsafe` is a separate check.
+ * @param kind i32 — peeked TokenKind ordinal
+ * @return i32 — 1 prefer block; 0 not a stmt head
+ * PLATFORM: SHARED — P4bq helper; sequential ifs (no giant ||).
+ */
+function parser_asm_primary_lbrace_stmt_kind_is_block_x(kind: i32): i32 {
+  if (kind == TOKEN_LET) {
+    return 1;
+  }
+  if (kind == TOKEN_CONST) {
+    return 1;
+  }
+  if (kind == TOKEN_RETURN) {
+    return 1;
+  }
+  if (kind == TOKEN_IF) {
+    return 1;
+  }
+  if (kind == TOKEN_WHILE) {
+    return 1;
+  }
+  if (kind == TOKEN_LOOP) {
+    return 1;
+  }
+  if (kind == TOKEN_FOR) {
+    return 1;
+  }
+  if (kind == TOKEN_DEFER) {
+    return 1;
+  }
+  if (kind == TOKEN_MATCH) {
+    return 1;
+  }
+  if (kind == TOKEN_BREAK) {
+    return 1;
+  }
+  if (kind == TOKEN_CONTINUE) {
+    return 1;
+  }
+  if (kind == TOKEN_PANIC) {
+    return 1;
+  }
+  if (kind == TOKEN_REGION) {
+    return 1;
+  }
+  if (kind == TOKEN_WITH_ARENA) {
+    return 1;
+  }
+  if (kind == TOKEN_LBRACE) {
+    return 1;
+  }
+  if (kind == TOKEN_GOTO) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Lookahead: does the token after `{` mean a block expression rather
+ * than an anonymous struct lit? Caller (ptr_c) passes a *copy* of the
+ * lexer after `{`; this function may step that copy. IDENT then
+ * `:` / `,` / `}` is struct (`{ fd: 1 }`, `{ fd, x }`, `{ fd }`);
+ * empty `}` keeps the anonymous-struct path; other IDENT / INT /
+ * nested `{` / stmt keywords prefer block. IDENT `unsafe` is block.
+ * @param lex_inout *u8 — copy of the cursor after `{`; may be stepped
+ * @param source *u8 — opaque source slice
+ * @return i32 — 1 prefer block; 0 prefer anonymous struct lit
+ * PLATFORM: SHARED — product P4bq. ident_is_unsafe = buf_c (G.7).
+ * Do not write the caller's suffix_loop cursor (ptr_c copies first).
+ */
+#[no_mangle]
+export function parser_asm_primary_lbrace_looks_like_block_x_into_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let kind2: i32 = 0;
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (parser_asm_primary_lbrace_stmt_kind_is_block_x(kind) != 0) {
+      return 1;
+    }
+    if (kind == TOKEN_IDENT) {
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (parser_asm_primary_ident_is_unsafe_buf_c(data, slen, ts, ilen) != 0) {
+        return 1;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind2 == TOKEN_COLON) {
+        return 0;
+      }
+      if (kind2 == TOKEN_COMMA) {
+        return 0;
+      }
+      if (kind2 == TOKEN_RBRACE) {
+        return 0;
+      }
+      return 1;
+    }
+    if (kind == TOKEN_RBRACE) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Lookahead past empty `IDENT {}`: value-position terminators keep
+ * struct lit (`S {}` before `;` / `,` / `)` / `]` / `.` / `as`);
+ * under struct-field parse (field_depth > 0) a following `}` also
+ * keeps struct lit (`A { x: 42, e: E {} }`). Otherwise prefer ending
+ * the primary as VAR and leaving `{` for a bare if/while body.
+ * @param lex_inout *u8 — copy of the cursor after `{`; may be stepped
+ * @param source *u8 — opaque source slice
+ * @param field_depth i32 — parser_asm_struct_field_value_depth (C trampoline)
+ * @return i32 — 1 prefer block; 0 keep Type {}; -1 not empty braces
+ * PLATFORM: SHARED — product P4bq. C trampoline holds the depth
+ * global (G.7; no new getter). Do not dest-buffer append_byte.
+ */
+#[no_mangle]
+export function parser_asm_primary_empty_ident_braces_x_into_c(lex_inout: *u8, source: *u8, field_depth: i32): i32 {
+  let kind: i32 = 0;
+  let k: i32 = 0;
+  if (lex_inout == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (source == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RBRACE) {
+      return 0 - 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    k = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (k == TOKEN_SEMICOLON) {
+      return 0;
+    }
+    if (k == TOKEN_COMMA) {
+      return 0;
+    }
+    if (k == TOKEN_RPAREN) {
+      return 0;
+    }
+    if (k == TOKEN_RBRACKET) {
+      return 0;
+    }
+    if (k == TOKEN_DOT) {
+      return 0;
+    }
+    if (k == TOKEN_AS) {
+      return 0;
+    }
+    if (k == TOKEN_RBRACE) {
+      if (field_depth > 0) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  return 0 - 1;
 }
 

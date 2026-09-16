@@ -24,7 +24,9 @@
  * name[256]). P4bo: XLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X trampolines
  * parse_asm_bang (C holds tmpl[256]+regs[128]). P4bp:
  * XLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X trampolines parse_unsafe
- * (ident_pre_dispatch stays C compositor; lbrace lookahead stays C).
+ * (ident_pre_dispatch stays C compositor). P4bq:
+ * XLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X trampolines
+ * lbrace_looks_like_block / empty_ident_braces (C passes field_depth).
  * Cold: no define, full twin.
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
@@ -550,7 +552,7 @@ extern int32_t parser_asm_primary_parse_unsafe_x_into_c(void *arena, void *lex_i
 /**
  * PLATFORM: SHARED — P4bp trampoline. Entry cursor is unconsumed
  * TOKEN_LBRACE (`lex_after_kw` after IDENT `unsafe`). ident_pre_dispatch
- * stays C compositor. lbrace_looks_like_block / empty_ident_braces stay C.
+ * stays C compositor. lbrace lookahead is P4bq.
  */
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
                                                    struct parser_asm_slice_u8 *source,
@@ -650,6 +652,33 @@ static void parser_asm_primary_parse_block_expr_c(void *arena, struct parser_asm
  * Named empty `Type {}` vs bare `if b {}` is NOT decided here — see
  * parser_asm_primary_empty_ident_braces_prefer_block_c (wave364).
  */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X
+extern int32_t parser_asm_primary_lbrace_looks_like_block_x_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_primary_empty_ident_braces_x_into_c(void *lex_inout, void *source,
+                                                             int32_t field_depth);
+/**
+ * PLATFORM: SHARED — P4bq trampoline. ptr_c copies the lexer first so
+ * this may step the local copy. empty_ident passes
+ * parser_asm_struct_field_value_depth (G.7; no new getter).
+ */
+static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_lexer lex_after_lbrace,
+                                                            struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer lex;
+  if (!source)
+    return 0;
+  lex = lex_after_lbrace;
+  return parser_asm_primary_lbrace_looks_like_block_x_into_c(&lex, source);
+}
+
+static int32_t parser_asm_primary_empty_ident_braces_prefer_block_c(
+    struct parser_asm_lexer lex_after_lbrace, struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer lex;
+  if (!source)
+    return -1;
+  lex = lex_after_lbrace;
+  return parser_asm_primary_empty_ident_braces_x_into_c(&lex, source, parser_asm_struct_field_value_depth);
+}
+#else
 static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_lexer lex_after_lbrace,
                                                             struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
@@ -728,6 +757,7 @@ static int32_t parser_asm_primary_empty_ident_braces_prefer_block_c(
   /* Bare if/while empty body: next is return/else/ident/rbrace/if/… → then-block. */
   return 1;
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X */
 
 /**
  * TypeKind ordinals for STRUCT_LIT type-inst mangle (≡ ast.x / type_ref_slice).
