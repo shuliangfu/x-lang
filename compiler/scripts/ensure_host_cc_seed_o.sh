@@ -3248,6 +3248,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_for_call_args_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_call_method_wrappers_thin.x ] \
+      && [ src/runtime_pipeline_abi_call_method_wrappers_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3280,6 +3284,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_interf_thin "$o" || true
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
+      pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3319,6 +3324,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_interf_thin "$o" || true
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
+      pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3729,6 +3735,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm73_live_interf_thin "$o" || true
     pipeline_abi_inject_asm73_live_set_thin "$o" || true
     pipeline_abi_inject_for_call_args_thin "$o" || true
+    pipeline_abi_inject_call_method_wrappers_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3773,6 +3780,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm73_live_interf_thin "$o" || true
         pipeline_abi_inject_asm73_live_set_thin "$o" || true
         pipeline_abi_inject_for_call_args_thin "$o" || true
+        pipeline_abi_inject_call_method_wrappers_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3801,6 +3809,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_interf_thin "$o" || true
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
+      pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3837,6 +3846,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm73_live_interf_thin "$o" || true
   pipeline_abi_inject_asm73_live_set_thin "$o" || true
   pipeline_abi_inject_for_call_args_thin "$o" || true
+  pipeline_abi_inject_call_method_wrappers_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -4375,6 +4385,12 @@ pipeline_abi_inject_asm73_live_set_thin() {
 # PLATFORM: SHARED.
 pipeline_abi_inject_for_call_args_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_for_call_args_thin.x" "w216-call-args"
+}
+
+# wave217 CALL/METHOD text wrappers mega leave. G.7: match mega entry.
+# PLATFORM: SHARED.
+pipeline_abi_inject_call_method_wrappers_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_call_method_wrappers_thin.x" "w217-call-method"
 }
 
 

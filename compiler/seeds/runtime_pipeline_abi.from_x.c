@@ -47637,6 +47637,7 @@ int32_t pipeline_asm_sum_module_top_level_lets_stack(void *arena, void *mod, int
 
 
 
+/* XLANG_PABI_CALL_METHOD_WRAPPERS_THIN_BEGIN */
 /*
  * wave217 cold twins: CALL/METHOD text thin wrappers (G.7 pure leave).
  * Freestanding-safe stub (-1). Hybrid product links pure (stack snapshot +
@@ -47661,6 +47662,7 @@ int32_t pipeline_asm_emit_expr_method_call_c(void *arena, void *out, int32_t exp
   (void)target_arch;
   return -1;
 }
+/* XLANG_PABI_CALL_METHOD_WRAPPERS_THIN_END */
 
 #endif /* close wave178 FROM_X for leftover-PE struct_layout storage unique */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE struct_layout storage unique */
