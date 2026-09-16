@@ -98036,7 +98036,8 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
 //   + fill_u8_64 + glue_arena_expr_at_ref + implicit_tail + parser_library_init_*
 //   + parser_extern_init_arena_func_and_register_c + ast_expr_layout_prime.
 // Value-ABI residual (by-value Type/Expr/Block/Func get/set_copy + name aliases
-// + float IEEE helpers) stays seed always-C (host ABI sret/pass; dual-platform).
+// + float IEEE helpers) = seed ALWAYS + C thin leave
+// (runtime_pipeline_abi_value_abi_thin.c; host ABI sret/pass; dual-platform).
 // Seed cold twins under #ifndef FROM_X for pure-owned faces.
 // Layout LE (match product seeds / wave275 GrowVec elem sizes):
 //   ASTArena: num_types@0 num_exprs@4 num_blocks@8 num_funcs@12 (16B)

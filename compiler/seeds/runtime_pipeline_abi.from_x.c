@@ -56261,8 +56261,11 @@ void *onefunc_sidecar_get(void *key, int create) {
  * float IEEE helpers). NOT gated by FROM_X — pure freestanding cannot emit
  * portable large-struct sret/pass on SysV x86_64 and AAPCS64 together.
  * Calls pipeline_arena_*_ptr (pure product / cold twin).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_value_abi_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED host-cc seed residual (runtime_pipeline_abi.o).
  * ============================================================================= */
+/* XLANG_PABI_VALUE_ABI_THIN_BEGIN */
 #ifndef WAVE276_ARENA_VALUE_ABI_ALWAYS
 #define WAVE276_ARENA_VALUE_ABI_ALWAYS 1
 
@@ -56517,6 +56520,7 @@ void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi) {
     *hi = (int32_t)(u >> 32);
 }
 
+/* XLANG_PABI_VALUE_ABI_THIN_END */
 #endif /* WAVE276_ARENA_VALUE_ABI_ALWAYS */
 
 
