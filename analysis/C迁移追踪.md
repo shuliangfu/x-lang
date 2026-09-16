@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（双端 L4 真冷；升钉默认不做） |
 | BC（编译层零 host-cc） | ✅ | `pipeline_x` 已退役（wave309）——BC 面余量转 8.3.6 冷孪生三分 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋bvsc＋w211 asm | 含 wave211 try_reload thin（替 stub）。下一＝wave212 Chaitin。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
+| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w211＋w212 asm | 含 wave212 Chaitin thin。下一＝wave213 live／interf。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
 | nest 冻帽 | ✅ 纪律 | **64** |
 | check 闸门 | ⏸ 暂停 | 自举期须点名才 dogfood |
 
@@ -396,7 +396,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余 soft／obs／leave 见归档软残表 |
-| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋bvsc＋w211 asm | 含 wave211 try_reload thin（替 stub）。下一＝wave212 Chaitin。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
+| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w211＋w212 asm | 含 wave212 Chaitin thin。下一＝wave213 live／interf。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
 | nest 冻 64 | ✅ 纪律 | — |
 
 ---

@@ -39518,6 +39518,7 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(void *elf_ctx, int32_t ta, int32
 
 /* XLANG_PABI_BINOP_STACK_SPILL_TRY_RELOAD_THIN_END */
 
+/* XLANG_PABI_ASM73_CHAITIN_THIN_BEGIN */
 /*
  * wave212 cold twins: Chaitin color/pin BSS + thin accessors
  * (G.7 pure leave). Working freestanding BSS twins of pure pin[6] +
@@ -39594,6 +39595,8 @@ void glue_asm73_cfg_coloring_active_set(int32_t v) {
 }
 
 void glue_asm73_cfg_final_expr_use_n_set(int32_t n) { g_wave212_cfg_final_expr_use_n = n; }
+
+/* XLANG_PABI_ASM73_CHAITIN_THIN_END — pin/color only; stack_spill_enabled uses wave213 BSS below */
 
 /*
  * wave213 cold twins: live control scalars + Chaitin interf BSS + linear_ctx
