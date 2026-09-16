@@ -1102,11 +1102,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P3 type_ref ← $_pthin_p3_seed (G-02f-280 seed slice)"
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P4b/P4be/P4bf/P4bg/P4bh/P4bi Route C (2026-09-13/15/16).
+        # PLATFORM: SHARED — 7.2.1 P4b/P4be/P4bf/P4bg/P4bh/P4bi/P4bm Route C (2026-09-13/15/16).
         # pthin_expr_primary.x holds IDENT spelling probes, the asm!
         # options bit table, suffix_loop, IDENT/INT heads, P4bh
-        # remaining parse_primary dest-buffer, and P4bi
-        # parse_struct_lit_fields dest-buffer. P4be completed TOKEN/writer
+        # remaining parse_primary dest-buffer, P4bi
+        # parse_struct_lit_fields dest-buffer, and P4bm STRING decode
+        # dest-buffer (append_byte stays C). P4be completed TOKEN/writer
         # pins so `-E` typeck of suffix_loop passes (was XT001 undeclared
         # names). P4bf publishes next_lex from the C trampoline (C-twin
         # stop contract) so IDENT callers do not re-parse `mod.fn(...)`
@@ -1128,9 +1129,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             _pthin_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X"
             if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_anonymous_struct_lit_x_into_c"; then
               _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X"
-              echo "g05_ensure: P4b–P4bi/P4bj primary + anon-struct alloc ← $_pthin_p4pb_x"
+            fi
+            if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_string_lit_decode_span_x_into_c"; then
+              _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X"
+              echo "g05_ensure: P4b–P4bi/P4bj/P4bm primary + anon-struct + STRING decode ← $_pthin_p4pb_x"
             else
-              echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bj anon C twin)"
+              echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi/P4bj primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bm decode C twin)"
             fi
           else
             echo "g05_ensure: P4b primary .x thin failed or missing parse_primary/struct_lit_fields dest-buffer; P4 C twin stays full" >&2

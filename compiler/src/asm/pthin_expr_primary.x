@@ -75,6 +75,7 @@ export extern "C" function parser_asm_struct_lit_append_shorthand_src_c(arena: *
 export extern "C" function parser_asm_struct_lit_parse_field_value_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_asm_parse_anonymous_struct_lit_ptr_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
 export extern "C" function parser_asm_string_lit_decode_span_ptr_c(arena: *u8, head_ref: i32, source: *u8, q0: usize, nlen: i32, line: i32, col: i32): i32;
+export extern "C" function parser_asm_string_lit_append_byte_ptr_c(arena: *u8, head_ref: i32, b: i32, line: i32, col: i32): i32;
 export extern "C" function parser_parse_match_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_parse_at_simd_builtin_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_parse_block_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_block_ref: *i32): i32;
@@ -167,8 +168,8 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // dest-buffer (STRING concat, RETURN, PANIC, paren, array lit, LBRACE
 // block-vs-struct, plus IF via P5f and MATCH/AT via zero-algorithm
 // ptr shims). Dispatcher is a new function — do not grow suffix_loop
-// (XT001). Decode / match parse / simd parse
-// stay C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
+// (XT001). Decode is P4bm. match parse / simd parse stay C helpers
+// (extra lexer_next / 16-pattern arrays).
 // 7.2.1 P4bk (2026-09-16): 有则补全 TOKEN_BREAK / TOKEN_CONTINUE primary
 // dest-buffer that P4bh missed. The C twin still had the arm, but the
 // .x dispatcher returns 1 with out_ok=0 for unhandled tokens so the
@@ -176,6 +177,14 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // next function (T001 arity 0:0) — that is the pipeline_abi mega
 // "hang/CG002" typeck wall on LARGE xlang. Do not use `break` inside
 // this file's nested while (P4bh parse-drop). Do not grow suffix_loop.
+// 7.2.1 P4bm B-minus (2026-09-16): 有则补全 STRING decode dest-buffer.
+// The escape walk was still host-cc after P4bh (append_byte chunk
+// overflow stays C: Expr by-value + var_name[N]). Decode itself has
+// no local u8[N]. Independent STRING_DECODE gate so a missing
+// decode_x keeps the C loop without dropping P4bh/P4bj. Do not
+// dest-buffer append_byte. Do not dest-buffer
+// finish_struct_lit_from_type_ident. Do not dest-buffer parse_type_ref.
+// Do not FORCE pabi mega.
 // 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
 // C twin keeps *lex at `<` until follower is `(` / committed `{` struct
 // lit. .x type_ref walk and count-only skip both advance lex_inout;
@@ -1141,16 +1150,138 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
 }
 
 /**
+ * Decode one TOKEN_STRING span (product escapes) onto an existing
+ * STRING_LIT head, appending (adjacent concat). G.7 ≡ parser.x
+ * parser_string_lit_decode_span / C twin parser_asm_string_lit_decode_span_c.
+ * Byte walk has no local u8[N]. Chunk overflow writes stay C
+ * (parser_asm_string_lit_append_byte_ptr_c: Expr by-value + var_name[N]).
+ * @param arena *u8 — opaque AST arena; null → -1
+ * @param head_ref i32 — STRING_LIT head; <=0 → -1
+ * @param source *u8 — opaque slice; null → -1
+ * @param q0 usize — token_start (first payload byte after the open quote)
+ * @param nlen i32 — token ident_len; <0 treated as 0
+ * @param line i32 — overflow diag line (forwarded to append_byte)
+ * @param col i32 — overflow diag col
+ * @return i32 — 0 ok; -1 L011 / null
+ * PLATFORM: SHARED — P4bm dest-buffer of the former host-cc decode loop.
+ * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+ * Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_string_lit_decode_span_x_into_c(arena: *u8, head_ref: i32, source: *u8, q0: usize, nlen: i32, line: i32, col: i32): i32 {
+  let ri: i32 = 0;
+  let c: u8 = 0;
+  let b: u8 = 0;
+  let n: u8 = 0;
+  let consumed: i32 = 0;
+  let h1: u8 = 0;
+  let h2: u8 = 0;
+  let v1: i32 = 0;
+  let v2: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (arena == 0 as *u8 || source == 0 as *u8 || head_ref <= 0) {
+    return 0 - 1;
+  }
+  if (nlen < 0) {
+    nlen = 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (data == 0 as *u8) {
+      return 0 - 1;
+    }
+    ri = 0;
+    while (ri < nlen) {
+      c = 0;
+      consumed = 1;
+      if (q0 + (ri as usize) < slen) {
+        c = parser_asm_primary_ident_byte(data, q0, ri);
+      }
+      b = c;
+      if (c == 92 && (ri + 1) < nlen) {
+        n = 0;
+        if (q0 + ((ri + 1) as usize) < slen) {
+          n = parser_asm_primary_ident_byte(data, q0, ri + 1);
+        }
+        if (n == 110) {
+          b = 10;
+          consumed = 2;
+        } else if (n == 116) {
+          b = 9;
+          consumed = 2;
+        } else if (n == 114) {
+          b = 13;
+          consumed = 2;
+        } else if (n == 48) {
+          b = 0;
+          consumed = 2;
+        } else if (n == 92 || n == 34) {
+          b = n;
+          consumed = 2;
+        } else if (n == 120 && (ri + 3) < nlen) {
+          h1 = 0;
+          h2 = 0;
+          v1 = 0 - 1;
+          v2 = 0 - 1;
+          if (q0 + ((ri + 2) as usize) < slen) {
+            h1 = parser_asm_primary_ident_byte(data, q0, ri + 2);
+          }
+          if (q0 + ((ri + 3) as usize) < slen) {
+            h2 = parser_asm_primary_ident_byte(data, q0, ri + 3);
+          }
+          if (h1 >= 48 && h1 <= 57) {
+            v1 = (h1 as i32) - 48;
+          }
+          if (h1 >= 97 && h1 <= 102) {
+            v1 = (h1 as i32) - 97 + 10;
+          }
+          if (h1 >= 65 && h1 <= 70) {
+            v1 = (h1 as i32) - 65 + 10;
+          }
+          if (h2 >= 48 && h2 <= 57) {
+            v2 = (h2 as i32) - 48;
+          }
+          if (h2 >= 97 && h2 <= 102) {
+            v2 = (h2 as i32) - 97 + 10;
+          }
+          if (h2 >= 65 && h2 <= 70) {
+            v2 = (h2 as i32) - 65 + 10;
+          }
+          if (v1 >= 0 && v2 >= 0) {
+            b = ((v1 * 16) + v2) as u8;
+            consumed = 4;
+          } else {
+            b = n;
+            consumed = 2;
+          }
+        } else {
+          b = n;
+          consumed = 2;
+        }
+      }
+      if (parser_asm_string_lit_append_byte_ptr_c(arena, head_ref, b as i32, line, col) != 0) {
+        return 0 - 1;
+      }
+      ri = ri + consumed;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
  * STRING primary: decode the first TOKEN_STRING span, then concatenate
- * adjacent STRING tokens (wave282). Decode stays the C helper
- * (chunked var_name overflow; language has no local u8[N]).
+ * adjacent STRING tokens (wave282). Decode is P4bm dest-buffer
+ * (append_byte chunk overflow stays C).
  * @param arena *u8 — opaque AST arena
  * @param lex_inout *u8 — cursor at STRING; parked after the last concat
  * @param source *u8 — opaque slice
  * @param out_ok *i32 — 1 on success
  * @param out_expr_ref *i32 — EXPR_STRING_LIT head
  * @return i32 — 1 handled; 0 not STRING
- * PLATFORM: SHARED — P4bh STRING arm. Do not copy decode.
+ * PLATFORM: SHARED — P4bh STRING arm. Decode authority is P4bm.
  */
 function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;

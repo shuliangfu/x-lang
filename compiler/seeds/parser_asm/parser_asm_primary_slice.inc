@@ -17,6 +17,9 @@
  * P4bl: suffix_loop TOKEN_LT that is not a turbofish `( ` / committed
  * struct-lit `{` must leave *lex at `<` for relcompare (C already does;
  * .x dest-buffer must restore after type_ref walk / count-only skip).
+ * P4bm: XLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X skips the decode
+ * loop (body in pthin_expr_primary.x). append_byte stays C. Cold: no
+ * define, full twin.
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
  * Cold: no BODIES define, this file is the full twin.
@@ -310,6 +313,21 @@ static int32_t parser_asm_string_lit_append_byte_c(void *arena, int32_t head_ref
   return 0;
 }
 
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X
+extern int32_t parser_asm_string_lit_decode_span_x_into_c(void *arena, int32_t head_ref, void *source,
+                                                         size_t q0, int32_t nlen, int32_t line,
+                                                         int32_t col);
+/**
+ * PLATFORM: SHARED — P4bm trampoline. Entry is one TOKEN_STRING payload
+ * span (q0 + nlen). append_byte stays C (Expr by-value + var_name[N]).
+ */
+static int32_t parser_asm_string_lit_decode_span_c(void *arena, int32_t head_ref,
+    struct parser_asm_slice_u8 *source, size_t q0, int32_t nlen, int32_t line, int32_t col) {
+  if (!arena || !source || head_ref <= 0)
+    return -1;
+  return parser_asm_string_lit_decode_span_x_into_c(arena, head_ref, source, q0, nlen, line, col);
+}
+#else
 /* Decode one TOKEN_STRING span (escapes already product-set) onto head_ref. */
 static int32_t parser_asm_string_lit_decode_span_c(void *arena, int32_t head_ref,
     struct parser_asm_slice_u8 *source, size_t q0, int32_t nlen, int32_t line, int32_t col) {
@@ -368,6 +386,7 @@ static int32_t parser_asm_string_lit_decode_span_c(void *arena, int32_t head_ref
   }
   return 0;
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X STRING decode */
 
 #ifndef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X
 static int32_t parser_asm_primary_ident_is_unsafe_c(struct parser_asm_slice_u8 *source, size_t token_start,
@@ -1956,8 +1975,8 @@ void parser_asm_parse_struct_lit_fields_ptr_c(void *arena, int32_t lit_ref, void
 
 /**
  * PLATFORM: SHARED — P4bh zero-algorithm shims. Language has no lexer /
- * parse_expr_result by-value; decode / match parse / simd parse /
- * anonymous struct stay C (local u8[N] / extra lexer_next).
+ * parse_expr_result by-value; decode is P4bm dest-buffer (append_byte
+ * stays C). match parse / simd parse stay C (extra lexer_next).
  */
 int32_t parser_asm_string_lit_decode_span_ptr_c(void *arena, int32_t head_ref, void *source, size_t q0,
                                                int32_t nlen, int32_t line, int32_t col) {
@@ -1965,6 +1984,15 @@ int32_t parser_asm_string_lit_decode_span_ptr_c(void *arena, int32_t head_ref, v
     return -1;
   return parser_asm_string_lit_decode_span_c(arena, head_ref, (struct parser_asm_slice_u8 *)source, q0, nlen, line,
                                             col);
+}
+
+/**
+ * PLATFORM: SHARED — P4bm append_byte face for the .x decode walk.
+ * Chunk overflow + var_name[N] stay in the static C helper.
+ */
+int32_t parser_asm_string_lit_append_byte_ptr_c(void *arena, int32_t head_ref, int32_t b, int32_t line,
+                                               int32_t col) {
+  return parser_asm_string_lit_append_byte_c(arena, head_ref, (uint8_t)b, line, col);
 }
 
 int32_t parser_parse_match_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
