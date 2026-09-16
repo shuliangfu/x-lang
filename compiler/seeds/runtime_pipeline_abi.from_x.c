@@ -50827,6 +50827,7 @@ int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx) {
  * ========================================================================== */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 
+/* XLANG_PABI_ELF_CTX_THIN_BEGIN */
 #ifndef WAVE273_ELF_DOMAIN_COLD
 #define WAVE273_ELF_DOMAIN_COLD 1
 
@@ -54033,6 +54034,7 @@ void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, i
 }
 
 
+/* XLANG_PABI_ELF_CTX_THIN_END */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave273 cold twins (reopen after leftover-PE append_reloc; WAVE273_ELF_DOMAIN_COLD closed before leftover-PE F7) */
 
 /* ==========================================================================
