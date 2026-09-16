@@ -66214,8 +66214,11 @@ XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(void *module, void *arena
  * typeck.x remains live authority for typeck_check_expr_* sub-helpers and
  * check_expr_impl{,_mega} strong; dual-export ban on those bodies.
  * method_call cold dual only under #ifndef FROM_X (product typeck owns strong).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_typeck_check_expr_thin.c (inject
+ * weaken leftover T then first-wins; match-subject BSS file-local in thin).
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_TYPECK_CHECK_EXPR_THIN_BEGIN */
 #ifndef WAVE286_TYPECK_CHECK_EXPR_ALWAYS
 #define WAVE286_TYPECK_CHECK_EXPR_ALWAYS 1
 
@@ -66679,6 +66682,7 @@ int32_t typeck_check_expr_method_call(void *module, void *arena, int32_t expr_re
 }
 #endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* XLANG_PABI_TYPECK_CHECK_EXPR_THIN_END */
 #endif /* WAVE286_TYPECK_CHECK_EXPR_ALWAYS */
 
 /* =============================================================================
