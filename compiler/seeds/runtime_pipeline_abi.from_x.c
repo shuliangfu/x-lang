@@ -49599,6 +49599,7 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
  * PLATFORM: SHARED freestanding type pool Cap leave.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/* XLANG_PABI_TYPE_POOL_THIN_BEGIN */
 extern void *pipeline_arena_type_ptr(void *arena, int32_t ref);
 extern int32_t pipeline_arena_type_alloc(void *arena);
 extern int32_t pipeline_arena_num_types(void *arena);
@@ -49946,6 +49947,7 @@ int32_t pipeline_type_find_or_alloc_compound(void *a, int32_t kind_ord, int32_t 
   return k;
 }
 
+/* XLANG_PABI_TYPE_POOL_THIN_END */
 /* end wave270 type pool cold twins */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave270 cold twins */
 
