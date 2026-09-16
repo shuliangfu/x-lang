@@ -66032,8 +66032,11 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
  * validate_zero_padding_c / patch_all_body_parent_links_c (wave89–92).
  * Cold WEAK twins for those pure faces live only under #ifndef
  * XLANG_RUNTIME_PIPELINE_ABI_FROM_X (prefer cold / no pure).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_typeck_orch_thin.c (inject
+ * weaken leftover T then first-wins; product faces only — cold WEAK stay seed).
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_TYPECK_ORCH_THIN_BEGIN */
 #ifndef WAVE285_TYPECK_ORCH_ALWAYS
 #define WAVE285_TYPECK_ORCH_ALWAYS 1
 
@@ -66196,6 +66199,7 @@ XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(void *module, void *arena
 }
 #endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* XLANG_PABI_TYPECK_ORCH_THIN_END */
 #endif /* WAVE285_TYPECK_ORCH_ALWAYS */
 
 /* =============================================================================

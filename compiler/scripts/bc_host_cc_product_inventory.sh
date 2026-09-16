@@ -181,7 +181,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_bootstrap_glue.c|8.3.4|bootstrap glue retired (seed ALWAYS leave wave282)|0|absent"
   "compiler/pipeline_ast_forwarders.c|8.3.2|ast_pipeline_* forwarders retired (seed ALWAYS leave wave283; M2 C thin)|0|absent"
   "compiler/pipeline_parse_orch.c|8.3.2|parse/load/typeck orch Cap residual (wave284 seed ALWAYS leave; M2 C thin)|0|absent"
-  "compiler/pipeline_typeck_orch.c|8.3.2|typeck orch Cap residual thin (wave285 seed ALWAYS leave)|0|absent"
+  "compiler/pipeline_typeck_orch.c|8.3.2|typeck orch Cap residual thin (wave285 seed ALWAYS leave; M2 C thin)|0|absent"
   "compiler/pipeline_typeck_check_expr.c|8.3.2|typeck check_expr Cap residual thin (wave286 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_parser_result.c|8.3.2|parser result copy/lex/slice Cap residual (wave287 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_asm_label_format.c|8.3.2|asm label format Cap residual (wave288 seed ALWAYS leave)|0|absent"
