@@ -25,13 +25,13 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
 // STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X /
-// SCALAR_FROM_X / NAMED_FROM_X / GENERIC_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// SCALAR_FROM_X / NAMED_FROM_X / GENERIC_FROM_X / IDENT_VEC_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
 // pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x keeps that C twin without
+// linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x keeps that C twin without
 // dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
@@ -193,6 +193,18 @@
 // dropping P3o. Do not dest-buffer parse_type_ref. Do not FORCE
 // pabi mega. Do not open a new P-lane. Do not `break` out of the
 // arg while (P4bh parse-drop).
+// 7.2.1 P3q B-minus (2026-09-16): dest-buffer IDENT vector spelling
+// consume (complete existing type_ref.x). Historical ban was "thin
+// compositor" (pack already .x; alloc already P3m). Re-ranked live:
+// remaining C is start recovery (token_start==0 → next_pos -
+// ident_len) plus pack + alloc. C trampoline holds lexer_result
+// by-value and extracts data/length/token_start/ident_len/
+// next_pos (language has no lexer_result by-value). Stretch
+// audit stays in the C trampoline (AUDIT_CALL product no-op).
+// IDENT_VEC is a separate define so a missing ident_vec_x keeps
+// the C compositor without dropping P3p. Do not dest-buffer
+// parse_type_ref (P3f hello/fmt red). parse_type_ref_impl stays
+// C. Do not FORCE pabi mega. Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -2010,6 +2022,48 @@ export function parser_asm_parse_named_generic_args_x_into_c(arena: *u8, lex_ino
       pipeline_type_set_elem_array_size_at(arena, named_tr, first_ta, n_ta);
     }
     return named_tr;
+  }
+  return 0;
+}
+
+/**
+ * IDENT spelling consume: recover start, pack i32x4/Vec4f/…, alloc TYPE_VECTOR.
+ * token_start==0 recovers start from next_pos - ident_len (lexer_result
+ * token_start was unset). Writers = pack_c (G.7) + alloc_x (P3m G.7).
+ * Stretch audit stays in the C trampoline (AUDIT_CALL product no-op).
+ * @param arena *u8 — AST arena; null → 0
+ * @param data *u8 — source bytes; null → 0 (pack rejects)
+ * @param length usize — source length
+ * @param token_start usize — IDENT first byte; 0 may mean unset
+ * @param ident_len i32 — IDENT payload length; <=0 or >63 → 0
+ * @param next_pos usize — lexer next_lex.pos for start recovery
+ * @return i32 — TYPE_VECTOR type_ref, or 0 if the spelling is not a vector alias
+ * PLATFORM: SHARED type grammar. P3q dest-buffer of from_ident_spelling.
+ * parse_type_ref_impl stays C. Do not dest-buffer parse_type_ref (P3f).
+ * Do not FORCE pabi mega. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function parser_asm_vector_type_ref_from_ident_spelling_x_into_c(arena: *u8, data: *u8, length: usize, token_start: usize, ident_len: i32, next_pos: usize): i32 {
+  let start: usize = 0;
+  let pack: i32 = 0;
+  let vec_ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (ident_len <= 0 || ident_len > 63) {
+    return 0;
+  }
+  start = token_start;
+  if (token_start == 0 as usize && next_pos >= ident_len as usize) {
+    start = next_pos - ident_len as usize;
+  }
+  unsafe {
+    pack = parser_asm_vector_type_ident_pack_c(data, length, start, ident_len);
+    if (pack == 0) {
+      return 0;
+    }
+    vec_ref = parser_asm_alloc_vector_type_ref_x_into_c(arena, pack >> 8, pack & 255);
+    return vec_ref;
   }
   return 0;
 }

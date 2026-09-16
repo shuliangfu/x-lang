@@ -1033,11 +1033,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # `function(...): Ret` dest-buffer, P3j prefix `*T` dest-buffer,
         # P3k IDENT `Linear(T)` dest-buffer, P3l builtin vec-token
         # dest-buffer, P3m alloc_vector_type_ref, P3n builtin scalar tokens,
-        # P3o IDENT named / dyn / impl peel dest-buffer, and P3p IDENT
-        # generic `<T,U>` type-arg dest-buffer.
+        # P3o IDENT named / dyn / impl peel dest-buffer, P3p IDENT
+        # generic `<T,U>` type-arg dest-buffer, and P3q IDENT vector
+        # spelling consume dest-buffer.
         # Runs before P3 C so BODIES_FROM_X skips the portable .inc region.
-        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR / NAMED / GENERIC are separate defines (P6e PARSE_LAYOUT / P2c COND)
-        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x keeps that C twin without dropping
+        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR / NAMED / GENERIC / IDENT_VEC are separate defines (P6e PARSE_LAYOUT / P2c COND)
+        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x keeps that C twin without dropping
         # P3b–P3e. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
         if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
@@ -1087,6 +1088,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_named_generic_args_x_into_c"; then
               _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_GENERIC_FROM_X"
               _pthin_p3_lane="$_pthin_p3_lane/P3p"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_vector_type_ref_from_ident_spelling_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_IDENT_VEC_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3q"
             fi
             echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else

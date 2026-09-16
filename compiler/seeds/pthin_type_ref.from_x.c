@@ -5,7 +5,7 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
  * vector-ident bodies, type-inst mangle, consume_qualified,
  * type_angle_close, and TYPE_DYN wrap dest-buffer come from
  * pthin_type_ref.x; this TU keeps slice trampolines plus arena parse.
@@ -31,11 +31,14 @@
  * named_x are present (missing named keeps the C twins without dropping
  * P3n). XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X (P3p) skips IDENT generic
  * `<T,U>` C loop when generic_x is present (missing generic keeps the
- * C loop without dropping P3o). TYPE_DYN / TYPE_FN writers
+ * C loop without dropping P3o). XLANG_PTHIN_TYPE_REF_IDENT_VEC_FROM_X
+ * (P3q) skips IDENT vector spelling consume C compositor when
+ * ident_vec_x is present (missing ident_vec keeps the C compositor
+ * without dropping P3p). TYPE_DYN / TYPE_FN writers
  * pipeline_type_init_dyn_c / pipeline_type_init_fn_c live here
  * (consumer-wave; do not FORCE pabi mega). Mangle C twins live in
  * primary.inc (7-arg trampoline holds suf[64]). Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC define, full .inc.
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>
