@@ -3,18 +3,19 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * skips the portable token_starts_type / ident_is_dyn / builtin_kind_ord /
  * vector-ident-pack region, (P3d) consume_qualified / type_angle_close, and
  * (P3e) TYPE_DYN wrap (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC are separate
- * defines for P3g–P3q. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
+ * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL are separate
+ * defines for P3g–P3r. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
  * alloc_vector_type_ref C twin. XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X (P3n) skips
  * builtin scalar-token C twin. XLANG_PTHIN_TYPE_REF_NAMED_FROM_X (P3o) skips
  * dyn/impl peel + IDENT NAMED C twins. XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X (P3p)
  * skips IDENT generic `<T,U>` C loop. XLANG_PTHIN_TYPE_REF_IDENT_VEC_FROM_X (P3q)
- * skips IDENT vector spelling consume C compositor. parse_type_ref_impl stays C. Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC define, full twin.
+ * skips IDENT vector spelling consume C compositor. XLANG_PTHIN_TYPE_REF_IMPL_FROM_X
+ * (P3r) skips parse_type_ref_impl C compositor (ptr shim still C). Cold: no
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -1476,6 +1477,39 @@ static int32_t parser_asm_parse_named_generic_args_c(void *arena, int32_t named_
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
+#ifdef XLANG_PTHIN_TYPE_REF_IMPL_FROM_X
+extern int32_t parser_asm_parse_type_ref_impl_x_into_c(void *arena, void *lex_inout, void *source,
+                                                      uint8_t *name_scratch, int32_t *qn_len_slot,
+                                                      uint8_t *label_scratch);
+/**
+ * PLATFORM: SHARED — P3r trampoline. Language has no local u8[N] and no
+ * &local i32; this C face holds name[256] + qn_len + label[64] for the
+ * NAMED / star / wrap_dyn / prefix / postfix arms. AUDIT stays here
+ * (product no-op). Published face stays this static; slice_c and the
+ * primary parse_type_ref_ptr shim still call it (do not dest-buffer
+ * parse_type_ref — P3f hello/fmt red).
+ */
+static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_lexer lex,
+                                                struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  uint8_t name[256];
+  uint8_t label[64];
+  int32_t qn_len;
+  int32_t ref;
+  if (!source || !out_lex)
+    return 0;
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(&lex, source));
+  cur = lex;
+  memset(name, 0, sizeof(name));
+  memset(label, 0, sizeof(label));
+  qn_len = 0;
+  ref = parser_asm_parse_type_ref_impl_x_into_c(arena, &cur, source, name, &qn_len, label);
+  *out_lex = cur;
+  return ref;
+}
+#else
 static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_lexer lex,
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex) {
@@ -1606,6 +1640,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   parser_asm_write_out_lex_c(out_lex, lex);
   return 0;
 }
+#endif /* XLANG_PTHIN_TYPE_REF_IMPL_FROM_X parse_type_ref_impl dispatcher */
 
 /** parse_type_ref_for_arena_into slice 路径公开入口。 */
 int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
