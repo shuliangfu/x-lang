@@ -181,7 +181,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/ast_pool_bootstrap_glue.c|8.3.4|bootstrap glue retired (seed ALWAYS leave wave282)|0|absent"
   "compiler/pipeline_ast_forwarders.c|8.3.2|ast_pipeline_* forwarders retired (seed ALWAYS leave wave283; M2 C thin)|0|absent"
   "compiler/pipeline_parse_orch.c|8.3.2|parse/load/typeck orch Cap residual (wave284 seed ALWAYS leave; M2 C thin)|0|absent"
-  "compiler/pipeline_typeck_orch.c|8.3.2|typeck orch Cap residual thin (wave285 seed ALWAYS leave; M2 C thin)|0|absent"
+  "compiler/pipeline_typeck_orch.c|8.3.2|typeck orch Cap residual (wave285 seed ALWAYS; wave293 shim C→.x + layout C)|0|absent"
   "compiler/pipeline_typeck_check_expr.c|8.3.2|typeck check_expr Cap residual thin (wave286 seed ALWAYS leave; M2 C thin)|0|absent"
   "compiler/pipeline_parser_result.c|8.3.2|parser result copy/lex/slice Cap residual (wave287 seed ALWAYS leave; M2 C thin)|0|absent"
   "compiler/pipeline_asm_label_format.c|8.3.2|asm label format Cap residual (wave288 seed ALWAYS leave; M2 C thin)|0|absent"
@@ -193,7 +193,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/seeds/pipeline_glue_standalone.from_x.c|8.3.1|standalone glue seed retired wave309 (product pure-ld no mega)|0|absent"
   "compiler/seeds/pipeline_glue_strict_minimal.from_x.c|8.3.6|strict_minimal seed shell retired wave304 (0 T after wave303; product g05 unlinked)|0|absent"
   # --- 8.3.5 link alias / stubs (wave293: 5 seed host wrappers leave; wave294: _stubs+xlang_x_stubs leave) ---
-  "compiler/ast_asm_bare_link_alias.c|8.3.5|bare link alias host wrapper retired (wave293 seed-only .o)|0|absent"
+  "compiler/ast_asm_bare_link_alias.c|8.3.5|bare link alias host wrapper retired (wave293 seed-only .o; verified)|0|absent"
   "compiler/backend_asm_bare_link_alias.c|8.3.5|bare link alias host wrapper retired (wave293 seed-only .o)|0|absent"
   "compiler/backend_asm_strict_fallback_alias.c|8.3.5|strict fallback alias host wrapper retired (wave293 seed-only .o)|0|absent"
   "compiler/typeck_asm_bare_link_alias.c|8.3.5|typeck bare link alias host retired (wave296 seed-only .o)|0|absent"

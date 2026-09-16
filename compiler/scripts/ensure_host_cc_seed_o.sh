@@ -5968,50 +5968,76 @@ pipeline_abi_inject_parse_orch_thin() {
 
 
 
-# wave285 typeck_orch Cap residual (C thin; typeck_x_ast*_c + layout glue).
-# Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
-# Cold WEAK twins stay seed-only. G.7: match WAVE285_TYPECK_ORCH_ALWAYS product.
-# PLATFORM: SHARED.
+# wave285/293 typeck_orch Cap residual:
+#   C thin = layout glue only (out-param faces; host-cc until &i32 ABI green)
+#   .x thin = typeck_x_ast*_c rename shims (wave293 PREFER_ASM + stamp)
+# Prefer always runs C first, then .x overlay. PLATFORM: SHARED.
 pipeline_abi_inject_typeck_orch_thin() {
   local o="$1"
   local src="src/runtime_pipeline_abi_typeck_orch_thin.c"
+  local thin_x="src/runtime_pipeline_abi_typeck_orch_thin.x"
+  local stamp="src/.pabi_w293_typeck_orch.stamp"
   local thin_o base_o restore_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi w285-typeck-orch inject skip: $o is libtool archive"
-    return 1
-  fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch_base.XXXXXX.o")"
-  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch_restore.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi w285-typeck-orch inject: cc thin failed"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  cp -f "$o" "$restore_o"
-  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-    log "pipeline_abi w285-typeck-orch inject skip: cannot weaken leftover T"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 0
-  fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local had_newer=0
+  local rc=0
+  [ -s "$o" ] || return 0
+
+  # --- C layout glue ---
+  if [ -f "$src" ]; then
     if pipeline_abi_o_is_libtool_archive "$o"; then
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w285-typeck-orch inject: libtool archive; restored base"
+      log "pipeline_abi w285-typeck-orch inject skip: $o is libtool archive"
+      return 1
+    fi
+    thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch.XXXXXX.o")"
+    base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch_base.XXXXXX.o")"
+    restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch_restore.XXXXXX.o")"
+    # shellcheck disable=SC2086
+    if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
+      log "pipeline_abi w285-typeck-orch inject: cc thin failed"
       rm -f "$thin_o" "$base_o" "$restore_o"
       return 1
     fi
-    log "pipeline_abi w285-typeck-orch inject OK (first-wins over leftover)"
-    rm -f "$thin_o" "$base_o" "$restore_o"
+    cp -f "$o" "$base_o"
+    cp -f "$o" "$restore_o"
+    if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
+      log "pipeline_abi w285-typeck-orch inject skip: cannot weaken leftover T"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+    elif pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+      if pipeline_abi_o_is_libtool_archive "$o"; then
+        cp -f "$restore_o" "$o"
+        log "pipeline_abi w285-typeck-orch inject: libtool archive; restored base"
+        rm -f "$thin_o" "$base_o" "$restore_o"
+        return 1
+      fi
+      log "pipeline_abi w285-typeck-orch inject OK (layout glue first-wins)"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+    else
+      cp -f "$restore_o" "$o"
+      log "pipeline_abi w285-typeck-orch inject: merge failed; restored base"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
+  fi
+
+  # --- .x rename shims (stamp gate) ---
+  [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  cp -f "$restore_o" "$o"
-  log "pipeline_abi w285-typeck-orch inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o" "$restore_o"
-  return 1
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w293-typeck-orch"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 
