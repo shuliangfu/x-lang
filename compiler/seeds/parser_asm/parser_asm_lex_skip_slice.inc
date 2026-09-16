@@ -480,6 +480,19 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
  * @return number of names registered, or -1 on full/overflow
  * PLATFORM: SHARED — twin of scan-time capture in skip_tl.
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_PENDING_FROM_X
+/* PLATFORM: SHARED — P1g trampoline. Language has no file-local statics;
+ * .x does null/empty guards then calls register_type_params_c. */
+extern int32_t xlang_generic_func_register_pending_type_params_x_into_c(const uint8_t *fn_name,
+                                                                       int32_t fn_name_len,
+                                                                       const uint8_t *names,
+                                                                       const int32_t *lens,
+                                                                       int32_t pending_n);
+int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len) {
+  return xlang_generic_func_register_pending_type_params_x_into_c(
+      fn_name, fn_name_len, (const uint8_t *)g_gp_pending_names, g_gp_pending_lens, g_gp_pending_n);
+}
+#else
 int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len) {
   extern int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
                                                             const uint8_t names[][64], const int32_t *lens,
@@ -489,6 +502,7 @@ int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name
   return xlang_generic_func_register_type_params_c(fn_name, fn_name_len, g_gp_pending_names,
                                                      g_gp_pending_lens, g_gp_pending_n);
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_PENDING_FROM_X */
 
 /** buf 路径：跳过 `<...>` 泛型列表。 */
 void parser_skip_generic_angle_list_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,

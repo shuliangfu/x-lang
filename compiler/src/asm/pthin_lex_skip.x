@@ -29,9 +29,9 @@
 // top-level arg counting and IDENT capture at declaration position.
 // Language has no global u8[8][64]; dest buffers carry the 8 name
 // rows and lens, and the C trampoline writes g_gp_pending_*.
-// register_pending stays C (reads those statics). Do not duplicate
-// skip_generic_angle_list_into (this export inspects tokens the
-// into skip does not). Do not open a new P-lane.
+// P1g register_pending is a sibling export (separate PENDING define).
+// Do not duplicate skip_generic_angle_list_into (this export inspects
+// tokens the into skip does not). Do not open a new P-lane.
 //
 // 7.2.1 P1d B-minus (2026-09-13): 有则补全 this file with
 // advance_past_stmt_semicolon + advance_past_cond_rparen. The C
@@ -61,13 +61,23 @@
 // bind scratch (historical symbol keeps "buf64"). Do not merge into
 // param32 (wrong cap) or name64 (no remainder zeros). Do not open
 // a new P-lane. The imports.inc slice name stays a C trampoline
-// (language has no struct-by-value slice). register_pending stays C.
+// (language has no struct-by-value slice).
 //
-// Hybrid P1b/P1c/P1d/P1e/P1f: g05_try_x_to_o this file; XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
-// skips the portable .inc region and the helpers.inc ASI/peek twins.
+// 7.2.1 P1g Route C (2026-09-16): 有则补全 this file with
+// register_pending. C trampoline owns g_gp_pending_* and passes
+// flat names/lens/n; .x does null/empty guards then calls
+// register_type_params_c (P12k). PENDING is a separate define so a
+// missing pending_x keeps the C twin without dropping P1b–f.
+// Do not merge into P12k (different static table). Do not open a
+// new P-lane.
+//
+// Hybrid P1b/P1c/P1d/P1e/P1f/P1g: g05_try_x_to_o this file;
+// XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable .inc region
+// and the helpers.inc ASI/peek twins; XLANG_PTHIN_LEX_SKIP_PENDING_FROM_X
+// gates register_pending alone.
 // token.h remains the TOKEN_* authority via P1 C _Static_assert pins.
 // Cold: no define, full .inc stays. Do not reuse
-// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f bodies.
+// XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f/P1g bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Advance the opaque lexer one token; returns the consumed kind. */
@@ -89,6 +99,8 @@ export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, sou
 export extern "C" function parser_asm_lex_source_data_c(source: *u8): *u8;
 /** Source slice length. */
 export extern "C" function parser_asm_lex_source_length_c(source: *u8): usize;
+/** P12k public trampoline — write declaration-order type-params into g_fn_gp_*. */
+export extern "C" function xlang_generic_func_register_type_params_c(fn_name: *u8, fn_name_len: i32, names: *u8, lens: *i32, n: i32): i32;
 
 // TOKEN_* pin copies of include/token.h (133 kinds). P1 C _Static_assert
 // fires if the pin drifts; do not treat these as a second enum authority.
@@ -922,5 +934,30 @@ export function parser_asm_first_token_kind_into_c(lex_inout: *u8, source: *u8):
   }
   unsafe {
     return parser_asm_lex_step_kind_c(lex_inout, source);
+  }
+}
+
+/**
+ * Register pending type-param names under a function name into g_fn_gp_*.
+ * C trampoline owns g_gp_pending_* and passes flat names / lens / n.
+ * @param fn_name *u8 — function name bytes
+ * @param fn_name_len i32 — name length
+ * @param names *u8 — pending name rows, 8 x 64 flat
+ * @param lens *i32 — pending name lengths, cap 8
+ * @param pending_n i32 — occupied pending count
+ * @return i32 — n registered, 0 on null/empty, -1 if table full
+ * PLATFORM: SHARED — product P1g Route C. Do not merge into P12k
+ * register_type_params (different static table). Do not open a new P-lane.
+ */
+#[no_mangle]
+export function xlang_generic_func_register_pending_type_params_x_into_c(fn_name: *u8, fn_name_len: i32, names: *u8, lens: *i32, pending_n: i32): i32 {
+  if (fn_name == 0 as *u8 || fn_name_len <= 0 || pending_n <= 0) {
+    return 0;
+  }
+  if (names == 0 as *u8 || lens == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    return xlang_generic_func_register_type_params_c(fn_name, fn_name_len, names, lens, pending_n);
   }
 }

@@ -3,14 +3,16 @@
  * Hybrid: XLANG_PTHIN_LEX_SKIP_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_lex_skip_slice.inc
- * Hybrid P1b/P1c/P1d/P1e/P1f (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X): portable kind/copy/skip
- * bodies, the count walk, ASI advance_past_*, parse_peek_function_name,
- * first_token_kind, and P1f copy_token_bytes buf-path come from
- * pthin_lex_skip.x; this TU keeps by-value trampolines plus g_gp_pending_* /
- * register_pending C. P1d/P1e C trampolines live in helpers.inc (original
- * twins). The historical copy_token_bytes slice name stays a trampoline in
- * imports.inc. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f bodies.
+ * Hybrid P1b/P1c/P1d/P1e/P1f/P1g (XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X +
+ * XLANG_PTHIN_LEX_SKIP_PENDING_FROM_X): portable kind/copy/skip bodies, the
+ * count walk, ASI advance_past_*, parse_peek_function_name, first_token_kind,
+ * P1f copy_token_bytes buf-path, and P1g register_pending come from
+ * pthin_lex_skip.x; this TU keeps by-value trampolines plus g_gp_pending_*
+ * statics. PENDING is a separate define so a missing pending_x keeps the C
+ * twin without dropping P1b–f. P1d/P1e C trampolines live in helpers.inc
+ * (original twins). The historical copy_token_bytes slice name stays a
+ * trampoline in imports.inc. Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f/P1g bodies.
  */
 #include <stddef.h>
 #include <stdint.h>

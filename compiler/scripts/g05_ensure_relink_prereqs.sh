@@ -1312,15 +1312,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P9a stretch_audit .x thin failed; audit C twin stays (bridge still linked)" >&2
           fi
         fi
-        # PLATFORM: SHARED — 7.2.1 P1b/P1c/P1d/P1e/P1f Route C + B-minus (2026-09-13/15).
+        # PLATFORM: SHARED — 7.2.1 P1b/P1c/P1d/P1e/P1f/P1g Route C + B-minus (2026-09-13/15/16).
         # pthin_lex_skip.x holds kind predicates, buf copies, B-minus
         # skip_balanced/generic_into, P1c generic_count (peek+step via
         # P9a bridge; dest buffers for pending names), P1d ASI
         # advance_past_stmt_semicolon / advance_past_cond_rparen, P1e
         # parse_peek_function_name / first_token_kind (C twins in
-        # helpers.inc trampoline when this define is set on P19), and P1f
+        # helpers.inc trampoline when this define is set on P19), P1f
         # copy_token_bytes buf-path (128-byte zero-fill; slice trampoline
-        # stays in imports.inc).
+        # stays in imports.inc), and P1g register_pending (guards + call
+        # register_type_params_c; C owns g_gp_pending_*).
+        # PENDING is a separate define so a missing pending_x keeps the C
+        # twin without dropping P1b–f.
         # Runs after P9a so BODIES_FROM_X is only set when the bridge
         # will be linked (otherwise skip_balanced/count/ASI/peek would UNDEF).
         # Cold: no define, full .inc. Do not add P9a as a hard gate to P19.
@@ -1329,7 +1332,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_pthin_p1b_thin_o"; then
             _pthin_p1b_ok=1
             _pthin_p1_extra="-DXLANG_PTHIN_LEX_SKIP_BODIES_FROM_X"
-            echo "g05_ensure: P1b/P1c/P1d/P1e/P1f lex_skip bodies ← $_pthin_p1b_x (7.2.1 B-minus count/ASI/peek/copy_token_bytes)"
+            if g05_obj_defines "$_pthin_p1b_thin_o" "xlang_generic_func_register_pending_type_params_x_into_c"; then
+              _pthin_p1_extra="$_pthin_p1_extra -DXLANG_PTHIN_LEX_SKIP_PENDING_FROM_X"
+              echo "g05_ensure: P1b/P1c/P1d/P1e/P1f/P1g lex_skip bodies ← $_pthin_p1b_x (7.2.1 B-minus + register_pending)"
+            else
+              echo "g05_ensure: P1b/P1c/P1d/P1e/P1f lex_skip bodies ← $_pthin_p1b_x (P1g register_pending C twin)"
+            fi
           else
             echo "g05_ensure: P1b lex_skip .x thin failed; P1 C twin stays full" >&2
           fi
