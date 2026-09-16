@@ -142,7 +142,11 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
    * G.7: reuse index_elem_byte_sz on the SLICE type (nested SLICE → 16).
    * PLATFORM: SHARED freestanding 4.2.7 nested CALL-return reent.
    */
-  esz = glue_index_elem_byte_sz_from_type_ref_c(arena, ty_ref);
+  // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+  unsafe {
+    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, ty_ref);
+  }
   if (esz <= 0) {
     esz = 4;
   }
@@ -189,7 +193,8 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
+    v = glue_slice_dual_gp_length_off_c(home, ta);
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, v, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -249,7 +254,8 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
+    v = glue_slice_dual_gp_length_off_c(home, ta);
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, v, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -264,7 +270,11 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
   if (use_frame != 0) {
     // Let path: per-frame buffer. Force dest past dual-GP fat window at home (16B).
     // PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
-    noff = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    unsafe {
+      // Hoist nested export-extern: CALL-as-arg does not inherit unsafe (T001).
+      v = pipe_asm_ctx_off_next_offset();
+      noff = pipe_load_i32_le(ctx, v);
+    }
     dest_base = noff;
     if ((dest_base % 8) != 0) {
       dest_base = (dest_base + 7) / 8 * 8;
@@ -282,16 +292,24 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     if (ta == 1) {
       // MACOS|ARM64 low-end: byte0 @ dest_base, grows +.
       dest_off = dest_base;
-      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_base + nbytes);
+      unsafe {
+        v = pipe_asm_ctx_off_next_offset();
+        pipe_store_i32_le(ctx, v, dest_base + nbytes);
+      }
     } else {
       // LINUX|x86 high-end: byte0 at deep end; +byteoff stays under rbp.
       dest_off = dest_base + nbytes;
-      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), dest_off);
+      unsafe {
+        v = pipe_asm_ctx_off_next_offset();
+        pipe_store_i32_le(ctx, v, dest_off);
+      }
     }
     if (dest_off < 0) {
       return 0 - 1;
     }
-    glue_align_next_offset(ctx);
+    unsafe {
+      glue_align_next_offset(ctx);
+    }
     llen = 0;
   } else {
     // Call-arg: unique COMMON per deep-copy site (dual same-call needs two buffers).
@@ -350,7 +368,11 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
 
   // wave632: bulk esz>8 needs two pointer spills (src/dst) for chunked copy.
   if (esz > 8) {
-    noff = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+    unsafe {
+      // Hoist nested export-extern: CALL-as-arg does not inherit unsafe (T001).
+      v = pipe_asm_ctx_off_next_offset();
+      noff = pipe_load_i32_le(ctx, v);
+    }
     if (noff + 32 < noff) {
       return 0 - 1;
     }
@@ -358,7 +380,10 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     src_spill = noff;
     noff = noff + 16;
     dst_spill = noff;
-    pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), noff);
+    unsafe {
+      v = pipe_asm_ctx_off_next_offset();
+      pipe_store_i32_le(ctx, v, noff);
+    }
   }
 
   unsafe {
@@ -411,7 +436,8 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
+    v = glue_slice_dual_gp_length_off_c(home, ta);
+    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, v, ta);
   }
   if (rc != 0) {
     return 0 - 1;
@@ -551,12 +577,16 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
         return 0 - 1;
       }
     } else if (ta == 1) {
-      rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+      unsafe {
+        rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+      }
       if (rc != 0) {
         return 0 - 1;
       }
     } else {
-      rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+      unsafe {
+        rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+      }
       if (rc != 0) {
         return 0 - 1;
       }
@@ -585,7 +615,9 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     if (rc != 0) {
       return 0 - 1;
     }
-    rc = glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta);
+    unsafe {
+      rc = glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, esz, ta);
+    }
     if (rc != 0) {
       return 0 - 1;
     }
@@ -716,12 +748,16 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
         return 0 - 1;
       }
     } else if (ta == 1) {
-      rc = glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, &label[0], llen);
+      unsafe {
+        rc = glue_asm_lea_rbx_common_adrp_arm64(elf_ctx, &label[0], llen);
+      }
       if (rc != 0) {
         return 0 - 1;
       }
     } else {
-      rc = glue_asm_lea_rbx_common_rip_x86(elf_ctx, &label[0], llen);
+      unsafe {
+        rc = glue_asm_lea_rbx_common_rip_x86(elf_ctx, &label[0], llen);
+      }
       if (rc != 0) {
         return 0 - 1;
       }
@@ -808,12 +844,16 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
       return 0 - 1;
     }
   } else if (ta == 1) {
-    rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+    unsafe {
+      rc = glue_asm_lea_rax_common_adrp_arm64(elf_ctx, &label[0], llen);
+    }
     if (rc != 0) {
       return 0 - 1;
     }
   } else {
-    rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+    unsafe {
+      rc = glue_asm_lea_rax_common_rip_x86(elf_ctx, &label[0], llen);
+    }
     if (rc != 0) {
       return 0 - 1;
     }
@@ -832,7 +872,8 @@ export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     return 0 - 1;
   }
   unsafe {
-    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
+    v = glue_slice_dual_gp_length_off_c(home, ta);
+    rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, v, ta);
   }
   if (rc != 0) {
     return 0 - 1;

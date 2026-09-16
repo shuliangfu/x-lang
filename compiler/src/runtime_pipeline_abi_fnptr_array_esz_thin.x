@@ -40,7 +40,12 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
   let n_inner: i32 = 0;
   let iesz: i32 = 0;
   let fko: i32 = 0;
-  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  // M2 class A: -backend asm typeck T001 — export-extern call must sit in unsafe
+  // (same glue.x / pthin_fn_block pattern; -E typeck is looser).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+  unsafe {
+    elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  }
   if (elem_ty > 0) {
     unsafe {
       kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
@@ -222,7 +227,10 @@ export function glue_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
             mod = pipeline_asm_emit_module_ref_c();
           }
           if (mod != (0 as *u8)) {
-            esz = glue_type_size_simple(mod, arena, elem_ref, 0);
+            // M2 class A: remaining export-extern call in this leaf.
+            unsafe {
+              esz = glue_type_size_simple(mod, arena, elem_ref, 0);
+            }
           }
           if (esz <= 0) {
             esz = 8;

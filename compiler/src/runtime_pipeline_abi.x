@@ -94637,9 +94637,19 @@ function pipe_macho_common_align_log2(calign: i32): i32 {
 
 /**
  * Mach-O MH_OBJECT writer for pure-asm -o .o (product g05 Darwin).
- * @return i32 - out length on success, -1 fail
+ * Aligns with clang -c objects so Darwin clang -r onto hybrid pabi.o
+ * does not silently poison ELF finalize (CG002 elf_ec=-1):
+ *   · empty LC_SEGMENT_64.segname (sections still __TEXT,__text)
+ *   · omit empty __DATA (emit_data_seg)
+ *   · no dummy nlist[0]; r_symbolnum is 0-based
+ *   · LC_DYSYMTAB after LC_SYMTAB (nlocals=0, nextdef=ns, nundef=nu)
+ *   · __text flags 0x80000400; S_ATTR_EXT_RELOC only when nreloc>0
+ * Commons stay in the ns prefix (historical nlist order; not re-sorted).
+ * @param ctx_bytes *u8 — PipelineElfCtx
+ * @param out *u8 — CodegenOutBuf
+ * @return i32 — out length on success, -1 fail
  * wave273 pure-owned leave.
- * PLATFORM: MACOS pure-asm (linked SHARED; unused unless use_macho_o).
+ * PLATFORM: MACOS|DARWIN writer (linked SHARED; unused unless use_macho_o).
  */
 #[no_mangle]
 export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
@@ -94710,23 +94720,19 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
     strtab_size = strtab_size + pipe_elf_bss_load_i32(&g_pipe_elf_ws_und_lens[0], ui) + extra2 + 1;
     ui = ui + 1;
   }
-  let symtab_ents: i32 = ns + nu + 1;
+  /* clang MH_OBJECT: no dummy nlist[0]. strtab[0] stays the empty NUL. */
+  let symtab_ents: i32 = ns + nu;
   let symtab_size: i32 = symtab_ents * 16;
   let lc_build_size: i32 = 24;
-  /* F7: sizeofcmds now includes a second LC_SEGMENT_64 for __DATA,__const. */
-  let sizeofcmds: i32 = 152 + 152 + lc_build_size + 24;
-  let off_text: i32 = 32 + sizeofcmds;
-  /* F7: data section (vtable statics with absolute pointer relocs). */
+  let lc_dysym_size: i32 = 80;
+  /* F7: data section (vtable statics with absolute pointer relocs).
+   * Count data relocs BEFORE sizeofcmds: empty __DATA must drop the
+   * second LC_SEGMENT_64 so ncmds/sizeofcmds stay consistent. */
   let data_len: i32 = g_pipe_elf_data_len;
   if (data_len < 0) {
     data_len = 0;
   }
   let data_buf: *u8 = &g_pipe_elf_data_buf[0];
-  let off_data: i32 = pipe_elf_align4(off_text + code_len);
-  let off_sym: i32 = pipe_elf_align4(off_data + data_len);
-  let off_str: i32 = off_sym + symtab_size;
-  /* F7: split reloc table — text relocs first, then data relocs. Count by
-   * shndx sidecar so each section header points to its own reloc range. */
   let nr_text: i32 = 0;
   let nr_data: i32 = 0;
   let rc_i: i32 = 0;
@@ -94739,6 +94745,24 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
     }
     rc_i = rc_i + 1;
   }
+  /* Omit empty F7 __DATA LC_SEGMENT_64 when there are no data bytes and
+   * no data relocs. Darwin clang -r of a two-segment MH_OBJECT onto
+   * hybrid pabi.o can succeed and still poison ELF finalize (CG002
+   * elf_ec=-1 out_len=0, hello included). Keep the second segment when
+   * vtable/static data or ARM64_RELOC_UNSIGNED lives there.
+   * PLATFORM: MACOS|DARWIN writer; ELF path unchanged. */
+  let emit_data_seg: i32 = 0;
+  if (data_len > 0 || nr_data > 0) {
+    emit_data_seg = 1;
+  }
+  let sizeofcmds: i32 = 152 + lc_build_size + 24 + lc_dysym_size;
+  if (emit_data_seg != 0) {
+    sizeofcmds = sizeofcmds + 152;
+  }
+  let off_text: i32 = 32 + sizeofcmds;
+  let off_data: i32 = pipe_elf_align4(off_text + code_len);
+  let off_sym: i32 = pipe_elf_align4(off_data + data_len);
+  let off_str: i32 = off_sym + symtab_size;
   let off_reloc_text: i32 = off_str + strtab_size;
   let off_reloc_data: i32 = off_reloc_text + nr_text * 8;
   let off_reloc: i32 = off_reloc_text;  /* keep for backward compat (text relocs) */
@@ -94758,7 +94782,13 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   pipe_elf_store_i32_bytes(hdr, 4, cputype);
   pipe_elf_store_i32_bytes(hdr, 8, cpusubtype);
   unsafe {
-    hdr[12] = 1; hdr[16] = 4;  /* ncmds = 4 (was 3): added __DATA,__const segment */
+    hdr[12] = 1;
+    /* ncmds = 4 (seg + BUILD + SYMTAB + DYSYMTAB), or 5 with __DATA. */
+    if (emit_data_seg != 0) {
+      hdr[16] = 5;
+    } else {
+      hdr[16] = 4;
+    }
   }
   pipe_elf_store_i32_bytes(hdr, 20, sizeofcmds);
   if (pipe_elf_out_append(out, hdr, 32) != 0) {
@@ -94768,7 +94798,9 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   unsafe {
     memset(seg, 0, 152 as usize);
     seg[0] = 25; seg[4] = 152;
-    seg[8] = 95; seg[9] = 95; seg[10] = 84; seg[11] = 69; seg[12] = 88; seg[13] = 84;
+    /* clang MH_OBJECT: LC_SEGMENT_64.segname is empty; section still
+     * names __TEXT,__text. Named __TEXT + empty __DATA poisoned Darwin
+     * clang -r even after the second segment was stripped. */
   }
   pipe_elf_store_i32_bytes(seg, 32, code_len);
   pipe_elf_store_i32_bytes(seg, 40, off_text);
@@ -94785,7 +94817,16 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   unsafe {
     seg[132] = ((nr_text as u32) & 255) as u8;
     seg[133] = (((nr_text as u32) / 256) & 255) as u8;
-    seg[136] = 0; seg[137] = 0; seg[138] = 4; seg[139] = 128;
+    /* S_ATTR_PURE_INSTRUCTIONS|S_ATTR_SOME_INSTRUCTIONS = 0x80000400.
+     * S_ATTR_EXT_RELOC (0x40000) only when this section has relocs. */
+    seg[136] = 0;
+    seg[137] = 4;
+    if (nr_text > 0) {
+      seg[138] = 4;
+    } else {
+      seg[138] = 0;
+    }
+    seg[139] = 128;
   }
   if (pipe_elf_out_append(out, seg, 152) != 0) {
     return -1;
@@ -94804,6 +94845,7 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   }
   /* Pointer slots require 8-byte alignment (ld: "pointer not aligned"). */
   data_vmaddr = (data_vmaddr + 7) & (0 - 8);
+  if (emit_data_seg != 0) {
   let seg2: *u8 = &g_pipe_elf_ws_seg2[0];
   unsafe {
     memset(seg2, 0, 152 as usize);
@@ -94839,6 +94881,7 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   if (pipe_elf_out_append(out, seg2, 152) != 0) {
     return -1;
   }
+  }
   let lc_bv: *u8 = &g_pipe_elf_ws_lc[0];
   unsafe {
     memset(lc_bv, 0, 24 as usize);
@@ -94864,6 +94907,21 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   pipe_elf_store_i32_bytes(lc_sym, 16, off_str);
   pipe_elf_store_i32_bytes(lc_sym, 20, strtab_size);
   if (pipe_elf_out_append(out, lc_sym, 24) != 0) {
+    return -1;
+  }
+  /* LC_DYSYMTAB (cmd=0x0b, cmdsize=80). Reuse nlist workspace; written
+   * before any nlist. Grouping matches nlist order: ns ext-def then nu undef.
+   * Commons stay inside the ns prefix (not re-sorted this knife). */
+  let lc_dys: *u8 = &g_pipe_elf_ws_ent[0];
+  unsafe {
+    memset(lc_dys, 0, 80 as usize);
+    lc_dys[0] = 11;
+    lc_dys[4] = 80;
+  }
+  pipe_elf_store_i32_bytes(lc_dys, 20, ns);
+  pipe_elf_store_i32_bytes(lc_dys, 24, ns);
+  pipe_elf_store_i32_bytes(lc_dys, 28, nu);
+  if (pipe_elf_out_append(out, lc_dys, lc_dysym_size) != 0) {
     return -1;
   }
   if (code_len > 0 && code != 0 as *u8) {
@@ -94896,13 +94954,6 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
       return -1;
     }
     z = z + 1;
-  }
-  let nlist0: *u8 = &g_pipe_elf_ws_ent[0];
-  unsafe {
-    memset(nlist0, 0, 16 as usize);
-  }
-  if (pipe_elf_out_append(out, nlist0, 16) != 0) {
-    return -1;
   }
   let str_off: i32 = 1;
   s = 0;
@@ -95118,7 +95169,8 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
         use_pcrel = 0;
         eff_len = 3;
       }
-      let r_sym: i32 = sym_idx + 1;
+      /* r_symbolnum is 0-based after dropping dummy nlist[0]. */
+      let r_sym: i32 = sym_idx;
       let word2: i32 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (eff_len << 25) | (1 << 27) | (use_type << 28);
       let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
       pipe_elf_store_i32_bytes(ri, 0, roff);

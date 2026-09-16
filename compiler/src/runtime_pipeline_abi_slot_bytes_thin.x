@@ -242,7 +242,11 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
     return 0;
   }
   if (mod == 0 as *u8) {
-    mod = pipeline_asm_glue_emit_module_ref();
+    // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+    // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+    unsafe {
+      mod = pipeline_asm_glue_emit_module_ref();
+    }
   }
   if (mod == 0 as *u8) {
     return 0;
@@ -377,10 +381,15 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   // PLATFORM: SHARED freestanding · LINUX gold.
   if (ko == 8) {
     if (mod == 0 as *u8) {
-      mod = pipeline_asm_glue_emit_module_ref();
+      // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+      unsafe {
+        mod = pipeline_asm_glue_emit_module_ref();
+      }
     }
     sz = pipe_slot_bytes_named_in_mod(arena, type_ref, mod);
-    dep = pipeline_asm_emit_dep_pipe_c();
+    unsafe {
+      dep = pipeline_asm_emit_dep_pipe_c();
+    }
     if (dep != 0 as *u8) {
       unsafe {
         nd = pipeline_dep_ctx_ndep(dep);
@@ -537,9 +546,13 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
                         if (ssz <= 0) {
                           /* Same SIMD-named miss as 1D: layout 0 → size_simple. */
                           if (mod == (0 as *u8)) {
-                            mod = pipeline_asm_glue_emit_module_ref();
+                            unsafe {
+                              mod = pipeline_asm_glue_emit_module_ref();
+                            }
                           }
-                          ssz = glue_type_size_simple(mod, arena, ce, 0);
+                          unsafe {
+                            ssz = glue_type_size_simple(mod, arena, ce, 0);
+                          }
                         }
                         if (ssz > 0) {
                           leaf_esz = ssz;
@@ -589,9 +602,13 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
               /* TYPE_NAMED leftover after total_bytes miss: size_simple
                * (SIMD 16), not pointer-sized 8. */
               if (mod == (0 as *u8)) {
-                mod = pipeline_asm_glue_emit_module_ref();
+                unsafe {
+                  mod = pipeline_asm_glue_emit_module_ref();
+                }
               }
-              ssz = glue_type_size_simple(mod, arena, elem_ref, 0);
+              unsafe {
+                ssz = glue_type_size_simple(mod, arena, elem_ref, 0);
+              }
               if (ssz > 0) {
                 esz = ssz;
               } else {

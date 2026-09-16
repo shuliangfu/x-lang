@@ -124,7 +124,11 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   if (arena == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
     return 0;
   }
-  mod = pipeline_asm_emit_module_ref_c();
+  // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+  unsafe {
+    mod = pipeline_asm_emit_module_ref_c();
+  }
   unsafe {
     holds = asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, mod, ctx);
   }
@@ -145,8 +149,8 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   }
   unsafe {
     pipeline_expr_var_name_into(arena, expr_ref, &vname[0]);
+    fi = pipeline_asm_emit_func_index_c();
   }
-  fi = pipeline_asm_emit_func_index_c();
   if (mod != (0 as *u8) && fi >= 0) {
     unsafe {
       nf = pipeline_module_num_funcs(mod);
@@ -182,23 +186,26 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   if (decl_ty <= 0) {
     return 0;
   }
-  if (glue_type_ref_is_named_struct_layout_elf_c(arena, mod, decl_ty) != 0) {
-    sz = glue_type_size_simple(mod, arena, decl_ty, 0);
-    if (sz <= 0) {
-      sz = glue_type_named_layout_size_any_module_elf_c(arena, decl_ty);
+  // M2 class A: remaining export-extern calls in this leaf.
+  unsafe {
+    if (glue_type_ref_is_named_struct_layout_elf_c(arena, mod, decl_ty) != 0) {
+      sz = glue_type_size_simple(mod, arena, decl_ty, 0);
+      if (sz <= 0) {
+        sz = glue_type_named_layout_size_any_module_elf_c(arena, decl_ty);
+      }
+      if (sz > 16) {
+        return 1;
+      }
+      return 0;
     }
-    if (sz > 16) {
+    if (glue_type_is_fixed_array(arena, decl_ty) != 0) {
+      if (mod != (0 as *u8) && fi >= 0) {
+        if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, expr_ref) != 0) {
+          return 0;
+        }
+      }
       return 1;
     }
-    return 0;
-  }
-  if (glue_type_is_fixed_array(arena, decl_ty) != 0) {
-    if (mod != (0 as *u8) && fi >= 0) {
-      if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, expr_ref) != 0) {
-        return 0;
-      }
-    }
-    return 1;
   }
   return 0;
 }
@@ -252,13 +259,17 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   let rar_v: i32 = 0;
   let rar_lbl: u8[24] = [];
   let rar_digs: u8[8] = [];
-  ly = pipeline_asm_ctx_layout(ctx);
+  unsafe {
+    ly = pipeline_asm_ctx_layout(ctx);
+  }
   unsafe {
     ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
   if (ret_op != 0) {
     // Identity ascription: `return [10,32] as []i32` must hit Path C ARRAY_LIT.
-    ret_op = glue_peel_as_array_slice_ascription_c(arena, ret_op);
+    unsafe {
+      ret_op = glue_peel_as_array_slice_ascription_c(arena, ret_op);
+    }
     handled = 0;
     unsafe {
       sret_act = pipeline_asm_emit_ctx_sret_active_get();
@@ -283,13 +294,17 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           tk = pipeline_type_kind_ord_at(arena, rty);
         }
         if (tk == 8) {
-          ret_named_sz = glue_type_size_simple(mod, arena, rty, 0);
-          force_esz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+          unsafe {
+            ret_named_sz = glue_type_size_simple(mod, arena, rty, 0);
+            force_esz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+          }
           if (force_esz > ret_named_sz) {
             ret_named_sz = force_esz;
           }
           if (ret_named_sz <= 8) {
-            ret_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, ret_op);
+            unsafe {
+              ret_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, ret_op);
+            }
             if (ret_off < 0) {
               unsafe {
                 ret_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
@@ -310,7 +325,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
     }
     // Path A: sret return local VAR of large struct
     if (handled == 0 && sret_act != 0 && sret_sz > 16 && (ta == 0 || ta == 1) && ko == 3) {
-      if (glue_emit_sret_return_from_var_elf_c(arena, elf_ctx, ret_op, ctx, ta) != 0) {
+      unsafe {
+        rc = glue_emit_sret_return_from_var_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      }
+      if (rc != 0) {
         return 0 - 1;
       }
       handled = 1;
@@ -333,7 +351,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       if (rc != 0) {
         return 0 - 1;
       }
-      if (glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, sret_sz, ta) != 0) {
+      unsafe {
+        rc = glue_emit_sret_memcpy_rbx_to_home_elf_c(elf_ctx, sret_sz, ta);
+      }
+      if (rc != 0) {
         return 0 - 1;
       }
       handled = 1;
@@ -457,7 +478,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         n_arr = 0;
       }
       if (n_arr > 0) {
-        rar_noff = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
+        unsafe {
+          rar_v = pipe_asm_ctx_off_next_offset();
+          rar_noff = pipe_load_i32_le(ctx, rar_v);
+        }
         if (rar_noff + 48 < rar_noff) {
           return 0 - 1;
         }
@@ -465,8 +489,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         rar_src = rar_noff;
         rar_noff = rar_noff + 16;
         rar_dst = rar_noff;
-        pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), rar_noff + 16);
-        glue_align_next_offset(ctx);
+        unsafe {
+          rar_v = pipe_asm_ctx_off_next_offset();
+          pipe_store_i32_le(ctx, rar_v, rar_noff + 16);
+          glue_align_next_offset(ctx);
+        }
         unsafe {
           rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, rar_src, ta);
         }
@@ -585,7 +612,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
     }
     // Path B: VAR + module — slice escape or emit+float promote
     if (handled == 0 && arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8) && (ta == 0 || ta == 1) && ko == 3 && mod != (0 as *u8) && fi >= 0) {
-      esc = glue_try_return_slice_escape_from_fixed_array_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      unsafe {
+        esc = glue_try_return_slice_escape_from_fixed_array_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      }
       if (esc < 0) {
         return 0 - 1;
       }
@@ -599,8 +628,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         unsafe {
           rty = pipeline_module_func_return_type_at(mod, fi);
         }
-        sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
-        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0) {
+        unsafe {
+          sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+          rc = glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta);
+        }
+        if (rc != 0) {
           return 0 - 1;
         }
       }
@@ -636,13 +668,15 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         if (tk == 10) {
           unsafe {
             n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
-            force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, pipeline_type_elem_ref_at(arena, rty));
+            rar_elem = pipeline_type_elem_ref_at(arena, rty);
+            force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, rar_elem);
           }
           if (n_arr < 0 || n_arr > 1024) {
             return 0 - 1;
           }
           unsafe {
-            rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, pipeline_type_elem_ref_at(arena, rty));
+            rar_elem = pipeline_type_elem_ref_at(arena, rty);
+            rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, rar_elem);
           }
           if (rc != 0) {
             unsafe {
@@ -663,14 +697,16 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       if (handled == 0 && slice_ty > 0) {
         unsafe {
           n_arr = pipeline_expr_array_lit_num_elems_at(arena, ret_op);
-          force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, pipeline_type_elem_ref_at(arena, slice_ty));
+          rar_elem = pipeline_type_elem_ref_at(arena, slice_ty);
+          force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, rar_elem);
         }
         if (n_arr < 0 || n_arr > 1024) {
           return 0 - 1;
         }
         durable = 0;
         unsafe {
-          rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, pipeline_type_elem_ref_at(arena, slice_ty));
+          rar_elem = pipeline_type_elem_ref_at(arena, slice_ty);
+          rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, force_esz, ta, ctx, rar_elem);
         }
         if (rc == 0) {
           durable = 1;
@@ -728,8 +764,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         unsafe {
           rty = pipeline_module_func_return_type_at(mod, fi);
         }
-        sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
-        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0) {
+        unsafe {
+          sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+          rc = glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta);
+        }
+        if (rc != 0) {
           return 0 - 1;
         }
         handled = 1;
@@ -747,8 +786,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         unsafe {
           rty = pipeline_module_func_return_type_at(mod, fi);
         }
-        sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
-        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0) {
+        unsafe {
+          sty = glue_float_promote_src_ty_ref_c(arena, ret_op);
+          rc = glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta);
+        }
+        if (rc != 0) {
           return 0 - 1;
         }
       }
@@ -760,14 +802,18 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   if (rc != 0) {
     return 0 - 1;
   }
-  rc = glue_async_cps_emit_phase_reset(elf_ctx, ta);
+  unsafe {
+    rc = glue_async_cps_emit_phase_reset(elf_ctx, ta);
+  }
   if (rc != 0) {
     return 0 - 1;
   }
   if (ly == (0 as *u8)) {
     return 0 - 1;
   }
-  tj_len = pipe_load_i32_le(ly, 1520);
+  unsafe {
+    tj_len = pipe_load_i32_le(ly, 1520);
+  }
   if (tj_len <= 0) {
     return 0 - 1;
   }
@@ -832,7 +878,9 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0 || fty <= 0) {
     return 0 - 1;
   }
-  src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  unsafe {
+    src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
+  }
   if (src <= 0) {
     src = init_ref;
   }
@@ -873,7 +921,9 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
   }
   field_mag = 0;
   if (sret_direct == 0) {
-    field_mag = glue_struct_field_frame_mag_c(base_off, foff, ta);
+    unsafe {
+      field_mag = glue_struct_field_frame_mag_c(base_off, foff, ta);
+    }
     if (field_mag < 0) {
       return 0 - 1;
     }
@@ -892,7 +942,9 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     } else if (n_arr > 1024) {
       return 0 - 1;
     } else if (sret_direct == 0) {
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, src, ctx, ta, field_mag);
+      unsafe {
+        return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, src, ctx, ta, field_mag);
+      }
     } else {
       unsafe {
         sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
@@ -1058,14 +1110,16 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     if (var_off < 0) {
       return 0 - 1;
     }
-    mod = pipeline_asm_emit_module_ref_c();
     unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
       field_off = glue_field_access_effective_offset_c(arena, mod, src);
     }
     if (field_off < 0) {
       field_off = 0;
     }
-    src_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
+    unsafe {
+      src_off = glue_struct_field_frame_mag_c(var_off, field_off, ta);
+    }
     if (src_off < 0) {
       return 0 - 1;
     }
@@ -1074,16 +1128,24 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
      * return / subrow / emit_deref trk==10 leave-ptr). Same payload copy.
      * `unsafe { let y: [N]T = *p }` used to fall through to -2 → CG002.
      * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path. */
-    ly = pipeline_asm_ctx_layout(ctx);
+    unsafe {
+      ly = pipeline_asm_ctx_layout(ctx);
+    }
     if (ly == (0 as *u8)) {
       return 0 - 1;
     }
-    next_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+    unsafe {
+      rc = pipe_asm_ctx_off_next_offset();
+      next_off = pipe_load_i32_le(ly, rc);
+    }
     if (next_off + 16 < next_off) {
       return 0 - 1;
     }
     next_off = next_off + 16;
-    pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), next_off);
+    unsafe {
+      rc = pipe_asm_ctx_off_next_offset();
+      pipe_store_i32_le(ly, rc, next_off);
+    }
     spill_off = next_off;
     unsafe {
       emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, src, ctx, ta);
@@ -1105,7 +1167,10 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       if (total <= 0 || total > 4096) {
         return 0 - 1;
       }
-      next_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+      unsafe {
+        rc = pipe_asm_ctx_off_next_offset();
+        next_off = pipe_load_i32_le(ly, rc);
+      }
       if (next_off + 32 < next_off) {
         return 0 - 1;
       }
@@ -1113,7 +1178,10 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       src_spill = next_off;
       next_off = next_off + 16;
       dst_spill = next_off;
-      pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), next_off);
+      unsafe {
+        rc = pipe_asm_ctx_off_next_offset();
+        pipe_store_i32_le(ly, rc, next_off);
+      }
       unsafe {
         rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off, ta);
       }
@@ -1252,7 +1320,9 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
 
   if (src_off >= 0) {
     if (esz > 8) {
-      ly = pipeline_asm_ctx_layout(ctx);
+      unsafe {
+        ly = pipeline_asm_ctx_layout(ctx);
+      }
       if (ly == (0 as *u8)) {
         return 0 - 1;
       }
@@ -1263,7 +1333,10 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       if (total <= 0 || total > 4096) {
         return 0 - 1;
       }
-      next_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
+      unsafe {
+        rc = pipe_asm_ctx_off_next_offset();
+        next_off = pipe_load_i32_le(ly, rc);
+      }
       if (next_off + 32 < next_off) {
         return 0 - 1;
       }
@@ -1271,7 +1344,10 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
       src_spill = next_off;
       next_off = next_off + 16;
       dst_spill = next_off;
-      pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), next_off);
+      unsafe {
+        rc = pipe_asm_ctx_off_next_offset();
+        pipe_store_i32_le(ly, rc, next_off);
+      }
       unsafe {
         rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta);
       }
@@ -1469,7 +1545,9 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
   if (n_arr < 0 || n_arr > 1024) {
     return 0 - 1;
   }
-  dest_elem = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+  unsafe {
+    dest_elem = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
+  }
   if (dest_elem > 0) {
     unsafe {
       dest_ek = pipeline_type_kind_ord_at(arena, dest_elem);
@@ -1484,7 +1562,9 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
         }
       }
       if (inner_k == 11) {
-        row_esz = glue_array_lit_force_esz_from_elem_type_c(arena, dest_elem);
+        unsafe {
+          row_esz = glue_array_lit_force_esz_from_elem_type_c(arena, dest_elem);
+        }
         if (row_esz <= 0) {
           return 0 - 1;
         }
@@ -1521,8 +1601,10 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
                   if (cell_home < 0) {
                     return 0 - 1;
                   }
-                  row_st = glue_emit_slice_from_array_let_init_elf_c(
-                      arena, elf_ctx, 0, 0, cell_ref, inner, ctx, ta, cell_home);
+                  unsafe {
+                    row_st = glue_emit_slice_from_array_let_init_elf_c(
+                        arena, elf_ctx, 0, 0, cell_ref, inner, ctx, ta, cell_home);
+                  }
                   if (row_st != 1) {
                     return 0 - 1;
                   }
@@ -1585,7 +1667,9 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
       if (elem_home < 0) {
         return 0 - 1;
       }
-      st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, 0, elem_home);
+      unsafe {
+        st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, 0, elem_home);
+      }
       if (st == 0) {
         unsafe {
           fi = flat_i[0];

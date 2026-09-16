@@ -144,20 +144,26 @@ export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_re
   let vlen: i32 = 0;
   let pty: i32 = 0;
   let tk: i32 = 0;
-  mod = glue_emit_module_from_ctx(ctx);
+  // M2 class A: export-extern calls must sit in unsafe (-backend asm T001).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
   unsafe {
+    mod = glue_emit_module_from_ctx(ctx);
     holds = asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, mod, ctx);
   }
   if (holds != 0) {
     return 1;
   }
-  fi = pipeline_asm_emit_func_index_c();
+  unsafe {
+    fi = pipeline_asm_emit_func_index_c();
+  }
   if (mod != (0 as *u8) && fi >= 0) {
-    if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0) {
-      return 1;
-    }
-    if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0) {
-      return 1;
+    unsafe {
+      if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0) {
+        return 1;
+      }
+      if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0) {
+        return 1;
+      }
     }
     if (w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, stack_off) != 0) {
       return 1;

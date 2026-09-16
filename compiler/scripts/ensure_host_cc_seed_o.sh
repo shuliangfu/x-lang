@@ -429,7 +429,7 @@ XLANG_LINK_ABI_ALLOW_PIN="${XLANG_LINK_ABI_ALLOW_PIN:-1}"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-x-to-o|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|inject-macho-write|inject-pabi-leaf|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-x-to-o|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3134,6 +3134,12 @@ ensure_pipeline_abi_prefer_one() {
   local stale=0 done=0
   local thin_o rest_o cold_flags
 
+  # After clang-aligned writer + 10/10 Darwin overlay: prefer uses asm for
+  # inject_thin_leaf .x thins. Escape XLANG_PABI_THIN_PREFER_ASM=0 → -E.
+  # Does not FORCE mega -E. PLATFORM: SHARED · MACOS overlay · LINUX gold.
+  XLANG_PABI_THIN_PREFER_ASM="${XLANG_PABI_THIN_PREFER_ASM:-1}"
+  export XLANG_PABI_THIN_PREFER_ASM
+
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o try-pipeline-abi-prefer: missing seed $seed" >&2
     return 1
@@ -3178,6 +3184,30 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_fnptr_array_esz_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
+      && [ src/runtime_pipeline_abi_reent_deep_copy_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ] \
+      && [ src/runtime_pipeline_abi_fixed_array_copy_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_unused_hints_thin.x ] \
+      && [ src/runtime_pipeline_abi_unused_hints_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_wpo_dump_thin.x ] \
+      && [ src/runtime_pipeline_abi_wpo_dump_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_field_load_sz_thin.x ] \
+      && [ src/runtime_pipeline_abi_field_load_sz_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_macho_write_thin.c ] \
+      && [ src/runtime_pipeline_abi_macho_write_thin.c -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3188,16 +3218,18 @@ ensure_pipeline_abi_prefer_one() {
     fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (pipeline-abi-prefer)"
-      # Still inject thin leaves (small -E) when present.
+      # Still inject thin leaves when present (asm if PREFER_ASM=1).
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
       pipeline_abi_inject_slot_bytes_thin "$o" || true
       pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_macho_write_thin "$o" || true
       pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
       pipeline_abi_inject_fnptr_as_thin "$o" || true
       pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
+      pipeline_abi_inject_param_ptr_slot_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
@@ -3219,6 +3251,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
       pipeline_abi_inject_slot_bytes_thin "$o" || true
       pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_macho_write_thin "$o" || true
       pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
       # ttc-thin merge-fail is pre-existing (already-strong dup); do not
@@ -3625,6 +3658,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_fixed_array_copy_thin "$o" || true
     pipeline_abi_inject_slot_bytes_thin "$o" || true
     pipeline_abi_inject_field_load_sz_thin "$o" || true
+    pipeline_abi_inject_macho_write_thin "$o" || true
     pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
     pipeline_abi_inject_type_to_c_repr_thin "$o" || true
@@ -3661,6 +3695,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_fixed_array_copy_thin "$o" || true
         pipeline_abi_inject_slot_bytes_thin "$o" || true
         pipeline_abi_inject_field_load_sz_thin "$o" || true
+        pipeline_abi_inject_macho_write_thin "$o" || true
         pipeline_abi_inject_unused_hints_thin "$o" || true
           pipeline_abi_inject_wpo_dump_thin "$o" || true
         pipeline_abi_inject_type_to_c_repr_thin "$o" || true
@@ -3681,6 +3716,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
       pipeline_abi_inject_slot_bytes_thin "$o" || true
       pipeline_abi_inject_field_load_sz_thin "$o" || true
+      pipeline_abi_inject_macho_write_thin "$o" || true
       pipeline_abi_inject_unused_hints_thin "$o" || true
         pipeline_abi_inject_wpo_dump_thin "$o" || true
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
@@ -3709,6 +3745,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_fixed_array_copy_thin "$o" || true
   pipeline_abi_inject_slot_bytes_thin "$o" || true
   pipeline_abi_inject_field_load_sz_thin "$o" || true
+  pipeline_abi_inject_macho_write_thin "$o" || true
   pipeline_abi_inject_unused_hints_thin "$o" || true
       pipeline_abi_inject_wpo_dump_thin "$o" || true
   pipeline_abi_inject_type_to_c_repr_thin "$o" || true
@@ -3773,12 +3810,51 @@ EOF
   return 0
 }
 
+# Weaken every global T from THIN inside BASE so Darwin ld -r can overlay
+# a newer leaf (two strong T → two LC_SEGMENT / libtool dual member).
+# G.7: reuse pure_asm_find_objcopy; do not invent a second objcopy hunt.
+# PLATFORM: SHARED — ELF + Mach-O (--weaken-symbol name and _name).
+# Darwin refuse of xlang_asm MH_OBJECT overlay. Old writer (named __TEXT,
+# dummy nlist, no LC_DYSYMTAB) poisoned ELF finalize (L2 all CG002).
+# Product writer ingested 2026-09-16 (clang-aligned: empty segname,
+# LC_DYSYMTAB, flags 0x80000400, no dummy nlist) — dummy + durable C thin
+# both Darwin L2 5/5. Default allow overlay. Restore old refuse with
+# XLANG_PABI_DARWIN_REFUSE_ASM=1.
+# G.7: gate the existing inject; do not invent a second merger.
+# PLATFORM: MACOS — Linux ELF relocatable is a different load class.
+pipeline_abi_darwin_refuse_asm_thin_overlay() {
+  [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "${XLANG_PABI_DARWIN_REFUSE_ASM:-0}" = "1" ]
+}
+
+pipeline_abi_weaken_thin_syms_in_obj() {
+  local base="$1"
+  local thin="$2"
+  local oc=""
+  local sym=""
+  local any=0
+  [ -s "$base" ] && [ -s "$thin" ] || return 1
+  oc="$(pure_asm_find_objcopy)" || return 1
+  while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    "$oc" --weaken-symbol="$sym" "$base" 2>/dev/null || true
+    case "$sym" in
+      _*) "$oc" --weaken-symbol="${sym#_}" "$base" 2>/dev/null || true ;;
+      *) "$oc" --weaken-symbol="_${sym}" "$base" 2>/dev/null || true ;;
+    esac
+    any=1
+  done <<EOF
+$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+EOF
+  [ "$any" = "1" ]
+}
+
 pipeline_abi_inject_thin_leaf() {
   local o="$1"
   local thin_x="$2"
   local tag="$3"
   local xlang_bin=""
-  local gen_c thin_o base_o
+  local gen_c thin_o base_o restore_o used_asm=0
+  local thin_bn thin_stem pabi_asm_only pabi_asm_match
   if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
     return 0
   fi
@@ -3808,28 +3884,75 @@ pipeline_abi_inject_thin_leaf() {
   gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX.c")"
   thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin.XXXXXX.o")"
   base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin_base.XXXXXX.o")"
-  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
-    log "pipeline_abi ${tag} inject: -E failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
+  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin_restore.XXXXXX.o")"
+  # M2 class E: thins are standalone -c green. Prefer defaults
+  # XLANG_PABI_THIN_PREFER_ASM=1 (asm overlay). Direct inject without
+  # prefer still defaults -E unless the env is set. Darwin refuse only if
+  # XLANG_PABI_DARWIN_REFUSE_ASM=1. Mega runtime_pipeline_abi.x stays banned.
+  # PLATFORM: SHARED — do not leak tree PREFER_ASM_O.
+  used_asm=0
+  thin_bn="$(basename "$thin_x")"
+  thin_stem="${thin_bn%.x}"
+  pabi_asm_only="${XLANG_PABI_THIN_PREFER_ASM_ONLY:-}"
+  pabi_asm_match=1
+  if [ -n "$pabi_asm_only" ]; then
+    pabi_asm_match=0
+    case ",${pabi_asm_only}," in
+      *",${thin_bn},"*|*,${thin_stem},*) pabi_asm_match=1 ;;
+    esac
   fi
-  # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
-    log "pipeline_abi ${tag} inject: cc thin failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
+  if [ "${XLANG_PABI_THIN_PREFER_ASM:-0}" = "1" ] && [ "$pabi_asm_match" = "1" ] && (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK
+    unset G05_X_O_WEAK_FUNCS
+    unset G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$thin_o" "$thin_x"
+  ) && [ -s "$thin_o" ]; then
+    if pipeline_abi_darwin_refuse_asm_thin_overlay; then
+      log "pipeline_abi ${tag} inject: Darwin refuse asm MH_OBJECT overlay (CG002); fall back -E+cc"
+      used_asm=0
+    else
+      used_asm=1
+    fi
+  fi
+  if [ "$used_asm" != "1" ]; then
+    if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
+      log "pipeline_abi ${tag} inject: -E failed"
+      rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
+    # shellcheck disable=SC2086
+    if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+      log "pipeline_abi ${tag} inject: cc thin failed"
+      rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
   fi
   # PLATFORM: MACOS — g05 re-injects after bootstrap already overlaid this leaf.
   # Second strong overlay cannot Darwin ld -r (two LC_SEGMENT / two T); libtool
   # -static then keeps both members. Final -force_load of a ≤2-member archive
   # pulls both → duplicate `_glue_slice_let_reent_deep_copy_after_dual_gp_elf_c`
-  # (L4 @7f2754d80). Skip when thin's global T symbols are already T in $o.
+  # (L4 @7f2754d80). Skip when already T unless source is newer — then weaken
+  # leftover T and overlay (M2 PREFER_ASM replace of historic -E+$CC leaf).
   if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
-    log "pipeline_abi ${tag} inject skip: already defined in $o"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
+    # Historic -E+$CC: skip second strong overlay (Darwin ld -r / libtool).
+    # Pure-asm opt-in replaces leftover T (weaken then first-wins).
+    if [ "$used_asm" != "1" ]; then
+      log "pipeline_abi ${tag} inject skip: already defined in $o"
+      rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
+      return 0
+    fi
   fi
   cp -f "$o" "$base_o"
+  cp -f "$o" "$restore_o"
+  if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
+    if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
+      log "pipeline_abi ${tag} inject skip: already T and cannot weaken leftover"
+      rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
+      return 0
+    fi
+    log "pipeline_abi ${tag} inject: weakened leftover T (pure-asm replace)"
+  fi
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
     # PLATFORM: MACOS — ld -r may fall back to libtool -static. Accept only if
     # the archive still contains the full base (≥ base size). Tiny incomplete
@@ -3839,21 +3962,25 @@ pipeline_abi_inject_thin_leaf() {
       base_sz=$(wc -c <"$base_o" | tr -d ' ')
       out_sz=$(wc -c <"$o" | tr -d ' ')
       if [ -z "$base_sz" ] || [ -z "$out_sz" ] || [ "$out_sz" -lt "$base_sz" ]; then
-        cp -f "$base_o" "$o"
+        cp -f "$restore_o" "$o"
         log "pipeline_abi ${tag} inject: incomplete libtool archive; restored base"
-        rm -f "$gen_c" "$thin_o" "$base_o"
+        rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
         return 1
       fi
       log "pipeline_abi ${tag} inject OK (Darwin libtool archive ≥ base; force_load)"
     else
-      log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+      if [ "$used_asm" = "1" ]; then
+        log "pipeline_abi ${tag} inject OK (pure-asm first-wins over leftover)"
+      else
+        log "pipeline_abi ${tag} inject OK (first-wins over weak pure)"
+      fi
     fi
-    rm -f "$gen_c" "$thin_o" "$base_o"
+    rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
     return 0
   fi
-  cp -f "$base_o" "$o"
+  cp -f "$restore_o" "$o"
   log "pipeline_abi ${tag} inject: merge failed; restored base"
-  rm -f "$gen_c" "$thin_o" "$base_o"
+  rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
   return 1
 }
 
@@ -3999,6 +4126,57 @@ pipeline_abi_inject_field_load_sz_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_field_load_sz_thin.x" "fieldloadsz-thin"
 }
 
+# Clang-MH_OBJECT writer overlay. G.7: C thin matches pipeline_macho_write_o_to_buf_c
+# in runtime_pipeline_abi.x / from_x.c. Leftover writer is already strong T;
+# weaken then first-wins (same as PREFER_ASM leaf replace). Skip when source
+# is not newer than OUT (already ingested this mtime).
+# PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+pipeline_abi_inject_macho_write_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_macho_write_thin.c"
+  local thin_o base_o restore_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi macho-write inject skip: $o is libtool archive"
+    return 1
+  fi
+  if [ ! "$src" -nt "$o" ]; then
+    log "pipeline_abi macho-write inject skip: $src not newer than $o"
+    return 0
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_macho_wr.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_macho_wr_base.XXXXXX.o")"
+  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_macho_wr_restore.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi macho-write inject: cc thin failed"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  cp -f "$o" "$restore_o"
+  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
+    log "pipeline_abi macho-write inject skip: cannot weaken leftover writer T"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      cp -f "$restore_o" "$o"
+      log "pipeline_abi macho-write inject: libtool archive; restored base"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
+    log "pipeline_abi macho-write inject OK (first-wins over leftover writer)"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  cp -f "$restore_o" "$o"
+  log "pipeline_abi macho-write inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o" "$restore_o"
+  return 1
+}
+
 # L6 unused-binding hints (XLANG_UNUSED_HINT=1). G.7: thin body matches
 # runtime_pipeline_abi.x pipeline_typeck_unused_binding_hints.
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
@@ -4011,70 +4189,9 @@ pipeline_abi_inject_unused_hints_thin() {
 # Cap-fn-ptr LEA spell is pipe_modlet_lea_fn_sym_to_rax (not inlined here).
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_as_thin() {
-  local o="$1"
-  local thin_x="src/runtime_pipeline_abi_fnptr_as_thin.x"
-  local xlang_bin=""
-  local gen_c thin_o base_o oc
-  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
-    return 0
-  fi
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi fnptr-as-thin inject skip: $o is libtool archive"
-    return 1
-  fi
-  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
-  if pipeline_abi_windows_leftover_pe_cannot_e; then
-    log "pipeline_abi fnptr-as-thin inject skip: Windows leftover PE cannot -E; keep $o"
-    return 0
-  fi
-  if [ -x ./xlang_asm ]; then
-    xlang_bin=./xlang_asm
-  elif [ -x ./xlang ]; then
-    xlang_bin=./xlang
-  elif [ -x ./xlang-c ]; then
-    xlang_bin=./xlang-c
-  else
-    log "pipeline_abi fnptr-as-thin inject skip: no xlang binary"
-    return 0
-  fi
-  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_fnas.XXXXXX.c")"
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnas.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnas_base.XXXXXX.o")"
-  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
-    log "pipeline_abi fnptr-as-thin inject: -E failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
-    log "pipeline_abi fnptr-as-thin inject: cc thin failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  oc=""
-  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-  elif command -v llvm-objcopy >/dev/null 2>&1; then
-    oc=llvm-objcopy
-  elif command -v objcopy >/dev/null 2>&1; then
-    oc=objcopy
-  fi
-  if [ -n "$oc" ]; then
-    "$oc" --weaken-symbol=pipeline_asm_emit_as_elf_impl "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_pipeline_asm_emit_as_elf_impl "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=pipeline_asm_emit_as_elf_c "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_pipeline_asm_emit_as_elf_c "$base_o" 2>/dev/null || true
-  fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi fnptr-as-thin inject OK (first-wins over weakened leftover)"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
-  fi
-  cp -f "$base_o" "$o"
-  log "pipeline_abi fnptr-as-thin inject: merge failed; restored base"
-  rm -f "$gen_c" "$thin_o" "$base_o"
-  return 1
+  # G.7: same inject_thin_leaf as class E (PREFER_ASM opt-in; default -E).
+  # PLATFORM: SHARED shell · LINUX gold + MACOS.
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
 }
 
 # Stage10 10.2.1: EXPR_ASM emit_expr_elf_rec override (ko==60 → try_emit).
@@ -4089,73 +4206,9 @@ pipeline_abi_inject_asm_expr_thin() {
 # G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED shell ·
 # LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_array_esz_thin() {
-  local o="$1"
-  local thin_x="src/runtime_pipeline_abi_fnptr_array_esz_thin.x"
-  local xlang_bin=""
-  local gen_c thin_o base_o oc
-  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
-    return 0
-  fi
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi fnptr-arr-esz inject skip: $o is libtool archive"
-    return 1
-  fi
-  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
-  if pipeline_abi_windows_leftover_pe_cannot_e; then
-    log "pipeline_abi fnptr-arr-esz inject skip: Windows leftover PE cannot -E; keep $o"
-    return 0
-  fi
-  if [ -x ./xlang_asm ]; then
-    xlang_bin=./xlang_asm
-  elif [ -x ./xlang ]; then
-    xlang_bin=./xlang
-  elif [ -x ./xlang-c ]; then
-    xlang_bin=./xlang-c
-  else
-    log "pipeline_abi fnptr-arr-esz inject skip: no xlang binary"
-    return 0
-  fi
-  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr.XXXXXX.c")"
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_fnarr_base.XXXXXX.o")"
-  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
-    log "pipeline_abi fnptr-arr-esz inject: -E failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
-    log "pipeline_abi fnptr-arr-esz inject: cc thin failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  oc=""
-  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-  elif command -v llvm-objcopy >/dev/null 2>&1; then
-    oc=llvm-objcopy
-  elif command -v objcopy >/dev/null 2>&1; then
-    oc=objcopy
-  fi
-  if [ -n "$oc" ]; then
-    # Seed rest holds strong defs; weaken so thin first-wins. ELF + Mach-O.
-    "$oc" --weaken-symbol=glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_glue_array_lit_force_esz_from_elem_type_c "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_glue_fixed_array_temp_bytes "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=pipeline_asm_array_lit_elem_byte_sz_c "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_pipeline_asm_array_lit_elem_byte_sz_c "$base_o" 2>/dev/null || true
-  fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi fnptr-arr-esz inject OK (first-wins over weakened leftover)"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
-  fi
-  cp -f "$base_o" "$o"
-  log "pipeline_abi fnptr-arr-esz inject: merge failed; restored base"
-  rm -f "$gen_c" "$thin_o" "$base_o"
-  return 1
+  # G.7: same inject_thin_leaf as class E (PREFER_ASM opt-in; default -E).
+  # PLATFORM: SHARED shell · LINUX gold + MACOS.
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_array_esz_thin.x" "fnptr-arr-esz"
 }
 
 # WPO_DUMP_CALLGRAPH (XLANG_WPO_DUMP_CALLGRAPH). G.7: thin body matches
@@ -4172,73 +4225,9 @@ pipeline_abi_inject_wpo_dump_thin() {
 # product need not full mega -E (Darwin 22-40GB RSS). G.7: thin body matches
 # runtime_pipeline_abi.x. PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_param_ptr_slot_thin() {
-  local o="$1"
-  local thin_x="src/runtime_pipeline_abi_param_ptr_slot_thin.x"
-  local xlang_bin=""
-  local gen_c thin_o base_o oc
-  if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
-    return 0
-  fi
-  # PLATFORM: WINDOWS — leftover PE cannot -E tip thins; keep existing hybrid.
-  if pipeline_abi_windows_leftover_pe_cannot_e; then
-    log "pipeline_abi ptrslot-thin inject skip: Windows leftover PE cannot -E; keep $o"
-    return 0
-  fi
-  if [ -x ./xlang_asm ]; then
-    xlang_bin=./xlang_asm
-  elif [ -x ./xlang ]; then
-    xlang_bin=./xlang
-  elif [ -x ./xlang-c ]; then
-    xlang_bin=./xlang-c
-  else
-    log "pipeline_abi ptrslot-thin inject skip: no xlang binary"
-    return 0
-  fi
-  gen_c="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot.XXXXXX.c")"
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ptrslot_base.XXXXXX.o")"
-  if ! "$xlang_bin" -E "$thin_x" >"$gen_c" 2>/dev/null || [ ! -s "$gen_c" ]; then
-    log "pipeline_abi ptrslot-thin inject: -E failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
-    log "pipeline_abi ptrslot-thin inject: cc thin failed"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 1
-  fi
-  if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
-    log "pipeline_abi ptrslot-thin inject skip: already defined in $o"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
-  fi
-  cp -f "$o" "$base_o"
-  oc=""
-  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-    oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-  elif command -v llvm-objcopy >/dev/null 2>&1; then
-    oc=llvm-objcopy
-  elif command -v objcopy >/dev/null 2>&1; then
-    oc=objcopy
-  fi
-  if [ -n "$oc" ]; then
-    # Try both ELF (no prefix) and Mach-O (_ prefix). Do not short-circuit:
-    # GNU objcopy may exit 0 on a missing Darwin-prefixed name.
-    "$oc" --weaken-symbol=glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_glue_local_var_slot_needs_ptr_load_elf_c "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=w189_stack_off_is_emit_param_ptr_slot "$base_o" 2>/dev/null || true
-    "$oc" --weaken-symbol=_w189_stack_off_is_emit_param_ptr_slot "$base_o" 2>/dev/null || true
-  fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi ptrslot-thin inject OK (first-wins over weakened leftover)"
-    rm -f "$gen_c" "$thin_o" "$base_o"
-    return 0
-  fi
-  cp -f "$base_o" "$o"
-  log "pipeline_abi ptrslot-thin inject: merge failed; restored base"
-  rm -f "$gen_c" "$thin_o" "$base_o"
-  return 1
+  # G.7: same inject_thin_leaf as class E (PREFER_ASM opt-in; default -E).
+  # PLATFORM: SHARED shell · LINUX gold + MACOS.
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_param_ptr_slot_thin.x" "ptrslot-thin"
 }
 
 # host-C type_to_c_repr SLICE `*`→`_p` sanitizer. Product hybrid keeps this
@@ -8752,6 +8741,36 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  inject-macho-write|inject_macho_write)
+    # Durable C-thin ingest of clang-aligned pipeline_macho_write_o_to_buf_c.
+    # Does NOT run try-pipeline-abi-prefer (no mega -E, no other thins).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-macho-write: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_macho_write_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-pabi-leaf|inject_pabi_leaf)
+    # One-leaf PREFER_ASM overlay via pipeline_abi_inject_thin_leaf.
+    # Does NOT run try-pipeline-abi-prefer (no mega -E, no other thins).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 2 ]; then
+      echo "ensure_host_cc_seed_o inject-pabi-leaf: need <out.o> <thin.x> [tag]" >&2
+      exit 2
+    fi
+    export XLANG_PABI_THIN_PREFER_ASM=1
+    export XLANG_PABI_THIN_PREFER_ASM_ONLY="$(basename "$2" .x)"
+    set +e
+    pipeline_abi_inject_thin_leaf "$1" "$2" "${3:-pabi-leaf}"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   try-x-to-o|x-to-o)
     # F1-2026-08-18 chunked -E builder: generic rt_prefer harness entry for
     # arbitrary (SRC.x, OUT.o) pairs. Purpose: split OOM-prone mega modules

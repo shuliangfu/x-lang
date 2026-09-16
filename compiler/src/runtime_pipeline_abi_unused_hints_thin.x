@@ -223,7 +223,11 @@ export function pipeline_typeck_unused_binding_hints(m: *u8, a: *u8): i32 {
   if (l6_unused_hint_enabled() == 0) {
     return 0;
   }
-  nfuncs = pipeline_module_num_funcs(m);
+  // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+  unsafe {
+    nfuncs = pipeline_module_num_funcs(m);
+  }
   if (nfuncs <= 0) {
     return 0;
   }

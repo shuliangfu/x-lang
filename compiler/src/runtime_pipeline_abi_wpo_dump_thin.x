@@ -683,7 +683,11 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
   if (use_stdout == 0 && fp == 0 as *u8) {
     return 0;
   }
-  nfuncs = pipeline_module_num_funcs(m);
+  // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+  unsafe {
+    nfuncs = pipeline_module_num_funcs(m);
+  }
   if (nfuncs <= 0) {
     if (use_stdout == 0) {
       unsafe {

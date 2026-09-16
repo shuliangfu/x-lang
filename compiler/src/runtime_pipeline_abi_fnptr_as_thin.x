@@ -73,8 +73,12 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
   let fnptr_mod: *u8 = 0 as *u8;
   /* Cap 4.2.8: var_name_into memset(out,0,256). */
   let fnptr_vname: u8[256] = [];
-  if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
-    return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+  unsafe {
+    if (glue_expr_is_await_at_c(arena, expr_ref) != 0) {
+      return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+    }
   }
   unsafe {
     op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
@@ -92,7 +96,9 @@ export function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref
     }
     // f32 target + FLOAT_LIT force_ty
     if (tgt_kind == 14 && op_ko == 1) {
-      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
+      unsafe {
+        return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
+      }
     }
   }
   // float → integer truncate

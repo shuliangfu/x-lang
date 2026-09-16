@@ -51984,7 +51984,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   uint8_t seg2[152]; /* F7: second LC_SEGMENT_64 for __DATA,__const */
   uint8_t lc_bv[24];
   uint8_t lc_sym[24];
-  uint8_t nlist0[16];
+  uint8_t lc_dys[80];
+  int32_t lc_dysym_size;
   uint8_t z0[1];
   uint8_t uscore[1];
   int32_t pad;
@@ -52010,6 +52011,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   int32_t sym_shndx;
   int32_t n_sect;
   int32_t data_vmaddr;
+  int32_t emit_data_seg;
   int32_t n_val;
   int32_t rel_type;
   int32_t rel_len;
@@ -52084,24 +52086,20 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     ui = ui + 1;
   }
 
-  /* nlist entries: NULL + defined + und */
-  symtab_ents = ctx->num_syms + nu + 1;
+  /* clang MH_OBJECT: no dummy nlist[0]. strtab[0] stays the empty NUL. */
+  symtab_ents = ctx->num_syms + nu;
   symtab_size = symtab_ents * 16;
   reloc_size = ctx->num_relocs * 8;
   lc_build_size = 24;
-  /* F7: sizeofcmds now includes a second LC_SEGMENT_64 for __DATA,__const. */
-  sizeofcmds = 152 + 152 + lc_build_size + 24;
-  off_text = 32 + sizeofcmds;
-  /* F7: data section (vtable statics with absolute pointer relocs). */
+  lc_dysym_size = 80;
+  /* F7: data section (vtable statics with absolute pointer relocs).
+   * Count data relocs BEFORE sizeofcmds so empty __DATA can drop the
+   * second LC_SEGMENT_64 with matching ncmds/sizeofcmds.
+   * Twin of runtime_pipeline_abi.x macho writer. */
   data_len = g_pipeline_elf_data_len;
   if (data_len < 0)
     data_len = 0;
   data_buf = &g_pipeline_elf_data_buf[0];
-  off_data = (off_text + code_len + 3) & (int32_t)0xFFFFFFFCu;
-  off_sym = (off_data + data_len + 3) & (int32_t)0xFFFFFFFCu;
-  off_str = off_sym + symtab_size;
-  /* F7: split reloc table — text relocs first, then data relocs. Count by
-   * shndx sidecar so each section header points to its own reloc range. */
   nr_text = 0;
   nr_data = 0;
   rc_i = 0;
@@ -52113,6 +52111,22 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       nr_text = nr_text + 1;
     rc_i = rc_i + 1;
   }
+  /* Omit empty F7 __DATA LC_SEGMENT_64 when there are no data bytes and
+   * no data relocs. Darwin clang -r of a two-segment MH_OBJECT onto
+   * hybrid pabi.o can succeed and still poison ELF finalize (CG002
+   * elf_ec=-1 out_len=0). Keep the second segment when vtable/static
+   * data or ARM64_RELOC_UNSIGNED lives there.
+   * PLATFORM: MACOS|DARWIN writer; ELF path unchanged. */
+  emit_data_seg = 0;
+  if (data_len > 0 || nr_data > 0)
+    emit_data_seg = 1;
+  sizeofcmds = 152 + lc_build_size + 24 + lc_dysym_size;
+  if (emit_data_seg != 0)
+    sizeofcmds = sizeofcmds + 152;
+  off_text = 32 + sizeofcmds;
+  off_data = (off_text + code_len + 3) & (int32_t)0xFFFFFFFCu;
+  off_sym = (off_data + data_len + 3) & (int32_t)0xFFFFFFFCu;
+  off_str = off_sym + symtab_size;
   off_reloc_text = off_str + strtab_size;
   off_reloc_data = off_reloc_text + nr_text * 8;
   off_reloc = off_reloc_text; /* keep for backward compat (text relocs) */
@@ -52144,8 +52158,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   hdr[11] = (uint8_t)((cpusubtype >> 24) & 255);
   /* MH_OBJECT = 1 */
   hdr[12] = 1;
-  /* ncmds = 4: LC_SEGMENT_64(__TEXT) + LC_SEGMENT_64(__DATA) + LC_BUILD_VERSION + LC_SYMTAB */
-  hdr[16] = 4;
+  /* ncmds = 4 (seg + BUILD + SYMTAB + DYSYMTAB), or 5 with __DATA. */
+  hdr[16] = (uint8_t)(emit_data_seg != 0 ? 5 : 4);
   hdr[20] = (uint8_t)(sizeofcmds & 255);
   hdr[21] = (uint8_t)((sizeofcmds >> 8) & 255);
   hdr[22] = (uint8_t)((sizeofcmds >> 16) & 255);
@@ -52154,16 +52168,11 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     return -1;
 
   memset(seg, 0, sizeof(seg));
-  /* LC_SEGMENT_64 cmd=0x19, cmdsize=152 */
+  /* LC_SEGMENT_64 cmd=0x19, cmdsize=152.
+   * clang MH_OBJECT: LC_SEGMENT_64.segname is empty; section still
+   * names __TEXT,__text. Twin of runtime_pipeline_abi.x. */
   seg[0] = 25;
   seg[4] = 152;
-  /* segname "__TEXT" */
-  seg[8] = 95;
-  seg[9] = 95;
-  seg[10] = 84;
-  seg[11] = 69;
-  seg[12] = 88;
-  seg[13] = 84;
   /* vmsize / filesize = code_len; fileoff = off_text */
   seg[32] = (uint8_t)(code_len & 255);
   seg[33] = (uint8_t)((code_len >> 8) & 255);
@@ -52212,14 +52221,16 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   seg[131] = (uint8_t)((off_reloc_text >> 24) & 255);
   seg[132] = (uint8_t)(nr_text & 255);
   seg[133] = (uint8_t)((nr_text >> 8) & 255);
-  /* S_ATTR_SOME_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS */
+  /* S_ATTR_PURE_INSTRUCTIONS|S_ATTR_SOME_INSTRUCTIONS = 0x80000400.
+   * S_ATTR_EXT_RELOC (0x40000) only when this section has relocs. */
   seg[136] = 0;
-  seg[137] = 0;
-  seg[138] = 4;
+  seg[137] = 4;
+  seg[138] = (uint8_t)(nr_text > 0 ? 4 : 0);
   seg[139] = 128;
   if (pipeline_elf_out_append(out, seg, 152) != 0)
     return -1;
 
+  if (emit_data_seg != 0) {
   /* F7: emit second LC_SEGMENT_64 for __DATA,__const (vtable static data).
    * This segment is writable at link time (initprot=rw-) so absolute 64-bit
    * pointer relocations (ARM64_RELOC_UNSIGNED) can be applied; ld rejects
@@ -52297,6 +52308,7 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   seg2[136] = 0; seg2[137] = 0; seg2[138] = 0; seg2[139] = 0;
   if (pipeline_elf_out_append(out, seg2, 152) != 0)
     return -1;
+  }
 
   /* LC_BUILD_VERSION: platform=macOS(1), minos/sdk=11.0.0 */
   memset(lc_bv, 0, sizeof(lc_bv));
@@ -52337,6 +52349,26 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
   if (pipeline_elf_out_append(out, lc_sym, 24) != 0)
     return -1;
 
+  /* LC_DYSYMTAB (cmd=0x0b, cmdsize=80). Grouping matches nlist order:
+   * ns ext-def then nu undef. Commons stay in the ns prefix. */
+  memset(lc_dys, 0, sizeof(lc_dys));
+  lc_dys[0] = 11;
+  lc_dys[4] = 80;
+  lc_dys[20] = (uint8_t)(ctx->num_syms & 255);
+  lc_dys[21] = (uint8_t)((ctx->num_syms >> 8) & 255);
+  lc_dys[22] = (uint8_t)((ctx->num_syms >> 16) & 255);
+  lc_dys[23] = (uint8_t)((ctx->num_syms >> 24) & 255);
+  lc_dys[24] = (uint8_t)(ctx->num_syms & 255);
+  lc_dys[25] = (uint8_t)((ctx->num_syms >> 8) & 255);
+  lc_dys[26] = (uint8_t)((ctx->num_syms >> 16) & 255);
+  lc_dys[27] = (uint8_t)((ctx->num_syms >> 24) & 255);
+  lc_dys[28] = (uint8_t)(nu & 255);
+  lc_dys[29] = (uint8_t)((nu >> 8) & 255);
+  lc_dys[30] = (uint8_t)((nu >> 16) & 255);
+  lc_dys[31] = (uint8_t)((nu >> 24) & 255);
+  if (pipeline_elf_out_append(out, lc_dys, lc_dysym_size) != 0)
+    return -1;
+
   if (code_len > 0 && code && pipeline_elf_out_append(out, code, code_len) != 0)
     return -1;
   z0[0] = 0;
@@ -52360,11 +52392,6 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       return -1;
     z = z + 1;
   }
-
-  /* nlist[0] = NULL symbol */
-  memset(nlist0, 0, sizeof(nlist0));
-  if (pipeline_elf_out_append(out, nlist0, 16) != 0)
-    return -1;
 
   str_off = 1;
   s = 0;
@@ -52575,8 +52602,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
         use_pcrel = 0;
         eff_len = 3;
       }
-      /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel; r_length; r_extern=1; r_type */
-      r_sym = sym_idx + 1;
+      /* r_symbolnum is 0-based after dropping dummy nlist[0]. */
+      r_sym = sym_idx;
       word2 = (r_sym & 16777215) | ((use_pcrel & 1) << 24) | (eff_len << 25) | (1 << 27) | (use_type << 28);
       roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
       ri[0] = (uint8_t)(roff & 255);
