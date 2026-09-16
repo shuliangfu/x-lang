@@ -1044,13 +1044,17 @@ function parser_asm_block_lit_init_ref_x(arena: *u8, int_val: i32): i32 {
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = ast_ast_arena_expr_alloc(arena);
-  if (ref == 0) {
-    return 0;
+  // PLATFORM: SHARED — asm typeck requires unsafe around export-extern
+  // calls (`-E` is looser). Match glue.x / unary wrap (M2 class A).
+  unsafe {
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    pipeline_expr_set_kind(arena, ref, 0);
+    pipeline_expr_set_int_val(arena, ref, int_val);
   }
-  pipeline_expr_set_common_zeros_c(arena, ref);
-  pipeline_expr_set_kind(arena, ref, 0);
-  pipeline_expr_set_int_val(arena, ref, int_val);
   return ref;
 }
 
@@ -1074,22 +1078,25 @@ function parser_asm_block_append_one_const_x(arena: *u8, block_ref: i32, pool: *
   if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
     return 0;
   }
-  const_decl_ty = type_ref;
-  sc_ty = pipeline_onefunc_const_type_ref(pool, src_i);
-  if (sc_ty != 0) {
-    const_decl_ty = sc_ty;
-  }
-  cinit_ref = pipeline_onefunc_const_init_ref(pool, src_i);
-  if (cinit_ref == 0) {
-    cinit_ref = parser_asm_block_lit_init_ref_x(arena, pipeline_onefunc_const_init_val(pool, src_i));
+  // PLATFORM: SHARED — M2 class A: sidecar / block writers are export-extern.
+  unsafe {
+    const_decl_ty = type_ref;
+    sc_ty = pipeline_onefunc_const_type_ref(pool, src_i);
+    if (sc_ty != 0) {
+      const_decl_ty = sc_ty;
+    }
+    cinit_ref = pipeline_onefunc_const_init_ref(pool, src_i);
     if (cinit_ref == 0) {
+      cinit_ref = parser_asm_block_lit_init_ref_x(arena, pipeline_onefunc_const_init_val(pool, src_i));
+      if (cinit_ref == 0) {
+        return 0;
+      }
+    }
+    nlen = pipeline_onefunc_const_name_len(pool, src_i);
+    pipeline_onefunc_const_name_copy64(pool, src_i, name_scratch);
+    if (pipeline_block_append_const(arena, block_ref, name_scratch, nlen, const_decl_ty, cinit_ref) < 0) {
       return 0;
     }
-  }
-  nlen = pipeline_onefunc_const_name_len(pool, src_i);
-  pipeline_onefunc_const_name_copy64(pool, src_i, name_scratch);
-  if (pipeline_block_append_const(arena, block_ref, name_scratch, nlen, const_decl_ty, cinit_ref) < 0) {
-    return 0;
   }
   return 1;
 }
@@ -1115,26 +1122,29 @@ function parser_asm_block_append_one_let_x(arena: *u8, block_ref: i32, pool: *u8
   if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
     return 0;
   }
-  let_decl_ty = type_ref;
-  sc_ty = pipeline_onefunc_let_type_ref(pool, src_i);
-  if (sc_ty != 0) {
-    let_decl_ty = sc_ty;
-  }
-  init_ref = pipeline_onefunc_let_init_ref(pool, src_i);
-  if (init_ref == -1) {
-    init_ref = 0;
-  } else {
-    if (init_ref == 0) {
-      init_ref = parser_asm_block_lit_init_ref_x(arena, pipeline_onefunc_let_init_val(pool, src_i));
+  // PLATFORM: SHARED — M2 class A: sidecar / block writers are export-extern.
+  unsafe {
+    let_decl_ty = type_ref;
+    sc_ty = pipeline_onefunc_let_type_ref(pool, src_i);
+    if (sc_ty != 0) {
+      let_decl_ty = sc_ty;
+    }
+    init_ref = pipeline_onefunc_let_init_ref(pool, src_i);
+    if (init_ref == -1) {
+      init_ref = 0;
+    } else {
       if (init_ref == 0) {
-        return 0;
+        init_ref = parser_asm_block_lit_init_ref_x(arena, pipeline_onefunc_let_init_val(pool, src_i));
+        if (init_ref == 0) {
+          return 0;
+        }
       }
     }
-  }
-  nlen = pipeline_onefunc_let_name_len(pool, src_i);
-  pipeline_onefunc_let_name_copy64(pool, src_i, name_scratch);
-  if (pipeline_block_append_let(arena, block_ref, name_scratch, nlen, let_decl_ty, init_ref) < 0) {
-    return 0;
+    nlen = pipeline_onefunc_let_name_len(pool, src_i);
+    pipeline_onefunc_let_name_copy64(pool, src_i, name_scratch);
+    if (pipeline_block_append_let(arena, block_ref, name_scratch, nlen, let_decl_ty, init_ref) < 0) {
+      return 0;
+    }
   }
   return 1;
 }
@@ -1161,19 +1171,22 @@ export function parser_asm_fill_block_const_let_from_res_x_into_c(arena: *u8, bl
   if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
     return 0;
   }
-  nc = pipeline_onefunc_num_consts(pool);
-  while (const_i < nc) {
-    if (parser_asm_block_append_one_const_x(arena, block_ref, pool, const_i, type_ref, name_scratch) == 0) {
-      return 0;
+  // PLATFORM: SHARED — M2 class A: num_consts/num_lets are export-extern.
+  unsafe {
+    nc = pipeline_onefunc_num_consts(pool);
+    while (const_i < nc) {
+      if (parser_asm_block_append_one_const_x(arena, block_ref, pool, const_i, type_ref, name_scratch) == 0) {
+        return 0;
+      }
+      const_i = const_i + 1;
     }
-    const_i = const_i + 1;
-  }
-  nl = pipeline_onefunc_num_lets(pool);
-  while (let_i < nl) {
-    if (parser_asm_block_append_one_let_x(arena, block_ref, pool, let_i, type_ref, name_scratch) == 0) {
-      return 0;
+    nl = pipeline_onefunc_num_lets(pool);
+    while (let_i < nl) {
+      if (parser_asm_block_append_one_let_x(arena, block_ref, pool, let_i, type_ref, name_scratch) == 0) {
+        return 0;
+      }
+      let_i = let_i + 1;
     }
-    let_i = let_i + 1;
   }
   return 1;
 }
@@ -1199,20 +1212,23 @@ export function parser_asm_append_block_lets_from_res_x_into_c(arena: *u8, block
   if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
     return 0;
   }
-  nc = pipeline_onefunc_num_consts(pool);
-  while (src_i < nc) {
-    if (parser_asm_block_append_one_const_x(arena, block_ref, pool, src_i, type_ref, name_scratch) == 0) {
-      return 0;
+  // PLATFORM: SHARED — M2 class A: num_consts/num_lets are export-extern.
+  unsafe {
+    nc = pipeline_onefunc_num_consts(pool);
+    while (src_i < nc) {
+      if (parser_asm_block_append_one_const_x(arena, block_ref, pool, src_i, type_ref, name_scratch) == 0) {
+        return 0;
+      }
+      src_i = src_i + 1;
     }
-    src_i = src_i + 1;
-  }
-  src_i = let_base;
-  nl = pipeline_onefunc_num_lets(pool);
-  while (src_i < nl) {
-    if (parser_asm_block_append_one_let_x(arena, block_ref, pool, src_i, type_ref, name_scratch) == 0) {
-      return 0;
+    src_i = let_base;
+    nl = pipeline_onefunc_num_lets(pool);
+    while (src_i < nl) {
+      if (parser_asm_block_append_one_let_x(arena, block_ref, pool, src_i, type_ref, name_scratch) == 0) {
+        return 0;
+      }
+      src_i = src_i + 1;
     }
-    src_i = src_i + 1;
   }
   return 1;
 }

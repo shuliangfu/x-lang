@@ -655,6 +655,10 @@ export function parser_asm_type_ref_mangle_suffix_c(arena: *u8, type_ref: i32, b
   if (arena == 0 as *u8 || type_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
     return 0;
   }
+  // PLATFORM: SHARED — M2 class A: pipeline_type_* writers are export-extern
+  // (`-E` typeck is looser; asm requires unsafe). Pointer stores already
+  // used nested unsafe; keep them.
+  unsafe {
   cur = type_ref;
   ptr_n = 0;
   tk = pipeline_type_kind_ord_at(arena, cur);
@@ -777,6 +781,7 @@ export function parser_asm_type_ref_mangle_suffix_c(arena: *u8, type_ref: i32, b
     } else {
       return n;
     }
+  }
   }
   return n;
 }

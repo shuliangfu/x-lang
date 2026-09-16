@@ -4129,7 +4129,10 @@ function skip_impl_seen_match_or_diag(impl_trait: *u8, impl_trait_len: *i32, for
     }
   }
   if (impl_ok == 0) {
-    impl_ok = xlang_generic_bound_diag_not_impl_c(ta, ta_len, trait_nm, trait_nlen, line, col);
+    // PLATFORM: SHARED — M2 class A: varargs diag trampoline is export-extern.
+    unsafe {
+      impl_ok = xlang_generic_bound_diag_not_impl_c(ta, ta_len, trait_nm, trait_nlen, line, col);
+    }
     impl_ok = 0;
   }
   return impl_ok;
