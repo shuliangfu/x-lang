@@ -64279,8 +64279,12 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
  * Not gated by FROM_X. Product authority for ast_pipeline_* thin pass-throughs
  * plus pipeline_copy_lib_root_to_buf256. Defs keep incomplete struct* to match
  * seed protos (~2096). Under FROM_X prefer rest: redeclare pure void* callees
- * (blacklist always-visible struct* protos at seed ~2487). PLATFORM: SHARED.
+ * (blacklist always-visible struct* protos at seed ~2487).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_ast_forwarders_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
+ * PLATFORM: SHARED.
  * ============================================================================= */
+/* XLANG_PABI_AST_FORWARDERS_THIN_BEGIN */
 #ifndef WAVE283_AST_FORWARDERS_ALWAYS
 #define WAVE283_AST_FORWARDERS_ALWAYS 1
 
@@ -65273,6 +65277,7 @@ int32_t ast_pipeline_arena_block_alloc(struct ast_ASTArena *a) { return pipeline
 
 int32_t ast_pipeline_arena_func_alloc(struct ast_ASTArena *a) { return pipeline_arena_func_alloc(a); }
 
+/* XLANG_PABI_AST_FORWARDERS_THIN_END */
 #endif /* WAVE283_AST_FORWARDERS_ALWAYS */
 
 /*

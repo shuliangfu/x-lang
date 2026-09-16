@@ -179,7 +179,7 @@ PRODUCT_RESIDUAL_ROWS=(
   "compiler/pipeline_typeck_soa.c|8.3.3|soa thin retired (typeck.x authority; host-cc leave)|0|absent"
   # --- 8.3.4 bootstrap glue / orchestration ---
   "compiler/ast_pool_bootstrap_glue.c|8.3.4|bootstrap glue retired (seed ALWAYS leave wave282)|0|absent"
-  "compiler/pipeline_ast_forwarders.c|8.3.2|ast_pipeline_* forwarders retired (seed ALWAYS leave wave283)|0|absent"
+  "compiler/pipeline_ast_forwarders.c|8.3.2|ast_pipeline_* forwarders retired (seed ALWAYS leave wave283; M2 C thin)|0|absent"
   "compiler/pipeline_parse_orch.c|8.3.2|parse/load/typeck orch Cap residual (wave284 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_typeck_orch.c|8.3.2|typeck orch Cap residual thin (wave285 seed ALWAYS leave)|0|absent"
   "compiler/pipeline_typeck_check_expr.c|8.3.2|typeck check_expr Cap residual thin (wave286 seed ALWAYS leave)|0|absent"
