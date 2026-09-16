@@ -39502,6 +39502,7 @@ void glue_binop_var_slot_cache_set_valid_x15(int32_t v) { g_wave210_var_valid_x1
 
 /* XLANG_PABI_BINOP_VAR_SLOT_CACHE_THIN_END */
 
+/* XLANG_PABI_BINOP_STACK_SPILL_TRY_RELOAD_THIN_BEGIN */
 /*
  * wave211 cold twin: binop stack-spill try_reload enc public face.
  * Freestanding-safe no-op stub (miss). Hybrid product links pure.
@@ -39514,6 +39515,8 @@ int32_t glue_binop_stack_spill_try_reload_elf_c(void *elf_ctx, int32_t ta, int32
   (void)to_rbx;
   return 0;
 }
+
+/* XLANG_PABI_BINOP_STACK_SPILL_TRY_RELOAD_THIN_END */
 
 /*
  * wave212 cold twins: Chaitin color/pin BSS + thin accessors

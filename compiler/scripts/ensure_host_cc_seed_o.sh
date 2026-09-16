@@ -3228,6 +3228,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_binop_var_slot_cache_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_binop_stack_spill_try_reload_thin.x ] \
+      && [ src/runtime_pipeline_abi_binop_stack_spill_try_reload_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3255,6 +3259,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
+      pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3289,6 +3294,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
+      pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3694,6 +3700,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_assign_thin "$o" || true
     pipeline_abi_inject_w157_sum_thin "$o" || true
     pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
+    pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3733,6 +3740,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_assign_thin "$o" || true
         pipeline_abi_inject_w157_sum_thin "$o" || true
         pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
+        pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3756,6 +3764,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
+      pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3787,6 +3796,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_assign_thin "$o" || true
   pipeline_abi_inject_w157_sum_thin "$o" || true
   pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
+  pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -4295,6 +4305,12 @@ pipeline_abi_inject_w157_sum_thin() {
 # PLATFORM: SHARED.
 pipeline_abi_inject_binop_var_slot_cache_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_var_slot_cache_thin.x" "bvsc-thin"
+}
+
+# wave211 stack-spill try_reload. Seed cold twin is no-op stub; thin restores
+# real arm64 reload. G.7: body matches mega wave211. PLATFORM: SHARED.
+pipeline_abi_inject_binop_stack_spill_try_reload_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_stack_spill_try_reload_thin.x" "w211-reload-thin"
 }
 
 
