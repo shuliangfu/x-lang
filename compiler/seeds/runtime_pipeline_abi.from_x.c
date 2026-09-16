@@ -54044,6 +54044,7 @@ void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, i
  * ========================================================================== */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 
+/* XLANG_PABI_ASM_WPO_THIN_BEGIN */
 #ifndef WAVE274_ASM_WPO_DOMAIN_COLD
 #define WAVE274_ASM_WPO_DOMAIN_COLD 1
 
@@ -55678,6 +55679,7 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
   return g_asm_wpo.reachable[(size_t)id] ? 1 : 0;
 }
 
+/* XLANG_PABI_ASM_WPO_THIN_END */
 #endif /* WAVE274_ASM_WPO_DOMAIN_COLD */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave274 cold twins */
 
