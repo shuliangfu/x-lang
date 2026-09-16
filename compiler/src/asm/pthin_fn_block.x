@@ -96,7 +96,21 @@
 // append_byte. Do not mix range_for. Do not wrap AUDIT. Do not
 // open a new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P6b/P6c/P6d/P6e/P6f/P6g: g05_try_x_to_o this file;
+// 7.2.1 P6h B-minus (2026-09-16): dest-buffer parse_one_function_buf
+// header (LPAREN params RPAREN `: Type {`). Name copy + AUDIT + body
+// stmt loop stay C (local u8[256] + lexer_next_buf + nested for-init
+// while). type_ref stays the primary ptr shim (do not dest-buffer
+// parse_type_ref — P3f was hello/fmt red). Param names use P1b
+// copy_slice_to_param32 (G.7). Sidecar writes reuse
+// pipeline_onefunc_append_param / set_param_type_ref. P011 / P014 /
+// P012 reporters stay C. Language has no onefunc_result by-value;
+// C trampoline holds pname[256] and writes num_params /
+// func_return_type_ref. Do not dest-buffer parse_one_function.
+// Do not dest-buffer the buf body loop this wave. Do not mix
+// range_for. Do not wrap AUDIT. Do not open a new P-lane. Do not
+// FORCE pabi mega.
+//
+// Hybrid P6b/P6c/P6d/P6e/P6f/P6g/P6h: g05_try_x_to_o this file;
 // XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips name-match + modifiers +
 // library wrap; XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips the
 // layout parse C twin when parse_x is present;
@@ -106,9 +120,13 @@
 // P6e). XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X skips the remaining
 // library compositor when init_block_x + register_x are present
 // (independent sibling after BLOCK_FROM_RES so a missing finish
-// keeps the C twin without dropping P6f). P9a is linked later into
-// the same thin_glue (same as P7d/P4ud). Cold: no define, full .inc.
-// Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b–P6g bodies.
+// keeps the C twin without dropping P6f).
+// XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X skips the buf-path
+// header C twin when header_x is present (independent sibling after
+// LIBRARY so a missing header_x keeps the C twin without dropping
+// P6g). P9a is linked later into the same thin_glue (same as
+// P7d/P4ud). Cold: no define, full .inc.
+// Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b–P6h bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Sidecar: count of struct layouts on the opaque module. */
@@ -234,7 +252,16 @@ const TOKEN_CONST: i32 = 3;
 const TOKEN_PACKED: i32 = 21;
 const TOKEN_SOA: i32 = 22;
 const TOKEN_ALIGN: i32 = 46;
+const TOKEN_SELF: i32 = 51;
 const TOKEN_IDENT: i32 = 59;
+const TOKEN_I32: i32 = 60;
+const TOKEN_BOOL: i32 = 61;
+const TOKEN_U8: i32 = 62;
+const TOKEN_U32: i32 = 63;
+const TOKEN_U64: i32 = 64;
+const TOKEN_I64: i32 = 65;
+const TOKEN_USIZE: i32 = 66;
+const TOKEN_VOID: i32 = 79;
 const TOKEN_INT: i32 = 80;
 const TOKEN_LPAREN: i32 = 82;
 const TOKEN_RPAREN: i32 = 83;
@@ -262,6 +289,26 @@ export extern "C" function parser_asm_skip_generic_angle_list_into_c(lex_inout: 
 export extern "C" function parser_asm_skip_balanced_braces_into_c(lex_inout: *u8, source: *u8): i32;
 /** G.7 one type_ref ptr shim (primary.inc). Do not dest-buffer parse_type_ref. */
 export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
+/** P9a: token_start of the unconsumed peek; 0 → caller uses lex pos. */
+export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+/** P9a: current lexer byte pos. */
+export extern "C" function parser_asm_lex_pos_c(lex: *u8): usize;
+/** P1b: fill a 256-byte param row from source[start..start+nlen). */
+export extern "C" function parser_asm_copy_slice_to_param32_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void;
+/** OneFunc sidecar: append a param; -1 on full. */
+export extern "C" function pipeline_onefunc_append_param(pool: *u8, name: *u8, name_len: i32, type_ref: i32): i32;
+/** OneFunc sidecar: write param type_ref at idx. */
+export extern "C" function pipeline_onefunc_set_param_type_ref(pool: *u8, i: i32, type_ref: i32): void;
+/** Cap residual: 1 if name already appears in params [0, nparams). */
+export extern "C" function parser_onefunc_param_name_dup_c(pool: *u8, nparams: i32, name: *u8, name_len: i32): i32;
+/** P014: keyword used as a binding name. */
+export extern "C" function parser_report_keyword_binding_p014_c(line: i32, col: i32): void;
+/** P012: duplicate name (kind 0 = param). */
+export extern "C" function parser_report_duplicate_name_p012_c(line: i32, col: i32, kind: i32): void;
+/** P011: untyped formal (kind 0) or missing return type (kind 1). */
+export extern "C" function parser_report_untyped_formal_p011_c(line: i32, col: i32, kind: i32): void;
+/** Trait-default hoist window: 1 allows bare `self` without `: Type`. */
+export extern "C" function parser_allow_bare_self_pending_c(): i32;
 /** P19d: field list can continue after `;` (name / let / const / align). */
 export extern "C" function parser_asm_struct_field_continues_tok_kind_c(k: i32): i32;
 /** P6e pack trampolines (C stack; language has no local u8[N]). */
@@ -1327,6 +1374,281 @@ export function parser_asm_parse_one_function_library_finish_x_into_c(arena: *u8
   }
   if (parser_asm_library_register_x(module, name, nlen, pname, pnlen, token_ty, bool_ty, block_ref) == 0) {
     return 0;
+  }
+  return 1;
+}
+
+/**
+ * Return-type token allowed on the buf path: scalar / void / IDENT.
+ * Twin of parser_asm_onefunc_buf_return_type_ok_c. Unknown kinds fail
+ * closed (caller then set_onefunc_fail).
+ * @param kind i32 — lexer token kind
+ * @return i32 — 1 allowed, 0 otherwise
+ * PLATFORM: SHARED — product P6h helper.
+ */
+function parser_asm_onefunc_buf_return_type_ok_x(kind: i32): i32 {
+  if (kind == TOKEN_I32) {
+    return 1;
+  }
+  if (kind == TOKEN_I64) {
+    return 1;
+  }
+  if (kind == TOKEN_BOOL) {
+    return 1;
+  }
+  if (kind == TOKEN_VOID) {
+    return 1;
+  }
+  if (kind == TOKEN_U8) {
+    return 1;
+  }
+  if (kind == TOKEN_U32) {
+    return 1;
+  }
+  if (kind == TOKEN_U64) {
+    return 1;
+  }
+  if (kind == TOKEN_USIZE) {
+    return 1;
+  }
+  if (kind == TOKEN_IDENT) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Write binding name `self` (4 bytes + NUL) into a C-owned 256-byte row.
+ * Twin of the TOKEN_SELF arm in parse_one_function_buf (ident_len=0).
+ * @param buf *u8 — dest row; null → 0
+ * @return i32 — 4 on success, 0 on null
+ * PLATFORM: SHARED — product P6h helper.
+ */
+function parser_asm_onefunc_buf_fill_self_name_x(buf: *u8): i32 {
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    buf[0] = 115 as u8;
+    buf[1] = 101 as u8;
+    buf[2] = 108 as u8;
+    buf[3] = 102 as u8;
+    buf[4] = 0 as u8;
+  }
+  return 4;
+}
+
+/**
+ * True when `buf[0..4)` is the lowercase binding `self`.
+ * @param buf *u8 — name bytes; null → 0
+ * @param nlen i32 — name length
+ * @return i32 — 1 match, 0 otherwise
+ * PLATFORM: SHARED — product P6h helper.
+ */
+function parser_asm_onefunc_buf_is_self_name_x(buf: *u8, nlen: i32): i32 {
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  if (nlen != 4) {
+    return 0;
+  }
+  unsafe {
+    if (buf[0] != 115 as u8) {
+      return 0;
+    }
+    if (buf[1] != 101 as u8) {
+      return 0;
+    }
+    if (buf[2] != 108 as u8) {
+      return 0;
+    }
+    if (buf[3] != 102 as u8) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Parse one buf-path formal from the unconsumed peek.
+ * IDENT / TOKEN_SELF name, optional `: Type` (bare `self` only inside
+ * the trait-default hoist window). Writes num_params as pidx+1.
+ * @param arena *u8 — AST arena
+ * @param lex_inout *u8 — cursor; parked after this param
+ * @param source *u8 — opaque slice
+ * @param pool *u8 — OneFunc sidecar
+ * @param pname_buf *u8 — C-owned 256-byte name row
+ * @param num_params *i32 — in/out param count
+ * @return i32 — 1 more params, 2 done (RPAREN consumed), 0 fail
+ * PLATFORM: SHARED — product P6h helper. type_ref = primary ptr shim.
+ */
+function parser_asm_onefunc_buf_parse_one_param_x(arena: *u8, lex_inout: *u8, source: *u8, pool: *u8, pname_buf: *u8, num_params: *i32): i32 {
+  let kind: i32 = 0;
+  let plen: i32 = 0;
+  let pidx: i32 = 0;
+  let ty: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let ts: usize = 0 as usize;
+  let data: *u8 = 0 as *u8;
+  let slen: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || pool == 0 as *u8 || pname_buf == 0 as *u8 || num_params == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      if (kind != TOKEN_SELF) {
+        parser_report_keyword_binding_p014_c(tl, tc);
+        return 0;
+      }
+    }
+    if (kind == TOKEN_SELF) {
+      plen = parser_asm_onefunc_buf_fill_self_name_x(pname_buf);
+    } else {
+      plen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (plen <= 0 || plen > 255) {
+        return 0;
+      }
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      if (ts == 0 as usize) {
+        ts = parser_asm_lex_pos_c(lex_inout);
+      }
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source) as i32;
+      parser_asm_copy_slice_to_param32_buf_c(data, slen, ts, plen, pname_buf);
+    }
+    if (parser_onefunc_param_name_dup_c(pool, num_params[0], pname_buf, plen) != 0) {
+      parser_report_duplicate_name_p012_c(tl, tc, 0);
+      return 0;
+    }
+    pidx = pipeline_onefunc_append_param(pool, pname_buf, plen, 0);
+    if (pidx < 0) {
+      return 0;
+    }
+    num_params[0] = pidx + 1;
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    if (kind != TOKEN_COLON) {
+      if (parser_asm_onefunc_buf_is_self_name_x(pname_buf, plen) != 0) {
+        if (parser_allow_bare_self_pending_c() != 0) {
+          if (kind == TOKEN_RPAREN || kind == TOKEN_COMMA) {
+            pipeline_onefunc_set_param_type_ref(pool, pidx, 0);
+            if (kind == TOKEN_RPAREN) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              return 2;
+            }
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+            if (kind == TOKEN_RPAREN) {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              return 2;
+            }
+            return 1;
+          }
+        }
+      }
+      parser_report_untyped_formal_p011_c(tl, tc, 0);
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ty = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+    if (ty == 0) {
+      return 0;
+    }
+    pipeline_onefunc_set_param_type_ref(pool, pidx, ty);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      return 2;
+    }
+    if (kind != TOKEN_COMMA) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      return 2;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Parse the buf-path header after the function name: `(params): Ret {`.
+ * Entry is the unconsumed `(` (C trampoline already copied the name
+ * and ran AUDIT). Success parks the cursor after `{` and writes
+ * num_params / func_return_type_ref.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — cursor; parked after `{`
+ * @param source *u8 — opaque slice
+ * @param pool *u8 — OneFunc sidecar (`out` address)
+ * @param pname_buf *u8 — C-owned 256-byte param-name row
+ * @param out_num_params *i32 — dest num_params
+ * @param out_ret_ty *i32 — dest func_return_type_ref
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6h B-minus. Body loop stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_one_function_buf_header_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, pool: *u8, pname_buf: *u8, out_num_params: *i32, out_ret_ty: *i32): i32 {
+  let kind: i32 = 0;
+  let ret_ty: i32 = 0;
+  let rc: i32 = 0;
+  let params_done: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || pool == 0 as *u8 || pname_buf == 0 as *u8 || out_num_params == 0 as *i32 || out_ret_ty == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_num_params[0] = 0;
+    out_ret_ty[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      params_done = 1;
+    }
+    while (params_done == 0) {
+      rc = parser_asm_onefunc_buf_parse_one_param_x(arena, lex_inout, source, pool, pname_buf, out_num_params);
+      if (rc == 0) {
+        return 0;
+      }
+      if (rc == 2) {
+        params_done = 1;
+      }
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    if (kind != TOKEN_COLON) {
+      parser_report_untyped_formal_p011_c(tl, tc, 1);
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (parser_asm_onefunc_buf_return_type_ok_x(kind) == 0) {
+      return 0;
+    }
+    ret_ty = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+    if (ret_ty == 0) {
+      return 0;
+    }
+    out_ret_ty[0] = ret_ty;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
   }
   return 1;
 }

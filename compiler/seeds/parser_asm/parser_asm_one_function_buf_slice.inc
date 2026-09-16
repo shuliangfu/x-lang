@@ -4,7 +4,9 @@
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 精简 buf 路径：function ident(): type { … return …; }。
  * wave473: body lets/consts collected via G.7 parser_parse_body_lets_into (not skip).
- * PLATFORM: SHARED parse.
+ * Hybrid P6h: XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X skips the
+ * (params): Ret { header C twin (body in pthin_fn_block.x). Name copy,
+ * AUDIT, and the body stmt loop stay here. PLATFORM: SHARED parse.
  */
 #ifndef PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED
 #define PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED
@@ -126,12 +128,14 @@ static void parser_asm_set_onefunc_fail_c(struct parser_asm_onefunc_result *out,
   out->next_lex = lex;
 }
 
+#ifndef XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X
 /** 返回值类型 token 是否允许（标量 / void / ident）。 */
 static int32_t parser_asm_onefunc_buf_return_type_ok_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
          || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32
          || kind == (int32_t)TOKEN_U64 || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_IDENT;
 }
+#endif
 
 /**
  * parse_one_function_buf_into：buf 路径精简 function 解析，结果写入 *out。
@@ -144,9 +148,11 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   /* Cap 4.2.8: param32 helpers fill 256 bytes (content ≤255). */
   uint8_t pname_buf[256];
   uint8_t *out_pool;
+#ifndef XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X
   int32_t param_idx;
   int32_t param_name_len;
   int32_t param_type_ref;
+#endif
   int32_t ret_type_ref;
   int32_t name_len;
   size_t name_start_buf;
@@ -891,6 +897,21 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_fn_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_fn_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_fn_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex, data, len));
+#ifdef XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X
+  /* PLATFORM: SHARED — P6h trampoline. Language has no onefunc_result
+   * by-value / local u8[N]; C holds pname[256] and writes num_params /
+   * func_return_type_ref. AUDIT + name copy already ran. Body loop
+   * stays below. type_ref = primary ptr shim. */
+  extern int32_t parser_asm_parse_one_function_buf_header_x_into_c(void *arena, void *lex_inout, void *source,
+                                                                  void *pool, uint8_t *pname_buf,
+                                                                  int32_t *out_num_params, int32_t *out_ret_ty);
+  if (parser_asm_parse_one_function_buf_header_x_into_c(arena, &lex, &source, out_pool, pname_buf,
+                                                       &out->num_params, &out->func_return_type_ref) == 0) {
+    parser_asm_set_onefunc_fail_c(out, lex);
+    return;
+  }
+  ret_type_ref = out->func_return_type_ref;
+#else
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
     parser_asm_set_onefunc_fail_c(out, lex);
@@ -1040,6 +1061,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     return;
   }
   parser_lex_from_next_into_glue(&lex, r);
+#endif /* XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X buf header */
   /*
    * wave473 Cap residual pure: collect body `let`/`const` into OneFunc sidecar.
    * Root: body_skip_let_const_then_if dropped bindings but still accepted

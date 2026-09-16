@@ -13,9 +13,12 @@
  * (P6f dest-buffer; C trampoline holds name[256] + pool extract).
  * XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X skips the remaining library
  * compositor (P6g dest-buffer; C trampoline holds scan + writes the
- * by-value result). This TU keeps library scan / one_function. Cold:
- * no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b–P6g bodies.
+ * by-value result). XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X skips
+ * the buf-path header C twin (P6h dest-buffer; C trampoline holds
+ * pname[256] + writes num_params / func_return_type_ref). This TU
+ * keeps library scan / one_function body. Cold: no BODIES define,
+ * full .inc.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b–P6h bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -32,7 +35,16 @@ _Static_assert((int)TOKEN_CONST == 3, "fn_block.x TOKEN_CONST pin");
 _Static_assert((int)TOKEN_PACKED == 21, "fn_block.x TOKEN_PACKED pin");
 _Static_assert((int)TOKEN_SOA == 22, "fn_block.x TOKEN_SOA pin");
 _Static_assert((int)TOKEN_ALIGN == 46, "fn_block.x TOKEN_ALIGN pin");
+_Static_assert((int)TOKEN_SELF == 51, "fn_block.x TOKEN_SELF pin");
 _Static_assert((int)TOKEN_IDENT == 59, "fn_block.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_I32 == 60, "fn_block.x TOKEN_I32 pin");
+_Static_assert((int)TOKEN_BOOL == 61, "fn_block.x TOKEN_BOOL pin");
+_Static_assert((int)TOKEN_U8 == 62, "fn_block.x TOKEN_U8 pin");
+_Static_assert((int)TOKEN_U32 == 63, "fn_block.x TOKEN_U32 pin");
+_Static_assert((int)TOKEN_U64 == 64, "fn_block.x TOKEN_U64 pin");
+_Static_assert((int)TOKEN_I64 == 65, "fn_block.x TOKEN_I64 pin");
+_Static_assert((int)TOKEN_USIZE == 66, "fn_block.x TOKEN_USIZE pin");
+_Static_assert((int)TOKEN_VOID == 79, "fn_block.x TOKEN_VOID pin");
 _Static_assert((int)TOKEN_INT == 80, "fn_block.x TOKEN_INT pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "fn_block.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_RPAREN == 83, "fn_block.x TOKEN_RPAREN pin");
