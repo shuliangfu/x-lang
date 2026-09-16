@@ -250,7 +250,7 @@ XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate (~129 scr
 
 For **self-host / product release claims**, the project requires **L4 true cold** (wipe **all** `.o` under `compiler` / `std` / `core`, rebuild binaries via `./xbuild bootstrap-driver-seed` — **not** `make`) **plus** dual-platform `run-all-bstrict` green.
 
-Details: [self-host method](analysis/自举方法.md) · [SELFHOST.md](compiler/docs/SELFHOST.md).
+Details: [self-host method](analysis/自举效率方法-M2主链.md) · [SELFHOST.md](compiler/docs/SELFHOST.md).
 
 > **Daily dual-end L2 green on tip ≠ L4 pin raise.**  
 > **Current product L4 pin = `b5be5ed97`** (dual true cold + **129/129**, 2026-09-02). Residual tip may advance with **L2 only** and **does not** re-pin.  
@@ -500,7 +500,7 @@ On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates)
 
 **Full self-host (D+E+F):** Stage **D** (Stage2 freestanding / parity) + **E** (compiler tree no C/H on the product path) + **F** (Phase F: repo `std/` / product surface no handwritten C). Stage2 alone is **not** full self-host. Authority: [SELFHOST.md](compiler/docs/SELFHOST.md).
 
-Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时序.md](analysis/自举时序.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
+Methodology: [自举效率方法-M2主链.md](analysis/自举效率方法-M2主链.md) · timeline: [自举时序.md](analysis/自举时序.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 
 ### Near-term front row
 

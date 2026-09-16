@@ -1024,25 +1024,29 @@ export function parser_asm_alloc_dyn_type_ref_into_c(arena: *u8, inner_tr: i32, 
   if (arena == 0 as *u8 || inner_tr <= 0) {
     return inner_tr;
   }
-  ik = pipeline_type_kind_ord_at(arena, inner_tr);
-  if (ik == TYPE_DYN) {
-    return inner_tr;
-  }
-  dyn_tr = ast_ast_arena_type_alloc(arena);
-  if (dyn_tr == 0) {
-    return inner_tr;
-  }
-  nlen = 0;
-  if (ik == TYPE_NAMED && name_scratch != 0 as *u8) {
-    nlen = pipeline_type_named_name_into(arena, inner_tr, name_scratch);
-    if (nlen <= 0) {
-      nlen = 0;
+  // PLATFORM: SHARED — M2 class A: sidecar type writers are export-extern
+  // (`-E` typeck is looser; asm requires unsafe). Match glue.x / unary wrap.
+  unsafe {
+    ik = pipeline_type_kind_ord_at(arena, inner_tr);
+    if (ik == TYPE_DYN) {
+      return inner_tr;
     }
-    if (nlen >= 128) {
-      nlen = 0;
+    dyn_tr = ast_ast_arena_type_alloc(arena);
+    if (dyn_tr == 0) {
+      return inner_tr;
     }
+    nlen = 0;
+    if (ik == TYPE_NAMED && name_scratch != 0 as *u8) {
+      nlen = pipeline_type_named_name_into(arena, inner_tr, name_scratch);
+      if (nlen <= 0) {
+        nlen = 0;
+      }
+      if (nlen >= 128) {
+        nlen = 0;
+      }
+    }
+    pipeline_type_init_dyn_c(arena, dyn_tr, inner_tr, name_scratch, nlen);
   }
-  pipeline_type_init_dyn_c(arena, dyn_tr, inner_tr, name_scratch, nlen);
   return dyn_tr;
 }
 
@@ -1065,18 +1069,22 @@ export function parser_asm_wrap_registered_trait_as_dyn_into_c(arena: *u8, named
   if (arena == 0 as *u8 || named_tr <= 0 || name_scratch == 0 as *u8) {
     return named_tr;
   }
-  kind = pipeline_type_kind_ord_at(arena, named_tr);
-  if (kind != TYPE_NAMED) {
-    return named_tr;
+  // PLATFORM: SHARED — M2 class A: sidecar + trait-reg lookup are export-extern.
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, named_tr);
+    if (kind != TYPE_NAMED) {
+      return named_tr;
+    }
+    nlen = pipeline_type_named_name_into(arena, named_tr, name_scratch);
+    if (nlen <= 0) {
+      return named_tr;
+    }
+    if (xlang_skip_trait_is_registered_c(name_scratch, nlen) == 0) {
+      return named_tr;
+    }
+    return parser_asm_alloc_dyn_type_ref_into_c(arena, named_tr, name_scratch);
   }
-  nlen = pipeline_type_named_name_into(arena, named_tr, name_scratch);
-  if (nlen <= 0) {
-    return named_tr;
-  }
-  if (xlang_skip_trait_is_registered_c(name_scratch, nlen) == 0) {
-    return named_tr;
-  }
-  return parser_asm_alloc_dyn_type_ref_into_c(arena, named_tr, name_scratch);
+  return named_tr;
 }
 
 /**
@@ -2278,34 +2286,38 @@ export function parser_asm_alloc_pointee_type_ref_x_into_c(arena: *u8, kind: i32
   if (arena == 0 as *u8) {
     return 0;
   }
-  if (parser_asm_is_pointee_type_token_c(kind) == 0) {
-    return 0;
-  }
-  if (kind == TOKEN_IDENT) {
-    if (name == 0 as *u8 || nlen <= 0) {
+  // PLATFORM: SHARED — M2 class A: pointee token probe + type writers
+  // are export-extern (`-E` is looser). Match glue.x / unary wrap.
+  unsafe {
+    if (parser_asm_is_pointee_type_token_c(kind) == 0) {
       return 0;
+    }
+    if (kind == TOKEN_IDENT) {
+      if (name == 0 as *u8 || nlen <= 0) {
+        return 0;
+      }
+      ref = ast_ast_arena_type_alloc(arena);
+      if (ref == 0) {
+        return 0;
+      }
+      ok = pipeline_type_init_named_at(arena, ref, name, nlen);
+      if (ok == 0) {
+        return 0;
+      }
+      return ref;
+    }
+    ord = parser_asm_type_ref_builtin_kind_ord_c(kind);
+    if (ord < 0) {
+      ord = TYPE_VOID;
     }
     ref = ast_ast_arena_type_alloc(arena);
     if (ref == 0) {
       return 0;
     }
-    ok = pipeline_type_init_named_at(arena, ref, name, nlen);
+    ok = pipeline_type_init_primitive_kind_at(arena, ref, ord);
     if (ok == 0) {
       return 0;
     }
-    return ref;
-  }
-  ord = parser_asm_type_ref_builtin_kind_ord_c(kind);
-  if (ord < 0) {
-    ord = TYPE_VOID;
-  }
-  ref = ast_ast_arena_type_alloc(arena);
-  if (ref == 0) {
-    return 0;
-  }
-  ok = pipeline_type_init_primitive_kind_at(arena, ref, ord);
-  if (ok == 0) {
-    return 0;
   }
   return ref;
 }

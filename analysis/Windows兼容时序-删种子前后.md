@@ -3,7 +3,7 @@
 > **日期**：2026-07-19（同日修订：补「现在就能跑 / 最小门禁 / 禁全量 bstrict」）  
 > **类型**：产品 / 平台策略决议（分析 + 推荐执行顺序）  
 > **问题**：是否应在**删除种子（完全零 C 自举）之前**完成 Windows 兼容与测试，还是**等 Linux/macOS 完全自举后再**做 Windows？  
-> **关联**：[`自举方法.md`](自举方法.md) · [`自举验证.md`](自举验证.md) §8.4 · [`G-02e-physical-zero-c.md`](G-02e-physical-zero-c.md) · [`G-07-selfhost-release.md`](G-07-selfhost-release.md) · [`X-ABI-设计分析.md`](X-ABI-设计分析.md) · skill `xlang-selfhost-product-gate` **G.8**（平台边界）· [`references/platform-boundaries.md`](~/.grok/skills/xlang-selfhost-product-gate/references/platform-boundaries.md)
+> **关联**：[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md) · [`自举验证.md`](自举验证.md) §8.4 · [`G-02e-physical-zero-c.md`](G-02e-physical-zero-c.md) · [`G-07-selfhost-release.md`](G-07-selfhost-release.md) · [`X-ABI-设计分析.md`](X-ABI-设计分析.md) · skill `xlang-selfhost-product-gate` **G.8**（平台边界）· [`references/platform-boundaries.md`](~/.grok/skills/xlang-selfhost-product-gate/references/platform-boundaries.md)
 
 ---
 
@@ -378,7 +378,7 @@ Windows 支持至少咬合四条 SHARED / 平台边界（改任何一条都可�
 | 文档 | 分工 |
 |------|------|
 | 本文 | **时序决议**：何时做 Windows、做到哪一档、与删种子的关系 |
-| [`自举方法.md`](自举方法.md) / [`自举步骤.md`](自举步骤.md) | 自举方法论与操作模板（金标 Ubuntu） |
+| [`自举效率方法-M2主链.md`](自举效率方法-M2主链.md) / [`自举步骤.md`](自举步骤.md) | 自举方法论与操作模板（金标 Ubuntu） |
 | [`自举验证.md`](自举验证.md) §8.4 | Windows 主机连接与验证命令落点 |
 | [`G-02e-physical-zero-c.md`](G-02e-physical-zero-c.md) / G-07 | 删 C / 发布门禁；**不**被 Windows 阶段 3 绑死才能开始 G |
 | [`X-ABI-设计分析.md`](X-ABI-设计分析.md) | ABI 权威设计；C6 与 Windows 探针的输入 |

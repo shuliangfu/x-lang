@@ -9,7 +9,7 @@
 > - 示例（**未接线**）：[`xlang.toml`](../xlang.toml)  
 > - 策略层：[`build-x-强大配置能力分析.md`](build-x-强大配置能力分析.md)  
 > - 解析库：[`std/config/`](../std/config/) · gate `tests/run-std-config-gate.sh`  
-> - 自举：[`自举方法.md`](自举方法.md) · [`自举进度.md`](自举进度.md) · skill 产品闸门  
+> - 自举：[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md) · [`自举进度.md`](自举进度.md) · skill 产品闸门  
 >
 > **最后更新**：2026-07-21（全面重写：校准 + 增强 + 可执行 MVP）。  
 > **时序总表（何时做）**：[`自举完成后功能完善及优化时序表.md`](自举完成后功能完善及优化时序表.md) TOML-0@P1 → TOML-1/2@P2e → TOML-3@P3 → TOML-4@P4（本文保留 schema/分层细节）。

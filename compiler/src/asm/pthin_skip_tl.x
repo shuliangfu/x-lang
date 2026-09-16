@@ -5538,7 +5538,11 @@ export function xlang_generic_bound_method_on_param_into_c(fn_name: *u8, fn_name
   if (method_name_len > 63) {
     method_name_len = 63;
   }
-  pos = xlang_generic_func_type_param_index_c(fn_name, fn_name_len, tp_name, tp_name_len);
+  // PLATFORM: SHARED — M2 class A: type-param index trampoline is export-extern
+  // (`-E` typeck is looser; asm requires unsafe). Match glue.x / unary wrap.
+  unsafe {
+    pos = xlang_generic_func_type_param_index_c(fn_name, fn_name_len, tp_name, tp_name_len);
+  }
   if (pos < 0) {
     return 0;
   }
@@ -5603,8 +5607,9 @@ function skip_hoist_method_exists(module: *u8, arena: *u8, mnm: *u8, mlen: i32, 
   if (mlen <= 0) {
     return 0;
   }
-  nf = pipeline_module_num_funcs(module);
+  // PLATFORM: SHARED — M2 class A: module sidecar readers are export-extern.
   unsafe {
+    nf = pipeline_module_num_funcs(module);
     fi = 0;
     while (fi < nf) {
       skip = 0;
@@ -5675,7 +5680,11 @@ function skip_hoist_try_method(module: *u8, arena: *u8, src: *u8, src_len: i32, 
   fn_pos = p12g_load_i32(ent, P12G_OFF_METHOD_FN_POS + mi * 4);
   fn_line = p12g_load_i32(ent, P12G_OFF_METHOD_FN_LINE + mi * 4);
   fn_col = p12g_load_i32(ent, P12G_OFF_METHOD_FN_COL + mi * 4);
-  return xlang_skip_hoist_inject_one_c(module, arena, src, src_len, fn_pos, fn_line, fn_col, for_nm, for_nl, for_ptr);
+  // PLATFORM: SHARED — M2 class A: hoist inject trampoline is export-extern.
+  unsafe {
+    return xlang_skip_hoist_inject_one_c(module, arena, src, src_len, fn_pos, fn_line, fn_col, for_nm, for_nl, for_ptr);
+  }
+  return 0;
 }
 
 /**
@@ -5862,8 +5871,9 @@ function skip_trait_check_find_method(module: *u8, arena: *u8, mnm: *u8, mlen: i
   if (mlen <= 0) {
     return -1;
   }
-  nf = pipeline_module_num_funcs(module);
+  // PLATFORM: SHARED — M2 class A: module sidecar readers are export-extern.
   unsafe {
+    nf = pipeline_module_num_funcs(module);
     fi = 0;
     while (fi < nf) {
       skip = 0;
@@ -5925,26 +5935,30 @@ function skip_trait_check_try_method(module: *u8, arena: *u8, ent: *u8, mi: i32,
     mnm = ent + ((P12G_OFF_METHODS + mi * P12G_METHOD_NAME_ROW) as usize);
   }
   found_fi = skip_trait_check_find_method(module, arena, mnm, mlen, for_k, for_ptr, for_nm, for_nl, gnm);
-  if (found_fi < 0) {
-    return xlang_skip_trait_check_diag_missing_c(si, mnm, mlen);
-  }
-  expect_np = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_COUNTS + mi * 4);
-  skip = 0;
-  if (expect_np < 0) {
-    skip = 1;
-  }
-  if (skip == 0) {
-    got_np = pipeline_module_func_num_params_at(module, found_fi);
-    if (got_np != expect_np) {
-      rc = xlang_skip_trait_check_diag_param_count_c(si, mnm, mlen);
-    } else {
-      if (xlang_skip_trait_check_param_shape_c(module, arena, found_fi, si, ti, mi, mnm, mlen, expect_np) != 0) {
-        rc = -1;
+  // PLATFORM: SHARED — M2 class A: trait-check diags / shape trampolines
+  // are export-extern (`-E` is looser). Match glue.x / unary wrap.
+  unsafe {
+    if (found_fi < 0) {
+      return xlang_skip_trait_check_diag_missing_c(si, mnm, mlen);
+    }
+    expect_np = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_COUNTS + mi * 4);
+    skip = 0;
+    if (expect_np < 0) {
+      skip = 1;
+    }
+    if (skip == 0) {
+      got_np = pipeline_module_func_num_params_at(module, found_fi);
+      if (got_np != expect_np) {
+        rc = xlang_skip_trait_check_diag_param_count_c(si, mnm, mlen);
+      } else {
+        if (xlang_skip_trait_check_param_shape_c(module, arena, found_fi, si, ti, mi, mnm, mlen, expect_np) != 0) {
+          rc = -1;
+        }
       }
     }
-  }
-  if (xlang_skip_trait_check_ret_shape_c(module, arena, found_fi, si, ti, mi, mnm, mlen) != 0) {
-    rc = -1;
+    if (xlang_skip_trait_check_ret_shape_c(module, arena, found_fi, si, ti, mi, mnm, mlen) != 0) {
+      rc = -1;
+    }
   }
   return rc;
 }
@@ -5982,7 +5996,10 @@ function skip_trait_check_try_impl(module: *u8, arena: *u8, tname: *u8, tlen: i3
   }
   ti = xlang_skip_trait_find_reg_into_c(tname, tlen, table, stride, n);
   if (ti < 0) {
-    return xlang_skip_trait_check_diag_unknown_c(si);
+    // PLATFORM: SHARED — M2 class A: unknown-trait diag is export-extern.
+    unsafe {
+      return xlang_skip_trait_check_diag_unknown_c(si);
+    }
   }
   unsafe {
     ent = table + ((ti * stride) as usize);
@@ -6100,9 +6117,12 @@ export function xlang_trait_check_impls_complete_into_c(module: *u8, arena: *u8,
       }
     }
   }
-  xlang_generic_bound_scan_c(src, src_len);
-  if (xlang_generic_bound_check_c() != 0) {
-    rc = -1;
+  // PLATFORM: SHARED — M2 class A: bound scan/check trampolines are export-extern.
+  unsafe {
+    xlang_generic_bound_scan_c(src, src_len);
+    if (xlang_generic_bound_check_c() != 0) {
+      rc = -1;
+    }
   }
   return rc;
 }

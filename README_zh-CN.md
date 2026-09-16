@@ -250,7 +250,7 @@ XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 129
 
 凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler` / `std` / `core` 下**全部** `.o`，用 `./xbuild bootstrap-driver-seed` 重链二进制 — **不是** `make`）+ **双端** `run-all-bstrict` 全绿。
 
-详见 [自举方法](analysis/自举方法.md) · [SELFHOST.md](compiler/docs/SELFHOST.md)。
+详见 [自举效率方法-M2主链](analysis/自举效率方法-M2主链.md) · [SELFHOST.md](compiler/docs/SELFHOST.md)。
 
 > **日常双端 L2 绿 ≠ 升 L4 钉盘。**  
 > **现行产品 L4 钉盘 = `b5be5ed97`**（双端真冷 + **129/129**，2026-09-02）。residual tip 可只跑 **L2** 推进，**默认不升钉**。  
@@ -500,7 +500,7 @@ xlang/
 
 **完全自举（D+E+F）：** 阶段 **D**（Stage2 freestanding／parity）+ **E**（编译器产品路径无 C/H）+ **F**（阶段 F：仓库 `std/`／产品面无手写 C）。仅 Stage2 **不等于**完全自举。权威：[SELFHOST.md](compiler/docs/SELFHOST.md)。
 
-方法：[自举方法.md](analysis/自举方法.md) · 时序：[自举时序.md](analysis/自举时序.md) · 运维：[SELFHOST.md](compiler/docs/SELFHOST.md) · 纪律：[AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`。
+方法：[自举效率方法-M2主链.md](analysis/自举效率方法-M2主链.md) · 时序：[自举时序.md](analysis/自举时序.md) · 运维：[SELFHOST.md](compiler/docs/SELFHOST.md) · 纪律：[AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`。
 
 ### 近端前排
 

@@ -466,7 +466,7 @@ commit N+2 chore: GitHub/path/skill/域名收尾；恢复自举前排
 |------|------|
 | 本文 | **重命名权威分析** |
 | `analysis/xlang-生态网站规划.md` | 历史（xlang.dev）；以本文域名节为准 |
-| `analysis/自举方法.md` / `自举步骤.md` / `自举验证.md` | 验收纪律继承；命令名随 R1 改 |
+| `analysis/自举效率方法-M2主链.md` / `自举步骤.md` / `自举验证.md` | 验收纪律继承；命令名随 R1 改 |
 | `AGENTS.md` · skill `xlang-selfhost-product-gate` | R2/R4 必须同步改名与路径 |
 | `README.md` | R0/R2 品牌与 `xlang.dev` |
 
