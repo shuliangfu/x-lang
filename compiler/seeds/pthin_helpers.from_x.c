@@ -5,8 +5,9 @@
  * Body: seeds/parser_asm/parser_asm_helpers_slice.inc
  * Hybrid P19b/P19c/P19d (XLANG_PTHIN_HELPERS_BODIES_FROM_X): portable kind/copy/
  * pos/match-kw/run_len extra/lex_at_token/rewind/struct_field_name/
- * ident_is_unsafe bodies come from pthin_helpers.x; this TU keeps by-value
- * trampolines plus align / parse_block_return_end_tail.
+ * ident_is_unsafe / align_lex / parse_block_return_end_tail decide bodies
+ * come from pthin_helpers.x; this TU keeps by-value trampolines plus
+ * P19e align face and P19f sync+next_into trampoline.
  * P1d ASI advance_past_* and P1e parse_peek_function_name /
  * first_token_kind trampoline when XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
  * (g05 passes P1 extra onto this TU; do not add P9a as a hard gate to

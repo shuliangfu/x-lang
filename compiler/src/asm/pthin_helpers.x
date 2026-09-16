@@ -22,7 +22,7 @@
 // (int32 / usize). Import-path copy and "match " byte-probe are buf-path
 // Route C (*u8 + length). By-value token / lexer_result / Lexer returns
 // stay as C trampolines in seeds/pthin_helpers.from_x.c (language has no
-// struct-by-value). align_lex / parse_block_return_end_tail stay C.
+// struct-by-value). parse_block_return_end_tail is P19f (decide+flags in .x).
 // ident_is_unsafe_stmt is P19d Route C (kind + buf bytes; do not merge
 // into P4b). first_token_kind_buf's already-T
 // AUDIT_CALL padding is gated in the .inc under XLANG_PARSER_STRETCH_AUDIT
@@ -50,7 +50,10 @@
 // superseded: P12b+ lanes already hard-gate on _pthin_p9a_ok, so the
 // P19 lane gates the same way. The at-token write stays inline (same
 // leaf idiom as ctrl realign_finish_peek) — no cross-thin .x edge.
-// parse_block_return_end_tail stays C (extra lexer_next; P9a).
+// 7.2.1 P19f Route C (2026-09-16): parse_block_return_end_tail decide+flags
+// live here (RBRACE → block_break; else stmt_tok_ready). C trampoline in
+// helpers.inc keeps sync-from-next_lex + lexer_next_into (P1d face; .x
+// never sees lexer_result). Do not open a new P-lane.
 // Do not merge ident_is_unsafe into P4b buf probes.
 // Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
@@ -651,4 +654,33 @@ export function parser_asm_align_lex_to_keyword_prefix_into_c(lex_inout: *u8, so
       parser_asm_lex_set_col_c(lex_inout, tc);
     }
   }
+}
+
+/**
+ * parse_block return-stmt tail decision (P19f).
+ * Mirrors the control flow of parser_asm_parse_block_return_end_tail_c:
+ * when `tok_kind` is RBRACE, set *block_break=1 and return 0 (do NOT
+ * advance — advancing would swallow a sibling `if`). Otherwise set
+ * *stmt_tok_ready=1 and return 1 so the C trampoline can sync lex_cur
+ * from r->next_lex and call lexer_next_into (P1d face; .x never sees
+ * lexer_result / token structs).
+ * @param tok_kind i32 — r->tok.kind from the C trampoline
+ * @param stmt_tok_ready *i32 — out: 1 when the next stmt token is ready
+ * @param block_break *i32 — out: 1 when the block loop should end
+ * @return i32 — 1 = trampoline must sync+next_into; 0 = done / no-op
+ * PLATFORM: SHARED — Route C split of the helpers.inc C twin.
+ */
+#[no_mangle]
+export function parser_asm_parse_block_return_end_tail_into_c(tok_kind: i32, stmt_tok_ready: *i32, block_break: *i32): i32 {
+  if (stmt_tok_ready == 0 as *i32 || block_break == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    if (tok_kind == TOKEN_RBRACE) {
+      block_break[0] = 1;
+      return 0;
+    }
+    stmt_tok_ready[0] = 1;
+  }
+  return 1;
 }

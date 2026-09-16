@@ -6,7 +6,7 @@
  * Hybrid P19b/P19c/P19d: XLANG_PTHIN_HELPERS_BODIES_FROM_X skips the portable
  * kind/copy/pos/match-kw/run_len extra/lex_at_token/rewind/struct_field_name/
  * ident_is_unsafe region (bodies in src/asm/pthin_helpers.x + by-value
- * trampolines in the seed TU). align_lex / parse_block_return_end_tail stay here.
+ * trampolines in the seed TU). P19e align_lex + P19f return_end_tail trampolines live here.
  * P5d (2026-09-13): lex_at_token_pos_c / ident_is_unsafe_stmt_kind_c /
  * rewind_following_stmt_kind_c gained cold C twins (#ifndef gate) because
  * pthin_ctrl.x realign references them cross-lane; cold must not UNDEF.
@@ -404,7 +404,29 @@ struct parser_asm_lexer parser_asm_parser_rewind_lex_for_following_stmt_c(struct
 /**
  * parse_block return 语句尾：r 已在 RBRACE 时置 *block_break=1 结束块循环（勿 lexer_next 吞 sibling if）；
  * 否则 advance lex 并置 *stmt_tok_ready=1。
+ * Hybrid P19f: decide+flags in pthin_helpers.x; this TU keeps sync+next_into.
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+/* PLATFORM: SHARED — P19f (2026-09-16): RBRACE vs advance decision lives
+ * in pthin_helpers.x. C trampoline keeps sync-from-next_lex +
+ * lexer_next_into (P1d face; .x never sees lexer_result). Lane rides
+ * the existing HELPERS_BODIES_FROM_X / _pthin_p9a_ok gate (same as P19e). */
+extern int32_t parser_asm_parse_block_return_end_tail_into_c(int32_t tok_kind, int32_t *stmt_tok_ready,
+                                                             int32_t *block_break);
+void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
+                                              struct parser_asm_lexer *lex_cur,
+                                              struct parser_asm_slice_u8 *source, int32_t *stmt_tok_ready,
+                                              int32_t *block_break) {
+  if (!r || !lex_cur || !source || !stmt_tok_ready || !block_break)
+    return;
+  if (parser_asm_parse_block_return_end_tail_into_c(r->tok.kind, stmt_tok_ready, block_break) == 0)
+    return;
+  lex_cur->pos = r->next_lex.pos;
+  lex_cur->line = r->next_lex.line;
+  lex_cur->col = r->next_lex.col;
+  lexer_next_into(r, *lex_cur, source);
+}
+#else
 void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
                                               struct parser_asm_lexer *lex_cur,
                                               struct parser_asm_slice_u8 *source, int32_t *stmt_tok_ready,
@@ -421,6 +443,7 @@ void parser_asm_parse_block_return_end_tail_c(struct parser_asm_lexer_result *r,
   lexer_next_into(r, *lex_cur, source);
   *stmt_tok_ready = 1;
 }
+#endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X parse_block_return_end_tail */
 
 /**
  * advance_past_stmt_semicolon_into: sync past `;` after an expression statement,
