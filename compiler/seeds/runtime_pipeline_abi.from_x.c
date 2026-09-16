@@ -46692,6 +46692,7 @@ uint8_t pipeline_module_import_select_name_byte_at(void *module, int32_t idx, in
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_MODULE_ENUM_THIN_BEGIN */
 #define WAVE264_EN_SLOTS 128
 #define WAVE264_EN_ENTRY_SZ 66828
 static void *g_wave264_en_mod[WAVE264_EN_SLOTS];
@@ -47111,6 +47112,7 @@ uint8_t pipeline_module_enum_variant_name_byte_at(void *module, int32_t idx, int
     return 0;
   return e[264 + variant_idx * 256 + off];
 }
+/* XLANG_PABI_MODULE_ENUM_THIN_END */
 
 /* Cold freestanding: mark helpers no-op (product pure owns full mark path). */
 void pipeline_expr_try_mark_enum_field_access(void *m, void *a, int32_t expr_ref) {
