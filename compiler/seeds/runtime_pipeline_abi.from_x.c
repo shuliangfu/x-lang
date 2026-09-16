@@ -40755,6 +40755,7 @@ void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_EMIT_CTX_SRET_THIN_BEGIN */
 static int32_t g_wave223_sret_active = 0;
 static int32_t g_wave223_sret_home_off = -1;
 static int32_t g_wave223_sret_ret_sz = 0;
@@ -40777,6 +40778,7 @@ int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
 void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
   g_wave223_sret_ret_sz = sz;
 }
+/* XLANG_PABI_EMIT_CTX_SRET_THIN_END */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE sret BSS cluster */
 
 /* WIN leftover-PE rest pipeline_typeck_active_module_set_c unique

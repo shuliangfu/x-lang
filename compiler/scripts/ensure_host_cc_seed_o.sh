@@ -3264,6 +3264,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_emit_ctx_module_dep_thin.c -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_emit_ctx_sret_thin.c ] \
+      && [ src/runtime_pipeline_abi_emit_ctx_sret_thin.c -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3280,6 +3284,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_macho_write_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
@@ -3323,6 +3328,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3738,6 +3744,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_al_nc_seq_thin "$o" || true
     pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3786,6 +3793,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_al_nc_seq_thin "$o" || true
         pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3818,6 +3826,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3858,6 +3867,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_al_nc_seq_thin "$o" || true
   pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -4506,6 +4516,51 @@ pipeline_abi_inject_emit_ctx_module_dep_thin() {
   fi
   cp -f "$restore_o" "$o"
   log "pipeline_abi w222-mod-dep inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o" "$restore_o"
+  return 1
+}
+
+# wave223 emit_ctx sret_* (C thin; named globals incl. home_off=-1).
+# Separate leaf: Darwin cannot re-merge grown named-BSS over prior C thin.
+# G.7: match mega leave. PLATFORM: SHARED.
+pipeline_abi_inject_emit_ctx_sret_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_emit_ctx_sret_thin.c"
+  local thin_o base_o restore_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi w223-sret inject skip: $o is libtool archive"
+    return 1
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_sret.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_sret_base.XXXXXX.o")"
+  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_sret_restore.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi w223-sret inject: cc thin failed"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  cp -f "$o" "$restore_o"
+  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
+    log "pipeline_abi w223-sret inject skip: cannot weaken leftover T"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      cp -f "$restore_o" "$o"
+      log "pipeline_abi w223-sret inject: libtool archive; restored base"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
+    log "pipeline_abi w223-sret inject OK (first-wins over leftover)"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  cp -f "$restore_o" "$o"
+  log "pipeline_abi w223-sret inject: merge failed; restored base"
   rm -f "$thin_o" "$base_o" "$restore_o"
   return 1
 }
@@ -8847,10 +8902,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-emit-ctx-bss|inject_emit_ctx_bss)
-    # Durable C-thin ingest of wave220/221 named BSS + get/set/host_is_arm64,
-    # then wave222 module/dep_pipe leaf. Does NOT run try-pipeline-abi-prefer.
-    # bss leaf may no-op/restore on Darwin when already ingested (data dups);
-    # module_dep is the additive leaf. PLATFORM: SHARED · MACOS + LINUX.
+    # Durable C-thin ingest: wave220/221 BSS, wave222 module/dep, wave223 sret.
+    # Does NOT run try-pipeline-abi-prefer. Prior leaves may no-op on Darwin
+    # when already ingested. PLATFORM: SHARED · MACOS + LINUX.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-emit-ctx-bss: need <out.o>" >&2
       exit 2
@@ -8858,6 +8912,7 @@ case "$MODE" in
     set +e
     pipeline_abi_inject_emit_ctx_bss_thin "$1"
     pipeline_abi_inject_emit_ctx_module_dep_thin "$1"
+    pipeline_abi_inject_emit_ctx_sret_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
