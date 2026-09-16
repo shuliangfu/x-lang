@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（双端 L4 真冷；升钉默认不做） |
 | BC（编译层零 host-cc） | ✅ | `pipeline_x` 已退役（wave309）——BC 面余量转 8.3.6 冷孪生三分 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w219 asm＋w220–224／w261–w267／w269–w273 C（w268=.x） | 含 wave273 ELF/Mach-O ctx＋write_o 域 C thin（Darwin L2＠6963064；Ubuntu 待）。下一＝wave274 asm WPO 域。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
+| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w219 asm＋w220–224／w261–w267／w269–w273 C（w268=.x） | 含 wave273 ELF/Mach-O ctx＋write_o 域 C thin（双端 L2 tip `ca59ca2bf`）。下一＝wave274 asm WPO 域。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
 | nest 冻帽 | ✅ 纪律 | **64** |
 | check 闸门 | ⏸ 暂停 | 自举期须点名才 dogfood |
 
@@ -396,7 +396,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余 soft／obs／leave 见归档软残表 |
-| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w219 asm＋w220–224／w261–w267／w269–w273 C（w268=.x） | 含 wave273 ELF/Mach-O ctx＋write_o 域 C thin（Darwin L2＠6963064；Ubuntu 待）。下一＝wave274 asm WPO 域。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
+| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w219 asm＋w220–224／w261–w267／w269–w273 C（w268=.x） | 含 wave273 ELF/Mach-O ctx＋write_o 域 C thin（双端 L2 tip `ca59ca2bf`）。下一＝wave274 asm WPO 域。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
 | nest 冻 64 | ✅ 纪律 | — |
 
 ---
