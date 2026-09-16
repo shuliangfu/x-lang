@@ -2304,25 +2304,15 @@ export extern "C" function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, o
  */
 #[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
+  // Incoming stack-arg load [x29, #off]. G.7: delegate to
+  // arch_arm64_enc_enc_load_rbp_to_rax (unaligned Apple i32 slots).
+  // PLATFORM: MACOS|ARM64.
   if (ta != 1) {
     return 0 - 1;
   }
-  if (off_pos < 0) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 as i32) as i32);
-    }
-    return 0 - 1;
-  }
-  if ((off_pos / 8) > 4095) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | (4095 * 1024)) as i32);
-    }
-    return 0 - 1;
-  }
   unsafe {
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | (((off_pos / 8) as u32) * 1024)) as i32);
+    return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, off_pos);
   }
-  return 0 - 1;
 }
 
 /** Exported function `backend_enc_add_imm_to_index_scratch_arch`.

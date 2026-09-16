@@ -2347,7 +2347,7 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
   }
 }
 
-// G-02f-207：arm64 ldr x0,[x29,#pos] — 0xf9400000 | (imm12<<10) | (29<<5) ≈ (4181722016 as u32) base
+// G-02f-207：arm64 incoming stack-arg load; G.7 delegates to load_rbp_to_rax (unaligned OK).
 /** Exported function `backend_enc_load_x29_pos_to_rax_arch`.
  * Implements `backend_enc_load_x29_pos_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2357,16 +2357,15 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
  */
 #[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
-  // See implementation.
+  // Incoming stack-arg load [x29, #off]. G.7: one encoder —
+  // arch_arm64_enc_enc_load_rbp_to_rax already handles unaligned
+  // offsets via LEA+LDR (Apple i32 stack slots at +4).
+  // PLATFORM: MACOS|ARM64.
   unsafe {
-  if (ta == 1) {
-    let off: i32 = off_pos;
-    if (off < 0) { off = 0; }
-    let imm12: i32 = off / 8;
-    if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | ((imm12 as u32) * 1024)) as i32);
-  }
-  return 0 - 1;
+    if (ta == 1) {
+      return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, off_pos);
+    }
+    return 0 - 1;
   }
 }
 

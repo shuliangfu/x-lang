@@ -651,6 +651,12 @@ export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i3
 // wave267: asm_ctx_local_reset pure (asm_locals leave; dual-export ban).
 // wave269: asm_ctx_fill_locals_block_tree pure (block_tree leave; dual-export ban).
 export extern "C" function pipeline_asm_module_func_num_params_at(mod: *u8, func_index: i32): i32;
+/**
+ * Darwin/Apple aarch64 host probe (labi_host_lit). Used by ARM64 stack-arg
+ * homing to select Apple natural-alignment packing vs Linux AAPCS64 8-byte slots.
+ * PLATFORM: MACOS|ARM64 vs LINUX.
+ */
+export extern "C" function xlang_host_is_apple_aarch64(): i32;
 export extern "C" function pipeline_asm_module_func_param_name_copy32(mod: *u8, func_index: i32, param_index: i32, dst: *u8): void;
 export extern "C" function pipeline_asm_module_func_param_name_len_at(mod: *u8, func_index: i32, param_index: i32): i32;
 // wave267: asm_ctx_block_slot_set pure (asm_locals leave; dual-export ban).
@@ -36442,6 +36448,55 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
 }
 
 /**
+ * Align the incoming ARM64 stack-arg cursor before homing one formal.
+ * Linux AAPCS64 keeps every stack arg 8-byte aligned. Apple ARM64 does
+ * not pad arguments smaller than 8 bytes — i32 sits at 4-byte alignment
+ * (Darwin/Clang packing). Using Linux slots on Darwin made
+ * xlang_trait_check_impls_complete_into_c read src_len (hello.x = 233)
+ * as the `src` pointer → lexer_skip FAR=0xe9.
+ * @param stack_pos i32 — current incoming-arg byte offset from x29
+ * @param nbytes i32 — this formal's stack size (psz or copy nbytes)
+ * @param apple i32 — 1 on macOS (natural alignment); 0 = AAPCS64 8-byte
+ * @return i32 — aligned stack_pos
+ * PLATFORM: MACOS|ARM64 Apple ABI vs LINUX AAPCS64 8-byte slots.
+ */
+function glue_arm64_stack_arg_align_pos(stack_pos: i32, nbytes: i32, apple: i32): i32 {
+  let pos: i32 = stack_pos;
+  if (apple != 0 && nbytes > 0 && nbytes <= 4) {
+    if ((pos & 3) != 0) {
+      pos = (pos + 3) & (~3);
+    }
+  } else {
+    if ((pos & 7) != 0) {
+      pos = (pos + 7) & (~7);
+    }
+  }
+  return pos;
+}
+
+/**
+ * Advance the incoming ARM64 stack-arg cursor after homing one formal.
+ * @param stack_pos i32 — offset of the formal just homed (already aligned)
+ * @param nbytes i32 — this formal's stack size
+ * @param apple i32 — 1 on macOS (i32 occupies 4); 0 = always at least 8
+ * @return i32 — next stack_pos
+ * PLATFORM: MACOS|ARM64 Apple ABI vs LINUX AAPCS64 8-byte slots.
+ */
+function glue_arm64_stack_arg_advance_pos(stack_pos: i32, nbytes: i32, apple: i32): i32 {
+  let slot: i32 = 8;
+  if (nbytes > 8) {
+    slot = (nbytes + 7) & (~7);
+  } else {
+    if (apple != 0 && nbytes > 0 && nbytes <= 4) {
+      slot = 4;
+    } else {
+      slot = 8;
+    }
+  }
+  return stack_pos + slot;
+}
+
+/**
  * Prologue param homing: register/stack args → fill_param_slots homes.
  * @param elf_ctx *u8 - ElfCodegenCtx*
  * @param ctx *u8 - AsmFuncCtx*
@@ -36475,6 +36530,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   let home: i32 = 0;
   let nbytes: i32 = 0;
   let fs: i32 = 0;
+  let apple: i32 = 0;
   if (elf_ctx == (0 as *u8) || ctx == (0 as *u8) || mod == (0 as *u8) || func_index < 0) {
     return -1;
   }
@@ -36680,6 +36736,9 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   if (arena == (0 as *u8)) {
     return -1;
   }
+  unsafe {
+    apple = xlang_host_is_apple_aarch64();
+  }
   gp = 0;
   stack_pos = 16;
   cur = 16;
@@ -36735,6 +36794,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       }
       fp_cur = fp_cur + 1;
     } else if (is_f64_p != 0) {
+      stack_pos = glue_arm64_stack_arg_align_pos(stack_pos, 8, apple);
       unsafe {
         rc = backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta);
       }
@@ -36747,9 +36807,10 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       if (rc != 0) {
         return -1;
       }
-      stack_pos = stack_pos + 8;
+      stack_pos = glue_arm64_stack_arg_advance_pos(stack_pos, 8, apple);
     } else if (psz > 16) {
       nbytes = (psz + 7) & (~7);
+      stack_pos = glue_arm64_stack_arg_align_pos(stack_pos, nbytes, apple);
       k = 0;
       while (k < nbytes) {
         unsafe {
@@ -36766,7 +36827,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
         }
         k = k + 8;
       }
-      stack_pos = stack_pos + nbytes;
+      stack_pos = glue_arm64_stack_arg_advance_pos(stack_pos, nbytes, apple);
     } else {
       if (psz > 8) {
         if (gp + 2 <= reg_max) {
@@ -36784,6 +36845,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
           }
           gp = gp + 2;
         } else {
+          stack_pos = glue_arm64_stack_arg_align_pos(stack_pos, 16, apple);
           unsafe {
             rc = backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta);
           }
@@ -36808,7 +36870,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
           if (rc != 0) {
             return -1;
           }
-          stack_pos = stack_pos + 16;
+          stack_pos = glue_arm64_stack_arg_advance_pos(stack_pos, 16, apple);
         }
       } else {
         if (gp < reg_max) {
@@ -36832,6 +36894,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
           }
           gp = gp + 1;
         } else {
+          stack_pos = glue_arm64_stack_arg_align_pos(stack_pos, psz, apple);
           unsafe {
             rc = backend_enc_load_x29_pos_to_rax_arch(elf_ctx, stack_pos, ta);
           }
@@ -36848,7 +36911,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
           if (rc != 0) {
             return -1;
           }
-          stack_pos = stack_pos + 8;
+          stack_pos = glue_arm64_stack_arg_advance_pos(stack_pos, psz, apple);
         }
       }
     }

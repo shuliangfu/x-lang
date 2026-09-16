@@ -2237,19 +2237,9 @@ int32_t backend_enc_store_x_reg_to_rbp_arch(struct platform_elf_ElfCodegenCtx *e
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
                                              int32_t ta) {
-  if (ta == 1) {
-    int32_t off = off_pos;
-    int32_t imm12;
-    uint32_t ins;
-    if (off < 0)
-      off = 0;
-    imm12 = off >> 3;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    /** 0xF94003A0 = ldr x0, [x29, #0]；imm12 为字节偏移/8。 */
-    ins = 0xF94003A0u | ((uint32_t)imm12 << 10u);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)ins);
-  }
+  /* G.7: one encoder. Unaligned Apple i32 stack slots need LEA+LDR. */
+  if (ta == 1)
+    return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, off_pos);
   return -1;
 }
 #endif

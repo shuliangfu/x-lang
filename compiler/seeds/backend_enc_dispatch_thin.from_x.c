@@ -1985,25 +1985,11 @@ extern int32_t arch_riscv64_enc_enc_load_rbp_to_rbx(uint8_t * elf_ctx, int32_t o
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_rbx(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_ebx32(uint8_t * elf_ctx, int32_t offset);
 int32_t backend_enc_load_x29_pos_to_rax_arch(uint8_t * elf_ctx, int32_t off_pos, int32_t ta) {
-  if ((ta !=1)) {
+  /* G.7: one encoder. Unaligned Apple i32 stack slots need LEA+LDR. */
+  if ((ta != 1)) {
     return (0 - 1);
   }
-  if ((off_pos < 0)) {
-    {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)(-113245280)));
-    }
-    return (0 - 1);
-  }
-  if (((off_pos / 8) > 4095)) {
-    {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)((-113245280 | (4095 * 1024)))));
-    }
-    return (0 - 1);
-  }
-  {
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((int32_t)((-113245280 | (((uint32_t)((off_pos / 8))) * 1024)))));
-  }
-  return (0 - 1);
+  return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, off_pos);
 }
 int32_t backend_enc_add_imm_to_index_scratch_arch(uint8_t * elf_ctx, int32_t imm, int32_t ta) {
   if ((ta ==1)) {
