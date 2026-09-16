@@ -25,13 +25,13 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
 // STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X /
-// SCALAR_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// SCALAR_FROM_X / NAMED_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
 // pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x / vec_x / alloc_x / scalar_x keeps that C twin without
+// linear_x / vec_x / alloc_x / scalar_x / named_x keeps that C twin without
 // dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
@@ -161,6 +161,22 @@
 // dest-buffer IDENT generic type-arg. Do not dest-buffer IDENT
 // vector spelling consume. Do not open a new P-lane. Do not FORCE
 // pabi mega. Do not touch pthin_expr_primary.x (current xlang T001).
+// 7.2.1 P3o B-minus (2026-09-16): 有则补全 IDENT named / dyn / impl
+// peel dest-buffer. The `dyn` P013 prefix, `impl Trait` peel, and
+// TYPE_NAMED + consume_qualified soup were inlined in
+// parse_type_ref_impl (always host-cc). P9a peek/step owns the
+// unconsumed cursor. `dyn` + following type reports P013 and
+// fail-closes (lex past `dyn`); bare `dyn` restores so NAMED
+// still sees the IDENT. `impl` + following type recurses via the
+// existing primary parse_type_ref_ptr shim (G.7; do not dest-buffer
+// parse_type_ref — P3f hello/fmt red). IDENT NAMED writer =
+// init_named_at (G.7; same as P3j pointee). C trampoline holds
+// name[256] + qn_len (no local u8[N], no &local i32). Generic
+// `<T,U>` type-arg get/set stays C (banned dest-buffer). wrap_dyn
+// stays P3e (after `<T>` so `Wrap<i32>` is not a trait). Postfix
+// stays P3g. NAMED is a separate define so a missing named_x
+// keeps the C twin without dropping P3n. Do not dest-buffer
+// parse_type_ref. Do not FORCE pabi mega. Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -201,8 +217,17 @@ const TOKEN_GT: i32 = 121;
 
 /** P9a: peek next kind without advancing the opaque lexer. */
 export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek line of the next token (P013 dyn prefix). */
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek column of the next token (P013 dyn prefix). */
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: consume one token; returns its kind. */
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: lexer line / col for restore after a failed peel probe. */
+export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
+/** P013 reporter (body_tl). G.7 one diagnostic; do not copy. */
+export extern "C" function parser_report_dyn_prefix_p013_c(line: i32, col: i32): void;
 /** P9a: peek ident_len of the next token. */
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: peek TOKEN_INT payload as i32 (array dim). */
@@ -1706,6 +1731,167 @@ export function parser_asm_parse_builtin_scalar_type_x_into_c(arena: *u8, lex_in
     }
     ok = pipeline_type_init_primitive_kind_at(arena, type_ref, ord);
     if (ok == 0) {
+      return 0;
+    }
+    return type_ref;
+  }
+  return 0;
+}
+
+/**
+ * Peel type-position `dyn` / `impl` prefixes. Unconsumed cursor.
+ * `dyn` followed by a type is P013 (hard-fail; lex parks past `dyn`).
+ * Bare `dyn` restores so the IDENT NAMED arm still sees the token.
+ * `impl` followed by a type recurses through parse_type_ref_ptr
+ * (inner owns postfix / wrap_dyn). `impl` without a type restores
+ * and returns 0 (C twin then fail-closes; TOKEN_IMPL is not NAMED).
+ * Not dyn/impl leaves lex unchanged.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @return i32 — peeled type_ref, or 0 (P013 / not-this-path / fail)
+ * PLATFORM: SHARED type grammar. P3o dest-buffer split of the former
+ * inlined dyn/impl arms. Recurse = primary parse_type_ref_ptr (G.7).
+ * Do not dest-buffer parse_type_ref. Do not dest-buffer IDENT
+ * generic type-arg. parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_peel_dyn_impl_prefix_x_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let kind2: i32 = 0;
+  let nlen: i32 = 0;
+  let ts: usize = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let dyn_line: i32 = 0;
+  let dyn_col: i32 = 0;
+  let inner: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_IDENT) {
+      nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source);
+      if (parser_asm_type_ref_ident_is_dyn_buf_c(data, slen, ts, nlen) != 0) {
+        dyn_line = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+        dyn_col = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (parser_asm_type_ref_token_starts_type_c(kind2) != 0) {
+          parser_report_dyn_prefix_p013_c(dyn_line, dyn_col);
+          return 0;
+        }
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        return 0;
+      }
+    } else {
+      if (kind == TOKEN_IMPL) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (parser_asm_type_ref_token_starts_type_c(kind2) != 0) {
+          inner = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+          return inner;
+        }
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        return 0;
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * Parse type-position IDENT NAMED (`Foo` / `a.b.Type`) into a
+ * TYPE_NAMED slot. Peek must be IDENT else 0 (lex unchanged) so
+ * Linear / vector IDENT still own those spellings. consume_qualified
+ * walks `a.b.Type` via P3d. Generic `<T,U>` stays in the C impl
+ * (banned dest-buffer). wrap_dyn stays P3e (after `<T>`). Postfix
+ * stays P3g. consume fail restores the entry cursor.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param name_scratch *u8 — dest for qualified spelling; caller owns
+ *   ≥256 bytes; null → 0
+ * @param qn_len_slot *i32 — dest for name_len; C trampoline owns;
+ *   null → 0
+ * @return i32 — TYPE_NAMED type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3o dest-buffer split of the former
+ * inlined IDENT NAMED arm. Writer = init_named_at (G.7). Do not
+ * dest-buffer parse_type_ref. Do not dest-buffer IDENT generic
+ * type-arg get/set. parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_named_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, name_scratch: *u8, qn_len_slot: *i32): i32 {
+  let kind: i32 = 0;
+  let first: i32 = 0;
+  let nlen: i32 = 0;
+  let rc: i32 = 0;
+  let ok: i32 = 0;
+  let type_ref: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (name_scratch == 0 as *u8 || qn_len_slot == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    first = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (first <= 0) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    qn_len_slot[0] = 0;
+    rc = parser_asm_consume_qualified_type_ident_name_into_c(source, lex_inout, name_scratch, qn_len_slot, first);
+    if (rc != 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    nlen = qn_len_slot[0];
+    if (nlen <= 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    type_ref = ast_ast_arena_type_alloc(arena);
+    if (type_ref == 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    ok = pipeline_type_init_named_at(arena, type_ref, name_scratch, nlen);
+    if (ok == 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
       return 0;
     }
     return type_ref;

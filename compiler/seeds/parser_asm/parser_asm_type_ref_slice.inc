@@ -3,15 +3,16 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * skips the portable token_starts_type / ident_is_dyn / builtin_kind_ord /
  * vector-ident-pack region, (P3d) consume_qualified / type_angle_close, and
  * (P3e) TYPE_DYN wrap (bodies in src/asm/pthin_type_ref.x + slice trampolines
- * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR are separate
- * defines for P3g–P3n. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
+ * in the seed TU). POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED are separate
+ * defines for P3g–P3o. XLANG_PTHIN_TYPE_REF_ALLOC_VEC_FROM_X (P3m) skips
  * alloc_vector_type_ref C twin. XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X (P3n) skips
- * builtin scalar-token C twin. parse_type_ref_impl stays C. Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR define, full twin.
+ * builtin scalar-token C twin. XLANG_PTHIN_TYPE_REF_NAMED_FROM_X (P3o) skips
+ * dyn/impl peel + IDENT NAMED C twins. parse_type_ref_impl stays C. Cold: no
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -1247,6 +1248,127 @@ static int32_t parser_asm_parse_builtin_scalar_type_ref_c(void *arena, struct pa
 }
 #endif /* XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X builtin scalar tokens */
 
+#ifdef XLANG_PTHIN_TYPE_REF_NAMED_FROM_X
+extern int32_t parser_asm_peel_dyn_impl_prefix_x_into_c(void *arena, void *lex_inout, void *source);
+extern int32_t parser_asm_parse_named_type_x_into_c(void *arena, void *lex_inout, void *source,
+                                                   uint8_t *name_scratch, int32_t *qn_len_slot);
+/**
+ * PLATFORM: SHARED — P3o trampoline. Entry cursor is unconsumed.
+ * parse_type_ref_impl stays C and calls this before the first token
+ * peek. Not-dyn/not-impl leaves lex unchanged so FUNCTION/STAR/IDENT
+ * still see the token. P013 fail advances past `dyn` (cursor-moved
+ * → return 0). impl+type recurses in .x via parse_type_ref_ptr.
+ */
+static int32_t parser_asm_peel_dyn_impl_prefix_c(void *arena, struct parser_asm_lexer lex,
+                                                struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  ref = parser_asm_peel_dyn_impl_prefix_x_into_c(arena, &cur, source);
+  *out_lex = cur;
+  return ref;
+}
+/**
+ * PLATFORM: SHARED — P3o trampoline. Language has no local u8[N] and no
+ * &local i32; this C face holds name[256] + qn_len. Entry cursor is
+ * unconsumed IDENT; parse_type_ref_impl stays C and only calls this
+ * after Linear / vector IDENT miss. Generic `<T>` stays in the impl.
+ */
+static int32_t parser_asm_parse_named_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  uint8_t name[256];
+  int32_t qn_len;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  memset(name, 0, sizeof(name));
+  qn_len = 0;
+  ref = parser_asm_parse_named_type_x_into_c(arena, &cur, source, name, &qn_len);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Peel type-position `dyn` / `impl` prefixes. lex is unconsumed.
+ * `dyn` + type → P013 fail (out_lex past `dyn`). Bare `dyn` leaves
+ * lex unchanged. `impl` + type recurses parse_type_ref_impl.
+ * PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_peel_dyn_impl_prefix_c(void *arena, struct parser_asm_lexer lex,
+                                                struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  struct parser_asm_lexer_result peek_pref;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (parser_asm_type_ref_ident_is_dyn_c(source, &r)) {
+    lexer_next_into(&peek_pref, r.next_lex, source);
+    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind)) {
+      extern void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col);
+      parser_report_dyn_prefix_p013_c((int32_t)r.tok.line, (int32_t)r.tok.col);
+      parser_asm_write_out_lex_c(out_lex, r.next_lex);
+      return 0;
+    }
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_IMPL) {
+    lexer_next_into(&peek_pref, r.next_lex, source);
+    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind))
+      return parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
+  }
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return 0;
+}
+/**
+ * Parse type-position IDENT NAMED (`Foo` / `a.b.Type`). lex is
+ * unconsumed IDENT. consume_qualified walks dots. Generic `<T>`
+ * stays in parse_type_ref_impl. PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_parse_named_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                struct parser_asm_slice_u8 *source,
+                                                struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  int32_t type_ref_param;
+  int32_t qn_len_tr;
+  struct ast_Type t;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len <= 0) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  type_ref_param = ast_ast_arena_type_alloc(arena);
+  if (type_ref_param == 0) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  t = ast_arena_type_get(arena, type_ref_param);
+  t.kind = PARSER_ASM_TYPE_NAMED;
+  qn_len_tr = 0;
+  if (parser_asm_consume_qualified_type_ident_name_c(source, &r, t.name, &qn_len_tr) != 0) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  t.name_len = qn_len_tr;
+  t.elem_type_ref = 0;
+  t.array_size = 0;
+  t.region_label_len = 0;
+  ast_arena_type_set(arena, type_ref_param, t);
+  parser_asm_lex_from_result_val_into(&lex, r);
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return type_ref_param;
+}
+#endif /* XLANG_PTHIN_TYPE_REF_NAMED_FROM_X dyn/impl peel + IDENT NAMED */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -1260,47 +1382,25 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   int32_t linear_ref;
   int32_t vec_tok_ref;
   int32_t vec_ident_ref;
-  int32_t qn_len_tr;
+  int32_t peeled_pref;
   if (!source || !out_lex)
     return 0;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_mega_full_deep_audit_c(&lex, source));
-  lexer_next_into(&r, lex, source);
   /*
-   * 4.2.2 impl type prefix + one TYPE_DYN producer (G.7).
-   *
-   * TYPE_DYN (ord 17) is produced only by wrapping a registered trait
-   * name in type position (`let x: Clone = a`). Host-C emits
-   * `struct xlang_dyn_obj` fat {data*, vtable*} — not incomplete
-   * `struct Trait` (empty-struct paint ban).
-   *
-   * `dyn Trait` is not a second producer (AI / users write the trait
-   * name). Prior peel wrapped TYPE_DYN from the `dyn` prefix; that
-   * path is removed. Seeing `dyn` followed by a type is P013 hard-fail
-   * (sticky, so unused `take(x: dyn Clone)` cannot vanish while main
-   * stays green). Bare `dyn` (no following type) stays TYPE_NAMED "dyn".
-   *
-   * `impl Trait` stays peeled TYPE_NAMED trait (static path; not fat)
-   * unless the inner IDENT is a registered trait (then implicit DYN,
-   * same as bare `Trait`).
+   * P3o dest-buffer: helper owns the unconsumed dyn/impl cursor
+   * (same as P3n scalar owning unconsumed I32). Not-dyn/not-impl
+   * leaves lex unchanged so FUNCTION/STAR/IDENT still consume `r`.
+   * P013 fail advances out_lex past `dyn` — return 0 (do not fall
+   * through as NAMED). impl+type returns the inner type_ref.
    * PLATFORM: SHARED type grammar.
    */
-  if (parser_asm_type_ref_ident_is_dyn_c(source, &r)) {
-    struct parser_asm_lexer_result peek_pref;
-    lexer_next_into(&peek_pref, r.next_lex, source);
-    if (parser_asm_type_ref_token_starts_type_c(peek_pref.tok.kind)) {
-      extern void parser_report_dyn_prefix_p013_c(int32_t line, int32_t col);
-      parser_report_dyn_prefix_p013_c((int32_t)r.tok.line, (int32_t)r.tok.col);
-      parser_asm_write_out_lex_c(out_lex, r.next_lex);
-      return 0;
-    }
-  }
-  if (r.tok.kind == (int32_t)TOKEN_IMPL) {
-    struct parser_asm_lexer_result peek_impl;
-    lexer_next_into(&peek_impl, r.next_lex, source);
-    if (parser_asm_type_ref_token_starts_type_c(peek_impl.tok.kind))
-      return parser_asm_parse_type_ref_impl_c(arena, r.next_lex, source, out_lex);
-  }
+  peeled_pref = parser_asm_peel_dyn_impl_prefix_c(arena, lex, source, out_lex);
+  if (peeled_pref != 0)
+    return peeled_pref;
+  if (out_lex->pos != lex.pos || out_lex->line != lex.line || out_lex->col != lex.col)
+    return 0;
+  lexer_next_into(&r, lex, source);
   /*
    * 10.3.1 TYPE_FN (ord 18): type-position `function(T0, T1, ...): Ret`.
    * P3i dest-buffer: helper owns the unconsumed `function` cursor
@@ -1370,22 +1470,17 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
       parser_asm_write_out_lex_c(out_lex, lex);
       return vec_ident_ref;
     }
-    type_ref_param = ast_ast_arena_type_alloc(arena);
-    if (type_ref_param != 0) {
-      t = ast_arena_type_get(arena, type_ref_param);
-      t.kind = PARSER_ASM_TYPE_NAMED;
-      qn_len_tr = 0;
-      if (parser_asm_consume_qualified_type_ident_name_c(source, &r, t.name, &qn_len_tr) != 0) {
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return 0;
-      }
-      t.name_len = qn_len_tr;
-      t.elem_type_ref = 0;
-      t.array_size = 0;
-      t.region_label_len = 0;
-      ast_arena_type_set(arena, type_ref_param, t);
-    }
-    parser_asm_lex_from_result_val_into(&lex, r);
+    /*
+     * P3o dest-buffer: helper owns the unconsumed IDENT NAMED cursor
+     * (same as P3k Linear owning unconsumed IDENT). consume_qualified
+     * + init_named_at live in .x. Generic `<T,U>` stays here (banned
+     * dest-buffer). Fail-closed: do not fall through as a half NAMED.
+     * PLATFORM: SHARED type grammar.
+     */
+    type_ref_param = parser_asm_parse_named_type_ref_c(arena, lex, source, out_lex);
+    if (type_ref_param == 0)
+      return 0;
+    lex = *out_lex;
     /*
      * wave466/467 Cap residual pure: type-position `Name<T>` / `Name<T,U>` (docs/02).
      * Prior: IDENT became TYPE_NAMED then postfix only saw `[` — bare `<` after the

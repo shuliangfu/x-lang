@@ -1032,10 +1032,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # P3h prefix `[N]T` / `[]T` dest-buffer, P3i type-position
         # `function(...): Ret` dest-buffer, P3j prefix `*T` dest-buffer,
         # P3k IDENT `Linear(T)` dest-buffer, P3l builtin vec-token
-        # dest-buffer, P3m alloc_vector_type_ref, and P3n builtin scalar tokens.
+        # dest-buffer, P3m alloc_vector_type_ref, P3n builtin scalar tokens,
+        # and P3o IDENT named / dyn / impl peel dest-buffer.
         # Runs before P3 C so BODIES_FROM_X skips the portable .inc region.
-        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR are separate defines (P6e PARSE_LAYOUT / P2c COND)
-        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x keeps that C twin without dropping
+        # POSTFIX / PREFIX / FN / STAR / LINEAR / VEC / ALLOC_VEC / SCALAR / NAMED are separate defines (P6e PARSE_LAYOUT / P2c COND)
+        # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x / named_x keeps that C twin without dropping
         # P3b–P3e. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
         if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
@@ -1076,6 +1077,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_builtin_scalar_type_x_into_c"; then
               _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_SCALAR_FROM_X"
               _pthin_p3_lane="$_pthin_p3_lane/P3n"
+            fi
+            if g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_peel_dyn_impl_prefix_x_into_c" \
+              && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_parse_named_type_x_into_c"; then
+              _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_NAMED_FROM_X"
+              _pthin_p3_lane="$_pthin_p3_lane/P3o"
             fi
             echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
           else
