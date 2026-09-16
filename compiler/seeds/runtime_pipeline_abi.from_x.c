@@ -50192,6 +50192,7 @@ void grow_vec_copy_append(GrowVec *dst, GrowVec *src) {
 #define AST_POOL_INIT_CAP 256
 #endif
 
+/* XLANG_PABI_DEP_CTX_THIN_BEGIN */
 typedef struct {
   struct ast_PipelineDepCtx *ctx;
   int used;
@@ -50815,6 +50816,7 @@ int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->typeck_loop_depth : 0;
 }
 
+/* XLANG_PABI_DEP_CTX_THIN_END */
 #endif /* WAVE272_DEP_CTX_COLD */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave272 cold twins */
 

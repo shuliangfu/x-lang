@@ -3312,6 +3312,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_grow_vec_thin.c -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_dep_ctx_thin.c ] \
+      && [ src/runtime_pipeline_abi_dep_ctx_thin.c -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3340,6 +3344,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_block_tree_thin "$o" || true
       pipeline_abi_inject_type_pool_thin "$o" || true
       pipeline_abi_inject_grow_vec_thin "$o" || true
+      pipeline_abi_inject_dep_ctx_thin "$o" || true
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
@@ -3395,6 +3400,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_block_tree_thin "$o" || true
       pipeline_abi_inject_type_pool_thin "$o" || true
       pipeline_abi_inject_grow_vec_thin "$o" || true
+      pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3822,6 +3828,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_block_tree_thin "$o" || true
       pipeline_abi_inject_type_pool_thin "$o" || true
       pipeline_abi_inject_grow_vec_thin "$o" || true
+      pipeline_abi_inject_dep_ctx_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3882,6 +3889,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_block_tree_thin "$o" || true
       pipeline_abi_inject_type_pool_thin "$o" || true
       pipeline_abi_inject_grow_vec_thin "$o" || true
+      pipeline_abi_inject_dep_ctx_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3926,6 +3934,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_block_tree_thin "$o" || true
       pipeline_abi_inject_type_pool_thin "$o" || true
       pipeline_abi_inject_grow_vec_thin "$o" || true
+      pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3978,6 +3987,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_block_tree_thin "$o" || true
       pipeline_abi_inject_type_pool_thin "$o" || true
       pipeline_abi_inject_grow_vec_thin "$o" || true
+      pipeline_abi_inject_dep_ctx_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -5160,6 +5170,51 @@ pipeline_abi_inject_grow_vec_thin() {
   rm -f "$thin_o" "$base_o" "$restore_o"
   return 1
 }
+
+# wave272 PipelineDepCtx Cap domain (C thin; sidecar table + faces).
+# Separate leaf: Darwin additive ingest. G.7: match mega/seed leave. PLATFORM: SHARED.
+pipeline_abi_inject_dep_ctx_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_dep_ctx_thin.c"
+  local thin_o base_o restore_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi w272-dep-ctx inject skip: $o is libtool archive"
+    return 1
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_dc.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_dc_base.XXXXXX.o")"
+  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_dc_restore.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi w272-dep-ctx inject: cc thin failed"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  cp -f "$o" "$restore_o"
+  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
+    log "pipeline_abi w272-dep-ctx inject skip: cannot weaken leftover T"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      cp -f "$restore_o" "$o"
+      log "pipeline_abi w272-dep-ctx inject: libtool archive; restored base"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
+    log "pipeline_abi w272-dep-ctx inject OK (first-wins over leftover)"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  cp -f "$restore_o" "$o"
+  log "pipeline_abi w272-dep-ctx inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o" "$restore_o"
+  return 1
+}
+
 
 
 
@@ -9522,6 +9577,7 @@ case "$MODE" in
     pipeline_abi_inject_block_tree_thin "$1"
     pipeline_abi_inject_type_pool_thin "$1"
     pipeline_abi_inject_grow_vec_thin "$1"
+    pipeline_abi_inject_dep_ctx_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
