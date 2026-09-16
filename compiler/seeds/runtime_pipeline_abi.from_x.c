@@ -67274,8 +67274,11 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
  *   asm_ctx_local_reset, pipeline_asm_ctx_layout, driver_diagnostic_*,
  *   link_abi_getenv, pipeline_type_kind_ord_at, pipeline_module_func_return_type_at,
  *   ast_ast_block_num_*, pipeline_module_num_funcs, pipeline_elf_ctx_set_emit_hot.
+ * M2 Class E: C thin leave = runtime_pipeline_abi_asm_codegen_mega_body_thin.c
+ * (inject weaken leftover T then first-wins). Seed body remains fallback / cold.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_ASM_CODEGEN_MEGA_BODY_THIN_BEGIN */
 #ifndef WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS
 #define WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS 1
 
@@ -67746,6 +67749,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
   return 0;
 }
 
+/* XLANG_PABI_ASM_CODEGEN_MEGA_BODY_THIN_END */
 #endif /* WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS */
 
 /* =============================================================================
