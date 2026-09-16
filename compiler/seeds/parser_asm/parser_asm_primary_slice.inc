@@ -23,10 +23,11 @@
  * finish_from_type_ident (body in pthin_expr_primary.x; C holds
  * name[256]). P4bo: XLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X trampolines
  * parse_asm_bang (C holds tmpl[256]+regs[128]). P4bp:
- * XLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X trampolines parse_unsafe
- * (ident_pre_dispatch stays C compositor). P4bq:
- * XLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X trampolines
+ * XLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X trampolines parse_unsafe.
+ * P4bq: XLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X trampolines
  * lbrace_looks_like_block / empty_ident_braces (C passes field_depth).
+ * P4br: XLANG_PTHIN_EXPR_PRIMARY_IDENT_PRE_DISPATCH_FROM_X trampolines
+ * ident_pre_dispatch (C holds tmpl[256]+regs[128] for asm!).
  * Cold: no define, full twin.
  * P3c: type-inst mangle twins skip under XLANG_PTHIN_TYPE_REF_BODIES_FROM_X
  * (bodies in pthin_type_ref.x; 7-arg append trampoline holds suf[64]).
@@ -552,7 +553,7 @@ extern int32_t parser_asm_primary_parse_unsafe_x_into_c(void *arena, void *lex_i
 /**
  * PLATFORM: SHARED — P4bp trampoline. Entry cursor is unconsumed
  * TOKEN_LBRACE (`lex_after_kw` after IDENT `unsafe`). ident_pre_dispatch
- * stays C compositor. lbrace lookahead is P4bq.
+ * is P4br. lbrace lookahead is P4bq.
  */
 static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
                                                    struct parser_asm_slice_u8 *source,
@@ -2194,11 +2195,32 @@ void parser_asm_skip_angle_count_ptr_into_c(void *lex_inout, void *source, int32
   *(struct parser_asm_lexer *)lex_inout = after;
 }
 
-/* IDENT-arm pre-dispatch fat shim: the unsafe-expr and asm-bang checks
- * plus their whole sub-parsers stay C (separate complex functions); the .x
- * IDENT head calls this FIRST. Returns 1 when a sub-parser consumed the
- * primary (out slots filled, cursor advanced); 0 = plain ident, caller
- * proceeds with the VAR head. PLATFORM: SHARED — additive, ungated. */
+/* IDENT-arm pre-dispatch: the .x IDENT head calls this FIRST.
+ * Returns 1 when a sub-parser consumed the primary (out slots filled,
+ * cursor advanced); 0 = plain ident, caller proceeds with the VAR head.
+ * PLATFORM: SHARED — published ptr_c face; P4br dest-buffer under gate. */
+#ifdef XLANG_PTHIN_EXPR_PRIMARY_IDENT_PRE_DISPATCH_FROM_X
+extern int32_t parser_asm_ident_pre_dispatch_x_into_c(void *arena, void *lex_inout, void *source,
+                                                     uint8_t *tmpl_buf, uint8_t *regs_buf,
+                                                     int32_t *out_ok, int32_t *out_expr_ref);
+/**
+ * PLATFORM: SHARED — P4br trampoline. Language has no local u8[N]; this
+ * C face holds tmpl[256]+regs[128] for the asm! path (same buffers as
+ * P4bo). IDENT head keeps calling this published ptr_c.
+ */
+int32_t parser_asm_ident_pre_dispatch_ptr_c(void *arena, void *lex_inout, void *source,
+                                            int32_t *out_ok, int32_t *out_expr_ref) {
+  uint8_t tmpl[256];
+  uint8_t regs[128];
+  if (!arena || !lex_inout || !source || !out_ok || !out_expr_ref)
+    return 0;
+  memset(tmpl, 0, sizeof(tmpl));
+  memset(regs, 0, sizeof(regs));
+  *out_ok = 0;
+  *out_expr_ref = 0;
+  return parser_asm_ident_pre_dispatch_x_into_c(arena, lex_inout, source, tmpl, regs, out_ok, out_expr_ref);
+}
+#else
 int32_t parser_asm_ident_pre_dispatch_ptr_c(void *arena, void *lex_inout, void *source,
                                             int32_t *out_ok, int32_t *out_expr_ref) {
   struct parser_asm_lexer lex;
@@ -2233,6 +2255,7 @@ int32_t parser_asm_ident_pre_dispatch_ptr_c(void *arena, void *lex_inout, void *
   }
   return 0;
 }
+#endif /* XLANG_PTHIN_EXPR_PRIMARY_IDENT_PRE_DISPATCH_FROM_X */
 
 /**
  * parse_primary_into：INT | FLOAT | BOOL | break | continue | IDENT 后缀 | (expr) | [] | if | match | panic | @simd。

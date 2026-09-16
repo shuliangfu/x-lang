@@ -236,8 +236,18 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // passes parser_asm_struct_field_value_depth into empty_x (G.7;
 // no new getter). Independent LBRACE_LOOKAHEAD gate so a missing
 // pair keeps the C twins without dropping P4bp. ident_pre_dispatch
-// stays C compositor. Do not dest-buffer append_byte /
+// is P4br. Do not dest-buffer append_byte /
 // parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4br B-minus (2026-09-16): 有则补全 ident_pre_dispatch
+// dest-buffer. Published face stays ptr_c (IDENT head already
+// calls it). C trampoline holds tmpl[256]+regs[128] for the asm!
+// path (language has no local u8[N]; same buffers as P4bo).
+// unsafe → parse_unsafe_x (entry after IDENT, unconsumed `{`).
+// asm + `!` → parse_asm_bang_x (entry after IDENT, unconsumed `!`);
+// not-BANG restores pos/line/col so the VAR head still sees IDENT.
+// Independent IDENT_PRE_DISPATCH gate so a missing dispatch_x keeps
+// the C compositor without dropping P4bq. Do not dest-buffer
+// append_byte / parse_type_ref. Do not FORCE pabi mega.
 // 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
 // C twin keeps *lex at `<` until follower is `(` / committed `{` struct
 // lit. .x type_ref walk and count-only skip both advance lex_inout;
@@ -1132,7 +1142,7 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
     if (kind != TOKEN_IDENT && kind != TOKEN_SELF) {
       return 0;
     }
-    /* unsafe-expr / asm! sub-parsers (whole-sale C via the fat shim). */
+    /* unsafe-expr / asm! via ident_pre_dispatch ptr_c (P4br dest-buffer). */
     ok2 = 0;
     ref = 0;
     if (parser_asm_ident_pre_dispatch_ptr_c(arena, lex_inout, source, &ok2, &ref) != 0) {
@@ -2555,7 +2565,7 @@ export function parser_asm_primary_parse_asm_bang_x_into_c(arena: *u8, lex_inout
  * PLATFORM: SHARED — product P4bp. Writers = parse_block_ptr /
  * ast_ast_arena_block_alloc / pipeline_block_append_unsafe /
  * pipeline_block_append_stmt_order / wrap_block_ref (G.7).
- * ident_pre_dispatch stays C compositor. lbrace lookahead is P4bq.
+ * ident_pre_dispatch is P4br. lbrace lookahead is P4bq.
  * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
  * Do not FORCE pabi mega.
  */
@@ -2794,5 +2804,114 @@ export function parser_asm_primary_empty_ident_braces_x_into_c(lex_inout: *u8, s
     return 1;
   }
   return 0 - 1;
+}
+
+/**
+ * IDENT `asm` follower: snapshot, step IDENT, peek `!`. Not-BANG
+ * restores the cursor so the VAR head still sees IDENT (C twin
+ * copy-lexer never wrote lex_inout). BANG calls parse_asm_bang_x
+ * with C-owned tmpl/regs (entry = unconsumed `!`).
+ * @param arena *u8 — opaque AST arena
+ * @param lex_inout *u8 — cursor at IDENT `asm`; parked after `asm!(...)` on success
+ * @param source *u8 — opaque source slice
+ * @param tmpl_buf *u8 — C trampoline 256-byte template scratch
+ * @param regs_buf *u8 — C trampoline 128-byte register-name scratch
+ * @param out_ok *i32 — filled by parse_asm_bang_x
+ * @param out_expr_ref *i32 — filled by parse_asm_bang_x
+ * @return i32 — 1 consumed (check out_ok); 0 follower is not `!` (cursor restored)
+ * PLATFORM: SHARED — P4br helper. Sequential ifs; 4 lets (no nested while).
+ */
+function parser_asm_ident_pre_dispatch_try_asm_x(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_BANG) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    parser_asm_primary_parse_asm_bang_x_into_c(arena, lex_inout, source, tmpl_buf, regs_buf, out_ok, out_expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * IDENT-arm pre-dispatch: `unsafe { ... }` and `asm!(...)` steal the
+ * primary before the VAR head. Return 1 when a sub-parser consumed
+ * the IDENT (out slots filled, cursor advanced); 0 = plain ident,
+ * caller proceeds with the VAR head and the cursor is unchanged.
+ * Published face stays ptr_c; this body is the dest-buffer authority.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at IDENT; unchanged on 0; parked after the sub-parser on 1
+ * @param source *u8 — opaque source slice
+ * @param tmpl_buf *u8 — C trampoline 256-byte template scratch (asm! only)
+ * @param regs_buf *u8 — C trampoline 128-byte register-name scratch (asm! only)
+ * @param out_ok *i32 — 1 on sub-parser success
+ * @param out_expr_ref *i32 — EXPR_BLOCK / EXPR_ASM ref on success
+ * @return i32 — 1 consumed; 0 plain IDENT (or null / not IDENT)
+ * PLATFORM: SHARED — product P4br. Writers = parse_unsafe_x /
+ * parse_asm_bang_x / ident_is_unsafe_buf_c / ident_is_asm_buf_c (G.7).
+ * C trampoline holds tmpl[256]+regs[128]. Do not dest-buffer
+ * append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_ident_pre_dispatch_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  if (tmpl_buf == 0 as *u8) {
+    return 0;
+  }
+  if (regs_buf == 0 as *u8) {
+    return 0;
+  }
+  if (out_ok == 0 as *i32) {
+    return 0;
+  }
+  if (out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (parser_asm_primary_ident_is_unsafe_buf_c(data, slen, ts, ilen) != 0) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      parser_asm_primary_parse_unsafe_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+      return 1;
+    }
+    if (parser_asm_primary_ident_is_asm_buf_c(data, slen, ts, ilen) != 0) {
+      return parser_asm_ident_pre_dispatch_try_asm_x(arena, lex_inout, source, tmpl_buf, regs_buf, out_ok, out_expr_ref);
+    }
+    return 0;
+  }
+  return 0;
 }
 

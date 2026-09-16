@@ -8,7 +8,7 @@
  *
  * Hybrid P4b (XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X): portable IDENT
  * spelling / asm-option-bit / suffix_loop / IDENT head / P4bh remaining
- * parse_primary dest-buffer / P4bi parse_struct_lit_fields dest-buffer / P4bj anonymous-struct alloc (ANON_STRUCT_FROM_X) / P4bk BREAK/CONTINUE primary / P4bl suffix_loop LT relcompare rewind / P4bm STRING decode (STRING_DECODE_FROM_X; append_byte stays C) / P4bn finish_from_type_ident (FINISH_TYPE_IDENT_FROM_X; C holds name[256]) / P4bo parse_asm_bang (ASM_BANG_FROM_X; C holds tmpl[256]+regs[128]) / P4bp parse_unsafe (UNSAFE_FROM_X; ident_pre_dispatch stays C compositor) / P4bq lbrace lookahead (LBRACE_LOOKAHEAD_FROM_X; C passes field_depth)
+ * parse_primary dest-buffer / P4bi parse_struct_lit_fields dest-buffer / P4bj anonymous-struct alloc (ANON_STRUCT_FROM_X) / P4bk BREAK/CONTINUE primary / P4bl suffix_loop LT relcompare rewind / P4bm STRING decode (STRING_DECODE_FROM_X; append_byte stays C) / P4bn finish_from_type_ident (FINISH_TYPE_IDENT_FROM_X; C holds name[256]) / P4bo parse_asm_bang (ASM_BANG_FROM_X; C holds tmpl[256]+regs[128]) / P4bp parse_unsafe (UNSAFE_FROM_X) / P4bq lbrace lookahead (LBRACE_LOOKAHEAD_FROM_X; C passes field_depth) / P4br ident_pre_dispatch (IDENT_PRE_DISPATCH_FROM_X; C holds tmpl[256]+regs[128])
  * come from pthin_expr_primary.x; this TU keeps slice trampolines.
  * Cold: no BODIES define, full .inc.
  * P3c mangle trampoline is compiled when this TU also sees
