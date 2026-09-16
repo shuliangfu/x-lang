@@ -39828,6 +39828,7 @@ int32_t glue_asm73_linear_nso_get(void) { return g_wave213_linear_nso; }
 
 /* XLANG_PABI_ASM73_LIVE_INTERF_THIN_END */
 
+/* XLANG_PABI_ASM73_LIVE_SET_THIN_BEGIN */
 /*
  * wave214 cold twins: live set arrays + opaque u8 overlay thins (G.7 pure leave).
  * Layout: offs[32] i32 + n at index 32; blob stride 33 i32 (=132 bytes). Pure uses
@@ -40056,6 +40057,8 @@ void glue_loop_continue_head_live_union_into_u8(void *dst, int32_t d) {
     return;
   w214_live_union_into((W214Live *)dst, &g_w214_loop_continue_head[d]);
 }
+
+/* XLANG_PABI_ASM73_LIVE_SET_THIN_END */
 
 /* wave213 cfg_interf_prepare called residual peak_clear; cold twin now local. */
 void glue_asm73_cfg_interf_prepare(void) {
