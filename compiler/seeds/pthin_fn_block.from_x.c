@@ -4,14 +4,16 @@
  *
  * Bodies: struct_layout + library + one_function_buf + block_from_res
  *
- * Hybrid P6b/P6c/P6d/P6e (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
+ * Hybrid P6b/P6c/P6d/P6e/P6f (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
  * struct-layout name-match helpers, packed/soa modifier predicates,
  * and library-shape TYPE/EXPR wrap come from pthin_fn_block.x.
  * XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips parse_struct_record_layout
- * (P6e dest-buffer; C trampoline holds the name pack). This TU keeps
- * library scan / one_function / block_from_res. Cold: no BODIES define,
+ * (P6e dest-buffer; C trampoline holds the name pack).
+ * XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X skips fill/append
+ * (P6f dest-buffer; C trampoline holds name[256] + pool extract).
+ * This TU keeps library scan / one_function. Cold: no BODIES define,
  * full .inc.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e bodies.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e/P6f bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>

@@ -23,8 +23,9 @@
 // and library_slice stay C and call these symbols; do not copy the
 // compare loops into those consumers. Do not open a new P-lane.
 // pipeline_module_struct_layout_* stay the sidecar authority
-// (runtime_pipeline_abi.x). parse / library / one_function / block_from_res
-// stay C. Compare cap `ii < 64` is the C twin's historical bound — keep it.
+// (runtime_pipeline_abi.x). parse / library / one_function stay C.
+// block_from_res is P6f. Compare cap `ii < 64` is the C twin's
+// historical bound — keep it.
 // 7.2.1 P6c B-minus (2026-09-15): 有则补全 packed/soa modifier predicates.
 // Language has no lexer_result field access; the C trampoline in
 // struct_layout.inc forwards tok.kind / ident_len / next_lex.pos plus
@@ -65,13 +66,30 @@
 // Do not merge wrap. Do not mix range_for. Do not wrap AUDIT. Do
 // not open a new P-lane. Do not FORCE pabi mega.
 //
-// Hybrid P6b/P6c/P6d/P6e: g05_try_x_to_o this file;
+// 7.2.1 P6f B-minus (2026-09-16): dest-buffer fill_block_const_let_from_res
+// + append_block_lets_from_res. Historical ban was Expr by-value init
+// (elf_ec=-1). Re-ranked live: writers already exist
+// (pipeline_expr_set_kind / set_int_val / set_common_zeros_c +
+// pipeline_block_append_const / append_let + pipeline_onefunc_*).
+// Language has no local u8[N] / onefunc_result by-value; the C
+// trampoline holds name[256], extracts the sidecar pool, and writes
+// res->num_consts / num_lets. AUDIT stays in the C trampoline
+// (product AUDIT_CALL is nop). Do not dest-buffer parse_one_function
+// / parse_one_function_library. Do not dest-buffer parse_type_ref
+// (P3f). Do not dest-buffer append_byte. Do not mix range_for.
+// Do not wrap AUDIT. Do not open a new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P6b/P6c/P6d/P6e/P6f: g05_try_x_to_o this file;
 // XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips name-match + modifiers +
 // library wrap; XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips the
-// layout parse C twin when parse_x is present. P9a is linked later
-// into the same thin_glue (same as P7d/P4ud). Cold: no define, full
-// .inc. Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e
-// bodies. PLATFORM: SHARED freestanding.
+// layout parse C twin when parse_x is present;
+// XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X skips the block_from_res
+// C twin when fill_x is present (independent sibling after
+// PARSE_LAYOUT so a missing fill_x keeps the C twin without dropping
+// P6e). P9a is linked later into the same thin_glue (same as
+// P7d/P4ud). Cold: no define, full .inc. Do not reuse
+// XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e/P6f bodies.
+// PLATFORM: SHARED freestanding.
 
 /** Sidecar: count of struct layouts on the opaque module. */
 export extern "C" function pipeline_module_num_struct_layouts_at(module: *u8): i32;
@@ -118,10 +136,40 @@ export extern "C" function pipeline_type_init_named_at(a: *u8, ref: i32, name: *
 export extern "C" function pipeline_expr_set_common_zeros_c(a: *u8, er: i32): void;
 /** Wave-0: write Expr.kind. */
 export extern "C" function pipeline_expr_set_kind(a: *u8, er: i32, kind: i32): void;
+/** Wave-0: write Expr.int_val (i64 slot; i32 coerces). */
+export extern "C" function pipeline_expr_set_int_val(a: *u8, er: i32, v: i64): void;
 /** Wave-0: write Expr.line / Expr.col. */
 export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32, col: i32): void;
 /** Wave-0: write Expr.resolved_type_ref. */
 export extern "C" function pipeline_expr_set_resolved_type_ref(a: *u8, er: i32, type_ref: i32): void;
+/** Sidecar: append a const decl onto the block; -1 on failure. */
+export extern "C" function pipeline_block_append_const(arena: *u8, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
+/** Sidecar: append a let decl onto the block; -1 on failure. */
+export extern "C" function pipeline_block_append_let(arena: *u8, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
+/** OneFunc sidecar: const count. */
+export extern "C" function pipeline_onefunc_num_consts(out: *u8): i32;
+/** OneFunc sidecar: let count. */
+export extern "C" function pipeline_onefunc_num_lets(out: *u8): i32;
+/** OneFunc sidecar: const type_ref at i (0 → caller fallback). */
+export extern "C" function pipeline_onefunc_const_type_ref(out: *u8, i: i32): i32;
+/** OneFunc sidecar: const init expr ref at i (0 → synthesize LIT). */
+export extern "C" function pipeline_onefunc_const_init_ref(out: *u8, i: i32): i32;
+/** OneFunc sidecar: const init integer when init_ref is 0. */
+export extern "C" function pipeline_onefunc_const_init_val(out: *u8, i: i32): i32;
+/** OneFunc sidecar: const name length at i. */
+export extern "C" function pipeline_onefunc_const_name_len(out: *u8, i: i32): i32;
+/** OneFunc sidecar: copy const name bytes into dst. */
+export extern "C" function pipeline_onefunc_const_name_copy64(out: *u8, i: i32, dst: *u8): void;
+/** OneFunc sidecar: let type_ref at i (0 → caller fallback). */
+export extern "C" function pipeline_onefunc_let_type_ref(out: *u8, i: i32): i32;
+/** OneFunc sidecar: let init expr ref at i (0 → LIT; -1 → no init). */
+export extern "C" function pipeline_onefunc_let_init_ref(out: *u8, i: i32): i32;
+/** OneFunc sidecar: let init integer when init_ref is 0. */
+export extern "C" function pipeline_onefunc_let_init_val(out: *u8, i: i32): i32;
+/** OneFunc sidecar: let name length at i. */
+export extern "C" function pipeline_onefunc_let_name_len(out: *u8, i: i32): i32;
+/** OneFunc sidecar: copy let name bytes into dst. */
+export extern "C" function pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *u8): void;
 /** Wave-0 pabi: write Expr.var_name / var_name_len (zeros the 256-byte slot). */
 export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, nlen: i32): void;
 /** Suffix pabi: write field_access_base_ref + field name (cap 255). */
@@ -886,4 +934,192 @@ export function parser_asm_parse_struct_record_layout_x_into_c(arena: *u8, modul
     pipeline_module_struct_layout_set_repr_compatible(module, layout_idx, repr_compat);
   }
   return 0;
+}
+
+/**
+ * Allocate EXPR_LIT with int_val. Matches the C twin net effect:
+ * common_zeros wipes resolved_type_ref after the C twin wrote type_ref,
+ * so the stored expr has kind=LIT, int_val=v, resolved_type_ref=0.
+ * The decl type lives on pipeline_block_append_const/let, not on the lit.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param int_val i32 — literal payload (i32 coerces to the i64 setter)
+ * @return i32 — expr ref, or 0 on alloc failure
+ * PLATFORM: SHARED — product P6f B-minus.
+ */
+function parser_asm_block_lit_init_ref_x(arena: *u8, int_val: i32): i32 {
+  let ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0) {
+    return 0;
+  }
+  pipeline_expr_set_common_zeros_c(arena, ref);
+  pipeline_expr_set_kind(arena, ref, 0);
+  pipeline_expr_set_int_val(arena, ref, int_val);
+  return ref;
+}
+
+/**
+ * Copy one OneFunc const sidecar entry onto the block.
+ * init_ref==0 synthesizes EXPR_LIT from const_init_val (C twin).
+ * @param arena *u8 — opaque AST arena
+ * @param block_ref i32 — dest block
+ * @param pool *u8 — OneFunc sidecar pool (C trampoline extracted)
+ * @param src_i i32 — const index
+ * @param type_ref i32 — fallback decl type when sidecar type is 0
+ * @param name_scratch *u8 — C-owned name[256]
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6f B-minus.
+ */
+function parser_asm_block_append_one_const_x(arena: *u8, block_ref: i32, pool: *u8, src_i: i32, type_ref: i32, name_scratch: *u8): i32 {
+  let const_decl_ty: i32 = 0;
+  let cinit_ref: i32 = 0;
+  let nlen: i32 = 0;
+  let sc_ty: i32 = 0;
+  if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
+    return 0;
+  }
+  const_decl_ty = type_ref;
+  sc_ty = pipeline_onefunc_const_type_ref(pool, src_i);
+  if (sc_ty != 0) {
+    const_decl_ty = sc_ty;
+  }
+  cinit_ref = pipeline_onefunc_const_init_ref(pool, src_i);
+  if (cinit_ref == 0) {
+    cinit_ref = parser_asm_block_lit_init_ref_x(arena, pipeline_onefunc_const_init_val(pool, src_i));
+    if (cinit_ref == 0) {
+      return 0;
+    }
+  }
+  nlen = pipeline_onefunc_const_name_len(pool, src_i);
+  pipeline_onefunc_const_name_copy64(pool, src_i, name_scratch);
+  if (pipeline_block_append_const(arena, block_ref, name_scratch, nlen, const_decl_ty, cinit_ref) < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Copy one OneFunc let sidecar entry onto the block.
+ * init_ref==-1: no initializer (do not synthesize LIT 0).
+ * init_ref==0: synthesize EXPR_LIT from let_init_val (C twin).
+ * @param arena *u8 — opaque AST arena
+ * @param block_ref i32 — dest block
+ * @param pool *u8 — OneFunc sidecar pool
+ * @param src_i i32 — let index
+ * @param type_ref i32 — fallback decl type when sidecar type is 0
+ * @param name_scratch *u8 — C-owned name[256]
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6f B-minus.
+ */
+function parser_asm_block_append_one_let_x(arena: *u8, block_ref: i32, pool: *u8, src_i: i32, type_ref: i32, name_scratch: *u8): i32 {
+  let let_decl_ty: i32 = 0;
+  let init_ref: i32 = 0;
+  let nlen: i32 = 0;
+  let sc_ty: i32 = 0;
+  if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
+    return 0;
+  }
+  let_decl_ty = type_ref;
+  sc_ty = pipeline_onefunc_let_type_ref(pool, src_i);
+  if (sc_ty != 0) {
+    let_decl_ty = sc_ty;
+  }
+  init_ref = pipeline_onefunc_let_init_ref(pool, src_i);
+  if (init_ref == -1) {
+    init_ref = 0;
+  } else {
+    if (init_ref == 0) {
+      init_ref = parser_asm_block_lit_init_ref_x(arena, pipeline_onefunc_let_init_val(pool, src_i));
+      if (init_ref == 0) {
+        return 0;
+      }
+    }
+  }
+  nlen = pipeline_onefunc_let_name_len(pool, src_i);
+  pipeline_onefunc_let_name_copy64(pool, src_i, name_scratch);
+  if (pipeline_block_append_let(arena, block_ref, name_scratch, nlen, let_decl_ty, init_ref) < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Fill block const/let decls from a OneFunc sidecar pool (all consts,
+ * then all lets). C trampoline extracts the pool from onefunc_result
+ * and writes res->num_consts / num_lets after success.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param block_ref i32 — dest block
+ * @param pool *u8 — OneFunc sidecar pool pointer
+ * @param type_ref i32 — fallback decl type
+ * @param name_scratch *u8 — C-owned name[256]
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6f B-minus. Do not dest-buffer
+ * parse_one_function. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_fill_block_const_let_from_res_x_into_c(arena: *u8, block_ref: i32, pool: *u8, type_ref: i32, name_scratch: *u8): i32 {
+  let const_i: i32 = 0;
+  let nc: i32 = 0;
+  let let_i: i32 = 0;
+  let nl: i32 = 0;
+  if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
+    return 0;
+  }
+  nc = pipeline_onefunc_num_consts(pool);
+  while (const_i < nc) {
+    if (parser_asm_block_append_one_const_x(arena, block_ref, pool, const_i, type_ref, name_scratch) == 0) {
+      return 0;
+    }
+    const_i = const_i + 1;
+  }
+  nl = pipeline_onefunc_num_lets(pool);
+  while (let_i < nl) {
+    if (parser_asm_block_append_one_let_x(arena, block_ref, pool, let_i, type_ref, name_scratch) == 0) {
+      return 0;
+    }
+    let_i = let_i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Append res consts (always from 0) then lets from let_base onto the
+ * block. Mid-body TOKEN_CONST reuses this face. C trampoline extracts
+ * the pool and writes res->num_consts / num_lets after success.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param block_ref i32 — dest block
+ * @param pool *u8 — OneFunc sidecar pool pointer
+ * @param let_base i32 — first let index to copy (consts always from 0)
+ * @param type_ref i32 — fallback decl type
+ * @param name_scratch *u8 — C-owned name[256]
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6f B-minus.
+ */
+#[no_mangle]
+export function parser_asm_append_block_lets_from_res_x_into_c(arena: *u8, block_ref: i32, pool: *u8, let_base: i32, type_ref: i32, name_scratch: *u8): i32 {
+  let src_i: i32 = 0;
+  let nc: i32 = 0;
+  let nl: i32 = 0;
+  if (arena == 0 as *u8 || pool == 0 as *u8 || name_scratch == 0 as *u8) {
+    return 0;
+  }
+  nc = pipeline_onefunc_num_consts(pool);
+  while (src_i < nc) {
+    if (parser_asm_block_append_one_const_x(arena, block_ref, pool, src_i, type_ref, name_scratch) == 0) {
+      return 0;
+    }
+    src_i = src_i + 1;
+  }
+  src_i = let_base;
+  nl = pipeline_onefunc_num_lets(pool);
+  while (src_i < nl) {
+    if (parser_asm_block_append_one_let_x(arena, block_ref, pool, src_i, type_ref, name_scratch) == 0) {
+      return 0;
+    }
+    src_i = src_i + 1;
+  }
+  return 1;
 }

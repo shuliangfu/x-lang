@@ -1,8 +1,15 @@
 /**
  * parser_asm_block_from_res_slice.inc — fill_block_const_let_from_res / append_block_lets_from_res C 实现。
  *
- * 由 parser_asm_thin_c.c #include；勿单独编译。
- * OneFunc 侧车池 → block const/let 声明；Expr 按值初始化勿 X emit（曾 elf_ec=-1 / code 缓冲触顶）。
+ * 由 parser_asm_thin_c.c / pthin_fn_block.from_x.c #include；勿单独编译。
+ * OneFunc 侧车池 → block const/let 声明。
+ *
+ * Hybrid P6f: XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X skips the
+ * fill/append C twins (dest-buffer in src/asm/pthin_fn_block.x).
+ * C trampoline holds name[256], extracts the sidecar pool, and writes
+ * res->num_consts / num_lets. Independent sibling after PARSE_LAYOUT
+ * so a missing fill_x keeps this C twin without dropping P6e.
+ * Cold: no define, full twin. Do not dest-buffer parse_one_function.
  */
 #ifndef PARSER_ASM_BLOCK_FROM_RES_SLICE_INCLUDED
 #define PARSER_ASM_BLOCK_FROM_RES_SLICE_INCLUDED
@@ -29,6 +36,53 @@ extern int32_t pipeline_block_append_let(void *a, int32_t br, uint8_t *name, int
 extern uint8_t *parser_asm_onefunc_result_pool_ptr_c(struct parser_asm_onefunc_result *res);
 extern int32_t parser_asm_stretch_block_bind_name_audit_c(const uint8_t *name, int32_t name_len);
 
+#ifdef XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X
+extern int32_t parser_asm_fill_block_const_let_from_res_x_into_c(void *arena, int32_t block_ref, uint8_t *pool,
+                                                                int32_t type_ref, uint8_t *name_scratch);
+extern int32_t parser_asm_append_block_lets_from_res_x_into_c(void *arena, int32_t block_ref, uint8_t *pool,
+                                                             int32_t let_base, int32_t type_ref, uint8_t *name_scratch);
+/**
+ * PLATFORM: SHARED — P6f trampoline. Language has no local u8[N] and
+ * no onefunc_result by-value; this C face holds name[256], extracts
+ * the sidecar pool, and writes res->num_consts / num_lets. AUDIT_CALL
+ * is a product nop; keep it here so the cold twin still has the hook.
+ */
+int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_ref, struct parser_asm_onefunc_result *res,
+                                                   int32_t type_ref) {
+  uint8_t name[256];
+  uint8_t *pool;
+  if (!arena || !res)
+    return 0;
+  pool = parser_asm_onefunc_result_pool_ptr_c(res);
+  if (!pool)
+    return 0;
+  memset(name, 0, sizeof(name));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_bind_name_audit_c(name, 0));
+  if (parser_asm_fill_block_const_let_from_res_x_into_c(arena, block_ref, pool, type_ref, name) == 0)
+    return 0;
+  res->num_consts = pipeline_onefunc_num_consts(pool);
+  res->num_lets = pipeline_onefunc_num_lets(pool);
+  return 1;
+}
+
+int32_t parser_asm_append_block_lets_from_res_c(void *arena, int32_t block_ref, struct parser_asm_onefunc_result *res,
+                                                int32_t let_base, int32_t type_ref) {
+  uint8_t name[256];
+  uint8_t *pool;
+  if (!arena || !res)
+    return 0;
+  pool = parser_asm_onefunc_result_pool_ptr_c(res);
+  if (!pool)
+    return 0;
+  memset(name, 0, sizeof(name));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_bind_name_audit_c(name, 0));
+  if (parser_asm_append_block_lets_from_res_x_into_c(arena, block_ref, pool, let_base, type_ref, name) == 0)
+    return 0;
+  res->num_consts = pipeline_onefunc_num_consts(pool);
+  res->num_lets = pipeline_onefunc_num_lets(pool);
+  return 1;
+}
+#else
 /** expr_set_common_zeros：与 parser.x / parser_asm_thin_c.c 字段清零顺序一致。 */
 static void parser_asm_block_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
@@ -214,5 +268,6 @@ int32_t parser_asm_append_block_lets_from_res_c(void *arena, int32_t block_ref, 
   res->num_lets = nl;
   return 1;
 }
+#endif /* XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X */
 
 #endif /* PARSER_ASM_BLOCK_FROM_RES_SLICE_INCLUDED */
