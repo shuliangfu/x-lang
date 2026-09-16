@@ -1,6 +1,9 @@
 /*
  * Thin pure: wave220–221 emit arm-depth + emit_ctx BSS + host_is_arm64.
  * G.7: bodies match mega runtime_pipeline_abi.x wave220/221 leave.
+ * wave222 module/dep_pipe lives in runtime_pipeline_abi_emit_ctx_module_dep_thin.c
+ * (Darwin cannot re-merge grown named-BSS C thins over an already-ingested prior
+ * revision — Apple ld -r rejects data dups even after weaken).
  *
  * Why C (not .x pure-asm):
  *   1) file-level `let x: i32 = -1` emits no BSS under pure-asm (probe);

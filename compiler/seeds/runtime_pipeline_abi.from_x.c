@@ -40697,7 +40697,7 @@ int32_t pipeline_asm_host_is_arm64_c(void) {
 }
 /* XLANG_PABI_EMIT_CTX_BSS_THIN_END */
 
-
+/* XLANG_PABI_EMIT_CTX_MODULE_DEP_THIN_BEGIN */
 /*
  * wave222 cold twins: emit_ctx module + dep_pipe BSS (G.7 pure leave).
  * Working freestanding BSS twins of pure g_pipeline_asm_emit_module / dep_pipe.
@@ -40720,6 +40720,7 @@ void *pipeline_asm_emit_ctx_dep_pipe_get(void) {
 void pipeline_asm_emit_ctx_dep_pipe_set(void *ctx) {
   g_wave222_emit_dep_pipe = ctx;
 }
+/* XLANG_PABI_EMIT_CTX_MODULE_DEP_THIN_END */
 
 #endif /* close wave178 FROM_X for leftover-PE sret BSS cluster */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE sret BSS cluster */
