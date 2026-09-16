@@ -1,5 +1,6 @@
 # CORE-006 iterator manifest
 # 列：item_id	kind	anchor	notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/; refuse top-level DOC resurrect.
 min_next_apis	2
 iter_i32	symbol	iter_i32	core/iterator/mod.x
 iter_u8	symbol	iter_u8	core/iterator/mod.x
@@ -10,5 +11,5 @@ struct_iter_u8	symbol	SliceIter_u8	core/iterator/mod.x
 iter_remaining_i32	symbol	iter_remaining_i32	core/iterator/mod.x
 test_smoke	file	tests/iterator/main.x	烟测
 cookbook	file	examples/cookbook/iter_slice_sum.x	ITER-01
-doc	file	core-iterator-protocol-v1.md	analysis/core-iterator-protocol-v1.md	RFC
+doc	file	core-iterator-protocol-v1.md	analysis/archive/core/core-iterator-protocol-v1.md	RFC
 gate	script	run-core-iterator-protocol-gate.sh	tests/run-core-iterator-protocol-gate.sh	manifest

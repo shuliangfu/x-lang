@@ -1,10 +1,21 @@
 /**
  * parser_asm_lex_skip_slice.inc — P1 lex/skip pure helpers (G-02f-281).
  * Included by parser_asm_thin_c.from_x.c or pthin_lex_skip.from_x.c.
+ *
+ * Hybrid P1b/P1c/P1d/P1e/P1f: XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X skips the portable
+ * kind/copy/skip-walk region and the count walk (bodies in
+ * src/asm/pthin_lex_skip.x + by-value trampolines in the seed TU).
+ * P1d ASI and P1e peek-name / first_token C twins live in helpers.inc
+ * (trampoline there). P1f copy_token_bytes buf-path lives here; the
+ * historical slice name stays a trampoline in imports.inc.
+ * g_gp_pending_* statics + register_pending stay here.
+ * Cold: no define, this file is the full twin. Do not reuse
+ * XLANG_PTHIN_LEX_SKIP_FROM_X for P1b/P1c/P1d/P1e/P1f bodies.
  */
 #ifndef PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 #define PARSER_ASM_LEX_SKIP_SLICE_INCLUDED
 
+#ifndef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
 /* extracted lines 3873-3963 */
 void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r) {
   if (!out)
@@ -56,15 +67,15 @@ void parser_asm_copy_slice_to_name64_at_end_buf_c(uint8_t *source, int32_t sourc
 
 /**
  * copy_slice_to_param32 (slice path).
- * wave585 Cap residual: ABI name *param32; payload row 32→128 (content ≤127).
- * Callers must pass dst of at least 128 bytes. PLATFORM: SHARED
+ * Cap 4.2.8: ABI name *param32; payload row 32→128→256 (content ≤255).
+ * Callers must pass dst of at least 256 bytes. PLATFORM: SHARED
  */
 void parser_asm_copy_slice_to_param32_slice_c(struct parser_asm_slice_u8 *source, size_t start, int32_t nlen,
                                               uint8_t *out) {
   int32_t i;
   if (!out)
     return;
-  for (i = 0; i < 128; i++) {
+  for (i = 0; i < 256; i++) {
     if (i < nlen && source && source->data && start + (size_t)i < source->length)
       out[i] = source->data[start + (size_t)i];
     else
@@ -74,14 +85,14 @@ void parser_asm_copy_slice_to_param32_slice_c(struct parser_asm_slice_u8 *source
 
 /**
  * copy_slice_to_param32_buf (buf path).
- * wave585 Cap residual: fill 128-byte row. PLATFORM: SHARED
+ * Cap 4.2.8: fill 256-byte row. PLATFORM: SHARED
  */
 void parser_asm_copy_slice_to_param32_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
                                             uint8_t *out) {
   int32_t i;
   if (!out)
     return;
-  for (i = 0; i < 128; i++) {
+  for (i = 0; i < 256; i++) {
     if (i < nlen && source && start + (size_t)i < (size_t)source_len)
       out[i] = source[start + (size_t)i];
     else
@@ -105,15 +116,34 @@ void parser_asm_copy_slice_to_param32_at_end_buf_c(uint8_t *source, int32_t sour
   parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - (size_t)nlen, nlen, out);
 }
 
+/**
+ * copy_token_bytes buf path: fill a 128-byte row (zero-pad remainder).
+ * Historical slice name parser_asm_copy_token_bytes_to_buf64 unwraps to
+ * this. Width is 128 (wave584 bind scratch); the "64" suffix is stable.
+ * PLATFORM: SHARED — P1f copy-family sibling of param32 (256).
+ */
+void parser_asm_copy_token_bytes_to_buf64_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
+                                                uint8_t *out) {
+  int32_t i;
+  if (!out)
+    return;
+  for (i = 0; i < 128; i++) {
+    if (i < nlen && source && start + (size_t)i < (size_t)source_len)
+      out[i] = source[start + (size_t)i];
+    else
+      out[i] = 0;
+  }
+}
+
 /* extracted lines 4320-4447 */
 /**
  * skip_balanced_parens_buf：从已消费 '(' 的 lex 起跳过匹配括号，返回 ')' 之后的 lex。
  */
 struct parser_asm_lexer parser_asm_skip_balanced_parens_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len) {
   int32_t depth = 1;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_parens_depth_probe_buf_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_parens_depth_probe_buf_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(&lex, data, len));
   while (depth > 0) {
     struct parser_asm_lexer_result r = lexer_next_buf(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LPAREN)
@@ -156,9 +186,9 @@ void parser_asm_skip_balanced_parens_into_slice_c(struct parser_asm_lexer *out, 
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_parens_depth_probe_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_parens_depth_probe_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(&lex, source));
   while (depth > 0) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_LPAREN)
@@ -200,9 +230,9 @@ struct parser_asm_lexer parser_asm_skip_balanced_parens_slice_c(struct parser_as
  */
 struct parser_asm_lexer parser_asm_skip_balanced_braces_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len) {
   int32_t depth = 1;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_braces_depth_probe_buf_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(lex, data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_braces_depth_probe_buf_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(&lex, data, len));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(&lex, data, len));
   while (depth > 0) {
     struct parser_asm_lexer_result r = lexer_next_buf(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LBRACE)
@@ -312,6 +342,12 @@ void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *ou
     lex = r.next_lex;
   }
 }
+#endif /* !XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X */
+
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+/* Hybrid P1b: stmt-boundary authority is pthin_lex_skip.x (was static here). */
+extern int32_t parser_asm_angle_list_token_is_stmt_boundary_c(int32_t k);
+#endif
 
 /**
  * Same as skip_generic_angle_list_into, also counts top-level type args.
@@ -330,6 +366,36 @@ static uint8_t g_gp_pending_names[XLANG_GP_PENDING_MAX][64];
 static int32_t g_gp_pending_lens[XLANG_GP_PENDING_MAX];
 static int32_t g_gp_pending_n;
 
+#ifdef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
+extern int32_t parser_asm_skip_generic_angle_list_count_into_c(void *lex_inout, void *source, int32_t *count,
+                                                              uint8_t *names, int32_t *lenses, int32_t *pending_n);
+
+void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
+                                                           struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  int32_t cnt = 0;
+  int32_t pn = 0;
+  int32_t lenses[XLANG_GP_PENDING_MAX];
+  uint8_t names[XLANG_GP_PENDING_MAX][64];
+  int32_t i;
+  if (!out || !count || !source)
+    return;
+  cur = lex;
+  memset(lenses, 0, sizeof(lenses));
+  memset(names, 0, sizeof(names));
+  (void)parser_asm_skip_generic_angle_list_count_into_c(&cur, source, &cnt, (uint8_t *)names, lenses, &pn);
+  *out = cur;
+  *count = cnt;
+  g_gp_pending_n = pn < 0 ? 0 : (pn > XLANG_GP_PENDING_MAX ? XLANG_GP_PENDING_MAX : pn);
+  memset(g_gp_pending_lens, 0, sizeof(g_gp_pending_lens));
+  memset(g_gp_pending_names, 0, sizeof(g_gp_pending_names));
+  for (i = 0; i < g_gp_pending_n; i++) {
+    g_gp_pending_lens[i] = lenses[i];
+    memcpy(g_gp_pending_names[i], names[i], 64);
+  }
+}
+#else
 void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
                                                            struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source) {
@@ -404,6 +470,7 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
     lex = r.next_lex;
   }
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X count walk */
 
 /**
  * wave455: register pending type-param names under a function name into the
@@ -413,6 +480,19 @@ void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lex
  * @return number of names registered, or -1 on full/overflow
  * PLATFORM: SHARED — twin of scan-time capture in skip_tl.
  */
+#ifdef XLANG_PTHIN_LEX_SKIP_PENDING_FROM_X
+/* PLATFORM: SHARED — P1g trampoline. Language has no file-local statics;
+ * .x does null/empty guards then calls register_type_params_c. */
+extern int32_t xlang_generic_func_register_pending_type_params_x_into_c(const uint8_t *fn_name,
+                                                                       int32_t fn_name_len,
+                                                                       const uint8_t *names,
+                                                                       const int32_t *lens,
+                                                                       int32_t pending_n);
+int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len) {
+  return xlang_generic_func_register_pending_type_params_x_into_c(
+      fn_name, fn_name_len, (const uint8_t *)g_gp_pending_names, g_gp_pending_lens, g_gp_pending_n);
+}
+#else
 int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name, int32_t fn_name_len) {
   extern int32_t xlang_generic_func_register_type_params_c(const uint8_t *fn_name, int32_t fn_name_len,
                                                             const uint8_t names[][64], const int32_t *lens,
@@ -422,6 +502,7 @@ int32_t xlang_generic_func_register_pending_type_params_c(const uint8_t *fn_name
   return xlang_generic_func_register_type_params_c(fn_name, fn_name_len, g_gp_pending_names,
                                                      g_gp_pending_lens, g_gp_pending_n);
 }
+#endif /* XLANG_PTHIN_LEX_SKIP_PENDING_FROM_X */
 
 /** buf 路径：跳过 `<...>` 泛型列表。 */
 void parser_skip_generic_angle_list_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
@@ -473,6 +554,7 @@ void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer *out, struct le
   out->col = aout.col;
 }
 
+#ifndef XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X
 /* extracted lines 4627-4673 */
 /**
  * skip_balanced_braces_into（u8[] slice 路径）：结果写入 *out。
@@ -483,9 +565,9 @@ void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer *out, 
   struct parser_asm_lexer_result r;
   if (!out || !source)
     return;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_braces_depth_probe_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_braces_depth_probe_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_audit_c(&lex, source));
   while (depth > 0) {
     lexer_next_into(&r, lex, source);
     if (r.tok.kind == (int32_t)TOKEN_LBRACE)
@@ -550,5 +632,6 @@ int32_t parser_asm_is_pointee_type_token_c(int32_t kind) {
     return 1;
   return 0;
 }
+#endif /* !XLANG_PTHIN_LEX_SKIP_BODIES_FROM_X */
 
 #endif /* PARSER_ASM_LEX_SKIP_SLICE_INCLUDED */

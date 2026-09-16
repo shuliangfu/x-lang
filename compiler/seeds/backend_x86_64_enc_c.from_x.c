@@ -314,7 +314,8 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
  * Hoist of emit_code_len before pad → multi-func SEGV (overload.x). */
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
-  uint8_t mn[128];
+  /* Cap 4.2.8: mn[256] holds '_' + up to 255 content (was [128] with k<255 smash). */
+  uint8_t mn[256];
   int32_t k;
   int32_t code_len;
   if (!elf_ctx || !name || name_len < 0) return -1;
@@ -325,12 +326,12 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
   code_len = pipeline_elf_ctx_emit_code_len(cb);
   if (pipeline_elf_ctx_add_label(cb, name, name_len, code_len) != 0) return -1;
   if (is_func == 0) return 0;
-  /* wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
+  /* Cap 4.2.8: mn u8[256] holds '_' + up to 255 content (was wave580 [128]).
    * PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
     mn[0] = 95;
     k = 0;
-    while (k < name_len && k < 127) { mn[k + 1] = name[k]; k = k + 1; }
+    while (k < name_len && k < 255) { mn[k + 1] = name[k]; k = k + 1; }
     return pipeline_elf_ctx_add_sym(cb, mn, name_len + 1, pipeline_elf_ctx_emit_code_len(cb));
   }
   return pipeline_elf_ctx_add_sym(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb));
@@ -358,9 +359,10 @@ int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_c
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_and_rbx_rax */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_and_rbx_rax.
+ * REX.W andq %rbx,%rax — 32-bit andl wiped usize/ptr high 32. */
 int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {33, 216};
+  static const uint8_t ins[] = {72, 33, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -368,9 +370,11 @@ int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_c
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_or_rbx_rax */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_or_rbx_rax.
+ * REX.W orq %rbx,%rax — 32-bit orl truncated g02f_load_ptr_at (Ubuntu SIGSEGV).
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. Twin of ARM64 ELF orr x0,x0,x1. */
 int32_t arch_x86_64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {9, 216};
+  static const uint8_t ins[] = {72, 9, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -378,9 +382,10 @@ int32_t arch_x86_64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ct
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_rbx_rax */
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_rbx_rax.
+ * REX.W xorq %rbx,%rax — same high-32 wipe as AND/OR. */
 int32_t arch_x86_64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {49, 216};
+  static const uint8_t ins[] = {72, 49, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -871,9 +876,335 @@ int32_t arch_x86_64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *
   else if (cc == 3) op = 158;
   else if (cc == 4) op = 159;
   else if (cc == 5) op = 157;
+  else if (cc == 6) op = 146; /* SETB */
+  else if (cc == 7) op = 150; /* SETBE */
+  else if (cc == 8) op = 151; /* SETA */
+  else if (cc == 9) op = 147; /* SETAE */
   s[0] = 15; s[1] = op; s[2] = 192;
   if (x86_enc_bytes(elf_ctx, s, 3) != 0) return -1;
   return x86_enc_bytes(elf_ctx, m, 3);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* Stage 10 S3.1 slice 2 (10.1.1): syscall (0F 05). Twin of
+ * arch_x86_64_enc_enc_syscall in backend_x86_64_enc_c.x.
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code. */
+int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 5);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: movl (%rax), %eax (8B 00). Twin of backend_x86_64_enc_c.x. */
+int32_t arch_x86_64_enc_enc_movl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 0);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: movl (%rcx), %eax (8B 01) — *expected while ptr lives elsewhere. */
+int32_t arch_x86_64_enc_enc_movl_mem_rcx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 1);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: xchg %edx, (%rax) (87 10). */
+int32_t arch_x86_64_enc_enc_xchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 135) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 16);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: mov %rax, %rcx (48 89 C1). */
+int32_t arch_x86_64_enc_enc_mov_rax_to_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 193);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: movl %eax, (%rcx) (89 01). */
+int32_t arch_x86_64_enc_enc_movl_eax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 1);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: lock cmpxchg %edx, (%rax) (F0 0F B1 10) — kept for completeness. */
+int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 16);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: lock cmpxchg %edx, (%rbx) (F0 0F B1 13) — ptr≠rax so eax keeps expected. */
+int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 19);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: sete %al (0F 94 C0). */
+int32_t arch_x86_64_enc_enc_sete_al(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 148) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 192);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: movzbl %al, %eax (0F B6 C0). */
+int32_t arch_x86_64_enc_enc_movzbl_al_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 182) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 192);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice1: mov %eax, %edx (89 C2). */
+int32_t arch_x86_64_enc_enc_mov_eax_to_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 194);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice2: movq (%rax), %rax (48 8B 00). */
+int32_t arch_x86_64_enc_enc_movq_mem_rax_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 0);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice2: xchg %rdx, (%rax) (48 87 10). */
+int32_t arch_x86_64_enc_enc_xchg_rdx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 135) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 16);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice2: mov %rax, %rdx (48 89 C2). */
+int32_t arch_x86_64_enc_enc_mov_rax_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 194);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice2: movq (%rcx), %rax (48 8B 01). */
+int32_t arch_x86_64_enc_enc_movq_mem_rcx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 1);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice2: movq %rax, (%rcx) (48 89 01). */
+int32_t arch_x86_64_enc_enc_movq_rax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 1);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice2: lock cmpxchg %rdx, (%rbx) (F0 48 0F B1 13). */
+int32_t arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 19);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.2: mfence (0F AE F0). */
+int32_t arch_x86_64_enc_enc_mfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 240);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.2: lfence (0F AE E8). */
+int32_t arch_x86_64_enc_enc_lfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 232);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.2: sfence (0F AE F8). */
+int32_t arch_x86_64_enc_enc_sfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 248);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice3: movzwl (%rax), %eax (0F B7 00). */
+int32_t arch_x86_64_enc_enc_movzwl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 183) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 0);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice3: xchg %dx, (%rax) (66 87 10). */
+int32_t arch_x86_64_enc_enc_xchg_dx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 135) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 16);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice3: mov %ax, %dx (66 89 C2). */
+int32_t arch_x86_64_enc_enc_mov_ax_to_dx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 194);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice3: movzwl (%rcx), %eax (0F B7 01). */
+int32_t arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 183) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 1);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice3: movw %ax, (%rcx) (66 89 01). */
+int32_t arch_x86_64_enc_enc_movw_ax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 1);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* 10.4.1 slice3: lock cmpxchg %dx, (%rbx) (F0 66 0F B1 13). */
+int32_t arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 19);
+}
+#endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
+
+#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
+/* Stage 10 S3.1 slice 2 (10.1.1): mov %rax, %r10 (49 89 C2). Twin of
+ * arch_x86_64_enc_enc_mov_rax_to_r10 in backend_x86_64_enc_c.x. r10 has no
+ * C-ABI mov_rax_to_arg_reg k slot (G.7; do not fork a second register map).
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code. */
+int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 73) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/* Stage10 10.2.1 slice7: mov %r10, %rax (4C 89 D0). Twin of
+ * arch_x86_64_enc_enc_mov_r10_to_rax in backend_x86_64_enc_c.x.
+ * PLATFORM: LINUX|x86_64; SHARED emit. */
+int32_t arch_x86_64_enc_enc_mov_r10_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 76) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 208);
+}
+
+/* Stage10 10.2.3: mov %rax, %r11 (49 89 C3). Twin of
+ * arch_x86_64_enc_enc_mov_rax_to_r11 in backend_x86_64_enc_c.x.
+ * PLATFORM: SHARED. */
+int32_t arch_x86_64_enc_enc_mov_rax_to_r11(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 73) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 195);
+}
+
+/* Stage10 10.2.3: mov %r11, %rax (4C 89 D8). Twin of
+ * arch_x86_64_enc_enc_mov_r11_to_rax in backend_x86_64_enc_c.x.
+ * PLATFORM: SHARED. */
+int32_t arch_x86_64_enc_enc_mov_r11_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 76) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 216);
+}
+
+/* Stage10 10.2.3: pause (F3 90). Twin of
+ * arch_x86_64_enc_enc_pause in backend_x86_64_enc_c.x.
+ * PLATFORM: SHARED. */
+int32_t arch_x86_64_enc_enc_pause(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  if (x86_enc_u8(elf_ctx, 243) != 0) return -1;
+  return x86_enc_u8(elf_ctx, 144);
+}
+
+/* Stage10 10.2.3: int3 (CC). Twin of
+ * arch_x86_64_enc_enc_int3 in backend_x86_64_enc_c.x.
+ * PLATFORM: SHARED. */
+int32_t arch_x86_64_enc_enc_int3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  if (!elf_ctx) return -1;
+  return x86_enc_u8(elf_ctx, 204);
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
@@ -1203,13 +1534,13 @@ int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   if (x86_enc_u8(elf_ctx, 232) != 0) return -1;
   if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
   rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  /* wave580 Cap: rn u8[128] holds '_' + up to 127 content (was 63).
+  /* wave580 Cap: rn u8[128] holds '_' + up to 255 content (was 63).
    * PLATFORM: MACOS|DARWIN x86_64 call reloc.
    * Stage 12.0.5 ABI: always prepend '_' even when C name starts with '_'
    * (__error → ___error). Do not skip on name[0]=='_'. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 127) {
+  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255) {
     rn[0] = 95; k = 0;
-    while (k < name_len && k < 127) { rn[k + 1] = name[k]; k = k + 1; }
+    while (k < name_len && k < 255) { rn[k + 1] = name[k]; k = k + 1; }
     return pipeline_elf_ctx_append_reloc(cb, rel32_at, rn, name_len + 1);
   }
   return pipeline_elf_ctx_append_reloc(cb, rel32_at, name, name_len);

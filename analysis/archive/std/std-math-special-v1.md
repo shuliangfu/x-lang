@@ -39,9 +39,10 @@
 
 ---
 
-## 4. 验证与门禁
+## Gate
 
 ```bash
-make -C compiler ../std/math/math.o
 ./tests/run-std-math-special-gate.sh
 ```
+
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `math.o`＋`runtime_math_libm.o`＋`runtime_process_argv.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。

@@ -1,22 +1,51 @@
 #!/usr/bin/env bash
-# X PARSE_BOOTSTRAP_EMIT 二分门禁：MINIMAL 白名单应可编；全量仍 139（根因在 parse_into_buf/parse_into mega emit）。
-# 用法：
-#   ./tests/run-parser-parse-bootstrap-bisect-gate.sh
-#   XLANG_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
+# X PARSE_BOOTSTRAP_EMIT bisect honesty gate.
+#
+# Honesty: soft XLANG_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL retired —
+# MINIMAL whitelist failures soft die→exit0 were portable false-green.
+# MINIMAL is hard on Linux; FULL mega parse_into_buf X emit remains
+# observational (known fail / stub) — not a mega promote knife.
+#
+# Report: minimal=/full_obs=/skip=
+# PLATFORM: LINUX gold · DARWIN N/A (honest skip).
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL:-0}
+DOC="analysis/archive/phase/phase-parser-soft-fail0-honesty.md"
+PREFIX="xlang: [XLANG_PARSER_PARSE_BOOTSTRAP_BISECT]"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
+MINIMAL_OK=0
+FULL_OBS=0
+SKIP=1
+
+die() {
+  echo "parser-parse-bootstrap-bisect-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail minimal=${MINIMAL_OK:-0} full_obs=${FULL_OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+report_ok() {
+  echo "${PREFIX} status=ok minimal=${MINIMAL_OK:-0} full_obs=${FULL_OBS:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+}
+
+[ -f "$DOC" ] || die "missing $DOC"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate honesty section"
+
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  echo "parser-parse-bootstrap-bisect-gate: N/A on Darwin"
+  SKIP=1
+  echo "parser-parse-bootstrap-bisect-gate: N/A on Darwin (Linux covers bisect)"
+  report_ok
   exit 0
 fi
+
 
 XLANG_SEED="compiler/xlang"
 if [ ! -x "$XLANG_SEED" ]; then
   echo "parser-parse-bootstrap-bisect-gate: SKIP (no $XLANG_SEED)"
+  report_ok
   exit 0
 fi
 
@@ -59,12 +88,8 @@ probe_bootstrap() {
     nm -g --defined-only "$out" 2>/dev/null | grep -qE '[[:space:]]parse_into_init$' && has_init=1
     buf_sz=$(symbol_text_size parse_into_buf "$out")
   fi
-  rm -f "$out" 2>/dev/null || true
+  rm -f "$out" "$log" 2>/dev/null || true
   echo "$ec $has_o $has_init $buf_sz"
-  if [ "$FAIL" = "1" ] && [ -s "$log" ]; then
-    tail -n 6 "$log" 2>/dev/null || true
-  fi
-  rm -f "$log" 2>/dev/null || true
 }
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -72,27 +97,27 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 echo "parser-parse-bootstrap-bisect-gate: MINIMAL whitelist (parse_into_init + set_main_index) ..."
 read -r MIN_EC MIN_O MIN_INIT MIN_BUF_SZ <<<"$(probe_bootstrap minimal)"
 if [ "$MIN_EC" -ne 0 ] || [ "$MIN_O" != "1" ] || [ "$MIN_INIT" != "1" ]; then
-  echo "parser-parse-bootstrap-bisect-gate FAIL: MINIMAL expected OK (ec=$MIN_EC has_o=$MIN_O has_init=$MIN_INIT)" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "MINIMAL expected OK (ec=$MIN_EC has_o=$MIN_O has_init=$MIN_INIT)"
 fi
 if [ "$MIN_BUF_SZ" -gt 128 ]; then
-  echo "parser-parse-bootstrap-bisect-gate FAIL: MINIMAL parse_into_buf text=${MIN_BUF_SZ}B (mega emit leaked)" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "MINIMAL parse_into_buf text=${MIN_BUF_SZ}B (mega emit leaked)"
 fi
+MINIMAL_OK=1
 echo "parser-parse-bootstrap-bisect-gate: MINIMAL PASS (ec=$MIN_EC parse_into_buf_stub=${MIN_BUF_SZ}B)"
 
-echo "parser-parse-bootstrap-bisect-gate: FULL bootstrap (expect 139 / no mega parse_into_buf emit) ..."
+echo "parser-parse-bootstrap-bisect-gate: FULL bootstrap (observational; expect known fail / no mega emit) ..."
 read -r FULL_EC FULL_O FULL_INIT FULL_BUF_SZ <<<"$(probe_bootstrap full)"
 if [ "$FULL_EC" -eq 0 ] && [ "$FULL_BUF_SZ" -gt 4096 ]; then
-  echo "parser-parse-bootstrap-bisect-gate FAIL: FULL unexpectedly emitted parse_into_buf (${FULL_BUF_SZ}B)" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "FULL unexpectedly emitted parse_into_buf (${FULL_BUF_SZ}B) — not a soft track"
 fi
+# Known fail / stub path is observational OK (mega product still deferred).
+FULL_OBS=1
 if [ "$FULL_EC" -eq 139 ] || [ "$FULL_EC" -eq 134 ] || [ "$FULL_EC" -ne 0 ]; then
-  echo "parser-parse-bootstrap-bisect-gate: FULL PASS (known fail ec=$FULL_EC; root cause: mega parse_into* X emit)"
+  echo "parser-parse-bootstrap-bisect-gate: FULL OBS (known fail ec=$FULL_EC; root cause: mega parse_into* X emit)"
 else
-  echo "parser-parse-bootstrap-bisect-gate: FULL PASS (ec=$FULL_EC has_o=$FULL_O; use C TU for production)"
+  echo "parser-parse-bootstrap-bisect-gate: FULL OBS (ec=$FULL_EC has_o=$FULL_O; use C TU for production)"
 fi
+
+SKIP=0
+report_ok
 exit 0

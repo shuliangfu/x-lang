@@ -23,47 +23,98 @@
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
 #endif
+#include <xlang_io_cap.h>
+#include <xlang_proc_cap.h>
+
+#include <xlang_fmt_cap.h> /* Cap residual 9.5.3: JSON debug print via Cap snprintf */
+#include <string.h>
+/* G.7: Cap after stdio — debug print cluster must not reach libc printf/putchar/fputs. */
+#undef snprintf
+#define snprintf xlang_snprintf
+
+/*
+ * Cap residual 9.5.3: debug print via Cap IO face — libc printf/putchar/fputs
+ * replaced by xlang_io_write on fd 1 (stdout) + xlang_snprintf
+ * (G.7 single authorities: xlang_io_cap.h / xlang_fmt_cap.h).
+ * PLATFORM: SHARED.
+ */
+static void io_cap_putc(int c) {
+  char ch = (char)c;
+  (void)xlang_io_write(1, &ch, 1);
+}
+static void io_cap_puts(const char *s) {
+  if (s)
+    (void)xlang_io_write(1, s, strlen(s));
+}
+static void io_cap_print_i32(int32_t v) {
+  char b[16];
+  int n = snprintf(b, sizeof b, "%d", (int)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_println_i32(int32_t v) {
+  char b[16];
+  int n = snprintf(b, sizeof b, "%d\n", (int)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_print_u32(uint32_t v) {
+  char b[16];
+  int n = snprintf(b, sizeof b, "%u", (unsigned)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_println_u32(uint32_t v) {
+  char b[16];
+  int n = snprintf(b, sizeof b, "%u\n", (unsigned)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_print_i64(int64_t v) {
+  char b[24];
+  int n = snprintf(b, sizeof b, "%lld", (long long)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_println_i64(int64_t v) {
+  char b[24];
+  int n = snprintf(b, sizeof b, "%lld\n", (long long)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_print_u64(uint64_t v) {
+  char b[24];
+  int n = snprintf(b, sizeof b, "%llu", (unsigned long long)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+static void io_cap_println_u64(uint64_t v) {
+  char b[24];
+  int n = snprintf(b, sizeof b, "%llu\n", (unsigned long long)v);
+  if (n > 0)
+    (void)xlang_io_write(1, b, (size_t)n);
+}
+
 
 /**
- * Linux 裸 syscall write(2)；F-03 无 std/io/io.o 时供 nostdlib / gcc 链使用。
- * timeout_ms 在 seed 桩 v1 中忽略（同步写完全部 count 或返回错误）。
+ * Cap residual 9.1.8: seed_io_syscall_* → xlang_io_cap.h (G.7 single authority).
+ * F-03 无 std/io/io.o 时供 nostdlib / gcc 链；timeout 在 seed 桩 v1 忽略。
+ * PLATFORM: SHARED (LINUX | DARWIN | WINDOWS | POSIX).
  */
-#if defined(__linux__) && defined(__x86_64__)
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
 long seed_io_syscall_write_impl(int fd, const void *buf, unsigned long count) {
-  long ret;
-  __asm__ volatile("syscall"
-                   : "=a"(ret)
-                   : "0"(1L), "D"((long)fd), "S"(buf), "d"(count)
-                   : "rcx", "r11", "memory");
-  return ret;
+  return xlang_io_write(fd, buf, (size_t)count);
 }
 
-
-
-
-/** Linux x86_64 裸 syscall read(2)。 G-02f-100 gate. */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
+/** Cap residual 9.1.8: read via xlang_io_cap.h. G-02f-100 gate. */
 long seed_io_syscall_read_impl(int fd, void *buf, unsigned long count) {
-  long ret;
-  __asm__ volatile("syscall"
-                   : "=a"(ret)
-                   : "0"(0L), "D"((long)fd), "S"(buf), "d"(count)
-                   : "rcx", "r11", "memory");
-  return ret;
+  return xlang_io_read(fd, buf, (size_t)count);
 }
-
-
-#endif
 
 #ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供
- * 注意：seed_io_syscall_write/read 仅 Linux x86_64 有 _impl 定义；
- * 非 Linux x86_64 平台 wrapper 仍由 thin.o 提供（调用 U _impl，rest 不引用）。
- * 为避免非 Linux x86_64 平台 seed 重复定义 wrapper，此处 wrapper 仅在 Linux x86_64 emit。 */
-#if defined(__linux__) && defined(__x86_64__)
+ * Cap residual 9.1.8: emit wrappers on all platforms. */
 long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
   return seed_io_syscall_write_impl(fd, buf, count);
 }
@@ -71,70 +122,310 @@ long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
   return seed_io_syscall_read_impl(fd, buf, count);
 }
 #endif
-#endif
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
 long seed_io_syscall_write(int fd, const void *buf, unsigned long count);
 long seed_io_syscall_read(int fd, void *buf, unsigned long count);
 int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms);
 
-/** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
-ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms) {
+/*
+ * Cap residual 9.1.8: complete xlang_sys_write/read/writev for -backend asm
+ * std.io / std.fs (preamble static inline does not export into those .o).
+ * Weak so freestanding_io.o strong twin wins when both are linked.
+ * PLATFORM: SHARED (LINUX | DARWIN | WINDOWS | POSIX).
+ */
+XLANG_WEAK ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {
+  return (ssize_t)xlang_io_write((int)fd, (const void *)buf, count);
+}
+XLANG_WEAK ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {
+  return (ssize_t)xlang_io_read((int)fd, (void *)buf, count);
+}
+XLANG_WEAK ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+  return (ssize_t)xlang_io_writev((int)fd, (const void *)iov, (int)iovcnt);
+}
+
+#if !defined(_WIN32) && !defined(_WIN64)
+
+/*
+ * Cap residual 9.1.11: weak backtrace_capture_c for -backend asm probes.
+ * Strong twin in runtime_backtrace_platform.o wins on full product link.
+ * PLATFORM: LINUX|DARWIN
+ */
+#if (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
+#include <xlang_backtrace_cap.h>
+#include <string.h>
+
+/** Weak probe/product stub: frame walk into buf (void* slots). */
+__attribute__((weak)) int32_t backtrace_capture_c(uint8_t *buf, int32_t max_frames) {
+  void *arr[256];
+  int cap;
+  int n;
+  int i;
+  if (!buf || max_frames <= 0)
+    return 0;
+  cap = max_frames > 256 ? 256 : (int)max_frames;
+  n = xlang_bt_backtrace(arr, cap);
+  if (n <= 0)
+    return 0;
+  for (i = 0; i < n; i++)
+    memcpy(buf + (size_t)i * sizeof(void *), &arr[i], sizeof(void *));
+  return (int32_t)n;
+}
+
+#if defined(__linux__)
+
+#define XLANG_BT_STUB_SYM_NAME_LEN 128
+
+/** Write "0x" + hex digits for addr into out (Cap probe stub hex fallback). */
+static void xlang_bt_stub_hex_addr(uint8_t *out, int32_t cap, void *addr) {
+  static const char hx[] = "0123456789abcdef";
+  uintptr_t v = (uintptr_t)addr;
+  int32_t pos = 2;
+  int32_t i;
+  int32_t ncopy;
+  if (!out || cap <= 0)
+    return;
+  out[0] = '0';
+  out[1] = 'x';
+  for (i = (int32_t)sizeof(void *) - 1; i >= 0; i--) {
+    uint8_t b = (uint8_t)((v >> (i * 8)) & 0xffu);
+    out[pos++] = (uint8_t)hx[(b >> 4) & 0x0fu];
+    out[pos++] = (uint8_t)hx[b & 0x0fu];
+  }
+  ncopy = pos;
+  if (ncopy >= cap)
+    ncopy = cap - 1;
+  out[ncopy] = '\0';
+}
+
+/**
+ * Weak probe stub: Cap dladdr symbolicate (strong twin in platform.o).
+ * PLATFORM: LINUX
+ */
+__attribute__((weak)) int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len,
+                                                      uint8_t *out_ptrs, uint8_t *out_names,
+                                                      int32_t max) {
+  int32_t ok = 0;
+  int32_t n;
+  int32_t i;
+  if (!buf || len <= 0 || !out_names || max <= 0)
+    return 0;
+  n = len < max ? len : max;
+  for (i = 0; i < n; i++) {
+    void *addr;
+    uint8_t *name_slot = out_names + (size_t)i * XLANG_BT_STUB_SYM_NAME_LEN;
+    XlangBtDlInfo info;
+    memcpy(&addr, buf + (size_t)i * sizeof(void *), sizeof(void *));
+    if (out_ptrs)
+      memcpy(out_ptrs + (size_t)i * sizeof(void *), &addr, sizeof(void *));
+    memset(&info, 0, sizeof(info));
+    if (xlang_bt_dladdr(addr, &info) && info.dli_sname && info.dli_sname[0]) {
+      size_t k = 0;
+      while (info.dli_sname[k] && k + 1 < (size_t)XLANG_BT_STUB_SYM_NAME_LEN) {
+        name_slot[k] = (uint8_t)info.dli_sname[k];
+        k++;
+      }
+      name_slot[k] = '\0';
+      ok++;
+    } else {
+      xlang_bt_stub_hex_addr(name_slot, XLANG_BT_STUB_SYM_NAME_LEN, addr);
+    }
+  }
+  return ok;
+}
+
+#elif defined(__APPLE__)
+
+#define XLANG_BT_STUB_SYM_NAME_LEN 128
+
+/** Write "0x" + hex digits for addr into out (Cap probe stub hex fallback). */
+static void xlang_bt_stub_hex_addr(uint8_t *out, int32_t cap, void *addr) {
+  static const char hx[] = "0123456789abcdef";
+  uintptr_t v = (uintptr_t)addr;
+  int32_t pos = 2;
+  int32_t i;
+  int32_t ncopy;
+  if (!out || cap <= 0)
+    return;
+  out[0] = '0';
+  out[1] = 'x';
+  for (i = (int32_t)sizeof(void *) - 1; i >= 0; i--) {
+    uint8_t b = (uint8_t)((v >> (i * 8)) & 0xffu);
+    out[pos++] = (uint8_t)hx[(b >> 4) & 0x0fu];
+    out[pos++] = (uint8_t)hx[b & 0x0fu];
+  }
+  ncopy = pos;
+  if (ncopy >= cap)
+    ncopy = cap - 1;
+  out[ncopy] = '\0';
+}
+
+/**
+ * Weak probe stub: Cap dladdr symbolicate on Darwin (strong twin in platform.o).
+ * PLATFORM: MACOS|DARWIN
+ */
+__attribute__((weak)) int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len,
+                                                      uint8_t *out_ptrs, uint8_t *out_names,
+                                                      int32_t max) {
+  int32_t ok = 0;
+  int32_t n;
+  int32_t i;
+  if (!buf || len <= 0 || !out_names || max <= 0)
+    return 0;
+  n = len < max ? len : max;
+  for (i = 0; i < n; i++) {
+    void *addr;
+    uint8_t *name_slot = out_names + (size_t)i * XLANG_BT_STUB_SYM_NAME_LEN;
+    XlangBtDlInfo info;
+    memcpy(&addr, buf + (size_t)i * sizeof(void *), sizeof(void *));
+    if (out_ptrs)
+      memcpy(out_ptrs + (size_t)i * sizeof(void *), &addr, sizeof(void *));
+    memset(&info, 0, sizeof(info));
+    if (xlang_bt_dladdr(addr, &info) && info.dli_sname && info.dli_sname[0]) {
+      size_t k = 0;
+      while (info.dli_sname[k] && k + 1 < (size_t)XLANG_BT_STUB_SYM_NAME_LEN) {
+        name_slot[k] = (uint8_t)info.dli_sname[k];
+        k++;
+      }
+      name_slot[k] = '\0';
+      ok++;
+    } else {
+      xlang_bt_stub_hex_addr(name_slot, XLANG_BT_STUB_SYM_NAME_LEN, addr);
+    }
+  }
+  return ok;
+}
+
+#endif /* __linux__ | __APPLE__ symbolicate stubs */
+
+#endif /* LINUX|DARWIN backtrace capture stub */
+#endif /* !_WIN32 */
+
+/*
+ * Cap residual 9.1.12: weak xlang_target_cpu_detect_host for probes and runtime.
+ * Strong twin in src/driver/target_cpu.o wins on full product link.
+ * PLATFORM: SHARED (LINUX | DARWIN | WINDOWS).
+ */
+__attribute__((weak)) uint32_t xlang_target_cpu_detect_host(void) {
+#if defined(__linux__)
+  char buf[8192];
+  char *line;
+  char *next;
   long n;
+#if defined(__x86_64__)
+  uint32_t f = 0;
+  n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+  if (n <= 0)
+    return 1u; /* XLANG_CPU_FEAT_SSE2 macro fallback minimum */
+  line = buf;
+  while (line) {
+    next = xlang_proc_next_line(line);
+    if (strncmp(line, "flags", 5) == 0) {
+      if (strstr(line, " sse2") || strstr(line, "\tsse2"))
+        f |= 1u;
+      if (strstr(line, " avx2"))
+        f |= 8u;
+      break;
+    }
+    line = next;
+  }
+  return f != 0 ? f : 1u;
+#elif defined(__aarch64__)
+  uint32_t f = 256u; /* XLANG_CPU_FEAT_NEON */
+  n = xlang_proc_read_file("/proc/cpuinfo", buf, sizeof(buf));
+  if (n <= 0)
+    return f;
+  line = buf;
+  while (line) {
+    next = xlang_proc_next_line(line);
+    if (strncmp(line, "Features", 8) == 0) {
+      if (strstr(line, " sve"))
+        f |= 512u;
+      break;
+    }
+    line = next;
+  }
+  return f;
+#else
+  return 0;
+#endif
+
+#elif defined(__APPLE__)
+#if defined(__aarch64__)
+  return 256u; /* XLANG_CPU_FEAT_NEON */
+#elif defined(__x86_64__)
+  return 1u | 2u; /* XLANG_CPU_FEAT_SSE2 | XLANG_CPU_FEAT_SSE41 */
+#else
+  return 0;
+#endif
+
+#elif defined(_WIN32) || defined(_WIN64)
+#if defined(__x86_64__) || defined(_M_X64)
+  return 1u; /* XLANG_CPU_FEAT_SSE2 */
+#elif defined(__aarch64__) || defined(_M_ARM64)
+  return 256u; /* XLANG_CPU_FEAT_NEON */
+#else
+  return 0;
+#endif
+
+#else
+  return 0;
+#endif
+}
+
+/** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
+XLANG_WEAK ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms) {
   (void)timeout_ms;
   if (!buf && count > 0)
     return (ptrdiff_t)-1;
-#if defined(__linux__) && defined(__x86_64__)
-  n = seed_io_syscall_write(fd, buf, (unsigned long)count);
-#elif defined(__unix__) || defined(__APPLE__)
-  n = (long)write(fd, buf, count);
-#else
-  n = -1;
-#endif
-  return (ptrdiff_t)n;
+  return (ptrdiff_t)seed_io_syscall_write(fd, buf, (unsigned long)count);
 }
 
 /** 同步读；hello 等仅写 stdout 时 read 路径可为空实现。 */
-ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
-  long n;
+XLANG_WEAK ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
   (void)timeout_ms;
   if (!buf && count > 0)
     return (ptrdiff_t)-1;
-#if defined(__linux__) && defined(__x86_64__)
-  n = seed_io_syscall_read(fd, buf, (unsigned long)count);
-#elif defined(__unix__) || defined(__APPLE__)
-  n = (long)read(fd, buf, count);
-#else
-  n = -1;
-#endif
-  return (ptrdiff_t)n;
+  return (ptrdiff_t)seed_io_syscall_read(fd, buf, (unsigned long)count);
 }
 
 /** 与 io_read_ptr 配套的 TLS 缓冲（F-03 seed 桩：单线程单缓冲）。 */
 static uint8_t g_io_read_ptr_buf[4096];
 static int32_t g_io_read_ptr_len = 0;
+/* Match std/io/read_ptr.x generation + backend cells (G.7 single buffer).
+ * backend stays 0 in this TU — no mmap/io_uring here. */
+static uint64_t g_io_read_ptr_gen = 0;
+static int32_t g_io_read_ptr_backend = 0;
 
-/** stdin 指针读：读入 g_io_read_ptr_buf 并返回指针；EOF/错误返回 NULL。 */
-uint8_t *io_read_ptr(unsigned handle, unsigned timeout_ms) {
+/** Zero-copy read into g_io_read_ptr_buf; EOF/error returns NULL.
+ * PLATFORM: SHARED — handle is a POSIX fd (std.io from_fd is identity).
+ * Historic restriction handle!=0 (stdin-only) dropped: cookbooks/tests
+ * call io.read_ptr(from_fd(fd)) on a regular file. Length cell is the
+ * same g_io_read_ptr_len used by std_io_ptr_len (G.7 single buffer).
+ * Generation bumps on every call (read_ptr.x); backend forced 0. */
+XLANG_WEAK uint8_t *io_read_ptr(unsigned handle, unsigned timeout_ms) {
   ptrdiff_t r;
   (void)timeout_ms;
+  g_io_read_ptr_gen = g_io_read_ptr_gen + 1;
+  g_io_read_ptr_backend = 0;
   g_io_read_ptr_len = 0;
-  if (handle != 0)
-    return NULL;
-  r = io_read(0, g_io_read_ptr_buf, sizeof g_io_read_ptr_buf, 0);
+  r = io_read((int)handle, g_io_read_ptr_buf, sizeof g_io_read_ptr_buf, 0);
   if (r <= 0)
     return NULL;
   g_io_read_ptr_len = (int32_t)r;
   return g_io_read_ptr_buf;
 }
 
-/** 与 io_read_ptr 配套的可用长度桩。 */
-int32_t io_read_ptr_len(void) {
-  return 0;
+/** Length of the last io_read_ptr fill (g_io_read_ptr_len).
+ * Historic body always returned 0 (length stub), so ptr_len() never
+ * observed a successful read. Complete the existing face (G.7).
+ * PLATFORM: SHARED. */
+XLANG_WEAK int32_t io_read_ptr_len(void) {
+  return g_io_read_ptr_len;
 }
 
 /** std.io.core 注册单缓冲桩。 */
-int32_t io_register_buffer(uint8_t *ptr, size_t len) {
+XLANG_WEAK int32_t io_register_buffer(uint8_t *ptr, size_t len) {
   (void)ptr;
   (void)len;
   return 0;
@@ -151,7 +442,7 @@ XLANG_WEAK int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) {
 
 /** driver 侧 Buffer 描述符注册。 */
 typedef struct { uint8_t *ptr; size_t length; size_t handle; } xlang_buffer_abi_t;
-int32_t xlang_io_register_buf(intptr_t buf) {
+XLANG_WEAK int32_t xlang_io_register_buf(intptr_t buf) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
@@ -225,6 +516,24 @@ int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms
   return (int32_t)r;
 }
 
+/* Unique std.io names (cookbook io_fallback_read / io_mmap_read).
+ * Always-linked with std_io_read / std_io_write / std_io_ptr_len so we
+ * complete this TU instead of a second buffer in io.o c_face (G.7).
+ * from_fd ≡ (size_t)fd as in std/io/mod.x. read_fd/write_fd timeout=0.
+ * PLATFORM: SHARED — product import mangle std_io_*. */
+size_t std_io_from_fd(int32_t fd, int32_t unused) {
+  (void)unused;
+  return (size_t)fd;
+}
+
+int32_t std_io_read_fd(int32_t fd, uint8_t *ptr, size_t len) {
+  return std_io_read((size_t)fd, ptr, len, 0);
+}
+
+int32_t std_io_write_fd(int32_t fd, uint8_t *ptr, size_t len) {
+  return std_io_write((size_t)fd, ptr, len, 0);
+}
+
 /** stdout 写：供 std_io_write_stdout / write_with_timeout 桩使用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
@@ -248,17 +557,17 @@ int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
 
 
 int32_t std_io_print_i32(int32_t x) {
-  (void)printf("%d\n", (int)x);
+  io_cap_println_i32(x);
   return 0;
 }
 
 int32_t std_io_print_u32(uint32_t x) {
-  (void)printf("%u\n", (unsigned)x);
+  io_cap_println_u32(x);
   return 0;
 }
 
 int32_t std_io_print_i64(int64_t x) {
-  (void)printf("%lld\n", (long long)x);
+  io_cap_println_i64(x);
   return 0;
 }
 
@@ -325,6 +634,15 @@ int32_t std_fmt_println_u8_ptr_i32(uint8_t *ptr, int32_t len) {
   return std_fmt_println(ptr, (size_t)len);
 }
 
+/** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。
+ * Hoisted above fmt println_u8_slc so the overload mid can use the typedef.
+ * PLATFORM: SHARED.
+ */
+typedef struct XlangSliceU8 {
+  uint8_t *data;
+  size_t length;
+} XlangSliceU8;
+
 /**
  * PLATFORM: SHARED — pure-asm scalar fmt.print/println when std.fmt is not co-emitted.
  * Call sites mangle to std_fmt_println_i32 / std_fmt_print_u32 / … (codegen + glue mid;
@@ -334,42 +652,294 @@ int32_t std_fmt_println_u8_ptr_i32(uint8_t *ptr, int32_t len) {
  * Return 0 on success (printf write path); align std_io_print_i32.
  */
 int32_t std_fmt_print_i32(int32_t x) {
-  (void)printf("%d", (int)x);
+  io_cap_print_i32(x);
   return 0;
 }
 
 int32_t std_fmt_println_i32(int32_t x) {
-  (void)printf("%d\n", (int)x);
+  io_cap_println_i32(x);
   return 0;
 }
 
 int32_t std_fmt_print_u32(uint32_t x) {
-  (void)printf("%u", (unsigned)x);
+  io_cap_print_u32(x);
   return 0;
 }
 
 int32_t std_fmt_println_u32(uint32_t x) {
-  (void)printf("%u\n", (unsigned)x);
+  io_cap_println_u32(x);
   return 0;
 }
 
 int32_t std_fmt_print_i64(int64_t x) {
-  (void)printf("%lld", (long long)x);
+  io_cap_print_i64(x);
   return 0;
 }
 
 int32_t std_fmt_println_i64(int64_t x) {
-  (void)printf("%lld\n", (long long)x);
+  io_cap_println_i64(x);
   return 0;
 }
 
 int32_t std_fmt_print_u64(uint64_t x) {
-  (void)printf("%llu", (unsigned long long)x);
+  io_cap_print_u64(x);
   return 0;
 }
 
 int32_t std_fmt_println_u64(uint64_t x) {
-  (void)printf("%llu\n", (unsigned long long)x);
+  io_cap_println_u64(x);
+  return 0;
+}
+
+/**
+ * PLATFORM: SHARED — pure-asm fmt.println(u8[]) / print(u8[]) overload mid.
+ * Call sites mangle to std_fmt_println_u8_slc (glue_asm_type_ref_to_suffix_c TYPE_SLICE).
+ *
+ * ABI (G.7 single authority with host-C codegen + asm call_arg):
+ *   TYPE_SLICE formals lower as `struct xlang_slice_* *` / fat-pointer address
+ *   (call_arg packs SLICE→8; locals stay by-value). Stub MUST take a pointer —
+ *   by-value XlangSliceU8 here made asm pass &fat into x0 while C expected
+ *   {data,length} in x0/x1 → empty/err print (u8_slc by-value soft residual).
+ */
+int32_t std_fmt_print_u8_slc(const XlangSliceU8 *s) {
+  if (s == NULL)
+    return -1;
+  return std_fmt_print(s->data, s->length);
+}
+
+int32_t std_fmt_println_u8_slc(const XlangSliceU8 *s) {
+  if (s == NULL)
+    return -1;
+  return std_fmt_println(s->data, s->length);
+}
+
+/* ---- std.fmt / std.debug JSON "print any" (schema interpreter) ----
+ * Schema (ASCII, NUL-terminated), offsets decimal relative to base:
+ *   i@OFF          i32 at base+OFF
+ *   b@OFF          bool (uint8) at base+OFF → true/false
+ *   u@OFF,LEN      u8[LEN] as JSON string
+ *   a@OFF,LEN      i32[LEN] as JSON array (inline / fixed T[N])
+ *   A@OFF          i32[] fat at base+OFF ({data,len} 16B) → JSON array via data
+ *   ?SOFF:VAL      if *(uint8*)(base+SOFF)==0 → null; else VAL
+ *   {k:VAL,k:VAL}  JSON object (keys are identifiers)
+ * Asm emit builds schema from type layout; G.7 single interpreter authority.
+ * PLATFORM: SHARED — pairs with glue_asm_try_emit_fmt_any_import_call_elf_c.
+ * u8[] (TYPE_SLICE of u8) stays mid std_fmt_*_u8_slc (raw bytes, not JSON).
+ */
+
+static void fmt_json_escape_byte(unsigned char c) {
+  if (c == '\\' || c == '"') {
+    io_cap_putc('\\');
+    io_cap_putc((int)c);
+  } else if (c == '\n') {
+    io_cap_puts("\\n");
+  } else if (c == '\r') {
+    io_cap_puts("\\r");
+  } else if (c == '\t') {
+    io_cap_puts("\\t");
+  } else if (c < 32) {
+{ char _b[8]; int _n = snprintf(_b, sizeof _b, "\\x%02x", (unsigned)c);
+      if (_n > 0) (void)xlang_io_write(1, _b, (size_t)_n); }
+  } else {
+    io_cap_putc((int)c);
+  }
+}
+
+static const char *fmt_json_parse_dec(const char *p, int32_t *out) {
+  int32_t v = 0;
+  int neg = 0;
+  if (p == NULL || out == NULL)
+    return p;
+  if (*p == '-') {
+    neg = 1;
+    p++;
+  }
+  while (*p >= '0' && *p <= '9') {
+    v = v * 10 + (int32_t)(*p - '0');
+    p++;
+  }
+  *out = neg ? -v : v;
+  return p;
+}
+
+static const char *fmt_json_emit_val(const uint8_t *base, const char *sch);
+
+static const char *fmt_json_emit_val(const uint8_t *base, const char *sch) {
+  int32_t off = 0;
+  int32_t len = 0;
+  int32_t i;
+  if (sch == NULL)
+    return sch;
+  if (*sch == 'i' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (base)
+      io_cap_print_i32((int)(*(const int32_t *)(base + off)));
+    else
+      io_cap_puts("0");
+    return sch;
+  }
+  if (*sch == 'b' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (base && base[off])
+      io_cap_puts("true");
+    else
+      io_cap_puts("false");
+    return sch;
+  }
+  if (*sch == 'u' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (*sch == ',')
+      sch++;
+    sch = fmt_json_parse_dec(sch, &len);
+    io_cap_putc('"');
+    if (base && len > 0) {
+      for (i = 0; i < len; i++)
+        fmt_json_escape_byte(base[off + i]);
+    }
+    io_cap_putc('"');
+    return sch;
+  }
+  if (*sch == 'a' && sch[1] == '@') {
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    if (*sch == ',')
+      sch++;
+    sch = fmt_json_parse_dec(sch, &len);
+    io_cap_putc('[');
+    if (base && len > 0) {
+      const int32_t *arr = (const int32_t *)(base + off);
+      for (i = 0; i < len; i++) {
+        if (i)
+          io_cap_putc(',');
+        io_cap_print_i32((int)arr[i]);
+      }
+    }
+    io_cap_putc(']');
+    return sch;
+  }
+  /* A@OFF — TYPE_SLICE of i32: fat {data,len} at base+OFF (PLATFORM: SHARED ABI). */
+  if (*sch == 'A' && sch[1] == '@') {
+    const uint8_t *fat;
+    const int32_t *arr;
+    uint64_t n64;
+    sch = fmt_json_parse_dec(sch + 2, &off);
+    io_cap_putc('[');
+    if (base) {
+      fat = base + off;
+      arr = *(const int32_t *const *)fat;
+      n64 = *(const uint64_t *)(fat + 8);
+      if (arr != NULL && n64 > 0 && n64 <= 1000000u) {
+        len = (int32_t)n64;
+        for (i = 0; i < len; i++) {
+          if (i)
+            io_cap_putc(',');
+          io_cap_print_i32((int)arr[i]);
+        }
+      }
+    }
+    io_cap_putc(']');
+    return sch;
+  }
+  if (*sch == '?') {
+    sch = fmt_json_parse_dec(sch + 1, &off);
+    if (*sch == ':')
+      sch++;
+    if (base == NULL || base[off] == 0) {
+      io_cap_puts("null");
+      /* Skip VAL without emitting: walk nested braces / atoms. */
+      if (*sch == '{') {
+        int depth = 0;
+        do {
+          if (*sch == '{')
+            depth++;
+          else if (*sch == '}')
+            depth--;
+          sch++;
+        } while (*sch && depth > 0);
+        return sch;
+      }
+      if (*sch == 'i' || *sch == 'b' || *sch == 'u' || *sch == 'a' || *sch == 'A') {
+        /* Re-enter skip by emitting into a discarded path — parse only. */
+        const char *save = sch;
+        /* Use a throwaway: parse structure without printing via recurse on null base for atoms. */
+        (void)save;
+        if (*sch == 'i' && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          return sch;
+        }
+        if (*sch == 'b' && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          return sch;
+        }
+        if (*sch == 'A' && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          return sch;
+        }
+        if ((*sch == 'u' || *sch == 'a') && sch[1] == '@') {
+          sch = fmt_json_parse_dec(sch + 2, &off);
+          if (*sch == ',')
+            sch++;
+          sch = fmt_json_parse_dec(sch, &len);
+          return sch;
+        }
+      }
+      return sch;
+    }
+    return fmt_json_emit_val(base, sch);
+  }
+  if (*sch == '{') {
+    sch++;
+    io_cap_putc('{');
+    int first = 1;
+    while (*sch && *sch != '}') {
+      if (*sch == ',') {
+        sch++;
+        continue;
+      }
+      /* key until ':' */
+      char key[64];
+      int ki = 0;
+      while (*sch && *sch != ':' && *sch != '}' && *sch != ',' && ki < 63) {
+        key[ki++] = *sch++;
+      }
+      key[ki] = 0;
+      if (*sch == ':')
+        sch++;
+      if (!first)
+        io_cap_putc(',');
+      first = 0;
+      io_cap_putc('"');
+      io_cap_puts(key);
+      io_cap_putc('"');
+      io_cap_putc(':');
+      sch = fmt_json_emit_val(base, sch);
+    }
+    if (*sch == '}')
+      sch++;
+    io_cap_putc('}');
+    return sch;
+  }
+  return sch;
+}
+
+/**
+ * Print JSON for `base` per `schema`, then newline. Returns 0.
+ * @param base value address (struct / array storage)
+ * @param schema NUL-terminated schema (see above)
+ * PLATFORM: SHARED — print_any / fmt-any product path.
+ */
+int32_t std_fmt_json_println_schema(const uint8_t *base, const char *schema) {
+  if (schema == NULL)
+    schema = "null";
+  (void)fmt_json_emit_val(base, schema);
+  io_cap_putc('\n');
+  return 0;
+}
+
+/** Same without trailing newline (fmt.print). */
+int32_t std_fmt_json_print_schema(const uint8_t *base, const char *schema) {
+  if (schema == NULL)
+    schema = "null";
+  (void)fmt_json_emit_val(base, schema);
   return 0;
 }
 
@@ -399,11 +969,89 @@ uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms) {
   return io_read_ptr((unsigned)handle, timeout_ms);
 }
 
-/** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。 */
-typedef struct XlangSliceU8 {
-  uint8_t *data;
-  size_t length;
-} XlangSliceU8;
+/**
+ * Product import METHOD io.read_ptr → std_io_read_ptr.
+ * Same cell as std_io_ptr_len / xlang_io_read_ptr (G.7; no c_face copy).
+ * PLATFORM: SHARED.
+ */
+uint8_t *std_io_read_ptr(size_t handle, uint32_t timeout_ms) {
+  return io_read_ptr((unsigned)handle, timeout_ms);
+}
+
+/**
+ * Product import METHOD io.ptr_gen / ptr_valid / ptr_backend → std_io_ptr_*.
+ * Unique UNDEF class for tests/io/read_ptr_mmap_smoke (G.7 complete this
+ * always-linked TU; do not add labi needles or a c_face second buffer).
+ * Semantics match std/io/read_ptr.x: gen is the last io_read_ptr bump;
+ * valid is equality with that cell; backend is always 0.
+ * mmap_smoke wants backend 1 or 2 and will return 9 — do not fake mmap.
+ * PLATFORM: SHARED.
+ */
+uint64_t std_io_ptr_gen(void) {
+  return g_io_read_ptr_gen;
+}
+
+int32_t std_io_ptr_valid(uint64_t saved) {
+  return saved == g_io_read_ptr_gen ? 1 : 0;
+}
+
+int32_t std_io_ptr_backend(void) {
+  return g_io_read_ptr_backend;
+}
+
+/**
+ * Product import METHOD io.ptr_view / ptr_view_valid / stdin_ptr_view.
+ * Unique UNDEF class for examples/cookbook/zc_read_ptr_slice (G.7 complete
+ * this always-linked TU; do not add labi needles or a c_face second buffer).
+ * Layout matches std/io/mod.x ReadPtrView {ptr, length, gen} with padding
+ * after length (24B on 64-bit). Semantics: pack last read_ptr/len/gen;
+ * valid is non-null ptr AND gen equals the gen cell.
+ * PLATFORM: SHARED.
+ */
+typedef struct std_io_ReadPtrView {
+  uint8_t *ptr;
+  int32_t length;
+  uint64_t gen;
+} std_io_ReadPtrView;
+
+std_io_ReadPtrView std_io_ptr_view(size_t handle, uint32_t timeout_ms) {
+  std_io_ReadPtrView v;
+  v.ptr = io_read_ptr((unsigned)handle, timeout_ms);
+  v.length = io_read_ptr_len();
+  v.gen = g_io_read_ptr_gen;
+  return v;
+}
+
+int32_t std_io_ptr_view_valid(std_io_ReadPtrView v) {
+  if (v.ptr == 0)
+    return 0;
+  return std_io_ptr_valid(v.gen);
+}
+
+std_io_ReadPtrView std_io_stdin_ptr_view(void) {
+  return std_io_ptr_view(std_io_stdin(), 0);
+}
+
+/**
+ * Product import METHOD io.register_provided / unregister_provided.
+ * Unique UNDEF class for examples/cookbook/zc_provided_buffers (G.7 complete
+ * this always-linked TU; do not add labi needles or a c_face second buffer).
+ * Semantics match std/io/stubs.x: register always returns 0 (no io_uring
+ * provided-buffer ring on this TU); unregister is a no-op.
+ * Cookbook treats rc==1 as registered-then-unregister; stub path still
+ * returns 0 from main. Do not fake a real buffer ring.
+ * PLATFORM: SHARED.
+ */
+int32_t std_io_register_provided(uint32_t nr, uint32_t bufsz) {
+  (void)nr;
+  (void)bufsz;
+  return 0;
+}
+
+void std_io_unregister_provided(void) {
+}
+
+/* XlangSliceU8 typedef: see above (hoisted for std_fmt_*_u8_slc). */
 
 /** 零拷贝读 stdin slice；转发 io_read_ptr(0,0) 打包为 slice。 */
 XlangSliceU8 std_io_read_stdin_ptr_slice(void) {
@@ -434,7 +1082,7 @@ XlangSliceU8 std_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
  * 批量读桩：net/tcp 等链 net.o 时解析 io_read_batch；seed 路径退化为首段 io_read。
  * 参数 p1..p3 在桩 v1 中忽略，与 bootstrap_seed_io_stubs.c 行为一致。
  */
-ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2,
+XLANG_WEAK ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2,
                         size_t l2, uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
   (void)p1;
   (void)l1;
@@ -449,7 +1097,7 @@ ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t 
 /**
  * 批量写桩：net/tcp 等链 net.o 时解析 io_write_batch；seed 路径退化为首段 io_write。
  */
-ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2,
+XLANG_WEAK ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2,
                          size_t l2, uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
   (void)p1;
   (void)l1;
@@ -468,7 +1116,7 @@ typedef struct XlangIoBatchBuf {
 } XlangIoBatchBuf;
 
 /** 批量读 buf 桩：逐段 io_read 累加；timeout_ms 在桩 v1 中仅传给首段。 */
-ptrdiff_t io_read_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n, unsigned timeout_ms) {
+XLANG_WEAK ptrdiff_t io_read_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n, unsigned timeout_ms) {
   ptrdiff_t total = 0;
   int32_t i;
   if (!bufs || n <= 0)
@@ -538,7 +1186,7 @@ XLANG_WEAK int32_t io_uring_prefetch_fd(int32_t fd) {
 }
 
 /** 批量写 buf 桩：逐段 io_write 累加。 */
-ptrdiff_t io_write_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n, unsigned timeout_ms) {
+XLANG_WEAK ptrdiff_t io_write_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n, unsigned timeout_ms) {
   ptrdiff_t total = 0;
   int32_t i;
   if (!bufs || n <= 0)
@@ -560,7 +1208,7 @@ ptrdiff_t io_write_batch_buf(int32_t fd, const XlangIoBatchBuf *bufs, int32_t n,
  * 【Why 根源】codegen_should_skip_emit_std_io_core_io_dup 假定 io.o 提供
  * xlang_io_read_fixed 等，但 Makefile 注释已标明「无 io.o」，导致 U 符号。
  */
-XLANG_WEAK int32_t xlang_io_read_ptr_backend(void) { return 0; }
+XLANG_WEAK int32_t xlang_io_read_ptr_backend(void) { return g_io_read_ptr_backend; }
 XLANG_WEAK int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset,
                                                  size_t len, uint32_t timeout_ms) {
   (void)handle; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
@@ -607,8 +1255,8 @@ XLANG_WEAK int32_t std_io_driver_submit_write_batch_buf(size_t handle, void *buf
   (void)handle; (void)bufs; (void)n; (void)timeout_ms;
   return -1;
 }
-XLANG_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-XLANG_WEAK int32_t std_io_driver_driver_read_ptr_backend(void) { return 0; }
+XLANG_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return g_io_read_ptr_gen; }
+XLANG_WEAK int32_t std_io_driver_driver_read_ptr_backend(void) { return g_io_read_ptr_backend; }
 /* sync 层：backend co-emit 转发到 std_io_sync_*；无定义时弱回退 */
 XLANG_WEAK ptrdiff_t std_io_sync_io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset,
                                                           size_t len, uint32_t timeout_ms) {
@@ -620,7 +1268,51 @@ XLANG_WEAK ptrdiff_t std_io_sync_io_write_fixed(int32_t fd, uint32_t buf_index, 
   (void)fd; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
   return (ptrdiff_t)-1;
 }
-XLANG_WEAK int32_t std_io_backend_io_read_ptr_backend(void) { return 0; }
+XLANG_WEAK int32_t std_io_backend_io_read_ptr_backend(void) { return g_io_read_ptr_backend; }
+
+/*
+ * PLATFORM: SHARED — leftover unique asm -o leaves U std_io_backend_handle_from_fd
+ * (skip_asm_dep_codegen does not co-emit backend.x). Always-on IO_STUBS plan
+ * (labi_std_plan_step_at i==0) is the existing weak vehicle for skipped io
+ * faces. Authority body ≡ std/io/backend.x handle_from_fd: return fd as usize.
+ * Do not host this on std/io/io.o: that c_face also U-imports std.context /
+ * std.error and Ubuntu ld has no dead_strip. G.7 complete this stubs family.
+ */
+XLANG_WEAK size_t std_io_backend_handle_from_fd(int32_t fd, int32_t unused) {
+  (void)unused;
+  return (size_t)fd;
+}
+
+/*
+ * PLATFORM: SHARED — leftover unique asm -o skips co-emit of std.io
+ * (pipeline_codegen_dep_skip_asm_user_std_io) so std.net.read_fixed /
+ * write_fixed leave U std_io_read_fixed_fd / std_io_write_fixed_fd.
+ * Ubuntu ld has no -dead_strip: unused co-emitted net wrappers still UNDEF
+ * (mac run-net was false-green). Always-on IO_STUBS is the existing weak
+ * vehicle; do not host on io.o (ctx/error U-imports).
+ * Authority body ≡ std/io/mod.x read_fixed_fd / write_fixed_fd:
+ *   return xlang_io_read_fixed/write_fixed(from_fd(fd), ...).
+ * from_fd ≡ fd as usize (std/io/mod.x). xlang_io_*_fixed already weak in
+ * this TU (return -1 unless a strong io.o / co-emit wins).
+ * Also provide _impl: C-path preamble externs std_io_*_fixed_fd_impl.
+ * G.7 complete this stubs family — no second .o, no g==19 needle.
+ */
+XLANG_WEAK int32_t std_io_read_fixed_fd(int32_t fd, uint32_t buf_index, size_t offset,
+                                        size_t len, uint32_t timeout_ms) {
+  return xlang_io_read_fixed((size_t)fd, buf_index, offset, len, timeout_ms);
+}
+XLANG_WEAK int32_t std_io_write_fixed_fd(int32_t fd, uint32_t buf_index, size_t offset,
+                                         size_t len, uint32_t timeout_ms) {
+  return xlang_io_write_fixed((size_t)fd, buf_index, offset, len, timeout_ms);
+}
+XLANG_WEAK int32_t std_io_read_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset,
+                                             size_t len, uint32_t timeout_ms) {
+  return std_io_read_fixed_fd(fd, buf_index, offset, len, timeout_ms);
+}
+XLANG_WEAK int32_t std_io_write_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset,
+                                              size_t len, uint32_t timeout_ms) {
+  return std_io_write_fixed_fd(fd, buf_index, offset, len, timeout_ms);
+}
 
 /* page_mmap / freestanding heap 引用 xlang_sys_mmap；std/sys 未绿时 weak 回退到 libc mmap */
 #if defined(__unix__) || defined(__APPLE__)

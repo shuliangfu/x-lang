@@ -25,8 +25,8 @@
 |----|------|
 | 工具 | Linux `strace -e trace=read,write,readv,writev,splice,sendfile` |
 | 指标 | `io_total = read + write + readv + writev + splice + sendfile` |
-| 文件 batch | `io_batch_readv`（4×4KiB `read_batch_fd`）vs `io_read_chunked`（4KiB `fs_read`） |
-| 网络 batch | `zero_copy_splice` vs `zero_copy_readwrite`（64KiB read+write） |
+| 文件 batch | `io_batch_readv`（`bench/i05_io_batch_readv.x`）vs `io_read_chunked`（`bench/i01_io_read_chunked.x`） |
+| 网络 batch | `zero_copy_splice`（`bench/i07_zero_copy_splice.x`）vs `zero_copy_readwrite`（`bench/i07_zero_copy_readwrite.x`） |
 
 环境：
 
@@ -44,10 +44,10 @@
 
 | case_id | 路径 | cap 要点 | batch_lt_ref |
 |---------|------|----------|--------------|
-| `io_batch_readv` | `tests/bench/io_batch_readv.x` | readv≤1100 | `io_read_chunked` |
-| `io_read_chunked` | `tests/bench/io_read_chunked.x` | read≤4200 | — |
-| `zero_copy_splice` | `tests/bench/zero_copy_splice.x` | splice≥1, ≤20 | `zero_copy_readwrite` |
-| `zero_copy_readwrite` | `tests/bench/zero_copy_readwrite.x` | read/write≤300 | — |
+| `io_batch_readv` | `bench/i05_io_batch_readv.x` | readv≤1100 | `io_read_chunked` |
+| `io_read_chunked` | `bench/i01_io_read_chunked.x` | read≤4200 | — |
+| `zero_copy_splice` | `bench/i07_zero_copy_splice.x` | splice≥1, ≤20 | `zero_copy_readwrite` |
+| `zero_copy_readwrite` | `bench/i07_zero_copy_readwrite.x` | read/write≤300 | — |
 
 ---
 
@@ -70,13 +70,18 @@ xlang: [XLANG_SYSCALL_BATCH] case=io_batch_readv read=2 write=0 readv=1024 write
 
 ---
 
-## 6. 门禁
+## Gate
+
+Honesty (2026-08-27): soft `XLANG_SYSCALL_BATCH_FAIL:-0` over-cap / batch≥ref
+silent OK retired → **obs** (FAIL=1 still hard). Prefer `xlang_asm`. Refuse soft
+SKIP→OK / soft auto-make / fossil `bench/io_*`／`bench/zero_copy_*`. Explicit bad
+XLANG = hard die. Report `run=`／`obs=`／`skip=`.
 
 `tests/run-perf-syscall-batch-gate.sh`：
 
-1. RFC + manifest + baseline + lib  
-2. `run-zc5-gate.sh` 引用 `perf-syscall-batch.sh`  
-3. Linux + strace 可选烟测；其它平台 manifest OK + SKIP bench  
+1. Archive DOC + manifest + baseline + lib（拒顶层 `analysis/perf-syscall-batch-v1.md`）  
+2. `run-zc5-gate.sh` 引用 `perf-syscall-batch.sh`；bench→`i01_`／`i05_`／`i07_`  
+3. Linux + strace：runner smoke；其它平台 manifest OK + skip=1  
 
 ---
 
@@ -91,6 +96,6 @@ xlang: [XLANG_SYSCALL_BATCH] case=io_batch_readv read=2 write=0 readv=1024 write
 | 门禁 | `tests/run-perf-syscall-batch-gate.sh` |
 | ZC-5 | `tests/run-zc5-gate.sh` |
 | IO perf | `tests/run-perf-io.sh` |
-| 结构化日志 | `analysis/obs-structured-log-v1.md` |
+| 结构化日志 | `analysis/archive/obs/obs-structured-log-v1.md` |
 
 **PERF-008 状态：定版 ✅**

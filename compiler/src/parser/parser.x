@@ -104,6 +104,8 @@ export extern function pipeline_module_struct_layout_field_align_at(module: *Mod
 export extern function pipeline_module_func_param_write(module: *Module, func_index: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
 /* See implementation. */
 export extern function pipeline_module_func_name_write(module: *Module, func_index: i32, name_bytes: *u8, name_len: i32): void;
+export extern function pipeline_module_func_owner_from_impl(module: *Module, fi: i32): void;
+export extern function pipeline_module_parse_impl_owner_clear(): void;
 /* See implementation. */
 export extern function pipeline_arena_func_param_write(arena: *ASTArena, func_ref: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
 /* See implementation. */
@@ -296,7 +298,7 @@ export function onefunc_result_pool_ptr(res: *OneFuncResult): *u8 {
 allow(padding) struct OneFuncResult {
   ok: bool;
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   num_params: i32;
   num_generic_params: i32;
@@ -319,10 +321,10 @@ allow(padding) struct OneFuncResult {
   return_val: i32;
   /* See implementation. */
   has_call_expr: bool;
-  call_callee_name: u8[128];
+  call_callee_name: u8[256];
   call_callee_len: i32;
   /* See implementation. */
-  return_var_name: u8[128];
+  return_var_name: u8[256];
   return_var_name_len: i32;
   /* See implementation. */
   return_expr_ref: i32;
@@ -348,6 +350,13 @@ allow(padding) struct OneFuncResult {
   num_src_body_expr_stmts: i32;
   /* See implementation. */
   func_return_type_ref: i32;
+  /**
+   * Cap 10.7.1 language slice5: 1 when param list ends with `, ...` after ≥1 named
+   * formal. Stored on OneFuncResult (not sidecar) so pin sizeof OneFuncSidecar stays 944.
+   * Consumed at commit via pipeline_module_func_set_is_variadic → host-C `, ...` emit.
+   * PLATFORM: SHARED
+   */
+  is_variadic: i32;
 }
 
 /* Forward decls: monofile typeck is single-pass by function order; callees defined later need early surface. PLATFORM: SHARED. */
@@ -1060,9 +1069,11 @@ export function onefunc_result_layout_prime_f(): void {
   let _q6: OneFuncResult = {
     num_src_stmt_order: 0,
     num_src_body_expr_stmts: 0,
-    func_return_type_ref: 0
+    func_return_type_ref: 0,
+    is_variadic: 0
   };
   _q6.func_return_type_ref = 0;
+  _q6.is_variadic = 0;
   }
 }
 
@@ -1083,7 +1094,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   dst.next_lex = src.next_lex;
   dst.name_len = src.name_len;
   let ni: i32 = 0;
-  while (ni < 64) {
+  while (ni < 256) {
     if (ni < src.name_len) { dst.name[ni] = src.name[ni]; }
     ni = ni + 1;
   }
@@ -1107,7 +1118,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   /* See implementation. */
   dst.return_var_name_len = src.return_var_name_len;
   let rvni: i32 = 0;
-  while (rvni < 64) {
+  while (rvni < 256) {
     dst.return_var_name[rvni] = src.return_var_name[rvni];
     rvni = rvni + 1;
   }
@@ -1117,7 +1128,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   dst.has_call_expr = src.has_call_expr;
   dst.call_callee_len = src.call_callee_len;
   let cci: i32 = 0;
-  while (cci < 64) { dst.call_callee_name[cci] = src.call_callee_name[cci]; cci = cci + 1; }
+  while (cci < 256) { dst.call_callee_name[cci] = src.call_callee_name[cci]; cci = cci + 1; }
   dst.call_num_args = src.call_num_args;
   /* See implementation. */
   dst.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(dst));
@@ -1130,6 +1141,8 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   } else {
     dst.func_return_type_ref = preserved_func_ret_ty;
   }
+  /* Cap 10.7.1: copy variadic flag with other OneFuncResult scalars. */
+  dst.is_variadic = src.is_variadic;
   /* See implementation. */
   }
 }
@@ -1141,7 +1154,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
 export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[128] = [];
+  let z64: u8[256] = [];
   return {
     ok: false,
     next_lex: lexer.lexer_init(),
@@ -1164,6 +1177,8 @@ export function onefunc_merge_pool_out_to_snap(snap: *OneFuncResult, out: *OneFu
   if (out.func_return_type_ref != 0) {
     snap.func_return_type_ref = out.func_return_type_ref;
   }
+  /* Cap 10.7.1: keep variadic flag across pool merge to snap. */
+  snap.is_variadic = out.is_variadic;
   snap.num_consts = pipeline_onefunc_num_consts(onefunc_result_pool_ptr(snap));
   snap.num_lets = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(snap));
   snap.num_if_stmts = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(snap));
@@ -1195,7 +1210,7 @@ export function onefunc_finish_impl_to_out(
   snap.next_lex = lex;
   snap.name_len = name_len;
   let ni: i32 = 0;
-  while (ni < 64) {
+  while (ni < 256) {
     snap.name[ni] = name[ni];
     ni = ni + 1;
   }
@@ -1206,10 +1221,10 @@ export function onefunc_finish_impl_to_out(
  * Implements `onefunc_res_wire_dummy_head`.
  * @param res *OneFuncResult
  * @param lex Lexer
- * @param name64 u8[128]
+ * @param name64 u8[256]
  * @return void
  */
-export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[128]): void {
+export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let _w: OneFuncResult = { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
@@ -1249,10 +1264,10 @@ export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
 /** Exported function `onefunc_res_wire_dummy_call_binop`.
  * Implements `onefunc_res_wire_dummy_call_binop`.
  * @param res *OneFuncResult
- * @param name64 u8[128]
+ * @param name64 u8[256]
  * @return void
  */
-export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[128]): void {
+export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let _w: OneFuncResult = { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
@@ -1296,7 +1311,7 @@ export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
 export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let dummy_name: u8[128] = [];
+  let dummy_name: u8[256] = [];
   let res: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&res));
   onefunc_res_wire_dummy_head(&res, lex, dummy_name);
@@ -1313,7 +1328,7 @@ export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
 export function onefunc_snap_set_return_path(
   snap: *OneFuncResult,
   has_call: bool,
-  ret_var: u8[128],
+  ret_var: u8[256],
   ret_var_len: i32,
   ret_expr_ref: i32
 ): void {
@@ -1324,7 +1339,7 @@ export function onefunc_snap_set_return_path(
   snap.return_expr_ref = ret_expr_ref;
   snap.has_explicit_return_kw = true;
   let rvni: i32 = 0;
-  while (rvni < 64) {
+  while (rvni < 256) {
     snap.return_var_name[rvni] = ret_var[rvni];
     rvni = rvni + 1;
   }
@@ -2344,6 +2359,75 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
     if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
       lex_cur = parser_rewind_lex_for_lparen_control_stmt(lex_cur, r, source);
       lexer.lexer_next_into(&r, lex_cur, source);
+    }
+    /*
+     * 9.6.3: function-local `static let` / `static const` — desugar to a module
+     * top-level let. `static` is NOT a keyword: it is detected as a TOKEN_IDENT
+     * whose span spells "static" followed by let/const. Every other use of an
+     * identifier named "static" (`static(x)` call, `static = e` assignment) sees
+     * a non-let/const next token and falls through to the ordinary statement
+     * path untouched. The desugar reuses parse_one_top_level_let_into (the sole
+     * module-let registration authority), so storage / seeder / entry-seed /
+     * bake semantics are exactly the 9.6.0-9.6.2 module-let machinery: init
+     * accepts what module-level lets accept today, init runs at program start
+     * (not first call — documented C divergence), and the cell persists across
+     * calls. The static name never enters frame slots, so inner-block `let`
+     * shadowing keeps its natural meaning. If no module is installed (body
+     * parsed outside a module loop) the desugar is impossible: fail loudly,
+     * never silently drop the declaration. Dup detection runs inside the
+     * top-level-let authority (P012 kind=2, sticky hard abort).
+     * PLATFORM: SHARED — seed parser_gen pin + parser_asm C twin stay in step.
+     */
+    if ((r.tok.kind as i32) == (token.TokenKind.TOKEN_IDENT as i32) && r.tok.ident_len == 6) {
+      let st_b0: u8 = 0;
+      let st_b1: u8 = 0;
+      let st_b2: u8 = 0;
+      let st_b3: u8 = 0;
+      let st_b4: u8 = 0;
+      let st_b5: u8 = 0;
+      if (r.token_start < source.length) {
+        st_b0 = source[r.token_start];
+      }
+      if (r.token_start + (1 as usize) < source.length) {
+        st_b1 = source[r.token_start + (1 as usize)];
+      }
+      if (r.token_start + (2 as usize) < source.length) {
+        st_b2 = source[r.token_start + (2 as usize)];
+      }
+      if (r.token_start + (3 as usize) < source.length) {
+        st_b3 = source[r.token_start + (3 as usize)];
+      }
+      if (r.token_start + (4 as usize) < source.length) {
+        st_b4 = source[r.token_start + (4 as usize)];
+      }
+      if (r.token_start + (5 as usize) < source.length) {
+        st_b5 = source[r.token_start + (5 as usize)];
+      }
+      // ASCII "static" = 115,116,97,116,105,99
+      if (st_b0 == 115 && st_b1 == 116 && st_b2 == 97 && st_b3 == 116 && st_b4 == 105 && st_b5 == 99) {
+        let lex_st: Lexer = { pos: 0 as usize, line: 0, col: 0 };
+        lex_from_result_ptr_into(&lex_st, &r);
+        let st_r2: LexerResult = { next_lex: lex_st, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+        lexer.lexer_next_into(&st_r2, lex_st, source);
+        if (st_r2.tok.kind == token.TokenKind.TOKEN_LET || st_r2.tok.kind == token.TokenKind.TOKEN_CONST) {
+          let st_mod: *Module = parser_cur_module_get_c();
+          if (st_mod == (0 as *Module)) {
+            out.ok = false;
+            return;
+          }
+          let st_res: TopLevelLetResult = { ok: false, next_lex: lex_st };
+          parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_r2.tok.kind == token.TokenKind.TOKEN_CONST, &st_res);
+          if (!st_res.ok) {
+            out.ok = false;
+            return;
+          }
+          /* The whole `static let/const ...;` form was consumed by the
+           * top-level-let authority; emit nothing into this block. */
+          lex_cur = st_res.next_lex;
+          stmt_tok_ready = false;
+          continue;
+        }
+      }
     }
     /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
@@ -3900,6 +3984,19 @@ export extern function parser_report_untyped_formal_p011_c(line: i32, col: i32, 
 export extern function parser_report_duplicate_name_p012_c(line: i32, col: i32, kind: i32): void;
 
 /**
+ * Hard parse error[P014] when a let/const/param name is a keyword token.
+ * Root: IDENT|SELF|UNDERSCORE-only gates returned false with no diag →
+ * whole function dropped (soft P001). `run`/`spawn`/`async`/`await` are
+ * unary; they cannot be binding names (`run[0]` vs `run <expr>` collide).
+ * G.7: reporter lives in parser_asm_body_tl_slice.inc; this is the .x twin
+ * of the seed call sites. Sticky aborts parse_into_buf (ok=-2).
+ * @param line i32 — 1-based line of the keyword token
+ * @param col i32 — 1-based column
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_report_keyword_binding_p014_c(line: i32, col: i32): void;
+
+/**
  * wave679: 1 if name already among first nparams of OneFunc param pool.
  * @param pool *u8 — onefunc sidecar pool
  * @param nparams i32 — params already appended
@@ -3922,6 +4019,27 @@ export extern function parser_sig_type_hard_reset_c(): void;
  * PLATFORM: SHARED parse.
  */
 export extern function parser_sig_type_hard_pending_c(): i32;
+
+/**
+ * 9.6.3: install the module whose function bodies are currently being parsed.
+ * parse_into / parse_into_buf set it right before parse_one_function_impl and
+ * clear it right after, so parse_block_into can desugar a function-local
+ * `static let` / `static const` into a module top-level let (shared storage,
+ * program-start init, module-wide visibility — documented 9.6.3 semantics).
+ * Definition: g_parser_cur_module in parser_asm_body_tl_slice.inc, same
+ * C-side static + accessor pattern as g_parser_sig_type_hard.
+ * @param m *Module — current module; null clears the slot
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_cur_module_set_c(m: *Module): void;
+
+/**
+ * 9.6.3: read the module pointer installed by parser_cur_module_set_c.
+ * @return *Module — current module; null when a body is parsed outside a
+ * module loop (then the static desugar must fail loudly, never silently)
+ * PLATFORM: SHARED parse.
+ */
+export extern function parser_cur_module_get_c(): *Module;
 
 /**
  * Allow bare `self` (no `: Type`) only while hoisting a trait default body.
@@ -3954,6 +4072,170 @@ function parser_report_untyped_binding_p010(line: i32, col: i32, is_let: i32): v
     }
     parser_report_untyped_binding_p010_c(line, col, flag);
   }
+}
+
+/**
+ * Append one semantic byte onto a STRING_LIT head. Bytes 0..126 live in
+ * Expr.var_name; further bytes chain extra STRING_LIT exprs via int_val
+ * (next-ref). Head.var_name_len is the total length. Identifier slots stay
+ * 127 (4.2.8 leave-off). L011 honest-fails past 4095.
+ * @param arena *ASTArena — expr arena
+ * @param head_ref i32 — STRING_LIT head
+ * @param b u8 — decoded semantic byte
+ * @param line i32 — overflow diagnostic line
+ * @param col i32 — overflow diagnostic column
+ * @return i32 — 0 ok; -1 L011 / alloc fail
+ * PLATFORM: SHARED — G.7 complete of Expr.var_name STRING_LIT store.
+ */
+function parser_string_lit_append_byte(arena: *ASTArena, head_ref: i32, b: u8, line: i32, col: i32): i32 {
+  let total: i32 = 0;
+  let cur: i32 = 0;
+  let next: i32 = 0;
+  let ov: i32 = 0;
+  let off: i32 = 0;
+  if (ast.ref_is_null(head_ref)) {
+    return 0 - 1;
+  }
+  let e: Expr = ast.ast_arena_expr_get(arena, head_ref);
+  total = e.var_name_len;
+  if (total < 0) {
+    total = 0;
+  }
+  if (total >= 4095) {
+    lexer.lexer_note_string_lit_overflow(line, col);
+    return 0 - 1;
+  }
+  if (total < 127) {
+    e.var_name[total] = b;
+    e.var_name_len = total + 1;
+    ast.ast_arena_expr_set(arena, head_ref, e);
+    return 0;
+  }
+  cur = e.int_val as i32;
+  off = total - 127;
+  if (cur <= 0) {
+    ov = ast.ast_arena_expr_alloc(arena);
+    if (ov == 0) {
+      return 0 - 1;
+    }
+    let ch0: Expr = ast.ast_arena_expr_get(arena, ov);
+    expr_set_common_zeros(&ch0);
+    ch0.kind = ExprKind.EXPR_STRING_LIT;
+    ch0.line = e.line;
+    ch0.col = e.col;
+    ch0.int_val = 0;
+    ch0.var_name_len = 0;
+    ast.ast_arena_expr_set(arena, ov, ch0);
+    e.int_val = ov as i64;
+    ast.ast_arena_expr_set(arena, head_ref, e);
+    cur = ov;
+  }
+  while (off >= 127) {
+    let chw: Expr = ast.ast_arena_expr_get(arena, cur);
+    next = chw.int_val as i32;
+    if (next <= 0) {
+      ov = ast.ast_arena_expr_alloc(arena);
+      if (ov == 0) {
+        return 0 - 1;
+      }
+      chw.int_val = ov as i64;
+      ast.ast_arena_expr_set(arena, cur, chw);
+      let chn: Expr = ast.ast_arena_expr_get(arena, ov);
+      expr_set_common_zeros(&chn);
+      chn.kind = ExprKind.EXPR_STRING_LIT;
+      chn.line = e.line;
+      chn.col = e.col;
+      chn.int_val = 0;
+      chn.var_name_len = 0;
+      ast.ast_arena_expr_set(arena, ov, chn);
+      next = ov;
+    }
+    off = off - 127;
+    cur = next;
+  }
+  let cht: Expr = ast.ast_arena_expr_get(arena, cur);
+  cht.var_name[off] = b;
+  if (cht.var_name_len < off + 1) {
+    cht.var_name_len = off + 1;
+  }
+  ast.ast_arena_expr_set(arena, cur, cht);
+  e = ast.ast_arena_expr_get(arena, head_ref);
+  e.var_name_len = total + 1;
+  ast.ast_arena_expr_set(arena, head_ref, e);
+  return 0;
+}
+
+/**
+ * Decode one TOKEN_STRING span (product escapes) onto an existing STRING_LIT
+ * head, appending (adjacent concat). G.7 ≡ parser_asm_string_lit_decode_span_c.
+ * @param arena *ASTArena
+ * @param head_ref i32 — STRING_LIT head
+ * @param source u8[] — lexer source
+ * @param q0 usize — token_start (first byte after open quote)
+ * @param nlen i32 — token ident_len
+ * @param line i32
+ * @param col i32
+ * @return i32 — 0 ok; -1 L011 / null
+ * PLATFORM: SHARED.
+ */
+function parser_string_lit_decode_span(arena: *ASTArena, head_ref: i32, source: u8[], q0: usize, nlen: i32, line: i32, col: i32): i32 {
+  let ri: i32 = 0;
+  if (nlen < 0) {
+    nlen = 0;
+  }
+  while (ri < nlen) {
+    let c: u8 = 0;
+    let b: u8 = 0;
+    let consumed: i32 = 1;
+    if (q0 + (ri as usize) < source.length) {
+      c = source[q0 + (ri as usize)];
+    }
+    b = c;
+    if (c == 92 && (ri + 1) < nlen) {
+      let n: u8 = 0;
+      if (q0 + ((ri + 1) as usize) < source.length) {
+        n = source[q0 + ((ri + 1) as usize)];
+      }
+      if (n == 110) { b = 10; consumed = 2; }
+      else if (n == 116) { b = 9; consumed = 2; }
+      else if (n == 114) { b = 13; consumed = 2; }
+      else if (n == 48) { b = 0; consumed = 2; }
+      else if (n == 92 || n == 34) { b = n; consumed = 2; }
+      else if (n == 120 && (ri + 3) < nlen) {
+        let h1: u8 = 0;
+        let h2: u8 = 0;
+        let v1: i32 = 0 - 1;
+        let v2: i32 = 0 - 1;
+        if (q0 + ((ri + 2) as usize) < source.length) {
+          h1 = source[q0 + ((ri + 2) as usize)];
+        }
+        if (q0 + ((ri + 3) as usize) < source.length) {
+          h2 = source[q0 + ((ri + 3) as usize)];
+        }
+        if (h1 >= 48 && h1 <= 57) { v1 = (h1 as i32) - 48; }
+        if (h1 >= 97 && h1 <= 102) { v1 = (h1 as i32) - 97 + 10; }
+        if (h1 >= 65 && h1 <= 70) { v1 = (h1 as i32) - 65 + 10; }
+        if (h2 >= 48 && h2 <= 57) { v2 = (h2 as i32) - 48; }
+        if (h2 >= 97 && h2 <= 102) { v2 = (h2 as i32) - 97 + 10; }
+        if (h2 >= 65 && h2 <= 70) { v2 = (h2 as i32) - 65 + 10; }
+        if (v1 >= 0 && v2 >= 0) {
+          b = ((v1 * 16) + v2) as u8;
+          consumed = 4;
+        } else {
+          b = n;
+          consumed = 2;
+        }
+      } else {
+        b = n;
+        consumed = 2;
+      }
+    }
+    if (parser_string_lit_append_byte(arena, head_ref, b, line, col) != 0) {
+      return 0 - 1;
+    }
+    ri = ri + consumed;
+  }
+  return 0;
 }
 
 /** Internal function `parse_body_lets_into`.
@@ -4036,10 +4318,15 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     /* discard binding `let _`: lexer emits TOKEN_UNDERSCORE (ident_len=0) as name "_".
      * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static.
      * `let self`: TOKEN_SELF (keyword, ident_len=0) is a valid binding name "self" (phase 7.2
-     * receiver spelling re-used as ordinary local); same silent-drop class as param list. */
+     * receiver spelling re-used as ordinary local); same silent-drop class as param list.
+     * Other keywords (TOKEN_RUN=57 unary, SPAWN/ASYNC/AWAIT, `if`, `match`, …) are NOT
+     * binding names: `run <expr>` vs `run[0]` are the same tokens. Soft return-false
+     * here dropped the whole function (P001). G.7: complete this gate with P014;
+     * do not accept RUN as IDENT. PLATFORM: SHARED parse. */
     if ((r.tok.kind as i32) == 52) {
       is_discard_name = 1;
     } else if ((r.tok.kind as i32) != 59 && (r.tok.kind as i32) != 51) {
+      parser_report_keyword_binding_p014_c(r.tok.line, r.tok.col);
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* Assign after name token: hoist must not use LET/CONST token's ident_len/start. */
@@ -4049,7 +4336,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     } else if ((r.tok.kind as i32) == 51) {
       name_len = 4;
     }
-    if (name_len <= 0 || name_len > 127) {
+    if (name_len <= 0 || name_len > 255) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* token_start is real offset in slice; 0 is legal (do not use token_start!=0 as sentinel). */
@@ -4302,75 +4589,13 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           se.line = r.tok.line;
           se.col = r.tok.col;
           expr_set_common_zeros(&se);
-          /* wave283: use full token span (no silent nlen clamp). Cap is 127 semantic
-           * bytes in Expr.var_name[128] (with trailing NUL); overflow → sticky L011.
-           * wave1222: cap raised 63→127 to match actual var_name[128] capacity. */
-          let nlen: i32 = r.tok.ident_len;
-          if (nlen < 0) {
-            nlen = 0;
-          }
-          /* Decode escapes so AST holds semantic bytes (\n→0x0A, \xHH→byte), not raw source.
+          se.var_name_len = 0;
+          se.int_val = 0;
+          /* Decode escapes so AST holds semantic bytes (\n→0x0A, \xHH→byte).
+           * slen>255: overflow chunks via int_val (G.7 complete of var_name store).
            * wave281: product set `\n \t \r \0 \\ \" \xHH` (lexer L010 rejects others). */
-          let q0: usize = r.token_start;
-          let ri: i32 = 0;
-          let wi: i32 = 0;
-          while (ri < nlen) {
-            if (wi >= 127) {
-              // wave283 Cap residual: hard L011 (silent truncate was soft residual).
-              lexer.lexer_note_string_lit_overflow(se.line, se.col);
-              break;
-            }
-            let c: u8 = 0;
-            if (q0 + (ri as usize) < source.length) {
-              c = source[q0 + (ri as usize)];
-            }
-            if (c == 92 && (ri + 1) < nlen) {
-              let n: u8 = 0;
-              if (q0 + ((ri + 1) as usize) < source.length) {
-                n = source[q0 + ((ri + 1) as usize)];
-              }
-              if (n == 110) { se.var_name[wi] = 10; wi = wi + 1; ri = ri + 2; continue; }
-              if (n == 116) { se.var_name[wi] = 9; wi = wi + 1; ri = ri + 2; continue; }
-              if (n == 114) { se.var_name[wi] = 13; wi = wi + 1; ri = ri + 2; continue; }
-              if (n == 48) { se.var_name[wi] = 0; wi = wi + 1; ri = ri + 2; continue; }
-              if (n == 92 || n == 34) { se.var_name[wi] = n; wi = wi + 1; ri = ri + 2; continue; }
-              // wave281: `\xHH` → one semantic byte (G.7 ≡ primary_slice decode).
-              if (n == 120 && (ri + 3) < nlen) {
-                let h1: u8 = 0;
-                let h2: u8 = 0;
-                if (q0 + ((ri + 2) as usize) < source.length) {
-                  h1 = source[q0 + ((ri + 2) as usize)];
-                }
-                if (q0 + ((ri + 3) as usize) < source.length) {
-                  h2 = source[q0 + ((ri + 3) as usize)];
-                }
-                let v1: i32 = -1;
-                let v2: i32 = -1;
-                if (h1 >= 48 && h1 <= 57) { v1 = (h1 as i32) - 48; }
-                if (h1 >= 97 && h1 <= 102) { v1 = (h1 as i32) - 97 + 10; }
-                if (h1 >= 65 && h1 <= 70) { v1 = (h1 as i32) - 65 + 10; }
-                if (h2 >= 48 && h2 <= 57) { v2 = (h2 as i32) - 48; }
-                if (h2 >= 97 && h2 <= 102) { v2 = (h2 as i32) - 97 + 10; }
-                if (h2 >= 65 && h2 <= 70) { v2 = (h2 as i32) - 65 + 10; }
-                if (v1 >= 0 && v2 >= 0) {
-                  se.var_name[wi] = ((v1 * 16) + v2) as u8;
-                  wi = wi + 1;
-                  ri = ri + 4;
-                  continue;
-                }
-              }
-              se.var_name[wi] = n; wi = wi + 1; ri = ri + 2; continue;
-            }
-            se.var_name[wi] = c;
-            wi = wi + 1;
-            ri = ri + 1;
-          }
-          se.var_name_len = wi;
-          while (wi < 128) {
-            se.var_name[wi] = 0;
-            wi = wi + 1;
-          }
           ast.ast_arena_expr_set(arena, str_ref, se);
+          parser_string_lit_decode_span(arena, str_ref, source, r.token_start, r.tok.ident_len, se.line, se.col);
           let_init_ref = str_ref;
         }
         lex_from_result_ptr_into(&lex, &r);
@@ -4379,79 +4604,12 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
          * wave282: C-style adjacent string-literal concatenation at parse time.
          * Soft residual closed: 2nd+ TOKEN_STRING after let-init STRING was bare
          * expr-stmt and silently dropped. Append-decode into same EXPR_STRING_LIT.
-         * wave283: combined semantic length must not exceed 63 (L011 hard; not truncate).
+         * Combined length uses overflow chunks; L011 only past 4095.
          * PLATFORM: SHARED — G.7 ≡ parser_gen seed + primary_slice.
          */
         while ((r.tok.kind as i32) == 130 && str_ref != 0) {
           let se_adj: Expr = ast.ast_arena_expr_get(arena, str_ref);
-          let wi_adj: i32 = se_adj.var_name_len;
-          if (wi_adj < 0) {
-            wi_adj = 0;
-          }
-          if (wi_adj > 127) {
-            wi_adj = 127;
-          }
-          let nlen_adj: i32 = r.tok.ident_len;
-          if (nlen_adj < 0) {
-            nlen_adj = 0;
-          }
-          let q0_adj: usize = r.token_start;
-          let ri_adj: i32 = 0;
-          while (ri_adj < nlen_adj) {
-            if (wi_adj >= 127) {
-              lexer.lexer_note_string_lit_overflow(se_adj.line, se_adj.col);
-              break;
-            }
-            let c2: u8 = 0;
-            if (q0_adj + (ri_adj as usize) < source.length) {
-              c2 = source[q0_adj + (ri_adj as usize)];
-            }
-            if (c2 == 92 && (ri_adj + 1) < nlen_adj) {
-              let n2: u8 = 0;
-              if (q0_adj + ((ri_adj + 1) as usize) < source.length) {
-                n2 = source[q0_adj + ((ri_adj + 1) as usize)];
-              }
-              if (n2 == 110) { se_adj.var_name[wi_adj] = 10; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
-              if (n2 == 116) { se_adj.var_name[wi_adj] = 9; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
-              if (n2 == 114) { se_adj.var_name[wi_adj] = 13; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
-              if (n2 == 48) { se_adj.var_name[wi_adj] = 0; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
-              if (n2 == 92 || n2 == 34) { se_adj.var_name[wi_adj] = n2; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
-              if (n2 == 120 && (ri_adj + 3) < nlen_adj) {
-                let h1b: u8 = 0;
-                let h2b: u8 = 0;
-                if (q0_adj + ((ri_adj + 2) as usize) < source.length) {
-                  h1b = source[q0_adj + ((ri_adj + 2) as usize)];
-                }
-                if (q0_adj + ((ri_adj + 3) as usize) < source.length) {
-                  h2b = source[q0_adj + ((ri_adj + 3) as usize)];
-                }
-                let v1b: i32 = -1;
-                let v2b: i32 = -1;
-                if (h1b >= 48 && h1b <= 57) { v1b = (h1b as i32) - 48; }
-                if (h1b >= 97 && h1b <= 102) { v1b = (h1b as i32) - 97 + 10; }
-                if (h1b >= 65 && h1b <= 70) { v1b = (h1b as i32) - 65 + 10; }
-                if (h2b >= 48 && h2b <= 57) { v2b = (h2b as i32) - 48; }
-                if (h2b >= 97 && h2b <= 102) { v2b = (h2b as i32) - 97 + 10; }
-                if (h2b >= 65 && h2b <= 70) { v2b = (h2b as i32) - 65 + 10; }
-                if (v1b >= 0 && v2b >= 0) {
-                  se_adj.var_name[wi_adj] = ((v1b * 16) + v2b) as u8;
-                  wi_adj = wi_adj + 1;
-                  ri_adj = ri_adj + 4;
-                  continue;
-                }
-              }
-              se_adj.var_name[wi_adj] = n2; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue;
-            }
-            se_adj.var_name[wi_adj] = c2;
-            wi_adj = wi_adj + 1;
-            ri_adj = ri_adj + 1;
-          }
-          se_adj.var_name_len = wi_adj;
-          while (wi_adj < 128) {
-            se_adj.var_name[wi_adj] = 0;
-            wi_adj = wi_adj + 1;
-          }
-          ast.ast_arena_expr_set(arena, str_ref, se_adj);
+          parser_string_lit_decode_span(arena, str_ref, source, r.token_start, r.tok.ident_len, se_adj.line, se_adj.col);
           lex_from_result_ptr_into(&lex, &r);
           lexer.lexer_next_into(&r, lex, source);
         }
@@ -5606,7 +5764,7 @@ export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool 
  * Callers must pass a dst buffer of at least 128 bytes.
  * @param source u8[] — source text
  * @param start usize — start offset into source
- * @param nlen i32 — content length (0..127 used; larger values still zero-fill)
+ * @param nlen i32 — content length (0..255 used; larger values still zero-fill)
  * @param out *u8 — destination row (≥128 bytes)
  * @return void
  * PLATFORM: SHARED
@@ -5752,8 +5910,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* See implementation. */
   let out_clean: OneFuncResult = onefunc_alloc_wired_for_parse(lex);
   copy_onefunc_into(out, &out_clean);
+  /* Cap 10.7.1: clear variadic until trailing `...` is seen. */
+  out.is_variadic = 0;
   let out_ref: *OneFuncResult = out;
-  let dummy_name: u8[128] = [];
+  let dummy_name: u8[256] = [];
   /* See implementation. */
   let impl_snap: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&impl_snap));
@@ -5791,8 +5951,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let plen_param: i32 = 0;
   let param_idx: i32 = 0;
   let param_pool: *u8 = 0 as *u8;
-  /* wave585 Cap residual: param name row 32→128 (content ≤127). */
-  let pname_row: u8[128] = [];
+  /* wave585 Cap residual: param name row 32→128 (content ≤255). */
+  let pname_row: u8[256] = [];
   let zi_param: i32 = 0;
   /* See implementation. */
   let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
@@ -5828,7 +5988,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     } else {
       func_name_len_storage[0] = r.tok.ident_len;
-      if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 127) {
+      if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 255) {
         set_onefunc_fail(out, lex); return;
       }
       name_start = r.next_lex.pos - func_name_len_storage[0];
@@ -5841,7 +6001,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     }
     func_name_len_storage[0] = r.tok.ident_len;
-    if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 127) {
+    if (func_name_len_storage[0] <= 0 || func_name_len_storage[0] > 255) {
       set_onefunc_fail(out, lex); return;
     }
     name_start = r.next_lex.pos - func_name_len_storage[0];
@@ -5873,9 +6033,31 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     /* Param list: IDENT or TOKEN_SELF (method/receiver keyword used as binding name).
      * Root fix: lexer keywords `self` as TOKEN_SELF (ident_len=0); requiring IDENT only
      * silently set_onefunc_fail → whole function dropped from AST (wave43).
+     * Other keywords: P014 hard (same class as body-lets `let run`). G.7 complete
+     * this IDENT|SELF gate; do not accept TOKEN_RUN as a param name.
      * PLATFORM: SHARED — bind name "self" via token_start copy (len 4). */
     while (1 == 1) {
+      /*
+       * Cap 10.7.1 language slice5: trailing `...` after ≥1 named formal.
+       * Lexer already emits TOKEN_ELLIPSIS; codegen emits `, ...` when
+       * pipeline_module_func_is_variadic_at != 0. Require named params so
+       * Cap va_start has a last named argument (C ABI). PLATFORM: SHARED.
+       */
+      if ((r.tok.kind as i32) == (token.TokenKind.TOKEN_ELLIPSIS as i32)) {
+        if (out.num_params <= 0) {
+          set_onefunc_fail(out_ref, lex); return;
+        }
+        out.is_variadic = 1;
+        lex_from_next_into(&lex, r);
+        lexer.lexer_next_into(&r, lex, source);
+        if ((r.tok.kind as i32) != (token.TokenKind.TOKEN_RPAREN as i32)) {
+          set_onefunc_fail(out_ref, lex); return;
+        }
+        lex_from_next_into(&lex, r);
+        break;
+      }
       if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
+        parser_report_keyword_binding_p014_c(r.tok.line, r.tok.col);
         set_onefunc_fail(out_ref, lex); return;
       }
       // TOKEN_SELF has ident_len=0 in lexer; spelling is always 4 bytes "self".
@@ -5884,8 +6066,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       } else {
         plen_param = r.tok.ident_len;
       }
-      /* wave585 Cap residual: param content ≤127 (was 31). */
-      if (plen_param <= 0 || plen_param > 127) {
+      /* wave585 Cap residual: param content ≤255 (was 31). */
+      if (plen_param <= 0 || plen_param > 255) {
         set_onefunc_fail(out_ref, lex); return;
       }
       /* Clear row then copy binding-name bytes from token_start before append into sidecar pool. */
@@ -6099,6 +6281,71 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        */
       if (r.tok.kind == token.TokenKind.TOKEN_RBRACE || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
+      }
+      /*
+       * 9.6.3: function-local `static let` / `static const` — onefunc top-block
+       * statement loop face. The function body top block is parsed HERE, not by
+       * parse_block_into_with_scratch (that loop only sees nested blocks), so the
+       * IDENT-"static"-then-let/const desugar hook must exist in this loop too.
+       * Same contract as the parse_block hook: `static` is NOT a keyword; it is
+       * detected as a TOKEN_IDENT whose span spells "static" followed by
+       * let/const; the whole form is consumed by parse_one_top_level_let_into
+       * (the sole module-let registration authority) and nothing is emitted into
+       * the frame. `return static_var` references and `static(x)` calls see a
+       * non-let/const next token (or a non-statement position) and fall through
+       * untouched. No module installed → fail loudly, never silently drop.
+       * PLATFORM: SHARED — seed parser_gen pin + parser_asm C twin stay in step.
+       */
+      if ((r.tok.kind as i32) == (token.TokenKind.TOKEN_IDENT as i32) && r.tok.ident_len == 6) {
+        let st_b0: u8 = 0;
+        let st_b1: u8 = 0;
+        let st_b2: u8 = 0;
+        let st_b3: u8 = 0;
+        let st_b4: u8 = 0;
+        let st_b5: u8 = 0;
+        if (r.token_start < source.length) {
+          st_b0 = source[r.token_start];
+        }
+        if (r.token_start + (1 as usize) < source.length) {
+          st_b1 = source[r.token_start + (1 as usize)];
+        }
+        if (r.token_start + (2 as usize) < source.length) {
+          st_b2 = source[r.token_start + (2 as usize)];
+        }
+        if (r.token_start + (3 as usize) < source.length) {
+          st_b3 = source[r.token_start + (3 as usize)];
+        }
+        if (r.token_start + (4 as usize) < source.length) {
+          st_b4 = source[r.token_start + (4 as usize)];
+        }
+        if (r.token_start + (5 as usize) < source.length) {
+          st_b5 = source[r.token_start + (5 as usize)];
+        }
+        // ASCII "static" = 115,116,97,116,105,99
+        if (st_b0 == 115 && st_b1 == 116 && st_b2 == 97 && st_b3 == 116 && st_b4 == 105 && st_b5 == 99) {
+          let lex_st: Lexer = { pos: 0 as usize, line: 0, col: 0 };
+          lex_from_result_ptr_into(&lex_st, &r);
+          let st_r2: LexerResult = { next_lex: lex_st, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+          lexer.lexer_next_into(&st_r2, lex_st, source);
+          if (st_r2.tok.kind == token.TokenKind.TOKEN_LET || st_r2.tok.kind == token.TokenKind.TOKEN_CONST) {
+            let st_mod: *Module = parser_cur_module_get_c();
+            if (st_mod == (0 as *Module)) {
+              set_onefunc_fail(out, lex);
+              return;
+            }
+            let st_res: TopLevelLetResult = { ok: false, next_lex: lex_st };
+            parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_r2.tok.kind == token.TokenKind.TOKEN_CONST, &st_res);
+            if (!st_res.ok) {
+              set_onefunc_fail(out, lex);
+              return;
+            }
+            /* The whole `static let/const ...;` form was consumed by the
+             * top-level-let authority; emit nothing into the frame. */
+            lex = st_res.next_lex;
+            stmt_tok_ready = false;
+            continue;
+          }
+        }
       }
       /**
        * wave379: mid-body `return` only when a label follows (`return 1; L: …`).
@@ -7677,7 +7924,7 @@ export extern function parser_module_try_register_enum_name_glue(module: *Module
 export function module_try_register_enum_name(module: *Module, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 127) {
+  if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 255) {
     return -1;
   }
   let ei: i32 = 0;
@@ -7760,8 +8007,8 @@ export function module_append_enum_variants_and_skip_body_into_buf(module: *Modu
       depth = depth + 1;
     } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == token.TokenKind.TOKEN_IDENT) {
       let vlen: i32 = r.tok.ident_len;
-      if (vlen > 127) {
-        vlen = 127;
+      if (vlen > 255) {
+        vlen = 255;
       }
       let vstart: usize = r.token_start;
       let vb: u8[128] = [];
@@ -8071,7 +8318,7 @@ function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
  */
 allow(padding) struct ExternParseResult {
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   /* See implementation. */
   return_ty_ref: i32;
@@ -8115,7 +8362,7 @@ export function write_extern_params_to_pools(arena: *ASTArena, module: *Module, 
   let pool: *u8 = extern_parse_pool_ptr(res);
   let p: i32 = 0;
   while (p < res.num_params) {
-    let pname32: u8[128] = [];
+    let pname32: u8[256] = [];
     pipeline_onefunc_param_name_copy32(pool, p, &pname32[0]);
     let plen: i32 = pipeline_onefunc_param_name_len(pool, p);
     let pty: i32 = pipeline_onefunc_param_type_ref(pool, p);
@@ -8137,7 +8384,7 @@ export function write_extern_params_to_pools(arena: *ASTArena, module: *Module, 
 export function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let empty64: u8[128] = [];
+  let empty64: u8[256] = [];
   out.next_lex = lex;
   out.name_len = -1;
   out.return_ty_ref = 0;
@@ -8146,7 +8393,7 @@ export function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void
   out.is_variadic = 0;
   out.has_body = 0;
   let ni: i32 = 0;
-  while (ni < 64) {
+  while (ni < 256) {
     out.name[ni] = empty64[ni];
     ni = ni + 1;
   }
@@ -8216,6 +8463,8 @@ export function module_register_arena_func(module: *Module, func_ref: i32, f: Fu
     return -1;
   }
   pipeline_module_func_name_write(module, fi, &f.name[0], f.name_len);
+  /* LANG-005: stamp impl owner while the parse impl latch is armed. */
+  pipeline_module_func_owner_from_impl(module, fi);
   pipeline_module_func_set_num_params(module, fi, f.num_params);
   pipeline_module_func_set_num_generic_params(module, fi, f.num_generic_params);
   pipeline_module_func_set_return_type(module, fi, f.return_type_ref);
@@ -8223,6 +8472,8 @@ export function module_register_arena_func(module: *Module, func_ref: i32, f: Fu
   pipeline_module_func_set_body_expr_ref(module, fi, f.body_expr_ref);
   pipeline_module_func_set_is_extern(module, fi, f.is_extern);
   pipeline_module_func_set_is_async(module, fi, f.is_async);
+  /* Cap 10.7.1: Func.is_variadic → module slot (host-C `, ...` emit). */
+  pipeline_module_func_set_is_variadic(module, fi, f.is_variadic);
   pipeline_module_func_set_is_export(module, fi, module.pending_export);
   module.pending_export = 0;
       pipeline_module_func_set_is_used(module, fi, module.pending_used);
@@ -8331,7 +8582,7 @@ allow(padding) struct LibraryParseResult {
   ok: bool;
   _pad: u8[4];
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
   _pad_tail: u8[4];
 }
@@ -8403,13 +8654,13 @@ struct LibraryParseScanResult {
   ok: bool;
   _pad: u8[4];
   next_lex: Lexer;
-  name: u8[128];
+  name: u8[256];
   name_len: i32;
-  param_name: u8[128];
+  param_name: u8[256];
   param_name_len: i32;
-  param_type_name: u8[128];
+  param_type_name: u8[256];
   param_type_len: i32;
-  field_name: u8[128];
+  field_name: u8[256];
   field_len: i32;
   _pad_tail: u8[4];
   _pad_tail2: u8[4];
@@ -8438,7 +8689,7 @@ function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *Libr
 
 /* See implementation. */
 /* See implementation. */
-extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[128], nlen: i32): bool;
+extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[256], nlen: i32): bool;
 /** Internal function `struct_layout_name_exists_arr`.
  * Implements `struct_layout_name_exists_arr`.
  * @param module *Module
@@ -8446,7 +8697,7 @@ extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u
  * @param nlen i32
  * @return bool
  */
-export function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen: i32): bool {
+export function struct_layout_name_exists_arr(module: *Module, nm: u8[256], nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8475,7 +8726,7 @@ export function struct_layout_name_exists_arr(module: *Module, nm: u8[128], nlen
 
 /* See implementation. */
 /* See implementation. */
-extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[128], nlen: i32): i32;
+extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[256], nlen: i32): i32;
 /** Internal function `struct_layout_first_name_match_idx`.
  * Implements `struct_layout_first_name_match_idx`.
  * @param module *Module
@@ -8483,7 +8734,7 @@ extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, 
  * @param nlen i32
  * @return i32
  */
-export function struct_layout_first_name_match_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
+export function struct_layout_first_name_match_idx(module: *Module, nm: u8[256], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -8515,12 +8766,12 @@ export function struct_layout_first_name_match_idx(module: *Module, nm: u8[128],
  * See implementation.
  */
 /* See implementation. */
-extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[128], nlen: i32): i32;
+extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[256], nlen: i32): i32;
 /**
  * See implementation.
  * See implementation.
  */
-export function struct_layout_placeholder_idx(module: *Module, nm: u8[128], nlen: i32): i32 {
+export function struct_layout_placeholder_idx(module: *Module, nm: u8[256], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let k: i32 = 0;
@@ -9235,6 +9486,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       if (impl_body_depth > 0) {
         impl_body_depth = impl_body_depth - 1;
+        /* LANG-005: impl block closed — disarm the owner latch. */
+        unsafe {
+        pipeline_module_parse_impl_owner_clear();
+        }
         continue;
       }
     }
@@ -9295,7 +9550,11 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
+    /* 9.6.3: install the module while this function body parses so the
+     * parse_block_into static-desugar hook can reach it; clear right after. */
+    parser_cur_module_set_c(module);
     parse_one_function_impl(&res, arena, lex, source);
+    parser_cur_module_set_c(0 as *Module);
     if (!res.ok) {
       return { ok: -2, main_idx: -1 };
     }
@@ -10262,13 +10521,17 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       return { ok: -1, main_idx: -1000 }
     }
     pipeline_module_func_name_write(module, fi, &res.name[0], res.name_len);
+    /* LANG-005: stamp impl owner while the parse latch is armed. */
+    pipeline_module_func_owner_from_impl(module, fi);
     pipeline_module_func_set_num_params(module, fi, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi, res.num_generic_params);
+    /* Cap 10.7.1: OneFuncResult.is_variadic → module Func for C prototype emit. */
+    pipeline_module_func_set_is_variadic(module, fi, res.is_variadic);
     /* See implementation. */
     let mod_pool: *u8 = onefunc_result_pool_ptr(&res);
     let p: i32 = 0;
     while (p < res.num_params) {
-      let pname32: u8[128] = [];
+      let pname32: u8[256] = [];
       pipeline_onefunc_param_name_copy32(mod_pool, p, &pname32[0]);
       pipeline_module_func_param_write(module, fi, p, &pname32[0], pipeline_onefunc_param_name_len(mod_pool, p), pipeline_onefunc_param_type_ref(mod_pool, p));
       p = p + 1;
@@ -11424,6 +11687,16 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         lex = toplevel_res.next_lex;
         continue;
       }
+      /*
+       * 9.6.3: P012 duplicate top-level binding (two module-level lets with one
+       * name silently compiled, second registration won) must not soft-skip —
+       * the dup was already reported sticky inside the top-level-let authority.
+       * Same wave679 pattern as the struct branch below.
+       * PLATFORM: SHARED parse.
+       */
+      if (parser_sig_type_hard_pending_c() != 0) {
+        return { ok: -2, main_idx: -1 };
+      }
     }
     /* Impl closer: skip_one_impl parked the lexer at the first method; after
      * those functions the leftover `}` closes the nest (wave390 UFCS).
@@ -11433,6 +11706,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       if (impl_body_depth_buf > 0) {
         impl_body_depth_buf = impl_body_depth_buf - 1;
+        /* LANG-005: impl block closed (buf path) — disarm the owner latch. */
+        unsafe {
+        pipeline_module_parse_impl_owner_clear();
+        }
         continue;
       }
     }
@@ -11519,6 +11796,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       lex_from_library_into(&lex, lib_buf_first);
       continue;
     }
+    /* 9.6.3: install the module while this function body parses so the
+     * parse_block_into static-desugar hook can reach it; the window covers the
+     * slice parse and the buf retry (both parse the same body). */
+    parser_cur_module_set_c(module);
     parse_one_function_impl(&res, arena, lex, slice_for_impl);
     if (!res.ok) {
       /* wave676: skip buf retry when P011 already sticky (avoid double diag). */
@@ -11526,6 +11807,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         parse_one_function_buf_into(&res, arena, lex_at_function_buf, data, len);
       }
     }
+    parser_cur_module_set_c(0 as *Module);
     if (!res.ok) {
       /*
        * wave676 Cap residual: P011 untyped formal / missing return type must not
@@ -12346,8 +12628,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     pipeline_module_func_name_write(module, fi_mod, &res.name[0], res.name_len);
+    /* LANG-005: stamp impl owner while the parse latch is armed (buf path). */
+    pipeline_module_func_owner_from_impl(module, fi_mod);
     pipeline_module_func_set_num_params(module, fi_mod, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi_mod, res.num_generic_params);
+    /* Cap 10.7.1: OneFuncResult.is_variadic → module Func (buf parse_into path). */
+    pipeline_module_func_set_is_variadic(module, fi_mod, res.is_variadic);
     pipeline_module_func_set_return_type(module, fi_mod, type_ref);
     pipeline_module_func_set_body_ref(module, fi_mod, block_ref);
     pipeline_module_func_set_body_expr_ref(module, fi_mod, 0);
@@ -12367,7 +12653,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let p_copy: i32 = 0;
     let mod_pool_buf: *u8 = onefunc_result_pool_ptr(&res);
     while (p_copy < res.num_params) {
-      let pname32b: u8[128] = [];
+      let pname32b: u8[256] = [];
       pipeline_onefunc_param_name_copy32(mod_pool_buf, p_copy, &pname32b[0]);
       pipeline_module_func_param_write(module, fi_mod, p_copy, &pname32b[0], pipeline_onefunc_param_name_len(mod_pool_buf, p_copy), pipeline_onefunc_param_type_ref(mod_pool_buf, p_copy));
       p_copy = p_copy + 1;
@@ -12515,7 +12801,7 @@ export function copy_module_import_path64(module: *Module, i: i32, out: u8[128])
   unsafe {
   get_module_import_path(module, i, out);
   let path_len: i32 = 0;
-  while (path_len < 127 && out[path_len] != 0) {
+  while (path_len < 255 && out[path_len] != 0) {
     path_len = path_len + 1;
   }
   return path_len;

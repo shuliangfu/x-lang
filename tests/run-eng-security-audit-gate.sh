@@ -2,10 +2,17 @@
 # ENG-007：安全扫描与依赖审计 manifest 门禁
 #
 # 用法：./tests/run-eng-security-audit-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_SEC_DOC:-analysis/eng-security-audit-v1.md}"
+if [ -f analysis/eng-security-audit-v1.md ]; then
+  echo "eng-security-audit-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
+
+DOC="${XLANG_SEC_DOC:-analysis/archive/eng/eng-security-audit-v1.md}"
 MANIFEST="${XLANG_SEC_MANIFEST:-tests/baseline/eng-security-audit.tsv}"
 INVENTORY="tests/templates/eng-security-audit-inventory.txt"
 LIB="tests/lib/eng-security-audit.sh"

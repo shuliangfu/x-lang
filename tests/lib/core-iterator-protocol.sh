@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# core-iterator-protocol.sh — CORE-006：iterator next 协议 manifest 辅助
+# core-iterator-protocol.sh — CORE-006 iterator protocol manifest helpers.
+# Honesty: emit_report uses run=/obs=/skip= (soft SKIP→OK / soft auto-make retired).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   core_iter_symbols_ok ITER_X TSV
-#   core_iter_emit_report status check_ok run_ok cookbook_ok skip
+#   core_iter_emit_report status run_ok obs skip
 
 CORE_ITER_PREFIX="${XLANG_CORE_ITERATOR_PREFIX:-xlang: [XLANG_CORE_ITERATOR]}"
 
@@ -28,12 +29,11 @@ core_iter_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run= hard product (smoke+cookbook); obs= check; skip= N/A.
 core_iter_emit_report() {
   local status="$1"
-  local check_ok="$2"
-  local run_ok="$3"
-  local cookbook_ok="$4"
-  local skip="$5"
-  echo "${CORE_ITER_PREFIX} status=${status} check=${check_ok} run=${run_ok} cookbook=${cookbook_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${CORE_ITER_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

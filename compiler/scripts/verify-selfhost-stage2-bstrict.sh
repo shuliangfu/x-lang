@@ -8,6 +8,8 @@
 # Usage: cd compiler && bash scripts/verify-selfhost-stage2-bstrict.sh
 # Env:
 #   XLANG_STAGE2_SKIP_BOOTSTRAP=1 — skip Step 0 (gate already bootstrapped)
+#   XLANG_STAGE2_SKIP_GEN1_REBUILD=1 — skip Step1 recipe rebuild; freeze whatever
+#     xlang_asm is present (DEBUG ONLY — restores g05≠round2 topology fork)
 #   XLANG_STAGE2_SKIP_SECOND_BUILD=1 — skip Step 2 (stages already present)
 #   XLANG_STAGE2_SKIP_MAIN_WPO=1 — skip Step 2b main.x WPO
 #   XLANG_STAGE2_SKIP_REFRESH=1 — skip Step 5 refresh-xlang-asm-gate
@@ -20,6 +22,72 @@ set -e
 cd "$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
+
+# G.7 single Stage2 asm_only_strict build recipe (Step1 gen1 + Step2 gen2).
+# Must stay bit-identical across both rounds — topology fork was caused by freezing
+# g05 product xlang_asm as gen1 while Step2 linked round2 asm_only_strict.
+# PLATFORM: SHARED. Args: $1=XLANG driver path, $2=tee log path.
+stage2_build_asm_only_strict() {
+  _s2_xlang="$1"
+  _s2_log="$2"
+  # CI=1 时 build_xlang_asm 设 XLANG_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY，跳过 strict 重链；Stage2 须全量 B-strict。
+  # PLATFORM: LINUX Stage2 — default WPO opt-in can shrink pipeline.o export list
+  # (0–36 syms) and break strict re-link; dogfood WPO is orthogonal to gen1→gen2 parity.
+  # SKIP_MAIN / SKIP_WPO / STRICT_LINK_PIPELINE_WPO=0 match proven green gate (b5470cde+).
+  # BOOTSTRAP_ROUND2=1 selects the round2 companion set and skips stage1 sync
+  # (Stage2 owns gen1 freeze explicitly after each round).
+  env -u CI \
+    XLANG_ASM_CI_SKIP_FAST=1 \
+    XLANG_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
+    XLANG_ASM_CI_SKIP_SECOND_PASS= \
+    XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 \
+    XLANG_ASM_BOOTSTRAP_ROUND2=1 \
+    XLANG_ASM_SKIP_MAIN_O_REBUILD="${XLANG_ASM_SKIP_MAIN_O_REBUILD:-1}" \
+    XLANG_ASM_SKIP_WPO_DOGFOOD="${XLANG_ASM_SKIP_WPO_DOGFOOD:-1}" \
+    XLANG_ASM_STRICT_LINK_PIPELINE_WPO="${XLANG_ASM_STRICT_LINK_PIPELINE_WPO:-0}" \
+    XLANG="$_s2_xlang" \
+    ./scripts/build_xlang_asm.sh 2>&1 | tee "$_s2_log"
+}
+
+# After a Stage2 asm_only_strict build: require binary, warn on missing B-strict
+# markers / driver_compile_link (Linux soft-continue matches prior Step2 policy).
+# PLATFORM: SHARED. Args: $1=log path, $2=step label for messages.
+stage2_check_asm_only_strict_log() {
+  _s2_log="$1"
+  _s2_step="$2"
+  if ! grep -qE 'asm_only_strict|B-strict OK' "$_s2_log"; then
+    case "$(uname -s)-$(uname -m 2>/dev/null)" in
+      Linux-x86_64|Linux-amd64)
+        if [ -x ./xlang_asm ]; then
+          echo "verify-stage2-bstrict: WARN $_s2_step log missing B-strict OK on Linux x86_64; continue (xlang_asm produced; A-09/A-11 gates)" >&2
+        else
+          echo "verify-stage2-bstrict: $_s2_step did not reach B-strict link" >&2
+          exit 1
+        fi
+        ;;
+      *)
+        echo "verify-stage2-bstrict: $_s2_step did not reach B-strict link" >&2
+        exit 1
+        ;;
+    esac
+  fi
+  if ! grep -q 'driver_compile_link.o' "$_s2_log"; then
+    if [ -f build_asm/driver_compile_link.o ] && nm -g build_asm/driver_compile_link.o 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x'; then
+      echo "verify-stage2-bstrict: driver_compile_link.o present (artifact OK; log grep missed)"
+    elif grep -q 'skip driver_compile_emit_heavy.o recompile (XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1)' "$_s2_log" \
+      || [ "${XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY:-0}" = "1" ]; then
+      # Honest residual: bridge / pipeline-selfhosted path sets SKIP=1 (not OOM).
+      # PLATFORM: SHARED — do not blame EMIT_HEAVY OOM when the skip is intentional.
+      echo "verify-stage2-bstrict: WARN — driver_compile_link.o skipped (XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1; bridge/selfhosted); continue behavior parity"
+    else
+      echo "verify-stage2-bstrict: WARN — driver_compile_link.o not built (EMIT_HEAVY failed or skipped); continue behavior parity"
+    fi
+  fi
+  if [ ! -x ./xlang_asm ]; then
+    echo "verify-stage2-bstrict: xlang_asm missing after $_s2_step" >&2
+    exit 1
+  fi
+}
 
 echo "============================================"
 echo " Xlang B-strict Stage2（xlang_asm -> xlang_asm2）"
@@ -37,6 +105,9 @@ else
   # and always runs the shell-primary bootstrap_driver_seed.sh; running it
   # unconditionally is the safe choice for a verification gate.
   # PLATFORM: SHARED.
+  # NOTE: bootstrap-driver-bstrict ends with refresh_xlang_asm_gate → g05 product
+  # overlay on xlang_asm. Step1 below rebuilds gen1 with the Stage2 recipe so
+  # SHA256 does not compare g05 product vs round2 asm_only_strict.
   ${MAKE:-../xbuild} bootstrap-driver-seed
   XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 ${MAKE:-../xbuild} bootstrap-driver-bstrict
   if [ ! -x ./xlang_asm ]; then
@@ -46,11 +117,31 @@ else
 fi
 
 echo ""
-echo "── Step 1: xlang_asm -> xlang_asm_stage1 ──"
-# Darwin 上原位覆盖 stage1 偶发留下不可执行 vnode 状态；物理删除后重建副本可稳定避免 `zsh: killed`。
-rm -f ./xlang_asm_stage1
+echo "── Step 1: materialize gen1 via Stage2 asm_only_strict recipe ──"
+# Root cause of topology fork (4.8M g05 ≠ 5.5M round2): Step1 used to freeze the
+# g05-synced product binary as gen1. Hash STRICT then compared different link
+# recipes. Fix: rebuild gen1 with the SAME build_xlang_asm env as Step2, then freeze.
+# PLATFORM: DARWIN — delete-then-cp avoids bad vnode / `zsh: killed` on in-place overwrite.
+# PLATFORM: SHARED — gen1 freeze contract for dual-end hash STRICT (Linux + Darwin).
+# Escape: XLANG_STAGE2_SKIP_GEN1_REBUILD=1 keeps legacy freeze-only (DEBUG; honest red).
+if [ "${XLANG_STAGE2_SKIP_GEN1_REBUILD:-0}" = "1" ]; then
+  echo "verify-stage2-bstrict: SKIP gen1 recipe rebuild (XLANG_STAGE2_SKIP_GEN1_REBUILD=1; topology may fork)"
+  _GEN1_DRIVER=""
+else
+  _GEN1_DRIVER=./xlang_asm
+  [ -x "$_GEN1_DRIVER" ] || _GEN1_DRIVER=./xlang
+  if [ ! -x "$_GEN1_DRIVER" ]; then
+    echo "verify-stage2-bstrict: no driver for gen1 rebuild ($_GEN1_DRIVER)" >&2
+    exit 1
+  fi
+  echo "  gen1 driver: $_GEN1_DRIVER (Stage2 asm_only_strict recipe; not g05 freeze)"
+  stage2_build_asm_only_strict "$_GEN1_DRIVER" /tmp/build_xlang_asm_gen1.log
+  stage2_check_asm_only_strict_log /tmp/build_xlang_asm_gen1.log "Step 1 gen1"
+fi
+rm -f ./xlang_asm_stage1 ./xlang_asm_gen1_for_hash
 cp -f ./xlang_asm ./xlang_asm_stage1
-ls -lh ./xlang_asm_stage1 | awk '{print "  stage1:", $5}'
+cp -f ./xlang_asm ./xlang_asm_gen1_for_hash
+ls -lh ./xlang_asm_stage1 | awk '{print "  stage1 (gen1):", $5}'
 
 echo ""
 if [ "${XLANG_STAGE2_SKIP_SECOND_BUILD:-0}" = "1" ] && [ -x ./xlang_asm_stage1 ] && [ -x ./xlang_asm2 ]; then
@@ -61,49 +152,9 @@ elif [ "${XLANG_STAGE2_SKIP_SECOND_BUILD:-0}" = "1" ] && [ -x ./xlang_asm_stage1
   cp -f ./xlang_asm ./xlang_asm2
   ls -lh ./xlang_asm2 | awk '{print "  stage2:", $5}'
 else
-  echo "── Step 2: 第二遍 build_xlang_asm（XLANG=xlang_asm_stage1，Stage2 round2 driver_compile_link 链）──"
-  # CI=1 时 build_xlang_asm 设 XLANG_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY，跳过 strict 重链；Stage2 须全量 B-strict。
-  # PLATFORM: LINUX Stage2 round2 — default WPO opt-in can shrink pipeline.o export list
-  # (0–36 syms) and break strict re-link; dogfood WPO is orthogonal to gen1→gen2 parity.
-  # SKIP_MAIN / SKIP_WPO / STRICT_LINK_PIPELINE_WPO=0 match proven green gate (b5470cde+).
-  env -u CI \
-    XLANG_ASM_CI_SKIP_FAST=1 \
-    XLANG_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
-    XLANG_ASM_CI_SKIP_SECOND_PASS= \
-    XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 \
-    XLANG_ASM_BOOTSTRAP_ROUND2=1 \
-    XLANG_ASM_SKIP_MAIN_O_REBUILD="${XLANG_ASM_SKIP_MAIN_O_REBUILD:-1}" \
-    XLANG_ASM_SKIP_WPO_DOGFOOD="${XLANG_ASM_SKIP_WPO_DOGFOOD:-1}" \
-    XLANG_ASM_STRICT_LINK_PIPELINE_WPO="${XLANG_ASM_STRICT_LINK_PIPELINE_WPO:-0}" \
-    XLANG=./xlang_asm_stage1 \
-    ./scripts/build_xlang_asm.sh 2>&1 | tee /tmp/build_xlang_asm2.log
-  if ! grep -qE 'asm_only_strict|B-strict OK' /tmp/build_xlang_asm2.log; then
-    case "$(uname -s)-$(uname -m 2>/dev/null)" in
-      Linux-x86_64|Linux-amd64)
-        if [ -x ./xlang_asm ]; then
-          echo "verify-stage2-bstrict: WARN Step 2 log missing B-strict OK on Linux x86_64; continue (xlang_asm produced; A-09/A-11 gates)" >&2
-        else
-          echo "verify-stage2-bstrict: second pass did not reach B-strict link" >&2
-          exit 1
-        fi
-        ;;
-      *)
-        echo "verify-stage2-bstrict: second pass did not reach B-strict link" >&2
-        exit 1
-        ;;
-    esac
-  fi
-  if ! grep -q 'driver_compile_link.o' /tmp/build_xlang_asm2.log; then
-    if [ -f build_asm/driver_compile_link.o ] && nm -g build_asm/driver_compile_link.o 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x'; then
-      echo "verify-stage2-bstrict: driver_compile_link.o present (artifact OK; log grep missed)"
-    else
-      echo "verify-stage2-bstrict: WARN — driver_compile_link.o not built (EMIT_HEAVY OOM?); continue behavior parity"
-    fi
-  fi
-  if [ ! -x ./xlang_asm ]; then
-    echo "verify-stage2-bstrict: xlang_asm missing after second pass" >&2
-    exit 1
-  fi
+  echo "── Step 2: 第二遍 build_xlang_asm（XLANG=xlang_asm_stage1，同配方 round2）──"
+  stage2_build_asm_only_strict ./xlang_asm_stage1 /tmp/build_xlang_asm2.log
+  stage2_check_asm_only_strict_log /tmp/build_xlang_asm2.log "Step 2"
   cp -f ./xlang_asm ./xlang_asm2
   ls -lh ./xlang_asm2 | awk '{print "  stage2:", $5}'
 fi
@@ -281,13 +332,19 @@ echo "── Step 3: 功能对比（return-value / hello）──"
 echo 'function main(): i32 { return 42; }' > /tmp/stage2_bstrict_rv.x
 
 STAGE2_COMPILE_BACKEND=""
+# PLATFORM: DARWIN — default pure-asm user -o (G.7 twin tip product path).
+# Historical `-backend c` fallback was for Stage2 binaries that linked prefer/libtool
+# ar user_asm after weak stubs (CG002 code_len=0). Fixed by BSTRICT MH_OBJECT host
+# + EARLY link + arm64 enc; keep ALLOW_HOST_CC escape only when XLANG_STAGE2_FORCE_BACKEND_C=1.
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
-    STAGE2_COMPILE_BACKEND="-backend c"
-    # Stage 12.2.3: experimental host-cc requires XLANG_ALLOW_HOST_CC=1.
-    # PLATFORM: SHARED — only this Darwin/ARM64 fallback path uses -backend c.
-    export XLANG_ALLOW_HOST_CC=1
-    echo "verify-stage2-bstrict: Darwin/ARM64 use -backend c for user compile (asm Mach-O incomplete; ALLOW_HOST_CC=1)"
+    if [ "${XLANG_STAGE2_FORCE_BACKEND_C:-0}" = "1" ]; then
+      STAGE2_COMPILE_BACKEND="-backend c"
+      export XLANG_ALLOW_HOST_CC=1
+      echo "verify-stage2-bstrict: Darwin/ARM64 FORCE -backend c (XLANG_STAGE2_FORCE_BACKEND_C=1; ALLOW_HOST_CC=1)"
+    else
+      echo "verify-stage2-bstrict: Darwin/ARM64 use default asm backend for user compile (pure-asm Mach-O)"
+    fi
     ;;
 esac
 
@@ -358,73 +415,65 @@ echo "── Step 4: hello（import std.io，xlang_asm -o 偶发 SIGSEGV 时重�
 if [ "${XLANG_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || [ "${XLANG_STAGE2_SKIP_HELLO:-0}" = "1" ]; then
   echo "verify-stage2-bstrict: skip Step 4 hello (XLANG_ASM_SKIP_ENTRY_SMOKE / XLANG_STAGE2_SKIP_HELLO; D-03 hash gate covers Stage2)"
 else
-case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Darwin-*|Linux-aarch64|Linux-arm64)
-    echo "verify-stage2-bstrict: skip hello on Darwin/ARM64 (asm Mach-O incomplete; examples/hello.x const-import 与 -backend c 不兼容；Step 3 return-value 已覆盖行为 parity)"
-    ;;
-  *)
-    rm -f /tmp/stage2_bstrict_hello1 /tmp/stage2_bstrict_hello2
-    HELLO_TIMEOUT="${XLANG_STAGE2_HELLO_TIMEOUT:-120}"
-    hello_compile() {
-      local bin="$1" out="$2"
-      local try=1
-      local last_err=""
-      while [ "$try" -le 8 ]; do
-        # shellcheck disable=SC2086
-        if command -v timeout >/dev/null 2>&1; then
-          if err=$(timeout "$HELLO_TIMEOUT" "$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
-            return 0
-          fi
-        elif err=$("$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
+  # PLATFORM: SHARED — Darwin/ARM64 pure-asm hello enabled after BSTRICT MH user_asm fix.
+  # Escape: XLANG_STAGE2_SKIP_HELLO=1 or FORCE_BACKEND_C (hello still runs with -backend c if set).
+  rm -f /tmp/stage2_bstrict_hello1 /tmp/stage2_bstrict_hello2
+  HELLO_TIMEOUT="${XLANG_STAGE2_HELLO_TIMEOUT:-120}"
+  hello_compile() {
+    local bin="$1" out="$2"
+    local try=1
+    local last_err=""
+    while [ "$try" -le 8 ]; do
+      # shellcheck disable=SC2086
+      if command -v timeout >/dev/null 2>&1; then
+        if err=$(timeout "$HELLO_TIMEOUT" "$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
           return 0
         fi
-        last_err="$err"
-        try=$((try + 1))
-      done
-      echo "$last_err" >&2
-      return 1
-    }
-    hello_compile ./xlang_asm_stage1 /tmp/stage2_bstrict_hello1 || {
-      if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
-        echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
-      else
-        echo "verify-stage2-bstrict: xlang_asm_stage1 hello compile failed (8 attempts)" >&2
-        exit 1
+      elif err=$("$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
+        return 0
       fi
-    }
-    if [ -x /tmp/stage2_bstrict_hello1 ]; then
-    hello_compile ./xlang_asm2 /tmp/stage2_bstrict_hello2 || {
-      if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
-        echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
-      else
-        echo "verify-stage2-bstrict: xlang_asm2 hello compile failed (8 attempts)" >&2
-        exit 1
-      fi
-    }
-    fi
-    if [ -x /tmp/stage2_bstrict_hello1 ] && [ -x /tmp/stage2_bstrict_hello2 ]; then
-    /tmp/stage2_bstrict_hello1 | grep -q "Hello World" || {
-      echo "verify-stage2-bstrict: xlang_asm_stage1 hello run failed" >&2
+      last_err="$err"
+      try=$((try + 1))
+    done
+    echo "$last_err" >&2
+    return 1
+  }
+  hello_compile ./xlang_asm_stage1 /tmp/stage2_bstrict_hello1 || {
+    if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
+      echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
+    else
+      echo "verify-stage2-bstrict: xlang_asm_stage1 hello compile failed (8 attempts)" >&2
       exit 1
-    }
-    /tmp/stage2_bstrict_hello2 | grep -q "Hello World" || {
-      echo "verify-stage2-bstrict: xlang_asm2 hello run failed" >&2
-      exit 1
-    }
     fi
-    ;;
-esac
+  }
+  if [ -x /tmp/stage2_bstrict_hello1 ]; then
+  hello_compile ./xlang_asm2 /tmp/stage2_bstrict_hello2 || {
+    if [ "${XLANG_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ] && [ -f build_asm/asm_experimental_symbol_bridge.o ]; then
+      echo "verify-stage2-bstrict: WARN hello compile SIGSEGV on bridge strict; skip Step 4 (D-03 hash gate)" >&2
+    else
+      echo "verify-stage2-bstrict: xlang_asm2 hello compile failed (8 attempts)" >&2
+      exit 1
+    fi
+  }
+  fi
+  if [ -x /tmp/stage2_bstrict_hello1 ] && [ -x /tmp/stage2_bstrict_hello2 ]; then
+  /tmp/stage2_bstrict_hello1 | grep -q "Hello World" || {
+    echo "verify-stage2-bstrict: xlang_asm_stage1 hello run failed" >&2
+    exit 1
+  }
+  /tmp/stage2_bstrict_hello2 | grep -q "Hello World" || {
+    echo "verify-stage2-bstrict: xlang_asm2 hello run failed" >&2
+    exit 1
+  }
+  echo "  xlang_asm_stage1 / xlang_asm2 hello: Hello World"
+  fi
 fi
 
 echo ""
 echo "── Step 4b: xlang_asm2 struct mk 烟测（gen2 CALL 内联，须 exit 10）──"
 SMK_X="$ROOT/tests/boundary/struct_mk_let_inline.x"
 SMK_TIMEOUT="${XLANG_STAGE2_STRUCT_MK_TIMEOUT:-120}"
-case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Darwin-*|Linux-aarch64|Linux-arm64)
-    echo "verify-stage2-bstrict: skip struct_mk on Darwin/ARM64 (user asm -o incomplete; Linux x86_64 covers)"
-    ;;
-  *)
+# PLATFORM: SHARED — Darwin/ARM64 pure-asm struct_mk enabled after BSTRICT MH user_asm fix.
 if [ -x ./xlang_asm2 ] && [ -f "$SMK_X" ]; then
   rm -f /tmp/stage2_bstrict_smki2
   (
@@ -462,9 +511,15 @@ if [ -x ./xlang_asm2 ] && [ -f "$SMK_X" ]; then
     echo "verify-stage2-bstrict: xlang_asm2 struct_mk_let_inline exit=$smk_ec (expected 10)" >&2
     exit 1
   fi
-  # Linux：_main 不得 call mk（与 run-asm-call-inline 语义一致）。
+  # SHARED：_main 不得 call mk（与 run-asm-call-inline 语义一致）。
   if command -v objdump >/dev/null 2>&1; then
     if objdump -d /tmp/stage2_bstrict_smki2 2>/dev/null | sed -n '/<_main>:/,/^$/p' | grep -qE 'call.*\<mk\>|bl[[:space:]]+.*\<mk\>'; then
+      echo "verify-stage2-bstrict: xlang_asm2 struct_mk_let_inline _main still calls mk (inline regression)" >&2
+      exit 1
+    fi
+  elif command -v otool >/dev/null 2>&1; then
+    # PLATFORM: DARWIN — otool -tv when objdump absent.
+    if otool -tv /tmp/stage2_bstrict_smki2 2>/dev/null | sed -n '/_main:/,/^_/p' | grep -qE 'bl[[:space:]]+_mk\>|bl[[:space:]]+mk\>'; then
       echo "verify-stage2-bstrict: xlang_asm2 struct_mk_let_inline _main still calls mk (inline regression)" >&2
       exit 1
     fi
@@ -473,31 +528,29 @@ if [ -x ./xlang_asm2 ] && [ -f "$SMK_X" ]; then
   fi
 fi
 rm -f /tmp/stage2_bstrict_smki2
-    ;;
-esac
 
 echo ""
 echo "── Step 4c: Stage2 SHA256 金标准（A-09 / run-stage2-hash-gate）──"
 ROOT_HASH="$(cd .. && pwd)"
 chmod +x "$ROOT_HASH/tests/run-stage2-hash-gate.sh" 2>/dev/null || true
-if [ -x ./xlang_asm_stage1 ] && [ -x ./xlang_asm2 ]; then
-  # run-stage2-hash-gate.sh 会 cd 到仓库根；路径须相对根目录。
-  # PLATFORM: LINUX — D-03 default STRICT=1 (freestanding gen1==gen2 gold).
-  # PLATFORM: DARWIN — stage1 is g05 product, stage2 is experimental bootstrap after
-  # round2; topologies differ so SHA256 match is track-only. Hard gate = Step 3
-  # behavior parity (rv=42). Explicit XLANG_STAGE2_HASH_STRICT=1 still overrides.
-  case "$(uname -s 2>/dev/null)-$(uname -m 2>/dev/null)" in
-    Darwin-*)
-      _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-0}"
-      ;;
-    *)
-      _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-1}"
-      ;;
-  esac
+# Prefer gen1 freeze path (never touched by build sync). Fall back to stage1.
+_HASH_GEN1="./xlang_asm_gen1_for_hash"
+[ -x "$_HASH_GEN1" ] || _HASH_GEN1="./xlang_asm_stage1"
+if [ -x "$_HASH_GEN1" ] && [ -x ./xlang_asm2 ]; then
+  # run-stage2-hash-gate.sh cds to repo root; paths must be repo-relative.
+  # PLATFORM: SHARED — D-03 default STRICT=1 on both Linux and Darwin after tip
+  #   Stage2 SHA256 true fixed-point dogfood (Ubuntu 0ae06666… / Darwin 42ffac6e…).
+  #   Step1+Step2 share stage2_build_asm_only_strict (same recipe). Size/hash diverge
+  #   now means real compiler non-determinism or residual companion drift — never
+  #   freeze g05 product as gen1, and never sync stage1 over gen1 to fake match.
+  #   Explicit XLANG_STAGE2_HASH_STRICT=0 still forces track-only (escape hatch).
+  _s2_hash_strict="${XLANG_STAGE2_HASH_STRICT:-1}"
+  # Surface sizes before gate so topology fork is visible in the Stage2 log.
+  ls -lh "$_HASH_GEN1" ./xlang_asm2 | awk '{print "  hash-input:", $9, $5}'
   XLANG_STAGE2_HASH_STRICT="$_s2_hash_strict" \
-    "$ROOT_HASH/tests/run-stage2-hash-gate.sh" compiler/xlang_asm_stage1 compiler/xlang_asm2
+    "$ROOT_HASH/tests/run-stage2-hash-gate.sh" "compiler/${_HASH_GEN1#./}" compiler/xlang_asm2
 else
-  echo "verify-stage2-bstrict: skip hash gate (xlang_asm_stage1/xlang_asm2 missing)" >&2
+  echo "verify-stage2-bstrict: skip hash gate (gen1 freeze / xlang_asm2 missing)" >&2
   exit 1
 fi
 

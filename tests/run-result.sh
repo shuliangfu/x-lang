@@ -1,52 +1,100 @@
 #!/usr/bin/env bash
-# 测试 core.result 的 Result_i32 API（ok_i32、err_i32、unwrap_or_i32、expect_i32、expect_i32_or_panic）
-set -e
+# core.result API smoke: Result_i32 product -o exit 173
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c /
+# soft bootstrap-link / soft SIGSEGV→result_suite_smoke fallback).
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-fi
-XLANG=${XLANG:-./compiler/xlang}
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-RESULT_LINK_XLANG="${RUN_XLANG:-$XLANG}"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# 尝试编译 result 回归；main.x 在 ubuntu-22.04/Alpine 等宿主 xlang-c -o 偶发 SIGSEGV。
-_result_try_compile() {
-  local comp="$1"
-  local src="$2"
-  [ -x "$comp" ] || return 1
-  "$comp" -L . "$src" -o /tmp/xlang_result 2>&1
+PREFIX="${XLANG_RESULT_PREFIX:-xlang: [RESULT]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-180}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "result FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== result gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+src="tests/result/main.x"
+[ -f "$src" ] || die "missing $src"
+exe="/tmp/xlang_result_$$"
+log="/tmp/xlang_result_$$.log"
+rm -f "$exe" "$log"
 set +e
-_result_try_compile "$RESULT_LINK_XLANG" tests/result/main.x
-_compile_ec=$?
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+o_ec=$?
 set -e
-_RESULT_NOTE=""
-if [ "$_compile_ec" -ne 0 ]; then
-  if [ "$_compile_ec" -eq 139 ]; then
-    for comp in "$XLANG" ./compiler/xlang; do
-      if _result_try_compile "$comp" tests/exc/result_suite_smoke.x; then
-        _compile_ec=0
-        _RESULT_NOTE=" (exc/result_suite_smoke fallback)"
-        break
-      fi
-    done
-  fi
-  if [ "$_compile_ec" -ne 0 ]; then
-    exit "$_compile_ec"
-  fi
+if [ "$o_ec" -eq 124 ]; then
+  die "product -o timeout"
+elif [ "$o_ec" -eq 139 ]; then
+  # Refuse soft fallback to exc/result_suite_smoke (false authority).
+  die "product -o SIGSEGV (ec=139); refuse soft smoke fallback; $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  die "product -o failed (ec=$o_ec); $(tail -8 "$log" 2>/dev/null | tr '\n' ' ')"
 fi
-
-exitcode=0; /tmp/xlang_result >/dev/null 2>&1 || exitcode=$?
-if [ -n "$_RESULT_NOTE" ]; then
-  [ "$exitcode" -eq 0 ] || { echo "expected exit 0, got $exitcode"; exit 1; }
-  echo "result test OK${_RESULT_NOTE}"
-  exit 0
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+r_ec=$?
+set -e
+rm -f "$exe" "$log"
+if [ "$r_ec" -eq 124 ]; then
+  die "run timeout"
+elif [ "$r_ec" -ne 173 ]; then
+  # 42+0+3+5=50 + map/and_then/or_else/Result_u8 extra=123 → 173
+  die "expected exit 173, got $r_ec"
 fi
-# 42+0+3+5=50 + map/and_then/or_else/Result_u8 extra=123 → 173
-[ "$exitcode" -ne 173 ] && { echo "expected exit 173, got $exitcode"; exit 1; }
-
+RUN_OK=$((RUN_OK + 1))
+ok_report
 echo "result test OK"

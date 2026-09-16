@@ -56,12 +56,17 @@ ensure_bootstrap_nostdlib_stubs_obj() {
 # PLATFORM: LINUX — weak atoi for generated pipeline (libc face without -lc).
 # G.7: single TU atoi_stub.o. Skip link if runtime_panic.o already has strong T atoi.
 # Sets CRT0_ATOI_LINK to "atoi_stub.o" or "" (also echoes that value on stdout for capture).
+#
+# Stage2 hash determinism (2026-08-24): gcc embeds the TU basename into the
+# final ELF .strtab. A PID-suffixed /tmp/atoi_stub_$$.c made gen1/gen2 differ
+# by exactly those digits (same size/symbols, SHA256 MISMATCH). Use a stable
+# basename under the compiler cwd so both asm_only_strict rounds bit-match.
 ensure_atoi_stub_obj() {
   _cc="${CC:-cc}"
   _cflags="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
   # Always rebuild weak atoi (cheap; avoids stale strong multi-def).
   echo " cc -c atoi_stub.o (weak atoi for nostdlib link)" >&2
-  _tmp="/tmp/atoi_stub_$$.c"
+  _tmp="./atoi_stub_tu.c"
   printf '%s\n' \
     '#include <stddef.h>' \
     '__attribute__((weak)) int atoi(const char *n) { int v=0; if(!n) return 0; while(*n>=48&&*n<=57){v=v*10+(*n-48);n++;} return v; }' \

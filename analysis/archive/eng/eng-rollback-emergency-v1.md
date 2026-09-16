@@ -4,6 +4,8 @@
 > 状态：**定版（v1）**  
 > 关联：`ENG-004`（发布）、`ENG-005`（版本 tag）、`BOOT-003`（失败复现）
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标

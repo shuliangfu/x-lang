@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
-# std-xplat-deep-boundary.sh — STD-138 三平台深度边界 manifest 与烟测辅助
+# std-xplat-deep-boundary.sh — STD-138 three-platform deep-boundary helpers.
+#
+# Usage (after source):
+#   xplat_deep_platform_policy linux macos windows
+#   xplat_deep_verify_paths TSV MIN_ROWS
+#   xplat_deep_run_smoke XLANG_BIN SRC
+#   xplat_deep_emit_report status run_ok obs skip
+# Honesty: leftover wrap / RUN_XLANG remap retired (product `"$xlang" -L . -o`).
+# Report: run=/obs=/skip= (check/optional = obs; must-policy product -o hard).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_XPLAT_DEEP_PREFIX="${XLANG_STD138_XPLAT_DEEP_BOUNDARY_PREFIX:-xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]}"
 
-# 按当前宿主返回 linux/macos/windows 列策略。
+# Return the policy column for the current host (linux/macos/windows).
+# @param $1 linux policy
+# @param $2 macos policy
+# @param $3 windows policy
 xplat_deep_platform_policy() {
   # shellcheck source=tests/lib/ci-host.sh
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
@@ -21,7 +33,9 @@ xplat_deep_platform_policy() {
   fi
 }
 
-# 校验 manifest 路径存在；echo 缺失数。
+# Verify manifest paths exist; echo missing count; return 0 when miss==0.
+# @param $1 tsv path
+# @param $2 min_rows
 xplat_deep_verify_paths() {
   local tsv="$1"
   local min_rows="$2"
@@ -45,7 +59,8 @@ xplat_deep_verify_paths() {
   [ "$miss" -eq 0 ]
 }
 
-# 统计 matrix TSV 数据行（不含 # 与 min_）。
+# Count matrix TSV data rows (exclude # and min_*).
+# @param $1 tsv path
 xplat_deep_matrix_rows() {
   local tsv="$1"
   local n=0
@@ -60,25 +75,46 @@ xplat_deep_matrix_rows() {
   echo "$n"
 }
 
-# 编译并运行 .x 烟测。
+# Build+run one .x smoke; return 0 when process exits 0.
+# Product path is `"$xlang" -L . src -o` (refuse leftover RUN_XLANG
+# remap / bootstrap-link wrap). Gate pins XLANG_LINK_XLANG for hooks.
+# PLATFORM: SHARED archaeology — product honesty path.
+# @param $1 XLANG_BIN — resolved product compiler (prefer asm)
+# @param $2 SRC — .x smoke path
 xplat_deep_run_smoke() {
   local xlang="$1"
   local src="$2"
   local exe="/tmp/xlang_xplat_deep_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local log="${exe}.log"
+  # Refuse leftover `$RUN_XLANG` remap / bootstrap-link wrap.
+  # PLATFORM: SHARED
+  if ! "$xlang" -L . "$src" -o "$exe" 2>"$log"; then
     echo "xplat-deep FAIL: compile $src" >&2
-    rm -f "$exe"
+    tail -20 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
-  rm -f "$exe"
-  [ "$ec" -eq 0 ]
+  rm -f "$exe" "$log"
+  if [ "$ec" -ne 0 ]; then
+    echo "xplat-deep FAIL: $src exit=$ec" >&2
+    return 1
+  fi
+  return 0
 }
 
-# 输出 gate 报告。
+# Structured report line (honesty: run=/obs=/skip=).
+# @param $1 status — ok|fail
+# @param $2 run_ok — must-policy smoke hard green count
+# @param $3 obs — check/optional observational residuals
+# @param $4 skip — 1 only for manifest-only
 xplat_deep_emit_report() {
-  echo "${STD_XPLAT_DEEP_PREFIX} status=$1 smoke=$2 skip=$3 host=$4"
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_XPLAT_DEEP_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

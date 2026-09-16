@@ -1,9 +1,9 @@
 # STD-117 std.metrics 观测上下文 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
-read_path	section	## 1. 阅读路径	analysis/std-metrics-obs-v1.md
-api_doc	section	## 2. API	analysis/std-metrics-obs-v1.md
-verify	section	## 3. Gate	analysis/std-metrics-obs-v1.md
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-metrics-obs-v1.md
+api_doc	section	## 2. API	analysis/archive/std/std-metrics-obs-v1.md
+verify	section	## 3. Gate	analysis/archive/std/std-metrics-obs-v1.md
 api_from_trace	api	obs_ctx_from_trace	std/metrics/mod.x	从 trace 构建
 api_attach	api	obs_ctx_attach_context	std/metrics/mod.x	写入 context
 api_from_ctx	api	obs_ctx_from_context	std/metrics/mod.x	从 context 恢复

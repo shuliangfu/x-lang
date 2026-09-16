@@ -4,6 +4,8 @@
 > 状态：**定版（v1）** — 统一 `core.result`、`std.error` 与标准库既有返回约定  
 > 关联：`EXC-002`（panic/abort 边界）、`EXC-003`（错误码分层）、`analysis/Result寄存器化.md`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.
+
 ---
 
 ## 1. 目标与定位

@@ -26,13 +26,13 @@
 | 工具 | Linux `strace -e trace=memory` |
 | 计数 | `malloc(` / `calloc(` / `realloc(` 行数 |
 | 排除 | `posix_memalign`（Arena64 chunk 一次性对齐分配，非 per-op heap） |
-| Bench | `string_arena_concat`（ZC-4）、`cl_arena64_smoke`（DOD-CL-S2）、`with_arena_vec_push`（MEM-C1） |
+| Bench | `string_arena_concat`→`bench/r08_string_arena_concat.x`（ZC-4）、`cl_arena64_smoke`（DOD-CL-S2）、`with_arena_vec_push`→`tests/mem/with_arena_vec_push.x`（MEM-C1） |
 
 环境：
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `XLANG_ALLOC_HOTSPOT_FAIL` | `0` | `1` 时超 cap 硬失败 |
+| `XLANG_ALLOC_HOTSPOT_FAIL` | `0` | `1` 时超 cap 硬失败；默认超 cap＝obs（非静默 OK） |
 | `XLANG_ALLOC_HOTSPOT_REQUIRE_STRACE` | `0` | CI Linux 可设 `1` 禁止 SKIP |
 | `XLANG_ALLOC_HOTSPOT_PREFIX` | `xlang: [XLANG_ALLOC_HOTSPOT]` | 报告前缀 |
 | `XLANG_ALLOC_HOTSPOT_BASELINE` | `tests/baseline/alloc-hotspot-perf.tsv` | cap 表 |
@@ -43,9 +43,9 @@
 
 | case_id | bench_src | max_malloc | max_calloc | max_realloc |
 |---------|-----------|------------|------------|-------------|
-| `string_arena_concat` | `tests/bench/string_arena_concat.x` | 0 | 0 | 0 |
+| `string_arena_concat` | `bench/r08_string_arena_concat.x` | 0 | 0 | 0 |
 | `cl_arena64_smoke` | `tests/dod/cl_arena64_smoke.x` | 0 | 0 | 0 |
-| `with_arena_vec_push` | `tests/bench/with_arena_vec_push.x` | 0 | 0 | 0 |
+| `with_arena_vec_push` | `tests/mem/with_arena_vec_push.x` | 0 | 0 | 0 |
 
 ---
 
@@ -72,7 +72,7 @@ xlang: [XLANG_ALLOC_HOTSPOT] case=string_arena_concat malloc=0 calloc=0 realloc=
 
 | 路径 | 角色 |
 |------|------|
-| `analysis/perf-alloc-hotspot-v1.md` | 本文 |
+| `analysis/archive/perf/perf-alloc-hotspot-v1.md` | 本文（权威） |
 | `tests/baseline/perf-alloc-hotspot.tsv` | manifest |
 | `tests/baseline/alloc-hotspot-perf.tsv` | case cap |
 | `tests/lib/perf-alloc-hotspot.sh` | strace 库 |
@@ -100,6 +100,10 @@ xlang: [XLANG_ALLOC_HOTSPOT] case=string_arena_concat malloc=0 calloc=0 realloc=
 | runner | `tests/run-perf-alloc-hotspot.sh` |
 | 门禁 | `tests/run-perf-alloc-hotspot-gate.sh` |
 | ZC-4 | `tests/run-zc4-gate.sh` |
-| 结构化日志 | `analysis/obs-structured-log-v1.md` |
+| 结构化日志 | `analysis/archive/obs/obs-structured-log-v1.md` |
 
 **PERF-007 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer xlang_asm; refuse soft SKIP→OK / soft FAIL:-0 silent OK / soft auto-make; over-cap / compile-fail = obs; bench→`r08_`／`tests/mem/`; DOC=archive; report run=/obs=/skip=.

@@ -23,6 +23,9 @@
 // See implementation.
 // See implementation.
 
+/* Cap residual 9.1.2: Linux fs_libc_stat/fstat via raw_syscall (no libc). */
+const linux = import("std.sys.linux");
+
 /* See implementation. */
 const io_sync = import("std.io.sync");
 
@@ -124,9 +127,10 @@ extern "C" function mkdir(path: *u8, mode: u32): i32;
 extern "C" function xlang_fs_unlink(path: *u8): i32;
 extern "C" function xlang_fs_rmdir(path: *u8): i32;
 extern "C" function umask(mask: u32): u32;
-extern "C" function opendir(name: *u8): *u8;
-extern "C" function readdir(dirp: *u8): *u8;
-extern "C" function closedir(dirp: *u8): i32;
+/* Cap residual 9.1.10: POSIX (Linux and Darwin) dir via xlang_dir_cap.h (no libc opendir). */
+extern "C" function xlang_dir_opendir(name: *u8): *u8;
+extern "C" function xlang_dir_readdir(dirp: *u8): *u8;
+extern "C" function xlang_dir_closedir(dirp: *u8): i32;
 extern "C" function malloc(size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
@@ -230,22 +234,107 @@ export function fs_libc_munmap(addr: *u8, len: usize): i32 {
   unsafe { return munmap(addr, len); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_fstat`.
- * Implements `fs_libc_fstat`.
+/**
+ * Cap residual 9.1.2: fstat via raw_syscall2 (x86_64 nr=5). No libc fstat.
+ * @param fd i32
+ * @param st *PosixStatBuf — Linux struct stat layout
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "x86_64")]
+export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall2(5, fd as i64, st as i64);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual 9.1.2: fstat via raw_syscall2 (aarch64 nr=80). No libc fstat.
+ * @param fd i32
+ * @param st *PosixStatBuf
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "aarch64")]
+export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall2(80, fd as i64, st as i64);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Darwin / non-Linux Cap residual: libc fstat.
  * @param fd i32
  * @param st *PosixStatBuf
  * @return i32
+ * PLATFORM: MACOS|DARWIN
  */
+#[cfg(target_os = "macos")]
 export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
   unsafe { return fstat(fd, st); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_stat`.
- * Implements `fs_libc_stat`.
+
+/**
+ * Cap residual 9.1.2: stat via newfstatat (x86_64 nr=262, AT_FDCWD=-100).
+ * @param path *u8 — NUL-terminated path
+ * @param st *PosixStatBuf
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|x86_64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "x86_64")]
+export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall4(262, -100 as i64, path as i64, st as i64, 0);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Cap residual 9.1.2: stat via fstatat (aarch64 nr=79, AT_FDCWD=-100).
+ * @param path *u8
+ * @param st *PosixStatBuf
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: LINUX|aarch64
+ */
+#[cfg(target_os = "linux")]
+#[cfg(target_arch = "aarch64")]
+export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
+  let r: i64 = 0;
+  unsafe {
+    r = linux.raw_syscall4(79, -100 as i64, path as i64, st as i64, 0);
+  }
+  if (r < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Darwin Cap residual: libc stat.
  * @param path *u8
  * @param st *PosixStatBuf
  * @return i32
+ * PLATFORM: MACOS|DARWIN
  */
+#[cfg(target_os = "macos")]
 export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
   unsafe { return stat(path, st); }
   return 0; // unreachable — typeck workaround
@@ -339,30 +428,30 @@ export function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_opendir`.
- * Implements `fs_libc_opendir`.
+ * Cap residual 9.1.10: POSIX (Linux and Darwin) → xlang_dir_opendir (no libc opendir).
  * @param name *u8
  * @return *u8
  */
 export function fs_libc_opendir(name: *u8): *u8 {
-  unsafe { return opendir(name); }
+  unsafe { return xlang_dir_opendir(name); }
   return 0 as *u8; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_readdir`.
- * Read path helper `fs_libc_readdir`.
+ * Cap residual 9.1.10: POSIX (Linux and Darwin) → xlang_dir_readdir (no libc readdir).
  * @param dirp *u8
  * @return *u8
  */
 export function fs_libc_readdir(dirp: *u8): *u8 {
-  unsafe { return readdir(dirp); }
+  unsafe { return xlang_dir_readdir(dirp); }
   return 0 as *u8; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_closedir`.
- * Implements `fs_libc_closedir`.
+ * Cap residual 9.1.10: POSIX (Linux and Darwin) → xlang_dir_closedir (no libc closedir).
  * @param dirp *u8
  * @return i32
  */
 export function fs_libc_closedir(dirp: *u8): i32 {
-  unsafe { return closedir(dirp); }
+  unsafe { return xlang_dir_closedir(dirp); }
   return 0; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_malloc`.
@@ -635,8 +724,19 @@ extern "C" function fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32;
 #[cfg(target_os = "macos")]
 extern "C" function sendfile(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32;
 
-/* See implementation. */
+/**
+ * Byte offset of `d_name` within libc `struct dirent`.
+ *
+ * PLATFORM: LINUX — glibc/x86_64 dirent lays `d_type` at 18 and `d_name` at 19.
+ * PLATFORM: MACOS|DARWIN — Darwin dirent lays `d_type` at 20 and `d_name` at 21.
+ * Hardcoding Linux-only 19 made Darwin `fs_dir_read_c` skip past the real name
+ * (STD-123 dirmeta_roundtrip returned 14). Keep in sync with seed preamble
+ * `DIRENT_D_NAME_OFF` ifdef (__APPLE__→21, else→19) in rt_preamble.from_x.c.
+ */
+#[cfg(target_os = "linux")]
 export const DIRENT_D_NAME_OFF: usize = 19;
+#[cfg(target_os = "macos")]
+export const DIRENT_D_NAME_OFF: usize = 21;
 
 export const FS_IOV_BUF_MAX: i32 = 16;
 export const O_RDONLY: i32 = 0;
@@ -1323,13 +1423,17 @@ export function fs_dir_open_c(path: *u8): i64 {
   return h as i64;
 }
 
-/** Exported function `fs_dir_read_c`.
- * Read path helper `fs_dir_read_c`.
- * @param handle i64
- * @param name_out *u8
- * @param name_cap i32
- * @param is_dir_out *i32
- * @return i32
+/**
+ * Read the next directory entry into `name_out`.
+ *
+ * Skips `.` / `..`. Uses `DIRENT_D_NAME_OFF` (PLATFORM LINUX=19 / MACOS=21) to
+ * locate `d_name` inside the libc `struct dirent` returned by `readdir`.
+ *
+ * @param handle Directory handle from `fs_dir_open_c` (negative = invalid).
+ * @param name_out Caller buffer for the NUL-terminated entry name.
+ * @param name_cap Capacity of `name_out` in bytes (must fit name + NUL).
+ * @param is_dir_out Optional; currently always written 0 (d_type not wired).
+ * @return 1 on entry, 0 at end-of-dir, -1 on error (errno noted).
  */
 export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
   let h: *FsDirHandlePosix;
@@ -1351,6 +1455,7 @@ export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_
       }
       return 0;
     }
+    // PLATFORM: SHARED — offset is cfg'd (linux 19 / macos 21); see DIRENT_D_NAME_OFF.
     name = (de as *u8) + DIRENT_D_NAME_OFF;
     if (name[0] == 46 && (name[1] == 0 || (name[1] == 46 && name[2] == 0))) {
       continue;

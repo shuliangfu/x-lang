@@ -79,3 +79,19 @@ XLANG_LEAK_PROBE=1 ./tests/run-safe-leak-nightly.sh   # runnable 夜跑
 联动：`tests/run-safe-ffi-contract-gate.sh`（SAFE-004）、`tests/run-sanitize-gate.sh`（SAFE-001）。
 
 **SAFE-005 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + cases = hard.
+- Linux+ASAN smoke = hard run; non-Linux / no ASAN = `skip=` (platform N/A).
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-safe-leak-nightly-gate.sh
+```
+
+manifest: `tests/baseline/safe-leak-nightly.tsv`

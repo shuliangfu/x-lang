@@ -1,9 +1,12 @@
 # STD-114 std.unicode grapheme/case fold manifest
+# 列：item_id	kind	anchor	mod_path	notes
 min_apis	4
+verify	section	## Gate	analysis/archive/std/std-unicode-grapheme-case-v1.md
 api_grapheme	api	grapheme_next	std/unicode/mod.x
 api_fold_rune	api	case_fold_rune	std/unicode/mod.x
 api_fold_buf	api	case_fold_buf	std/unicode/mod.x
 api_smoke	api	grapheme_case_smoke	std/unicode/mod.x
 symbol_grapheme_c	symbol	grapheme_next	std/unicode/unicode.x
 smoke_x	smoke	tests/std-unicode/grapheme_case.x
-gate	script	run-std-unicode-grapheme-case-gate.sh	tests/run-std-unicode-grapheme-case-gate.sh
+lib	script	tests/lib/std-unicode-grapheme-case.sh	tests/lib/std-unicode-grapheme-case.sh
+gate	script	tests/run-std-unicode-grapheme-case-gate.sh	tests/run-std-unicode-grapheme-case-gate.sh

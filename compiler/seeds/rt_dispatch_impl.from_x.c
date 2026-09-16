@@ -9,14 +9,17 @@
  *   driver_run_compiler_full_x_impl_c
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
  * Cap residual（driver_abi）：lib_key→lib_roots 槽 + Parsed 填表。
- * 冷启动/无 PREFER 时仍编译完整 C 体（含 sibling / 非 product ifdef）。
+ * Leftover !XLANG_NO_C_FRONTEND sibling demote in emit_c_path retired
+ * (residual 6). Spawn helper stays in rt_dispatch_thin (Cap residual,
+ * different class — HAS a real fork/exec body). Mega leftover sibling
+ * → _impl wrapper retired (residual 9).
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
  *
  * Scope: asm/emit/full_x/post_parse/x_emit_from_state 中型分派；
  * run_asm_backend / run_compiler_parsed / run_x_emit_c 巨石已 R2。
  */
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -70,13 +73,10 @@ extern void driver_set_pending_target_cpu_features(uint32_t features);
 extern int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
                                   const char *target, int argc, char **argv);
 extern int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv);
-extern int driver_try_compile_via_shu_c_sibling(int argc, char **argv);
 extern int32_t driver_check_only_get(void);
 extern int driver_source_has_top_level_import_path(const char *path);
-extern int32_t driver_asm_entry_module_only_from_env(void);
 extern int driver_argv_has_emit_c_flag(int argc, char **argv);
 extern int32_t driver_asm_output_want_exe(uint8_t *path);
-extern int driver_source_has_generic_syntax(const uint8_t *path, int path_len);
 extern void driver_freestanding_set(int32_t v);
 extern void cfg_set_freestanding(int v);
 extern int driver_run_x_emit_c_set_emit_extern(int v);
@@ -91,7 +91,11 @@ extern void driver_bump_stack_limit(void);
 extern DriverCompileStateSU *driver_compile_state_alloc_c(void);
 extern void driver_compile_state_free_c(DriverCompileStateSU *state);
 extern int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv, DriverCompileStateSU *state);
-extern void xlang_target_cpu_print(FILE *out, uint32_t features);
+/* Cap residual 9.7.2: fd-handle face — print target goes through
+ * driver_stdio_stdout (encoded fd 1), no libc FILE star / stdout. */
+extern void xlang_target_cpu_print(uint8_t *out, uint32_t features);
+extern uint8_t *driver_stdio_stdout(void);
+extern uint8_t *driver_dispatch_opt_default(void);
 
 /** asm 后端：lib_key sidecar → lib_roots，委托 driver_run_asm_backend。 */
 int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
@@ -107,7 +111,13 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
                                 target && target[0] ? (const char *)target : NULL, (int)argc, (char **)argv);
 }
 
-/** C 后端：lib_key→lib_roots；可选 sibling xlang-c；否则 parsed。 */
+/** C backend: lib_key → lib_roots, then driver_run_compiler_parsed.
+ * Leftover !XLANG_NO_C_FRONTEND sibling xlang-c demote retired (this knife).
+ * Product PREFER rt_dispatch_impl.x already skipped it (always parsed).
+ * Spawn helper stays in rt_dispatch_thin (HAS a real fork/exec body).
+ * PLATFORM: SHARED — consume-site hygiene; product PREFER rest is FROM_X
+ * marker (H=0); this body compiles only on cold/no-PREFER.
+ */
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
   const char *lib_roots[X_FULL_MAX_LIB_ROOTS];
@@ -121,7 +131,8 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
   p.n_lib_roots = n;
   p.want_asm_backend = 0;
   p.target = target && target[0] ? (const char *)target : NULL;
-  p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
+  p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level
+                                            : (const char *)driver_dispatch_opt_default();
   p.use_lto = use_lto != 0;
   /* wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
   {
@@ -129,14 +140,17 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     if (!p.use_lto && _lto && strcmp(_lto, "1") == 0)
       p.use_lto = 1;
   }
-#if !defined(XLANG_NO_C_FRONTEND)
-  if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
-      !driver_asm_entry_module_only_from_env()) {
-    int xlang_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
-    if (xlang_c_rc >= 0)
-      return xlang_c_rc;
-  }
-#endif
+  /*
+   * Retired leftover !XLANG_NO_C_FRONTEND sibling demote (this knife):
+   * top-level import used to fork/exec same-dir xlang-c via
+   * driver_try_compile_via_shu_c_sibling — HAS a real body. Product
+   * PREFER rt_dispatch_impl.x always continues to
+   * driver_dispatch_run_compiler_parsed / driver_run_compiler_parsed.
+   * Dropping XLANG_NO_C_FRONTEND now matches that path; it does not
+   * resurrect a C frontend via sibling xlang-c.
+   * PLATFORM: SHARED — consume-site hygiene; product PREFER rest is
+   * FROM_X marker (H=0); this body compiles only on cold/no-PREFER.
+   */
   return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
 }
 
@@ -239,7 +253,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
     return 1;
   }
   if (state->print_target_cpu) {
-    xlang_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
+    xlang_target_cpu_print(driver_stdio_stdout(), (uint32_t)state->target_cpu_features);
     driver_compile_state_free_c(state);
     return 0;
   }

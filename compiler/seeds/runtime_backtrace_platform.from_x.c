@@ -3,8 +3,9 @@
  *
  * R2 full mode: public API in src/asm/runtime_backtrace_platform.x (thin),
  * OS bridge _impl functions here (rest). Thin+rest linked via ld -r.
- * Platform-specific: execinfo/dladdr on POSIX/macOS, CaptureStackBackTrace
- * + DbgHelp on Windows.
+ * Platform-specific: Cap residual 9.1.11 (FP walk + ELF/Mach-O/PE) on
+ * LINUX|DARWIN|WINDOWS; fallback execinfo/dladdr or CaptureStackBackTrace/
+ * DbgHelp only when Cap is unavailable.
  *
  * wave252 G.7: CRASH_EVIDENCE env via public face link_abi_getenv (not raw libc getenv).
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
@@ -20,6 +21,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: crash evidence path → Cap snprintf */
+/* G.7: Cap after stdio for backtrace crash-evidence residual. */
+#undef snprintf
+#define snprintf xlang_snprintf
+#include <xlang_io_cap.h>   /* Cap residual 9.5.3: xlang_io_write / xlang_io_open_write */
+#include <xlang_proc_cap.h> /* Cap residual 9.5.3: xlang_proc_close_fd (single close authority) */
 #include "diag.h"
 #include <xlang_user_link_abi_getenv.h>
 #if defined(__unix__) || defined(__APPLE__)
@@ -118,23 +125,31 @@ int32_t backtrace_copy_sym_name_c(uint8_t *out, int32_t name_cap, const uint8_t 
 }
 #endif
 
-/** Format address as hex string into output buffer. */
+/** Format address as "0x" + hex digits into out[0..cap).
+ * PLATFORM: SHARED — walk address bytes and call backtrace_u8_hex2_impl per
+ * byte (two digits). Do NOT pass a nibble to u8_hex2: that writes two digits
+ * per nibble and overruns a 18-byte scratch (Ubuntu stack-smash in
+ * symbolicate fallback when dladdr misses). Scratch holds "0x" + 16 digits.
+ */
 void backtrace_format_hex_addr_impl(uint8_t *out, int32_t cap, void *addr) {
-  uint8_t tmp[18];
+  uint8_t tmp[19];
   uintptr_t v = (uintptr_t)addr;
   int32_t i;
   int32_t pos = 2;
+  int32_t ncopy;
   if (!out || cap <= 0) return;
   tmp[0] = '0';
   tmp[1] = 'x';
-  for (i = 15; i >= 0; i--) {
-    uint8_t nib = (uint8_t)((v >> (i * 4)) & 15u);
-    backtrace_u8_hex2_impl(nib, &tmp[pos]);
+  /* sizeof(void*) bytes → 2*sizeof(void*) hex digits; 64-bit → pos ends at 18. */
+  for (i = (int32_t)sizeof(void *) - 1; i >= 0; i--) {
+    uint8_t b = (uint8_t)((v >> (i * 8)) & 0xffu);
+    backtrace_u8_hex2_impl(b, &tmp[pos]);
     pos += 2;
   }
-  if (pos >= cap) pos = cap - 1;
-  memcpy(out, tmp, (size_t)pos);
-  out[pos] = '\0';
+  ncopy = pos;
+  if (ncopy >= cap) ncopy = cap - 1;
+  if (ncopy > 0) memcpy(out, tmp, (size_t)ncopy);
+  out[ncopy] = '\0';
 }
 
 #ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
@@ -163,17 +178,29 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 
 /* === Platform-specific _impl functions === */
 
-#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
+/* Cap residual 9.1.11: stack capture + resolve without libc backtrace/dladdr
+ * (Linux/Darwin) or CaptureStackBackTrace/DbgHelp (Windows). */
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32) || defined(_WIN64)) && \
+    (defined(__x86_64__) || defined(__aarch64__) || defined(_M_X64) || defined(_M_ARM64))
+#include <xlang_backtrace_cap.h>
+#define HAVE_XLANG_BT_CAPTURE_CAP 1
+#define HAVE_XLANG_BT_CAP 1
+#endif
+
+/* PLATFORM: POSIX — stdio above pulls features.h on glibc so __GLIBC__ is set.
+ * Musl/Alpine typically lack execinfo.h → leave HAVE_EXECINFO undefined.
+ * Skip execinfo when Cap frame walk is active (Linux or Darwin). */
+#if ((defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)) && !defined(HAVE_XLANG_BT_CAPTURE_CAP)
 #include <execinfo.h>
 #define HAVE_EXECINFO 1
 #endif
 
-#if defined(__linux__) || defined(__APPLE__)
+#if !defined(HAVE_XLANG_BT_CAP) && (defined(__linux__) || defined(__APPLE__))
 #include <dlfcn.h>
 #define HAVE_DLADDR 1
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if !defined(HAVE_XLANG_BT_CAP) && (defined(_WIN32) || defined(_WIN64))
 #include <windows.h>
 #ifdef _MSC_VER
 #pragma comment(lib, "dbghelp.lib")
@@ -184,7 +211,18 @@ int32_t name_has_gold_anchor(const uint8_t *name) {
 /** Capture current call stack into buffer. */
 int32_t backtrace_capture_impl(uint8_t *buf, int32_t max_frames) {
   if (!buf || max_frames <= 0) return 0;
-#if defined(HAVE_EXECINFO)
+#if defined(HAVE_XLANG_BT_CAPTURE_CAP)
+  {
+    void *arr[256];
+    int cap = max_frames > 256 ? 256 : (int)max_frames;
+    int n = xlang_bt_backtrace(arr, cap);
+    int i;
+    if (n <= 0) return 0;
+    for (i = 0; i < n; i++)
+      backtrace_write_frame_addr_c(buf, i, arr[i]);
+    return (int32_t)n;
+  }
+#elif defined(HAVE_EXECINFO)
   {
     void *arr[256];
     int n = backtrace(arr, max_frames > 256 ? 256 : (int)max_frames);
@@ -228,7 +266,18 @@ int32_t backtrace_symbolicate_impl(const uint8_t *buf, int32_t len, uint8_t *out
     void *addr = backtrace_read_frame_addr_c(buf, i);
     uint8_t *name_slot = out_names + (size_t)i * BACKTRACE_SYM_NAME_LEN;
     if (out_ptrs) backtrace_write_frame_addr_c(out_ptrs, i, addr);
-#if defined(HAVE_DLADDR)
+#if defined(HAVE_XLANG_BT_CAP)
+    {
+      XlangBtDlInfo info;
+      memset(&info, 0, sizeof(info));
+      if (xlang_bt_dladdr(addr, &info) && info.dli_sname && info.dli_sname[0]) {
+        backtrace_copy_sym_name_impl(name_slot, BACKTRACE_SYM_NAME_LEN, (const uint8_t *)info.dli_sname);
+        ok++;
+      } else {
+        backtrace_format_hex_addr_impl(name_slot, BACKTRACE_SYM_NAME_LEN, addr);
+      }
+    }
+#elif defined(HAVE_DLADDR)
     {
       Dl_info info;
       memset(&info, 0, sizeof(info));
@@ -352,8 +401,16 @@ int32_t backtrace_xplat_quality_impl(void) {
   }
   total = backtrace_capture_c(buf, 32);
   if (total > 0) resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
-  fprintf(stderr, "xlang: [XLANG_BT_XPLAT] backtrace xplat: platform=%s gold=%d resolved=%d total=%d\n",
-          (const char *)plat, gold, resolved, total);
+  /* 9.5.3: diagnostic note via Cap IO (xlang_io_write); no libc fprintf. */
+  {
+    char note[256];
+    int note_len = snprintf(note, sizeof(note),
+                            "xlang: [XLANG_BT_XPLAT] backtrace xplat: platform=%s gold=%d "
+                            "resolved=%d total=%d\n",
+                            (const char *)plat, gold, resolved, total);
+    if (note_len > 0)
+      (void)xlang_io_write(2, note, (size_t)note_len);
+  }
   if (gold < 1 || resolved < 1 || total < 1) return 1;
   return 0;
 }
@@ -364,10 +421,13 @@ int32_t backtrace_xplat_quality_c(void) {
 }
 #endif
 
-/** Collect crash evidence when XLANG_CRASH_EVIDENCE=1. */
+/** Collect crash evidence when XLANG_CRASH_EVIDENCE=1.
+ * 9.5.3: stderr note + evidence bundle via Cap IO (xlang_io_write/open_write +
+ * xlang_proc_close_fd); no libc fprintf/fopen/fclose. */
 void xlang_crash_evidence_collect_impl(int has_msg, int msg_val) {
   const char *en = link_abi_getenv("XLANG_CRASH_EVIDENCE");
   uint8_t buf[512];
+  char note[256];
   int32_t n;
   int32_t pid = 0;
   if (!en || en[0] != '1') return;
@@ -377,23 +437,42 @@ void xlang_crash_evidence_collect_impl(int has_msg, int msg_val) {
 #elif defined(_WIN32) || defined(_WIN64)
   pid = (int32_t)GetCurrentProcessId();
 #endif
-  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val, n, pid);
+  {
+    int note_len = snprintf(note, sizeof(note),
+                            "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n",
+                            has_msg, msg_val, n, pid);
+    if (note_len > 0)
+      (void)xlang_io_write(2, note, (size_t)note_len);
+  }
   {
     const char *dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
     if (dir && dir[0]) {
       char path[1024];
-      FILE *f;
       int32_t i;
       (void)snprintf(path, sizeof(path), "%s/xlang-crash-%d.txt", dir, pid);
-      f = fopen(path, "w");
-      if (f) {
-        fprintf(f, "panic_has_msg=%d\npanic_msg=%d\nframes=%d\npid=%d\n", has_msg, msg_val, n, pid);
-        for (i = 0; i < n; i++) {
-          void *addr = backtrace_read_frame_addr_c(buf, i);
-          fprintf(f, "frame%d=0x%zx\n", (int)i, (size_t)(uintptr_t)addr);
+      {
+        int fd = xlang_io_open_write(path);
+        if (fd >= 0) {
+          char body[128];
+          int body_len = snprintf(body, sizeof(body),
+                                  "panic_has_msg=%d\npanic_msg=%d\nframes=%d\npid=%d\n",
+                                  has_msg, msg_val, n, pid);
+          if (body_len > 0)
+            (void)xlang_io_write(fd, body, (size_t)body_len);
+          for (i = 0; i < n; i++) {
+            void *addr = backtrace_read_frame_addr_c(buf, i);
+            int line_len = snprintf(body, sizeof(body), "frame%d=0x%zx\n", (int)i,
+                                    (size_t)(uintptr_t)addr);
+            if (line_len > 0)
+              (void)xlang_io_write(fd, body, (size_t)line_len);
+          }
+          (void)xlang_proc_close_fd(fd);
+          {
+            int note_len = snprintf(note, sizeof(note), "note: crash evidence: bundle=%s\n", path);
+            if (note_len > 0)
+              (void)xlang_io_write(2, note, (size_t)note_len);
+          }
         }
-        fclose(f);
-        fprintf(stderr, "note: crash evidence: bundle=%s\n", path);
       }
     }
   }

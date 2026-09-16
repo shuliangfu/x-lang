@@ -11,8 +11,13 @@
 | `verify-selfhost*.sh` | 标题/注释改为「语义/Stage2 X」 |
 | D-06 gate | 委托 `run-d06-selfhost-doc-gate.sh` |
 
-## 门禁
+## Gate
+
+Honesty gate (2026-08-26): hard-fail archive DOC + bilingual README +
+hard-delegate d06. No soft `die→exit 0`. Soft
+`XLANG_F12_SELFHOST_DOC_UNIFIED_FAIL` retired. Report `doc=` /
+`selfhost=` / `readme=` / `d06=` / `skip=`.
 
 ```bash
-XLANG_F12_SELFHOST_DOC_UNIFIED_FAIL=1 ./tests/run-f12-selfhost-doc-unified-gate.sh
+./tests/run-f12-selfhost-doc-unified-gate.sh
 ```

@@ -59,14 +59,26 @@
 
 ---
 
-## 5. 验收
+## 5. Gate
 
-- manifest：`tests/baseline/std-dynlib-windows.tsv`
-- 烟测：`tests/dynlib/open_sym_close.x`；回归：`tests/run-dynlib.sh`
-- 报告：`xlang: [XLANG_STD_DYNLIB_WIN] status=ok`
+Honesty gate (2026-08-28 soft fallthrough residual):
+
+- Prefer `./compiler/xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Explicit-bad `XLANG` / missing native → hard die (refuse soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK).
+- `xlang check` observational only (check gate paused 2026-08-05).
+- Hard runnable exit 0 (`run+=`): `open_sym_close.x`, `main.x`, `win_path.x`.
+- Observational (`obs+=`): `win_path_smoke.c` host-C archaeology (existing `.o` only; refuse soft ensure rebuild).
+- Manifest: `tests/baseline/std-dynlib-windows.tsv`
+- Runner: `tests/run-std-dynlib-windows-gate.sh` (+ `tests/run-dynlib.sh` regression)
+- Report: `xlang: [XLANG_STD_DYNLIB_WIN] status=ok run=/obs=/skip=`
+- Refuse resurrecting top-level `analysis/std-dynlib-windows-v1.md` (live DOC = archive).
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-dynlib.sh`（`xlang_compiler_make -q || make` + `dynlib.o` + `xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `main`／`open_sym_close`／`last_error` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [DYNLIB]`。Keep `## 5. Gate`。
+
+**2026-08-30 leftover unused compiler-make SOURCE 已收**（std-dynlib-windows：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired；leftover ignore of explicit-bad（DOC 前不先 die）retired；G.7 补全既有 `resolve_shu`；显式坏 XLANG 先硬 die；leftover nested observational check／host-C 不重写）。Keep `## 5. Gate`。
 
 ---
 
-## 6. 演进
+## 6. Evolution
 
-- `LoadLibraryW` / UTF-16 路径（v2）；`dynlib_last_error` 已交付（STD-096）。
+- `LoadLibraryW` / UTF-16 path (v2 residual); `dynlib_last_error` delivered (STD-096).

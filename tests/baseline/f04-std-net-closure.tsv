@@ -1,14 +1,14 @@
-# F-04 v15：std.net 宿主路径闭合 manifest
-# 列：item_id	kind	anchor	notes
-doc	doc	analysis/phase-f-f04-v15.md	F-04 v15
-gate	gate	tests/run-f04-std-net-closure-gate.sh	v15 聚合
-deleted_c	absent	std/net/net.c	v14 删除
+# F-04 v15: std.net hosted-path closure manifest (honesty 2026-08-26)
+# cols: item_id	kind	anchor	notes
+doc	doc	analysis/archive/phase/phase-f-f04-v15.md	F-04 v15 archive DOC
+gate	gate	tests/run-f04-std-net-closure-gate.sh	v15 aggregate
+deleted_c	absent	std/net/net.c	v14 deleted
 glue_batch_runtime	file	compiler/seeds/runtime_net_udp_batch.from_x.c	recvmmsg runtime
-glue_workers_runtime	file	compiler/seeds/runtime_net_workers.from_x.c	线程入口 runtime
-glue_batch_absent	absent	std/net/udp_batch_glue.c	已迁入 runtime
-glue_workers_absent	absent	std/net/workers_glue.c	已迁入 runtime
-glue_mbedtls_c	file	compiler/seeds/runtime_tls_mbedtls_bio.from_x.c	BIO 胶层 runtime
-glue_mbedtls_absent	absent	std/net/tls_mbedtls_bio.c	已迁入 runtime
+glue_workers_runtime	file	compiler/seeds/runtime_net_workers.from_x.c	worker entry runtime
+glue_batch_absent	absent	std/net/udp_batch_glue.c	moved to runtime
+glue_workers_absent	absent	std/net/workers_glue.c	moved to runtime
+glue_mbedtls_c	file	compiler/seeds/runtime_tls_mbedtls_bio.from_x.c	BIO glue runtime
+glue_mbedtls_absent	absent	std/net/tls_mbedtls_bio.c	moved to runtime
 x_alpn	file	std/net/alpn.x	v10
 x_dns	file	std/net/dns.x	v10
 x_addr	file	std/net/addr.x	v11
@@ -25,5 +25,9 @@ x_tls_mbedtls	file	std/net/tls_mbedtls.x	v9
 x_tcp_pool	file	std/net/tcp_pool.x	v2
 x_ws_codec	file	std/net/ws_codec.x	v3
 x_ws_io	file	std/net/ws_io.x	v3
-makefile_net_o	script	compiler/Makefile	net.o 纯 .x + runtime_net_*.o
+xbuild	file	xbuild	product build entry
+mk_std	file	compiler/mk/std_and_panic_objs.mk	net.o + runtime_net_*
+mk_seed	file	compiler/mk/driver_seed_r_lists.mk	runtime_net_* seeds
+ensure_host	file	compiler/scripts/ensure_host_cc_seed_o.sh	net_merge authority
+arch_phony	file	compiler/scripts/archaeology_host_pick_phony.sh	tls openssl/mbedtls
 f07_net_absent	manifest	tests/baseline/f07-no-cc-std-migrated.tsv	net.c F-07 v2

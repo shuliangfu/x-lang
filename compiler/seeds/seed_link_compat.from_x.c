@@ -4,12 +4,13 @@
  * Regen: ./xlang-c -E -L .. src/seed_link_compat.x > /tmp/slc.c
  *         then merge into this seed (weak polish + fold/arch C tail).
  * .x covers: typeck_lsp_* / std_heap/sys bridges / lsp_diag_* weak -1 stubs.
+ * Cap residual 10.7.2：xlang_append_asmf formats via xlang_vsnprintf (no libc vsnprintf).
  */
 #include <xlang_weak.h>
-#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* also Cap va via xlang_va_cap (10.7.1) */ /* Cap residual 10.7.2: append_asmf → xlang_vsnprintf */
 
 struct ast_Module;
 struct backend_AsmFuncCtx;
@@ -275,15 +276,16 @@ int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod
   body_ref = pipeline_module_func_body_ref_at(mod, func_idx);
   if (body_ref <= 0)
     return 0;
-  fin = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
-  if (fin != 0) {
-    if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
-      op_e = pipeline_expr_unary_operand_ref_at(arena, fin);
-      if (op_e != 0)
-        return op_e;
-    }
-    return fin;
-  }
+  /*
+   * PLATFORM: SHARED — unique-return only for single-field / x+k folds.
+   * Historic: final_expr short-circuit returned the last `return` (or even a
+   * bare FIELD_ACCESS) while earlier return stmts still existed. That made
+   * multi-return helpers like std.error.chain_leaf match as
+   * `return param0.<one field>` and try_inline emitted a wrong offset-0 load
+   * (depth) → EXC error_chain_smoke exit=2. G.7: count every RETURN first;
+   * final_expr RETURN only fills when stmts had none; bare final only when
+   * the body is expression-shaped (zero returns).
+   */
   nes = ast_ast_block_num_expr_stmts(arena, body_ref);
   found = 0;
   op_ref = 0;
@@ -297,6 +299,27 @@ int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod
       }
     }
   }
+  fin = pipeline_asm_block_final_expr_ref_at(arena, body_ref);
+  if (fin != 0) {
+    if (pipeline_expr_kind_ord_at(arena, fin) == 41) {
+      op_e = pipeline_expr_unary_operand_ref_at(arena, fin);
+      if (op_e != 0) {
+        if (found == 0) {
+          found = 1;
+          op_ref = op_e;
+        } else {
+          /* final return + earlier returns → multi-return; refuse fold. */
+          return 0;
+        }
+      }
+    } else if (found == 0) {
+      /* Expression-bodied function (no return keyword). */
+      return fin;
+    } else {
+      /* Non-return final with return stmts — ambiguous; refuse. */
+      return 0;
+    }
+  }
   return found == 1 ? op_ref : 0;
 }
 
@@ -306,8 +329,9 @@ int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod
 #ifndef XLANG_SEED_LINK_COMPAT_FROM_X
 int32_t xlang_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
                                           int32_t param_ix) {
-  uint8_t pbuf[128];
-  uint8_t vbuf[128];
+  /* Cap 4.2.8: copy32 / var_name_into write 256 bytes. */
+  uint8_t pbuf[256];
+  uint8_t vbuf[256];
   int32_t plen;
   int32_t vlen;
   int32_t k;
@@ -316,7 +340,7 @@ int32_t xlang_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t
     return 0;
   plen = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
   vlen = pipeline_expr_var_name_len(arena, expr_ref);
-  if (plen <= 0 || plen != vlen || plen > 31)
+  if (plen <= 0 || plen != vlen || plen > 255)
     return 0;
   pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, pbuf);
   pipeline_expr_var_name_into(arena, expr_ref, vbuf);
@@ -342,10 +366,11 @@ int32_t xlang_expr_is_param0_field_access(void *arena, struct ast_Module *mod, i
 int32_t xlang_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
-  uint8_t fb[128];
+  /* Cap 4.2.8: func_name_copy64 memset(dst,0,256); align with seed_link_compat.x. */
+  uint8_t fb[256];
   int32_t k;
 
-  if (!mod || !name || name_len <= 0 || name_len > 127)
+  if (!mod || !name || name_len <= 0 || name_len > 255)
     return -1;
   for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
     flen = pipeline_asm_module_func_name_len_at(mod, fi);
@@ -405,7 +430,7 @@ int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, in
   int32_t arg0;
   int32_t callee_ref;
   int32_t clen;
-  uint8_t cname[128];
+  uint8_t cname[256];
   int32_t inner_fi;
   int32_t inner_k;
   int32_t addend;
@@ -454,10 +479,11 @@ int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, in
 static int32_t xlang_append_asmf(struct codegen_CodegenOutBuf *out, const char *fmt, ...) {
   char buf[128];
   int n;
-  va_list ap;
-  va_start(ap, fmt);
-  n = vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
+  xlang_va_list ap;
+  xlang_va_start(ap, fmt);
+  /* PLATFORM: SHARED — Cap fmt (10.7.2) + Cap va (10.7.1); no libc stdarg. */
+  n = xlang_vsnprintf(buf, sizeof(buf), fmt, ap);
+  xlang_va_end(ap);
   if (n < 0 || (size_t)n >= sizeof(buf))
     return -1;
   return append_asm_line(out, (uint8_t *)buf, n);
@@ -849,6 +875,34 @@ XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x2)
 XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x2_to_rax)
 XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x9)
 XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x9_to_rax)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x8)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_svc)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_dmb_ish)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_dmb_ishld)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_dmb_ishst)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_ldar_w0_x0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_stlr_w1_x0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x0_to_x1)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x0_to_x2)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x0_to_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_ldr_w0_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_str_w0_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_w0_to_w4)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_casal_w0_w1_x2)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_cmp_w0_w4)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_cset_eq_w0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_ldar_x0_x0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_stlr_x1_x0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_ldr_x0_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_str_x0_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x0_to_x4)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_casal_x0_x1_x2)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_cmp_x0_x4)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_ldarh_w0_x0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_stlrh_w1_x0)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_ldrh_w0_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_strh_w0_x3)
+XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_casalh_w0_w1_x2)
 XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rax_to_x10)
 XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_x10_to_rax)
 XLANG_ARM64_GLUE_STUB1(arch_arm64_enc_enc_mov_rbx_to_x10)
@@ -916,6 +970,7 @@ XLANG_ARCH_ENC_STUB2(arch_arm64_enc_enc_jge, uint8_t *, label, int32_t, label_le
 XLANG_ARCH_ENC_STUB2(arch_arm64_enc_enc_jmp, uint8_t *, label, int32_t, label_len)
 XLANG_ARCH_ENC_STUB3(arch_arm64_enc_enc_label, uint8_t *, name, int32_t, name_len, int32_t, is_func)
 XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_rax_to_arg_reg, int32_t, k)
+XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_mov_arg_reg_to_rax, int32_t, k)
 XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_add_sp_imm12, int32_t, imm)
 XLANG_ARCH_ENC_STUB1(arch_arm64_enc_enc_sub_sp_imm12, int32_t, imm)
 XLANG_ARCH_ENC_STUB0(arch_arm64_enc_enc_sub_rax_rbx)

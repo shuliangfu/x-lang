@@ -19,18 +19,33 @@
 
 ## F-02 v2（✅ win32 去 C）
 
-见 `analysis/phase-f-f02-v2.md`；`run-f02-std-sys-win32-gate.sh`。
+见 `analysis/archive/phase/phase-f-f02-v2.md`；`run-f02-std-sys-win32-gate.sh`。
+
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F02_FAIL` / `XLANG_LINUX_MMAP_FILE_FAIL` retired. Linux MAP_SHARED
+smoke is **observational** (`linux=`; asm UNDEF residual `std_sys_mmap_*` /
+`read_file_into` — not soft false-green). Report `static=` / `inventory=` /
+`linux=` / `skip=`. Non-Linux hosts keep `linux=0` (platform N/A).
+
+**2026-08-29 leftover XLANG fallthrough 已收**（linux-mmap-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
+
+**2026-08-29 leftover XLANG fallthrough 已收**（f02-mmap 父闸：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die（Linux nested）；Darwin N/A 不要求 native（unset）；leftover nested inventory／linux-mmap-file observational 不重写）。
+
+```bash
+./tests/run-f02-std-sys-mmap-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f02-std-sys-mmap-gate.sh
+./tests/run-linux-mmap-file-gate.sh
+```
 
 ## 复现
 
+Same as **## Gate** (soft `XLANG_F02_FAIL` path retired; gate always hard).
+Neighbor inventory still owns its own FAIL knife when run standalone:
+
 ```bash
-# 聚合门禁（manifest + F-01 + Linux 烟测委托）
-XLANG_F02_FAIL=1 ./tests/run-f02-std-sys-mmap-gate.sh
-
-# Linux x86_64 hosted
-XLANG_LINUX_MMAP_FILE_FAIL=1 ./tests/run-linux-mmap-file-gate.sh
-
-# F-01 存量（应 total=109）
 XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 

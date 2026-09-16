@@ -16,7 +16,10 @@
  * runtime_http_glue.c — F-ZC：自 std/http/http_glue.c 迁入 — HTTP 客户端胶层（F-http v1）：最小 HTTP 客户端（P4 可选；对标 Zig std.http、Rust reqwest 最小子集）
  *
  * 【文件职责】GET/POST/HEAD/PUT/DELETE/PATCH/OPTIONS：解析 http(s)://host[:port][/path]，connect + 可选 TLS + send/recv。
- * 【所属模块/组件】std.http；经 ld -r 与 http.x 合并为 http.o；与 mod.x 同属一模块。依赖 socket/getaddrinfo（Unix -lc；Windows ws2_32）。
+ * 【所属模块/组件】std.http；经 ld -r 与 http.x 合并为 http.o；与 mod.x 同属一模块。
+ * Cap residual 9.1.7 slice2：Linux dial via xlang_dns_cap + xlang_net_cap（无 getaddrinfo）；
+ * Windows 仍 Winsock getaddrinfo／WSAStartup。
+ * Cap residual 10.7.2：request／URL format via xlang_snprintf（无 libc snprintf）。
  */
 
 #include <stdint.h>
@@ -25,6 +28,11 @@
 #include <string.h>
 /* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: http format → xlang_snprintf */
+/* G.7: single Cap authority for this TU + included seeds/http .inc files (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
+
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
@@ -38,6 +46,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <fcntl.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
@@ -45,8 +54,53 @@
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
 #include <errno.h>
+#include <poll.h>
+#include <fcntl.h>
+#include <xlang_dns_cap.h>
+#include <xlang_net_cap.h>
 #define XLANG_HTTP_CLOSE(fd) close(fd)
 #define XLANG_HTTP_ERRNO errno
+
+/*
+ * Cap residual 9.1.7 slice3: redirect libc socket face to Cap for this TU
+ * (pool / h2 server smokes / timeout dial). Function-like macros only.
+ * PLATFORM: LINUX Cap (include path already gated !_WIN32).
+ */
+static inline int xlang_http_accept_cap(int fd, void *addr, socklen_t *alen) {
+  unsigned int a = alen ? (unsigned int)(*alen) : 0;
+  int r = xlang_net_accept(fd, addr, alen ? &a : 0);
+  if (alen)
+    *alen = (socklen_t)a;
+  return r;
+}
+static inline int xlang_http_setsockopt_cap(int fd, int level, int optname, const void *optval,
+                                           socklen_t optlen) {
+  return xlang_net_setsockopt(fd, level, optname, optval, (unsigned int)optlen);
+}
+static inline int xlang_http_fcntl_cap(int fd, int cmd, ...) {
+  long arg = 0;
+  if (cmd == F_SETFL) {
+    /* Cap residual 10.7.1: Cap va face (no raw __builtin_va_* twin). */
+    xlang_va_list ap;
+    xlang_va_start(ap, cmd);
+    arg = xlang_va_arg(ap, long);
+    xlang_va_end(ap);
+  }
+  return xlang_net_fcntl(fd, cmd, arg);
+}
+#define socket(d, t, p) xlang_net_socket((d), (t), (p))
+#define connect(fd, addr, len) xlang_net_connect((fd), (const void *)(addr), (unsigned int)(len))
+#define bind(fd, addr, len) xlang_net_bind((fd), (const void *)(addr), (unsigned int)(len))
+#define listen(fd, bl) xlang_net_listen((fd), (bl))
+#define accept(fd, addr, alen) xlang_http_accept_cap((fd), (addr), (alen))
+#define setsockopt(fd, l, o, v, n) xlang_http_setsockopt_cap((fd), (l), (o), (v), (n))
+#define poll(fds, n, t) xlang_net_poll((void *)(fds), (unsigned int)(n), (int)(t))
+#define fcntl xlang_http_fcntl_cap
+#define close(fd) xlang_net_close((fd))
+#define send(fd, buf, len, flags)                                                                  \
+  xlang_net_sendto((fd), (buf), (size_t)(len), (int)(flags), 0, 0)
+#define recv(fd, buf, len, flags)                                                                  \
+  xlang_net_recvfrom((fd), (buf), (size_t)(len), (int)(flags), 0, 0)
 #endif
 
 #include "http_chunked.inc"
@@ -513,6 +567,125 @@ done:
 int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) { return http_connect_timeout_impl(fd, res, timeout_ms); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
+#if !defined(_WIN32) && !defined(_WIN64)
+/**
+ * Cap residual 9.1.7 slice2: nonblock connect + poll on raw sockaddr (no addrinfo).
+ * PLATFORM: POSIX (Linux Cap dial).
+ */
+static int32_t http_connect_timeout_sa(int fd, const void *addr, unsigned int addrlen,
+                                       uint32_t timeout_ms) {
+  int flags = fcntl(fd, F_GETFL, 0);
+  if (flags < 0)
+    return -1;
+  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) != 0)
+    return -1;
+  if (xlang_net_connect(fd, addr, addrlen) != 0) {
+    if (XLANG_HTTP_ERRNO != EINPROGRESS)
+      return -1;
+  } else {
+    goto done;
+  }
+  if (timeout_ms > 0) {
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLOUT;
+    if (xlang_net_poll(&pfd, 1, (int)timeout_ms) <= 0)
+      return HTTP_ERR_TIMEOUT;
+  }
+done:
+  flags = fcntl(fd, F_GETFL, 0);
+  if (flags >= 0)
+    (void)fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+  return 0;
+}
+
+/** Parse decimal port string → 1..65535. */
+static int http_parse_port_u16(const char *port_str, uint16_t *out) {
+  unsigned v = 0;
+  if (!port_str || !out || !*port_str)
+    return -1;
+  while (*port_str) {
+    if (*port_str < '0' || *port_str > '9')
+      return -1;
+    v = v * 10u + (unsigned)(*port_str - '0');
+    if (v > 65535u)
+      return -1;
+    port_str++;
+  }
+  if (v == 0)
+    return -1;
+  *out = (uint16_t)v;
+  return 0;
+}
+
+/**
+ * Cap residual 9.1.7 slice2: dial host:port via Cap DNS + Cap socket/connect.
+ * Prefers IPv4 then IPv6. Sets *out_fd. Returns 0 / HTTP_ERR_TIMEOUT / -1.
+ * PLATFORM: LINUX Cap (POSIX Cap DNS fallback on Darwin).
+ */
+static int32_t http_dial_host_port(const char *host, const char *port_str, uint32_t timeout_ms,
+                                   int *out_fd) {
+  uint16_t port = 0;
+  uint32_t a4 = 0;
+  int32_t err = 0;
+  uint8_t a6[16];
+  uint8_t sa[28];
+  int fd;
+  int32_t cr;
+  if (!host || !port_str || !out_fd)
+    return -1;
+  if (http_parse_port_u16(port_str, &port) != 0)
+    return -1;
+  if (xlang_dns_resolve_ipv4(host, &a4, &err) == 0) {
+    uint32_t be;
+    memset(sa, 0, sizeof(sa));
+    sa[0] = (uint8_t)AF_INET;
+    sa[2] = (uint8_t)(port >> 8);
+    sa[3] = (uint8_t)(port & 0xff);
+    be = ((a4 & 0xffu) << 24) | ((a4 & 0xff00u) << 8) | ((a4 & 0xff0000u) >> 8) |
+         ((a4 & 0xff000000u) >> 24);
+    memcpy(sa + 4, &be, 4);
+    fd = xlang_net_socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+      return -1;
+    if (timeout_ms > 0)
+      cr = http_connect_timeout_sa(fd, sa, 16, timeout_ms);
+    else
+      cr = xlang_net_connect(fd, sa, 16) == 0 ? 0 : -1;
+    if (cr == 0) {
+      *out_fd = fd;
+      return 0;
+    }
+    xlang_net_close(fd);
+    if (cr == HTTP_ERR_TIMEOUT)
+      return HTTP_ERR_TIMEOUT;
+  }
+  memset(a6, 0, 16);
+  if (xlang_dns_resolve_ipv6(host, a6, &err) == 0) {
+    memset(sa, 0, sizeof(sa));
+    sa[0] = (uint8_t)AF_INET6;
+    sa[2] = (uint8_t)(port >> 8);
+    sa[3] = (uint8_t)(port & 0xff);
+    memcpy(sa + 8, a6, 16);
+    fd = xlang_net_socket(AF_INET6, SOCK_STREAM, 0);
+    if (fd < 0)
+      return -1;
+    if (timeout_ms > 0)
+      cr = http_connect_timeout_sa(fd, sa, 28, timeout_ms);
+    else
+      cr = xlang_net_connect(fd, sa, 28) == 0 ? 0 : -1;
+    if (cr == 0) {
+      *out_fd = fd;
+      return 0;
+    }
+    xlang_net_close(fd);
+    if (cr == HTTP_ERR_TIMEOUT)
+      return HTTP_ERR_TIMEOUT;
+  }
+  return -1;
+}
+#endif /* !_WIN32 Cap dial */
+
 
 
 
@@ -553,28 +726,20 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
 #endif
 
   {
+#if defined(_WIN32) || defined(_WIN64)
     struct addrinfo hints;
     struct addrinfo *res = NULL;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo(host_buf, port_buf, &hints, &res) != 0 || !res) {
-#if defined(_WIN32) || defined(_WIN64)
       WSACleanup();
-#endif
       return -1;
     }
-#if defined(_WIN32) || defined(_WIN64)
     fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (fd == INVALID_SOCKET) {
-#else
-    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-#endif
       freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
       WSACleanup();
-#endif
       return -1;
     }
     tr.fd = (int)fd;
@@ -583,34 +748,36 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
       if (cr == HTTP_ERR_TIMEOUT) {
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return HTTP_ERR_TIMEOUT;
       }
       if (cr != 0) {
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return -1;
       }
     } else {
-#if defined(_WIN32) || defined(_WIN64)
       if (connect(fd, res->ai_addr, (int)res->ai_addrlen) != 0) {
-#else
-      if (connect(fd, res->ai_addr, res->ai_addrlen) != 0) {
-#endif
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return -1;
       }
     }
     freeaddrinfo(res);
+#else
+    /* Cap residual 9.1.7 slice2: Cap DNS + Cap dial (no libc getaddrinfo). */
+    {
+      int32_t dr;
+      int cfd = -1;
+      dr = http_dial_host_port(host_buf, port_buf, timeout_ms, &cfd);
+      if (dr != 0)
+        return dr;
+      fd = cfd;
+      tr.fd = cfd;
+    }
+#endif
   }
 
   if (http_set_timeouts(tr.fd, timeout_ms) != 0) {
@@ -879,28 +1046,20 @@ int32_t http_h2_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len
 #endif
 
   {
+#if defined(_WIN32) || defined(_WIN64)
     struct addrinfo hints;
     struct addrinfo *res = NULL;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo(host_buf, port_buf, &hints, &res) != 0 || !res) {
-#if defined(_WIN32) || defined(_WIN64)
       WSACleanup();
-#endif
       return -1;
     }
-#if defined(_WIN32) || defined(_WIN64)
     fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (fd == INVALID_SOCKET) {
-#else
-    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-#endif
       freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
       WSACleanup();
-#endif
       return -1;
     }
     tr.fd = (int)fd;
@@ -909,34 +1068,36 @@ int32_t http_h2_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len
       if (cr == HTTP_ERR_TIMEOUT) {
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return HTTP_ERR_TIMEOUT;
       }
       if (cr != 0) {
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return -1;
       }
     } else {
-#if defined(_WIN32) || defined(_WIN64)
       if (connect(fd, res->ai_addr, (int)res->ai_addrlen) != 0) {
-#else
-      if (connect(fd, res->ai_addr, res->ai_addrlen) != 0) {
-#endif
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return -1;
       }
     }
     freeaddrinfo(res);
+#else
+    /* Cap residual 9.1.7 slice2: Cap DNS + Cap dial (no libc getaddrinfo). */
+    {
+      int32_t dr;
+      int cfd = -1;
+      dr = http_dial_host_port(host_buf, port_buf, timeout_ms, &cfd);
+      if (dr != 0)
+        return dr;
+      fd = cfd;
+      tr.fd = cfd;
+    }
+#endif
   }
 
   if (http_set_timeouts(tr.fd, timeout_ms) != 0) {
@@ -1048,28 +1209,20 @@ int32_t http_h2c_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_le
 #endif
 
   {
+#if defined(_WIN32) || defined(_WIN64)
     struct addrinfo hints;
     struct addrinfo *res = NULL;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo(host_buf, port_buf, &hints, &res) != 0 || !res) {
-#if defined(_WIN32) || defined(_WIN64)
       WSACleanup();
-#endif
       return -1;
     }
-#if defined(_WIN32) || defined(_WIN64)
     fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (fd == INVALID_SOCKET) {
-#else
-    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) {
-#endif
       freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
       WSACleanup();
-#endif
       return -1;
     }
     tr.fd = (int)fd;
@@ -1078,34 +1231,36 @@ int32_t http_h2c_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_le
       if (cr == HTTP_ERR_TIMEOUT) {
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return HTTP_ERR_TIMEOUT;
       }
       if (cr != 0) {
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return -1;
       }
     } else {
-#if defined(_WIN32) || defined(_WIN64)
       if (connect(fd, res->ai_addr, (int)res->ai_addrlen) != 0) {
-#else
-      if (connect(fd, res->ai_addr, res->ai_addrlen) != 0) {
-#endif
         http_transport_close(&tr);
         freeaddrinfo(res);
-#if defined(_WIN32) || defined(_WIN64)
         WSACleanup();
-#endif
         return -1;
       }
     }
     freeaddrinfo(res);
+#else
+    /* Cap residual 9.1.7 slice2: Cap DNS + Cap dial (no libc getaddrinfo). */
+    {
+      int32_t dr;
+      int cfd = -1;
+      dr = http_dial_host_port(host_buf, port_buf, timeout_ms, &cfd);
+      if (dr != 0)
+        return dr;
+      fd = cfd;
+      tr.fd = cfd;
+    }
+#endif
   }
 
   if (http_set_timeouts(tr.fd, timeout_ms) != 0) {

@@ -1,6 +1,9 @@
 # SAFE-003 unsafe API audit ledger
 # Format: scope<TAB>symbol<TAB>owner<TAB>rationale<TAB>reviewer<TAB>audit_date
 # scope: tier-u | tier-e
+# leftover residual (2026-08-29): dual-authority top-level
+# analysis/safe-unsafe-audit-v1.md retired; live = analysis/archive/safe/.
+# TSV identity kept.
 tier-u	Arena64	stdlib	Raw heap/arena; caller owns *T lifetime; libc bridge	v1-baseline	2026-06-17
 tier-u	Map_i32_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17
 tier-u	Set_i32	stdlib	allow(padding) container; C-side layout interop	v1-baseline	2026-06-17

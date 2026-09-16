@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# type-ffi-bridge.sh — TYPE-004 FFI 类型桥接共享辅助
+# type-ffi-bridge.sh — TYPE-004 FFI type-bridge shared helpers.
+#
+# Honesty (2026-08-28): codegen.c / c_type_to_buf retired — live =
+# codegen.x type_to_c_repr / emit_type. Mapping greps target codegen.x.
+# PLATFORM: SHARED archaeology.
 
-# 判断本机能否直接执行给定 xlang 二进制。
+# Return 0 if path is a native executable for this host (Mach-O/ELF match).
 type_ffi_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -15,23 +19,26 @@ type_ffi_native_xlang() {
   esac
 }
 
-# 校验 mapping 表中 xlang_type 在 codegen 有对应 C 类型子串。
+# Verify mapping-table xlang_type has a corresponding C-type substring in
+# live codegen.x (default). Fossil codegen.c path rejected by callers.
+# PLATFORM: SHARED — single authority = type_to_c_repr / emit_type.
 type_ffi_mapping_in_codegen() {
   local xlang="$1"
   local cty="$2"
-  local cg="${3:-compiler/src/codegen/codegen.c}"
+  local cg="${3:-compiler/src/codegen/codegen.x}"
+  [ -f "$cg" ] || return 1
   case "$xlang" in
     i32) grep -qF 'int32_t' "$cg" ;;
     u32) grep -qF 'uint32_t' "$cg" ;;
     i64) grep -qF 'int64_t' "$cg" ;;
     u64) grep -qF 'uint64_t' "$cg" ;;
     u8) grep -qF 'uint8_t' "$cg" ;;
-    bool) grep -qF 'AST_TYPE_BOOL' "$cg" && grep -qF '"int"' "$cg" ;;
+    bool) grep -qF 'TYPE_BOOL' "$cg" ;;
     f32) grep -qF 'float' "$cg" ;;
     f64) grep -qF 'double' "$cg" ;;
     usize) grep -qF 'size_t' "$cg" ;;
     isize) grep -qF 'ptrdiff_t' "$cg" ;;
-    ptr_star|ptr_u8_bridge) grep -qF 'c_type_to_buf' "$cg" ;;
+    ptr_star|ptr_u8_bridge) grep -qE 'type_to_c_repr|emit_type' "$cg" ;;
     slice_arr) grep -qF 'xlang_slice_' "$cg" ;;
     *) grep -qF "$cty" "$cg" ;;
   esac

@@ -32,28 +32,31 @@
  *   + wave197 xlang_asm_ld_append_on_demand_user_objs pure orch
  *     (product on_demand shell; Cap residual ensure/skip/path + freestanding_get + undef_sym)
  * Cap residual：ensure/skip/path Cap inside shell peers；
- *   wave210：has_undef_sym pure thin orch（null/empty）；_impl = nm/popen 常驻 mega；
- *   wave211：exports_marker pure thin orch（null/empty）；_impl = nm/popen strstr 常驻 mega；
- *   wave212：needs_undef_sym pure thin orch（null/empty）；_impl = nm/popen(+ELF) 常驻 mega；
- *   wave213：has_defined_sym pure thin orch（null/empty）；_impl = nm/popen T/t 常驻 mega。
+ *   wave210：has_undef_sym pure thin orch（null/empty）；_impl = UNDEF-cache substring 常驻 mega；
+ *   wave211：exports_marker pure thin orch（null/empty）；_impl = all-names cache substring 常驻 mega；
+ *   wave212：needs_undef_sym pure thin orch（null/empty）；_impl = UNDEF cache mmap 常驻 mega；
+ *   wave213：has_defined_sym pure thin orch（null/empty）；_impl = T/t cache mmap 常驻 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Prove：seeds/labi_ondemand_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: L8b standalone ondemand seed → Cap snprintf */
+/* G.7: Cap when this TU is cc'd alone (try-labi-prefer L8b); mega include already redirects. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include "runtime_link_abi.h"
 
-/* Cap residual (wave212): nm/popen(+ELF) UNDEF body; pure owns null/empty gates. */
+/* Cap residual (wave212): UNDEF cache mmap; pure owns null/empty gates. */
 int xlang_link_obj_needs_undef_sym_impl(const char *user_o, const char *sym);
-/* Cap residual (wave213): nm/popen defined T/t body; pure owns null/empty gates. */
+/* Cap residual (wave213): T/t cache mmap; pure owns null/empty gates. */
 int xlang_link_obj_has_defined_sym_impl(const char *o_path, const char *sym);
-/* Cap residual (wave211): nm/popen marker body; pure owns null/empty gates. */
+/* Cap residual (wave211): all-names cache substring; pure owns null/empty gates. */
 int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker);
-/* Cap residual (wave210): nm/popen UNDEF body; pure owns null/empty gates. */
+/* Cap residual (wave210): UNDEF cache substring; pure owns null/empty gates. */
 int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym);
 /* wave145 aggregate orch Cap: path pure suffix scan (authority labi_path_pure). */
 int link_abi_ld_argv_entry_is_obj(const char *s);
@@ -72,6 +75,8 @@ int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_r
 int driver_freestanding_get(void);
 int xlang_ensure_runtime_thread_glue_o(const char *argv0);
 const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_http_glue_o(const char *argv0);
+const char *xlang_runtime_http_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
 const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
@@ -86,6 +91,10 @@ int xlang_ensure_runtime_process_argv_o(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
 int xlang_ensure_runtime_time_os_o(const char *argv0);
 const char *xlang_runtime_time_os_o_path(const char *argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
 int xlang_ensure_runtime_queue_contention_o(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 void labi_std_append_queue_monofile_companions(const char *link_argv0, const char **lib_roots,
@@ -94,8 +103,11 @@ void labi_std_append_test_monofile_companions(const char *link_argv0, const char
     int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 const char *xlang_std_async_scheduler_o_path(const char *argv0);
 const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0);
 const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0);
 const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0);
 void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *), const char *glue_primary,
     const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
@@ -143,36 +155,44 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
  * g11 std.ffi: pure-asm emits std_ffi_*; formal std/ffi/ffi.o (mod.x + ffi.x). */
 
 int labi_od_simple_group_count(void) {
-  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g19).
+  /* PLATFORM: SHARED — ≡ pure labi_ondemand_list.x (g0..g23).
    * G.7: seed cold twin must match pure table; L4 product often falls back to
    * this host-cc seed when pure prefer times out. Was return 13 with g12=simd
-   * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe. */
-  return 20;
+   * (pure g12=test / g18=simd) → run-compress UNDEF after L4 wipe.
+   * g21: core.str formal (cookbook core_str_index unique UNDEF).
+   * g22: core.iterator formal (cookbook iter_slice_sum unique UNDEF).
+   * g23: std.bytes formal (tests/std-bytes/arena_external unique UNDEF).
+   * g24: core.fmt formal (CORE-010/011 direct import).
+   * g25: core.cmp formal (CORE-005 direct import Ordering/cmp_*). */
+  return 26;
 }
 
 int labi_od_simple_group_sym_count(int g) {
   if (g < 0)
     return 0;
   if (g == 0)
-    return 9;
+    return 13; /* std.string — +concat_arena/view_get/length_StrView cookbook unique UNDEF */
+  /* PLATFORM: SHARED — full core/types/types.o export surface (CORE-013 i16/u16). */
   if (g == 1)
-    return 2;
+    return 27;
   if (g == 2)
     return 6;
   if (g == 3)
     return 4;
   if (g == 4)
-    return 3;
+    return 5;
   if (g == 5)
     return 3;
   if (g == 6)
     return 4;
+  /* PLATFORM: SHARED — core.result short API + *_i32 aliases (mirror list.x; was 4). */
   if (g == 7)
-    return 4;
+    return 10;
   if (g == 8)
     return 6;
+  /* PLATFORM: SHARED — full core/slice/mod.o export surface (CORE-004). */
   if (g == 9)
-    return 10;
+    return 28;
   if (g == 10)
     return 14;
   if (g == 11)
@@ -182,9 +202,13 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 13)
     return 6; /* core.assert */
   if (g == 14)
-    return 8; /* std.fmt */
+    return 9; /* std.fmt — +format_template cookbook sole UNDEF */
+  /* PLATFORM: SHARED — twin of labi_ondemand_list.x g==15. Needles i==24..27
+   * (stream_state_bytes ×3 + brotli_stream_init_decompress_) already live
+   * below; count 24 never walked them → Ubuntu run-compress UNDEF when L8c
+   * prefer fails and this seed is the first-wins L8b winner (L8b 24 vs 28). */
   if (g == 15)
-    return 6; /* std.compress */
+    return 28; /* std.compress — +4 stream needles (24→28; i==24..27) */
   if (g == 16)
     return 4; /* std.io.driver */
   if (g == 17)
@@ -193,6 +217,30 @@ int labi_od_simple_group_sym_count(int g) {
     return 23; /* std.simd VECTOR mid + binop/dot/fma + scalar faces + select_lane */
   if (g == 19)
     return 3; /* std.io ctx-timeout STD-091 */
+  /* wave957: std.unicode formal (run-unicode residual). */
+  if (g == 20)
+    return 8;
+  /* PLATFORM: SHARED — core.str formal (cookbook core_str_index unique UNDEF).
+   * Matcher exact; bytes_view often inlined so index_of* / starts_with fire.
+   * Count 12 = full core/str/mod.x export surface. G.7 one table. */
+  if (g == 21)
+    return 12;
+  /* PLATFORM: SHARED — core.iterator formal (cookbook iter_slice_sum unique UNDEF).
+   * Matcher exact; no prior group. Count 10 = full core/iterator/mod.x export
+   * surface. G.7 one table. */
+  if (g == 22)
+    return 10;
+  /* PLATFORM: SHARED — std.bytes formal (tests/std-bytes/arena_external unique UNDEF).
+   * Matcher exact; no prior group. Count 29 = full std/bytes/mod.x export
+   * surface. G.7 one table. */
+  if (g == 23)
+    return 29;
+  /* PLATFORM: SHARED — core.fmt formal (CORE-010/011). Count 12. G.7 one table. */
+  if (g == 24)
+    return 12;
+  /* PLATFORM: SHARED — core.cmp formal (CORE-005). Count 12. G.7 one table. */
+  if (g == 25)
+    return 12;
   return 0;
 }
 
@@ -220,12 +268,87 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_string_string_view";
     if (i == 8)
       return "std_string_string_len";
+    /*
+     * wave958: std_string_string_view_case_fold for string_case_fold
+     * cookbook. G.7: complete the single string probe table. PLATFORM: SHARED.
+     */
+    if (i == 9)
+      return "std_string_string_view_case_fold";
+    /*
+     * zc_arena_concat unique UNDEF (Ubuntu gold): string.view is often
+     * inlined so g0 never fired from string_view. Unique names
+     * concat_arena / string_view_get / length_StrView then never ensure
+     * string.o. Matcher is exact; string_len does not cover length_StrView.
+     * G.7: complete this single string probe table. Do not add a second group.
+     * PLATFORM: SHARED.
+     */
+    if (i == 10)
+      return "std_string_string_view_concat_arena";
+    if (i == 11)
+      return "std_string_string_view_get";
+    if (i == 12)
+      return "std_string_length_StrView";
     return NULL;
   }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/types/types.o (g==1).
+   * CORE-013 unique: size_of/align_of i16/u16. Rest = full scalar size/align
+   * surface so sole-call smokes also fire. G.7: one table (was only i32+placeholder).
+   */
   if (g == 1) {
     if (i == 0)
-      return "core_types_size_of_i32";
+      return "core_types_size_of_i16";
     if (i == 1)
+      return "core_types_size_of_u16";
+    if (i == 2)
+      return "core_types_align_of_i16";
+    if (i == 3)
+      return "core_types_align_of_u16";
+    if (i == 4)
+      return "core_types_size_of_i32";
+    if (i == 5)
+      return "core_types_size_of_bool";
+    if (i == 6)
+      return "core_types_size_of_u8";
+    if (i == 7)
+      return "core_types_size_of_u32";
+    if (i == 8)
+      return "core_types_size_of_u64";
+    if (i == 9)
+      return "core_types_size_of_i64";
+    if (i == 10)
+      return "core_types_size_of_usize";
+    if (i == 11)
+      return "core_types_size_of_isize";
+    if (i == 12)
+      return "core_types_size_of_f32";
+    if (i == 13)
+      return "core_types_size_of_f64";
+    if (i == 14)
+      return "core_types_size_of_pointer";
+    if (i == 15)
+      return "core_types_align_of_i32";
+    if (i == 16)
+      return "core_types_align_of_bool";
+    if (i == 17)
+      return "core_types_align_of_u8";
+    if (i == 18)
+      return "core_types_align_of_u32";
+    if (i == 19)
+      return "core_types_align_of_u64";
+    if (i == 20)
+      return "core_types_align_of_i64";
+    if (i == 21)
+      return "core_types_align_of_usize";
+    if (i == 22)
+      return "core_types_align_of_isize";
+    if (i == 23)
+      return "core_types_align_of_f32";
+    if (i == 24)
+      return "core_types_align_of_f64";
+    if (i == 25)
+      return "core_types_align_of_pointer";
+    if (i == 26)
       return "core_types_placeholder";
     return NULL;
   }
@@ -256,12 +379,18 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     return NULL;
   }
   if (g == 4) {
+    /* PLATFORM: SHARED — exact UNDEF needles for std/csv/csv.o (g==4).
+     * next_field/escape do not cover parse_row/write_row (cookbook sole UNDEF). */
     if (i == 0)
       return "std_csv_next_field";
     if (i == 1)
       return "std_csv_escape";
     if (i == 2)
       return "std_csv_csv_test_quoted_first";
+    if (i == 3)
+      return "std_csv_parse_row";
+    if (i == 4)
+      return "std_csv_write_row";
     return NULL;
   }
   if (g == 5) {
@@ -285,6 +414,7 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     return NULL;
   }
   if (g == 7) {
+    /* PLATFORM: SHARED — prefer short Result_i32 overloads (mirror list.x). */
     if (i == 0)
       return "core_result_ok_i32";
     if (i == 1)
@@ -293,6 +423,18 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_result_err_i32";
     if (i == 3)
       return "core_result_ok";
+    if (i == 4)
+      return "core_result_err";
+    if (i == 5)
+      return "core_result_is_ok";
+    if (i == 6)
+      return "core_result_is_err";
+    if (i == 7)
+      return "core_result_unwrap_or";
+    if (i == 8)
+      return "core_result_unwrap_or_i32";
+    if (i == 9)
+      return "core_result_is_err_i32";
     return NULL;
   }
   /* PLATFORM: SHARED — core.debug formal surface (tests/sort assert_eq_*). */
@@ -311,7 +453,14 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_debug_debug_assert";
     return NULL;
   }
-  /* PLATFORM: SHARED — core.slice formal API (tests/slice/length.x BLD001 residual). */
+  /*
+   * PLATFORM: SHARED — full core.slice formal API (mod.o) for CORE-004.
+   * Glue from_ptr/subslice_*_c stays in core/slice/slice.o (labi_od_core_slice).
+   * Prior g9 (13) covered len/get/subslice + u64 split/chunks only; sole UNDEF
+   * for is_empty/first/last/split_at_i32|u8/chunks_len_i32|u8/chunk_* never
+   * opened mod.o. Matcher is exact — complete one table (G.7); .x twin same
+   * commit.
+   */
   if (g == 9) {
     if (i == 0)
       return "core_slice_len_i32";
@@ -320,19 +469,55 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     if (i == 2)
       return "core_slice_get_i32_unchecked";
     if (i == 3)
-      return "core_slice_len_u8";
+      return "core_slice_is_empty_i32";
     if (i == 4)
-      return "core_slice_get_u8";
+      return "core_slice_first_i32";
     if (i == 5)
-      return "core_slice_get_u8_unchecked";
+      return "core_slice_last_i32";
     if (i == 6)
       return "core_slice_subslice_i32";
     if (i == 7)
-      return "core_slice_subslice_u8";
+      return "core_slice_split_at_i32";
     if (i == 8)
-      return "core_slice_len_u64";
+      return "core_slice_chunks_len_i32";
     if (i == 9)
+      return "core_slice_chunk_i32";
+    if (i == 10)
+      return "core_slice_len_u8";
+    if (i == 11)
+      return "core_slice_get_u8";
+    if (i == 12)
+      return "core_slice_get_u8_unchecked";
+    if (i == 13)
+      return "core_slice_is_empty_u8";
+    if (i == 14)
+      return "core_slice_first_u8";
+    if (i == 15)
+      return "core_slice_subslice_u8";
+    if (i == 16)
+      return "core_slice_split_at_u8";
+    if (i == 17)
+      return "core_slice_chunks_len_u8";
+    if (i == 18)
+      return "core_slice_chunk_u8";
+    if (i == 19)
+      return "core_slice_len_u64";
+    if (i == 20)
       return "core_slice_get_u64";
+    if (i == 21)
+      return "core_slice_is_empty_u64";
+    if (i == 22)
+      return "core_slice_first_u64";
+    if (i == 23)
+      return "core_slice_last_u64";
+    if (i == 24)
+      return "core_slice_subslice_u64";
+    if (i == 25)
+      return "core_slice_split_at_u64";
+    if (i == 26)
+      return "core_slice_chunks_len_u64";
+    if (i == 27)
+      return "core_slice_chunk_u64";
     return NULL;
   }
   /* PLATFORM: SHARED — core.builtin formal (tests/builtin pure-asm UNDEF residual). */
@@ -433,6 +618,8 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_fmt_append_to_buf_u8_ptr_i32_i32_i32";
     if (i == 7)
       return "std_fmt_format_u8_ptr_i32_i32_i32";
+    if (i == 8)
+      return "std_fmt_format_template";
     return NULL;
   }
   if (g == 15) {
@@ -448,6 +635,53 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_compress_zstd_compress";
     if (i == 5)
       return "std_compress_zstd_decompress";
+    if (i == 6)
+      return "std_compress_compress_state_bytes_for";
+    if (i == 7)
+      return "std_compress_compress_init";
+    if (i == 8)
+      return "std_compress_compress_process";
+    if (i == 9)
+      return "std_compress_compress_end";
+    if (i == 10)
+      return "std_compress_format_brotli";
+    if (i == 11)
+      return "std_compress_format_zstd";
+    if (i == 12)
+      return "std_compress_mode_compress";
+    if (i == 13)
+      return "std_compress_mode_decompress";
+    /* 9.2.2: submodule zlib/gzip unique UNDEF (exact; Darwin mangle). */
+    if (i == 14)
+      return "std_compress_zlib_deflate";
+    if (i == 15)
+      return "std_compress_zlib_inflate";
+    if (i == 16)
+      return "std_compress_gzip_gzip_compress";
+    if (i == 17)
+      return "std_compress_gzip_gzip_decompress";
+    if (i == 18)
+      return "std_compress_deflate";
+    if (i == 19)
+      return "std_compress_inflate";
+    /* Linux product -o co-emits mod.x wrappers; UNDEF is bare *_c. */
+    if (i == 20)
+      return "compress_deflate_c";
+    if (i == 21)
+      return "compress_inflate_c";
+    if (i == 22)
+      return "compress_gzip_compress_c";
+    if (i == 23)
+      return "compress_gzip_decompress_c";
+    /* PLATFORM: SHARED — stream needles (see g15 count note). */
+    if (i == 24)
+      return "std_compress_gzip_stream_state_bytes";
+    if (i == 25)
+      return "std_compress_brotli_stream_state_bytes";
+    if (i == 26)
+      return "std_compress_zstd_stream_state_bytes";
+    if (i == 27)
+      return "std_compress_brotli_lib_compress_brotli_stream_init_decompress_";
     return NULL;
   }
   if (g == 16) {
@@ -528,6 +762,214 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "std_io_write_ctx";
     return NULL;
   }
+  /*
+   * wave957: std.unicode formal product probes. Mirrors .x g==20.
+   * G.7: single unicode probe authority. PLATFORM: SHARED.
+   */
+  if (g == 20) {
+    if (i == 0)
+      return "std_unicode_category";
+    if (i == 1)
+      return "std_unicode_to_lower";
+    if (i == 2)
+      return "std_unicode_to_upper";
+    if (i == 3)
+      return "std_unicode_is_whitespace";
+    if (i == 4)
+      return "std_unicode_is_ascii";
+    if (i == 5)
+      return "std_unicode_case_fold_rune";
+    if (i == 6)
+      return "std_unicode_is_supplementary";
+    if (i == 7)
+      return "std_unicode_rune_utf8_len";
+    return NULL;
+  }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/str/mod.o (g==21).
+   * Cookbook unique: index_of / index_of_byte / starts_with. Rest = remaining
+   * mod.x exports (tests/str sole-call). G.7: one table, no second group.
+   */
+  if (g == 21) {
+    if (i == 0)
+      return "core_str_bytes_view";
+    if (i == 1)
+      return "core_str_bytes_view_from_slice";
+    if (i == 2)
+      return "core_str_bytes_view_len";
+    if (i == 3)
+      return "core_str_bytes_view_is_empty";
+    if (i == 4)
+      return "core_str_bytes_view_get";
+    if (i == 5)
+      return "core_str_bytes_view_subview";
+    if (i == 6)
+      return "core_str_bytes_view_eq";
+    if (i == 7)
+      return "core_str_bytes_view_eq_bytes";
+    if (i == 8)
+      return "core_str_bytes_view_index_of_byte";
+    if (i == 9)
+      return "core_str_bytes_view_index_of";
+    if (i == 10)
+      return "core_str_bytes_view_contains_byte";
+    if (i == 11)
+      return "core_str_bytes_view_starts_with";
+    return NULL;
+  }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for core/iterator/mod.o (g==22).
+   * Cookbook unique: iter_i32 / next_i32. Rest = remaining mod.x exports
+   * (tests/iterator sole-call). G.7: one table, no second group.
+   */
+  if (g == 22) {
+    if (i == 0)
+      return "core_iterator_iter_i32";
+    if (i == 1)
+      return "core_iterator_iter_u8";
+    if (i == 2)
+      return "core_iterator_next_i32";
+    if (i == 3)
+      return "core_iterator_next_u8";
+    if (i == 4)
+      return "core_iterator_iter_remaining_i32";
+    if (i == 5)
+      return "core_iterator_iter_remaining_u8";
+    if (i == 6)
+      return "core_iterator_iterator_protocol_version";
+    if (i == 7)
+      return "core_iterator_iter_u64_from_buf";
+    if (i == 8)
+      return "core_iterator_next_u64";
+    if (i == 9)
+      return "core_iterator_iter_remaining_u64";
+    return NULL;
+  }
+  /*
+   * PLATFORM: SHARED — exact UNDEF needles for std/bytes/bytes.o (g==23).
+   * Test unique: from_external / is_owned / recommend_bytes_alloc_arena /
+   * extend / length / deinit. Rest = remaining mod.x exports
+   * (tests/std-bytes/roundtrip sole-call). G.7: one table, no second group.
+   */
+  if (g == 23) {
+    if (i == 0)
+      return "std_bytes_from_external";
+    if (i == 1)
+      return "std_bytes_is_owned";
+    if (i == 2)
+      return "std_bytes_recommend_bytes_alloc_arena";
+    if (i == 3)
+      return "std_bytes_extend";
+    if (i == 4)
+      return "std_bytes_length";
+    if (i == 5)
+      return "std_bytes_deinit";
+    if (i == 6)
+      return "std_bytes_default_capacity";
+    if (i == 7)
+      return "std_bytes_new";
+    if (i == 8)
+      return "std_bytes_recommend_bytes_alloc";
+    if (i == 9)
+      return "std_bytes_with_capacity";
+    if (i == 10)
+      return "std_bytes_reserve_one";
+    if (i == 11)
+      return "std_bytes_reserve";
+    if (i == 12)
+      return "std_bytes_grow";
+    if (i == 13)
+      return "std_bytes_append_byte";
+    if (i == 14)
+      return "std_bytes_from_slice";
+    if (i == 15)
+      return "std_bytes_capacity";
+    if (i == 16)
+      return "std_bytes_clear";
+    if (i == 17)
+      return "std_bytes_as_view";
+    if (i == 18)
+      return "std_bytes_from_view";
+    if (i == 19)
+      return "std_bytes_as_buffer";
+    if (i == 20)
+      return "std_bytes_reader";
+    if (i == 21)
+      return "std_bytes_read";
+    if (i == 22)
+      return "std_bytes_remaining";
+    if (i == 23)
+      return "std_bytes_seek";
+    if (i == 24)
+      return "std_bytes_writer";
+    if (i == 25)
+      return "std_bytes_write";
+    if (i == 26)
+      return "std_bytes_remaining_cap";
+    if (i == 27)
+      return "std_bytes_eq";
+    if (i == 28)
+      return "std_bytes_bytes_module_anchor";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — exact UNDEF needles for core/fmt/mod.o (g==24). */
+  if (g == 24) {
+    if (i == 0)
+      return "core_fmt_fmt_usize_to_buf";
+    if (i == 1)
+      return "core_fmt_fmt_isize_to_buf";
+    if (i == 2)
+      return "core_fmt_fmt_ptr_to_buf";
+    if (i == 3)
+      return "core_fmt_fmt_f64_to_buf";
+    if (i == 4)
+      return "core_fmt_fmt_f64_to_buf_prec";
+    if (i == 5)
+      return "core_fmt_fmt_i32_to_buf";
+    if (i == 6)
+      return "core_fmt_fmt_u32_to_buf";
+    if (i == 7)
+      return "core_fmt_fmt_u64_to_buf";
+    if (i == 8)
+      return "core_fmt_fmt_i64_to_buf";
+    if (i == 9)
+      return "core_fmt_fmt_bool_to_buf";
+    if (i == 10)
+      return "core_fmt_fmt_u64_hex_to_buf";
+    if (i == 11)
+      return "core_fmt_fmt_i32";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — exact UNDEF needles for core/cmp/mod.o (g==25).
+   * CORE-005 unique fire: cmp_i32 / cmp_u8 / cmp_ptr / is_lt/eq/gt / then / reverse.
+   * Rest = ordering_* constructors so sole-call smokes also fire. G.7: one table. */
+  if (g == 25) {
+    if (i == 0)
+      return "core_cmp_cmp_i32";
+    if (i == 1)
+      return "core_cmp_cmp_u8";
+    if (i == 2)
+      return "core_cmp_cmp_ptr";
+    if (i == 3)
+      return "core_cmp_is_lt";
+    if (i == 4)
+      return "core_cmp_is_eq";
+    if (i == 5)
+      return "core_cmp_is_gt";
+    if (i == 6)
+      return "core_cmp_then";
+    if (i == 7)
+      return "core_cmp_reverse";
+    if (i == 8)
+      return "core_cmp_ordering_less";
+    if (i == 9)
+      return "core_cmp_ordering_equal";
+    if (i == 10)
+      return "core_cmp_ordering_greater";
+    if (i == 11)
+      return "core_cmp_ordering_from_i32";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -574,20 +1016,66 @@ const char *labi_od_simple_group_rel(int g) {
     return "std/simd/simd.o";
   if (g == 19)
     return "std/io/io.o";
+  /* wave957: std.unicode formal product .o (run-unicode residual). */
+  if (g == 20)
+    return "std/unicode/unicode.o";
+  /* PLATFORM: SHARED — core.str formal product .o (cookbook core_str_index). */
+  if (g == 21)
+    return "core/str/mod.o";
+  /* PLATFORM: SHARED — core.iterator formal product .o (cookbook iter_slice_sum). */
+  if (g == 22)
+    return "core/iterator/mod.o";
+  /* PLATFORM: SHARED — std.bytes formal product .o (tests/std-bytes/arena_external). */
+  if (g == 23)
+    return "std/bytes/bytes.o";
+  /* PLATFORM: SHARED — core.fmt formal product .o (CORE-010/011). */
+  if (g == 24)
+    return "core/fmt/mod.o";
+  /* PLATFORM: SHARED — core.cmp formal product .o (CORE-005). */
+  if (g == 25)
+    return "core/cmp/mod.o";
   return NULL;
 }
 
-/* KV: multi-sym → kv.o + optional glue rel */
+/* KV: multi-sym → kv.o + optional glue rel.
+ * PLATFORM: SHARED — cookbook db_kv_arrow unique-first (mmap_available /
+ * open / close / append_ts / get / wal_flush / compact / sst_level_count),
+ * then remaining unique std.db.kv export faces, then legacy C ABI.
+ * Matcher is exact; C ABI names never fire import METHOD std_db_kv_*. */
 int labi_od_kv_sym_count(void) {
-  return 2;
+  return 14;
 }
 
 const char *labi_od_kv_sym_at(int i) {
   if (i < 0)
     return NULL;
   if (i == 0)
-    return "db_kv_open_c";
+    return "std_db_kv_mmap_available";
   if (i == 1)
+    return "std_db_kv_open";
+  if (i == 2)
+    return "std_db_kv_close";
+  if (i == 3)
+    return "std_db_kv_append_ts";
+  if (i == 4)
+    return "std_db_kv_get";
+  if (i == 5)
+    return "std_db_kv_wal_flush";
+  if (i == 6)
+    return "std_db_kv_compact";
+  if (i == 7)
+    return "std_db_kv_sst_level_count";
+  if (i == 8)
+    return "std_db_kv_sync";
+  if (i == 9)
+    return "std_db_kv_put";
+  if (i == 10)
+    return "std_db_kv_compact_generation";
+  if (i == 11)
+    return "std_db_kv_wal_bytes";
+  if (i == 12)
+    return "db_kv_open_c";
+  if (i == 13)
     return "db_kv_get_c";
   return NULL;
 }
@@ -600,17 +1088,74 @@ const char *labi_od_kv_glue_rel(void) {
   return "compiler/runtime_kv_mmap_glue.o";
 }
 
-/* Arrow */
+/* Arrow.
+ * PLATFORM: SHARED — cookbook db_kv_arrow unique-first (adopt_f32_ptr_i32_i32 /
+ * sum / dot / free_ArrowColumn), then remaining unique std.db.arrow export
+ * faces, then legacy C ABI. Matcher is exact. */
 int labi_od_arrow_sym_count(void) {
-  return 2;
+  return 29;
 }
 
 const char *labi_od_arrow_sym_at(int i) {
   if (i < 0)
     return NULL;
   if (i == 0)
-    return "arrow_column_i32_create_c";
+    return "std_db_arrow_adopt_f32_ptr_i32_i32";
   if (i == 1)
+    return "std_db_arrow_sum";
+  if (i == 2)
+    return "std_db_arrow_dot";
+  if (i == 3)
+    return "std_db_arrow_free_ArrowColumn";
+  if (i == 4)
+    return "std_db_arrow_new_i32";
+  if (i == 5)
+    return "std_db_arrow_new_f32";
+  if (i == 6)
+    return "std_db_arrow_new_f64";
+  if (i == 7)
+    return "std_db_arrow_adopt_i32_ptr_i32_i32";
+  if (i == 8)
+    return "std_db_arrow_length_ArrowColumn";
+  if (i == 9)
+    return "std_db_arrow_length_ArrowBatch";
+  if (i == 10)
+    return "std_db_arrow_owned";
+  if (i == 11)
+    return "std_db_arrow_null_bitmap";
+  if (i == 12)
+    return "std_db_arrow_valid";
+  if (i == 13)
+    return "std_db_arrow_data_i32";
+  if (i == 14)
+    return "std_db_arrow_data_f32";
+  if (i == 15)
+    return "std_db_arrow_data_f64";
+  if (i == 16)
+    return "std_db_arrow_append_ArrowColumn_i32";
+  if (i == 17)
+    return "std_db_arrow_append_ArrowColumn_f32";
+  if (i == 18)
+    return "std_db_arrow_append_ArrowColumn_f64";
+  if (i == 19)
+    return "std_db_arrow_append_null";
+  if (i == 20)
+    return "std_db_arrow_batch";
+  if (i == 21)
+    return "std_db_arrow_add";
+  if (i == 22)
+    return "std_db_arrow_get";
+  if (i == 23)
+    return "std_db_arrow_free_ArrowBatch";
+  if (i == 24)
+    return "std_db_arrow_sum_valid_i32";
+  if (i == 25)
+    return "std_db_arrow_sum_valid_f32";
+  if (i == 26)
+    return "std_db_arrow_simd_hw_available";
+  if (i == 27)
+    return "arrow_column_i32_create_c";
+  if (i == 28)
     return "arrow_column_adopt_f32_c";
   return NULL;
 }
@@ -621,6 +1166,35 @@ const char *labi_od_arrow_rel(void) {
 
 const char *labi_od_arrow_glue_rel(void) {
   return "compiler/runtime_arrow_simd_glue.o";
+}
+
+/* PLATFORM: SHARED — cookbook async_mod_import / drain_idle / scheduler_reset /
+ * net_fs_async_smoke unique-first.
+ * Distinct from labi_od_async_scheduler_sym_* (C ABI ×35 for scheduler.o
+ * skip-missing; never unique import METHOD std_async_*). Matcher is exact.
+ * Produce path is formal_mod c_face std/async/async.o (not host-cc of mod.x). */
+int labi_od_async_sym_count(void) {
+  return 4;
+}
+
+const char *labi_od_async_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_async_placeholder";
+  if (i == 1)
+    return "std_async_drain_idle";
+  /* import("std.async").scheduler_reset → mangled unique METHOD. */
+  if (i == 2)
+    return "std_async_scheduler_reset";
+  /* import("std.async").net_fs_async_smoke → mangled unique METHOD. */
+  if (i == 3)
+    return "std_async_net_fs_async_smoke";
+  return NULL;
+}
+
+const char *labi_od_async_rel(void) {
+  return "std/async/async.o";
 }
 
 /* Time */
@@ -675,8 +1249,9 @@ const char *labi_od_queue_contention_rel(void) {
   return "compiler/runtime_queue_contention.o";
 }
 
-/* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED. */
-int labi_od_net_sym_count(void) { return 17; }
+/* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED.
+ * Count 34: +new/smoke/acquire/release unique tcp_pool wrappers + net_resolve_ipv4/ipv6_ex_c (9.1.7). */
+int labi_od_net_sym_count(void) { return 34; }
 const char *labi_od_net_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -714,6 +1289,57 @@ const char *labi_od_net_sym_at(int i) {
     return "net_dns_resolve_c";
   if (i == 16)
     return "net_sock_create_c";
+  /*
+   * wave956: std.net cookbook on_demand probes (resolve_ex / resolve_err_* /
+   * close_stream / connect_blocking / write_batch / tcp_pool_*). Before
+   * wave956: 4 cookbook examples hit BLD001 UNDEF because needs_std_net
+   * probe table did not include these symbols. Probe shape: net.resolve_ex /
+   * net.resolve_err_* / net.close_stream / net.connect_blocking /
+   * net.write_batch / net.tcp_pool_* codegen to std_net_* mangled symbols
+   * in net.o. Twin of labi_od_thread_sym_* (wave956) for std_thread_stats.
+   * G.7: complete the single net probe table — no second path.
+   * PLATFORM: SHARED.
+   */
+  if (i == 17)
+    return "std_net_resolve_ex";
+  if (i == 18)
+    return "std_net_resolve_err_host_not_found";
+  if (i == 19)
+    return "std_net_resolve_err_no_data";
+  if (i == 20)
+    return "std_net_close_stream";
+  if (i == 21)
+    return "std_net_connect_blocking";
+  if (i == 22)
+    return "std_net_write_batch";
+  if (i == 23)
+    return "std_net_tcp_pool_connect_count";
+  if (i == 24)
+    return "std_net_tcp_pool_destroy";
+  if (i == 25)
+    return "std_net_tcp_pool_drain";
+  if (i == 26)
+    return "std_net_tcp_pool_idle_count";
+  /* PLATFORM: SHARED — cookbook net_listen_bind unique close_listener.
+   * listen already fires need_net; matcher is exact so close_listener-only
+   * user.o would miss. G.7 complete the single net probe table. */
+  if (i == 27)
+    return "std_net_close_listener";
+  /* PLATFORM: SHARED — tcp_pool unique wrappers (new/smoke/acquire/release).
+   * Twin of labi_ondemand_list.x. Matcher is exact. */
+  if (i == 28)
+    return "std_net_tcp_pool_new";
+  if (i == 29)
+    return "std_net_tcp_pool_smoke";
+  if (i == 30)
+    return "std_net_tcp_pool_acquire";
+  if (i == 31)
+    return "std_net_tcp_pool_release";
+  /* Cap residual 9.1.7: DNS raw resolve face. */
+  if (i == 32)
+    return "net_resolve_ipv4_ex_c";
+  if (i == 33)
+    return "net_resolve_ipv6_ex_c";
   return NULL;
 }
 
@@ -726,6 +1352,201 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
   n = labi_od_net_sym_count();
   for (i = 0; i < n; i++) {
     const char *sym = labi_od_net_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/*
+ * wave956: std.thread on_demand probe table + needs_std_thread pure orch.
+ * Before wave956: asm on_demand only pushed thread.o inside need_net block;
+ * user programs importing only std.thread never got thread.o. Twin of
+ * labi_od_net_sym_* / link_abi_user_o_needs_std_net. PLATFORM: SHARED.
+ */
+int labi_od_thread_sym_count(void) { return 4; }
+const char *labi_od_thread_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_thread_create";
+  if (i == 1)
+    return "std_thread_join";
+  if (i == 2)
+    return "std_thread_start";
+  if (i == 3)
+    return "std_thread_stats";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_thread(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_thread_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_thread_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/*
+ * wave958: std.vec on_demand probe table + needs_std_vec pure orch.
+ * Twin of labi_od_thread_sym_* / link_abi_user_o_needs_std_thread.
+ * PLATFORM: SHARED.
+ */
+int labi_od_vec_sym_count(void) { return 44; }
+const char *labi_od_vec_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_vec_push_Vec_u16_ptr_u16";
+  if (i == 1)
+    return "std_vec_push_Vec_i32_ptr_i32";
+  if (i == 2)
+    return "std_vec_push_Vec_u8_ptr_u8";
+  if (i == 3)
+    return "std_vec_get_Vec_u16_i32";
+  if (i == 4)
+    return "std_vec_length_Vec_u16";
+  if (i == 5)
+    return "std_vec_deinit_Vec_u16_ptr";
+  if (i == 6)
+    return "std_vec_get_Vec_i32_i32";
+  if (i == 7)
+    return "std_vec_length_Vec_i32";
+  if (i == 8)
+    return "std_vec_deinit_Vec_i32_ptr";
+  if (i == 9)
+    return "std_vec_from_slice_u8_ptr_i32";
+  if (i == 10)
+    return "std_vec_capacity_Vec_u8";
+  if (i == 11)
+    return "std_vec_clear_Vec_u8_ptr";
+  /* PLATFORM: SHARED — exact UNDEF needles for pop/extend/from_slice_u64/f64
+   * (mirror list.x). from_slice_u8 does not cover sole from_slice_u64/f64. */
+  if (i == 12)
+    return "std_vec_pop_Vec_i32_ptr";
+  if (i == 13)
+    return "std_vec_pop_Vec_u8_ptr";
+  if (i == 14)
+    return "std_vec_extend_Vec_i32_ptr_i32_ptr_i32";
+  if (i == 15)
+    return "std_vec_extend_Vec_u8_ptr_u8_ptr_i32";
+  if (i == 16)
+    return "std_vec_extend_Vec_u64_ptr_u64_ptr_i32";
+  if (i == 17)
+    return "std_vec_extend_Vec_f64_ptr_f64_ptr_i32";
+  if (i == 18)
+    return "std_vec_from_slice_u64_ptr_i32";
+  if (i == 19)
+    return "std_vec_from_slice_f64_ptr_i32";
+  /* PLATFORM: SHARED — exact UNDEF needles for push Vec_u64/f64
+   * (mirror list.x). push_i32/u8/u16 do not cover sole push_u64/f64. */
+  if (i == 20)
+    return "std_vec_push_Vec_u64_ptr_u64";
+  if (i == 21)
+    return "std_vec_push_Vec_f64_ptr_f64";
+  /* PLATFORM: SHARED — exact UNDEF needles for length/deinit/get Vec_u64/f64
+   * (mirror list.x). u16/i32 length/deinit/get do not cover sole
+   * new+length / new+deinit on Vec_u64/f64. */
+  if (i == 22)
+    return "std_vec_length_Vec_u64";
+  if (i == 23)
+    return "std_vec_deinit_Vec_u64_ptr";
+  if (i == 24)
+    return "std_vec_length_Vec_f64";
+  if (i == 25)
+    return "std_vec_deinit_Vec_f64_ptr";
+  if (i == 26)
+    return "std_vec_get_Vec_u64_i32";
+  if (i == 27)
+    return "std_vec_get_Vec_f64_i32";
+  /* PLATFORM: SHARED — exact UNDEF needles for Vec3f SOA/AOS
+   * (mirror list.x). Vec_* push/length/deinit do not cover unique
+   * names vec3f_soa_push / vec3f_aos_deinit / reserve_one / sum_x. */
+  if (i == 28)
+    return "std_vec_vec3f_soa_push";
+  if (i == 29)
+    return "std_vec_vec3f_soa_deinit";
+  if (i == 30)
+    return "std_vec_vec3f_aos_push";
+  if (i == 31)
+    return "std_vec_vec3f_aos_deinit";
+  if (i == 32)
+    return "std_vec_vec3f_soa_sum_x";
+  if (i == 33)
+    return "std_vec_vec3f_soa_reserve_one";
+  if (i == 34)
+    return "std_vec_vec3f_soa_len";
+  if (i == 35)
+    return "std_vec_vec3f_soa_get_x";
+  if (i == 36)
+    return "std_vec_vec3f_soa_get_y";
+  if (i == 37)
+    return "std_vec_vec3f_soa_get_z";
+  if (i == 38)
+    return "std_vec_vec3f_soa_set";
+  if (i == 39)
+    return "std_vec_vec3f_soa_with_capacity";
+  if (i == 40)
+    return "std_vec_vec3f_aos_reserve_one";
+  if (i == 41)
+    return "std_vec_vec3f_aos_get_x";
+  if (i == 42)
+    return "std_vec_vec3f_aos_sum_x";
+  if (i == 43)
+    return "std_vec_vec3f_aos_with_capacity";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_vec(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_vec_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_vec_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/*
+ * wave958: std.http on_demand probe table + needs_std_http pure orch.
+ * Twin of labi_od_thread_sym_* / link_abi_user_o_needs_std_thread.
+ * PLATFORM: SHARED.
+ */
+int labi_od_http_sym_count(void) { return 5; }
+const char *labi_od_http_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_http_parse_status_line";
+  if (i == 1)
+    return "std_http_decode_chunked_body";
+  if (i == 2)
+    return "std_http_has_chunked_encoding";
+  if (i == 3)
+    return "std_http_has_keep_alive";
+  if (i == 4)
+    return "std_http_headers_body_offset";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_http(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_http_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_http_sym_at(i);
     if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
       return 1;
   }
@@ -797,7 +1618,7 @@ int link_abi_user_o_needs_std_set(const char *user_o) {
 }
 
 /* wave120: map UNDEF table + needs_std_map pure orch. PLATFORM: SHARED. */
-int labi_od_map_sym_count(void) { return 9; }
+int labi_od_map_sym_count(void) { return 15; }
 const char *labi_od_map_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -819,6 +1640,24 @@ const char *labi_od_map_sym_at(int i) {
     return "std_map_str_new";
   if (i == 8)
     return "std_map_str_insert";
+  /*
+   * wave957: Map<u64, i32> on_demand probes. Before wave957: probe table only
+   * had Map_i32_i32 + str variants; user programs using Map<u64, i32> hit
+   * BLD001 UNDEF because needs_std_map probe never fired. G.7: complete the
+   * single map probe table. PLATFORM: SHARED.
+   */
+  if (i == 9)
+    return "std_map_new_u64";
+  if (i == 10)
+    return "std_map_with_capacity_Map_u64_i32_ptr_i32";
+  if (i == 11)
+    return "std_map_insert_Map_u64_i32_ptr_u64_i32";
+  if (i == 12)
+    return "std_map_get_Map_u64_i32_u64_i32";
+  if (i == 13)
+    return "std_map_remove_Map_u64_i32_ptr_u64";
+  if (i == 14)
+    return "std_map_deinit_Map_u64_i32_ptr";
   return NULL;
 }
 
@@ -885,9 +1724,13 @@ int link_abi_user_o_needs_std_queue(const char *user_o) {
   return 0;
 }
 
-/* wave122: product test UNDEF/prefix table + needs_std_test pure orch.
- * PLATFORM: SHARED — prefixes (test_runner_ etc.) use Cap residual strstr in undef_sym. */
-int labi_od_test_sym_count(void) { return 7; }
+/* wave122: product test UNDEF table + needs_std_test pure orch.
+ * PLATFORM: SHARED — matcher is exact xlang_undef_cache_has (rest==len).
+ * Prefixes (test_expect_ etc.) never fire. Product asm -o co-emits std_test_*
+ * wrappers as T, so inner test_*_c are the live UNDEF needles (≡ json/channel/heap
+ * leftover exact-needle class). Count 28 = 7 historical prefix/bare + 5 std_test_*
+ * faces + 16 mod.x inner *_c. G.7 complete existing table (no second list). */
+int labi_od_test_sym_count(void) { return 28; }
 const char *labi_od_test_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -905,6 +1748,48 @@ const char *labi_od_test_sym_at(int i) {
     return "test_io_";
   if (i == 6)
     return "test_fuzz_";
+  if (i == 7)
+    return "std_test_expect";
+  if (i == 8)
+    return "std_test_expect_eq_i32";
+  if (i == 9)
+    return "std_test_expect_ne_i32";
+  if (i == 10)
+    return "std_test_assert";
+  if (i == 11)
+    return "std_test_runner_case";
+  if (i == 12)
+    return "test_expect_c";
+  if (i == 13)
+    return "test_expect_eq_i32_c";
+  if (i == 14)
+    return "test_expect_eq_u32_c";
+  if (i == 15)
+    return "test_expect_ne_i32_c";
+  if (i == 16)
+    return "test_run_c";
+  if (i == 17)
+    return "test_bench_run_c";
+  if (i == 18)
+    return "test_bench_report_c";
+  if (i == 19)
+    return "test_fuzz_seed_c";
+  if (i == 20)
+    return "test_fuzz_next_c";
+  if (i == 21)
+    return "test_fuzz_run_c";
+  if (i == 22)
+    return "test_bench_run_noop_c";
+  if (i == 23)
+    return "test_fuzz_run_noop_c";
+  if (i == 24)
+    return "test_runner_reset_c";
+  if (i == 25)
+    return "test_runner_report_case_c";
+  if (i == 26)
+    return "test_runner_report_skip_c";
+  if (i == 27)
+    return "test_runner_finish_c";
   return NULL;
 }
 
@@ -923,9 +1808,11 @@ int link_abi_user_o_needs_std_test(const char *user_o) {
   return 0;
 }
 
-/* wave123: product core.mem exact UNDEF table + needs_core_mem pure orch.
- * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_core_mem_sym_count(void) { return 7; }
+/* wave123 + CORE-017: product core.mem exact UNDEF table + needs_core_mem pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes).
+ * Was 7 (align/mem_* only): sole volatile/fence UNDEF never opened mem.o → BLD001.
+ * Count 31 = full core/mem/mod.x export surface (G.7 one table; seed twin of .x). */
+int labi_od_core_mem_sym_count(void) { return 31; }
 const char *labi_od_core_mem_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -943,6 +1830,54 @@ const char *labi_od_core_mem_sym_at(int i) {
     return "core_mem_mem_move";
   if (i == 6)
     return "core_mem_mem_compare";
+  if (i == 7)
+    return "core_mem_mem_swap";
+  if (i == 8)
+    return "core_mem_is_alignment_power_of_two";
+  if (i == 9)
+    return "core_mem_placeholder";
+  if (i == 10)
+    return "core_mem_align_of_i32";
+  if (i == 11)
+    return "core_mem_align_of_bool";
+  if (i == 12)
+    return "core_mem_align_of_u8";
+  if (i == 13)
+    return "core_mem_align_of_u32";
+  if (i == 14)
+    return "core_mem_align_of_u64";
+  if (i == 15)
+    return "core_mem_align_of_i64";
+  if (i == 16)
+    return "core_mem_align_of_usize";
+  if (i == 17)
+    return "core_mem_align_of_isize";
+  if (i == 18)
+    return "core_mem_align_of_f32";
+  if (i == 19)
+    return "core_mem_align_of_f64";
+  if (i == 20)
+    return "core_mem_align_of_pointer";
+  if (i == 21)
+    return "core_mem_volatile_load_u8";
+  if (i == 22)
+    return "core_mem_volatile_store_u8";
+  if (i == 23)
+    return "core_mem_volatile_load_u16";
+  if (i == 24)
+    return "core_mem_volatile_store_u16";
+  if (i == 25)
+    return "core_mem_volatile_load_u32";
+  if (i == 26)
+    return "core_mem_volatile_store_u32";
+  if (i == 27)
+    return "core_mem_compiler_fence";
+  if (i == 28)
+    return "core_mem_fence_acquire";
+  if (i == 29)
+    return "core_mem_fence_release";
+  if (i == 30)
+    return "core_mem_fence_seq_cst";
   return NULL;
 }
 
@@ -963,7 +1898,7 @@ int link_abi_user_o_needs_core_mem(const char *user_o) {
 
 /* wave124: product core.slice exact UNDEF table + needs_core_slice pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_core_slice_sym_count(void) { return 6; }
+int labi_od_core_slice_sym_count(void) { return 9; }
 const char *labi_od_core_slice_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -979,6 +1914,19 @@ const char *labi_od_core_slice_sym_at(int i) {
     return "core_slice_u64_from_ptr_c";
   if (i == 5)
     return "core_subslice_u64_c";
+  /*
+   * wave957: core.slice X-facing u64 on_demand probes (chunks_len / split_at /
+   * subslice). Before wave957: probe table only had C-bridge _c suffix symbols;
+   * user programs calling slice.chunks_len / slice.split_at / slice.subslice
+   * with u64 codegen to core_slice_*_u64 (X-facing, no _c) which didn't match.
+   * G.7: complete the single core_slice probe table. PLATFORM: SHARED.
+   */
+  if (i == 6)
+    return "core_slice_chunks_len_u64";
+  if (i == 7)
+    return "core_slice_split_at_u64";
+  if (i == 8)
+    return "core_slice_subslice_u64";
   return NULL;
 }
 
@@ -1031,30 +1979,98 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
   return 0;
 }
 
-/* wave126: product std.sys.linux exact UNDEF table + needs_std_sys_linux pure orch.
+/* product sys_linux exact UNDEF table + needs pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_sys_linux_sym_count(void) { return 7; }
+/* 38 since 2026-09-09: +4 xlang_sys_* FFI externs the co-emitted
+ * std.sys.linux module leaves U (glue = std/sys/linux.o +
+ * compiler/src/asm/freestanding_io_x86_64.o; hosted user programs
+ * importing std.process died BLD001 — run-process FAIL root).
+ * Mirrors the .x twin. */
+int labi_od_sys_linux_sym_count(void) { return 38; }
 const char *labi_od_sys_linux_sym_at(int i) {
   if (i < 0)
     return NULL;
   if (i == 0)
-    return "std_sys_linux_linux_syscall_invoke_available";
+    return "std_sys_linux_linux_syscall_nr_read_amd64";
   if (i == 1)
-    return "std_sys_linux_linux_anonymous_mmap";
+    return "std_sys_linux_linux_syscall_nr_write_amd64";
   if (i == 2)
-    return "std_sys_linux_linux_syscall_munmap";
+    return "std_sys_linux_linux_syscall_nr_open_amd64";
   if (i == 3)
-    return "std_sys_linux_linux_syscall_read";
+    return "std_sys_linux_linux_syscall_nr_close_amd64";
   if (i == 4)
-    return "std_sys_linux_linux_syscall_write";
+    return "std_sys_linux_linux_syscall_nr_exit_amd64";
   if (i == 5)
-    return "std_sys_linux_linux_syscall_close";
+    return "std_sys_linux_linux_syscall_nr_mmap_amd64";
   if (i == 6)
+    return "std_sys_linux_linux_syscall_nr_read_arm64";
+  if (i == 7)
+    return "std_sys_linux_linux_syscall_nr_write_arm64";
+  if (i == 8)
+    return "std_sys_linux_linux_syscall_nr_openat_arm64";
+  if (i == 9)
+    return "std_sys_linux_linux_syscall_nr_close_arm64";
+  if (i == 10)
+    return "std_sys_linux_linux_syscall_nr_exit_arm64";
+  if (i == 11)
+    return "std_sys_linux_linux_syscall_nr_mmap_arm64";
+  if (i == 12)
+    return "std_sys_linux_linux_syscall_table_available";
+  if (i == 13)
+    return "std_sys_linux_linux_syscall_invoke_available";
+  if (i == 14)
+    return "std_sys_linux_linux_syscall_read";
+  if (i == 15)
+    return "std_sys_linux_linux_syscall_close";
+  if (i == 16)
+    return "std_sys_linux_linux_syscall_write";
+  if (i == 17)
     return "std_sys_linux_linux_syscall_exit";
+  if (i == 18)
+    return "std_sys_linux_linux_syscall_openat";
+  if (i == 19)
+    return "std_sys_linux_linux_anonymous_mmap";
+  if (i == 20)
+    return "std_sys_linux_linux_syscall_munmap";
+  if (i == 21)
+    return "std_sys_linux_linux_read_file_openat";
+  if (i == 22)
+    return "std_sys_linux_linux_syscall_open";
+  if (i == 23)
+    return "std_sys_linux_linux_read_file_into";
+  if (i == 24)
+    return "std_sys_linux_linux_syscall_socket";
+  if (i == 25)
+    return "std_sys_linux_linux_syscall_connect";
+  if (i == 26)
+    return "std_sys_linux_linux_syscall_bind";
+  if (i == 27)
+    return "std_sys_linux_linux_syscall_listen";
+  if (i == 28)
+    return "std_sys_linux_linux_syscall_accept";
+  if (i == 29)
+    return "std_sys_linux_linux_mmap_rw";
+  if (i == 30)
+    return "std_sys_linux_linux_munmap";
+  if (i == 31)
+    return "std_sys_linux_linux_msync_sync";
+  if (i == 32)
+    return "std_sys_linux_linux_mmap_file_available";
+  if (i == 33)
+    return "std_sys_linux_linux_sys_module_anchor";
+
+  /* PLATFORM: SHARED — xlang_sys_* FFI externs (see sym_count note). */
+  if (i == 34)
+    return "xlang_sys_close";
+  if (i == 35)
+    return "xlang_sys_openat";
+  if (i == 36)
+    return "xlang_sys_exit";
+  if (i == 37)
+    return "xlang_sys_connect";
   return NULL;
 }
 
-/* Pure orch: sys_linux table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
   int n;
   int i;
@@ -1063,6 +2079,55 @@ int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
   n = labi_od_sys_linux_sym_count();
   for (i = 0; i < n; i++) {
     const char *sym = labi_od_sys_linux_sym_at(i);
+    if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* product sys_macos exact UNDEF table + needs pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
+int labi_od_sys_macos_sym_count(void) { return 13; }
+const char *labi_od_sys_macos_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_sys_macos_macos_exit";
+  if (i == 1)
+    return "std_sys_macos_macos_write_available";
+  if (i == 2)
+    return "std_sys_macos_macos_write";
+  if (i == 3)
+    return "std_sys_macos_macos_write_stdout";
+  if (i == 4)
+    return "std_sys_macos_macos_write_stderr";
+  if (i == 5)
+    return "std_sys_macos_macos_read";
+  if (i == 6)
+    return "std_sys_macos_macos_close";
+  if (i == 7)
+    return "std_sys_macos_macos_read_file_into";
+  if (i == 8)
+    return "std_sys_macos_macos_anonymous_mmap";
+  if (i == 9)
+    return "std_sys_macos_macos_munmap";
+  if (i == 10)
+    return "std_sys_macos_macos_mmap_available";
+  if (i == 11)
+    return "std_sys_macos_macos_mmap_rw";
+  if (i == 12)
+    return "std_sys_macos_macos_msync_sync";
+  return NULL;
+}
+
+int link_abi_user_o_needs_std_sys_macos(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_sys_macos_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_sys_macos_sym_at(i);
     if (sym && sym[0] && xlang_link_obj_needs_undef_sym(user_o, sym) != 0)
       return 1;
   }
@@ -1111,7 +2176,7 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
 
 /* wave128: product std.heap formal API exact UNDEF table + needs_std_heap_api pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-int labi_od_heap_api_sym_count(void) { return 25; }
+int labi_od_heap_api_sym_count(void) { return 32; }
 const char *labi_od_heap_api_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1165,6 +2230,43 @@ const char *labi_od_heap_api_sym_at(int i) {
     return "std_heap_map_find";
   if (i == 24)
     return "std_heap_libc_heap_copy_u8_at_c";
+  /*
+   * wave957: std.heap trace on_demand probes (trace_on / trace_reset). Before
+   * wave957: probe table had alloc/free/Allocator/libc surface but not trace
+   * symbols; user programs calling heap.trace_on / heap.trace_reset hit
+   * BLD001 UNDEF. G.7: complete the single heap probe table. PLATFORM: SHARED.
+   */
+  if (i == 25)
+    return "std_heap_trace_on";
+  if (i == 26)
+    return "std_heap_trace_reset";
+  /*
+   * zc_arena_concat unique UNDEF: import METHOD arena64_empty / init / deinit.
+   * Before this leaf: table had arena64_alloc (vec grow) but matcher is exact,
+   * so empty/init/deinit never fired needs_std_heap_api. heap.o already
+   * defines the three T names (mod.x). string.o is pulled by g0 view and
+   * injects T libc arena64_*_c, so string cannot pull heap as a side effect.
+   * G.7: complete this single heap probe table. Do not add a second group.
+   * PLATFORM: SHARED.
+   */
+  if (i == 27)
+    return "std_heap_arena64_empty";
+  if (i == 28)
+    return "std_heap_arena64_init";
+  if (i == 29)
+    return "std_heap_arena64_deinit";
+  /*
+   * heap ops wrappers (mod.x mem_set / mem_compare). Matcher is exact: table
+   * had map_find / libc copy but never mem_set, so user.o U std_heap_mem_set
+   * never fired needs_std_heap_api → heap.o not pushed (run-heap / run-set).
+   * heap.o catalog already compiles mod.x+ops.x (T mem_set + heap_mem_set_c).
+   * G.7: complete this single heap probe table. Twin of labi_ondemand_list.x.
+   * PLATFORM: SHARED.
+   */
+  if (i == 30)
+    return "std_heap_mem_set";
+  if (i == 31)
+    return "std_heap_mem_compare";
   return NULL;
 }
 
@@ -1317,7 +2419,7 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
 
 /* wave131: product compress family marker + UNDEF/prefix tables + pure orch.
  * PLATFORM: SHARED — Cap residual exports_marker + has_undef_sym (popen/nm). */
-int labi_od_zlib_undef_sym_count(void) { return 4; }
+int labi_od_zlib_undef_sym_count(void) { return 22; }
 const char *labi_od_zlib_undef_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1329,11 +2431,51 @@ const char *labi_od_zlib_undef_sym_at(int i) {
     return "_inflate";
   if (i == 3)
     return "_uncompress";
+  /* PLATFORM: LINUX — ELF nm U compress2 (exact; Mach-O needles keep _prefix). */
+  if (i == 4)
+    return "compress2";
+  if (i == 5)
+    return "deflate";
+  if (i == 6)
+    return "inflate";
+  if (i == 7)
+    return "uncompress";
+  /* gzip Init2 + Darwin product mangle: gzip-only import has no _compress2. */
+  if (i == 8)
+    return "_deflateInit2";
+  if (i == 9)
+    return "_inflateInit2";
+  if (i == 10)
+    return "_std_compress_gzip_gzip_compress";
+  if (i == 11)
+    return "_std_compress_gzip_gzip_decompress";
+  if (i == 12)
+    return "deflateInit2";
+  if (i == 13)
+    return "inflateInit2";
+  if (i == 14)
+    return "std_compress_gzip_gzip_compress";
+  if (i == 15)
+    return "std_compress_gzip_gzip_decompress";
+  /* PLATFORM: SHARED — facade names for `xlang build` user.o (asm ld compress_o=NULL). */
+  if (i == 16)
+    return "_std_compress_gzip_compress";
+  if (i == 17)
+    return "_std_compress_gzip_decompress";
+  if (i == 18)
+    return "std_compress_gzip_compress";
+  if (i == 19)
+    return "std_compress_gzip_decompress";
+  /* PLATFORM: SHARED — stream facade for `xlang build` user.o (compress_o=NULL). */
+  if (i == 20)
+    return "_std_compress_compress_init";
+  if (i == 21)
+    return "std_compress_compress_init";
   return NULL;
 }
 const char *labi_od_compress_zlib_marker(void) { return "xlang_compress_zlib_marker"; }
 
-int labi_od_zstd_undef_sym_count(void) { return 2; }
+int labi_od_zstd_undef_sym_count(void) { return 12; }
 const char *labi_od_zstd_undef_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1341,11 +2483,33 @@ const char *labi_od_zstd_undef_sym_at(int i) {
     return "ZSTD_";
   if (i == 1)
     return "_ZSTD";
+  /* PLATFORM: SHARED — facade names for `xlang build` user.o (asm ld compress_o=NULL). */
+  if (i == 2)
+    return "_std_compress_zstd_compress";
+  if (i == 3)
+    return "_std_compress_zstd_decompress";
+  if (i == 4)
+    return "std_compress_zstd_compress";
+  if (i == 5)
+    return "std_compress_zstd_decompress";
+  if (i == 6)
+    return "_std_compress_zstd_zstd_compress";
+  if (i == 7)
+    return "_std_compress_zstd_zstd_decompress";
+  if (i == 8)
+    return "std_compress_zstd_zstd_compress";
+  if (i == 9)
+    return "std_compress_zstd_zstd_decompress";
+  /* PLATFORM: SHARED — stream facade for cookbook compress_stream_br_zs. */
+  if (i == 10)
+    return "_std_compress_compress_init";
+  if (i == 11)
+    return "std_compress_compress_init";
   return NULL;
 }
 const char *labi_od_compress_zstd_marker(void) { return "xlang_compress_zstd_marker"; }
 
-int labi_od_brotli_undef_sym_count(void) { return 2; }
+int labi_od_brotli_undef_sym_count(void) { return 12; }
 const char *labi_od_brotli_undef_sym_at(int i) {
   if (i < 0)
     return NULL;
@@ -1353,6 +2517,28 @@ const char *labi_od_brotli_undef_sym_at(int i) {
     return "BrotliEncoderCompress";
   if (i == 1)
     return "BrotliDecoderDecompress";
+  /* PLATFORM: SHARED — facade names for `xlang build` user.o (asm ld compress_o=NULL). */
+  if (i == 2)
+    return "_std_compress_brotli_compress";
+  if (i == 3)
+    return "_std_compress_brotli_decompress";
+  if (i == 4)
+    return "std_compress_brotli_compress";
+  if (i == 5)
+    return "std_compress_brotli_decompress";
+  if (i == 6)
+    return "_std_compress_brotli_brotli_compress";
+  if (i == 7)
+    return "_std_compress_brotli_brotli_decompress";
+  if (i == 8)
+    return "std_compress_brotli_brotli_compress";
+  if (i == 9)
+    return "std_compress_brotli_brotli_decompress";
+  /* PLATFORM: SHARED — stream facade for cookbook compress_stream_br_zs. */
+  if (i == 10)
+    return "_std_compress_compress_init";
+  if (i == 11)
+    return "std_compress_compress_init";
   return NULL;
 }
 const char *labi_od_compress_brotli_marker(void) { return "xlang_compress_brotli_marker"; }
@@ -1691,8 +2877,8 @@ int labi_user_needs_std_task(const char *user_o) {
  * → never open std/tar/tar.o gate → run-tar UNDEF std_tar_{read,write}_header
  * even when formal tar.o has T surface (soft first-red @bbb6646d0). */
 int labi_fk0_rel_count(void) {
-  /* PLATFORM: SHARED — was 16; +tar +unicode +runtime (=heavy return 19). */
-  return 19;
+  /* PLATFORM: SHARED — was 25; +option +result (=heavy return 27). */
+  return 27;
 }
 const char *labi_fk0_rel_at(int k) {
 
@@ -1735,6 +2921,30 @@ const char *labi_fk0_rel_at(int k) {
     return "std/unicode/unicode.o";
   if (k == 18)
     return "std/runtime/runtime.o";
+  /* PLATFORM: SHARED — mirror heavy k19 (cookbook cli_subcommand). */
+  if (k == 19)
+    return "std/cli/cli.o";
+  /* PLATFORM: SHARED — mirror heavy k20 (cookbook datetime_iana). */
+  if (k == 20)
+    return "std/datetime/datetime.o";
+  /* PLATFORM: SHARED — mirror heavy k21 (STD-086 std_config_*). */
+  if (k == 21)
+    return "std/config/config.o";
+  /* PLATFORM: SHARED — mirror heavy k22 (STD-087 std_cache_*). */
+  if (k == 22)
+    return "std/cache/cache.o";
+  /* PLATFORM: SHARED — mirror heavy k23 (STD-076 std_url_*). */
+  if (k == 23)
+    return "std/url/url.o";
+  /* PLATFORM: SHARED — mirror heavy k24 (STD-079 std_security_*). */
+  if (k == 24)
+    return "std/security/security.o";
+  /* PLATFORM: SHARED — mirror heavy k25 (STD-080 std_option_*). */
+  if (k == 25)
+    return "std/option/option.o";
+  /* PLATFORM: SHARED — mirror heavy k26 (STD-081 std_result_*). */
+  if (k == 26)
+    return "std/result/result.o";
   return NULL;
 }
 
@@ -1747,37 +2957,42 @@ int labi_fk0_sym_count(int k) {
   if (k == 2)
     return 2;
   if (k == 3)
-    return 3;
-  /* PLATFORM: SHARED — json.o fk0 gate complete (mirror labi_ondemand_heavy.x).
-   * Was: parse + dead stringify. Sole parse_null UNDEF never opened gate. */
+    return 4;
+  /* PLATFORM: SHARED — json.o fk0 gate (mirror labi_ondemand_heavy.x).
+   * std_json_parse* needles miss after asm co-emit of wrappers (T in user.o);
+   * sole UNDEF is json_parse_*_c. Parse/skip family including bare *_c. */
   if (k == 4)
-    return 6;
+    return 12;
   if (k == 5)
-    return 2;
+    return 4;
   /* PLATFORM: SHARED — path.o fk0 complete (mirror labi_ondemand_heavy.x).
    * Was: join/dirname/empty_len/basename only. Sole sep/clean/extension UNDEF
    * never opened gate (run-path extension_stem_abs_clean). */
   if (k == 6)
     return 12;
   if (k == 7)
-    return 7;
+    return 11;
+  /* PLATFORM: SHARED — error.o fk0 complete (mirror heavy.x; was 4).
+   * EXC soft SKIP: sole code_invalid/io_err_generic/chain_* never opened gate.
+   * G.7: every public std_error_* export ×57. */
   if (k == 8)
-    return 4;
+    return 57;
   if (k == 9)
     return 4;
   if (k == 10)
-    return 10;
+    return 42;
   if (k == 11)
     return 9;
   if (k == 12)
-    return 10;
+    /* PLATFORM: SHARED — +args_iter_*_c (mirror heavy; env_iter leftover UNDEF). */
+    return 13;
   if (k == 13)
     return 12;
   if (k == 14)
     return 15;
-  /* PLATFORM: SHARED — fs fk0 complete (mirror heavy.x): +readv_buf/writev_buf. */
+  /* PLATFORM: SHARED — fs fk0 complete (mirror heavy.x): +readv_buf/writev_buf +stat +dir_{open,read,close}. */
   if (k == 15)
-    return 11;
+    return 15;
   /* PLATFORM: SHARED — tar/unicode/runtime formal public surface (mirror heavy). */
   if (k == 16)
     return 7;
@@ -1785,6 +3000,30 @@ int labi_fk0_sym_count(int k) {
     return 6;
   if (k == 18)
     return 5;
+  /* PLATFORM: SHARED — cli formal public surface (mirror heavy). */
+  if (k == 19)
+    return 10;
+  /* PLATFORM: SHARED — datetime formal public surface (mirror heavy). */
+  if (k == 20)
+    return 27;
+  /* PLATFORM: SHARED — config formal public surface (mirror heavy). */
+  if (k == 21)
+    return 31;
+  /* PLATFORM: SHARED — cache formal public surface (mirror heavy). */
+  if (k == 22)
+    return 20;
+  /* PLATFORM: SHARED — url formal public surface (mirror heavy). */
+  if (k == 23)
+    return 10;
+  /* PLATFORM: SHARED — security formal public surface (mirror heavy). */
+  if (k == 24)
+    return 16;
+  /* PLATFORM: SHARED — option formal public surface (mirror heavy). */
+  if (k == 25)
+    return 11;
+  /* PLATFORM: SHARED — result formal public surface (mirror heavy). */
+  if (k == 26)
+    return 11;
   return 0;
 }
 
@@ -1838,10 +3077,14 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_http_request";
     if (i == 2)
       return "std_http_client_new";
+    /* PLATFORM: SHARED — asm co-emit T std_http_get; sole U http_get_c. */
+    if (i == 3)
+      return "http_get_c";
     return NULL;
   }
   /* PLATFORM: SHARED — exact UNDEF needles for std/json/json.o (k==4).
-   * Exact match only; parse does not cover parse_null/number/string. */
+   * Exact match only; parse does not cover parse_null/number/string, and
+   * std_json_parse* do not cover json_parse_*_c after asm wrapper co-emit. */
   if (k == 4) {
     if (i == 0)
       return "std_json_parse";
@@ -1855,13 +3098,30 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_json_parse_string_view";
     if (i == 5)
       return "std_json_skip_value";
+    if (i == 6)
+      return "json_parse_null_c";
+    if (i == 7)
+      return "json_parse_number_c";
+    if (i == 8)
+      return "json_parse_bool_c";
+    if (i == 9)
+      return "json_parse_string_c";
+    if (i == 10)
+      return "json_parse_string_view_c";
+    if (i == 11)
+      return "json_skip_value_c";
     return NULL;
   }
   if (k == 5) {
+    /* PLATFORM: SHARED — fk0 k==5 csv.o exact UNDEF (mirror labi_ondemand_heavy.x). */
     if (i == 0)
       return "std_csv_next_field";
     if (i == 1)
       return "std_csv_parse_line";
+    if (i == 2)
+      return "std_csv_parse_row";
+    if (i == 3)
+      return "std_csv_write_row";
     return NULL;
   }
   /* PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6).
@@ -1908,17 +3168,135 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_hash_free";
     if (i == 6)
       return "std_hash_write_u8_ptr_u32";
+    /* PLATFORM: SHARED — asm co-emit T std_hash_*; sole U hash_*_c (run-hash/set). */
+    if (i == 7)
+      return "hash_sip_bytes_c";
+    if (i == 8)
+      return "hash_sip_free_c";
+    if (i == 9)
+      return "hash_xxhash64_bytes_c";
+    if (i == 10)
+      return "hash_xxhash64_seed_bytes_c";
     return NULL;
   }
   if (k == 8) {
+    /* PLATFORM: SHARED — std/error/error.o exact UNDEF (mirror heavy.x).
+     * Was 4 needles; sole code_invalid/io_err_generic/chain_* never opened gate
+     * (EXC soft SKIP). G.7 complete: every public std_error_* export ×57. */
     if (i == 0)
-      return "std_error_http_err_timeout";
-    if (i == 1)
       return "std_error_ok";
+    if (i == 1)
+      return "std_error_code_alloc_fail";
     if (i == 2)
-      return "std_error_io_err_timeout";
+      return "std_error_code_invalid";
     if (i == 3)
+      return "std_error_code_not_found";
+    if (i == 4)
+      return "std_error_ok_value";
+    if (i == 5)
+      return "std_error_from_code";
+    if (i == 6)
+      return "std_error_code";
+    if (i == 7)
+      return "std_error_is_ok";
+    if (i == 8)
+      return "std_error_is_err";
+    if (i == 9)
+      return "std_error_base_io";
+    if (i == 10)
+      return "std_error_io_err_timeout";
+    if (i == 11)
       return "std_error_io_err_cancelled";
+    if (i == 12)
+      return "std_error_io_err_generic";
+    if (i == 13)
+      return "std_error_base_net";
+    if (i == 14)
+      return "std_error_net_err_timeout";
+    if (i == 15)
+      return "std_error_net_err_cancelled";
+    if (i == 16)
+      return "std_error_net_err_generic";
+    if (i == 17)
+      return "std_error_base_async";
+    if (i == 18)
+      return "std_error_async_err_generic";
+    if (i == 19)
+      return "std_error_base_coll";
+    if (i == 20)
+      return "std_error_coll_err_generic";
+    if (i == 21)
+      return "std_error_base_fs";
+    if (i == 22)
+      return "std_error_fs_err_not_found";
+    if (i == 23)
+      return "std_error_mod_tag_io";
+    if (i == 24)
+      return "std_error_mod_tag_fs";
+    if (i == 25)
+      return "std_error_mod_tag_db";
+    if (i == 26)
+      return "std_error_sidecar_none";
+    if (i == 27)
+      return "std_error_sidecar_errno";
+    if (i == 28)
+      return "std_error_sidecar_db_struct";
+    if (i == 29)
+      return "std_error_code_to_module_base";
+    if (i == 30)
+      return "std_error_code_in_global_range";
+    if (i == 31)
+      return "std_error_code_in_module_span";
+    if (i == 32)
+      return "std_error_code_is_platform_errno";
+    if (i == 33)
+      return "std_error_mod_tag_from_base";
+    if (i == 34)
+      return "std_error_mod_base_from_tag";
+    if (i == 35)
+      return "std_error_module_sidecar_kind";
+    if (i == 36)
+      return "std_error_sem_none";
+    if (i == 37)
+      return "std_error_sem_timeout";
+    if (i == 38)
+      return "std_error_sem_cancelled";
+    if (i == 39)
+      return "std_error_sem_not_found";
+    if (i == 40)
+      return "std_error_http_err_timeout";
+    if (i == 41)
+      return "std_error_http_err_cancelled";
+    if (i == 42)
+      return "std_error_semantic_class";
+    if (i == 43)
+      return "std_error_is_timeout";
+    if (i == 44)
+      return "std_error_is_cancelled";
+    if (i == 45)
+      return "std_error_is_not_found";
+    if (i == 46)
+      return "std_error_recommend_retry";
+    if (i == 47)
+      return "std_error_chain_max_depth";
+    if (i == 48)
+      return "std_error_chain_empty";
+    if (i == 49)
+      return "std_error_chain_from_code";
+    if (i == 50)
+      return "std_error_chain_from_result";
+    if (i == 51)
+      return "std_error_chain_depth";
+    if (i == 52)
+      return "std_error_chain_root";
+    if (i == 53)
+      return "std_error_chain_code_at";
+    if (i == 54)
+      return "std_error_chain_leaf";
+    if (i == 55)
+      return "std_error_chain_wrap";
+    if (i == 56)
+      return "std_error_error_module_anchor";
     return NULL;
   }
   if (k == 9) {
@@ -1933,6 +3311,7 @@ const char *labi_fk0_sym_at(int k, int i) {
     return NULL;
   }
   if (k == 10) {
+    /* PLATFORM: SHARED — fk0 k==10 std/vec/vec.o exact UNDEF (mirror heavy.x). */
     if (i == 0)
       return "std_vec_new_retVec_u8";
     if (i == 1)
@@ -1953,6 +3332,74 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_vec_new";
     if (i == 9)
       return "std_vec_push";
+    if (i == 10)
+      return "std_vec_pop_Vec_i32_ptr";
+    if (i == 11)
+      return "std_vec_pop_Vec_u8_ptr";
+    if (i == 12)
+      return "std_vec_extend_Vec_i32_ptr_i32_ptr_i32";
+    if (i == 13)
+      return "std_vec_extend_Vec_u8_ptr_u8_ptr_i32";
+    if (i == 14)
+      return "std_vec_extend_Vec_u64_ptr_u64_ptr_i32";
+    if (i == 15)
+      return "std_vec_extend_Vec_f64_ptr_f64_ptr_i32";
+    if (i == 16)
+      return "std_vec_from_slice_u64_ptr_i32";
+    if (i == 17)
+      return "std_vec_from_slice_f64_ptr_i32";
+    if (i == 18)
+      return "std_vec_push_Vec_u64_ptr_u64";
+    if (i == 19)
+      return "std_vec_push_Vec_f64_ptr_f64";
+    /* PLATFORM: SHARED — fk0 k==10 +length/deinit/get u64/f64 (mirror heavy.x).
+     * u8/i32 length do not cover sole new+length/deinit Vec_u64/f64. */
+    if (i == 20)
+      return "std_vec_length_Vec_u64";
+    if (i == 21)
+      return "std_vec_deinit_Vec_u64_ptr";
+    if (i == 22)
+      return "std_vec_length_Vec_f64";
+    if (i == 23)
+      return "std_vec_deinit_Vec_f64_ptr";
+    if (i == 24)
+      return "std_vec_get_Vec_u64_i32";
+    if (i == 25)
+      return "std_vec_get_Vec_f64_i32";
+    /* PLATFORM: SHARED — fk0 k==10 +vec3f SOA/AOS (mirror heavy.x).
+     * Vec_* push/length/deinit do not cover unique vec3f_* names. */
+    if (i == 26)
+      return "std_vec_vec3f_soa_push";
+    if (i == 27)
+      return "std_vec_vec3f_soa_deinit";
+    if (i == 28)
+      return "std_vec_vec3f_aos_push";
+    if (i == 29)
+      return "std_vec_vec3f_aos_deinit";
+    if (i == 30)
+      return "std_vec_vec3f_soa_sum_x";
+    if (i == 31)
+      return "std_vec_vec3f_soa_reserve_one";
+    if (i == 32)
+      return "std_vec_vec3f_soa_len";
+    if (i == 33)
+      return "std_vec_vec3f_soa_get_x";
+    if (i == 34)
+      return "std_vec_vec3f_soa_get_y";
+    if (i == 35)
+      return "std_vec_vec3f_soa_get_z";
+    if (i == 36)
+      return "std_vec_vec3f_soa_set";
+    if (i == 37)
+      return "std_vec_vec3f_soa_with_capacity";
+    if (i == 38)
+      return "std_vec_vec3f_aos_reserve_one";
+    if (i == 39)
+      return "std_vec_vec3f_aos_get_x";
+    if (i == 40)
+      return "std_vec_vec3f_aos_sum_x";
+    if (i == 41)
+      return "std_vec_vec3f_aos_with_capacity";
     return NULL;
   }
   if (k == 11) {
@@ -1997,6 +3444,13 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_env_iter_count";
     if (i == 9)
       return "std_env_args_iter";
+    if (i == 10)
+      return "std_env_args_iter_count";
+    /* PLATFORM: SHARED — leftover may T-emit std_env_args_iter_* while U args_iter_*_c. */
+    if (i == 11)
+      return "args_iter_count_c";
+    if (i == 12)
+      return "args_iter_at_c";
     return NULL;
   }
   if (k == 13) {
@@ -2082,6 +3536,16 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_fs_readv_buf";
     if (i == 10)
       return "std_fs_writev_buf";
+    /* Cap residual 9.1.2: stat-only users must pull formal fs.o. */
+    if (i == 11)
+      return "std_fs_stat";
+    /* Cap residual 9.1.10: dir-only users must pull formal fs.o. */
+    if (i == 12)
+      return "std_fs_dir_open";
+    if (i == 13)
+      return "std_fs_dir_read";
+    if (i == 14)
+      return "std_fs_dir_close";
     return NULL;
   }
   /* PLATFORM: SHARED — std/tar/tar.o exact UNDEF needles (fk0 k==16; mirror heavy). */
@@ -2116,6 +3580,15 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_unicode_is_ascii";
     if (i == 5)
       return "std_unicode_case_fold_rune";
+    /*
+     * wave957: added is_supplementary + rune_utf8_len for unicode_nfc_smoke
+     * cookbook. Before wave957: probe table missed these → BLD001 UNDEF.
+     * G.7: complete the single unicode probe table. PLATFORM: SHARED.
+     */
+    if (i == 6)
+      return "std_unicode_is_supplementary";
+    if (i == 7)
+      return "std_unicode_rune_utf8_len";
     return NULL;
   }
   /* PLATFORM: SHARED — std/runtime/runtime.o exact UNDEF needles (fk0 k==18). */
@@ -2130,6 +3603,310 @@ const char *labi_fk0_sym_at(int k, int i) {
       return "std_runtime_diag_enabled";
     if (i == 4)
       return "std_runtime_crash_evidence_collect";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/cli/cli.o exact UNDEF needles (fk0 k==19; mirror heavy). */
+  if (k == 19) {
+    if (i == 0)
+      return "std_cli_err_ok";
+    if (i == 1)
+      return "std_cli_err_help";
+    if (i == 2)
+      return "std_cli_err_unknown";
+    if (i == 3)
+      return "std_cli_parse_from_iter";
+    if (i == 4)
+      return "std_cli_arg_len";
+    if (i == 5)
+      return "std_cli_is_help";
+    if (i == 6)
+      return "std_cli_is_version";
+    if (i == 7)
+      return "std_cli_match_long";
+    if (i == 8)
+      return "std_cli_match_short";
+    if (i == 9)
+      return "std_cli_write_usage";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/datetime/datetime.o exact UNDEF needles (fk0 k==20; mirror heavy). */
+  if (k == 20) {
+    if (i == 0)
+      return "std_datetime_timezone_iana";
+    if (i == 1)
+      return "std_datetime_now_utc";
+    if (i == 2)
+      return "std_datetime_from_unix";
+    if (i == 3)
+      return "std_datetime_from_utc_fields";
+    if (i == 4)
+      return "std_datetime_to_utc_fields";
+    if (i == 5)
+      return "std_datetime_compare";
+    if (i == 6)
+      return "std_datetime_parse_rfc3339";
+    if (i == 7)
+      return "std_datetime_format_rfc3339";
+    if (i == 8)
+      return "std_datetime_format_rfc3339_nano";
+    if (i == 9)
+      return "std_datetime_local_offset_min";
+    if (i == 10)
+      return "std_datetime_to_local_fields";
+    if (i == 11)
+      return "std_datetime_duration_from_ns";
+    if (i == 12)
+      return "std_datetime_duration_from_sec";
+    if (i == 13)
+      return "std_datetime_duration_between";
+    if (i == 14)
+      return "std_datetime_add_duration";
+    if (i == 15)
+      return "std_datetime_duration_sleep";
+    if (i == 16)
+      return "std_datetime_duration_from_monotonic";
+    if (i == 17)
+      return "std_datetime_timezone_utc";
+    if (i == 18)
+      return "std_datetime_timezone_local";
+    if (i == 19)
+      return "std_datetime_timezone_fixed";
+    if (i == 20)
+      return "std_datetime_timezone_from_name";
+    if (i == 21)
+      return "std_datetime_timezone_offset_at";
+    if (i == 22)
+      return "std_datetime_parse_offset_min";
+    if (i == 23)
+      return "std_datetime_to_zoned_fields";
+    if (i == 24)
+      return "std_datetime_from_zoned_fields";
+    if (i == 25)
+      return "std_datetime_iana_dst_smoke";
+    if (i == 26)
+      return "std_datetime_timezone_smoke";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/config/config.o exact UNDEF needles (fk0 k==21; mirror heavy). */
+  if (k == 21) {
+    if (i == 0)
+      return "std_config_err_ok";
+    if (i == 1)
+      return "std_config_err_null";
+    if (i == 2)
+      return "std_config_err_not_found";
+    if (i == 3)
+      return "std_config_err_invalid";
+    if (i == 4)
+      return "std_config_err_io";
+    if (i == 5)
+      return "std_config_err_full";
+    if (i == 6)
+      return "std_config_source_unknown";
+    if (i == 7)
+      return "std_config_source_toml";
+    if (i == 8)
+      return "std_config_source_yaml";
+    if (i == 9)
+      return "std_config_source_env";
+    if (i == 10)
+      return "std_config_source_set";
+    if (i == 11)
+      return "std_config_new";
+    if (i == 12)
+      return "std_config_free";
+    if (i == 13)
+      return "std_config_clear";
+    if (i == 14)
+      return "std_config_load_toml_buf";
+    if (i == 15)
+      return "std_config_load_toml_file";
+    if (i == 16)
+      return "std_config_load_env_prefix";
+    if (i == 17)
+      return "std_config_merge";
+    if (i == 18)
+      return "std_config_set_string";
+    if (i == 19)
+      return "std_config_get_string";
+    if (i == 20)
+      return "std_config_get_i32";
+    if (i == 21)
+      return "std_config_get_bool";
+    if (i == 22)
+      return "std_config_get_source";
+    if (i == 23)
+      return "std_config_get_i32_meta";
+    if (i == 24)
+      return "std_config_get_bool_meta";
+    if (i == 25)
+      return "std_config_get_string_meta";
+    if (i == 26)
+      return "std_config_backend_toml";
+    if (i == 27)
+      return "std_config_backend_yaml";
+    if (i == 28)
+      return "std_config_load_yaml_buf";
+    if (i == 29)
+      return "std_config_load_yaml_file";
+    if (i == 30)
+      return "std_config_yaml_smoke";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/cache/cache.o exact UNDEF needles (fk0 k==22; mirror heavy). */
+  if (k == 22) {
+    if (i == 0)
+      return "std_cache_err_ok";
+    if (i == 1)
+      return "std_cache_err_null";
+    if (i == 2)
+      return "std_cache_err_not_found";
+    if (i == 3)
+      return "std_cache_err_full";
+    if (i == 4)
+      return "std_cache_err_invalid";
+    if (i == 5)
+      return "std_cache_new_lru";
+    if (i == 6)
+      return "std_cache_free_LruCache_ptr";
+    if (i == 7)
+      return "std_cache_get";
+    if (i == 8)
+      return "std_cache_put";
+    if (i == 9)
+      return "std_cache_remove";
+    if (i == 10)
+      return "std_cache_purge";
+    if (i == 11)
+      return "std_cache_stats_LruCache_ptr_CacheStats_ptr";
+    if (i == 12)
+      return "std_cache_new";
+    if (i == 13)
+      return "std_cache_free_ObjPool_ptr";
+    if (i == 14)
+      return "std_cache_add";
+    if (i == 15)
+      return "std_cache_acquire";
+    if (i == 16)
+      return "std_cache_release";
+    if (i == 17)
+      return "std_cache_mark_unhealthy";
+    if (i == 18)
+      return "std_cache_idle";
+    if (i == 19)
+      return "std_cache_stats_ObjPool_ptr_PoolStats_ptr";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/url/url.o exact UNDEF needles (fk0 k==23; mirror heavy). */
+  if (k == 23) {
+    if (i == 0)
+      return "std_url_parse";
+    if (i == 1)
+      return "std_url_build";
+    if (i == 2)
+      return "std_url_stringify";
+    if (i == 3)
+      return "std_url_query_encode";
+    if (i == 4)
+      return "std_url_query_decode";
+    if (i == 5)
+      return "std_url_resolve";
+    if (i == 6)
+      return "std_url_host_to_ipv6";
+    if (i == 7)
+      return "std_url_format_ipv6_host";
+    if (i == 8)
+      return "std_url_host_is_ipv6";
+    if (i == 9)
+      return "std_url_ipv6_host_smoke";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/security/security.o exact UNDEF needles (fk0 k==24; mirror heavy). */
+  if (k == 24) {
+    if (i == 0)
+      return "std_security_key_len";
+    if (i == 1)
+      return "std_security_salt_len_default";
+    if (i == 2)
+      return "std_security_min_secret_len";
+    if (i == 3)
+      return "std_security_err_ok";
+    if (i == 4)
+      return "std_security_err_invalid";
+    if (i == 5)
+      return "std_security_err_random";
+    if (i == 6)
+      return "std_security_err_buffer";
+    if (i == 7)
+      return "std_security_ct_compare";
+    if (i == 8)
+      return "std_security_random_key";
+    if (i == 9)
+      return "std_security_random_salt";
+    if (i == 10)
+      return "std_security_hkdf";
+    if (i == 11)
+      return "std_security_secure_zero";
+    if (i == 12)
+      return "std_security_sensitive_lock";
+    if (i == 13)
+      return "std_security_sensitive_unlock";
+    if (i == 14)
+      return "std_security_sensitive_buf_init";
+    if (i == 15)
+      return "std_security_sensitive_buf_wipe";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/option/option.o exact UNDEF needles (fk0 k==25; mirror heavy). */
+  if (k == 25) {
+    if (i == 0)
+      return "std_option_none";
+    if (i == 1)
+      return "std_option_some";
+    if (i == 2)
+      return "std_option_unwrap_or";
+    if (i == 3)
+      return "std_option_is_some";
+    if (i == 4)
+      return "std_option_is_none";
+    if (i == 5)
+      return "std_option_map";
+    if (i == 6)
+      return "std_option_and_then";
+    if (i == 7)
+      return "std_option_or";
+    if (i == 8)
+      return "std_option_from_result_Result_i32";
+    if (i == 9)
+      return "std_option_from_result_Result_u8";
+    if (i == 10)
+      return "std_option_to_result";
+    return NULL;
+  }
+  /* PLATFORM: SHARED — std/result/result.o exact UNDEF needles (fk0 k==26; mirror heavy). */
+  if (k == 26) {
+    if (i == 0)
+      return "std_result_ok";
+    if (i == 1)
+      return "std_result_err";
+    if (i == 2)
+      return "std_result_is_ok";
+    if (i == 3)
+      return "std_result_is_err";
+    if (i == 4)
+      return "std_result_unwrap_or";
+    if (i == 5)
+      return "std_result_map";
+    if (i == 6)
+      return "std_result_and_then";
+    if (i == 7)
+      return "std_result_or_else";
+    if (i == 8)
+      return "std_result_from_error_code";
+    if (i == 9)
+      return "std_result_from_value";
+    if (i == 10)
+      return "std_result_err_code";
     return NULL;
   }
   return NULL;
@@ -2170,18 +3947,32 @@ int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
 int labi_std_fk_gate_sym_count(int fk) {
   /* PLATFORM: SHARED — process product face complete (pure-asm std_process_*). */
   if (fk == 1) return 28;
-  if (fk == 2) return 4;
+  if (fk == 2) return 16; /* pool/name/affinity + create/join — twin labi_ondemand_heavy.x */
   if (fk == 3) return 5;
   if (fk == 4) return 3;
   if (fk == 5) return 5;
-  if (fk == 6) return 5;
-  if (fk == 7) return 4;
+  /* PLATFORM: SHARED — std/atomic complete surface (10.4.1 widen i16/u16/i64/u64 support). */
+  if (fk == 6) return 32;
+  /* PLATFORM: SHARED — twin labi_ondemand_heavy.x fk7=19.
+   * Live Ubuntu L8b was count=4 (std_channel_send/recv + channel_send/recv);
+   * asm -o co-emits std_channel_* as T; sole UNDEF channel_i32_free_c
+   * (run-channel). Exact matcher; G.7 complete i32 wrapper faces. */
+  if (fk == 7) return 19;
   if (fk == 8) return 2;
-  if (fk == 9) return 29;
-  if (fk == 10) return 3;
+  /* PLATFORM: SHARED — runtime_math_libm freestanding face gate completion
+   * (9.2.4 Fix F). Was 29 needles; the 31 freestanding C-ABI faces
+   * (math_acos_c .. math_special_near) were absent, so a user TU whose only
+   * UNDEFs are e.g. math_fmin_c/math_fmax_c never opened the fk9 gate and
+   * the std/math/math.o plan leaf stayed closed -> UNDEF at ld.
+   * Twin of labi_ondemand_heavy.x labi_std_fk_gate_sym_count (fk9 = 60). */
+  if (fk == 9) return 60;
+  /* PLATFORM: SHARED — cookbook sqlite_available unique UNDEF (is_available).
+   * Was 3 needles; matcher exact so prefix std_db_sqlite never fires.
+   * Twin of labi_ondemand_heavy.x. 29 unique import faces + legacy 3 + db_open_c. */
+  if (fk == 10) return 33;
   if (fk == 11) return 2;
   if (fk == 12) return 4;
-  if (fk == 13) return 4;
+  if (fk == 13) return 5;
   return 0;
 }
 
@@ -2221,10 +4012,23 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     return NULL;
   }
   if (fk == 2) {
+    /* PLATFORM: SHARED — twin of labi_ondemand_heavy.x fk==2 (pool co-emit UNDEFs glue). */
     if (i == 0) return "std_thread_spawn";
     if (i == 1) return "std_thread_join";
     if (i == 2) return "thread_create_c";
     if (i == 3) return "thread_join_c";
+    if (i == 4) return "thread_pool_start_c";
+    if (i == 5) return "thread_pool_submit_c";
+    if (i == 6) return "thread_pool_drain_c";
+    if (i == 7) return "thread_pool_stop_c";
+    if (i == 8) return "thread_pool_pending_c";
+    if (i == 9) return "thread_set_name_self_c";
+    if (i == 10) return "thread_dummy_entry_ptr_c";
+    if (i == 11) return "thread_create_with_stack_c";
+    if (i == 12) return "thread_self_c";
+    if (i == 13) return "thread_set_affinity_c";
+    if (i == 14) return "thread_set_affinity_self_c";
+    if (i == 15) return "thread_set_qos_class_self_c";
     return NULL;
   }
   if (fk == 3) {
@@ -2255,13 +4059,55 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     if (i == 2) return "std_atomic_fetch_add_i32_ptr_i32";
     if (i == 3) return "std_atomic_store_i64_ptr_i64";
     if (i == 4) return "atomic_store_i32_c";
+    if (i == 5) return "std_atomic_store_i16_ptr_i16";
+    if (i == 6) return "std_atomic_store_u16_ptr_u16";
+    if (i == 7) return "std_atomic_store_u32_ptr_u32";
+    if (i == 8) return "std_atomic_store_u64_ptr_u64";
+    if (i == 9) return "std_atomic_load_i16_ptr";
+    if (i == 10) return "std_atomic_load_u16_ptr";
+    if (i == 11) return "std_atomic_load_u32_ptr";
+    if (i == 12) return "std_atomic_load_i64_ptr";
+    if (i == 13) return "std_atomic_load_u64_ptr";
+    if (i == 14) return "std_atomic_fetch_add_i16_ptr_i16";
+    if (i == 15) return "std_atomic_fetch_add_u16_ptr_u16";
+    if (i == 16) return "std_atomic_fetch_add_u32_ptr_u32";
+    if (i == 17) return "std_atomic_fetch_add_i64_ptr_i64";
+    if (i == 18) return "std_atomic_fetch_add_u64_ptr_u64";
+    if (i == 19) return "std_atomic_fetch_sub_i32_ptr_i32";
+    if (i == 20) return "std_atomic_fetch_sub_i64_ptr_i64";
+    if (i == 21) return "std_atomic_fetch_sub_u64_ptr_u64";
+    if (i == 22) return "std_atomic_compare_exchange_i16_ptr_i16_ptr_i16";
+    if (i == 23) return "std_atomic_compare_exchange_i32_ptr_i32_ptr_i32";
+    if (i == 24) return "std_atomic_compare_exchange_i64_ptr_i64_ptr_i64";
+    if (i == 25) return "std_atomic_compare_exchange_u16_ptr_u16_ptr_u16";
+    if (i == 26) return "std_atomic_compare_exchange_u32_ptr_u32_ptr_u32";
+    if (i == 27) return "std_atomic_compare_exchange_u64_ptr_u64_ptr_u64";
+    if (i == 28) return "std_atomic_fence_acquire";
+    if (i == 29) return "std_atomic_fence_release";
+    if (i == 30) return "std_atomic_fence_seq_cst";
+    if (i == 31) return "atomic_load_i32_c";
     return NULL;
   }
   if (fk == 7) {
     if (i == 0) return "std_channel_send";
     if (i == 1) return "std_channel_recv";
-    if (i == 2) return "channel_send";
-    if (i == 3) return "channel_recv";
+    if (i == 2) return "std_channel_bounded";
+    if (i == 3) return "std_channel_close";
+    if (i == 4) return "std_channel_free";
+    if (i == 5) return "std_channel_try_send";
+    if (i == 6) return "std_channel_try_recv";
+    if (i == 7) return "std_channel_unbounded";
+    if (i == 8) return "channel_send";
+    if (i == 9) return "channel_recv";
+    if (i == 10) return "channel_i32_send_c";
+    if (i == 11) return "channel_i32_bounded_c";
+    if (i == 12) return "channel_i32_unbounded_c";
+    if (i == 13) return "channel_i32_recv_c";
+    if (i == 14) return "channel_i32_try_send_c";
+    if (i == 15) return "channel_i32_try_recv_c";
+    if (i == 16) return "channel_i32_close_c";
+    if (i == 17) return "channel_i32_free_c";
+    if (i == 18) return "channel_i32_is_closed_c";
     return NULL;
   }
   if (fk == 8) {
@@ -2299,12 +4145,81 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     if (i == 26) return "math_cos_c";
     if (i == 27) return "math_floor_c";
     if (i == 28) return "math_pi_c";
+    /* PLATFORM: SHARED — 9.2.4 Fix F gate completion: the 31 freestanding
+     * runtime_math_libm C-ABI faces appended in the same order as the .x
+     * authority (labi_ondemand_heavy.x labi_std_fk_gate_sym_at fk9 29..59),
+     * so a user TU whose sole UNDEF is any one of these opens fk9 and the
+     * std/math/math.o plan leaf links runtime_math_libm.o. Twin semantics. */
+    if (i == 29) return "math_acos_c";
+    if (i == 30) return "math_asin_c";
+    if (i == 31) return "math_atan_c";
+    if (i == 32) return "math_atan2_c";
+    if (i == 33) return "math_cbrt_c";
+    if (i == 34) return "math_ceil_c";
+    if (i == 35) return "math_erf_c";
+    if (i == 36) return "math_erfc_c";
+    if (i == 37) return "math_exp_c";
+    if (i == 38) return "math_expm1_c";
+    if (i == 39) return "math_fabs_c";
+    if (i == 40) return "math_fmax_c";
+    if (i == 41) return "math_fmin_c";
+    if (i == 42) return "math_log_c";
+    if (i == 43) return "math_log1p_c";
+    if (i == 44) return "math_pow_c";
+    if (i == 45) return "math_round_c";
+    if (i == 46) return "math_signum_c";
+    if (i == 47) return "math_sqrt_c";
+    if (i == 48) return "math_tan_c";
+    if (i == 49) return "math_trunc_c";
+    if (i == 50) return "math_fenv_available_c";
+    if (i == 51) return "math_fenv_capability_smoke_c";
+    if (i == 52) return "math_fenv_clear_c";
+    if (i == 53) return "math_fenv_emit_cap_report";
+    if (i == 54) return "math_fenv_fe_to_mask";
+    if (i == 55) return "math_fenv_mask_to_fe";
+    if (i == 56) return "math_fenv_raise_c";
+    if (i == 57) return "math_fenv_smoke_c";
+    if (i == 58) return "math_fenv_test_c";
+    if (i == 59) return "math_special_near";
     return NULL;
   }
   if (fk == 10) {
-    if (i == 0) return "std_db_sqlite";
-    if (i == 1) return "sqlite3_open";
-    if (i == 2) return "db_sqlite_open";
+    /* PLATFORM: SHARED — unique-first cookbook sqlite_available, then remaining
+     * unique std.db.sqlite export faces in mod.x source order, then legacy 3. */
+    if (i == 0) return "std_db_sqlite_is_available";
+    if (i == 1) return "std_db_sqlite_open";
+    if (i == 2) return "std_db_sqlite_close";
+    if (i == 3) return "std_db_sqlite_exec";
+    if (i == 4) return "std_db_sqlite_rows";
+    if (i == 5) return "std_db_sqlite_begin";
+    if (i == 6) return "std_db_sqlite_next_row";
+    if (i == 7) return "std_db_sqlite_col";
+    if (i == 8) return "std_db_sqlite_col_text";
+    if (i == 9) return "std_db_sqlite_col_blob";
+    if (i == 10) return "std_db_sqlite_col_blob_len";
+    if (i == 11) return "std_db_sqlite_col_blob_read";
+    if (i == 12) return "std_db_sqlite_end";
+    if (i == 13) return "std_db_sqlite_begin_tx";
+    if (i == 14) return "std_db_sqlite_commit";
+    if (i == 15) return "std_db_sqlite_rollback";
+    if (i == 16) return "std_db_sqlite_last_error";
+    if (i == 17) return "std_db_sqlite_backend_name";
+    if (i == 18) return "std_db_sqlite_changes";
+    if (i == 19) return "std_db_sqlite_prepare";
+    if (i == 20) return "std_db_sqlite_prepare_cached";
+    if (i == 21) return "std_db_sqlite_bind";
+    if (i == 22) return "std_db_sqlite_step";
+    if (i == 23) return "std_db_sqlite_reset";
+    if (i == 24) return "std_db_sqlite_finalize";
+    if (i == 25) return "std_db_sqlite_cache_clear";
+    if (i == 26) return "std_db_sqlite_acquire";
+    if (i == 27) return "std_db_sqlite_release";
+    if (i == 28) return "std_db_sqlite_idle";
+    if (i == 29) return "std_db_sqlite";
+    if (i == 30) return "sqlite3_open";
+    if (i == 31) return "db_sqlite_open";
+    /* Product -o co-emitting mod.x wrappers UNDEFs bare db_*_c. Exact matcher. */
+    if (i == 32) return "db_open_c";
     return NULL;
   }
   if (fk == 11) {
@@ -2324,6 +4239,8 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     if (i == 1) return "std_http_request";
     if (i == 2) return "std_http_client_new";
     if (i == 3) return "std_http_request_timeout_ms_for_ctx";
+    /* PLATFORM: SHARED — plan fk==13 live http gate; asm co-emit T std_http_get. */
+    if (i == 4) return "http_get_c";
     return NULL;
   }
   return NULL;
@@ -2437,12 +4354,16 @@ const char *labi_od_rel_error(void) { return "std/error/error.o"; }
 const char *labi_od_rel_context(void) { return "std/context/context.o"; }
 const char *labi_od_rel_atomic_glue(void) { return "compiler/runtime_atomic_glue.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
+/* wave958: std.vec / std.http on_demand rel constants. PLATFORM: SHARED. */
+const char *labi_od_rel_vec(void) { return "std/vec/vec.o"; }
+const char *labi_od_rel_http(void) { return "std/http/http.o"; }
 const char *labi_od_rel_heap(void) { return "std/heap/heap.o"; }
 const char *labi_od_rel_set(void) { return "std/set/set.o"; }
 const char *labi_od_rel_map(void) { return "std/map/map.o"; }
 const char *labi_od_rel_async_scheduler(void) { return "std/async/scheduler.o"; }
 const char *labi_od_rel_core_mem(void) { return "core/mem/mem.o"; }
 const char *labi_od_rel_sys_linux(void) { return "std/sys/linux.o"; }
+const char *labi_od_rel_sys_macos(void) { return "std/sys/macos.o"; }
 const char *labi_od_rel_page_mmap(void) { return "std/heap/page_mmap.o"; }
 const char *labi_od_rel_sys(void) { return "std/sys/sys.o"; }
 const char *labi_od_rel_core_slice(void) { return "core/slice/slice.o"; }
@@ -2450,6 +4371,8 @@ const char *labi_od_rel_test(void) { return "std/test/test.o"; }
 const char *labi_od_rel_heap_user(void) { return "compiler/runtime_heap_user.o"; }
 const char *labi_od_rel_scheduler_glue(void) { return "compiler/runtime_scheduler_glue.o"; }
 const char *labi_od_rel_thread_glue(void) { return "compiler/runtime_thread_glue.o"; }
+/* wave958: http glue companion .o path for std.http on_demand ensure. */
+const char *labi_od_rel_http_glue(void) { return "compiler/runtime_http_glue.o"; }
 const char *labi_od_rel_net_udp_batch(void) { return "compiler/runtime_net_udp_batch.o"; }
 const char *labi_od_rel_net_workers(void) { return "compiler/runtime_net_workers.o"; }
 const char *labi_od_rel_test_fn_invoke(void) { return "compiler/runtime_test_fn_invoke.o"; }
@@ -2493,6 +4416,18 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         return;
     if (link_abi_user_o_needs_std_net(user_o)) {
         int have_net = 0;
+        /* PLATFORM: SHARED — L4 wipe deletes net.o; push_obj skip-missing is
+         * not enough (≡ need_sys). Cookbook net_listen_bind UNDEF std_net_listen
+         * / close_listener while needles already fire. Produce path is existing
+         * net_merge via compiler-make try-heat (not formal_mod). G.7: complete
+         * existing need_net path with ensure; do not add a second simple-group
+         * or convert net_merge into formal_mod. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/net/net.o",
+                                                    "../std/net/net.o");
+        }
         link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_net(), lib_roots, n_lib_roots, bank, argv, la, max_la, &have_net);
         if (have_net) {
             if (flags)
@@ -2518,7 +4453,17 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     xlang_runtime_time_os_o_path(link_argv0), link_argv0,
                     labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
             }
-            /* workers.x 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
+            /* workers.x / net_run_accept_workers_c U thread_create_c (thread_glue).
+             * PLATFORM: SHARED — L4 wipe deletes thread.o; skip-missing never
+             * pushes glue. Darwin -dead_strip hid unused workers T; Ubuntu gold
+             * exposes UNDEF. G.7 complete existing need_net thread companion
+             * with formal ensure (≡ error/context); do not add a second table. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/thread/thread.o",
+                                                        "../std/thread/thread.o");
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_thread(), lib_roots, n_lib_roots, bank, argv, la, max_la,
                 flags ? &flags->have_thread : NULL);
             if (flags && flags->have_thread) {
@@ -2534,6 +4479,61 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 labi_od_rel_net_workers(), lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
     }
+    /*
+     * wave956: standalone std.thread on_demand (independent of need_net).
+     * Before wave956: thread.o + thread_glue.o were only pushed inside the
+     * need_net block above; user programs importing only std.thread (no
+     * std.net) never triggered thread.o ensure → BLD001 UNDEF std_thread_*.
+     * Probe: link_abi_user_o_needs_std_thread scans labi_od_thread_sym_*
+     * (std_thread_create / join / start / stats). When hit, push thread.o
+     * then ensure + push thread_glue.o (same as the net-embedded thread
+     * path). Skip if need_net already pushed thread.o (flags->have_thread).
+     * PLATFORM: SHARED. G.7: single thread ensure path (table + this block).
+     */
+    if (link_abi_user_o_needs_std_thread(user_o)) {
+        int already_th = (flags && flags->have_thread);
+        if (!already_th) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_thread(), lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, flags ? &flags->have_thread : NULL);
+            if (flags && flags->have_thread) {
+                link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_thread_glue_o,
+                    xlang_runtime_thread_glue_o_path(link_argv0), link_argv0,
+                    labi_od_rel_thread_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+            }
+        }
+    }
+    /*
+     * wave958: standalone std.vec on_demand. PLATFORM: SHARED.
+     * Probe: link_abi_user_o_needs_std_vec scans labi_od_vec_sym_*.
+     * When hit, ensure std/vec/vec.o then push it onto the link line.
+     * G.7: single vec ensure path (table + this block).
+     */
+    if (link_abi_user_o_needs_std_vec(user_o)) {
+        const char *root_vec = xlang_repo_root_from_argv0(link_argv0);
+        if (root_vec && root_vec[0])
+            xlang_ensure_formal_std_make_o(root_vec, "std/vec/vec.o", "../std/vec/vec.o");
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_vec(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    /*
+     * wave958: standalone std.http on_demand. PLATFORM: SHARED.
+     * Probe: link_abi_user_o_needs_std_http scans labi_od_http_sym_*.
+     * When hit, ensure std/http/http.o then push it onto the link line.
+     * G.7: single http ensure path (table + this block).
+     */
+    if (link_abi_user_o_needs_std_http(user_o)) {
+        const char *root_http = xlang_repo_root_from_argv0(link_argv0);
+        if (root_http && root_http[0])
+            xlang_ensure_formal_std_make_o(root_http, "std/http/http.o", "../std/http/http.o");
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_http(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /*
+         * wave958: http.o has UNDEF _http_*_c symbols defined in
+         * compiler/runtime_http_glue.o. Ensure + push glue companion.
+         * PLATFORM: SHARED.
+         */
+        link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_http_glue_o,
+            xlang_runtime_http_glue_o_path(link_argv0), link_argv0,
+            labi_od_rel_http_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
+    }
     if (link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
         /* L4 wipe deletes heap.o; push_obj skip-missing is not enough. Ensure
          * first (≡ set/map). PLATFORM: SHARED — Darwin hard UNDEF if absent. */
@@ -2546,13 +4546,20 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                                                     "../core/mem/mem.o");
             }
         }
-        /* heap.o → core.mem：user 已 co-emit 提供 T 时勿链 mem/heap（duplicate）。 */
+        /* heap.o → core.mem: skip mem.o when user already T-defines core.mem. */
         if (!link_abi_user_o_provides_core_mem(user_o)) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
-        if (!link_abi_user_o_provides_std_heap(user_o)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-        }
+        /*
+         * Always push heap.o when needs_std_heap_api fired.
+         * Product asm -o co-emits libc/alloc wrappers as T (provides_std_heap
+         * hits std_heap_libc_heap_alloc_c) while still U std_heap_mem_set
+         * (core_mem_mem_zero call). Two-probe provides is too coarse and
+         * swallowed the mem_set needle. Product ld uses
+         * --allow-multiple-definition (first-wins user T).
+         * G.7: complete this single heap push. PLATFORM: SHARED.
+         */
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     /*
      * PLATFORM: SHARED — set/map product asm: formal .o + heap/core_mem/(hash for set).
@@ -2621,6 +4628,7 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
     if (!driver_freestanding_get()) {
         int need_page_mmap = link_abi_user_o_needs_std_heap_page_mmap(user_o);
         int need_sys_linux = link_abi_user_o_needs_std_sys_linux(user_o);
+        int need_sys_macos = link_abi_user_o_needs_std_sys_macos(user_o);
         int need_sys = link_abi_user_o_needs_std_sys(user_o);
         int ai;
         /*
@@ -2637,12 +4645,38 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     need_page_mmap = 1;
                 if (link_abi_user_o_needs_std_sys_linux(argv[ai]))
                     need_sys_linux = 1;
+                if (link_abi_user_o_needs_std_sys_macos(argv[ai]))
+                    need_sys_macos = 1;
                 if (link_abi_user_o_needs_std_sys(argv[ai]))
                     need_sys = 1;
             }
         }
         if (need_sys_linux || need_page_mmap || need_sys) {
+            /* PLATFORM: SHARED — L4 wipe deletes linux.o; nested leaf sys_linux
+             * is authority for std_sys_linux_linux_*. Twin of need_sys ensure. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/sys/linux.o",
+                                                        "../std/sys/linux.o");
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys_linux(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /* PLATFORM: LINUX|x86_64 — linux.o only calls xlang_sys_*; the raw
+         * syscall stubs live in compiler/src/asm/freestanding_io_x86_64.o.
+         * Hosted user links that co-emit std.sys.linux need it pushed too
+         * (run-process BLD001 root). Mirrors the .x twin. */
+        (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "compiler/src/asm/freestanding_io_x86_64.o",
+                                       lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (need_sys_macos) {
+            /* PLATFORM: SHARED — Darwin cfg import macos_write_*; ensure+push. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/sys/macos.o",
+                                                        "../std/sys/macos.o");
+            }
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys_macos(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_page_mmap || need_sys) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -2651,43 +4685,123 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_page_mmap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (need_sys) {
+            /* PLATFORM: SHARED — L4 wipe deletes sys.o; push_obj skip-missing is
+             * not enough (≡ heap/vec/http). Cookbook sys_write_stdout UNDEF
+             * std_sys_write_stdout while needles already fire. G.7: complete
+             * existing need_sys path with formal ensure; do not add a second
+             * simple-group table. */
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/sys/sys.o",
+                                                        "../std/sys/sys.o");
+            }
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
     if (link_abi_user_o_needs_core_slice(user_o)) {
+        /* PLATFORM: SHARED — L4 wipe deletes core/slice/slice.o; the silent
+         * skip-missing below then leaves core_subslice_*_c UNDEF
+         * (subslice_split_chunks BLD001). Mirror the sys.o ensure. Mirrors
+         * the .x twin. */
+        {
+            const char *root_cs = xlang_repo_root_from_argv0(link_argv0);
+            if (root_cs && root_cs[0] != '\0')
+                (void)xlang_ensure_formal_std_make_o(root_cs, "core/slice/slice.o",
+                                                     "../core/slice/slice.o");
+        }
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_rel_core_slice()));
         if (!p && bank)
             p = xlang_asm_ld_try_under_lib_roots(labi_od_rel_core_slice(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+        /*
+         * wave957: X-facing core_slice u64 symbols (chunks_len / split_at /
+         * subslice) are in core/slice/mod.o (API), not slice.o (glue). Push
+         * mod.o too when needs_core_slice fires. G.7: complete the single
+         * core_slice ensure path. PLATFORM: SHARED.
+         */
+        {
+            const char *csmod_rel = "core/slice/mod.o";
+            const char *p_csmod = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, csmod_rel));
+            if (!p_csmod && bank)
+                p_csmod = xlang_asm_ld_try_under_lib_roots(csmod_rel, lib_roots, n_lib_roots, bank);
+            if (p_csmod)
+                link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_csmod);
+        }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_kv_sym_count(), labi_od_kv_sym_at)) {
+        /* PLATFORM: SHARED — L4 wipe deletes kv.o; push skip-missing is not
+         * enough (≡ need_sys / need_net). Produce path is formal_mod
+         * mod.x+kv.x (was std_x auto-soft kv.x only → T db_kv_*). G.7 complete
+         * existing kv table with formal ensure + glue ensure. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/db/kv/kv.o",
+                                                    "../std/db/kv/kv.o");
+        }
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_kv_rel()));
         if (!p && bank)
             p = xlang_asm_ld_try_under_lib_roots(labi_od_kv_rel(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
-        if (p && *la < max_la - 1) {
-            const char *rkv = asm_link_obj_skip_missing(xlang_runtime_kv_mmap_glue_o_path(link_argv0));
-            if (!rkv && bank)
-                rkv = xlang_asm_ld_try_under_lib_roots(labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
-            if (rkv)
-                link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rkv);
-        }
+        if (p)
+            link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_kv_mmap_glue_o,
+                xlang_runtime_kv_mmap_glue_o_path(link_argv0), link_argv0,
+                labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_arrow_sym_count(), labi_od_arrow_sym_at)) {
+        /* PLATFORM: SHARED — L4 wipe deletes arrow.o; skip-missing never
+         * ensure (≡ kv). Produce path is formal_mod mod.x+arrow.x.
+         * arrow.o U arrow_column_f32_*_c (simd glue) and simd_hw_available_c
+         * (simd c_face C ABI). Darwin -dead_strip hid unused simd T; Ubuntu
+         * gold exposes UNDEF. G.7 complete existing arrow table. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0]) {
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/db/arrow/arrow.o",
+                                                    "../std/db/arrow/arrow.o");
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/simd/simd.o",
+                                                    "../std/simd/simd.o");
+            }
+        }
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_arrow_rel()));
         if (!p && bank)
             p = xlang_asm_ld_try_under_lib_roots(labi_od_arrow_rel(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
-        if (p && *la < max_la - 1) {
-            const char *rar = asm_link_obj_skip_missing(xlang_runtime_arrow_simd_glue_o_path(link_argv0));
-            if (!rar && bank)
-                rar = xlang_asm_ld_try_under_lib_roots(labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
-            if (rar)
-                link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rar);
+        if (p) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/simd/simd.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_arrow_simd_glue_o,
+                xlang_runtime_arrow_simd_glue_o_path(link_argv0), link_argv0,
+                labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
+    }
+    if (labi_od_user_needs_any_sym_table(user_o, labi_od_async_sym_count(), labi_od_async_sym_at)) {
+        /* PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder /
+         * std_async_drain_idle / std_async_scheduler_reset /
+         * std_async_net_fs_async_smoke. No async.o existed; scheduler C ABI
+         * table never fires unique import METHOD. Produce path is formal_mod
+         * c_face. drain_idle / scheduler_reset / net_fs U xlang_async_* →
+         * scheduler glue ensure (async_net_fs #include). G.7 complete unique
+         * table; do not dump unique names into labi_od_async_scheduler_sym_*. */
+        {
+            const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)xlang_ensure_formal_std_make_o(include_root, "std/async/async.o",
+                                                    "../std/async/async.o");
+        }
+        p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, labi_od_async_rel()));
+        if (!p && bank)
+            p = xlang_asm_ld_try_under_lib_roots(labi_od_async_rel(), lib_roots, n_lib_roots, bank);
+        if (p)
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+        if (p)
+            link_abi_asm_ld_push_glue_after_std(1, xlang_ensure_runtime_scheduler_glue_o,
+                xlang_runtime_scheduler_glue_o_path(link_argv0), link_argv0,
+                labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     if (link_abi_user_o_needs_std_test(user_o)) {
         /* PLATFORM: SHARED — Darwin -backend asm run-stdtest. Cold L4 leaves L8c
@@ -2742,6 +4856,42 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                     pushed_core_formal = 1;
             }
             link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            /* PLATFORM: SHARED — 9.2.2: facade compress.o is c_face stub (return -1).
+             * Real zlib/gzip live in submodule formal .o (mod+libz). Companion ≡
+             * encoding.o → string/base64. Glue provides deflateInit2/inflateInit2. */
+            if (strstr(rel, "std/compress/compress.o")) {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0]) {
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/compress/zlib/zlib.o",
+                                                        "../std/compress/zlib/zlib.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/compress/gzip/gzip.o",
+                                                        "../std/compress/gzip/gzip.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/compress/zstd/zstd.o",
+                                                        "../std/compress/zstd/zstd.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/compress/brotli/brotli.o",
+                                                        "../std/compress/brotli/brotli.o");
+                }
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/zlib/zlib.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/gzip/gzip.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/zstd/zstd.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/compress/brotli/brotli.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                /* Glue + -lz stay in asm_ld_append_compress_libs (needs_zlib).
+                 * Do not push runtime_compress_zlib_glue.o here (duplicate T). */
+                /* PLATFORM: LINUX|x86_64 — zstd/brotli lib.x are extern C FFI;
+                 * raw ld has no -l face. Push system .so when present. macOS
+                 * brew .dylib is a separate card. Must stay in this compress.o
+                 * companion (was mistakenly nested under core/slice/mod.o). */
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "/usr/lib/x86_64-linux-gnu/libzstd.so",
+                                         lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "/usr/lib/x86_64-linux-gnu/libbrotlienc.so",
+                                         lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "/usr/lib/x86_64-linux-gnu/libbrotlidec.so",
+                                         lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            }
             /* PLATFORM: SHARED — g12 std/test/test.o monofile C dual (≡ need_test). */
             if (strstr(rel, "std/test/test.o"))
                 labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots,
@@ -2759,6 +4909,23 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+            }
+            /* PLATFORM: SHARED — bytes.o U heap.alloc/realloc/copy/free (mod.x grow/extend).
+             * User.o for roundtrip only U std_bytes_* so heap_api needles miss.
+             * Companion ≡ encoding.o → string/base64. Also co-push string.o for as_view.
+             */
+            if (strstr(rel, "std/bytes/bytes.o")) {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0]) {
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o",
+                                                        "../std/heap/heap.o");
+                    (void)xlang_ensure_formal_std_make_o(include_root, "std/string/string.o",
+                                                        "../std/string/string.o");
+                }
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+                link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots,
                                          bank, argv, la, max_la, NULL);
             }
             /* PLATFORM: SHARED — formal mod.o U from_ptr/subslice → always co-push glue slice.o.
@@ -2807,6 +4974,118 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
             (void)xlang_ensure_runtime_process_argv_o(link_argv0);
             link_abi_asm_ld_push_obj(xlang_runtime_process_argv_o_path(link_argv0), link_argv0,
                 "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — std/cache/cache.o (fk0) U time_now_monotonic_ns_c after
+     * push; user.o only has std_cache_* so time-table / need_time_os never fire.
+     * G.7: mirror process_argv complement — scan argv objs for the C face UNDEF,
+     * then ensure + push runtime_time_os.o (STD-087 lru_pool_smoke).
+     */
+    if (argv && la) {
+        int need_tos = 0;
+        int have_tos = 0;
+        int ti;
+        for (ti = 0; ti < *la && argv[ti]; ti++) {
+            const char *e = argv[ti];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "runtime_time_os.o"))
+                have_tos = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "time_now_monotonic_ns_c"))
+                need_tos = 1;
+        }
+        if (need_tos && !have_tos) {
+            if (xlang_ensure_runtime_time_os_o(link_argv0) == 0)
+                link_abi_asm_ld_push_obj(xlang_runtime_time_os_o_path(link_argv0), link_argv0,
+                    labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — std/security/security.o (fk0) U std_crypto_mem_eq /
+     * crypto_hmac_sha256_c / std_random_fill_bytes after push; user.o only has
+     * std_security_* so fk4 crypto / random gates never fire. G.7: mirror
+     * process_argv / time_os complement (STD-079 roundtrip).
+     */
+    if (argv && la) {
+        int need_crypto = 0;
+        int need_hmac = 0;
+        int need_rand = 0;
+        int have_crypto = 0;
+        int have_hmac = 0;
+        int have_rand = 0;
+        int ci;
+        for (ci = 0; ci < *la && argv[ci]; ci++) {
+            const char *e = argv[ci];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "std/crypto/crypto.o"))
+                have_crypto = 1;
+            if (strstr(e, "runtime_crypto_inc_glue.o"))
+                have_hmac = 1;
+            if (strstr(e, "std/random/random.o"))
+                have_rand = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "std_crypto_mem_eq")
+                || xlang_link_obj_needs_undef_sym(e, "crypto_mem_eq_c"))
+                need_crypto = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "crypto_hmac_sha256_c"))
+                need_hmac = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "std_random_fill_bytes"))
+                need_rand = 1;
+        }
+        if (need_crypto && !have_crypto) {
+            const char *root_c = xlang_repo_root_from_argv0(link_argv0);
+            if (root_c && root_c[0])
+                (void)xlang_ensure_formal_std_make_o(root_c, "std/crypto/crypto.o",
+                                                    "../std/crypto/crypto.o");
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/crypto/crypto.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (need_hmac && !have_hmac) {
+            /* CRYPTO_PAIR: ed25519_ref10 (sha512) + crypto_inc (hmac_sha256_c). */
+            (void)xlang_ensure_runtime_ed25519_ref10_glue_o(link_argv0);
+            link_abi_asm_ld_push_obj(xlang_runtime_ed25519_ref10_glue_o_path(link_argv0),
+                link_argv0, "compiler/runtime_ed25519_ref10_glue.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            (void)xlang_ensure_runtime_crypto_inc_glue_o(link_argv0);
+            link_abi_asm_ld_push_obj(xlang_runtime_crypto_inc_glue_o_path(link_argv0),
+                link_argv0, "compiler/runtime_crypto_inc_glue.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (need_rand && !have_rand) {
+            const char *root_r = xlang_repo_root_from_argv0(link_argv0);
+            if (root_r && root_r[0])
+                (void)xlang_ensure_formal_std_make_o(root_r, "std/random/random.o",
+                                                    "../std/random/random.o");
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/random/random.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — std/result/result.o (fk0) U std_error_ok after push;
+     * user.o may only have std_result_* so fk0 k8 error gate never fires.
+     * G.7: mirror security→crypto (STD-080/081 roundtrip).
+     */
+    if (argv && la) {
+        int need_err = 0;
+        int have_err = 0;
+        int ei;
+        for (ei = 0; ei < *la && argv[ei]; ei++) {
+            const char *e = argv[ei];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "std/error/error.o"))
+                have_err = 1;
+            if (xlang_link_obj_needs_undef_sym(e, "std_error_ok"))
+                need_err = 1;
+        }
+        if (need_err && !have_err) {
+            const char *root_e = xlang_repo_root_from_argv0(link_argv0);
+            if (root_e && root_e[0])
+                (void)xlang_ensure_formal_std_make_o(root_e, "std/error/error.o",
+                                                    "../std/error/error.o");
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o",
+                lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_time_sym_count(), labi_od_time_sym_at)) {
@@ -2869,6 +5148,9 @@ int labi_od_arrow_sym_count(void);
 const char *labi_od_arrow_sym_at(int i);
 const char *labi_od_arrow_rel(void);
 const char *labi_od_arrow_glue_rel(void);
+int labi_od_async_sym_count(void);
+const char *labi_od_async_sym_at(int i);
+const char *labi_od_async_rel(void);
 int labi_od_time_sym_count(void);
 const char *labi_od_time_sym_at(int i);
 const char *labi_od_time_rel(void);
@@ -2904,6 +5186,9 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o);
 int labi_od_sys_linux_sym_count(void);
 const char *labi_od_sys_linux_sym_at(int i);
 int link_abi_user_o_needs_std_sys_linux(const char *user_o);
+int labi_od_sys_macos_sym_count(void);
+const char *labi_od_sys_macos_sym_at(int i);
+int link_abi_user_o_needs_std_sys_macos(const char *user_o);
 int labi_od_sys_sym_count(void);
 const char *labi_od_sys_sym_at(int i);
 int link_abi_user_o_needs_std_sys(const char *user_o);
@@ -2962,12 +5247,15 @@ int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int l
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
+const char *labi_od_rel_vec(void);
+const char *labi_od_rel_http(void);
 const char *labi_od_rel_heap(void);
 const char *labi_od_rel_set(void);
 const char *labi_od_rel_map(void);
 const char *labi_od_rel_async_scheduler(void);
 const char *labi_od_rel_core_mem(void);
 const char *labi_od_rel_sys_linux(void);
+const char *labi_od_rel_sys_macos(void);
 const char *labi_od_rel_page_mmap(void);
 const char *labi_od_rel_sys(void);
 const char *labi_od_rel_core_slice(void);
@@ -2975,6 +5263,7 @@ const char *labi_od_rel_test(void);
 const char *labi_od_rel_heap_user(void);
 const char *labi_od_rel_scheduler_glue(void);
 const char *labi_od_rel_thread_glue(void);
+const char *labi_od_rel_http_glue(void);
 const char *labi_od_rel_net_udp_batch(void);
 const char *labi_od_rel_net_workers(void);
 const char *labi_od_rel_test_fn_invoke(void);

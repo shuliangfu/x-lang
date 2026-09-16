@@ -12,6 +12,16 @@
 | `encode_url_base64_string` / `decode_url_base64_string` | 委托 `std.base64` URL 变体 |
 | `encoding_extra_smoke` | C 烟测（`foo` → `MZXW6===` + percent 往返） |
 
-## 门禁
+## Gate
 
-`./tests/run-std-encoding-extra-gate.sh`
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；host-C 仅 prebuilt `std/encoding/encoding.o`＝obs（拒 soft `ensure_std_c_o`／auto-make）；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案；encoding-hex／uuid 仍跳）。报告 `run=`／`obs=`／`skip=`（退役 `c=`／`x=`）。
+
+```bash
+./tests/run-std-encoding-extra-gate.sh
+```
+
+```
+xlang: [XLANG_STD127_ENCODING_EXTRA] status=ok run=N obs=M skip=K
+```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.

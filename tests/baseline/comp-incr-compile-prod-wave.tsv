@@ -6,7 +6,7 @@ matrix	section	## 2. 生产矩阵	comp-incr-compile.tsv
 gate_section	section	## 3. Gate	run-comp-incr-compile-prod-gate
 parent_tsv	cross_ref	tests/baseline/comp-incr-compile.tsv	COMP-007
 parent_wave	cross_ref	tests/baseline/comp-incr-compile-wave.tsv	COMP-020
-parent_doc	cross_ref	analysis/comp-incr-compile-wave-v1.md	COMP-020
+parent_doc	cross_ref	analysis/archive/comp/comp-incr-compile-wave-v1.md	COMP-020
 parent_bench	cross_ref	tests/baseline/comp-incr-compile-bench.tsv	bench
 hook_incr	hook_gate	run-comp-incr-compile.sh	prod_incr_smoke
 hook_timing	hook_gate	run-obs-compile-phase-timing-gate.sh	prod_timing

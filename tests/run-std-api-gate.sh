@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # STD-136：std 全模块 manifest/gate 全覆盖门禁
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-DOC="analysis/std-api-gate-v1.md"
+DOC="analysis/archive/std/std-api-gate-v1.md"
 REGISTRY="tests/baseline/std-api.tsv"
 MATRIX="tests/baseline/stdlib-check-matrix.tsv"
 LIB="tests/lib/std-api.sh"

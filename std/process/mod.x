@@ -49,6 +49,9 @@
 // See implementation.
 // See implementation.
 // See implementation.
+// Cap residual 9.1.3: Linux getpid/getppid → std.sys.linux (raw_syscall).
+const linux = import("std.sys.linux");
+
 extern function process_args_count_c(): i32;
 extern function process_arg_c(i: i32): *u8;
 extern function process_getenv_c(name: *u8): *u8;
@@ -137,18 +140,42 @@ export function unsetenv(name: *u8): i32 {
   return _rc;
 }
 /** Exported function `getpid`.
- * Implements `getpid`.
+ * Process id. Linux: Cap residual 9.1.3 via std.sys.linux.linux_getpid
+ * (raw_syscall0). Other OS: process_getpid_c glue.
+ * @return i32
+ * PLATFORM: LINUX raw; else glue
+ */
+#[cfg(target_os = "linux")]
+export function getpid(): i32 {
+  return linux.linux_getpid();
+}
+
+/** Exported function `getpid`.
+ * Implements `getpid` (non-Linux: OS glue / libc or Win API).
  * @return i32
  */
+#[cfg(not(target_os = "linux"))]
 export function getpid(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_getpid_c(); }
   return _rc;
 }
+
 /** Exported function `getppid`.
- * Implements `getppid`.
+ * Parent process id. Linux: Cap residual 9.1.3 via linux_getppid.
+ * @return i32
+ * PLATFORM: LINUX raw; else glue
+ */
+#[cfg(target_os = "linux")]
+export function getppid(): i32 {
+  return linux.linux_getppid();
+}
+
+/** Exported function `getppid`.
+ * Implements `getppid` (non-Linux glue).
  * @return i32
  */
+#[cfg(not(target_os = "linux"))]
 export function getppid(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_getppid_c(); }

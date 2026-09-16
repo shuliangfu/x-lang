@@ -109,7 +109,8 @@ int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_
                                           struct codegen_CodegenOutBuf *out,
                                           struct ast_PipelineDepCtx *pipeline_ctx) {
   pipeline_glue_AsmFuncCtxLayout ctx;
-  uint8_t fname_buf[128];
+  /* Cap 4.2.8: func_name_copy64 memset(dst,0,256). */
+  uint8_t fname_buf[256];
   int32_t ta;
   int32_t i;
 

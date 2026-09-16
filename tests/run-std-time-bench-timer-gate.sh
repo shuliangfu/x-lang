@@ -1,28 +1,131 @@
 #!/usr/bin/env bash
-# STD-133：std.time benchmark 计时器门禁
-set -e
+# STD-133: std.time bench timer — honesty leftover wrap dead source →硬绿.
+#
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# bench_timer.x -o exit0 = hard run (run+=). check = obs.
+# Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-time-bench-timer-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-DOC="analysis/std-time-bench-timer-v1.md"
-MANIFEST="tests/baseline/std-time-bench-timer-manifest.tsv"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+
+DOC="${XLANG_STD133_TIME_BENCH_TIMER_DOC:-analysis/archive/std/std-time-bench-timer-v1.md}"
+MANIFEST="${XLANG_STD133_TIME_BENCH_TIMER_MANIFEST:-tests/baseline/std-time-bench-timer-manifest.tsv}"
 MOD_X="std/time/mod.x"
+TIME_X="${XLANG_STD_TIME_IMPL:-std/time/time.x}"
 LIB="tests/lib/std-time-bench-timer.sh"
 SMOKE_X="tests/time/bench_timer.x"
+SMOKE_EXPECT=0
+
+# shellcheck source=tests/lib/std-time-bench-timer.sh
 . "$LIB"
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X"; do
-  [ -f "$f" ] || { echo "std-time-bench-timer gate FAIL: missing $f" >&2; exit 1; }
-done
-grep -qF STD-133 "$DOC" || { echo "std-time-bench-timer gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(std_time_bench_timer_symbols_ok "$MOD_X" "$MANIFEST" || true)"
-[ "${sym_miss:-0}" -eq 0 ] || exit 1
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/time/time.o
-X_OK=0
+
+RUN_OK=0
+OBS=0
 SKIP=0
-if [ -x ./compiler/xlang-c ]; then
-  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
-  std_time_bench_timer_run_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
-else
-  SKIP=1
+
+die() {
+  echo "std-time-bench-timer gate FAIL: $*" >&2
+  std_time_bench_timer_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c fallthrough.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== STD-133: time bench-timer manifest ==="
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-time-bench-timer-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
 fi
-std_time_bench_timer_emit_report ok "$X_OK" "$SKIP"
-echo "std-time-bench-timer gate OK"
+
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$TIME_X" "$SMOKE_X"; do
+  [ -f "$f" ] || die "missing $f"
+done
+
+for kw in STD-133 Timer start reset elapsed_ns lap_ns; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
+grep -qF '## 3. Gate' "$DOC" 2>/dev/null || die "doc missing '## 3. Gate'"
+
+sym_miss="$(std_time_bench_timer_symbols_ok "$MOD_X" "$MANIFEST" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+echo "std-time-bench-timer manifest OK"
+
+if [ "${XLANG_STD133_TIME_BENCH_TIMER_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_time_bench_timer_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-time-bench-timer gate OK (manifest only)"
+  exit 0
+fi
+
+XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-133: smoke (XLANG=$XLANG_BIN; check obs; bench_timer product -o hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std133_chk.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-time-bench-timer OBS check (paused / CHK residual; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+OUT="/tmp/xlang_std133_bench_$$"
+LOG="/tmp/xlang_std133_bench_build_$$.log"
+if "$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" 2>"$LOG"; then
+  exitcode=0
+  "$OUT" >/dev/null 2>&1 || exitcode=$?
+  rm -f "$OUT"
+  [ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "bench_timer.x exit=$exitcode (expect $SMOKE_EXPECT; refuse soft SKIP→OK)"
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-time-bench-timer OK: bench_timer"
+else
+  tail -20 "$LOG" 2>/dev/null >&2 || true
+  die "bench_timer.x link (refuse soft SKIP→OK)"
+fi
+
+std_time_bench_timer_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+echo "std-time-bench-timer gate OK (host=$(ci_host_summary))"

@@ -1,7 +1,9 @@
 /**
  * net_udp_many_client.c — N4 基线 client：批量 sendmmsg/sendto 发 UDP（供 run-perf-net.sh 驱动 server）
  * 用法：net_udp_many_client [port] [n_pkts]  默认 38458 / 4096
+ * PLATFORM: LINUX — sendmmsg needs _GNU_SOURCE before sys/socket.h (glibc).
  */
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdint.h>

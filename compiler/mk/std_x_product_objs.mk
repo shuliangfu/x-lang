@@ -15,19 +15,14 @@ STD_X_PRODUCT_OBJS = \
 	../std/async/future.o \
 	../std/channel/channel.o \
 	../std/backtrace/backtrace.o \
-	../std/datetime/datetime.o \
 	../std/uuid/uuid.o \
 	../std/url/url.o \
-	../std/cli/cli.o \
 	../std/security/security.o \
 	../std/config/config.o \
 	../std/cache/cache.o \
 	../std/trace/trace.o \
 	../std/task/task.o \
 	../std/schema/schema.o \
-	../std/db/kv/kv.o \
-	../std/db/arrow/arrow.o \
-	../std/db/sqlite/sqlite.o \
 	../std/elf/elf.o \
 	../std/regex/regex.o \
 	../std/unicode/unicode.o \

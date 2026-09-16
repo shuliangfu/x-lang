@@ -2,10 +2,13 @@
 # BOOT-021：mega7 parser B1–B7 晋升波次门禁
 #
 # 用法：./tests/run-boot-021-mega7-promote-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT021_DOC:-analysis/boot-021-mega7-promote-v1.md}"
+DOC="${XLANG_BOOT021_DOC:-analysis/archive/boot/boot-021-mega7-promote-v1.md}"
 MANIFEST="${XLANG_BOOT021_TSV:-tests/baseline/boot-021-mega7-promote.tsv}"
 WAVE="${XLANG_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"

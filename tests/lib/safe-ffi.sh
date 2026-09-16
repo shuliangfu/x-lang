@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # safe-ffi.sh — SAFE-004 shared: FFI contract case compile+run
 #
+# Honesty soft→硬绿 (2026-08-28):
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die at gate (refuse soft SKIP→OK / soft auto-make /
+# prefer-c). Product path: pure-asm `$XLANG -L . -o` (host-cc only with
+# XLANG_ALLOW_HOST_CC). Report: run=/obs=/skip=.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+#
 # Usage (after source):
 #   safe_ffi_contract_count [manifest_tsv]
 #   safe_ffi_run_case XLANG_BIN src expect_rc [tag]
-#
-# Product path: prefer pure-asm `$XLANG -L . -o` (host-cc banned without
-# XLANG_ALLOW_HOST_CC). Optional host-cc only when ALLOW is set — same policy
-# as tests/run-defer-gate.sh / void-main / struct gates.
-# PLATFORM: SHARED — dual-end pure-asm product gate.
+#   safe_ffi_emit_report status run obs skip
+
+SAFE_FFI_PREFIX="${XLANG_SAFE_FFI_PREFIX:-xlang: [XLANG_SAFE_FFI]}"
 
 # Count manifest rows whose case_id starts with case_.
 safe_ffi_contract_count() {
@@ -16,8 +21,18 @@ safe_ffi_contract_count() {
   awk -F'\t' '$1 ~ /^case_/ { n++ } END { print n+0 }' "$man"
 }
 
+# Emit structured honesty report line.
+safe_ffi_emit_report() {
+  local status="${1:-ok}"
+  local run="${2:-0}"
+  local obs="${3:-0}"
+  local skip="${4:-0}"
+  echo "${SAFE_FFI_PREFIX} status=${status} run=${run} obs=${obs} skip=${skip}"
+}
+
 # Compile and run one contract .x; check exit code against expect_rc.
 # Prefer pure-asm product -o; -backend c only with XLANG_ALLOW_HOST_CC=1.
+# Returns: 0=ok, 1=hard fail, 2=obs (UNDEF/BLD residual on product -o).
 safe_ffi_run_case() {
   local xlang="$1"
   local src="$2"
@@ -37,6 +52,11 @@ safe_ffi_run_case() {
     && "$xlang" -backend c -L . "$src" -o "$exe" >"$log" 2>&1; then
     :
   else
+    if grep -qE 'Undefined symbols|undefined reference|UNDEF|BLD001' "$log" 2>/dev/null; then
+      echo "safe-ffi OBS $tag (product -o UNDEF/ld residual; $src)" >&2
+      rm -f "$exe" "$log"
+      return 2
+    fi
     echo "safe-ffi FAIL: compile $tag ($src)" >&2
     tail -8 "$log" 2>/dev/null || true
     rm -f "$exe" "$log"

@@ -5,6 +5,13 @@
  * 与 parser.x parse_as_suffix_into 一致：`as type` 后缀链。
  * After `as`, the full type_ref parser is the only matcher (`[]T` / `[N]T` /
  * `*T` / scalars / NAMED / SIMD tokens). PLATFORM: SHARED parse.
+ *
+ * Hybrid P4as/P4ad: XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X skips the
+ * portable TRY_PROPAGATE + EXPR_AS wrap twins and the parse body
+ * (bodies in pthin_expr_as_suffix.x). parse is a dest-buffer trampoline
+ * under BODIES (P4ad); AUDIT stays. wrap keeps dest-buffer trampolines
+ * so cold parse still sees parse_expr_result*. Do not reuse
+ * XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies. PLATFORM: SHARED.
  */
 #ifndef PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
 #define PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED
@@ -27,8 +34,103 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
-extern int32_t parser_asm_stretch_as_suffix_chain_audit_c(struct parser_asm_lexer lex,
-                                                          struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_as_suffix_chain_audit_c(void *lex_inout, void *source);
+
+/**
+ * Allocate a TRY_PROPAGATE node and write kind / unary_operand (line/col=0).
+ * Success returns expr ref; failure returns 0 and clears out.ok.
+ * PLATFORM: SHARED — P4as trampoline when BODIES_FROM_X; cold twin below.
+ */
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+extern int32_t parser_asm_try_propagate_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref,
+                                                    int32_t inner_ref);
+static int32_t parser_asm_try_propagate_wrap_c(void *arena, struct parser_asm_parse_expr_result *out,
+                                               int32_t inner_ref) {
+  /* PLATFORM: SHARED — P4as trampoline. Language has no Expr by-value;
+   * .x writes out.ok / out.expr_ref through dest slots. parse in this TU
+   * still calls this symbol. Do not merge P4uc unary wrap. */
+  if (!arena || !out)
+    return 0;
+  return parser_asm_try_propagate_wrap_into_c(arena, &out->ok, &out->expr_ref, inner_ref);
+}
+
+extern int32_t parser_asm_as_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t inner_ref,
+                                         int32_t type_ref);
+static int32_t parser_asm_as_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t inner_ref,
+                                    int32_t type_ref) {
+  /* PLATFORM: SHARED — P4as trampoline. Do not merge unary/binop/ternary wrap. */
+  if (!arena || !out)
+    return 0;
+  return parser_asm_as_wrap_into_c(arena, &out->ok, &out->expr_ref, inner_ref, type_ref);
+}
+#else
+static int32_t parser_asm_try_propagate_wrap_c(void *arena, struct parser_asm_parse_expr_result *out,
+                                               int32_t inner_ref) {
+  int32_t try_ref;
+  struct parser_asm_ast_expr ae;
+  if (!arena || !out)
+    return 0;
+  try_ref = ast_ast_arena_expr_alloc(arena);
+  if (try_ref == 0) {
+    out->ok = 0;
+    return 0;
+  }
+  ae = parser_asm_arena_expr_get_c(arena, try_ref);
+  ae.kind = PARSER_ASM_EXPR_TRY_PROPAGATE;
+  ae.line = 0;
+  ae.col = 0;
+  parser_asm_expr_set_common_zeros_c(&ae);
+  ae.unary_operand_ref = inner_ref;
+  parser_asm_arena_expr_set_c(arena, try_ref, ae);
+  out->expr_ref = try_ref;
+  return try_ref;
+}
+
+static int32_t parser_asm_as_wrap_c(void *arena, struct parser_asm_parse_expr_result *out, int32_t inner_ref,
+                                    int32_t type_ref) {
+  int32_t as_ref;
+  struct parser_asm_ast_expr ae;
+  if (!arena || !out)
+    return 0;
+  as_ref = ast_ast_arena_expr_alloc(arena);
+  if (as_ref == 0) {
+    out->ok = 0;
+    return 0;
+  }
+  ae = parser_asm_arena_expr_get_c(arena, as_ref);
+  ae.kind = PARSER_ASM_EXPR_AS;
+  ae.line = 0;
+  ae.col = 0;
+  parser_asm_expr_set_common_zeros_c(&ae);
+  ae.as_operand_ref = inner_ref;
+  ae.as_target_type_ref = type_ref;
+  parser_asm_arena_expr_set_c(arena, as_ref, ae);
+  out->expr_ref = as_ref;
+  return as_ref;
+}
+#endif /* XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X wrap */
+
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
+                            struct parser_asm_slice_u8 *source);
+/**
+ * Peek the token AFTER the unconsumed next token, without advancing.
+ * Language has no lexer by-value; this C face copies the cursor, drives
+ * lexer_next twice, and returns the second kind.
+ * PLATFORM: SHARED — P4ad zero-algorithm shim. Do not copy into P9a this wave.
+ */
+int32_t parser_asm_lex_peek_kind_after_c(void *lex, void *source) {
+  struct parser_asm_lexer_result r;
+  if (!lex || !source)
+    return 0;
+  lexer_next_into(&r, *(struct parser_asm_lexer *)lex, (struct parser_asm_slice_u8 *)source);
+  lexer_next_into(&r, r.next_lex, (struct parser_asm_slice_u8 *)source);
+  return r.tok.kind;
+}
+
+extern int32_t parser_asm_parse_as_suffix_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                   int32_t *out_expr_ref);
+#endif /* XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X peek-after + parse dest-buffer */
 
 /**
  * parse_as_suffix_into：解析零个或多个 postfix 后缀（`?` Result 传播、`as type`；假定 out 已由 primary 填充）。
@@ -39,13 +141,21 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
   struct parser_asm_lexer_result r;
   int32_t type_ref;
   int32_t inner_ref;
-  int32_t as_ref;
-  int32_t try_ref;
-  struct parser_asm_ast_expr ae;
   if (!out || !out->ok || !source)
     return;
+#ifdef XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X
+  /* PLATFORM: SHARED — P4ad trampoline. AUDIT stays (product nop).
+   * .x peeks; does not zero out.ok / out.expr_ref (caller filled them).
+   * Publish next_lex from the live cursor. */
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_as_suffix_chain_audit_c(&out->next_lex, source));
+  if (parser_asm_parse_as_suffix_x_into_c(arena, &out->next_lex, source, &out->ok, &out->expr_ref) == 0) {
+    out->ok = 0;
+    return;
+  }
+  return;
+#else
   lex_cur = out->next_lex;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_as_suffix_chain_audit_c(lex_cur, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_as_suffix_chain_audit_c(&lex_cur, source));
   for (;;) {
     lexer_next_into(&r, lex_cur, source);
     if (r.tok.kind == (int32_t)TOKEN_QUESTION) {
@@ -61,19 +171,8 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
         return;
       }
       inner_ref = out->expr_ref;
-      try_ref = ast_ast_arena_expr_alloc(arena);
-      if (try_ref == 0) {
-        out->ok = 0;
+      if (parser_asm_try_propagate_wrap_c(arena, out, inner_ref) == 0)
         return;
-      }
-      ae = parser_asm_arena_expr_get_c(arena, try_ref);
-      ae.kind = PARSER_ASM_EXPR_TRY_PROPAGATE;
-      ae.line = 0;
-      ae.col = 0;
-      parser_asm_expr_set_common_zeros_c(&ae);
-      ae.unary_operand_ref = inner_ref;
-      parser_asm_arena_expr_set_c(arena, try_ref, ae);
-      out->expr_ref = try_ref;
       out->next_lex = rpeek.next_lex;
       return;
     }
@@ -100,22 +199,11 @@ void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slic
     }
     r.next_lex = lex_cur;
     inner_ref = out->expr_ref;
-    as_ref = ast_ast_arena_expr_alloc(arena);
-    if (as_ref == 0) {
-      out->ok = 0;
+    if (parser_asm_as_wrap_c(arena, out, inner_ref, type_ref) == 0)
       return;
-    }
-    ae = parser_asm_arena_expr_get_c(arena, as_ref);
-    ae.kind = PARSER_ASM_EXPR_AS;
-    ae.line = 0;
-    ae.col = 0;
-    parser_asm_expr_set_common_zeros_c(&ae);
-    ae.as_operand_ref = inner_ref;
-    ae.as_target_type_ref = type_ref;
-    parser_asm_arena_expr_set_c(arena, as_ref, ae);
-    out->expr_ref = as_ref;
     lex_cur = r.next_lex;
   }
+#endif /* XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X parse_as_suffix */
 }
 
 #endif /* PARSER_ASM_AS_SUFFIX_SLICE_INCLUDED */

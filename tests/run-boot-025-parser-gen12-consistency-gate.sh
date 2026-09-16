@@ -2,10 +2,13 @@
 # BOOT-025：parser C3 gen1/gen2 三代一致性门禁
 #
 # 用法：./tests/run-boot-025-parser-gen12-consistency-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_BOOT025_DOC:-analysis/boot-025-parser-gen12-consistency-v1.md}"
+DOC="${XLANG_BOOT025_DOC:-analysis/archive/boot/boot-025-parser-gen12-consistency-v1.md}"
 MANIFEST="${XLANG_BOOT025_TSV:-tests/baseline/boot-025-parser-gen12-consistency.tsv}"
 WAVE="${XLANG_BOOT025_WAVE_TSV:-tests/baseline/parser-gen12-consistency-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"

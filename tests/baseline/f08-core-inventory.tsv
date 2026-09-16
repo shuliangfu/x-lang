@@ -1,8 +1,8 @@
 # F-08 v2 core/ 零 C manifest（G-01 闭合）
 # 列：item_id	kind	anchor	notes
-f08_doc	doc	analysis/phase-f-f08-v1.md	F-08 v1
+f08_doc	doc	analysis/archive/phase/phase-f-f08-v1.md	F-08 v1
 f08_gate	gate	tests/run-f08-core-inventory-gate.sh	专 gate
-g01_doc	doc	analysis/phase-g-full-selfhost-tasks-v1.md	G-01
+g01_doc	doc	analysis/archive/phase/phase-g-full-selfhost-tasks-v1.md	G-01
 core_builtin_mod	file	core/builtin/mod.x	API 纯 .x
 core_mem_mod	file	core/mem/mod.x	API 纯 .x
 core_slice_mod	file	core/slice/mod.x	API 纯 .x

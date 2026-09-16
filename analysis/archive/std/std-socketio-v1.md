@@ -5,6 +5,22 @@
 
 ---
 
+## Gate
+
+Honesty soft→硬绿（2026-08-28）：prefer product `xlang_asm`；钉 `XLANG_LINK_XLANG`；显式坏／缺 native 硬 die；host-C 仅 prebuilt `std/socketio/socketio.o`＝obs（拒 soft `ensure_std_c_o`／auto-make）；check＝obs（暂停）；tip 产品 `-o` UNDEF／SEGV＝obs（产品另案）；live npm／cluster 脚本仍 soft-ensure 另案。报告 `run=`／`obs=`／`skip=`（退役 `smoke=`）。
+
+```bash
+./tests/run-std-socketio-gate.sh
+```
+
+```
+xlang: [XLANG_STD_SOCKETIO] status=ok run=N obs=M skip=K
+```
+
+PLATFORM: SHARED archaeology — Ubuntu gold still required.
+
+---
+
 ## 1. 阅读路径
 
 | 步骤 | 动作 |

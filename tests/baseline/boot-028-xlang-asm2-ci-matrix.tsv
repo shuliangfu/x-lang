@@ -15,8 +15,8 @@ platform_matrix	file	xlang-asm2-ci-platform-matrix.tsv	tests/baseline/xlang-asm2
 repro_matrix	cross_ref	tests/baseline/bootstrap-repro.tsv	boot028_xlang_asm2_ci_matrix
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	C7 xlang_asm2_ci
 ci_platform	cross_ref	tests/baseline/ci-platform-matrix.tsv	ENG-003
-parent_boot027	cross_ref	analysis/boot-027-xlang-asm2-cross-v1.md	C5
-parent_eng	cross_ref	analysis/eng-crossplatform-ci-v1.md	ENG-003
-doc	file	boot-028-xlang-asm2-ci-matrix-v1.md	analysis/boot-028-xlang-asm2-ci-matrix-v1.md	RFC
+parent_boot027	cross_ref	analysis/archive/boot/boot-027-xlang-asm2-cross-v1.md	C5
+parent_eng	cross_ref	analysis/archive/eng/eng-crossplatform-ci-v1.md	ENG-003
+doc	file	boot-028-xlang-asm2-ci-matrix-v1.md	analysis/archive/boot/boot-028-xlang-asm2-ci-matrix-v1.md	RFC
 lib	script	lib/boot-028-xlang-asm2-ci-matrix.sh	tests/lib/boot-028-xlang-asm2-ci-matrix.sh
 gate	script	run-boot-028-xlang-asm2-ci-matrix-gate.sh	tests/run-boot-028-xlang-asm2-ci-matrix-gate.sh

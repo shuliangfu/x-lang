@@ -34,12 +34,15 @@
 
 ## 3. 边界行为（金样）
 
+> 2026-08-25: scenario names use **product** symbols (`insert` / `str_insert` /
+> `remove` / `str_remove`); legacy `set_u64_insert`-style labels were TSV drift.
+
 | 场景 | 期望 |
 |------|------|
-| `set_u64_insert` 重复键 | len 不变 |
-| `set_u64_remove` 不存在 | 返回 0 |
-| `set_str_insert` 前缀键 | 与不同 len 区分 |
-| `set_str_insert` len=33 | -1 |
+| `insert`（Set_u64）重复键 | len 不变 |
+| `remove`（Set_u64）不存在 | 返回 0 |
+| `str_insert` 前缀键 | 与不同 len 区分 |
+| `str_insert` len=33 | -1 |
 | 扩容后 contains 仍命中 | rehash 正确 |
 
 ---
@@ -49,6 +52,10 @@
 - manifest：`tests/baseline/std-set-extend.tsv`
 - typeck：`tests/set/extend.x`
 - 报告：`xlang: [XLANG_STD_SET_EXTEND] status=ok`
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-set.sh`（`xlang_compiler_make … heap.o/set.o` + collection gcc fallback + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/set/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [SET]`。Do not add a new `## Gate` heading here（STD-015 live gate already honesty-closed）。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-set-extend-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `extend.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. 验收`。 Leave wrap body / ensure_std family.
 
 ---
 

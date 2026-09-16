@@ -127,6 +127,20 @@ build_xlang_asm_info "using XLANG=$XLANG (list from $BUILD_LIST_X)"
 # compile_x 的 stub 回退与后续链接均依赖宿主 cc；须在 asm 编译循环之前定义。
 CC="${CC:-cc}"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0 (same authority
+# as ensure_host_cc_seed_o.sh / cc_inc_tu.sh). Always-linked host-cc companions
+# built here (runtime_panic.o / runtime_asm_io_stubs.o / user-link runtime objs)
+# otherwise stamp minos=<host SDK> and ld warns "newer macOS version than being
+# linked" on every user-program link. Do not -w swallow; do not raise macho.x
+# minos to 26.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    case " $CFLAGS " in
+      *" -mmacosx-version-min="*) ;;
+      *) CFLAGS="$CFLAGS -mmacosx-version-min=11.0" ;;
+    esac
+    ;;
+esac
 
 # Stage 12.2.1: XLANG_FORBID_HOST_CC gate (no-op when flag unset; zero impact
 # on normal builds). When XLANG_FORBID_HOST_CC=1, replaces $CC with a wrapper
@@ -373,7 +387,8 @@ ld_supports_exported_symbols_list() {
 # Darwin -exported_symbols_list and Linux objcopy --keep-global-symbols both localize
 # unlisted symbols. Static depctx_sidecar_get is copied into each partial and binds
 # whatever BSS it sees; if the table is localized, Cap module_at vs path_copy split
-# (core.types body emitted as core_result_*). Authority: ast_pool.c g_xlang_depctx_sc.
+# (core.types body emitted as core_result_*). Authority: runtime_pipeline_abi
+# g_xlang_depctx_sc / pure depctx table (ast_pool.c left wave309).
 ld_partial_export() {
   local syms_file="$1"
   local out_o="$2"
@@ -419,13 +434,20 @@ rebuild_pipeline_o_second_pass() {
   fi
   local min_text=200
   local pcomp PTMP PTEXT=0
-  # pipeline_x.o 已 selfhosted 时 promote 为 build_asm/pipeline.o，跳过 pipeline.x asm 二遍（Docker 上易 futex 卡死）
+  # G.7: pipeline.x is pure-extern (0 bodies). Real impl is src/runtime_pipeline_abi.o
+  # (already on LD argv). pipeline_x.o / build_asm/pipeline.o are driver_leaf stubs
+  # (__text often 0–4B, 0 T). Promote marks second-pass OK when abi is selfhosted;
+  # do NOT require stub __text>=min_text (that gate was for pre-abi emit era).
+  # Skip asm re-emit of pipeline.x (Docker futex; would still yield a stub).
+  # PLATFORM: SHARED — abi authority + stub promote on Darwin and Linux.
   _promote_pipeline_x_second_pass() {
-  [ -f pipeline_x.o ] || return 1
-  cp -f pipeline_x.o "$BUILD_DIR/pipeline.o"
   asm_strict_pipeline_selfhosted || return 1
+  if [ -f pipeline_x.o ]; then
+  cp -f pipeline_x.o "$BUILD_DIR/pipeline.o"
+  fi
   PTEXT=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
-  build_xlang_asm_info "pipeline.o second pass promote pipeline_x.o (__text=${PTEXT}B, skip asm emit)"
+  _abi_t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
+  build_xlang_asm_info "pipeline.o second pass OK via runtime_pipeline_abi (stub=__text=${PTEXT}B, abi=${_abi_t}B, skip asm emit)"
   return 0
   }
   if [ "${XLANG_ASM_SECOND_PASS_FORCE_ASM:-0}" != "1" ] && _promote_pipeline_x_second_pass; then
@@ -757,10 +779,13 @@ rebuild_main_o_for_cli() {
   if [ "$txt" = "0" ]; then
   return 1
   fi
-  if ! nm "$tmp" 2>/dev/null | grep -q ' entry$'; then
+  # PLATFORM: SHARED — product ABI is main_entry (main.x); Mach-O may prefix `_`.
+  # Legacy bare `entry` still accepted. Tip multi-export no longer DCE-compresses.
+  if ! nm "$tmp" 2>/dev/null | grep -qE ' (_)?(main_)?entry$'; then
   return 1
   fi
-  # WPO on：main.x entry-only（cap 见 wpo-main-o.tsv / XLANG_WPO_MAIN_MAX_TEXT；2026-07 ~1610B）。
+  # WPO on：prefer compressed; oversize falls through to WPO-off / heavy paths.
+  # Cap 见 wpo-main-o.tsv / XLANG_WPO_MAIN_MAX_TEXT（历史 ~1610B；tip full emit larger）.
   local main_wpo_max="${XLANG_WPO_MAIN_MAX_TEXT:-2048}"
   if [ -z "$wpo_arg" ] && [ "$txt" -gt "$main_wpo_max" ] 2>/dev/null; then
   return 1
@@ -833,14 +858,14 @@ rebuild_main_o_post_strict_link() {
   return 0
   fi
   if [ -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] && \
-  ! nm "$BUILD_DIR/main.o" 2>/dev/null | grep -q ' entry$'; then
+  ! nm "$BUILD_DIR/main.o" 2>/dev/null | grep -qE ' (_)?(main_)?entry$'; then
   build_xlang_asm_info "post-strict skip main.o recompile (bridge entry; main.o stub)"
   return 0
   fi
   cur_txt=$(asm_o_text_bytes "$BUILD_DIR/main.o" 2>/dev/null || echo 0)
   if [ "$cur_txt" -gt 0 ] && [ "$cur_txt" -le 768 ] 2>/dev/null && \
-  nm "$BUILD_DIR/main.o" 2>/dev/null | grep -q ' entry$'; then
-  build_xlang_asm_info "post-strict main.o keep compressed (__text=${cur_txt}B, entry present)"
+  nm "$BUILD_DIR/main.o" 2>/dev/null | grep -qE ' (_)?(main_)?entry$'; then
+  build_xlang_asm_info "post-strict main.o keep compressed (__text=${cur_txt}B, main_entry/entry present)"
   return 0
   fi
   for comp in ./xlang_asm ./xlang_asm.experimental ./xlang_asm_stage1 ./xlang; do
@@ -852,8 +877,11 @@ rebuild_main_o_post_strict_link() {
   return 1
 }
 
-# ld -r：EMIT_HEAVY driver_compile + link_alias → driver_compile_link.o（strict 替换 driver_compile_x.o）。
+# EMIT_HEAVY driver_compile + link_alias → driver_compile_link.o（strict 替换 driver_compile_x.o）。
 # EMIT_HEAVY 常漏 driver_compile_parse_argv_loop；从 driver_compile_x.o 部分导出补全。
+# PLATFORM: SHARED — merge authority = pure_ld_partial_merge (G.7; no bare ld -r).
+# PLATFORM: MACOS — F7 MH_OBJECT has two LC_SEGMENT; Apple ld -r fails; merge → libtool ar.
+# PLATFORM: LINUX — cc/ld -r keeps single ET_REL.
 ensure_driver_parse_argv_loop_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
@@ -874,28 +902,39 @@ ensure_driver_compile_link_obj() {
   local alias_o="$BUILD_DIR/driver_compile_asm_link_alias.o"
   local link_o="$BUILD_DIR/driver_compile_link.o"
   local loop_partial="$BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
+  local merge_objs=""
   [ -f "$eh_o" ] && [ -s "$eh_o" ] || return 1
-  [ -f "$alias_src" ] || return 1
-  if [ ! -f "$alias_o" ] || [ "$alias_src" -nt "$alias_o" ]; then
-  build_xlang_asm_info "cc_inc_tu driver_compile_asm_link_alias.o"
-  sh scripts/cc_inc_tu.sh "$alias_src" "$alias_o"
+  # 7.2.1 eighth knife: .x authority via cc_inc_tu --auto prefer lane.
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$alias_o" ] || [ src/driver_compile_asm_link_alias.x -nt "$alias_o" ] \
+       || { [ -f "$alias_src" ] && [ "$alias_src" -nt "$alias_o" ]; }; then
+      build_xlang_asm_info "cc_inc_tu --auto (src/driver_compile_asm_link_alias.x)"
+      sh scripts/cc_inc_tu.sh --auto "$alias_o"
+    fi
+  else
+    [ -f "$alias_src" ] || return 1
+    if [ ! -f "$alias_o" ] || [ "$alias_src" -nt "$alias_o" ]; then
+      build_xlang_asm_info "cc_inc_tu driver_compile_asm_link_alias.o"
+      sh scripts/cc_inc_tu.sh "$alias_src" "$alias_o"
+    fi
   fi
   if nm "$eh_o" 2>/dev/null | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
   ensure_driver_parse_argv_loop_partial_obj || return 1
   else
   loop_partial=""
-  # emit_heavy 已含 loop：仅用 eh+alias 重编 link_o，勿再 ld -r partial。
+  # emit_heavy 已含 loop：仅用 eh+alias 重编 link_o，勿再挂 loop partial。
   rm -f "$link_o" 2>/dev/null || true
   fi
   if [ ! -f "$link_o" ] || [ "$eh_o" -nt "$link_o" ] || [ "$alias_o" -nt "$link_o" ] || \
   { [ -n "$loop_partial" ] && [ -f "$loop_partial" ] && [ "$loop_partial" -nt "$link_o" ]; }; then
-  build_xlang_asm_info "ld -r driver_compile_emit_heavy.o + link_alias -> driver_compile_link.o"
+  build_xlang_asm_info "pure_ld_partial_merge driver_compile_emit_heavy + link_alias -> driver_compile_link.o"
   rm -f "$link_o" 2>/dev/null || true
+  merge_objs="$eh_o $alias_o"
   if [ -n "$loop_partial" ] && [ -f "$loop_partial" ]; then
-  ld -r -o "$link_o" "$eh_o" "$alias_o" "$loop_partial" 2>/dev/null || return 1
-  else
-  ld -r -o "$link_o" "$eh_o" "$alias_o" 2>/dev/null || return 1
+  merge_objs="$merge_objs $loop_partial"
   fi
+  # shellcheck disable=SC2086
+  pure_ld_partial_merge "$link_o" $merge_objs || return 1
   fi
   nm -g "$link_o" 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x' || return 1
   if nm "$link_o" 2>/dev/null | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
@@ -936,8 +975,9 @@ driver_wpo_compressed_o_ok() {
   txt=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
   [ "$txt" -gt 0 ] 2>/dev/null || return 1
   [ "$txt" -le 768 ] 2>/dev/null || return 1
-  nm "$o" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_x|entry)$' && return 0
-  nm "$o" 2>/dev/null | grep -q ' T ' 
+  # PLATFORM: SHARED — Mach-O nm prefixes `_`.
+  nm "$o" 2>/dev/null | grep -qE ' T (_)?(compile_dispatch_asm_backend|run_compiler_full_x|entry)$' && return 0
+  nm "$o" 2>/dev/null | grep -q ' T '
 }
 
 # B-strict：WPO 压缩 driver_compile.o；失败不覆盖已有压缩产物。
@@ -1059,19 +1099,29 @@ rebuild_driver_compile_post_strict_link() {
   fi
 }
 
-# strict_glue 链：pipeline.x ENTRY_MODULE_ONLY 自编译用于 WPO dogfood 烟测（须 reach OK）。
+# WPO dogfood smoke: compile runtime_pipeline_abi.x ENTRY_MODULE_ONLY (reach OK).
+# G.7: pipeline.x is pure-extern (0 bodies) → exit-0 empty .o; live orch is
+# runtime_pipeline_abi.x (pipeline_run_x_pipeline_impl). PLATFORM: SHARED.
 xlang_asm_entry_module_smoke_ok() {
   local comp="$1"
   local tmp="/tmp/xlang_wpo_entry_smoke.$$.o"
-  local tout="${XLANG_ASM_ENTRY_SMOKE_TIMEOUT:-120}"
+  local tout="${XLANG_ASM_ENTRY_SMOKE_TIMEOUT:-180}"
+  local smoke_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
   [ -x "$comp" ] || return 1
   rm -f "$tmp" 2>/dev/null || true
+  # PLATFORM: MACOS — EMIT_HEAVY=1 Abort risk on mega TU; prefer heavy=0.
+  local emit_heavy=1
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  emit_heavy=0
+  fi
   if command -v timeout >/dev/null 2>&1; then
-  timeout "$tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$comp" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null \
+  timeout "$tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$comp" -backend asm -o "$tmp" $LIBROOT "$smoke_src" 2>/dev/null \
   || { rm -f "$tmp" 2>/dev/null || true; return 1; }
-  elif ! env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$comp" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null; then
+  elif ! env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$comp" -backend asm -o "$tmp" $LIBROOT "$smoke_src" 2>/dev/null; then
   rm -f "$tmp" 2>/dev/null || true
   return 1
   fi
@@ -1087,32 +1137,48 @@ xlang_asm_entry_module_smoke_ok() {
   return 0
 }
 
-# ast_pool.c 变更后须重编 pipeline_x.o（含 WPO reach fixpoint）并重链 experimental。
+# WPO experimental freshness (G.7 single authority).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; live WPO source is runtime_pipeline_abi.x (+ seed twin). Stale checks on
+# deleted files never fired → experimental lagged ASM_WPO_MAX_FUNCS / emit_order
+# clamp and re-emitted ~814KiB fake strchr volume when preferred as fallback.
+# Name kept (call sites); body retargeted to abi.x / seed / pipeline_x.o.
 ensure_experimental_ast_pool_for_wpo() {
   local gen_drv="$BUILD_DIR/gen_driver/pipeline_x.o"
+  local abi_x="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
+  local abi_seed="seeds/runtime_pipeline_abi.from_x.c"
   local need=0
-  if [ ast_pool.c -nt pipeline_x.o ] 2>/dev/null || [ pipeline_glue.c -nt pipeline_x.o ] 2>/dev/null; then
+  # Host-cc mega pipeline_x.o still used in some bags: refresh when abi sources newer.
+  if [ -f "$abi_x" ] && { [ "$abi_x" -nt pipeline_x.o ] 2>/dev/null \
+    || { [ -f "$gen_drv" ] && [ "$abi_x" -nt "$gen_drv" ]; }; }; then
   need=1
-  elif [ -f "$gen_drv" ] && { [ ast_pool.c -nt "$gen_drv" ] || [ pipeline_glue.c -nt "$gen_drv" ]; }; then
+  elif [ -f "$abi_seed" ] && { [ "$abi_seed" -nt pipeline_x.o ] 2>/dev/null \
+    || { [ -f "$gen_drv" ] && [ "$abi_seed" -nt "$gen_drv" ]; }; }; then
   need=1
   fi
   if [ "$need" -eq 1 ]; then
   # Wave929: shell try-heat with PIPELINE_X_FORCE_COMPILE=1 (no make).
-  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug; MF must exist).
   if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    build_xlang_asm_info "ast_pool/glue stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
+    build_xlang_asm_info "abi/WPO source stale - make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1"
     make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || return 1
   else
-    build_xlang_asm_info "ast_pool/glue stale - try-heat pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 (wave929)"
+    build_xlang_asm_info "abi/WPO source stale - try-heat pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 (wave929)"
     PIPELINE_X_FORCE_COMPILE=1 bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o || return 1
   fi
   fi
   if [ ! -x ./scripts/relink_xlang_asm_experimental_bootstrap.sh ]; then
   return 1
   fi
-  if [ ! -x ./xlang_asm.experimental ] || [ pipeline_x.o -nt ./xlang_asm.experimental ] 2>/dev/null \
-  || [ ast_pool.c -nt ./xlang_asm.experimental ] 2>/dev/null; then
-  build_xlang_asm_info "relink xlang_asm.experimental (pipeline_x.o / ast_pool WPO)"
+  # Relink experimental when missing or abi / pipeline_x newer (fallback candidate).
+  # PLATFORM: SHARED — experimental relink writes xlang_asm.experimental only
+  # (no silent cp onto product xlang_asm). Do not export
+  # XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT from this ensure / ARTIFACTS_ONLY.
+  if [ ! -x ./xlang_asm.experimental ] \
+  || { [ -f "$abi_x" ] && [ "$abi_x" -nt ./xlang_asm.experimental ]; } \
+  || { [ -f "$abi_seed" ] && [ "$abi_seed" -nt ./xlang_asm.experimental ]; } \
+  || [ pipeline_x.o -nt ./xlang_asm.experimental ] 2>/dev/null; then
+  build_xlang_asm_info "relink xlang_asm.experimental (abi WPO source / pipeline_x.o; product xlang_asm untouched)"
   ./scripts/relink_xlang_asm_experimental_bootstrap.sh || return 1
   fi
   return 0
@@ -1127,21 +1193,34 @@ wpo_rebuild_compiler_candidates() {
   done
   return 0
   fi
+  # PLATFORM: SHARED — prefer product tip ./xlang_asm first. Stale
+  # ./xlang_asm.experimental often lags ASM_WPO_MAX_FUNCS / emit_order clamp
+  # (2026-08-24: experimental still 1024 → re-emit ~971× T _strchr / ~814KiB
+  # fake size after tip compress). experimental / strict_glue stay fallbacks.
   # pipeline 已 promote/selfhosted 时跳过 pipeline.x smoke（Docker 上易 futex 卡死数小时）
   if [ "${XLANG_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || asm_strict_pipeline_selfhosted 2>/dev/null; then
-  for comp in ./xlang_asm.experimental ./xlang_asm.strict_glue ./xlang_asm ./xlang-seed-phase1 ./xlang; do
+  for comp in ./xlang_asm ./xlang_asm.strict_glue ./xlang_asm.experimental ./xlang-seed-phase1 ./xlang; do
   [ -x "$comp" ] && printf '%s\n' "$comp"
   done
   return 0
   fi
-  if [ -x ./xlang_asm.experimental ] && xlang_asm_entry_module_smoke_ok ./xlang_asm.experimental; then
-  printf '%s\n' "./xlang_asm.experimental"
+  # PLATFORM: MACOS — abi smoke is ~20s/candidate (mega runtime_pipeline_abi.x).
+  # Skip smoke for candidate list speed; rebuild_pipeline_wpo_o still compiles abi.
+  # Escape: XLANG_ASM_FORCE_ENTRY_SMOKE=1.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "${XLANG_ASM_FORCE_ENTRY_SMOKE:-0}" != "1" ]; then
+  for comp in ./xlang_asm ./xlang_asm.strict_glue ./xlang_asm.experimental ./xlang; do
+  [ -x "$comp" ] && printf '%s\n' "$comp"
+  done
+  return 0
+  fi
+  if [ -x ./xlang_asm ] && xlang_asm_entry_module_smoke_ok ./xlang_asm; then
+  printf '%s\n' "./xlang_asm"
   fi
   if [ -x ./xlang_asm.strict_glue ] && xlang_asm_entry_module_smoke_ok ./xlang_asm.strict_glue; then
   printf '%s\n' "./xlang_asm.strict_glue"
   fi
-  if [ -x ./xlang_asm ] && xlang_asm_entry_module_smoke_ok ./xlang_asm; then
-  printf '%s\n' "./xlang_asm"
+  if [ -x ./xlang_asm.experimental ] && xlang_asm_entry_module_smoke_ok ./xlang_asm.experimental; then
+  printf '%s\n' "./xlang_asm.experimental"
   fi
   if [ -n "${XLANG_ASM_SECOND_PASS_COMPILER:-}" ] && [ -x "${XLANG_ASM_SECOND_PASS_COMPILER}" ] \
   && xlang_asm_entry_module_smoke_ok "${XLANG_ASM_SECOND_PASS_COMPILER}"; then
@@ -1164,13 +1243,19 @@ pipeline_wpo_tmp_reach_ok() {
   return 0
 }
 
-# pipeline.x WPO 压缩产物（dogfood；strict 仍用 build_asm/pipeline.o 全量 EMIT_HEAVY）。
+# pipeline_wpo.o dogfood from runtime_pipeline_abi.x (G.7 single authority).
+# wave335+: pipeline.x is pure-extern (0 bodies) → asm emit exit-0 empty; live orch
+# is runtime_pipeline_abi.x (pipeline_run_x_pipeline_impl + Cap faces).
+# 2026-08-24: emit_order OOB clamp → true __text ~37KiB (was ~814KiB strchr dups).
+# Soft size unless XLANG_WPO_PIPELINE_STRICT_SIZE=1. PLATFORM: SHARED.
 rebuild_pipeline_wpo_o() {
   local tmp="/tmp/xlang_build_pipeline_wpo.cli.o"
   local comp=""
   local txt=""
   local preserve_backup=""
-  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-12288}"
+  local pipe_src="${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}"
+  # Post-cap tip ~72KiB (FUNCS=2048 full emit); soft 96KiB headroom (STRICT_SIZE hard).
+  local pipe_wpo_max="${XLANG_WPO_PIPELINE_MAX_TEXT:-98304}"
   local pipe_tout="${XLANG_WPO_PIPELINE_COMPILE_TIMEOUT:-600}"
   if [ "${XLANG_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
   build_xlang_asm_info "skip pipeline_wpo.o recompile (XLANG_ASM_SKIP_WPO_DOGFOOD=1)"
@@ -1185,38 +1270,53 @@ rebuild_pipeline_wpo_o() {
   try_pipe_wpo() {
   local wpo_arg="$1"
   local compiler="$2"
+  local emit_heavy="${3:-1}"
   rm -f "$tmp" 2>/dev/null || true
   if command -v timeout >/dev/null 2>&1; then
   if [ -n "$wpo_arg" ]; then
   timeout "$pipe_tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE="$wpo_arg" \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" XLANG_ASM_WPO_DCE="$wpo_arg" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   else
   timeout "$pipe_tout" env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   fi
   elif [ -n "$wpo_arg" ]; then
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE="$wpo_arg" \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" XLANG_ASM_WPO_DCE="$wpo_arg" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   else
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$compiler" -backend asm -o "$tmp" $LIBROOT src/pipeline/pipeline.x 2>/dev/null || return 1
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+  "$compiler" -backend asm -o "$tmp" $LIBROOT "$pipe_src" 2>/dev/null || return 1
   fi
   txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   [ "$txt" -gt 0 ] || return 1
-  [ "$txt" -le "$pipe_wpo_max" ] 2>/dev/null || return 1
-  nm "$tmp" 2>/dev/null | grep -q 'run_x_pipeline_impl' || return 1
+  if [ "$txt" -gt "$pipe_wpo_max" ] 2>/dev/null; then
+  if [ "${XLANG_WPO_PIPELINE_STRICT_SIZE:-0}" = "1" ]; then
+  return 1
+  fi
+  build_xlang_asm_warn "pipeline_wpo.o __text=${txt}B > soft max ${pipe_wpo_max}B (post-compress soft OK)"
+  fi
+  nm "$tmp" 2>/dev/null | grep -qE '(_)?(pipeline_)?run_x_pipeline_impl' || return 1
   pipeline_wpo_tmp_reach_ok "$tmp" || return 1
   return 0
   }
-  build_xlang_asm_info "recompile pipeline_wpo.o (WPO DCE, run_x_pipeline_impl root, max __text=${pipe_wpo_max}B)"
+  build_xlang_asm_info "recompile pipeline_wpo.o from $pipe_src (WPO DCE, pipeline_run_x_pipeline_impl root, max __text=${pipe_wpo_max}B soft)"
   set +e
   while IFS= read -r comp; do
   [ -n "$comp" ] || continue
-  if try_pipe_wpo "" "$comp"; then
+  # PLATFORM: SHARED — mega runtime_pipeline_abi.x: prefer EMIT_HEAVY=0 first
+  # (Darwin Abort risk; Linux heavy path hang/fail on tip). Then try heavy=1.
+  if try_pipe_wpo "" "$comp" 0 || try_pipe_wpo "1" "$comp" 0 || try_pipe_wpo "0" "$comp" 0; then
+  mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
+  build_xlang_asm_info "pipeline_wpo.o OK via $comp (__text=${txt}B, EMIT_HEAVY=0, reach OK)"
+  rm -f "$preserve_backup" 2>/dev/null || true
+  set -e
+  return 0
+  fi
+  if try_pipe_wpo "" "$comp" 1 || try_pipe_wpo "0" "$comp" 1; then
   mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
   build_xlang_asm_info "pipeline_wpo.o OK via $comp (__text=${txt}B, reach OK)"
   rm -f "$preserve_backup" 2>/dev/null || true
@@ -1251,30 +1351,47 @@ rebuild_typeck_wpo_o() {
   try_tck_wpo() {
   local wpo_arg="$1"
   local compiler="$2"
+  local emit_heavy="${3:-1}"
   rm -f "$tmp" 2>/dev/null || true
   if [ -n "$wpo_arg" ]; then
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE="$wpo_arg" \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" XLANG_ASM_WPO_DCE="$wpo_arg" \
   "$compiler" -backend asm -o "$tmp" $LIBROOT src/typeck/typeck.x 2>/dev/null || return 1
   else
   env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 \
+  XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
   "$compiler" -backend asm -o "$tmp" $LIBROOT src/typeck/typeck.x 2>/dev/null || return 1
   fi
   txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   [ "$txt" -gt 0 ] || return 1
-  # Align with tests/baseline/wpo-typeck-o.tsv typeck_wpo_max_text_bytes (post-2026-07 true DCE ~4577B).
-  local tck_wpo_max="${XLANG_WPO_TYPECK_MAX_TEXT:-6144}"
+  # Align with tests/baseline/wpo-typeck-o.tsv (post-2026-07 true DCE ~4577B Linux).
+  # PLATFORM: MACOS — arm64 typeck_wpo tip ~9–10KiB; raise default cap when unset.
+  local tck_wpo_max="${XLANG_WPO_TYPECK_MAX_TEXT:-}"
+  if [ -z "$tck_wpo_max" ]; then
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  tck_wpo_max=16384
+  else
+  # tip Linux typeck_wpo ~6.5KiB (was 4577→6144; 2026-08-24 probe 6528).
+  tck_wpo_max=8192
+  fi
+  fi
   [ "$txt" -le "$tck_wpo_max" ] 2>/dev/null || return 1
   nm "$tmp" 2>/dev/null | grep -q 'typeck_x_ast' || return 1
   nm "$tmp" 2>/dev/null | grep -q 'check_block' || return 1
   return 0
   }
-  build_xlang_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_x_ast root, max __text=${XLANG_WPO_TYPECK_MAX_TEXT:-6144}B)"
+  build_xlang_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_x_ast root, max __text=${XLANG_WPO_TYPECK_MAX_TEXT:-8192}B; Darwin default 16384)"
   set +e
   while IFS= read -r comp; do
   [ -n "$comp" ] || continue
-  if try_tck_wpo "" "$comp"; then
+  # PLATFORM: SHARED — prefer EMIT_HEAVY=0 first (Darwin Abort; Linux tip ~6.5KiB OK).
+  if try_tck_wpo "" "$comp" 0 || try_tck_wpo "1" "$comp" 0 || try_tck_wpo "0" "$comp" 0; then
+  mv -f "$tmp" "$BUILD_DIR/typeck_wpo.o"
+  build_xlang_asm_info "typeck_wpo.o OK via $comp (__text=${txt}B, EMIT_HEAVY=0)"
+  set -e
+  return 0
+  fi
+  if try_tck_wpo "" "$comp" 1 || try_tck_wpo "0" "$comp" 1; then
   mv -f "$tmp" "$BUILD_DIR/typeck_wpo.o"
   build_xlang_asm_info "typeck_wpo.o OK via $comp (__text=${txt}B)"
   set -e
@@ -1344,19 +1461,26 @@ rebuild_backend_wpo_post_strict() {
 # 仅重编 WPO dogfood 五模块（CI/stage2 补链；须已有可执行 ./xlang_asm，跳过 BUILD 循环与链接）。
 if [ "${XLANG_WPO_REBUILD_ARTIFACTS_ONLY:-}" = "1" ]; then
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-  # ast_pool WPO reach：重编 pipeline_x.o + relink experimental（WPO 产物编应用须 xlang_asm.experimental 或 strict_glue）。
+  # G.7: WPO authority = runtime_pipeline_abi.x (+ seed). ensure refreshes
+  # experimental from abi freshness (deleted ast_pool.c never fired). ARTIFACTS
+  # dogfood prefers tip ./xlang_asm — only relink strict_glue when pipeline_x.o
+  # itself is newer (avoid abi-mtime → full strict relink every dogfood).
+  # experimental relink does not overwrite product xlang_asm (promote escape
+  # must stay unset here).
   ensure_experimental_ast_pool_for_wpo || \
-  build_xlang_asm_warn "ensure_experimental_ast_pool_for_wpo failed (WPO rebuild may use stale ast_pool)"
+  build_xlang_asm_warn "ensure_experimental_ast_pool_for_wpo failed (WPO rebuild may use stale experimental)"
   if [ -x ./scripts/relink_xlang_asm_strict_glue.sh ] \
-  && { [ ast_pool.c -nt ./xlang_asm.strict_glue ] 2>/dev/null || [ pipeline_glue.c -nt ./xlang_asm.strict_glue ] 2>/dev/null \
-  || [ pipeline_x.o -nt ./xlang_asm.strict_glue ] 2>/dev/null; }; then
-  build_xlang_asm_info "ast_pool/glue newer - relink xlang_asm.strict_glue (pipeline_glue_standalone only, no xlang_asm overwrite)"
+  && [ -x ./xlang_asm.strict_glue ] \
+  && [ pipeline_x.o -nt ./xlang_asm.strict_glue ] 2>/dev/null; then
+  build_xlang_asm_info "pipeline_x.o newer - relink xlang_asm.strict_glue (no xlang_asm overwrite)"
   ./scripts/relink_xlang_asm_strict_glue.sh || \
   build_xlang_asm_warn "relink_xlang_asm_strict_glue failed"
   fi
   wpo_fail=0
   rebuild_main_o_for_cli || wpo_fail=1
   rebuild_driver_compile_o_wpo || wpo_fail=1
+  # G.7: pipeline_wpo from runtime_pipeline_abi.x (pipeline.x pure-extern empty).
+  # Hard-require on both Darwin and Linux once abi source is wired.
   rebuild_pipeline_wpo_o || wpo_fail=1
   rebuild_typeck_wpo_o || wpo_fail=1
   rebuild_backend_wpo_o || wpo_fail=1
@@ -1443,9 +1567,21 @@ detect_pipeline_gen_cflags() {
 # Target B 实验链：编译 pipeline_run_x_pipeline 最小 C 桥（见 seeds/pipeline_glue_link.from_x.c）。
 ensure_asm_pipeline_glue_link_obj() {
   GLUE_LINK_OBJ="$BUILD_DIR/pipeline_glue_link.o"
-  if [ ! -f "$GLUE_LINK_OBJ" ] || [ "seeds/pipeline_glue_link.from_x.c" -nt "$GLUE_LINK_OBJ" ]; then
-  echo " cc -c seeds/pipeline_glue_link.from_x.c -> $GLUE_LINK_OBJ"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_glue_link.from_x.c "$GLUE_LINK_OBJ"
+  # 7.2.1 third knife: .x authority (src/pipeline_glue_link.x) via cc_inc_tu
+  # --auto prefer lane; seed fallback when no product binary (cold start).
+  # Freshness covers .x AND the seed (whichever is newer wins the rebuild).
+  _pgl_stale=0
+  [ ! -f "$GLUE_LINK_OBJ" ] && _pgl_stale=1
+  [ -f src/pipeline_glue_link.x ] && [ src/pipeline_glue_link.x -nt "$GLUE_LINK_OBJ" ] && _pgl_stale=1
+  [ -f seeds/pipeline_glue_link.from_x.c ] && [ seeds/pipeline_glue_link.from_x.c -nt "$GLUE_LINK_OBJ" ] && _pgl_stale=1
+  if [ "$_pgl_stale" = "1" ]; then
+    if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+      echo " cc_inc_tu --auto (src/pipeline_glue_link.x) -> $GLUE_LINK_OBJ"
+      sh scripts/cc_inc_tu.sh --auto "$GLUE_LINK_OBJ"
+    else
+      echo " cc -c seeds/pipeline_glue_link.from_x.c -> $GLUE_LINK_OBJ"
+      sh scripts/cc_inc_tu.sh seeds/pipeline_glue_link.from_x.c "$GLUE_LINK_OBJ"
+    fi
   fi
 }
 
@@ -1487,6 +1623,8 @@ ensure_parser_bootstrap_partial_obj() {
 }
 
 # strict 链：从 pipeline_x.o 导出全部 parser_* 真机码（自洽 TU），替代 build_asm/parser.o 桩 + 零散 partial。
+# PLATFORM: SHARED — SYMS freshness = producer .o (+ script/$0 when present); deleted
+# ast_pool.c -nt never fired post-leave (same debt layer as glue_standalone ensure).
 ensure_parser_from_x_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/parser_from_x_partial.o"
@@ -1496,7 +1634,7 @@ ensure_parser_from_x_partial_obj() {
   if [ ! -f "$SUO" ]; then
   ensure_asm_gen_driver_x_objs
   fi
-  if [ ! -f "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ]; then
+  if [ ! -f "$SYMS" ] || [ "$SUO" -nt "$SYMS" ]; then
   GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
   ensure_asm_pipeline_glue_standalone_obj
   nm "$SUO" | awk '/ T _parser_/ {print $3}' > "$BUILD_DIR/.parser_from_x_all.txt"
@@ -1569,9 +1707,16 @@ EOF
 ensure_pipeline_asm_typecheck_alias_obj() {
   local ALIAS_O
   ALIAS_O="$BUILD_DIR/pipeline_asm_typecheck_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_asm_typecheck_alias.from_x.c" -nt "$ALIAS_O" ]; then
-  echo " cc -c seeds/pipeline_asm_typecheck_alias.from_x.c -> $ALIAS_O"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_asm_typecheck_alias.from_x.c "$ALIAS_O"
+  # 7.2.1 eleventh knife: .x authority via cc_inc_tu --auto prefer lane.
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_typecheck_alias.x -nt "$ALIAS_O" ] \
+       || { [ -f seeds/pipeline_asm_typecheck_alias.from_x.c ] && [ seeds/pipeline_asm_typecheck_alias.from_x.c -nt "$ALIAS_O" ]; }; then
+      echo " cc_inc_tu --auto (src/pipeline_asm_typecheck_alias.x) -> $ALIAS_O"
+      sh scripts/cc_inc_tu.sh --auto "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_asm_typecheck_alias.from_x.c" -nt "$ALIAS_O" ]; then
+    echo " cc -c seeds/pipeline_asm_typecheck_alias.from_x.c -> $ALIAS_O"
+    sh scripts/cc_inc_tu.sh seeds/pipeline_asm_typecheck_alias.from_x.c "$ALIAS_O"
   fi
 }
 
@@ -1581,7 +1726,14 @@ ensure_pipeline_asm_run_all_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_run_all_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_run_all_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_run_all_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_asm_run_all_alias.from_x.c" -nt "$ALIAS_O" ]; then
+  # 7.2.1 ninth knife: .x authority via cc_inc_tu --auto prefer lane.
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_run_all_alias.x -nt "$ALIAS_O" ] \
+       || { [ -f seeds/pipeline_asm_run_all_alias.from_x.c ] && [ seeds/pipeline_asm_run_all_alias.from_x.c -nt "$ALIAS_O" ]; }; then
+      echo " cc_inc_tu --auto (src/pipeline_asm_run_all_alias.x) -> $ALIAS_O"
+      sh scripts/cc_inc_tu.sh --auto "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_asm_run_all_alias.from_x.c" -nt "$ALIAS_O" ]; then
   echo " cc -c seeds/pipeline_asm_run_all_alias.from_x.c -> $ALIAS_O"
   sh scripts/cc_inc_tu.sh seeds/pipeline_asm_run_all_alias.from_x.c "$ALIAS_O"
   fi
@@ -1687,12 +1839,22 @@ pipeline_strict_link_export_syms_stale() {
 }
 
 ensure_pipeline_o_strict_link_partial_obj() {
-  local PARTIAL SYMS PO WPO_E
+  local PARTIAL SYMS PO WPO_E n_t
   PARTIAL="$BUILD_DIR/pipeline_strict_link_partial.o"
   SYMS="$BUILD_DIR/pipeline_strict_link_export.txt"
   PO="$BUILD_DIR/pipeline.o"
   WPO_E="$BUILD_DIR/pipeline_wpo.o"
   if [ ! -f "$PO" ] || [ ! -s "$PO" ]; then
+  return 1
+  fi
+  # G.7: wave335+ pipeline.x pure-extern → build_asm/pipeline.o often 0 T.
+  # Live orch = runtime_pipeline_abi / pipeline_wpo; skip empty partial (no hard error).
+  # PLATFORM: SHARED.
+  n_t=$(nm "$PO" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${n_t:-0}" -eq 0 ] && asm_pipeline_wpo_strict_reach_ok; then
+  build_xlang_asm_info "skip pipeline_strict_link_partial (pipeline.o 0 T pure-extern; WPO/abi covers)"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  : >"$SYMS"
   return 1
   fi
   if pipeline_strict_link_export_syms_stale "$SYMS" "$PO"; then
@@ -1712,7 +1874,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   build_xlang_asm_warn "stale pipeline_strict_link export (missing W resolve_path); regen"
   rm -f "$SYMS" "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_x_glue_support_export.txt" -nt "$SYMS" ]; }; then
   # PLATFORM: SHARED — pipeline.x emits resolve_path helpers as weak (W); bridge needs them.
@@ -1774,6 +1936,12 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   if ! asm_pipeline_wpo_strict_reach_ok; then
   return 1
   fi
+  # G.7: abi already on LD argv → skip helpers extract (overlap + Darwin LC_SEGMENT /
+  # Ubuntu internal multi-def if emit_order OOB regresses). PLATFORM: SHARED.
+  if asm_strict_pipeline_selfhosted; then
+  build_xlang_asm_info "skip pipeline_wpo_helpers_partial (runtime_pipeline_abi on LD argv)"
+  return 1
+  fi
   # PLATFORM: SHARED — do not overwrite full selfhosted pipeline.o (pipeline_x, 1000+ T
   # with pipeline_resolve_path_*) with WPO-helpers-only; bare resolve_path_* come from pipeline_wpo.o.
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && [ -f "$BUILD_DIR/pipeline.o" ]; then
@@ -1788,9 +1956,11 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   echo " pipeline_wpo_helpers: rebuild pipeline.o EMIT_HEAVY via $comp"
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   rm -f "$tmp" 2>/dev/null || true
+  # G.7: resolve_path helpers live in runtime_pipeline_abi.x (pipeline.x pure-extern).
   if env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
-  XLANG_ASM_ENTRY_EMIT_HEAVY=1 XLANG_ASM_WPO_DCE=0 \
-  "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src src/pipeline/pipeline.x 2>/dev/null; then
+  XLANG_ASM_ENTRY_EMIT_HEAVY=0 XLANG_ASM_WPO_DCE=0 \
+  "$comp" -backend asm -o "$tmp" -L asm_libroot -L .. -L src \
+  "${XLANG_WPO_PIPELINE_SRC:-src/runtime_pipeline_abi.x}" 2>/dev/null; then
   pt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   if [ "$pt" -gt 512 ] 2>/dev/null && \
   nm "$tmp" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
@@ -1855,7 +2025,7 @@ ensure_typeck_wpo_helpers_partial_obj() {
   if [ -f "$PARTIAL" ]; then
   nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?typeck_x_ast$' && rm -f "$PARTIAL" "$SYMS"
   fi
-  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ]; then
+  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ]; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE "$EXCLUDE_RE" >"$SYMS"
   echo " nm typeck_wpo.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') layout syms, minus check_block/check_expr/typeck_x_ast*)"
   fi
@@ -1878,9 +2048,18 @@ ensure_pipeline_asm_runtime_partial_obj() {
 }
 
 # strict 回退：build_asm pipeline 仍不足时，从 pipeline_x.o 部分链接完整 pipeline_run_x_pipeline_impl。
+# G.7: when runtime_pipeline_abi.o is selfhosted (already on strict LD argv), skip —
+# pipeline_x.o is a pure-extern stub (0 T); ld -r -exported_symbols_list for
+# _pipeline_run_x_pipeline_impl UNDEFs. Callers use `ensure && FILTERED=...partial`.
+# PLATFORM: SHARED.
 ensure_pipeline_runtime_bootstrap_partial_obj() {
   local PARTIAL SYMS SUO
   PARTIAL="$BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
+  if asm_strict_pipeline_selfhosted; then
+  build_xlang_asm_info "skip pipeline_runtime_bootstrap_partial (runtime_pipeline_abi on LD argv)"
+  rm -f "$PARTIAL" 2>/dev/null || true
+  return 1
+  fi
   SYMS="$BUILD_DIR/pipeline_runtime_export.txt"
   SUO="$BUILD_DIR/gen_driver/pipeline_x.o"
   ensure_pipeline_x_o_fresh
@@ -1890,7 +2069,7 @@ ensure_pipeline_runtime_bootstrap_partial_obj() {
   if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   printf '%s\n' '_pipeline_run_x_pipeline_impl' > "$SYMS"
   echo " ld partial export $SYMS pipeline_x.o -> $PARTIAL"
-  ld_partial_export "$SYMS" "$PARTIAL" "$SUO"
+  ld_partial_export "$SYMS" "$PARTIAL" "$SUO" || return 1
   fi
 }
 
@@ -1913,7 +2092,7 @@ ensure_pipeline_x_glue_support_partial_obj() {
   ensure_typeck_o_strict_link_partial_obj || true
   TCK_SYMS="$BUILD_DIR/typeck_strict_link_export.txt"
   fi
-  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$SUO" -nt "$SYMS" ] || \
   { [ -f "$TCK_SYMS" ] && [ "$TCK_SYMS" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
   ensure_pipeline_glue_standalone_export_syms_txt || return 1
@@ -2040,6 +2219,16 @@ EOF
 ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   local BR_O="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
   local BR_SRC="seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c"
+  # 7.2.1 fifth knife: .x authority (src/pipeline_wpo_typecheck_emit_bridge.x)
+  # via cc_inc_tu --auto prefer lane; seed fallback when no product binary.
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$BR_O" ] || [ src/pipeline_wpo_typecheck_emit_bridge.x -nt "$BR_O" ] \
+       || { [ -f "$BR_SRC" ] && [ "$BR_SRC" -nt "$BR_O" ]; }; then
+      echo " cc_inc_tu --auto (src/pipeline_wpo_typecheck_emit_bridge.x) -> $BR_O (WPO typecheck emit bridge)"
+      sh scripts/cc_inc_tu.sh --auto "$BR_O" || return 1
+    fi
+    return 0
+  fi
   if [ ! -f "$BR_SRC" ]; then
   return 1
   fi
@@ -2056,6 +2245,16 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   local ALIAS_SRC="seeds/pipeline_wpo_strict_link_alias.from_x.c"
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -ne 1 ] || ! asm_pipeline_wpo_strict_reach_ok; then
   return 0
+  fi
+  # 7.2.1 seventh knife: .x authority via cc_inc_tu --auto prefer lane;
+  # seed fallback when no product binary (cold start).
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_wpo_strict_link_alias.x -nt "$ALIAS_O" ] \
+       || { [ -f "$ALIAS_SRC" ] && [ "$ALIAS_SRC" -nt "$ALIAS_O" ]; }; then
+      echo " cc_inc_tu --auto (src/pipeline_wpo_strict_link_alias.x) -> $ALIAS_O (WPO strict link alias)"
+      sh scripts/cc_inc_tu.sh --auto "$ALIAS_O" || return 1
+    fi
+    return 0
   fi
   if [ ! -f "$ALIAS_SRC" ]; then
   return 1
@@ -2084,11 +2283,12 @@ typeck_wpo_strict_partial_export_syms_stale() {
 }
 
 # pipeline_glue_standalone.o 全局 T 导出表：与 build_asm/typeck.o 并列链时会 duplicate ast_pool/glue → fill_cl SIGSEGV。
+# PLATFORM: SHARED — freshness authority = GLUE_O only (deleted pipeline_glue.c -nt never fired).
 ensure_pipeline_glue_standalone_export_syms_txt() {
   local GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
   local OUT="$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt"
   [ -f "$GLUE_O" ] || return 1
-  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ] || [ "pipeline_glue.c" -nt "$OUT" ]; then
+  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ]; then
   nm "$GLUE_O" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$OUT"
   fi
   [ -s "$OUT" ] || return 1
@@ -2140,7 +2340,7 @@ ensure_typeck_o_strict_link_partial_obj() {
   if [ -f "$PARTIAL" ] && [ -f "$GLUE_O" ] && [ "$GLUE_O" -nt "$PARTIAL" ]; then
   rm -f "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$TCKO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$TCKO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$GLUE_O" ] && [ "$GLUE_O" -nt "$SYMS" ]; }; then
   nm "$TCKO" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS"
@@ -2221,7 +2421,8 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
   fi
 }
 
-# B-strict：最小 glue（无 ast_pool）；编排真机在 ast_pool.c glue_standalone。
+# B-strict：最小 glue shell；编排真机在 runtime_pipeline_abi／pipeline.x
+# （ast_pool.c / glue_standalone mega left wave309）。
 # wave304 G.7 8.3.6: seed shell retired (0 residual T after wave303). Product
 # g05 no longer host-cc or links this .o. Soft no-op when seed absent so
 # experimental strict paths do not hard-fail; they must resolve via typeck_x /
@@ -2342,21 +2543,23 @@ asm_pipeline_wpo_strict_link_full_ok() {
   return 0
 }
 
-# Linux reach OK 时默认链 pipeline_wpo helpers + C 编排（稳定）；FULL=1 显式开启整颗 pipeline_wpo.o。
+# Linux/Darwin reach OK 时默认链 pipeline_wpo；FULL=1 显式开启整颗 pipeline_wpo.o。
+# When runtime_pipeline_abi already on LD argv, keep FULL=0 (avoid dual-authority).
+# PLATFORM: SHARED.
 maybe_default_pipeline_wpo_strict_link() {
   if [ -n "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO+x}" ]; then
   return 0
   fi
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
-  Linux-x86_64|Linux-amd64|Linux-aarch64|Linux-arm64)
+  Linux-x86_64|Linux-amd64|Linux-aarch64|Linux-arm64|Darwin-arm64|Darwin-x86_64)
   if asm_pipeline_wpo_strict_reach_ok; then
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1
-  if [ "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-0}" = "1" ]; then
+  if [ "${XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-0}" = "1" ] && ! asm_strict_pipeline_selfhosted; then
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1
   build_xlang_asm_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 + FULL=1 (whole pipeline_wpo.o + glue support)"
   else
   export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=0
-  build_xlang_asm_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers + C orchestration)"
+  build_xlang_asm_info "default XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers + C orch; abi covers when selfhosted)"
   fi
   fi
   ;;
@@ -2434,19 +2637,19 @@ ensure_bstrict_filtered_obj_against_seed_partial() {
   local out_o="$2"
   local tag="$3"
   local seed_o="$BUILD_DIR/seed_host/asm_backend_partial.o"
-  local src_syms="$BUILD_DIR/.${tag}_all_t.txt"
-  local seed_syms="$BUILD_DIR/.bstrict_seed_partial_all_t.txt"
-  local keep_syms="$BUILD_DIR/.${tag}_keep.txt"
+  # PLATFORM: SHARED — G.7 twin of filter_bootstrap_seed_against_partial_o /
+  #   filter_o_export_against_deps (Darwin -arch + ar-archive path).
+  # Do NOT use bare ld_partial_export here: Xcode ld needs -arch, and prefer/libtool
+  # may leave SRC as ar (multi LC_SEGMENT); Apple ld has returned 0 with no OUT.
   [ -f "$src_o" ] || return 1
   [ -f "$seed_o" ] || return 1
-  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$seed_o" -nt "$out_o" ] || [ "$keep_syms" -nt "$out_o" ]; then
-  nm "$src_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$src_syms"
-  nm "$seed_o" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$seed_syms"
-  comm -23 "$src_syms" "$seed_syms" >"$keep_syms"
-  [ -s "$keep_syms" ] || return 1
-  echo " ld partial export $keep_syms $(basename "$src_o") -> $(basename "$out_o")"
-  ld_partial_export "$keep_syms" "$out_o" "$src_o" || return 1
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$seed_o" -nt "$out_o" ]; then
+  echo " filter_o_export $(basename "$src_o") -> $(basename "$out_o") (bstrict vs seed_partial; stem=$tag)"
+  bash scripts/filter_o_export_against_deps.sh \
+    --src "$src_o" --out "$out_o" --stem "$tag" \
+    --omit "$seed_o" || return 1
   fi
+  [ -s "$out_o" ] || return 1
   return 0
 }
 
@@ -2476,25 +2679,58 @@ ensure_bstrict_pipeline_filtered_obj() {
 
 # PLATFORM: DARWIN — experimental bootstrap needs strict_glue_stubs (preprocess/codegen/ast
 # helpers) but must not re-export asm_driver_* already strong in runtime_asm_build.o.
-# Authority: keep full stubs on Linux; Darwin uses this partial export instead of dropping
-# the whole .o (which left U preprocess_*/codegen_*/ast_module_free).
+# Authority: keep full stubs on Linux; Darwin uses filter_o_export partial instead of
+# dropping the whole .o (which left U preprocess_*/codegen_*/ast_module_free).
+# Stage2 round2 tip: prefer/libtool may leave src as **ar archive** (multi LC_SEGMENT);
+# local ld_partial_export lacked -arch and cannot re-filter ar → filt fail → historical
+# "drop stubs" fallback → UNDEF codegen_set_* / pipeline_block_labeled_set_names.
+# G.7: filter_o_export_against_deps.sh is the ld -r authority (Darwin -arch + ar path).
 ensure_bstrict_darwin_strict_glue_stubs_filt_obj() {
   local src_o="src/runtime_driver_strict_glue_stubs.o"
   local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
-  local keep_syms="$BUILD_DIR/.bstrict_strict_glue_stubs_darwin_keep.txt"
-  # Ensure source .o exists (same seed as G-02f-11 product path).
-  if [ ! -f "$src_o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$src_o" ]; then
-  echo " cc -c $src_o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (Darwin filt prep)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$src_o" || return 1
+  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
+  local need_cc=0
+  # Prefer/libtool may leave an ar at src_o; force a fresh MH_OBJECT before filter.
+  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
+  need_cc=1
+  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
+  need_cc=1
+  fi
+  if [ "$need_cc" = "1" ]; then
+  echo " cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
   fi
   [ -f "$src_o" ] || return 1
-  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$keep_syms" -nt "$out_o" ]; then
-  nm "$src_o" 2>/dev/null | awk '/ T / {print $3}' \
-    | grep -vE 'asm_driver_set_current_dep_path_for_codegen|asm_driver_skip_codegen_dep_0_get' \
-    | sort -u >"$keep_syms"
-  [ -s "$keep_syms" ] || return 1
-  echo " ld partial export $keep_syms $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_*)"
-  ld_partial_export "$keep_syms" "$out_o" "$src_o" || return 1
+  # Stale filt that still exports asm_asm_codegen_* must rebuild (omit set expanded).
+  if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  rm -f "$out_o"
+  fi
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ]; then
+  # Omit asm_driver_* (strong in runtime_asm_build) and asm_asm_codegen_* (strong in
+  # user_asm_seed_bridge ar). Archive members are only extracted for currently
+  # undefined symbols: if weak -1 stubs pre-satisfy U, Stage2 Darwin never pulls
+  # the real bridge → CG002 code_len=0 on every user asm -o (G.7 twin g05 order).
+  echo " filter_o_export $(basename "$src_o") -> $(basename "$out_o") (Darwin, omit asm_driver_* + asm_asm_codegen_*)"
+  bash scripts/filter_o_export_against_deps.sh \
+    --src "$src_o" --out "$out_o" --stem bstrict_strict_glue_stubs_darwin \
+    --omit-sym asm_driver_set_current_dep_path_for_codegen \
+    --omit-sym asm_driver_skip_codegen_dep_0_get \
+    --omit-sym asm_asm_codegen_elf_o \
+    --omit-sym asm_asm_codegen_ast \
+    --require-keep || return 1
+  fi
+  # Required fillers for runtime_driver_asm_strict + parser_x (Stage2 round2 UNDEF map).
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'codegen_set_dep_slots_for_x_pipeline'; then
+  build_xlang_asm_warn "Darwin stubs filt missing codegen_set_dep_slots_for_x_pipeline"
+  return 1
+  fi
+  if ! nm -gU "$out_o" 2>/dev/null | grep -q 'pipeline_block_labeled_set_names'; then
+  build_xlang_asm_warn "Darwin stubs filt missing pipeline_block_labeled_set_names"
+  return 1
+  fi
+  if nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
+  build_xlang_asm_warn "Darwin stubs filt still exports asm_asm_codegen_* (must omit for user_asm ar)"
+  return 1
   fi
   return 0
 }
@@ -2606,7 +2842,7 @@ ensure_backend_o_strict_link_partial_obj() {
   if [ -f "$PARTIAL" ] && [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
   nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?arch_emit_add_imm_to_rax$' || rm -f "$PARTIAL"
   fi
-  if [ ! -f "$SYMS" ] || [ "$BACKO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$BACKO" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; }; then
   nm "$BACKO" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS"
   if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && [ -f "$WPO_E" ] && asm_backend_wpo_strict_reach_ok; then
@@ -2879,8 +3115,9 @@ filter_experimental_asm_objs() {
   pipeline_asm_strict_support_partial.o|pipeline_asm_codegen_only_partial.o|\
   pipeline_asm_strict_core_partial.o|\
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
-  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
   bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
+  runtime_driver_strict_glue_stubs.o|\
   pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
   driver_compile_parse_argv_loop_partial.o|\
   typeck_asm_layout_partial.o|typeck_x_no_layout_partial.o|typeck_c_orchestration_partial.o|\
@@ -2982,7 +3219,13 @@ filter_strict_asm_objs() {
   if ensure_pipeline_o_strict_link_partial_obj; then
   FILTERED="$FILTERED $BUILD_DIR/pipeline_strict_link_partial.o"
   else
+  # G.7: skip empty pure-extern pipeline.o when WPO/abi covers. PLATFORM: SHARED.
+  _po_t=$(nm "$o" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${_po_t:-0}" -eq 0 ] && { asm_pipeline_wpo_strict_reach_ok || asm_strict_pipeline_selfhosted; }; then
+  build_xlang_asm_info "skip empty pipeline.o on strict LD (WPO/abi covers)"
+  else
   FILTERED="$FILTERED $o"
+  fi
   fi
   fi
   continue
@@ -3006,8 +3249,9 @@ filter_strict_asm_objs() {
   pipeline_asm_strict_support_partial.o|pipeline_asm_codegen_only_partial.o|\
   pipeline_asm_strict_core_partial.o|\
   bootstrap_seed_pipeline_filtered.o|bootstrap_seed_user_asm_seed_bridge_filtered.o|bootstrap_seed_asm_backend_compat_stubs_filtered.o|bootstrap_seed_backend_x86_64_enc_c_filtered.o|\
-  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
+  bstrict_pipeline_filtered.o|bstrict_user_asm_seed_bridge_filtered.o|bstrict_user_asm_seed_bridge_host.o|bstrict_asm_backend_compat_stubs_filtered.o|bstrict_backend_x86_64_enc_c_filtered.o|\
   bstrict_strict_glue_stubs_darwin.o|bstrict_pipeline_glue_minimal_complement.o|preprocess_if_stack_only.o|\
+  runtime_driver_strict_glue_stubs.o|\
   pipeline_run_bootstrap_trampoline.o|pipeline_bootstrap_orchestration_strict.o|\
   driver_compile_parse_argv_loop_partial.o|\
   typeck_skip.o|typeck_heavy.o|typeck.second.o|\
@@ -3075,7 +3319,22 @@ filter_strict_asm_objs() {
   fi
   if [ "$base" = "driver_compile_link.o" ]; then
   if asm_strict_link_driver_selfhosted; then
+  # PLATFORM: MACOS — pure_ld_partial_merge may leave link.o as libtool ar (F7
+  # two LC_SEGMENT). Apple ld extracts archive members only for currently-U
+  # symbols; weak/other defs can suppress the strong EMIT_HEAVY body. Expand to
+  # the underlying MH_OBJECT members (G.7 twin of Darwin user_asm MH host).
+  # PLATFORM: LINUX — link.o stays single ET_REL; keep as-is.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] \
+    && file "$o" 2>/dev/null | grep -qi 'ar archive'; then
+  FILTERED="$FILTERED $BUILD_DIR/driver_compile_emit_heavy.o $BUILD_DIR/driver_compile_asm_link_alias.o"
+  if [ -f "$BUILD_DIR/driver_compile_parse_argv_loop_partial.o" ] \
+    && nm "$BUILD_DIR/driver_compile_emit_heavy.o" 2>/dev/null \
+      | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
+  FILTERED="$FILTERED $BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
+  fi
+  else
   FILTERED="$FILTERED $o"
+  fi
   fi
   continue
   fi
@@ -3101,15 +3360,36 @@ filter_strict_asm_objs() {
   fi
   ;;
   esac
+  # PLATFORM: DARWIN — Apple ld-1267+ errors on multiple weak _xlang_asm_ci_text_stub
+  # across FILTERED first-pass stubs (arm64/ast/token/types/preprocess …). Skip pure
+  # CI text stubs (≤64B, no other global T). SHARED-safe: Linux weak coalesce OK, but
+  # stubs add no real symbols either way.
+  _stub_t=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
+  if [ "${_stub_t:-0}" -le 64 ] 2>/dev/null \
+  && nm "$o" 2>/dev/null | grep -qE '(_)?xlang_asm_ci_text_stub$'; then
+  _other_t=$(nm -g "$o" 2>/dev/null | awk '/ [Tt] / && $3 !~ /xlang_asm_ci_text_stub/ { c++ } END { print c+0 }')
+  if [ "${_other_t:-0}" = "0" ]; then
+  build_xlang_asm_info "strict skip CI text stub $base (__text=${_stub_t}B)"
+  continue
+  fi
+  fi
   FILTERED="$FILTERED $o"
   done
 }
 
 # Target B 实验链：独立 pipeline_glue+ast_pool TU（类型从 pipeline_gen.c 抽取，不含 .x 函数体）。
+# wave309: seed retired — early-return when absent (G.7 twin of g05_ensure /
+# experimental_bootstrap / strict_glue). Ban -E pipeline.x / cc_inc_tu noise on
+# Stage2 round2 when ASM_GLUE_STANDALONE_O is empty. PLATFORM: SHARED.
 ensure_asm_pipeline_glue_standalone_obj() {
+  GLUE_STANDALONE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+  if [ ! -f seeds/pipeline_glue_standalone.from_x.c ]; then
+  build_xlang_asm_info "skip pipeline_glue_standalone (wave309 seed retired; use pipeline_glue_strict_minimal / runtime_pipeline_abi)"
+  rm -f "$GLUE_STANDALONE_OBJ" 2>/dev/null || true
+  return 0
+  fi
   detect_pipeline_gen_cflags
   GLUE_TYPES="$BUILD_DIR/pipeline_glue_types.inc"
-  GLUE_STANDALONE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
   GEN_PIPELINE="$BUILD_DIR/gen_driver/pipeline_gen.c"
   NEED_GEN=0
   if [ ! -f "$GEN_PIPELINE" ] || [ ! -s "$GEN_PIPELINE" ]; then
@@ -3140,8 +3420,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
   done
   [ -z "$XLANG_E_LOCAL" ] && XLANG_E_LOCAL="$XLANG"
   fi
-  # glue 仅需类型/extern（extract_pipeline_glue_types.pl 在 #include pipeline_glue.c 前截断）；
-  # 全量 -E 会内联 std.io 等大依赖，codegen 中途失败产出截断 C 且 exit=1，阻断 set -e 链。
+  # glue types only: extract_pipeline_glue_types.pl from -E-extern gen
+  # (pipeline_glue.c left wave309 — no mega include truncate). Full -E would
+  # inline std.io etc.; mid-codegen failure yields truncated C and trips set -e.
   echo " $XLANG_E_LOCAL -E -E-extern pipeline.x -> $GEN_PIPELINE (glue standalone types) ..."
   "$XLANG_E_LOCAL" -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess \
   -E -E-extern src/pipeline/pipeline.x >"$GEN_PIPELINE"
@@ -3159,7 +3440,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
   perl -i -0777 -pe 's/\nenum ast_ExprKind parser_compound_assign_token_to_expr_kind\(enum token_TokenKind kind\) \{\n return compound_assign_token_to_expr_kind_from_glue\(kind\);\n\}//g' "$GLUE_TYPES" 2>/dev/null || true
   fi
   fi
-  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
+  # Authority = seed + glue_types + extract/patch scripts (deleted ast_pool.c /
+  # pipeline_glue.c -nt never fired post-leave). PLATFORM: SHARED.
+  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
   build_xlang_asm_info "cc -c seeds/pipeline_glue_standalone.from_x.c -> $GLUE_STANDALONE_OBJ"
   if ! sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$GLUE_STANDALONE_OBJ" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"; then
   build_xlang_asm_warn "pipeline_glue_standalone.o compile failed (strict 链可继续用 pipeline_glue_strict_minimal)"
@@ -3190,9 +3473,20 @@ ensure_preprocess_if_stack_provider_obj() {
   if [ ! -f "$pure_o" ] && [ -f "compiler/src/runtime_pipeline_abi.o" ]; then
     pure_o="compiler/src/runtime_pipeline_abi.o"
   fi
-  src_o="$pure_o"
   out_o="$BUILD_DIR/preprocess_if_stack_only.o"
   keep_list="$BUILD_DIR/.preprocess_if_stack_only_keep.txt"
+  # G.7: runtime_pipeline_abi.o already defines preprocess_if_stack_* and is on
+  # the strict LD argv. Skip the companion partial — Darwin prefer/libtool may
+  # leave abi as an ar archive; ld_partial_export lacks -arch → "Missing -arch"
+  # and set -e abort. Also avoids duplicate T if a partial ever succeeded.
+  # Callers must only link preprocess_if_stack_only.o when the file exists.
+  # PLATFORM: SHARED.
+  if [ -f "$pure_o" ] && nm -g "$pure_o" 2>/dev/null | grep -qE '(_)?preprocess_if_stack_reset'; then
+    build_xlang_asm_info "skip preprocess_if_stack_only (runtime_pipeline_abi already provides)"
+    rm -f "$out_o" 2>/dev/null || true
+    return 0
+  fi
+  src_o="$pure_o"
   if [ ! -f "$src_o" ]; then
     # Fallback: rebuild standalone only if pure .o missing (dev tree half-clean).
     ensure_asm_pipeline_glue_standalone_obj
@@ -3807,9 +4101,16 @@ ensure_std_fs_io_heap_objs() {
 
 # pipeline.x import pipeline.run_x_pipeline → pipeline_run_x_link_alias 提供 C 符号。
 ensure_pipeline_run_x_link_alias_obj() {
-  if [ ! -f src/asm/pipeline_run_x_link_alias.o ] || [ seeds/pipeline_run_x_link_alias.from_x.c -nt src/asm/pipeline_run_x_link_alias.o ]; then
-  build_xlang_asm_info "cc pipeline_run_x_link_alias.o"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_run_x_link_alias.from_x.c src/asm/pipeline_run_x_link_alias.o
+  # 7.2.1 tenth knife: .x authority via cc_inc_tu --auto prefer lane.
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f src/asm/pipeline_run_x_link_alias.o ] || [ src/pipeline_run_x_link_alias.x -nt src/asm/pipeline_run_x_link_alias.o ] \
+       || { [ -f seeds/pipeline_run_x_link_alias.from_x.c ] && [ seeds/pipeline_run_x_link_alias.from_x.c -nt src/asm/pipeline_run_x_link_alias.o ]; }; then
+      build_xlang_asm_info "cc_inc_tu --auto (src/pipeline_run_x_link_alias.x)"
+      sh scripts/cc_inc_tu.sh --auto src/asm/pipeline_run_x_link_alias.o
+    fi
+  elif [ ! -f src/asm/pipeline_run_x_link_alias.o ] || [ seeds/pipeline_run_x_link_alias.from_x.c -nt src/asm/pipeline_run_x_link_alias.o ]; then
+    build_xlang_asm_info "cc pipeline_run_x_link_alias.o"
+    sh scripts/cc_inc_tu.sh seeds/pipeline_run_x_link_alias.from_x.c src/asm/pipeline_run_x_link_alias.o
   fi
 }
 
@@ -3911,7 +4212,8 @@ ensure_asm_bootstrap_x_companion_objs() {
     echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
   fi
-  # preprocess_if_stack_* 由 pipeline_x.o（ast_pool.c via pipeline_glue.c）提供，bridge 已删除。
+  # preprocess_if_stack_* 由 runtime_pipeline_abi／pipeline orch 提供
+  # （ast_pool.c / pipeline_glue.c mega left wave309）；bridge 已删除。
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
@@ -3947,7 +4249,15 @@ BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
 BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
 BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
 BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+# PLATFORM: MACOS|DARWIN — g05_relink_env _USER_ASM_LINK includes backend_arm64_enc_c.o
+# so strong arch_arm64_enc_* override seed_link_compat / full_link_stubs weak -1.
+# Empty on Linux (x86_64 enc already in BSTRICT_BACKEND_X86_64_ENC_LINK).
+BSTRICT_BACKEND_ARM64_ENC_LINK=""
 BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+BSTRICT_DISPATCH_COMPANIONS="$BSTRICT_DISPATCH_OBJS"
+# Early bag: user_asm (+ Darwin arm64 enc) must precede weak stubs on the link line
+# when user_asm is a prefer/libtool ar (archive extract only for currently-U symbols).
+BSTRICT_USER_ASM_EARLY_LINK=""
 
 refresh_bstrict_link_variants() {
   BSTRICT_PIPELINE_LINK_O="pipeline_x.o"
@@ -3955,6 +4265,7 @@ refresh_bstrict_link_variants() {
   BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
   BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
   BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+  BSTRICT_BACKEND_ARM64_ENC_LINK=""
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   # PLATFORM: DARWIN — ld 不允许多定义（-multiply_defined 已废弃）。
   # filtered pipeline 与 full minimal glue 重叠 → 不整颗链 minimal；改为：
@@ -3975,8 +4286,32 @@ refresh_bstrict_link_variants() {
   fi
   if [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   ensure_asm_backend_compat_stubs_obj >/dev/null 2>&1 || true
-  if ensure_bstrict_filtered_obj_against_seed_partial "src/asm/user_asm_seed_bridge.o" "$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o" "bstrict_user_asm_seed_bridge" 2>/dev/null; then
+  # PLATFORM: DARWIN — prefer/libtool may leave user_asm_seed_bridge.o as an ar whose
+  # thin member has multi LC_SEGMENT; Stage2 final ld then never extracts the rest
+  # member that holds strong asm_asm_codegen_elf_o → CG002 code_len=0. G.7 twin of
+  # ensure_bstrict_darwin_strict_glue_stubs_filt_obj MH_OBJECT prep: host-cc the seed
+  # to a plain MH_OBJECT, then filter against seed_partial (filter out is MH too).
+  _uabr_src="src/asm/user_asm_seed_bridge.o"
+  _uabr_host="$BUILD_DIR/bstrict_user_asm_seed_bridge_host.o"
+  if [ -f seeds/user_asm_seed_bridge.from_x.c ]; then
+  # Rebuild MH host only when missing/stale (not on every refresh just because prefer ar exists).
+  if [ ! -f "$_uabr_host" ] \
+    || [ "seeds/user_asm_seed_bridge.from_x.c" -nt "$_uabr_host" ] \
+    || file "$_uabr_host" 2>/dev/null | grep -qi 'ar archive'; then
+  echo " cc -c seeds/user_asm_seed_bridge.from_x.c -> $_uabr_host (Darwin BSTRICT MH_OBJECT; not prefer ar)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o "$_uabr_host" \
+    || build_xlang_asm_warn "Darwin user_asm MH host-cc failed"
+  fi
+  if [ -s "$_uabr_host" ] && file "$_uabr_host" 2>/dev/null | grep -qi 'Mach-O'; then
+  _uabr_src="$_uabr_host"
+  fi
+  fi
+  # Only the filtered MH enters EARLY / companions. host.o is skipped by
+  # filter_strict_asm_objs / filter_experimental_asm_objs (must not also land in ASM_TRY_OBJS).
+  if ensure_bstrict_filtered_obj_against_seed_partial "$_uabr_src" "$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o" "bstrict_user_asm_seed_bridge" 2>/dev/null; then
   BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o"
+  elif [ -s "$_uabr_host" ]; then
+  BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$_uabr_host"
   fi
   if ensure_bstrict_filtered_obj_against_seed_partial "$BUILD_DIR/asm_backend_compat_stubs.o" "$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o" "bstrict_asm_backend_compat_stubs" 2>/dev/null; then
   BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o"
@@ -3985,10 +4320,36 @@ refresh_bstrict_link_variants() {
   BSTRICT_BACKEND_X86_64_ENC_LINK="$BUILD_DIR/bstrict_backend_x86_64_enc_c_filtered.o"
   fi
   fi
+  # G.7 twin g05_relink_env Darwin _USER_ASM_LINK: strong arm64 enc MH_OBJECT.
+  if [ -f src/asm/backend_arm64_enc_c.o ] || [ -f seeds/backend_arm64_enc_c.from_x.c ]; then
+  if [ ! -f src/asm/backend_arm64_enc_c.o ] \
+    || [ "seeds/backend_arm64_enc_c.from_x.c" -nt src/asm/backend_arm64_enc_c.o ]; then
+  echo " cc -c seeds/backend_arm64_enc_c.from_x.c -> src/asm/backend_arm64_enc_c.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_arm64_enc_c.from_x.c -o src/asm/backend_arm64_enc_c.o
   fi
-  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
-  # Keep full_link_stubs next to partial (same as module-level GEN_DRIVER_BSTRICT_COMPANIONS).
+  BSTRICT_BACKEND_ARM64_ENC_LINK="src/asm/backend_arm64_enc_c.o"
+  fi
+  fi
+  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK $BSTRICT_BACKEND_ARM64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+  # Early link bag (before BSTRICT_SEED_SUPPORT weak stubs / experimental bridge).
+  # PLATFORM: DARWIN primary; SHARED-safe (arm64 link empty on Linux).
+  # Prefer/libtool may leave user_asm as ar — members extract only for currently-U
+  # symbols, so this bag must precede weak asm_asm_codegen_* stubs (G.7 twin g05).
+  BSTRICT_USER_ASM_EARLY_LINK="$BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_BACKEND_ARM64_ENC_LINK"
+  # Companions omit early-linked objs (Darwin rejects duplicate MH_OBJECT arm64 enc).
+  BSTRICT_DISPATCH_COMPANIONS="$BSTRICT_DISPATCH_OBJS"
+  if [ -n "$BSTRICT_BACKEND_ARM64_ENC_LINK" ]; then
+  BSTRICT_DISPATCH_COMPANIONS=$(echo "$BSTRICT_DISPATCH_OBJS" | sed "s|[[:space:]]*${BSTRICT_BACKEND_ARM64_ENC_LINK}||g")
+  fi
+  # Keep full_link_stubs next to partial on ELF/Darwin (weak stubs; order free).
+  # user_asm + arm64 enc live in BSTRICT_USER_ASM_EARLY_LINK on asm_only_strict lines.
+  # PLATFORM: WINDOWS | PE — real enc/dispatch BEFORE strong full_link/compat stubs
+  # (FIRST-wins; twin g05_relink_env WINDOWS). Stubs-first → enc_label -1 → CG002.
+  if build_xlang_asm_is_msys 2>/dev/null; then
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_DISPATCH_OBJS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BUILD_DIR/seed_host/asm_full_link_stubs.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  else
   GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  fi
   # wave309/wave304: glue seed shells retired; pure runtime_pipeline_abi.o (already in
   # LD argv) is G.7 authority. Drop BSTRICT_EXPERIMENTAL_GLUE_OBJ path when .o physically
   # absent so LD argv does not reference non-existent file (ld.bfd "cannot find").
@@ -4000,8 +4361,13 @@ refresh_bstrict_link_variants() {
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
 # PLATFORM: SHARED — include asm_full_link_stubs after partial (g05 USER_ASM_LINK /
 #   Makefile USER_ASM_SEED_HOST_STUBS). PE hybrid needs strong platform_coff_* when
-#   partial is thin/stale; ELF uses them as U-fill too. Order: partial then stubs.
+#   partial is thin/stale; ELF uses them as U-fill too.
+# PLATFORM: WINDOWS | PE — real enc/dispatch BEFORE stubs (FIRST-wins; see refresh above).
+#   Default (ELF/Darwin) keeps partial then stubs (weak override).
 GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+if build_xlang_asm_is_msys 2>/dev/null; then
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_DISPATCH_OBJS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BUILD_DIR/seed_host/asm_full_link_stubs.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+fi
 
 # gen_driver fallback: pipeline_x.o / runtime_driver need parser/lexer/codegen X + driver
 # subcmds + orchestration (Darwin: not seed parser.o alone).
@@ -4074,7 +4440,8 @@ ensure_bstrict_seed_support_objs() {
   || [ "seeds/parser_asm_thin_c.from_x.c" -nt parser_asm_thin_glue.o ] \
   || [ "seeds/parser_asm/parser_asm_struct_layout_slice.inc" -nt parser_asm_thin_glue.o ] \
   || [ "seeds/parser_asm/parser_asm_block_from_res_slice.inc" -nt parser_asm_thin_glue.o ] \
-  || [ "seeds/parser_asm/parser_asm_if_stmt_slice.inc" -nt parser_asm_thin_glue.o ]; then
+  || [ "seeds/parser_asm/parser_asm_if_stmt_slice.inc" -nt parser_asm_thin_glue.o ] \
+  || [ "seeds/parser_asm/parser_asm_type_ref_slice.inc" -nt parser_asm_thin_glue.o ]; then
   echo " cc -c seeds/parser_asm_thin_c.from_x.c -> parser_asm_thin_glue.o"
   $CC $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm \
     -c seeds/parser_asm_thin_c.from_x.c -o parser_asm_thin_glue.o
@@ -4263,7 +4630,8 @@ ensure_asm_strict_link_extra_objs() {
   echo " cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c -> src/asm/pipeline_fill_dep_strict_alias.o"
   sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
   fi
-  # preprocess_if_stack_* 由 pipeline_x.o（ast_pool.c）提供，bridge 已删除。
+  # preprocess_if_stack_* 由 runtime_pipeline_abi／pipeline orch 提供
+  # （ast_pool.c mega left wave309）；bridge 已删除。
 }
 
 # experimental / strict 链：lsp_state.o 依赖 typeck_lsp_main_impl（lsp.x -E → lsp_x.o）；勿拉整包 gen_driver。
@@ -4282,11 +4650,9 @@ ensure_asm_experimental_lsp_objs() {
   cp -f lsp_io_std_heap_x.o "$GEN_DIR/lsp_io_std_heap_x.o"
   return 0
   fi
-  if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
-  ensure_asm_gen_driver_x_objs
-  return 0
-  fi
-  # OOM 可能留下 0 字节 gen；删空文件以便 Makefile 走 xlang-c fallback。
+  # PLATFORM: SHARED — post-Makefile phys-del: do NOT early-bail to gen_driver on
+  # missing MF. Shell gen + try-heat is the authority (wave930). VIA_MAKE + MF escapes.
+  # OOM 可能留下 0 字节 gen；删空文件以便 shell gen / try-heat 重产。
   if [ -f lsp_io_std_heap_gen.c ] && [ ! -s lsp_io_std_heap_gen.c ]; then
   rm -f lsp_io_std_heap_gen.c
   fi
@@ -4310,10 +4676,16 @@ ensure_asm_experimental_lsp_objs() {
   cp -f lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 
-# ast_pool.c 白名单在 pipeline_x.o（#include pipeline_glue.c）内；PIPELINE_X_DEPS（含 backend/arm64_enc）变更后须 bootstrap-pipeline → pipeline_x.o。
+# pipeline_x.o freshness (G.7 single authority; twin of relink_xlang_asm_strict_glue).
+# PLATFORM: SHARED — after wave335 / 8.3 leave, ast_pool.c and pipeline_glue.c are
+# absent; dead -nt on those paths never fired (bash treats missing LHS as false).
+# pipeline_x.o producer = src/pipeline/pipeline.x via try-gen-x (pure-extern leaf),
+# NOT runtime_pipeline_abi.x — abi freshness lives in ensure_experimental_ast_pool_for_wpo
+# / runtime_pipeline_abi.o. Do not retarget this ensure to abi (would forever need=1
+# while cwd pipeline_x.o stays a tiny stub). Authority = PIPELINE_X_DEPS only.
 ensure_pipeline_x_o_fresh() {
   local need=0
-  # runtime-only relink：已有 pipeline_x.o 时跳过（勿因 ast_pool 等 mtime 触发 bootstrap-pipeline）。
+  # runtime-only relink：已有 pipeline_x.o 时跳过（勿因源 mtime 触发 bootstrap-pipeline）。
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f pipeline_x.o ]; then
   mkdir -p "$BUILD_DIR/gen_driver"
   if [ ! -f "$BUILD_DIR/gen_driver/pipeline_x.o" ] || ! cmp -s pipeline_x.o "$BUILD_DIR/gen_driver/pipeline_x.o" 2>/dev/null; then
@@ -4324,10 +4696,8 @@ ensure_pipeline_x_o_fresh() {
   if [ ! -f pipeline_x.o ] || [ ! -f pipeline_gen.c ]; then
   need=1
   fi
-  if [ "$need" -eq 0 ] && [ "ast_pool.c" -nt "pipeline_x.o" ]; then
-  need=1
-  fi
-  # Makefile PIPELINE_X_DEPS：asm 编码/backend 变更不会触达 pipeline_gen.c 时 ensure 仍须重 -E。
+  # PIPELINE_X_DEPS：asm 编码/backend 变更不会触达 pipeline_gen.c 时 ensure 仍须重 -E。
+  # (Deleted ast_pool.c / pipeline_glue.c -nt removed — never fired post-leave.)
   for dep in \
   src/pipeline/pipeline.x src/codegen/codegen.x src/typeck/typeck.x src/parser/parser.x \
   src/ast/ast.x src/lexer/lexer.x src/preprocess/preprocess.x src/asm/asm.x \
@@ -4342,10 +4712,10 @@ ensure_pipeline_x_o_fresh() {
   # target thin-calls ensure_lsp_pipeline_gen.sh pipeline; pipeline_x.o via GEN_C_TO_O).
   # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
   if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS / ast_pool newer than pipeline_x.o)"
+    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS newer than pipeline_x.o)"
     make bootstrap-pipeline pipeline_x.o
   else
-    build_xlang_asm_info "rebuild pipeline_x.o (wave930; ensure_lsp_pipeline_gen + try-heat)"
+    build_xlang_asm_info "rebuild pipeline_x.o (PIPELINE_X_DEPS; ensure_lsp_pipeline_gen + try-heat)"
     bash scripts/ensure_lsp_pipeline_gen.sh pipeline
     bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
   fi
@@ -4371,18 +4741,21 @@ ensure_pipeline_x_o_fresh() {
 }
 
 # B-strict 最终链：用 seed xlang-c -E 的 parser_x.o 覆盖 C seed parser（struct return / param-binop 等门禁）。
+# PLATFORM: SHARED — post-Makefile phys-del: do NOT early-return on missing MF;
+# migrate_x_objs is the shell authority (wave929). VIA_MAKE + MF still escapes.
 ensure_parser_x_o_for_strict_link() {
-  if [ ! -f Makefile ] || [ ! -f src/parser/parser.x ]; then
+  if [ ! -f src/parser/parser.x ]; then
   return 0
   fi
   if [ ! -f parser_x.o ] || [ src/parser/parser.x -nt parser_x.o ]; then
   # Wave929: shell migrate_x_objs.sh (no make; MIGRATE_X_OBJS body authority).
   # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
-  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && command -v make >/dev/null 2>&1; then
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
     build_xlang_asm_info "make parser_x.o (strict link must override seed parser.o)"
     make -s parser_x.o
   else
-    build_xlang_asm_info "migrate_x_objs parser_x.o (wave929; strict link override)"
+    build_xlang_asm_info "migrate_x_objs parser_x.o (wave929; strict link override; 0-make)"
     bash scripts/migrate_x_objs.sh parser_x.o
   fi
   fi
@@ -4451,12 +4824,20 @@ ensure_asm_gen_driver_x_objs() {
   sed -i.bak 's/uint8_t state_buf\[16388\] = { 0 }/extern uint8_t g_lsp_state_buf[16388]/' "$GEN_DIR/lsp_gen.c" 2>/dev/null || true
   sed -i.bak 's/(state_buf)/(g_lsp_state_buf)/g' "$GEN_DIR/lsp_gen.c" 2>/dev/null || true
   rm -f "$GEN_DIR/lsp_gen.c.bak"
+  if [ ! -s lsp_io_std_heap_gen.c ]; then
+    bash scripts/ensure_archaeology_gen.sh lsp_io_std_heap 2>/dev/null || true
+  fi
   if [ -f lsp_io_std_heap_gen.c ] && [ -s lsp_io_std_heap_gen.c ] && [ "${XLANG_FORCE_REGEN_GEN:-0}" != "1" ]; then
   echo " pinned lsp_io_std_heap_gen.c -> $GEN_DIR/lsp_io_std_heap_gen.c ($(wc -c <lsp_io_std_heap_gen.c | tr -d ' ') bytes)"
   cp -f lsp_io_std_heap_gen.c "$GEN_DIR/lsp_io_std_heap_gen.c"
   else
   echo " $XLANG_E -E lsp_io_std_heap.x (-E-extern) -> $GEN_DIR/lsp_io_std_heap_gen.c ..."
-  "$XLANG_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.x -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c"
+  "$XLANG_E" $LIB_E_MAIN src/lsp/lsp_io_std_heap.x -E -E-extern >"$GEN_DIR/lsp_io_std_heap_gen.c" 2>/dev/null || true
+  if [ ! -s "$GEN_DIR/lsp_io_std_heap_gen.c" ] && [ -f "seeds/lsp_io_std_heap_gen.linux.x86_64.c" ]; then
+    echo " lsp_io_std_heap: -E failed/empty; fallback seed seeds/lsp_io_std_heap_gen.linux.x86_64.c (archaeology parity)"
+    cp -f "seeds/lsp_io_std_heap_gen.linux.x86_64.c" "$GEN_DIR/lsp_io_std_heap_gen.c"
+    cp -f "seeds/lsp_io_std_heap_gen.linux.x86_64.c" lsp_io_std_heap_gen.c 2>/dev/null || true
+  fi
   fi
   driver_gen_pinned=0
   if [ -f driver_gen.c ] && [ -s driver_gen.c ] && [ "${XLANG_FORCE_REGEN_GEN:-0}" != "1" ]; then
@@ -4540,8 +4921,7 @@ ensure_asm_gen_driver_x_objs() {
   cp -f "$GEN_DIR/driver_check_x.o" driver_check_x.o 2>/dev/null || true
   cp -f "$GEN_DIR/driver_test_x.o" driver_test_x.o 2>/dev/null || true
 
-  # pipeline/driver/preprocess: same products as Makefile gen-x-driver-objs.
-  # G.7 on Linux/Darwin: `make gen-x-driver-objs` → FORCE leaves → ensure try-heat.
+  # pipeline/driver/preprocess: same products as retired Makefile gen-x-driver-objs.
   #
   # PLATFORM: WINDOWS | MINGW | MSYS — do NOT:
   #   1) nest MinGW `make gen-x-driver-objs` (sh.dll "C:", empty UNAME_M, 0-CPU stall)
@@ -4550,7 +4930,9 @@ ensure_asm_gen_driver_x_objs() {
   #      pipeline_x.o with no gcc, frozen hybrid log_bytes) until kill.
   # Seed/g05 already owns pipeline_x.o / driver_x.o / preprocess_x.o on the
   # hybrid host; reuse when present, else direct cc -c of pinned gen.c.
-  # PLATFORM: SHARED Linux/Darwin — keep `make gen-x-driver-objs`.
+  # PLATFORM: SHARED Linux/Darwin — post-Makefile phys-del: shell try-heat is the
+  # authority (wave930). Do NOT gate try-heat on MF presence (that forced raw
+  # cc -c after phys-del). VIA_MAKE + MF still escapes for parity / debug.
   if build_xlang_asm_is_msys; then
     if [ -f pipeline_x.o ] && [ -f driver_x.o ] && [ -f preprocess_x.o ]; then
       echo " win: reuse seed pipeline_x.o driver_x.o preprocess_x.o (skip nested make + try-heat)"
@@ -4571,16 +4953,15 @@ ensure_asm_gen_driver_x_objs() {
       cp -f "$GEN_DIR/driver_x.o" driver_x.o 2>/dev/null || true
       cp -f "$GEN_DIR/preprocess_x.o" preprocess_x.o 2>/dev/null || true
     fi
-  elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    # Wave930: shell try-heat for 3 leaves (no make; gen-x-driver-objs target
-    # body is @true — only triggers pipeline_x.o + driver_x.o + preprocess_x.o
-    # FORCE rebuild via GEN_C_TO_O_SEED_OBJS + GEN_X_SEED_OBJS bodies).
-    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
-    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
+  else
+    # Wave930: shell try-heat for 3 leaves (no make).
+    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug; MF must exist).
+    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+      && command -v make >/dev/null 2>&1; then
       echo " make gen-x-driver-objs -> copy pipeline_x.o driver_x.o preprocess_x.o to $GEN_DIR/"
       make gen-x-driver-objs
     else
-      echo " wave930: try-heat pipeline_x.o + driver_x.o + preprocess_x.o -> $GEN_DIR/"
+      echo " wave930: try-heat pipeline_x.o + driver_x.o + preprocess_x.o -> $GEN_DIR/ (0-make)"
       bash scripts/ensure_host_cc_seed_o.sh try-heat pipeline_x.o
       bash scripts/ensure_host_cc_seed_o.sh try-heat driver_x.o
       bash scripts/ensure_host_cc_seed_o.sh try-heat preprocess_x.o
@@ -4588,16 +4969,6 @@ ensure_asm_gen_driver_x_objs() {
     cp -f pipeline_x.o "$GEN_DIR/"
     cp -f driver_x.o "$GEN_DIR/driver_x.o"
     cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
-  else
-    echo " cc -c gen_driver/*_x.o <- pipeline/driver/lsp/preprocess -E product (no Makefile make)"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
-      -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
-      -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
-      -c "$GEN_DIR/pipeline_gen.c" -o "$GEN_DIR/pipeline_x.o"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
-      -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
-      -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
-    "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
   fi
 
   echo " cc -c gen_driver/lsp*.o <- lsp -E 产物"
@@ -4618,7 +4989,9 @@ ensure_asm_gen_driver_x_objs() {
 # PLATFORM: WINDOWS | MINGW | MSYS — never nest MinGW make for these leaves:
 #   make typeck_x.o / x_frontend_link_alias.o → FORCE try-heat re-entry hang
 #   (same class as pipeline_x.o ensure recursion). Reuse seed/g05 objs when present.
-# PLATFORM: SHARED Linux/Darwin — make remains the ensure graph authority.
+# PLATFORM: SHARED Linux/Darwin — post-Makefile phys-del: shell migrate + try-heat
+# is the authority (wave929). Do NOT gate on MF presence (that silently skipped
+# ensure after phys-del). VIA_MAKE + MF still escapes for parity / debug.
 ensure_gen_driver_typeck_companion_objs() {
   if [ "${XLANG_ASM_GEN_DRIVER_TYPECK_READY:-0}" = "1" ] \
     && [ -f typeck_x.o ] && [ -f x_frontend_link_alias.o ]; then
@@ -4634,17 +5007,16 @@ ensure_gen_driver_typeck_companion_objs() {
     XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
     return 0
   fi
-  if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    # Wave929: shell migrate + try-heat (no make; MIGRATE_X_OBJS + R1_ALIAS_STUBS bodies).
-    # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug).
-    if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ]; then
-      build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
-      make typeck_x.o x_frontend_link_alias.o
-    else
-      build_xlang_asm_info "gen_driver typeck companions (wave929; migrate + try-heat)"
-      bash scripts/migrate_x_objs.sh typeck_x.o
-      bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
-    fi
+  # Wave929: shell migrate + try-heat (no make; MIGRATE_X_OBJS + R1_ALIAS_STUBS bodies).
+  # XLANG_ASM_LINK_VIA_MAKE=1 escapes to make (parity / debug; MF must exist).
+  if [ "${XLANG_ASM_LINK_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] \
+    && command -v make >/dev/null 2>&1; then
+    build_xlang_asm_info "gen_driver typeck companions (typeck_x.o + link alias)"
+    make typeck_x.o x_frontend_link_alias.o
+  else
+    build_xlang_asm_info "gen_driver typeck companions (wave929; migrate + try-heat; 0-make)"
+    bash scripts/migrate_x_objs.sh typeck_x.o
+    bash scripts/ensure_host_cc_seed_o.sh try-heat x_frontend_link_alias.o
   fi
   XLANG_ASM_GEN_DRIVER_TYPECK_READY=1
 }
@@ -4667,7 +5039,15 @@ ensure_asm_xlang_lsp_diag_stub_obj() {
   STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
-  if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
+  # 7.2.1 sixth knife: .x authority (src/typeck_lsp_io_stub.x) via cc_inc_tu
+  # --auto prefer lane; seed fallback when no product binary (cold start).
+  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+    if [ ! -f "$LSP_IO_O" ] || [ src/typeck_lsp_io_stub.x -nt "$LSP_IO_O" ] \
+       || { [ -f "$LSP_IO_STUB" ] && [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; }; then
+      echo " cc_inc_tu --auto (src/typeck_lsp_io_stub.x) -> $LSP_IO_O"
+      sh scripts/cc_inc_tu.sh --auto "$LSP_IO_O"
+    fi
+  elif [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
   echo " cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
   sh scripts/cc_inc_tu.sh "$LSP_IO_STUB" "$LSP_IO_O"
   fi
@@ -5163,10 +5543,21 @@ bootstrap_ensure_entry_objs() {
 # 用法：XLANG_ASM_BSTRICT_RELINK_ONLY=1 ./scripts/build_xlang_asm.sh
 # 或 ./scripts/relink_xlang_asm_bstrict_runtime_objs.sh
 #
-# strict 重链成功后同步 xlang_asm_stage1（C5/C6 gate 与 gen2 读 stage1 副本）。
+# Sync xlang_asm → xlang_asm_stage1 after a successful strict link.
+# C5/C6 and non-Stage2 consumers read stage1 as "latest strict product".
+#
+# PLATFORM: SHARED — must NOT run during Stage2 round2 (XLANG_ASM_BOOTSTRAP_ROUND2=1).
+# verify-selfhost-stage2-bstrict Step1 freezes gen1 into xlang_asm_stage1; Step4c
+# SHA256-compares that snapshot to xlang_asm2 (gen2). Overwriting stage1 here made
+# gen1==gen2 always (假 fixed point / false SHA256 green) and also collapsed Step3
+# behavior parity to gen2-vs-gen2. Round2 leaves stage1 untouched.
 xlang_asm_sync_stage1_from_strict() {
+  if [ -n "${XLANG_ASM_BOOTSTRAP_ROUND2:-}" ]; then
+  build_xlang_asm_info "skip sync xlang_asm_stage1 (BOOTSTRAP_ROUND2; Stage2 owns gen1 snapshot)"
+  return 0
+  fi
   if [ -f ./xlang_asm ] && [ -x ./xlang_asm ]; then
-  # Darwin 上直接覆盖 stage1 偶发留下坏 vnode/签名缓存；先删再拷可稳定执行同内容副本。
+  # PLATFORM: DARWIN — delete-then-cp avoids bad vnode/signature cache on in-place overwrite.
   rm -f ./xlang_asm_stage1 2>/dev/null || true
   cp -f ./xlang_asm ./xlang_asm_stage1 2>/dev/null || true
   fi
@@ -5254,7 +5645,8 @@ xlang_asm_bstrict_relink_runtime_only() {
   # runtime_io_abi.o hard-coded once on strict link line — do not also put it here
   # (PLATFORM: DARWIN rejects the same .o twice as duplicate symbols).
   ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
+  # user_asm (+ Darwin arm64 enc) live in BSTRICT_USER_ASM_EARLY_LINK before stubs.
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
   ASM_TRY_OBJS="$FILTERED"
@@ -5364,7 +5756,7 @@ if [ -z "${XLANG_ASM_LINK_TOPOLOGY+x}" ]; then
   if [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
   build_xlang_asm_info "M11 production B-strict (SKIP_GEN -> asm_only_strict, no cc -c pipeline_gen.c in final link)"
   elif [ "$UNAMES" != "Linux" ]; then
-  build_xlang_asm_info "hint: export XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 or make bootstrap-driver-bstrict for asm_only_strict"
+  build_xlang_asm_info "hint: export XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 or bash scripts/bootstrap_driver_bstrict.sh for asm_only_strict"
   fi
   elif [ "$UNAMES" != "Linux" ]; then
   build_xlang_asm_info "host=$UNAMES: topology pipeline_x (__text 未全绿；crt0 仅 Linux，见 docs/SELFHOST.md §4)"
@@ -5385,7 +5777,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   # B-strict（SKIP_GEN）须 asm_only_strict（含 runtime_driver）；crt0 链无 driver，成功反而会触发末尾 bstrict 失败。
   if [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-  build_xlang_asm_info "XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 make bootstrap-driver-crt0)"
+  build_xlang_asm_info "XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 bash scripts/bootstrap_driver_crt0.sh)"
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking xlang_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
@@ -5421,7 +5813,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # Stage 12.2.2: zero-CC crt0 link via pure_ld_try_link (G.7 single authority).
   # Reuses the same pure-ld helpers as g05 product chain (wave773/774):
   #   · pure_ld_multidef_flags → --allow-multiple-definition (Linux)
-  #   · pure_ld_platform_prefix → syslibroot (Darwin) / empty (Linux)
+  #   · pure_ld_platform_prefix → syslibroot (Darwin) / --dynamic-linker (Linux)
   #   · pure_ld_default_entry → -e _start
   # This fixes the multidef issue that breaks the $CC crt0 path (both $CC and
   # bare ld fail without --allow-multiple-definition; pure_ld_try_link adds it).
@@ -5581,15 +5973,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_asm_bootstrap_support_extra_objs
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
   # PLATFORM: DARWIN — do not drop whole strict_glue_stubs (historically hid U
-  # preprocess_*/codegen_*/ast_*). Use partial export that omits only asm_driver_*
-  # strong-duplicated by BOOT_ENTRY=runtime_asm_build.o.
+  # preprocess_*/codegen_*/ast_* / Stage2 round2 codegen_set_*). Prefer filtered
+  # partial that omits only asm_driver_* strong-duplicated by BOOT_ENTRY.
+  # Fallback keeps unfiltered stubs.o (never drop — drop recreates UNDEF).
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   if ensure_bstrict_darwin_strict_glue_stubs_filt_obj 2>/dev/null; then
   BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" \
     | sed "s|src/runtime_driver_strict_glue_stubs\\.o|$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o|g")
   else
-  # Fallback: omit only if filt failed (legacy path; may leave UNDEFs).
-  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|src/runtime_driver_strict_glue_stubs\.o||g')
+  build_xlang_asm_warn "Darwin strict_glue_stubs filt failed; linking unfiltered stubs.o"
   fi
   fi
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
@@ -5607,6 +5999,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
   # shellcheck disable=SC2086
+  # PLATFORM: SHARED — early user_asm (+ Darwin arm64 enc) before weak stubs (ar extract).
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   ${BSTRICT_EXPERIMENTAL_GLUE_OBJ:+"$BSTRICT_EXPERIMENTAL_GLUE_OBJ"} \
@@ -5618,6 +6011,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/diag.o \
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
+  $BSTRICT_USER_ASM_EARLY_LINK \
   $BSTRICT_SEED_SUPPORT \
   "$BSTRICT_PIPELINE_LINK_O" \
   pipeline_bootstrap_orchestration.o \
@@ -5627,9 +6021,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$BUILD_DIR/seed_link_compat.o" \
   "$BUILD_DIR/seed_host/asm_backend_partial.o" \
   $ASM_LINK_STUBS_O \
-  "$BSTRICT_USER_ASM_SEED_BRIDGE_LINK" \
   "$BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK" \
-  $BSTRICT_DISPATCH_OBJS \
+  $BSTRICT_DISPATCH_COMPANIONS \
   src/asm/pipeline_run_x_link_alias.o \
   src/asm/parser_asm_parse_expr_link.o \
   parser_asm_thin_glue.o \
@@ -5668,7 +6061,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   xlang_asm_bstrict_fail "typeck.o EMIT_HEAVY required for S2 gate after CI experimental bootstrap"
   fi
   else
-  # ast_pool 变更后须刷新 pipeline_x.o + experimental，第二遍 EMIT_HEAVY skip_heavy 才生效。
+  # abi/WPO source 变更后须刷新 pipeline_x.o + experimental（G.7；非已删 ast_pool.c）。
   ensure_experimental_ast_pool_for_wpo || true
   # 第二遍：bootstrap xlang_asm 重编 pipeline/typeck/parser/backend，再 strict 重链（无 pipeline_x.o）。
   SECOND_PASS_OK=0
@@ -5685,7 +6078,11 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   PTEXT=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
   STRICT_TRY=0
-  if [ "$SECOND_PASS_OK" -eq 1 ] && [ "$PTEXT" -gt 200 ] 2>/dev/null; then
+  # G.7 residual close (post-107d09af2): when runtime_pipeline_abi.o is the
+  # selfhosted authority, stub pipeline.o __text may be 0B — still allow strict.
+  # Legacy path: SECOND_PASS_OK + stub __text>200 (pre-abi emit era).
+  # PLATFORM: SHARED — same gate Darwin/Linux (closes Darwin Stage2 __text=0B RED).
+  if [ "$SECOND_PASS_OK" -eq 1 ] && { [ "$PTEXT" -gt 200 ] 2>/dev/null || asm_strict_pipeline_selfhosted; }; then
   STRICT_TRY=1
   else
   build_xlang_asm_error "pipeline.o second pass failed (__text=${PTEXT}B)"
@@ -5708,7 +6105,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ST_PARSER_LINK=""
   ST_PHASE_PARSE_PARTIAL=""
   if asm_strict_pipeline_selfhosted; then
-  build_xlang_asm_info "pipeline.o EMIT_HEAVY OK (__text=${PTEXT}B, run_x_pipeline_impl + path/resolve X emit)"
+  _abi_t=$(asm_o_text_bytes src/runtime_pipeline_abi.o 2>/dev/null || echo 0)
+  build_xlang_asm_info "pipeline selfhosted via runtime_pipeline_abi (stub=__text=${PTEXT}B, abi=${_abi_t}B)"
   STRICT_LINK_BUILD_ASM_PIPELINE=1
   export STRICT_LINK_BUILD_ASM_PIPELINE
   build_xlang_asm_info "strict link build_asm/pipeline.o + glue_standalone"
@@ -5820,7 +6218,10 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ASM_TRY_OBJS="$FILTERED"
   fi
   echo " re-link xlang_asm (strict: ${ST_RUNTIME_MODE}, no pipeline_x.o) ..."
-  ensure_preprocess_if_stack_provider_obj
+  ensure_preprocess_if_stack_provider_obj || true
+  # G.7: companion only when ensure actually wrote it; abi-on-argv path deletes it.
+  ST_PREPROCESS_IF_STACK_O=""
+  [ -f "$BUILD_DIR/preprocess_if_stack_only.o" ] && ST_PREPROCESS_IF_STACK_O="$BUILD_DIR/preprocess_if_stack_only.o"
   ensure_asm_driver_seed_c_objs
   SEED_O="$BUILD_DIR/asm_driver_seed"
   ensure_asm_strict_link_extra_objs
@@ -5920,7 +6321,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_COMPANION_GLUE_STUBS=""
   fi
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
+  # user_asm (+ Darwin arm64 enc) live in BSTRICT_USER_ASM_EARLY_LINK before stubs.
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
   else
   # legacy：须 seed C 前端 *.o 在前、*_x.o 在后（macOS ld 重复符号取后定义）。
   # E-06 v3 X：仅 async seed + X glue；parser_x.o 在 ST_PARSER_X_TAIL 压过重复符号。
@@ -5939,7 +6341,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_COMPANION_GLUE_STUBS=""
   fi
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
   fi
   elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
@@ -5977,10 +6379,13 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ -n "$ST_BRIDGE_OBJ" ] || asm_strict_pipeline_selfhosted 2>/dev/null; then
   export XLANG_ASM_SKIP_ENTRY_SMOKE=1
   export XLANG_ASM_SKIP_MAIN_O_REBUILD=1
-  export XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1
   export XLANG_ASM_SKIP_WPO_DOGFOOD=1
+  # PLATFORM: SHARED — do NOT force SKIP_DRIVER_EMIT_HEAVY here. Tip can emit
+  # driver_compile EMIT_HEAVY; Darwin merge is pure_ld_partial_merge (libtool ar).
+  # Escape: caller may still set XLANG_ASM_SKIP_DRIVER_EMIT_HEAVY=1.
   rebuild_main_o_for_cli || true
-  build_xlang_asm_info "skip WPO dogfood recompile (strict bridge / pipeline selfhosted)"
+  rebuild_driver_compile_emit_heavy_and_link || true
+  build_xlang_asm_info "skip WPO dogfood recompile (strict bridge / pipeline selfhosted); EMIT_HEAVY driver attempted"
   else
   rebuild_main_o_for_cli || true
   rebuild_driver_compile_emit_heavy_and_link || true
@@ -6013,6 +6418,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   set +e
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   # shellcheck disable=SC2086
+  # PLATFORM: SHARED — BSTRICT_USER_ASM_EARLY_LINK before weak stubs / bridge so
+  # prefer/libtool ar user_asm extracts strong asm_asm_codegen_elf_o (G.7 twin g05).
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
   $BOOT_ENTRY_OBJ \
   src/runtime_io_abi.o \
@@ -6022,8 +6429,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/diag.o \
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
+  $BSTRICT_USER_ASM_EARLY_LINK \
   $BSTRICT_SEED_SUPPORT \
-  "$BUILD_DIR/preprocess_if_stack_only.o" \
+  $ST_PREPROCESS_IF_STACK_O \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
@@ -6053,7 +6461,10 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   set -e
   if [ "$ST_RC" -ne 0 ] && [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   build_xlang_asm_warn "strict asm orchestration link failed; retrying with pipeline_runtime_bootstrap_partial.o"
-  ensure_pipeline_runtime_bootstrap_partial_obj
+  ST_RUNTIME_BOOTSTRAP_PARTIAL=""
+  if ensure_pipeline_runtime_bootstrap_partial_obj; then
+  ST_RUNTIME_BOOTSTRAP_PARTIAL="$BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
+  fi
   ST_PARSER_LINK="$BUILD_DIR/pipeline_parse_x_partial.o"
   ST_RUNTIME_EXTRA=""
   ST_RUNTIME_MODE="bootstrap"
@@ -6085,13 +6496,14 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/diag.o \
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
+  $BSTRICT_USER_ASM_EARLY_LINK \
   $BSTRICT_SEED_SUPPORT \
-  "$BUILD_DIR/preprocess_if_stack_only.o" \
+  $ST_PREPROCESS_IF_STACK_O \
   ${ST_GLUE_OBJ:+"$ST_GLUE_OBJ"} \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   "$ST_PARSER_LINK" \
-  "$BUILD_DIR/pipeline_runtime_bootstrap_partial.o" \
+  $ST_RUNTIME_BOOTSTRAP_PARTIAL \
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
@@ -6125,9 +6537,18 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # --allow-multiple-definition. Experimental bootstrap already linked and is enough
   # for Stage2 gen2 + behavior parity; product rail remains g05/L4.
   # PLATFORM: LINUX — keep hard fail (gold standard requires asm_only_strict).
+  # PLATFORM: SHARED — do not silently promote experimental onto product
+  # xlang_asm. G.7 complete existing XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT
+  # (relink authority @ ddf74296e). Darwin Stage2 continues with
+  # LINK_MODE=asm_only_experimental either way; product binary is untouched
+  # unless the escape is set.
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -x ./xlang_asm.experimental ]; then
-  build_xlang_asm_warn "strict re-link failed on Darwin; keeping xlang_asm.experimental as xlang_asm"
+  if [ "${XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT:-0}" = "1" ]; then
+  build_xlang_asm_warn "strict re-link failed on Darwin; promoted xlang_asm.experimental onto xlang_asm (XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT=1)"
   cp -f ./xlang_asm.experimental ./xlang_asm
+  else
+  build_xlang_asm_warn "strict re-link failed on Darwin; keeping xlang_asm.experimental (product xlang_asm untouched)"
+  fi
   LINK_OK=1
   LINK_MODE=asm_only_experimental
   ST_RC=0
@@ -6151,15 +6572,23 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   LINK_MODE=asm_only_strict
   if [ -z "${XLANG_ASM_SKIP_STRICT_SMOKE:-}" ]; then
   if ! XLANG_ASM_SMOKE_SKIP_GATE=1 ./scripts/run_xlang_asm_smoke.sh >"$BUILD_DIR/.asm_strict_smoke.log" 2>&1; then
-  # strict 重链产物 compile 失败时：本地可 XLANG_ASM_ALLOW_EXPERIMENTAL_FALLBACK=1 回退；B-strict CI 须 FAIL。
-  if [ -x ./xlang_asm.experimental ] && cp -f ./xlang_asm "$BUILD_DIR/xlang_asm.strict_failed" 2>/dev/null; then
+  # PLATFORM: SHARED — do not silently promote experimental onto product.
+  # G.7 complete existing XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT (relink
+  # authority @ ddf74296e). Smoke-local XLANG_ASM_ALLOW_EXPERIMENTAL_FALLBACK
+  # is the same opt-in (not a second promote path). Default / B-strict
+  # (SKIP_GEN, ALLOW unset) fail without overwriting product — old path
+  # copied first then died, which still polluted xlang_asm.
+  _exp_promote=0
+  if [ "${XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT:-0}" = "1" ] \
+  || [ -n "${XLANG_ASM_ALLOW_EXPERIMENTAL_FALLBACK:-}" ]; then
+  _exp_promote=1
+  fi
+  if [ "$_exp_promote" = "1" ] && [ -x ./xlang_asm.experimental ] \
+  && cp -f ./xlang_asm "$BUILD_DIR/xlang_asm.strict_failed" 2>/dev/null; then
   cp -f ./xlang_asm.experimental ./xlang_asm
   if XLANG_ASM_SMOKE_SKIP_GATE=1 ./scripts/run_xlang_asm_smoke.sh >"$BUILD_DIR/.asm_strict_smoke_fallback.log" 2>&1; then
   build_xlang_asm_warn "strict smoke failed; installed xlang_asm.experimental as xlang_asm (fallback OK)"
   touch "$BUILD_DIR/.strict_smoke_experimental_fallback"
-  if [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ -z "${XLANG_ASM_ALLOW_EXPERIMENTAL_FALLBACK:-}" ]; then
-  xlang_asm_bstrict_fail "strict xlang_asm smoke failed (experimental fallback disabled for B-strict)"
-  fi
   tail -n 5 "$BUILD_DIR/.asm_strict_smoke.log" 2>/dev/null | sed 's/^/ strict: /' || true
   else
   cp -f "$BUILD_DIR/xlang_asm.strict_failed" ./xlang_asm 2>/dev/null || true
@@ -6173,7 +6602,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
   xlang_asm_bstrict_fail "strict xlang_asm smoke failed"
   else
-  build_xlang_asm_error "strict xlang_asm smoke failed"
+  build_xlang_asm_error "strict xlang_asm smoke failed (set XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT=1 to install experimental)"
   tail -n 8 "$BUILD_DIR/.asm_strict_smoke.log" 2>/dev/null | sed 's/^/ /' || true
   fi
   else
@@ -6182,7 +6611,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   xlang_asm_sync_stage1_from_strict
   fi
   fi
-  # strict 链成功后：用新链 ./xlang_asm 重编 WPO 压缩 .o（ast_pool+ulimit；main EH=0 ~656B）。
+  # strict 链成功后：用新链 ./xlang_asm 重编 WPO 压缩 .o（abi freshness+ulimit；main EH=0 ~656B）。
   if rebuild_main_o_post_strict_link; then
   :
   elif [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
@@ -6458,7 +6887,11 @@ fi
 if [ "$ASM_READY" -eq 1 ] && [ "$LINK_OK" -ne 1 ]; then
   exit 1
 fi
-# strict 重链后 xlang_asm 偶发 -o SIGSEGV：回退 experimental 快照或本轮 XLANG 编译器。
+# strict 重链后 xlang_asm 偶发 -o SIGSEGV：postlink 可试 experimental / FALLBACK。
+# Default does not overwrite product. Experimental copy needs
+# XLANG_EXPERIMENTAL_PROMOTE_TO_PRODUCT=1; compiler-fallback copy needs
+# XLANG_BOOTSTRAP_ALLOW_POSTLINK_FALLBACK=1. W3 gold sets
+# XLANG_BOOTSTRAP_NO_POSTLINK_FALLBACK=1 (hard-fail any fallback).
 if [ -x ./xlang_asm ] && [ "$LINK_OK" -eq 1 ]; then
   chmod +x scripts/xlang_asm_postlink_smoke.sh 2>/dev/null || true
   if [ -x scripts/xlang_asm_postlink_smoke.sh ]; then

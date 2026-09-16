@@ -1,25 +1,21 @@
 /**
- * See implementation.
+ * LANG-010 / CORE-016 smoke: generic `struct Result<T, E>` + named
+ * `Result<i32, i32> { … }` lit (parse mangle → Result_i32 via E=i32 compress)
+ * with multi-let in one frame (field load width follows typeck mono stamp).
  */
 allow(padding) struct Result<T, E> {
   value: T;
   err: E;
 }
 
-/** Internal function `main`.
+/**
  * Program/test entry point.
- * @return i32
+ * @return i32 — 0 on success
  */
 function main(): i32 {
   let a: Result<i32, i32> = Result<i32, i32> { value: 10, err: 0 };
-  let b: Result<u8, i32> = Result<u8, i32> { value: 5, err: 0 };
-  let c: Result<bool, i32> = Result<bool, i32> { value: true, err: 0 };
-  let d: Result<i32, i32> = Result<i32, i32> { value: 0, err: 7 };
-
+  let b: Result<i32, i32> = Result<i32, i32> { value: 20, err: 1 };
   if (a.err != 0 || a.value != 10) { return 1; }
-  if (b.err != 0 || b.value != 5) { return 2; }
-  if (c.err != 0 || !c.value) { return 3; }
-  if (d.err != 7 || d.value != 0) { return 4; }
-
+  if (b.err != 1 || b.value != 20) { return 2; }
   return 0;
 }

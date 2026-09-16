@@ -71,4 +71,50 @@ if [ "$SYNC_ASM" = "1" ]; then
   echo "g05_prepare_and_relink: xlang_asm OK (synced from ${G05_OUT:-xlang})"
 fi
 
+# Stage-2: pin egg may have baked fmt_check_cmd_driver via host-C (auto-deny
+# pure-asm when lea_rax missing) or a stale pure-asm thin. Once this-wave
+# xlang_asm carries pipeline_asm_modlet_lea_rax_*, FORCE rebuild fmt with it
+# and relink once so product ships pure-asm fmt. PLATFORM: SHARED · G.7
+# single ensure body (try-other-l2-prefer); skip when lea_rax absent.
+_fmt_o="src/driver/fmt_check_cmd_driver.o"
+_stage2_xl=""
+if [ -x ./xlang_asm ]; then
+  _stage2_xl=./xlang_asm
+elif [ -x ./xlang ]; then
+  _stage2_xl=./xlang
+fi
+if [ -n "$_stage2_xl" ] \
+  && nm "$_stage2_xl" 2>/dev/null | grep -q 'pipeline_asm_modlet_lea_rax_' \
+  && [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+  _fmt_before=0
+  if [ -f "$_fmt_o" ]; then
+    _fmt_before=$(stat -f %m "$_fmt_o" 2>/dev/null || stat -c %Y "$_fmt_o" 2>/dev/null || echo 0)
+  fi
+  echo "g05_prepare_and_relink: stage2 FORCE fmt_check_cmd_driver (lea_rax tip)"
+  # shellcheck disable=SC2097,SC2098
+  if XLANG="$_stage2_xl" FORCE=1 XLANG_G05_PREFER_X_O=1 \
+    bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer "$_fmt_o"; then
+    _fmt_after=0
+    if [ -f "$_fmt_o" ]; then
+      _fmt_after=$(stat -f %m "$_fmt_o" 2>/dev/null || stat -c %Y "$_fmt_o" 2>/dev/null || echo 0)
+    fi
+    if [ "$_fmt_after" != "$_fmt_before" ]; then
+      echo "g05_prepare_and_relink: stage2 fmt rebuilt; relink once"
+      # shellcheck disable=SC2046
+      eval "$(bash scripts/g05_relink_env.sh)"
+      export G05_CC G05_CFLAGS G05_OUT G05_XLANG_C G05_BOOTSTRAP G05_OBJS
+      export G05_SYNC_ASM=0
+      bash scripts/g05_relink_xlang.sh
+      if [ "$SYNC_ASM" = "1" ]; then
+        cp -f "${G05_OUT:-xlang}" xlang_asm
+        echo "g05_prepare_and_relink: stage2 xlang_asm re-synced"
+      fi
+    else
+      echo "g05_prepare_and_relink: stage2 fmt unchanged (already tip)"
+    fi
+  else
+    echo "g05_prepare_and_relink: WARN stage2 fmt ensure failed (keep prior .o)" >&2
+  fi
+fi
+
 echo "g05_prepare_and_relink OK"

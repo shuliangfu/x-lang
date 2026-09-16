@@ -1,5 +1,8 @@
 # STD-020 std.error 错误码映射与 last_error manifest
 # 列：item_id	kind	anchor	mod_path	src	notes
+# honesty 2026-08-29 leftover unused compiler-make: run-std-error-map-gate.sh
+# unused compiler-make.sh retired (no xlang_compiler_make). Prefer asm;
+# product -o error_map_smoke.x + cookbook error_module_base.x hard.
 min_modules	meta	8	-	-	-	8 modules
 lookup_code_base	symbol	code_to_module_base	std/error/mod.x	std/error/mod.x	码→base
 lookup_tag_base	symbol	mod_tag_from_base	std/error/mod.x	std/error/mod.x	base→tag
@@ -20,6 +23,6 @@ mod_json	module	std.json	-	std/json/mod.x	std/json/mod.x	本地负码
 sidecar_fs	sidecar	last_error	std/fs/mod.x	std/fs/mod.x	errno_i32
 sidecar_db	sidecar	last_error	std/db/sqlite/mod.x	std/db/sqlite/mod.x	db_struct
 test_smoke	file	error_map_smoke.x	tests/std/error_map_smoke.x	tests/std/error_map_smoke.x	烟测
-doc	file	std-error-map-v1.md	analysis/std-error-map-v1.md	analysis/std-error-map-v1.md	RFC
-unify_doc	file	std-error-unify-v1.md	analysis/std-error-unify-v1.md	analysis/std-error-unify-v1.md	STD-011
+doc	file	std-error-map-v1.md	analysis/archive/std/std-error-map-v1.md	analysis/archive/std/std-error-map-v1.md	RFC
+unify_doc	file	std-error-unify-v1.md	analysis/archive/std/std-error-unify-v1.md	analysis/archive/std/std-error-unify-v1.md	STD-011
 gate	script	run-std-error-map-gate.sh	tests/run-std-error-map-gate.sh	tests/run-std-error-map-gate.sh	manifest

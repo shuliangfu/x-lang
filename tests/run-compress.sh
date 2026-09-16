@@ -7,12 +7,12 @@ cd "$(dirname "$0")/.."
 if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
 fi
-# 优先 zlib+zstd；回退 zlib-only
-if (cd compiler && make compress-o-zlib-zstd 2>/dev/null); then
-  :
-elif (cd compiler && make compress-o-zlib 2>/dev/null); then
-  :
-fi
+# F-04 v7: compress formats live in .x; compress-o-* are hub no-ops (runtime -l*).
+# G.7: tests/lib/compiler-make.sh — ban bare make (MF phys-del). PLATFORM: SHARED
+xlang_compiler_make compress-o-zlib-zstd 2>/dev/null \
+  || xlang_compiler_make compress-o-zlib 2>/dev/null \
+  || true
+
 # 【Why 根源】compress 模块通过 extern FFI 调用 libz/libzstd/libbrotli，链接期需 -lz/-lzstd/-lbrotli*。
 # 缺少任一库时编译/链接阶段即失败（zlib glue 桩 #include <zlib.h> 找不到；ld 找不到 -lz/-lzstd/-lbrotli*），
 # 无法进入运行时跳过分支。此处检测 zlib.h 头文件 + 四个库链接性，缺失则跳过整个测试。

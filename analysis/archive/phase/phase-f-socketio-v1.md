@@ -1,19 +1,22 @@
 # 阶段 F-socketio v1（std.socketio 去 C）
 
-> **F-socketio v1**：删除 **`socketio.c`**；锚点 **`socketio.x`**；Engine.IO/SIO 在 **`socketio_glue.c`**（2823 行）。
+> **F-socketio v1**：删除 **`socketio.c`**；锚点 **`socketio.x`**；Engine.IO/SIO 胶层 v2 已删（见 `run-f-socketio-v2-gate.sh`）。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `socketio.c` | `socketio.x` + `socketio_glue.c` |
-| `socketio.o` | `cc -c` | `ld -r` 合并 |
+| 实现 | `socketio.c` | `socketio.x`（v2 无 glue） |
+| `socketio.o` | `cc -c` | 纯 `.x` / ld -r |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_SOCKETIO_V1_FAIL` retired. Static + ensure hard. STD-socketio observational (prefer-c + eio_packet P014 product residual).
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-socketio-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-socketio 不重写）。
 
 ```bash
-XLANG_F_SOCKETIO_V1_FAIL=1 ./tests/run-f-socketio-v1-gate.sh
-./tests/run-std-socketio-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-socketio-v1-gate.sh
 ```
 
 ## 下一项

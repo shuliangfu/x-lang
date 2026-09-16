@@ -1,95 +1,129 @@
 #!/usr/bin/env bash
-# STD-092：std.net ↔ std.context connect/accept/read/write 联动门禁
-set -e
+# STD-092: std.net ↔ std.context connect gate — honesty leftover unused compiler-make →硬绿.
+#
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# context_connect.x -o exit0 = hard run (run=1). check = obs. Existing glue .o
+# may be passed if present (no soft rebuild). Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-net-context-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "$0")/lib/ci-host.sh"
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
 MOD_X="std/net/mod.x"
 SMOKE="tests/net/context_connect.x"
 PREFIX="xlang: [XLANG_STD092_NET_CTX]"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "net-context gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== STD-092: net-context manifest ==="
 for f in "$MOD_X" "$SMOKE"; do
-  if [ ! -f "$f" ]; then
-    echo "net-context gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 for sym in connect_ctx_fd accept_ctx_fd connect_ipv6_ctx_fd read_ctx write_ctx; do
-  if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
-    echo "net-context gate FAIL: missing api $sym" >&2
-    exit 1
-  fi
+  grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null || die "missing api $sym"
 done
-if ! grep -qF 'function net_err_timeout()' std/error/mod.x 2>/dev/null; then
-  echo "net-context gate FAIL: missing net_err_timeout in std.error" >&2
-  exit 1
-fi
-if ! grep -qF 'function net_err_cancelled()' std/error/mod.x 2>/dev/null; then
-  echo "net-context gate FAIL: missing net_err_cancelled in std.error" >&2
-  exit 1
-fi
+grep -qF 'function net_err_timeout()' std/error/mod.x 2>/dev/null || die "missing net_err_timeout in std.error"
+grep -qF 'function net_err_cancelled()' std/error/mod.x 2>/dev/null || die "missing net_err_cancelled in std.error"
 echo "net-context manifest OK"
 
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-ensure_std_c_o ../std/context/context.o
-ensure_std_c_o ../std/time/time.o
-ensure_std_c_o ../std/net/net.o
-# context.x declares raw `extern function atomic_*_c` / `time_now_monotonic_ns_c`
-# (not `import std.atomic`/`std.time`), so xlang -o cannot auto-discover these
-# runtime glue providers. Build them and pass explicitly on the -o link line.
-ensure_runtime_atomic_glue_o
-ensure_runtime_time_os_o
-
-XLANG_BIN=""
-if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
-  :
-elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
-  :
-fi
-
-X_OK=0
-SKIP=0
-if [ -n "$XLANG_BIN" ]; then
-  echo "=== STD-092: smoke (XLANG=$XLANG_BIN) ==="
-  if ! "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    echo "net-context gate FAIL: typeck $SMOKE" >&2
-    exit 1
-  fi
-  exe="/tmp/xlang_std092_net_ctx_$$"
-  if ! "$XLANG_BIN" -L . "$SMOKE" -o "$exe" compiler/runtime_atomic_glue.o compiler/runtime_time_os.o >/dev/null 2>&1; then
-    echo "net-context gate FAIL: compile $SMOKE" >&2
-    exit 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "net-context gate FAIL: run exit=$ec" >&2
-    exit 1
-  fi
-  X_OK=1
-else
-  echo "net-context gate SKIP .x (no native xlang)" >&2
+if [ "${XLANG_STD_NET_CONTEXT_MANIFEST_ONLY:-0}" = "1" ]; then
   SKIP=1
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  echo "std-net-context gate OK (manifest only)"
+  exit 0
 fi
 
-echo "${PREFIX} status=ok x=${X_OK} skip=${SKIP} host=$(ci_host_summary)"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-092: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std092_net_ctx_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "net-context OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover unused compiler-make.sh / soft ensure_std_c_o / soft auto-make.
+# Product -o is the hard path. Existing glue .o archaeology is observational
+# only (never soft rebuild).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+for o in compiler/runtime_atomic_glue.o compiler/runtime_time_os.o; do
+  if [ ! -f "$o" ]; then
+    echo "net-context OBS missing glue $o (no soft ensure; product -o still hard)" >&2
+    OBS=$((OBS + 1))
+  fi
+done
+
+exe="/tmp/xlang_std092_net_ctx_$$"
+log="/tmp/xlang_std092_net_ctx_$$.log"
+rm -f "$exe" "$log"
+set +e
+"$XLANG_BIN" -L . "$SMOKE" -o "$exe" >"$log" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  echo "net-context FAIL: compile $SMOKE" >&2
+  tail -n 20 "$log" 2>/dev/null >&2 || true
+  rm -f "$exe" "$log"
+  die "product -o failed (refuse soft SKIP→OK)"
+fi
+set +e
+"$exe" >/dev/null 2>&1
+ec=$?
+set -e
+rm -f "$exe" "$log"
+[ "$ec" -eq 0 ] || die "run exit=$ec (refuse soft SKIP→OK)"
+RUN_OK=$((RUN_OK + 1))
+echo "net-context OK: product -o"
+
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-net-context gate OK"

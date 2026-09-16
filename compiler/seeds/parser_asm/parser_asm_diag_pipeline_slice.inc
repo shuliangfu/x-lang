@@ -32,7 +32,7 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_slice_c(struct parser_as
   import_res.lex = lex;
   parser_asm_collect_imports_slice_c(lex, source, module, &import_res);
   lex = import_res.lex;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_collect_preamble_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_after_collect_preamble_audit_c(&lex, source));
   res = parser_asm_onefunc_wired_for_parse_c(lex);
   parser_parse_one_function_impl(&res, arena, lex, source);
   return res.ok ? 1 : 0;
@@ -47,44 +47,96 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
   if (!data || len <= 0 || !module || !arena)
     return 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_after_collect_imports_buf_audit_c(&lex_init, data, len));
+}
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_collect_deep_buf_audit_c(&lex_init, data, len));
+}
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c(&lex_init, data, len));
+}
+  /* v5.32: diag_parse_one mega widened to (lex, data, len); scratch init for AUDIT_CALL. */
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_one_mega_full_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_parse_ultra_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultra2_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_super_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -92,7 +144,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -101,7 +156,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -111,7 +169,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
 
 
 
@@ -122,7 +183,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -134,7 +198,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -147,7 +214,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -161,7 +231,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -176,7 +249,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -192,7 +268,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -209,7 +288,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -227,7 +309,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -246,7 +331,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -266,7 +354,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -287,7 +378,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -309,7 +403,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -332,7 +429,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -356,7 +456,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -381,7 +484,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -407,7 +513,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -434,7 +543,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -462,7 +574,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -491,7 +606,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -521,7 +639,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -552,7 +673,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -584,7 +708,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -617,7 +744,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -651,7 +781,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -686,7 +819,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -722,7 +858,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -759,7 +898,10 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
 
 
 
@@ -797,8 +939,14 @@ int32_t parser_asm_diag_parse_one_after_collect_imports_buf_c(uint8_t *data, int
 
 
 
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(parser_asm_lexer_init_c(), data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_diag_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex_init, data, len));
+}
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_fn_mega_full_deep_buf_audit_c(&lex_init, data, len));
+  }
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_diag_parse_one_after_collect_imports_slice_c(&source, module, arena);
@@ -814,8 +962,8 @@ int32_t parser_asm_parse_one_function_ok_for_pipeline_slice_c(void *arena, struc
   if (!source || !arena)
     return 0;
   lex = parser_asm_lexer_init_c();
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_for_pipeline_audit_c(lex, source));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_toplevel_after_imports_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_for_pipeline_audit_c(&lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_toplevel_after_imports_audit_c(&lex, source));
   res = parser_asm_onefunc_wired_for_parse_c(lex);
   parser_parse_one_function_impl(&res, arena, lex, source);
   return res.ok ? 1 : 0;
@@ -829,8 +977,14 @@ int32_t parser_asm_parse_one_function_ok_for_pipeline_buf_c(void *arena, uint8_t
 
   if (!data || len <= 0 || !arena)
     return 0;
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(data, len));
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(data, len));
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_for_pipeline_buf_audit_c(&lex_init, data, len));
+}
+  {
+  struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_ok_pipeline_deep_buf_audit_c(&lex_init, data, len));
+}
   source.data = data;
   source.length = (size_t)len;
   return parser_asm_parse_one_function_ok_for_pipeline_slice_c(arena, &source);
@@ -908,7 +1062,11 @@ struct parser_asm_lexer parser_asm_diag_lex_after_imports_slice_c(struct parser_
   struct parser_asm_lexer lex;
   if (!source)
     return parser_asm_lexer_init_c();
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_lex_after_imports_audit_c(source));
+  /* v5.10: diag_lex root widened to (lex, source); scratch init for AUDIT_CALL. */
+  {
+    struct parser_asm_lexer lex_init = parser_asm_lexer_init_c();
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_diag_lex_after_imports_audit_c(&lex_init, source));
+  }
   lex = parser_asm_lexer_init_c();
   return parser_asm_skip_imports_slice_c(lex, source);
 }

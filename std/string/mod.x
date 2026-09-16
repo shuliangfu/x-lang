@@ -32,7 +32,10 @@
 // See implementation.
 // See implementation.
 // See implementation.
-const heap_libc = import("std.heap.libc");
+/* PLATFORM: SHARED — product Arena64 lives on std.heap (not libc FFI type).
+ * concat_arena must take *heap.Arena64 so cookbook/tests that call
+ * heap.arena64_* can pass &arena without T001 (LibcArena64 vs Arena64). */
+const heap = import("std.heap");
 /** Exported function `string_long_threshold`.
  * Implements `string_long_threshold`.
  * @return i32
@@ -225,18 +228,26 @@ export function string_view_subview(v: StrView, off: i32, len: i32): StrView {
   return view(string_ptr_at_c(v.ptr, off), n);
 }
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Concatenate two StrView into a newly arena-allocated buffer.
+ *
+ * PLATFORM: SHARED. Public param is `*heap.Arena64` (product facade), matching
+ * `vec.push(..., arena)` and cookbook `heap.arena64_*`. Allocation goes through
+ * `heap.arena64_alloc` (G.7 single authority); that facade casts to LibcArena64
+ * only at the libc FFI boundary. Do not re-expose `*LibcArena64` here — that
+ * was the T001 root for `zc_arena_concat` / `stack_str_sso_smoke`.
+ *
+ * @param arena Product Arena64 bump allocator (must already be arena64_init'd).
+ * @param left Left view (may be empty).
+ * @param right Right view (may be empty).
+ * @return New StrView over arena memory, or empty view on alloc failure / n<=0.
  */
-export function string_view_concat_arena(arena: *heap_libc.LibcArena64, left: StrView, right: StrView): StrView {
+export function string_view_concat_arena(arena: *heap.Arena64, left: StrView, right: StrView): StrView {
   let n: i32 = left.length + right.length;
   if (n <= 0) {
     return view(left.ptr, 0);
   }
-  // See implementation.
-  // See implementation.
-  let p: *u8 = heap_libc.heap_arena64_alloc_c(arena, n as usize, 1 as usize);
+  /* Align 1: byte string payload; heap.arena64_alloc is the product path. */
+  let p: *u8 = heap.arena64_alloc(arena, n as usize, 1 as usize);
   if (p == 0) {
     return view(0 as *u8, 0);
   }

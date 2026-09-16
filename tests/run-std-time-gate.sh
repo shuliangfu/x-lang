@@ -1,44 +1,77 @@
 #!/usr/bin/env bash
-# STD-005：std.time 精度与时区 manifest 门禁
+# STD-005: std.time precision / timezone gate — honesty leftover unused compiler-make →硬绿.
 #
-# 1) std-time-precision-v1.md + manifest
-# 2) mod.x 13 API + time.c 平台实现
-# 3) native xlang：precision_smoke + main 烟测
-#
-# 用法：./tests/run-std-time-gate.sh
-set -e
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# main.x + precision_smoke.x -o exit0 = hard run (run=2). check residual = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-time-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
+DOC="${XLANG_STD_TIME_DOC:-analysis/archive/std/std-time-precision-v1.md}"
 MANIFEST="${XLANG_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
 MOD_X="${XLANG_STD_TIME_MOD:-std/time/mod.x}"
 TIME_RUNTIME="compiler/seeds/runtime_time_os.from_x.c"
 TIME_X="std/time/time.x"
+MAIN_X="tests/time/main.x"
+PRECISION_X="tests/time/precision_smoke.x"
+LIB="tests/lib/std-time.sh"
 MIN_APIS=13
 
 # shellcheck source=tests/lib/std-time.sh
-. tests/lib/std-time.sh
+. "$LIB"
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-time gate FAIL: $*" >&2
+  std_time_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== STD-005: std.time precision manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_X" "$TIME_RUNTIME" "$TIME_X"; do
-  if [ ! -f "$f" ]; then
-    echo "std-time gate FAIL: missing $f" >&2
-    exit 1
-  fi
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$TIME_RUNTIME" "$TIME_X" "$MAIN_X" "$PRECISION_X"; do
+  [ -f "$f" ] || die "missing $f"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -79,6 +112,9 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
       ;;
     script|hook_script)
       path="tests/$anchor"
+      case "$anchor" in
+        tests/*) path="$anchor" ;;
+      esac
       if [ ! -f "$path" ]; then
         echo "std-time FAIL: missing script $path" >&2
         MISS=$((MISS + 1))
@@ -105,60 +141,71 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-time gate FAIL: apis=${API_N} < min ${MIN_APIS}" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "apis=${API_N} < min ${MIN_APIS}"
 
 if ! grep -q '_WIN32' "$TIME_RUNTIME" 2>/dev/null || ! grep -q 'CLOCK_MONOTONIC' "$TIME_RUNTIME" 2>/dev/null; then
-  echo "std-time gate FAIL: runtime_time_os.inc missing platform branches" >&2
-  exit 1
+  die "runtime_time_os missing platform branches"
 fi
 
 for kw in precision timezone UTC monotonic runnable; do
-  if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
-    echo "std-time gate FAIL: doc missing keyword $kw" >&2
-    exit 1
-  fi
+  grep -qiF "$kw" "$DOC" 2>/dev/null || die "doc missing keyword $kw"
 done
+grep -qF -- '## 6. Gate' "$DOC" 2>/dev/null || die "doc missing '## 6. Gate'"
 
-if [ "$MISS" -gt 0 ]; then
-  echo "std-time gate FAIL: missing=${MISS}" >&2
-  exit 1
-fi
+[ "$MISS" -eq 0 ] || die "missing=${MISS}"
 echo "std-time manifest OK (apis=${API_N})"
 
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
+if [ "${XLANG_STD_TIME_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_time_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-time gate OK (manifest only)"
+  exit 0
 fi
 
-if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
-  echo "=== STD-005: std.time smoke (XLANG=$XLANG_BIN) ==="
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/time/time.o
-  FAIL=0
-  for smoke in tests/time/main.x tests/time/precision_smoke.x; do
-    tag="$(basename "$smoke" .x)"
-    if std_time_run_smoke "$XLANG_BIN" "$smoke" "$tag"; then
-      echo "std-time smoke OK $tag"
-    else
-      FAIL=$((FAIL + 1))
-    fi
-  done
-  if [ "$FAIL" -gt 0 ]; then
-    echo "std-time gate FAIL: smoke=${FAIL}" >&2
-    exit 1
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-005: smoke (XLANG=$XLANG_BIN; check obs; product -o hard) ==="
+
+# check = obs only (paused 2026-08-05); refuse soft SKIP→OK.
+set +e
+"$XLANG_BIN" check -L . "$MAIN_X" >/tmp/xlang_std_time_check_main.log 2>&1
+chk_main=$?
+"$XLANG_BIN" check -L . "$PRECISION_X" >/tmp/xlang_std_time_check_precision.log 2>&1
+chk_prec=$?
+set -e
+if [ "$chk_main" -ne 0 ] || [ "$chk_prec" -ne 0 ]; then
+  echo "std-time OBS check (paused / CHK residual main=$chk_main precision=$chk_prec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+for pair in "main:$MAIN_X" "precision:$PRECISION_X"; do
+  tag="${pair%%:*}"
+  src="${pair#*:}"
+  OUT="/tmp/xlang_std_time_${tag}_$$"
+  LOG="/tmp/xlang_std_time_${tag}_build_$$.log"
+  rm -f "$OUT" "$LOG"
+  set +e
+  "$XLANG_BIN" -L . "$src" -o "$OUT" >"$LOG" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+    tail -n 20 "$LOG" 2>/dev/null || true
+    rm -f "$OUT"
+    die "product -o $src failed (ec=$o_ec; refuse soft SKIP→OK)"
   fi
-else
-  echo "std-time gate SKIP smoke (no native xlang)" >&2
-fi
+  set +e
+  "$OUT" >/dev/null 2>&1
+  exitcode=$?
+  set -e
+  rm -f "$OUT"
+  [ "$exitcode" -eq 0 ] || die "runnable $src exit=$exitcode"
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-time OK: product -o $tag"
+done
 
+std_time_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-time gate OK"

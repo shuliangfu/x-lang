@@ -16,8 +16,8 @@
 # Modes (catalog or explicit):
 #   auto              hard-fail if no host; pick xlang_asm → xlang → xlang-c
 #   auto-soft         same pick; exit 0 if no host (F-ZC soft leaves)
-#   auto-merge        compile to ${out%.o}_main.o then ld -r → out.o (hard)
-#   auto-soft-merge   same merge; exit 0 if no host (socketio)
+#   auto-merge        compile to ${out%.o}_main.o then mv → out.o (hard)
+#   auto-soft-merge   same single-TU rename; exit 0 if no host (socketio)
 #   <path-to-bin>     use explicit driver
 #
 # wave811 (G.7 有则补全): host pick + soft/hard + socketio merge body here;
@@ -42,7 +42,7 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 22 (same product leaves as wave811).
+# Honesty COUNT = 17 (kv.o + arrow.o moved to formal_mod; was 19 after sqlite).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
@@ -52,19 +52,14 @@ std_x_key_for_out() {
     ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
     ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
-    ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
     ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
-    ../std/cli/cli.o|std/cli/cli.o|*std/cli/cli.o) printf '%s' "std/cli/cli.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
     ../std/cache/cache.o|std/cache/cache.o|*std/cache/cache.o) printf '%s' "std/cache/cache.o" ;;
     ../std/trace/trace.o|std/trace/trace.o|*std/trace/trace.o) printf '%s' "std/trace/trace.o" ;;
     ../std/task/task.o|std/task/task.o|*std/task/task.o) printf '%s' "std/task/task.o" ;;
     ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
-    ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
-    ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
-    ../std/db/sqlite/sqlite.o|std/db/sqlite/sqlite.o|*std/db/sqlite/sqlite.o) printf '%s' "std/db/sqlite/sqlite.o" ;;
     ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
     ../std/regex/regex.o|std/regex/regex.o|*std/regex/regex.o) printf '%s' "std/regex/regex.o" ;;
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
@@ -81,19 +76,14 @@ std_x_spec_for_key() {
     std/async/future.o) printf '%s' "auto-soft|../std/async/future.x" ;;
     std/channel/channel.o) printf '%s' "auto-soft|../std/channel/channel.x" ;;
     std/backtrace/backtrace.o) printf '%s' "auto-soft|../std/backtrace/backtrace.x" ;;
-    std/datetime/datetime.o) printf '%s' "auto-soft|../std/datetime/datetime.x" ;;
     std/uuid/uuid.o) printf '%s' "auto|../std/uuid/uuid.x" ;;
     std/url/url.o) printf '%s' "auto-soft|../std/url/url.x" ;;
-    std/cli/cli.o) printf '%s' "auto|../std/cli/cli.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
     std/config/config.o) printf '%s' "auto-soft|../std/config/config.x" ;;
     std/cache/cache.o) printf '%s' "auto|../std/cache/cache.x" ;;
     std/trace/trace.o) printf '%s' "auto-soft|../std/trace/trace.x" ;;
     std/task/task.o) printf '%s' "auto-soft|../std/task/task.x" ;;
     std/schema/schema.o) printf '%s' "auto|../std/schema/schema.x" ;;
-    std/db/kv/kv.o) printf '%s' "auto-soft|../std/db/kv/kv.x" ;;
-    std/db/arrow/arrow.o) printf '%s' "auto-soft|../std/db/arrow/arrow.x" ;;
-    std/db/sqlite/sqlite.o) printf '%s' "auto-soft|../std/db/sqlite/sqlite.x" ;;
     std/elf/elf.o) printf '%s' "auto-soft|../std/elf/elf.x" ;;
     std/regex/regex.o) printf '%s' "auto-soft|../std/regex/regex.x" ;;
     std/unicode/unicode.o) printf '%s' "auto-soft|../std/unicode/unicode.x" ;;
@@ -109,19 +99,14 @@ std_x_all_keys() {
     std/async/future.o \
     std/channel/channel.o \
     std/backtrace/backtrace.o \
-    std/datetime/datetime.o \
     std/uuid/uuid.o \
     std/url/url.o \
-    std/cli/cli.o \
     std/security/security.o \
     std/config/config.o \
     std/cache/cache.o \
     std/trace/trace.o \
     std/task/task.o \
     std/schema/schema.o \
-    std/db/kv/kv.o \
-    std/db/arrow/arrow.o \
-    std/db/sqlite/sqlite.o \
     std/elf/elf.o \
     std/regex/regex.o \
     std/unicode/unicode.o \
@@ -215,34 +200,29 @@ std/async/scheduler.o
 std/async/future.o
 std/channel/channel.o
 std/backtrace/backtrace.o
-std/datetime/datetime.o
 std/uuid/uuid.o
 std/url/url.o
-std/cli/cli.o
 std/security/security.o
 std/config/config.o
 std/cache/cache.o
 std/trace/trace.o
 std/task/task.o
 std/schema/schema.o
-std/db/kv/kv.o
-std/db/arrow/arrow.o
-std/db/sqlite/sqlite.o
 std/elf/elf.o
 std/regex/regex.o
 std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 22 ]; then
-    echo "std_x --check: expected 22 keys, counted $_n" >&2
+  if [ "$_n" -ne 17 ]; then
+    echo "std_x --check: expected 17 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (22 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (17 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 
@@ -398,6 +378,79 @@ std_x_compile_one() {
     } >"$_gen.fcntl" && mv "$_gen.fcntl" "$_gen"
   }
 
+  # PLATFORM: SHARED — std/net/tcp_pool.x (and peers) call calloc/free/malloc via
+  # extern "C", but -E host-C may omit <stdlib.h>. Apple clang then fails
+  # "call to undeclared library function 'calloc'" → tcp_pool.o never built →
+  # net_merge keeps weak create stubs that return 0 (cookbook net_tcp_pool run=1).
+  # G.7: inject header when body uses heap libc and include is missing.
+  xlang_inject_stdlib_header() {
+    _gen="$1"
+    [ -f "$_gen" ] || return 0
+    if ! grep -qE '\b(calloc|malloc|realloc|free)\s*\(' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -qE '#include\s*[<"]stdlib\.h[>"]' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -q '^#include' "$_gen" 2>/dev/null; then
+      last_inc_line=$(grep -n '^#include' "$_gen" | tail -1 | cut -d: -f1)
+    else
+      last_inc_line=0
+    fi
+    {
+      if [ "$last_inc_line" -gt 0 ]; then
+        head -n "$last_inc_line" "$_gen"
+      fi
+      echo '/* PLATFORM: SHARED injected by xlang_compile_std_x — libc heap for tcp_pool */'
+      echo '#include <stdlib.h>'
+      if [ "$last_inc_line" -gt 0 ]; then
+        tail -n +"$((last_inc_line + 1))" "$_gen"
+      else
+        cat "$_gen"
+      fi
+    } >"$_gen.stdlib" && mv "$_gen.stdlib" "$_gen"
+  }
+
+  # PLATFORM: SHARED — std/socketio/socketio.x (and peers) call memcpy/memcmp/
+  # memset/strlen via extern "C", but xlang-c -E host-C may omit <string.h>
+  # (prologue is stdint/stddef/sys/types only). codegen skip-decl
+  # (codegen_is_libc_conflicting_extern_name) already drops the XLANG
+  # memcpy prototype so a later string.h does not clash; without the
+  # header Apple clang fails "call to undeclared library function
+  # 'memcpy'" (also memcmp/strlen/memset) → socketio.o never built on
+  # XLANG_COMPILE_STD_USE_C=1. G.7: inject header when body uses string
+  # libc and include is missing (same splice authority as fcntl/stdlib).
+  # Do not fork a third inject vehicle. codegen_x_ast_emit_header string.h
+  # for bare -E stays the emit authority; this is the std_x host-cc
+  # defense layer, same class as stdlib.h inject.
+  xlang_inject_string_header() {
+    _gen="$1"
+    [ -f "$_gen" ] || return 0
+    if ! grep -qE '\b(memcpy|memcmp|memset|memmove|memchr|strlen|strcmp|strncmp|strstr|strchr|strcpy|strncpy)\s*\(' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -qE '#include\s*[<"]string\.h[>"]' "$_gen" 2>/dev/null; then
+      return 0
+    fi
+    if grep -q '^#include' "$_gen" 2>/dev/null; then
+      last_inc_line=$(grep -n '^#include' "$_gen" | tail -1 | cut -d: -f1)
+    else
+      last_inc_line=0
+    fi
+    {
+      if [ "$last_inc_line" -gt 0 ]; then
+        head -n "$last_inc_line" "$_gen"
+      fi
+      echo '/* PLATFORM: SHARED injected by xlang_compile_std_x — libc string for socketio */'
+      echo '#include <string.h>'
+      if [ "$last_inc_line" -gt 0 ]; then
+        tail -n +"$((last_inc_line + 1))" "$_gen"
+      else
+        cat "$_gen"
+      fi
+    } >"$_gen.string" && mv "$_gen.string" "$_gen"
+  }
+
   case "$(basename "$xlang_bin")" in
     xlang-c)
       # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
@@ -418,6 +471,8 @@ std_x_compile_one() {
       xlang_strip_conflicting_weak_args_iter "$gen_c"
       xlang_inject_errno_externs "$gen_c"
       xlang_inject_fcntl_header "$gen_c"
+      xlang_inject_stdlib_header "$gen_c"
+      xlang_inject_string_header "$gen_c"
       # PLATFORM: SHARED — function/data sections so product -dead_strip/--gc-sections
       # can drop unused net/tls/pool residual U (net.o is one ld -r unit).
       cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
@@ -448,6 +503,8 @@ std_x_compile_one() {
           xlang_strip_conflicting_weak_args_iter "$gen_c"
           xlang_inject_errno_externs "$gen_c"
           xlang_inject_fcntl_header "$gen_c"
+          xlang_inject_stdlib_header "$gen_c"
+          xlang_inject_string_header "$gen_c"
           cc -Wall -Wextra -ffunction-sections -fdata-sections -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; return 1; }
           rm -f "$gen_c"
         else
@@ -457,14 +514,23 @@ std_x_compile_one() {
       ;;
   esac
 
-  # wave811: socketio-style single-TU merge — compile landed on *_main.o; ld -r → final OUT.
-  # PLATFORM: SHARED — host ld -r only (no second Makefile hybrid ladder).
+  # wave811: socketio-style single-TU merge — compile landed on *_main.o,
+  # then rename to final OUT. Historic `ld -r` of one relocatable was a
+  # rename (one input). Darwin `ld -r` of an xlang_asm Mach-O with two
+  # LC_SEGMENT_64 fails ("more than one LC_SEGMENT found"). G.7: complete
+  # existing merge body — single-object rename is mv, not ld -r. Real
+  # two-object ld -r (tls_mbedtls_main + bio, sqlite_main + glue) stays in
+  # archaeology_host_pick_phony.sh. Do not fork a third merger.
+  # PLATFORM: SHARED — mv rename; Darwin was the fail surface; Ubuntu ELF
+  # ld -r of one file worked but was never a multi-object combine.
   if [ "$_merge" = "1" ]; then
     if [ ! -f "$out_o" ]; then
       echo "xlang_compile_std_x.sh: merge missing intermediate $out_o" >&2
       return 1
     fi
-    ld -r -o "$_final_out" "$out_o" || return 1
+    if [ "$out_o" != "$_final_out" ]; then
+      mv -f "$out_o" "$_final_out" || return 1
+    fi
   fi
   return 0
 }

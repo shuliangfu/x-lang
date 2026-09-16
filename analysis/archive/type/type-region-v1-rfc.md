@@ -151,22 +151,41 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 
 ---
 
+## Gate
+
+Honesty gate for M-3 region typeck (`tests/run-typeck-region.sh`):
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG /
+  missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Core §4 negatives: product `-o` compile_fail with T001 region diag = hard green.
+- §5 positives: product `-o` typeck-pass; expected extern UNDEF (`slice_src` /
+  `read_ptr_slice`) counts as run (link stub not this gate).
+- `read_ptr_region_{escape,mismatch}` tip residual without region diag = obs
+  (was soft-skip WARN). `xlang check` CHK002 / paused = obs.
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.
+- Live DOC = this archive file; refuse leftover top-level
+  `analysis/type-region-v1-rfc.md` resurrect (dual authority).
+
+Honesty leftover residual (2026-08-29): leftover dual-authority top-level
+`analysis/type-region-v1-rfc.md` retired; leftover LANG-008 hard-require
+of the top-level RFC retired; leftover "narrative mirror" retired.
+
 ## 7. 验收与 CI
 
 ### 7.1 门禁脚本
 
 | 脚本 | 范围 |
 |------|------|
-| `tests/run-typeck-region.sh` | 12 个 typeck 用例（§4 + §5 + read_ptr） |
-| `tests/run-zc3-gate.sh` | region typeck + slice 字段 + read_ptr 运行时 + smoke |
+| `tests/run-typeck-region.sh` | 12 个 typeck 用例（§4 + §5 + read_ptr；honesty soft→硬绿） |
+| `tests/run-zc3-gate.sh` | region typeck + slice 字段 + read_ptr 运行时 + smoke（host-c 后置） |
 | `tests/run-portable-suite.sh` | 含 region typeck |
 | `tests/run-pre-push-p5.sh` | 经 `run-zc-gates.sh` → zc3 间接覆盖 |
 
 ### 7.2 审阅通过条件
 
 - 本文档定版 ✅  
-- `run-typeck-region.sh` 12/12 用例 CI 绿  
-- 关键 UAF 路径 §4 全部 compile fail  
+- `run-typeck-region.sh` honesty 硬绿（`run=` 核心 compile_fail／typeck-ok；read_ptr 残＝obs）  
+- 关键 UAF 路径 §4 全部 product `-o` compile fail  
 
 ---
 
@@ -200,7 +219,7 @@ ZC-3 gate 将 **编译期域检查** 与 **数组→slice 运行时**、**read_p
 
 | 资源 | 路径 |
 |------|------|
-| 线性类型 v1 | `analysis/type-linear-v1-rfc.md` |
+| 线性类型 v1 | `analysis/archive/type/type-linear-v1-rfc.md` |
 | 内存契约 Slice | `analysis/内存契约.md` §3 |
 | 测试 | `tests/typeck/slice_lifetime/*.x` |
 | 路线图 | `NEXT.md` TYPE-002 |

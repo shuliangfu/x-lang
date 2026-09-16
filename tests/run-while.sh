@@ -1,53 +1,129 @@
 #!/usr/bin/env bash
-# 验证 while 循环：条件为假时不执行体，最终表达式作为返回值。
-set -e
+# while/loop smoke: never/break/continue/loop_break/index_as + break_outside NEG
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c /
+# soft bootstrap-link). Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-XLANG=${XLANG:-./compiler/xlang}
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-# -o 链接走 RUN_XLANG（bootstrap 下非 x86_64 为 xlang-c）；typeck 负例仍用 seed XLANG。
-LINK_XLANG="$RUN_XLANG"
-TYPECK_XLANG="${TYPECK_XLANG:-$XLANG}"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# while 0 { 1 }; 42 -> 42（循环不执行）
-$LINK_XLANG build tests/while/never.x -o /tmp/xlang_while_never 2>&1
-exitcode=0
-/tmp/xlang_while_never >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 42 ] && { echo "expected 42 (while never), got $exitcode"; exit 1; }
+PREFIX="${XLANG_WHILE_PREFIX:-xlang: [WHILE]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# while 1 { break }; 42 -> 42（break 跳出循环）
-$LINK_XLANG build tests/while/break_out.x -o /tmp/xlang_while_break 2>&1
-exitcode=0
-/tmp/xlang_while_break >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 42 ] && { echo "expected 42 (while break), got $exitcode"; exit 1; }
-
-# while 0 { continue }; 42 -> 42（循环不执行，continue 不执行）
-$LINK_XLANG build tests/while/continue_never.x -o /tmp/xlang_while_cont 2>&1
-exitcode=0
-/tmp/xlang_while_cont >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 42 ] && { echo "expected 42 (continue never), got $exitcode"; exit 1; }
-
-# loop { break }; 42 -> 42（无限循环用 break 退出）
-$LINK_XLANG build tests/while/loop_break.x -o /tmp/xlang_loop_break 2>&1
-exitcode=0
-/tmp/xlang_loop_break >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 42 ] && { echo "expected 42 (loop break), got $exitcode"; exit 1; }
-
-# break 不在循环体内 -> typeck 报错
-if $TYPECK_XLANG build tests/while/break_outside.x -o /tmp/xlang_break_out 2>&1 | grep -q "only allowed inside a loop"; then
-  : "break outside loop correctly rejected"
-else
-  echo "expected typeck error for break outside loop"
+die() {
+  echo "while FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && dod_native_exe ./compiler/xlang_asm2; then
+    echo "$(pwd)/compiler/xlang_asm2"
+    return 0
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_exit() {
+  local tag="$1" src="$2" want="$3"
+  local exe="/tmp/xlang_while_${tag}_$$"
+  local log="/tmp/xlang_while_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+}
+
+echo "=== while gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+run_exit never tests/while/never.x 42
+run_exit break_out tests/while/break_out.x 42
+run_exit continue_never tests/while/continue_never.x 42
+run_exit loop_break tests/while/loop_break.x 42
+run_exit index_as_cast tests/while/index_as_cast.x 60
+
+# NEG: break outside loop → hard typeck diagnostic on product -o.
+neg_src="tests/while/break_outside.x"
+[ -f "$neg_src" ] || die "missing $neg_src"
+neg_exe="/tmp/xlang_while_break_outside_$$"
+neg_log="/tmp/xlang_while_break_outside_$$.log"
+rm -f "$neg_exe" "$neg_log"
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build "$neg_src" -o "$neg_exe" >"$neg_log" 2>&1
+neg_ec=$?
+set -e
+if [ "$neg_ec" -eq 124 ]; then
+  die "break_outside timeout"
+elif [ "$neg_ec" -eq 0 ]; then
+  die "break_outside expected compile fail, got success"
 fi
+grep -q "only allowed inside a loop" "$neg_log" \
+  || die "expected 'only allowed inside a loop'; $(tail -5 "$neg_log" 2>/dev/null | tr '\n' ' ')"
+rm -f "$neg_exe" "$neg_log"
+RUN_OK=$((RUN_OK + 1))
 
-# while 体内 index + as cast（path[i] as i32 / arr[i] as i32）
-$LINK_XLANG build tests/while/index_as_cast.x -o /tmp/xlang_while_index_as 2>&1
-exitcode=0
-/tmp/xlang_while_index_as >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 60 ] && { echo "expected 60 (10+20+30+0), got $exitcode"; exit 1; }
-
+ok_report
 echo "while test OK"

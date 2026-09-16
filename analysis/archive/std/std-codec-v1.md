@@ -31,7 +31,7 @@
 
 - 块 API 写入调用方提供的 `out` 缓冲，不隐式堆分配。
 - `encode_into_bytes` 复用 `Bytes` 容量；大块前可 `bytes.grow`（见 std.bytes reserve 策略）。
-- **STD-139** 完整策略见 `analysis/std-codec-buffer-reuse-v1.md`（L1/L2/L3 分层、cap 复用、流式 state、StrView/IO 桥接）。
+- **STD-139** 完整策略见 `analysis/archive/std/std-codec-buffer-reuse-v1.md`（L1/L2/L3 分层、cap 复用、流式 state、StrView/IO 桥接）。
 
 ---
 
@@ -44,15 +44,22 @@
 | `bytes_as_view` | 解码结果零拷贝读 |
 | `bytes_as_buffer` | 编码结果写 IO |
 
-详见 `analysis/std-bytes-v1.md` §4。
+详见 `analysis/archive/std/std-bytes-v1.md` §4。
 
 ---
 
 ## 5. Gate
 
 ```
-xlang: [XLANG_STD_CODEC] status=ok x=1 skip=0
+xlang: [XLANG_STD_CODEC] status=ok run=0 obs=1 skip=0
 std-codec gate OK
 ```
 
 Round-trip 向量：`tests/baseline/std-codec-vectors.tsv`。
+
+### Gate honesty (2026-08-28)
+
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad / missing native = hard die.
+- Refuse soft prefer-c / soft auto-make / soft SKIP→OK / check-as-sole-green.
+- check residual = obs (paused 2026-08-05). tip product `-o` `std_codec_*` UNDEF = obs (product debt leave).
+- Report contract: `run=` / `obs=` / `skip=`. Archive DOC is live authority (refuse top-level resurrect).

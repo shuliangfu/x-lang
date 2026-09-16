@@ -1,0 +1,10 @@
+# F-02 v2: std.sys win32 remove win32*.inc.c
+# cols: item_id	kind	anchor	mod_path	notes
+absent_win32_inc	absent	std/sys/win32.inc.c		must not exist
+absent_win32_net_inc	absent	std/sys/win32_net.inc.c		must not exist
+doc_v2	script	analysis/archive/phase/phase-f-f02-v2.md		archive DOC
+gate	script	tests/run-f02-std-sys-win32-gate.sh		honesty gate
+b17_gate	script	tests/run-b17-exit-process-gate.sh		ExitProcess facade
+b18_gate	script	tests/run-b18-win32-net-gate.sh		WSA facade
+get_std_handle	symbol	GetStdHandle	std/sys/win32.x	kernel32 FFI
+wsa_startup	symbol	WSAStartup	std/sys/win32_net.x	ws2_32 FFI

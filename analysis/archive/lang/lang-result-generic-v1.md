@@ -1,9 +1,11 @@
 # LANG-010：Result<T,E> 泛型 struct 完整形态 v1
 
-> 更新时间：2026-06-18  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）**  
 > 前置：LANG-009 Option<T>；CORE-003 Result 类型族；EXC-001 错误传播  
 > 关联：CORE-016 统一、LANG-009 mangling 基础设施
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck_generic_struct.c/parser.c retired — live mono = codegen.x generic-struct helpers; Result_* demangle face = typeck_check_expr_try_propagate.
+> **2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
 
 ---
 
@@ -57,14 +59,21 @@ allow(padding) struct Result<T, E> {
 
 ---
 
-## 5. Gate
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no native / prefer-c; explicit bad XLANG /
+missing native = hard die; `xlang check` observational (`obs=`, check
+paused 2026-08-05); runnable `-o` hard-green; DOC=archive; report
+`run=`／`obs=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
 
 ```bash
 ./tests/run-lang-result-generic-gate.sh
 ```
 
 ```
-xlang: [XLANG_LANG010_RESULT_GENERIC] status=ok golden=2 typeck=2 skip=0
+xlang: [XLANG_LANG010_RESULT_GENERIC] status=ok run=2 obs=0|1 skip=0
 ```
 
 ---

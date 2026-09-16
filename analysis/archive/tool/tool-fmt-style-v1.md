@@ -1,6 +1,7 @@
 # TOOL-001 formatter 稳定化与风格锁定 v1
 
 > 更新时间：2026-06-17  
+> **Honesty 2026-08-24 #9: top-level DOC retired; live = driver/fmt.x + fmt_check_cmd.from_x.c.**
 > 状态：**定版（v1）**  
 > 关联：`compiler/src/driver/fmt.x`、`tests/run-fmt-wrap.sh`
 
@@ -84,3 +85,19 @@ xlang fmt --check path.x      # 已格式化 → exit 0 无输出
 | 门禁 | `tests/run-tool-fmt-gate.sh` |
 
 **TOOL-001 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + cases/rules = hard.
+- `tests/run-fmt-cmd.sh` hooks = hard run.
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-tool-fmt-gate.sh
+```
+
+manifest: `tests/baseline/tool-fmt-style.tsv`

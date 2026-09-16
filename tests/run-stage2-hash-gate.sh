@@ -58,8 +58,14 @@ if [ "$H1" = "$H2" ]; then
 fi
 
 echo "stage2-hash-gate: MISMATCH (stage1 != stage2 SHA256)" >&2
+# Honest topology signal: large size delta usually means gen1 link line ≠ gen2
+# (e.g. g05 product vs build_xlang_asm round2), not a bit-flip in the same recipe.
+# PLATFORM: SHARED — diagnostic only; STRICT still controls exit.
+if [ "$SZ1" != "$SZ2" ]; then
+  echo "stage2-hash-gate: topology fork suspected (bytes stage1=$SZ1 stage2=$SZ2; not same link recipe)" >&2
+fi
 if [ "${XLANG_STAGE2_HASH_STRICT:-0}" = "1" ]; then
-  echo "stage2-hash-gate FAIL (XLANG_STAGE2_HASH_STRICT=1)" >&2
+  echo "stage2-hash-gate FAIL (XLANG_STAGE2_HASH_STRICT=1) — refuse 假 fixed point; converge topologies or track-only" >&2
   exit 1
 fi
 

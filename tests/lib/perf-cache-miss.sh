@@ -30,11 +30,12 @@ perf_cm_probe_ok() {
   local perf_cmd out loads misses pair
   [ "$(uname -s)" = "Linux" ] || return 1
   perf_cmd="$(perf_cm_resolve_bin)" || return 1
-  sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
+  # Honesty: sysctl prints "key = val" on stdout — must not leak into callers.
+  sysctl -w kernel.perf_event_paranoid=-1 >/dev/null 2>&1 || true
   pair=$(perf_cm_stat_load_miss_pair "$perf_cmd" /bin/true "L1-dcache-loads" "L1-dcache-load-misses")
   loads="${pair%% *}"
   misses="${pair#* }"
-  [ -n "$loads" ] && [ -n "$misses" ]
+  [ -n "$loads" ] && [ -n "$misses" ] && [[ "$loads" =~ ^[0-9]+$ ]] && [[ "$misses" =~ ^[0-9]+$ ]]
 }
 
 # perf stat -x, CSV：取 event 对应计数值。
@@ -95,16 +96,18 @@ perf_cm_l1_miss_pct() {
   local exe="$1"
   local perf_cmd loads misses pct pair
   perf_cmd="$(perf_cm_resolve_bin)" || { echo "nan"; return; }
-  sysctl -w kernel.perf_event_paranoid=-1 2>/dev/null || true
+  # Honesty: redirect sysctl stdout so miss pct is a single numeric token (or nan).
+  sysctl -w kernel.perf_event_paranoid=-1 >/dev/null 2>&1 || true
   pair=$(perf_cm_stat_load_miss_pair "$perf_cmd" "$exe" "L1-dcache-loads" "L1-dcache-load-misses")
   loads="${pair%% *}"
   misses="${pair#* }"
-  if [ -z "$loads" ] || [ -z "$misses" ]; then
+  if [ -z "$loads" ] || [ -z "$misses" ] || ! [[ "$loads" =~ ^[0-9]+$ ]] || ! [[ "$misses" =~ ^[0-9]+$ ]]; then
     pair=$(perf_cm_stat_load_miss_pair "$perf_cmd" "$exe" "cache-references" "cache-misses")
     loads="${pair%% *}"
     misses="${pair#* }"
   fi
-  if [ -z "$loads" ] || [ -z "$misses" ] || [ "$loads" = "0" ]; then
+  if [ -z "$loads" ] || [ -z "$misses" ] || [ "$loads" = "0" ] \
+    || ! [[ "$loads" =~ ^[0-9]+$ ]] || ! [[ "$misses" =~ ^[0-9]+$ ]]; then
     echo "nan"
     return
   fi

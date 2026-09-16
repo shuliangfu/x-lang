@@ -26,14 +26,23 @@ export const ARROW_TYPE_I32: i32 = 1;
 export const ARROW_TYPE_F32: i32 = 2;
 export const ARROW_TYPE_F64: i32 = 3;
 
-/* See implementation. */
+/**
+ * In-memory column header (opaque handle cast to *ArrowColumnMem).
+ * Layout is packed to exactly 32 bytes so calloc(1, 32) covers every field:
+ *   type_id/length/capacity/data_owned at 0/4/8/12, data/null_bitmap at 16/24.
+ * data_owned MUST sit before the pointers — if it follows them, allow(padding)
+ * inserts 4 bytes after capacity and data_owned lands at offset 32 (OOB of the
+ * 32-byte block). Destroy then reads garbage owned≠0 and free()s borrowed
+ * adopt buffers (stack) → Darwin malloc abort; Linux may flaky-green.
+ * PLATFORM: SHARED — ABI twin = seeds/runtime_arrow_simd_glue.from_x.c arrow_column_t.
+ */
 allow(padding) struct ArrowColumnMem {
   type_id: i32;
   length: i32;
   capacity: i32;
+  data_owned: i32;
   data: *u8;
   null_bitmap: *u8;
-  data_owned: i32;
 }
 
 /* See implementation. */
@@ -107,13 +116,20 @@ export function arrow_null_bitmap_set(col: *ArrowColumnMem, index: i32, is_valid
 }
 
 /**
- * See implementation.
+ * Allocate an owned column header + aligned data buffer + null bitmap.
+ * @param type_id i32 — ARROW_TYPE_I32 / F32 / F64
+ * @param capacity i32 — element slots; must be > 0
+ * @param elem_size usize — bytes per element (4 or 8)
+ * @return *ArrowColumnMem — heap header, or null on OOM / bad capacity
+ * Header is calloc(1, 32); data_owned=1 so destroy frees data.
+ * PLATFORM: SHARED — matches ArrowColumnMem 32B pack.
  */
 export function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size: usize): *ArrowColumnMem {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
   if (capacity <= 0) {
     return 0 as *ArrowColumnMem;
   }
+  /* 32 == sizeof packed ArrowColumnMem (see struct docblock). */
   unsafe { c = calloc(1, 32) as *ArrowColumnMem; }
   if (c == 0) {
     return 0 as *ArrowColumnMem;
@@ -174,12 +190,14 @@ export function arrow_column_f64_create_c(capacity: i32): i64 {
   return c as i64;
 }
 
-/** Exported function `arrow_column_adopt_f32_c`.
- * Implements `arrow_column_adopt_f32_c`.
- * @param ptr *f32
- * @param len i32
- * @param capacity i32
- * @return i64
+/**
+ * Adopt an external f32 buffer as a non-owning column (data_owned=0).
+ * @param ptr *f32 — caller-owned buffer; must outlive the column until destroy
+ * @param len i32 — live element count; 0 <= len <= capacity
+ * @param capacity i32 — buffer capacity in elements; must be > 0
+ * @return i64 — opaque *ArrowColumnMem handle, or 0 on failure
+ * destroy must NOT free(data); only the header + null_bitmap are heap-owned.
+ * PLATFORM: SHARED — cookbook db_kv_arrow / arrow_column_smoke.
  */
 export function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64 {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
@@ -193,8 +211,8 @@ export function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i6
   c.type_id = ARROW_TYPE_F32;
   c.length = len;
   c.capacity = capacity;
-  c.data = ptr as *u8;
   c.data_owned = 0;
+  c.data = ptr as *u8;
   c.null_bitmap = arrow_null_bitmap_alloc(capacity);
   if (c.null_bitmap == 0) {
     unsafe { free(c as *u8); }
@@ -203,12 +221,13 @@ export function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i6
   return c as i64;
 }
 
-/** Exported function `arrow_column_adopt_i32_c`.
- * Implements `arrow_column_adopt_i32_c`.
- * @param ptr *i32
- * @param len i32
- * @param capacity i32
- * @return i64
+/**
+ * Adopt an external i32 buffer as a non-owning column (data_owned=0).
+ * @param ptr *i32 — caller-owned buffer; must outlive the column until destroy
+ * @param len i32 — live element count; 0 <= len <= capacity
+ * @param capacity i32 — buffer capacity in elements; must be > 0
+ * @return i64 — opaque *ArrowColumnMem handle, or 0 on failure
+ * PLATFORM: SHARED — same ownership contract as adopt_f32_c.
  */
 export function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64 {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
@@ -222,8 +241,8 @@ export function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i6
   c.type_id = ARROW_TYPE_I32;
   c.length = len;
   c.capacity = capacity;
-  c.data = ptr as *u8;
   c.data_owned = 0;
+  c.data = ptr as *u8;
   c.null_bitmap = arrow_null_bitmap_alloc(capacity);
   if (c.null_bitmap == 0) {
     unsafe { free(c as *u8); }
@@ -432,10 +451,11 @@ export function arrow_column_f64_append_c(handle: i64, val: f64): i32 {
   return 0;
 }
 
-/** Exported function `arrow_column_destroy_c`.
- * Implements `arrow_column_destroy_c`.
- * @param handle i64
- * @return void
+/**
+ * Destroy a column handle: free null_bitmap + header; free data only if owned.
+ * @param handle i64 — opaque *ArrowColumnMem (0 = no-op)
+ * Adopt columns (data_owned=0) keep caller buffers; owned create columns free data.
+ * PLATFORM: SHARED — must read data_owned inside the 32B header (see struct pack).
  */
 export function arrow_column_destroy_c(handle: i64): void {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;

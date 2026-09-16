@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）** — 与 `codegen.c` 单态化、`tests/run-generic.sh` 对齐  
 > 关联：`COMP-001`（parser）、`TYPE-004`（FFI）、`LANG-004`（trait 约束）
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/lang/. typeck.c/codegen.c retired — live = typeck.x / codegen.x; codegen_one_mono_instance → codegen_emit_mono_mangled_name.
 
 ---
 
@@ -96,3 +97,17 @@ function main(): i32 { return id<i32>(42); }  // → exit 42
 | prototype | `tests/baseline/lang-generic-prototype.tsv` |
 
 **LANG-003 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK / prefer-c (xlang-c before asm); explicit bad XLANG /
+missing native = hard die (generic hooks are the live face); multi-file on
+resolved product path (not force-xlang-c); DOC=archive; report
+`run=`／`multi=`／`skip=`.
+
+`tests/run-lang-generic-gate.sh` + `tests/run-lang-generic.sh`:
+
+1. Archive DOC + manifest + prototype（拒 top-level DOC／typeck.c／codegen.c resurrect）
+2. Native xlang：`run-generic` + `run-multi-file-generic` 硬绿
+3. 缺 native／显式坏 XLANG 硬 die

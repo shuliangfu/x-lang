@@ -14,10 +14,10 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// next_field / unescape / parse_row / write_row / stream：csv.x（F-csv v1）。
-// See implementation.
+// PLATFORM: SHARED — import("std.csv") method surface is this file.
+// Leaf algorithms live in csv.x as csv_*_c (--bare-impl naked symbols).
+// parse_row / write_row are thin wrappers over csv_parse_row_c / csv_write_row_c
+// (STD-036). Do not copy those bodies here.
 
 /**
  * See implementation.
@@ -139,6 +139,49 @@ export function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   buf[i] = 34;
   i = i + 1;
   return i;
+}
+
+extern function csv_parse_row_c(ptr: *u8, len: i32, offset: i32, field_starts: *i32, field_lens: *i32,
+  max_fields: i32, out_count: *i32): i32;
+extern function csv_write_row_c(blob: *u8, starts: *i32, lens: *i32, count: i32, out: *u8, out_cap: i32): i32;
+
+/**
+ * Parse one CSV record starting at offset into starts/lens tables (STD-036).
+ * Stops at LF, CRLF, or end of buffer. Does not copy field bytes.
+ * @param ptr *u8 — record bytes; null rejected by csv_parse_row_c
+ * @param len i32 — byte count of ptr
+ * @param offset i32 — start index into ptr
+ * @param field_starts *i32 — output start index per field; caller-owned
+ * @param field_lens *i32 — output length per field; caller-owned
+ * @param max_fields i32 — capacity of the output tables
+ * @param out_count *i32 — written field count
+ * @return i32 — next offset after the record, or -1 on error
+ * PLATFORM: SHARED — facade over csv_parse_row_c in csv.x
+ */
+export function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32, field_lens: *i32,
+  max_fields: i32, out_count: *i32): i32 {
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_parse_row_c(ptr, len, offset, field_starts, field_lens, max_fields, out_count); }
+  return _rc;
+}
+
+/**
+ * Write count CSV fields from blob[starts[i]..+lens[i]] into out (STD-036).
+ * Quotes a field that contains comma, quote, CR, or LF via csv_escape_c.
+ * Does not append a trailing newline (stream append_row does).
+ * @param blob *u8 — field bytes; indices from starts/lens
+ * @param starts *i32 — start index of each field in blob
+ * @param lens *i32 — length of each field
+ * @param count i32 — number of fields; count < 0 is error
+ * @param out *u8 — destination buffer; caller-owned
+ * @param out_cap i32 — capacity of out
+ * @return i32 — bytes written, or -1 on error / overflow
+ * PLATFORM: SHARED — facade over csv_write_row_c in csv.x
+ */
+export function write_row(blob: *u8, starts: *i32, lens: *i32, count: i32, out: *u8, out_cap: i32): i32 {
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_write_row_c(blob, starts, lens, count, out, out_cap); }
+  return _rc;
 }
 
 /** Exported function `test_quoted_first`.

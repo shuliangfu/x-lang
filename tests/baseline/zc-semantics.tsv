@@ -1,5 +1,8 @@
 # ZC-006 零拷贝语义 manifest
 # 列：item_id	kind	anchor	notes
+# leftover residual (2026-08-29): dual-authority top-level
+# analysis/type-region-v1-rfc.md retired; live = analysis/archive/type/.
+# TSV identity kept (xref path only).
 # min_sections	7
 # min_zc_tiers	5
 three_layers	section	## 1. 北极星与三层模型	L/B/K
@@ -18,7 +21,7 @@ zc2_tier	zc_tier	ZC-2	run-zc2-gate.sh
 zc3_tier	zc_tier	ZC-3	run-zc3-gate.sh
 zc4_tier	zc_tier	ZC-4	run-zc4-gate.sh
 zc5_tier	zc_tier	ZC-5	run-zc5-gate.sh
-cross_type_region	cross_ref	analysis/type-region-v1-rfc.md	TYPE-002
+cross_type_region	cross_ref	analysis/archive/type/type-region-v1-rfc.md	TYPE-002
 cross_io_mod	cross_ref	std/io/mod.x	生命周期注释
 cross_fs_readme	cross_ref	std/fs/README.md	mmap/sendfile
 example_read_ptr	example	tests/io/read_ptr.x	IO 烟测

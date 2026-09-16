@@ -12,16 +12,17 @@
 | fn-ptr invoke | `test_glue.c` | **`runtime_test_fn_invoke.c`** |
 | `test.o` | ld -r glue + .x | **纯 `.x`** |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_TEST_V2_FAIL` retired. STD-145 test-runner hard-delegate. test-executable／bench-fuzz remain listed residual (ld UNDEF) — not invoked.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-test-v2：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-test-runner 不重写）。
 
 ```bash
-XLANG_F_TEST_V2_FAIL=1 ./tests/run-f-test-v2-gate.sh
-./tests/run-std-test-bench-fuzz-gate.sh
-./tests/run-std-test-executable-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-test-v2-gate.sh
 ./tests/run-std-test-runner-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项
 
-- **F-cache v2** / **F-url v2**（LRU / URL 解析逻辑下沉）
+- 继续阶段 F std 去 C（其它模块）

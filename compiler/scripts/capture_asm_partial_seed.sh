@@ -60,9 +60,17 @@ if [ ! -x "$XLANG_E" ]; then
 fi
 
 progress "XLANG_E=$XLANG_E (bootstrap -E path; LEGACY 无法 parse 当前 ast.x)"
-make -j4 src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o \
-  src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o \
- 
+# PLATFORM: SHARED — post-Makefile phys-del (wave941+): dispatch TU via
+# ensure_host_cc_seed_o try-r3-cold (catalog R3_COLD; G.7 single authority).
+# Ban residual `make` — Makefile absent; product g05 already owns this body.
+progress "dispatch TU via ensure_host_cc_seed_o try-r3-cold (0-make)"
+for _dof in src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o \
+            src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o; do
+  if ! bash scripts/ensure_host_cc_seed_o.sh try-r3-cold "$_dof"; then
+    echo "capture_asm_partial: FAIL ensure $_dof (try-r3-cold)" >&2
+    exit 1
+  fi
+done
 
 ulimit -s unlimited 2>/dev/null || ulimit -s 65532 2>/dev/null || true
 

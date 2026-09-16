@@ -120,7 +120,7 @@
 //   + wave44 Cap residual pure：driver_print_usage_write
 //     (color policy pure: NO_COLOR nonnull / FORCE truthy / isatty;
 //      Cap residual xlang_driver_usage_write_stdout holds giant plain/color lit +
-//      fwrite+fflush; .x cannot host multi-line \\n usage tables).
+//      via xlang_io_write(1, ...) Cap io face; .x cannot host multi-line \\n lits).
 //
 
 /* wave228 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
@@ -2681,9 +2681,16 @@ function driver_abi_pctx_off_entry_already_parsed(): i32 {
   return 8389696;
 }
 
-/** offsetof(ast_PipelineDepCtx, asm_entry_module_only) on LP64. */
+/**
+ * offsetof(ast_PipelineDepCtx, asm_entry_module_only) on LP64.
+ * G.7: must equal `pipe_pctx_off_asm_entry_module_only` (8390000) and
+ * `offsetof` on `runtime_pipeline_abi.h` / `ast.x`.
+ * Cap 4.2.8: `current_codegen_prefix_mirror` is u8[256] (was [128] @ wave577);
+ * asm_entry sits at mirror@8389740 + 256 + prefix_len i32 = 8390000.
+ * PLATFORM: SHARED LP64 — keep lockstep with the header / ast.x / pipe off.
+ */
 function driver_abi_pctx_off_asm_entry_module_only(): i32 {
-  return 8389808;
+  return 8390000;
 }
 
 /** Store pctx->use_asm_backend = v. Null ctx is a no-op.
@@ -4278,7 +4285,8 @@ export function driver_parsed_use_lto(p: *u8): i32 {
  * @param defines *u8 — opaque defines table (unused)
  * @return i32 — -2 continue .x pipeline; >=0 would be terminal rc
  * Product XLANG_NO_C_FRONTEND always returns -2 (no C frontend body in pure).
- * Cold full-C seeds may still host a real branch; product hybrid keeps stub.
+ * Leftover generic-syntax lexer/parse / import-downgrade in the cold
+ * rt_run_compiler_parsed seed retired; both PREFER and cold continue .x.
  * Wave32 pure. PLATFORM: SHARED — product path; permanent NO_C contract.
  */
 #[no_mangle]
@@ -4512,10 +4520,15 @@ export function driver_x_emit_effective_lib_roots(n_out: *i32): *u8 {
 
 /**
  * Product NO_C path for -x -E -E-extern: emit BLD001 and return 1.
+ * Leftover !XLANG_NO_C_FRONTEND cparser consume site lived only in the
+ * cold rt_run_x_emit.from_x.c twin; this body never called
+ * driver_run_x_emit_c_extern_via_cparser. Mega wrapper of that name
+ * retired (never-defined _impl).
  * @param input_path *u8 — unused on product NO_C (ABI parity)
  * @return i32 — always 1 (terminal failure) on product hybrid
  * Wave33 pure: diag_report_with_code with fixed message; no C frontend body.
- * PLATFORM: SHARED — product NO_C contract; cold seed keeps same stub twin.
+ * PLATFORM: SHARED — product NO_C contract; leftover consume site and
+ * mega wrapper both retired.
  */
 #[no_mangle]
 export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
@@ -5423,7 +5436,8 @@ export function driver_parse_into_buf_rc(
 // ---- Wave39 Cap residual pure: stdio stdout + asm fwrite + x_emit fwrite_stdout ----
 // G.7: reuse wave26 g05 harness (xlang_driver_stdout_ptr / xlang_driver_fwrite_opaque).
 // driver_x_emit_fwrite_stdout returns written byte count (not 0/1); residual
-//   xlang_driver_fwrite_stdout_n hides fwrite+fflush and the count ABI.
+//   xlang_driver_fwrite_stdout_n hides the xlang_io_write(1, ...) Cap io write
+//   and the count ABI (name historical; no libc fwrite since 9.7.1).
 // wave40 owns stderr / fflush_stdout / fopen_wb / write_metric_o (see below).
 // wave41 owns mkstemp_fdopen. Still seed OS residual: sibling / usage / exec.
 // PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
@@ -5601,17 +5615,17 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
 // ---- Wave41 Cap residual pure: driver_asm_mkstemp_fdopen ----
 // G.7: reuse wave27 open_out helpers (tmp_prefix + cstr_copy/cat + mkstemp/close/unlink).
 // Cap residual split:
-//   - seed always: xlang_driver_asm_mkstemp_fdopen_enabled (WINDOWS → 0; POSIX → 1)
+//   - seed always: xlang_driver_asm_mkstemp_fdopen_enabled (SHARED → 1; MinGW mkstemp OK)
 //   - g05 prologue: xlang_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
 //   - pure orch: null guard, enable gate, template fill into path_out64, mkstemp,
 //     fdopen; fail → close+unlink+clear path[0]
 // Wave42 owns exec_compiled_body (see below).
-// PLATFORM: SHARED orch; WINDOWS disabled via residual (matches cold twin).
+// PLATFORM: SHARED orch; WINDOWS|POSIX enabled (closes want-exe BLD001 host-cc fallback).
 
 /**
- * Host gate for asm mkstemp+fdopen: 0 on Windows (always null), 1 on POSIX product.
+ * Host gate for asm mkstemp+fdopen: 1 on all product hosts (incl. Windows MinGW).
  * @return i32 — 1 enabled; 0 disabled (pure returns null without OS calls)
- * PLATFORM: WINDOWS returns 0; POSIX/LINUX/MACOS return 1. Always-seed residual.
+ * PLATFORM: SHARED — WINDOWS|POSIX|LINUX|MACOS return 1. Always-seed residual.
  */
 export extern "C" function xlang_driver_asm_mkstemp_fdopen_enabled(): i32;
 /**
@@ -5629,7 +5643,7 @@ export extern "C" function xlang_driver_fdopen_wb_opaque(fd: i32): *u8;
  * On failure after mkstemp: close(fd), unlink(path), clear path_out64[0].
  * Wave41 pure: null + enable gate pure; template = tmp_prefix + "xlang_asm_XXXXXX"
  * (reuses wave27 cstr helpers); mkstemp/close/unlink libc; g05 fdopen_wb_opaque.
- * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch; WINDOWS residual disabled.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch (WINDOWS MinGW mkstemp enabled).
  */
 #[no_mangle]
 export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
@@ -5640,7 +5654,7 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    // PLATFORM: WINDOWS — cold twin always returns null; do not call mkstemp.
+    // PLATFORM: SHARED — gate is 1 on Windows MinGW and POSIX; fail soft on OS error.
     if (xlang_driver_asm_mkstemp_fdopen_enabled() == 0) {
       return 0 as *u8;
     }
@@ -5690,11 +5704,19 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
 export extern "C" function xlang_driver_exec_scan_out_path_opaque(argc: i32, argv_opaque: *u8): *u8;
 /**
  * Cap residual: run product exe and wait for exit status (spawn/fork/exec).
+ * 9.4.3 C ABI argv: the child receives [exe] + user positionals after the .x
+ * source path in run_argv; driver flags stay driver-owned and are not
+ * forwarded. v1 flag-value table: value-taking flags ("-o", "-O", "-L",
+ * "-backend", "-target", "-target-cpu") also consume their separate value so
+ * it does not leak into the child argv (the injected "-o <temp>" pair and an
+ * explicit -o product path are driver artifacts). argv[0] = exe path.
  * @param exe *u8 — NUL-terminated path; null → 1
+ * @param argc i32 — run_argv length; out of [1,512] or null argv → exe-only child
+ * @param argv_opaque *u8 — opaque char** run_argv from cmd_run; null allowed
  * @return i32 — process exit code, or 1 on spawn/wait failure
  * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+xlang_waitpid_retry. Always-seed.
  */
-export extern "C" function xlang_driver_exec_spawn_wait(exe: *u8): i32;
+export extern "C" function xlang_driver_exec_spawn_wait(exe: *u8, argc: i32, argv_opaque: *u8): i32;
 /**
  * G.7: pure non-exe gate already in rt_run_exec.x (suffix .o/.obj/.s).
  * @param exe *u8 — product path; null treated as non-exe
@@ -5730,7 +5752,9 @@ export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
       return 0;
     }
     // Cap residual: fork/exec or Windows spawnvp + wait (process OS boundary).
-    return xlang_driver_exec_spawn_wait(exe);
+    // 9.4.3: run_argv rides along so user positionals after the .x source path
+    // become the child's argv (C ABI argc/argv for the compiled program).
+    return xlang_driver_exec_spawn_wait(exe, argc, argv_opaque);
   }
   return 1;
 }
@@ -5883,15 +5907,17 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
 //   CLICOLOR_FORCE / XLANG_FORCE_COLOR truthy → force color even when piped
 //   otherwise → isatty(1)
 // Cap residual always-seed: xlang_driver_usage_write_stdout(use_color)
-//   holds giant plain + ANSI color multi-line tables + fwrite + fflush.
+//   holds giant plain + ANSI color multi-line tables, written to fd 1 via
+//   xlang_io_write (Cap io face; no libc FILE star since 9.7.1).
 // Root cause for residual: .x -E drops / mis-encodes long \\n string lits — not a
 // single-line workaround; table authority stays one seed residual (G.7).
-// PLATFORM: SHARED orch; isatty / fwrite OS surfaces.
+// PLATFORM: SHARED orch; isatty OS surface; lit tables via Cap io write.
 
 /**
- * Cap residual: write usage plain or color table to stdout and fflush.
+ * Cap residual: write usage plain or color table to stdout (fd 1) via
+ * xlang_io_write (Cap io; no libc FILE star / stdout).
  * @param use_color i32 — non-zero selects ANSI color table; zero selects plain
- * PLATFORM: SHARED — giant lit tables + fwrite/fflush. Always-seed (no pure-dup).
+ * PLATFORM: SHARED — giant lit tables + Cap io write. Always-seed (no pure-dup).
  */
 export extern "C" function xlang_driver_usage_write_stdout(use_color: i32): void;
 
@@ -5900,7 +5926,7 @@ export extern "C" function xlang_driver_usage_write_stdout(use_color: i32): void
  * Wave44 pure: color policy orch reuses G.7 driver_env_nonnull / driver_env_flag_truthy
  * (same truthiness as cold getenv checks); isatty(1) for TTY default; Cap residual
  * holds multi-line usage tables + write. Cold twin under #ifndef FROM_X.
- * PLATFORM: SHARED orch; residual owns giant lit + fwrite.
+ * PLATFORM: SHARED orch; residual owns giant lit + Cap io write.
  */
 #[no_mangle]
 export function driver_print_usage_write(): void {
@@ -5918,7 +5944,7 @@ export function driver_print_usage_write(): void {
       use_color = isatty(1);
     }
   }
-  // Cap residual: plain/color tables + fwrite(stdout) + fflush (giant lit authority).
+  // Cap residual: plain/color tables via xlang_io_write(1, ...) (giant lit authority).
   unsafe {
     xlang_driver_usage_write_stdout(use_color);
   }

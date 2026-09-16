@@ -52,6 +52,28 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
                                         int32_t ta, uint32_t cpu_features);
 
 /**
+ * f32 向量 sub（Vec4f / f32x4）；x86 subps. Cold seed: SSE lanes==4.
+ * PLATFORM: SHARED symbol; LINUX+MACOS x86_64 SSE in seed, ARM/AVX in simd_enc.x.
+ */
+int32_t simd_enc_try_hw_vector_fsub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features);
+
+/**
+ * f32x4 horizontal sum into xmm0 lane0. Cold seed: SSE movups + pshufd/addps.
+ * PLATFORM: SHARED symbol; LINUX+MACOS x86_64 SSE in seed, ARM in simd_enc.x.
+ */
+int32_t simd_enc_try_hw_vector_hsum_f32x4_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off,
+                                             int32_t ta, uint32_t cpu_features);
+
+/**
+ * f32x4 dot product into xmm0 lane0. Cold seed: SSE mulps + horizontal addps.
+ * PLATFORM: SHARED symbol; LINUX+MACOS x86_64 SSE in seed, ARM in simd_enc.x.
+ */
+int32_t simd_enc_try_hw_vector_dot_f32x4_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                            int32_t slot_off_b, int32_t ta, uint32_t cpu_features);
+
+/**
  * f32 向量 FMA（Vec4f）：dst = a + b * c；x86 vfmadd231ps 或 mulps+addps 回退。
  */
 int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,

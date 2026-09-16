@@ -107,11 +107,12 @@ char **driver_entry_fmt_argv_slot(void);
  * Cap residual：rt_run_exec R2 usage 写 stdout。
  * wave44 pure under PREFER: color policy orch（NO_COLOR / CLICOLOR_FORCE /
  *   XLANG_FORCE_COLOR / isatty）；cold twin under #ifndef XLANG_L2_RDABI_THIN_FROM_X。
- * Always-seed residual: xlang_driver_usage_write_stdout（巨型 plain/color lit +
- *   fwrite+fflush）。.x 禁含 \\n 长字串字面量（-E 编码/丢体）→ 表留 residual。
+ * Always-seed residual: xlang_driver_usage_write_stdout（巨型 plain/color lit，
+ *   经 xlang_io_write(1,…) Cap io 写）。.x 禁含 \\n 长字串字面量（-E 编码/丢体）
+ *   → 表留 residual。
  */
 void driver_print_usage_write(void);
-/** Permanent Cap residual: giant usage tables + fwrite(stdout) + fflush. Always-seed. */
+/** Permanent Cap residual: giant usage tables via xlang_io_write(1, …) Cap io. Always-seed. */
 void xlang_driver_usage_write_stdout(int32_t use_color);
 
 /**
@@ -124,8 +125,11 @@ void xlang_driver_usage_write_stdout(int32_t use_color);
 int driver_exec_compiled_body(int argc, uint8_t *argv_opaque);
 /** Permanent Cap residual: *u8 argv → cast + driver_exec_scan_out_path. */
 uint8_t *xlang_driver_exec_scan_out_path_opaque(int32_t argc, uint8_t *argv_opaque);
-/** Permanent OS residual: spawn/fork product exe and wait. PLATFORM: WIN vs POSIX. */
-int32_t xlang_driver_exec_spawn_wait(uint8_t *exe);
+/** Permanent OS residual: spawn/fork product exe and wait. 9.4.3: run_argv
+ * rides along; user positionals after the .x source path become the child's
+ * argv (C ABI). v1: value-taking driver flags (-o/-O/-L/-backend/-target/
+ * -target-cpu) also skip their separate value. PLATFORM: WIN vs POSIX. */
+int32_t xlang_driver_exec_spawn_wait(uint8_t *exe, int32_t argc, uint8_t *argv_opaque);
 
 /**
  * Cap-global-bss residual：rt_emit_state R2 经槽写共享 emit 状态。
@@ -201,7 +205,8 @@ uint8_t *driver_x_emit_lib_root_at(int32_t i);
 void driver_x_emit_stdout_set_unbuffered(void);
 /**
  * wave39 pure: hybrid thin owns null/len guards; Cap OS residual
- * xlang_driver_fwrite_stdout_n returns written count after fwrite+fflush.
+ * xlang_driver_fwrite_stdout_n returns written count via xlang_io_write(1, …)
+ * (Cap io face; name is historical, body has no libc fwrite since 9.7.1).
  * cold twin under #ifndef FROM_X.
  */
 int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len);
@@ -272,9 +277,14 @@ void driver_x_emit_work_z_set(int32_t i, size_t v);
 /** 释放 work 槽内 dep 表/arena/out/pctx/src/kind 等；调用后 reset。 */
 void driver_x_emit_work_cleanup(void);
 /**
- * Cap residual：-E-extern 分支（#ifdef XLANG_NO_C_FRONTEND）。
- * wave33 pure：product NO_C fixed BLD001 diag + return 1 under PREFER hybrid；
- * cold C twin under #ifndef FROM_X。有 C frontend 的冷全 C 体另议。
+ * Cap residual: -x -E -E-extern refuse (always BLD001).
+ * wave33 pure: product NO_C fixed BLD001 diag + return 1 under PREFER hybrid;
+ * cold C twin under #ifndef FROM_X. Leftover !XLANG_NO_C_FRONTEND cparser
+ * consume site in rt_run_x_emit.from_x.c retired (residual 7); cold seed
+ * now also calls this refuse. Mega wrapper of
+ * driver_run_x_emit_c_extern_via_cparser retired (this knife;
+ * never-defined _impl).
+ * PLATFORM: SHARED — mega-wrapper hygiene.
  */
 int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path);
 
@@ -367,7 +377,7 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path);
  * path_out64 容量 ≥64B；失败 NULL（fail 后可能 clear path[0]）。
  */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
-/** Permanent OS residual: WINDOWS → 0；POSIX → 1（pure mkstemp_fdopen gate）。 */
+/** OS residual gate: SHARED → 1（pure mkstemp_fdopen；Windows MinGW enabled）. */
 int32_t xlang_driver_asm_mkstemp_fdopen_enabled(void);
 void driver_asm_fclose(uint8_t *fp);
 /**

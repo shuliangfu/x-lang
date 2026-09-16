@@ -6,10 +6,13 @@
 # 3) 有 native xlang 时逐条执行 wave hook
 #
 # 用法：./tests/run-comp-incr-compile-wave-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP020_DOC:-analysis/comp-incr-compile-wave-v1.md}"
+DOC="${XLANG_COMP020_DOC:-analysis/archive/comp/comp-incr-compile-wave-v1.md}"
 WAVE="${XLANG_COMP020_WAVE_TSV:-tests/baseline/comp-incr-compile-wave.tsv}"
 MANIFEST="${XLANG_COMP020_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
 BENCH="${XLANG_COMP020_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
@@ -22,7 +25,7 @@ MIN_BENCH=5
 
 echo "=== COMP-020: incr-compile wave manifest ==="
 for f in "$DOC" "$WAVE" "$MANIFEST" "$BENCH" "$LIB" \
-  analysis/comp-incr-compile-v1.md tests/run-comp-incr-compile-gate.sh \
+  analysis/archive/comp/comp-incr-compile-v1.md tests/run-comp-incr-compile-gate.sh \
   tests/run-comp-incr-compile.sh tests/run-obs-compile-phase-timing-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-incr-compile-wave gate FAIL: missing $f" >&2

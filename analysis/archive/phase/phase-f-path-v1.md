@@ -20,19 +20,23 @@
 
 | 文件 | 原因 |
 |------|------|
-| `std/path/path_abi.h` | codegen 生成 C 时 `#include`（path_empty_len 宏） |
+| `compiler/include/xlang_std_abi/path_abi.h` | codegen ABI（F-ZC 迁出后权威） |
 | `std/path/mod.x` | 全量 path API |
 
 ## 构建
 
 ```bash
-make -C compiler ../std/path/path.o
+./xbuild  # was: make -C compiler ../std/path/path.o
 ```
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_PATH_V1_FAIL` retired. Delegates STD-140 path-extreme + STD-021／022 path-fs-windows hard.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-path-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／path-extreme／path-fs-windows 不重写）。
 
 ```bash
-XLANG_F_PATH_V1_FAIL=1 ./tests/run-f-path-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-path-v1-gate.sh
 ./tests/run-std-path-extreme-gate.sh
 ./tests/run-std-path-fs-windows-gate.sh
 ```
@@ -40,5 +44,4 @@ XLANG_F_PATH_V1_FAIL=1 ./tests/run-f-path-v1-gate.sh
 ## 下一项
 
 - **F-path v1 ✅**：`path.c` 删除；见 `phase-f-path-v1.md`
-- **F-process v1**：`process.c` → `.x` + OS FFI 胶层
 - 刷新 F-09 baseline：`XLANG_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh`

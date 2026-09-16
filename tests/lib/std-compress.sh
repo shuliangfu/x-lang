@@ -1,96 +1,139 @@
 #!/usr/bin/env bash
-# std-compress.sh — STD-007 共享：std.compress 烟测辅助
+# std-compress.sh — STD-007 gzip/zstd/legacy helpers (honesty prefer-asm).
 #
-# 用法（source 后）：
+# Usage (after source):
 #   std_compress_has_api MOD fn
-#   std_compress_try_libs          # 尝试 rebuild compress.o（zlib/zstd）
-#   std_compress_run_smoke XLANG src tag
-#   std_compress_probe_roundtrip XLANG src  # 打印 ok|skip|fail
+#   std_compress_symbols_ok MOD_X TSV
+#   std_compress_run_smoke XLANG_BIN SRC [TAG]
+#   std_compress_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / soft std_compress_try_libs
+# / XLANG fallthrough; report run=/obs=/skip= (retired check=/gzip=/zstd=/legacy=).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# 检查 mod.x 是否导出指定函数。
+STD_COMPRESS_PREFIX="${XLANG_STD_COMPRESS_PREFIX:-xlang: [XLANG_STD_COMPRESS]}"
+
+# Check mod.x exports the named function.
 std_compress_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# F-04 v7：compress 格式已全 .x；compress-o-* 为兼容 no-op，runtime 按需 -lz/-lzstd/-lbrotli*。
-std_compress_try_libs() {
-  (cd compiler && make compress-o-zlib-zstd 2>/dev/null) || true
-  echo "std-compress: formats via .x (F-04 v7, no compress.o)" >&2
-  return 0
+# Validate manifest; echo miss count; return 0 iff miss==0.
+# Kinds: api / section / layers / file / cross_ref / target / script /
+# hook_script / smoke. Full-path TSV anchors preferred.
+# PLATFORM: SHARED archaeology — inventory only; do not invoke make.
+std_compress_symbols_ok() {
+  local mod_x="$1"
+  local tsv="$2"
+  local miss=0
+  local item_id kind anchor src _tier notes path
+  local doc="${XLANG_STD_COMPRESS_DOC:-analysis/archive/std/std-compress-v1.md}"
+  while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
+    [ -z "${item_id:-}" ] && continue
+    case "$item_id" in \#*|min_*) continue ;; esac
+    case "$kind" in
+      api)
+        if ! std_compress_has_api "$mod_x" "$anchor"; then
+          echo "std-compress FAIL: missing api '$anchor' in $mod_x" >&2
+          miss=$((miss + 1))
+        elif [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-compress FAIL: doc missing API '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      section|layers)
+        if [ ! -f "$doc" ] || ! grep -qF "$anchor" "$doc" 2>/dev/null; then
+          echo "std-compress FAIL: missing $kind '$anchor' in $doc" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|cross_ref)
+        path="${src:-$anchor}"
+        if [ ! -f "$path" ]; then
+          echo "std-compress FAIL: missing file '$path'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      target)
+        # Post-MF phys-del: compress-o-* live as hub no-ops in compiler-make.sh.
+        # Inventory grep only — refuse xlang_compiler_make / try_libs.
+        path="${src:-tests/lib/compiler-make.sh}"
+        if ! grep -qF "$anchor" "$path" 2>/dev/null; then
+          echo "std-compress FAIL: missing hub phony '$anchor' in $path" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      script|hook_script)
+        path="$anchor"
+        if [ ! -f "$path" ]; then
+          path="${src:-}"
+        fi
+        if [ ! -f "$path" ]; then
+          path="tests/$anchor"
+        fi
+        if [ ! -f "$path" ] && [ "$kind" = "script" ] && [ -f "tests/lib/$anchor" ]; then
+          path="tests/lib/$anchor"
+        fi
+        if [ ! -f "$path" ]; then
+          echo "std-compress FAIL: missing script '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      smoke)
+        if [ ! -f "$anchor" ]; then
+          echo "std-compress FAIL: missing smoke '$anchor'" >&2
+          miss=$((miss + 1))
+        elif [ ! -f "$doc" ] || ! grep -qF "$(basename "$anchor")" "$doc" 2>/dev/null; then
+          echo "std-compress FAIL: doc missing smoke '$anchor'" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+    esac
+  done < "$tsv"
+  echo "$miss"
+  [ "$miss" -eq 0 ]
 }
 
-std_compress_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-std_compress_resolve_shu() {
-  if [ -n "${XLANG:-}" ] && std_compress_native_xlang "$XLANG"; then
-    echo "$XLANG"
-    return 0
-  fi
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if std_compress_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
-
-# 编译运行烟测；期望退出码 0。
+# Product tip -o smoke. Caller decides hard vs obs (tip UNDEF/SEGV = obs leave).
+# PLATFORM: SHARED archaeology — product honesty path.
+# Do not restore set -e between steps: return 1 must not trip the gate's set -e.
+# Refuse RUN_XLANG / bootstrap-link remap (Darwin must not silently asm→c).
 std_compress_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_compress_${tag}_$$"
+  local log="/tmp/xlang_std_compress_${tag}_$$.log"
   if [ ! -f "$src" ]; then
     echo "std-compress FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/tmp/xlang_std_compress_build.log 2>&1; then
-    tail -8 /tmp/xlang_std_compress_build.log >&2 || true
-    rm -f "$exe"
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-compress OBS tip product -o $src (ec=$o_ec)" >&2
+    tail -n 8 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
+  "$exe" >/dev/null 2>&1
+  local ec=$?
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
-    echo "std-compress FAIL: $tag exit=$ec ($src)" >&2
+    echo "std-compress OBS tip run $src exit=$ec" >&2
     return 1
   fi
   return 0
 }
 
-# 探测往返是否真正执行（exit 0 且压缩 API 非 -1 需结合专用探针文件）。
-std_compress_probe_enabled() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-probe}"
-  local exe="/tmp/xlang_std_compress_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    rm -f "$exe"
-    echo "fail"
-    return 1
-  fi
-  local ec=0
-  "$exe" >/dev/null 2>&1 || ec=$?
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "fail"
-    return 1
-  fi
-  echo "ok"
-  return 0
+# Structured report line (honesty: run=/obs=/skip=; retired check=/gzip=/zstd=/legacy=).
+std_compress_emit_report() {
+  local status="$1"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_COMPRESS_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

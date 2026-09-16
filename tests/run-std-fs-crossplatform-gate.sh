@@ -1,18 +1,39 @@
 #!/usr/bin/env bash
-# STD-003：std.fs 跨平台对齐门禁（Linux / macOS / Windows 同一套 .x）
+# STD-003: std.fs cross-platform gate — honesty leftover wrap dead source →硬绿.
 #
-# 读取 tests/baseline/std-fs-crossplatform.tsv，按平台策略跑 must/skip/optional。
-# 用法：./tests/run-std-fs-crossplatform-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Must-policy .x /
+# run-fs.sh exit0 = hard run (run=1). check = obs. Report: run=/obs=/skip=.
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-fs-crossplatform-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "$0")/lib/ci-host.sh"
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
+DOC="${XLANG_STD_FS_XPLAT_DOC:-analysis/archive/std/std-fs-api-v1.md}"
 BASELINE="tests/baseline/std-fs-crossplatform.tsv"
 MATRIX="${XLANG_STD_FS_CROSSPLATFORM_TSV:-$BASELINE}"
+LIB="tests/lib/std-fs-crossplatform.sh"
+SMOKE_X="tests/fs/crossplatform_core.x"
+
+# shellcheck source=tests/lib/std-fs-crossplatform.sh
+. "$LIB"
+
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-fs-crossplatform gate FAIL: $*" >&2
+  std_fs_xplat_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
 
 platform_policy() {
   local linux="$1"
@@ -29,61 +50,84 @@ platform_policy() {
   fi
 }
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
-    *) return 0 ;;
-  esac
-}
-
-if [ ! -f "$MATRIX" ]; then
-  echo "std-fs-crossplatform gate FAIL: missing $MATRIX" >&2
-  exit 1
-fi
-
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-xlang_compiler_make ../std/io/io.o -q 2>/dev/null \
-  || xlang_compiler_make ../std/io/io.o
-
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
   done
+  return 1
+}
+
+echo "=== STD-003: std.fs cross-platform manifest ==="
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-fs-api-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
 fi
 
-if [ -z "$XLANG_BIN" ]; then
-  echo "std-fs-crossplatform gate SKIP (no native xlang; host=$(ci_host_summary))" >&2
+for f in "$DOC" "$MATRIX" "$LIB" "$SMOKE_X" tests/run-fs.sh; do
+  [ -f "$f" ] || die "missing $f"
+done
+
+for kw in STD-003 crossplatform must skip; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
+done
+
+# DOC §4 = 兼容矩阵; Gate honesty lives under §5 (do not collide with §4).
+# PLATFORM: SHARED archaeology — section anchor must match archive DOC.
+grep -qF '## 5. Gate' "$DOC" 2>/dev/null || die "doc missing '## 5. Gate'"
+
+echo "std-fs-crossplatform manifest OK"
+
+if [ "${XLANG_STD_FS_XPLAT_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_fs_xplat_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-fs-crossplatform gate OK (manifest only)"
   exit 0
 fi
 
-echo "=== STD-003: std.fs cross-platform ($(ci_host_summary) XLANG=$XLANG_BIN) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-003: smoke (XLANG=$XLANG_BIN; check obs; must runnable hard) ==="
 
-run_x_case() {
-  local script="$1"
-  local src="tests/fs/${script}"
-  local out="/tmp/xlang_fs_xplat_${script%.x}"
-  rm -f tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
-  "$XLANG_BIN" -L . "$src" -o "$out" >/tmp/xlang_fs_xplat_compile.log 2>&1 || {
-    cat /tmp/xlang_fs_xplat_compile.log >&2
-    return 1
-  }
-  local ec=0
-  "$out" >/dev/null 2>&1 || ec=$?
-  rm -f tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
-  return "$ec"
-}
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std003_fs_xplat_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-fs-crossplatform OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product must cases / -o are the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
 
 FAILS=0
+MUST_RAN=0
 while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
   [ -z "$case_id" ] && continue
   case "$case_id" in
@@ -99,12 +143,14 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
 
   if [ "$script" = "run-fs.sh" ]; then
     echo "── case $case_id: $script ──"
+    MUST_RAN=$((MUST_RAN + 1))
     chmod +x tests/run-fs.sh
-    if XLANG="$XLANG_BIN" ./tests/run-fs.sh; then
+    if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" ./tests/run-fs.sh; then
       echo "std-fs xplat OK $case_id"
     else
       if [ "$pol" = "optional" ]; then
         echo "std-fs xplat WARN $case_id (optional)" >&2
+        OBS=$((OBS + 1))
       else
         echo "std-fs xplat FAIL $case_id" >&2
         FAILS=$((FAILS + 1))
@@ -120,11 +166,14 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
   fi
 
   echo "── case $case_id: tests/fs/${script} ──"
-  if run_x_case "$script"; then
+  MUST_RAN=$((MUST_RAN + 1))
+  if std_fs_xplat_run_x_smoke "$XLANG_BIN" "tests/fs/${script}" \
+    "/tmp/xlang_fs_xplat_${script%.x}_$$"; then
     echo "std-fs xplat OK $case_id"
   else
     if [ "$pol" = "optional" ]; then
       echo "std-fs xplat WARN $case_id (optional exit!=0)" >&2
+      OBS=$((OBS + 1))
     else
       echo "std-fs xplat FAIL $case_id (exit!=0)" >&2
       FAILS=$((FAILS + 1))
@@ -132,9 +181,9 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
   fi
 done < "$MATRIX"
 
-if [ "$FAILS" -gt 0 ]; then
-  echo "std-fs-crossplatform gate FAIL: ${FAILS} case(s)" >&2
-  exit 1
-fi
+[ "$FAILS" -eq 0 ] || die "${FAILS} case(s) (refuse soft SKIP→OK)"
+[ "$MUST_RAN" -gt 0 ] || die "no must-policy cases ran"
 
+RUN_OK=1
+std_fs_xplat_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-fs-crossplatform gate OK"

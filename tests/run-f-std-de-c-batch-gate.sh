@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
-# F 阶段 std 去 C 聚合门禁：…/cache/url v2。
+# F-phase std de-C batch: path/uuid/…/socketio v1–v2 archaeology aggregate.
 #
-# 用法：./tests/run-f-std-de-c-batch-gate.sh
-# 环境：XLANG_F_STD_DE_C_BATCH_FAIL=1 — 任一子 gate 失败时硬退出
+# Usage: ./tests/run-f-std-de-c-batch-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f-std-de-c-batch-gate.sh
+# 2026-08-26: Honesty — hard-fail when any child RC≠0 (no soft die→exit0).
+# Soft XLANG_F_STD_DE_C_BATCH_FAIL retired. Root: soft batch swallowed syntax-
+# broken children (orphan Makefile die/fi) → portable false-green. Prefer asm;
+# pin XLANG_LINK_XLANG. Report ok=/fail=/skip=.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# makefile / leftover nested 65 f-v1 children; refuse leftover ignore of
+# explicit-bad). leftover nested product path stay.
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_F_STD_DE_C_BATCH_FAIL:-0}
 GATES=(
   run-f-path-v1-gate.sh
   run-f-uuid-v1-gate.sh
@@ -75,21 +88,92 @@ GATES=(
   run-f-socketio-v2-gate.sh
 )
 
-die() {
-  echo "f-std-de-c-batch FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+PREFIX="xlang: [XLANG_F_STD_DE_C_BATCH]"
+
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
-echo "=== F std de-C batch: ${#GATES[@]} gates ==="
+die() {
+  echo "f-std-de-c-batch FAIL: $*" >&2
+  echo "${PREFIX} status=fail ok=${OK:-0} fail=${FAIL_N:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+OK=0
+FAIL_N=0
+SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE makefile /
+# leftover nested 65 f-v1 children (refuse leftover SKIP→OK /
+# leftover ignore of explicit-bad / leftover XLANG fallthrough).
+# leftover nested product path stays when XLANG is unset (do not
+# rewrite leftover nested f-v1 children).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
+echo "=== F std de-C batch: ${#GATES[@]} gates (honesty) ==="
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
+[ -f xbuild ] || die "missing xbuild"
+
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
+fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
+SKIP=0
+
 for g in "${GATES[@]}"; do
   if [ ! -f "tests/$g" ]; then
     die "missing tests/$g"
   fi
+  # Catch bash syntax errors early (historical orphan Makefile die/fi).
+  if ! bash -n "tests/$g" 2>/tmp/f_de_c_syn.err; then
+    die "syntax error in tests/$g: $(head -1 /tmp/f_de_c_syn.err)"
+  fi
   chmod +x "tests/$g"
   echo "--- $g ---"
-  if ! "tests/$g"; then
+  if "tests/$g"; then
+    OK=$((OK + 1))
+  else
+    FAIL_N=$((FAIL_N + 1))
     die "$g failed"
   fi
 done
-echo "f-std-de-c-batch OK (${#GATES[@]} gates)"
+
+echo "${PREFIX} status=ok ok=${OK} fail=${FAIL_N} skip=${SKIP} host=$(ci_host_summary)"
+echo "f-std-de-c-batch OK (${OK}/${#GATES[@]} gates; honesty)"

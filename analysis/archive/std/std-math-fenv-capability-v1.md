@@ -44,10 +44,10 @@ if (fenv_available() != 0) {
 
 ---
 
-## 5. Gate
+## Gate
 
 ```bash
 ./tests/run-std-math-fenv-capability-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD149_MATH_FENV_CAP]`
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`（退役 `c=`／`x=`／`host=`）。

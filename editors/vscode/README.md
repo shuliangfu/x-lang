@@ -2,7 +2,7 @@
 
 A complete development experience extension for `.x` (Xlang) language in VS Code, Cursor, and Trae IDE.
 
-**Version**: `0.1.0` · **Engine**: VS Code / Cursor / Trae `^1.75.0` · **License**: Apache-2.0
+**Version**: `0.2.0` · **Engine**: VS Code / Cursor / Trae `^1.75.0` · **License**: Apache-2.0
 
 > The extension UI itself supports 14 languages via `xlang.locale` (auto / en / zh-cn / zh-tw / ja / ko / de / fr / es / ru / pt-br / it / tr / pl). This README is provided in English only to avoid dual-authority drift.
 

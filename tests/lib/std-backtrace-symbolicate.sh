@@ -1,34 +1,22 @@
 #!/usr/bin/env bash
-# std-backtrace-symbolicate.sh — STD-052 manifest 与烟测辅助
+# std-backtrace-symbolicate.sh — STD-052 helpers (honesty prefer-asm).
+#
+# Usage (after source):
+#   std_backtrace_sym_symbols_ok MOD_X BT_RUNTIME TSV
+#   std_backtrace_sym_run_smoke XLANG_BIN SRC [TAG]
+#   std_backtrace_sym_emit_report status run obs skip
+# Honesty: refuse soft auto-make / soft SKIP→OK / XLANG fallthrough /
+# bootstrap-link remap / soft ensure_std_c_o rebuild / extra CLI .o /
+# C gold auto-make; report run=/obs=/skip= (retired
+# check=/c_gold=/x=/skip=).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_BACKTRACE_SYM_PREFIX="${XLANG_STD_BACKTRACE_SYM_PREFIX:-xlang: [XLANG_STD_BACKTRACE_SYM]}"
 
-# 探测宿主是否支持 execinfo/backtrace（Alpine/musl 无 glibc execinfo）。
-std_backtrace_sym_gold_supported() {
-  local probe="/tmp/xlang_bt_probe_$$"
-  if ! cc -std=c11 -x c - -o "$probe" 2>/dev/null <<'EOF'
-#if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
-#include <execinfo.h>
-int main(void) { void *a[4]; return backtrace(a, 4) >= 0 ? 0 : 1; }
-#else
-int main(void) { return 2; }
-#endif
-EOF
-  then
-    rm -f "$probe"
-    return 1
-  fi
-  set +e
-  "$probe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$probe"
-  [ "$ec" -eq 0 ]
-}
-
-# 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
+# Validate manifest symbol/file/api; echo miss count; return 0 iff miss==0.
+# Kinds: api / const / symbol / file / smoke / section.
+# Full-path TSV anchors preferred. Do not invoke make.
+# PLATFORM: SHARED archaeology — inventory only.
 std_backtrace_sym_symbols_ok() {
   local mod_x="$1"
   local bt_c="$2"
@@ -53,7 +41,11 @@ std_backtrace_sym_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ -z "$path" ] || [ "$path" = "std/backtrace/backtrace_platform_glue.c" ] || [ "$path" = "compiler/seeds/runtime_backtrace_platform.from_x.c" ]; then
+        # Fossil path std/backtrace/backtrace.x for smoke_c retired → seed.
+        if [ -z "$path" ] \
+          || [ "$path" = "std/backtrace/backtrace_platform_glue.c" ] \
+          || [ "$path" = "compiler/seeds/runtime_backtrace_platform.from_x.c" ] \
+          || [ "$path" = "std/backtrace/backtrace.x" ]; then
           path="$bt_c"
         fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -63,9 +55,12 @@ std_backtrace_sym_symbols_ok() {
         ;;
       file|smoke)
         if [ ! -f "$anchor" ]; then
-          echo "std-backtrace-symbolicate FAIL: missing '$anchor'" >&2
+          echo "std-backtrace-symbolicate FAIL: missing file '$anchor'" >&2
           miss=$((miss + 1))
         fi
+        ;;
+      section|script|gate|anchor|hook_script|cross_ref)
+        # DOC ## 5. Gate / script anchors validated by the gate script.
         ;;
     esac
   done < "$tsv"
@@ -73,23 +68,34 @@ std_backtrace_sym_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 烟测。
+# Product tip -o smoke. Caller treats symbolicate_known.x failure as hard die.
+# PLATFORM: SHARED archaeology — product honesty path.
+# Do not restore set -e between steps: return 1 must not trip the gate's set -e.
+# Refuse RUN_XLANG / bootstrap-link remap (Darwin must not silently asm→c).
+# Refuse extra CLI .o (product -o is the hard path; host-C archaeology is obs).
 std_backtrace_sym_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_backtrace_sym_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-backtrace-symbolicate FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
+  local exe="/tmp/xlang_std052_bt_sym_${tag}_$$"
+  local log="/tmp/xlang_std052_bt_sym_${tag}_$$.log"
+  if [ ! -f "$src" ]; then
+    echo "std-backtrace-symbolicate FAIL: missing $src" >&2
     return 1
   fi
+  rm -f "$exe" "$log"
   set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    echo "std-backtrace-symbolicate FAIL: compile $src" >&2
+    tail -n 8 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
+    return 1
+  fi
   "$exe" >/dev/null 2>&1
   local ec=$?
-  set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-backtrace-symbolicate FAIL: run $src exit=$ec" >&2
     return 1
@@ -97,52 +103,14 @@ std_backtrace_sym_run_smoke() {
   return 0
 }
 
-# C 金样烟测：-g -rdynamic（Linux）链接 backtrace.o + runtime_backtrace_platform.o。
-std_backtrace_sym_run_c_gold() {
-  local bt_platform_c="$1"
-  local src="tests/backtrace/symbolicate_gold.c"
-  local out="/tmp/xlang_backtrace_sym_gold_$$"
-  local bt_o="std/backtrace/backtrace.o"
-  local rt_o="compiler/runtime_backtrace_platform.o"
-  if [ ! -f "$bt_o" ]; then
-    echo "std-backtrace-symbolicate FAIL: missing $bt_o" >&2
-    return 1
-  fi
-  if [ ! -f "$rt_o" ]; then
-    xlang_compiler_make -q runtime_backtrace_platform.o 2>/dev/null || xlang_compiler_make runtime_backtrace_platform.o >/dev/null 2>&1 || true
-  fi
-  if [ ! -f "$rt_o" ]; then
-    echo "std-backtrace-symbolicate FAIL: missing $rt_o" >&2
-    return 1
-  fi
-  local extra=()
-  case "$(uname -s)" in
-    Linux) extra=(-rdynamic -ldl) ;;
-    Darwin) extra=(-Wl,-export_dynamic) ;;
-    MINGW*|MSYS*|CYGWIN*) extra=(-ldbghelp) ;;
-  esac
-  if ! cc -std=c11 -g -O0 -fno-omit-frame-pointer -o "$out" "$src" "$bt_o" "$rt_o" "${extra[@]}" 2>/dev/null; then
-    echo "std-backtrace-symbolicate FAIL: compile $src" >&2
-    return 1
-  fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-backtrace-symbolicate FAIL: gold smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-# 输出门禁报告行。
+# Structured report line (honesty: run=/obs=/skip=; retired
+# check=/c_gold=/x=).
+# Hard-green signal = symbolicate_known.x product -o (run=1);
+# check / C gold compile/run / host-C archaeology = obs.
 std_backtrace_sym_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  local host="$5"
-  echo "${STD_BACKTRACE_SYM_PREFIX} status=${status} c_gold=${c_ok} x=${su_ok} skip=${skip} host=${host}"
+  echo "${STD_BACKTRACE_SYM_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

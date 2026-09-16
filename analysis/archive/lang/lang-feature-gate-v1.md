@@ -1,7 +1,7 @@
 # LANG-001 语法版本化与 feature gate v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）**  
 > 关联：`docs/01-关键字.md`（预处理）、`driver_argv_collect_defines`、`LANG-002`
 
 ---
@@ -89,9 +89,23 @@ v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/lang-feature-gate-v1.md` |
+| 本文 | `analysis/archive/lang/lang-feature-gate-v1.md` |
 | manifest | `tests/baseline/lang-feature-gate.tsv` |
 | catalog | `tests/baseline/lang-feature-catalog.tsv` |
 | wrapper | `scripts/xlang-lang-edition.sh` |
 
 **LANG-001 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die
+(edition/feature hooks are the live face); DOC=archive; report
+`run=`／`edition=`／`feature=`／`skip=`.
+**2026-08-29:** residual auto-make (`xlang_compiler_make`) retired.
+
+`tests/run-lang-feature-gate-gate.sh` + `tests/run-lang-feature-gate.sh`:
+
+1. Archive DOC + manifest + catalog（拒 top-level DOC／monofile resurrect）
+2. Native xlang：edition 2024／default／2025 + feature off／on 硬绿
+3. 缺 native／显式坏 XLANG 硬 die

@@ -73,14 +73,18 @@ v1 烟测验证 fence 可链接、常量与文档一致；`tests/atomic/main.x` 
 
 ---
 
-## 5. 门禁
+## 5. Gate
 
 ```bash
 ./tests/run-std-atomic-ordering-gate.sh
 ```
 
+**Honesty residual (2026-08-28)**：prefer `xlang_asm`＋`XLANG_LINK_XLANG`＋`dod_native_exe`；拒 soft SKIP→OK／soft auto-make／XLANG fallthrough／prefer-c／bootstrap-link／soft `ensure_std_c_o` 重建。显式坏 `XLANG`／缺 native＝硬 die。`check`＝obs（闸门暂停 2026-08-05）。host-C archaeology＝obs（现成 `std/atomic/atomic.o`＋`compiler/runtime_atomic_glue.o` only；永不重建；不传 extra CLI `.o`）。`ordering_fence.x`＋`main.x` 产品 `-o` exit0＝硬 `run`。报告 `run=`／`obs=`／`skip=`（退役 `check=`／`fence=`／`main=`）。F-atomic v1 仍硬委托本闸（须保持 exit 0）。产品 `std/atomic` 本绿，本刀未开。
+
+**report** 示例：
+
 ```
-xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok fence=1 main=1 skip=0
+xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok run=2 obs=0 skip=0
 ```
 
 ---
@@ -90,3 +94,5 @@ xlang: [XLANG_STD_ATOMIC_ORDERING] status=ok fence=1 main=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-18 | Ordering 常量 + fence API + LANG 对齐文档 |
+| v1.1 | 2026-08-26 | Gate honesty：prefer asm／LINK／check 观测；`## 5. Gate`；报告 `check=` |
+| v1.2 | 2026-08-28 | Honesty residual：拒 XLANG fallthrough／auto-make／bootstrap-link／ensure 重建；报告 `run=`／`obs=`／`skip=`；未啃产品 `std/atomic` |

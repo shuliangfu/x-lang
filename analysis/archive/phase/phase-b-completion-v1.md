@@ -1,5 +1,7 @@
 # 阶段 B 完成标准 v1（NEXT §5）
 
+> **honesty 2026-08-24 #4**：archived; gate default = `analysis/archive/phase/phase-b-completion-v1.md`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left). B-30 monofile `runtime.from_x.c` retired wave321 — live IO/link faces: `runtime_read_file_view` / `xlang_write_path_bytes` / `link_abi_generated_c_contains_any_substr`. B-04 Linux invoke smoke observational (typeck table/method deferred; `XLANG_LINUX_SYSCALL_INVOKE_FAIL=1` hard).
+>
 > **目标**：语言 `#[cfg]`/`#[repr(C)]` + `std.sys` 斩断 C 脐带（读/写/文件/mmap/syscall），**不阻塞**阶段 C/F 的去 C 与 `asm { }` 语法大项。
 
 ## 完成定义（v1 = ✅）
@@ -23,6 +25,27 @@
 | B-30 | runtime/stubs OS 调用盘点 TSV | `run-b30-stubs-runtime-os-inventory-gate.sh` |
 | B-31 | freestanding_io_x86_64.s 极薄 `.s` 登记 | `run-b31-freestanding-io-gate.sh` |
 | B-32 | bootstrap **track-only**：审计 `cc -c std/*.c` | `run-b32-no-cc-std-gate.sh` |
+
+## Gate
+
+Honesty (2026-08-27): soft `XLANG_B31_FAIL` retired. Gate
+`tests/run-b31-freestanding-io-gate.sh` hard-dies on missing
+`freestanding_io_x86_64.s` / archive DOC / hello script / missing
+`xlang_sys_{write,read}` needles; Linux x86_64 freestanding hello is hard
+green; non-Linux = static registration only (`skip=1`). Refuse top-level
+DOC / `compiler/Makefile` resurrect. Report `run=` / `skip=`.
+
+**2026-08-29 leftover XLANG fallthrough 已收**（linux-open-read／openat／syscall-invoke／mmap-invoke：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
+
+**2026-08-29 leftover XLANG fallthrough 已收**（macos-mmap／macos-mmap-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；Ubuntu N/A skip=1；macos-mmap-file Darwin `std_sys_read_file_into` UNDEF 仍 obs）。
+
+**2026-08-29 leftover XLANG seed fallthrough 已收**（repr-c-layout：`if [ ! -x "$XLANG" ]; then XLANG=./compiler/xlang` 退役；leftover `XLANG_REPR_C_LAYOUT_FAIL=0` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die）。
+
+**2026-08-29 leftover XLANG seed/c fallthrough 已收**（b04：`if [ ! -x "$XLANG" ]; then XLANG=./compiler/xlang-c` 退役；Linux invoke 硬委托已诚实 linux-syscall-invoke；G.7 补全既有 nested `resolve_shu`；显式坏 XLANG／缺 native 硬 die；Darwin N/A skip=1）。
+
+**2026-08-29 leftover B-05 SKIP→OK／leftover asm-73 ensure-compiler-seed 已收**（B-05：无 native 仍 `gate OK` 退役；asm-73：`ensure-compiler-seed.sh` silent `bootstrap-driver-seed` 退役；G.7 补全既有 nested `resolve_shu`；显式坏 XLANG／缺 native 硬 die；Docker N/A skip=1）。
+
+**2026-08-29 leftover XLANG fallthrough 已收**（win32-write／win32-read-file：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die（拒 Darwin／Ubuntu N/A 盖住 leftover ignore of explicit-bad）；缺 native 硬 die；Darwin／Ubuntu N/A skip=1；leftover nested Windows product path 不重写）。
 
 ## 延后（不阻塞 B v1 ✅）
 

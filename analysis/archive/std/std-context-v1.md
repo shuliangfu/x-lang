@@ -36,14 +36,26 @@
 
 ## 3. Gate
 
+> Honesty (2026-08-25): prefer `xlang_asm`; `check` observational; hard green =
+> `cancel_smoke.x` runnable exit 0 (`check=` / `run=` / `skip=`). C smoke is
+> observational archaeology only. PLATFORM: SHARED.
+
 ```
-xlang: [XLANG_STD_CONTEXT] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_CONTEXT] status=ok check=1 run=1 skip=0
 std-context gate OK
 ```
+
+Honesty soft→硬绿 (2026-08-28) `run-std-async-context-gate.sh` (async ↔
+context bind/spawn): prefer `xlang_asm` + `XLANG_LINK_XLANG`; refuse soft
+SKIP→OK / prefer-c / soft `ensure_std_c_o`; host-C＋check＋tip product
+UNDEF = obs; report `run=`／`obs=`／`skip=`. See also
+`analysis/archive/std/std-async-api-v1.md` Gate.
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-context-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `cancel_smoke.x` hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
 
 ---
 
 ## 4. 后续集成（非 v1 阻塞）
 
 - `std.io` / `std.net` / `std.http` 接受 Context 或 deadline
-- `std.async` spawn 绑定 Context 传播取消
+- `std.async` spawn 绑定 Context 传播取消（async-context gate honesty 2026-08-28）

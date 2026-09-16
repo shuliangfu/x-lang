@@ -6,6 +6,8 @@
 > **xbuild 目标名**：拟定 API；实现前禁止另开第三套编排（收敛 g05 / `xlang-build.sh` / `build.x`）  
 > **终局**：✅ **已完成**（wave941 物理删除 Makefile；本表保留为历史记录）
 
+> **2026-08-24 archaeology（phase-f／comp／std 死归档 DOC 波）**：`tests/run-f-*-gate.sh` 与 closure TSV 的 `makefile` 锚点／内容 grep 已从死 `compiler/Makefile` 改盯 **`xbuild`**（拒 Makefile 复活）。产品编排权威仍为本表／`./xbuild`；本注仅为门禁考古诚实，不改迁移状态列。
+
 ---
 
 ## 0. 怎么用
@@ -53,7 +55,7 @@
 冷启动硬依赖：    H bootstrap-driver-seed · B pin gen · K seed-tools
 删 make 前体积债：C glue ~40k · 阶段 8.3（与本表并行，非 11.0 独占）
 11.3 物理删 make：✅ **已完成**（wave941）· catalog 单权威（mk/*.mk）· bootstrap 0 make · 双端 L4（wave942）  
-  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent  
+  post-delete residual（wave944–947）：✅ compiler-make 0-make · ✅ formal_std/net-tls shell · ✅ gate post_ship · ✅ README·vscode · ensure hint → xbuild · ✅ docs/07 · xbuild help · XXP/BXC catalog bags · ✅ **XXP ensure ladder 0-make**（wave947）· dag/linker MF-absent · ✅ **tests 残裸 make→shell／xbuild**（`run-l1-relink-fast`／b20／f-* die；`bae2b6e82`）· ✅ **tests 深层裸 make→shell／xbuild**（a09／g06／compress／perf／wpo-docker；hub `compress-o-*` no-op＋`sqlite-o-stub`；`54ace50f0`）· ✅ **零 make 门禁 post_ship**（MF-absent thin-call→shell／catalog；leaf／ensure 地板对齐；`5042669b0`）· ✅ **Stage2 X E2E 诚实门禁**（产品 NO_C probe soft-skip＋ALLOW_HOST_CC；`9a2ff18d2`）  
 
   BC 层 host-cc 业务 C（glue/pin）仍 ⬜ — **≠** MG 编排未完成
 ```
@@ -97,7 +99,7 @@
 | `compile_commands.json` | 3418 | Makefile | `xbuild compile-commands 或删` | ⬜ Makefile | IDE 辅助 |
 | `size-baseline` | 3422 | **shell** `stage8_baseline.sh size` | `xbuild size-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-size-baseline.sh` | 可选 stage-8 |
 | `perf-baseline` | 3426 | **shell** `stage8_baseline.sh perf` | `xbuild perf-baseline 或 tests/` | 🟢 wave875 体 shell；测量权威仍 `tests/run-perf-baseline.sh` | 可选 stage-8 |
-| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave907 ASYNC multi; wave906 R3_COLD multi; wave905 SEED_MAP multi; wave904 MISC multi; wave903 EXTRA_CFLAGS multi; wave902 ALIAS_STUBS multi; wave901 MAIN_RUNTIME multi; wave900 FRONTEND_GLUE multi; wave899 R1_CORE; wave898 RT_SEED; wave897 B2; wave896 driver_leaf; wave895 std_x; wave894 formal_mod; wave893 body under scripts；root shim CI | Stage2 X dogfood |
+| `verify-selfhost-stage2` | ~2783 | **shell** `scripts/verify-selfhost-stage2.sh` | `xbuild stage2` / make thin | 🟢 wave907…wave893 body under scripts；root shim CI；**2026-08-24** NO_C honesty probe soft-skip＋Step5 ALLOW_HOST_CC（活 Stage2＝bstrict） | Stage2 X dogfood（经典 `-x -E` 产品 NO_C 堵） |
 | `bootstrap-verify` | 3414 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-seed` | 3410 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
 | `bootstrap-verify-bstrict` | 3407 | Makefile | `xbuild bootstrap-verify` | ⬜ Makefile |  |
@@ -478,7 +480,7 @@
 | ~1690 | `test_x` | 🟢 wave720 shell `run_compiler_tests.sh x` |
 | ~1694 | `test` | 🟢 wave720 → test_c+test_x（xlang-build: mode all） |
 | ~2783 | `verify-selfhost-stage2` | 🟢 wave893 shell `scripts/verify-selfhost-stage2.sh` |
-| ~2792 | `verify-selfhost-stage2-bstrict` | 🟢 wave893 shell `scripts/verify-selfhost-stage2-bstrict.sh` |
+| ~2792 | `verify-selfhost-stage2-bstrict` | 🟢 wave893 shell `scripts/verify-selfhost-stage2-bstrict.sh`；**2026-08-24** tip：hash 假 fixed-point 诚实刀（ROUND2 禁 sync＋`gen1_for_hash`；行为 42／42＋`asm_only_strict`；诚实拓扑红 4.8M≠5.5M）；pipeline `__text=0B`／stubs filt／standalone skip 已清 |
 | 3220 | `check-asm-o-quality` | ⬜ |
 | 2959 | `check-6.4` | 🟢 wave871 shell `check_6_4.sh` |
 | 3015 | `check-7.2` | 🟢 wave870 shell `check_7_2.sh` |
@@ -509,15 +511,15 @@
 
 | 行 | Makefile 目标 | 迁移状态 |
 |----|---------------|----------|
-| 313 | `net-o-stub` | ⬜ |
-| 317 | `net-o-openssl` | ⬜ |
-| 331 | `net-o-mbedtls` | ⬜ |
+| 313 | `net-o-stub` | ✅ hub → `archaeology_host_pick_phony` |
+| 317 | `net-o-openssl` | ✅ hub → `archaeology_host_pick_phony` |
+| 331 | `net-o-mbedtls` | ✅ hub → `archaeology_host_pick_phony` |
 | 613 | `sqlite-o` | ⬜ |
-| 614 | `sqlite-o-stub` | ⬜ |
-| 651 | `compress-o-zlib` | ⬜ |
-| 651 | `compress-o-zlib-zstd` | ⬜ |
-| 651 | `compress-o-brotli` | ⬜ |
-| 651 | `compress-o-zlib-zstd-brotli` | ⬜ |
+| 614 | `sqlite-o-stub` | ✅ hub → `archaeology_host_pick_phony` |
+| 651 | `compress-o-zlib` | ✅ hub no-op（F-04 v7 formats in .x） |
+| 651 | `compress-o-zlib-zstd` | ✅ hub no-op（F-04 v7 formats in .x） |
+| 651 | `compress-o-brotli` | ✅ hub no-op（F-04 v7 formats in .x） |
+| 651 | `compress-o-zlib-zstd-brotli` | ✅ hub no-op（F-04 v7 formats in .x） |
 | 709 | `std-objs` | ⬜ |
 
 ### 类 M — clean / compile_commands / legacy

@@ -1,8 +1,12 @@
 /**
  * parser_asm_type_alias_slice.inc — parse_one_type_alias_into C 实现。
  *
- * 由 parser_asm_thin_c.c #include；勿单独编译。
+ * 由 parser_asm_thin_c.c / pthin_let_alias.from_x.c #include；勿单独编译。
  * 顶层 type 别名「type Alias = TargetType ;」；Target 经 parse_type_ref 完整语法。
+ *
+ * Hybrid P2b: XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X skips this parse twin
+ * (dest-buffer in src/asm/pthin_let_alias.x). Name pack trampolines live
+ * in top_level_let_slice.inc (included first). Cold: no define, full twin.
  */
 #ifndef PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED
@@ -22,8 +26,7 @@ extern int32_t pipeline_module_type_alias_alloc(void *module);
 extern void pipeline_module_type_alias_set(void *module, int32_t idx, uint8_t *name, int32_t name_len,
                                            int32_t target_type_ref);
 extern int32_t parser_asm_stretch_function_name_audit_c(const uint8_t *name, int32_t name_len);
-extern int32_t parser_asm_stretch_type_ref_deep_audit_c(struct parser_asm_lexer lex,
-                                                        struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_type_ref_deep_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                                                 struct parser_asm_slice_u8 *source,
                                                                 struct parser_asm_lexer *out_lex);
@@ -36,16 +39,47 @@ extern void parser_asm_copy_slice_to_name64_slice_c(struct parser_asm_slice_u8 *
  */
 /**
  * Parse one top-level `type Alias = Target;`.
- * wave582 Cap residual: Alias name content ≤127 (TypeAliasEntry.name[128] + AST Cap).
- * Prior name_buf[64] + name_len>63 rejected long aliases while type_ref still
- * truncated use-sites to 63 → typeck "expected NAMED, found i32".
+ * Cap 4.2.8: Alias name content ≤255 (TypeAliasEntry.name[256] + AST Cap).
+ * name_buf must be ≥256: copy_slice_to_name64 writes name_len bytes (≤255).
+ * Prior name_buf[128]/[64] overflowed or truncated long aliases.
  * PLATFORM: SHARED product type_alias path (this .inc → thin glue).
  */
+#ifdef XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X
+/* PLATFORM: SHARED — P2b trampoline. Entry cursor is the unconsumed
+ * alias IDENT (caller already consumed `type`; C twin's first lexer_next).
+ * Pack lives on this stack frame (struct defined in top_level_let_slice).
+ * Success publishes out->next_lex after `;`; fail leaves ok=0. */
+extern int32_t parser_asm_parse_one_type_alias_x_into_c(void *arena, void *module, void *lex_inout, void *source,
+                                                        void *pack);
+extern void parser_asm_let_alias_pack_reset_c(void *pack);
+void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                  struct parser_asm_slice_u8 *source,
+                                                  struct parser_asm_type_alias_result *out) {
+  struct parser_asm_let_alias_pack pack;
+  struct parser_asm_lexer cur;
+  int32_t rc;
+  if (!out)
+    return;
+  out->ok = 0;
+  if (!arena || !module || !source)
+    return;
+  memset(&pack, 0, sizeof(pack));
+  parser_asm_let_alias_pack_reset_c(&pack);
+  cur = lex;
+  rc = parser_asm_parse_one_type_alias_x_into_c(arena, module, &cur, source, &pack);
+  if (rc != 1)
+    return;
+  out->next_lex.pos = cur.pos;
+  out->next_lex.line = cur.line;
+  out->next_lex.col = cur.col;
+  out->ok = 1;
+}
+#else
 void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
                                                   struct parser_asm_slice_u8 *source,
                                                   struct parser_asm_type_alias_result *out) {
   struct parser_asm_lexer_result r;
-  uint8_t name_buf[128];
+  uint8_t name_buf[256];
   int32_t name_len;
   int32_t target_ref;
   int32_t alias_ix;
@@ -59,7 +93,7 @@ void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, str
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return;
   name_len = r.tok.ident_len;
-  if (name_len <= 0 || name_len > 127)
+  if (name_len <= 0 || name_len > 255)
     return;
   parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, name_len, name_buf);
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_name_audit_c(name_buf, name_len));
@@ -68,7 +102,7 @@ void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, str
   if (r.tok.kind != (int32_t)TOKEN_ASSIGN)
     return;
   parser_lex_from_lexer_result_ptr_into(&lex, &r);
-  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(lex, source));
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_type_ref_deep_audit_c(&lex, source));
   target_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, source, &lex);
   if (target_ref == 0)
     return;
@@ -82,5 +116,6 @@ void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, str
   parser_lex_from_next_into_glue(&out->next_lex, r);
   out->ok = 1;
 }
+#endif /* XLANG_PTHIN_LET_ALIAS_BODIES_FROM_X parse_one_type_alias */
 
 #endif /* PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED */

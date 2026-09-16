@@ -24,7 +24,6 @@
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Prove：seeds/labi_invoke_cc_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 #include <stdlib.h>
@@ -907,7 +906,9 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());
   }
 
-  if (need_thread && invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o)) {
+  /* thread.o + thread_glue: always push glue when need_thread (co-emit may skip thread.o UNDEFs). */
+  if (need_thread) {
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o);
     (void)xlang_ensure_runtime_thread_glue_o(NULL);
     {
       const char *rtg = xlang_runtime_thread_glue_o_path(NULL);
@@ -1062,9 +1063,8 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldl");
     } else if (link_abi_host_is_apple()) {
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-export_dynamic");
-    } else if (link_abi_host_is_windows()) {
-      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldbghelp");
     }
+    /* Cap residual 9.1.11 Win: no -ldbghelp (PE export Cap). */
   }
   if (need_hash)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, hash_o);
@@ -1616,6 +1616,32 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
 /* wave206: durable -O{level} slot (≡ .x g_labi_icc_oopt_buf / mega static oopt_buf[8]). */
 static char g_labi_icc_oopt_buf[8];
 
+/* Cap 10.7.1 slice11: durable <repo>/compiler/include (≡ .x g_labi_icc_cap_inc_buf). */
+static char g_labi_icc_cap_inc_buf[512];
+
+/* Cap 10.7.1 slice11: fill Cap include path BSS (≡ .x invoke_cc_fill_cap_include_path). */
+static char *invoke_cc_fill_cap_include_path(const char *include_root) {
+  int ri = 0;
+  int si;
+  const char *suf = "/compiler/include";
+  g_labi_icc_cap_inc_buf[0] = '\0';
+  if (!include_root || !include_root[0])
+    return g_labi_icc_cap_inc_buf;
+  while (ri < 494 && include_root[ri]) {
+    g_labi_icc_cap_inc_buf[ri] = include_root[ri];
+    ri++;
+  }
+  if (ri > 0) {
+    char last = g_labi_icc_cap_inc_buf[ri - 1];
+    if (last == '/' || last == '\\')
+      ri--;
+  }
+  for (si = 0; suf[si] && ri < 511; si++, ri++)
+    g_labi_icc_cap_inc_buf[ri] = suf[si];
+  g_labi_icc_cap_inc_buf[ri] = '\0';
+  return g_labi_icc_cap_inc_buf;
+}
+
 /* wave206: invoke_cc_append_argv_head_flags pure orch (cold twin ≡ .x). */
 void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root) {
@@ -1666,14 +1692,25 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, out_path);
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ffunction-sections");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-fdata-sections");
+  /* Skip dead_strip/--gc-sections at -O 0 (≡ NDEBUG/harden/maybe_strip).
+   * PLATFORM: MACOS|DARWIN / LINUX — TOOL-005 debug symtab honesty. */
   is_apple = link_abi_host_is_apple();
-  if (is_apple)
-    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
-  else if (is_linux)
-    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+  if (is0 != 0) {
+    if (is_apple)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
+    else if (is_linux)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+  }
+  /* Cap 10.7.1 slice11: repo -I + Cap <repo>/compiler/include -I. */
   if (include_root && include_root[0]) {
+    const char *cap_inc;
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
+    cap_inc = invoke_cc_fill_cap_include_path(include_root);
+    if (cap_inc && cap_inc[0]) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, cap_inc);
+    }
   }
 }
 

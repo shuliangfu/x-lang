@@ -2,10 +2,13 @@
 # COMP-018：riscv64 QEMU 用户态烟测门禁
 #
 # 用法：./tests/run-comp-riscv64-qemu-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_COMP018_DOC:-analysis/comp-riscv64-qemu-v1.md}"
+DOC="${XLANG_COMP018_DOC:-analysis/archive/comp/comp-riscv64-qemu-v1.md}"
 WAVE="${XLANG_COMP018_WAVE_TSV:-tests/baseline/comp-riscv64-qemu.tsv}"
 MANIFEST="${XLANG_COMP018_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
 MATRIX="${XLANG_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
@@ -20,7 +23,7 @@ MIN_CASES=11
 
 echo "=== COMP-018: riscv64 qemu manifest ==="
 for f in "$DOC" "$WAVE" "$MANIFEST" "$MATRIX" "$LIB" \
-  analysis/comp-riscv64-wave-v1.md tests/run-comp-riscv64-wave-gate.sh \
+  analysis/archive/comp/comp-riscv64-wave-v1.md tests/run-comp-riscv64-wave-gate.sh \
   tests/run-comp-riscv64-qemu-smoke.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-riscv64-qemu gate FAIL: missing $f" >&2

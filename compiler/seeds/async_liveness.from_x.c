@@ -9,7 +9,6 @@
  * 冷启动/无 PREFER：完整 pure C 体 + FILE* emit 用原生 fputs；-c 本文件。
  * 产品 PREFER（2026-07-21）：g05/Makefile full .x + rest (-DXLANG_ASYNC_LIVENESS_FROM_X)
  *   ld -r → src/async/async_liveness.o（独立 TU，非 pipeline_glue #include）。
- * Prove：seeds/async_liveness_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
 /**
@@ -22,6 +21,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: async_liveness type/name format → Cap snprintf */
+/* G.7: single Cap authority for this TU (after stdio). */
+#undef snprintf
+#define snprintf xlang_snprintf
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
 int expr_has_await(const struct ASTExpr *e);

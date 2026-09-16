@@ -2,7 +2,7 @@
 
 与 **Zig** @panic、**Rust** std::panic / std::process::abort、**Go** runtime/panic 对标。
 
-设计文档：`analysis/std-runtime-panic-hook-v1.md`（STD-028 panic 钩子 / EXC-002 终止链）。
+设计文档：`analysis/archive/std/std-runtime-panic-hook-v1.md`（STD-028 panic 钩子 / EXC-002 终止链）。
 
 ## API
 

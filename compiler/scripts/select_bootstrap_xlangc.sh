@@ -41,8 +41,11 @@ can_run() {
       FreeBSD-*) echo "$ft" | grep -qi "ELF.*x86-64\|ELF.*aarch64" || return 1 ;;
     esac
   fi
-  tmp="/tmp/xlang_can_run_$$.x"
-  out="/tmp/xlang_can_run_out_$$.c"
+  # PLATFORM: WINDOWS — MinGW gcc / Win32 CreateFileA cannot open MSYS /tmp.
+  # Honor TMPDIR (Windows min-gate pins C:/xlang_tmp); POSIX keeps /tmp.
+  _can_run_dir="${TMPDIR:-/tmp}"
+  tmp="${_can_run_dir}/xlang_can_run_$$.x"
+  out="${_can_run_dir}/xlang_can_run_out_$$.c"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
   # PLATFORM: SHARED — L4 true-cold wipes all .o; pin seeds often need -L for -c/-E smoke.
   # Try bare first (self-contained binary), then repo lib roots (driver leaf / std resolve).
@@ -73,6 +76,8 @@ case "$os" in
   darwin) os="darwin" ;;
   linux) os="linux" ;;
   freebsd) os="freebsd" ;;
+  # PLATFORM: WINDOWS — Git Bash uname is MINGW64_NT-10.0-*; MSYS2 is MSYS_NT-*.
+  mingw*|msys*|cygwin*) os="windows" ;;
 esac
 
 seed_var="seeds/bootstrap_xlangc.${os}.${arch}"
@@ -90,25 +95,38 @@ fi
 if [ -z "$pick" ] && can_run ./bootstrap_xlangc; then
   pick="./bootstrap_xlangc"
 fi
+if [ -z "$pick" ] && can_run ./bootstrap_xlangc.exe; then
+  pick="./bootstrap_xlangc.exe"
+fi
 
 if [ -z "$pick" ]; then
   if can_run ./xlang-c; then
     cp -f ./xlang-c ./bootstrap_xlangc
     chmod +x ./bootstrap_xlangc
     pick="./bootstrap_xlangc"
+  elif can_run ./xlang-c.exe; then
+    cp -f ./xlang-c.exe ./bootstrap_xlangc.exe
+    chmod +x ./bootstrap_xlangc.exe
+    pick="./bootstrap_xlangc.exe"
   elif can_run ./xlang-seed-phase1; then
     ./scripts/bootstrap_xlangc_create.sh ./xlang-seed-phase1
     pick="./bootstrap_xlangc"
   elif can_run ./xlang; then
     ./scripts/bootstrap_xlangc_create.sh ./xlang
     pick="./bootstrap_xlangc"
+  elif can_run ./xlang.exe; then
+    ./scripts/bootstrap_xlangc_create.sh ./xlang.exe
+    pick="./bootstrap_xlangc"
   elif can_run ./xlang_asm; then
     ./scripts/bootstrap_xlangc_create.sh ./xlang_asm
+    pick="./bootstrap_xlangc"
+  elif can_run ./xlang_asm.exe; then
+    ./scripts/bootstrap_xlangc_create.sh ./xlang_asm.exe
     pick="./bootstrap_xlangc"
   fi
 fi
 
-if [ -z "$pick" ] || ! can_run ./bootstrap_xlangc; then
+if [ -z "$pick" ] || ! can_run "$pick"; then
   echo "select_bootstrap_xlangc: no runnable seed (tried bootstrap_xlangc, $seed_var, xlang, xlang_asm)" >&2
   exit 1
 fi

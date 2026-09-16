@@ -17,11 +17,15 @@
 #   XLANG_FAST_TRACK_LOG_DIR    日志目录（默认 /tmp/xlang-fast-track-$$）
 #
 # 日志：各波次 tee 到 LOG_DIR；另开终端 tail -f $LOG_DIR/w1-g06-bootstrap.log
+#
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested W1+ Docker / leftover
+# nested xlang_compiler_make in leftover nested child echo stay.
+# G.7: complete existing; do not fork a third resolver here.
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 PROGRESS="./tests/lib/progress-run.sh"
 DOCKER="./tests/lib/docker-linux-run.sh"
@@ -102,7 +106,7 @@ fi
 if [ "$RUN_W2_D03_ONLY" = "1" ]; then
   progress "=== W2 d03-only (~5s; needs compiler/xlang_asm_stage1 + xlang_asm2) ==="
   run_step "W2 d03 hash only" "$LOG_DIR/w2-d03-only.log" \
-    env XLANG_D03_FAIL=1 "${BSTRICT_FAST_ENV[@]}" "$DOCKER" compiler \
+    env "${BSTRICT_FAST_ENV[@]}" "$DOCKER" compiler \
     'test -f xlang_asm_stage1 && test -f xlang_asm2 || { echo "missing xlang_asm_stage1/2; run: xlang_compiler_make bootstrap-driver-bstrict (with BSTRICT_FAST skips) && verify-selfhost-stage2-bstrict.sh" >&2; exit 1; }; cd .. && ./tests/run-d03-stage2-hash-gate.sh'
   progress "OK W2 d03-only"
   progress "logs: $LOG_DIR"
@@ -150,7 +154,7 @@ run_step "W2 e03 coldstart track" "$LOG_DIR/w2-e03.log" \
   env XLANG_E03_FAIL=1 "$DOCKER" tests './run-e03-v3-coldstart-track-gate.sh'
 
 run_step "W2 d03 stage2 hash" "$LOG_DIR/w2-d03.log" \
-  env XLANG_D03_FAIL=1 "${BSTRICT_FAST_ENV[@]}" "$DOCKER" compiler './verify-selfhost-stage2-bstrict.sh && cd .. && ./tests/run-d03-stage2-hash-gate.sh'
+  env "${BSTRICT_FAST_ENV[@]}" "$DOCKER" compiler './verify-selfhost-stage2-bstrict.sh && cd .. && ./tests/run-d03-stage2-hash-gate.sh'
 
 if [ "$RUN_W3" != "1" ]; then
   progress "OK W0+W1+W2"

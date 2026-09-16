@@ -53,6 +53,9 @@ export extern "C" function xlang_pipeline_run_x_pipeline_large_stack(
   module: *u8, arena: *u8, src: *u8, src_len: usize, out_buf: *u8, pctx: *u8): i32;
 export extern "C" function xlang_pipeline_fill_ctx_path_buffers(
   ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib: i32): void;
+/* Opt-in -lib-name prefix (slot + pctx setter authority in rt_emit_state). */
+export extern "C" function xlang_driver_x_emit_lib_name_into(out: *u8, cap: i32): i32;
+export extern "C" function xlang_pipeline_pctx_set_entry_lib_prefix(ctx: *u8, name: *u8, name_len: i32): void;
 export extern "C" function xlang_pipeline_pctx_seed_dep_import_paths_only(
   ctx: *u8, import_paths: *u8, n: i32): void;
 export extern "C" function xlang_pipeline_pctx_seed_dep_slots(
@@ -876,6 +879,17 @@ export function rt_xe_step_prerun(): i32 {
     driver_x_emit_work_p_set(wp_pctx(), pctx);
     xlang_pipeline_fill_ctx_path_buffers(pctx, entry, lib, n_lib);
   }
+  // 7.4.4 v3: opt-in -lib-name entry prefix (main_entry dispatch: -x -E →
+  // parse_x ret 1 → this lane). Absent/empty → no-op → bare emission.
+  {
+    let ln_buf: u8[64] = [];
+    let ln_len: i32 = xlang_driver_x_emit_lib_name_into(&ln_buf[0], 64);
+    if (ln_len > 0) {
+      unsafe {
+        xlang_pipeline_pctx_set_entry_lib_prefix(pctx, &ln_buf[0], ln_len);
+      }
+    }
+  }
   if (asm_d != 0) {
     unsafe {
       xlang_pipeline_pctx_seed_dep_import_paths_only(pctx, dp, n_deps);
@@ -1123,8 +1137,14 @@ export function rt_xe_step_finish(): i32 {
 }
 
 /** Public entry: run -x -E emit pipeline via work slots and five steps. Resets work, seeds path/lib, then read_pp, parse, load_deps, prerun, finish.
+ * Leftover !XLANG_NO_C_FRONTEND -E-extern cparser call lived only in the
+ * cold seed twin (rt_run_x_emit.from_x.c). This product body always
+ * refuses -E-extern via driver_x_emit_try_extern_via_cparser (BLD001).
+ * @return i32 — 0 on success, 1 on failure or -E-extern refuse
  * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_driver_run_x_emit_c).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — product authority; leftover consume site retired in
+ * the cold seed twin (this knife). Mega via_cparser wrapper not deleted.
+ */
 #[no_mangle]
 export function driver_run_x_emit_c(): i32 {
   let path: *u8 = 0 as *u8;
@@ -1152,6 +1172,7 @@ export function driver_run_x_emit_c(): i32 {
     want = driver_x_emit_take_want_extern();
   }
   if (want != 0) {
+    // Always refuse -E-extern. Do not re-add driver_run_x_emit_c_extern_via_cparser.
     unsafe {
       rc = driver_x_emit_try_extern_via_cparser(path);
       typeck_set_allow_legacy_extern_calls(old_legacy);

@@ -1,5 +1,6 @@
 # CORE-002/003 Option/Result 类型族 manifest
 # 列：item_id	kind	anchor	notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/; refuse top-level DOC resurrect.
 min_option_types	3
 min_result_types	2
 option_type_i32	symbol	Option_i32	core/option/mod.x
@@ -17,5 +18,5 @@ test_option	file	tests/option/main.x	烟测
 test_result	file	tests/result/main.x	烟测
 runner_option	script	run-option.sh	tests/run-option.sh
 runner_result	script	run-result.sh	tests/run-result.sh
-doc	file	core-option-result-combinators-v1.md	analysis/core-option-result-combinators-v1.md	RFC
+doc	file	core-option-result-combinators-v1.md	analysis/archive/core/core-option-result-combinators-v1.md	RFC
 gate	script	run-core-option-result-gate.sh	tests/run-core-option-result-gate.sh	manifest

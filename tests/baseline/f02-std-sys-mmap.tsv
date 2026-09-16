@@ -1,0 +1,8 @@
+# F-02 v1: std.sys mmap remove mmap.inc.c
+# cols: item_id	kind	anchor	mod_path	notes
+absent_mmap_inc	absent	std/sys/mmap.inc.c		must not exist
+doc_v1	script	analysis/archive/phase/phase-f-f02-v1.md		archive DOC
+gate	script	tests/run-f02-std-sys-mmap-gate.sh		honesty gate
+linux_smoke_gate	script	tests/run-linux-mmap-file-gate.sh		Linux MAP_SHARED smoke
+linux_mmap_rw	symbol	linux_mmap_rw	std/sys/linux.x	libc FFI face
+mmap_import_linux	symbol	linux_m	std/sys/mmap.x	import std.sys.linux

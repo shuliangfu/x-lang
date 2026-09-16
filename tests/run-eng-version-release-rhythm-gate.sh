@@ -6,10 +6,17 @@
 # 3) alpha/beta/stable 渠道 tag 烟测
 #
 # 用法：./tests/run-eng-version-release-rhythm-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/eng/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_ENG_VERSION_DOC:-analysis/eng-version-release-rhythm-v1.md}"
+if [ -f analysis/eng-version-release-rhythm-v1.md ]; then
+  echo "eng-version-release-rhythm-gate gate FAIL: top-level DOC resurrected (live = archive/eng/)" >&2
+  exit 1
+fi
+
+DOC="${XLANG_ENG_VERSION_DOC:-analysis/archive/eng/eng-version-release-rhythm-v1.md}"
 MANIFEST="${XLANG_ENG_VERSION_TSV:-tests/baseline/eng-version-release-rhythm.tsv}"
 LIB="tests/lib/eng-version-release-rhythm.sh"
 VERSION_FILE="VERSION"
@@ -22,6 +29,7 @@ MIN_CHANNELS=3
 . tests/lib/eng-branch-release-gate.sh
 
 echo "=== ENG-005: version release rhythm manifest ==="
+# PLATFORM: SHARED — root VERSION is the SemVer authority; must exist and sync.
 for f in "$DOC" "$MANIFEST" "$LIB" "$VERSION_FILE" "$VSCODE_PKG" \
   tests/templates/eng-version-channel-matrix.txt; do
   if [ ! -f "$f" ]; then
@@ -111,15 +119,15 @@ if [ "$MISS" -gt 0 ]; then
 fi
 
 BASE="$(eng_version_read_base "$VERSION_FILE")" || {
-  echo "eng-version-release-rhythm gate FAIL: cannot read VERSION" >&2
+  echo "eng-version-release-rhythm gate FAIL: cannot read $VERSION_FILE" >&2
   exit 1
 }
 if ! eng_version_base_valid "$BASE"; then
-  echo "eng-version-release-rhythm gate FAIL: invalid VERSION '$BASE'" >&2
+  echo "eng-version-release-rhythm gate FAIL: invalid SemVer base '$BASE'" >&2
   exit 1
 fi
 if ! eng_version_vscode_sync_ok "$VERSION_FILE" "$VSCODE_PKG"; then
-  echo "eng-version-release-rhythm gate FAIL: VERSION=$BASE != package.json version" >&2
+  echo "eng-version-release-rhythm gate FAIL: VERSION ($BASE) != vscode package.json" >&2
   exit 1
 fi
 echo "eng-version-release-rhythm VERSION OK ($BASE, vscode synced)"

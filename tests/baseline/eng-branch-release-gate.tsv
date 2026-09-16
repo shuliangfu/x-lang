@@ -16,5 +16,5 @@ precheck_baseline	release_gate	run-eng-baseline-governance-gate.sh	ENG-001
 precheck_quality	release_gate	run-eng-quality-gate-gate.sh	ENG-002
 precheck_cross_ci	release_gate	run-eng-crossplatform-ci-gate.sh	ENG-003
 precheck_portable	release_hook	run-portable-suite.sh	XLANG_RELEASE_FULL=1
-cross_eng001	cross_ref	analysis/eng-baseline-governance-v1.md
-cross_eng003	cross_ref	analysis/eng-crossplatform-ci-v1.md
+cross_eng001	cross_ref	analysis/archive/eng/eng-baseline-governance-v1.md
+cross_eng003	cross_ref	analysis/archive/eng/eng-crossplatform-ci-v1.md

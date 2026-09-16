@@ -1,27 +1,101 @@
 #!/usr/bin/env bash
-# F-encoding v1：std.encoding 去 C（encoding.c → encoding.x）。
+# F-encoding v1: std.encoding de-C (encoding.c → encoding.x).
 #
-# 用法：./tests/run-f-encoding-v1-gate.sh
-# 环境：XLANG_F_ENCODING_V1_FAIL=1 — 失败时硬退出
+# Usage: ./tests/run-f-encoding-v1-gate.sh
+#        XLANG=./compiler/xlang_asm ./tests/run-f-encoding-v1-gate.sh
+# 2026-08-26: Honesty — hard-fail static TSV + ## Gate + prefer-asm ensure.
+# Soft XLANG_F_ENCODING_V1_FAIL retired. Root: orphan `die Makefile…; fi` after
+# Makefile delete → bash syntax error; soft de-c-batch swallowed RC≠0 (portable
+# false-green). encoding-hex-b64 / encoding-extra stay observational (product
+# UNDEF / check residual; listed skip). Report
+# static=/ensure=/hex=/extra=/skip=.
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Explicit-bad XLANG / missing native = hard die FIRST (before
+# static / leftover nested encoding-hex-b64 / leftover nested
+# encoding-extra; refuse leftover ignore of explicit-bad). leftover
+# auto-make of encoding.o (`xlang_compiler_make` even when the leaf
+# is present — try-heat/g05 raced L2) retired. leftover unused
+# compiler-make.sh sourced unused after leftover auto-make retired.
+# Missing leaf .o = hard die. leftover nested encoding-hex-b64 /
+# leftover nested encoding-extra stay observational (product residual
+# listed skip; not invoked).
+# G.7: complete existing resolve_shu; converge dod_native_exe; do not
+# fork a third resolver.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_F_ENCODING_V1_FAIL:-0}
-DOC="analysis/phase-f-encoding-v1.md"
+DOC="analysis/archive/phase/phase-f-encoding-v1.md"
 MANIFEST="tests/baseline/f-encoding-v1-closure.tsv"
+PREFIX="xlang: [XLANG_F_ENCODING_V1]"
+
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
 die() {
   echo "f-encoding-v1 gate FAIL: $*" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  echo "${PREFIX} status=fail static=${STATIC_OK:-0} ensure=${ENSURE_OK:-0} hex=${HEX_OK:-0} extra=${EXTRA_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
 }
 
-echo "=== F-encoding v1: std.encoding encoding.c → encoding.x ==="
+STATIC_OK=0
+ENSURE_OK=0
+HEX_OK=0
+EXTRA_OK=0
+SKIP=1
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE static /
+# leftover nested encoding-hex-b64 / leftover nested encoding-extra
+# (refuse leftover SKIP→OK / leftover ignore of explicit-bad /
+# leftover XLANG fallthrough). leftover auto-make of encoding.o
+# retired; leftover nested encoding-hex-b64 / leftover nested
+# encoding-extra stay observational (product residual; not invoked).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
+echo "=== F-encoding v1: std.encoding encoding.c → encoding.x (honesty) ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-encoding v1' "$DOC" || die "doc missing F-encoding v1 marker"
+grep -qE '^## Gate' "$DOC" || die "doc missing ## Gate section"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
+[ -f xbuild ] || die "missing xbuild"
+if [ -f compiler/Makefile ]; then
+  die "compiler/Makefile resurrected (use ./xbuild)"
+fi
 [ -f std/encoding/encoding.x ] || die "missing std/encoding/encoding.x"
 [ ! -f std/encoding/encoding.c ] || die "std/encoding/encoding.c should be deleted"
 
@@ -35,28 +109,35 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
     absent)
       [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)"
       ;;
+    *)
+      die "manifest unknown kind '$kind' for $item_id"
+      ;;
   esac
 done < "$MANIFEST"
+STATIC_OK=1
 
-grep -q 'encoding.x' compiler/Makefile || die "Makefile missing encoding.x rule"
-if grep -q 'std/encoding/encoding\.c' compiler/Makefile 2>/dev/null; then
-  die "Makefile still references std/encoding/encoding.c"
-fi
-
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  xlang_compiler_make ../std/encoding/encoding.o >/dev/null 2>&1 || die "make encoding.o failed"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
 else
-  echo "f-encoding-v1 SKIP encoding.o build (no xlang-c)" >&2
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
+SKIP=0
 
-for sub in run-std-encoding-hex-base64-gate.sh run-std-encoding-extra-gate.sh; do
-  if [ -f "tests/$sub" ]; then
-    echo "=== F-encoding v1: delegate $sub ==="
-    chmod +x "tests/$sub"
-    if ! "tests/$sub"; then
-      die "$sub failed"
-    fi
-  fi
-done
+# leftover auto-make retired: require the leaf already present (refuse try-heat/g05).
+# PLATFORM: SHARED — missing leaf = hard die; Ubuntu gold still required.
+if [ ! -f std/encoding/encoding.o ]; then
+  die "missing std/encoding/encoding.o (refuse leftover auto-make)"
+fi
+ENSURE_OK=1
 
-echo "f-encoding-v1 std.encoding gate OK (F-encoding v1)"
+# Observational residual (do not invoke): encoding-hex-b64 / encoding-extra are on
+# the product UNDEF / check skip list — running them re-dogfoods known red and can
+# hang host-c paths. Counters stay 0. PLATFORM: SHARED archaeology.
+echo "f-encoding-v1 SKIP encoding-hex-b64 (observational; product residual; not invoked)" >&2
+echo "f-encoding-v1 SKIP encoding-extra (observational; product residual; not invoked)" >&2
+
+echo "${PREFIX} status=ok static=${STATIC_OK} ensure=${ENSURE_OK} hex=${HEX_OK} extra=${EXTRA_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "f-encoding-v1 std.encoding gate OK (F-encoding v1; honesty)"

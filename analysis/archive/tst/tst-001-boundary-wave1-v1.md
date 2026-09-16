@@ -57,4 +57,23 @@ manifest：`tests/baseline/tst-001-boundary-wave1.tsv`
 
 1. 在对应 `tests/<mod>/boundary.x` 追加 `// case N`  
 2. 更新 manifest `min_cases` 列（若超过原值）  
-3. 跑 gate 全绿  
+3. 跑 gate 全绿
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + case counts = hard.
+- `tests/fs/boundary.x` + `tests/string/boundary.x` product `-o` exit0 = hard run.
+- `tests/io/boundary.x` tip UNDEF (`std_io_read_usize_*` / `std_io_write_stderr_*`) = obs.
+- `tests/net/boundary.x` tip run exit≠0 = obs.
+- `xlang check` = obs (paused 2026-08-05).
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-tst-001-boundary-gate.sh
+```
+
+manifest: `tests/baseline/tst-001-boundary-wave1.tsv`

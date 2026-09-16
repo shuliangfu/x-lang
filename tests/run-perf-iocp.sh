@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# IO-A6 Windows IOCP pipe 批量 perf（对齐 io_batch_readv 规模感）
-# 用法：./tests/run-perf-iocp.sh [--bench]
-# 门禁（可选）：
-#   XLANG_PERF_FAIL_ON_IOCP_REGRESSION=1 — median ≤ tests/baseline/iocp-perf.tsv
-#   XLANG_PERF_UPDATE_IOCP_BASELINE=1 — 刷新 iocp-perf.tsv
-# 非 Windows MSYS2：SKIP exit 0
+# IO-A6 Windows IOCP pipe batch perf (aligns with io_batch_readv scale).
+#
+# Honesty: soft XLANG_PERF_FAIL_ON_IOCP_REGRESSION:-0 previously left
+# over-cap unchecked (silent OK = portable false-green). Soft SKIP on
+# link-fail (Windows) retired → hard die. Non-Windows MSYS2 = skip with
+# status report (platform N/A, not soft FAIL swallow). Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-perf-iocp.sh [--bench]
+# Env:
+#   XLANG_PERF_FAIL_ON_IOCP_REGRESSION=1 — median ≤ iocp-perf.tsv hard
+#   XLANG_PERF_UPDATE_IOCP_BASELINE=1 — refresh iocp-perf.tsv
+# PLATFORM: WINDOWS (MSYS2) — live bench; other hosts skip=1.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
@@ -17,6 +23,17 @@ RUNS="${XLANG_IOCP_RUNS:-3}"
 [ "${CI:-0}" = "1" ] && RUNS="${XLANG_IOCP_RUNS:-1}"
 ROUNDS="${XLANG_IOCP_BENCH_ROUNDS:-65536}"
 BASELINE="${XLANG_PERF_IOCP_BASELINE:-tests/baseline/iocp-perf.tsv}"
+
+PREFIX="xlang: [XLANG_PERF_IOCP]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "iocp perf FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
 _is_windows_msys() {
   case "$(uname -s 2>/dev/null)" in
@@ -33,7 +50,7 @@ extract_real_sec() {
     | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
 }
 
-# 用 date 差分测 wall time；MSYS2 上 bash time 常无 real 行导致 nan。
+# Wall-time via date delta; MSYS2 bash time often lacks a real line → nan.
 iocp_bench_wall_sec() {
   local start end
   start=$(date +%s.%N 2>/dev/null || date +%s)
@@ -47,37 +64,54 @@ iocp_baseline_cap() {
   awk -F'\t' -v c="$name" '$1==c && NF>=2 { print $2; exit }' "$BASELINE" 2>/dev/null || true
 }
 
+# Cap check: always compare when measured. Over-cap / nan = obs when PERF_FAIL=0.
 check_iocp_regress() {
   local name="$1"
   local med="$2"
   local cap
+  if [ "$med" = "nan" ]; then
+    echo "iocp perf OBS: $name median nan" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL" -eq 1 ]; then
+      die "$name median nan (XLANG_PERF_FAIL_ON_IOCP_REGRESSION=1)"
+    fi
+    return 0
+  fi
   cap=$(iocp_baseline_cap "$name")
   [ -z "$cap" ] && return 0
-  if awk -v m="$med" -v c="$cap" 'BEGIN { exit (m != "nan" && m+0 <= c+0) ? 0 : 1 }'; then
+  if awk -v m="$med" -v c="$cap" 'BEGIN { exit (m+0 <= c+0) ? 0 : 1 }'; then
     echo "iocp perf OK: $name median ${med}s ≤ cap ${cap}s"
   else
-    echo "iocp perf FAIL: $name median ${med}s > cap ${cap}s" >&2
-    [ "$PERF_FAIL" -eq 1 ] && exit 1
+    echo "iocp perf OBS: $name median ${med}s > cap ${cap}s" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL" -eq 1 ]; then
+      die "$name median ${med}s > cap ${cap}s (XLANG_PERF_FAIL_ON_IOCP_REGRESSION=1)"
+    fi
   fi
 }
 
 if ! _is_windows_msys; then
-  echo "run-perf-iocp: SKIP (non-Windows MSYS2)"
+  echo "run-perf-iocp: SKIP (non-Windows MSYS2; platform N/A)"
+  SKIP=1
+  echo "${PREFIX} status=ok run=0 obs=0 skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ "$DO_BENCH" -eq 0 ]; then
   echo "run-perf-iocp: use --bench to run iocp_pipe_batch"
+  echo "${PREFIX} status=ok run=0 obs=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-xlang_compiler_make ../std/io/io.o -q 2>/dev/null || xlang_compiler_make ../std/io/io.o
+# PLATFORM: WINDOWS — need std/io.o for IOCP pipe batch link.
+if [ ! -f std/io/io.o ]; then
+  die "missing std/io/io.o (refuse soft auto-make / soft SKIP→OK)"
+fi
 
 OUT="/tmp/xlang_iocp_pipe_loop"
-if ! cc -O2 -Wall bench/iocp_pipe_loop.c std/io/io.o -o "$OUT" 2>/dev/null; then
-  echo "run-perf-iocp: SKIP (link failed)"
-  exit 0
+if ! cc -O2 -Wall bench/iocp_pipe_loop.c std/io/io.o -o "$OUT" 2>/tmp/iocp_link.log; then
+  cat /tmp/iocp_link.log >&2
+  die "iocp link failed (refuse soft SKIP→OK on Windows)"
 fi
 
 echo "=== bench/iocp_pipe_loop (${ROUNDS} rounds 2×64B batch @ IOCP) ==="
@@ -99,6 +133,7 @@ med=$(printf '%s\n' "$vals" | sed '/^$/d' | sort -n | awk '{
 }')
 echo "Xlang IOCP pipe batch median real: ${med}s"
 printf '\n| iocp_pipe_batch | real (s) 中位数 |\n|---|----------------|\n| Xlang (IOCP batch) | %s |\n\n' "$med"
+RUN_OK=1
 
 check_iocp_regress iocp_pipe_batch "$med"
 
@@ -113,3 +148,5 @@ if [ "${XLANG_PERF_UPDATE_IOCP_BASELINE:-0}" = "1" ] && [ "$med" != "nan" ]; the
 fi
 
 echo "iocp perf OK"
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+exit 0

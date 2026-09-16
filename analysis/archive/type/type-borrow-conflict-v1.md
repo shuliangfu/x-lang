@@ -1,8 +1,8 @@
 # TYPE-003 borrow conflict diagnostic v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 统一 ownership（linear）+ lifetime（region）冲突诊断，降低误报  
-> 关联：`TYPE-001`（linear）、`TYPE-002`（region）、`LANG-008`（行号格式）
+> Updated: 2026-08-28
+> Status: **v1 (honesty soft→硬绿)** — unified ownership (linear) + lifetime (region) conflict diagnostics; lower false positives
+> Related: `TYPE-001` (linear), `TYPE-002` (region), `LANG-008` (span format)
 
 ---
 
@@ -46,11 +46,11 @@
 
 | case_id | 文件 | policy | 期望 |
 |---------|------|--------|------|
-| `fp_region_same` | `region_same_ok.x` | pos | `check` 通过 |
-| `fp_region_block` | `fp_region_block_reassign_ok.x` | pos | `check` 通过 |
-| `fp_linear_two` | `fp_linear_two_bindings_ok.x` | pos | `check` 通过 |
-| `conflict_region_escape` | `region_assign_escape.x` | neg | `slice region escape` @8 |
-| `conflict_region_mismatch` | `region_mismatch.x` | neg | `slice region mismatch` @6 |
+| `fp_region_same` | `region_same_ok.x` | pos | product `-o` typeck-ok（UNDEF `slice_src` OK） |
+| `fp_region_block` | `fp_region_block_reassign_ok.x` | pos | product `-o` typeck-ok |
+| `fp_linear_two` | `fp_linear_two_bindings_ok.x` | pos | product `-o` typeck-ok／run |
+| `conflict_region_escape` | `region_assign_escape.x` | neg | `slice region escape` @12 |
+| `conflict_region_mismatch` | `region_mismatch.x` | neg | `slice region mismatch` @10 |
 | `conflict_linear_move` | `double_move.x` | neg | `linear value used after move` |
 
 全量回归：`run-typeck-region.sh` + `run-typeck-linear.sh`。
@@ -65,19 +65,21 @@
 
 ---
 
-## 5. 验证与门禁
+## Gate
 
 ```bash
 ./tests/run-type-borrow-conflict-gate.sh   # runnable：manifest + borrow hooks
-./tests/run-type-borrow-conflict.sh        # 误报/冲突烟测
+./tests/run-type-borrow-conflict.sh        # 误报/冲突烟测（product -o 硬绿）
 ```
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；pos／neg 产品 `-o` 硬绿；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
 
 **gate report**：stdout 须含 `type-borrow-conflict gate OK`；失败打印 `type-borrow-conflict FAIL:` 行。
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/type-borrow-conflict-v1.md` |
+| 本文 | `analysis/archive/type/type-borrow-conflict-v1.md` |
 | manifest | `tests/baseline/type-borrow-conflict.tsv` |
 | 矩阵 | `tests/baseline/type-borrow-conflict-cases.tsv` |
 
-**TYPE-003 状态：定版 ✅**
+**TYPE-003 状态：定版 ✅（honesty soft→硬绿）**

@@ -83,7 +83,7 @@ fi
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 if [ ! -x "./$TARGET" ]; then
-  fail "missing executable ./$TARGET (run make bootstrap-driver-seed first)"
+  fail "missing executable ./$TARGET (run bash scripts/bootstrap_driver_seed.sh / ./xbuild bootstrap-driver-seed first)"
 fi
 
 # Historic: full build_xlang_asm (no XLANG_ASM_EXPERIMENTAL_SKIP_GEN).

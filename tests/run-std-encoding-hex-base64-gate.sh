@@ -2,12 +2,15 @@
 # STD-040：std.encoding hex/Base64 与 string 互操作门禁
 #
 # 用法：./tests/run-std-encoding-hex-base64-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/compiler-make.sh
 . tests/lib/compiler-make.sh
 
-DOC="${XLANG_STD_ENCODING_HEX_B64_DOC:-analysis/std-encoding-hex-base64-v1.md}"
+DOC="${XLANG_STD_ENCODING_HEX_B64_DOC:-analysis/archive/std/std-encoding-hex-base64-v1.md}"
 MANIFEST="${XLANG_STD_ENCODING_HEX_B64_TSV:-tests/baseline/std-encoding-hex-base64.tsv}"
 MOD_X="std/encoding/mod.x"
 ENCODING_X="${XLANG_STD_ENCODING_IMPL:-std/encoding/encoding.x}"

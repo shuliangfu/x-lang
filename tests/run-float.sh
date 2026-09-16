@@ -1,52 +1,128 @@
 #!/usr/bin/env bash
-# 文件职责：验证 f32/f64 类型与浮点字面量；含边界与负向测试。
-# 依赖：compiler/xlang，tests/float/*.x
-
-set -e
+# f32/f64 literal + boundary smoke; init_invalid NEG; int-coercion OK
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+# Product `-o` is the hard gate; `xlang check` paused → not used as green
+# authority (former check-only arms converted to product -o).
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-fi
-XLANG=${XLANG:-./compiler/xlang}
-# PLATFORM: SHARED — product bstrict uses this-SHA xlang_asm; leftover xlang_asm2
-# only with XLANG_BSTRICT_USE_ASM2=1 (July-14 wrong-binary ban; see run-all-bstrict.sh).
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ]; then
-  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/xlang_asm2 ]; then
-    XLANG=./compiler/xlang_asm2
-  elif [ -x ./compiler/xlang_asm ]; then
-    XLANG=./compiler/xlang_asm
-  fi
-fi
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
 
-# 正例：基础 f32/f64、0.0、整字面量 0
-$XLANG build tests/float/f32_f64.x -o /tmp/xlang_float 2>&1
-exitcode=0; /tmp/xlang_float >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected 0 (f32_f64), got $exitcode"; exit 1; }
+PREFIX="${XLANG_FLOAT_PREFIX:-xlang: [FLOAT]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-# 正例：科学计数法、.5
-$XLANG build tests/float/scientific_and_dot.x -o /tmp/xlang_float2 2>&1
-exitcode=0; /tmp/xlang_float2 >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected 0 (scientific_and_dot), got $exitcode"; exit 1; }
-
-# 正例：边界 0.0、const 1e2、.25
-$XLANG build tests/float/boundary.x -o /tmp/xlang_float_boundary 2>&1
-exitcode=0; /tmp/xlang_float_boundary >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 0 ] && { echo "expected 0 (boundary), got $exitcode"; exit 1; }
-
-# 负例：f32 初值为 none 应 typeck 失败（typeck.x 允许 let x: f32 = 1 整型隐式转换）
-if $XLANG check tests/float/init_invalid.x 2>&1 | grep -qE "typeck|pipeline failed|cannot|mismatch|invalid"; then
-  : # 预期报错，通过
-else
-  echo "expected typeck error for f32 = none"
-  exit 1
-fi
-
-# 回归：f32 = 1 整型字面量在 typeck.x 可绿（旧负例 init_non_zero_int.x 已弃用）
-$XLANG check tests/float/init_non_zero_int.x >/dev/null 2>&1 || {
-  echo "expected typeck OK for f32 = 1 (int coercion)"
+die() {
+  echo "float FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
   exit 1
 }
 
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+run_case() {
+  local tag="$1" src="$2" want="$3"
+  local exe="/tmp/xlang_float_${tag}_$$"
+  local log="/tmp/xlang_float_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -eq 124 ]; then
+    die "$tag product -o timeout"
+  elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    die "$tag product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
+  fi
+  set +e
+  gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 124 ]; then
+    die "$tag run timeout"
+  elif [ "$r_ec" -ne "$want" ]; then
+    die "$tag expected exit $want, got $r_ec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+}
+
+echo "=== float gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+run_case f32_f64 tests/float/f32_f64.x 0
+run_case scientific_and_dot tests/float/scientific_and_dot.x 0
+run_case boundary tests/float/boundary.x 0
+
+# NEG: f32 = none must fail product -o (not soft check-only).
+neg_src="tests/float/init_invalid.x"
+[ -f "$neg_src" ] || die "missing $neg_src"
+neg_exe="/tmp/xlang_float_init_invalid_$$"
+neg_log="/tmp/xlang_float_init_invalid_$$.log"
+rm -f "$neg_exe" "$neg_log"
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$neg_src" -o "$neg_exe" >"$neg_log" 2>&1
+neg_ec=$?
+set -e
+if [ "$neg_ec" -eq 124 ]; then
+  die "init_invalid timeout"
+elif [ "$neg_ec" -eq 0 ]; then
+  die "init_invalid expected compile fail, got success"
+fi
+grep -qE 'typeck|pipeline failed|cannot|mismatch|invalid' "$neg_log" \
+  || die "init_invalid expected typeck/pipeline error; $(tail -5 "$neg_log" 2>/dev/null | tr '\n' ' ')"
+rm -f "$neg_exe" "$neg_log"
+RUN_OK=$((RUN_OK + 1))
+
+# Regression: f32 = 1 int coercion must product -o + exit 0 (not check-only).
+run_case init_non_zero_int tests/float/init_non_zero_int.x 0
+
+ok_report
 echo "float test OK"

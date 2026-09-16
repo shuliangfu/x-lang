@@ -1,17 +1,37 @@
 #!/usr/bin/env bash
-# S5：xlang_asm 全二进制 .text dogfood（实测 + wpo-eligible 模块代理反推 WPO-off 体积）。
-# 全链 -3% 须多模块 WPO；本脚本先实锤 main+driver 对二进制的可度量节省。
-# 用法：
+# S5: xlang_asm full-binary .text dogfood (measured + wpo-eligible TU proxy).
+#
+# Honesty: soft XLANG_PERF_FAIL_ON_WPO_XLANG_ASM_TEXT:-0 under-min still
+# printed FAIL then OK / exit 0 was portable false-green. Missing xlang_asm
+# soft SKIP→OK retired. Under-min save = obs (perf residual;
+# FAIL_ON_WPO_XLANG_ASM_TEXT=1 still hard). Darwin gen_driver A/B N/A =
+# skip=1 (Linux covers). Prefer product xlang_asm. Report run=/obs=/skip=.
+#
+# Usage:
 #   ./tests/run-perf-wpo-dce-xlang-asm-text.sh
 #   XLANG=./compiler/xlang_asm XLANG_PERF_FAIL_ON_WPO_XLANG_ASM_TEXT=1 ./tests/run-perf-wpo-dce-xlang-asm-text.sh
 #   XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-xlang-asm-text.sh
+# PLATFORM: SHARED archaeology (Darwin skip; Ubuntu gold covers).
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . "$(dirname "$0")/lib/wpo-ab-proxy.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-# 与 gate 脚本一致：ELF/Mach-O 通用 .text 读取。
+# Shared ELF/Mach-O .text reader (authority: wpo-ab-proxy.sh).
 text_bytes() { wpo_ab_text_bytes "$@"; }
+
+PREFIX="xlang: [XLANG_PERF_WPO_XLANG_ASM_TEXT]"
+OBS=0
+RUN_OK=0
+SKIP=0
+
+die() {
+  echo "run-perf-wpo-dce-xlang-asm-text FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
 
 XLANG_ASM="${XLANG:-./compiler/xlang_asm}"
 case "$XLANG_ASM" in
@@ -29,7 +49,7 @@ MIN_ELIGIBLE_BYTES=$(awk -F'\t' '$1=="min_wpo_eligible_save_bytes" && $1 !~ /^#/
 MIN_ELIGIBLE_BYTES=${MIN_ELIGIBLE_BYTES:-600}
 MIN_BINARY_PCT=$(awk -F'\t' '$1=="min_binary_proxy_save_pct" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_BINARY_PCT=${MIN_BINARY_PCT:-0.3}
-# stretch -3%：全链 strict bstrict 后手动/专用 job 启用（CI-fast 仅 ~0.8% proxy）
+# stretch -3%: enable after full-chain strict bstrict (CI-fast ~0.8% proxy only).
 if [ "${XLANG_WPO_STRETCH_3PCT:-0}" = "1" ]; then
   MIN_BINARY_PCT=3.0
   MIN_BINARY_BYTES=12000
@@ -40,23 +60,23 @@ MIN_BINARY_BYTES=${MIN_BINARY_BYTES:-600}
 
 echo "=== wpo xlang_asm binary __text (measured + wpo-eligible proxy) ==="
 
-# Darwin gen_driver：ENTRY_ONLY/EMIT_HEAVY A/B 常 inconclusive（eligible save=0），Linux 覆盖 perf 门禁。
+# PLATFORM: DARWIN — gen_driver ENTRY_ONLY/EMIT_HEAVY A/B often inconclusive
+# (eligible save=0); Linux x86_64/ARM64 covers the perf gate.
 if [ "$(uname -s 2>/dev/null)" = Darwin ]; then
-  echo "wpo xlang_asm text: N/A on Darwin (gen_driver A/B inconclusive; Linux x86_64/ARM64 covers)"
+  SKIP=1
+  echo "wpo xlang_asm text: N/A on Darwin (gen_driver A/B inconclusive; Linux covers)"
   echo "wpo xlang_asm text OK (Darwin N/A)"
+  echo "${PREFIX} status=ok run=0 obs=0 skip=${SKIP} host=$(ci_host_summary)"
   exit 0
 fi
 
 if [ ! -x "$XLANG_ASM_ABS" ]; then
-  echo "wpo xlang_asm text: SKIP (no xlang_asm: $XLANG_ASM_ABS)"
-  exit 0
+  die "need xlang_asm at $XLANG_ASM_ABS (refuse soft SKIP→OK)"
 fi
 
-TEXT_ON=$(text_bytes "$XLANG_ASM_ABS") || {
-  echo "wpo xlang_asm text FAIL: cannot read .text from $XLANG_ASM_ABS" >&2
-  exit 1
-}
+TEXT_ON=$(text_bytes "$XLANG_ASM_ABS") || die "cannot read .text from $XLANG_ASM_ABS"
 echo "xlang_asm binary: .text=${TEXT_ON}B ($XLANG_ASM_ABS)"
+RUN_OK=1
 
 BUILD_ASM="compiler/build_asm"
 BASELINE_PROXY="tests/baseline/wpo-dce-compiler-self-text.tsv"
@@ -196,29 +216,32 @@ echo "| pipeline/pipeline.x TU | $PON | $POFF | $((POFF - PON)) | — |"
 echo "| typeck/typeck.x TU | $TON | $TOFF | $((TOFF - TON)) | — |"
 echo "| asm/backend.x TU | $BON | $BOFF | $((BOFF - BON)) | — |"
 
-fail=0
 if [ "$ELIGIBLE_SAVE" -lt "$MIN_ELIGIBLE_BYTES" ]; then
-  echo "WPO xlang_asm text FAIL: wpo-eligible save ${ELIGIBLE_SAVE}B < min ${MIN_ELIGIBLE_BYTES}B" >&2
-  fail=1
+  echo "WPO xlang_asm text OBS: wpo-eligible save ${ELIGIBLE_SAVE}B < min ${MIN_ELIGIBLE_BYTES}B (perf residual)" >&2
+  OBS=1
+  if [ "$FAIL_REGRESS" = "1" ]; then
+    die "wpo-eligible save ${ELIGIBLE_SAVE}B < min ${MIN_ELIGIBLE_BYTES}B (XLANG_PERF_FAIL_ON_WPO_XLANG_ASM_TEXT=1)"
+  fi
 fi
 if [ "$BINARY_SAVE" -lt "$MIN_BINARY_BYTES" ]; then
-  echo "WPO xlang_asm text FAIL: binary proxy save ${BINARY_SAVE}B < min ${MIN_BINARY_BYTES}B" >&2
-  fail=1
+  echo "WPO xlang_asm text OBS: binary proxy save ${BINARY_SAVE}B < min ${MIN_BINARY_BYTES}B (perf residual)" >&2
+  OBS=1
+  if [ "$FAIL_REGRESS" = "1" ]; then
+    die "binary proxy save ${BINARY_SAVE}B < min ${MIN_BINARY_BYTES}B (XLANG_PERF_FAIL_ON_WPO_XLANG_ASM_TEXT=1)"
+  fi
 fi
-if awk -v p="$BINARY_PCT" -v m="$MIN_BINARY_PCT" 'BEGIN { exit (p + 0 >= m + 0) ? 0 : 1 }'; then
-  :
-else
-  echo "WPO xlang_asm text FAIL: binary proxy save ${BINARY_PCT}% < min ${MIN_BINARY_PCT}%" >&2
-  fail=1
-fi
-if [ "$fail" -eq 1 ] && [ "$FAIL_REGRESS" = "1" ]; then
-  exit 1
+if ! awk -v p="$BINARY_PCT" -v m="$MIN_BINARY_PCT" 'BEGIN { exit (p + 0 >= m + 0) ? 0 : 1 }'; then
+  echo "WPO xlang_asm text OBS: binary proxy save ${BINARY_PCT}% < min ${MIN_BINARY_PCT}% (perf residual)" >&2
+  OBS=1
+  if [ "$FAIL_REGRESS" = "1" ]; then
+    die "binary proxy save ${BINARY_PCT}% < min ${MIN_BINARY_PCT}% (XLANG_PERF_FAIL_ON_WPO_XLANG_ASM_TEXT=1)"
+  fi
 fi
 
 if [ "$UPDATE_BASELINE" = "1" ] && [ "$ELIGIBLE_SAVE" -gt 0 ]; then
   cat > "$BASELINE" <<EOF
-# xlang_asm 全二进制 .text dogfood：wpo-eligible(main+driver+pipeline) 代理反推 WPO-off
-# 更新：XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-xlang-asm-text.sh
+# xlang_asm full-binary .text dogfood: wpo-eligible (main+driver+pipeline+…) proxy for WPO-off
+# Update: XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-xlang-asm-text.sh
 min_wpo_eligible_save_bytes	$((ELIGIBLE_SAVE > 64 ? ELIGIBLE_SAVE - 64 : ELIGIBLE_SAVE))
 min_binary_proxy_save_bytes	$((BINARY_SAVE > 64 ? BINARY_SAVE - 64 : BINARY_SAVE))
 min_binary_proxy_save_pct	$(awk -v p="$BINARY_PCT" 'BEGIN { v=p-0.1; if (v<0.1) v=0.1; printf "%.2f", v }')
@@ -226,4 +249,5 @@ EOF
   echo "updated baseline: $BASELINE"
 fi
 
-echo "wpo xlang_asm text OK (binary .text=${TEXT_ON}B; eligible save=${ELIGIBLE_SAVE}B; proxy save=${BINARY_SAVE}B/${BINARY_PCT}%)"
+echo "wpo xlang_asm text OK (binary .text=${TEXT_ON}B; eligible save=${ELIGIBLE_SAVE}B; proxy save=${BINARY_SAVE}B/${BINARY_PCT}%; obs=${OBS})"
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} eligible_save=${ELIGIBLE_SAVE} proxy_pct=${BINARY_PCT} host=$(ci_host_summary)"

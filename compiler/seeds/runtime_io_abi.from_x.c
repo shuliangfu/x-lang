@@ -27,6 +27,7 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#include <xlang_io_cap.h>
 /* 【Why 根源】MinGW open() 默认文本模式，read/write 做 CRLF↔LF 转换，
  * 导致 fstat 报告的 st_size（物理字节数）与 read 实际返回字节数不一致。
  * 例：fmt 写入 37 字节 LF，文本模式 write 磁盘为 40 字节 CRLF；
@@ -46,6 +47,7 @@
 /**
  * B-20：POSIX read 循环读 fd 到 buf[0..cap-1]；成功返回读入字节数，失败 -1。
  * 参数：fd 已打开描述符；buf/cap 输出缓冲与容量。
+ * Cap residual 9.1.8: Linux via xlang_io_cap.h (no libc read); Win keeps read().
  * G-02f-334：hybrid 时作 _impl（.x thin 门闩调 _impl）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -64,7 +66,7 @@ int xlang_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
         return -1;
     off = 0;
     while (off < cap) {
-        n = read(fd, (char *)buf + off, cap - off);
+        n = (ssize_t)xlang_io_read(fd, (char *)buf + off, cap - off);
         if (n < 0)
             return -1;
         if (n == 0)
@@ -97,7 +99,7 @@ int xlang_runtime_file_view_read_malloc_impl(int fd, size_t size, XlangRuntimeFi
     }
     off = 0;
     while (off < size) {
-        n = read(fd, buf + off, size - off);
+        n = (ssize_t)xlang_io_read(fd, buf + off, size - off);
         if (n < 0) {
             free(buf);
             close(fd);
@@ -325,6 +327,7 @@ int xlang_read_file_into_path(const char *path, void *buf, size_t cap) {
 /**
  * B-20：open(O_WRONLY|O_CREAT|O_TRUNC)/write 写整文件。
  * 参数：见 runtime_io_abi.h。
+ * Cap residual 9.1.8: Linux via xlang_io_cap.h (no libc write); .x twin same.
  * Cap residual pure：.x 真迁；FROM_X 时由 .x 提供。
  */
 #ifndef XLANG_RUNTIME_IO_ABI_FROM_X
@@ -338,7 +341,7 @@ int xlang_write_path_bytes_impl(const char *path, const void *data, size_t len) 
         return -1;
     off = 0;
     while (off < len) {
-        n = write(fd, (const char *)data + off, len - off);
+        n = (ssize_t)xlang_io_write(fd, (const char *)data + off, len - off);
         if (n < 0) {
             close(fd);
             return -1;
@@ -442,7 +445,7 @@ ssize_t std_fs_fs_read(int32_t fd, uint8_t * buf, size_t count) {
     return neg;
   }
   (void)(({   {
-    ssize_t n = read(fd, buf, count);
+    ssize_t n = (ssize_t)xlang_io_read((int)fd, (void *)buf, count);
     return n;
   }
  }));
@@ -456,12 +459,18 @@ ssize_t std_fs_fs_write(int32_t fd, uint8_t * buf, size_t count) {
     return neg;
   }
   (void)(({   {
-    ssize_t n = write(fd, buf, count);
+    ssize_t n = (ssize_t)xlang_io_write((int)fd, (const void *)buf, count);
     return n;
   }
  }));
   ssize_t neg2 = ((ssize_t)((0 - 1)));
   return neg2;
+}
+
+/* Surface short name fs_open_read_c — twin of runtime_io_abi.x #[no_mangle].
+ * PLATFORM: SHARED — std/fs mangles to std_fs_fs_open_read_c; config/elf need bare name. */
+int32_t fs_open_read_c(uint8_t * path) {
+  return std_fs_fs_open_read(path);
 }
 
 int32_t fs_posix_close_c(int32_t fd) {
@@ -495,7 +504,7 @@ int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap)
   total = 0;
   while (total < cap) {
     int32_t chunk = cap - total;
-    ssize_t r = read(fd, buf + total, (size_t)chunk);
+    ssize_t r = (ssize_t)xlang_io_read(fd, buf + total, (size_t)chunk);
     if (r < 0) {
       close(fd);
       return -1;

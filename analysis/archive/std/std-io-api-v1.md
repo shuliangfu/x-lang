@@ -163,15 +163,26 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 
 ---
 
-## 7. CI 门禁
+## 7. Gate
 
 | 脚本 | 作用 |
 |------|------|
-| `tests/run-std-io-api-gate.sh` | 稳定符号 manifest + `run-io.sh` |
+| `tests/run-std-io-api-gate.sh` | 稳定符号 manifest + `run-io.sh`（honesty 二过：拒 soft fallthrough／soft auto-make；prefer asm／`XLANG_LINK_XLANG`；check＝obs；run-io exit0 硬失败；报告 `run=`／`obs=`／`skip=`） |
 | `tests/run-io-unified-gate.sh` | 跨平台 batch/read_ptr/ZC-1 smoke |
 | `tests/run-io-read-ptr-slice.sh` | M-5 slice 域 |
 | `tests/run-zc3-gate.sh` | region typeck + read_ptr |
 | `tests/run-pre-push-p5.sh` | 经 `run-zc-gates.sh` 间接覆盖 |
+
+### 7.1 Gate honesty（2026-08-26）
+
+- Prefer `./compiler/xlang_asm`；钉 `XLANG_LINK_XLANG`；无 native → **FAIL**（禁止 soft SKIP→OK）
+- `xlang check` 仅观测（自举期暂停闸门）；`run-io.sh` exit 0 硬失败
+- 报告：`xlang: [XLANG_STD001_IO_API] status=… run=… obs=… skip=…`
+- **未**改产品 `std/io` labi；禁顶层 DOC 复活（live = `analysis/archive/std/`）
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-io-read-ptr-slice.sh`／`tests/run-io-unified-gate.sh`（`xlang_compiler_make -q || make` + `process.o`／`io.o` + bootstrap-link wrap + xlang-c-first prefer-c）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `read_ptr_slice`／`read_ptr_slice_param`／`batch_rw_smoke` hard；check＝obs；report `run=`／`obs=`／`skip=`。io-multishot／provided-buffers still host-c leave. leftover prefixes `xlang: [IO_READ_PTR_SLICE]`／`xlang: [IO_UNIFIED]`。Keep `## 7. Gate`。
+
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-io-api-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product leftover `run-io.sh` hook hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 7. Gate`。 Leave wrap body / ensure_std family / io-multishot / provided-buffers.
 
 ---
 

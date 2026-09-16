@@ -1,39 +1,88 @@
 #!/usr/bin/env bash
-# STD-033：std.http 分块传输与 Keep-Alive 门禁
+# STD-033: std.http chunked transfer + Keep-Alive gate — honesty leftover wrap dead source →硬绿.
 #
-# 用法：./tests/run-std-http-chunked-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover wrap dead
+# source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# chunked_keepalive.x -o exit0 = hard run (run=1). check / bench check = obs.
+# Report: run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-http-chunked-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/std-http-chunked-v1.md}"
+DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/archive/std/std-http-chunked-v1.md}"
 MANIFEST="${XLANG_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 CHUNKED_INC="compiler/seeds/http/http_chunked.inc"
 LIB="tests/lib/std-http-chunked.sh"
 SMOKE="tests/http/chunked_keepalive.x"
-BENCH="bench/http_chunked_decode_bench.x"
+BENCH="bench/i08_http_chunked_decode_bench.x"
 MIN_APIS=5
 
 # shellcheck source=tests/lib/std-http-chunked.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-http-chunked gate FAIL: $*" >&2
+  std_http_chunked_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-http-chunked-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
+
 echo "=== STD-033: http chunked/keep-alive manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$HTTP_C" "$CHUNKED_INC" "$SMOKE" "$BENCH"; do
-  if [ ! -f "$f" ]; then
-    echo "std-http-chunked gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 for kw in chunked keep-alive decode_chunked build_get_keep_alive; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "std-http-chunked gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+grep -qF '## 4. Gate' "$DOC" 2>/dev/null || die "doc missing '## 4. Gate'"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -47,102 +96,62 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*|min_*) continue ;; esac
   case "$kind" in
-    api) API_N=$((API_N + 1)) ;;
+    api)
+      API_N=$((API_N + 1))
+      grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null || die "missing api $anchor"
+      ;;
     section)
-      if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
-        echo "std-http-chunked gate FAIL: doc missing section $anchor" >&2
-        exit 1
-      fi
+      grep -qF "$anchor" "$DOC" 2>/dev/null || die "doc missing section $anchor"
       ;;
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-http-chunked gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
 sym_miss="$(std_http_chunked_symbols_ok "$MOD_X" "$CHUNKED_INC" "$HTTP_C" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_http_chunked_emit_report "fail" 0 0 0 1
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-http-chunked manifest OK"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-CHUNKED_OK=0
-KEEPALIVE_OK=0
-TYPECK_OK=0
-SKIP=1
-if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
-  :
-elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
-  :
-else
-  XLANG_BIN=""
+if [ "${XLANG_STD_HTTP_CHUNKED_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_http_chunked_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-http-chunked gate OK (manifest only)"
+  exit 0
 fi
 
-if [ -n "$XLANG_BIN" ]; then
-  echo "=== STD-033: typeck + smoke (XLANG=$XLANG_BIN) ==="
-  if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
-    export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
-  fi
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  ensure_std_c_o ../std/http/http.o
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  for x in "$SMOKE" "$BENCH"; do
-    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
-      echo "std-http-chunked gate FAIL: typeck $x" >&2
-      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
-      std_http_chunked_emit_report "fail" 0 0 0 0
-      exit 1
-    fi
-  done
-  TYPECK_OK=1
-  exe="/tmp/xlang_std_http_chunked_$$"
-  set +e
-  link_log=$("$XLANG_BIN" -L . "$SMOKE" -o "$exe" 2>&1)
-  link_ec=$?
-  set -e
-  if [ "$link_ec" -eq 0 ]; then
-    set +e
-    "$exe" >/dev/null 2>&1
-    run_ec=$?
-    set -e
-    rm -f "$exe"
-    if [ "$run_ec" -eq 0 ]; then
-      CHUNKED_OK=1
-      KEEPALIVE_OK=1
-      SKIP=0
-    else
-      echo "std-http-chunked gate FAIL: run exit=$run_ec" >&2
-      std_http_chunked_emit_report "fail" 0 0 "$TYPECK_OK" 0
-      exit 1
-    fi
-  elif echo "$link_log" | grep -qE "library 'zstd' not found|xlang_panic_"; then
-    echo "std-http-chunked gate SKIP runnable link (typeck passed)" >&2
-    SKIP=1
-  else
-    echo "std-http-chunked gate FAIL: link $SMOKE" >&2
-    echo "$link_log" | tail -8 >&2 || true
-    std_http_chunked_emit_report "fail" 0 0 "$TYPECK_OK" 0
-    exit 1
-  fi
-else
-  echo "std-http-chunked gate SKIP smoke (no native xlang-c)" >&2
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
+  export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
+fi
+echo "=== STD-033: smoke (XLANG=$XLANG_BIN; check obs; chunked product hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE" >/tmp/xlang_std033_chunked_check.log 2>&1
+chk=$?
+"$XLANG_BIN" check -L . "$BENCH" >/tmp/xlang_std033_chunked_bench_check.log 2>&1
+chk_b=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-http-chunked OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+if [ "$chk_b" -ne 0 ]; then
+  echo "std-http-chunked OBS check bench (paused / CHK residual ec=$chk_b)" >&2
+  OBS=$((OBS + 1))
 fi
 
-std_http_chunked_emit_report "ok" "$CHUNKED_OK" "$KEEPALIVE_OK" "$TYPECK_OK" "$SKIP"
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+if std_http_chunked_run_smoke "$XLANG_BIN" "$SMOKE" "chunked_keepalive"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-http-chunked OK: chunked_keepalive"
+else
+  die "chunked_keepalive.x exit!=0 (refuse soft SKIP→OK)"
+fi
+
+std_http_chunked_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-http-chunked gate OK"

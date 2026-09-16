@@ -35,11 +35,11 @@
 #       744 DRIVER_SEED_PREREQS edge swallow (shell ensure).
 #       891 SKIP_SUBSCRIPT soft-skip / nested-make body → this script (G.7 有则补全).
 #
-# Env (wave891):
+# Env (wave891 → post wave941 phys-del):
 #   XLANG_SKIP_SUBSCRIPT_MAKE=1 — if TARGET already executable, soft-skip full
 #     cold sequence (run-all entry already linked seed). If TARGET missing,
-#     re-invoke make bootstrap-driver-seed with SKIP cleared + RUN_ALL=1 so
-#     composites/export leaves load (historic nested $(MAKE) body).
+#     clear SKIP and fall through this script's shell cold body (0-make;
+#     historic nested `make bootstrap-driver-seed` is dead after MF delete).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -53,22 +53,27 @@ log() { echo "bootstrap-driver-seed: $*" >&2; }
 # ---------------------------------------------------------------------------
 # wave891: XLANG_SKIP_SUBSCRIPT_MAKE soft-skip (G.7 有则补全; was Makefile body)
 # PLATFORM: SHARED — same gate on mac/Ubuntu/Windows host.
+# Post wave941: no make re-entry; shell body below is the sole cold authority.
 # ---------------------------------------------------------------------------
 if [ -n "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -x "./${TARGET}" ]; then
     log "SKIP: XLANG_SKIP_SUBSCRIPT_MAKE=${XLANG_SKIP_SUBSCRIPT_MAKE} and ./${TARGET} already executable"
     exit 0
   fi
-  # TARGET missing: full cold needs composites.mk / export leaves → re-enter make
-  # with SKIP cleared (parse-time ifeq) + RUN_ALL so all-path preserves seed.
-  log "TARGET ./${TARGET} not executable under SKIP_SUBSCRIPT; full bootstrap via make"
-  # Unset so nested make takes the full-body branch (include composites).
-  env -u XLANG_SKIP_SUBSCRIPT_MAKE \
-    XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}" \
-    MAKEFLAGS= "${MAKE}" bootstrap-driver-seed \
-    XLANG_SKIP_SUBSCRIPT_MAKE= \
-    XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}"
-  exit $?
+  # TARGET missing under SKIP → clear SKIP and continue this script (0-make).
+  # Escape: XLANG_SKIP_SUBSCRIPT_VIA_MAKE=1 + Makefile present → historic nested make.
+  if [ "${XLANG_SKIP_SUBSCRIPT_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
+    log "TARGET ./${TARGET} not executable under SKIP_SUBSCRIPT; VIA_MAKE nested bootstrap-driver-seed"
+    env -u XLANG_SKIP_SUBSCRIPT_MAKE \
+      XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}" \
+      MAKEFLAGS= "${MAKE}" bootstrap-driver-seed \
+      XLANG_SKIP_SUBSCRIPT_MAKE= \
+      XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}"
+    exit $?
+  fi
+  log "TARGET ./${TARGET} not executable under SKIP_SUBSCRIPT; continue shell bootstrap (0-make)"
+  unset XLANG_SKIP_SUBSCRIPT_MAKE
+  export XLANG_RUN_ALL_BOOTSTRAP_XLANG="${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-1}"
 fi
 
 # Session catalog cache: one shell mk parse for the whole cold seed wave.
@@ -115,10 +120,9 @@ fi
 export XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}"
 
 # --- §5b whitelist make helper (only named leaves; no free-form recipes) ---
-# wave936: all mk calls migrated to direct shell. mk() retained only for
-# XLANG_SKIP_SUBSCRIPT_MAKE re-entry path (line 68) which needs make-graph
-# composites.mk / export leaves for full cold bootstrap when TARGET missing.
-# Default cold path (TARGET present or fresh build) is 100% shell.
+# wave936: all mk calls migrated to direct shell. mk() retained only for the
+# XLANG_SKIP_SUBSCRIPT_VIA_MAKE + MF escape above (parity / archaeology debug).
+# Default cold path is 100% shell (wave941+ phys-del).
 mk() {
   # shellcheck disable=SC2086
   "$MAKE" "$@"

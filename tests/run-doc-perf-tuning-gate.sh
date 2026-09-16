@@ -6,22 +6,30 @@
 # 3) 文档须引用 XLANG_COMPILE_PHASE_TIMING 与关键 gate 名
 #
 # 用法：./tests/run-doc-perf-tuning-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_DOC_PERF_TUNING:-analysis/doc-perf-tuning-v1.md}"
+DOC="${XLANG_DOC_PERF_TUNING:-analysis/archive/doc/doc-perf-tuning-v1.md}"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
 MANIFEST="${XLANG_DOC_PERF_TUNING_TSV:-tests/baseline/doc-perf-tuning.tsv}"
 REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 MIN_SEC=7
 MIN_XREF=6
 
 echo "=== DOC-003: perf tuning handbook manifest ==="
-for f in "$DOC" "$MANIFEST" "$REG" NEXT.md; do
+for f in "$DOC" "$MANIFEST" "$REG" "$ROADMAP"; do
   if [ ! -f "$f" ]; then
     echo "doc-perf-tuning gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "doc-perf-tuning gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   case "$c1" in

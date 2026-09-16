@@ -1,7 +1,7 @@
 # STD-008 std.json 零拷贝解析接口 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · Gate honesty soft→硬绿  
 > 关联：`ZC-006`、`ZC-004`（StrView）、`STD-012`（`ex_json`）
 
 ---
@@ -88,16 +88,33 @@ if (vp != 0 as *u8) {
 
 ---
 
-## 6. 验证与门禁
+## 6. Gate
 
 ```bash
 ./tests/run-std-json-gate.sh
 ./tests/run-json.sh   # runnable 回归
 ```
 
+Gate honesty（2026-08-26 soft→硬绿）：
+
+- prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `tests/json/main.x` runnable **exit 0 硬失败**（有 native 时禁 soft SKIP→OK）
+- `tests/json/zc_parse_string_view.x` **观测**（Ubuntu 金标绿；Darwin arm64 `needs_copy` 链／残值产品债，非闸假绿）
+- 无 native → **FAIL**（禁 soft SKIP→OK）
+- 报告行：`check=`／`main=`／`zc=`／`skip=`（硬绿信号＝`main=`）
+
+**Honesty (2026-08-29 residual ensure)**：leftover `tests/run-json.sh`（`ensure_std_c_o json.o` + unused `compiler-make.sh`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/json/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [XLANG_JSON]`。Keep `## 6. Gate`。 Do not expand leftover json to `zc_parse_string_view.x`（stays on STD-008 live gate）。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-json-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/json/main.x` hard；check＋zc＝obs；report `run=`／`obs=`／`skip=`。Keep `## 6. Gate`。 Leave wrap body / ensure_std family.
+
+```text
+xlang: [XLANG_STD_JSON] status=ok check=0|1 main=1 zc=0|1 skip=0
+```
+
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/std-json-zc-v1.md` |
+| 本文 | `analysis/archive/std/std-json-zc-v1.md` |
 | manifest | `tests/baseline/std-json-manifest.tsv` |
 | 库 | `tests/lib/std-json.sh` |
 | 门禁 | `tests/run-std-json-gate.sh` |

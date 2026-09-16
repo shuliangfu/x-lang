@@ -113,7 +113,7 @@ CI=1 XLANG=./compiler/xlang XLANG_LINK_XLANG=./compiler/xlang ./tests/run-all.sh
 | `run-asm-call-inline.sh` | struct mk/field/sum + `inc_while` + vec add/sub/mul/div；**11 例**；`_main` 无用户 `bl`（div 允许 panic） | 见上 |
 | `run-asm-binop-cfg-merge.sh` 等 | 7.3 spill / φ / cfg 汇合 | 73-gate 子集 |
 
-验收：`XLANG=./compiler/xlang_asm ./tests/run-asm-73-gate.sh`；改 `pipeline_glue.c` / `ast_pool_bootstrap_glue.c` 后须 `touch ast_pool.c && make -C compiler relink-xlang` 并 `cp xlang xlang_asm`。
+验收：`XLANG=./compiler/xlang_asm ./tests/run-asm-73-gate.sh`；改 `runtime_pipeline_abi.x` / seed 后须 `./xbuild` 重链 `xlang_asm`（historical `pipeline_glue.c` / `ast_pool.c` left wave309 — 禁止 touch 化石）。
 
 ### F6：永久 xlang-c 脚本
 

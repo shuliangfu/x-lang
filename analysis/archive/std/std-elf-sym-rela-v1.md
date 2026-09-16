@@ -46,9 +46,11 @@ v1 仅 **x86-64 ET_REL 只读**；不写 ELF、不做链接。
 
 ---
 
-## 4. 验证与门禁
+## Gate
 
 ```bash
-make -C compiler ../std/elf/elf.o
 ./tests/run-std-elf-sym-rela-gate.sh
 ```
+
+Honesty (2026-08-28): prefer asm＋`XLANG_LINK_XLANG`；拒 soft SKIP→OK／prefer-c／soft `ensure_std_c_o`／soft auto-make；显式坏 XLANG／缺 native 硬 die；host-C 仅预编 `std/elf/elf.o`＝obs；check＋tip product UNDEF＝obs；报告 `run=`／`obs=`／`skip=`。
+

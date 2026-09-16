@@ -42,6 +42,12 @@ static inline char *strndup(const char *s, size_t n) {
 #define WIFSIGNALED(s) 0
 #define WTERMSIG(s) 0
 #define WIFSTOPPED(s) 0
+/* WNOHANG — POSIX waitpid flag; MinGW has no sys/wait.h. Stub waitpid
+ * ignores options, so the numeric value only has to compile.
+ * PLATFORM: WINDOWS | MSYS | MINGW */
+#ifndef WNOHANG
+#define WNOHANG 1
+#endif
 static inline int waitpid(int pid, int *status, int options) {
     (void)pid; (void)options; if (status) *status = 0; return 0;
 }
@@ -86,6 +92,24 @@ static inline char *realpath(const char *path, char *resolved) {
 /* access — MinGW 有 _access */
 #ifndef access
 #define access _access
+#endif
+
+/* read/write/rmdir/unlink — MinGW CRT is _read/_write/_rmdir/_unlink.
+ * Product -E dumps emit xlang_sys_read/write → POSIX read()/write()/rmdir().
+ * Without these aliases MinGW -Werror=implicit-function-declaration fails
+ * rt-prefer of src/runtime_driver_no_c.o.
+ * PLATFORM: WINDOWS | MSYS | MINGW — same pattern as access → _access. */
+#ifndef read
+#define read _read
+#endif
+#ifndef write
+#define write _write
+#endif
+#ifndef rmdir
+#define rmdir _rmdir
+#endif
+#ifndef unlink
+#define unlink _unlink
 #endif
 
 /* setenv / unsetenv — MinGW lacks these POSIX functions.

@@ -28,10 +28,22 @@
 
 ## 3. Gate
 
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + symbols + README = hard.
+- Refuse resurrected top-level `analysis/std-mem-safe-v1.md` (live = this archive DOC).
+- `tests/mem/mem_safe_boundary.x` tip product `-o` UNDEF (`std_mem_*_bounded` / `buffer_from`) = obs.
+- `xlang check` = obs (paused 2026-08-05).
+- Report: `run=` / `obs=` / `skip=`.
+
 ```bash
 ./tests/run-std-mem-safe-gate.sh
 ```
 
 烟测：`tests/mem/mem_safe_boundary.x`
+
+manifest: `tests/baseline/std-mem-safe-manifest.tsv`
 
 报告：`xlang: [XLANG_STD144_MEM_SAFE]`

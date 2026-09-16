@@ -1,133 +1,174 @@
 #!/usr/bin/env bash
-# EXC-004：错误链路追踪 manifest + 烟测门禁
+# EXC-004: ErrorChain wrap/depth gate (false-authority honesty).
 #
-# 1) exc-error-chain-v1.md + manifest
-# 2) std/error ErrorChain API 符号
-# 3) native xlang：tests/exc/error_chain_smoke.x
-#
-# 用法：./tests/run-exc-error-chain-gate.sh
+# Usage: ./tests/run-exc-error-chain-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/exc/;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Leftover bootstrap-link wrap + fossil `$RUN_XLANG build` retired (product
+# path is `"$XLANG_BIN" -L . smoke -o` via existing run_smoke). Prefer
+# xlang_asm; pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native
+# = hard die. check observational (paused 2026-08-05); error_chain_smoke.x
+# exit 0 hard-fail. Report run=/obs=/skip= (keep check= extra). G.7: complete
+# existing exc_error_chain_resolve_shu; converge dod_native_exe; drop unused
+# compiler-make.sh. PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
+DOC="${XLANG_EXC_ERROR_CHAIN_DOC:-analysis/archive/exc/exc-error-chain-v1.md}"
 MATRIX="${XLANG_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
 ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
-MIN_ITEMS=8
+LIB="tests/lib/exc-error-chain.sh"
 SMOKE="tests/exc/error_chain_smoke.x"
+MIN_ITEMS=8
 
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+# shellcheck source=tests/lib/exc-error-chain.sh
+. "$LIB"
+
+# G.7: complete existing exc_error_chain_resolve_shu. Explicit XLANG that
+# is missing or non-native returns 1 (caller hard-dies). Unset XLANG prefers
+# asm. Native check converges on dod_native_exe.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+exc_error_chain_resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
 }
 
 echo "=== EXC-004: error chain manifest ==="
-for f in "$DOC" "$MATRIX" "$ERR_MOD" analysis/exc-result-error-v1-rfc.md; do
+
+# Refuse resurrected top-level DOC (live = archive/exc/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/exc-error-chain-v1.md ]; then
+  echo "exc-error-chain gate FAIL: top-level DOC resurrected (live = archive/exc/)" >&2
+  exit 1
+fi
+
+if [ -f analysis/exc-result-error-v1-rfc.md ]; then
+  echo "exc-error-chain gate FAIL: companion top-level DOC resurrected (analysis/exc-result-error-v1-rfc.md)" >&2
+  exit 1
+fi
+
+for f in "$DOC" "$MATRIX" "$LIB" "$ERR_MOD" "$SMOKE" analysis/archive/exc/exc-result-error-v1-rfc.md; do
   if [ ! -f "$f" ]; then
     echo "exc-error-chain gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 
+for kw in EXC-004 ErrorChain chain_wrap; do
+  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
+    echo "exc-error-chain gate FAIL: doc missing '$kw'" >&2
+    exit 1
+  fi
+done
+
+if ! grep -qF '## 6. Gate' "$DOC" 2>/dev/null; then
+  echo "exc-error-chain gate FAIL: doc missing '## 6. Gate'" >&2
+  exit 1
+fi
+
 while IFS=$'\t' read -r c1 c2 _rest; do
   case "$c1" in min_items) MIN_ITEMS="$c2" ;; esac
 done < "$MATRIX"
 
-MISS=0
 FOUND=0
-echo "=== EXC-004: symbol check ==="
-while IFS=$'\t' read -r item_id kind sym src notes; do
+while IFS=$'\t' read -r item_id kind _rest; do
   [ -z "${item_id:-}" ] && continue
-  case "$item_id" in \#*|min_items) continue ;; esac
+  case "$item_id" in \#*|min_*) continue ;; esac
   FOUND=$((FOUND + 1))
-  case "$kind" in
-    section)
-      if ! grep -qF "$sym" "$DOC" 2>/dev/null; then
-        echo "exc-error-chain FAIL: doc missing '$sym' ($item_id)" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
-    symbol|fn_*|type_*)
-      if ! grep -qE "(struct|function) ${sym}[ ({]" "$ERR_MOD" 2>/dev/null; then
-        echo "exc-error-chain FAIL: ${sym} not in $ERR_MOD" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
-    import)
-      if ! grep -qF "$sym" "$ERR_MOD" 2>/dev/null; then
-        echo "exc-error-chain FAIL: missing import $sym" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
-    run)
-      SMOKE="$src"
-      if [ ! -f "$SMOKE" ]; then
-        echo "exc-error-chain FAIL: missing $SMOKE" >&2
-        MISS=$((MISS + 1))
-      fi
-      ;;
-  esac
 done < "$MATRIX"
 
 if [ "$FOUND" -lt "$MIN_ITEMS" ]; then
   echo "exc-error-chain gate FAIL: items=${FOUND} < min_items=${MIN_ITEMS}" >&2
   exit 1
 fi
-if [ "$MISS" -gt 0 ]; then
-  echo "exc-error-chain gate FAIL: missing=${MISS}" >&2
+
+sym_miss="$(exc_error_chain_symbols_ok "$ERR_MOD" "$MATRIX" "$DOC" || true)"
+if [ "${sym_miss:-0}" -gt 0 ]; then
+  exc_error_chain_emit_report "fail" 0 0 0
+  echo "exc-error-chain gate FAIL: symbol_miss=${sym_miss}" >&2
   exit 1
 fi
 echo "exc-error-chain manifest OK (items=${FOUND})"
 
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-
-XLANG_BIN="${XLANG:-}"
-if [ -z "$XLANG_BIN" ]; then
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_xlang "$cand"; then
-      XLANG_BIN="$cand"
-      break
-    fi
-  done
-fi
-
-if [ -z "$XLANG_BIN" ]; then
-  echo "exc-error-chain gate SKIP smoke (no native xlang)" >&2
-  echo "exc-error-chain gate OK"
+if [ "${XLANG_EXC_ERROR_CHAIN_MANIFEST_ONLY:-0}" = "1" ]; then
+  exc_error_chain_emit_report "ok" 0 0 1 0
+  echo "exc-error-chain gate OK (manifest only)"
   exit 0
 fi
 
-OUT=/tmp/xlang_exc_error_chain
-echo "=== EXC-004: chain smoke (XLANG=$XLANG_BIN) ==="
-set +e
-"$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_exc_chain_compile.log 2>&1
-_comp_ec=$?
-set -e
-if [ "$_comp_ec" -ne 0 ]; then
-  # Docker/xlang-c -o 偶发 SIGSEGV；check 通过则视为 typeck 烟测 OK
-  if [ "$_comp_ec" -eq 139 ] && "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
-    echo "exc-error-chain smoke OK (check-only, compile SIGSEGV)"
-    echo "exc-error-chain gate OK"
-    exit 0
-  fi
-  cat /tmp/xlang_exc_chain_compile.log >&2
-  exit 1
-fi
-EC=0
-"$OUT" >/dev/null 2>&1 || EC=$?
-if [ "$EC" -ne 0 ]; then
-  echo "exc-error-chain gate FAIL: smoke exit=$EC" >&2
-  exit 1
-fi
-echo "exc-error-chain smoke OK"
+CHECK_OK=0
+RUN_OK=0
+OBS=0
+SKIP=1
 
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(exc_error_chain_resolve_shu)"; then
+    echo "exc-error-chain gate FAIL: explicit XLANG not native (refuse leftover XLANG fallthrough)" >&2
+    exc_error_chain_emit_report "fail" 0 0 0 0
+    exit 1
+  fi
+elif ! XLANG_BIN="$(exc_error_chain_resolve_shu)"; then
+  echo "exc-error-chain gate FAIL: no native xlang" >&2
+  exc_error_chain_emit_report "fail" 0 0 0 0
+  exit 1
+fi
+
+echo "=== EXC-004: smoke (XLANG=$XLANG_BIN; check observational; runnable hard) ==="
+  # Observational check (paused 2026-08-05); CHK red does not hard-fail.
+  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+    CHECK_OK=1
+  else
+    echo "exc-error-chain gate SKIP check smoke (paused 2026-08-05)" >&2
+  fi
+
+  # Pin product link to resolved compiler (prefer asm).
+  # Refuse leftover bootstrap-link wrap / fossil `$RUN_XLANG build`.
+  # Product path authority = existing exc_error_chain_run_smoke (`-L . -o`).
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  export XLANG="$XLANG_BIN"
+  export XLANG_LINK_XLANG="$XLANG_BIN"
+
+  # Host-indirect for std_* MEMORY + refuse cross-module single-field inline;
+  # nested CALL-as-MEMORY still Cap (smoke uses lets). Hard-fail runnable.
+  # PLATFORM: SHARED
+  if exc_error_chain_run_smoke "$XLANG_BIN" "$SMOKE"; then
+    RUN_OK=1
+    SKIP=0
+  else
+    echo "exc-error-chain gate FAIL runnable (refuse leftover wrap / fossil RUN_XLANG build)" >&2
+    if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
+    exc_error_chain_emit_report "fail" "$CHECK_OK" 0 0 "$OBS"
+    exit 1
+  fi
+
+# check stays observational; hard-green signal is run= (error_chain_smoke).
+if [ "$CHECK_OK" -eq 0 ]; then OBS=1; fi
+echo "exc-error-chain check_ok=${CHECK_OK} (observational)"
+exc_error_chain_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP" "$OBS"
 echo "exc-error-chain gate OK"

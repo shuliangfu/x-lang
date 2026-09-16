@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # P0 本地 push 前自检：bootstrap-ci + perf P1 + asm 7.3（bstrict 107 含于 bootstrap-ci）。
+#
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested ensure-compiler-seed stay
+# (leave this host). leftover nested native_xlang (XLANG default
+# ./compiler/xlang_asm) stay. leftover nested bootstrap-bstrict-ci /
+# asm-73 / perf-p1 stay. G.7: complete existing; do not fork a third
+# resolver here.
+#
 # 用法：XLANG=./compiler/xlang_asm ./tests/run-pre-push-p0.sh
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 # shellcheck source=lib/ensure-compiler-seed.sh
 source "$(dirname "$0")/lib/ensure-compiler-seed.sh"
 export XLANG="${XLANG:-./compiler/xlang_asm}"
@@ -19,8 +26,9 @@ XLANG="$XLANG" ./tests/run-bootstrap-bstrict-ci.sh
 echo "=== P0: asm compute gate (binop + vector + call-inline) ==="
 XLANG="$XLANG" ./tests/run-asm-73-gate.sh
 
-echo "=== P0: perf P1 gate ==="
-./tests/run-perf-p1-gate.sh
+echo "=== P0: perf P1 gate (HARD=1) ==="
+# P1 archaeology default is FAIL soft→obs; pre-push restores hard FAIL_ON_*=1.
+XLANG_PERF_P1_HARD=1 ./tests/run-perf-p1-gate.sh
 
 echo "pre-push P0 OK (bootstrap-ci + asm-73 + perf-p1)"
 # 提示：未 push 时 GHA 不会跑；显示当前分支与 origin 差异（若有 git）。

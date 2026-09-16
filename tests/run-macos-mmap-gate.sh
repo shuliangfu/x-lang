@@ -1,53 +1,97 @@
 #!/usr/bin/env bash
-# B-16 v0：macOS std.sys.macos 匿名 mmap 烟测（Darwin 常规链接）。
-# 用法：./tests/run-macos-mmap-gate.sh
-# 环境：XLANG_MACOS_MMAP_FAIL=1 失败时硬退出
+# B-16 v0: macOS std.sys.macos anonymous mmap smoke (Darwin hosted link).
+#
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`) retired.
+# Soft XLANG_MACOS_MMAP_FAIL already retired. Prefer xlang_asm; pin
+# XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die.
+# Compile/run failure stays hard. Ubuntu stays N/A (Darwin gold covers).
+# G.7: complete existing resolve_shu; converge dod_native_exe.
+#
+# Usage: ./tests/run-macos-mmap-gate.sh
+# Report: run=/skip=
+# PLATFORM: MACOS|DARWIN gold for run; SHARED N/A elsewhere.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_MACOS_MMAP_FAIL:-0}
 X="tests/sys/macos_mmap_smoke.x"
 OUT="/tmp/xlang_macos_mmap.$$.out"
-XLANG="${XLANG:-./compiler/xlang-c}"
+PREFIX="xlang: [XLANG_MACOS_MMAP]"
+RUN_OK=0
+SKIP=1
 
-if [ "$(uname -s 2>/dev/null)" != "Darwin" ]; then
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+die() {
+  echo "macos-mmap-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+if ! ci_is_darwin; then
   echo "macos-mmap-gate: N/A (Darwin only)"
+  echo "${PREFIX} status=ok run=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
-if [ ! -x "$XLANG" ]; then
-  XLANG="./compiler/xlang"
+[ -f "$X" ] || die "missing $X"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / soft SKIP→OK / soft auto-make)"
 fi
-if [ ! -x "$XLANG" ]; then
-  echo "macos-mmap-gate: SKIP (no xlang/xlang-c)"
-  exit 0
-fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
+echo "=== macos-mmap (XLANG=$XLANG_BIN; hard) ==="
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$XLANG" build -o "$OUT" "$X" 2>/tmp/xlang_macos_mmap.log; then
-  echo "macos-mmap-gate FAIL: compile $X" >&2
+if ! "$XLANG_BIN" build -o "$OUT" "$X" 2>/tmp/xlang_macos_mmap.log; then
   tail -n 10 /tmp/xlang_macos_mmap.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "compile $X"
 fi
-
-if [ ! -x "$OUT" ]; then
-  echo "macos-mmap-gate FAIL: no executable $OUT" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
+[ -x "$OUT" ] || die "no executable $OUT"
 
 rc=0
 "$OUT" || rc=$?
 rm -f "$OUT" 2>/dev/null || true
+[ "$rc" -eq 0 ] || die "expected exit 0, got $rc"
 
-if [ "$rc" -ne 0 ]; then
-  echo "macos-mmap-gate FAIL: expected exit 0, got $rc" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
-echo "macos-mmap-gate OK (macOS libSystem mmap/munmap)"
+RUN_OK=1
+SKIP=0
+echo "macos-mmap-gate OK (macOS libSystem mmap/munmap; honesty)"
+echo "${PREFIX} status=ok run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
 exit 0

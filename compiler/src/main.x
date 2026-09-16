@@ -154,6 +154,17 @@ export extern function driver_argv_drop_subcommand(argc: i32, argv: *u8): *u8;
    `xlang file.x`: append `-o <temp>` when no -o given so the product is built
    in /tmp and exec'd, with no a.out and no generated C to stdout. */
 export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: *i32): *u8;
+/* Dangling-value guard for value-taking driver flags (-o/-O/-L/-backend/
+ * -target/-target-cpu): 1 iff argv[i+1] exists, is non-empty, and does not
+ * start with '-'. Authority body lives in src/runtime/rt_compile.x
+ * (#[no_mangle] short name); argv typed per-TU as *u8 (ABI-identical pointer
+ * — same pattern as the apply_*_next_c externs in src/driver/compile.x).
+ * Fetching argv[i+1] clobbers arg_buf — call only after the flag matched.
+ * PLATFORM: SHARED. */
+export extern function driver_compile_argv_next_is_value_c(argc: i32, argv: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32;
+/* Opt-in -lib-name slot for the X-pipeline emit lane (always-seed authority
+ * in seeds/rt_emit_state.from_x.c; bare default when unset). PLATFORM: SHARED. */
+export extern "C" function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void;
 /* See implementation. */
 export extern function driver_build_build_x(): i32;
 /* See implementation. */
@@ -232,6 +243,30 @@ export function eq_minus_L(buf: *u8, len: i32): i32 {
     return 0;
   }
   if (buf[0] == 45 && buf[1] == 76) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Exported function `eq_minus_lib_name`.
+ * Exact-match "-lib-name" (len 9). Opt-in lib-name flag for the X-pipeline
+ * -E/-o emit lane: the parse loops store its value via
+ * xlang_driver_x_emit_set_lib_name; driver_run_x_emit_c (rt_run_x_emit.x —
+ * the hot -x -E lane per main_entry dispatch) seeds the codegen ctx entry
+ * prefix from it. Absent/empty = bare emission (default); "-lib-name \"\""
+ * stays a tolerated no-op for the vehicle LIB_NAME_SUPPORTED probe.
+ * @param buf *u8 — argv token bytes
+ * @param len i32 — token length
+ * @return i32 — 1 on exact match, 0 otherwise
+ * PLATFORM: SHARED.
+ */
+export function eq_minus_lib_name(buf: *u8, len: i32): i32 {
+  if (len != 9) {
+    return 0;
+  }
+  if (buf[0] == 45 && buf[1] == 108 && buf[2] == 105 && buf[3] == 98 && buf[4] == 45
+      && buf[5] == 110 && buf[6] == 97 && buf[7] == 109 && buf[8] == 101) {
     return 1;
   }
   return 0;
@@ -340,7 +375,7 @@ export function eq_minus_lsp(buf: *u8, len: i32): i32 {
  * @return i32
  */
 export function eq_minus_target(buf: *u8, len: i32): i32 {
-  if (len < 7) {
+  if (len != 7) {
     return 0;
   }
   if (buf[0] == 45 && buf[1] == 116 && buf[2] == 97 && buf[3] == 114 && buf[4] == 103 && buf[5] == 101 && buf[6] == 116) {
@@ -444,39 +479,57 @@ export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEm
         continue;
       }
       if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
-        let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-        if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
-          state.target_arch = 1;
+        /* Dangling guard: flag-shaped next → skip "-target" standalone. */
+        if (driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+          if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
+            state.target_arch = 1;
+          }
+          if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
+            state.target_arch = 2;
+          }
+          i = i + 2;
+        } else {
+          i = i + 1;
         }
-        if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
-          state.target_arch = 2;
-        }
-        i = i + 2;
         continue;
       }
       if (eq_minus_L(arg_buf, len) != 0) {
         if (i + 1 >= argc) {
           return 2;
         }
-        driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
-        i = i + 2;
+        /* Dangling guard: flag-shaped next → skip "-L" standalone (the run
+         * path appends the injected "-o <temp>" pair at the argv tail — an
+         * unconditional i+2 would eat it and the product never links). */
+        if (driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
+          i = i + 2;
+        } else {
+          i = i + 1;
+        }
         continue;
       }
       if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
-        let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-        /* See implementation. */
-        if (vlen >= 0 && vlen == 1 && arg_buf[0] == 99) {
-          state.use_asm_backend = 0;
+        /* Dangling guard: flag-shaped next → skip "-backend" standalone. */
+        if (driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+          /* See implementation. */
+          if (vlen >= 0 && vlen == 1 && arg_buf[0] == 99) {
+            state.use_asm_backend = 0;
+          }
+          if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
+            state.use_asm_backend = 1;
+          }
+          i = i + 2;
+        } else {
+          i = i + 1;
         }
-        if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
-          state.use_asm_backend = 1;
-        }
-        i = i + 2;
         continue;
       }
       /* See implementation. */
       if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 111) {
-        if (i + 1 < argc) {
+        /* "-o": dangling (missing or flag-shaped value) → has_o path. */
+        if (i + 1 < argc && driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
           let olen: i32 = driver_get_argv_i(argc, argv, i + 1, state.out_path_buf, 512);
           if (olen >= 0) {
             state.out_path_len = olen;
@@ -489,8 +542,24 @@ export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEm
         continue;
       }
       if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 79) {
-        i = i + 1;
-        if (i < argc) {
+        /* "-O": dangling (missing or flag-shaped value) → skip standalone. */
+        if (i + 1 < argc && driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          i = i + 2;
+        } else {
+          i = i + 1;
+        }
+        continue;
+      }
+      if (eq_minus_lib_name(arg_buf, len) != 0) {
+        /* "-lib-name <v>": store the opt-in emit prefix (empty/flag-shaped
+         * next = tolerated no-op, matching the vehicle probe semantics). */
+        if (i + 1 < argc && driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          let nl: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+          if (nl > 0) {
+            unsafe { xlang_driver_x_emit_set_lib_name(&arg_buf[0], nl); }
+          }
+          i = i + 2;
+        } else {
           i = i + 1;
         }
         continue;
@@ -556,40 +625,90 @@ export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitSta
         continue;
       }
       if (eq_minus_L(arg_buf, len) != 0 && i + 1 < argc) {
-        driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
-        i = i + 2;
+        /* Dangling guard: flag-shaped next → skip "-L" standalone. */
+        if (driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          driver_emit_try_append_lib_from_argv(argc, argv, i + 1, state);
+          i = i + 2;
+        } else {
+          i = i + 1;
+        }
         continue;
       }
       if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
-        let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-        if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
-          state.use_asm_backend = 1;
+        /* Dangling guard: flag-shaped next → skip "-backend" standalone. */
+        if (driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+          if (vlen >= 0 && eq_asm(arg_buf, vlen) != 0) {
+            state.use_asm_backend = 1;
+          }
+          i = i + 2;
+        } else {
+          i = i + 1;
         }
-        i = i + 2;
         continue;
       }
       if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
-        let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-        if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
-          state.target_arch = 1;
+        /* Dangling guard: flag-shaped next → skip "-target" standalone. */
+        if (driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          let tlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+          if (tlen >= 0 && target_contains_arm(arg_buf, tlen) != 0) {
+            state.target_arch = 1;
+          }
+          if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
+            state.target_arch = 2;
+          }
+          i = i + 2;
+        } else {
+          i = i + 1;
         }
-        if (tlen >= 0 && target_contains_riscv(arg_buf, tlen) != 0) {
-          state.target_arch = 2;
-        }
-        i = i + 2;
         continue;
       }
       if (eq_minus_x(arg_buf, len) != 0) {
         i = i + 1;
         continue;
       }
+      if (eq_minus_lib_name(arg_buf, len) != 0) {
+        /* "-lib-name <v>": same opt-in emit-prefix slot as parse_x_path. */
+        if (i + 1 < argc && driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, 512) != 0) {
+          let nl2: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
+          if (nl2 > 0) {
+            unsafe { xlang_driver_x_emit_set_lib_name(&arg_buf[0], nl2); }
+          }
+          i = i + 2;
+        } else {
+          i = i + 1;
+        }
+        continue;
+      }
       if (eq_minus_E(arg_buf, len) != 0) {
         let pi: i32 = i + 1;
         while (pi < argc) {
           let plen_temp: i32 = driver_get_argv_i(argc, argv, pi, arg_buf, 512);
+          if (plen_temp > 0 && eq_minus_lib_name(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
+            /* 7.4.4 v3: -lib-name inside the -E scan — without this the
+             * subloop grabs "-lib-name" itself as the emit path and the
+             * outer-loop branch is unreachable (the -E branch returns 1
+             * immediately). Store the opt-in prefix, consume the pair. */
+            if (driver_compile_argv_next_is_value_c(argc, argv, pi, arg_buf, 512) != 0) {
+              let nl3: i32 = driver_get_argv_i(argc, argv, pi + 1, arg_buf, 512);
+              if (nl3 > 0) {
+                unsafe { xlang_driver_x_emit_set_lib_name(&arg_buf[0], nl3); }
+              }
+              pi = pi + 2;
+            } else {
+              pi = pi + 1;
+            }
+            continue;
+          }
           if (plen_temp > 0 && eq_minus_L(arg_buf, plen_temp) != 0 && pi + 1 < argc) {
-            driver_emit_try_append_lib_from_argv(argc, argv, pi + 1, state);
-            pi = pi + 2;
+            /* Dangling guard inside the -E scan: flag-shaped next → skip the
+             * "-L" standalone instead of eating the next argv slot. */
+            if (driver_compile_argv_next_is_value_c(argc, argv, pi, arg_buf, 512) != 0) {
+              driver_emit_try_append_lib_from_argv(argc, argv, pi + 1, state);
+              pi = pi + 2;
+            } else {
+              pi = pi + 1;
+            }
             continue;
           }
           if (plen_temp > 0 && eq_minus_x(arg_buf, plen_temp) != 0) {

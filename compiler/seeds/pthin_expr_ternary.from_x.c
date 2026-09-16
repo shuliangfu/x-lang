@@ -3,6 +3,18 @@
  * Hybrid: XLANG_PTHIN_EXPR_TERNARY_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_ternary_assign_slice.inc
+ *
+ * Hybrid P4tb/P4tc/P4td/P4te (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
+ * EXPR_TERNARY wrap, assign wrap dest-buffer, parse_ternary dest-buffer,
+ * and parse_assign dest-buffer come from pthin_expr_ternary.x; this TU
+ * keeps wrap trampolines plus logor-ptr / parse trampolines. Cold: no
+ * BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
+ * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots);
+ * pipeline_expr_set_binop_operands_c lives in the P4bc seed; do not
+ * copy those writers here, do not FORCE pabi mega, do not extend
+ * P4bc wrap with line/col.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +24,24 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P4td/P4te. pthin_expr_ternary.x TOKEN_* are pin
+ * copies of this enum. token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_COLON == 91, "ternary.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_QUESTION == 127, "ternary.x TOKEN_QUESTION pin");
+_Static_assert((int)TOKEN_ASSIGN == 117, "ternary.x TOKEN_ASSIGN pin");
+
+#ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
+/* .x product body (same C name for Route C wrap + parse dest-buffer). */
+extern int32_t parser_asm_ternary_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t cond_ref,
+                                              int32_t then_ref, int32_t else_ref);
+extern int32_t parser_asm_assign_wrap_into_c(void *arena, int32_t *out_ok, int32_t *out_expr_ref, int32_t kind,
+                                             int32_t left_ref, int32_t right_ref, int32_t line, int32_t col);
+extern int32_t parser_asm_parse_ternary_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                                int32_t *out_expr_ref);
+extern int32_t parser_asm_parse_assign_x_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
+                                               int32_t *out_expr_ref);
+#endif
 
 struct parser_asm_token {
   int32_t kind;
@@ -53,7 +83,7 @@ struct parser_asm_ast_expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -66,7 +96,7 @@ struct parser_asm_ast_expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -79,14 +109,14 @@ struct parser_asm_ast_expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -108,7 +138,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -121,7 +151,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -134,14 +164,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -217,6 +247,10 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 
 #include "parser_asm_ternary_assign_slice.inc"
+
+/* PLATFORM: SHARED — 7.2.1 P4tb/P4tc. pthin_expr_ternary.x ExprKind pins. */
+_Static_assert(PARSER_ASM_EXPR_TERNARY == 27, "ternary.x EXPR_TERNARY pin");
+_Static_assert(PARSER_ASM_EXPR_ASSIGN == 28, "ternary.x EXPR_ASSIGN pin");
 
 int labi_pthin_expr_ternary_slice_marker(void) {
   return 2; /* ternary + assign */

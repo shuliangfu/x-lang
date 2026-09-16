@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# run-portable-suite.sh — Tier P 便携测试套件（全平台必过）。
+# run-portable-suite.sh — leftover catalog no Honesty + leftover prefer-c →硬绿.
 #
-# 统一 .x / xlang-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
-# 由 tests/run-ci-full-suite.sh 在所有 job 上调用。
-#
-# 用法：./tests/run-portable-suite.sh [--with-c-regression]
+# Honesty: leftover catalog no Honesty / missing run=/obs=/skip= + leftover
+# SKIP→OK (explicit-bad XLANG ignored) retired. leftover prefer-c
+# (`XLANG_LINK_XLANG=./compiler/xlang-c` on arm64 / MSYS2 / Docker) still
+# leave this host (retiring it rewrites nested -o; explosion ~336; not
+# this knife). Nested leftover of already-honesty-closed children stays
+# hard (do not rewrite nested product paths). Explicit XLANG not native
+# hard-dies via `dod_native_exe`. Unset XLANG: no product XLANG face on
+# this parent (G.7: do not fork a resolver; complete existing nested
+# resolve_shu). leftover `--with-c-regression` still calls
+# `run-portable-c.sh` (that host skip leftover unbounded C run-all).
+# Keep `run-portable-suite OK`.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-portable-suite.sh [--with-c-regression]
 set -e
 cd "$(dirname "$0")/.."
 
@@ -25,10 +35,48 @@ done
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
+# shellcheck source=tests/lib/dod-native-exe.sh
+. "$(dirname "$0")/lib/dod-native-exe.sh"
+
+PREFIX="${XLANG_PORTABLE_SUITE_PREFIX:-xlang: [XLANG_PORTABLE_SUITE]}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "run-portable-suite FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+abs_of() {
+  case "$1" in
+    /*) echo "$1" ;;
+    *) echo "$(pwd)/$1" ;;
+  esac
+}
 
 echo "run-portable-suite: Tier P (host=$(ci_host_summary))"
 
-# 非 x86_64 / MSYS2：-o 链接优先 xlang-c（与 bootstrap-link-xlang 一致）。
+# Explicit XLANG that is missing/non-native hard-dies (refuse leftover
+# SKIP→OK / leftover ignore of explicit-bad / leftover prefer-c).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+if [ -n "${XLANG:-}" ]; then
+  abs="$(abs_of "$XLANG")"
+  if ! dod_native_exe "$abs"; then
+    die "explicit XLANG not native (refuse leftover SKIP→OK / leftover prefer-c / leftover auto-make)"
+  fi
+fi
+
+# leftover prefer-c (`XLANG_LINK_XLANG=xlang-c` on arm64 / MSYS2 / Docker)
+# still leave this host: retiring it rewrites nested -o for ~336 children
+# (explosion; not this knife). Nested leftover of already-honesty-closed
+# children that set XLANG_LINK_XLANG themselves stay hard.
+# PLATFORM: SHARED archaeology — nested product paths not rewritten.
 if ci_is_arm64_host || ci_is_windows_msys || ci_is_docker; then
   export XLANG_LINK_XLANG=./compiler/xlang-c
 fi
@@ -369,7 +417,7 @@ run_grep /tmp/std_http_server_pool_gate.log 'std-http-server-pool gate OK' ./tes
 
 echo "── STD-041 async language bridge ──"
 chmod +x tests/run-std-async-language-gate.sh tests/lib/std-async-language.sh
-run_grep /tmp/std_async_lang_gate.log 'std-async-language gate OK' ./tests/run-std-async-language-gate.sh
+run_grep /tmp/std_async_lang_gate.log 'std-async-language gate OK|status=ok' ./tests/run-std-async-language-gate.sh
 
 echo "── STD-042 async IO CPS / std.io align ──"
 chmod +x tests/run-std-async-io-cps-gate.sh tests/lib/std-async-io-cps.sh
@@ -751,37 +799,37 @@ grep -q 'type-borrow-conflict gate OK' /tmp/type_borrow_conflict_gate.log
 echo "── LANG-008 lifetime diagnostic manifest ──"
 chmod +x tests/run-lang-lifetime-diag-gate.sh tests/run-lang-lifetime-diag.sh tests/lib/lang-lifetime-diag.sh
 ./tests/run-lang-lifetime-diag-gate.sh | tee /tmp/lang_lifetime_diag_gate.log
-grep -q 'lang-lifetime-diag gate OK' /tmp/lang_lifetime_diag_gate.log
+grep -qE 'lang-lifetime-diag gate OK|status=ok' /tmp/lang_lifetime_diag_gate.log
 
 echo "── LANG-005 ABI stability manifest ──"
 chmod +x tests/run-lang-abi-stability-gate.sh tests/run-lang-abi-stability.sh tests/lib/lang-abi-stability.sh
 ./tests/run-lang-abi-stability-gate.sh | tee /tmp/lang_abi_stability_gate.log
-grep -q 'lang-abi-stability gate OK' /tmp/lang_abi_stability_gate.log
+grep -qE 'lang-abi-stability gate OK|status=ok' /tmp/lang_abi_stability_gate.log
 
 echo "── LANG-004 trait interface manifest ──"
 chmod +x tests/run-lang-trait-gate.sh tests/run-lang-trait.sh tests/lib/lang-trait.sh
 ./tests/run-lang-trait-gate.sh | tee /tmp/lang_trait_gate.log
-grep -q 'lang-trait gate OK' /tmp/lang_trait_gate.log
+grep -qE 'lang-trait gate OK|status=ok' /tmp/lang_trait_gate.log
 
 echo "── LANG-003 generic monomorph manifest ──"
 chmod +x tests/run-lang-generic-gate.sh tests/run-lang-generic.sh tests/lib/lang-generic.sh
 ./tests/run-lang-generic-gate.sh | tee /tmp/lang_generic_gate.log
-grep -q 'lang-generic gate OK' /tmp/lang_generic_gate.log
+grep -qE 'lang-generic gate OK|status=ok' /tmp/lang_generic_gate.log
 
 echo "── LANG-001 feature gate manifest ──"
 chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/xlang-lang-edition.sh
 ./tests/run-lang-feature-gate-gate.sh | tee /tmp/lang_feature_gate.log
-grep -q 'lang-feature-gate gate OK' /tmp/lang_feature_gate.log
+grep -qE 'lang-feature-gate gate OK|status=ok' /tmp/lang_feature_gate.log
 
 echo "── LANG-002 import cross-platform ──"
 chmod +x tests/run-lang-import-gate.sh
 ./tests/run-lang-import-gate.sh | tee /tmp/lang_import_gate.log
-grep -q 'lang-import gate OK' /tmp/lang_import_gate.log
+grep -qE 'lang-import gate OK|status=ok' /tmp/lang_import_gate.log
 
 echo "── LANG-006 const eval / CTFE ──"
 chmod +x tests/run-lang-const-eval-gate.sh tests/run-lang-const-eval.sh tests/lib/lang-const-eval.sh
 ./tests/run-lang-const-eval-gate.sh | tee /tmp/lang_const_eval_gate.log
-grep -q 'lang-const-eval gate OK' /tmp/lang_const_eval_gate.log
+grep -qE 'lang-const-eval gate OK|status=ok' /tmp/lang_const_eval_gate.log
 
 echo "── EXC-002 panic/abort boundary ──"
 chmod +x tests/run-exc-panic-abort-gate.sh
@@ -926,12 +974,12 @@ grep -q 'eng-security-audit gate OK' /tmp/eng_security_audit_gate.log
 echo "── COMP-003 codegen regression ──"
 chmod +x tests/run-codegen-regression-gate.sh
 ./tests/run-codegen-regression-gate.sh | tee /tmp/codegen_regression.log
-grep -qE 'codegen-regression gate OK|codegen-regression gate SKIP bench' /tmp/codegen_regression.log
+grep -qE 'codegen-regression gate OK|status=ok' /tmp/codegen_regression.log
 
 echo "── COMP-002 typeck hotpath ──"
 chmod +x tests/run-typeck-hotpath-gate.sh
 ./tests/run-typeck-hotpath-gate.sh | tee /tmp/typeck_hotpath.log
-grep -qE 'typeck-hotpath gate OK|typeck-hotpath gate SKIP hooks' /tmp/typeck_hotpath.log
+grep -qE 'typeck-hotpath gate OK|status=ok' /tmp/typeck_hotpath.log
 
 echo "── ENG-002 quality gate registry ──"
 chmod +x tests/run-eng-quality-gate-gate.sh
@@ -1162,12 +1210,12 @@ grep -q 'phase3-roadmap-wave8 gate OK' /tmp/phase3_roadmap_wave8.log
 echo "── LANG-009 Option<T> generic struct ──"
 chmod +x tests/run-lang-option-generic-gate.sh tests/lib/lang-option-generic.sh
 ./tests/run-lang-option-generic-gate.sh | tee /tmp/lang009_option.log
-grep -q 'lang-option-generic gate OK' /tmp/lang009_option.log
+grep -qE 'lang-option-generic gate OK|status=ok' /tmp/lang009_option.log
 
 echo "── LANG-010 Result<T,E> generic struct ──"
 chmod +x tests/run-lang-result-generic-gate.sh tests/lib/lang-result-generic.sh
 ./tests/run-lang-result-generic-gate.sh | tee /tmp/lang010_result.log
-grep -q 'lang-result-generic gate OK' /tmp/lang010_result.log
+grep -qE 'lang-result-generic gate OK|status=ok' /tmp/lang010_result.log
 
 echo "── CORE-016 Option/Result unify ──"
 chmod +x tests/run-core-option-result-unify-gate.sh tests/lib/core-option-result-unify.sh
@@ -1240,10 +1288,15 @@ chmod +x tests/run-zc-dashboard-gate.sh tests/run-zc-dashboard.sh tests/lib/zc-d
 grep -q 'zc-dashboard gate OK' /tmp/zc_dashboard.log
 
 if [ "$WITH_C_REGRESSION" -eq 1 ]; then
-  echo "── portable C regression (run-portable-c) ──"
+  echo "── portable C regression (run-portable-c; leftover C run-all skip) ──"
   chmod +x tests/run-portable-c.sh
   ./tests/run-portable-c.sh | tee /tmp/portable_c.log
   grep -q 'run-portable-c OK' /tmp/portable_c.log
+  SKIP=$((SKIP + 1))
 fi
 
+# Host sequenced nested leftover of already-honesty-closed children.
+# Do not rewrite nested product paths (G.7). Count this host as run=1.
+RUN_OK=$((RUN_OK + 1))
 echo "run-portable-suite OK (Tier P)"
+ok_report

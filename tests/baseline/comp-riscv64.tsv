@@ -2,11 +2,11 @@
 # 列：item_id	kind	anchor	src	tier	notes
 # min_layers	6
 # min_cases	11
-read_path	section	## 1. 阅读路径	analysis/comp-riscv64-v1.md	-	15min
+read_path	section	## 1. 阅读路径	analysis/archive/comp/comp-riscv64-v1.md	-	15min
 layers	section	## 2. 回归层 R1–R6	comp-riscv64.tsv	-	regression
 matrix	section	## 3. 回归矩阵	comp-riscv64-matrix.tsv	-	stable
-golden	section	## 4. Golden 锚点	analysis/comp-riscv64-v1.md	-	riscv
-verify	section	## 6. 验证与门禁	analysis/comp-riscv64-v1.md	-	gate
+golden	section	## 4. Golden 锚点	analysis/archive/comp/comp-riscv64-v1.md	-	riscv
+verify	section	## 6. 验证与门禁	analysis/archive/comp/comp-riscv64-v1.md	-	gate
 layer_r1	layers	R1-asm-text	compiler/src/asm/arch/riscv64.x	text	.s
 layer_r2	layers	R2-elf-o	compiler/src/asm/platform/elf.x	elf	.o
 layer_r3	layers	R3-enc-dispatch	compiler/src/asm/arch/riscv64_enc.x	enc	ta2

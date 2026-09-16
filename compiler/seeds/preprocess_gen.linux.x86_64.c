@@ -8,6 +8,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: CRASH_EVIDENCE path → Cap snprintf */
+/* G.7: Cap after stdio for compiler-only gen seed pin crash evidence. */
+#undef snprintf
+#define snprintf xlang_snprintf
+#include <xlang_io_cap.h>   /* Cap residual 9.5.3: xlang_io_write / xlang_io_open_write */
+#include <xlang_proc_cap.h> /* Cap residual 9.5.3: xlang_proc_close_fd (single close authority) */
 #include <string.h>
 struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
 struct preprocess_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
@@ -20,17 +26,26 @@ extern char *link_abi_getenv(const char *name);
 extern int getpid(void);
 static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
   const char *_ev = link_abi_getenv("XLANG_CRASH_EVIDENCE");
+  char _note[192];
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
-  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
-  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
-    FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
-      fprintf(stderr, "note: crash evidence: bundle=%s\n", _p); } } }
+  { int _n = snprintf(_note, sizeof _note, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
+    if (_n > 0) (void)xlang_io_write(2, _note, (size_t)_n); }
+  { const char *_dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
+    if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
+      { int _fd = xlang_io_open_write(_p);
+        if (_fd >= 0) { char _body[160];
+          int _bl = snprintf(_body, sizeof _body, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid);
+          if (_bl > 0) (void)xlang_io_write(_fd, _body, (size_t)_bl);
+          (void)xlang_proc_close_fd(_fd);
+          { int _bn = snprintf(_note, sizeof _note, "note: crash evidence: bundle=%s\n", _p);
+            if (_bn > 0) (void)xlang_io_write(2, _note, (size_t)_bn); } } } } }
+}
 static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
 static inline void xlang_panic_(int has_msg, int msg_val) {
   xlang_crash_evidence_collect_inline(has_msg, msg_val);
-  if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
+  if (has_msg) { char _mb[32]; int _mn = snprintf(_mb, sizeof _mb, "%d\n", msg_val);
+    if (_mn > 0) (void)xlang_io_write(2, _mb, (size_t)_mn); }
   abort();
 }
 extern void preprocess_if_stack_reset();
@@ -45,7 +60,7 @@ int preprocess_line_keeping();
 int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[4096], uint8_t line_buf[4096], int32_t pos, int32_t line_len);
 void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[4096]);
 int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uint8_t * out_buf);
-int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
+int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 /* 失败码：-2 else without #if；-3 endif without；-4 elseif without；-5 elseif after else；-6 duplicate else；-7 nesting */
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val) {
   int32_t depth = preprocess_if_stack_len();
@@ -374,9 +389,18 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
   return out_len;
 }
 
-/* PLATFORM: SHARED — buf+len entry; ≡ preprocess_x (wave267). */
-int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
+/* PLATFORM: SHARED — buf+len entry; ≡ preprocess_x (wave267).
+ * Pointer ABI: walk bound is source_len (i32-fit); write bound is out_cap.
+ * Historical `pos < 4194304` silently truncated heap callers. */
+int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
   if (out_cap <= 0) {
+    return (-1);
+  }
+  if (source_len < 0) {
+    return (-1);
+  }
+  int32_t slen = (int32_t)source_len;
+  if ((ptrdiff_t)slen != source_len) {
     return (-1);
   }
   (void)(preprocess_if_stack_reset());
@@ -386,7 +410,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
   int32_t line_stream = 0;
   uint8_t line_buf[4096] = { 0 };
   int32_t pos = 0;
-  while (pos < source_len && pos < 4194304) {
+  while (pos < slen) {
     uint8_t ch = source_buf[pos];
     if (ch == 10) {
       if (line_stream == 2) {

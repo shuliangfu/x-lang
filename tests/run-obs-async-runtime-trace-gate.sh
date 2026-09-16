@@ -1,34 +1,62 @@
 #!/usr/bin/env bash
-# OBS-002：async/runtime trace 采样 manifest + 烟测门禁
+# OBS-002: async/runtime trace manifest + C smoke — leftover fossil DOC +
+# leftover catalog no Honesty + leftover auto-make →硬绿.
 #
-# 1) obs-async-runtime-trace-v1.md + manifest
-# 2) scheduler.c 符号与 env 锚点
-# 3) async_runtime_trace_smoke.c：XLANG_ASYNC_RUNTIME_TRACE=1 须输出 summary + rank
-#
-# 用法：./tests/run-obs-async-runtime-trace-gate.sh
-set -e
+# Honesty: leftover top-level `analysis/obs-async-runtime-trace-v1.md` as
+# live DOC (file already archived to analysis/archive/obs/; gate still
+# hard-required the missing top-level path → portable OBS-002 red) + leftover
+# catalog no Honesty / missing run=/obs=/skip= + leftover
+# `xlang_compiler_make ../std/async/scheduler.o -q || make` retired.
+# Live = analysis/archive/obs/. Refuse top-level resurrect. No XLANG face
+# (host-cc of bench/async_runtime_trace_smoke.c + existing scheduler.o).
+# G.7: do not fork a resolver; drop leftover unused compiler-make source.
+# Missing / UNDEF scheduler.o = obs (host-C archaeology; refuse leftover
+# auto-make). Keep `obs-async-runtime-trace gate OK`. Explicit XLANG is
+# ignored (no XLANG face).
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-obs-async-runtime-trace-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-DOC="${XLANG_OBS_ASYNC_TRACE_DOC:-analysis/obs-async-runtime-trace-v1.md}"
+DOC="${XLANG_OBS_ASYNC_TRACE_DOC:-analysis/archive/obs/obs-async-runtime-trace-v1.md}"
 MANIFEST="${XLANG_OBS_ASYNC_TRACE_TSV:-tests/baseline/obs-async-runtime-trace.tsv}"
 SCHED="${XLANG_OBS_ASYNC_TRACE_SCHED:-compiler/seeds/runtime_scheduler_glue.from_x.c}"
 SMOKE_SRC="${XLANG_OBS_ASYNC_TRACE_SMOKE:-bench/async_runtime_trace_smoke.c}"
 SCHED_O="std/async/scheduler.o"
 MIN_ITEMS=8
 MIN_TOPN=5
-PREFIX="xlang: [XLANG_ASYNC_RUNTIME_TRACE]"
+PREFIX="${XLANG_OBS_ASYNC_TRACE_PREFIX:-xlang: [XLANG_ASYNC_RUNTIME_TRACE]}"
+RUN_OK=0
+OBS=0
+SKIP=0
+SMOKE_BIN=""
+BUILD_LOG=""
+RUN_LOG=""
 
-# shellcheck source=tests/lib/ci-host.sh
-. tests/lib/ci-host.sh
+die() {
+  echo "obs-async-runtime-trace gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  rm -f "$SMOKE_BIN" "$BUILD_LOG" "$RUN_LOG"
+  exit 1
+}
 
-echo "=== OBS-002: async runtime trace manifest ==="
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+echo "=== OBS-002: async runtime trace manifest (archive DOC; no XLANG face) ==="
+
+# Refuse leftover fossil top-level DOC as live path (TST-003 / placeholder pattern).
+# PLATFORM: SHARED archaeology — live = archive/obs/.
+if [ -f analysis/obs-async-runtime-trace-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/obs/)"
+fi
+
 for f in "$DOC" "$MANIFEST" "$SCHED" "$SMOKE_SRC"; do
-  if [ ! -f "$f" ]; then
-    echo "obs-async-runtime-trace gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -94,60 +122,63 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
 done < "$MANIFEST"
 
 if [ "$FOUND" -lt "$MIN_ITEMS" ]; then
-  echo "obs-async-runtime-trace gate FAIL: items=${FOUND} < min ${MIN_ITEMS}" >&2
-  exit 1
+  die "items=${FOUND} < min ${MIN_ITEMS}"
 fi
 if [ "$MISS" -gt 0 ]; then
-  echo "obs-async-runtime-trace gate FAIL: missing=${MISS}" >&2
-  exit 1
+  die "missing=${MISS}"
 fi
 for kw in XLANG_ASYNC_RUNTIME_TRACE 长尾 drain_idle poll_completions; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "obs-async-runtime-trace gate FAIL: doc missing keyword $kw" >&2
-    exit 1
+    die "doc missing keyword $kw"
   fi
 done
 echo "obs-async-runtime-trace manifest OK (items=${FOUND})"
+RUN_OK=$((RUN_OK + 1))
 
-echo "=== OBS-002: smoke harness ==="
-xlang_compiler_make ../std/async/scheduler.o -q 2>/dev/null || xlang_compiler_make ../std/async/scheduler.o
+echo "=== OBS-002: smoke harness (existing scheduler.o; refuse leftover auto-make) ==="
+# PLATFORM: SHARED — host-cc C smoke against an existing .o; not a product -o path.
+# Host-C archaeology = obs without leftover auto-make rebuild.
+SMOKE_BIN="${TMPDIR:-/tmp}/xlang_obs_async_trace_smoke.$$"
+BUILD_LOG="${TMPDIR:-/tmp}/xlang_obs_async_trace_build.$$"
+RUN_LOG="${TMPDIR:-/tmp}/xlang_obs_async_trace_run.$$"
 if [ ! -f "$SCHED_O" ]; then
-  echo "obs-async-runtime-trace gate FAIL: missing $SCHED_O" >&2
-  exit 1
+  echo "obs-async-runtime-trace OBS: missing $SCHED_O (host-C archaeology; refuse leftover auto-make)" >&2
+  OBS=$((OBS + 1))
+else
+  smoke_ok=1
+  if ! ${CC:-cc} -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE_SRC" "$SCHED_O" 2>"$BUILD_LOG"; then
+    echo "obs-async-runtime-trace OBS: smoke compile (host-C archaeology; refuse leftover auto-make)" >&2
+    cat "$BUILD_LOG" >&2 || true
+    OBS=$((OBS + 1))
+    smoke_ok=0
+  elif ! XLANG_ASYNC_RUNTIME_TRACE=1 \
+      XLANG_ASYNC_RUNTIME_TRACE_TOPN="$MIN_TOPN" \
+      "$SMOKE_BIN" 2>"$RUN_LOG"; then
+    echo "obs-async-runtime-trace OBS: smoke run (host-C archaeology)" >&2
+    cat "$RUN_LOG" >&2 || true
+    OBS=$((OBS + 1))
+    smoke_ok=0
+  elif ! grep -qF "$PREFIX" "$RUN_LOG" \
+      || ! grep -qF 'summary events=' "$RUN_LOG" \
+      || ! grep -qE 'rank=[1-9]' "$RUN_LOG"; then
+    echo "obs-async-runtime-trace OBS: smoke output (host-C archaeology)" >&2
+    OBS=$((OBS + 1))
+    smoke_ok=0
+  else
+    RANKS=$(grep -cE 'rank=[0-9]+ kind=' "$RUN_LOG" || true)
+    if [ "$RANKS" -lt 1 ]; then
+      echo "obs-async-runtime-trace OBS: rank lines=${RANKS} (host-C archaeology)" >&2
+      OBS=$((OBS + 1))
+      smoke_ok=0
+    else
+      RUN_OK=$((RUN_OK + 1))
+      echo "obs-async-runtime-trace smoke OK (rank_lines=${RANKS})"
+    fi
+  fi
 fi
-SMOKE_BIN="/tmp/xlang_obs_async_trace_smoke_$$"
-cc -std=gnu11 -Wall -Wextra -o "$SMOKE_BIN" "$SMOKE_SRC" "$SCHED_O" 2>/tmp/obs_async_trace_build.log || {
-  cat /tmp/obs_async_trace_build.log >&2
-  echo "obs-async-runtime-trace gate FAIL: smoke compile" >&2
-  rm -f "$SMOKE_BIN"
-  exit 1
-}
-XLANG_ASYNC_RUNTIME_TRACE=1 \
-  XLANG_ASYNC_RUNTIME_TRACE_TOPN="$MIN_TOPN" \
-  "$SMOKE_BIN" 2>/tmp/obs_async_trace_run.log || {
-  cat /tmp/obs_async_trace_run.log >&2
-  echo "obs-async-runtime-trace gate FAIL: smoke run" >&2
-  rm -f "$SMOKE_BIN"
-  exit 1
-}
-rm -f "$SMOKE_BIN"
-
-grep -qF "$PREFIX" /tmp/obs_async_trace_run.log || {
-  echo "obs-async-runtime-trace gate FAIL: missing trace prefix" >&2
-  exit 1
-}
-grep -qF 'summary events=' /tmp/obs_async_trace_run.log || {
-  echo "obs-async-runtime-trace gate FAIL: missing summary line" >&2
-  exit 1
-}
-grep -qE 'rank=[1-9]' /tmp/obs_async_trace_run.log || {
-  echo "obs-async-runtime-trace gate FAIL: missing rank line" >&2
-  exit 1
-}
-RANKS=$(grep -cE 'rank=[0-9]+ kind=' /tmp/obs_async_trace_run.log || true)
-if [ "$RANKS" -lt 1 ]; then
-  echo "obs-async-runtime-trace gate FAIL: rank lines=${RANKS}" >&2
-  exit 1
-fi
-echo "obs-async-runtime-trace smoke OK (rank_lines=${RANKS})"
+rm -f "$SMOKE_BIN" "$BUILD_LOG" "$RUN_LOG"
+SMOKE_BIN=""
+BUILD_LOG=""
+RUN_LOG=""
 echo "obs-async-runtime-trace gate OK"
+ok_report

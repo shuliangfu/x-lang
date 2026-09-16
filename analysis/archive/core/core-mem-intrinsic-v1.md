@@ -2,7 +2,8 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` Phase 2 §2.1、`core/mem/mod.x`、`compiler/src/codegen/codegen.c`
+> 关联：`NEXT.md` Phase 2 §2.1、`core/mem/mod.x`、`compiler/src/codegen/codegen.x (codegen.c retired)`
+> **Honesty 2026-08-24 #11:** top-level DOC retired; live = archive/core/. check smoke observational SKIP (check gate paused 2026-08-05).
 
 ---
 
@@ -23,7 +24,7 @@
 
 ## 2. 实现位置
 
-- **映射表**：`compiler/src/codegen/codegen.c` → `builtin_intrinsic_name()`
+- **映射表**：`compiler/src/codegen/codegen.x (codegen.c retired)` → `builtin_intrinsic_name()`
 - **调用点**：`codegen` CALL 跨模块路径经 `builtin_intrinsic_name(full_name)` 输出
 
 自举 `.x` codegen 路径尚未镜像该表；当前验收以 C 前端 `xlang-c -E` 为准（与 Phase 1 其他 emit gate 一致）。
@@ -80,3 +81,20 @@ xlang: [XLANG_CORE_MEM_INTRINSIC] status=ok emit=4/4
 1. 在 `builtin_intrinsic_name` 登记 C 符号 → intrinsic
 2. 更新 manifest `mapping_*` 行与 `intrinsic_emit.x`
 3. 更新 `core/mem/mod.x` 模块头注释
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Archive DOC + mapping / pure `.x` (`core/mem/mod.x`) = hard.
+- Product `-o` `tests/mem/main.x` = hard run.
+- `XLANG_DEBUG_C` `__builtin_*` emit undercount (table retired with `codegen.c`) = obs.
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-core-mem-intrinsic-gate.sh
+```
+
+manifest: `tests/baseline/core-mem-intrinsic.tsv`

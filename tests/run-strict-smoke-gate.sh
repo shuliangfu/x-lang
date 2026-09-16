@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # strict smoke 硬门禁：xlang_asm 须为 strict 重链产物（非 experimental fallback），且 compile+run 通过。
+#
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested native_xlang (hardcoded
+# ./compiler/xlang_asm) stay this unused-SOURCE knife. G.7: complete
+# existing; do not fork a third resolver here.
+#
 # 用法（仓库根）：
 #   ./tests/run-strict-smoke-gate.sh
 #   BUILD_LOG=/tmp/build_bstrict.log ./tests/run-strict-smoke-gate.sh
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 

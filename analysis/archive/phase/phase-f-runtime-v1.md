@@ -10,12 +10,17 @@
 | `runtime.o` | `cc -c runtime.c` | `xlang -backend asm runtime.x` |
 | 存量 | std 86 `.c` | std **85** `.c` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_RUNTIME_V1_FAIL` retired. Delegates STD-028 runtime-panic-hook hard.
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-runtime-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-runtime-panic-hook 不重写）。
 
 ```bash
-XLANG_F_RUNTIME_V1_FAIL=1 ./tests/run-f-runtime-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-runtime-v1-gate.sh
 ./tests/run-std-runtime-panic-hook-gate.sh
 ```
+
 
 ## 下一项
 

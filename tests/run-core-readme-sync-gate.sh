@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# CORE-015：core/README 与 docs/07 同步门禁
+# CORE-015：core/README 与 docs/07 同步门禁（假权威诚实）。
 #
 # 用法：./tests/run-core-readme-sync-gate.sh
+# wave honesty (2026-08-24 #11): DOC → analysis/archive/core/.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_CORE_README_DOC:-analysis/core-readme-sync-v1.md}"
+DOC="${XLANG_CORE_README_DOC:-analysis/archive/core/core-readme-sync-v1.md}"
 MANIFEST="${XLANG_CORE_README_TSV:-tests/baseline/core-readme-sync.tsv}"
 README="core/README.md"
 DOC07="docs/07-内置与标准库.md"
@@ -13,7 +15,11 @@ DOC07="docs/07-内置与标准库.md"
 # shellcheck source=tests/lib/core-readme-sync.sh
 . tests/lib/core-readme-sync.sh
 
-echo "=== CORE-015: core README / docs/07 sync ==="
+echo "=== CORE-015: core README / docs/07 sync (archive DOC) ==="
+if [ -f analysis/core-readme-sync-v1.md ]; then
+  echo "core-readme-sync gate FAIL: top-level DOC resurrected (live = archive/core/)" >&2
+  exit 1
+fi
 for f in "$DOC" "$MANIFEST" "$README" "$DOC07"; do
   if [ ! -f "$f" ]; then
     echo "core-readme-sync gate FAIL: missing $f" >&2

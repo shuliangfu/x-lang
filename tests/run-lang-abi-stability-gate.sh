@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
-# LANG-005：ABI 稳定承诺 manifest 门禁
+# LANG-005: ABI stability manifest gate (honesty soft→硬绿).
 #
-# 用法：./tests/run-lang-abi-stability-gate.sh
+# Honesty: soft SKIP→OK when no native xlang / f32 fail retired in child
+# smoke. Prefer product xlang_asm via run-lang-abi-stability.sh. Explicit
+# bad XLANG / missing native = hard die. DOC authority = archive/lang.
+# Report delegated to child (layout=/f32=/obs=/skip=).
+#
+# Usage: ./tests/run-lang-abi-stability-gate.sh
+# wave honesty (2026-08-24 #9): DOC → analysis/archive/lang/;
+# typeck.c retired — live = typeck.x
+# (typeck_validate_struct_layouts_zero_padding).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_LANG_ABI_DOC:-analysis/lang-abi-stability-v1.md}"
+DOC="${XLANG_LANG_ABI_DOC:-analysis/archive/lang/lang-abi-stability-v1.md}"
 MANIFEST="${XLANG_LANG_ABI_MANIFEST:-tests/baseline/lang-abi-stability.tsv}"
 LEVELS="${XLANG_LANG_ABI_LEVELS:-tests/baseline/lang-abi-compat-levels.tsv}"
+TYPECK_X="compiler/src/typeck/typeck.x"
 MIN_LAYERS=6
 MIN_CASES=2
 MIN_LEVELS=6
@@ -15,8 +25,16 @@ MIN_LEVELS=6
 # shellcheck source=tests/lib/lang-abi-stability.sh
 . tests/lib/lang-abi-stability.sh
 
-echo "=== LANG-005: ABI stability manifest ==="
-for f in "$DOC" "$MANIFEST" "$LEVELS" \
+echo "=== LANG-005: ABI stability manifest (c retired) ==="
+if [ -f analysis/lang-abi-stability-v1.md ]; then
+  echo "lang-abi-stability gate FAIL: top-level DOC resurrected (live = archive/lang/)" >&2
+  exit 1
+fi
+if [ -f compiler/src/typeck/typeck.c ]; then
+  echo "lang-abi-stability gate FAIL: typeck.c resurrected (live = typeck.x)" >&2
+  exit 1
+fi
+for f in "$DOC" "$MANIFEST" "$LEVELS" "$TYPECK_X" \
   tests/abi/layout_abi.c tests/abi/f32_call_xmm_smoke.x \
   compiler/docs/F32_XMM_ABI.md compiler/include/xlang_std_abi/fs_abi.h \
   tests/baseline/safe-ffi-contract.tsv; do
@@ -25,6 +43,10 @@ for f in "$DOC" "$MANIFEST" "$LEVELS" \
     exit 1
   fi
 done
+if ! grep -qE '^## Gate' "$DOC"; then
+  echo "lang-abi-stability gate FAIL: doc missing ## Gate section" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

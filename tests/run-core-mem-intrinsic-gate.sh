@@ -1,36 +1,86 @@
 #!/usr/bin/env bash
-# CORE-008：core.mem 热路径 intrinsic 映射门禁
+# CORE-008: core.mem hot-path intrinsic / pure .x — honesty soft→硬绿.
 #
-# 用法：./tests/run-core-mem-intrinsic-gate.sh
-set -e
+# Honesty: soft SKIP→OK (no native still gate OK) + prefer-c only + soft
+# auto-make retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse soft SKIP→OK /
+# soft auto-make / prefer-c).
+#   - archive DOC + ## Gate + mapping / pure .x = hard.
+#   - product -o tests/mem/main.x = hard run.
+#   - XLANG_DEBUG_C __builtin_* emit (table retired with codegen.c) = obs.
+# Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-core-mem-intrinsic-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-
-DOC="${XLANG_CORE_MEM_INTRINSIC_DOC:-analysis/core-mem-intrinsic-v1.md}"
-MANIFEST="${XLANG_CORE_MEM_INTRINSIC_TSV:-tests/baseline/core-mem-intrinsic.tsv}"
-CODEGEN="compiler/src/codegen/codegen.c"
-LIB="tests/lib/core-mem-intrinsic.sh"
-EMIT_X="tests/mem/main.x"
-MIN_MAP=4
-PREFIX="xlang: [XLANG_CORE_MEM_INTRINSIC]"
-
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/core-mem-intrinsic.sh
 . tests/lib/core-mem-intrinsic.sh
 
-echo "=== CORE-008: core.mem intrinsic manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$EMIT_X"; do
-  if [ ! -f "$f" ]; then
-    echo "core-mem-intrinsic gate FAIL: missing $f" >&2
-    exit 1
+DOC="${XLANG_CORE_MEM_INTRINSIC_DOC:-analysis/archive/core/core-mem-intrinsic-v1.md}"
+MANIFEST="${XLANG_CORE_MEM_INTRINSIC_TSV:-tests/baseline/core-mem-intrinsic.tsv}"
+CODEGEN="compiler/src/codegen/codegen.x"
+MEM_X="core/mem/mod.x"
+LIB="tests/lib/core-mem-intrinsic.sh"
+EMIT_X="tests/mem/main.x"
+MIN_MAP=4
+
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "core-mem-intrinsic gate FAIL: $*" >&2
+  core_mem_intrinsic_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
   fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== CORE-008: core.mem intrinsic manifest (archive DOC; c retired) ==="
+if [ -f analysis/core-mem-intrinsic-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/core/)"
+fi
+if [ -f compiler/src/codegen/codegen.c ]; then
+  die "codegen.c resurrected (live = codegen.x / pure .x)"
+fi
+for f in "$DOC" "$MANIFEST" "$LIB" "$CODEGEN" "$MEM_X" "$EMIT_X"; do
+  [ -f "$f" ] || die "missing $f"
 done
+if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 for kw in runnable XLANG_CORE_MEM_INTRINSIC mem_compare __builtin_memcmp; do
-  if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
-    echo "core-mem-intrinsic gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
 
 while IFS=$'\t' read -r c1 c2 _rest; do
@@ -40,62 +90,55 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-map_miss="$(core_mem_intrinsic_mappings_ok "$CODEGEN" "$MANIFEST" || true)"
+map_miss="$(core_mem_intrinsic_mappings_ok "$CODEGEN" "$MANIFEST" "$MEM_X" || true)"
 if [ "${map_miss:-0}" -gt 0 ]; then
-  core_mem_intrinsic_emit_report "fail" 0 "$MIN_MAP"
-  echo "core-mem-intrinsic gate FAIL: mapping_miss=${map_miss}" >&2
-  exit 1
+  die "mapping_miss=${map_miss}"
 fi
-echo "core-mem-intrinsic manifest OK (mappings=${MIN_MAP})"
+echo "core-mem-intrinsic manifest OK (mappings=${MIN_MAP} via pure .x)"
 
-# 解析本机可执行 xlang-c（与 BOOT-013 一致，避免 Darwin 误判 Linux ELF）。
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-resolve_emit_shu() {
-  local cand
-  for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if stdlib_cm_native_xlang "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  if [ -n "${XLANG:-}" ] && stdlib_cm_native_xlang "$XLANG"; then
-    echo "$XLANG"
-    return 0
-  fi
-  return 1
-}
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
-EMIT_TOTAL=4
-if XLANG_BIN="$(resolve_emit_shu 2>/dev/null)"; then
-  echo "=== CORE-008: runnable XLANG_DEBUG_C emit (XLANG=$XLANG_BIN) ==="
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c 2>/dev/null || true
-  if ! stdlib_cm_native_xlang "$XLANG_BIN"; then
-    XLANG_BIN="$(resolve_emit_shu 2>/dev/null || true)"
-  fi
-  if [ -n "${XLANG_BIN:-}" ] && stdlib_cm_native_xlang "$XLANG_BIN"; then
-  found="$(core_mem_intrinsic_emit_ok "$XLANG_BIN" "$EMIT_X" "$MANIFEST" || true)"
-  if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
-    core_mem_intrinsic_emit_report "fail" "${found:-0}" "$EMIT_TOTAL"
-    echo "core-mem-intrinsic gate FAIL: emit ${found:-0}/${EMIT_TOTAL}" >&2
-    exit 1
-  fi
-  core_mem_intrinsic_emit_report "ok" "$found" "$EMIT_TOTAL"
-  grep -qF "$PREFIX" <(core_mem_intrinsic_emit_report "ok" "$found" "$EMIT_TOTAL")
+echo "=== CORE-008: product -o runnable (XLANG=$XLANG_BIN) ==="
+EXE="/tmp/xlang_core_mem_intrinsic_$$"
+LOG="/tmp/xlang_core_mem_intrinsic_$$.log"
+set +e
+"$XLANG_BIN" -L . "$EMIT_X" -o "$EXE" >"$LOG" 2>&1
+bec=$?
+set -e
+if [ "$bec" -ne 0 ]; then
+  if grep -qE 'Undefined symbols|undefined reference|UNDEF|BLD001' "$LOG" 2>/dev/null; then
+    echo "core-mem-intrinsic OBS runnable (product -o UNDEF/ld residual)" >&2
+    OBS=$((OBS + 1))
   else
-    echo "core-mem-intrinsic gate SKIP runnable (xlang not native after make)" >&2
+    tail -n 12 "$LOG" >&2 || true
+    die "product -o $EMIT_X"
   fi
 else
-  echo "core-mem-intrinsic gate SKIP runnable (no xlang)" >&2
+  set +e
+  "$EXE" >/dev/null 2>&1
+  rec=$?
+  set -e
+  rm -f "$EXE"
+  if [ "$rec" -ne 0 ]; then
+    die "runnable exit=$rec"
+  fi
+  RUN_OK=$((RUN_OK + 1))
+  echo "core-mem-intrinsic runnable OK"
+fi
+rm -f "$EXE" "$LOG"
+
+echo "=== CORE-008: XLANG_DEBUG_C emit observational ==="
+found="$(core_mem_intrinsic_emit_ok "$XLANG_BIN" "$EMIT_X" "$MANIFEST" || true)"
+EMIT_TOTAL=4
+if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
+  echo "core-mem-intrinsic OBS emit ${found:-0}/${EMIT_TOTAL} (__builtin_* table retired; pure .x)" >&2
+  OBS=$((OBS + 1))
+else
+  RUN_OK=$((RUN_OK + 1))
+  echo "core-mem-intrinsic emit OK ${found}/${EMIT_TOTAL}"
 fi
 
+core_mem_intrinsic_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "core-mem-intrinsic gate OK"

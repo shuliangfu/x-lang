@@ -24,12 +24,14 @@ if [ ! -f compiler/xlang ] || [ ! -x compiler/xlang ]; then
   exit 127
 fi
 
-echo "bootstrap-bstrict-ci: B-01 cfg attribute lex skip (xlang-c) ..."
+echo "bootstrap-bstrict-ci: B-01/B-02/B-03 cfg+repr honesty (prefer asm; soft FAIL retired) ..."
 chmod +x tests/run-cfg-attribute-skip-gate.sh tests/run-repr-c-attribute-skip-gate.sh tests/run-cfg-target-triple-gate.sh
-XLANG_CFG_ATTR_SKIP_FAIL=1 ./tests/run-cfg-attribute-skip-gate.sh
-XLANG_CFG_TARGET_TRIPLE_FAIL=1 ./tests/run-cfg-target-triple-gate.sh
-XLANG_REPR_C_ATTR_SKIP_FAIL=1 ./tests/run-repr-c-attribute-skip-gate.sh
+# soft XLANG_CFG_*_FAIL / XLANG_REPR_C_ATTR_SKIP_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-cfg-attribute-skip-gate.sh
+./tests/run-cfg-target-triple-gate.sh
+./tests/run-repr-c-attribute-skip-gate.sh
 XLANG_REPR_C_LAYOUT_FAIL=1 ./tests/run-repr-c-layout-gate.sh
+
 
 echo "bootstrap-bstrict-ci: B-15/B-18/B-19/B-30/B-32/B-17 phase-B manifest gates ..."
 chmod +x tests/run-b15-io-uring-sys-gate.sh tests/run-b18-win32-net-gate.sh tests/run-b19-sys-mod-facade-gate.sh
@@ -37,16 +39,19 @@ chmod +x tests/run-b30-stubs-runtime-os-inventory-gate.sh tests/run-b32-no-cc-st
 chmod +x tests/run-macos-read-file-gate.sh
 ./tests/run-b15-io-uring-sys-gate.sh
 ./tests/run-b18-win32-net-gate.sh
-XLANG_B19_FAIL=1 ./tests/run-b19-sys-mod-facade-gate.sh
+# B-19 facade: live write/read/mmap/exit/close (os_* fossil names retired).
+./tests/run-b19-sys-mod-facade-gate.sh
 ./tests/run-b30-stubs-runtime-os-inventory-gate.sh
 ./tests/run-b32-no-cc-std-gate.sh
 ./tests/run-b17-exit-process-gate.sh
 
-echo "bootstrap-bstrict-ci: B-19 std.sys platform write (xlang-c) ..."
+echo "bootstrap-bstrict-ci: B-19 std.sys platform write (honesty; prefer asm) ..."
 chmod +x tests/run-sys-platform-write-gate.sh tests/run-sys-mod-cfg-import-gate.sh tests/run-sys-read-file-gate.sh
-XLANG_SYS_PLATFORM_WRITE_FAIL=1 ./tests/run-sys-platform-write-gate.sh
+# soft XLANG_SYS_PLATFORM_WRITE_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-sys-platform-write-gate.sh
 XLANG_SYS_MOD_CFG_IMPORT_FAIL=1 ./tests/run-sys-mod-cfg-import-gate.sh
-XLANG_SYS_READ_FILE_FAIL=1 ./tests/run-sys-read-file-gate.sh
+# soft XLANG_SYS_READ_FILE_FAIL retired (2026-08-27 honesty); Linux hard / Darwin UNDEF=obs.
+./tests/run-sys-read-file-gate.sh
 
 echo "bootstrap-bstrict-ci: B-20 generated_c scan (no fopen) ..."
 chmod +x tests/run-b20-generated-c-scan-gate.sh
@@ -71,17 +76,19 @@ echo "bootstrap-bstrict-ci: C-06 x frontend default (no C parser.o in seed link)
 chmod +x tests/run-c06-x-frontend-default-gate.sh
 XLANG_C06_FAIL=1 ./tests/run-c06-x-frontend-default-gate.sh
 
-echo "bootstrap-bstrict-ci: B-16 macOS mmap (Darwin only) ..."
+echo "bootstrap-bstrict-ci: B-16 macOS mmap (Darwin only; honesty) ..."
 chmod +x tests/run-macos-mmap-gate.sh tests/run-macos-mmap-file-gate.sh
-XLANG_MACOS_MMAP_FAIL=1 ./tests/run-macos-mmap-gate.sh
-XLANG_MACOS_MMAP_FILE_FAIL=1 ./tests/run-macos-mmap-file-gate.sh
+# soft XLANG_MACOS_MMAP*_FAIL retired (2026-08-27 honesty); hard / obs UNDEF.
+./tests/run-macos-mmap-gate.sh
+./tests/run-macos-mmap-file-gate.sh
 
-echo "bootstrap-bstrict-ci: B-14 Linux freestanding syscall (Linux only) ..."
+echo "bootstrap-bstrict-ci: B-14 Linux freestanding syscall (Linux only; honesty) ..."
 chmod +x tests/run-linux-syscall-invoke-gate.sh tests/run-linux-open-read-gate.sh tests/run-linux-mmap-invoke-gate.sh tests/run-linux-openat-read-gate.sh
-XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-linux-syscall-invoke-gate.sh
-XLANG_LINUX_OPEN_READ_FAIL=1 ./tests/run-linux-open-read-gate.sh
-XLANG_LINUX_MMAP_INVOKE_FAIL=1 ./tests/run-linux-mmap-invoke-gate.sh
-XLANG_LINUX_OPENAT_READ_FAIL=1 ./tests/run-linux-openat-read-gate.sh
+# soft XLANG_LINUX_*_FAIL retired (2026-08-27 honesty); hard die default.
+./tests/run-linux-syscall-invoke-gate.sh
+./tests/run-linux-open-read-gate.sh
+./tests/run-linux-mmap-invoke-gate.sh
+./tests/run-linux-openat-read-gate.sh
 
 echo "bootstrap-bstrict-ci: bootstrap-driver-bstrict (build xlang_asm) ..."
 # strict 重链会覆盖 xlang；cfg-merge 在 GHA 上对 strict xlang_asm 偶发 SIGSEGV，保留 seed 作 -o 回退。
@@ -154,11 +161,13 @@ fi
 
 echo "bootstrap-bstrict-ci: phase-B compile gates (B-04/B-05/B-06/B-31) ..."
 chmod +x tests/run-b04-freestanding-syscall-gate.sh tests/run-b05-codegen-mvp-gate.sh tests/run-b06-ast-pool-gate.sh tests/run-b31-freestanding-io-gate.sh
-XLANG=./compiler/xlang_asm XLANG_LINUX_SYSCALL_INVOKE_FAIL=1 ./tests/run-b04-freestanding-syscall-gate.sh
+# soft XLANG_LINUX_SYSCALL_INVOKE_FAIL retired (honesty); b04 delegates hard invoke.
+XLANG=./compiler/xlang_asm ./tests/run-b04-freestanding-syscall-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-b05-codegen-mvp-gate.sh
 XLANG=./compiler/xlang_asm ./tests/run-b06-ast-pool-gate.sh
 ./tests/run-b31-freestanding-io-gate.sh
-XLANG_MACOS_READ_FILE_FAIL=1 XLANG=./compiler/xlang_asm ./tests/run-macos-read-file-gate.sh
+# soft XLANG_MACOS_READ_FILE_FAIL retired (honesty); delegates sys-read hard/obs.
+XLANG=./compiler/xlang_asm ./tests/run-macos-read-file-gate.sh
 
 echo "bootstrap-bstrict-ci: C-07 frontend parity (xlang-c vs xlang_asm, -backend c) ..."
 chmod +x tests/run-c07-frontend-parity-gate.sh tests/lib/c07-frontend-parity.sh
@@ -219,12 +228,12 @@ else
   chmod +x tests/run-d02-stage1-to-stage2-gate.sh tests/run-stage2-bstrict-gate.sh \
     compiler/verify-selfhost-stage2-bstrict.sh tests/run-d03-stage2-hash-gate.sh
   echo "bootstrap-bstrict-ci: D-02 Stage1 → Stage2 self-host ..."
-  XLANG_D02_FAIL=1 XLANG_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
+  XLANG_STAGE2_SKIP_BOOTSTRAP=1 ./tests/run-d02-stage1-to-stage2-gate.sh
   echo "bootstrap-bstrict-ci: D-03 Stage2 SHA256 golden standard ..."
-  XLANG_D03_FAIL=1 XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
+  XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh
   echo "bootstrap-bstrict-ci: D-04 Stage2 portable two-gen diff ..."
   chmod +x tests/run-d04-stage2-portable-diff-gate.sh tests/lib/d04-stage2-portable-diff.sh
-  XLANG_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+  ./tests/run-d04-stage2-portable-diff-gate.sh
 fi
 
 echo "bootstrap-bstrict-ci: ensure WPO build_asm artifacts (五模块) ..."
@@ -243,33 +252,35 @@ XLANG_WPO_STRICT_LINK_FAIL=1 ./tests/run-wpo-strict-link-gate.sh
 
 echo "bootstrap-bstrict-ci: strict_glue measured .text A/B (pipeline WPO helpers) ..."
 chmod +x tests/run-wpo-strict-glue-text-gate.sh tests/lib/wpo-ab-proxy.sh
-XLANG_WPO_STRICT_GLUE_TEXT_FAIL=1 ./tests/run-wpo-strict-glue-text-gate.sh
+# Soft XLANG_WPO_STRICT_GLUE_TEXT_FAIL retired — gate is hard by default.
+./tests/run-wpo-strict-glue-text-gate.sh
 
 echo "bootstrap-bstrict-ci: parser x strict gate ..."
 chmod +x tests/run-parser-x-strict-gate.sh tests/run-parser-experimental-emit-gate.sh
 XLANG_PARSER_X_STRICT_FAIL=1 ./tests/run-parser-x-strict-gate.sh
+# soft XLANG_PARSER_EXPERIMENTAL_EMIT_FAIL retired (honesty hard / Darwin skip)
 ./tests/run-parser-experimental-emit-gate.sh
 
 echo "bootstrap-bstrict-ci: parser second pass gate ..."
 chmod +x tests/run-parser-second-pass-gate.sh tests/run-parser-thin-glue-symbol-integrity-gate.sh
-XLANG_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
+# soft XLANG_PARSER_SECOND_PASS_FAIL retired (honesty hard / Darwin skip)
+./tests/run-parser-second-pass-gate.sh
 XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
   XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
-  XLANG_PARSER_SECOND_PASS_FAIL=1 \
-  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 XLANG_PARSER_SECOND_PASS_COMPILER=compiler/xlang_asm \
   XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
   XLANG_PARSER_SECOND_PASS_WPO_DCE=1 \
-  XLANG_PARSER_SECOND_PASS_FAIL=1 \
-  XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
   ./tests/run-parser-second-pass-gate.sh
 
 echo "bootstrap-bstrict-ci: typeck parse count baseline ..."
 chmod +x tests/run-typeck-parse-count-gate.sh tests/run-typeck-parse-bisect-gate.sh
-XLANG_TYPECK_PARSE_COUNT_FAIL=1 XLANG=./compiler/xlang_asm \
+# Soft XLANG_TYPECK_PARSE_COUNT_FAIL / XLANG_TYPECK_PARSE_BISECT_FAIL retired —
+# both gates are hard by default (Darwin N/A skip=1).
+XLANG=./compiler/xlang_asm \
   ./tests/run-typeck-parse-count-gate.sh
-./tests/run-typeck-parse-bisect-gate.sh || true
+XLANG=./compiler/xlang_asm \
+  ./tests/run-typeck-parse-bisect-gate.sh
 
 echo "bootstrap-bstrict-ci: A-12 cross-module symbols (track-only) ..."
 chmod +x tests/run-a12-cross-module-symbols-gate.sh
@@ -281,20 +292,21 @@ chmod +x tests/run-std-c-inventory-gate.sh
 XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 
 echo "bootstrap-bstrict-ci: parser parse bootstrap gate ..."
+# soft XLANG_PARSER_PARSE_BOOTSTRAP_*_FAIL / MEGA_BISECT_*_FAIL retired (honesty hard / Darwin skip)
 chmod +x tests/run-parser-parse-bootstrap-gate.sh tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-parser-parse-bootstrap-x-emit-gate.sh tests/run-parser-parse-bootstrap-bisect-gate.sh \
-  tests/run-parser-mega-bisect-gate.sh
-XLANG_PARSER_PARSE_BOOTSTRAP_FAIL=1 ./tests/run-parser-parse-bootstrap-gate.sh
-XLANG_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
-XLANG_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
-./tests/run-parser-mega-bisect-gate.sh || true
-chmod +x tests/run-parser-mega-bisect-sweep-gate.sh
-./tests/run-parser-mega-bisect-sweep-gate.sh || true
-./tests/run-parser-parse-bootstrap-x-emit-gate.sh || true
+  tests/run-parser-mega-bisect-gate.sh tests/run-parser-mega-bisect-sweep-gate.sh
+./tests/run-parser-parse-bootstrap-gate.sh
+./tests/run-parser-parse-bootstrap-link-smoke.sh
+./tests/run-parser-parse-bootstrap-bisect-gate.sh
+./tests/run-parser-mega-bisect-gate.sh
+./tests/run-parser-mega-bisect-sweep-gate.sh
+./tests/run-parser-parse-bootstrap-x-emit-gate.sh
 
 echo "bootstrap-bstrict-ci: parser parse count baseline ..."
 chmod +x tests/run-parser-parse-count-gate.sh
-XLANG_PARSER_PARSE_COUNT_FAIL=1 XLANG_PARSER_PARSE_COUNT_TARGET=466 XLANG=./compiler/xlang_asm \
+# soft XLANG_PARSER_PARSE_COUNT_FAIL retired
+XLANG_PARSER_PARSE_COUNT_TARGET=466 XLANG=./compiler/xlang_asm \
   ./tests/run-parser-parse-count-gate.sh
 
 echo "bootstrap-bstrict-ci: DOD-CL-S1 struct layout smoke ..."

@@ -6,7 +6,7 @@ matrix	section	## 2. 全局矩阵	comp-wpo.tsv
 gate_section	section	## 3. Gate	run-comp-wpo-global-gate
 parent_tsv	cross_ref	tests/baseline/comp-wpo.tsv	COMP-004
 parent_default	cross_ref	tests/baseline/comp-wpo-default-wave.tsv	COMP-017
-parent_doc	cross_ref	analysis/comp-wpo-default-v1.md	COMP-017
+parent_doc	cross_ref	analysis/archive/comp/comp-wpo-default-v1.md	COMP-017
 baseline_typeck	cross_ref	tests/baseline/wpo-typeck-o.tsv	typeck_wpo.o
 baseline_pipeline	cross_ref	tests/baseline/wpo-pipeline-o.tsv	pipeline_wpo.o
 baseline_strict	cross_ref	tests/baseline/wpo-strict-glue-text.tsv	strict_glue

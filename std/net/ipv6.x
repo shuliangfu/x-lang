@@ -23,7 +23,17 @@
 
 const mem = import("core.mem");
 
+/**
+ * Address family for IPv6 sockets (`AF_INET6`).
+ * PLATFORM: LINUX=10 / MACOS=30 / WINDOWS=23 — must match host libc;
+ * a Linux-only 10 on Darwin makes `socket(AF_INET6, …)` fail.
+ */
+#[cfg(target_os = "linux")]
 export const AF_INET6: i32 = 10;
+#[cfg(target_os = "macos")]
+export const AF_INET6: i32 = 30;
+#[cfg(target_os = "windows")]
+export const AF_INET6: i32 = 23;
 export const SOCK_STREAM: i32 = 1;
 export const IPPROTO_TCP: i32 = 6;
 export const SOL_SOCKET: i32 = 1;

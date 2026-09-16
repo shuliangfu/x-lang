@@ -6,11 +6,14 @@
 # 3) 联动 DOC-005 run-doc-public-roadmap-gate.sh
 #
 # 用法：./tests/run-doc-public-roadmap-q4-2027-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_DOC014_DOC:-analysis/doc-public-roadmap-q4-2027-v1.md}"
-ROADMAP="analysis/doc-public-roadmap-v1.md"
+DOC="${XLANG_DOC014_DOC:-analysis/archive/doc/doc-public-roadmap-q4-2027-v1.md}"
+ROADMAP="analysis/archive/doc/doc-public-roadmap-v1.md"
 MANIFEST="${XLANG_DOC014_TSV:-tests/baseline/doc-public-roadmap-q4-2027.tsv}"
 DOC005_MANIFEST="tests/baseline/doc-public-roadmap.tsv"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"

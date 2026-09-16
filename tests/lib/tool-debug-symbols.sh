@@ -22,7 +22,10 @@ tool_dbg_exe_has_sym() {
 
 # 检查可执行文件未被 strip（调试构建期望）。
 # Linux ELF：file(1) 输出含 "not stripped"。
-# macOS Mach-O：file(1) 不标注 stripped 状态，改查 LC_SYMTAB nsyms（strip 后显著减少）。
+# macOS Mach-O：file(1) 不标注 stripped 状态，改查 LC_SYMTAB nsyms。
+# With -dead_strip (release) tiny products collapse to nsyms≈3; -O 0 without
+# dead_strip keeps ~100+ even without DWARF. Threshold 50 separates the two
+# (was 300 — false-red on honest -O0 asm products). PLATFORM: DARWIN nsyms.
 tool_dbg_exe_not_stripped() {
   local exe="$1"
   local info
@@ -31,7 +34,7 @@ tool_dbg_exe_not_stripped() {
     return 0
   fi
   if echo "$info" | grep -qi 'Mach-O'; then
-    if otool -l "$exe" 2>/dev/null | awk '/^[[:space:]]*nsyms[[:space:]]/ { if ($2 > 300) ok = 1 } END { exit !ok }'; then
+    if otool -l "$exe" 2>/dev/null | awk '/^[[:space:]]*nsyms[[:space:]]/ { if ($2 > 50) ok = 1 } END { exit !ok }'; then
       return 0
     fi
   fi

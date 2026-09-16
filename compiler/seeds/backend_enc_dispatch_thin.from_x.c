@@ -1,7 +1,6 @@
 /* seeds/backend_enc_dispatch_thin.from_x.c
  * G-02f backend_enc_dispatch R2 thin full surface (legacy name) — isomorphic with src/asm/backend_enc_dispatch_thin.x
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DXLANG_L2_ENC_DISPATCH_THIN_FROM_X) ld -r
- * Prove: prefer seeds/backend_enc_dispatch_thin_surface.from_x.c (same body; R2 lock name)
  * Cap residual: *_impl / enc C 尾 in seeds/backend_enc_dispatch.from_x.c rest
  * Regen: ./xlang -E ... src/asm/backend_enc_dispatch_thin.x | filter DBG + polish externs
  */
@@ -482,7 +481,12 @@ extern int32_t arch_x86_64_enc_enc_test_eax_eax(uint8_t * elf_ctx);
 extern int32_t arch_arm64_enc_enc_test_rbx_rbx(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_test_rbx_rbx(uint8_t * elf_ctx);
 extern int32_t arch_x86_64_enc_enc_test_rbx_rbx(uint8_t * elf_ctx);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_mov_rax_to_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  /* P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
+   * twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
+   * skipped the zi reload in consecutive same-index stores -> pointer+pointer). */
+  glue_binop_var_slot_cache_invalidate_rbx();
   if ((ta ==1)) {
     {
       return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx);
@@ -1669,6 +1673,7 @@ extern int32_t arch_x86_64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_rdx(uint8_t * elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(uint8_t * elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(uint8_t * elf_ctx, int32_t k);
+extern int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(uint8_t * elf_ctx, int32_t k);
 extern int32_t arch_x86_64_enc_enc_load_rbp_pos_to_rax(uint8_t * elf_ctx, int32_t off_pos);
 extern int32_t arch_arm64_enc_enc_rbx_plus_x2_scale1(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_rbx_plus_a2_scale1(uint8_t * elf_ctx);
@@ -1809,7 +1814,14 @@ int32_t backend_enc_rbx_index_mul_secondary_arch(uint8_t * elf_ctx, int32_t ta) 
   }
   return (0 - 1);
 }
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
 int32_t backend_enc_call_arch(uint8_t * elf_ctx, uint8_t * name, int32_t name_len, int32_t ta) {
+  /* P12g DIV root fix: rax+rbx var-slot cache invalidation at the CALL authority
+   * (call clobbers both; stale rax belief dropped peek_ident_len's return value
+   * so the turbofish lens recorded 0 -> T001 copy<A>). See dispatch.x twin. */
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   if ((ta ==1)) {
     {
       return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
@@ -1847,6 +1859,12 @@ int32_t backend_enc_mov_arg_reg_to_rax_arch(uint8_t * elf_ctx, int32_t k, int32_
   if ((ta ==0)) {
     {
       return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
+    }
+  }
+  /* Stage10 10.2.2 slice1: AAPCS arg → x0 for asm! lateout. */
+  if ((ta ==1)) {
+    {
+      return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k);
     }
   }
   return (0 - 1);

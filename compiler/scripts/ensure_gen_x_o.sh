@@ -338,7 +338,7 @@ build_lexer_x() {
     MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
       bash scripts/ensure_migrate_gen.sh lexer || return 1
   elif [ ! -f lexer_gen.c ]; then
-    log "missing lexer_gen.c (run ensure_migrate_gen lexer / make lexer_gen.c first)"
+    log "missing lexer_gen.c (run bash scripts/ensure_migrate_gen.sh lexer first)"
     return 1
   fi
   if ! need_rebuild_gen_o lexer_x.o lexer_gen.c; then
@@ -391,7 +391,7 @@ build_driver_x() {
     log "Track L failed for driver_x.o; falling back to driver_gen.c (archaeology)"
   fi
   if [ ! -f driver_gen.c ]; then
-    log "missing driver_gen.c (run ensure_driver_gen driver / make driver_gen.c first)"
+    log "missing driver_gen.c (run bash scripts/ensure_driver_gen.sh driver first)"
     return 1
   fi
   if ! need_rebuild_gen_o_or_deps driver_x.o driver_gen.c \

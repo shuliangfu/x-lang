@@ -2,18 +2,100 @@
  * Logic source: src/asm/pthin_skip_tl.x
  * Hybrid: XLANG_PTHIN_SKIP_TL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~1.4k)
+ * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
+ *
+ * Hybrid P12b–P12u (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X) + P12v param/ret_shape (XLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X):
+ * portable skip walks (struct / enum / extern + impl header +
+ * generic_bound_scan + enum_register + parse_one_extern_skip +
+ * parse_one_extern_and_add + skip_name_is_self + self_matches_for +
+ * named_eq_self + rewrite_self + register_type_params +
+ * type_param_index + concrete_implements_trait +
+ * bound_check_type_args + impl-seen accessors + bound_check +
+ * F3 lookup + F3 simple getters + dest-extras elem_array_dim +
+ * method_on_param + skip_hoist_default_methods +
+ * trait_check_impls_complete outer walk)
+ * come from pthin_skip_tl.x;
+ * this TU keeps by-value trampolines plus stash_source / trait-reg C.
+ * skip_one_impl and generic_bound_scan trampolines live in the .inc
+ * (need file-static tables). enum_register trampolines live here
+ * (opaque module, no file-static). parse_one_extern_skip trampoline
+ * lives in the .inc.
+ * P12i self_matches_for trampoline lives in the .inc (holds gnm[64]).
+ * P12j rewrite_self trampoline lives in the .inc (holds gnm[64] +
+ * for_copy[64]); named_eq_self is a direct extern (pointer ABI).
+ * P12k register/index trampolines live in the .inc (pass g_fn_gp_*).
+ * P12l concrete_implements trampoline lives in the .inc (pass
+ * g_xlang_skip_impl_* + hold gnm[64]).
+ * P12m bound_check_type_args trampoline lives in the .inc (pass
+ * g_fn_bound_* + g_xlang_skip_impl_*).
+ * P12n F4 accessor trampolines live in the .inc (pass
+ * g_xlang_skip_impl_*).
+ * P12o bound_check trampoline lives in the .inc (pass g_call_*).
+ * P12p F3 lookup trampolines live in the .inc (pass
+ * g_xlang_skip_trait_reg[] as *u8 + sizeof stride + n).
+ * P12q F3 simple-getter trampolines live in the .inc (same table
+ * + offsetof for slot/param i32). P12r dest-extras elem_array_dim
+ * trampolines live in the .inc (same table). P12s method_on_param
+ * trampoline lives in the .inc (pass g_fn_bound_* + fat trait-reg).
+ * P12t hoist trampoline lives in the .inc (pass g_xlang_skip_impl_*
+ * + fat trait-reg + g_w439_src_* + hold gnm[64]); inject_one stays C
+ * (onefunc_result by-value). P12u trait_check trampoline lives in
+ * the .inc (pass g_xlang_skip_impl_* + fat trait-reg + stash src +
+ * hold gnm[64]); dest-SLICE param/ret shape + varargs diags stay C.
+ * is_registered stays a C thin wrapper over find_reg.
+ * Cold: no BODIES define, full .inc.
+ * Do not reuse XLANG_PTHIN_SKIP_TL_FROM_X for P12b–P12v bodies. SHAPE gate is separate from P12u outer.
+ * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/* Cap residual 9.5.3: skip_tl_slice.inc stderr debug via xlang_io_write. */
+#include <xlang_io_cap.h>
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 #include "ast.h"
+
+/* PLATFORM: SHARED — 7.2.1 P12b–P12t B-minus (2026-09-13 / P12t 2026-09-15).
+ * pthin_skip_tl.x TOKEN_* are pin copies of this enum.
+ * token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_EOF == 0, "skip_tl.x TOKEN_EOF pin");
+_Static_assert((int)TOKEN_FUNCTION == 1, "skip_tl.x TOKEN_FUNCTION pin");
+_Static_assert((int)TOKEN_FOR == 8, "skip_tl.x TOKEN_FOR pin");
+_Static_assert((int)TOKEN_STRUCT == 19, "skip_tl.x TOKEN_STRUCT pin");
+_Static_assert((int)TOKEN_ENUM == 47, "skip_tl.x TOKEN_ENUM pin");
+_Static_assert((int)TOKEN_IMPL == 50, "skip_tl.x TOKEN_IMPL pin");
+_Static_assert((int)TOKEN_EXTERN == 54, "skip_tl.x TOKEN_EXTERN pin");
+_Static_assert((int)TOKEN_IDENT == 59, "skip_tl.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_I32 == 60, "skip_tl.x TOKEN_I32 pin");
+_Static_assert((int)TOKEN_BOOL == 61, "skip_tl.x TOKEN_BOOL pin");
+_Static_assert((int)TOKEN_U8 == 62, "skip_tl.x TOKEN_U8 pin");
+_Static_assert((int)TOKEN_U32 == 63, "skip_tl.x TOKEN_U32 pin");
+_Static_assert((int)TOKEN_U64 == 64, "skip_tl.x TOKEN_U64 pin");
+_Static_assert((int)TOKEN_I64 == 65, "skip_tl.x TOKEN_I64 pin");
+_Static_assert((int)TOKEN_USIZE == 66, "skip_tl.x TOKEN_USIZE pin");
+_Static_assert((int)TOKEN_ISIZE == 67, "skip_tl.x TOKEN_ISIZE pin");
+_Static_assert((int)TOKEN_F32 == 77, "skip_tl.x TOKEN_F32 pin");
+_Static_assert((int)TOKEN_F64 == 78, "skip_tl.x TOKEN_F64 pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "skip_tl.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "skip_tl.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_LBRACE == 84, "skip_tl.x TOKEN_LBRACE pin");
+_Static_assert((int)TOKEN_RBRACE == 85, "skip_tl.x TOKEN_RBRACE pin");
+_Static_assert((int)TOKEN_COMMA == 90, "skip_tl.x TOKEN_COMMA pin");
+_Static_assert((int)TOKEN_COLON == 91, "skip_tl.x TOKEN_COLON pin");
+_Static_assert((int)TOKEN_DOT == 92, "skip_tl.x TOKEN_DOT pin");
+_Static_assert((int)TOKEN_ELLIPSIS == 94, "skip_tl.x TOKEN_ELLIPSIS pin");
+_Static_assert((int)TOKEN_SEMICOLON == 95, "skip_tl.x TOKEN_SEMICOLON pin");
+_Static_assert((int)TOKEN_PLUS == 96, "skip_tl.x TOKEN_PLUS pin");
+_Static_assert((int)TOKEN_STAR == 98, "skip_tl.x TOKEN_STAR pin");
+_Static_assert((int)TOKEN_ASSIGN == 117, "skip_tl.x TOKEN_ASSIGN pin");
+_Static_assert((int)TOKEN_LT == 120, "skip_tl.x TOKEN_LT pin");
+_Static_assert((int)TOKEN_GT == 121, "skip_tl.x TOKEN_GT pin");
+_Static_assert((int)TOKEN_STRING == 130, "skip_tl.x TOKEN_STRING pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -44,7 +126,7 @@ struct parser_asm_slice_u8 {
 
 struct parser_asm_extern_parse_result {
   struct parser_asm_lexer next_lex;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
@@ -54,7 +136,7 @@ struct parser_asm_extern_parse_result {
 };
 
 struct ast_Func {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -95,74 +177,74 @@ extern void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer
 extern void parser_asm_skip_balanced_parens_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start, struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_collect_imports_bind_audit_c(const uint8_t *bind, int32_t bind_len);
-extern int32_t parser_asm_stretch_enum_body_deep_slice_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_enum_header_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_enum_body_deep_slice_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_enum_header_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_enum_variant_bind_audit_c(struct parser_asm_slice_u8 *source, size_t token_start, int32_t name_len);
-extern int32_t parser_asm_stretch_enum_variants_body_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_enum_variants_probe_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t *out_variant_count);
-extern int32_t parser_asm_stretch_extern_fn_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+extern int32_t parser_asm_stretch_enum_variants_body_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_enum_variants_probe_c(void *lex_inout, void *source, int32_t *out_variant_count);
+extern int32_t parser_asm_stretch_extern_fn_audit_c(void *lex_inout, void *source);
 extern int32_t parser_asm_stretch_extern_param_bind_audit_c(const uint8_t *name, int32_t name_len);
-extern int32_t parser_asm_stretch_extern_param_count_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t *out_param_count);
-extern int32_t parser_asm_stretch_extern_return_type_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_impl_header_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_impl_items_body_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_impl_items_probe_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t *out_item_count);
-extern int32_t parser_asm_stretch_impl_type_for_trait_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_skip_allow_modifiers_c(struct parser_asm_lexer *inout_lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_skip_one_extern_body_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_skip_return_type_audit_c(struct parser_asm_lexer *inout_lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_fields_probe_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t *out_field_count);
-extern int32_t parser_asm_stretch_struct_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_header_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_layout_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_modifiers_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_skip_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_super_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_ultra_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_struct_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_trait_header_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_trait_impl_type_deep_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_trait_methods_body_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern int32_t parser_asm_stretch_trait_methods_probe_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source, int32_t *out_method_count);
+extern int32_t parser_asm_stretch_extern_param_count_audit_c(void *lex_inout, void *source, int32_t *out_param_count);
+extern int32_t parser_asm_stretch_extern_return_type_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_impl_header_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_impl_items_body_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_impl_items_probe_c(void *lex_inout, void *source, int32_t *out_item_count);
+extern int32_t parser_asm_stretch_impl_type_for_trait_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_skip_allow_modifiers_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_skip_one_extern_body_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_skip_return_type_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_fields_probe_c(void *lex_inout, void *source, int32_t *out_field_count);
+extern int32_t parser_asm_stretch_vx_struct_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_header_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_layout_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_modifiers_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_skip_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_super_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_ultra_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_struct_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_vx_struct_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_trait_header_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_trait_impl_type_deep_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_trait_methods_body_audit_c(void *lex_inout, void *source);
+extern int32_t parser_asm_stretch_trait_methods_probe_c(void *lex_inout, void *source, int32_t *out_method_count);
 extern void parser_skip_one_extern_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern void pipeline_arena_func_param_write(void *arena, int32_t func_ref, int32_t param_index, uint8_t *name_bytes, int32_t name_len, int32_t type_ref);
 extern int32_t pipeline_module_enum_append_variant(void *module, int32_t idx, uint8_t *bytes, int32_t len);
@@ -185,7 +267,309 @@ extern int32_t pipeline_onefunc_param_name_len(uint8_t *pool, int32_t i);
 extern int32_t pipeline_onefunc_param_type_ref(uint8_t *pool, int32_t i);
 extern void pipeline_onefunc_set_param_type_ref(uint8_t *out, int32_t pidx, int32_t ty);
 
+/* wave473 onefunc arena path prerequisites: skip_tl_slice.inc's tail (the
+ * parse-one-function + fill-block-from-res subsystem) grew these struct /
+ * enum / extern dependencies while the main TU picked them up from earlier
+ * slices (library/type_ref/block_from_res + TU body). This hybrid TU starved
+ * silently and the g05 P12 lane fell back to the full seed. Mirrors must stay
+ * field-for-field identical to their authorities (same commit on any layout
+ * change): ast_Block ≡ library_slice.inc:14, ast_Expr ≡ thin_c.from_x.c:4049,
+ * onefunc_result ≡ thin_c.from_x.c:147, TypeKind enum ≡ type_ref_slice.inc:64,
+ * arena/fill externs ≡ block_from_res_slice.inc:10 / library_slice.inc:55. */
+struct ast_Block {
+  int32_t const_base;
+  int32_t num_consts;
+  int32_t let_base;
+  int32_t num_lets;
+  int32_t num_early_lets;
+  int32_t loop_base;
+  int32_t num_loops;
+  int32_t for_loop_base;
+  int32_t num_for_loops;
+  int32_t if_base;
+  int32_t num_if_stmts;
+  int32_t region_base;
+  int32_t num_regions;
+  int32_t defer_base;
+  int32_t num_defers;
+  int32_t labeled_base;
+  int32_t num_labeled_stmts;
+  int32_t expr_stmt_base;
+  int32_t num_expr_stmts;
+  int32_t final_expr_ref;
+  int32_t stmt_order_base;
+  int32_t num_stmt_order;
+  int32_t parent_block_ref;
+};
+struct ast_Expr {
+  int32_t kind;
+  int32_t resolved_type_ref;
+  int32_t line;
+  int32_t col;
+  int64_t int_val;
+  double float_val;
+  uint8_t var_name[256];
+  int32_t var_name_len;
+  int32_t binop_left_ref;
+  int32_t binop_right_ref;
+  int32_t unary_operand_ref;
+  int32_t if_cond_ref;
+  int32_t if_then_ref;
+  int32_t if_else_ref;
+  int32_t block_ref;
+  int32_t match_matched_ref;
+  int32_t match_arm_base;
+  int32_t match_num_arms;
+  int32_t field_access_base_ref;
+  uint8_t field_access_field_name[256];
+  int32_t field_access_field_len;
+  int32_t field_access_is_enum_variant;
+  int32_t field_access_offset;
+  int32_t field_access_soa_stride;
+  int32_t index_base_ref;
+  int32_t index_index_ref;
+  int32_t index_base_is_slice;
+  int32_t call_callee_ref;
+  int32_t call_arg_base;
+  int32_t call_num_args;
+  int32_t call_num_type_args;
+  int32_t method_call_base_ref;
+  uint8_t method_call_name[256];
+  int32_t method_call_name_len;
+  int32_t method_call_arg_base;
+  int32_t method_call_num_args;
+  int32_t const_folded_val;
+  int32_t const_folded_valid;
+  int32_t index_proven_in_bounds;
+  uint8_t struct_lit_struct_name[256];
+  int32_t struct_lit_struct_name_len;
+  int32_t struct_lit_field_base;
+  int32_t struct_lit_num_fields;
+  int32_t array_lit_elem_base;
+  int32_t array_lit_num_elems;
+  int32_t float_bits_lo;
+  int32_t float_bits_hi;
+  int32_t enum_variant_tag;
+  int32_t as_operand_ref;
+  int32_t as_target_type_ref;
+  int32_t call_resolved_func_index;
+  int32_t call_resolved_dep_index;
+};
+struct parser_asm_onefunc_result {
+  int32_t ok;
+  struct parser_asm_lexer next_lex;
+  uint8_t name[256];
+  int32_t name_len;
+  int32_t num_params;
+  int32_t num_generic_params;
+  int32_t num_consts;
+  int32_t num_lets;
+  int32_t has_if_expr;
+  int32_t if_cond_true;
+  int32_t if_then_val;
+  int32_t if_else_val;
+  int32_t if_cond_expr_ref;
+  int32_t has_mul;
+  int32_t mul_right_val;
+  int32_t has_binop;
+  int32_t binop_right_val;
+  int32_t binop_left_param_idx;
+  int32_t binop_right_param_idx;
+  int32_t has_unary_neg;
+  int32_t return_val;
+  int32_t has_call_expr;
+  uint8_t call_callee_name[256];
+  int32_t call_callee_len;
+  uint8_t return_var_name[256];
+  int32_t return_var_name_len;
+  int32_t return_expr_ref;
+  int32_t has_final_expr;
+  int32_t has_explicit_return_kw;
+  int32_t call_num_args;
+  int32_t num_loops;
+  int32_t num_for_loops;
+  int32_t num_if_stmts;
+  int32_t num_src_stmt_order;
+  int32_t num_src_body_expr_stmts;
+  int32_t func_return_type_ref;
+};
+enum {
+  PARSER_ASM_TYPE_I32 = 0,
+  PARSER_ASM_TYPE_BOOL = 1,
+  PARSER_ASM_TYPE_U8 = 2,
+  PARSER_ASM_TYPE_U32 = 3,
+  PARSER_ASM_TYPE_U64 = 4,
+  PARSER_ASM_TYPE_I64 = 5,
+  PARSER_ASM_TYPE_USIZE = 6,
+  PARSER_ASM_TYPE_ISIZE = 7,
+  PARSER_ASM_TYPE_NAMED = 8,
+  PARSER_ASM_TYPE_PTR = 9,
+  PARSER_ASM_TYPE_ARRAY = 10,
+  PARSER_ASM_TYPE_SLICE = 11,
+  PARSER_ASM_TYPE_LINEAR = 12,
+  PARSER_ASM_TYPE_VECTOR = 13,
+  PARSER_ASM_TYPE_F32 = 14,
+  PARSER_ASM_TYPE_F64 = 15,
+  PARSER_ASM_TYPE_VOID = 16,
+  PARSER_ASM_TYPE_DYN = 17,
+  /* 10.3.1 TYPE_FN — G.7 ≡ type_ref_slice.inc / ast.x. */
+  PARSER_ASM_TYPE_FN = 18
+};
+extern int32_t ast_ast_arena_block_alloc(void *arena);
+extern struct ast_Block ast_ast_arena_block_get(void *arena, int32_t ref);
+extern void ast_ast_arena_block_set(void *arena, int32_t ref, struct ast_Block b);
+extern int32_t ast_ast_arena_expr_alloc(void *arena);
+extern struct ast_Expr ast_ast_arena_expr_get(void *arena, int32_t ref);
+extern void ast_ast_arena_expr_set(void *arena, int32_t ref, struct ast_Expr e);
+extern int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_ref,
+                                                          struct parser_asm_onefunc_result *res,
+                                                          int32_t type_ref);
+/* lex_skip family (P1 lane provides the definition). */
+void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                     struct parser_asm_slice_u8 *source);
+
+#ifdef XLANG_PTHIN_SKIP_TL_BODIES_FROM_X
+/* .x product bodies (pointer ABI). C names stay on the trampolines.
+ * stash_source stays C (file-global generic-bound scan); defined in the .inc.
+ * skip_one_impl trampoline lives in the .inc (file-static tables). */
+extern int32_t parser_asm_skip_one_struct_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_skip_one_enum_into_c(void *lex_inout, void *source);
+extern int32_t parser_asm_skip_one_extern_into_c(void *lex_inout, void *source);
+void xlang_generic_bound_stash_source_c(struct parser_asm_slice_u8 *source);
+
+void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  xlang_generic_bound_stash_source_c(source);
+  cur = lex;
+  (void)parser_asm_skip_one_struct_into_c(&cur, source);
+  *out = cur;
+}
+
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                           struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer out;
+  parser_asm_skip_one_struct_into_slice_c(&out, lex, source);
+  return out;
+}
+
+void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                          struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  xlang_generic_bound_stash_source_c(source);
+  cur = lex;
+  (void)parser_asm_skip_one_enum_into_c(&cur, source);
+  *out = cur;
+}
+
+void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  if (!out || !source)
+    return;
+  cur = lex;
+  (void)parser_asm_skip_one_extern_into_c(&cur, source);
+  *out = cur;
+}
+
+extern int32_t parser_asm_module_append_enum_variants_and_skip_body_into_c(void *lex_inout, void *source,
+                                                                          void *module, int32_t enum_idx,
+                                                                          uint8_t *var_buf);
+extern int32_t parser_asm_skip_one_enum_register_into_c(void *lex_inout, void *source, void *module,
+                                                       uint8_t *name_buf, uint8_t *var_buf);
+
+void parser_asm_module_append_enum_variants_and_skip_body_into_slice_c(
+    void *module, int32_t enum_idx, struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+    struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  uint8_t var_buf[128];
+  if (!out || !source)
+    return;
+  memset(var_buf, 0, sizeof(var_buf));
+  cur = lex;
+  (void)parser_asm_module_append_enum_variants_and_skip_body_into_c(&cur, source, module, enum_idx, var_buf);
+  *out = cur;
+}
+
+void parser_asm_skip_one_enum_register_into_slice_c(void *module, struct parser_asm_lexer *out,
+                                                    struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer cur;
+  uint8_t name_buf[128];
+  uint8_t var_buf[128];
+  if (!out || !source)
+    return;
+  memset(name_buf, 0, sizeof(name_buf));
+  memset(var_buf, 0, sizeof(var_buf));
+  cur = lex;
+  (void)parser_asm_skip_one_enum_register_into_c(&cur, source, module, name_buf, var_buf);
+  *out = cur;
+}
+
+/* P12f: pointer-ABI wrap of the by-value type_ref parse. .x cannot pass
+ * lexer by value; this copies *lex_inout in, writes *lex_inout out.
+ * type_ref walk stays C (P3). Unique name: file-local helpers that call
+ * extern C emit as non-static T. PLATFORM: SHARED. */
+int32_t parser_asm_skip_tl_parse_type_ref_into_c(void *arena, void *lex_inout, void *source) {
+  struct parser_asm_lexer cur;
+  struct parser_asm_lexer outl;
+  int32_t ty;
+  if (!lex_inout || !source)
+    return 0;
+  cur = *(struct parser_asm_lexer *)lex_inout;
+  memset(&outl, 0, sizeof(outl));
+  ty = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, cur, (struct parser_asm_slice_u8 *)source, &outl);
+  *(struct parser_asm_lexer *)lex_inout = outl;
+  return ty;
+}
+#endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
+
 #include "parser_asm_skip_tl_slice.inc"
+
+/* PLATFORM: SHARED — P12i TypeKind pins ≡ pthin_skip_tl.x TYPE_NAMED/PTR
+ * and XLANG_TRAIT_TY_* in this .inc. Fire if the skip_tl #define drifts. */
+_Static_assert(XLANG_TRAIT_TY_NAMED == 8, "skip_tl.x TYPE_NAMED pin");
+_Static_assert(XLANG_TRAIT_TY_PTR == 9, "skip_tl.x TYPE_PTR pin");
+
+/* PLATFORM: SHARED — P12g ent stack-image offsets (2026-09-13 RFC route α).
+ * The .x preset (g-1/g-2) writes xlang_skip_trait_reg_ent_t fields at these
+ * fixed offsets; this C layout is the single authority. Fire if the struct
+ * drifts. Method arrays are indexed [m] (stride below); param arrays are
+ * [m][p] with param-row stride 8 * elem. */
+_Static_assert(sizeof(xlang_skip_trait_reg_ent_t) == 46792, "P12g ent sizeof");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, name) == 0, "P12g name@0");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, name_len) == 64, "P12g name_len@64");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, methods) == 68, "P12g methods@68");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_lens) == 2116, "P12g method_lens@2116");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_has_default) == 2244, "P12g mhd@2244");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_fn_pos) == 2372, "P12g fn_pos@2372");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_fn_line) == 2500, "P12g fn_line@2500");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_fn_col) == 2628, "P12g fn_col@2628");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_kinds) == 2756, "P12g ret_kinds@2756");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_names) == 2884, "P12g ret_names@2884");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_name_lens) == 4932, "P12g ret_name_lens@4932");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_kinds) == 5060, "P12g ret_elem_kinds@5060");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_array_sizes) == 5188, "P12g ret_arr_sz@5188");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_array_ndims) == 5316, "P12g ret_arr_nd@5316");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_array_dims) == 5444, "P12g ret_dims@5444");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_array_ndims) == 6468, "P12g ret_eand@6468");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_array_dims) == 6596, "P12g ret_ead@6596");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_ret_elem_elem_kinds) == 7620, "P12g ret_eek@7620");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_counts) == 7748, "P12g pc@7748");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_kinds) == 7876, "P12g pk@7876");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_names) == 8900, "P12g pn@8900");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_name_lens) == 25284, "P12g pnl@25284");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_kinds) == 26308, "P12g pek@26308");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_array_ndims) == 27332, "P12g pand@27332");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_array_dims) == 28356, "P12g pad@28356");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_array_ndims) == 36548, "P12g peand@36548");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_array_dims) == 37572, "P12g pead@37572");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, method_param_elem_elem_kinds) == 45764, "P12g peek@45764");
+_Static_assert(offsetof(xlang_skip_trait_reg_ent_t, num_methods) == 46788, "P12g num_methods@46788");
 
 int labi_pthin_skip_tl_slice_marker(void) {
   return 1;

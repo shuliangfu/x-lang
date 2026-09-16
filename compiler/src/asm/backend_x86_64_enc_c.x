@@ -107,20 +107,10 @@ export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_l
   if (elf_ctx == 0) { return 0 - 1; }
   if (label == 0) { return 0 - 1; }
   if (label_len <= 0) { return 0 - 1; }
-  let b0: u8 = 15; // 0x0F
-  let b1: u8 = opcode2;
-  let z: u8 = 0;
-  // Block 1: append only. Must complete before any emit_code_len()-4 let.
+  let b: u8[6] = [15, 0, 0, 0, 0, 0];
+  b[1] = opcode2;
   unsafe {
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
-  }
-  // Block 2: rel32_at after appends (hoist stays inside this block only).
-  unsafe {
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 6) != 0) { return 0 - 1; }
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) { return 0 - 1; }
     return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
@@ -448,43 +438,51 @@ export function arch_x86_64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `and_rbx_rax` (2 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit `andq %rbx, %rax` (REX.W 48 21 D8).
+ * Prior 2-byte `andl %ebx, %eax` (21 D8) zero-extended EAX and wiped
+ * the high 32 bits, truncating usize/ptr bitwise AND.
+ * i32 AND of zero-extended operands is unchanged in the low 32.
+ * Twin of ARM64 ELF `and x0, x0, x1` (64-bit).
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64 — SysV encode path.
+ * @param elf_ctx *u8 — opaque ElfCodegenCtx*; null → -1
+ * @return i32 — 0 success, -1 null/overflow
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [33, 216];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  let ins: u8[3] = [72, 33, 216];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `or_rbx_rax` (2 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit `orq %rbx, %rax` (REX.W 48 09 D8).
+ * Prior 2-byte `orl %ebx, %eax` (09 D8) zero-extended EAX after each OR,
+ * so `g02f_load_ptr_at` usize `| (byte << n)` kept only the low 32 bits
+ * (Ubuntu ELF: module 0x7ffff7ef9950 → 0xf7ef9950 SIGSEGV in
+ * glue_module_func_index_by_name). SHL of usize was already 64-bit.
+ * i32 OR of zero-extended operands is unchanged in the low 32.
+ * Twin of ARM64 ELF `orr x0, x0, x1` (64-bit).
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64 — SysV encode path.
+ * @param elf_ctx *u8 — opaque ElfCodegenCtx*; null → -1
+ * @return i32 — 0 success, -1 null/overflow
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [9, 216];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  let ins: u8[3] = [72, 9, 216];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
-/** Emit fixed x86_64 insn `xor_rbx_rax` (2 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit `xorq %rbx, %rax` (REX.W 48 31 D8).
+ * Same REX.W as AND/OR: 32-bit `xorl` wiped high 32 of usize/ptr XOR.
+ * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64 — SysV encode path.
+ * @param elf_ctx *u8 — opaque ElfCodegenCtx*; null → -1
+ * @return i32 — 0 success, -1 null/overflow
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [49, 216];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  let ins: u8[3] = [72, 49, 216];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
 /** Emit fixed x86_64 insn `mov_rax_to_rbx` (3 bytes).
@@ -1167,12 +1165,13 @@ export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32
     if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) { return 0 - 1; }
     if (is_func == 0) { return 0; }
     // Mach-O: export with leading underscore when host requests it.
-    // wave580 Cap: mn u8[128] holds '_' + up to 127 content (was 63).
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127 && name[0] != 95) {
-      let mn: u8[128] = [0];
+    // Cap 4.2.8: mn u8[256] holds '_' + up to 255 content (was wave580 [128]/127).
+    // PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name.
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
+      let mn: u8[256] = [0];
       mn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 127) {
+      while (k < name_len && k < 255) {
         mn[k + 1] = name[k];
         k = k + 1;
       }
@@ -1185,8 +1184,10 @@ export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32
   return 0 - 1;
 }
 
-/** cmp + setcc + movzbl %al,%eax for condition code cc (0..5).
- * Cap residual pure R2 wave2. PLATFORM: SHARED — x86_64 SysV encode.
+/** cmp + setcc + movzbl %al,%eax for condition code cc (0..9).
+ * 0..5 signed sete/setne/setl/setle/setg/setge; 6..9 unsigned
+ * setb/setbe/seta/setae. Cap residual pure R2 wave2.
+ * PLATFORM: SHARED — x86_64 SysV encode.
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 {
@@ -1197,11 +1198,419 @@ export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32
   else if (cc == 3) { op = 158; }
   else if (cc == 4) { op = 159; }
   else if (cc == 5) { op = 157; }
+  else if (cc == 6) { op = 146; }
+  else if (cc == 7) { op = 150; }
+  else if (cc == 8) { op = 151; }
+  else if (cc == 9) { op = 147; }
   let s: u8[3] = [15, 0, 192];
   s[1] = op;
   if (x86_enc_bytes(elf_ctx, s, 3) != 0) { return 0 - 1; }
   let m: u8[3] = [15, 182, 192];
   return x86_enc_bytes(elf_ctx, m, 3);
+}
+
+/**
+ * syscall instruction (0F 05) — stage 10 S3.1 slice 2 (10.1.1) raw syscall
+ * builtin ELF lowering. Linux x86_64 kernel ABI: nr in rax, args in
+ * rdi/rsi/rdx/r10/r8/r9, return rax; rcx/r11 clobbered by the instruction.
+ * Consumed by try_emit_raw_syscall_call_elf_c (backend_call_dispatch.x).
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 5);
+}
+
+/**
+ * `movl (%rcx), %eax` (8B 01) — load *expected after expected_ptr lives in rcx.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %edx, (%rbx)` (F0 0F B1 13) — CAS with ptr in rbx so eax keeps
+ * expected (eax is the low half of rax; ptr must not share rax).
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 19);
+}
+
+/**
+ * `movl (%rax), %eax` (8B 00) — 10.4.1 atomic_load_i32 asm lowering.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 0);
+}
+
+/**
+ * `xchg %edx, (%rax)` (87 10) — 10.4.1 atomic_store_i32 asm lowering.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 135) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `mov %rax, %rcx` (48 89 C1) — scratch for atomic_cas expected-ptr update.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 193);
+}
+
+/**
+ * `movl %eax, (%rcx)` (89 01) — write old CAS value to *expected.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %edx, (%rax)` (F0 0F B1 10) — 10.4.1 atomic_cas_i32.
+ * Pre: eax=expected, edx=desired, rax=ptr. Post: eax=old; ZF=success.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `sete %al` (0F 94 C0) — CAS success flag.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sete_al(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 148) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 192);
+}
+
+/**
+ * `movzbl %al, %eax` (0F B6 C0) — zero-extend sete result.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 182) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 192);
+}
+
+/**
+ * `mov %eax, %edx` (89 C2) — copy i32 desired/val into edx for xchg/cmpxchg.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/**
+ * `movq (%rax), %rax` (48 8B 00) — 10.4.1 slice2 atomic_load_i64.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 0);
+}
+
+/**
+ * `xchg %rdx, (%rax)` (48 87 10) — 10.4.1 slice2 atomic_store_i64.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 135) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `mov %rax, %rdx` (48 89 C2) — i64 desired/val into rdx for xchg/cmpxchg.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/**
+ * `movq (%rcx), %rax` (48 8B 01) — load *expected (i64) with ptr parked in rbx.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 139) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `movq %rax, (%rcx)` (48 89 01) — write old CAS i64 value to *expected.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %rdx, (%rbx)` (F0 48 0F B1 13) — 10.4.1 slice2 atomic_cas_i64.
+ * Pre: rax=expected, rdx=desired, rbx=ptr. Post: rax=old; ZF=success.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 19);
+}
+
+/**
+ * `mfence` (0F AE F0) — 10.4.2 atomic_fence_seq_cst.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mfence(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 174) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 240);
+}
+
+/**
+ * `lfence` (0F AE E8) — 10.4.2 atomic_fence_acquire.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lfence(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 174) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 232);
+}
+
+/**
+ * `sfence` (0F AE F8) — 10.4.2 atomic_fence_release.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sfence(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 174) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 248);
+}
+
+/**
+ * `movzwl (%rax), %eax` (0F B7 00) — 10.4.1 slice3 atomic_load_i16.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzwl_mem_rax_to_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 183) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 0);
+}
+
+/**
+ * `xchg %dx, (%rax)` (66 87 10) — 10.4.1 slice3 atomic_store_i16.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_dx_mem_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 102) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 135) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 16);
+}
+
+/**
+ * `mov %ax, %dx` (66 89 C2) — i16 desired/val into dx.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_ax_to_dx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 102) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/**
+ * `movzwl (%rcx), %eax` (0F B7 01) — load *expected i16 with ptr in rbx.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 183) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `movw %ax, (%rcx)` (66 89 01) — write old CAS i16 to *expected.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movw_ax_to_mem_rcx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 102) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 1);
+}
+
+/**
+ * `lock cmpxchg %dx, (%rbx)` (F0 66 0F B1 13) — 10.4.1 slice3 atomic_cas_i16.
+ * Pre: ax=expected, dx=desired, rbx=ptr. Post: ax=old; ZF=success.
+ * PLATFORM: SHARED emit · x86_64 runtime.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 240) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 102) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 15) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 177) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 19);
+}
+
+/**
+ * mov %rax, %r10 (49 89 C2) — stage 10 S3.1 slice 2 (10.1.1): syscall arg4
+ * home. r10 has no slot in the C-ABI mov_rax_to_arg_reg k table, so this raw
+ * form is the single r10 path (G.7; do not fork a second register map).
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 73) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 194);
+}
+
+/**
+ * mov %r10, %rax (4C 89 D0) — reverse of enc_mov_rax_to_r10.
+ * Stage10 10.2.1 slice7: lateout/out("r10") → rax before store.
+ * G.7: same r10 family as syscall arg4; do not invent a second map.
+ * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 76) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 208);
+}
+
+/**
+ * mov %rax, %r11 (49 89 C3).
+ * Stage10 10.2.3: Windows x64 / SysV volatile scratch r11 in-reg operand.
+ * @param elf_ctx *u8 Pointer to ElfCodegenCtx.
+ * @return i32 0 on success, -1 on null ctx or write failure.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_r11(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 73) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 195);
+}
+
+/**
+ * mov %r11, %rax (4C 89 D8).
+ * Stage10 10.2.3: Windows x64 / SysV volatile scratch r11 lateout/out operand.
+ * @param elf_ctx *u8 Pointer to ElfCodegenCtx.
+ * @return i32 0 on success, -1 on null ctx or write failure.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_r11_to_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 76) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 137) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 216);
+}
+
+/**
+ * pause instruction (F3 90).
+ * Stage10 10.2.3: Windows / x86 spinloop pause hint.
+ * @param elf_ctx *u8 Pointer to ElfCodegenCtx.
+ * @return i32 0 on success, -1 on null ctx or write failure.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_pause(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 243) != 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 144);
+}
+
+/**
+ * int3 instruction (CC).
+ * Stage10 10.2.3: Windows __debugbreak / breakpoint trap.
+ * @param elf_ctx *u8 Pointer to ElfCodegenCtx.
+ * @return i32 0 on success, -1 on null ctx or write failure.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_int3(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_u8(elf_ctx, 204);
 }
 
 /** mov imm32 to ebx (B8+reg form). Cap residual pure R2 wave2. PLATFORM: SHARED */
@@ -1546,11 +1955,12 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
     let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
     // PLATFORM: MACOS|DARWIN — always prepend '_' for C call names (even if the
     // C name itself starts with '_', e.g. __error → ___error). Stage 12.0.5.
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 127) {
-      let rn: u8[128] = [0];
+    // Cap 4.2.8: rn[256] holds '_' + up to 255 content (was [128]/127).
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 255) {
+      let rn: u8[256] = [0];
       rn[0] = 95;
       let k: i32 = 0;
-      while (k < name_len && k < 127) {
+      while (k < name_len && k < 255) {
         rn[k + 1] = name[k];
         k = k + 1;
       }

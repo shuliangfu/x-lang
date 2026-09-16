@@ -44,7 +44,7 @@
 tier-u	MyApi	stdlib	One-line rationale your-handle	2026-06-17
 ```
 
-3. 若新模式 → 更新 `analysis/lang-unsafe-v1-rfc.md`  
+3. 若新模式 → 更新 `analysis/archive/lang/lang-unsafe-v1-rfc.md`  
 4. 跑 `./tests/run-safe-unsafe-audit-gate.sh`（含 SAFE-002）
 
 **PR 检查项（复制到描述）**：
@@ -92,9 +92,13 @@ tier-u	MyApi	stdlib	One-line rationale your-handle	2026-06-17
 
 | 资源 | 路径 |
 |------|------|
-| 清单 RFC | `analysis/safe-unsafe-api-v1.md` |
+| 清单 RFC | `analysis/archive/safe/safe-unsafe-api-v1.md` |
 | 审计 ledger | `tests/baseline/safe-unsafe-audit.tsv` |
 | 门禁 | `tests/run-safe-unsafe-audit-gate.sh` |
 | 新增模板 | `tests/templates/safe-unsafe-audit-entry.txt` |
 
 **SAFE-003 状态：定版 ✅**
+
+## Gate
+
+**2026-08-29 leftover dual-authority DOC 已收**（SAFE-003：顶层 `analysis/safe-unsafe-audit-v1.md`／`analysis/safe-unsafe-api-v1.md` 与 archive 双份退役；live = `analysis/archive/safe/`；顶层复活硬 die；nested SAFE-002 leftover accept top-level 同收；ledger coverage＋SAFE-002 inventory 仍硬；报告 `run=`／`obs=`／`skip=`）。

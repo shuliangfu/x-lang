@@ -89,4 +89,18 @@ tool-debug-symbols report sym=main stripped=no o0=OK capture=skip|OK
 | 库 | `tests/lib/tool-debug-symbols.sh` |
 | 门禁 | `tests/run-tool-debug-symbols-gate.sh` |
 
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm`; refuse soft SKIP→OK /
+soft prefer-xlang-c; explicit bad XLANG = hard die; missing native = hard die;
+DOC=archive; report `run=`／`hooks=`／`skip=`.
+
+`tests/run-tool-debug-symbols-gate.sh`:
+
+1. Archive DOC + manifest + strip／backtrace／lsp live 源（拒 monofile resurrect）
+2. Manifest rules／cases 硬绿
+3. Native xlang：debug-symbols + backtrace hooks 硬跑（`-O 0`）；缺 native／显式坏 XLANG 硬 die
+
+---
+
 **TOOL-005 状态：定版 ✅**

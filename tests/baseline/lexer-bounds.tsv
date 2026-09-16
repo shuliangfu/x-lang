@@ -1,5 +1,8 @@
 # P1-3 Lexer 有界输入 manifest
 # 列：item_id	kind	anchor	src	notes
+# leftover residual (2026-08-29): dual-authority top-level
+# analysis/安全与性能.md retired; live = analysis/archive/narrative/.
+# TSV identity kept.
 bound_ident	case	long_ident_8192	generated	8192-byte ident check
 bound_num	case	long_decimal_i64	generated	400-digit i64 literal
 lexer_glue	file	str_buf[512]	compiler/seeds/runtime_lexer_glue.from_x.c	STRING decode bound (lexer.c deleted)

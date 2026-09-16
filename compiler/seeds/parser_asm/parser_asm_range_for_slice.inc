@@ -43,7 +43,7 @@ static int32_t parser_asm_alloc_var_from_slice_c(void *arena, struct parser_asm_
   int32_t ni;
   if (!arena || !source || name_len <= 0)
     return 0;
-  if (name_len > 127)
+  if (name_len > 255)
     name_len = 127;
   ref = ast_ast_arena_expr_alloc(arena);
   if (ref == 0)
@@ -151,10 +151,10 @@ static int32_t parser_asm_try_range_for_core_c(void *arena, struct parser_asm_le
     return 0; /* not range-for */
 
   nlen = r_ident.tok.ident_len;
-  if (nlen > 127)
+  if (nlen > 255)
     nlen = 127;
   nstart = r_ident.token_start;
-  memset(name_buf, 0, 128);
+  memset(name_buf, 0, 256);
   for (ni = 0; ni < nlen && nstart + (size_t)ni < source->length; ni++)
     name_buf[ni] = source->data[nstart + ni];
   *out_name_len = nlen;
@@ -251,7 +251,7 @@ int32_t parser_asm_try_parse_range_for_block_c(void *arena, int32_t block_ref,
                                                struct parser_asm_slice_u8 *source, int32_t type_ref,
                                                struct parser_asm_lexer *out_lex, int32_t *out_for_idx) {
   int32_t lo, hi, body, cond, step, i32ty, let_idx, for_idx, nlen;
-  uint8_t name[128];
+  uint8_t name[256];
   struct parser_asm_lexer lex_end;
   size_t nstart;
   int32_t tr;
@@ -290,7 +290,7 @@ int32_t parser_asm_try_parse_range_for_onefunc_c(void *arena, uint8_t *onefunc_o
                                                  struct parser_asm_slice_u8 *source, int32_t ret_type_ref,
                                                  struct parser_asm_lexer *out_lex, int32_t *out_for_idx) {
   int32_t lo, hi, body, cond, step, i32ty, let_idx, for_idx, nlen, n_before;
-  uint8_t name[128];
+  uint8_t name[256];
   struct parser_asm_lexer lex_end;
   size_t nstart;
   int32_t tr;

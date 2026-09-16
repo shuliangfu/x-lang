@@ -24,8 +24,9 @@ if [ -z "${XLANG_BSTRICT_TIMING_FILE:-}" ]; then
 fi
 : >"${XLANG_BSTRICT_TIMING_FILE}"
 # Parallelism: default 1 (serial; product gold path). Opt-in XLANG_BSTRICT_JOBS=N.
-# PLATFORM: SHARED — parallel is opt-in; Darwin concurrent xlang_asm risks OOM
-# (Killed:9); Ubuntu has more headroom. Cap at 8. Fail-fast still holds.
+# PLATFORM: SHARED — parallel is opt-in. Darwin L4 (product_l4_true_cold.sh)
+# defaults JOBS=1 on this 64GB box (JOBS=8 / 4 / 2 all hit Killed:9 here).
+# Ubuntu gold stays 1. Cap at 8.
 _BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}"
 case "$_BSTRICT_JOBS" in
   ''|*[!0-9]*) _BSTRICT_JOBS=1 ;;
@@ -308,6 +309,10 @@ BSTRICT_SCRIPTS=(
   run-core-types.sh
   run-builtin.sh
   run-trait.sh
+  # LANG-005: associated-call owner binding + bound_method quartet regression.
+  run-lang-assoc-owner.sh
+  # primary-campaign regression (suffix ladder + ident/int heads).
+  run-primary-heads.sh
   run-generic.sh
   run-encoding.sh
   run-base64.sh
@@ -402,26 +407,41 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     _w3_stat_skip=$((_w3_stat_skip + 1))
     continue
   fi
+  # check 闸门 2026-08-05 起暂停（AGENTS.md 验证节奏）：opt-in 跳过该族脚本。
+  # 默认仍跑（保留既有语义）。XLANG_BSTRICT_SKIP_SUSPENDED_CHECK 取值：
+  #   1                        → 跳 run-check.sh（暂停闸门；fmt FMT001 收集债同域红）
+  #   冒号分隔脚本名列表        → 精确跳这些脚本（如已立卡的 run-fmt-cmd.sh 债）
+  # 用途：暂停/立卡既有红不得在产品 fail-fast 白名单里拦截整段；其余脚本仍硬门。
+  if [ -n "${XLANG_BSTRICT_SKIP_SUSPENDED_CHECK:-}" ]; then
+    _bstrict_skip_list="${XLANG_BSTRICT_SKIP_SUSPENDED_CHECK}"
+    [ "${_bstrict_skip_list}" = "1" ] && _bstrict_skip_list="run-check.sh"
+    case ":${_bstrict_skip_list}:" in
+      *":${script}:"*)
+        echo "run-all-bstrict: skip $script (opt-in XLANG_BSTRICT_SKIP_SUSPENDED_CHECK list)"
+        _w3_stat_skip=$((_w3_stat_skip + 1))
+        continue
+        ;;
+    esac
+  fi
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
-  # Darwin：连续 xlang_asm check 易 OOM(Killed:9)；run-check 已跑 types gate 后须冷却再跑 run-types-gate。
-  # Heavy -o linkers (run-ub/run-io/run-crypto/run-vector/run-thread/run-net/run-json)
-  # peak ~75MB RSS per xlang_asm invocation; transient macOS memory pressure triggers
-  # OOM killer (Killed:9). Default heavy cooldown 15s (tunable XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN).
-  # Light inter-script default was 1s (~2min pure sleep on ~120 scripts); default 0 now
-  # (2026-08-12 wall opt). Keep heavy + types cooldowns. Parallel JOBS>1 skips sleeps
-  # (workers already paced by concurrency). Override: XLANG_BSTRICT_DARWIN_COOLDOWN=1.
+  # Darwin：连续 xlang_asm check 曾 OOM(Killed:9)。Heavy -o linkers
+  # (run-ub/run-io/run-crypto/run-vector/run-thread/run-net/run-json) peak
+  # ~75MB RSS per xlang_asm. 2026-09-02: 64GB M5 Max defaults heavy/types
+  # cooldown to 0 (was 15s/5s ≈ 2 min pure sleep). Override via
+  # XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN / TYPES_COOLDOWN if a smaller box
+  # OOMs. Light inter-script default 0 (2026-08-12). JOBS>1 skips sleeps.
   if [ "${_BSTRICT_JOBS:-1}" -le 1 ]; then
     case "$(uname -s)" in
       Darwin)
-        # PLATFORM: MACOS|DARWIN — continuous xlang_asm -o peaks ~75MB RSS; under memory
-        # pressure the OOM killer returns Killed:9. Heavy scripts need longer reclaim
-        # windows. run-json was missing from the list (2026-07-21 L4: 3x Killed:9 →
-        # product-chain exit 1, ~30 scripts unrun). Default heavy cooldown 15s (was 8).
+        # PLATFORM: MACOS|DARWIN — continuous xlang_asm -o peaks ~75MB RSS; under
+        # memory pressure the OOM killer returns Killed:9. run-json was missing
+        # from the list (2026-07-21 L4: 3x Killed:9). Default heavy/types
+        # cooldown 0 on 64GB (2026-09-02); set HEAVY=15 TYPES=5 to restore.
         case "$script" in
-          run-types-gate.sh) sleep "${XLANG_BSTRICT_DARWIN_TYPES_COOLDOWN:-5}" ;;
+          run-types-gate.sh) sleep "${XLANG_BSTRICT_DARWIN_TYPES_COOLDOWN:-0}" ;;
           run-ub.sh|run-io.sh|run-crypto.sh|run-vector.sh|run-thread.sh|run-net.sh|run-json.sh)
-            sleep "${XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN:-15}" ;;
+            sleep "${XLANG_BSTRICT_DARWIN_HEAVY_COOLDOWN:-0}" ;;
           *) sleep "${XLANG_BSTRICT_DARWIN_COOLDOWN:-0}" ;;
         esac
         ;;
@@ -630,7 +650,8 @@ done
 # ---------------------------------------------------------------------------
 # Parallel product pool (XLANG_BSTRICT_JOBS>1). Bash 3.2 portable (no wait -n).
 # PLATFORM: SHARED — default JOBS=1; Ubuntu opt-in JOBS=2..4 typical;
-# Darwin JOBS>1 risks OOM (Killed:9). Each worker: timeout + 3 retries.
+# Darwin L4 defaults JOBS=1 (product_l4_true_cold.sh); JOBS=8 / 4 / 2
+# OOMed this box (Killed:9). Each worker: timeout + 3 retries.
 # ---------------------------------------------------------------------------
 if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ] \
    && [ -s "${_BSTRICT_JOB_QUEUE:-}" ]; then
@@ -638,7 +659,7 @@ if [ "${_BSTRICT_JOBS:-1}" -gt 1 ] && [ -z "${XLANG_W3_BSTRICT_BEST_EFFORT:-}" ]
   echo "run-all-bstrict: parallel pool JOBS=${_BSTRICT_JOBS} queue=${_bstrict_njobs} scripts"
   case "$(uname -s)" in
     Darwin)
-      echo "run-all-bstrict: WARN Darwin JOBS>1 may OOM (Killed:9); prefer JOBS=1 or 2" >&2
+      echo "run-all-bstrict: WARN Darwin JOBS>1 may OOM (Killed:9); 64GB box default JOBS=1" >&2
       ;;
   esac
   _BSTRICT_FAIL_FLAG="/tmp/xlang_bstrict_fail_$$.flag"

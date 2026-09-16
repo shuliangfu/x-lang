@@ -2,10 +2,13 @@
 # STD-143：std.test 可执行 bench/fuzz 门禁
 #
 # 用法：./tests/run-std-test-executable-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="analysis/std-test-executable-v1.md"
+DOC="analysis/archive/std/std-test-executable-v1.md"
 MANIFEST="tests/baseline/std-test-executable-manifest.tsv"
 MOD_X="std/test/mod.x"
 TEST_X="std/test/test.x"

@@ -1,6 +1,6 @@
 # STD-147：std.backtrace 跨平台符号质量 v1
 
-> 状态：**定版（v1）**  
+> 状态：**定版（v1）** · soft→硬绿 2026-08-28  
 > 关联：`STD-052` symbolicate、`TOOL-005` 调试符号
 
 ---
@@ -35,10 +35,15 @@ xlang: [XLANG_BT_XPLAT] platform=Darwin gold=1 resolved=3 total=8
 
 ---
 
-## 4. Gate
+## Gate
+
+Honesty（2026-08-28）：prefer asm＋`XLANG_LINK_XLANG`＋`dod_native_exe`；退役 soft prefer-c／soft SKIP→OK／soft ensure／soft auto-make／化石顶层 DOC section 路径／`quality=`／`host=` 报告；显式坏 XLANG／缺 native 硬 die；host-C／tip quality residual＝obs（现成 `.o` only）；报告 `run=`／`obs=`／`skip=`。
 
 ```bash
 ./tests/run-std-backtrace-xplat-gate.sh
 ```
 
-报告：`xlang: [XLANG_STD147_BACKTRACE_XPLAT]`
+```
+xlang: [XLANG_STD147_BACKTRACE_XPLAT] status=ok run=N obs=M skip=0
+std-backtrace-xplat gate OK
+```

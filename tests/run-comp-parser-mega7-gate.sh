@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
 # COMP-001：parser mega 7 深循环改造 manifest 门禁
 #
+# wave309 honesty: DOC archived under analysis/archive/{comp,boot}/.
+# PLATFORM: SHARED archaeology.
+#
 # 1) comp-parser-mega7-v1.md + matrix + boot-mega7-gap + parser-mega-bisect.tsv
 # 2) mega7 函数存在于 parser.x；matrix 行数下限
 # 3) capability slice 文件存在（status=done）
 # 4) hook：symbol-integrity（Linux）；mega bisect baseline 7 行
 #
 # 用法：./tests/run-comp-parser-mega7-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
+DOC="${XLANG_COMP_PARSER_MEGA7_DOC:-analysis/archive/comp/comp-parser-mega7-v1.md}"
+GAP_DOC="${XLANG_BOOT_MEGA7_GAP_DOC:-analysis/archive/boot/boot-mega7-gap.md}"
 MATRIX="${XLANG_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
 MEGA_BISECT="${XLANG_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
 PARSER_X="compiler/src/parser/parser.x"
@@ -25,8 +33,8 @@ MEGA7_FUNCS="parse_into_buf parse_into parse parse_one_function_impl parse_expr_
 
 echo "=== COMP-001: parser mega7 manifest ==="
 for f in \
-  analysis/comp-parser-mega7-v1.md \
-  analysis/boot-mega7-gap.md \
+  "$DOC" \
+  "$GAP_DOC" \
   "$MATRIX" \
   "$MEGA_BISECT" \
   "$PARSER_X"; do

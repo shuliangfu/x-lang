@@ -9,19 +9,20 @@
 | 实现 | `http.c`（~1000 行 + inc） | `http.x` + `http_glue.c` |
 | `http.o` | `cc -c` | `ld -r` 合并 |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_HTTP_V1_FAIL` retired. Delegates STD-009 http + chunked + methods + https hard. Observational residuals: server-pool / reqresp / h2 / context (listed skip).
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-http-v1：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-http／std-http-chunked／std-http-methods／std-http-https／observational server-pool／reqresp／h2／context 不重写）。
 
 ```bash
-XLANG_F_HTTP_V1_FAIL=1 ./tests/run-f-http-v1-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-http-v1-gate.sh
 ./tests/run-std-http-gate.sh
 ./tests/run-std-http-chunked-gate.sh
 ./tests/run-std-http-methods-gate.sh
-./tests/run-std-http-server-pool-gate.sh
-./tests/run-std-http-reqresp-gate.sh
 ./tests/run-std-http-https-gate.sh
-./tests/run-std-http-h2-gate.sh
-./tests/run-std-http-context-gate.sh
 ```
+
 
 ## 下一项
 

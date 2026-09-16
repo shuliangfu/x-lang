@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# std-ffi-cstring-lifecycle.sh — STD-055 manifest 与烟测辅助
+# std-ffi-cstring-lifecycle.sh — STD-055 manifest helpers (ffi CString lifecycle).
+#
+# Usage (after source):
+#   std_ffi_cstring_symbols_ok MOD_X FFI_X FFI_GLUE TSV
+#   std_ffi_cstring_run_c_smoke FFI_IMPL   # existing .o only; no soft rebuild
+#   std_ffi_cstring_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/host-C = obs; product -o + SAFE-004 folded into run).
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_FFI_CSTRING_PREFIX="${XLANG_STD_FFI_CSTRING_PREFIX:-xlang: [XLANG_STD_FFI_CSTRING]}"
 
+# Validate manifest api/const/symbol/file/smoke/cross_ref anchors.
+# Echo miss count; return 0 when miss=0.
 std_ffi_cstring_symbols_ok() {
   local mod_x="$1"
   local ffi_x="$2"
@@ -55,29 +64,9 @@ std_ffi_cstring_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_ffi_cstring_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-smoke}"
-  local exe="/tmp/xlang_std_ffi_cstr_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-ffi-cstring FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-ffi-cstring FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Host-C archaeology: cstring_lifecycle_ok.c + existing ffi.o.
+# Refuse soft ensure_std_c_o / soft auto-make of missing .o (obs path only).
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
 std_ffi_cstring_run_c_smoke() {
   local ffi_impl="$1"
   local src="tests/std-ffi/cstring_lifecycle_ok.c"
@@ -85,11 +74,9 @@ std_ffi_cstring_run_c_smoke() {
   local ffi_o
   ffi_o="$(dirname "$ffi_impl")/ffi.o"
   if [ ! -f "$ffi_o" ]; then
-    echo "std-ffi-cstring FAIL: missing $ffi_o" >&2
     return 1
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$ffi_o" 2>/dev/null; then
-    echo "std-ffi-cstring FAIL: compile $src" >&2
     return 1
   fi
   set +e
@@ -97,18 +84,16 @@ std_ffi_cstring_run_c_smoke() {
   local ec=$?
   set -e
   rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-ffi-cstring FAIL: c smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
+  [ "$ec" -eq 0 ]
 }
 
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signals are product -o + SAFE-004 (both folded into run=);
+# check/host-C = obs. Legacy safe004= column retired into run=.
 std_ffi_cstring_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
-  local safe_ok="$4"
-  local skip="$5"
-  echo "${STD_FFI_CSTRING_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} safe004=${safe_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_FFI_CSTRING_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

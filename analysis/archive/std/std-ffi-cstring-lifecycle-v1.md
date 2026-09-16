@@ -1,8 +1,7 @@
 # STD-055：std.ffi CString 生命周期与错误码 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
-> 关联：**TYPE-004**（`*u8` 桥接）、**SAFE-004**（C1–C7 契约）
+> 状态：**定版（v1）** · soft→硬绿 honesty（2026-08-25）  
+> 关联：**TYPE-004**（`*u8` 桥接）、**SAFE-004**（C1–C7 契约）；live roadmap = `analysis/自举进度.md`（勿复活顶层 NEXT.md）
 
 ---
 
@@ -55,19 +54,29 @@ cstring_destroy(p);
 | C3/C4 | `cstring_try_new` + `FFI_OK` |
 | C5/C6 | `cstring_destroy` |
 
-回归：`tests/run-safe-ffi-contract-gate.sh` 仍须通过。
+回归：`tests/run-safe-ffi-contract-gate.sh` 仍须通过（闸门硬失败）。
 
 ---
 
-## 5. 门禁
+## 5. Gate
 
-```bash
-./tests/run-std-ffi-cstring-lifecycle-gate.sh
-```
+Honesty（2026-08-25）：
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（禁 Darwin-arm64 asm→c 静默 remap）。
+- `xlang check` **观测**（自举期暂停闸门 2026-08-05）；CHK002 等不得硬红。
+- 产品烟测 `cstring_try_new.x` **exit 0 硬失败**（有原生 xlang 时禁止 soft SKIP）。
+- Host-C smoke **仅观测**（archaeology；非硬绿信号）。
+- SAFE-004 回归 **硬失败**。
+- 报告：`check=`／`run=`／`safe004=`／`skip=`（`run=1`＋`safe004=1` 为硬绿信号）。
 
 ```
-xlang: [XLANG_STD_FFI_CSTRING] status=ok c_smoke=1 x=1 safe004=1 skip=0
+xlang: [XLANG_STD_FFI_CSTRING] status=ok check=0|1 run=1 safe004=1 skip=0
+std-ffi-cstring gate OK
 ```
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-ffi.sh`（`xlang_compiler_make -q || xlang_compiler_make` + `ensure_std_c_o ffi.o` + prefer-c `xlang-c` first + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/ffi/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [FFI]`。Keep `## 5. Gate`。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-ffi-cstring-lifecycle-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `cstring_try_new.x`＋SAFE-004 hard；check／host-C＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
 
 ---
 
@@ -76,3 +85,5 @@ xlang: [XLANG_STD_FFI_CSTRING] status=ok c_smoke=1 x=1 safe004=1 skip=0
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1 | 2026-06-17 | FFI_ERR_* + cstring_try_new + cstring_destroy |
+| v1.1 | 2026-08-25 | soft→硬绿 honesty：prefer asm／check 观测／runnable+SAFE-004 硬失败 |
+| v1.2 | 2026-08-29 | leftover unused compiler-make.sh retired from live gate |

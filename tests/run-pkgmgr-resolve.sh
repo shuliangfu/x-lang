@@ -1,49 +1,112 @@
 #!/usr/bin/env bash
-# TOOL-007：pkgmgr resolve + demo 编译烟测。
+# TOOL-007: pkgmgr resolve + demo compile smoke.
 #
-# 用法：./tests/run-pkgmgr-resolve.sh
-set -e
+# Honesty: soft default `./compiler/xlang` + soft auto-make + soft
+# SKIP compile→OK when no native (false authority) retired. Prefer
+# product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make /
+# prefer-c). Hard: deps resolve + product -o main.x exit 0.
+# Report: run=/obs=/skip=
+# Usage: ./tests/run-pkgmgr-resolve.sh
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
+
+PREFIX="${XLANG_PKGMGR_RESOLVE_PREFIX:-xlang: [PKGMGR_RESOLVE]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "pkgmgr-resolve FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  if [ -n "${XLANG_BSTRICT_USE_ASM2:-}" ] && dod_native_exe ./compiler/xlang_asm2; then
+    echo "$(pwd)/compiler/xlang_asm2"
+    return 0
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== pkgmgr-resolve gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
 
 MANIFEST=tests/fixtures/pkgmgr/xlang.pkg.tsv
 MAIN=tests/fixtures/pkgmgr/main.x
+[ -f "$MANIFEST" ] || die "missing $MANIFEST"
+[ -f "$MAIN" ] || die "missing $MAIN"
+[ -x scripts/xlang-deps-resolve.sh ] || chmod +x scripts/xlang-deps-resolve.sh
 
-chmod +x scripts/xlang-deps-resolve.sh
 ./scripts/xlang-deps-resolve.sh "$MANIFEST"
+echo "pkgmgr-resolve OK: deps resolve"
+RUN_OK=$((RUN_OK + 1))
 
-XLANG="${XLANG:-./compiler/xlang}"
-native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-if [ -n "$XLANG" ] && native_xlang "$XLANG"; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-  EXE="/tmp/xlang_pkgmgr_demo_$$"
-  if ! "$XLANG" build -L . "$MAIN" -o "$EXE" 2>&1; then
-    echo "run-pkgmgr-resolve FAIL: compile $MAIN" >&2
-    rm -f "$EXE"
-    exit 1
-  fi
-  ec=0
-  "$EXE" >/dev/null 2>&1 || ec=$?
-  rm -f "$EXE"
-  if [ "$ec" -ne 0 ]; then
-    echo "run-pkgmgr-resolve FAIL: expected exit 0, got $ec" >&2
-    exit 1
-  fi
-  echo "pkgmgr-resolve compile OK"
-else
-  echo "pkgmgr-resolve SKIP compile (no native xlang)" >&2
+EXE="/tmp/xlang_pkgmgr_demo_$$"
+LOG="/tmp/xlang_pkgmgr_demo_$$.log"
+rm -f "$EXE" "$LOG"
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" build -L . "$MAIN" -o "$EXE" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -eq 124 ]; then
+  die "product -o timeout"
+elif [ "$o_ec" -ne 0 ] || [ ! -x "$EXE" ]; then
+  die "product -o failed (ec=$o_ec); $(tail -5 "$LOG" 2>/dev/null | tr '\n' ' ')"
 fi
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$EXE" >/dev/null 2>&1
+r_ec=$?
+set -e
+rm -f "$EXE" "$LOG"
+if [ "$r_ec" -eq 124 ]; then
+  die "run timeout"
+elif [ "$r_ec" -ne 0 ]; then
+  die "expected exit 0, got $r_ec"
+fi
+echo "pkgmgr-resolve OK: compile+run exit=0"
+RUN_OK=$((RUN_OK + 1))
 
+ok_report
 echo "pkgmgr-resolve OK"

@@ -96,6 +96,7 @@ export extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: 
 export extern "C" function backend_fold_func_x_plus_k_chain(arena: *u8, mod: *u8, fi: i32, depth: i32): i32;
 export extern "C" function pipeline_asm_emit_expr_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, ta: i32): i32;
+export extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
 export extern "C" function backend_fold_func_returns_param0_single_field(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_fold_func_returns_param0_field_sum(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf: *u8, ta: i32): i32;
@@ -234,14 +235,15 @@ export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): 
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
   if (nlen <= 0) { return 0 - 1; }
-  if (nlen > 127) { return 0 - 1; }
+  if (nlen > 255) { return 0 - 1; }
   unsafe {
     let nfuncs: i32 = pipeline_module_num_funcs(mod);
     let fi: i32 = 0;
     while (fi < nfuncs) {
       let flen: i32 = pipeline_asm_module_func_name_len_at(mod, fi);
       if (flen == nlen) {
-        let fb: u8[128] = [];
+        /* Cap 4.2.8: func_name_copy64 memset(dst,0,256). */
+        let fb: u8[256] = [];
         pipeline_asm_module_func_name_copy64(mod, fi, &fb[0]);
         let k: i32 = 0;
         let ok: i32 = 1;
@@ -341,7 +343,7 @@ export function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_re
   if (mod == 0) { return 0; }
   unsafe {
     if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) { return 0; }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, ty_ref, &nm[0]);
     if (nlen <= 0) { return 0; }
     return glue_module_named_type_has_struct_layout(mod, &nm[0], nlen);
@@ -425,7 +427,7 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32,
       unsafe { vlen = pipeline_expr_var_name_len(arena, expr_ref); }
       if (vlen > 0) {
         if (vlen <= 63) {
-          let vname: u8[128] = [];
+          let vname: u8[256] = [];
           unsafe { pipeline_expr_var_name_into(arena, expr_ref, &vname[0]); }
           let scope_br: i32 = 0;
           unsafe { scope_br = asm_ctx_scope_block_ref_at(asm_ctx); }
@@ -509,8 +511,12 @@ export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i3
     let vlen: i32 = pipeline_expr_var_name_len(arena, er);
     if (plen <= 0) { return 0; }
     if (plen != vlen) { return 0; }
-    let pbuf: u8[128] = [];
-    let vbuf: u8[128] = [];
+    /* Cap 4.2.8 sync: copy32 zero-pads 256 bytes (seed twin is [256]);
+     * a [128] row here overflowed 128B into the saved rbp/rbx/retaddr —
+     * Ubuntu b5 `return { a: a, b: b }` SIGSEGV (2026-09-13 watchpoint
+     * proof: memcpy in pipeline_module_func_param_name_copy32). */
+    let pbuf: u8[256] = [];
+    let vbuf: u8[256] = [];
     pipeline_asm_module_func_param_name_copy32(mod, fi, pix, &pbuf[0]);
     pipeline_expr_var_name_into(arena, er, &vbuf[0]);
     let k: i32 = 0;
@@ -598,10 +604,13 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
 // module_ref@16，dep_pipe@1384；FIELD_ACCESS=44，VAR=3，METHOD_CALL=49
 /**
  * Resolve callee module + func index for a CALL or METHOD_CALL site.
- * METHOD must not use CALL resolved_func/dep slots: a stale dep_ix makes
- * pipeline_dep_ctx_module_at return a non-module pointer and
- * pipeline_module_func_body_ref_at SIGSEGV (Ubuntu increment().field).
- * METHOD path: same-module then dep scan by method name (UFCS / impl).
+ * METHOD prefers typeck apply_call_resolve stamp (same slots CALL uses).
+ * Name-first first-wins inlined Vec_i32.new (default_alloc, 32B) into
+ * Vec_u64/u16/f64 slots (16B). Dest-type pick already stamps the matching
+ * overload. Bounded dep: stale dep_ix used to SIGSEGV Ubuntu
+ * increment().field — consume only when 0<=dep_ix<ndep, module non-null,
+ * func_ix < nfuncs. dep_ix==-2 is dyn vtable: do not inline.
+ * Name scan remains fallback when unresolved.
  * @param caller_arena *u8 — caller AST arena; null → 0
  * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr; <=0 → 0
  * @param ctx *u8 — AsmFuncCtx (module_ref@16, dep_pipe@1384); null → 0
@@ -609,7 +618,7 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
  * @param out_cm *u8 — 8-byte slot for callee module pointer
  * @param out_fi *i32 — filled with func index; null → 0
  * @return i32 — 1 found, 0 miss
- * PLATFORM: SHARED — product PREFER full.x; seed _impl same METHOD name path.
+ * PLATFORM: SHARED — product PREFER full.x; seed _impl same METHOD stamp path.
  */
 #[no_mangle]
 export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
@@ -625,12 +634,47 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
     g02f_store_ptr_at(out_ca, 0, caller_arena);
     g02f_store_ptr_at(out_cm, 0, entry_mod);
     out_fi[0] = 0 - 1;
-    // METHOD_CALL=49: name lookup only (do not read CALL resolve slots).
+    // METHOD_CALL=49: prefer typeck stamp; name scan is fallback.
+    // PLATFORM: SHARED — dest-typed vec.new overloads; bounded dep vs stale SIGSEGV.
     if (pipeline_expr_kind_ord_at(caller_arena, call_ref) == 49) {
+      let mfunc: i32 = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
+      let mdep: i32 = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
+      if (mfunc >= 0) {
+        if (mdep == (0 - 2)) { return 0; }
+        if (mdep >= 0) {
+          let rpctx: *u8 = g02f_load_ptr_at(ctx, 1384);
+          if (rpctx == 0) {
+            rpctx = pipeline_asm_emit_dep_pipe_c();
+          }
+          if (rpctx != 0) {
+            let rnd: i32 = pipeline_dep_ctx_ndep(rpctx);
+            if (mdep < rnd) {
+              let rdm: *u8 = pipeline_dep_ctx_module_at(rpctx, mdep);
+              let rda: *u8 = pipeline_dep_ctx_arena_at(rpctx, mdep);
+              if (rdm != 0) {
+                if (mfunc < pipeline_module_num_funcs(rdm)) {
+                  out_fi[0] = mfunc;
+                  g02f_store_ptr_at(out_cm, 0, rdm);
+                  if (rda != 0) {
+                    g02f_store_ptr_at(out_ca, 0, rda);
+                  }
+                  return 1;
+                }
+              }
+            }
+          }
+          // stale / OOB dep: fall through to name scan
+        } else {
+          if (mfunc < pipeline_module_num_funcs(entry_mod)) {
+            out_fi[0] = mfunc;
+            return 1;
+          }
+        }
+      }
       let mlen: i32 = pipeline_expr_method_call_name_len(caller_arena, call_ref);
       if (mlen <= 0) { return 0; }
-      if (mlen > 127) { return 0; }
-      let mname: u8[128] = [];
+      if (mlen > 255) { return 0; }
+      let mname: u8[256] = [];
       pipeline_expr_method_call_name_into(caller_arena, call_ref, &mname[0]);
       let mfi: i32 = glue_module_func_index_by_name(entry_mod, &mname[0], mlen);
       if (mfi >= 0) {
@@ -690,7 +734,7 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
       let field_len: i32 = pipeline_expr_field_access_name_len(caller_arena, callee_ref);
       if (field_len > 0) {
         if (field_len <= 63) {
-          let field_name: u8[128] = [];
+          let field_name: u8[256] = [];
           pipeline_expr_field_access_name_into(caller_arena, callee_ref, &field_name[0]);
           let pctx2: *u8 = g02f_load_ptr_at(ctx, 1384);
           if (pctx2 == 0) {
@@ -723,8 +767,8 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
     if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) != 3) { return 0; }
     let clen: i32 = pipeline_expr_var_name_len(caller_arena, callee_ref);
     if (clen <= 0) { return 0; }
-    if (clen > 127) { return 0; }
-    let cname: u8[128] = [];
+    if (clen > 255) { return 0; }
+    let cname: u8[256] = [];
     pipeline_expr_var_name_into(caller_arena, callee_ref, &cname[0]);
     let fi3: i32 = glue_module_func_index_by_name(entry_mod, &cname[0], clen);
     if (fi3 >= 0) {
@@ -932,7 +976,7 @@ export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn
       if (slen == fnlen) {
         if (slen > 0) {
           if (slen <= 63) {
-            let sb: u8[128] = [];
+            let sb: u8[256] = [];
             pipeline_expr_struct_lit_field_name_into(arena, lit_ref, j, &sb[0]);
             let k: i32 = 0;
             let ok: i32 = 1;
@@ -994,8 +1038,8 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
     }
     let flen: i32 = pipeline_expr_field_access_name_len(arena, outer_field_ref);
     if (flen <= 0) { return 0; }
-    if (flen > 127) { return 0; }
-    let fname: u8[128] = [];
+    if (flen > 255) { return 0; }
+    let fname: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, outer_field_ref, &fname[0]);
     let fj: i32 = glue_struct_lit_field_index_by_name(callee_arena, lit_ref, &fname[0], flen);
     if (fj < 0) { return 0; }
@@ -1058,7 +1102,8 @@ export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8,
             if (fnlen == flen) {
               if (fnlen > 0) {
                 if (fnlen <= 63) {
-                  let fb: u8[128] = [];
+                  /* Cap 4.2.8: layout_field_name_into writes 256 bytes. */
+                  let fb: u8[256] = [];
                   pipeline_module_struct_layout_field_name_into(dm, k, j, &fb[0]);
                   let fi: i32 = 0;
                   let feq: i32 = 1;
@@ -1116,7 +1161,7 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
         let vlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (vlen > 0) {
           if (vlen <= 63) {
-            let vname: u8[128] = [];
+            let vname: u8[256] = [];
             pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
             base_ty = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
           }
@@ -1131,7 +1176,7 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
           if (fi < pipeline_module_num_funcs(mod)) {
             if (vlen > 0) {
               if (vlen <= 63) {
-                let vname: u8[128] = [];
+                let vname: u8[256] = [];
                 pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
                 let body_ref: i32 = pipeline_module_func_body_ref_at(mod, fi);
                 if (body_ref > 0) {
@@ -1145,8 +1190,8 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
     }
     let flen: i32 = pipeline_expr_field_access_name_len(arena, fa_ref);
     if (flen <= 0) { return 0 - 1; }
-    if (flen > 127) { return 0 - 1; }
-    let field_name: u8[128] = [];
+    if (flen > 255) { return 0 - 1; }
+    let field_name: u8[256] = [];
     pipeline_expr_field_access_name_into(arena, fa_ref, &field_name[0]);
     if (pctx != 0) {
       let off: i32 = glue_dep_module_field_offset_by_name(pctx, &field_name[0], flen);
@@ -1162,7 +1207,9 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
     }
     // TYPE_NAMED=8
     if (kind != 8) { return 0 - 1; }
-    let struct_name: u8[128] = [];
+    /* Cap 4.2.8: named type names are ≤255 bytes; [128] overflows for
+     * names 128..255 (same class as the pbuf fix above). */
+    let struct_name: u8[256] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, base_ty, &struct_name[0]);
     if (pctx != 0) {
       let off2: i32 = typeck_get_field_offset_from_layout_deps(mod, pctx, &struct_name[0], nlen, &field_name[0], flen);
@@ -1293,7 +1340,7 @@ export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): 
     let ko: i32 = pipeline_expr_kind_ord_at(arena, call_ref);
     // CALL=48 METHOD_CALL=49: same zero-extra default_alloc name match.
     if (ko != 48 && ko != 49) { return 0; }
-    let nm: u8[128] = [];
+    let nm: u8[256] = [];
     if (ko == 49) {
       if (pipeline_expr_method_call_num_args_at(arena, call_ref) != 0) { return 0; }
       let nlen: i32 = pipeline_expr_method_call_name_len(arena, call_ref);
@@ -1371,13 +1418,20 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
 }
 // See implementation.
 // glue_emit_default_alloc_to_rbx_offset: see function docblock below.
-/** Exported function `glue_emit_default_alloc_to_rbx_offset`.
- * Memory management helper `glue_emit_default_alloc_to_rbx_offset`.
- * @param elf_ctx *u8
- * @param foff i32
- * @param fsz i32
- * @param ta i32
- * @return i32
+/**
+ * Materialize `heap.default_alloc()` into dest@rbx + foff (16-byte Allocator).
+ * with_arena scope: kind=arena + lea of the scope Arena64 (no CALL).
+ * Else: CALL `std_heap_default_alloc` then store the 16B return.
+ * @param elf_ctx *u8 — codegen ctx; null → -1
+ * @param foff i32 — byte offset of the Allocator field from dest-in-rbx
+ * @param fsz i32 — field_store_sz; often 8 for cross-module Allocator (leftover)
+ * @param ta i32 — 0 x86_64 SysV, 1 AAPCS64, 2 RISC-V
+ * @return i32 — 0 ok, -1 encode error
+ * PLATFORM: SHARED helper. MACOS|ARM64 (ta==1): AAPCS64 returns Allocator in
+ * x0+x1, which clobbers dest-in-x1 (rbx analog). enc_store store_size>=16
+ * uses dest-shadow x19 + dual-GP. LINUX|x86_64: rbx is callee-saved; when
+ * fsz<16 zero the high 8 (heap arena is null). Do not change enc_store
+ * sz>=16 globally.
  */
 #[no_mangle]
 export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
@@ -1400,6 +1454,11 @@ export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, f
     da[16] = 95; da[17] = 97; da[18] = 108; da[19] = 108;
     da[20] = 111; da[21] = 99;
     if (backend_enc_call_arch(elf_ctx, &da[0], 27, ta) != 0) { return 0 - 1; }
+    // ta==1: ignore leftover fsz==8; 16B store uses x19 dest + x0/x1 payload.
+    if (ta == 1) {
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 16, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
     let sz: i32 = fsz;
     if (sz <= 0) { sz = 8; }
     if (sz > 16) { sz = 16; }
@@ -1626,10 +1685,11 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
       let plen: i32 = pipeline_asm_module_func_param_name_len_at(callee_mod, fi, 0);
       let rlen: i32 = pipeline_expr_var_name_len(callee_arena, ret_ref);
       if (plen <= 0) { return 0; }
-      if (plen > 127) { return 0; }
+      if (plen > 255) { return 0; }
       if (rlen != plen) { return 0; }
-      let pname: u8[128] = [];
-      let rname: u8[128] = [];
+      /* Cap 4.2.8: param_name_copy32 memcpy 256 bytes. */
+      let pname: u8[256] = [];
+      let rname: u8[256] = [];
       pipeline_asm_module_func_param_name_copy32(callee_mod, fi, 0, &pname[0]);
       pipeline_expr_var_name_into(callee_arena, ret_ref, &rname[0]);
       let pi: i32 = 0;
@@ -1715,6 +1775,14 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
     if (callee_arena == 0) { return 0; }
     if (callee_mod == 0) { return 0; }
+    /*
+     * PLATFORM: SHARED — refuse single-field inline across import/dep modules.
+     * Bare CALL to std_* must emit the real symbol (seed twin).
+     */
+    let caller_mod: *u8 = glue_asm_ctx_module_ref_c(ctx);
+    if (caller_mod != 0 as *u8) {
+      if (callee_mod != caller_mod) { return 0; }
+    }
     // PLATFORM: SHARED — fold returns 1=match, 0=no-match, -1=stub/error.
     // Historic: ==0 treated weak return-(-1) stubs as match → field0-only emit.
     if (backend_fold_func_returns_param0_single_field(callee_arena, callee_mod, fi) <= 0) { return 0; }
@@ -1757,7 +1825,7 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, arg_ref);
     if (vlen <= 0) { return 0; }
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     pipeline_expr_var_name_into(arena, arg_ref, &vname[0]);
     let slot_off: i32 = glue_try_inline_local_slot_off(ctx, arena, &vname[0], vlen);
     if (slot_off < 0) { return 0; }
@@ -1874,7 +1942,7 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, arg_ref);
     if (vlen <= 0) { return 0; }
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     pipeline_expr_var_name_into(arena, arg_ref, &vname[0]);
     let slot_off: i32 = glue_try_inline_local_slot_off(ctx, arena, &vname[0], vlen);
     if (slot_off < 0) { return 0; }
@@ -1944,7 +2012,8 @@ export function try_inline_var_field_sum_binop_elf(
       let flen_a: i32 = pipeline_expr_field_access_name_len(arena, left_ref);
       if (flen_a > 0) {
         if (flen_a <= 63) {
-          let fname_a: u8[128] = [];
+          /* Cap 4.2.8: field_access_name_into memset(out,0,256). */
+          let fname_a: u8[256] = [];
           pipeline_expr_field_access_name_into(arena, left_ref, &fname_a[0]);
           off_a = glue_dep_module_field_offset_by_name(pctx, &fname_a[0], flen_a);
         }
@@ -1954,7 +2023,7 @@ export function try_inline_var_field_sum_binop_elf(
       let flen_b: i32 = pipeline_expr_field_access_name_len(arena, right_ref);
       if (flen_b > 0) {
         if (flen_b <= 63) {
-          let fname_b: u8[128] = [];
+          let fname_b: u8[256] = [];
           pipeline_expr_field_access_name_into(arena, right_ref, &fname_b[0]);
           off_b = glue_dep_module_field_offset_by_name(pctx, &fname_b[0], flen_b);
         }
@@ -1964,7 +2033,7 @@ export function try_inline_var_field_sum_binop_elf(
     if (off_b < 0) { return 0; }
     let vlen: i32 = pipeline_expr_var_name_len(arena, base_l);
     if (vlen <= 0) { return 0; }
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     pipeline_expr_var_name_into(arena, base_l, &vname[0]);
     let slot_off: i32 = glue_try_inline_local_slot_off(ctx, arena, &vname[0], vlen);
     if (slot_off < 0) { return 0; }
@@ -2259,14 +2328,14 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     let clen: i32 = pipeline_asm_module_func_name_len_at(callee_mod, fi);
     if (clen <= 0) { return 0; }
     if (clen > 63) { return 0; }
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(callee_mod, fi, &cname[0]);
     cname[clen] = 0;
     glue_wpo_mono_register_thunk(&cname[0], av0, av1, folded);
     let args: i32[2] = [];
     args[0] = av0;
     args[1] = av1;
-    let sym: u8[128] = [];
+    let sym: u8[256] = [];
     let sym_len: i32 = codegen_wpo_mono_sym_format(&cname[0], 2, &args[0], &sym[0], 128);
     if (sym_len <= 0) { return 0 - 1; }
     if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }
@@ -2559,11 +2628,11 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     let clen: i32 = pipeline_asm_module_func_name_len_at(outer_mod, outer_fi);
     if (clen <= 0) { return 0; }
     if (clen > 63) { return 0; }
-    let cname: u8[128] = [];
+    let cname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(outer_mod, outer_fi, &cname[0]);
     cname[clen] = 0;
     glue_wpo_mono_register_thunk_n(&cname[0], nargs * 2, &mono_args[0], folded);
-    let sym: u8[128] = [];
+    let sym: u8[256] = [];
     let sym_len: i32 = codegen_wpo_mono_sym_format(&cname[0], nargs * 2, &mono_args[0], &sym[0], 128);
     if (sym_len <= 0) { return 0 - 1; }
     if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }

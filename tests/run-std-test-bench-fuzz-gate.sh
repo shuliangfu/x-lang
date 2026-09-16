@@ -2,10 +2,13 @@
 # STD-054：std.test bench / fuzz 占位门禁
 #
 # 用法：./tests/run-std-test-bench-fuzz-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# live roadmap = analysis/自举进度.md (NEXT.md left; refuse resurrect).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_STD_TEST_BENCH_FUZZ_DOC:-analysis/std-test-bench-fuzz-v1.md}"
+DOC="${XLANG_STD_TEST_BENCH_FUZZ_DOC:-analysis/archive/std/std-test-bench-fuzz-v1.md}"
 MANIFEST="${XLANG_STD_TEST_BENCH_FUZZ_TSV:-tests/baseline/std-test-bench-fuzz.tsv}"
 VECTORS="${XLANG_STD_TEST_BENCH_FUZZ_VECTORS:-tests/baseline/std-test-bench-fuzz-vectors.tsv}"
 MOD_X="std/test/mod.x"

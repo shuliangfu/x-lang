@@ -1,11 +1,37 @@
 #!/usr/bin/env bash
-# COMP-011：Windows 目标后端 manifest 门禁
+# COMP-011: Windows backend manifest gate (false-authority honesty).
+#
+# Honesty: soft SKIP→OK in run-comp-win-backend.sh retired (2026-08-27). Prefer
+# product xlang_asm via child; DOC→archive with ## Gate; refuse top-level
+# DOC resurrect. Report inherits child run=/skip=; greppable gate OK kept.
+#
+# COMP-011：Windows 目标后端 manifest 门禁（假权威诚实）。
 #
 # 用法：./tests/run-comp-win-backend-gate.sh
+# wave honesty (2026-08-24 #6): DOC under analysis/archive/comp/;
+# monofile seeds/runtime.from_x.c retired wave321 — windows triple live in
+# rt_run_asm_backend; lld-link live in runtime_link_abi; refuse resurrect.
+# live roadmap = analysis/自举进度.md (NEXT.md left).
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
-DOC="${XLANG_COMP_WIN_BACKEND_DOC:-analysis/comp-win-backend-v1.md}"
+PREFIX="xlang: [XLANG_COMP_WIN_BACKEND]"
+
+die() {
+  echo "comp-win-backend gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail host=$(ci_host_summary)"
+  exit 1
+}
+
+# Refuse resurrecting top-level DOC (archive is authority).
+if [ -f analysis/comp-win-backend-v1.md ]; then
+  die "refuse top-level analysis/comp-win-backend-v1.md (use archive/comp)"
+fi
+
+DOC="${XLANG_COMP_WIN_BACKEND_DOC:-analysis/archive/comp/comp-win-backend-v1.md}"
 MANIFEST="${XLANG_COMP_WIN_BACKEND_MANIFEST:-tests/baseline/comp-win-backend.tsv}"
 MATRIX="${XLANG_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
 MIN_LAYERS=6
@@ -14,16 +40,28 @@ MIN_CASES=6
 # shellcheck source=tests/lib/comp-win-backend.sh
 . tests/lib/comp-win-backend.sh
 
-echo "=== COMP-011: Windows backend manifest ==="
+echo "=== COMP-011: Windows backend manifest (monofile retired) ==="
+
+# wave321: monofile retired — refuse resurrect.
+if [ -f compiler/seeds/runtime.from_x.c ]; then
+  echo "comp-win-backend gate FAIL: seeds/runtime.from_x.c resurrected (windows/lld-link live = rt_run_asm_backend + runtime_link_abi)" >&2
+  exit 1
+fi
+
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-win-backend.sh tests/run-comp-win-backend.sh \
   compiler/src/asm/platform/coff.x compiler/src/asm/platform/README.md \
-  tests/asm/windows_min.x tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv; do
+  tests/asm/windows_min.x tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv \
+  compiler/seeds/rt_run_asm_backend.from_x.c compiler/seeds/runtime_link_abi.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "comp-win-backend gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+
+if ! grep -qE '^## Gate' "$DOC"; then
+  die "doc missing ## Gate section"
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"

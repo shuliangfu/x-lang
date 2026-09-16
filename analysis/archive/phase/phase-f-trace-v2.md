@@ -11,15 +11,17 @@
 | text 导出 | glue `snprintf` | **`u8_to_hex2` + `append_u64_dec`** |
 | 单调时钟/随机 | glue 链 time.o + random.o | `extern time_now_monotonic_ns_c` / `random_fill_bytes_c` |
 
-## 门禁
+## Gate
+
+Honesty (2026-08-27): hard-fail; prefer asm; pin `XLANG_LINK_XLANG`. Soft `XLANG_F_TRACE_V2_FAIL` retired. STD-088／hooks product residual observational (fossil `trace_new` vs live `trace_create_c`).
+
+**2026-08-30 leftover XLANG fallthrough 已收**（f-trace-v2：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested xlang_compiler_make／std-trace／std-trace-hooks 不重写）。
 
 ```bash
-XLANG_F_TRACE_V2_FAIL=1 ./tests/run-f-trace-v2-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f-trace-v2-gate.sh
 ./tests/run-std-trace-gate.sh
-./tests/run-std-trace-hooks-gate.sh
-XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项
 
-- **F-sync v1**（trace 已闭合；继续 std 去 C 批次）
+- 继续阶段 F std 去 C（其它模块）

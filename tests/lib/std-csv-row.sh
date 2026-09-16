@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# std-csv-row.sh — STD-127 manifest 与烟测辅助（F-csv v1：csv.x）
+# std-csv-row.sh — STD-036 manifest 与烟测辅助（F-csv v1：csv.x）
+#
+# 用法（source 后）：
+#   std_csv_row_symbols_ok MOD_X CSV_X TSV
+#   std_csv_row_emit_report status run obs skip
+# 2026-08-28: report run=/obs=/skip= (soft auto-make retired; prefer asm).
 
 STD_CSV_ROW_PREFIX="${XLANG_STD_CSV_ROW_PREFIX:-xlang: [XLANG_STD_CSV_ROW]}"
 
@@ -23,17 +28,21 @@ std_csv_row_symbols_ok() {
       symbol)
         case "$mod_path" in
           std/csv/csv.c|std/csv/csv.x) mod_path="$csv_x" ;;
+          std/csv/mod.x) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-csv-row FAIL: missing '$anchor' in $mod_path" >&2
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke)
+      file|smoke|script)
         if [ ! -f "$anchor" ]; then
           echo "std-csv-row FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
+        ;;
+      anchor)
+        # DOC keyword anchors are validated by the gate script, not here.
         ;;
     esac
   done < "$tsv"
@@ -41,37 +50,11 @@ std_csv_row_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_csv_row_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-csv_row}"
-  local exe="/tmp/xlang_std_csv_row_${tag}_$$"
-  if [ ! -f "$src" ]; then
-    echo "std-csv-row FAIL: missing $src" >&2
-    return 1
-  fi
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-csv-row FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-csv-row FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=; check residual = obs).
 std_csv_row_emit_report() {
   local status="$1"
-  local rt_ok="$2"
-  local main_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_CSV_ROW_PREFIX} status=${status} row_rt=${rt_ok} main=${main_ok} skip=${skip}"
+  echo "${STD_CSV_ROW_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

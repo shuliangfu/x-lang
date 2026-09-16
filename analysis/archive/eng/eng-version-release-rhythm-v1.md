@@ -4,6 +4,9 @@
 > 状态：**定版（v1）**  
 > 关联：`ENG-004`（发布预检）、`ENG-001`（baseline version）、`.cursor/rules/03-操作规则.mdc`
 
+> **Honesty 2026-08-24 #12:** top-level DOC retired; live = this archive path.  
+> **Closed 2026-08-24: root VERSION + editors/vscode/package.json synced at 0.2.0 (ENG-005 hard gate).**
+
 ---
 
 ## 1. 目标

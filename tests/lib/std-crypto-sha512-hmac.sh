@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
-# std-crypto-sha512-hmac.sh — STD-050 manifest 与烟测辅助
+# std-crypto-sha512-hmac.sh — STD-050 manifest + smoke helpers.
+#
+# Usage (after source):
+#   std_crypto_sha512_hmac_symbols_ok MOD_X CRYPTO_GLUE TSV
+#   std_crypto_sha512_hmac_run_smoke XLANG_BIN X TAG
+#   std_crypto_sha512_hmac_emit_report status run obs skip
+# Honesty: run=/obs=/skip= (check/mac512 = obs; sha512+hmac product -o hard,
+# both folded into run=). Refuse soft RUN_XLANG remap / soft ensure.
+# PLATFORM: SHARED archaeology — must be sourced under bash (zsh `.` breaks local).
 
 STD_CRYPTO_SHA512_HMAC_PREFIX="${XLANG_STD_CRYPTO_SHA512_HMAC_PREFIX:-xlang: [XLANG_STD_CRYPTO_SHA512_HMAC]}"
 # shellcheck source=tests/lib/std-crypto.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
-# 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
+# Validate manifest; echo miss count; return 0 iff miss==0.
 std_crypto_sha512_hmac_symbols_ok() {
   local mod_x="$1"
   local crypto_c="$2"
@@ -42,29 +50,44 @@ std_crypto_sha512_hmac_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
+      section|script|gate|anchor|hook_script)
+        # DOC ## 5. Gate / script anchors validated by the gate script.
+        ;;
     esac
   done < "$tsv"
   echo "$miss"
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .x；期望退出码 0。
+# Compile and run smoke .x via product XLANG_BIN -L . -o; expect exit 0.
+# Refuse soft RUN_XLANG / soft ensure rebuild (gate pins XLANG_LINK_XLANG).
+# PLATFORM: SHARED archaeology — product honesty path.
 std_crypto_sha512_hmac_run_smoke() {
   local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
   local exe="/tmp/xlang_std_crypto_sha512_hmac_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local log="/tmp/xlang_std_crypto_sha512_hmac_${tag}_$$.log"
+  if [ ! -f "$src" ]; then
+    echo "std-crypto-sha512-hmac FAIL: missing $src" >&2
+    return 1
+  fi
+  rm -f "$exe" "$log"
+  set +e
+  "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1
+  local o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
     echo "std-crypto-sha512-hmac FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
-    rm -f "$exe"
+    tail -n 10 "$log" 2>/dev/null >&2 || true
+    rm -f "$exe" "$log"
     return 1
   fi
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
   set -e
-  rm -f "$exe"
+  rm -f "$exe" "$log"
   if [ "$ec" -ne 0 ]; then
     echo "std-crypto-sha512-hmac FAIL: run $src exit=$ec" >&2
     return 1
@@ -72,12 +95,12 @@ std_crypto_sha512_hmac_run_smoke() {
   return 0
 }
 
-# 输出门禁报告行。
+# Structured report line (honesty: run=/obs=/skip=).
+# Hard-green signal = sha512 + hmac product -o (run=2); check/mac512 = obs.
 std_crypto_sha512_hmac_emit_report() {
   local status="$1"
-  local sha512_ok="$2"
-  local hmac_ok="$3"
-  local mac_ok="$4"
-  local skip="$5"
-  echo "${STD_CRYPTO_SHA512_HMAC_PREFIX} status=${status} sha512=${sha512_ok} hmac=${hmac_ok} mac512=${mac_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CRYPTO_SHA512_HMAC_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

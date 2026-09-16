@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
-# STD-047：std.simd shuffle/select 矢量化实装门禁
+# STD-047: std.simd shuffle/select gate — honesty leftover wrap dead source →硬绿.
 #
-# 用法：./tests/run-std-simd-shuffle-select-gate.sh
-set -e
+# Honesty: leftover bootstrap-link wrap sourced unused (no RUN_XLANG) + unused
+# compiler-make.sh retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native asm = hard die (refuse leftover wrap
+# dead source / unused compiler-make / soft SKIP→OK / prefer-c). Product
+# shuffle_select_roundtrip.x -o exit0 = hard run (run=1). check = obs.
+# simd-s4: hard on x86_64 (counts toward run=); observational elsewhere (obs+=1).
+# Report: run=/obs=/skip=.
+# SIMD Vec bodies need asm backend (skip xlang-c).
+# G.7: complete existing resolve_shu; drop unused compiler-make.sh.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-simd-shuffle-select-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
+DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/archive/std/std-simd-shuffle-select-v1.md}"
 MANIFEST="${XLANG_STD_SIMD_SHUFFLE_SELECT_TSV:-tests/baseline/std-simd-shuffle-select.tsv}"
 MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-shuffle-select.sh"
@@ -15,33 +29,69 @@ MIN_APIS=7
 # shellcheck source=tests/lib/std-simd-shuffle-select.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-simd-shuffle-select gate FAIL: $*" >&2
+  std_simd_ss_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      case "$abs" in
+        */xlang-c|*/xlang-x*) return 1 ;;
+      esac
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c / xlang-c (no Vec emit).
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Refuse resurrected top-level DOC (live = archive/std/).
+# PLATFORM: SHARED archaeology — same refuse rule as other honesty gates.
+if [ -f analysis/std-simd-shuffle-select-v1.md ]; then
+  die "top-level DOC resurrected (live = archive/std/)"
+fi
+
 echo "=== STD-047: simd shuffle/select manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X"; do
-  if [ ! -f "$f" ]; then
-    echo "std-simd-shuffle-select gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
 # Product names are overload shuffle/select/select_lane.
-# Historical vec4f_shuffle / vec8i_select are not a second export.
 for kw in STD-047 shuffle select select_lane lane-scalar XLANG_SIMD_HW; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-simd-shuffle-select gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+grep -qF '## 4. Gate' "$DOC" 2>/dev/null || die "doc missing '## 4. Gate'"
 
-# mod.x 须含 lane-scalar 实装（非零桩）
-if ! grep -qF 'v[mask[0]]' "$MOD_X" 2>/dev/null; then
-  echo "std-simd-shuffle-select gate FAIL: missing lane-scalar shuffle in $MOD_X" >&2
-  exit 1
-fi
-# Product API is select_lane (mod.x); legacy gate string vec8i_select_lane drifted.
-if ! grep -qE 'function select_lane\(' "$MOD_X" 2>/dev/null; then
-  echo "std-simd-shuffle-select gate FAIL: missing select_lane helper in $MOD_X" >&2
-  exit 1
-fi
+# mod.x must contain lane-scalar impl (non-zero stub)
+grep -qF 'v[mask[0]]' "$MOD_X" 2>/dev/null || die "missing lane-scalar shuffle in $MOD_X"
+# Product API is select_lane (mod.x); legacy vec8i_select_lane drifted.
+grep -qE 'function select_lane\(' "$MOD_X" 2>/dev/null || die "missing select_lane helper in $MOD_X"
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -57,121 +107,76 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
-        echo "std-simd-shuffle-select gate FAIL: missing api $anchor" >&2
-        exit 1
-      fi
+      grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null || die "missing api $anchor"
       ;;
     section)
-      if ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
-        echo "std-simd-shuffle-select gate FAIL: doc missing section $anchor" >&2
-        exit 1
-      fi
+      grep -qF "$anchor" "$DOC" 2>/dev/null || die "doc missing section $anchor"
       ;;
   esac
 done < "$MANIFEST"
 
-if [ "$API_N" -lt "$MIN_APIS" ]; then
-  echo "std-simd-shuffle-select gate FAIL: api count $API_N < min $MIN_APIS" >&2
-  exit 1
-fi
+[ "$API_N" -ge "$MIN_APIS" ] || die "api count $API_N < min $MIN_APIS"
 
 sym_miss="$(std_simd_ss_symbols_ok "$MOD_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_simd_ss_emit_report "fail" 0 0 0 0
-  echo "std-simd-shuffle-select gate FAIL: symbol_miss=${sym_miss}" >&2
-  exit 1
-fi
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
 echo "std-simd-shuffle-select manifest OK"
 
-stdlib_cm_native_xlang() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
-}
-
-# SIMD shuffle/select 需 asm 后端；xlang-c 无法为 Vec 函数体生成 C。
-stdlib_cm_native_simd_asm() {
-  local f="$1"
-  stdlib_cm_native_xlang "$f" || return 1
-  case "$f" in
-    */xlang-c|*/xlang-x*) return 1 ;;
-  esac
-  return 0
-}
-
-# 优先使用 bootstrap 产出的 ./compiler/xlang（含新 simd_enc / 无 stretch 卡顿）。
-stdlib_cm_pick_xlang_asm() {
-  local cand
-  for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm_working; do
-    if stdlib_cm_native_simd_asm "$cand"; then
-      echo "$cand"
-      return 0
-    fi
-  done
-  return 1
-}
-
-SHUFFLE_OK=0
-SELECT_OK=0
-S4_OK=0
-SKIP=1
-XLANG_ASM=""
-XLANG_TYPECK=""
-if cand="$(stdlib_cm_pick_xlang_asm)"; then
-  XLANG_ASM="$cand"
+if [ "${XLANG_STD_SIMD_SHUFFLE_SELECT_MANIFEST_ONLY:-0}" = "1" ]; then
+  SKIP=1
+  std_simd_ss_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
+  echo "std-simd-shuffle-select gate OK (manifest only)"
+  exit 0
 fi
-for cand in ./compiler/xlang-c ./compiler/xlang; do
-  if stdlib_cm_native_xlang "$cand"; then
-    XLANG_TYPECK="$cand"
-    break
-  fi
-done
 
-# Self-host pause (2026-08-05): do not use `xlang check` as a product gate.
-# Authority is -L . -o + run via std_simd_ss_run_smoke.
-if [ -n "$XLANG_TYPECK" ]; then
-  echo "std-simd-shuffle-select SKIP typeck check (self-host pause; smoke is authority)"
+XLANG_BIN="$(resolve_shu)" || die "no native asm xlang/xlang_asm (refuse soft SKIP→OK / soft auto-make / prefer-c)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-047: smoke (XLANG=$XLANG_BIN; check/s4-non-x86 obs; roundtrip product hard) ==="
+
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_simd_ss_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-simd-shuffle-select OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
+fi
+
+# Refuse leftover wrap dead source / unused compiler-make.sh
+# (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+if std_simd_ss_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
+  RUN_OK=$((RUN_OK + 1))
+  echo "std-simd-shuffle-select OK: shuffle_select_roundtrip"
 else
-  echo "std-simd-shuffle-select gate SKIP typeck (no native xlang)" >&2
+  die "shuffle_select_roundtrip.x exit!=0 (refuse soft SKIP→OK)"
 fi
 
-if [ -n "$XLANG_ASM" ]; then
-  echo "=== STD-047: roundtrip smoke (XLANG_ASM=$XLANG_ASM) ==="
-  if std_simd_ss_run_smoke "$XLANG_ASM" "$SMOKE_X" "roundtrip"; then
-    SHUFFLE_OK=1
-    SELECT_OK=1
-    SKIP=0
-    if [ -x tests/run-simd-s4-gate.sh ]; then
-      S4_STRICT=""
-      case "$(uname -m 2>/dev/null)" in
-        x86_64|amd64) S4_STRICT=1 ;;
-      esac
-      if XLANG="$XLANG_ASM" XLANG_SIMD_HW_STRICT="${S4_STRICT}" ./tests/run-simd-s4-gate.sh >/tmp/std_simd_s4_$$.log 2>&1; then
-        S4_OK=1
-      elif [ -n "$S4_STRICT" ]; then
-        echo "std-simd-shuffle-select gate FAIL: simd-s4 strict HW check" >&2
-        tail -8 /tmp/std_simd_s4_$$.log >&2 || true
-        std_simd_ss_emit_report "fail" "$SHUFFLE_OK" "$SELECT_OK" 0 "$SKIP"
-        exit 1
-      else
-        echo "std-simd-shuffle-select WARN: simd-s4 gate failed (non-fatal)" >&2
-        tail -5 /tmp/std_simd_s4_$$.log >&2 || true
-      fi
-      rm -f /tmp/std_simd_s4_$$.log
-    fi
+# simd-s4: hard on x86_64 (HW objdump); observational elsewhere.
+# PLATFORM: LINUX x86_64 hard; MACOS/ARM observational.
+if [ -x tests/run-simd-s4-gate.sh ]; then
+  S4_STRICT=""
+  case "$(uname -m 2>/dev/null)" in
+    x86_64|amd64) S4_STRICT=1 ;;
+  esac
+  S4_LOG="/tmp/std_simd_s4_$$.log"
+  if XLANG="$XLANG_BIN" XLANG_LINK_XLANG="$XLANG_BIN" \
+    XLANG_SIMD_HW_STRICT="${S4_STRICT}" \
+    ./tests/run-simd-s4-gate.sh >"$S4_LOG" 2>&1; then
+    RUN_OK=$((RUN_OK + 1))
+    echo "std-simd-shuffle-select OK: simd-s4"
+  elif [ -n "$S4_STRICT" ]; then
+    echo "std-simd-shuffle-select gate FAIL: simd-s4 strict HW check" >&2
+    tail -8 "$S4_LOG" >&2 || true
+    rm -f "$S4_LOG"
+    die "simd-s4 strict HW failed (refuse soft SKIP→OK)"
   else
-    echo "std-simd-shuffle-select WARN: asm runtime smoke failed; manifest+typeck OK (skip)" >&2
+    echo "std-simd-shuffle-select OBS simd-s4 (non-x86; refuse soft SKIP→OK)" >&2
+    tail -5 "$S4_LOG" >&2 || true
+    OBS=$((OBS + 1))
   fi
-else
-  echo "std-simd-shuffle-select gate SKIP runtime smoke (no native xlang_asm)" >&2
+  rm -f "$S4_LOG"
 fi
 
-std_simd_ss_emit_report "ok" "$SHUFFLE_OK" "$SELECT_OK" "$S4_OK" "$SKIP"
+std_simd_ss_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-simd-shuffle-select gate OK"

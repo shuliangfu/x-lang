@@ -130,4 +130,4 @@ if [ ! -s "$TMP" ]; then
 fi
 ok "asm.x -E smoke ($(wc -c <"$TMP" | tr -d ' ') bytes C)"
 
-echo "preflight_g06: next: XLANG_E=$XLANG_E ./scripts/build_seed_asm_host.sh && make bootstrap-driver-seed"
+echo "preflight_g06: next: XLANG_E=$XLANG_E ./scripts/build_seed_asm_host.sh && ./xbuild bootstrap-driver-seed"

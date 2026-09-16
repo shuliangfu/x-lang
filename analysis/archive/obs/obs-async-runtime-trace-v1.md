@@ -3,6 +3,14 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：`STD-004`（async 调度）、`PERF-004`（async perf）、`OBS-001`（编译阶段耗时）
+>
+> Honesty leftover residual (2026-08-29): leftover fossil top-level
+> `analysis/obs-async-runtime-trace-v1.md` as live DOC + leftover catalog
+> no Honesty + leftover `xlang_compiler_make` scheduler.o auto-make on
+> `tests/run-obs-async-runtime-trace-gate.sh` retired (report `run=`／
+> `obs=`／`skip=`; no XLANG face; G.7 do not fork a resolver; existing
+> `scheduler.o` only; host-C UNDEF／missing .o = obs). Live DOC = this
+> archive file. Refuse top-level resurrect. **Did not create `## Gate`**.
 
 ---
 

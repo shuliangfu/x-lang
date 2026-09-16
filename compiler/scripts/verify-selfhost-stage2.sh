@@ -1,20 +1,114 @@
 #!/bin/sh
 # verify-selfhost-stage2.sh — Stage2 X dogfood: xlang-x → xlang-x2 (-x -E full modules).
-# Authority (G.7): single body for make verify-selfhost-stage2 / CI stage2.
+# Authority (G.7): single body for verify-selfhost-stage2 / CI stage2.
 # wave893: live under compiler/scripts/ (Makefile pure @bash scripts/… form).
+# Post-Makefile phys-del: default path is 0-make shell (bootstrap_driver_seed /
+# build_seed_asm_host / ensure_host_cc_seed_o). Escape:
+#   XLANG_STAGE2_VIA_MAKE=1 + Makefile → historic make leaves (parity only).
+# Stage2 X E2E link hygiene: platform crt0 / DUP / USER_ASM from g05_relink_env
+# (G.7 有则补全); pipeline_x2 filter via filter_o_export_against_deps --omit-sym
+# (ban hardcoded Darwin crt0_arm64 / -multiply_defined / bare exported_symbols_list).
+#
+# Product NO_C / G-02a (2026-08): classic Step 1 `-x -E -E-extern` requires the
+# deleted C frontend (driver_run_x_emit_c_extern_via_cparser_impl body gone;
+# product driver_x_emit_try_extern_via_cparser is a fixed BLD001 stub). Live
+# Stage2 dogfood under product NO_C is verify-selfhost-stage2-bstrict.sh.
+# Default: probe then soft-skip (exit 0) with a loud banner. Escape:
+#   XLANG_STAGE2_X_REQUIRE_X_EMIT=1 → hard-fail when emit is blocked (restore work).
+# Step 5 Darwin/ARM64 -backend c: G.7 twin of bstrict — export XLANG_ALLOW_HOST_CC=1
+# (Stage 12.2.3; -backend c alone is not enough).
+#
 # Usage: cd compiler && bash scripts/verify-selfhost-stage2.sh
-# PLATFORM: SHARED — orchestration only; product binaries stay host-local.
+# PLATFORM: SHARED — orchestration; link faces branched via g05_relink_env.
 set -e
 # cwd = compiler/ (this file lives in scripts/)
 cd "$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 
-# Step 0：重链 xlang-x；若无 driver_x.o 等则先 bootstrap-driver-seed
+# PLATFORM: SHARED — shell-primary bootstrap (twin of verify-selfhost-stage2-bstrict
+# wave941 / experimental archaeology 0-make). Ban bare make-only after phys-del.
+stage2_via_make() {
+  [ "${XLANG_STAGE2_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ] && command -v make >/dev/null 2>&1
+}
+
+# Probe GEN for classic Stage2 X emit (-x -E -E-extern).
+# Returns 0 if emit produces non-empty C; 1 if product NO_C / missing cparser.
+# PLATFORM: SHARED — product default is NO_C; do not treat soft-skip as product green.
+stage2_probe_x_emit() {
+  _probe_bin="$1"
+  _probe_src="${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.x"
+  _probe_out="${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.c"
+  _probe_err="${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.err"
+  printf '%s\n' 'function main(): i32 { return 42; }' > "$_probe_src"
+  rm -f "$_probe_out" "$_probe_err"
+  set +e
+  "$_probe_bin" -x -E -E-extern "$_probe_src" > "$_probe_out" 2>"$_probe_err"
+  _probe_rc=$?
+  set -e
+  if [ "$_probe_rc" -eq 0 ] && [ -s "$_probe_out" ]; then
+    return 0
+  fi
+  return 1
+}
+
+# Load platform link faces from g05_relink_env (same table as product g05).
+# Sets: STAGE2_MAIN_LINK_O / STAGE2_MAIN_LINK_FLAGS / STAGE2_ASM_GLUE_DUP /
+#        STAGE2_USER_ASM_LINK / STAGE2_UNAME_S / STAGE2_UNAME_M
+stage2_load_g05_platform() {
+  # shellcheck disable=SC1090
+  eval "$(bash scripts/g05_relink_env.sh)"
+  STAGE2_MAIN_LINK_O="${G05_MAIN_LINK_O:-}"
+  STAGE2_MAIN_LINK_FLAGS="${G05_MAIN_LINK_FLAGS:-}"
+  STAGE2_ASM_GLUE_DUP="${G05_ASM_GLUE_DUP_LDFLAGS:-}"
+  STAGE2_USER_ASM_LINK="${G05_USER_ASM_LINK:-}"
+  STAGE2_UNAME_S="${G05_UNAME_S:-$(uname -s)}"
+  STAGE2_UNAME_M="${G05_UNAME_M:-$(uname -m)}"
+  if [ -z "$STAGE2_MAIN_LINK_O" ]; then
+    echo "verify-stage2: g05_relink_env missing G05_MAIN_LINK_O" >&2
+    exit 1
+  fi
+  echo " verify-stage2: platform $STAGE2_UNAME_S/$STAGE2_UNAME_M MAIN_LINK=$STAGE2_MAIN_LINK_O"
+}
+
+stage2_bootstrap_driver_seed() {
+  if stage2_via_make; then
+    echo " verify-stage2: VIA_MAKE bootstrap-driver-seed"
+    make bootstrap-driver-seed
+  else
+    echo " verify-stage2: 0-make bootstrap_driver_seed.sh"
+    bash scripts/bootstrap_driver_seed.sh
+  fi
+}
+
+stage2_build_seed_asm_host() {
+  if stage2_via_make; then
+    echo " verify-stage2: VIA_MAKE build-seed-asm-host"
+    make -q build-seed-asm-host 2>/dev/null || make build-seed-asm-host
+  else
+    echo " verify-stage2: 0-make build_seed_asm_host.sh"
+    bash scripts/build_seed_asm_host.sh
+  fi
+}
+
+stage2_ensure_driver_c_objs() {
+  # G.7: main_driver = try-heat (R1 seed); fmt_check_cmd_driver = try-other-l2-prefer.
+  if stage2_via_make; then
+    echo " verify-stage2: VIA_MAKE main_driver + fmt_check_cmd_driver"
+    make src/main_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
+  else
+    echo " verify-stage2: 0-make ensure main_driver + fmt_check_cmd_driver"
+    bash scripts/ensure_host_cc_seed_o.sh try-heat src/main_driver.o
+    bash scripts/ensure_host_cc_seed_o.sh try-other-l2-prefer src/driver/fmt_check_cmd_driver.o
+  fi
+}
+
+# Step 0：重链 xlang-x；若无则先 bootstrap_driver_seed（产出 xlang-x）
 echo ""
 echo "── Step 0: 确保 xlang-x ──"
 if [ ! -x ./xlang-x ]; then
-  if ! ${MAKE:-make} xlang-x; then
-  echo " make xlang-x 失败，执行 bootstrap-driver-seed …"
-  ${MAKE:-make} bootstrap-driver-seed
+  stage2_bootstrap_driver_seed
+  if [ ! -x ./xlang-x ]; then
+    echo "verify-stage2: xlang-x still missing after bootstrap_driver_seed" >&2
+    exit 1
   fi
 fi
 
@@ -24,8 +118,31 @@ echo " 种子: GEN=xlang-x 生成 _gen2.c（-x -E -E-extern），链接 xlang-x2
 echo "============================================"
 
 # GEN 使用 xlang-x：-x -E 经 driver_run_x_emit_c_extern_via_cparser 与 C 路径 -E-extern 对齐（parse/typeck/codegen）。
+# Product NO_C (G-02a): that cparser path is deleted; probe before burning Step 1.
 X=./xlang-x
 GEN=$X
+
+echo ""
+echo "── Step 0b: probe GEN -x -E -E-extern (product NO_C honesty) ──"
+if ! stage2_probe_x_emit "$GEN"; then
+  echo "verify-stage2: GEN=$GEN cannot -x -E -E-extern (product NO_C / G-02a C frontend deleted)."
+  if [ -f "${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.err" ]; then
+    echo "verify-stage2: probe stderr (head):"
+    head -5 "${TMPDIR:-/tmp}/xlang_stage2_x_emit_probe.err" || true
+  fi
+  if [ "${XLANG_STAGE2_X_REQUIRE_X_EMIT:-0}" = "1" ]; then
+    echo "verify-stage2: XLANG_STAGE2_X_REQUIRE_X_EMIT=1 → hard-fail (restore WITH_C GEN or reimplement X emit)." >&2
+    exit 1
+  fi
+  echo "============================================"
+  echo " Stage2 X SKIP (honest): product NO_C blocks classic -x -E -E-extern"
+  echo " Live Stage2 dogfood under product = verify-selfhost-stage2-bstrict.sh"
+  echo " Force hard-fail: XLANG_STAGE2_X_REQUIRE_X_EMIT=1"
+  echo " Link hygiene / ALLOW_HOST_CC Step5 still maintained in this script."
+  echo "============================================"
+  exit 0
+fi
+echo " verify-stage2: probe OK — classic -x -E -E-extern available"
 
 # ── Step 1: 生成所有 _gen2.c ──
 echo ""
@@ -61,7 +178,9 @@ done
 perl scripts/fix_parser_pool_access_gen_c.pl parser_gen2.c 2>/dev/null || true
 perl scripts/fix_driver_gen_duplicate_main.pl driver_gen2.c 2>/dev/null || true
 perl scripts/fix_pipeline_extern_gen_c.pl pipeline_gen2.c 2>/dev/null || true
-# pipeline 须 #include pipeline_glue.c（ast_pool / preprocess_if_stack / platform 符号）；与 ast_x2 重复项改链 seed 的 ast_x.o。
+# wave967: pipeline_glue.c / ast_pool.c left wave309 — fix_pipeline_extern strips
+# residual #include only (never reinjects). Live orch = runtime_pipeline_abi /
+# pipeline.x pure-extern. Duplicate ast symbols: prefer seed ast_x.o on link.
 perl scripts/hoist_pipeline_prototypes.pl pipeline_gen2.c 2>/dev/null || true
 perl scripts/fix_slim_arena_gen_c.pl pipeline_gen2.c 2>/dev/null || true
 perl -i -ne 'print unless /^extern.*parser_parse_into_buf/' pipeline_gen2.c 2>/dev/null || true
@@ -81,27 +200,28 @@ cc $CFLAGS -c preprocess_gen2.c -o preprocess_x2.o
 cc $CFLAGS -c pipeline_gen2.c -o pipeline_x2.o
 STAGE2_X_TMP_DIR="${TMPDIR:-/tmp}/xlang-stage2-x"
 mkdir -p "$STAGE2_X_TMP_DIR"
-PIPELINE_X2_ALL="$STAGE2_X_TMP_DIR/pipeline_x2.syms"
-PIPELINE_X2_OMIT="$STAGE2_X_TMP_DIR/pipeline_x2.omit"
-PIPELINE_X2_KEEP="$STAGE2_X_TMP_DIR/pipeline_x2.keep"
 PIPELINE_X2_FILTERED="$STAGE2_X_TMP_DIR/pipeline_x2_filtered.o"
-cat >"$PIPELINE_X2_OMIT" <<'EOF'
-typeck_check_expr_call
-typeck_check_expr_deref
-typeck_check_expr_method_call
-codegen_try_emit_slice_init_from_array_var
-backend_ctx_push_loop_labels
-backend_ctx_pop_loop_labels
-backend_try_fold_count_up_while_elf
-EOF
-nm pipeline_x2.o 2>/dev/null | awk '/ [TDS] / { s=$3; sub(/^_/, "", s); print s }' | sort -u >"$PIPELINE_X2_ALL"
-grep -vxF -f "$PIPELINE_X2_OMIT" "$PIPELINE_X2_ALL" | sed 's/^/_/' >"$PIPELINE_X2_KEEP"
-ld -r -exported_symbols_list "$PIPELINE_X2_KEEP" -o "$PIPELINE_X2_FILTERED" pipeline_x2.o
+# PLATFORM: SHARED — named-symbol omit via filter_o_export (Darwin -arch +
+# exported_symbols_list / Linux --version-script). Ban bare Darwin-only ld -r.
+echo " verify-stage2: filter pipeline_x2.o (omit-sym; 0-make filter_o_export)"
+bash scripts/filter_o_export_against_deps.sh \
+  --src pipeline_x2.o \
+  --out "$PIPELINE_X2_FILTERED" \
+  --stem stage2_pipeline_x2 \
+  --omit-sym typeck_check_expr_call \
+  --omit-sym typeck_check_expr_deref \
+  --omit-sym typeck_check_expr_method_call \
+  --omit-sym codegen_try_emit_slice_init_from_array_var \
+  --omit-sym backend_ctx_push_loop_labels \
+  --omit-sym backend_ctx_pop_loop_labels \
+  --omit-sym backend_try_fold_count_up_while_elf
 
 echo ""
 echo "── 编译 C 侧与 seed 桥（与 bootstrap-driver-seed 同拓扑）──"
-${MAKE:-make} -q build-seed-asm-host 2>/dev/null || ${MAKE:-make} build-seed-asm-host
-cc $CFLAGS -c src/runtime_driver_strict_glue_stubs.c -o
+stage2_load_g05_platform
+stage2_build_seed_asm_host
+# runtime_driver_strict_glue_stubs is already on the seed/g05 bag when needed;
+# do not re-cc with a truncated -o (historic phys-del bitrot).
 cc $CFLAGS -DX_VERIFY_STAGE2 -c src/x_seed_bridge.c -o src/x_seed_bridge_stage2.o
 cc $CFLAGS -c typeck_x_link_alias.c -o x_frontend_link_alias.o
 cc $CFLAGS -c codegen_x_link_alias.c -o x_frontend_link_alias.o
@@ -110,22 +230,28 @@ cc $CFLAGS -c lexer_x_link_alias.c -o x_frontend_link_alias.o 2>/dev/null || tru
 cc $CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -DXLANG_USE_X_PREPROCESS \
   -c src/runtime.c -o runtime_driver2.o
 # Stage2 链接仍需沿用 driver 专用 C 对象；不要依赖工作区里偶然残留的 .o。
-${MAKE:-make} src/main_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
+stage2_ensure_driver_c_objs
 
-# ── Step 4: 链接 xlang-x2（*_x2.o 替代 parser_x/typeck_x/codegen_x/pipeline_x；其余与 bootstrap-driver-seed 同拓扑）──
+# ── Step 4: 链接 xlang-x2（*_x2.o 替代 parser_x/typeck_x/codegen_x/pipeline_x；
+# PLATFORM faces = g05_relink_env MAIN_LINK / DUP / USER_ASM）──
 echo ""
 echo "── Step 4: 链接 xlang-x2 ──"
-${MAKE:-make} bootstrap-driver-seed >/dev/null
+stage2_bootstrap_driver_seed >/dev/null
 for _o in driver_x.o driver_compile_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
   driver_build_x.o driver_run_x.o driver_emit_x.o preprocess_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o lsp_io_std_heap_x.o \
   pipeline_bootstrap_orchestration.o src/async/async_liveness.o src/async/async_cps_codegen.o; do
-  if [ ! -f "$_o" ]; then ${MAKE:-make} xlang-x bootstrap-driver-seed 2>/dev/null || ${MAKE:-make} xlang-x; break; fi
+  if [ ! -f "$_o" ]; then
+    echo " verify-stage2: missing $_o → re-run bootstrap_driver_seed"
+    stage2_bootstrap_driver_seed
+    break
+  fi
 done
+# shellcheck disable=SC2086
 cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
-  -Wl,-multiply_defined,suppress -e _start -nostartfiles \
+  $STAGE2_ASM_GLUE_DUP $STAGE2_MAIN_LINK_FLAGS \
   -o xlang-x2 \
-  src/asm/crt0_arm64.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
+  $STAGE2_MAIN_LINK_O src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
   src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o runtime_driver2.o \
   src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
   src/lexer/lexer.o src/ast/ast_seed.o \
@@ -140,12 +266,9 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
   src/lsp/lsp_diag_stubs_no_c.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o lsp_x.o lsp_diag_x.o \
-  lsp_io_x.o lsp_io_std_heap_x.o build_asm/seed_host/asm_backend_partial.o \
-  build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
-  build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o \
-  src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o \
-  src/asm/backend_call_dispatch.o parser_asm_thin_glue.o \
-  src/asm/parser_asm_parse_expr_link.o build_asm/pipeline_glue_strict_minimal.o
+  lsp_io_x.o lsp_io_std_heap_x.o \
+  $STAGE2_USER_ASM_LINK \
+  build_asm/pipeline_glue_strict_minimal.o
 
 echo "xlang-x2 linked: $(ls -lh xlang-x2 | awk '{print $5}')"
 
@@ -154,12 +277,16 @@ echo ""
 echo "── Step 5: 功能对比 ──"
 echo 'function main(): i32 { return 42; }' > /tmp/selfhost_test.x
 # 与 verify-selfhost-stage2-bstrict 对齐：Darwin/ARM64 等平台 asm -o 尚不稳定时，用 -backend c 验证行为 parity。
+# G.7 有则补全：bstrict already exports XLANG_ALLOW_HOST_CC=1 for this fallback
+# (Stage 12.2.3 — explicit -backend c alone hits host-cc-requires-allow).
 GEN_FLAGS="-L .."
 STAGE2_X_COMPILE_BACKEND=""
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
   STAGE2_X_COMPILE_BACKEND="-backend c"
-  echo "verify-stage2: use -backend c for Step 5 on $(uname -s)/$(uname -m 2>/dev/null)"
+  # PLATFORM: SHARED — only this Darwin/ARM64 fallback path uses -backend c.
+  export XLANG_ALLOW_HOST_CC=1
+  echo "verify-stage2: use -backend c for Step 5 on $(uname -s)/$(uname -m 2>/dev/null) (ALLOW_HOST_CC=1)"
   ;;
 esac
 REF=$X

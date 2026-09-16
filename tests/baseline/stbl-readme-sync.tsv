@@ -1,5 +1,6 @@
 # STBL-002 std/README 同步 manifest
 # 列：item_id	kind	anchor	notes
+# honesty 2026-08-24 #10: DOC → analysis/archive/; refuse top-level DOC resurrect.
 min_anchors	7
 forbidden_1	forbidden	spawn/exec/管道为 P3	过时 process
 forbidden_2	forbidden	std.async` | 仅占位	过时 async
@@ -12,6 +13,6 @@ anchor_tar	anchor	run-tar.sh	tar 烟测
 anchor_db	anchor	std.db.sqlite	db 模块
 anchor_next	anchor	NEXT.md	Phase 2
 anchor_check_matrix	anchor	run-stdlib-check-matrix	BOOT-013
-doc	file	stbl-readme-sync-v1.md	analysis/stbl-readme-sync-v1.md	RFC
+doc	file	stbl-readme-sync-v1.md	analysis/archive/stbl/stbl-readme-sync-v1.md	RFC
 readme	file	std/README.md	std/README.md	权威状态
 gate	script	run-stbl-readme-sync-gate.sh	tests/run-stbl-readme-sync-gate.sh	manifest

@@ -50,10 +50,10 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate |
 |----|------|------|--------|------|
-| BOOT-021 | 自举 | mega7 parser 实替换（非 stub） | P0 | `run-boot-021-mega7-promote-gate.sh` |
-| COMP-015 | 编译器 | WPO 小规模持续启用 | P1 | `run-comp-wpo-prod-gate.sh` |
-| STD-063 | 标准库 | `std.elf` 只读解析深化 | P2 | `run-std-elf-deep-gate.sh` |
-| PLAN-002 | 治理 | Phase 3 第二批路线图定版 | P2 | `run-phase3-roadmap-wave2-gate.sh` |
+| BOOT-021 | 自举 | mega7 parser 实替换（非 stub） | P0 | ✅ | `run-boot-021-mega7-promote-gate.sh` |
+| COMP-015 | 编译器 | WPO 小规模持续启用 | P1 | ✅ | `run-comp-wpo-prod-gate.sh` |
+| STD-063 | 标准库 | `std.elf` 只读解析深化 | P2 | ✅ | `run-std-elf-deep-gate.sh` |
+| PLAN-002 | 治理 | Phase 3 第二批路线图定版 | P2 | ✅ | `run-phase3-roadmap-wave2-gate.sh` |
 
 完整状态列见 `NEXT.md` §2.13。
 

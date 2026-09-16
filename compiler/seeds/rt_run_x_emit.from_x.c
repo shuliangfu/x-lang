@@ -8,6 +8,11 @@
  * 冷启动/无 PREFER 时仍编译完整 C 体。
  *
  * Scope: driver_run_x_emit_c（读源 → pipeline → stdout）。
+ * Leftover !XLANG_NO_C_FRONTEND -E-extern cparser branch retired
+ * (residual 7). Product PREFER already refuses via
+ * driver_x_emit_try_extern_via_cparser (always BLD001). Mega wrapper
+ * of driver_run_x_emit_c_extern_via_cparser retired (never-defined
+ * _impl).
  * run_asm_backend / run_compiler_parsed 仍 mega rest。
  */
 #include <limits.h>
@@ -21,6 +26,7 @@
 #include "runtime_diag_codes.h"
 #include "runtime_io_abi.h"
 #include "runtime_driver_abi.h"
+#include "xlang_driver_stream_cap.h" /* Cap residual 9.7.1: opaque FILE* face → fd-handle face */
 #include "runtime_pipeline_abi.h"
 #include "token.h"
 
@@ -85,20 +91,26 @@ extern void pipeline_set_dep_slots(void **arenas, void **modules);
 extern void driver_dep_seed_slots(void **arenas, void **modules, int n);
 extern void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **paths, int n);
 extern int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
-extern int driver_run_x_emit_c_extern_via_cparser(const char *input_path);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 extern int typeck_set_allow_legacy_extern_calls(int allow);
 /**
  * Release GrowVec data buffers backing the arena/module sidecar pools.
  * Declared with `void *` params to avoid pulling struct definitions here;
- * ast_pool.c defines them with `struct ast_ASTArena *` / `struct ast_Module *`
- * which are pointer-compatible. Safe no-op if no sidecar slot matches.
- * PLATFORM: SHARED — see ast_pool.c `arena_sidecar_free` / `module_sidecar_free`.
+ * runtime_pipeline_abi defines them with `struct ast_ASTArena *` /
+ * `struct ast_Module *` which are pointer-compatible (ast_pool.c left wave309).
+ * Safe no-op if no sidecar slot matches.
+ * PLATFORM: SHARED — see runtime_pipeline_abi arena_sidecar_free / module_sidecar_free.
  */
 extern void ast_pool_arena_release(void *arena);
 extern void ast_pool_module_release(void *module);
 
-/** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 XLANG_USE_X_PIPELINE 时返回 1。 */
+/** Run parsed -x -E (read file, .x pipeline, write stdout); 0 ok, 1 fail.
+ * Leftover !XLANG_NO_C_FRONTEND -E-extern cparser branch retired (this knife).
+ * Product PREFER rt_run_x_emit.x already refuses via
+ * driver_x_emit_try_extern_via_cparser (always BLD001).
+ * PLATFORM: SHARED — consume-site hygiene; product PREFER rest is FROM_X
+ * marker (H=0); this body compiles only on cold/no-PREFER.
+ */
 int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
     int old_allow_legacy_extern = 0;
@@ -108,25 +120,29 @@ int driver_run_x_emit_c(void) {
     old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(1);
 #ifdef XLANG_USE_X_PIPELINE
     {
-        (void)setvbuf(stdout, NULL, _IONBF, 0);
+        /* Cap residual 9.7.1: emitted C goes out through raw fd writes
+         * (xlang_io_write), which are unbuffered — no stdio setvbuf needed. */
 #if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
         {
             const int want_extern = driver_x_emit_c_want_extern;
             driver_x_emit_c_want_extern = 0;
             if (want_extern) {
-#if !defined(XLANG_NO_C_FRONTEND)
-                {
-                    int r = driver_run_x_emit_c_extern_via_cparser(input_path);
-                    typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
-                    return r;
-                }
-#else
-                diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
-                            "-x -E -E-extern requires C parser/codegen (rebuild without -DXLANG_NO_C_FRONTEND)",
-                            NULL);
+                /*
+                 * Retired leftover !XLANG_NO_C_FRONTEND -E-extern cparser
+                 * branch (this knife): used to call
+                 * driver_run_x_emit_c_extern_via_cparser. Product PREFER
+                 * rt_run_x_emit.x always refuses via
+                 * driver_x_emit_try_extern_via_cparser (BLD001). Mega
+                 * wrapper of via_cparser retired (never-defined _impl).
+                 * Dropping XLANG_NO_C_FRONTEND now matches that refuse;
+                 * it does not resurrect a C frontend.
+                 * PLATFORM: SHARED — consume-site hygiene; product PREFER
+                 * rest is FROM_X marker (H=0); this body compiles only on
+                 * cold/no-PREFER.
+                 */
+                int r = (int)driver_x_emit_try_extern_via_cparser((uint8_t *)input_path);
                 typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
-                return 1;
-#endif
+                return r;
             }
         }
 #endif
@@ -290,6 +306,15 @@ int driver_run_x_emit_c(void) {
             return 1;
         }
         xlang_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
+        /* 7.4.4 v3: opt-in -lib-name entry prefix (slot in rt_emit_state). */
+        {
+            extern int32_t xlang_driver_x_emit_lib_name_into(void *out, int32_t cap);
+            extern void xlang_pipeline_pctx_set_entry_lib_prefix(void *ctx, const void *name, int32_t name_len);
+            char ln_buf[64];
+            int32_t ln_len = xlang_driver_x_emit_lib_name_into(ln_buf, (int32_t)sizeof ln_buf);
+            if (ln_len > 0)
+                xlang_pipeline_pctx_set_entry_lib_prefix(pctx_e, ln_buf, ln_len);
+        }
         if (asm_direct_import_only)
             xlang_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
         else
@@ -429,8 +454,9 @@ int driver_run_x_emit_c(void) {
              * gate grep finds the marker on the -E path. Mirrors driver/emit.x:413
              * and rt_run_compiler_parsed.from_x.c:1055. PLATFORM: SHARED. */
             driver_print_x_smoke_summary(module, (size_t)out_buf->length);
-            fwrite(out_buf->data, 1, (size_t)out_buf->length, stdout);
-            fflush(stdout);
+            /* Cap residual 9.7.1: fwrite(stdout)+fflush → single raw fd-1 write
+             * (unbuffered; no flush needed). PLATFORM: SHARED. */
+            (void)xlang_io_write(1, out_buf->data, (size_t)out_buf->length);
             for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;

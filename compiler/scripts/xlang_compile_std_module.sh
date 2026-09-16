@@ -34,6 +34,15 @@
 # PLATFORM: SHARED — catalog + compile body; host-cc CFLAGS may add LINUX -D_GNU_SOURCE.
 set -e
 
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+# c_face ensure compiles before the main CFLAGS bag; keep one Darwin extra.
+# Do not -w swallow; do not raise macho.x minos to 26.0.
+# PLATFORM: LINUX / WINDOWS — empty (no Mach-O minos check).
+DARWIN_MINOS=""
+case "$(uname -s 2>/dev/null)" in
+  Darwin) DARWIN_MINOS="-mmacosx-version-min=11.0" ;;
+esac
+
 # ---------------------------------------------------------------------------
 # wave812: formal_mod shell-primary catalog (G.7 有则补全; not physical delete)
 # Spec line: kind|bare|src1[|src2...]
@@ -50,6 +59,9 @@ formal_mod_key_for_out() {
     ../std/heap/page_mmap.o|std/heap/page_mmap.o|*std/heap/page_mmap.o) printf '%s' "std/heap/page_mmap.o" ;;
     ../std/sys/sys.o|std/sys/sys.o|*std/sys/sys.o) printf '%s' "std/sys/sys.o" ;;
     ../std/sys/linux.o|std/sys/linux.o|*std/sys/linux.o) printf '%s' "std/sys/linux.o" ;;
+    # PLATFORM: SHARED — B-19 cfg import smoke Darwin unique UNDEF (macos_write_available).
+    # Nested leaf under std/sys; twin of linux.o → sys_macos product face.
+    ../std/sys/macos.o|std/sys/macos.o|*std/sys/macos.o) printf '%s' "std/sys/macos.o" ;;
     ../core/mem/mem.o|core/mem/mem.o|*core/mem/mem.o) printf '%s' "core/mem/mem.o" ;;
     ../core/builtin/builtin.o|core/builtin/builtin.o|*core/builtin/builtin.o) printf '%s' "core/builtin/builtin.o" ;;
     ../core/types/types.o|core/types/types.o|*core/types/types.o) printf '%s' "core/types/types.o" ;;
@@ -57,6 +69,12 @@ formal_mod_key_for_out() {
     ../core/result/result.o|core/result/result.o|*core/result/result.o) printf '%s' "core/result/result.o" ;;
     ../core/debug/debug.o|core/debug/debug.o|*core/debug/debug.o) printf '%s' "core/debug/debug.o" ;;
     ../core/slice/mod.o|core/slice/mod.o|*core/slice/mod.o) printf '%s' "core/slice/mod.o" ;;
+    ../core/str/mod.o|core/str/mod.o|*core/str/mod.o) printf '%s' "core/str/mod.o" ;;
+    ../core/iterator/mod.o|core/iterator/mod.o|*core/iterator/mod.o) printf '%s' "core/iterator/mod.o" ;;
+    ../core/fmt/mod.o|core/fmt/mod.o|*core/fmt/mod.o) printf '%s' "core/fmt/mod.o" ;;
+    # PLATFORM: SHARED — CORE-005 direct import("core.cmp") product -o (core_cmp_* UNDEF).
+    ../core/cmp/mod.o|core/cmp/mod.o|*core/cmp/mod.o) printf '%s' "core/cmp/mod.o" ;;
+    ../std/bytes/bytes.o|std/bytes/bytes.o|*std/bytes/bytes.o) printf '%s' "std/bytes/bytes.o" ;;
     ../std/map/map.o|std/map/map.o|*std/map/map.o) printf '%s' "std/map/map.o" ;;
     ../std/set/set.o|std/set/set.o|*std/set/set.o) printf '%s' "std/set/set.o" ;;
     ../std/vec/vec.o|std/vec/vec.o|*std/vec/vec.o) printf '%s' "std/vec/vec.o" ;;
@@ -81,6 +99,33 @@ formal_mod_key_for_out() {
     ../std/error/error.o|std/error/error.o|*std/error/error.o) printf '%s' "std/error/error.o" ;;
     ../std/json/json.o|std/json/json.o|*std/json/json.o) printf '%s' "std/json/json.o" ;;
     ../std/csv/csv.o|std/csv/csv.o|*std/csv/csv.o) printf '%s' "std/csv/csv.o" ;;
+    ../std/cli/cli.o|std/cli/cli.o|*std/cli/cli.o) printf '%s' "std/cli/cli.o" ;;
+    # PLATFORM: SHARED — STD-086 layer_smoke unique UNDEF (std_config_*).
+    # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
+    ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
+    # PLATFORM: SHARED — STD-087 lru_pool_smoke unique UNDEF (std_cache_*).
+    # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
+    ../std/cache/cache.o|std/cache/cache.o|*std/cache/cache.o) printf '%s' "std/cache/cache.o" ;;
+    # PLATFORM: SHARED — STD-076 roundtrip unique UNDEF (std_url_*).
+    # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
+    ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
+    # PLATFORM: SHARED — STD-079 roundtrip unique UNDEF (std_security_*).
+    # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
+    ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
+    # PLATFORM: SHARED — STD-080/081 roundtrip unique UNDEF (std_option_* / std_result_*).
+    # Was missing formal_mod → import METHOD UNDEF (core/option alone exports core_option_*).
+    ../std/option/option.o|std/option/option.o|*std/option/option.o) printf '%s' "std/option/option.o" ;;
+    ../std/result/result.o|std/result/result.o|*std/result/result.o) printf '%s' "std/result/result.o" ;;
+    # PLATFORM: SHARED — cookbook datetime_iana unique UNDEF (timezone_iana).
+    # Was std_x auto-soft datetime.x only → T datetime_* / no std_datetime_*.
+    ../std/datetime/datetime.o|std/datetime/datetime.o|*std/datetime/datetime.o) printf '%s' "std/datetime/datetime.o" ;;
+    # PLATFORM: SHARED — cookbook sqlite_available unique UNDEF (is_available).
+    # Was std_x auto-soft sqlite.x only → T db_* / no std_db_sqlite_*.
+    ../std/db/sqlite/sqlite.o|std/db/sqlite/sqlite.o|*std/db/sqlite/sqlite.o) printf '%s' "std/db/sqlite/sqlite.o" ;;
+    # PLATFORM: SHARED — cookbook db_kv_arrow unique UNDEF (mmap_available / adopt).
+    # Was std_x auto-soft kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_*.
+    ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
+    ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
@@ -95,12 +140,23 @@ formal_mod_key_for_out() {
     ../core/assert/assert.o|core/assert/assert.o|*core/assert/assert.o) printf '%s' "core/assert/assert.o" ;;
     ../std/fmt/fmt.o|std/fmt/fmt.o|*std/fmt/fmt.o) printf '%s' "std/fmt/fmt.o" ;;
     ../std/compress/compress.o|std/compress/compress.o|*std/compress/compress.o) printf '%s' "std/compress/compress.o" ;;
+    # PLATFORM: SHARED — 9.2.2 real zlib/gzip product .o (not the facade c_face stub).
+    ../std/compress/zlib/zlib.o|std/compress/zlib/zlib.o|*std/compress/zlib/zlib.o) printf '%s' "std/compress/zlib/zlib.o" ;;
+    ../std/compress/gzip/gzip.o|std/compress/gzip/gzip.o|*std/compress/gzip/gzip.o) printf '%s' "std/compress/gzip/gzip.o" ;;
+    # PLATFORM: SHARED — zstd/brotli submodule product .o (mod + lib FFI to libzstd/libbrotli*).
+    # Facade compress.o stays c_face; do not host-cc std/compress/mod.x (bare deflate vs zlib.h).
+    ../std/compress/zstd/zstd.o|std/compress/zstd/zstd.o|*std/compress/zstd/zstd.o) printf '%s' "std/compress/zstd/zstd.o" ;;
+    ../std/compress/brotli/brotli.o|std/compress/brotli/brotli.o|*std/compress/brotli/brotli.o) printf '%s' "std/compress/brotli/brotli.o" ;;
     ../std/io/driver.o|std/io/driver.o|*std/io/driver.o) printf '%s' "std/io/driver.o" ;;
     # PLATFORM: SHARED — pure-asm std.io ctx-timeout formal (STD-091; ≠ driver nested).
     ../std/io/io.o|std/io/io.o|*std/io/io.o) printf '%s' "std/io/io.o" ;;
     ../std/debug/debug.o|std/debug/debug.o|*std/debug/debug.o) printf '%s' "std/debug/debug.o" ;;
     # PLATFORM: SHARED — pure-asm std.simd formal (shuffle/select/splat VECTOR mid).
     ../std/simd/simd.o|std/simd/simd.o|*std/simd/simd.o) printf '%s' "std/simd/simd.o" ;;
+    # PLATFORM: SHARED — cookbook async unique UNDEF (placeholder/drain_idle/scheduler_reset).
+    # No async.o existed (std_x only scheduler.o/future.o auto-soft). Host-cc of
+    # whole mod.x would U ~50 xlang_async_* C ABI. c_face = leftover unique T only.
+    ../std/async/async.o|std/async/async.o|*std/async/async.o) printf '%s' "std/async/async.o" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -117,6 +173,8 @@ formal_mod_spec_for_key() {
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
+    # PLATFORM: SHARED — formal std.sys.macos (cfg import / macos_write_*).
+    std/sys/macos.o) printf '%s' "mod|0|../std/sys/macos.x" ;;
     core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
     # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
     core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
@@ -125,6 +183,21 @@ formal_mod_spec_for_key() {
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
+    # PLATFORM: SHARED — cookbook core_str_index unique UNDEF (bytes_view_index_of*).
+    # G.7 complete formal_mod like core/slice/mod.o; product import mangle core_str_*.
+    core/str/mod.o) printf '%s' "mod|0|../core/str/mod.x" ;;
+    # PLATFORM: SHARED — cookbook iter_slice_sum unique UNDEF (iter_i32 / next_i32).
+    # G.7 complete formal_mod like core/str/mod.o; product import mangle core_iterator_*.
+    core/iterator/mod.o) printf '%s' "mod|0|../core/iterator/mod.x" ;;
+    # PLATFORM: SHARED — CORE-010 direct import("core.fmt") product -o (fmt_*_to_buf UNDEF).
+    # G.7 complete formal_mod like core/str/mod.o; product import mangle core_fmt_*.
+    core/fmt/mod.o) printf '%s' "mod|0|../core/fmt/mod.x" ;;
+    # PLATFORM: SHARED — CORE-005 direct import("core.cmp") product -o (core_cmp_* UNDEF).
+    # G.7 complete formal_mod like core/fmt/mod.o; product import mangle core_cmp_*.
+    core/cmp/mod.o) printf '%s' "mod|0|../core/cmp/mod.x" ;;
+    # PLATFORM: SHARED — tests/std-bytes/arena_external unique UNDEF (from_external*).
+    # G.7 complete formal_mod like core/iterator/mod.o; product import mangle std_bytes_*.
+    std/bytes/bytes.o) printf '%s' "mod|0|../std/bytes/mod.x" ;;
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
     std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
@@ -149,6 +222,44 @@ formal_mod_spec_for_key() {
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
     std/json/json.o) printf '%s' "mod|1|../std/json/mod.x|../std/json/json.x" ;;
     std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
+    # PLATFORM: SHARED — std.cli product face (cookbook cli_subcommand).
+    # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/http: mod.x prefix + --bare-impl *_c.
+    std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
+    # PLATFORM: SHARED — std.config product face (STD-086 layer/yaml .x smoke).
+    # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
+    std/config/config.o) printf '%s' "mod|1|../std/config/mod.x|../std/config/config.x" ;;
+    # PLATFORM: SHARED — std.cache product face (STD-087 lru_pool_smoke).
+    # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/config: mod.x prefix + --bare-impl *_c.
+    std/cache/cache.o) printf '%s' "mod|1|../std/cache/mod.x|../std/cache/cache.x" ;;
+    # PLATFORM: SHARED — std.url product face (STD-076 roundtrip).
+    # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/cache: mod.x prefix + --bare-impl *_c.
+    std/url/url.o) printf '%s' "mod|1|../std/url/mod.x|../std/url/url.x" ;;
+    # PLATFORM: SHARED — std.security product face (STD-079 roundtrip).
+    # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/url: mod.x prefix + --bare-impl *_c.
+    std/security/security.o) printf '%s' "mod|1|../std/security/mod.x|../std/security/security.x" ;;
+    # PLATFORM: SHARED — std.option / std.result product faces (STD-080/081 roundtrip).
+    # Wrappers over core.option / core.result; mod.x only (co-emits core bodies).
+    # G.7: mod|0 like channel/core.option (no bare-impl second file).
+    std/option/option.o) printf '%s' "mod|0|../std/option/mod.x" ;;
+    std/result/result.o) printf '%s' "mod|0|../std/result/mod.x" ;;
+    # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
+    # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
+    std/datetime/datetime.o) printf '%s' "mod|1|../std/datetime/mod.x|../std/datetime/datetime.x" ;;
+    # PLATFORM: SHARED — std.db.sqlite product face (cookbook sqlite_available).
+    # Was std_x bare sqlite.x only → T db_* / no std_db_sqlite_* (import METHOD UNDEF).
+    # G.7 complete formal_mod like csv/cli/http/datetime: mod.x prefix + --bare-impl *_c.
+    std/db/sqlite/sqlite.o) printf '%s' "mod|1|../std/db/sqlite/mod.x|../std/db/sqlite/sqlite.x" ;;
+    # PLATFORM: SHARED — std.db.kv / std.db.arrow product faces (cookbook db_kv_arrow).
+    # Was std_x bare kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_kv_* /
+    # std_db_arrow_* (import METHOD UNDEF). G.7 complete formal_mod like sqlite.
+    std/db/kv/kv.o) printf '%s' "mod|1|../std/db/kv/mod.x|../std/db/kv/kv.x" ;;
+    std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
@@ -171,12 +282,24 @@ formal_mod_spec_for_key() {
     core/assert/assert.o) printf '%s' "mod|0|../core/assert/mod.x" ;;
     std/fmt/fmt.o) printf '%s' "c_face|0|../std/fmt/formal_surface.c" ;;
     std/compress/compress.o) printf '%s' "c_face|0|../std/compress/formal_surface.c" ;;
+    # PLATFORM: SHARED — 9.2.2: real std.compress.zlib / gzip (mod + libz).
+    # Facade compress.o stays c_face stub (bare deflate/inflate vs zlib.h if monofile).
+    # Submodule vehicles are the product path: compress2 / deflateInit2 glue + -lz.
+    std/compress/zlib/zlib.o) printf '%s' "mod|1|../std/compress/zlib/mod.x|../std/compress/zlib/libz.x" ;;
+    std/compress/gzip/gzip.o) printf '%s' "mod|1|../std/compress/gzip/mod.x|../std/compress/gzip/libz.x" ;;
+    # PLATFORM: SHARED — zstd/brotli ≡ gzip: submodule vehicle is the product path.
+    # lib.x is extern C FFI (ZSTD_* / BrotliEncoder*/Decoder*); ld -l* is the lib face.
+    std/compress/zstd/zstd.o) printf '%s' "mod|1|../std/compress/zstd/mod.x|../std/compress/zstd/lib.x" ;;
+    std/compress/brotli/brotli.o) printf '%s' "mod|1|../std/compress/brotli/mod.x|../std/compress/brotli/lib.x" ;;
     std/io/driver.o) printf '%s' "c_face|0|../std/io/driver_formal_surface.c" ;;
     # PLATFORM: SHARED — pure-asm std.io ctx-timeout faces (≡ mod.x; STD-091).
     std/io/io.o) printf '%s' "c_face|0|../std/io/formal_surface.c" ;;
     std/debug/debug.o) printf '%s' "c_face|0|../std/debug/formal_surface.c" ;;
     # PLATFORM: SHARED — pure-asm VECTOR mid faces (≡ codegen f32x4/i32x8 mangle).
     std/simd/simd.o) printf '%s' "c_face|0|../std/simd/formal_surface.c" ;;
+    # PLATFORM: SHARED — leftover unique UNDEF std_async_placeholder / drain_idle.
+    # G.7 无才新增 catalog c_face; do not host-cc whole mod.x.
+    std/async/async.o) printf '%s' "c_face|0|../std/async/formal_surface.c" ;;
     *) printf '%s' "" ;;
   esac
 }
@@ -188,6 +311,7 @@ formal_mod_all_keys() {
     std/heap/page_mmap.o \
     std/sys/sys.o \
     std/sys/linux.o \
+    std/sys/macos.o \
     core/mem/mem.o \
     core/builtin/builtin.o \
     core/types/types.o \
@@ -195,6 +319,11 @@ formal_mod_all_keys() {
     core/result/result.o \
     core/debug/debug.o \
     core/slice/mod.o \
+    core/str/mod.o \
+    core/iterator/mod.o \
+    core/fmt/mod.o \
+    core/cmp/mod.o \
+    std/bytes/bytes.o \
     std/map/map.o \
     std/set/set.o \
     std/vec/vec.o \
@@ -219,6 +348,17 @@ formal_mod_all_keys() {
     std/error/error.o \
     std/json/json.o \
     std/csv/csv.o \
+    std/cli/cli.o \
+    std/config/config.o \
+    std/cache/cache.o \
+    std/url/url.o \
+    std/security/security.o \
+    std/option/option.o \
+    std/result/result.o \
+    std/datetime/datetime.o \
+    std/db/sqlite/sqlite.o \
+    std/db/kv/kv.o \
+    std/db/arrow/arrow.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \
@@ -229,10 +369,15 @@ formal_mod_all_keys() {
     core/assert/assert.o \
     std/fmt/fmt.o \
     std/compress/compress.o \
+    std/compress/zlib/zlib.o \
+    std/compress/gzip/gzip.o \
+    std/compress/zstd/zstd.o \
+    std/compress/brotli/brotli.o \
     std/io/driver.o \
     std/io/io.o \
     std/debug/debug.o \
-    std/simd/simd.o
+    std/simd/simd.o \
+    std/async/async.o
 }
 
 formal_mod_out_for_key() {
@@ -347,6 +492,7 @@ std/heap/heap.o
 std/heap/page_mmap.o
 std/sys/sys.o
 std/sys/linux.o
+std/sys/macos.o
 core/mem/mem.o
 core/builtin/builtin.o
 core/types/types.o
@@ -378,21 +524,23 @@ std/context/context.o
 std/error/error.o
 std/json/json.o
 std/csv/csv.o
+std/cli/cli.o
+std/config/config.o
 std/dynlib/dynlib.o
 std/http/http.o
 std/tar/tar.o
 std/unicode/unicode.o
 std/channel/channel.o
 KEYS
-  if [ "$_n" -ne 41 ]; then
-    echo "formal_mod --check: expected 41 keys, counted $_n" >&2
+  if [ "$_n" -ne 44 ]; then
+    echo "formal_mod --check: expected 44 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "formal_mod --check: FAIL" >&2
     return 1
   fi
-  echo "formal_mod --check: OK (47 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
+  echo "formal_mod --check: OK (48 leaves; catalog + mk list + multi-target FORCE+ensure wave894; not physical delete)"
   return 0
 }
 
@@ -459,7 +607,7 @@ case "${1:-}" in
       fi
       mkdir -p "$(dirname "$out_o")"
       # shellcheck disable=SC2086
-      if ! cc -c -fPIE -I.. -I. -o "$out_o" "$_csrc"; then
+      if ! cc -c -fPIE -I.. -I. $DARWIN_MINOS -o "$out_o" "$_csrc"; then
         echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
         exit 1
       fi
@@ -555,6 +703,7 @@ XLANG_BIN="${XLANG:-./xlang}"
 CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -ffunction-sections -fdata-sections -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch"
 case "$(uname -s 2>/dev/null)" in
   Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
+  Darwin) CFLAGS="$CFLAGS $DARWIN_MINOS" ;;
 esac
 if cc -v 2>&1 | grep -q clang; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
@@ -788,6 +937,36 @@ for x_path in "$@"; do
       rm -f "${gen_c}.bak" 2>/dev/null || true
     fi
   fi
+  # §3.3 (2026-09-10): std/compress impl prefix injection.
+  # Root cause: compress-family mod.x calls its sibling lib via QUALIFIED import
+  # (libz.compress_gzip_compress_c) which mangles to std_compress_<fam>_libz_*,
+  # but the impl .x C emission is BARE on both lanes (-lib-name "" and no flag),
+  # and 7e2fef61b stopped co-emitting std/ dep bodies with mod.x (link_only
+  # std.compress), so nothing prefixes the impl faces anymore → mod.o U
+  # std_compress_gzip_libz_* vs bare T (run-compress UNDEF, dual-end L4 red).
+  # G.7 completes the vehicle's own documented contract ("impl .x without
+  # -lib-name uses the path-derived prefix"): for impl sources under
+  # std/compress/, prefix their export-function names in gen_c (defs, decls and
+  # intra-file calls alike) with the path-derived module prefix. The name list
+  # is scraped from the source's `^export function` lines — no second symbol
+  # table to drift; FFI extern "C" names are not in the list and stay bare.
+  # Word-boundary replacement cannot re-match already-prefixed ids.
+  # PLATFORM: SHARED.
+  # mod.x already emits its own entry path prefix (mod segment skipped) — only
+  # impl files (libz.x / lib.x) need the injection.
+  case "$x_path" in
+    ../std/compress/*)
+      if [ "$base_name" != "mod.x" ]; then
+      _impl_pref=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|\.x$||' -e 's|/|_|g')
+      if [ -n "$_impl_pref" ] && [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+        _exp_names=$(sed -n 's/^export function \([A-Za-z_][A-Za-z0-9_]*\).*/\1/p' "$x_path" | sort -u)
+        for _en in $_exp_names; do
+          perl -i -pe "s/\\b${_en}\\b/${_impl_pref}_${_en}/g" "$gen_c" 2>/dev/null || true
+        done
+      fi
+      fi
+      ;;
+  esac
   # 已有直接 .o：跳过 gen_c 后处理与二次 cc
   if [ "$use_direct_o" = "1" ]; then
     if [ -z "$obj_files" ]; then
@@ -1354,25 +1533,169 @@ for fm in _func_def_re.finditer(s):
     farg_names = _extract_arg_names(fargs)
     decl_args = 'void' if (fargs == '' or fargs == 'void') else fargs
     to_wrap.append((fname, ns, fret, decl_args, farg_names))
+# PLATFORM: MACOS — libc-clash names (write/read/close/open/exit/mmap/…)
+# cannot remain the static body identifier: headers already declared them.
+# A file-wide `#define write xlang_formal_bare_write` (clash gate below) also
+# rewrites co-emitted FFI calls (std.sys.macos `r = write(fd, buf, count)`).
+# Rename only wrapped definitions of the *same arity* + wrapper callees.
+# Different-arity FFI prototypes (msync 3-arg vs X msync 2-arg) stay libc.
+# G.7: complete wrapper authority (do not stack a second #define).
+#
+# PLATFORM: MACOS — POSIX listen(2) is 2-arg; X std.http export listen is
+# 3-arg (addr, port, backlog). Darwin xlang_net_cap.h includes <sys/socket.h>
+# so `static listen(...)` → "static declaration follows non-static".
+# Linux Cap does not include socket.h (Ubuntu http already green via objcopy).
+# Do NOT add listen to the SHARED arity-aware / file-wide #define lists:
+# Ubuntu leftover calls are 3-arg only (listen_on); a SHARED def-rename
+# without mixed leftover would steal those calls or leave them undeclared.
+# G.7: same mmap-family mixed-arity rule (defs + X-arity calls; POSIX FFI stays).
+#
+# PLATFORM: MACOS — POSIX send(2)/recv(2) are 4-arg; X std.channel exports
+# send(ch,val) / recv(ch,out) are 2-arg. Same socket.h exposure as listen:
+# `static send(...)` → "static declaration follows non-static"; channel.o
+# never lands → product -o UNDEF _std_channel_*. Linux Cap omits socket.h
+# (Ubuntu L4@b5d919060 channel already green). Do NOT add send/recv to the
+# SHARED #define lists (same leftover-steal risk as listen). close/free
+# already clash-renamed (same arity as libc). G.7 complete this table.
+#
+# PLATFORM: MACOS — POSIX connect(2) is 3-arg; X std.net export connect
+# (addr, port, timeout_ms) is also 3-arg (same arity as libc, like write).
+# POSIX accept(2) is 3-arg; X std.net export accept(listener, timeout_ms)
+# is 2-arg (mixed, like listen). Darwin socket.h makes
+# `static connect(...)` / `static accept(...)` fail; net.o never lands →
+# L4 STD-092 product -o UNDEF _std_net_*. X bodies call net_tcp_connect_c /
+# net_accept_c (no leftover connect/accept in this TU); leftover POSIX
+# FFI lives in tcp.x / ipv6.x other TUs. Do NOT add connect/accept to the
+# SHARED #define lists (same leftover-steal risk). G.7 complete this table.
+_libc_clash = {
+    'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
+    'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
+    'getpid', 'getppid', 'waitpid', 'exec', 'signal', 'abort',
+    'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
+    'read', 'write', 'sync',
+    'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
+    'listen',
+    'send', 'recv',
+    'connect', 'accept',
+    'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
+    'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+    'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
+    'erf', 'erfc', 'min', 'max',
+}
+# POSIX/libc arity when it differs from an X export of the same name.
+# After def-rename, rewrite in-TU calls of the X arity so listen_on hits
+# the bare body. POSIX listen(2) lives in the included header (not gen_c
+# text) — leftover-arity detection in this TU cannot see it.
+# Names omitted here have X arity == libc (write 3 vs write 3): leftover
+# calls stay libc (existing file-wide #define skip). G.7 complete table.
+_libc_clash_posix_arity = {
+    'mmap': 6,
+    'munmap': 2,
+    'msync': 3,
+    'listen': 2,
+    'send': 4,
+    'recv': 4,
+    'accept': 3,
+}
+def _arg_count(args_str):
+    a = (args_str or '').strip()
+    if a == '' or a == 'void':
+        return 0
+    return a.count(',') + 1
 if to_wrap:
     s2 = s
     for fname, ns, fret, decl_args, farg_names in to_wrap:
-        # Forward decls: "extern ret fname(" / "ret fname(" → static (once each form).
-        s2 = re.sub(
-            rf'(?m)^(extern\s+)?((?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*)\s+){re.escape(fname)}(\s*\()',
-            rf'static \2{fname}\3',
-            s2,
+        body = ('xlang_formal_bare_' + fname) if fname in _libc_clash else fname
+        want_n = _arg_count(decl_args)
+        pat = re.compile(
+            rf'(?m)^(extern\s+)?((?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|double|ssize_t|uintptr_t|intptr_t)[\s\*]*)\s+){re.escape(fname)}(\s*\()([^)]*)(\))'
         )
+        def _repl(m, body=body, want_n=want_n):
+            got_n = _arg_count(m.group(4))
+            if got_n != want_n:
+                return m.group(0)
+            return 'static ' + m.group(2) + body + m.group(3) + m.group(4) + m.group(5)
+        s2 = pat.sub(_repl, s2)
+        posix_n = _libc_clash_posix_arity.get(fname)
+        if fname in _libc_clash and posix_n is not None and posix_n != want_n:
+            call_pat = re.compile(
+                rf'(?<![A-Za-z0-9_]){re.escape(fname)}\s*\(([^)]*)\)'
+            )
+            def _repl_call(m, body=body, want_n=want_n):
+                if _arg_count(m.group(1)) != want_n:
+                    return m.group(0)
+                return body + '(' + m.group(1) + ')'
+            s2 = call_pat.sub(_repl_call, s2)
     with open(gen_c_path, 'w') as f:
         f.write(s2)
     print('/* Namespaced wrappers — macOS twin of Linux objcopy; bare body static. */')
     for fname, ns, fret, decl_args, farg_names in to_wrap:
+        body = ('xlang_formal_bare_' + fname) if fname in _libc_clash else fname
         if fret == 'void':
-            print(f'{fret} {ns}({decl_args}) {{ {fname}({farg_names}); }}')
+            print(f'{fret} {ns}({decl_args}) {{ {body}({farg_names}); }}')
         else:
-            print(f'{fret} {ns}({decl_args}) {{ return {fname}({farg_names}); }}')
+            print(f'{fret} {ns}({decl_args}) {{ return {body}({farg_names}); }}')
 PYEOF
     fi
+  fi
+
+  # PLATFORM: SHARED — arity-aware libc-clash rename of X defs/forwards only.
+  # File-wide `#define msync` also rewrites linux/macos FFI 3-arg msync() calls
+  # (std.sys.linux `return msync(addr, len, flags)`). X exports msync(ptr,size)
+  # 2-arg. Rename only matching-arity decls; calls stay libc. Darwin wrappers
+  # already renamed → no-op. G.7 complete clash gate (mmap family not #define).
+  if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    python3 - "$gen_c" <<'PYEOF' || true
+import re, sys
+path = sys.argv[1]
+with open(path, 'r') as f:
+    s = f.read()
+clash = {
+    'wait', 'free', 'open', 'close', 'malloc', 'realloc', 'calloc',
+    'getcwd', 'chdir', 'pipe', 'exit', 'getenv', 'setenv', 'unsetenv',
+    'getpid', 'getppid', 'waitpid', 'exec', 'signal', 'abort',
+    'unreachable', 'remove', 'rename', 'system', 'time', 'clock',
+    'read', 'write', 'sync',
+    'mmap', 'munmap', 'msync', 'ftruncate', 'lseek',
+    'abs', 'fabs', 'floor', 'ceil', 'trunc', 'round',
+    'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+    'sqrt', 'cbrt', 'pow', 'exp', 'log', 'log1p', 'expm1',
+    'erf', 'erfc', 'min', 'max',
+}
+ret = (
+    r'(?:struct\s+\w+|(?:u?int(?:8|16|32|64)?_t|void|int|size_t|char|float|'
+    r'double|ssize_t|uintptr_t|intptr_t)[\s\*]*)'
+)
+def arg_count(a):
+    a = (a or '').strip()
+    if a == '' or a == 'void':
+        return 0
+    return a.count(',') + 1
+def_arity = {}
+for m in re.finditer(
+    rf'(?m)^(?:extern\s+|static\s+)?(?:{ret})\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*\{{',
+    s,
+):
+    name = m.group(1)
+    if name not in clash:
+        continue
+    def_arity.setdefault(name, set()).add(arg_count(m.group(2)))
+for name, arities in def_arity.items():
+    if len(arities) != 1:
+        continue
+    want = next(iter(arities))
+    body = 'xlang_formal_bare_' + name
+    pat = re.compile(
+        rf'(?m)^((?:extern\s+|static\s+)?)({ret}\s+){re.escape(name)}(\s*\()([^)]*)(\))'
+    )
+    def repl(m, body=body, want=want):
+        if arg_count(m.group(4)) != want:
+            return m.group(0)
+        return m.group(1) + m.group(2) + body + m.group(3) + m.group(4) + m.group(5)
+    s = pat.sub(repl, s)
+with open(path, 'w') as f:
+    f.write(s)
+PYEOF
   fi
 
   # PLATFORM: SHARED — pre-cc POSIX/libc bare-name clash guard.
@@ -1402,9 +1725,20 @@ PYEOF
     for _cn in wait free open close malloc realloc calloc getcwd chdir pipe exit \
                getenv setenv unsetenv getpid getppid waitpid exec signal abort \
                unreachable \
-               remove rename system time clock read write \
+               remove rename system time clock read write sync \
                abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
+      # PLATFORM: SHARED — skip file-wide `#define open` when arity-aware rename
+      # already created xlang_formal_bare_* AND leftover bare calls remain.
+      # kv/mod.x export open(path, cap) 2-arg + co-emitted macos mmap FFI
+      # open(path, flags, mode) 3-arg: file-wide define rewrites FFI into an
+      # implicit 3-arg xlang_formal_bare_open then the static 2-arg X def
+      # conflicts (≡ msync 2 vs 3; mmap family not #define). G.7 complete
+      # existing clash gate — mixed-arity TUs rely on arity-aware rename only.
+      if grep -Eq "xlang_formal_bare_${_cn}" "$gen_c" 2>/dev/null \
+         && grep -Eq "[^_A-Za-z0-9]${_cn}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
+        continue
+      fi
       # Only guard names that have a function *definition* in this TU (not mere
       # mentions in comments / strings). Match return-type name( form.
       if grep -Eq "^[A-Za-z_][A-Za-z0-9_ *]*[[:space:]]+${_cn}[[:space:]]*\\(" "$gen_c" 2>/dev/null; then
@@ -1500,6 +1834,32 @@ PYEOF
     fi
   fi
 
+  # PLATFORM: SHARED — libc extern prototypes that clash with hosted headers.
+  # Darwin fortify: `#define snprintf(...) __snprintf_chk_func(...)` rewrites
+  # codegen's `extern int32_t snprintf(uint8_t *, size_t, uint8_t *)` into an
+  # invalid declarator (cookbook sqlite_available / sqlite.x snprintf FFI).
+  # Product skip predicate codegen_is_libc_conflicting_extern_name covers
+  # stdlib/string/unistd names whose headers are already in the C prologue;
+  # snprintf is stdio (not in that prologue) so -E still emits the redecl.
+  # G.7 complete this compile vehicle: drop the redecl and include stdio.h
+  # when this TU calls snprintf. Do not file-wide `#define snprintf` (would
+  # rewrite libc calls into a missing xlang_formal_bare_snprintf). Same class
+  # as g05 sed-delete of malloc/write redecls; not a second sqlite-only path.
+  if [ -f "$gen_c" ] && grep -qE '^extern[[:space:]]+(int32_t|int)[[:space:]]+snprintf[[:space:]]*\(' "$gen_c" 2>/dev/null; then
+    sed -e '/^extern int32_t snprintf(/d' -e '/^extern int snprintf(/d' \
+      "$gen_c" >"$tmp_dir/gen_nsprintf_${idx}.c" && mv "$tmp_dir/gen_nsprintf_${idx}.c" "$gen_c"
+    if ! grep -qE '#include[[:space:]]*<stdio\.h>' "$gen_c" 2>/dev/null; then
+      _ns_inc=$(grep -n '^#include' "$gen_c" 2>/dev/null | tail -1 | cut -d: -f1)
+      [ -n "$_ns_inc" ] || _ns_inc=1
+      {
+        head -n "$_ns_inc" "$gen_c"
+        echo '/* PLATFORM: SHARED — libc snprintf after dropping conflicting XLANG extern */'
+        echo '#include <stdio.h>'
+        tail -n +"$((_ns_inc + 1))" "$gen_c"
+      } >"$tmp_dir/gen_stdio_${idx}.c" && mv "$tmp_dir/gen_stdio_${idx}.c" "$gen_c"
+    fi
+  fi
+
   if ! cc $CFLAGS -c "$gen_c" -o "$obj" 2>"$tmp_dir/cc_${idx}.log"; then
     echo "xlang_compile_std_module.sh: cc -c failed for $x_path" >&2
     # 显示首个 error
@@ -1564,6 +1924,61 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
     std/io/driver.o)
       # PLATFORM: SHARED — nested module std.io.driver product face.
       leaf="io_driver"
+      ;;
+    std/db/sqlite/sqlite.o)
+      # PLATFORM: SHARED — nested module std.db.sqlite product face.
+      # Import mangle is std_db_sqlite_*; leaf basename sqlite would yield
+      # std_sqlite_* (Ubuntu objcopy). Twin of std/io/driver.o → io_driver.
+      leaf="db_sqlite"
+      ;;
+    std/compress/zlib/zlib.o)
+      # PLATFORM: SHARED — nested module std.compress.zlib product face.
+      # Import mangle is std_compress_zlib_*; leaf basename zlib would yield
+      # std_zlib_* (Ubuntu objcopy). Twin of sqlite → db_sqlite.
+      leaf="compress_zlib"
+      ;;
+    std/compress/gzip/gzip.o)
+      # PLATFORM: SHARED — nested module std.compress.gzip product face.
+      # Import mangle is std_compress_gzip_* (gzip_compress → gzip_gzip_compress).
+      # Leaf basename gzip would yield std_gzip_* (Ubuntu objcopy).
+      leaf="compress_gzip"
+      ;;
+    std/compress/zstd/zstd.o)
+      # PLATFORM: SHARED — nested module std.compress.zstd product face.
+      # Import mangle is std_compress_zstd_* (zstd_compress → zstd_zstd_compress).
+      # Leaf basename zstd would yield std_zstd_* (Ubuntu objcopy). Twin of gzip.
+      leaf="compress_zstd"
+      ;;
+    std/compress/brotli/brotli.o)
+      # PLATFORM: SHARED — nested module std.compress.brotli product face.
+      # Import mangle is std_compress_brotli_* (brotli_compress → brotli_brotli_compress).
+      # Leaf basename brotli would yield std_brotli_* (Ubuntu objcopy). Twin of gzip.
+      leaf="compress_brotli"
+      ;;
+    std/db/kv/kv.o)
+      # PLATFORM: SHARED — nested module std.db.kv product face.
+      # Import mangle is std_db_kv_*; leaf basename kv would yield std_kv_*
+      # (Ubuntu objcopy). Twin of sqlite → db_sqlite.
+      leaf="db_kv"
+      ;;
+    std/db/arrow/arrow.o)
+      # PLATFORM: SHARED — nested module std.db.arrow product face.
+      # Import mangle is std_db_arrow_*; leaf basename arrow would yield
+      # std_arrow_* (Ubuntu objcopy). Twin of sqlite → db_sqlite.
+      leaf="db_arrow"
+      ;;
+    std/sys/linux.o)
+      # PLATFORM: SHARED — nested module std.sys.linux product face.
+      # Import mangle is std_sys_linux_* + function linux_* → std_sys_linux_linux_*.
+      # Parent-dir leaf "sys" would yield std_sys_linux_syscall_* (short; BLD001).
+      # Twin of std/db/sqlite → db_sqlite / std/io/driver → io_driver.
+      leaf="sys_linux"
+      ;;
+    std/sys/macos.o)
+      # PLATFORM: SHARED — nested module std.sys.macos product face.
+      # Import mangle is std_sys_macos_* + function macos_* → std_sys_macos_macos_*.
+      # Parent-dir leaf "sys" would yield std_sys_macos_write_* (short; BLD001).
+      leaf="sys_macos"
       ;;
   esac
   case "$out_root" in
@@ -1652,7 +2067,8 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
     for clash in free open close malloc realloc calloc getcwd chdir pipe exit \
                  getenv setenv unsetenv getpid getppid waitpid wait exec signal abort \
                  unreachable \
-                 remove rename system time clock read write \
+                 remove rename system time clock read write sync \
+                 mmap munmap msync ftruncate lseek \
                  abs fabs floor ceil trunc round sin cos tan asin acos atan atan2 \
                  sqrt cbrt pow exp log log1p expm1 erf erfc min max; do
       if [ -n "$prod_pref" ]; then
@@ -1726,6 +2142,17 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
+          # PLATFORM: SHARED — only for std/sys/sys.o (leaf=sys): co-emitted
+          # import("std.sys.linux") bodies are std_sys_linux_linux_* and match
+          # prod_pref std_sys_*. Authority = linux.o after nested-leaf rename;
+          # keep them local to avoid multi-def when both sys.o + linux.o are on
+          # LD argv. Do NOT localize when leaf=sys_linux (linux.o itself).
+          std_sys_linux_linux_*)
+            if [ "$leaf" = "sys" ]; then
+              objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+              continue
+            fi
+            ;;
           "${prod_pref}"*) continue ;;
           core_*|std_*)
             objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
@@ -1751,6 +2178,14 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
           _*) bare="${sym#_}" ;;
         esac
         case "$bare" in
+          # PLATFORM: SHARED — demote nested linux co-emit only in sys.o (leaf=sys).
+          std_sys_linux_linux_*)
+            if [ "$leaf" = "sys" ]; then
+              :
+            else
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
           "${prod_pref}"*)
             printf '%s\n' "$sym" >>"$_exp_list"
             ;;
@@ -2056,7 +2491,7 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
             esac
           done
         } >"$alias_c"
-        if [ -s "$alias_c" ] && cc -fPIE -c "$alias_c" -o "$alias_o" 2>/dev/null; then
+        if [ -s "$alias_c" ] && cc -fPIE $DARWIN_MINOS -c "$alias_c" -o "$alias_o" 2>/dev/null; then
           merged="$tmp_dir/heap_merged.o"
           # PLATFORM: MACOS — when multi-file path left an ar archive, ar-append the
           # alias member first (Darwin `ld -r ar.a alias.o` can drop other members).

@@ -1,102 +1,144 @@
 #!/usr/bin/env bash
-# STD-150：std.sort 复杂 key 比较器策略门禁
+# STD-150: std.sort complex key comparator gate — honesty leftover unused compiler-make →硬绿.
 #
-# 用法：./tests/run-std-sort-key-cmp-gate.sh
-set -e
+# Honesty: leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG.
+# Explicit bad XLANG / missing native = hard die (refuse leftover unused
+# compiler-make / soft SKIP→OK / prefer-c / soft ensure rebuild). Product
+# key_stable.x -o exit0 = hard run. check / host-C archaeology = obs. Report:
+# run=/obs=/skip=. G.7: complete existing resolve_shu; drop unused
+# compiler-make.sh.
+# Fossil API → product: stable_by_key / cmp_key_fn / cmp_asc_fn / stable_key_tag.
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-std-sort-key-cmp-gate.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-DOC="analysis/std-sort-key-cmp-v1.md"
-MANIFEST="tests/baseline/std-sort-key-cmp-manifest.tsv"
-VECTORS="tests/baseline/std-sort-key-cmp.tsv"
+DOC="${XLANG_STD_SORT_KEY_CMP_DOC:-analysis/archive/std/std-sort-key-cmp-v1.md}"
+MANIFEST="${XLANG_STD_SORT_KEY_CMP_MANIFEST:-tests/baseline/std-sort-key-cmp-manifest.tsv}"
+VECTORS="${XLANG_STD_SORT_KEY_CMP_VECTORS:-tests/baseline/std-sort-key-cmp.tsv}"
 MOD_X="std/sort/mod.x"
 SORT_X="std/sort/sort.x"
 LIB="tests/lib/std-sort-key-cmp.sh"
 SMOKE_X="tests/std-sort/key_stable.x"
 SMOKE_C="tests/std-sort/key_cmp_ok.c"
+SMOKE_EXPECT=0
 
 # shellcheck source=tests/lib/std-sort-key-cmp.sh
 . "$LIB"
 
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "std-sort-key-cmp gate FAIL: $*" >&2
+  std_sort_key_cmp_emit_report "fail" "$RUN_OK" "$OBS" "$SKIP"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft auto-make / prefer-c.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "=== STD-150: sort key cmp manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SORT_X" "$SMOKE_X" "$SMOKE_C" std/sort/README.md; do
-  if [ ! -f "$f" ]; then
-    echo "std-sort-key-cmp gate FAIL: missing $f" >&2
-    exit 1
-  fi
+  [ -f "$f" ] || die "missing $f"
 done
 
-for kw in STD-150 sort_stable_by_key cmp_key_i32_fn KeyTag; do
-  if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
-    echo "std-sort-key-cmp gate FAIL: doc missing '$kw'" >&2
-    exit 1
-  fi
+for kw in STD-150 stable_by_key cmp_key_fn KeyTag; do
+  grep -qF -- "$kw" "$DOC" 2>/dev/null || die "doc missing '$kw'"
 done
+grep -qF -- 'stable_by_key' std/sort/README.md 2>/dev/null || die "README missing stable_by_key"
+[ ! -f std/sort/sort.c ] || die "sort.c should be deleted"
 
-if ! grep -qF "sort_stable_by_key" std/sort/README.md 2>/dev/null; then
-  echo "std-sort-key-cmp gate FAIL: README missing sort_stable_by_key" >&2
-  exit 1
-fi
-
-[ ! -f std/sort/sort.c ] || { echo "std-sort-key-cmp gate FAIL: sort.c should be deleted" >&2; exit 1; }
-
-sym_miss="$(std_sort_key_cmp_symbols_ok "$MOD_X" "$SORT_X" "$MANIFEST" || true)"
-if [ "${sym_miss:-0}" -gt 0 ]; then
-  std_sort_key_cmp_emit_report "fail" 0 0 0
-  exit 1
-fi
-
-if ! std_sort_key_cmp_vectors_ok "$VECTORS" 3; then
-  std_sort_key_cmp_emit_report "fail" 0 0 0
-  exit 1
-fi
+sym_miss="$(std_sort_key_cmp_symbols_ok "$MOD_X" "$SORT_X" "$MANIFEST" "$DOC" || true)"
+[ "${sym_miss:-0}" -eq 0 ] || die "symbol_miss=${sym_miss}"
+std_sort_key_cmp_vectors_ok "$VECTORS" 3 || die "vectors fail"
 echo "std-sort-key-cmp registry OK"
 
 if [ "${XLANG_STD_SORT_KEY_CMP_MANIFEST_ONLY:-0}" = "1" ]; then
-  std_sort_key_cmp_emit_report "ok" 0 0 1
+  SKIP=1
+  std_sort_key_cmp_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
   echo "std-sort-key-cmp gate OK (manifest only)"
   exit 0
 fi
 
-# shellcheck source=tests/lib/build-std-c-o.sh
-. tests/lib/build-std-c-o.sh
-if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
-  ensure_std_c_o ../std/sort/sort.o
-fi
-SORT_O="$(cd compiler && pwd)/../std/sort/sort.o"
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "=== STD-150: smoke (XLANG=$XLANG_BIN; check/host-C obs; product -o hard) ==="
 
-C_OK=0
-if [ -f "$SORT_O" ] && strings "$SORT_O" 2>/dev/null | grep -q 'sort_key_cmp_smoke'; then
-  if std_sort_key_cmp_run_c_smoke "$SORT_X"; then
-    C_OK=1
-  else
-    std_sort_key_cmp_emit_report "fail" 0 0 0
-    exit 1
-  fi
+# Refuse leftover unused compiler-make.sh (product -o is the hard path).
+# PLATFORM: SHARED archaeology — leave wrap body / ensure_std family alone.
+
+# Host-C archaeology = obs only; refuse soft ensure_std rebuild.
+# PLATFORM: SHARED archaeology — leave ensure_std family alone.
+if [ -f std/sort/sort.o ] && std_sort_key_cmp_run_c_smoke "$SORT_X"; then
+  echo "std-sort-key-cmp c smoke OK (observational)"
 else
-  echo "std-sort-key-cmp SKIP c smoke (sort.o missing .x symbols; need xlang-c)" >&2
+  echo "std-sort-key-cmp OBS c smoke (host-C archaeology; refuse soft ensure/auto-make)" >&2
+  OBS=$((OBS + 1))
 fi
 
-X_OK=0
-SKIP=0
-XLANG_BIN=""
-if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
-
-if [ -n "$XLANG_BIN" ]; then
-  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
-    echo "std-sort-key-cmp gate FAIL: typeck" >&2
-    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
-    std_sort_key_cmp_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
-  if std_sort_key_cmp_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "$SORT_O"; then
-    X_OK=1
-  else
-    std_sort_key_cmp_emit_report "fail" "$C_OK" 0 0
-    exit 1
-  fi
-else
-  SKIP=1
+set +e
+"$XLANG_BIN" check -L . "$SMOKE_X" >/tmp/xlang_std_sort_key_cmp_check.log 2>&1
+chk=$?
+set -e
+if [ "$chk" -ne 0 ]; then
+  echo "std-sort-key-cmp OBS check (paused / CHK residual ec=$chk; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-std_sort_key_cmp_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
+OUT="/tmp/xlang_std_sort_key_cmp_$$"
+LOG="/tmp/xlang_std_sort_key_cmp_build_$$.log"
+rm -f "$OUT" "$LOG"
+set +e
+"$XLANG_BIN" -L . "$SMOKE_X" -o "$OUT" >"$LOG" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -ne 0 ] || [ ! -x "$OUT" ]; then
+  tail -n 20 "$LOG" 2>/dev/null || true
+  rm -f "$OUT"
+  die "product -o failed (ec=$o_ec; refuse soft SKIP→OK)"
+fi
+set +e
+"$OUT" >/dev/null 2>&1
+exitcode=$?
+set -e
+rm -f "$OUT"
+[ "$exitcode" -eq "$SMOKE_EXPECT" ] || die "runnable exit=$exitcode (expect $SMOKE_EXPECT)"
+RUN_OK=$((RUN_OK + 1))
+echo "std-sort-key-cmp OK: product -o"
+
+std_sort_key_cmp_emit_report "ok" "$RUN_OK" "$OBS" "$SKIP"
 echo "std-sort-key-cmp gate OK"

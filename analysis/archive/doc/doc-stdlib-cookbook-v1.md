@@ -4,6 +4,7 @@
 > 状态：**定版（v1）**  
 > 读者：需在 30 分钟内跑通 IO / NET / 零拷贝 / async 主路径的开发者  
 > 关联：`STD-001/002/004`、`ZC-006`
+> **honesty 2026-08-24**：archived; gate default = `analysis/archive/.../`; live roadmap = `analysis/自举进度.md` (`NEXT.md` left).
 
 ---
 
@@ -137,3 +138,15 @@ Arena64 + `string_view_concat_arena`（ZC-4）。
 5. 如何验证全部食谱？（`run-doc-stdlib-cookbook-gate.sh`）
 
 **DOC-001 状态：定版 ✅**
+
+## Gate
+
+Honesty gate for DOC-001 (`tests/run-doc-stdlib-cookbook-gate.sh`):
+
+- Live DOC = this archive file; refuse top-level `analysis/doc-stdlib-cookbook-v1.md` resurrect.
+- Prefer product `xlang_asm`; pin `XLANG_LINK_XLANG`. Explicit bad XLANG / missing
+  native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest sections / recipes / xrefs = hard green.
+- Product `-o` smoke (`io_batch_rw`) + run exit 0 = hard green.
+- `xlang check` CHK002 / paused = obs (not soft silence).
+- Report `run=` / `obs=` / `skip=`. PLATFORM: SHARED archaeology.

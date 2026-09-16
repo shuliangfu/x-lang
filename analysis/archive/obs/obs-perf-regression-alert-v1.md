@@ -3,6 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 关联：`ENG-001`（baseline registry）、`OBS-003`（结构化日志）、`PERF-001~004`
+> **Honesty 2026-08-24 #10:** top-level DOC retired; live = archive/obs/.
 
 ---
 

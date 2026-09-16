@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# std-trace.sh — STD-088 manifest 与烟测辅助（F-trace v2：纯 trace.x）
+# std-trace.sh — STD-088 manifest helpers (F-trace v2: pure trace.x).
+#
+# Usage (after source):
+#   std_trace_symbols_ok MOD_X TRACE_X TSV
+#   std_trace_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
+# Honesty: refuse soft auto-make / soft SKIP→OK; report run=/obs=/skip=.
 
-# shellcheck source=compiler-make.sh
-. "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/compiler-make.sh"
 STD_TRACE_PREFIX="${XLANG_STD_TRACE_PREFIX:-xlang: [XLANG_STD_TRACE]}"
 
-# 遍历 manifest；symbol 在 trace.x。
+# Validate manifest api/symbol/file anchors. Echo miss count; return 0 when miss=0.
 std_trace_symbols_ok() {
   local mod_x="$1"
   local trace_x="$2"
@@ -32,7 +36,13 @@ std_trace_symbols_ok() {
           miss=$((miss + 1))
         fi
         ;;
-      file|smoke|vectors)
+      section)
+        if [ ! -f "$mod_path" ] || ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
+          echo "std-trace FAIL: missing section '$anchor' in $mod_path" >&2
+          miss=$((miss + 1))
+        fi
+        ;;
+      file|smoke|vectors|script)
         if [ ! -f "$anchor" ]; then
           echo "std-trace FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
@@ -44,69 +54,11 @@ std_trace_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# C 烟测：trace_smoke_ok.c + trace.o + time.o + random.o。
-std_trace_run_c_smoke() {
-  local trace_x="$1"
-  local src="tests/std-trace/trace_smoke_ok.c"
-  local out="/tmp/xlang_std_trace_$$"
-  local trace_o time_o random_o
-  trace_o="$(dirname "$trace_x")/trace.o"
-  time_o="std/time/time.o"
-  random_o="std/random/random.o"
-  if [ ! -f "$trace_o" ]; then
-    echo "std-trace FAIL: missing $trace_o" >&2
-    return 1
-  fi
-  if [ ! -f "$time_o" ]; then
-    xlang_compiler_make ../std/time/time.o >/dev/null 2>&1 || true
-  fi
-  if [ ! -f "$random_o" ]; then
-    xlang_compiler_make ../std/random/random.o >/dev/null 2>&1 || true
-  fi
-  xlang_compiler_make runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$trace_o" "$time_o" compiler/runtime_time_os.o "$random_o" compiler/runtime_random_fill.o 2>/dev/null; then
-    echo "std-trace FAIL: compile c smoke" >&2
-    return 1
-  fi
-  set +e
-  "$out" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$out"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-trace FAIL: c smoke exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
-std_trace_run_smoke() {
-  local xlang="$1"
-  local src="$2"
-  local tag="${3:-trace}"
-  local exe="/tmp/xlang_std_trace_${tag}_$$"
-  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    echo "std-trace FAIL: compile $src" >&2
-    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
-    rm -f "$exe"
-    return 1
-  fi
-  set +e
-  "$exe" >/dev/null 2>&1
-  local ec=$?
-  set -e
-  rm -f "$exe"
-  if [ "$ec" -ne 0 ]; then
-    echo "std-trace FAIL: run $src exit=$ec" >&2
-    return 1
-  fi
-  return 0
-}
-
+# Structured report line (honesty: run=/obs=/skip=; retired c_smoke=/x=).
 std_trace_emit_report() {
   local status="$1"
-  local c_ok="$2"
-  local su_ok="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${STD_TRACE_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
+  echo "${STD_TRACE_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

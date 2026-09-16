@@ -48,6 +48,26 @@
 
 ---
 
+
+## Gate
+
+```bash
+./tests/run-std-map-vec-extend-gate.sh
+```
+
+**Honesty (2026-08-28)**：prefer asm + `XLANG_LINK_XLANG`；显式坏 XLANG／缺 native 硬 die；拒 soft SKIP→OK／soft auto-make／prefer-c；产品 `-o` 硬绿（或 tip 残＝obs）；`xlang check`＝obs（暂停闸）；报告 `run=`／`obs=`／`skip=`。
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-map.sh`（`xlang_compiler_make … map.o/heap.o` + hard check + nm `map.o` + collection gcc fallback + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/map/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [MAP]`。Keep `## Gate`。
+
+**gate report**：stdout 须含 `std-map-vec-extend gate OK`；失败打印 `std-map-vec-extend gate FAIL:` 行。
+
+| 资源 | 路径 |
+|------|------|
+| 本文 | `analysis/archive/std/std-map-vec-extend-v1.md` |
+| manifest | `tests/baseline/std-map-vec-extend.tsv` |
+
+**状态：定版 ✅（honesty soft→硬绿）**
+
 ## 5. 演进
 
 - `Map_str_*` 超长键：StrView / Arena 键；或可变长堆键。

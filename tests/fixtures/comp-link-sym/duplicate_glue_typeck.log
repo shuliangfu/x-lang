@@ -1,0 +1,4 @@
+ld: duplicate symbol 'ast_pool_alloc' in:
+    build_asm/typeck.o
+    build_asm/typeck_glue.o
+typeck∩glue: ast_pool duplicate in strict relink

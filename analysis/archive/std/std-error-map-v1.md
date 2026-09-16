@@ -66,6 +66,8 @@
 - 门禁：`tests/run-std-error-map-gate.sh`（`XLANG_STD_ERROR_MAP`）
 - 报告：`xlang: [XLANG_STD_ERROR_MAP] status=ok`
 
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-error-map-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `error_map_smoke.x` + cookbook `error_module_base.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. 验收`。 Leave wrap body / ensure_std family.
+
 ---
 
 ## 6. 演进

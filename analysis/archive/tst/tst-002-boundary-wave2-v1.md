@@ -41,3 +41,20 @@ manifest：`tests/baseline/tst-002-boundary-wave2.tsv`
 ## 4. 与 run-all 关系
 
 功能烟测仍由 `run-heap.sh` 等承担；本 gate 专注**边界向量**计数与链接。`run-portable-suite.sh` 挂入门禁。
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-28):
+
+- Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`.
+- Missing native / explicit bad XLANG = hard die (no soft SKIP→OK / soft auto-make / prefer-c).
+- Manifest + case counts = hard.
+- heap / vec / map / process product `-o` exit0 = hard run.
+- `xlang check` = obs (paused 2026-08-05).
+- Report: `run=` / `obs=` / `skip=`.
+
+```bash
+./tests/run-tst-002-boundary-gate.sh
+```
+
+manifest: `tests/baseline/tst-002-boundary-wave2.tsv`

@@ -20,6 +20,25 @@
 | runtime auto TLS | `tls_runtime_link_smoke.x` 在 mod 固定 import stub 时 **暂不绿** → F-04 v2 |
 | ws.inc.c | 仍于 net.c；链接时解析 `net_tls_*_c` 自 tls_stub.x 或 openssl net.o |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static TSV + F-01 inventory. No soft `die→exit 0`. Soft
+`XLANG_F04_NET_TLS_STUB_FAIL` retired. Product `run-std-net-tls-gate`
+observational (net-tls residual). Report `static=` / `inventory=` /
+`tls=` / `skip=`. Live authority = `./xbuild` +
+`compiler/mk/std_and_panic_objs.mk` + `ensure_host_cc_seed_o.sh`
+(Makefile deleted).
+
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-net-tls-stub：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested inventory／observational net-tls 不重写）。
+
+**2026-08-30 leftover unused compiler-make SOURCE 已收**（f04-net-tls-stub：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired；G.7 补全既有 `resolve_shu`；leftover nested inventory／observational net-tls 不重写）。
+
+```bash
+./tests/run-f04-std-net-tls-stub-gate.sh
+XLANG=./compiler/xlang_asm ./tests/run-f04-std-net-tls-stub-gate.sh
+```
+
 ## 复现
 
 ```bash

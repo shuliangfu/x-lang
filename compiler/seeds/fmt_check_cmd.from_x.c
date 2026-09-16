@@ -19,56 +19,13 @@
 #include "lsp/lsp_diag.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
-#ifdef _WIN32
-#include <stdlib.h>
-/* MinGW 无 dirent.h 的 d_type/DT_REG——用 _findfirst/_findnext 兼容层 */
-#include <io.h>
-#include <direct.h>
-#define DT_DIR _A_SUBDIR
-#define DT_REG _A_NORMAL
-#define DT_UNKNOWN 0
-struct dirent {
-    char d_name[260];
-    unsigned char d_type;
-};
-typedef struct { intptr_t handle; struct _finddata_t fd; int first; struct dirent ent; } DIR;
-static DIR *opendir_win(const char *name) {
-    char pattern[512];
-    DIR *d = (DIR *)calloc(1, sizeof(DIR));
-    if (!d) return NULL;
-    snprintf(pattern, sizeof(pattern), "%s/*", name);
-    d->handle = _findfirst(pattern, &d->fd);
-    if (d->handle == -1) { free(d); return NULL; }
-    d->first = 1;
-    return d;
-}
-static struct dirent *readdir_win(DIR *d) {
-    if (!d || d->handle == -1) return NULL;
-    if (d->first) { d->first = 0; }
-    else { if (_findnext(d->handle, &d->fd) != 0) return NULL; }
-    strncpy(d->ent.d_name, d->fd.name, sizeof(d->ent.d_name) - 1);
-    d->ent.d_name[sizeof(d->ent.d_name) - 1] = 0;
-    d->ent.d_type = (d->fd.attrib & _A_SUBDIR) ? DT_DIR : DT_REG;
-    return &d->ent;
-}
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void closedir_win(DIR *d) {
-    if (d && d->handle != -1) _findclose(d->handle);
-    free(d);
-}
-
-
-
-
-#define opendir opendir_win
-#define readdir readdir_win
-#define closedir closedir_win
-#else
-#include <dirent.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xlang_fmt_cap.h> /* Cap residual 10.7.2: fmt_check path/walk format → Cap snprintf */
+/* G.7: Cap before Win32 opendir pattern snprintf and all later path joins. */
+#undef snprintf
+#define snprintf xlang_snprintf
 #include <sys/stat.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -76,6 +33,7 @@ void closedir_win(DIR *d) {
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+#include <xlang_io_cap.h>
 #include "xlang_weak.h"
 /*
  * Stage 12.0.5 pure-asm hybrid residual (G.7 有则补全 — single exported authority):
@@ -90,22 +48,27 @@ void closedir_win(DIR *d) {
  * pure-asm thin+rest partial-merge / final pure-ld resolve inside the fmt leaf
  * (and any peer pure-asm that U's the same face while this leaf is on the bag).
  *
- * PLATFORM: SHARED — opendir/readdir/closedir honor Win32 macros above; access
- * via unistd shim on MinGW. Keep prologue static inline for -E inlining only;
- * local `t` does not multidef against these weak globals.
+ * Cap residual 9.1.10: opendir/readdir/closedir via xlang_dir_cap.h (G.7).
+ * PLATFORM: SHARED — header is the single authority (Linux Cap / POSIX libc /
+ * WINDOWS MinGW _findfirst). Do not keep a second _findfirst / void closedir_win
+ * copy in this seed. access still unistd shim on MinGW. Weak globals for
+ * pure-asm thin U faces.
  */
+#include <xlang_dir_cap.h>
+
 XLANG_WEAK uint8_t *xlang_fmt_opendir(uint8_t *name) {
     if (!name) {
         return (uint8_t *)0;
     }
-    return (uint8_t *)(void *)opendir((const char *)(void *)name);
+    /* Cap residual 9.1.10: no libc opendir on Linux; MinGW _findfirst in header. */
+    return (uint8_t *)xlang_dir_open((const char *)(void *)name);
 }
 
 XLANG_WEAK int32_t xlang_fmt_closedir(uint8_t *dirp) {
     if (!dirp) {
         return (int32_t)-1;
     }
-    return (int32_t)closedir((DIR *)(void *)dirp);
+    return (int32_t)xlang_dir_close((void *)dirp);
 }
 
 XLANG_WEAK int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {
@@ -116,12 +79,13 @@ XLANG_WEAK int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {
 }
 
 XLANG_WEAK uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {
-    struct dirent *ent;
     if (!dirp) {
         return (uint8_t *)0;
     }
-    ent = readdir((DIR *)(void *)dirp);
-    return ent ? (uint8_t *)(void *)ent->d_name : (uint8_t *)0;
+    {
+        char *n = xlang_dir_readdir_name((void *)dirp);
+        return (uint8_t *)(void *)n;
+    }
 }
 
 /* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
@@ -941,38 +905,34 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
  */
 #ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect_impl(const char *dir) {
-    DIR *d;
-    struct dirent *ent;
+    void *d;
+    char *name;
     char child[768];
     char dir_buf[512];
     if (!dir)
         return;
     snprintf(dir_buf, sizeof dir_buf, "%s", dir);
-    d = opendir(dir_buf);
+    /* Cap residual 9.1.10: cold twin also uses Cap (no libc opendir). */
+    d = xlang_dir_open(dir_buf);
     if (!d)
         return;
-    while ((ent = readdir(d)) != NULL) {
+    while ((name = xlang_dir_readdir_name(d)) != NULL) {
         int is_dir = 0;
         int is_reg = 0;
-        if (fmt_walk_skip_dot_name(ent->d_name))
+        if (fmt_walk_skip_dot_name(name))
             continue;
-        snprintf(child, sizeof child, "%s/%s", dir_buf, ent->d_name);
-        if (ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN) {
+        snprintf(child, sizeof child, "%s/%s", dir_buf, name);
+        {
             struct stat st;
             if (stat(child, &st) == 0 && S_ISDIR(st.st_mode))
                 is_dir = 1;
-        }
-        if (!is_dir && (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN)) {
-            struct stat st;
-            if (ent->d_type == DT_REG)
-                is_reg = 1;
             else if (stat(child, &st) == 0 && S_ISREG(st.st_mode))
                 is_reg = 1;
         }
         /* 调 public：冷 seed public→_impl path；hybrid 不编此函数 */
         walk_dir_collect_process_child(child, is_dir, is_reg);
     }
-    closedir(d);
+    (void)xlang_dir_close(d);
 }
 
 /* G-02f-249：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
@@ -1636,7 +1596,7 @@ static ck_spin_sh *g_ck_spin_sh = NULL;
  */
 static void check_interrupt_handler(int sig) {
     const char msg[] = "\ncheck: interrupted\n";
-    (void)write(2, msg, sizeof(msg) - 1);
+    (void)xlang_io_write(2, msg, sizeof(msg) - 1);
     g_ck_spin_run = 0;
     g_ck_spin_pause = 0;
 #ifndef _WIN32
@@ -1651,7 +1611,7 @@ static void check_interrupt_handler(int sig) {
     }
 #endif
     if (g_ck_spin_shown) {
-        (void)write(2, "\n", 1);
+        (void)xlang_io_write(2, "\n", 1);
         g_ck_spin_shown = 0;
     }
     /* 128+sig is shell convention for death-by-signal (SIGINT → 130). */
@@ -1764,7 +1724,7 @@ static void check_progress_spin_write_frame(void) {
     }
 
     if (at > 0) {
-        (void)write(2, buf, (size_t)at);
+        (void)xlang_io_write(2, buf, (size_t)at);
         g_ck_spin_shown = 1;
     }
 }
@@ -1890,7 +1850,7 @@ void check_progress_spin_stop(void) {
     check_progress_spin_join_only();
     /* Commit spinner line so the summary/next output starts on a new line. */
     if (g_ck_spin_shown) {
-        (void)write(2, "\n", 1);
+        (void)xlang_io_write(2, "\n", 1);
         g_ck_spin_shown = 0;
     }
 }
@@ -1973,7 +1933,7 @@ void check_progress_spin_pause(void) {
 #endif
     /* End the active spinner line so multi-line diagnostics are clean. */
     if (g_ck_spin_shown) {
-        (void)write(2, "\n", 1);
+        (void)xlang_io_write(2, "\n", 1);
         g_ck_spin_shown = 0;
     }
 }

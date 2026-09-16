@@ -30,9 +30,26 @@
 ./tests/run-std-sys-gate.sh
 ```
 
-Linux x86_64 + `xlang -freestanding -backend asm`：编译运行 stdout 烟测。  
-Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。  
-其他宿主：manifest + typeck OK，runtime SKIP。
+Honesty (2026-08-28 soft fallthrough residual): prefer `xlang_asm` + pin
+`XLANG_LINK_XLANG`; explicit-bad `XLANG` / missing native → hard die (refuse
+soft fallthrough / prefer-c / soft auto-make / soft SKIP→OK). check
+observational (paused 2026-08-05). Hard green: `write_stdout` exit0 +
+stdout `Hello Xlang!\n` (`run+=`) —
+**LINUX|UBUNTU x86_64** `-freestanding -backend asm`; **MACOS|DARWIN** hosted
+`-o`. Observational: `linux_syscall_nr_smoke.x` (Linux); thin
+`macos_posix_write_smoke.x` (Darwin labi needle gap; `obs+=`). Report
+`run=` / `obs=` / `skip=`.
+
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-sys-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `write_stdout` hard；check／linux_nr／macos_thin＝obs；report `run=`／`obs=`／`skip=`。Keep `## 3. Gate`。 Leave wrap body / ensure_std family.
+
+```text
+xlang: [XLANG_BOOT029_STD_SYS] status=ok run=1 obs=2 skip=0
+```
+
+Changelog：
+
+- **2026-08-29**：leftover wrap 死 source：删 unused wrap source + unused `compiler-make.sh`；Keep `## 3. Gate`。
+- **v0.2（2026-08-26）**：soft→硬绿 — 闸 prefer asm＋LINK pin；check 观测；`write_stdout` run 硬绿；Darwin 硬路径从 thin `macos_write_*` 收口到 facade `write_stdout`；thin macos 仅观测；报告 `check=`／`run=`／`skip=`。
 
 ---
 
@@ -76,4 +93,17 @@ Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。
 | `extern write` | libSystem POSIX write(2) |
 
 烟测：`tests/sys/macos_posix_write_smoke.x`（Darwin `-o exe` 运行）。  
-与 `os_write`（freestanding Linux）并存；无 `#[cfg]` 时由调用方选择路径。
+与 `os_write`（freestanding Linux）并存；无 `#[cfg]` 时由调用方选择路径。  
+Honesty note（2026-08-26）：thin `macos_write_*` 在 asm 产品链上仍可能 UNDEF（labi needles 缺 mod 层 `std_sys_macos_write_*`）；闸硬绿改走 facade `write_stdout`，本烟测仅观测。
+
+---
+
+## 8. v3（FreeBSD POSIX write）
+
+| API | 说明 |
+|-----|------|
+| `import("std.sys.freebsd")` | `freebsd_write` / `freebsd_write_stdout` |
+| `freebsd_write_available()` | mod + freebsd 子模块探测 |
+
+烟测：`tests/sys/freebsd_posix_write_smoke.x`（FreeBSD host）。  
+与 Linux freestanding / macOS POSIX 并存；门禁在非 FreeBSD 宿主不硬跑本烟测。

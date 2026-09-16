@@ -946,6 +946,9 @@ export extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx: *u
 export extern "C" function simd_enc_try_hw_vector_imul_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_fadd_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+export extern "C" function simd_enc_try_hw_vector_fsub_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+export extern "C" function simd_enc_try_hw_vector_hsum_f32x4_rbp_impl(elf_ctx: *u8, slot_off: i32, ta: i32, cpu_features: u32): i32;
+export extern "C" function simd_enc_try_hw_vector_dot_f32x4_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, ta: i32, cpu_features: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_fma_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_c: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
 export extern "C" function simd_enc_try_hw_vector_binop_rbp_at_idx_impl(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
 export extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32;
@@ -1023,6 +1026,56 @@ export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, s
 #[no_mangle]
 export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   unsafe { return simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+/**
+ * Thin forwarder for HW f32 vector subtract (stack-slot operands).
+ * @param elf_ctx *u8 — ELF codegen ctx
+ * @param slot_off_a i32 — rbp-relative home of operand a
+ * @param slot_off_b i32 — rbp-relative home of operand b
+ * @param slot_off_dst i32 — rbp-relative dest home
+ * @param lanes i32 — 4 (xmm) or 8 (ymm); cold seed handles 4
+ * @param esz i32 — must be 4 (f32)
+ * @param ta i32 — target arch (0 = x86_64)
+ * @param cpu_features u32 — SSE2 required on the seed path
+ * @return i32 — 0 handled, -1 fall back / error
+ * PLATFORM: SHARED — body in simd_enc.from_x.c `_impl`.
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_fsub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_fsub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+/**
+ * Thin forwarder for HW f32x4 horizontal sum into xmm0 lane0.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param slot_off i32 — Vec4f stack home
+ * @param ta i32 — 0=x86_64 · 1=aarch64
+ * @param cpu_features u32 — bit0 SSE
+ * @return i32 — 0 ok; -1 unavailable/error
+ * PLATFORM: SHARED — body in simd_enc.from_x.c `_impl`.
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_hsum_f32x4_rbp(elf_ctx: *u8, slot_off: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_hsum_f32x4_rbp_impl(elf_ctx, slot_off, ta, cpu_features); }
+  return 0 - 1;
+}
+
+/**
+ * Thin forwarder for HW f32x4 dot product into xmm0 lane0.
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param slot_off_a i32 — first Vec4f stack home
+ * @param slot_off_b i32 — second Vec4f stack home
+ * @param ta i32 — 0=x86_64 · 1=aarch64
+ * @param cpu_features u32 — bit0 SSE
+ * @return i32 — 0 ok; -1 unavailable/error
+ * PLATFORM: SHARED — body in simd_enc.from_x.c `_impl`.
+ */
+#[no_mangle]
+export function simd_enc_try_hw_vector_dot_f32x4_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_dot_f32x4_rbp_impl(elf_ctx, slot_off_a, slot_off_b, ta, cpu_features); }
   return 0 - 1;
 }
 

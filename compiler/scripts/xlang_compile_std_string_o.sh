@@ -82,15 +82,21 @@ if ("std_heap_libc_heap_arena64_alloc_c" in s
         "#ifndef XLANG_STRING_HEAP_WEAK\n"
         "#define XLANG_STRING_HEAP_WEAK\n"
         "struct std_heap_libc_LibcArena64;\n"
-        "extern uint8_t *malloc(size_t size);\n"
+        "/* PLATFORM: SHARED — do not declare extern uint8_t *malloc.\n"
+        " * stdlib.h (already included by product preamble) has void *malloc.\n"
+        " * GCC Ubuntu rejects the clash as an error; Darwin clang was lenient\n"
+        " * so macOS string.o could land while Ubuntu never produced T.\n"
+        " * G.7: same strip other host-cc scripts already apply. Cast the libc\n"
+        " * return. Do not #define malloc and do not invent a second allocator. */\n"
+        "#include <stdlib.h>\n"
         "__attribute__((weak)) int32_t std_heap_libc_heap_arena64_init_c(struct std_heap_libc_LibcArena64 *a, size_t cap) {\n"
         "  (void)a; (void)cap; return 0;\n"
         "}\n"
         "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_bump_c(struct std_heap_libc_LibcArena64 *a, size_t size, size_t obj_align) {\n"
-        "  (void)a; (void)obj_align; return malloc(size ? size : 1);\n"
+        "  (void)a; (void)obj_align; return (uint8_t *)malloc(size ? size : 1);\n"
         "}\n"
         "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_alloc_c(struct std_heap_libc_LibcArena64 *a, size_t size, size_t align_bytes) {\n"
-        "  (void)a; (void)align_bytes; return malloc(size ? size : 1);\n"
+        "  (void)a; (void)align_bytes; return (uint8_t *)malloc(size ? size : 1);\n"
         "}\n"
         "__attribute__((weak)) void std_heap_libc_heap_arena64_deinit_c(struct std_heap_libc_LibcArena64 *a) { (void)a; }\n"
         "#endif\n"
@@ -190,6 +196,10 @@ p.write_text(s)
 PY
 
 CFLAGS="-std=gnu11 -fPIE -ffunction-sections -fdata-sections -I$ROOT -I$COMP -I$COMP/include -I$COMP/src -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare -Wno-incompatible-pointer-types"
+# PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0.
+case "$(uname -s 2>/dev/null)" in
+  Darwin) CFLAGS="$CFLAGS -mmacosx-version-min=11.0" ;;
+esac
 cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 
 # 2) string.x bare ABI (xlang_string_*_c) — 必须裸符号。

@@ -29,6 +29,6 @@ symbol_poll_c	symbol	xlang_io_poll_async_completions	std/io/mod.x	C poll
 smoke_align	smoke	tests/async/io_cps_align.x	门面对齐
 smoke_io_uring	smoke	tests/async/io_uring_facade.x	STD-049 门面
 emit_await_io	file	tests/parser/async_await_io.x	emit 烟测
-doc	file	analysis/std-async-io-cps-v1.md	RFC
+doc	file	analysis/archive/std/std-async-io-cps-v1.md	RFC
 lib	script	lib/std-async-io-cps.sh	tests/lib/std-async-io-cps.sh
 gate	script	run-std-async-io-cps-gate.sh	tests/run-std-async-io-cps-gate.sh

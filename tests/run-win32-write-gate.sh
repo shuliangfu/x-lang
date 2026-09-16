@@ -1,47 +1,113 @@
 #!/usr/bin/env bash
-# B-17 v1：Windows std.sys os_write_stdout（GetStdHandle + WriteFile）烟测。
-# 用法：./tests/run-win32-write-gate.sh
-# 环境：XLANG_WIN32_WRITE_FAIL=1 失败时硬退出
+# B-17 v1: Windows std.sys os_write_stdout (GetStdHandle + WriteFile) smoke.
+#
+# Honesty: leftover XLANG fallthrough (`for cand in "${XLANG:-}" …`)
+# retired. Soft XLANG_WIN32_WRITE_FAIL already retired. Prefer xlang_asm;
+# pin XLANG_LINK_XLANG. Explicit-bad XLANG / missing native = hard die
+# FIRST (before Windows N/A skip; refuse leftover ignore of explicit-bad
+# as Darwin/Ubuntu N/A). Compile/run failure stays hard on Windows.
+# Darwin/Ubuntu stay N/A (Windows gold covers). leftover nested product
+# path (codesign / WriteFile smoke) stay. G.7: complete existing
+# resolve_shu; converge dod_native_exe.
+#
+# Usage: ./tests/run-win32-write-gate.sh
+# Report: run=/skip=
+# PLATFORM: WINDOWS gold for run; SHARED N/A elsewhere.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/dod-native-exe.sh
+source "$(dirname "$0")/lib/dod-native-exe.sh"
+# shellcheck source=tests/lib/ci-host.sh
+. "$(dirname "$0")/lib/ci-host.sh"
 
-FAIL=${XLANG_WIN32_WRITE_FAIL:-0}
 X="tests/sys/win32_write_smoke.x"
 # Why: bash direct exec of .exe under /tmp/ hits Windows Device Guard / Smart
 #      App Control intermittently (Permission denied, exit 126). $TEMP (set to
 #      C:/xlang_tmp short path in Windows build env) is reliable. POSIX falls
 #      back to /tmp where Device Guard does not apply.
 OUT="${TEMP:-/tmp}/xlang_win32_write.$$.exe"
-XLANG="${XLANG:-./compiler/xlang-c}"
+PREFIX="xlang: [XLANG_WIN32_WRITE]"
+RUN_OK=0
+SKIP=1
 
-if [ "$(uname -s 2>/dev/null)" != "MINGW"* ] && [ "$(uname -s 2>/dev/null)" != "MSYS"* ] \
-   && [ "${OS:-}" != "Windows_NT" ]; then
+# G.7: complete existing resolve_shu. Explicit XLANG that is missing or
+# non-native returns 1 (caller hard-dies). Unset XLANG prefers asm.
+# Do not restore set -e before return 1.
+# PLATFORM: SHARED — product path honesty; Windows gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+die() {
+  echo "win32-write-gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK:-0} skip=${SKIP:-0} host=$(ci_host_summary)"
+  exit 1
+}
+
+# Explicit XLANG that is missing/non-native hard-dies BEFORE Windows N/A
+# skip (refuse leftover SKIP→OK / leftover ignore of explicit-bad /
+# leftover XLANG fallthrough as Darwin/Ubuntu N/A). leftover nested
+# Windows product path stays when XLANG is unset (do not rewrite leftover
+# WriteFile smoke).
+# PLATFORM: SHARED — product path honesty; Windows gold still required.
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+fi
+
+if ! ci_is_windows_msys && [ "${OS:-}" != "Windows_NT" ]; then
   echo "win32-write-gate: N/A (Windows/MSYS2 only)"
+  echo "${PREFIX} status=ok run=0 skip=1 host=$(ci_host_summary)"
   exit 0
 fi
 
-if [ ! -x "$XLANG" ]; then
-  XLANG="./compiler/xlang"
+[ -f "$X" ] || die "missing $X"
+[ ! -f std/sys/win32.inc.c ] || die "win32.inc.c should be removed (F-02 v2)"
+if [ -n "${XLANG:-}" ]; then
+  XLANG_BIN="$(resolve_shu)" || die "explicit XLANG not native (refuse leftover XLANG fallthrough / leftover ignore of explicit-bad / leftover SKIP→OK)"
+else
+  XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse leftover XLANG fallthrough / leftover SKIP→OK / leftover auto-make)"
 fi
-if [ ! -x "$XLANG" ]; then
-  echo "win32-write-gate: SKIP (no xlang/xlang-c)"
-  exit 0
-fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
+echo "=== win32-write (XLANG=$XLANG_BIN; hard) ==="
 rm -f "$OUT" 2>/dev/null || true
-# F-02 v2：kernel32 由链接器解析；无 win32.inc.c / win32.o。
-if ! "$XLANG" build -L . -o "$OUT" "$X" 2>/tmp/xlang_win32_write.log; then
-  echo "win32-write-gate FAIL: compile $X" >&2
-  tail -n 10 /tmp/xlang_win32_write.log 2>/dev/null || true
-  rm -f "$OUT" 2>/dev/null || true
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+# F-02 v2: kernel32 resolved by linker; no win32.inc.c / win32.o.
+# PLATFORM: SHARED — prefer pure-asm product -o; optional host-cc fallback with XLANG_ALLOW_HOST_CC.
+if ! "$XLANG_BIN" build -L . -o "$OUT" "$X" 2>/tmp/xlang_win32_write.log; then
+  if [ -n "${XLANG_ALLOW_HOST_CC:-}" ] && "$XLANG_BIN" build -backend c -L . -o "$OUT" "$X" 2>/tmp/xlang_win32_write.log; then
+    :
+  else
+    tail -n 10 /tmp/xlang_win32_write.log 2>/dev/null || true
+    rm -f "$OUT" 2>/dev/null || true
+    die "compile $X"
+  fi
 fi
-
 if [ ! -x "$OUT" ] && [ ! -f "$OUT" ]; then
-  echo "win32-write-gate FAIL: no executable $OUT" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
+  die "no executable $OUT"
 fi
 
 rc=0
@@ -53,21 +119,15 @@ if command -v powershell.exe >/dev/null 2>&1; then
   powershell.exe -NoProfile -Command \
     "Set-AuthenticodeSignature -FilePath '$_win_out' -Certificate (Get-Item \"Cert:\\LocalMachine\\My\\$_sign_cert\")" >/dev/null 2>&1 || true
 fi
-OUT=$( "$OUT" 2>/dev/null ) || rc=$?
+STDOUT_CAPTURE=$("$OUT" 2>/dev/null) || rc=$?
 rm -f "$OUT" 2>/dev/null || true
 
-if [ "$rc" -ne 0 ]; then
-  echo "win32-write-gate FAIL: expected exit 0, got $rc" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
-
+[ "$rc" -eq 0 ] || die "expected exit 0, got $rc"
 EXPECTED=$(printf 'Hello Xlang!\n')
-if [ "$OUT" != "$EXPECTED" ]; then
-  echo "win32-write-gate FAIL: stdout='$OUT' expected='$EXPECTED'" >&2
-  [ "$FAIL" = "1" ] && exit 1
-  exit 0
-fi
+[ "$STDOUT_CAPTURE" = "$EXPECTED" ] || die "stdout='$STDOUT_CAPTURE' expected='$EXPECTED'"
 
-echo "win32-write-gate OK (Windows std.sys os_write_stdout via WriteFile)"
+RUN_OK=1
+SKIP=0
+echo "win32-write-gate OK (Windows std.sys os_write_stdout via WriteFile; honesty)"
+echo "${PREFIX} status=ok run=${RUN_OK} skip=${SKIP} host=$(ci_host_summary)"
 exit 0

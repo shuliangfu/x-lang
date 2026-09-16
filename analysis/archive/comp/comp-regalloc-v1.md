@@ -1,7 +1,7 @@
 # COMP-005 寄存器分配策略评估 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 asm **7.3**、`pipeline_glue.c` `glue_asm73_*`、`run-asm-73-gate.sh` 对齐  
+> 更新时间：2026-08-29  
+> 状态：**定版（honesty residual auto-make）** — 与 asm **7.3**、`pipeline_glue.c` `glue_asm73_*`、`run-asm-73-gate.sh` 对齐  
 > 关联：`COMP-004`（WPO）、`compiler/src/asm/README.md` §7.3
 
 ---
@@ -91,12 +91,26 @@ v1 **quality report** 以 **arm64 反汇编门禁**为主（CI Linux arm64 + Dar
 ./tests/run-asm-73-gate.sh             # 全量 10 脚本
 ```
 
-**gate report**：stdout 须含 `comp-regalloc gate OK`；失败打印 `comp-regalloc FAIL:` 行。
+**gate report**：stdout 须含 `comp-regalloc gate OK` + `status=ok`；失败打印 `comp-regalloc FAIL:` 行。
 
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/comp-regalloc-v1.md` |
+| 本文 | `analysis/archive/comp/comp-regalloc-v1.md` |
 | manifest | `tests/baseline/comp-regalloc.tsv` |
 | quality | `tests/baseline/comp-regalloc-quality.tsv` |
 
 **COMP-005 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27): prefer `xlang_asm` + `XLANG_LINK_XLANG`;
+refuse soft SKIP→OK when no native; explicit bad XLANG / missing native =
+hard die; non-arm64 block_var disasm = `skip=` (platform N/A); DOC=archive;
+report `run=`／`skip=`.
+Honesty 2026-08-29: residual auto-make (`xlang_compiler_make`) retired. Keep `## Gate`.
+
+```bash
+./tests/run-comp-regalloc-gate.sh   # runnable：manifest + regalloc hooks
+./tests/run-comp-regalloc.sh        # 轻量烟测（缺 native 硬 die）
+```
+

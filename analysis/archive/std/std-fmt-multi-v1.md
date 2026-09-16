@@ -55,12 +55,29 @@
 
 ---
 
-## 4. 验收
+## 4. Gate
+
+### 假权威诚实验收（2026-08-25）
+
+- Prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`（防 Darwin-arm64 asm→c remap）。
+- `xlang check` **观测**（自举期 check 闸门暂停 2026-08-05）；不硬失败。
+- 可跑烟测 `tests/fmt-std/format_multi.x` exit **0** 硬失败；有原生 xlang 时 **禁 soft SKIP**。
+- 报告：`check=`／`run=`／`skip=`（`run=1` 为硬绿信号）。
+- 构建入口：`./xbuild`／闸脚本（**拒** `make -C compiler` 复活为活权威）。
+
+```
+xlang: [XLANG_STD_FMT_MULTI] status=ok check=0|1 run=1 skip=0
+std-fmt-multi gate OK
+```
 
 - manifest：`tests/baseline/std-fmt-multi.tsv`
 - 烟测：`tests/fmt-std/format_multi.x`
 - 回归：`tests/run-fmt-std.sh`
-- 报告：`xlang: [XLANG_STD_FMT_MULTI] status=ok`
+- 闸：`tests/run-std-fmt-multi-gate.sh`
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-fmt-std.sh`（`xlang_compiler_make -q || xlang_compiler_make xlang-c` + bootstrap-link wrap）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/fmt-std/*.x` hard（`print_i32_slc` JSON kept）；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [FMT_STD]`。Keep `## 4. Gate`。
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-fmt-multi-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `format_multi.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. Gate`。 Leave wrap body / ensure_std family.
 
 ---
 

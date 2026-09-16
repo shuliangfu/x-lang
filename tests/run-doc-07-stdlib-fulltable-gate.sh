@@ -2,10 +2,17 @@
 # DOC-007：docs/07 标准库全表与 STBL-002 同步门禁
 #
 # 用法：./tests/run-doc-07-stdlib-fulltable-gate.sh
+# wave honesty (2026-08-24 #12): DOC → analysis/archive/doc/
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_DOC07_DOC:-analysis/doc-07-stdlib-fulltable-v1.md}"
+if [ -f analysis/doc-07-stdlib-fulltable-v1.md ]; then
+  echo "doc-07-stdlib-fulltable-gate gate FAIL: top-level DOC resurrected (live = archive/doc/)" >&2
+  exit 1
+fi
+
+DOC="${XLANG_DOC07_DOC:-analysis/archive/doc/doc-07-stdlib-fulltable-v1.md}"
 MANIFEST="${XLANG_DOC07_TSV:-tests/baseline/doc-07-stdlib-fulltable.tsv}"
 README="std/README.md"
 DOC07="docs/07-内置与标准库.md"

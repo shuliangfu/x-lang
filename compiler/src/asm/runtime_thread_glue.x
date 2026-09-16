@@ -4,12 +4,14 @@
 // runtime_thread_glue.x — R2 full wave513
 //
 // Thread OS glue: thread_self/create/join/affinity/QoS/name + worker thread pool.
-// The actual OS API calls (pthread_*, CreateThread, SetThreadAffinityMask, etc.)
-// are delegated to C bridge functions declared below as extern "C". These are
-// implemented in seeds/runtime_thread_glue.from_x.c and linked via the product
-// pipeline (thin+rest ld -r pattern).
+// The actual OS API calls (Linux Cap spawn/join/pool; Darwin pthread_*;
+// Windows CreateThread / SetThreadAffinityMask, etc.) are delegated to C
+// bridge functions declared below as extern "C". These are implemented in
+// seeds/runtime_thread_glue.from_x.c and linked via the product pipeline
+// (thin+rest ld -r pattern).
 //
-// PLATFORM: SHARED (POSIX + Windows branches handled by C bridge _impl functions)
+// PLATFORM: SHARED — LINUX Cap (futex); Darwin Cap (pthread residual);
+//           WINDOWS Cap (CreateThread spawn/join + Win32 pool 10.6.2/10.6.3).
 //
 // Wave513 (2026-07-27): R2 migration of runtime_thread_glue.from_x.c business
 // logic to .x. Previously the .c seed provided all public wrappers; now the
@@ -67,18 +69,20 @@ export extern "C" function thread_create_with_stack_impl(entry: *u8, arg: *u8, s
 export extern "C" function thread_join_impl(thread_id: i64): i32;
 
 /**
- * Bridge: bind current thread to a logical CPU (affinity).
- * Linux: pthread_setaffinity_np(self) / Windows: SetThreadAffinityMask /
+ * Bridge: bind current thread to a logical CPU (affinity via Cap).
+ * Linux: sched_setaffinity(0) / Windows: SetThreadAffinityMask /
  * macOS: unsupported (-1).
+ * PLATFORM: SHARED Cap (9.4.6).
  * @param cpu_index logical CPU index (0-based)
  * @return 0 success; -1 failure or unsupported
  */
 export extern "C" function thread_set_affinity_self_impl(cpu_index: i32): i32;
 
 /**
- * Bridge: bind a specific thread to a logical CPU.
- * Linux: pthread_setaffinity_np(tid) / Windows: SetThreadAffinityMask /
+ * Bridge: bind a specific thread to a logical CPU (affinity via Cap).
+ * Linux: sched_setaffinity(child_tid) / Windows: SetThreadAffinityMask /
  * macOS: unsupported (-1).
+ * PLATFORM: SHARED Cap (9.4.6).
  * @param thread_id target thread
  * @param cpu_index logical CPU index
  * @return 0 success; -1 failure or unsupported
@@ -86,7 +90,9 @@ export extern "C" function thread_set_affinity_self_impl(cpu_index: i32): i32;
 export extern "C" function thread_set_affinity_impl(thread_id: i64, cpu_index: i32): i32;
 
 /**
- * Bridge: set current thread QoS class (macOS only).
+ * Bridge: set current thread QoS class via Cap.
+ * macOS: pthread_set_qos_class_self_np / Linux & Windows: unsupported (-1).
+ * PLATFORM: SHARED Cap (9.4.6).
  * @param qos_class 0=default,1=user_interactive,2=user_initiated,3=utility,4=background
  * @return 0 success; -1 failure or unsupported
  */
@@ -239,7 +245,7 @@ export function thread_join_c(thread_id: i64): i32 {
  */
 #[no_mangle]
 export function thread_set_affinity_self_c(cpu_index: i32): i32 {
-  if cpu_index < 0 {
+  if (cpu_index < 0) {
     return -1;
   }
   unsafe {
@@ -256,7 +262,7 @@ export function thread_set_affinity_self_c(cpu_index: i32): i32 {
  */
 #[no_mangle]
 export function thread_set_affinity_c(thread_id: i64, cpu_index: i32): i32 {
-  if thread_id == 0 || cpu_index < 0 {
+  if (thread_id == 0 || cpu_index < 0) {
     return -1;
   }
   unsafe {
@@ -272,7 +278,7 @@ export function thread_set_affinity_c(thread_id: i64, cpu_index: i32): i32 {
  */
 #[no_mangle]
 export function thread_set_qos_class_self_c(qos_class: i32): i32 {
-  if qos_class < 0 || qos_class > 4 {
+  if (qos_class < 0 || qos_class > 4) {
     return -1;
   }
   unsafe {
@@ -289,7 +295,7 @@ export function thread_set_qos_class_self_c(qos_class: i32): i32 {
  */
 #[no_mangle]
 export function thread_set_name_self_c(name: *u8, len: i32): i32 {
-  if name == 0 || len < 0 {
+  if (name == 0 || len < 0) {
     return -1;
   }
   unsafe {
@@ -317,7 +323,7 @@ export function thread_dummy_entry_ptr_c(): u64 {
  */
 #[no_mangle]
 export function thread_pool_start_c(workers: i32): i32 {
-  if workers < 1 || workers > 8 {
+  if (workers < 1 || workers > 8) {
     return -1;
   }
   unsafe {
@@ -335,7 +341,7 @@ export function thread_pool_start_c(workers: i32): i32 {
  */
 #[no_mangle]
 export function thread_pool_submit_c(entry: u64, arg: u64): i32 {
-  if entry == 0 {
+  if (entry == 0) {
     return -1;
   }
   unsafe {

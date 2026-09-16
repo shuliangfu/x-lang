@@ -58,17 +58,32 @@ let addr: Ipv4Addr = u32_to_ipv4(addr_u32);
 
 ---
 
-## 5. 验证与门禁
+## 5. Gate
 
 ```bash
 ./tests/run-std-net-dns-gate.sh
 ```
 
 ```
-xlang: [XLANG_STD_NET_DNS] status=ok resolve=1 main=1 skip=0
+xlang: [XLANG_STD_NET_DNS] status=ok check=0|1 resolve=1 main=1 skip=0
 ```
 
-C 实现：`net_resolve_ipv4_ex_c`、`net_resolve_ipv6_ex_c`（`std/net/net.c`）。
+Hard-green signal: `resolve=1` + `main=1` + `skip=0`.  
+`check=` is observational only (check gate paused 2026-08-05).  
+Product C face: `net_resolve_ipv4_ex_c` / `net_resolve_ipv6_ex_c` in `std/net/dns.x` (not fossil `std/net/net.c`).
+
+### Honesty changelog (2026-08-26)
+
+| Before (portable false-red) | After |
+|-----------------------------|--------|
+| Prefer `xlang-c`; soft SKIP when missing | Prefer `xlang_asm`; pin `XLANG_LINK_XLANG`; no soft SKIP when native xlang present |
+| Hard `xlang check` fail | Check observational only |
+| Report `resolve=/main=/skip=` | Report `check=/resolve=/main=/skip=` |
+| DOC section `## 5. 验证与门禁` | DOC/TSV `## 5. Gate` |
+
+Product API anchors unchanged and match `std/net/mod.x`: `resolve_ex` / `resolve_ipv6` / `ipv6_loopback` / `resolve_err_ok`.
+
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-net-dns-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `resolve_dns.x`＋`main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 5. Gate`。 Leave wrap body / ensure_std family.
 
 ---
 

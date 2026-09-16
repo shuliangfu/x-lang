@@ -45,7 +45,6 @@
  * FROM_X 下本文件仅前向声明 + slice marker。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Prove：seeds/labi_freestanding_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 #include <stdlib.h>
@@ -86,7 +85,7 @@ const char *labi_fs_env_freestanding(void) {
 
 /* ---- freestanding_io probe symbols (any undef → needs io) ---- */
 int labi_fs_io_sym_count(void) {
-  return 13;
+  return 16;
 }
 
 const char *labi_fs_io_sym_at(int i) {
@@ -118,6 +117,12 @@ const char *labi_fs_io_sym_at(int i) {
     return "xlang_sys_listen";
   if (i == 12)
     return "xlang_sys_accept";
+  if (i == 13)
+    return "backtrace_capture_c";
+  if (i == 14)
+    return "backtrace_symbolicate_c";
+  if (i == 15)
+    return "xlang_target_cpu_detect_host";
   return NULL;
 }
 

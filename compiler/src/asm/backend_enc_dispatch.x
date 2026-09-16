@@ -145,12 +145,14 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
     // Do NOT skip when name[0]=='_' — C reserved names like __error must become
     // ___error (host cc). Skipping left bare U __error → pure-ld fail / residual.
     let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
-    if (macho != 0 && name_len > 0 && name_len <= 127) {
-      let reloc_name: u8[128] = [];
+    // Cap 4.2.8: reloc_name[256] holds '_' + up to 255 content (was [128]/127).
+    // PLATFORM: MACOS|DARWIN arm64 BL reloc; LINUX flag 0.
+    if (macho != 0 && name_len > 0 && name_len <= 255) {
+      let reloc_name: u8[256] = [];
       reloc_name[0] = 95;
       let i: i32 = 0;
       while (i < name_len) {
-        if (i >= 127) { break; }
+        if (i >= 255) { break; }
         reloc_name[i + 1] = name[i];
         i = i + 1;
       }
@@ -468,6 +470,9 @@ export extern "C" function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32;
@@ -863,6 +868,14 @@ export function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
 #[no_mangle]
 export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   // See implementation.
+  // P12g BM4 root fix (2026-09-15): mov rax->rbx reparks x1/x19 with a NON-var
+  // value; any binop var-slot cache belief "rbx holds var at off" is stale
+  // afterwards. Store2 of bound_name/bound_trait consecutive same-index stores
+  // skipped the zi reload into x1 on a stale hit -> two pointers added (0x2_0292_
+  // 0fb0 write). Invalidate HERE — the single authority all emission sites call
+  // (125+ sites audited; only 32 had ad-hoc invalidations, 117 of 119 lacked it).
+  // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
+  glue_binop_var_slot_cache_invalidate_rbx();
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx); }
@@ -1631,6 +1644,15 @@ export function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
 #[no_mangle]
 export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   // See implementation.
+  // P12g DIV root fix (2026-09-14): a CALL clobbers rax AND rbx (and every
+  // volatile); the binop var-slot cache beliefs for both are stale afterwards.
+  // The pure-asm scan's `pl = peek_ident_len(...)` kept a stale rax-belief so
+  // the return value never spilled to pl's home — turbofish lens recorded 0
+  // (T001 'requires type arguments' on copy<A>). Same family as BM5's rbx
+  // invalidation at mov_rax_to_rbx. Invalidate BOTH at the call authority.
+  // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   unsafe {
   if (ta == 1) { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
@@ -1968,6 +1990,7 @@ export extern "C" function arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx: *
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
+export extern "C" function arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx: *u8, off_pos: i32): i32;
 export extern "C" function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
@@ -2108,9 +2131,10 @@ export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
  */
 #[no_mangle]
 export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
-  // See implementation.
+  // Stage10 10.2.2 slice1: ta==1 → arch_arm64_enc_enc_mov_arg_reg_to_rax (AAPCS lateout).
   unsafe {
   if (ta == 0) { return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
+  if (ta == 1) { return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
   return 0 - 1;
   }
 }
@@ -2779,6 +2803,17 @@ export function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i
  */
 #[no_mangle]
 export function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) { return 0 - 1; }
+    unsafe {
+      // fmov d0, x0 — move f64 bits from x0 into d0 (0x9e670000).
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1637416960) != 0) { return 0 - 1; }
+      // fcvt s0, d0 — double to single convert (0x1e624000).
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, 509755392) != 0) { return 0 - 1; }
+      // fmov w0, s0 — move f32 bits from s0 into w0 (0x1e260000).
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 505806848);
+    }
+  }
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {

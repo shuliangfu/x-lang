@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # A-10：L5 run-all parity — bstrict 白名单与 run-all.sh 同步 + xlang_asm 白名单烟测。
 #
+# Honesty leftover unused compiler-make.sh sourced unused (no
+# xlang_compiler_make) retired. leftover nested run-all-bstrict stay
+# (full 129-script host — not rewritten this unused-SOURCE knife).
+# leftover nested native_xlang (hardcoded compiler/xlang_asm) stay.
+# G.7: complete existing; do not fork a third resolver here.
+#
 # 1) 校验 run-all-bstrict.sh 中每项均在 run-all.sh L5 whitelist 内
 # 2) 跑 run-all-bstrict.sh（123 项，compiler/xlang_asm）
 #
 # 用法：./tests/run-l5-run-all-parity-gate.sh
 # 环境：XLANG_BSTRICT_SKIP_BUILD=1 — 复用已有 xlang_asm（bootstrap-ci 已构建时）
+# PLATFORM: SHARED archaeology (Ubuntu gold).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 

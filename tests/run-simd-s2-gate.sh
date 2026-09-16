@@ -1,79 +1,104 @@
 #!/usr/bin/env bash
-# SIMD-S2 门禁：std.simd Vec4f/Vec8i 真链 + 运行 smoke。
-# 必须 -o exe（非 .o）：compile-to-.o 不走 ld，会把 UNDEF std_simd_* 假绿。
-# PLATFORM: SHARED harness — Ubuntu x86_64 gold; Darwin 同路径真链。
-# 用法：
-#   ./tests/run-simd-s2-gate.sh
-#   XLANG=./compiler/xlang_asm ./tests/run-simd-s2-gate.sh
+# SIMD-S2 gate: std.simd Vec4f/Vec8i true-link + run smoke.
+# Must -o exe (not .o): compile-to-.o skips ld and false-greens UNDEF std_simd_*.
+#
+# Honesty: soft SKIP→OK when no native xlang retired. Prefer product
+# xlang_asm via dod_native_exe; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die. Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-simd-s2-gate.sh
+# 2026-08-27: soft SKIP→OK →硬绿.
+# PLATFORM: SHARED harness — Ubuntu x86_64 gold; Darwin same true-link path.
 set -e
 cd "$(dirname "$0")/.."
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
 
-XLANG_BIN="${XLANG:-}"
-case "$XLANG_BIN" in
-  /*) XLANG_ABS="$XLANG_BIN" ;;
-  "") XLANG_ABS="" ;;
-  *) XLANG_ABS="$(pwd)/$XLANG_BIN" ;;
-esac
+PREFIX="${XLANG_SIMD_S2_PREFIX:-xlang: [XLANG_SIMD_S2]}"
+RUN_OK=0
+OBS=0
+SKIP=0
 
-simd_s2_native_exe() {
-  local f="$1"
-  [ -n "$f" ] && [ -x "$f" ] || return 1
-  case "$(uname -s)-$(uname -m 2>/dev/null)" in
-    Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
-    Darwin-x86_64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*x86_64' ;;
-    Linux-x86_64|Linux-amd64) file "$f" 2>/dev/null | grep -qE 'ELF.*x86-64' ;;
-    Linux-aarch64|Linux-arm64) file "$f" 2>/dev/null | grep -qE 'ELF.*aarch64|ELF.*ARM' ;;
-    *) return 0 ;;
-  esac
+die() {
+  echo "simd-s2 gate FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
-  XLANG_ABS=""
-  for cand in ./compiler/xlang_asm ./compiler/xlang; do
-    case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
-    if simd_s2_native_exe "$abs"; then
-      XLANG_ABS="$abs"
-      break
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
   done
-fi
+  return 1
+}
 
 echo "=== SIMD-S2: Vec4f / Vec8i true-link smoke ==="
-
-if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
-  echo "simd-s2 gate SKIP (no native xlang/xlang_asm)"
-  exit 0
-fi
+XLANG_ABS="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK)"
+export XLANG="$XLANG_ABS"
+export XLANG_LINK_XLANG="$XLANG_ABS"
 
 SMOKE_SRC="tests/simd/vec4f_vec8i_smoke.x"
 SMOKE_EXE="/tmp/xlang_simd_s2_smoke"
 rm -f "$SMOKE_EXE"
+[ -f "$SMOKE_SRC" ] || die "missing $SMOKE_SRC"
 
 # Product CLI: -L . so import("std.simd") resolves; -o exe so ld sees UNDEF.
-if ! XLANG="$XLANG_ABS" "$XLANG_ABS" -L . "$SMOKE_SRC" -o "$SMOKE_EXE"; then
-  echo "simd-s2 FAIL: compile/link $SMOKE_SRC" >&2
-  exit 1
+if ! "$XLANG_ABS" -L . "$SMOKE_SRC" -o "$SMOKE_EXE"; then
+  die "compile/link $SMOKE_SRC"
 fi
 
 if [ ! -x "$SMOKE_EXE" ]; then
-  echo "simd-s2 FAIL: missing exe $SMOKE_EXE" >&2
-  exit 1
+  die "missing exe $SMOKE_EXE"
 fi
 
 if command -v readelf >/dev/null 2>&1; then
-  # readelf -S 双行格式：`.text` 在第 1 行，Size 在下一行第 1 列（勿用 $2==".text"）。
+  # readelf -S dual-line: `.text` on line 1, Size on next line col 1.
   if ! readelf -S "$SMOKE_EXE" 2>/dev/null | grep -qE '[[:space:]]\.text[[:space:]]'; then
-    echo "simd-s2 FAIL: no .text in $SMOKE_EXE" >&2
-    exit 1
+    die "no .text in $SMOKE_EXE"
   fi
   TEXT_SIZE="$(readelf -S "$SMOKE_EXE" 2>/dev/null | awk '
     /[[:space:]]\.text[[:space:]]/ { getline; print $1; exit }
   ')"
   if [ -z "$TEXT_SIZE" ] || [ "$TEXT_SIZE" = "000000" ]; then
-    echo "simd-s2 FAIL: .text size zero in $SMOKE_EXE" >&2
-    exit 1
+    die ".text size zero in $SMOKE_EXE"
   fi
   echo "simd-s2: .text present (size=$TEXT_SIZE)"
+  RUN_OK=$((RUN_OK + 1))
+elif command -v otool >/dev/null 2>&1; then
+  if ! otool -l "$SMOKE_EXE" 2>/dev/null | grep -q '__TEXT'; then
+    die "no __TEXT in $SMOKE_EXE"
+  fi
+  echo "simd-s2: __TEXT present (Mach-O)"
+  RUN_OK=$((RUN_OK + 1))
+else
+  echo "simd-s2: no readelf/otool; section check observational"
+  OBS=$((OBS + 1))
 fi
 
 set +e
@@ -81,9 +106,10 @@ set +e
 SMOKE_RC=$?
 set -e
 if [ "$SMOKE_RC" -ne 0 ]; then
-  echo "simd-s2 FAIL: run exit $SMOKE_RC (expected 0)" >&2
-  exit 1
+  die "run exit $SMOKE_RC (expected 0)"
 fi
 echo "simd-s2: run=0"
+RUN_OK=$((RUN_OK + 1))
 
 echo "simd-s2 gate OK"
+ok_report

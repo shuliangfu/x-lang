@@ -219,6 +219,23 @@ int32_t simd_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
+/** x86：subps xmm0, xmm1（0F 5C C1）。 Twin of simd_x86_subps_xmm0_xmm1 in simd_enc.x.
+ * PLATFORM: LINUX+MACOS x86_64 SSE. */
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t simd_x86_subps_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+    static const uint8_t insn[3] = {0x0f, 0x5c, 0xc1};
+    return simd_append_impl(elf_ctx, insn, 3);
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_subps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_subps_xmm0_xmm1_impl(elf_ctx);
+}
+#endif
+
+
+
+
 /** x86：paddd xmm0, xmm1（66 0F FE C1）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-384/385：实现体始终 seed；public PREFER 时 thin forward */
@@ -255,12 +272,12 @@ int32_t simd_x86_movups_xmm0_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 
 
 
-/** x86 AVX2：vmovups ymm0, [rbp+disp32]（C5 FE 10 85 disp32）。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-397：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x: VEX.256.0F vmovups ymm0, [rbp+disp32] = C4 E1 7C 10 85.
+ * PLATFORM: SHARED emit / x86 AVX. G.7 match .x (not C5 FE vmovss).
+ */
 int32_t simd_x86_vmovups_ymm0_from_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x10, 0x85};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x10, 0x85};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -274,12 +291,12 @@ int32_t simd_x86_vmovups_ymm0_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
 
 
 
-/** x86 AVX2：vmovups ymm1, [rbp+disp32]（C5 FE 10 8D disp32）。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-397：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x: VEX.256.0F vmovups ymm1, [rbp+disp32] = C4 E1 7C 10 8D.
+ * PLATFORM: SHARED emit / x86 AVX. G.7 match .x (not C5 FE vmovss).
+ */
 int32_t simd_x86_vmovups_ymm1_from_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x10, 0x8d};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x10, 0x8d};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -310,12 +327,12 @@ int32_t simd_x86_vpaddd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX2：vmovups [rbp+disp32], ymm0（C5 FE 11 85 disp32）。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-397：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x: VEX.256.0F vmovups [rbp+disp32], ymm0 = C4 E1 7C 11 85.
+ * PLATFORM: SHARED emit / x86 AVX. G.7 match .x (not C5 FE vmovss).
+ */
 int32_t simd_x86_vmovups_ymm0_to_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x11, 0x85};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x11, 0x85};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -713,6 +730,45 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
   return simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
+}
+#endif
+
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc
+ * Cold twin of simd_enc_try_hw_vector_fsub_rbp. Matches existing seed fadd:
+ * x86 SSE lanes==4 only (ARM/AVX live in simd_enc.x; L2 prefer uses .x).
+ * PLATFORM: SHARED symbol / LINUX+MACOS x86_64 SSE body. */
+int32_t simd_enc_try_hw_vector_fsub_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+    int32_t da;
+    int32_t db;
+    int32_t dd;
+
+    if (!elf_ctx || slot_off_a < 0 || slot_off_b < 0 || slot_off_dst < 0 || esz != 4 || lanes != 4)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
+        return -1;
+    da = simd_rbp_disp32(slot_off_a, lanes, esz);
+    db = simd_rbp_disp32(slot_off_b, lanes, esz);
+    dd = simd_rbp_disp32(slot_off_dst, lanes, esz);
+    if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
+        return -1;
+    if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
+        return -1;
+    if (simd_x86_subps_xmm0_xmm1_impl(elf_ctx) != 0)
+        return -1;
+    if (simd_x86_movups_xmm0_to_rbp_impl(elf_ctx, dd) != 0)
+        return -1;
+    return 0;
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_fsub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_fsub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
 }
 #endif
 
@@ -1114,11 +1170,13 @@ int32_t simd_x86_pshufd_xmm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, in
 
 
 
-/** x86 AVX2：vpshufd ymm0, ymm0, imm8（C5 FE 70 C0 imm8）。 */
-/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-399：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x simd_x86_vpshufd_ymm0_imm8.
+ * x86 AVX2 vpshufd ymm0, ymm0, imm8 = VEX 2-byte C5 FD 70 C0 imm8.
+ * VEX.pp=01 (66). C5 FE (pp=F3) is vpshufhw — L4 gold Vec8i shuffle exit=5.
+ * PLATFORM: SHARED emit / x86 AVX2. G.7 complete existing encoder; no third.
+ */
 int32_t simd_x86_vpshufd_ymm0_imm8_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm8) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x70, 0xc0};
+    static const uint8_t prefix[4] = {0xc5, 0xfd, 0x70, 0xc0};
     uint8_t ib;
     if (simd_append_impl(elf_ctx, prefix, 4) != 0)
         return -1;
@@ -1213,12 +1271,14 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
 }
 #endif
 
-/** x86 AVX2：vmovups ymm2, [rbp+disp32]（C5 FE 10 95 disp32）。 */
-/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-398：实现体始终 seed；public PREFER 时 thin forward */
+/* Twin of simd_enc.x simd_x86_vmovups_ymm2_from_rbp.
+ * VEX.256.0F vmovups ymm2, [rbp+disp32] = C4 E1 7C 10 95 disp32.
+ * C5 FE 10 is vmovss (pp=F3) and #UD at L=1 (select SIGILL).
+ * PLATFORM: SHARED emit / x86 AVX. G.7 complete existing encoder.
+ */
 int32_t simd_x86_vmovups_ymm2_from_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-    static const uint8_t prefix[4] = {0xc5, 0xfe, 0x10, 0x95};
-    if (simd_append_impl(elf_ctx, prefix, 4) != 0)
+    static const uint8_t prefix[5] = {0xc4, 0xe1, 0x7c, 0x10, 0x95};
+    if (simd_append_impl(elf_ctx, prefix, 5) != 0)
         return -1;
     return simd_append_disp32_impl(elf_ctx, disp);
 }
@@ -1403,11 +1463,13 @@ int32_t simd_x86_orps_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX2：vpxor ymm3, ymm3, ymm3（C5 F5 77 DB）。 */
+/** x86 AVX2：vpxor ymm3, ymm3, ymm3（C5 E5 EF DB）。
+ * PLATFORM: SHARED emit / x86 AVX2 — opcode 0xEF (PXOR). 0x77 is EMMS/#UD
+ * under VEX.256.66; VEX.vvvv=ymm3 (0xE5) not ymm1 (0xF5). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vpxor_ymm3_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xf5, 0x77, 0xdb};
+    static const uint8_t insn[4] = {0xc5, 0xe5, 0xef, 0xdb};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1437,11 +1499,12 @@ int32_t simd_x86_vpcmpgtd_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) 
 
 
 
-/** x86 AVX2：vpand ymm0, ymm0, ymm2（C5 E5 DB C2）。 */
+/** x86 AVX2：vpand ymm0, ymm0, ymm2（C5 FD DB C2）。
+ * PLATFORM: SHARED emit / x86 AVX2 — VEX.vvvv=ymm0 (0xFD) not ymm3 (0xE5). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vpand_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe5, 0xdb, 0xc2};
+    static const uint8_t insn[4] = {0xc5, 0xfd, 0xdb, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1454,11 +1517,12 @@ int32_t simd_x86_vpand_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX2：vpandn ymm2, ymm2, ymm1（C5 E5 DF D1）。 */
+/** x86 AVX2：vpandn ymm2, ymm2, ymm1（C5 ED DF D1）。
+ * PLATFORM: SHARED emit / x86 AVX2 — VEX.vvvv=ymm2 (0xED) not ymm3 (0xE5). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vpandn_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe5, 0xdf, 0xd1};
+    static const uint8_t insn[4] = {0xc5, 0xed, 0xdf, 0xd1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1471,11 +1535,12 @@ int32_t simd_x86_vpandn_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX2：vpor ymm0, ymm0, ymm2（C5 E5 EB C2）。 */
+/** x86 AVX2：vpor ymm0, ymm0, ymm2（C5 FD EB C2）。
+ * PLATFORM: SHARED emit / x86 AVX2 — VEX.vvvv=ymm0 (0xFD) not ymm3 (0xE5). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vpor_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe5, 0xeb, 0xc2};
+    static const uint8_t insn[4] = {0xc5, 0xfd, 0xeb, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1488,11 +1553,12 @@ int32_t simd_x86_vpor_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vxorps ymm3, ymm3, ymm3（C5 F0 57 DB）。 */
+/** x86 AVX：vxorps ymm3, ymm3, ymm3（C5 E4 57 DB）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm3 (0xE4), L=1 (256-bit). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vxorps_ymm3_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xf0, 0x57, 0xdb};
+    static const uint8_t insn[4] = {0xc5, 0xe4, 0x57, 0xdb};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1505,12 +1571,13 @@ int32_t simd_x86_vxorps_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vcmpgtps ymm2, ymm2, ymm3（C5 E8 57 D3）。 */
+/** x86 AVX：vcmpgtps ymm2, ymm2, ymm3（C5 EC C2 D3 0E）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.256 vcmpps ymm2, ymm2, ymm3, 14. */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vcmpgtps_ymm2_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe8, 0x57, 0xd3};
-    return simd_append_impl(elf_ctx, insn, 4);
+    static const uint8_t insn[5] = {0xc5, 0xec, 0xc2, 0xd3, 0x0e};
+    return simd_append_impl(elf_ctx, insn, 5);
 }
 
 #ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
@@ -1522,11 +1589,12 @@ int32_t simd_x86_vcmpgtps_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) 
 
 
 
-/** x86 AVX：vandps ymm0, ymm0, ymm2（C5 E0 54 C2）。 */
+/** x86 AVX：vandps ymm0, ymm0, ymm2（C5 FC 54 C2）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm0 (0xFC) not ymm3 (0xE0). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vandps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe0, 0x54, 0xc2};
+    static const uint8_t insn[4] = {0xc5, 0xfc, 0x54, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1539,11 +1607,12 @@ int32_t simd_x86_vandps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vandnps ymm2, ymm2, ymm1（C5 E8 55 D1）。 */
+/** x86 AVX：vandnps ymm2, ymm2, ymm1（C5 EC 55 D1）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm2 (0xEC), L=1 (256-bit). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vandnps_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe8, 0x55, 0xd1};
+    static const uint8_t insn[4] = {0xc5, 0xec, 0x55, 0xd1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1556,11 +1625,12 @@ int32_t simd_x86_vandnps_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 
-/** x86 AVX：vorps ymm0, ymm0, ymm2（C5 E0 56 C2）。 */
+/** x86 AVX：vorps ymm0, ymm0, ymm2（C5 FC 56 C2）。
+ * PLATFORM: SHARED emit / x86 AVX — VEX.vvvv=ymm0 (0xFC) not ymm3 (0xE0). */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-395：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_x86_vorps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    static const uint8_t insn[4] = {0xc5, 0xe0, 0x56, 0xc2};
+    static const uint8_t insn[4] = {0xc5, 0xfc, 0x56, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
 
@@ -1897,6 +1967,64 @@ int32_t simd_enc_x86_horizontal_addps_xmm0_impl(struct platform_elf_ElfCodegenCt
 #ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_enc_x86_horizontal_addps_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
+}
+#endif
+
+/* Cold twin of simd_enc_try_hw_vector_hsum_f32x4_rbp (simd_enc.x).
+ * x86 SSE movups + horizontal addps; ARM/SVE live in .x (L2 prefer).
+ * PLATFORM: SHARED symbol / LINUX+MACOS x86_64 SSE body. */
+int32_t simd_enc_try_hw_vector_hsum_f32x4_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off,
+                                                  int32_t ta, uint32_t cpu_features) {
+    int32_t d;
+
+    if (!elf_ctx || slot_off < 0)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
+        return -1;
+    d = simd_rbp_disp32(slot_off, 4, 4);
+    if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, d) != 0)
+        return -1;
+    return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_hsum_f32x4_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off, int32_t ta,
+                                             uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_hsum_f32x4_rbp_impl(elf_ctx, slot_off, ta, cpu_features);
+}
+#endif
+
+/* Cold twin of simd_enc_try_hw_vector_dot_f32x4_rbp (simd_enc.x).
+ * x86 SSE mulps + horizontal addps; ARM/SVE live in .x (L2 prefer).
+ * PLATFORM: SHARED symbol / LINUX+MACOS x86_64 SSE body. */
+int32_t simd_enc_try_hw_vector_dot_f32x4_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                                 int32_t slot_off_b, int32_t ta, uint32_t cpu_features) {
+    int32_t da;
+    int32_t db;
+
+    if (!elf_ctx || slot_off_a < 0 || slot_off_b < 0)
+        return -1;
+    if (ta != 0)
+        return -1;
+    if ((cpu_features & XLANG_CPU_FEAT_SSE2) == 0)
+        return -1;
+    da = simd_rbp_disp32(slot_off_a, 4, 4);
+    db = simd_rbp_disp32(slot_off_b, 4, 4);
+    if (simd_x86_movups_xmm0_from_rbp_impl(elf_ctx, da) != 0)
+        return -1;
+    if (simd_x86_movups_xmm1_from_rbp_impl(elf_ctx, db) != 0)
+        return -1;
+    if (simd_x86_mulps_xmm0_xmm1_impl(elf_ctx) != 0)
+        return -1;
+    return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx);
+}
+
+#ifndef XLANG_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_dot_f32x4_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                            int32_t slot_off_b, int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_dot_f32x4_rbp_impl(elf_ctx, slot_off_a, slot_off_b, ta, cpu_features);
 }
 #endif
 

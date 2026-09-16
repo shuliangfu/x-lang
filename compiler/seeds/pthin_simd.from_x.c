@@ -3,6 +3,12 @@
  * Hybrid: XLANG_PTHIN_SIMD_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_simd_builtin_slice.inc
+ *
+ * Hybrid P7b/P7c/P7d (XLANG_PTHIN_SIMD_BODIES_FROM_X): portable ident pack /
+ * callee-name fill plus callee VAR + CALL wrap plus parse_at_simd_builtin
+ * dest-buffer come from pthin_simd.x; this TU keeps the slice trampoline
+ * (name[256] wrap + parse next_lex). Cold: no BODIES define, full .inc.
+ * Do not FORCE pabi mega (set_call_c already T).
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +18,13 @@
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
+
+/* PLATFORM: SHARED — 7.2.1 P7d. pthin_simd.x TOKEN_* are pin copies
+ * of this enum. token.h remains the authority; fire if the pin drifts. */
+_Static_assert((int)TOKEN_IDENT == 59, "simd.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_LPAREN == 82, "simd.x TOKEN_LPAREN pin");
+_Static_assert((int)TOKEN_RPAREN == 83, "simd.x TOKEN_RPAREN pin");
+_Static_assert((int)TOKEN_COMMA == 90, "simd.x TOKEN_COMMA pin");
 
 struct parser_asm_token {
   int32_t kind;
@@ -53,7 +66,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -66,7 +79,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -79,14 +92,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -103,6 +116,14 @@ struct ast_Expr {
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
+
+#ifdef XLANG_PTHIN_SIMD_BODIES_FROM_X
+/* .x product bodies (buf-path ident pack + callee name fill + P7c
+ * callee VAR + CALL wrap dest-buffer + P7d parse dest-buffer).
+ * ident_pack lives in the .x TU; parse calls it directly. This TU
+ * keeps callee_name_fill for the wrap trampoline. */
+extern int32_t parser_asm_simd_callee_name_fill_c(int32_t is_shuffle, uint8_t *out);
+#endif
 
 #include "parser_asm_simd_builtin_slice.inc"
 

@@ -47,8 +47,8 @@ export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
     if (alen <= 0) { return 0; }
     if (alen != blen) { return 0; }
     if (alen > 127) { return 0; }
-    let an: u8[128] = [];
-    let bn: u8[128] = [];
+    let an: u8[256] = [];
+    let bn: u8[256] = [];
     pipeline_expr_var_name_into(arena, a_ref, &an[0]);
     pipeline_expr_var_name_into(arena, b_ref, &bn[0]);
     let k: i32 = 0;
@@ -169,14 +169,14 @@ export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i
     let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
     if (vlen <= 0) { return 0; }
     if (vlen > 127) { return 0; }
-    let vbuf: u8[128] = [];
+    let vbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
     let nlet: i32 = ast_ast_block_num_lets(arena, block_ref);
     let li: i32 = 0;
     while (li < nlet) {
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
       if (llen == vlen) {
-        let lb: u8[128] = [];
+        let lb: u8[256] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
         let matched: i32 = 1;
         let k: i32 = 0;
@@ -344,7 +344,7 @@ export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_r
     let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
     if (vlen <= 0) { return 0 - 1; }
     if (vlen > 127) { return 0 - 1; }
-    let vname: u8[128] = [];
+    let vname: u8[256] = [];
     pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
     let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
     if (off < 0) { return asm_ctx_local_find_offset(ctx, &vname[0], vlen);

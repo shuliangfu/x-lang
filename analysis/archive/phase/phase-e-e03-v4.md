@@ -22,5 +22,5 @@
 
 ```bash
 grep '^OBJS_CORE' compiler/Makefile
-XLANG_E03_V3_FAIL=1 ./tests/run-e03-v3-coldstart-track-gate.sh
+./tests/run-e03-v3-coldstart-track-gate.sh
 ```

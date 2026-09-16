@@ -72,6 +72,6 @@ recipe_datetime_iana	recipe	examples/cookbook/datetime_iana.x	DT-01 STD-171
 recipe_compress_stream	recipe	examples/cookbook/compress_stream_br_zs.x	CMP-02 STD-171
 recipe_sqlite_blob	recipe	examples/cookbook/sqlite_blob_stream.x	DB-02 STD-171
 recipe_db_kv_arrow	recipe	examples/cookbook/db_kv_arrow.x	DB-03 STD-171
-cross_doc001	cross_ref	analysis/doc-stdlib-cookbook-v1.md	DOC-001 base
-cross_io_fallback	cross_ref	analysis/std-io-fallback-v1.md	STD-026
+cross_doc001	cross_ref	analysis/archive/doc/doc-stdlib-cookbook-v1.md	DOC-001 base
+cross_io_fallback	cross_ref	analysis/archive/std/std-io-fallback-v1.md	STD-026
 hook_expand	hook_script	run-doc-cookbook-expand-gate.sh	DOC-006 gate

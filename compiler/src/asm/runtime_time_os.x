@@ -6,9 +6,11 @@
 // Provides monotonic/wall time, sleep, RFC3339 formatting, and local timezone offset.
 // The actual OS API calls (clock_gettime, nanosleep, gmtime_r, etc.) are delegated
 // to C bridge functions declared below as extern "C". These are implemented in
-// seeds/runtime_time_os.from_x.c and linked via the product pipeline.
+// seeds/runtime_time_os.from_x.c via xlang_time_cap.h (SHARED Cap 9.1.5)
+// and linked via the product pipeline.
 //
-// PLATFORM: SHARED (POSIX + Windows branches handled by C bridge _impl functions)
+// PLATFORM: SHARED — Cap clock (xlang_time_cap) + Cap fmt (xlang_snprintf);
+//           Linux/Darwin raw syscalls + Windows Win32 Cap via _impl.
 //
 // Wave501 (2026-07-27): R2 migration of runtime_time_os.from_x.c business logic to .x.
 // Previously the .c seed provided all business logic; now the .x file is the
@@ -43,11 +45,12 @@ export extern "C" function time_sleep_ns_impl(ns: i64): void;
 
 /**
  * Bridge: format current UTC wall clock as RFC3339 (trailing Z).
- * POSIX: gmtime_r + snprintf
- * Windows: gmtime_s + snprintf
+ * POSIX: Cap gmtime_r + Cap snprintf (10.7.2).
+ * Windows: gmtime_s + Cap snprintf.
  * @param buf output buffer
  * @param cap buffer capacity in bytes
  * @return written length; -1 on failure
+ * PLATFORM: SHARED
  */
 export extern "C" function time_format_rfc3339_impl(buf: *u8, cap: i32): i32;
 
@@ -95,7 +98,7 @@ export function time_now_wall_ns_c(): i64 {
  */
 #[no_mangle]
 export function time_sleep_ns_c(ns: i64): void {
-  if ns <= 0 {
+  if (ns <= 0) {
     return;
   }
   unsafe {
@@ -113,7 +116,7 @@ export function time_sleep_ns_c(ns: i64): void {
  */
 #[no_mangle]
 export function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32 {
-  if buf == 0 || cap <= 0 {
+  if (buf == 0 || cap <= 0) {
     return -1;
   }
   unsafe {

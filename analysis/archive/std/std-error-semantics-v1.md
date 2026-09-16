@@ -44,3 +44,5 @@ Cookbook **ERR-02**：`examples/cookbook/error_semantic_class.x`
 - 烟测：`tests/std/error_semantics_smoke.x`
 - 门禁：`tests/run-std-error-semantics-gate.sh`
 - 报告：`std-error-semantics gate OK`
+
+**Honesty (2026-08-29 leftover unused compiler-make)**：unused `compiler-make.sh` sourced unused（no `xlang_compiler_make`）retired from `tests/run-std-error-semantics-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `error_semantics_smoke.x` + cookbook `error_semantic_class.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 4. 验收`。 Leave wrap body / ensure_std family.

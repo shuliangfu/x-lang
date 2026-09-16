@@ -15,6 +15,8 @@
 export extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
 export extern "C" function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
@@ -454,6 +456,7 @@ export function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
 }
 
 // See implementation.
+export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
@@ -493,6 +496,10 @@ export extern "C" function arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
  */
 #[no_mangle]
 export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
+  // twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
+  // skipped the zi reload in consecutive same-index stores -> pointer+pointer).
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   }
@@ -1343,6 +1350,7 @@ export extern "C" function arch_arm64_enc_enc_jmp(elf_ctx: *u8, label: *u8, labe
 export extern "C" function arch_riscv64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
 export extern "C" function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
+export extern "C" function arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_add_sp_imm12(elf_ctx: *u8, nbytes: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_add_rsp_imm(elf_ctx: *u8, nbytes: i32): i32;
@@ -2083,6 +2091,12 @@ export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32):
  */
 #[no_mangle]
 export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  // P12g DIV root fix: rax+rbx var-slot cache invalidation at the CALL
+  // authority — see backend_enc_dispatch.x twin docblock (call clobbers both;
+  // stale rax belief dropped peek_ident_len's return value so the turbofish
+  // lens recorded 0 -> T001 copy<A>).
+  glue_binop_var_slot_cache_invalidate_rax();
+  glue_binop_var_slot_cache_invalidate_rbx();
   if (ta == 1) {
     unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
   }
@@ -2134,8 +2148,12 @@ export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
  */
 #[no_mangle]
 export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  /* Stage10 10.2.2 slice1: ta==1 AAPCS arg → x0 for asm! lateout. */
   if (ta == 0) {
     unsafe { return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
+  }
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
   }
   return 0 - 1;
 }

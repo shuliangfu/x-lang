@@ -73,6 +73,18 @@ MODE="${1:-all}"
 
 log() { echo "ensure-migrate-gen: $*" >&2; }
 
+# True when the only -E binaries are leftover Windows PE that cannot compile
+# tip parser/typeck/codegen (hang, no alarm on typeck/codegen loops).
+# Same contract as pipeline_abi_windows_leftover_pe_cannot_e (ensure_host_cc_seed_o.sh):
+# skip launch, fall through to archaeology pin. POSIX gold xlang_asm CAN -E.
+# PLATFORM: WINDOWS — leftover 2026-07-31 PE is present for Track L / can_run.
+migrate_gen_windows_leftover_pe_cannot_e() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  return 1
+}
+
 # Product pin seeds (*.linux.x86_64.c) are host-portable generated C.
 # PLATFORM: SHARED — cold start on Darwin/Windows uses the same pins.
 seed_ok() {
@@ -89,20 +101,40 @@ gen_has_sym() {
   [ -s "$1" ] && grep -Fq "$2" "$1"
 }
 
+# True when $1 defines $2 as a C function body (not a mere extern).
+# Leftover-PE unique harvest needs T in typeck_x.o/codegen_x.o; a 7/31
+# gitignored pin can still grep-match the name as `extern` and fake-green
+# the old substring contract.
+# PLATFORM: SHARED — same pin bodies on Darwin/Linux/Windows MinGW SAT.
+gen_has_defn() {
+  # $1=file $2=C identifier
+  [ -s "$1" ] && grep -Eq "^int32_t ${2}\\(" "$1"
+}
+
 typeck_gen_contract_ok() {
   # phase1 UNDEF surface from pipeline_x → typeck_x
+  # Unique leftover-PE faces: archaeology pin HAS bodies; 7/31 leftover
+  # typeck_x.o does not. Substring-only would pass on extern-only drift.
   gen_has_sym "$1" 'typeck_check_call_arity' \
     && gen_has_sym "$1" 'typeck_check_call_arg_types' \
     && gen_has_sym "$1" 'typeck_expr_is_null_keyword' \
-    && gen_has_sym "$1" 'typeck_type_is_valid_subscript_index'
+    && gen_has_sym "$1" 'typeck_type_is_valid_subscript_index' \
+    && gen_has_defn "$1" 'typeck_call_arg_repr_compatible_ok' \
+    && gen_has_defn "$1" 'typeck_check_extern_call_unsafe_boundary' \
+    && gen_has_defn "$1" 'typeck_match_subject_field_type' \
+    && gen_has_defn "$1" 'pipeline_typeck_check_call_struct_stack_escape_c' \
+    && gen_has_defn "$1" 'pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal' \
+    && gen_has_defn "$1" 'pipeline_typeck_expr_is_any_assign_kind_c'
 }
 
 codegen_gen_contract_ok() {
   # product pure-ld needs emit_expr + x_ast + Cap residual faces
+  # Unique leftover-PE face: pin HAS the body; 7/31 leftover codegen_x.o does not.
   (gen_has_sym "$1" 'codegen_emit_expr' || gen_has_sym "$1" 'codegen_emit_expr_ASTArena') \
     && gen_has_sym "$1" 'codegen_x_ast' \
     && gen_has_sym "$1" 'codegen_set_host_call_arg_param_ty' \
-    && gen_has_sym "$1" 'pipeline_loop_should_continue_ndep_c'
+    && gen_has_sym "$1" 'pipeline_loop_should_continue_ndep_c' \
+    && gen_has_defn "$1" 'codegen_builtin_type_name_into'
 }
 
 parser_gen_contract_ok() {
@@ -196,6 +228,11 @@ parser_run_tip_e() {
   local b err
   err="${out}.err"
   rm -f "$out" "$err"
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip parser.x; archaeology pin.
+  if migrate_gen_windows_leftover_pe_cannot_e; then
+    log "parser tip -E skip: Windows leftover PE cannot -E tip parser.x"
+    return 1
+  fi
   for b in ${XLANG_PARSER_E:-} xlang_asm xlang xlang-c xlang-x; do
     [ -z "$b" ] && continue
     [ -x "./$b" ] || continue
@@ -330,6 +367,12 @@ typeck_run_tip_e() {
   local b err
   err="${out}.err"
   rm -f "$out" "$err"
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip typeck.x (hang, no alarm).
+  # Fall through to archaeology pin (same as "no working product -E binary").
+  if migrate_gen_windows_leftover_pe_cannot_e; then
+    log "typeck tip -E skip: Windows leftover PE cannot -E tip typeck.x"
+    return 1
+  fi
   for b in ${XLANG_TYPECK_E:-} xlang xlang_asm xlang-c bootstrap_xlangc; do
     [ -n "$b" ] || continue
     if [ ! -x "./$b" ] && [ ! -f "./$b" ]; then
@@ -405,7 +448,12 @@ ensure_typeck_gen() {
     need_assemble=1
   elif [ ! -s typeck_gen.c ]; then
     need_assemble=1
-  elif [ "$XLANG_TYPECK_FROM_X" = "1" ] && typeck_x_sources_newer_than_gen; then
+  elif typeck_x_sources_newer_than_gen; then
+    # LANG-005 lesson (2026-09-14): source-newer MUST reassemble unconditionally.
+    # Gating this behind XLANG_TYPECK_FROM_X let a stale local gen survive .x
+    # edits in default builds (Ubuntu divergence: pin-derived typeck without
+    # the owner filter shipped silently). Assemble failure still falls back to
+    # local/pin (true cold, no -E binary) — only silent staleness closes.
     need_assemble=1
   elif [ "$XLANG_TYPECK_FROM_X" = "1" ] && ! typeck_gen_contract_ok typeck_gen.c; then
     need_assemble=1
@@ -425,6 +473,12 @@ ensure_typeck_gen() {
         fi
       else
         log "typeck_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+        # PLATFORM: WINDOWS leftover PE cannot -E typeck.x. Dual-boot
+        # gitignored typeck_gen.c can stay at 7/31 (old contract still
+        # greps) while tip seed HAS unique bodies. G.7: existing
+        # refresh_gen_from_seed_if_stale is the authority (lexer already
+        # uses it); do not keep a stale pin that fails unique defn.
+        refresh_gen_from_seed_if_stale typeck_gen.c "$seed" typeck_gen_contract_ok typeck_gen.c || true
       fi
     fi
   fi
@@ -473,6 +527,11 @@ codegen_run_tip_e() {
   local b err
   err="${out}.err"
   rm -f "$out" "$err"
+  # PLATFORM: WINDOWS — leftover PE cannot -E tip codegen.x (hang, no alarm).
+  if migrate_gen_windows_leftover_pe_cannot_e; then
+    log "codegen tip -E skip: Windows leftover PE cannot -E tip codegen.x"
+    return 1
+  fi
   for b in ${XLANG_CODEGEN_E:-} xlang xlang_asm xlang-c bootstrap_xlangc; do
     [ -n "$b" ] || continue
     if [ ! -x "./$b" ] && [ ! -f "./$b" ]; then
@@ -544,7 +603,8 @@ ensure_codegen_gen() {
     need_assemble=1
   elif [ ! -s codegen_gen.c ]; then
     need_assemble=1
-  elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && codegen_x_sources_newer_than_gen; then
+  elif codegen_x_sources_newer_than_gen; then
+    # LANG-005 lesson: unconditional reassemble on source-newer (same as typeck).
     need_assemble=1
   elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! codegen_gen_contract_ok codegen_gen.c; then
     need_assemble=1
@@ -564,6 +624,9 @@ ensure_codegen_gen() {
         fi
       else
         log "codegen_gen.c: tip assemble unavailable; try local/pin (archaeology)"
+        # PLATFORM: WINDOWS leftover PE cannot -E codegen.x. Same dual-boot
+        # gitignored-pin drift as typeck: G.7 refresh_gen_from_seed_if_stale.
+        refresh_gen_from_seed_if_stale codegen_gen.c "$seed" codegen_gen_contract_ok codegen_gen.c || true
       fi
     fi
   fi

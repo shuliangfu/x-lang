@@ -19,6 +19,20 @@
 | Linux 非 glibc | 回退 net_udp_recv_from_c 循环（与 macOS 同） |
 | Windows UDP poll | 基础 recv 超时路径仍为桩 |
 
+## Gate
+
+Honesty gate (2026-08-26): prefer `xlang_asm`, pin `XLANG_LINK_XLANG`,
+hard-fail static + ensure `runtime_net_udp_batch.o`. No soft
+`die→exit 0`. Soft `XLANG_F04_NET_SLICE_V13B_FAIL` retired. Report
+`static=` / `v13=` / `skip=`. Live authority = ensure +
+`driver_seed_r_lists.mk` (Makefile deleted).
+
+**2026-08-29 leftover XLANG fallthrough 已收**（f04-net-slice-v13b：`for cand in "${XLANG:-}"` 退役；prefer asm＋`XLANG_LINK_XLANG`；显式坏 XLANG 先硬 die；缺 native 硬 die；leftover nested dns-alpn／xlang_compiler_make 不重写）。
+
+```bash
+./tests/run-f04-std-net-slice-v13b-gate.sh
+```
+
 ## 复现
 
 ```bash

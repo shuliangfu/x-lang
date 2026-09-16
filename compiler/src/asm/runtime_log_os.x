@@ -12,7 +12,8 @@ export function runtime_log_os_x_doc_anchor(): i32 {
 }
 
 /* extern bridge declarations — OS-specific _impl functions in runtime_log_os.from_x.c.
- * PLATFORM: SHARED — write_fd uses _write on Windows, write on POSIX.
+ * PLATFORM: SHARED — write_fd uses _write on Windows, write on POSIX;
+ *           rotate path format via Cap xlang_snprintf (10.7.2).
  * All other _impl functions delegate to OS or manipulate C static state. */
 
 export extern "C" function log_apply_env_once_impl(): void;
@@ -97,7 +98,7 @@ export function log_get_min_level_c(): i32 {
 /** Emit bytes with null/len validation (convenience bridge). */
 #[no_mangle]
 export function log_emit_bytes_c(buf: *u8, len: i32): i32 {
-  if buf == null or len <= 0 { return -1; }
+  if (buf == null or len <= 0) { return -1; }
   return log_emit_bytes(buf, len as usize);
 }
 

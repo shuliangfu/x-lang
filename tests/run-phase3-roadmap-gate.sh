@@ -2,12 +2,17 @@
 # PLAN-001：Phase 3 路线图定版门禁
 #
 # 用法：./tests/run-phase3-roadmap-gate.sh
+# wave honesty (2026-08-24): DOC defaults under analysis/archive/ when archived;
+# Makefile → xbuild (refuse resurrect); live roadmap = analysis/自举进度.md.
+# PLATFORM: SHARED archaeology.
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${XLANG_PLAN001_DOC:-analysis/phase3-roadmap-v1.md}"
+DOC="${XLANG_PLAN001_DOC:-analysis/archive/other-tickets/phase3-roadmap-v1.md}"
 MANIFEST="${XLANG_PLAN001_TSV:-tests/baseline/phase3-roadmap.tsv}"
-NEXT_MD="NEXT.md"
+ROADMAP="${XLANG_LIVE_ROADMAP:-analysis/自举进度.md}"
+# Historical NEXT.md task/§ authority now lives in archived DOC (refuse resurrect).
+TASK_DOC="$DOC"
 LIB="tests/lib/phase3-roadmap.sh"
 MIN_TASKS=10
 MIN_SEC=5
@@ -16,12 +21,16 @@ MIN_SEC=5
 . "$LIB"
 
 echo "=== PLAN-001: Phase 3 roadmap manifest ==="
-for f in "$DOC" "$MANIFEST" "$NEXT_MD" "$LIB"; do
+for f in "$DOC" "$MANIFEST" "$ROADMAP" "$LIB"; do
   if [ ! -f "$f" ]; then
     echo "phase3-roadmap gate FAIL: missing $f" >&2
     exit 1
   fi
 done
+if [ -f NEXT.md ]; then
+  echo "$(basename "$0" .sh | sed "s/^run-//;s/-gate$//") gate FAIL: NEXT.md resurrected (use analysis/自举进度.md)" >&2
+  exit 1
+fi
 
 while IFS=$'\t' read -r c1 c2 _rest; do
   c1="${c1#\# }"
@@ -38,13 +47,13 @@ for kw in Phase 3 Option LANG-009 BOOT-020 XLANG_PLAN001; do
   fi
 done
 
-if ! grep -qF "## 2.12" "$NEXT_MD" 2>/dev/null; then
-  echo "phase3-roadmap gate FAIL: NEXT.md missing §2.12" >&2
+if ! grep -qF "§2.12" "$TASK_DOC" 2>/dev/null; then
+  echo "phase3-roadmap gate FAIL: DOC missing §2.12" >&2
   phase3_roadmap_emit_report "fail" 0 0
   exit 1
 fi
 
-sym_miss="$(phase3_roadmap_check "$MANIFEST" "$NEXT_MD" || true)"
+sym_miss="$(phase3_roadmap_check "$MANIFEST" "$TASK_DOC" || true)"
 task_n="$(phase3_roadmap_task_count "$MANIFEST")"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   phase3_roadmap_emit_report "fail" 0 0

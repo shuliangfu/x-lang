@@ -24,7 +24,8 @@ function main(): i32 {
   if (dbarrow.null_bitmap(col_i) == 0) {
     return 41;
   }
-  if (dbarrow.append(col_f, 2.718) != 0) {
+  /* Bare 2.718 is f64 and binds append(f64) against an f32 column → -1 fake fail. */
+  if (dbarrow.append(col_f, 2.718 as f32) != 0) {
     return 5;
   }
   let adopted: ArrowColumn = dbarrow.adopt(&nic[0], 4, 4);

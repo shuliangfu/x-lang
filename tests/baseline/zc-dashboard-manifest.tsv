@@ -1,5 +1,8 @@
 # ZC-008 零拷贝指标仪表板 manifest
 # 列：item_id	kind	anchor	notes
+# leftover residual 2026-08-29: leftover fossil top-level DOC as live
+# path retired. Live = analysis/archive/zc/. TSV cross_zc006 xref
+# updated (archive; identity otherwise kept).
 min_metrics	8
 min_history_days	2
 output_prefix	bracket_component	XLANG_ZC_DASHBOARD	stderr 前缀
@@ -15,7 +18,7 @@ history	file	tests/baseline/zc-dashboard-history.tsv	每日历史
 lib	script	lib/zc-dashboard.sh	看板库
 runner	script	run-zc-dashboard.sh	采集+趋势
 gate	script	run-zc-dashboard-gate.sh	manifest 门禁
-cross_zc006	cross_ref	analysis/zc-semantics-v1.md	ZC-006
+cross_zc006	cross_ref	analysis/archive/zc/zc-semantics-v1.md	ZC-006
 cross_syscall	cross_ref	tests/baseline/syscall-batch-perf.tsv	PERF-008
 cross_net	cross_ref	tests/baseline/net-zc-perf.tsv	PERF-009
 cross_zc_gates	cross_ref	tests/run-zc-gates.sh	ZC 统一 gate

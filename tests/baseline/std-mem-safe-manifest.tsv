@@ -1,7 +1,7 @@
 # STD-144 std.mem 安全边界 manifest
 # 列：item_id	kind	anchor	mod_path	notes
-read_path	section	## 1. 目标	analysis/std-mem-safe-v1.md
-api_doc	section	## 2. 有界 API	analysis/std-mem-safe-v1.md
+read_path	section	## 1. 目标	analysis/archive/std/std-mem-safe-v1.md
+api_doc	section	## 2. 有界 API	analysis/archive/std/std-mem-safe-v1.md
 api_copy_bounded	api	copy_bounded	std/mem/mod.x	有界拷贝
 api_set_bounded	api	set_bounded	std/mem/mod.x	有界填充
 api_compare_bounded	api	compare_bounded	std/mem/mod.x	有界比较

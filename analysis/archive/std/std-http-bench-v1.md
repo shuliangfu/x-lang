@@ -1,7 +1,7 @@
 # STD-009 std.http 服务器基准 v1
 
-> 更新时间：2026-06-17  
-> 状态：**定版（v1）**  
+> 更新时间：2026-08-26  
+> 状态：**定版（v1）** · Gate honesty soft→硬绿  
 > 关联：`STD-002`（net 栈）、`PERF-003`（网络对标）
 
 ---
@@ -40,8 +40,8 @@
 
 | case | 脚本 | 指标 |
 |------|------|------|
-| **http_get_bench** | `tests/bench/http_get_bench.x` | 64× loopback GET |
-| sink | `tests/bench/http_bench_server.c` | 链入 `http.c` |
+| **http_get_bench** | `bench/i08_http_get_bench.x` | 64× loopback GET |
+| sink | `bench/i08_http_bench_server.c` | 链入 `http.c` |
 
 **吞吐 throughput**：stderr `BENCH_ELAPSED_NS=`（64 次总耗时）  
 基线：`tests/baseline/http-perf.tsv`（median 秒数上限）
@@ -70,7 +70,7 @@ XLANG_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
 
 ---
 
-## 6. 验证与门禁
+## 6. Gate
 
 ```bash
 ./tests/run-std-http-gate.sh
@@ -78,13 +78,35 @@ XLANG_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
 ./tests/run-perf-http.sh --bench   # Linux native xlang
 ```
 
+Gate honesty（2026-08-26 soft→硬绿）：
+
+- prefer `xlang_asm`；钉 `XLANG_LINK_XLANG`
+- `xlang check` **观测**（自举期 check 闸门暂停；CHK 红不硬失败）
+- `tests/http/main.x` runnable **exit 0 硬失败**（有 native 时禁 soft SKIP→OK）
+- 无 native → **FAIL**（禁 soft SKIP→OK）
+- 报告行：`check=`／`run=`／`skip=`（硬绿信号＝`run=`）
+
+**Honesty (2026-08-29 residual auto-make)**：leftover `tests/run-http.sh`（`xlang_compiler_make -q || make` + `ensure_std_c_o http.o` + default `./compiler/xlang` + fossil `$XLANG build`）retired. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/http/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。leftover runner report prefix `xlang: [HTTP]`。Keep `## 6. Gate`。 Do not rewrite `run-perf-http.sh` here.
+
+**Honesty (2026-08-29 leftover wrap dead source)**：leftover `bootstrap-link-xlang.sh` sourced unused（no `RUN_XLANG`）+ unused `compiler-make.sh` retired from `tests/run-std-http-gate.sh`. Prefer asm + `XLANG_LINK_XLANG`；explicit-bad XLANG hard die；missing native FAIL；product `-o` `tests/http/main.x` hard；check＝obs；report `run=`／`obs=`／`skip=`。Keep `## 6. Gate`。 Leave wrap body / ensure_std family / `run-perf-http.sh`.
+
+```text
+xlang: [XLANG_STD_HTTP] status=ok check=0|1 run=1 skip=0
+```
+
 | 资源 | 路径 |
 |------|------|
-| 本文 | `analysis/std-http-bench-v1.md` |
+| 本文 | `analysis/archive/std/std-http-bench-v1.md` |
 | manifest | `tests/baseline/std-http-manifest.tsv` |
 | 库 | `tests/lib/perf-http.sh` |
 | runner | `tests/run-perf-http.sh` |
 | 门禁 | `tests/run-std-http-gate.sh` |
 | STD-002 | `tests/baseline/std-net-api.tsv` |
 
+- 2026-08-26：Gate honesty soft→硬绿（prefer asm／LINK／check 观测／runnable hard；DOC／TSV→`## 6. Gate`；bench 路径对齐活文件 `bench/i08_http_*`（拒化石 `bench/http_get_bench.x`／`http_bench_server.c`）；未啃产品 `std/http`）。
+
 **STD-009 状态：定版 ✅**
+
+## Gate
+
+Honesty soft→硬绿 (2026-08-27) `run-perf-http.sh`: prefer xlang_asm; refuse soft SKIP→OK / soft FAIL_ON_HTTP_REGRESSION:-0 silent OK; over-cap/over-p99 = obs; report run=/obs=/skip=.

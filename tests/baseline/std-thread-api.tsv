@@ -1,8 +1,9 @@
 # std.thread Tier-S stable public API (import std.thread)
-thread_self
-thread_create
-thread_create_with_stack
-thread_join
-thread_set_affinity_self
-thread_set_affinity
-thread_set_qos_class_self
+# Authority = std/thread/mod.x live exports (module-local short names; C glue keeps thread_*_c).
+id
+create
+create_with_stack
+join
+set_affinity_self
+set_affinity
+set_qos_class_self

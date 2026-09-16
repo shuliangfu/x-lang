@@ -1,102 +1,178 @@
 #!/usr/bin/env bash
+# std.process leftover runner: tests/process/*.x product -o
+# (main exit 99; remaining exit 0; spawn_wait Windows skip).
 #
-# 【文件职责】std.process 模块的全量回归测试脚本；按顺序编译并运行 tests/process/*.x，校验退出码。
-# 【测试目的】覆盖 exit、args_count/arg/getenv、setenv/unsetenv、getpid、getppid、getcwd、chdir、self_exe_path、spawn_simple+waitpid、exec_simple 失败路径，确保 API 行为符合预期。
-# 【覆盖用例】
-#   1. main.x     — exit(99)，校验进程退出码 99
-#   2. args.x     — args_count、arg(0)、getenv("PATH")
-#   3. setenv_unsetenv.x — setenv、getenv、unsetenv 全流程
-#   4. getpid.x   — getpid()>0
-#   5. getppid.x  — getppid() 可调用
-#   6. getcwd.x   — getcwd 成功且 buf 有效
-#   7. chdir.x    — chdir(".")、getcwd 前后一致
-#   8. self_exe_path.x — self_exe_path 成功且 buf 有效
-#   8b. zerocopy.x — getcwd_ptr/getcwd_cached_len、self_exe_path_ptr/self_exe_path_cached_len 零拷贝
-#   9. spawn_wait.x — spawn_simple("/bin/true")、waitpid(pid)==0（Windows 无此路径则 SKIP；Alpine 仅有 /bin/true）
-#  10. exec_fail.x — exec_simple("/nonexistent") 返回 -1
-# 【运行方式】在仓库根目录执行 ./tests/run-process.sh；可选环境变量 XLANG 指定编译器路径。
-# 【约定】编译使用 compiler/xlang -L .；失败时打印用例名与原因并 exit 1；spawn_wait 在 Windows 上失败时仅打印 SKIP 不失败整脚本。
-#
-set -e
+# Honesty: leftover soft auto-make (`xlang_compiler_make -q xlang-c || make`
+# + ensure_std_c_o process.o) + bootstrap-link wrap (prefer-c) retired.
+# Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG / missing
+# native = hard die (refuse soft SKIP→OK / leftover XLANG fallthrough / soft
+# auto-make / soft ensure). Check path = obs= (check gate paused 2026-08-05).
+# Product `-o` live smokes must match expected exit. Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+# Usage: ./tests/run-process.sh
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-# shellcheck source=lib/build-std-c-o.sh
-. "$(dirname "$0")/lib/build-std-c-o.sh"
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q xlang-c 2>/dev/null || xlang_compiler_make xlang-c
-fi
-ensure_std_c_o ../std/process/process.o
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-XLANG="${XLANG:-./compiler/xlang}"
-LINK_XLANG="${XLANG_LINK_XLANG:-${RUN_XLANG:-$XLANG}}"
-run_one() {
-  local name="$1"
-  local src="$2"
-  local exe="/tmp/xlang_process_$$_${name}"
-  if ! $LINK_XLANG build -L . "$src" -o "$exe" 2>&1; then
-    echo "process test $name: compile failed"
-    return 1
-  fi
-  local exitcode=0
-  $exe >/dev/null 2>/tmp/xlang_process_err || exitcode=$?
-  if [ "$exitcode" -ne 0 ]; then
-    echo "process test $name: expected exit 0, got $exitcode"
-    echo "--- $name stderr (diagnostic) ---"
-    cat /tmp/xlang_process_err 2>/dev/null || true
-    rm -f "$exe" /tmp/xlang_process_err
-    return 1
-  fi
-  rm -f "$exe" /tmp/xlang_process_err
-  return 0
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+
+PREFIX="${XLANG_PROCESS_PREFIX:-xlang: [PROCESS]}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "process FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
 }
 
-# 1. exit(99)
-$LINK_XLANG build -L . tests/process/main.x -o /tmp/xlang_process_exit 2>&1
-exitcode=0; /tmp/xlang_process_exit >/dev/null 2>&1 || exitcode=$?
-[ "$exitcode" -ne 99 ] && { echo "process test exit: expected 99, got $exitcode"; exit 1; }
-rm -f /tmp/xlang_process_exit
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
 
-# 2. args_count、arg(0)、getenv("PATH")
-run_one "args" "tests/process/args.x" || exit 1
+# G.7: complete the existing per-script resolve_shu family (dod_native_exe);
+# do not fork a third resolver. Explicit XLANG that is missing/non-native
+# returns 1 (caller hard-dies; refuse leftover XLANG fallthrough).
+# PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
 
-# 3. setenv、getenv、unsetenv
-run_one "setenv_unsetenv" "tests/process/setenv_unsetenv.x" || exit 1
+run_product() {
+  local tag="$1" src="$2"
+  local expect="${3:-0}"
+  local exe="/tmp/xlang_process_$$_${tag}"
+  local log="/tmp/xlang_process_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    tail -n 12 "$log" 2>/dev/null || true
+    rm -f "$exe"
+    die "$tag product -o failed (ec=$o_ec; refuse leftover auto-make / bootstrap-link wrap / ensure_std_c_o)"
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  [ "$r_ec" -eq "$expect" ] || die "$tag runnable exit=$r_ec (expected $expect)"
+  RUN_OK=$((RUN_OK + 1))
+}
 
-# 4. getpid
-run_one "getpid" "tests/process/getpid.x" || exit 1
-
-# 5. getppid
-run_one "getppid" "tests/process/getppid.x" || exit 1
-
-# 6. getcwd
-run_one "getcwd" "tests/process/getcwd.x" || exit 1
-
-# 7. chdir
-run_one "chdir" "tests/process/chdir.x" || exit 1
-
-# 8. self_exe_path
-run_one "self_exe_path" "tests/process/self_exe_path.x" || exit 1
-
-# 8b. 零拷贝 getcwd_ptr / self_exe_path_ptr
-run_one "zerocopy" "tests/process/zerocopy.x" || exit 1
-
-# 9. spawn_simple + waitpid（/bin/true 或 /usr/bin/true；Windows 无此路径则跳过）
-if run_one "spawn_wait" "tests/process/spawn_wait.x"; then
-  :
-else
+# spawn_simple + waitpid: POSIX hard; Windows no /bin/true = honest skip.
+# PLATFORM: WINDOWS skip is N/A (not soft SKIP→OK of a missing compiler).
+run_spawn_wait() {
+  local tag="spawn_wait" src="tests/process/spawn_wait.x"
+  local exe="/tmp/xlang_process_$$_${tag}"
+  local log="/tmp/xlang_process_${tag}_$$.log"
+  local o_ec r_ec
+  [ -f "$src" ] || die "missing $src ($tag)"
+  rm -f "$exe" "$log"
+  set +e
+  "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+  o_ec=$?
+  set -e
+  if [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+    case "$(uname -s 2>/dev/null)" in
+      MINGW*|MSYS*|CYGWIN*|*Windows*)
+        echo "process test spawn_wait: SKIP (no true on Windows)"
+        SKIP=$((SKIP + 1))
+        rm -f "$exe" "$log"
+        return 0
+        ;;
+      *)
+        tail -n 12 "$log" 2>/dev/null || true
+        rm -f "$exe"
+        die "$tag product -o failed (ec=$o_ec; refuse leftover auto-make)"
+        ;;
+    esac
+  fi
+  set +e
+  "$exe" >/dev/null 2>&1
+  r_ec=$?
+  set -e
+  rm -f "$exe" "$log"
+  if [ "$r_ec" -eq 0 ]; then
+    RUN_OK=$((RUN_OK + 1))
+    return 0
+  fi
   case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*|*Windows*) echo "process test spawn_wait: SKIP (no true on Windows)"; ;;
-    *) echo "process test spawn_wait: FAIL"; exit 1; ;;
+    MINGW*|MSYS*|CYGWIN*|*Windows*)
+      echo "process test spawn_wait: SKIP (no true on Windows)"
+      SKIP=$((SKIP + 1))
+      ;;
+    *)
+      die "$tag runnable exit=$r_ec (expected 0)"
+      ;;
   esac
+}
+
+ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+
+echo "=== process leftover (prefer asm; hard; refuse leftover auto-make) ==="
+if [ -n "${XLANG:-}" ]; then
+  if ! XLANG_BIN="$(resolve_shu)"; then
+    die "explicit XLANG not native (refuse leftover XLANG fallthrough / soft auto-make)"
+  fi
+elif ! XLANG_BIN="$(resolve_shu)"; then
+  die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+fi
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+set +e
+"$XLANG_BIN" check -L . tests/process/main.x >/tmp/xlang_process_check.log 2>&1
+chk_ec=$?
+set -e
+if [ "$chk_ec" -ne 0 ]; then
+  echo "process OBS check (paused / CHK residual ec=$chk_ec; refuse soft SKIP→OK)" >&2
+  OBS=$((OBS + 1))
 fi
 
-# 10. exec_simple 失败路径
-run_one "exec_fail" "tests/process/exec_fail.x" || exit 1
+run_product exit tests/process/main.x 99
+run_product args tests/process/args.x
+run_product setenv_unsetenv tests/process/setenv_unsetenv.x
+run_product getpid tests/process/getpid.x
+run_product getppid tests/process/getppid.x
+run_product getcwd tests/process/getcwd.x
+run_product chdir tests/process/chdir.x
+run_product self_exe_path tests/process/self_exe_path.x
+run_product zerocopy tests/process/zerocopy.x
+run_spawn_wait
+run_product exec_fail tests/process/exec_fail.x
+run_product xplat_behavior tests/process/xplat_behavior.x
 
-# 11. STD-142 跨平台聚合烟测
-run_one "xplat_behavior" "tests/process/xplat_behavior.x" || exit 1
-
+ok_report
 echo "process test OK (all)"
 rm -f /tmp/xlang_process_$$_*

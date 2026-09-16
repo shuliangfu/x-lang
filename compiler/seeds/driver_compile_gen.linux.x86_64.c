@@ -7,11 +7,11 @@ enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_Expr
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
 struct ast_Type {
   int32_t kind;
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t elem_type_ref;
   int32_t array_size;
-  uint8_t region_label[128];
+  uint8_t region_label[256];
   int32_t region_label_len;
 };
 
@@ -22,7 +22,7 @@ struct ast_Expr {
   int32_t col;
   int64_t int_val;
   double float_val;
-  uint8_t var_name[128];
+  uint8_t var_name[256];
   int32_t var_name_len;
   int32_t binop_left_ref;
   int32_t binop_right_ref;
@@ -35,7 +35,7 @@ struct ast_Expr {
   int32_t match_arm_base;
   int32_t match_num_arms;
   int32_t field_access_base_ref;
-  uint8_t field_access_field_name[128];
+  uint8_t field_access_field_name[256];
   int32_t field_access_field_len;
   int32_t field_access_is_enum_variant;
   int32_t field_access_offset;
@@ -48,14 +48,14 @@ struct ast_Expr {
   int32_t call_num_args;
   int32_t call_num_type_args;
   int32_t method_call_base_ref;
-  uint8_t method_call_name[128];
+  uint8_t method_call_name[256];
   int32_t method_call_name_len;
   int32_t method_call_arg_base;
   int32_t method_call_num_args;
   int32_t const_folded_val;
   int32_t const_folded_valid;
   int32_t index_proven_in_bounds;
-  uint8_t struct_lit_struct_name[128];
+  uint8_t struct_lit_struct_name[256];
   int32_t struct_lit_struct_name_len;
   int32_t struct_lit_field_base;
   int32_t struct_lit_num_fields;
@@ -71,14 +71,14 @@ struct ast_Expr {
 };
 
 struct ast_ConstDecl {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
 };
 
 struct ast_LetDecl {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t type_ref;
   int32_t init_ref;
@@ -149,7 +149,7 @@ struct ast_Param {
 };
 
 struct ast_Func {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t param_base;
   int32_t num_params;
@@ -170,7 +170,7 @@ struct ast_Func {
 };
 
 struct ast_StructLayout {
-  uint8_t name[128];
+  uint8_t name[256];
   int32_t name_len;
   int32_t field_base;
   int32_t num_fields;
@@ -235,13 +235,13 @@ struct ast_PipelineDepCtx {
   struct ast_Module * current_codegen_module;
   struct ast_ASTArena * current_codegen_arena;
   int32_t current_codegen_dep_index;
-  uint8_t current_codegen_prefix_mirror[128];
+  uint8_t current_codegen_prefix_mirror[256];
   int32_t current_codegen_prefix_len;
   int32_t asm_entry_module_only;
-  uint8_t entry_module_import_path_mirror[128];
+  uint8_t entry_module_import_path_mirror[256];
   int32_t entry_module_import_path_len;
   int32_t typeck_scope_region_len;
-  uint8_t typeck_scope_region_label[128];
+  uint8_t typeck_scope_region_label[256];
 };
 
 struct ast_Type;
@@ -540,6 +540,10 @@ extern int32_t driver_compile_parse_argv(int32_t argc, uint8_t * argv, struct Dr
 extern int32_t driver_run_compiler_full_x_post_parse(struct DriverCompileState * state, int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_full_x(int32_t argc, uint8_t * argv);
 extern int32_t driver_get_argv_i(int32_t argc, uint8_t * argv, int32_t i, uint8_t * buf, int32_t max);
+/* Dangling-value guard for value-taking driver flags (authority body in
+ * seeds/rt_compile.from_x.c / src/runtime/rt_compile.x, same commit): 1 iff
+ * argv[i+1] exists, is non-empty, and does not start with '-'. PLATFORM: SHARED. */
+extern int32_t driver_compile_argv_next_is_value_c(int32_t argc, uint8_t * argv, int32_t i, uint8_t * arg_buf, int32_t arg_cap);
 extern void driver_compile_argv_copy_path_c(struct DriverCompileState * state, uint8_t * arg_buf, int32_t plen);
 extern void driver_compile_ensure_default_lib_c(uint8_t * key);
 extern void driver_compile_parse_argv_init_c(struct DriverCompileState * state);
@@ -620,7 +624,7 @@ int32_t driver_eq_minus_backend(uint8_t * buf, int32_t len) {
   return 0;
 }
 int32_t driver_eq_minus_target(uint8_t * buf, int32_t len) {
-  if ((len < 7)) {
+  if ((len != 7)) {
     return 0;
   }
   if (((((((((buf)[0] ==45) && ((buf)[1] ==116)) && ((buf)[2] ==97)) && ((buf)[3] ==114)) && ((buf)[4] ==103)) && ((buf)[5] ==101)) && ((buf)[6] ==116))) {
@@ -716,14 +720,23 @@ int32_t driver_compile_parse_argv_step(int32_t argc, uint8_t * argv, struct Driv
       return (i + 1);
     }
     if (((driver_eq_minus_o(arg_buf, len) !=0) && ((i + 1) < argc))) {
+      if ((driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, arg_cap) ==0)) {
+        return (i + 1);
+      }
       (void)(driver_compile_argv_apply_minus_o_next_c(state, argc, argv, i));
       return (i + 2);
     }
     if (((driver_eq_minus_L(arg_buf, len) !=0) && ((i + 1) < argc))) {
+      if ((driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, arg_cap) ==0)) {
+        return (i + 1);
+      }
       (void)(driver_compile_argv_apply_minus_L_next_c(state, argc, argv, i, arg_buf, arg_cap));
       return (i + 2);
     }
     if (((driver_eq_minus_O(arg_buf, len) !=0) && ((i + 1) < argc))) {
+      if ((driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, arg_cap) ==0)) {
+        return (i + 1);
+      }
       (void)(driver_compile_argv_apply_minus_O_next_c(state, argc, argv, i));
       return (i + 2);
     }
@@ -744,14 +757,23 @@ int32_t driver_compile_parse_argv_step(int32_t argc, uint8_t * argv, struct Driv
       return (i + 1);
     }
     if (((driver_eq_minus_backend(arg_buf, len) !=0) && ((i + 1) < argc))) {
+      if ((driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, arg_cap) ==0)) {
+        return (i + 1);
+      }
       (void)(driver_compile_argv_apply_backend_next_c(state, argc, argv, i, arg_buf, arg_cap));
       return (i + 2);
     }
     if (((driver_eq_minus_target(arg_buf, len) !=0) && ((i + 1) < argc))) {
+      if ((driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, arg_cap) ==0)) {
+        return (i + 1);
+      }
       (void)(driver_compile_argv_apply_target_next_c(state, argc, argv, i));
       return (i + 2);
     }
     if (((driver_eq_minus_target_cpu(arg_buf, len) !=0) && ((i + 1) < argc))) {
+      if ((driver_compile_argv_next_is_value_c(argc, argv, i, arg_buf, arg_cap) ==0)) {
+        return (i + 1);
+      }
       (void)(driver_compile_argv_apply_target_cpu_next_c(state, argc, argv, i));
       return (i + 2);
     }

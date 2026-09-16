@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
-# B-BOOT：hello stripped 冷启动中位数（NEXT §1.2）
-# P6：S4 freestanding return42/hello（-freestanding -backend asm）冷启动 + stripped 体积（Linux x86_64）
+# B-BOOT: hello stripped coldstart median + S4 freestanding (Linux x86_64).
 #
-# 用法：./tests/run-perf-coldstart.sh [--bench]
-# 环境：
-#   XLANG_COLDSTART_FREESTANDING_ONLY=1 — 仅跑 freestanding（CI 在 xlang_asm 就绪后）
-#   XLANG_COLDSTART_STD_ONLY=1 — 仅跑 std hello（早期 CI）
-# 门禁（可选）：
-#   XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1 — 实测 ≤ tests/baseline/coldstart-perf.tsv
-#   XLANG_PERF_UPDATE_COLDSTART_BASELINE=1 — 刷新基线
+# Honesty: soft XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION:-0 previously left
+# over-cap unchecked (silent OK = portable false-green). Soft auto-make
+# before resolve retired. Prefer product xlang_asm. Over-cap = obs
+# (FAIL_ON=1 still hard). Freestanding non-Linux = skip. Missing compiler
+# for std hello = hard die. Report run=/obs=/skip=.
+#
+# Usage: ./tests/run-perf-coldstart.sh [--bench]
+# Env:
+#   XLANG_COLDSTART_FREESTANDING_ONLY=1 — freestanding only
+#   XLANG_COLDSTART_STD_ONLY=1 — std hello only
+#   XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1 — over-cap hard-fail
+#   XLANG_PERF_UPDATE_COLDSTART_BASELINE=1 — refresh baseline
+# PLATFORM: SHARED archaeology (Ubuntu gold; Darwin std hello via xlang-c).
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# Honesty: do NOT auto-make before resolve — rebuilding turns missing
+# product binary into soft green.
 
 HELLO_SRC="examples/hello.x"
 OUT="/tmp/xlang_coldstart_hello"
@@ -28,8 +36,49 @@ DO_BENCH=0
 [ "${XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
 FS_ONLY="${XLANG_COLDSTART_FREESTANDING_ONLY:-0}"
 STD_ONLY="${XLANG_COLDSTART_STD_ONLY:-0}"
+PREFIX="xlang: [XLANG_PERF_COLDSTART]"
+OBS=0
+RUN_OK=0
+SKIP=0
 
-XLANG_BIN="${XLANG:-./compiler/xlang}"
+die() {
+  echo "coldstart FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  # Explicit XLANG must be native — refuse soft fallthrough to another binary.
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+    return 1
+  fi
+  # Prefer product asm; refuse soft prefer-xlang-c-only false path.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+XLANG_BIN="$(resolve_shu)" || die "no native xlang_asm/xlang-c/xlang (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
 
 # std hello 编译：Linux x86_64 用 seed asm；Darwin 等须 xlang-c（asm 链接 __TEXT 非 r-x）。
 coldstart_compile_std() {
@@ -97,7 +146,8 @@ baseline_cap() {
   echo "$cap"
 }
 
-# 门禁：实测 value 须 ≤ cap（用于 us 与 bytes）
+# Cap check: always compare when measured. Over-cap = obs when PERF_FAIL=0;
+# PERF_FAIL=1 still hard-dies. Refuse soft FAIL_ON:-0 silent OK.
 check_le_cap() {
   local label="$1" value="$2" cap="$3"
   [ -n "$cap" ] || return 0
@@ -109,8 +159,11 @@ print("1" if val <= cap else "0")
 PY
 )
   if [ "$ok" != "1" ]; then
-    echo "coldstart FAIL: ${label}=${value} > cap ${cap} ($BASELINE)" >&2
-    exit 1
+    echo "coldstart OBS: ${label}=${value} > cap ${cap} ($BASELINE)" >&2
+    OBS=$((OBS + 1))
+    if [ "$PERF_FAIL" = "1" ]; then
+      die "${label}=${value} > cap ${cap} (XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1)"
+    fi
   fi
 }
 
@@ -151,30 +204,36 @@ coldstart_freestanding_one() {
   FS_CASE_SKIP=0
   FS_LAST_MED_US=""
   FS_LAST_SIZE=""
+  # PLATFORM: LINUX — freestanding coldstart gold; Darwin/other = skip N/A.
   if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
     echo "coldstart ${label}: skip (host is not Linux)"
     FS_CASE_SKIP=1
+    SKIP=$((SKIP + 1))
     return 0
   fi
   if [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
-    echo "coldstart ${label}: skip (freestanding 仅 x86_64 Linux; host=$(uname -m))"
+    echo "coldstart ${label}: skip (freestanding Linux x86_64 only; host=$(uname -m))"
     FS_CASE_SKIP=1
+    SKIP=$((SKIP + 1))
     return 0
   fi
   fs_shu=$(pick_freestanding_shu) || {
-    echo "coldstart ${label}: skip (no xlang with -freestanding -backend asm; try xlang_asm)"
+    echo "coldstart OBS: ${label} no xlang with -freestanding -backend asm" >&2
     FS_CASE_SKIP=1
+    OBS=$((OBS + 1))
     return 0
   }
   if ! "$fs_shu" -freestanding -backend asm "$src" -o "$out" 2>/dev/null; then
-    echo "coldstart ${label}: skip (build failed with $fs_shu)"
+    echo "coldstart OBS: ${label} build failed with $fs_shu" >&2
     FS_CASE_SKIP=1
+    OBS=$((OBS + 1))
     return 0
   fi
   strip "$out" 2>/dev/null || true
   if [ ! -x "$out" ]; then
-    echo "coldstart ${label}: skip (not executable after build)"
+    echo "coldstart OBS: ${label} not executable after build" >&2
     FS_CASE_SKIP=1
+    OBS=$((OBS + 1))
     return 0
   fi
   med=$(measure_median_us "$out" "$expect_rc")
@@ -186,10 +245,9 @@ coldstart_freestanding_one() {
     echo "${us_key}	${med}"
     echo "${bytes_key}	${size}"
   fi
-  if [ "$PERF_FAIL" = "1" ]; then
-    check_le_cap "$us_key" "$med" "$(baseline_cap "$us_key")"
-    check_le_cap "$bytes_key" "$size" "$(baseline_cap "$bytes_key")"
-  fi
+  # Always compare; soft FAIL_ON:-0 → obs (not silent OK).
+  check_le_cap "$us_key" "$med" "$(baseline_cap "$us_key")"
+  check_le_cap "$bytes_key" "$size" "$(baseline_cap "$bytes_key")"
 }
 
 MED_US=""
@@ -200,12 +258,13 @@ FS_SIZE=""
 
 # ── std hello（含 std.io，动态链接）──
 if [ "$FS_ONLY" != "1" ]; then
-  coldstart_compile_std "$HELLO_SRC" "$OUT"
+  coldstart_compile_std "$HELLO_SRC" "$OUT" || die "failed to compile $HELLO_SRC"
   strip "$OUT" 2>/dev/null || true
-  [ -x "$OUT" ] || { echo "coldstart: failed to build $OUT"; exit 1; }
+  [ -x "$OUT" ] || die "failed to build $OUT"
 
   MED_US=$(measure_median_us "$OUT" 0)
   SIZE=$(wc -c <"$OUT" | tr -d ' ')
+  RUN_OK=1
   echo "coldstart hello: median ${MED_US}us stripped_size=${SIZE}B runs=${RUNS}"
 
   if [ "$DO_BENCH" = "1" ]; then
@@ -213,9 +272,8 @@ if [ "$FS_ONLY" != "1" ]; then
     echo "hello_stripped_us	${MED_US}"
   fi
 
-  if [ "$PERF_FAIL" = "1" ]; then
-    check_le_cap "hello_stripped_us" "$MED_US" "$(baseline_cap hello_stripped_us)"
-  fi
+  # Always compare; soft FAIL_ON:-0 → obs (not silent OK).
+  check_le_cap "hello_stripped_us" "$MED_US" "$(baseline_cap hello_stripped_us)"
 fi
 
 # ── S4 freestanding（按需 io/panic 链入；return42 最小）──
@@ -239,9 +297,14 @@ if [ "$STD_ONLY" != "1" ]; then
     FS_SIZE="$FS_LAST_SIZE"
   fi
 
+  if [ "$FS_ONLY" = "1" ] && [ "$FS_ANY_SKIP" = "1" ] && [ "$OBS" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
+    die "XLANG_COLDSTART_FREESTANDING_ONLY=1 but freestanding build skipped"
+  fi
   if [ "$FS_ONLY" = "1" ] && [ "$PERF_FAIL" = "1" ] && [ "$FS_ANY_SKIP" = "1" ]; then
-    echo "coldstart FAIL: XLANG_COLDSTART_FREESTANDING_ONLY=1 but freestanding build skipped" >&2
-    exit 1
+    die "XLANG_COLDSTART_FREESTANDING_ONLY=1 but freestanding build skipped (FAIL_ON=1)"
+  fi
+  if [ -n "$FS_RV42_MED_US" ] || [ -n "$FS_MED_US" ]; then
+    RUN_OK=1
   fi
 fi
 
@@ -273,3 +336,5 @@ if [ "${XLANG_PERF_UPDATE_COLDSTART_BASELINE:-0}" = "1" ]; then
 fi
 
 echo "coldstart OK"
+echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+exit 0

@@ -5,5 +5,5 @@ io	boundary	tests/io/boundary.x	9	std.io	handle/零长写
 fs	boundary	tests/fs/boundary.x	10	std.fs	invalid/读写/pread
 net	boundary	tests/net/boundary.x	10	std.net	地址/bind/listen
 string	boundary	tests/string/boundary.x	10	std.string	StrView/String
-doc	file	analysis/tst-001-boundary-wave1-v1.md	-	-	RFC
+doc	file	analysis/archive/tst/tst-001-boundary-wave1-v1.md	-	-	RFC
 gate	script	tests/run-tst-001-boundary-gate.sh	tests/run-tst-001-boundary-gate.sh	-	manifest

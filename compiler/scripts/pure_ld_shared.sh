@@ -7,7 +7,8 @@
 #
 # PLATFORM: SHARED — freestanding eligibility + multidef / entry composition
 # PLATFORM: MACOS  — syslibroot / -dynamic / -arch / -platform_version / -lSystem
-# PLATFORM: LINUX  — multidef + -lc (libc freestanding) or nostdlib static (g05)
+# PLATFORM: LINUX  — --dynamic-linker (glibc INTERP; -lc dynamic) + multidef;
+#                    g05 nostdlib -static ignores the interp flag
 # PLATFORM: WINDOWS — pure-ld not eligible (caller uses named CC residual only)
 #
 # G.7: Do not open a second pure-ld platform table in cold or g05.
@@ -18,11 +19,12 @@
 # Wave: 772 platform prefix in seed_link · 773 extract + g05 prefer · 774 drop silent fallback.
 
 # ---------------------------------------------------------------------------
-# pure_ld_platform_prefix — stdout: space-separated ld flags (may be empty)
-# Returns 1 when host cannot pure-ld (Windows / missing Darwin SDK).
+# pure_ld_platform_prefix — stdout: space-separated ld flags
+# Returns 1 when host cannot pure-ld (Windows / missing Darwin SDK /
+# Linux glibc interp not found).
 # ---------------------------------------------------------------------------
 pure_ld_platform_prefix() {
-  local os arch sdk ver
+  local os arch sdk ver interp c
   os="$(uname -s 2>/dev/null || echo Unknown)"
   arch="$(uname -m 2>/dev/null || echo unknown)"
   case "$os" in
@@ -53,7 +55,37 @@ pure_ld_platform_prefix() {
       return 0
       ;;
     Linux)
-      printf '%s\n' ""
+      # PLATFORM: LINUX — cold seed pure-ld uses -lc (dynamic). GNU ld
+      # without --dynamic-linker may write PT_INTERP /lib/ld64.so.1
+      # (ENOENT on Ubuntu glibc; binutils 2.46 sit-red 2026-09-05).
+      # Candidate list = labi_linux_hosted_dyn_linker (runtime_link_abi).
+      # G.7 complete this prefix; do not open a second interp table.
+      # g05 nostdlib -static ignores --dynamic-linker.
+      interp=""
+      case "$arch" in
+        x86_64|amd64)
+          for c in \
+            /lib64/ld-linux-x86-64.so.2 \
+            /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 \
+            /lib/ld-linux-x86-64.so.2
+          do
+            if [ -e "$c" ]; then interp="$c"; break; fi
+          done
+          ;;
+        aarch64|arm64)
+          for c in \
+            /lib/ld-linux-aarch64.so.1 \
+            /lib/aarch64-linux-gnu/ld-linux-aarch64.so.1
+          do
+            if [ -e "$c" ]; then interp="$c"; break; fi
+          done
+          ;;
+      esac
+      if [ -z "$interp" ]; then
+        echo "pure_ld_shared: Linux dynamic linker not found (arch=$arch)" >&2
+        return 1
+      fi
+      printf '%s\n' "--dynamic-linker ${interp}"
       return 0
       ;;
     *)
@@ -64,12 +96,22 @@ pure_ld_platform_prefix() {
 }
 
 # ---------------------------------------------------------------------------
-# pure_ld_multidef_flags — host multidef for final executable link
+# pure_ld_multidef_flags — host multidef for final executable / ld -r merge
+# PLATFORM: MACOS — Apple ld treats `-multiply_defined` as obsolete (warning on
+#           every g05 pure-ld; new ld may error `path=suppress`). Product g05
+#           relies on G.7 single authority (no duplicate strong T), so Darwin
+#           returns empty — same as experimental_bootstrap. Do NOT reintroduce.
+# PLATFORM: LINUX — GNU ld still supports --allow-multiple-definition (thin
+#           inject first-wins / residual strong overlays).
+# PLATFORM: WINDOWS — MinGW/MSYS ld is GNU-like; same flag for leftover-PE
+#           pabi rest+standalone first-wins merge (709 overlapping T). Darwin
+#           stays empty (obsolete -multiply_defined).
 # ---------------------------------------------------------------------------
 pure_ld_multidef_flags() {
   case "$(uname -s 2>/dev/null || echo Unknown)" in
-    Darwin) printf '%s\n' "-multiply_defined suppress" ;;
+    Darwin) printf '%s\n' "" ;;
     Linux) printf '%s\n' "--allow-multiple-definition" ;;
+    MINGW*|MSYS*|CYGWIN*) printf '%s\n' "--allow-multiple-definition" ;;
     *) printf '%s\n' "" ;;
   esac
 }
@@ -136,6 +178,63 @@ pure_ld_resolve_ld() {
 }
 
 # ---------------------------------------------------------------------------
+# pure_ld_darwin_force_load_prefer_archives — rewrite OBJS for Apple ld.
+#
+# PLATFORM: MACOS — `pure_ld_partial_merge` may leave a libtool **static archive**
+# named `*.o` when `ld -r` rejects F7 two-segment MH_OBJECT / strong dups.
+# Apple ld archive semantics: a **weak** definition already present from a real
+# MH_OBJECT (e.g. `asm_experimental_symbol_bridge` XLANG_WEAK
+# `asm_asm_codegen_elf_o`) satisfies the reference, so the archive member that
+# holds the **strong** product body is never pulled → tip product keeps the
+# weak stub → asm codegen returns immediately → CG002 `code_len=0`.
+#
+# Prefer thin+rest merges are ≤2 real members. Multi-slice first-wins archives
+# (labi / pipeline_abi / driver_no_c, many members, intentional selective pull)
+# must stay plain archives — force-loading them surfaces duplicate strongs.
+#
+# G.7: single consume-side fix in pure_ld (cold seed + g05). Do not strip
+# experimental weak stubs (still needed for experimental chains without the
+# real bridge). LINUX ELF prefer stays real ET_REL `.o` (no-op here).
+#
+# Usage: pure_ld_darwin_force_load_prefer_archives "OBJS..." → stdout rewritten
+# ---------------------------------------------------------------------------
+pure_ld_darwin_force_load_prefer_archives() {
+  local objs="$1"
+  local o ft n abs out="" n_force=0
+  case "$(uname -s 2>/dev/null || echo Unknown)" in
+    Darwin) ;;
+    *) printf '%s\n' "$objs"; return 0 ;;
+  esac
+  for o in $objs; do
+    case "$o" in
+      -*) out="${out}${out:+ }$o"; continue ;;
+    esac
+    if [ ! -f "$o" ]; then
+      out="${out}${out:+ }$o"
+      continue
+    fi
+    ft="$(file -b "$o" 2>/dev/null || true)"
+    case "$ft" in
+      *archive*|*ar\ archive*)
+        n="$(ar t "$o" 2>/dev/null | grep -cv 'SYMDEF' || echo 0)"
+        n="$(printf '%s' "$n" | tr -d '[:space:]')"
+        if [ -n "$n" ] && [ "$n" -le 2 ] 2>/dev/null; then
+          abs="$(cd "$(dirname "$o")" && pwd)/$(basename "$o")"
+          out="${out}${out:+ }-force_load ${abs}"
+          n_force=$((n_force + 1))
+        else
+          out="${out}${out:+ }$o"
+        fi
+        ;;
+      *) out="${out}${out:+ }$o" ;;
+    esac
+  done
+  if [ "$n_force" -gt 0 ]; then
+    echo "pure_ld_shared: Darwin -force_load prefer archives ×${n_force} (weak-stub vs libtool .o)" >&2
+  fi
+  printf '%s\n' "$out"
+}
+
 # pure_ld_try_link — run pure ld once
 # Usage: pure_ld_try_link OUT "OBJS..." ENTRY TAIL [EXTRA_LD_FLAGS] [LD_BIN]
 #   ENTRY/TAIL/EXTRA are space-separated flag strings (may be empty).
@@ -164,6 +263,8 @@ pure_ld_try_link() {
     return 1
   }
   multidef="$(pure_ld_multidef_flags)"
+  # PLATFORM: MACOS — expand prefer libtool archives so strong bodies beat weak stubs.
+  objs="$(pure_ld_darwin_force_load_prefer_archives "$objs")"
   n_objs=$(printf '%s\n' "$objs" | wc -w | tr -d ' ')
   echo "pure_ld_shared: ld=$(basename "$ld_bin") → $out ($n_objs objs)" >&2
   # shellcheck disable=SC2086
@@ -182,26 +283,43 @@ pure_ld_try_link() {
 # g05_ensure_relink_prereqs.sh (Stage 12.2.3 zero-CC partial-merge).
 #
 # When XLANG_ZERO_CC_LD=1: uses `ld -r` with multidef flags (zero-CC).
-# When unset (default): uses `$CC -r -nostdlib` (original behavior; zero
-# regression — callers that don't set the flag are unaffected).
+# When unset (default): uses `$CC -r -nostdlib` plus the same host first-wins
+# flags via `-Wl` (G.7 complete: prefer/inject thin+rest is first-wins).
 #
 # Usage: pure_ld_partial_merge OUT OBJS...
 #   OBJS is one or more .o paths (space-separated).
 # Returns 0 on success, non-zero on failure. Caller owns stderr redirect.
 #
-# PLATFORM: SHARED — ld -r + multidef; no syslibroot/dynamic (relocatable
-#           merge, not final executable link). multidef via
-#           pure_ld_multidef_flags (Darwin: -multiply_defined suppress;
+# PLATFORM: SHARED — ld -r + first-wins; no syslibroot/dynamic (relocatable
+#           merge, not final executable link). Flags from
+#           pure_ld_multidef_flags (Darwin: empty — obsolete flag removed;
 #           Linux: --allow-multiple-definition).
+# PLATFORM: LINUX — gcc/ld -r without --allow-multiple-definition errors
+#           "multiple definition" when thin inject overlays a strong leftover
+#           (reent/arrcopy/ttc/blkpeel). Product default did not set
+#           XLANG_ZERO_CC_LD, so $CC -r must wrap the same ld flag (`-Wl`).
+#           Sit-red: pipeline_abi inject restore-base; hybrid stay ELF -r.
+# PLATFORM: MACOS — F7 MH_OBJECT emits LC_SEGMENT __TEXT + __DATA (vtable
+#           __DATA,__const). Apple `ld -r` / `cc -r` then fail:
+#           "more than one LC_SEGMENT found in object file". Duplicate
+#           strong defs also fail `ld -r` (obsolete `-multiply_defined` no
+#           longer passed). Current product xlang -c produces two-segment
+#           objects, so prefer hybrid cannot wait on a writer rewrite.
+#           Complete this merge: if -r fails, `libtool -static` concatenates
+#           members (Darwin final ld accepts the archive on the object list).
+#           Consume-side pair: `pure_ld_darwin_force_load_prefer_archives` in
+#           `pure_ld_try_link` — ≤2-member prefer archives must `-force_load` or
+#           weak stubs in MH_OBJECT suppress strong member pull (CG002 code_len=0).
 # ---------------------------------------------------------------------------
 pure_ld_partial_merge() {
   local out="$1"; shift
   local objs="$*"
-  local ld_bin multidef
+  local ld_bin multidef os cc_md
   if [ -z "$out" ] || [ -z "$objs" ]; then
     echo "pure_ld_shared: pure_ld_partial_merge needs OUT and OBJS" >&2
     return 1
   fi
+  os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ "${XLANG_ZERO_CC_LD:-0}" = "1" ]; then
     ld_bin="$(pure_ld_resolve_ld)" || {
       echo "pure_ld_shared: ld not found for partial_merge" >&2
@@ -209,12 +327,32 @@ pure_ld_partial_merge() {
     }
     multidef="$(pure_ld_multidef_flags)"
     # shellcheck disable=SC2086
-    "$ld_bin" -r $multidef -o "$out" $objs
+    if "$ld_bin" -r $multidef -o "$out" $objs; then
+      return 0
+    fi
   else
-    # Original path: $CC -r -nostdlib (zero regression when flag unset).
+    # Product default: $CC -r. Prefer/inject first-wins needs the host
+    # multiple-definition flag; ZERO_CC_LD=1 already passed it to ld.
+    # Wrap pure_ld_multidef_flags as one -Wl token (spaces → commas).
+    # PLATFORM: LINUX — required for ELF thin inject. PLATFORM: MACOS —
+    # clang -r still rejects dups / two LC_SEGMENT; libtool below.
+    multidef="$(pure_ld_multidef_flags)"
+    cc_md=""
+    if [ -n "$multidef" ]; then
+      cc_md="-Wl,$(printf '%s' "$multidef" | tr ' ' ',')"
+    fi
     # shellcheck disable=SC2086
-    ${CC:-cc} -r -nostdlib -o "$out" $objs
+    if ${CC:-cc} -r -nostdlib $cc_md -o "$out" $objs; then
+      return 0
+    fi
   fi
+  # PLATFORM: MACOS — F7 two-segment MH_OBJECT / strong dups cannot ld -r.
+  if [ "$os" = "Darwin" ] && command -v libtool >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    libtool -static -o "$out" $objs
+    return $?
+  fi
+  return 1
 }
 
 # ---------------------------------------------------------------------------
@@ -518,6 +656,45 @@ pure_asm_x_to_o() {
   _bn="$(basename "$src")"
   if [ "$_bn" = "runtime_pipeline_abi.x" ] && [ "${XLANG_PABI_ALLOW_PURE_ASM:-0}" != "1" ]; then
     return 1
+  fi
+  # PLATFORM: SHARED — P12g lift (2026-09-14, wave660 root fix): the former
+  # pure-asm ban for pthin_skip_tl.x is removed. Root cause of the rc=139
+  # trait-probe crashes was NOT big-function call-arg marshaling but the
+  # commutative-binop rbx-park bug: a complex left operand staged its literal
+  # into rbx over the parked simple right operand (`(cn*4) + (nargs as usize)`
+  # emitted cn*4+4, shifting g_call_typearg_lens rows → T001; earlier symptom
+  # was the frame-corruption crash). Fixed in glue_try_binop_commutative
+  # _rax_rbx_elf_c (.x + seed twins): simple-operand-first branches now gated
+  # on glue_expr_emit_may_clobber_rbx_elf_c of the opposite side. Verified:
+  # bound_method quartet + trait/array_lit probes 27/27 lane-identical, L2
+  # matrix 5/5 on Darwin; Ubuntu must re-verify (git pull --ff-only).
+  # Bisect opt-out if a new pure-asm regression appears: re-add a
+  # XLANG_P12G_DENY_PURE_ASM gate here.
+  # PLATFORM: SHARED — fmt_check_cmd_thin pure-asm is product-default when the
+  # emitting compiler has modlet lea→rax (tip). Pin egg / pre-lea compilers
+  # still emit the (&n)>=n cmp bug → silent `xlang fmt` exit 1 (stderr newline
+  # only). Auto host-C fallback until nm sees pipeline_asm_modlet_lea_rax_*.
+  # Opt-out bisect: XLANG_FMT_DENY_PURE_ASM=1. Do not revive empty-needle patches.
+  if [ "$_bn" = "fmt_check_cmd_thin.x" ]; then
+    if [ "${XLANG_FMT_DENY_PURE_ASM:-0}" = "1" ]; then
+      return 1
+    fi
+    _fmt_xl=""
+    if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then
+      _fmt_xl="$XLANG"
+    elif [ -x ./xlang ]; then
+      _fmt_xl=./xlang
+    elif [ -x ./xlang_asm ]; then
+      _fmt_xl=./xlang_asm
+    elif [ -x ./xlang-c ]; then
+      _fmt_xl=./xlang-c
+    elif [ -x ./bootstrap_xlangc ]; then
+      _fmt_xl=./bootstrap_xlangc
+    fi
+    if [ -z "$_fmt_xl" ] \
+      || ! nm "$_fmt_xl" 2>/dev/null | grep -q 'pipeline_asm_modlet_lea_rax_'; then
+      return 1
+    fi
   fi
   # Optional single-slice / allow-list gate for hybrid ABI bisect.
   # PLATFORM: SHARED diagnostic harness — does not change default-all behavior.

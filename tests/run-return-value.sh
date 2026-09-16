@@ -1,51 +1,98 @@
 #!/usr/bin/env bash
-# 文件职责：验证 codegen 使用 main 体字面量作为程序退出码；编译 fn main() -> i32 { 42 } 并检查退出码为 42。
-# 与其它文件的关系：由 compiler/Makefile 的 test 目标调用；依赖 compiler/xlang、tests/return-value/main.x。
-
-set -e
+# return-value smoke: main body literal is program exit code (42)
+#
+# Honesty: soft default `./compiler/xlang` + soft auto-make (false authority)
+# retired. Prefer product xlang_asm; pin XLANG_LINK_XLANG. Explicit bad XLANG /
+# missing native = hard die (refuse soft SKIP→OK / soft auto-make / prefer-c /
+# soft bootstrap-link / soft host-cc re-link of C dump). Product `-o` must
+# yield a native executable. Report: run=/obs=/skip=
+# PLATFORM: SHARED archaeology — Ubuntu gold still required.
+set -euo pipefail
 cd "$(dirname "$0")/.."
-# shellcheck source=tests/lib/compiler-make.sh
-. tests/lib/compiler-make.sh
-if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  xlang_compiler_make -q 2>/dev/null || xlang_compiler_make
-fi
-XLANG=${XLANG:-./compiler/xlang}
-# shellcheck source=lib/bootstrap-link-xlang.sh
-. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-LINK_XLANG="$RUN_XLANG"
-OUT=/tmp/xlang_return_value
-# 避免上一次 xlang-c 留下的 Mach-O 与本次 C 输出长度交错导致 file/cc 误判；同时清掉二次链接产物。
-rm -f "$OUT" "${OUT}.bin"
-# 编译：xlang-c 走 C 前端会在 -o 处直接产出可执行文件；bootstrap-driver-seed 的 xlang / stage2 对无 import 单文件走 .x pipeline，仅把生成的 C 写入 -o，须再经 cc 链接。
-$LINK_XLANG build tests/return-value/main.x -o "$OUT" 2>&1
-BIN="$OUT"
-ft=$(file -b "$OUT" 2>/dev/null || true)
-# 无 file(1) 时勿把已链接 ELF 当 C 源；读魔数 0x7F 'E' 'L' 'F'。
-is_elf=0
-if [ -f "$OUT" ]; then
-  magic=$(dd if="$OUT" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
-  [ "$magic" = "7f454c46" ] && is_elf=1
-fi
-case "$ft" in
-  *Mach-O*|*ELF*|*PE32*)
-    ;;
-  *)
-    if [ "$is_elf" -eq 1 ]; then
-      :
-    else
-    # 无 .c 后缀时须 -x c，否则 clang 会把输入当链接目标而非 C 源（报 ld: unknown file type）。
-    cc -x c -std=c11 -Wall -Wextra -o "${OUT}.bin" "$OUT" 2>/dev/null \
-      || gcc -x c -std=c11 -Wall -Wextra -o "${OUT}.bin" "$OUT" 2>/dev/null \
-      || clang -x c -std=c11 -Wall -Wextra -o "${OUT}.bin" "$OUT"
-    BIN="${OUT}.bin"
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
+# shellcheck source=tests/lib/dod-native-exe.sh
+. tests/lib/dod-native-exe.sh
+# shellcheck source=tests/lib/gate-progress.sh
+. tests/lib/gate-progress.sh
+
+PREFIX="${XLANG_RETURN_VALUE_PREFIX:-xlang: [RETURN_VALUE]}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
+RUN_OK=0
+OBS=0
+SKIP=0
+
+die() {
+  echo "return-value FAIL: $*" >&2
+  echo "${PREFIX} status=fail run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+  exit 1
+}
+
+ok_report() {
+  echo "${PREFIX} status=ok run=${RUN_OK} obs=${OBS} skip=${SKIP} host=$(ci_host_summary)"
+}
+
+resolve_shu() {
+  local cand abs root
+  root=$(pwd)
+  if [ -n "${XLANG:-}" ]; then
+    case "$XLANG" in
+      /*) abs="$XLANG" ;;
+      *) abs="$root/$XLANG" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
     fi
-    ;;
-esac
-# 运行生成的可执行文件并捕获退出码（set -e 下非零会退出，故用 || 保存到变量）
-exitcode=0
-"$BIN" >/dev/null 2>&1 || exitcode=$?
-if [ "$exitcode" -ne 42 ]; then
-    echo "expected exit code 42, got $exitcode"
-    exit 1
+    return 1
+  fi
+  # Prefer product asm; pin XLANG_LINK_XLANG for dogfood consistency.
+  # PLATFORM: SHARED — product path honesty; Ubuntu gold still required.
+  for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
+    case "$cand" in
+      /*) abs="$cand" ;;
+      *) abs="$root/$cand" ;;
+    esac
+    if dod_native_exe "$abs"; then
+      echo "$abs"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo "=== return-value gate (prefer asm; hard) ==="
+XLANG_BIN="$(resolve_shu)" || die "no native xlang/xlang_asm/xlang-c (refuse soft SKIP→OK / soft auto-make)"
+export XLANG="$XLANG_BIN"
+export XLANG_LINK_XLANG="$XLANG_BIN"
+echo "XLANG=$XLANG_BIN"
+
+src="tests/return-value/main.x"
+[ -f "$src" ] || die "missing $src"
+exe="/tmp/xlang_return_value_$$"
+log="/tmp/xlang_return_value_$$.log"
+rm -f "$exe" "$log"
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$XLANG_BIN" -L . "$src" -o "$exe" >"$log" 2>&1
+o_ec=$?
+set -e
+if [ "$o_ec" -eq 124 ]; then
+  die "product -o timeout"
+elif [ "$o_ec" -ne 0 ] || [ ! -x "$exe" ]; then
+  die "product -o failed (ec=$o_ec); $(tail -5 "$log" 2>/dev/null | tr '\n' ' ')"
 fi
+# Refuse soft host-cc re-link of C dump: output must already be native.
+dod_native_exe "$exe" || die "product -o is not a native exe (refuse soft host-cc re-link)"
+set +e
+gate_run_timeout "$XLANG_CASE_TIMEOUT" "$exe" >/dev/null 2>&1
+r_ec=$?
+set -e
+rm -f "$exe" "$log"
+if [ "$r_ec" -eq 124 ]; then
+  die "run timeout"
+elif [ "$r_ec" -ne 42 ]; then
+  die "expected exit 42, got $r_ec"
+fi
+RUN_OK=$((RUN_OK + 1))
+ok_report
 echo "return value test OK"

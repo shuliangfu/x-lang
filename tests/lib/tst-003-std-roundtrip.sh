@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
-# tst-003-std-roundtrip.sh — TST-003：round-trip 向量库辅助
+# tst-003-std-roundtrip.sh — TST-003: round-trip vector helpers.
 #
-# 用法（source 后）：
+# Honesty: leftover `ensure_std_c_o` (`tst003_ensure_o`) + leftover hard
+# `xlang check` inside `tst003_run_vector` retired. Product `-o` is the hard
+# signal; check is observational in the gate (paused 2026-08-05).
+# Usage (after source):
 #   tst003_verify_manifest TSV
-#   tst003_ensure_o REL_O
 #   tst003_run_vector XLANG_BIN TEST_PATH TAG
-#   tst003_emit_report status vectors pass skip
+#   tst003_emit_report status run obs skip
+# PLATFORM: SHARED archaeology.
+
+# shellcheck source=tests/lib/ci-host.sh
+. tests/lib/ci-host.sh
 
 TST003_PREFIX="${XLANG_TST003_ROUNDTRIP_PREFIX:-xlang: [XLANG_TST003_ROUNDTRIP]}"
 
-# 校验 manifest 中 roundtrip 行文件存在；echo 缺失数。
+# Verify manifest roundtrip/file rows exist; echo missing count.
+# @param tsv path — TSV path relative to repo root
+# @return 0 if miss=0, else 1 (echoes miss either way)
 tst003_verify_manifest() {
   local tsv="$1"
   local miss=0
@@ -36,16 +44,11 @@ tst003_verify_manifest() {
   [ "$miss" -eq 0 ]
 }
 
-# 按需构建 std C .o（相对 repo 根路径，如 std/csv/csv.o）。
-tst003_ensure_o() {
-  local rel="$1"
-  [ -z "$rel" ] || [ "$rel" = "-" ] && return 0
-  # shellcheck source=tests/lib/build-std-c-o.sh
-  . tests/lib/build-std-c-o.sh
-  ensure_std_c_o "$rel"
-}
-
-# 编译运行烟测；0=成功，2=链接环境 SKIP（如缺 libzstd），1=硬失败。
+# Compile+run one roundtrip smoke. 0=ok, 2=link-env SKIP (libzstd), 1=hard fail.
+# Refuse leftover hard check / leftover ensure_std_c_o.
+# @param xlang native compiler
+# @param test_path .x smoke
+# @param tag vector id
 tst003_run_vector() {
   local xlang="$1"
   local test_path="$2"
@@ -56,11 +59,7 @@ tst003_run_vector() {
     echo "tst-003-roundtrip FAIL: missing $test_path" >&2
     return 1
   fi
-  if ! "$xlang" check -L . "$test_path" >/dev/null 2>&1; then
-    echo "tst-003-roundtrip FAIL: typeck $test_path" >&2
-    "$xlang" check -L . "$test_path" 2>&1 | tail -8 >&2 || true
-    return 1
-  fi
+  # Product `-o` is the hard signal. Check is observational in the gate.
   if ! "$xlang" -L . "$test_path" -o "$exe" >"$log" 2>&1; then
     if grep -qE "library 'zstd' not found|cannot find -lzstd" "$log" 2>/dev/null; then
       rm -f "$exe" "$log"
@@ -84,11 +83,12 @@ tst003_run_vector() {
   return 0
 }
 
-# 输出结构化报告行。
+# Structured report: run=/obs=/skip= (legacy vectors=/pass= folded into run=/skip=).
+# Extra fields OK. PLATFORM: SHARED archaeology.
 tst003_emit_report() {
   local status="$1"
-  local vectors="$2"
-  local pass="$3"
+  local run_ok="$2"
+  local obs="$3"
   local skip="$4"
-  echo "${TST003_PREFIX} status=${status} vectors=${vectors} pass=${pass} skip=${skip}"
+  echo "${TST003_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip} host=$(ci_host_summary)"
 }

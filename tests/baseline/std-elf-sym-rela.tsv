@@ -1,9 +1,9 @@
 # STD-103 std.elf symtab/rela manifest
 # 列：item_id	kind	anchor	mod_path	notes
-min_apis	4
-read_path	section	## 1. 阅读路径	15min
-sym_api	section	## 2. symtab/rela 语义	read_sym
-verify	section	## 4. 验证与门禁	gate
+# min_apis	4
+read_path	section	## 1. 阅读路径	analysis/archive/std/std-elf-sym-rela-v1.md
+sym_api	section	## 2. symtab/rela 语义	analysis/archive/std/std-elf-sym-rela-v1.md
+verify	section	## Gate	analysis/archive/std/std-elf-sym-rela-v1.md
 api_read_sym	api	read_sym	std/elf/mod.x	Elf64_Sym
 api_sym_name	api	sym_name	std/elf/mod.x	strtab 名
 api_read_rela	api	read_rela	std/elf/mod.x	Elf64_Rela
@@ -16,5 +16,5 @@ symbol_smoke_c	symbol	elf64_sym_rela_smoke_c	std/elf/elf.x	烟测
 fixture	file	tests/baseline/fixtures/elf64_sym_rela.bin	金样
 smoke_c	file	tests/std-elf/parse_sym_rela_smoke_ok.c	C 入口
 smoke_x	smoke	tests/std-elf/parse_sym_rela.x	symtab/rela 烟测
-lib	script	lib/std-elf-sym-rela.sh	tests/lib/std-elf-sym-rela.sh
-gate	script	run-std-elf-sym-rela-gate.sh	tests/run-std-elf-sym-rela-gate.sh
+lib	script	tests/lib/std-elf-sym-rela.sh	lib
+gate	script	tests/run-std-elf-sym-rela-gate.sh	gate

@@ -4,7 +4,8 @@
 # 用法（source 后）：
 #   std_mem_boundary_symbols_ok CORE_X STD_X TSV
 #   std_mem_boundary_forbidden_ok STD_X TSV
-#   std_mem_boundary_emit_report status core_ok std_ok cross_ok skip
+#   std_mem_boundary_emit_report status run obs skip
+# PLATFORM: SHARED archaeology.
 
 STD_MEM_BOUNDARY_PREFIX="${XLANG_STD_MEM_BOUNDARY_PREFIX:-xlang: [XLANG_STD_MEM_BOUNDARY]}"
 
@@ -53,12 +54,11 @@ std_mem_boundary_forbidden_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 输出结构化报告行。
+# Structured report: run=/obs=/skip= (honesty 2026-08-28).
 std_mem_boundary_emit_report() {
   local status="$1"
-  local core_ok="$2"
-  local std_ok="$3"
-  local cross_ok="$4"
-  local skip="$5"
-  echo "${STD_MEM_BOUNDARY_PREFIX} status=${status} core_only=${core_ok} std_only=${std_ok} no_cross_import=${cross_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_MEM_BOUNDARY_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }

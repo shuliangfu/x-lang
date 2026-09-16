@@ -27,7 +27,7 @@ if [ -n "${CI:-}" ] && [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   export XLANG_ASM_SKIP_STRICT_SMOKE=1
 fi
 
-echo "bootstrap-repro-build: make bootstrap-driver-bstrict ..."
+echo "bootstrap-repro-build: xlang_compiler_make bootstrap-driver-bstrict ..."
 xlang_compiler_make bootstrap-driver-bstrict 2>&1 | tee /tmp/bootstrap_repro_build.log
 
 if ! grep -qE 'Target-B-strict|B-strict OK|LINK_MODE=asm_only_strict' /tmp/bootstrap_repro_build.log; then

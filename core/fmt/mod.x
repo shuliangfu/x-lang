@@ -361,14 +361,28 @@ export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i64): i32 { return fmt_
 export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u32): i32 { return fmt_u32_to_buf(buf, cap, x); }
 /** `fmt_scalar_to_buf`: see signature for params/returns; contracts in body. */
 export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u64): i32 { return fmt_u64_to_buf(buf, cap, x); }
-/** `fmt_scalar_to_buf`: see signature for params/returns; contracts in body. */
-export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt_u32_to_buf(buf, cap, x as u32); }
+/**
+ * Format usize as decimal into buf (64-bit: delegate to fmt_u64_to_buf).
+ * @param buf *u8 — destination buffer
+ * @param cap i32 — capacity in bytes
+ * @param x usize — value to format
+ * @return i32 — bytes written, or -1 if capacity is insufficient
+ * PLATFORM: SHARED — matches CORE-010 contract (no u32 truncation on 64-bit).
+ */
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt_u64_to_buf(buf, cap, x as u64); }
 /** `fmt_scalar_to_buf`: see signature for params/returns; contracts in body. */
 export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: isize): i32 { return fmt_i64_to_buf(buf, cap, x as i64); }
 
-/** `fmt_usize_to_buf`: purpose/params/returns per signature; panics or error codes follow local contracts. */
+/**
+ * Format usize as decimal into buf.
+ * @param buf *u8 — destination buffer
+ * @param cap i32 — capacity in bytes
+ * @param x usize — value to format
+ * @return i32 — bytes written, or -1 if capacity is insufficient
+ * PLATFORM: SHARED — 64-bit path uses fmt_u64_to_buf (CORE-010; do not cast through u32).
+ */
 export function fmt_usize_to_buf(buf: *u8, cap: i32, x: usize): i32 {
-  return fmt_u32_to_buf(buf, cap, x as u32);
+  return fmt_u64_to_buf(buf, cap, x as u64);
 }
 /** `fmt_isize_to_buf`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function fmt_isize_to_buf(buf: *u8, cap: i32, x: isize): i32 {

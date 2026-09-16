@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# std-codec-stream.sh — STD-110 manifest 与烟测辅助
+# std-codec-stream.sh — STD-110 manifest helpers (compress/base64 stream adapters).
+#
+# Usage (after source):
+#   std_codec_stream_symbols_ok MOD_X TSV
+#   std_codec_stream_run_smoke XLANG SRC [TAG]
+#   std_codec_stream_emit_report status run obs skip
+# PLATFORM: SHARED archaeology — must be sourced under bash.
 
 STD_CODEC_STREAM_PREFIX="${XLANG_STD110_CODEC_STREAM_PREFIX:-xlang: [XLANG_STD110_CODEC_STREAM]}"
 
-# 校验 manifest 中 api/file/smoke。
+# Validate manifest api/file/smoke/vectors anchors.
+# Echo miss count; return 0 when miss=0.
 std_codec_stream_symbols_ok() {
   local mod_x="$1"
   local tsv="$2"
@@ -31,7 +38,8 @@ std_codec_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x 流式烟测。
+# Compile and run .x stream smoke. Prefer XLANG_LINK_XLANG pinned to product asm.
+# Tip product UNDEF for std_codec_* is gate-obs (not this helper's soft OK).
 std_codec_stream_run_smoke() {
   local xlang="$1"
   local src="$2"
@@ -55,9 +63,11 @@ std_codec_stream_run_smoke() {
   return 0
 }
 
+# Structured report line (honesty: run=/obs=/skip=; check / tip UNDEF = obs).
 std_codec_stream_emit_report() {
   local status="$1"
-  local su_ok="$2"
-  local skip="$3"
-  echo "${STD_CODEC_STREAM_PREFIX} status=${status} x=${su_ok} skip=${skip}"
+  local run_ok="$2"
+  local obs="$3"
+  local skip="$4"
+  echo "${STD_CODEC_STREAM_PREFIX} status=${status} run=${run_ok} obs=${obs} skip=${skip}"
 }
