@@ -61172,8 +61172,12 @@ int32_t backend_pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_
  * residual class as wave277/278). G.7: sole product authority for ast_pool_*
  * lifecycle faces below. Pure keeps export-extern only (no body dual-export).
  * Static module_func_at / param_entry helpers moved into residual module_func.c
- * (same-TU host consumers). PLATFORM: SHARED — runtime_pipeline_abi.o.
+ * (same-TU host consumers).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_lifecycle_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
+ * PLATFORM: SHARED — runtime_pipeline_abi.o.
  * ============================================================================= */
+/* XLANG_PABI_LIFECYCLE_THIN_BEGIN */
 #ifndef WAVE279_LIFECYCLE_DOMAIN_ALWAYS
 #define WAVE279_LIFECYCLE_DOMAIN_ALWAYS 1
 
@@ -61656,6 +61660,7 @@ void ast_pool_onefunc_release(uint8_t *out) {
     onefunc_sidecar_free(sc);
 }
 
+/* XLANG_PABI_LIFECYCLE_THIN_END */
 #endif /* WAVE279_LIFECYCLE_DOMAIN_ALWAYS */
 
 /* =============================================================================
