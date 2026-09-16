@@ -1453,14 +1453,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # pthin_stretch.x already holds the 13 lite scalar-table bodies.
         # Runs BEFORE P9 C so LITE_FROM_X skips emit_heavy_stretch_slice.inc
         # (same skip-include pattern as P9a/suite).
-        # M2 class B (2026-09-16): standalone `xlang -backend asm -c` of this
-        # file is green after kw_spell u8[360] (= 36 keywords * 10, matching
-        # C k_parser_asm_stretch_kw_spell sizeof). Linking that .o into
-        # xlang_asm SIGSEGVs product hello (lexer_skip data pointer 0x5012).
-        # Keep the C lite twin until that in-chain .o is root-fixed.
-        # token.h remains the classify-enum authority via P9 C _Static_assert.
+        # M2 class B (2026-09-16): kw_spell u8[360] standalone -c green.
+        # In-chain stretch.o is NOT the hello SEGV producer — Ubuntu this-SHA
+        # + P9b LITE_FROM_X = L2 5/5 with Lxml_ cells in the product.
+        # Darwin hello SIGSEGV (lexer_skip slice.data = lexer.pos, 0x5012
+        # or 0x72) reproduces with skip_tl asm and C stretch twin (P9b skip).
+        # Producer = ARM64 asm of parser_asm_generic_bound_scan_into_c
+        # (pthin_skip_tl.x) → peek_kind. Re-enable P9b try (peer of other
+        # P*b; WEAK). Darwin PREFER_ASM g05 of skip_tl stays leftover.
+        # token.h stays classify-enum authority via P9 C _Static_assert.
         if [ -n "$_pthin_p9b_thin_o" ] && [ -f "$_pthin_p9b_x" ]; then
-          echo "g05_ensure: P9b stretch lite C twin (asm .o in-chain SEGV; class B leftover)"
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9b_x" "$_pthin_p9b_thin_o"; then
+            _pthin_p9b_ok=1
+            _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
+            echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
+          else
+            echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
+          fi
         fi
         if [ -n "$_pthin_p9_o" ] && [ -f "$_pthin_p9_seed" ]; then
           # shellcheck disable=SC2086
