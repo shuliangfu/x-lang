@@ -47171,6 +47171,7 @@ void pipeline_codegen_try_mark_enum_field_access(void *m, void *a, int32_t expr_
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_TOP_LEVEL_LET_THIN_BEGIN */
 #define WAVE265_TL_SLOTS 128
 #define WAVE265_TL_ENTRY_SZ 276
 static void *g_wave265_tl_mod[WAVE265_TL_SLOTS];
@@ -47541,6 +47542,7 @@ int32_t pipeline_module_top_level_name_is_const(void *module, uint8_t *vname, in
   }
   return 0;
 }
+/* XLANG_PABI_TOP_LEVEL_LET_THIN_END */
 
 /*
  * Cold twin of pure pipeline_module_hoist_top_level_lets_into_main.
