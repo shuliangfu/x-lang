@@ -25,12 +25,12 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
-// STAR_FROM_X / LINEAR_FROM_X are separate defines (P6e PARSE_LAYOUT /
+// STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X are separate defines (P6e PARSE_LAYOUT /
 // P2c COND pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x keeps that C twin without dropping P3b–P3e.
+// linear_x / vec_x keeps that C twin without dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -128,6 +128,17 @@
 // writer = init_compound_kind_at (kind 12 < 15; G.7). Do not apply
 // postfix after Linear (C twin does not). Do not dest-buffer IDENT
 // generic type-arg get/set. parse_type_ref_impl stays C.
+// 7.2.1 P3l B-minus (2026-09-16): 有则补全 builtin vec token dest-buffer.
+// The TOKEN_I32X4 / I32X8 / I32X16 / U32X4 / U32X8 / U32X16 / F32X4
+// arm was inlined in parse_type_ref_impl (always host-cc). Lexer
+// keyword-matches `i32x4` etc. to these tokens (not IDENT). P9a
+// peek/step consumes the token; elem_ord/lanes copy the C twin
+// (F32X4 elem_ord=13, not TYPE_F32=14 — do not "fix"). VECTOR
+// writer = init_compound_kind_at (kind 13 < 15; G.7). Elem scalar
+// = pipeline_type_ensure_by_kind_ord (G.7). No postfix (C twin
+// does not). Do not dest-buffer IDENT vector spelling consume
+// (pack already .x; leftover is alloc wrap). Do not dest-buffer
+// parse_type_ref. parse_type_ref_impl stays C.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -203,6 +214,7 @@ const TYPE_PTR: i32 = 9;
 const TYPE_ARRAY: i32 = 10;
 const TYPE_SLICE: i32 = 11;
 const TYPE_LINEAR: i32 = 12;
+const TYPE_VECTOR: i32 = 13;
 const TYPE_F32: i32 = 14;
 const TYPE_F64: i32 = 15;
 const TYPE_VOID: i32 = 16;
@@ -259,6 +271,12 @@ export extern "C" function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32
  * spelling (nlen 1..255). G.7 one NAMED writer; do not copy.
  */
 export extern "C" function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_len: i32): i32;
+/**
+ * Existing pabi: intern a primitive TypeKind (0..16) and return its
+ * type_ref. G.7 one intern; VECTOR elem uses this (do not alloc a
+ * second primitive table).
+ */
+export extern "C" function pipeline_type_ensure_by_kind_ord(arena: *u8, kind: i32): i32;
 /** P1b: token that may follow `*` as a pointee. G.7 one table. */
 export extern "C" function parser_asm_is_pointee_type_token_c(kind: i32): i32;
 /** Skip-trait registry predicate (skip_tl). G.7: one lookup table. */
@@ -1500,6 +1518,94 @@ export function parser_asm_parse_linear_type_x_into_c(arena: *u8, lex_inout: *u8
       return 0;
     }
     return linear_ref;
+  }
+  return 0;
+}
+
+/**
+ * Map a builtin SIMD type token to the elem TypeKind ordinal.
+ * Copies the C twin: i32x* → 0, u32x* → 3, f32x4 → 13 (not TYPE_F32=14).
+ * @param kind i32 — lexer token kind
+ * @return i32 — elem_ord, or -1 if kind is not a vec token
+ * PLATFORM: SHARED — P3l. Do not "fix" F32X4=13.
+ */
+function parser_asm_builtin_vec_token_elem_ord(kind: i32): i32 {
+  if (kind == TOKEN_U32X4 || kind == TOKEN_U32X8 || kind == TOKEN_U32X16) {
+    return 3;
+  }
+  if (kind == TOKEN_F32X4) {
+    return 13;
+  }
+  if (kind == TOKEN_I32X4 || kind == TOKEN_I32X8 || kind == TOKEN_I32X16) {
+    return 0;
+  }
+  return -1;
+}
+
+/**
+ * Map a builtin SIMD type token to lane count.
+ * Copies the C twin: default 4; *X8 → 8; *X16 → 16.
+ * @param kind i32 — lexer token kind (caller already checked vec)
+ * @return i32 — 4, 8, or 16
+ * PLATFORM: SHARED — P3l lanes table. Do not merge with IDENT pack.
+ */
+function parser_asm_builtin_vec_token_lanes(kind: i32): i32 {
+  if (kind == TOKEN_I32X8 || kind == TOKEN_U32X8) {
+    return 8;
+  }
+  if (kind == TOKEN_I32X16 || kind == TOKEN_U32X16) {
+    return 16;
+  }
+  return 4;
+}
+
+/**
+ * Parse type-position builtin SIMD tokens (`i32x4` / `u32x8` / `f32x4` …)
+ * into a TYPE_VECTOR slot. Peek must be a vec token else 0 (lex
+ * unchanged) so the C scalar/IDENT arms still see the token. No
+ * postfix (C twin does not).
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @return i32 — TYPE_VECTOR type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3l dest-buffer split of the former
+ * inlined vec-token arm. Writer = init_compound_kind_at (kind 13).
+ * Elem intern = ensure_by_kind_ord (G.7). Do not dest-buffer
+ * parse_type_ref. Do not dest-buffer IDENT vector spelling.
+ * parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_builtin_vec_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let elem_ord: i32 = 0;
+  let lanes: i32 = 0;
+  let elem_tr: i32 = 0;
+  let vec_ref: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    elem_ord = parser_asm_builtin_vec_token_elem_ord(kind);
+    if (elem_ord < 0) {
+      return 0;
+    }
+    lanes = parser_asm_builtin_vec_token_lanes(kind);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    elem_tr = pipeline_type_ensure_by_kind_ord(arena, elem_ord);
+    if (elem_tr == 0) {
+      return 0;
+    }
+    vec_ref = ast_ast_arena_type_alloc(arena);
+    if (vec_ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_compound_kind_at(arena, vec_ref, TYPE_VECTOR, elem_tr, lanes);
+    if (ok == 0) {
+      return 0;
+    }
+    return vec_ref;
   }
   return 0;
 }

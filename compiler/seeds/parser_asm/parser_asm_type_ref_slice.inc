@@ -1132,6 +1132,67 @@ static int32_t parser_asm_parse_linear_type_ref_c(void *arena, struct parser_asm
 }
 #endif /* XLANG_PTHIN_TYPE_REF_LINEAR_FROM_X IDENT Linear(T) */
 
+#ifdef XLANG_PTHIN_TYPE_REF_VEC_FROM_X
+extern int32_t parser_asm_parse_builtin_vec_type_x_into_c(void *arena, void *lex_inout, void *source);
+/**
+ * PLATFORM: SHARED — P3l trampoline. Entry cursor is unconsumed vec
+ * token; parse_type_ref_impl stays C and only calls this on I32X4/…
+ * F32X4. Not-vec leaves lex unchanged so scalar/IDENT still see the
+ * token. TYPE_VECTOR writer lives in .x.
+ */
+static int32_t parser_asm_parse_builtin_vec_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                      struct parser_asm_slice_u8 *source,
+                                                      struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  ref = parser_asm_parse_builtin_vec_type_x_into_c(arena, &cur, source);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Parse type-position builtin SIMD tokens (`i32x4` / `u32x8` / `f32x4`).
+ * lex is unconsumed. F32X4 elem_ord=13 copies the historical C twin
+ * (not TYPE_F32=14). No postfix. PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_parse_builtin_vec_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                      struct parser_asm_slice_u8 *source,
+                                                      struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  int32_t elem_ord;
+  int32_t lanes;
+  int32_t vec_ref;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_I32X4 && r.tok.kind != (int32_t)TOKEN_I32X8
+      && r.tok.kind != (int32_t)TOKEN_I32X16 && r.tok.kind != (int32_t)TOKEN_U32X4
+      && r.tok.kind != (int32_t)TOKEN_U32X8 && r.tok.kind != (int32_t)TOKEN_U32X16
+      && r.tok.kind != (int32_t)TOKEN_F32X4) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  elem_ord = 0;
+  lanes = 4;
+  if (r.tok.kind == (int32_t)TOKEN_U32X4 || r.tok.kind == (int32_t)TOKEN_U32X8
+      || r.tok.kind == (int32_t)TOKEN_U32X16)
+    elem_ord = 3;
+  if (r.tok.kind == (int32_t)TOKEN_F32X4)
+    elem_ord = 13;
+  if (r.tok.kind == (int32_t)TOKEN_I32X8 || r.tok.kind == (int32_t)TOKEN_U32X8)
+    lanes = 8;
+  if (r.tok.kind == (int32_t)TOKEN_I32X16 || r.tok.kind == (int32_t)TOKEN_U32X16)
+    lanes = 16;
+  vec_ref = parser_asm_alloc_vector_type_ref_c(arena, elem_ord, lanes);
+  parser_asm_lex_from_result_val_into(&lex, r);
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return vec_ref;
+}
+#endif /* XLANG_PTHIN_TYPE_REF_VEC_FROM_X builtin vec tokens */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -1141,11 +1202,9 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   struct parser_asm_lexer_result r;
   int32_t type_ref_param;
   struct ast_Type t;
-  int32_t elem_ord;
-  int32_t lanes;
-  int32_t vec_ref;
   int32_t type_ref_scalar;
   int32_t linear_ref;
+  int32_t vec_tok_ref;
   int32_t vec_ident_ref;
   int32_t qn_len_tr;
   if (!source || !out_lex)
@@ -1208,25 +1267,18 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_array_type_bracket_audit_c(&lex, source));
     return parser_asm_parse_prefix_array_type_ref_c(arena, lex, source, out_lex);
   }
+  /*
+   * P3l dest-buffer: helper owns the unconsumed vec-token cursor
+   * (same as P3k Linear owning unconsumed IDENT). Not-vec leaves
+   * lex unchanged so scalar/IDENT still consume `r`.
+   * PLATFORM: SHARED type grammar.
+   */
   if (r.tok.kind == (int32_t)TOKEN_I32X4 || r.tok.kind == (int32_t)TOKEN_I32X8 || r.tok.kind == (int32_t)TOKEN_I32X16
       || r.tok.kind == (int32_t)TOKEN_U32X4 || r.tok.kind == (int32_t)TOKEN_U32X8 || r.tok.kind == (int32_t)TOKEN_U32X16
       || r.tok.kind == (int32_t)TOKEN_F32X4) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_builtin_vec_token_audit_c(r.tok.kind));
-    elem_ord = 0;
-    lanes = 4;
-    if (r.tok.kind == (int32_t)TOKEN_U32X4 || r.tok.kind == (int32_t)TOKEN_U32X8
-        || r.tok.kind == (int32_t)TOKEN_U32X16)
-      elem_ord = 3;
-    if (r.tok.kind == (int32_t)TOKEN_F32X4)
-      elem_ord = 13;
-    if (r.tok.kind == (int32_t)TOKEN_I32X8 || r.tok.kind == (int32_t)TOKEN_U32X8)
-      lanes = 8;
-    if (r.tok.kind == (int32_t)TOKEN_I32X16 || r.tok.kind == (int32_t)TOKEN_U32X16)
-      lanes = 16;
-    vec_ref = parser_asm_alloc_vector_type_ref_c(arena, elem_ord, lanes);
-    parser_asm_lex_from_result_val_into(&lex, r);
-    parser_asm_write_out_lex_c(out_lex, lex);
-    return vec_ref;
+    vec_tok_ref = parser_asm_parse_builtin_vec_type_ref_c(arena, lex, source, out_lex);
+    return vec_tok_ref;
   }
   if (r.tok.kind == (int32_t)TOKEN_I32 || r.tok.kind == (int32_t)TOKEN_BOOL || r.tok.kind == (int32_t)TOKEN_I64
       || r.tok.kind == (int32_t)TOKEN_U8 || r.tok.kind == (int32_t)TOKEN_U32 || r.tok.kind == (int32_t)TOKEN_U64
