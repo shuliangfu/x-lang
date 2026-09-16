@@ -67119,8 +67119,11 @@ int32_t pipeline_asm_format_label_id_c(uint8_t *buf, int32_t buf_size, int32_t i
  * via codegen_out_buf_len / codegen_out_buf_set_len (seed/pure faces).
  * Deps (extern): codegen_out_buf_len/set_len, codegen_emit_bytes_from_ptr,
  *   codegen_emit_expr, pipeline_expr_unary_operand_ref_at.
+ * M2 Class E: C thin leave = runtime_pipeline_abi_codegen_outbuf_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
+/* XLANG_PABI_CODEGEN_OUTBUF_THIN_BEGIN */
 #ifndef WAVE289_CODEGEN_OUTBUF_ALWAYS
 #define WAVE289_CODEGEN_OUTBUF_ALWAYS 1
 
@@ -67243,6 +67246,7 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
   return codegen_emit_bytes_from_ptr(out, (uint8_t *)suf, (int32_t)(sizeof(suf) - 1));
 }
 
+/* XLANG_PABI_CODEGEN_OUTBUF_THIN_END */
 #endif /* WAVE289_CODEGEN_OUTBUF_ALWAYS */
 
 /* =============================================================================
