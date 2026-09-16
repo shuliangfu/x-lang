@@ -3220,6 +3220,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_assign_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_w157_sum_thin.x ] \
+      && [ src/runtime_pipeline_abi_w157_sum_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3245,6 +3249,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_type_to_c_repr_thin "$o" || true
       pipeline_abi_inject_binop_block_peel_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3277,6 +3282,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || return 1
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3680,6 +3686,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm_expr_thin "$o" || true
     pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     pipeline_abi_inject_assign_thin "$o" || true
+    pipeline_abi_inject_w157_sum_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3717,6 +3724,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm_expr_thin "$o" || true
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         pipeline_abi_inject_assign_thin "$o" || true
+        pipeline_abi_inject_w157_sum_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3738,6 +3746,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3767,6 +3776,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm_expr_thin "$o" || true
   pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   pipeline_abi_inject_assign_thin "$o" || true
+  pipeline_abi_inject_w157_sum_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -4259,11 +4269,16 @@ pipeline_abi_inject_binop_block_peel_thin() {
 
 # wave142 dest-in-rbx assign thin inject.
 # M2: C-extract awk markers → .x thin via inject_thin_leaf (PREFER_ASM).
-# G.7: bodies match mega .x assign cluster; w157/sum_block stay mega leftover
-# (pure-asm file-level BSS let emits poisoned __TEXT Lxml — Darwin ld -r
-# BRANCH26; keep host leftover until BSS emit fixed). PLATFORM: SHARED.
+# G.7: bodies match mega .x assign cluster. PLATFORM: SHARED.
 pipeline_abi_inject_assign_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_assign_thin.x" "asg-thin"
+}
+
+# wave157 spill-sum thin. Unblocked after COMMON + reloc_r_type accessors
+# (macho_write reads g_pipe_elf_* → PAGE21/PAGEOFF12; Darwin ld -r OK).
+# G.7: bodies match mega wave157 leave. PLATFORM: SHARED.
+pipeline_abi_inject_w157_sum_thin() {
+  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_w157_sum_thin.x" "w157-sum-thin"
 }
 
 

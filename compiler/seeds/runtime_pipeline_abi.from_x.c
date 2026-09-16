@@ -53456,6 +53456,56 @@ int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name, int32
   return 0;
 }
 
+/**
+ * Query whether sym[s] is SHN_COMMON. G.7 twin of .x accessors for
+ * macho_write_thin / cold writers. PLATFORM: SHARED.
+ */
+int32_t pipeline_elf_ctx_sym_is_common_at(uint8_t *ctx_bytes, int32_t s) {
+  if (!ctx_bytes || s < 0 || s >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return 0;
+  if (g_pipeline_elf_common_owner != ctx_bytes)
+    return 0;
+  return g_pipeline_elf_sym_is_common[s] != 0 ? 1 : 0;
+}
+
+/** COMMON size for writer. PLATFORM: SHARED. */
+int32_t pipeline_elf_ctx_sym_common_size_at(uint8_t *ctx_bytes, int32_t s) {
+  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0)
+    return 0;
+  return g_pipeline_elf_sym_common_size[s];
+}
+
+/** COMMON align for writer. PLATFORM: SHARED. */
+int32_t pipeline_elf_ctx_sym_common_align_at(uint8_t *ctx_bytes, int32_t s) {
+  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0)
+    return 0;
+  return g_pipeline_elf_sym_common_align[s];
+}
+
+/**
+ * Reloc r_type sidecar for writers. G.7 twin of .x —
+ * macho_write_thin private statics stay empty (ADRP→BRANCH26).
+ * PLATFORM: SHARED · MACOS writer co-path.
+ */
+int32_t pipeline_elf_ctx_reloc_r_type_at(uint8_t *ctx_bytes, int32_t r) {
+  if (!ctx_bytes || r < 0 || r >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return 0;
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return 0;
+  return g_pipeline_elf_reloc_r_type[r];
+}
+
+/**
+ * Reloc r_pcrel sidecar (-1 = writer default). PLATFORM: SHARED.
+ */
+int32_t pipeline_elf_ctx_reloc_r_pcrel_at(uint8_t *ctx_bytes, int32_t r) {
+  if (!ctx_bytes || r < 0 || r >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return -1;
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return -1;
+  return (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
+}
+
 /** 读 ElfCodegenCtx.macho_leading_underscore（Darwin call/reloc 前缀 `_`）。 */
 int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes) {
   PipelineElfCtxAccess *ctx;

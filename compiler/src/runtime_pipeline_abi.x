@@ -93015,6 +93015,108 @@ export function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_
 }
 
 /**
+ * Query whether sym[s] is SHN_COMMON (linker BSS / Mach-O tentative).
+ * G.7 single authority with add_common_sym / g_pipe_elf_* sidecar.
+ * macho_write_thin.c MUST call this — its private static sidecars stay empty
+ * and previously wrote COMMON as N_SECT in __TEXT (file-level let → _Lxml
+ * mid-function; Darwin ld -r BRANCH26).
+ * @param ctx_bytes *u8 - ElfCodegenCtx*
+ * @param s i32 - symbol index
+ * @return i32 - 1 if common for this ctx; 0 otherwise
+ * PLATFORM: SHARED freestanding · MACOS writer co-path.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_sym_is_common_at(ctx_bytes: *u8, s: i32): i32 {
+  if (ctx_bytes == 0 as *u8 || s < 0 || s >= pipe_elf_table_cap()) {
+    return 0;
+  }
+  if (g_pipe_elf_common_owner != ctx_bytes) {
+    return 0;
+  }
+  unsafe {
+    if (g_pipe_elf_sym_is_common[s] != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * COMMON symbol size (bytes) for Mach-O n_value / ELF st_size.
+ * @param ctx_bytes *u8 - ElfCodegenCtx*
+ * @param s i32 - symbol index
+ * @return i32 - size; 0 if not common / OOB
+ * PLATFORM: SHARED freestanding · MACOS writer co-path.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_sym_common_size_at(ctx_bytes: *u8, s: i32): i32 {
+  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0) {
+    return 0;
+  }
+  return pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+}
+
+/**
+ * COMMON symbol align (bytes) for Mach-O n_desc GET_COMM_ALIGN.
+ * @param ctx_bytes *u8 - ElfCodegenCtx*
+ * @param s i32 - symbol index
+ * @return i32 - align; 0 if not common / OOB
+ * PLATFORM: SHARED freestanding · MACOS writer co-path.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_sym_common_align_at(ctx_bytes: *u8, s: i32): i32 {
+  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0) {
+    return 0;
+  }
+  return pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
+}
+
+/**
+ * Reloc r_type sidecar (0 = writer default BRANCH26; 3=PAGE21; 4=PAGEOFF12;
+ * 200=absolute64 sentinel). G.7: macho_write_thin must use this — private
+ * reloc_r_type statics stay empty and ADRP got BRANCH26 (ld -r reject).
+ * @param ctx_bytes *u8 - ElfCodegenCtx* (owner check)
+ * @param r i32 - reloc index
+ * @return i32 - stored type or 0
+ * PLATFORM: SHARED freestanding · MACOS writer co-path.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_reloc_r_type_at(ctx_bytes: *u8, r: i32): i32 {
+  if (ctx_bytes == 0 as *u8 || r < 0 || r >= pipe_elf_table_cap()) {
+    return 0;
+  }
+  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
+    return 0;
+  }
+  return pipe_elf_bss_load_i32(&g_pipe_elf_reloc_r_type[0], r);
+}
+
+/**
+ * Reloc r_pcrel sidecar (255/-1 = writer default; 0/1 explicit).
+ * @param ctx_bytes *u8 - ElfCodegenCtx*
+ * @param r i32 - reloc index
+ * @return i32 - -1 default; else 0 or 1
+ * PLATFORM: SHARED freestanding · MACOS writer co-path.
+ */
+#[no_mangle]
+export function pipeline_elf_ctx_reloc_r_pcrel_at(ctx_bytes: *u8, r: i32): i32 {
+  if (ctx_bytes == 0 as *u8 || r < 0 || r >= pipe_elf_table_cap()) {
+    return 0 - 1;
+  }
+  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
+    return 0 - 1;
+  }
+  let v: i32 = 0;
+  unsafe {
+    v = g_pipe_elf_reloc_r_pcrel[r] as i32;
+  }
+  if (v == 255) {
+    return 0 - 1;
+  }
+  return v;
+}
+
+/**
  * Read macho_leading_underscore (Darwin call/reloc prefix '_').
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.

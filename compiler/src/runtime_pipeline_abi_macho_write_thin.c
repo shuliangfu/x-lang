@@ -4,10 +4,13 @@
  * (clang MH_OBJECT: empty LC_SEGMENT_64.segname, no dummy nlist,
  * LC_DYSYMTAB, __text flags 0x80000400). Data goes through product
  * accessors so F7 .data stays on leftover BSS.
+ * COMMON flags/size/align go through pipeline_elf_ctx_sym_*_at —
+ * private common sidecars here were always empty while product
+ * add_common_sym wrote g_pipe_elf_* (file-level let → N_SECT __TEXT).
+ * Reloc r_type/r_pcrel likewise via pipeline_elf_ctx_reloc_r_*_at —
+ * private reloc statics stayed empty → ADRP emitted as BRANCH26.
  * ensure injects via pipeline_abi_inject_macho_write_thin (weaken
  * leftover T then first-wins ld -r; avoids Darwin mega -E).
- * Reloc/common sidecars in this TU stay empty except r_pcrel=0xff
- * default (product emit writes leftover BSS; matrix defaults suffice).
  * PLATFORM: MACOS|DARWIN ingest · LINUX gold co-path (ELF unused).
  */
 
@@ -30,6 +33,11 @@ extern int32_t pipeline_elf_ctx_reloc_shndx_at(uint8_t *ctx, int32_t idx);
 extern int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx, int32_t idx);
 extern int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes);
 extern uint8_t *pipeline_elf_ctx_data_data_ptr(uint8_t *ctx_bytes);
+extern int32_t pipeline_elf_ctx_sym_is_common_at(uint8_t *ctx_bytes, int32_t s);
+extern int32_t pipeline_elf_ctx_sym_common_size_at(uint8_t *ctx_bytes, int32_t s);
+extern int32_t pipeline_elf_ctx_sym_common_align_at(uint8_t *ctx_bytes, int32_t s);
+extern int32_t pipeline_elf_ctx_reloc_r_type_at(uint8_t *ctx_bytes, int32_t r);
+extern int32_t pipeline_elf_ctx_reloc_r_pcrel_at(uint8_t *ctx_bytes, int32_t r);
 extern void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx);
 extern void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx);
 
@@ -38,18 +46,6 @@ extern void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx);
 #define PIPELINE_ELF_CTX_CODE_HOT_BUF_CAP 1048576
 #define PIPELINE_ELF_SHNX_DATA 4
 #define PIPELINE_MACHO_UNDEF_SYM_CAP 256
-
-static uint8_t *g_pipeline_elf_common_owner;
-static uint8_t g_pipeline_elf_sym_is_common[PIPELINE_ELF_CTX_TABLE_CAP];
-static int32_t g_pipeline_elf_sym_common_size[PIPELINE_ELF_CTX_TABLE_CAP];
-static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
-static int32_t g_pipeline_elf_reloc_r_type[PIPELINE_ELF_CTX_TABLE_CAP];
-static int8_t g_pipeline_elf_reloc_r_pcrel[PIPELINE_ELF_CTX_TABLE_CAP];
-/* Product reset fills 0xff = -1 default; zero would force r_pcrel=0. */
-static void _m2_slice_pcrel_init(void) __attribute__((constructor));
-static void _m2_slice_pcrel_init(void) {
-  memset(g_pipeline_elf_reloc_r_pcrel, 0xff, sizeof(g_pipeline_elf_reloc_r_pcrel));
-}
 
 typedef struct {
   uint8_t name[256];
@@ -628,17 +624,15 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     ent[1] = (uint8_t)((str_off >> 8) & 255);
     ent[2] = (uint8_t)((str_off >> 16) & 255);
     ent[3] = (uint8_t)((str_off >> 24) & 255);
-    /* wave405: COMMON → N_UNDF|N_EXT + n_value=size (linker BSS). Never N_SECT in __text (RX SEGV). */
-    is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
-                 g_pipeline_elf_sym_is_common[s] != 0)
-                    ? 1
-                    : 0;
+    /* wave405: COMMON → N_UNDF|N_EXT + n_value=size (linker BSS). Never N_SECT in __text (RX SEGV).
+     * G.7: read product g_pipe_elf_* via accessors (not this TU's empty statics). */
+    is_common = pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s);
     if (is_common != 0) {
       int32_t calign;
       int32_t alg;
       int32_t ndesc;
-      csize = g_pipeline_elf_sym_common_size[s];
-      calign = g_pipeline_elf_sym_common_align[s];
+      csize = pipeline_elf_ctx_sym_common_size_at(ctx_bytes, s);
+      calign = pipeline_elf_ctx_sym_common_align_at(ctx_bytes, s);
       if (csize <= 0)
         csize = 8;
       if (calign <= 0)
@@ -811,10 +805,15 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       }
       use_type = rel_type;
       use_pcrel = 1;
-      if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[r] != 0)
-        use_type = g_pipeline_elf_reloc_r_type[r];
-      if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_pcrel[r] >= 0)
-        use_pcrel = (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
+      {
+        /* Product append_reloc_typed writes g_pipe_elf_*; never private statics. */
+        int32_t rt = pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, r);
+        int32_t rp = pipeline_elf_ctx_reloc_r_pcrel_at(ctx_bytes, r);
+        if (rt != 0)
+          use_type = rt;
+        if (rp >= 0)
+          use_pcrel = rp;
+      }
       /* F7 absolute64: sentinel r_type=200 → ARM64_RELOC_UNSIGNED (type=0, pcrel=0,
        * length=3 quad-word). Without this vtable data slots fall to default
        * BRANCH26 and ld rejects ("relocation on non-b/bl instruction"). */
