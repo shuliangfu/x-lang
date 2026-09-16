@@ -3,7 +3,7 @@
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k: XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable
  * token_starts_type / ident_is_dyn / builtin_kind_ord / vector-ident-pack
  * region, (P3d) consume_qualified / type_angle_close, and (P3e) TYPE_DYN
  * wrap / alloc (bodies in src/asm/pthin_type_ref.x + slice trampolines
@@ -12,8 +12,10 @@
  * skips prefix `[N]T` / `[]T` C twin (P3h dest-buffer).
  * XLANG_PTHIN_TYPE_REF_FN_FROM_X skips type-position `function(...): Ret`
  * C twin (P3i dest-buffer). XLANG_PTHIN_TYPE_REF_STAR_FROM_X skips prefix
- * `*T` C twin (P3j dest-buffer). Arena alloc and parse_type_ref_impl stay C.
- * Cold: no BODIES/POSTFIX/PREFIX/FN/STAR define, this file is the full twin.
+ * `*T` C twin (P3j dest-buffer). XLANG_PTHIN_TYPE_REF_LINEAR_FROM_X skips
+ * IDENT `Linear(T)` C twin (P3k dest-buffer). Arena alloc and
+ * parse_type_ref_impl stay C. Cold: no BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR
+ * define, this file is the full twin.
  */
 #ifndef PARSER_ASM_TYPE_REF_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_REF_SLICE_INCLUDED
@@ -1035,6 +1037,101 @@ static int32_t parser_asm_parse_star_type_ref_c(void *arena, struct parser_asm_l
 }
 #endif /* XLANG_PTHIN_TYPE_REF_STAR_FROM_X prefix *T */
 
+#ifdef XLANG_PTHIN_TYPE_REF_LINEAR_FROM_X
+extern int32_t parser_asm_parse_linear_type_x_into_c(void *arena, void *lex_inout, void *source);
+/**
+ * PLATFORM: SHARED — P3k trampoline. Entry cursor is unconsumed IDENT;
+ * parse_type_ref_impl stays C and only calls this on TOKEN_IDENT.
+ * Not-Linear leaves lex unchanged so vector/NAMED still see the IDENT.
+ * TYPE_LINEAR writer lives in .x.
+ */
+static int32_t parser_asm_parse_linear_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                 struct parser_asm_slice_u8 *source,
+                                                 struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer cur;
+  int32_t ref;
+  if (!out_lex)
+    return 0;
+  cur = lex;
+  ref = parser_asm_parse_linear_type_x_into_c(arena, &cur, source);
+  *out_lex = cur;
+  return ref;
+}
+#else
+/**
+ * Parse type-position `Linear(T)`. lex is unconsumed IDENT. Spelling
+ * must be the six bytes `Linear` (capital L). Bare `Linear` (no `(`)
+ * fails closed and is not a NAMED fallback. Inner T recurses via
+ * parse_type_ref_impl. No postfix. PLATFORM: SHARED type grammar.
+ */
+static int32_t parser_asm_parse_linear_type_ref_c(void *arena, struct parser_asm_lexer lex,
+                                                 struct parser_asm_slice_u8 *source,
+                                                 struct parser_asm_lexer *out_lex) {
+  struct parser_asm_lexer_result r;
+  uint8_t linear_spell[6];
+  uint8_t linear_buf[64];
+  int32_t li;
+  int32_t linear_match;
+  int32_t inner_linear_tr;
+  int32_t linear_ref;
+  struct ast_Type tl;
+  if (!source || !out_lex)
+    return 0;
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_IDENT || r.tok.ident_len != 6) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  linear_spell[0] = 76;
+  linear_spell[1] = 105;
+  linear_spell[2] = 110;
+  linear_spell[3] = 101;
+  linear_spell[4] = 97;
+  linear_spell[5] = 114;
+  parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, 6, linear_buf);
+  linear_match = 1;
+  for (li = 0; li < 6; li++) {
+    if (linear_buf[li] != linear_spell[li])
+      linear_match = 0;
+  }
+  if (!linear_match) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_linear_type_audit_c(&lex, source));
+  parser_asm_lex_from_result_val_into(&lex, r);
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  parser_asm_lex_from_result_val_into(&lex, r);
+  inner_linear_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
+  if (inner_linear_tr == 0) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  lexer_next_into(&r, lex, source);
+  if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
+    parser_asm_write_out_lex_c(out_lex, lex);
+    return 0;
+  }
+  parser_asm_lex_from_result_val_into(&lex, r);
+  linear_ref = ast_ast_arena_type_alloc(arena);
+  if (linear_ref != 0) {
+    tl = ast_arena_type_get(arena, linear_ref);
+    tl.kind = PARSER_ASM_TYPE_LINEAR;
+    tl.elem_type_ref = inner_linear_tr;
+    tl.array_size = 0;
+    tl.name_len = 0;
+    tl.region_label_len = 0;
+    ast_arena_type_set(arena, linear_ref, tl);
+  }
+  parser_asm_write_out_lex_c(out_lex, lex);
+  return linear_ref;
+}
+#endif /* XLANG_PTHIN_TYPE_REF_LINEAR_FROM_X IDENT Linear(T) */
+
 /**
  * parse_type_ref_for_arena_into：从 lex 解析类型写入 arena，成功返回 type ref。
  */
@@ -1048,13 +1145,7 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
   int32_t lanes;
   int32_t vec_ref;
   int32_t type_ref_scalar;
-  uint8_t linear_spell[6];
-  uint8_t linear_buf[64];
-  int32_t li;
-  int32_t linear_match;
-  int32_t inner_linear_tr;
   int32_t linear_ref;
-  struct ast_Type tl;
   int32_t vec_ident_ref;
   int32_t qn_len_tr;
   if (!source || !out_lex)
@@ -1146,53 +1237,19 @@ static int32_t parser_asm_parse_type_ref_impl_c(void *arena, struct parser_asm_l
     return parser_asm_parse_postfix_array_type_ref_c(arena, type_ref_scalar, lex, source, out_lex);
   }
   if (r.tok.kind == (int32_t)TOKEN_IDENT) {
-    if (r.tok.ident_len == 6) {
-      linear_spell[0] = 76;
-      linear_spell[1] = 105;
-      linear_spell[2] = 110;
-      linear_spell[3] = 101;
-      linear_spell[4] = 97;
-      linear_spell[5] = 114;
-      parser_asm_copy_slice_to_name64_slice_c(source, r.token_start, 6, linear_buf);
-      linear_match = 1;
-      for (li = 0; li < 6; li++) {
-        if (linear_buf[li] != linear_spell[li])
-          linear_match = 0;
-      }
-      if (linear_match) {
-        PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_linear_type_audit_c(&lex, source));
-        parser_asm_lex_from_result_val_into(&lex, r);
-        lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
-          parser_asm_write_out_lex_c(out_lex, lex);
-          return 0;
-        }
-        parser_asm_lex_from_result_val_into(&lex, r);
-        inner_linear_tr = parser_asm_parse_type_ref_impl_c(arena, lex, source, &lex);
-        if (inner_linear_tr == 0) {
-          parser_asm_write_out_lex_c(out_lex, lex);
-          return 0;
-        }
-        lexer_next_into(&r, lex, source);
-        if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
-          parser_asm_write_out_lex_c(out_lex, lex);
-          return 0;
-        }
-        parser_asm_lex_from_result_val_into(&lex, r);
-        linear_ref = ast_ast_arena_type_alloc(arena);
-        if (linear_ref != 0) {
-          tl = ast_arena_type_get(arena, linear_ref);
-          tl.kind = PARSER_ASM_TYPE_LINEAR;
-          tl.elem_type_ref = inner_linear_tr;
-          tl.array_size = 0;
-          tl.name_len = 0;
-          tl.region_label_len = 0;
-          ast_arena_type_set(arena, linear_ref, tl);
-        }
-        parser_asm_write_out_lex_c(out_lex, lex);
-        return linear_ref;
-      }
-    }
+    /*
+     * P3k dest-buffer: helper owns the unconsumed `Linear` IDENT
+     * (same as P3j prefix owning unconsumed `*`). Not-Linear leaves
+     * lex unchanged so vector/NAMED still consume `r`. Linear parse
+     * fail advances out_lex — return 0 (do not fall through as NAMED
+     * "Linear"; C twin already fail-closed bare `Linear`).
+     * PLATFORM: SHARED type grammar.
+     */
+    linear_ref = parser_asm_parse_linear_type_ref_c(arena, lex, source, out_lex);
+    if (linear_ref != 0)
+      return linear_ref;
+    if (out_lex->pos != lex.pos || out_lex->line != lex.line || out_lex->col != lex.col)
+      return 0;
     vec_ident_ref = parser_asm_vector_type_ref_from_ident_spelling_c(arena, source, r);
     if (vec_ident_ref == 0 && r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0)
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vector_type_ident_audit_c(source, r.token_start, r.tok.ident_len));

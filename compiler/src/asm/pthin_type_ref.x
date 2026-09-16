@@ -25,12 +25,12 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
-// STAR_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
-// pattern) so a missing postfix_x / prefix_x / fn_x / star_x keeps
-// that C twin without dropping P3b–P3e.
+// STAR_FROM_X / LINEAR_FROM_X are separate defines (P6e PARSE_LAYOUT /
+// P2c COND pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
+// linear_x keeps that C twin without dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
 // Vector IDENT checks copy the C twin byte-for-byte (including the
@@ -118,6 +118,16 @@
 // i32). Do not copy wrap into parse. Do not merge wrap. Do not FORCE
 // pabi mega. Do not open a new P-lane. Do not dest-buffer IDENT
 // generic type-arg. parse_type_ref_impl stays C.
+// 7.2.1 P3k B-minus (2026-09-16): 有则补全 IDENT `Linear(T)` dest-buffer.
+// The Linear arm was inlined in parse_type_ref_impl (always host-cc;
+// not behind BODIES/POSTFIX/PREFIX/FN/STAR). P9a peek/step consumes
+// IDENT spelling `Linear` then `(`, recurse T, `)`. Bare `Linear`
+// (no `(`) fails closed — same as the C twin; it is not a NAMED
+// fallback. Inner T = existing primary parse_type_ref_ptr shim (G.7;
+// do not dest-buffer parse_type_ref — P3f hello/fmt red). TYPE_LINEAR
+// writer = init_compound_kind_at (kind 12 < 15; G.7). Do not apply
+// postfix after Linear (C twin does not). Do not dest-buffer IDENT
+// generic type-arg get/set. parse_type_ref_impl stays C.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -192,6 +202,7 @@ const TYPE_NAMED: i32 = 8;
 const TYPE_PTR: i32 = 9;
 const TYPE_ARRAY: i32 = 10;
 const TYPE_SLICE: i32 = 11;
+const TYPE_LINEAR: i32 = 12;
 const TYPE_F32: i32 = 14;
 const TYPE_F64: i32 = 15;
 const TYPE_VOID: i32 = 16;
@@ -214,9 +225,10 @@ export extern "C" function ast_ast_arena_type_alloc(arena: *u8): i32;
 export extern "C" function pipeline_type_init_dyn_c(a: *u8, ref: i32, inner_tr: i32, name: *u8, nlen: i32): void;
 /**
  * Existing pipeline_abi writer: stamp compound Type (kind 0..15) + elem +
- * array_size. TYPE_ARRAY=10 fits the cap (G.7). Do not reuse for
- * TYPE_DYN=17 (P3e). Labeled TYPE_SLICE uses pipeline_type_init_slice_c
- * (set_region_label_at wipes elem_type_ref on the current Type layout).
+ * array_size. TYPE_ARRAY=10 / TYPE_LINEAR=12 fit the cap (G.7). Do not
+ * reuse for TYPE_DYN=17 (P3e). Labeled TYPE_SLICE uses
+ * pipeline_type_init_slice_c (set_region_label_at wipes elem_type_ref
+ * on the current Type layout).
  */
 export extern "C" function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: i32, elem_ref: i32, array_size: i32): i32;
 /**
@@ -396,6 +408,29 @@ export function parser_asm_type_ref_ident_is_dyn_buf_c(data: *u8, length: usize,
   }
   if (parser_asm_type_ref_ident_byte(data, token_start, 0) == 100 && parser_asm_type_ref_ident_byte(data, token_start, 1) == 121
       && parser_asm_type_ref_ident_byte(data, token_start, 2) == 110) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * True when IDENT spelling is type-position `Linear` (docs Linear(T)).
+ * Byte values copy the C twin (76/105/110/101/97/114) — capital L,
+ * not lowercase `linear`.
+ * @param data *u8 — source bytes; null is 0
+ * @param length usize — source length
+ * @param token_start usize — first IDENT byte
+ * @param ident_len i32 — IDENT payload length
+ * @return i32 — 1 if the six bytes are `Linear`; 0 otherwise
+ * PLATFORM: SHARED — buf-path sibling of ident_is_dyn (G.7 spelling family).
+ */
+function parser_asm_type_ref_ident_is_linear(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
+  if (parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 6) == 0) {
+    return 0;
+  }
+  if (parser_asm_type_ref_ident_byte(data, token_start, 0) == 76 && parser_asm_type_ref_ident_byte(data, token_start, 1) == 105
+      && parser_asm_type_ref_ident_byte(data, token_start, 2) == 110 && parser_asm_type_ref_ident_byte(data, token_start, 3) == 101
+      && parser_asm_type_ref_ident_byte(data, token_start, 4) == 97 && parser_asm_type_ref_ident_byte(data, token_start, 5) == 114) {
     return 1;
   }
   return 0;
@@ -1395,6 +1430,76 @@ export function parser_asm_parse_star_type_x_into_c(arena: *u8, lex_inout: *u8, 
       ptr_depth = ptr_depth - 1;
     }
     return parser_asm_parse_postfix_array_x_into_c(arena, elem_tr, lex_inout, source, label_scratch);
+  }
+  return 0;
+}
+
+/**
+ * Parse type-position `Linear(T)` into a TYPE_LINEAR slot.
+ * Peek must be IDENT spelling `Linear` else 0 (lex unchanged) so the
+ * C IDENT arm can still see vector aliases / NAMED / generic args.
+ * Bare `Linear` (no `(`) consumes the IDENT and returns 0 — same as
+ * the C twin; it is not a NAMED fallback. Inner T recurses through
+ * parse_type_ref_ptr. No postfix after Linear (C twin does not).
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @return i32 — TYPE_LINEAR type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3k dest-buffer split of the former
+ * inlined Linear IDENT arm. Writer = init_compound_kind_at (kind 12).
+ * Elem walk = primary parse_type_ref_ptr (G.7). Do not dest-buffer
+ * parse_type_ref. Do not dest-buffer IDENT generic type-arg.
+ * parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_linear_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let nlen: i32 = 0;
+  let ts: usize = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let inner_tr: i32 = 0;
+  let linear_ref: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (parser_asm_type_ref_ident_is_linear(data, slen, ts, nlen) == 0) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    inner_tr = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+    if (inner_tr == 0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    linear_ref = ast_ast_arena_type_alloc(arena);
+    if (linear_ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_compound_kind_at(arena, linear_ref, TYPE_LINEAR, inner_tr, 0);
+    if (ok == 0) {
+      return 0;
+    }
+    return linear_ref;
   }
   return 0;
 }
