@@ -40619,6 +40619,7 @@ int32_t glue_pipeline_asm_al_nc_seq_take_c(void) {
 
 /* XLANG_PABI_AL_NC_SEQ_THIN_END */
 
+/* XLANG_PABI_EMIT_CTX_BSS_THIN_BEGIN */
 /*
  * wave220 cold twin: if/ternary arm emit depth get/set (G.7 pure leave).
  * Working freestanding BSS twin of pure g_if_expr_arm_emit_depth.
@@ -40694,6 +40695,7 @@ int32_t pipeline_asm_host_is_arm64_c(void) {
   return 0;
 #endif
 }
+/* XLANG_PABI_EMIT_CTX_BSS_THIN_END */
 
 
 /*

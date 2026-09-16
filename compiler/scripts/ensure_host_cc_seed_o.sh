@@ -429,7 +429,7 @@ XLANG_LINK_ABI_ALLOW_PIN="${XLANG_LINK_ABI_ALLOW_PIN:-1}"
 
 MODE="${1:-}"
 if [ -z "$MODE" ]; then
-  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|inject-macho-write|inject-pabi-leaf|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-x-to-o|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
+  echo "ensure_host_cc_seed_o: usage: one|try-r1|try-r3-cold|try-r3-prefer|try-labi-prefer|try-rt-prefer|try-pipeline-abi-prefer|inject-macho-write|inject-emit-ctx-bss|inject-pabi-leaf|try-ldpc-prefer|try-target-cpu-prefer|try-l2-asm-prefer|try-async-prefer|try-other-l2-prefer|try-r2-prefer|try-runtime-os-prefer|try-std-core-prefer|try-lsp-sat-prefer|try-gen-c-to-o|try-cfg-eval-ladder|try-x-to-o|try-heat|try-r2|try-gen-x|rt-slice|core-seed|frontend-glue|main-runtime|alias-stubs|extra-cflags|misc-basename|seed-map|r3-cold-seed|r2-panic|r2-typeck-f64|r2-crt0|gen-x|all|--check  (see header)" >&2
   exit 2
 fi
 shift || true
@@ -3256,6 +3256,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_al_nc_seq_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_emit_ctx_bss_thin.c ] \
+      && [ src/runtime_pipeline_abi_emit_ctx_bss_thin.c -nt "$o" ]; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -3266,37 +3270,16 @@ ensure_pipeline_abi_prefer_one() {
     fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (pipeline-abi-prefer)"
-      # Still inject thin leaves when present (asm if PREFER_ASM=1).
-      pipeline_abi_inject_reent_deep_copy_thin "$o" || true
-      pipeline_abi_inject_fixed_array_copy_thin "$o" || true
-      pipeline_abi_inject_slot_bytes_thin "$o" || true
-      pipeline_abi_inject_field_load_sz_thin "$o" || true
+      # C thins only (idempotent). Do not re-pure-asm every .x leaf on a
+      # green OUT — that path turned Darwin product red (wave220 probe).
+      # PLATFORM: SHARED shell · MACOS + LINUX gold.
       pipeline_abi_inject_macho_write_thin "$o" || true
-      pipeline_abi_inject_unused_hints_thin "$o" || true
-      pipeline_abi_inject_wpo_dump_thin "$o" || true
-      pipeline_abi_inject_fnptr_as_thin "$o" || true
-      pipeline_abi_inject_asm_expr_thin "$o" || true
-      pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
-      pipeline_abi_inject_param_ptr_slot_thin "$o" || true
-      pipeline_abi_inject_type_to_c_repr_thin "$o" || true
-      pipeline_abi_inject_binop_block_peel_thin "$o" || true
-      pipeline_abi_inject_assign_thin "$o" || true
-      pipeline_abi_inject_w157_sum_thin "$o" || true
-      pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
-      pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
-      pipeline_abi_inject_asm73_chaitin_thin "$o" || true
-      pipeline_abi_inject_asm73_live_interf_thin "$o" || true
-      pipeline_abi_inject_asm73_live_set_thin "$o" || true
-      pipeline_abi_inject_for_call_args_thin "$o" || true
-      pipeline_abi_inject_call_method_wrappers_thin "$o" || true
-      pipeline_abi_inject_al_nc_seq_thin "$o" || true
-      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
-      pipeline_abi_inject_import_heap_thin "$o" || true
-      pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
     # OUT already exists, inject-only instead of full hybrid rebuild.
+    # .x leaves: only if src newer than OUT (INJECT_IF_NEWER). C thins always.
     # FORCE=1 / XLANG_HOST_CC_SEED_FORCE=1 still does full thin+rest prefer
     # on POSIX gold. PLATFORM: SHARED shell · LINUX gold + MACOS.
     # PLATFORM: WINDOWS — leftover PE cannot -E mega; FORCE skip is below.
@@ -3304,6 +3287,8 @@ ensure_pipeline_abi_prefer_one() {
       && { [ -f src/runtime_pipeline_abi_reent_deep_copy_thin.x ] \
       || [ -f src/runtime_pipeline_abi_fixed_array_copy_thin.x ]; }; then
       log "pipeline_abi prefer: inject-only thins (skip full mega -E; HOST_CC_SEED_FORCE=1 for hybrid)"
+      XLANG_PABI_THIN_INJECT_IF_NEWER=1
+      export XLANG_PABI_THIN_INJECT_IF_NEWER
       pipeline_abi_inject_reent_deep_copy_thin "$o" || true
       pipeline_abi_inject_fixed_array_copy_thin "$o" || true
       pipeline_abi_inject_slot_bytes_thin "$o" || true
@@ -3331,9 +3316,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
       return 0
     fi
   fi
@@ -3743,6 +3730,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_for_call_args_thin "$o" || true
     pipeline_abi_inject_call_method_wrappers_thin "$o" || true
     pipeline_abi_inject_al_nc_seq_thin "$o" || true
+    pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
     pipeline_abi_inject_preprocess_malloc_thin "$o" || true
     pipeline_abi_inject_import_heap_thin "$o" || true
     pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3789,6 +3777,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_for_call_args_thin "$o" || true
         pipeline_abi_inject_call_method_wrappers_thin "$o" || true
         pipeline_abi_inject_al_nc_seq_thin "$o" || true
+        pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
           pipeline_abi_inject_preprocess_malloc_thin "$o" || true
         pipeline_abi_inject_import_heap_thin "$o" || true
         pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3819,6 +3808,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       pipeline_abi_inject_import_heap_thin "$o" || true
       pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3857,6 +3847,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_for_call_args_thin "$o" || true
   pipeline_abi_inject_call_method_wrappers_thin "$o" || true
   pipeline_abi_inject_al_nc_seq_thin "$o" || true
+  pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
   pipeline_abi_inject_preprocess_malloc_thin "$o" || true
   pipeline_abi_inject_import_heap_thin "$o" || true
   pipeline_abi_inject_read_file_x_view_thin "$o" || true
@@ -3958,6 +3949,17 @@ pipeline_abi_inject_thin_leaf() {
   local gen_c thin_o base_o restore_o used_asm=0
   local thin_bn thin_stem pabi_asm_only pabi_asm_match
   if [ ! -s "$o" ] || [ ! -f "$thin_x" ]; then
+    return 0
+  fi
+  # Prefer skip/inject-only: do not re-overlay every PREFER_ASM .x leaf on an
+  # already-green hybrid OUT (Darwin: re-pure-asm first-wins regenerates and
+  # can turn product red). Only inject when the leaf src is newer than OUT
+  # (or XLANG_PABI_THIN_FORCE_INJECT=1). Fresh hybrid (done=1) leaves the
+  # gate unset so all leaves still ingest. C thins (macho/emit_ctx) bypass
+  # this helper. PLATFORM: SHARED shell · MACOS + LINUX gold.
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER:-0}" = "1" ] \
+    && [ "${XLANG_PABI_THIN_FORCE_INJECT:-0}" != "1" ] \
+    && [ ! "$thin_x" -nt "$o" ]; then
     return 0
   fi
   # Cap residual (10.3.2 Darwin): do not inject into a libtool archive named .o.
@@ -4403,10 +4405,54 @@ pipeline_abi_inject_call_method_wrappers_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_call_method_wrappers_thin.x" "w217-call-method"
 }
 
-# wave219 al_nc_seq mega leave. G.7: match mega entry (220/221 deferred).
+# wave219 al_nc_seq mega leave. G.7: match mega entry.
 # PLATFORM: SHARED.
 pipeline_abi_inject_al_nc_seq_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_al_nc_seq_thin.x" "w219-al-nc-seq"
+}
+
+# wave220–221 emit_ctx BSS + accessors (C thin; named globals).
+# G.7: match mega leave; avoid .x Lxml dual-home. PLATFORM: SHARED.
+pipeline_abi_inject_emit_ctx_bss_thin() {
+  local o="$1"
+  local src="src/runtime_pipeline_abi_emit_ctx_bss_thin.c"
+  local thin_o base_o restore_o
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if pipeline_abi_o_is_libtool_archive "$o"; then
+    log "pipeline_abi w220-221-bss inject skip: $o is libtool archive"
+    return 1
+  fi
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_emit_ctx.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_emit_ctx_base.XXXXXX.o")"
+  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_emit_ctx_restore.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
+    log "pipeline_abi w220-221-bss inject: cc thin failed"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  cp -f "$o" "$restore_o"
+  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
+    log "pipeline_abi w220-221-bss inject skip: cannot weaken leftover T"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
+    if pipeline_abi_o_is_libtool_archive "$o"; then
+      cp -f "$restore_o" "$o"
+      log "pipeline_abi w220-221-bss inject: libtool archive; restored base"
+      rm -f "$thin_o" "$base_o" "$restore_o"
+      return 1
+    fi
+    log "pipeline_abi w220-221-bss inject OK (first-wins over leftover)"
+    rm -f "$thin_o" "$base_o" "$restore_o"
+    return 0
+  fi
+  cp -f "$restore_o" "$o"
+  log "pipeline_abi w220-221-bss inject: merge failed; restored base"
+  rm -f "$thin_o" "$base_o" "$restore_o"
+  return 1
 }
 
 
@@ -8741,6 +8787,20 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_macho_write_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-emit-ctx-bss|inject_emit_ctx_bss)
+    # Durable C-thin ingest of wave220/221 named BSS + get/set/host_is_arm64.
+    # Does NOT run try-pipeline-abi-prefer (no mega -E, no other thins).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-emit-ctx-bss: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_emit_ctx_bss_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
