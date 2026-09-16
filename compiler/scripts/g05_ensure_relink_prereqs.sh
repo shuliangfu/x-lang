@@ -1297,16 +1297,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         # P5 C is compiled after P9a (P5d realign .x calls the bridge
         # peek family). See the P5b/P5c/P5d block below.
-        # PLATFORM: SHARED — 7.2.1 P6b/P6c/P6d/P6e/P6f B-minus
+        # PLATFORM: SHARED — 7.2.1 P6b/P6c/P6d/P6e/P6f/P6g B-minus
         # (2026-09-15 / 2026-09-16). pthin_fn_block.x holds the three
         # struct-layout name matchers, packed/soa modifier predicates,
         # library-shape wrap, parse_struct_record_layout dest-buffer
         # (P9a peek/step; P9a is linked later into the same thin_glue,
-        # same as P7d/P4ud), and block_from_res dest-buffer (P6f).
+        # same as P7d/P4ud), block_from_res dest-buffer (P6f), and
+        # library remaining compositor dest-buffer (P6g).
         # PARSE_LAYOUT is a separate define so a missing parse_x keeps
         # the C parse twin without dropping P6b/P6c/P6d.
         # BLOCK_FROM_RES is an independent sibling after PARSE_LAYOUT
         # so a missing fill_x keeps the C twin without dropping P6e.
+        # LIBRARY is an independent sibling after BLOCK_FROM_RES so a
+        # missing finish_x keeps the C twin without dropping P6f.
         # Cold: no define, full .inc.
         _pthin_p6_extra=""
         if [ -n "$_pthin_p6b_thin_o" ] && [ -f "$_pthin_p6b_x" ]; then
@@ -1325,6 +1328,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               echo "g05_ensure: P6f block_from_res ← $_pthin_p6b_x (7.2.1 B-minus)"
             else
               echo "g05_ensure: P6f block_from_res C twin (missing fill_x)"
+            fi
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_one_function_library_finish_x_into_c"; then
+              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X"
+              echo "g05_ensure: P6g library remaining compositor ← $_pthin_p6b_x (7.2.1 B-minus)"
+            else
+              echo "g05_ensure: P6g library remaining compositor C twin (missing finish_x)"
             fi
           else
             echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2

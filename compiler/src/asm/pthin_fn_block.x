@@ -48,12 +48,11 @@
 // set_var_name / set_field_access_c / set_resolved_type_ref plus
 // P4bc set_binop_operands_c (G.7 one writer for binop slots; do not
 // copy; do not FORCE pabi mega; do not merge with P4bc wrap).
-// parse_one_function_library stays C (struct-by-value result + scan).
-// Block zeros / module func slot stay C. Do not dest-buffer parse
-// this wave (P6d). Do not copy wrap into parse_type_ref / parse_match
-// / P15 library_wrap scan. Do not copy name-match loops into
-// library_slice. Do not mix range_for. Do not wrap AUDIT. Do not
-// open a new P-lane.
+// parse_one_function_library published face + scan stay C
+// (struct-by-value result). Remaining compositor is P6g. Do not
+// copy wrap into parse_type_ref / parse_match / P15 library_wrap
+// scan. Do not copy name-match loops into library_slice. Do not
+// mix range_for. Do not wrap AUDIT. Do not open a new P-lane.
 //
 // 7.2.1 P6e B-minus (2026-09-16): 有则补全 parse_struct_record_layout
 // dest-buffer. P9a peek/step walks IDENT name / optional <T,U> /
@@ -74,21 +73,42 @@
 // Language has no local u8[N] / onefunc_result by-value; the C
 // trampoline holds name[256], extracts the sidecar pool, and writes
 // res->num_consts / num_lets. AUDIT stays in the C trampoline
-// (product AUDIT_CALL is nop). Do not dest-buffer parse_one_function
-// / parse_one_function_library. Do not dest-buffer parse_type_ref
-// (P3f). Do not dest-buffer append_byte. Do not mix range_for.
-// Do not wrap AUDIT. Do not open a new P-lane. Do not FORCE pabi mega.
+// (product AUDIT_CALL is nop). Do not dest-buffer parse_one_function.
+// parse_one_function_library remaining compositor is P6g. Do not
+// dest-buffer parse_type_ref (P3f). Do not dest-buffer append_byte.
+// Do not mix range_for. Do not wrap AUDIT. Do not open a new P-lane.
+// Do not FORCE pabi mega.
 //
-// Hybrid P6b/P6c/P6d/P6e/P6f: g05_try_x_to_o this file;
+// 7.2.1 P6g B-minus (2026-09-16): dest-buffer the remaining
+// parse_one_function_library compositor (labeled block + maybe
+// layout + module func slot). Historical ban was Block by-value
+// zeros without writers. Re-ranked live: writer already exists
+// (pipeline_parser_library_init_labeled_block_c — zeros, append
+// labeled return, zeros expr/final/order). Layout writers =
+// name_exists_arr_c (P6b) + pipeline_module_struct_layout_*.
+// Func slot writers = existing pipeline_module_func_* (G.7; do
+// not copy skip_tl extern-add — is_extern=0 and body=block_ref).
+// Language has no library_parse_result by-value; published face
+// stays slice_c; C trampoline holds scan + writes ok/next_lex/name.
+// AUDIT stays in the C trampoline. Do not dest-buffer scan (P15b).
+// Do not dest-buffer wrap (P6d). Do not dest-buffer parse_one_function.
+// Do not dest-buffer parse_type_ref (P3f). Do not dest-buffer
+// append_byte. Do not mix range_for. Do not wrap AUDIT. Do not
+// open a new P-lane. Do not FORCE pabi mega.
+//
+// Hybrid P6b/P6c/P6d/P6e/P6f/P6g: g05_try_x_to_o this file;
 // XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips name-match + modifiers +
 // library wrap; XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips the
 // layout parse C twin when parse_x is present;
 // XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X skips the block_from_res
 // C twin when fill_x is present (independent sibling after
 // PARSE_LAYOUT so a missing fill_x keeps the C twin without dropping
-// P6e). P9a is linked later into the same thin_glue (same as
-// P7d/P4ud). Cold: no define, full .inc. Do not reuse
-// XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e/P6f bodies.
+// P6e). XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X skips the remaining
+// library compositor when init_block_x + register_x are present
+// (independent sibling after BLOCK_FROM_RES so a missing finish
+// keeps the C twin without dropping P6f). P9a is linked later into
+// the same thin_glue (same as P7d/P4ud). Cold: no define, full .inc.
+// Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b–P6g bodies.
 // PLATFORM: SHARED freestanding.
 
 /** Sidecar: count of struct layouts on the opaque module. */
@@ -119,6 +139,8 @@ export extern "C" function pipeline_module_struct_layout_set_soa(module: *u8, id
 export extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
 /** Sidecar: repr_compatible flag. */
 export extern "C" function pipeline_module_struct_layout_set_repr_compatible(module: *u8, idx: i32, v: i32): void;
+/** Sidecar: write one field name/type/offset at (layout, field). */
+export extern "C" function pipeline_module_struct_layout_set_field(module: *u8, li: i32, j: i32, fname: *u8, fname_len: i32, type_ref: i32, field_off: i32): void;
 /** Sidecar: write field_align at (layout, field). */
 export extern "C" function pipeline_module_struct_layout_set_field_align(module: *u8, li: i32, j: i32, al: i32): void;
 /** Sidecar: next field offset given type + align req. */
@@ -128,6 +150,30 @@ export extern "C" function pipeline_struct_layout_next_field_offset_ex(module: *
 export extern "C" function ast_ast_arena_type_alloc(arena: *u8): i32;
 /** Allocate a fresh Expr slot; 0 on failure. */
 export extern "C" function ast_ast_arena_expr_alloc(arena: *u8): i32;
+/** Allocate a fresh Block slot; 0 on failure. */
+export extern "C" function ast_ast_arena_block_alloc(arena: *u8): i32;
+/**
+ * pabi library helper: zero Block counts, append a labeled return of
+ * eq_ref, then zero num_expr_stmts / final_expr_ref / num_stmt_order.
+ * @return i32 — 0 ok, -1 fail
+ */
+export extern "C" function pipeline_parser_library_init_labeled_block_c(arena: *u8, block_ref: i32, eq_ref: i32): i32;
+/** Module func slot alloc; -1 on full. */
+export extern "C" function pipeline_module_func_alloc_slot(m: *u8): i32;
+/** Write func name bytes. */
+export extern "C" function pipeline_module_func_name_write(m: *u8, fi: i32, name: *u8, name_len: i32): void;
+/** Write func param count. */
+export extern "C" function pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void;
+/** Write one param name + type. */
+export extern "C" function pipeline_module_func_param_write(m: *u8, fi: i32, i: i32, name: *u8, name_len: i32, type_ref: i32): void;
+/** Write func return type_ref. */
+export extern "C" function pipeline_module_func_set_return_type(m: *u8, fi: i32, tr: i32): void;
+/** Write func body block_ref. */
+export extern "C" function pipeline_module_func_set_body_ref(m: *u8, fi: i32, br: i32): void;
+/** Write func body expr ref (library path stores 0). */
+export extern "C" function pipeline_module_func_set_body_expr_ref(m: *u8, fi: i32, er: i32): void;
+/** Write is_extern flag (library path stores 0). */
+export extern "C" function pipeline_module_func_set_is_extern(m: *u8, fi: i32, v: i32): void;
 /** pabi: zero a Type slot and write a primitive kind_ord (0..16). */
 export extern "C" function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32, kind_ord: i32): i32;
 /** pabi: zero a Type slot and write TYPE_NAMED + spelling (nlen 1..255). */
@@ -597,7 +643,7 @@ function skip_lib_type_named(arena: *u8, name: *u8, nlen: i32): i32 {
  * @param out_token_tr *i32 — dest for TYPE_NAMED ref; null → 0
  * @return i32 — EQ expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — product P6d Route C. Authority for the library
- * wrap family. parse_one_function_library stays C; do not copy.
+ * wrap family. Remaining compositor is P6g; do not copy wrap.
  * Do not merge with P4bc wrap / P5g match wrap / P3e TYPE_DYN wrap.
  */
 #[no_mangle]
@@ -1120,6 +1166,167 @@ export function parser_asm_append_block_lets_from_res_x_into_c(arena: *u8, block
       return 0;
     }
     src_i = src_i + 1;
+  }
+  return 1;
+}
+
+/**
+ * Allocate a Block and install the library-shape labeled return of
+ * `eq_ref`. Writer = existing pipeline_parser_library_init_labeled_block_c
+ * (G.7; zeros, append labeled, zeros expr/final/order). Do not copy
+ * Block by-value get/set. Do not FORCE pabi mega.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param eq_ref i32 — EQ expr ref from P6d wrap; <=0 → 0
+ * @return i32 — new block_ref, or 0 on null/alloc/init fail
+ * PLATFORM: SHARED — product P6g helper.
+ */
+function parser_asm_library_init_block_x(arena: *u8, eq_ref: i32): i32 {
+  let block_ref: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (eq_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    block_ref = ast_ast_arena_block_alloc(arena);
+    if (block_ref == 0) {
+      return 0;
+    }
+    rc = pipeline_parser_library_init_labeled_block_c(arena, block_ref, eq_ref);
+  }
+  if (rc != 0) {
+    return 0;
+  }
+  return block_ref;
+}
+
+/**
+ * If the library param type has a field and that type name is not yet
+ * a struct layout, allocate one slot and write a single field (type_ref
+ * 0, offset 0) — same as the C twin. Layout alloc failure is ignored
+ * (C twin does not fail-close).
+ * @param module *u8 — opaque ast_Module; null → 0
+ * @param type_name *u8 — param type IDENT bytes; null → 0
+ * @param tnlen i32 — param type name length
+ * @param field_name *u8 — field IDENT bytes; null → 0
+ * @param flen i32 — field name length; <=0 skips the layout
+ * @return i32 — 1 ok (including skipped), 0 on null
+ * PLATFORM: SHARED — product P6g helper. Name-match stays P6b.
+ */
+function parser_asm_library_maybe_layout_x(module: *u8, type_name: *u8, tnlen: i32, field_name: *u8, flen: i32): i32 {
+  let idx: i32 = 0;
+  let exists: i32 = 0;
+  if (module == 0 as *u8 || type_name == 0 as *u8 || field_name == 0 as *u8) {
+    return 0;
+  }
+  if (flen <= 0) {
+    return 1;
+  }
+  exists = parser_asm_struct_layout_name_exists_arr_c(module, type_name, tnlen);
+  if (exists != 0) {
+    return 1;
+  }
+  unsafe {
+    idx = pipeline_module_struct_layout_alloc(module);
+    if (idx >= 0) {
+      pipeline_module_struct_layout_set_name(module, idx, type_name, tnlen);
+      pipeline_module_struct_layout_set_num_fields(module, idx, 1);
+      pipeline_module_struct_layout_set_field(module, idx, 0, field_name, flen, 0, 0);
+    }
+  }
+  return 1;
+}
+
+/**
+ * Register the library-shape function: one param, bool return, body =
+ * `block_ref`, is_extern=0. Writers = existing pipeline_module_func_*
+ * (G.7). Do not copy skip_tl extern-add (that path sets is_extern=1
+ * and body=0).
+ * @param module *u8 — opaque ast_Module; null → 0
+ * @param name *u8 — func IDENT bytes; null → 0
+ * @param nlen i32 — func name length (scan already capped 1..255)
+ * @param pname *u8 — param IDENT bytes; null → 0
+ * @param pnlen i32 — param name length
+ * @param token_ty i32 — TYPE_NAMED param type ref
+ * @param bool_ty i32 — TYPE_BOOL return type ref
+ * @param block_ref i32 — labeled-return block
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6g helper.
+ */
+function parser_asm_library_register_x(module: *u8, name: *u8, nlen: i32, pname: *u8, pnlen: i32, token_ty: i32, bool_ty: i32, block_ref: i32): i32 {
+  let fi: i32 = 0;
+  if (module == 0 as *u8 || name == 0 as *u8 || pname == 0 as *u8) {
+    return 0;
+  }
+  if (block_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    fi = pipeline_module_func_alloc_slot(module);
+    if (fi < 0) {
+      return 0;
+    }
+    pipeline_module_func_name_write(module, fi, name, nlen);
+    pipeline_module_func_set_num_params(module, fi, 1);
+    pipeline_module_func_param_write(module, fi, 0, pname, pnlen, token_ty);
+    pipeline_module_func_set_return_type(module, fi, bool_ty);
+    pipeline_module_func_set_body_ref(module, fi, block_ref);
+    pipeline_module_func_set_body_expr_ref(module, fi, 0);
+    pipeline_module_func_set_is_extern(module, fi, 0);
+  }
+  return 1;
+}
+
+/**
+ * Finish parse_one_function_library after P6d wrap: labeled block,
+ * optional struct-layout slot, module func slot. C trampoline holds
+ * the scan buffers and writes the by-value result.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param module *u8 — opaque ast_Module; null → 0
+ * @param eq_ref i32 — EQ expr ref from wrap
+ * @param bool_ty i32 — TYPE_BOOL return type ref
+ * @param token_ty i32 — TYPE_NAMED param type ref
+ * @param name *u8 — func IDENT bytes; null → 0
+ * @param nlen i32 — func name length
+ * @param pname *u8 — param IDENT bytes; null → 0
+ * @param pnlen i32 — param name length
+ * @param tname *u8 — param type IDENT bytes; null → 0
+ * @param tnlen i32 — param type name length
+ * @param fname *u8 — field IDENT bytes; null → 0
+ * @param flen i32 — field name length
+ * @return i32 — 1 ok, 0 fail
+ * PLATFORM: SHARED — product P6g B-minus. Published face stays
+ * slice_c. Do not dest-buffer scan. Do not dest-buffer wrap.
+ */
+#[no_mangle]
+export function parser_asm_parse_one_function_library_finish_x_into_c(arena: *u8, module: *u8, eq_ref: i32, bool_ty: i32, token_ty: i32, name: *u8, nlen: i32, pname: *u8, pnlen: i32, tname: *u8, tnlen: i32, fname: *u8, flen: i32): i32 {
+  let block_ref: i32 = 0;
+  if (arena == 0 as *u8 || module == 0 as *u8) {
+    return 0;
+  }
+  if (name == 0 as *u8 || pname == 0 as *u8 || tname == 0 as *u8 || fname == 0 as *u8) {
+    return 0;
+  }
+  if (eq_ref <= 0) {
+    return 0;
+  }
+  if (bool_ty <= 0) {
+    return 0;
+  }
+  if (token_ty <= 0) {
+    return 0;
+  }
+  block_ref = parser_asm_library_init_block_x(arena, eq_ref);
+  if (block_ref == 0) {
+    return 0;
+  }
+  if (parser_asm_library_maybe_layout_x(module, tname, tnlen, fname, flen) == 0) {
+    return 0;
+  }
+  if (parser_asm_library_register_x(module, name, nlen, pname, pnlen, token_ty, bool_ty, block_ref) == 0) {
+    return 0;
   }
   return 1;
 }
