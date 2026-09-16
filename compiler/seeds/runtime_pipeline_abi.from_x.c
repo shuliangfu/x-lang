@@ -63678,10 +63678,13 @@ void pipeline_block_fill_fors_from_onefunc(void *a, int32_t br, uint8_t *out, in
  * Not gated by FROM_X. Product authority for typeck_i32_ptr_* / layout_metrics /
  * asm scope BSS / asm_local_slot_reg_offset + align/bump/simd/scoped /
  * patch_parent_links / dep_skip cluster / redirect_std_c_wrapper.
- * Pure keeps export-extern only (dual-export ban). PLATFORM: SHARED —
- * freestanding Cap residual leave; MACOS|ARM64 vs LINUX|x86_64 slot polarity
- * via __aarch64__/__arm64__.
+ * Pure keeps export-extern only (dual-export ban).
+ * M2 Class E: C thin leave = runtime_pipeline_abi_bootstrap_glue_thin.c (inject
+ * weaken leftover T then first-wins). Seed body remains fallback / cold path.
+ * PLATFORM: SHARED — freestanding Cap residual leave; MACOS|ARM64 vs
+ * LINUX|x86_64 slot polarity via __aarch64__/__arm64__.
  * ============================================================================= */
+/* XLANG_PABI_BOOTSTRAP_GLUE_THIN_BEGIN */
 #ifndef WAVE282_BOOTSTRAP_GLUE_ALWAYS
 #define WAVE282_BOOTSTRAP_GLUE_ALWAYS 1
 
@@ -64269,6 +64272,7 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
   return 0;
 }
 
+/* XLANG_PABI_BOOTSTRAP_GLUE_THIN_END */
 #endif /* WAVE282_BOOTSTRAP_GLUE_ALWAYS */
 /*
  * WAVE283 ALWAYS: pipeline_ast_forwarders Cap residual (host leaf deleted).
