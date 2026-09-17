@@ -8,6 +8,10 @@
 // tried and dropped driver_diag on Ubuntu GNU ld; this strong thin
 // first-wins ld -r over WEAK pure without reordering hybrid.
 // ensure injects via pipeline_abi_inject_slot_bytes_thin.
+// wave400: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c/-E full file T001/XT001@asm_local_slot_bytes MISATTRIBUTED —
+//   minimal pipe_local+asm_local -c green; root = LINUX typeck/arena on
+//   full leaf. Split deferred.
 // PLATFORM: SHARED freestanding slot sizing · LINUX gold · MACOS co-path.
 
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
