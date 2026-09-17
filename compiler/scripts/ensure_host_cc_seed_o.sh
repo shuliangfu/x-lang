@@ -6145,14 +6145,15 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 
 
 
-# wave290/328/371/371b/389/394 M2: asm_codegen_mega_body Cap residual C→.x.
-# PRODUCT inject wave394 unlock three leaves (helpers / emit_one / loop):
-#   w389–w393d HARD BAN while Ubuntu tip could not -c mega.
-#   w394 ROOT: CG002 when emit_one+mega_outer co-file; third leaf
-#   mega_emit_one_thin.x — Ubuntu+Darwin -c all three green with T symbols.
-#   Unlock: inject helpers → emit_one → loop (first-wins). Stamp w394.
+# wave290/328/371/371b/389/394/394b M2: asm_codegen_mega_body Cap residual.
+# PRODUCT inject wave394b asymmetric:
+#   MACOS: three-leaf PREFER (helpers → emit_one → loop); Darwin L2 5/5.
+#   LINUX: HARD BAN reinject (stamp only) — tip three-leaf inject → L2
+#     EM:0 (Relocations in generic ELF); keep prior -E overlay.
+#   w394 ROOT: CG002 when emit_one+mega co-file; third leaf -c green both
+#     ends but Ubuntu tip product overlay still poison.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
-# PLATFORM: SHARED · PREFER both ends.
+# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local o="$1"
   local thin_helpers="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
@@ -6163,6 +6164,15 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local had_newer=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_helpers" ] && [ -f "$thin_emit" ] && [ -f "$thin_loop" ] || return 0
+  # PLATFORM: LINUX — hard BAN tip reinject (EM:0 poison); stamp only.
+  case "$(uname -s)" in
+    Linux)
+      touch "$stamp"
+      rm -f src/.pabi_w328_mega_body.stamp src/.pabi_w371_mega_body.stamp \
+        src/.pabi_w389_mega_body.stamp
+      return 0
+      ;;
+  esac
   # Skip when stamp newer than all three .x (already overlaid this unlock).
   if [ -f "$stamp" ] \
     && [ ! "$thin_helpers" -nt "$stamp" ] \
@@ -6174,7 +6184,7 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
     had_newer=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # Order: helpers (ctx_reset) → emit_one → loop (mega export). PLATFORM: SHARED.
+  # PLATFORM: MACOS — Order: helpers → emit_one → loop (first-wins).
   pipeline_abi_inject_thin_leaf "$o" "$thin_helpers" "w394-mega-helpers" || rc=$?
   if [ "$rc" -eq 0 ]; then
     pipeline_abi_inject_thin_leaf "$o" "$thin_emit" "w394-mega-emit-one" || rc=$?
