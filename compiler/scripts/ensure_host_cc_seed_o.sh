@@ -4781,14 +4781,14 @@ pipeline_abi_inject_fixed_array_copy_thin() {
   return "$rc"
 }
 
-# wave400/415 M2: slot_bytes Cap residual — asymmetric helpers unlock.
-# PRODUCT inject wave415:
-#   MACOS: PREFER_ASM full thin (helpers+asm_local; -c green; product L2 verified).
-#   LINUX: PREFER_ASM helpers-only thin (named/fixed/pipe_local; Ubuntu helpers
-#     -c ~3504B green; tip .o first-wins asm_fixed_array_total_bytes_mod).
-#     Full tip -c T001@asm_local MISATTRIBUTED — asm_local tip still BAN.
-# G.7: helpers bodies match mega / full thin; asm_local stays leftover on LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
+# wave400/415/428 M2: slot_bytes Cap residual — asymmetric helpers+asm_local unlock.
+# PRODUCT inject wave428:
+#   MACOS: PREFER_ASM full thin (helpers+asm_local; product L2 verified).
+#   LINUX: helpers-only (w415) then asm_local rest-only (w428; peers extern;
+#     Ubuntu -c ~879B; product inject+true relink L2 5/5 opt=102 md5 changed).
+# wave428 also BAN probes: ttc main empty .o; field XT001; param CG002.
+# G.7: helpers+asm_local bodies match mega / full thin.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+asm_local PREFER.
 pipeline_abi_inject_slot_bytes_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_slot_bytes_thin.x"
@@ -4799,7 +4799,7 @@ pipeline_abi_inject_slot_bytes_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  # PLATFORM: LINUX — helpers-only tip PREFER (asm_local still BAN).
+  # PLATFORM: LINUX — helpers then asm_local rest (w428).
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_slot_bytes_helpers_thin.x"
@@ -4809,7 +4809,12 @@ pipeline_abi_inject_slot_bytes_thin() {
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
+    # helpers up-to-date; still try asm_local rest on LINUX
+    if [ "$(uname -s)" = "Linux" ]; then
+      :
+    else
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -4824,8 +4829,27 @@ pipeline_abi_inject_slot_bytes_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-  rc=$?
+  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      touch "$stamp"
+    fi
+  else
+    rc=0
+  fi
+  # PLATFORM: LINUX — second inject asm_local rest (wave428).
+  if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
+    local l2x="src/runtime_pipeline_abi_slot_asm_local_thin.x"
+    local l2s="src/.pabi_w428_slot_asm_local.stamp"
+    if [ -f "$l2x" ] && { [ ! -f "$l2s" ] || [ "$l2x" -nt "$l2s" ]; }; then
+      pipeline_abi_inject_thin_leaf "$o" "$l2x" "w428-slot-asm-local"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$l2s"
+      fi
+    fi
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -4838,9 +4862,6 @@ pipeline_abi_inject_slot_bytes_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
   fi
   return "$rc"
 }
