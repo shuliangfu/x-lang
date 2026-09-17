@@ -89195,6 +89195,8 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
 // end wave269 pure-owned leave
 
 // wave270: ast_pool_type pure-owned leave body
+// M2 Class E: .x thin leave = runtime_pipeline_abi_type_pool_thin.x
+// (wave301 C→.x via -E+$CC inject; was wave270 C thin; LE name_len@260).
 // =============================================================================
 // G.7 product authority for type pool cold accessors (was host-cc residual
 // ast_pool_type.c ~416 LOC). dual-export ban: pure T; pipeline_x U.
