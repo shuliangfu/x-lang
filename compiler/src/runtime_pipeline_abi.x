@@ -88757,6 +88757,8 @@ export function asm_ctx_ensure_block_locals(ctx: *u8, arena: *u8, block_ref: i32
 // end wave268 pure-owned leave
 
 // wave269: pipeline_asm_block_tree.c pure-owned leave
+// M2 Class E: .x thin leave = runtime_pipeline_abi_block_tree_thin.x
+// (wave302 C→.x via -E+$CC inject; was wave269 C thin).
 // =============================================================================
 // G.7 product authority for:
 //   asm_sum_block_local_slot_bytes / asm_count_block_stack_slots
