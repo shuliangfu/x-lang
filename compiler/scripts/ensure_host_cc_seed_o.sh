@@ -6460,11 +6460,13 @@ pipeline_abi_inject_modlet_prepare_rest() {
 }
 
 # wave319/343/344/346/348 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
-# PRODUCT inject stamp w348: PREFER_ASM=1 both ends.
-#   w346: ordinal let→const. w347: XT001 root = pure-asm i32 VAR CALL arg lea.
-#   w348: for_call_args thin ingest (rvalue load) unlocks check_expr PREFER.
+# PRODUCT inject stamp w348:
+#   w348: for_call_args thin ingest (i32 VAR rvalue load) unlocks check_expr
+#   PREFER on MACOS|DARWIN (L2 5/5). LINUX|UBUNTU PREFER still XT001
+#   ("expected i32, found i32") → stay -E+$CC until x86_64 body fixed.
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
-# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED · both ends PREFER.
+# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS.
+# PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
@@ -6488,7 +6490,13 @@ pipeline_abi_inject_typeck_check_expr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  # PLATFORM: MACOS|DARWIN PREFER (w348 unlock); LINUX|UBUNTU -E (still XT001).
+  prefer_asm=0
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w348-typeck-check-expr"
   rc=$?
