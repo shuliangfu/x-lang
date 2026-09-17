@@ -3364,8 +3364,8 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_parse_orch_thin.c -nt "$o" ]; then
       stale=1
     fi
-    if [ -f src/runtime_pipeline_abi_typeck_orch_thin.c ] \
-      && [ src/runtime_pipeline_abi_typeck_orch_thin.c -nt "$o" ]; then
+    if [ -f src/runtime_pipeline_abi_typeck_orch_thin.x ] \
+      && [ src/runtime_pipeline_abi_typeck_orch_thin.x -nt "$o" ]; then
       stale=1
     fi
     if [ -f src/runtime_pipeline_abi_typeck_check_expr_thin.c ] \
@@ -6104,71 +6104,48 @@ pipeline_abi_inject_parse_orch_thin() {
 
 
 
-# wave285/293 typeck_orch Cap residual:
-#   C thin = layout glue only (out-param faces; host-cc until &i32 ABI green)
-#   .x thin = typeck_x_ast*_c rename shims (wave293 PREFER_ASM + stamp)
-# Prefer always runs C first, then .x overlay. PLATFORM: SHARED.
+# wave318 M2: typeck_orch Cap residual full C→.x (shims+layout glue).
+# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Out-param *i32 OK under -E.
+# Was: C layout glue + PREFER_ASM shim overlay (wave285/293). PLATFORM: SHARED.
 pipeline_abi_inject_typeck_orch_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_typeck_orch_thin.c"
   local thin_x="src/runtime_pipeline_abi_typeck_orch_thin.x"
-  local stamp="src/.pabi_w293_typeck_orch.stamp"
-  local thin_o base_o restore_o
+  local stamp="src/.pabi_w318_typeck_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local had_newer=0
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  [ -s "$o" ] || return 0
-
-  # --- C layout glue ---
-  if [ -f "$src" ]; then
-    if pipeline_abi_o_is_libtool_archive "$o"; then
-      log "pipeline_abi w285-typeck-orch inject skip: $o is libtool archive"
-      return 1
-    fi
-    thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch.XXXXXX.o")"
-    base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch_base.XXXXXX.o")"
-    restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_torch_restore.XXXXXX.o")"
-    # shellcheck disable=SC2086
-    if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-      log "pipeline_abi w285-typeck-orch inject: cc thin failed"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-    cp -f "$o" "$base_o"
-    cp -f "$o" "$restore_o"
-    if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-      log "pipeline_abi w285-typeck-orch inject skip: cannot weaken leftover T"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-    elif pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-      if pipeline_abi_o_is_libtool_archive "$o"; then
-        cp -f "$restore_o" "$o"
-        log "pipeline_abi w285-typeck-orch inject: libtool archive; restored base"
-        rm -f "$thin_o" "$base_o" "$restore_o"
-        return 1
-      fi
-      log "pipeline_abi w285-typeck-orch inject OK (layout glue first-wins)"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-    else
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w285-typeck-orch inject: merge failed; restored base"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-  fi
-
-  # --- .x rename shims (stamp gate) ---
-  [ -f "$thin_x" ] || return 0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
   fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w293-typeck-orch"
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w318-typeck-orch"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
@@ -11111,6 +11088,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_emit_ctx_bss_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-typeck-orch|inject_typeck_orch)
+    # wave318: C→.x typeck_orch (shims+layout glue) via -E+$CC.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-typeck-orch: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_typeck_orch_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
