@@ -4895,91 +4895,80 @@ pipeline_abi_inject_for_call_args_thin() {
   return "$rc"
 }
 
-# PRODUCT inject stamp w350: Cap A module fixed-array INDEX rvalue.
-# Roots (G.7): dual-modlet gate + redefine poison of block_body→rec.
-# Fix: weaken+first-wins emit_index∪asm_expr (owns emit_expr_elf_c+rec).
-# PLATFORM: MACOS|DARWIN product inject (L2 5/5 + block_tree PREFER).
-#   LINUX|UBUNTU: skip product overlay — emit_index thin breaks option
-#   L2 (run 255/240); -c PREFER smoke + let-array probe still green under
-#   lab overlay. Residual: var-module array; Ubuntu option under Cap A.
+# PRODUCT inject stamp w351: Cap A module fixed-array INDEX rvalue.
+# Roots: (1) mega VAR modlet_find gate; (2) Darwin redefine poison of
+# block_body→rec; (3) Ubuntu PREFER pure-asm emit_index breaks option
+# (run=240) — host-C -E thin is green. Thin body ≡ mega post-gate.
+# PLATFORM: MACOS PREFER weaken∪asm_expr; LINUX -E index-only.
 pipeline_abi_inject_emit_index_thin() {
   local o="$1"
   local thin_idx="src/runtime_pipeline_abi_emit_index_thin.x"
   local thin_ae="src/runtime_pipeline_abi_asm_expr_thin.x"
-  local stamp="src/.pabi_w350_emit_index.stamp"
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) ;;
-    *)
-      # PLATFORM: LINUX — stamp so daily path does not retry; no overlay.
-      [ -f "$stamp" ] || touch "$stamp"
-      return 0
-      ;;
-  esac
+  local stamp="src/.pabi_w351_emit_index.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local tmp_idx="" tmp_ae="" tmp_cap="" base_o="" out_o="" oc=""
-  [ -s "$o" ] && [ -f "$thin_idx" ] && [ -f "$thin_ae" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_idx" -nt "$stamp" ] && [ ! "$thin_ae" -nt "$stamp" ]; then
+  local os=""
+  [ -s "$o" ] && [ -f "$thin_idx" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_idx" -nt "$stamp" ] && { [ ! -f "$thin_ae" ] || [ ! "$thin_ae" -nt "$stamp" ]; }; then
     return 0
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  export XLANG_PREFER_ASM_O=1
-  unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-  # Compile both faces PREFER, merge thin-first so rec→emit_index binds inside.
-  tmp_idx="$(mktemp "${TMPDIR:-/tmp}/pabi_w350_idx.XXXXXX.o")"
-  tmp_ae="$(mktemp "${TMPDIR:-/tmp}/pabi_w350_ae.XXXXXX.o")"
-  tmp_cap="$(mktemp "${TMPDIR:-/tmp}/pabi_w350_cap.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_w350_base.XXXXXX.o")"
-  out_o="$(mktemp "${TMPDIR:-/tmp}/pabi_w350_out.XXXXXX.o")"
-  rc=1
-  if pure_asm_x_to_o "$tmp_idx" "$thin_idx" \
-    && pure_asm_x_to_o "$tmp_ae" "$thin_ae" \
-    && ld -r -o "$tmp_cap" "$tmp_ae" "$tmp_idx" 2>/dev/null; then
-    cp -f "$o" "$base_o"
-    # Weaken only — do NOT redefine emit_expr_elf_rec (poisons block_body).
-    if pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$tmp_cap"; then
-      # If redefine fallback ran, refuse when rec callers would be poisoned.
-      if objdump -r "$base_o" 2>/dev/null | grep -q "emit_expr_elf_rec_pabi_superseded"; then
-        log "pipeline_abi w350-emit-index: redefine poisoned rec — skip (need clean weaken)"
-        rc=1
-      elif ld -r -o "$out_o" "$tmp_cap" "$base_o" 2>/dev/null; then
-        cp -f "$out_o" "$o"
-        rc=0
-        log "pipeline_abi w350-emit-index inject OK (weaken+cap thin first-wins)"
+  os="$(uname -s 2>/dev/null || echo unknown)"
+  case "$os" in
+    Darwin)
+      # PREFER weaken first-wins: index∪asm_expr (own emit_expr_elf_c+rec).
+      export XLANG_PABI_THIN_PREFER_ASM=1
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      local tmp_idx tmp_ae tmp_cap base_o out_o
+      tmp_idx="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_idx.XXXXXX.o")"
+      tmp_ae="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_ae.XXXXXX.o")"
+      tmp_cap="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_cap.XXXXXX.o")"
+      base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_base.XXXXXX.o")"
+      out_o="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_out.XXXXXX.o")"
+      rc=1
+      if pure_asm_x_to_o "$tmp_idx" "$thin_idx" \
+        && pure_asm_x_to_o "$tmp_ae" "$thin_ae" \
+        && ld -r -o "$tmp_cap" "$tmp_ae" "$tmp_idx" 2>/dev/null; then
+        cp -f "$o" "$base_o"
+        if pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$tmp_cap"; then
+          if objdump -r "$base_o" 2>/dev/null | grep -q "emit_expr_elf_rec_pabi_superseded"; then
+            log "pipeline_abi w351-emit-index: redefine poisoned rec — skip"
+            rc=1
+          elif ld -r -o "$out_o" "$tmp_cap" "$base_o" 2>/dev/null; then
+            cp -f "$out_o" "$o"
+            rc=0
+            log "pipeline_abi w351-emit-index inject OK (Darwin PREFER weaken)"
+          fi
+        fi
       fi
-    fi
-  fi
-  rm -f "$tmp_idx" "$tmp_ae" "$tmp_cap" "$base_o" "$out_o"
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
+      rm -f "$tmp_idx" "$tmp_ae" "$tmp_cap" "$base_o" "$out_o"
+      ;;
+    *)
+      # PLATFORM: LINUX — -E+$CC thin only (PREFER pure-asm breaks option).
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      export XLANG_PABI_THIN_FORCE_INJECT=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_idx" "w351-emit-index"
+      rc=$?
+      unset XLANG_PABI_THIN_FORCE_INJECT
+      ;;
+  esac
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    touch "src/.pabi_w350_asm_expr.stamp"
+    rm -f src/.pabi_w350_emit_index.stamp
   fi
   return "$rc"
 }
@@ -5574,17 +5563,16 @@ pipeline_abi_inject_asm_locals_thin() {
   return "$rc"
 }
 
-# wave302/349/350 M2: block_tree Cap residual C→.x (was wave269 C thin).
-# PRODUCT inject stamp w350:
-#   MACOS|DARWIN: PREFER (Cap A let-array INDEX unlock; L2 5/5).
-#   LINUX|UBUNTU: stay -E — Cap A emit_index product overlay still
-#   breaks option L2 (run≠102); compiler -c PREFER smoke green.
-# G.7 match mega wave269 leave. PLATFORM: SHARED · MACOS PREFER · LINUX -E.
+# wave302/349/350/351 M2: block_tree Cap residual C→.x (was wave269 C thin).
+# PRODUCT inject stamp w351: PREFER_ASM both ends (Cap A unlock).
+#   w351: Ubuntu Cap A via -E emit_index (PREFER pure-asm broke option);
+#   block_tree PREFER product inject L2 5/5 both ends.
+# G.7 match mega wave269 leave. PLATFORM: SHARED.
 # Note: wave268 sizing already via slot_bytes_thin.x + NL-04 seed (no C redo).
 pipeline_abi_inject_block_tree_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_block_tree_thin.x"
-  local stamp="src/.pabi_w350_block_tree.stamp"
+  local stamp="src/.pabi_w351_block_tree.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5604,15 +5592,9 @@ pipeline_abi_inject_block_tree_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS PREFER; LINUX -E (option L2 residual under Cap A overlay).
-  prefer_asm=0
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w350-block-tree"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w351-block-tree"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5658,8 +5640,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
 # wave348: for_call_args rvalue; Darwin check_expr PREFER / Ubuntu -E.
 # wave349: block_tree T001 unsafe wrap.
-# wave350: Cap A INDEX + block_tree PREFER (Darwin); Ubuntu Cap A skip (option).
-# Next: Ubuntu Cap A/option root / var-module / GrowVec-LE / Ubuntu check_expr.
+# wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
+# Next: var-module array / GrowVec-LE / Ubuntu check_expr PREFER.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
