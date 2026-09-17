@@ -5429,67 +5429,20 @@ pipeline_abi_inject_module_enum_thin() {
 }
 
 # wave305/359/359b M2: top_level_let Cap residual C→.x (was wave265 C thin).
-# PRODUCT inject wave359b BAN re-overlay: PREFER=0 + ALLOW_E_REPLACE=0 +
-# FORCE_INJECT=0. wave359 PREFER (and -E re-inject of T001 thin) poisons Cap
-# residual asm_codegen_elf_o (type_alias -c CG002). Keep historic body in
-# pabi; T001 w305_* stay in .x for future root fix. Stamp w359b.
-# PLATFORM: SHARED · both ends skip overlay until elf_o root.
+# PRODUCT inject wave359b HARD BAN: return 0 without overlay.
+# wave359 PREFER (and -E re-inject of T001 thin) poisons Cap residual
+# asm_codegen_elf_o / can break L2 si. T001 wrappers add new T syms so
+# already_defined skip fails — must hard-skip. Stamp w359b.
+# PLATFORM: SHARED · both ends hard-skip until elf_o root.
 pipeline_abi_inject_top_level_let_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_top_level_let_thin.x"
   local stamp="src/.pabi_w359b_top_level_let.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local saved_force="${XLANG_PABI_THIN_FORCE_INJECT-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0 had_force=0
-  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  if [ "${XLANG_PABI_THIN_FORCE_INJECT+x}" = "x" ]; then
-    had_force=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — BAN re-overlay (skip if already T; clear FORCE).
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=0
-  export XLANG_PABI_THIN_FORCE_INJECT=0
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w359b-top-level-let"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$had_force" = "1" ]; then
-    export XLANG_PABI_THIN_FORCE_INJECT="$saved_force"
-  else
-    unset XLANG_PABI_THIN_FORCE_INJECT
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w305_top_level_let.stamp src/.pabi_w359_top_level_let.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w305_top_level_let.stamp src/.pabi_w359_top_level_let.stamp
+  return 0
 }
 
 # wave307 M2: struct_layout Cap residual C→.x (was wave266 C thin).
