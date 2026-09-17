@@ -1,8 +1,8 @@
-// Thin pure: wave304 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
+// Thin pure: wave304/361 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
 // AsmLocalSlotEntry LE 264B + AsmBlockSlot tables; 64-slot ctx maps; 12 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave267 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_asm_locals_thin
-// (ALLOW_E_REPLACE + stamp). File-local maps OK under -E+$CC.
+// wave361: w304_* unsafe wrappers for slot/LE (T001); PRODUCT inject
+// PREFER_ASM try. Stamp w361. Gate=type_alias -c after inject.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -13,6 +13,44 @@ export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+
+
+/**
+ * Ptr-slot get via unsafe (T001). PLATFORM: SHARED.
+ */
+function w304_ptr_get(arr: *u8, i: i32): *u8 {
+  unsafe {
+    return xlang_ptr_slot_get(arr, i);
+  }
+}
+
+/**
+ * Ptr-slot set via unsafe (T001). PLATFORM: SHARED.
+ */
+function w304_ptr_set(arr: *u8, i: i32, p: *u8): void {
+  unsafe {
+    xlang_ptr_slot_set(arr, i, p);
+  }
+}
+
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w304_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w304_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
 
 let g_pipe_al_ctx: u8[512] = [];
 let g_pipe_al_used: i32[64] = [];
@@ -61,7 +99,7 @@ function pipe_al_find(ctx: *u8, create: i32): i32 {
   let i: i32 = 0;
   while (i < 64) {
     if (g_pipe_al_used[i] != 0) {
-      let k: *u8 = xlang_ptr_slot_get(&g_pipe_al_ctx[0], i);
+      let k: *u8 = w304_ptr_get(&g_pipe_al_ctx[0], i);
       if (k == ctx) {
         return i;
       }
@@ -75,14 +113,14 @@ function pipe_al_find(ctx: *u8, create: i32): i32 {
   while (i < 64) {
     if (g_pipe_al_used[i] == 0) {
       g_pipe_al_used[i] = 1;
-      xlang_ptr_slot_set(&g_pipe_al_ctx[0], i, ctx);
+      w304_ptr_set(&g_pipe_al_ctx[0], i, ctx);
       g_pipe_al_n[i] = 0;
       g_pipe_al_cap[i] = 0;
-      xlang_ptr_slot_set(&g_pipe_al_slots[0], i, 0 as *u8);
+      w304_ptr_set(&g_pipe_al_slots[0], i, 0 as *u8);
       g_pipe_al_bn[i] = 0;
       g_pipe_al_bcap[i] = 0;
-      xlang_ptr_slot_set(&g_pipe_al_brefs[0], i, 0 as *u8);
-      xlang_ptr_slot_set(&g_pipe_al_bbases[0], i, 0 as *u8);
+      w304_ptr_set(&g_pipe_al_brefs[0], i, 0 as *u8);
+      w304_ptr_set(&g_pipe_al_bbases[0], i, 0 as *u8);
       return i;
     }
     i = i + 1;
@@ -129,7 +167,7 @@ function pipe_al_ensure_slots(slot: i32, need: i32): i32 {
   unsafe {
     memset(np, 0, nbytes);
   }
-  let old: *u8 = xlang_ptr_slot_get(&g_pipe_al_slots[0], slot);
+  let old: *u8 = w304_ptr_get(&g_pipe_al_slots[0], slot);
   let old_n: i32 = g_pipe_al_n[slot];
   if (old != 0 as *u8) {
     if (old_n > 0) {
@@ -142,7 +180,7 @@ function pipe_al_ensure_slots(slot: i32, need: i32): i32 {
       free(old);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_al_slots[0], slot, np);
+  w304_ptr_set(&g_pipe_al_slots[0], slot, np);
   g_pipe_al_cap[slot] = new_cap;
   return 1;
 }
@@ -194,8 +232,8 @@ function pipe_al_ensure_blocks(slot: i32, need: i32): i32 {
     memset(nr, 0, nbytes);
     memset(nb, 0, nbytes);
   }
-  let old_r: *u8 = xlang_ptr_slot_get(&g_pipe_al_brefs[0], slot);
-  let old_b: *u8 = xlang_ptr_slot_get(&g_pipe_al_bbases[0], slot);
+  let old_r: *u8 = w304_ptr_get(&g_pipe_al_brefs[0], slot);
+  let old_b: *u8 = w304_ptr_get(&g_pipe_al_bbases[0], slot);
   let old_n: i32 = g_pipe_al_bn[slot];
   if (old_n > 0) {
     let copy_n: usize = (old_n * 4) as usize;
@@ -212,8 +250,8 @@ function pipe_al_ensure_blocks(slot: i32, need: i32): i32 {
   if (old_b != 0 as *u8) {
     unsafe { free(old_b); }
   }
-  xlang_ptr_slot_set(&g_pipe_al_brefs[0], slot, nr);
-  xlang_ptr_slot_set(&g_pipe_al_bbases[0], slot, nb);
+  w304_ptr_set(&g_pipe_al_brefs[0], slot, nr);
+  w304_ptr_set(&g_pipe_al_bbases[0], slot, nb);
   g_pipe_al_bcap[slot] = new_cap;
   return 1;
 }
@@ -231,7 +269,7 @@ function pipe_al_at(slot: i32, idx: i32): *u8 {
   if (idx < 0 || idx >= g_pipe_al_n[slot]) {
     return 0 as *u8;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_al_slots[0], slot);
+  let base: *u8 = w304_ptr_get(&g_pipe_al_slots[0], slot);
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
@@ -310,7 +348,7 @@ export function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset:
   if (pipe_al_ensure_slots(s, idx + 1) == 0) {
     return 0 - 1;
   }
-  let ent: *u8 = xlang_ptr_slot_get(&g_pipe_al_slots[0], s);
+  let ent: *u8 = w304_ptr_get(&g_pipe_al_slots[0], s);
   if (ent == 0 as *u8) {
     return 0 - 1;
   }
@@ -329,8 +367,8 @@ export function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, offset:
     }
     k = k + 1;
   }
-  pipe_store_i32_le(base, pipe_al_off_name_len(), name_len);
-  pipe_store_i32_le(base, pipe_al_off_offset(), offset);
+  w304_store_i32(base, pipe_al_off_name_len(), name_len);
+  w304_store_i32(base, pipe_al_off_offset(), offset);
   g_pipe_al_n[s] = idx + 1;
   return idx;
 }
@@ -353,7 +391,7 @@ export function asm_ctx_local_name_len(ctx: *u8, idx: i32): i32 {
   if (ent == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ent, pipe_al_off_name_len());
+  return w304_load_i32(ent, pipe_al_off_name_len());
 }
 
 /**
@@ -378,7 +416,7 @@ export function asm_ctx_local_name_byte_at(ctx: *u8, idx: i32, off: i32): u8 {
   if (ent == 0 as *u8) {
     return 0 as u8;
   }
-  let nlen: i32 = pipe_load_i32_le(ent, pipe_al_off_name_len());
+  let nlen: i32 = w304_load_i32(ent, pipe_al_off_name_len());
   if (off >= nlen) {
     return 0 as u8;
   }
@@ -418,7 +456,7 @@ export function asm_ctx_local_name_copy64(ctx: *u8, idx: i32, dst: *u8): void {
   if (ent == 0 as *u8) {
     return;
   }
-  let nlen: i32 = pipe_load_i32_le(ent, pipe_al_off_name_len());
+  let nlen: i32 = w304_load_i32(ent, pipe_al_off_name_len());
   let n: i32 = nlen;
   if (n > 255) {
     n = 255;
@@ -450,7 +488,7 @@ export function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32 {
   if (ent == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ent, pipe_al_off_offset());
+  return w304_load_i32(ent, pipe_al_off_offset());
 }
 
 /**
@@ -475,7 +513,7 @@ export function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i
   while (i >= 0) {
     let ent: *u8 = pipe_al_at(s, i);
     if (ent != 0 as *u8) {
-      let elen: i32 = pipe_load_i32_le(ent, pipe_al_off_name_len());
+      let elen: i32 = w304_load_i32(ent, pipe_al_off_name_len());
       if (elen == name_len) {
         let k: i32 = 0;
         let ok: i32 = 1;
@@ -494,7 +532,7 @@ export function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i
           k = k + 1;
         }
         if (ok != 0) {
-          return pipe_load_i32_le(ent, pipe_al_off_offset());
+          return w304_load_i32(ent, pipe_al_off_offset());
         }
       }
     }
@@ -582,13 +620,13 @@ export function asm_ctx_block_slot_set(ctx: *u8, block_ref: i32, slot_base: i32)
   if (pipe_al_ensure_blocks(s, idx + 1) == 0) {
     return;
   }
-  let pr: *u8 = xlang_ptr_slot_get(&g_pipe_al_brefs[0], s);
-  let pb: *u8 = xlang_ptr_slot_get(&g_pipe_al_bbases[0], s);
+  let pr: *u8 = w304_ptr_get(&g_pipe_al_brefs[0], s);
+  let pb: *u8 = w304_ptr_get(&g_pipe_al_bbases[0], s);
   if (pr == 0 as *u8 || pb == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(pr, idx * 4, block_ref);
-  pipe_store_i32_le(pb, idx * 4, slot_base);
+  w304_store_i32(pr, idx * 4, block_ref);
+  w304_store_i32(pb, idx * 4, slot_base);
   g_pipe_al_bn[s] = idx + 1;
 }
 
@@ -610,15 +648,15 @@ export function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32 {
     return 0 - 1;
   }
   let i: i32 = g_pipe_al_bn[s] - 1;
-  let pr: *u8 = xlang_ptr_slot_get(&g_pipe_al_brefs[0], s);
-  let pb: *u8 = xlang_ptr_slot_get(&g_pipe_al_bbases[0], s);
+  let pr: *u8 = w304_ptr_get(&g_pipe_al_brefs[0], s);
+  let pb: *u8 = w304_ptr_get(&g_pipe_al_bbases[0], s);
   if (pr == 0 as *u8 || pb == 0 as *u8) {
     return 0 - 1;
   }
   while (i >= 0) {
-    let br: i32 = pipe_load_i32_le(pr, i * 4);
+    let br: i32 = w304_load_i32(pr, i * 4);
     if (br == block_ref) {
-      return pipe_load_i32_le(pb, i * 4);
+      return w304_load_i32(pb, i * 4);
     }
     i = i - 1;
   }
