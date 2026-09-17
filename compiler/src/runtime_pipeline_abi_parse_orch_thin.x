@@ -1,9 +1,10 @@
-// Thin pure: wave323/374 M2 — parse_orch Cap residual C→.x (was wave284 C thin).
+// Thin pure: wave323/374/374b M2 — parse_orch Cap residual C→.x (was wave284 C thin).
 // parse/load/typeck orch + Cap-struct ParseIntoResult + diagnostics + sizeof +
 // expr helpers + std_io batch. G.7 match runtime_pipeline_abi_parse_orch_thin.c.
-// PRODUCT inject: wave374 PREFER_ASM via pipeline_abi_inject_parse_orch_thin
+// PRODUCT inject: wave374b MACOS PREFER / LINUX -E via pipeline_abi_inject_parse_orch_thin
 // (ALLOW_E_REPLACE + stamp). No file-local BSS.
-// wave374: whole-body unsafe on exports (T001); PREFER try + L2 gate.
+// wave374: whole-body unsafe on exports (T001); Darwin PREFER L2 green.
+// wave374b: Ubuntu PREFER -c unknown-field (ParseIntoResult + trait check); stay -E.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 struct ParseIntoResult {

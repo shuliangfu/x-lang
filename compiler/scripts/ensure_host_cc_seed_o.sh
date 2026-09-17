@@ -6276,19 +6276,22 @@ pipeline_abi_inject_ast_forwarders_thin() {
 
 
 
-# wave323/374 M2: parse_orch Cap residual C→.x (was wave284 C thin).
-# PRODUCT inject wave374: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
-# T001 whole-body unsafe on exports; no BSS; dual-end L2 gate.
-# G.7 WAVE284_PARSE_ORCH_ALWAYS. PLATFORM: SHARED · both ends PREFER.
+# wave323/374/374b M2: parse_orch Cap residual C→.x (was wave284 C thin).
+# PRODUCT inject wave374b: MACOS PREFER / LINUX -E (ALLOW_E_REPLACE + stamp).
+# wave374: T001 whole-body unsafe; Darwin PREFER L2 green.
+# wave374b: Ubuntu PREFER -c T001 unknown-field when ParseIntoResult +
+#   xlang_trait_check_* share one function (Darwin ok) — stay -E on LINUX.
+# G.7 WAVE284_PARSE_ORCH_ALWAYS. PLATFORM: SHARED · MACOS PREFER · LINUX -E.
 pipeline_abi_inject_parse_orch_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_parse_orch_thin.x"
-  local stamp="src/.pabi_w374_parse_orch.stamp"
+  local stamp="src/.pabi_w374b_parse_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -6302,11 +6305,15 @@ pipeline_abi_inject_parse_orch_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
+  # PLATFORM: MACOS PREFER; LINUX -E (ParseIntoResult+trait check Ubuntu typeck).
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (T001 wrappers proven at -c).
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w374-parse-orch"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w374b-parse-orch"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6323,7 +6330,7 @@ pipeline_abi_inject_parse_orch_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_w323_parse_orch.stamp
+    rm -f src/.pabi_w323_parse_orch.stamp src/.pabi_w374_parse_orch.stamp
   fi
   return "$rc"
 }
@@ -11534,7 +11541,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-parse-orch|inject_parse_orch|inject-porch|inject_porch)
-    # wave374: C→.x parse_orch PREFER_ASM (stamp + ALLOW_E_REPLACE).
+    # wave374b: C→.x parse_orch MACOS PREFER / LINUX -E (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-parse-orch: need <out.o>" >&2
