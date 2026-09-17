@@ -52577,13 +52577,61 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
  * @param expr_ref i32 - parameter
  * @return i32 - face-specific status
  * PLATFORM: SHARED freestanding emit.
+ * wave435: INDEX arm delegated to glue_binop_index_ko47_clobbers_rbx.
  */
+/**
+ * INDEX (ko==47) rbx-clobber decision (wave435 helper extract).
+ * @param arena *u8 — ASTArena*
+ * @param expr_ref i32 — INDEX expr
+ * @return i32 — 1 if parks rbx; 0 if base+imm*esz
+ */
+#[no_mangle]
+export function glue_binop_index_ko47_clobbers_rbx(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+    let lit_imm: i32 = 0;
+    let idx_ref: i32 = 0;
+    let base_ref: i32 = 0;
+    let base_ty: i32 = 0;
+    let base_ko: i32 = 0;
+    let fa_base: i32 = 0;
+    let fa_ko: i32 = 0;
+    if (pipeline_expr_index_base_is_slice_at(arena, expr_ref) != 0) {
+      return 1;
+    }
+    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
+    if (base_ref > 0) {
+      base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == 11) {
+        return 1;
+      }
+      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+      if (base_ko == 46 || base_ko == 45 || base_ko == 48 || base_ko == 49) {
+        return 1;
+      }
+      if (base_ko == 47) {
+        return 1;
+      }
+      if (base_ko == 44) {
+        fa_base = pipeline_expr_field_access_base_ref(arena, base_ref);
+        if (fa_base > 0) {
+          fa_ko = pipeline_expr_kind_ord_at(arena, fa_base);
+          if (fa_ko == 46 || fa_ko == 45 || fa_ko == 48 || fa_ko == 49 || fa_ko == 47) {
+            return 1;
+          }
+        }
+      }
+    }
+    idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
+    if (idx_ref > 0 && (pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_imm) != 0)) {
+      return 0;
+    }
+    return 1;
+  }
+}
+
 #[no_mangle]
 export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, expr_ref: i32): i32 {
   unsafe {
-    let lit_slot: i32[1] = [];
-    let lit_ok_w149: i32 = 0;
-
     let ko: i32 = 0;
     let op_ref: i32 = 0;
     if ((arena == (0 as *u8)) || expr_ref <= 0) {
@@ -52629,51 +52677,7 @@ export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, exp
       return 0;
     }
     if (ko == 47) {
-      let idx_ref: i32 = 0;
-      let lit_dummy: i32 = 0;
-          let base_ref: i32 = 0;
-      let base_ty: i32 = 0;
-      let base_ko: i32 = 0;
-      if (pipeline_expr_index_base_is_slice_at(arena, expr_ref) != 0) {
-        return 1;
-      }
-      base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
-      if (base_ref > 0) {
-        base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-        if (base_ty > 0 && pipeline_type_kind_ord_at(arena, base_ty) == 11) {
-          return 1;
-        }
-        /*
-         * Materializing bases park payload/home in rbx while writing temps.
-         * ARRAY_LIT (46): emit_array_lit mov rax→rbx for store loop.
-         * STRUCT_LIT (45) / CALL (48) / METHOD (49): call_base / struct temp same.
-         * Nested INDEX (47) / FIELD (44) of those: recurse via base walk below.
-         * Only VAR / pure FIELD-of-VAR can take base+imm*esz without touching rbx.
-         */
-        base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
-        if (base_ko == 46 || base_ko == 45 || base_ko == 48 || base_ko == 49) {
-          return 1;
-        }
-        if (base_ko == 47) {
-          return 1;
-        }
-        if (base_ko == 44) {
-          let fa_base: i32 = pipeline_expr_field_access_base_ref(arena, base_ref);
-          if (fa_base > 0) {
-            let fa_ko: i32 = pipeline_expr_kind_ord_at(arena, fa_base);
-            /* FIELD of materializing root (Wrap{}.xs[i] dual-slot) also parks rbx. */
-            if (fa_ko == 46 || fa_ko == 45 || fa_ko == 48 || fa_ko == 49 || fa_ko == 47) {
-              return 1;
-            }
-          }
-        }
-      }
-      idx_ref = pipeline_expr_index_index_ref(arena, expr_ref);
-      /* Fixed TYPE_ARRAY + lit index on VAR/FIELD base: base+imm*esz, bounds CTFE — no rbx. */
-      if (idx_ref > 0 && (pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]) != 0)) {
-        return 0;
-      }
-      return 1;
+      return glue_binop_index_ko47_clobbers_rbx(arena, expr_ref);
     }
     return 0;
   }

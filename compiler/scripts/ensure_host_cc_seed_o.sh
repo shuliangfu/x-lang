@@ -5404,15 +5404,17 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   return "$rc"
 }
 
-# wave407/417/422/423/426 M2: binop_block_peel Cap residual — helpers+rest unlock.
+# wave407/417/422/423/426/435 M2: binop_block_peel Cap residual — helpers+rest unlock.
 # PRODUCT inject wave423:
 #   MACOS: PREFER_ASM full thin (product L2 verified).
 #   LINUX: helpers (transparent) + may_clobber rest (w422) + load_to_rbx rest
 #     (w423; peers extern→leftover).
 # wave426: try_binop_load / index_addr rest-only Darwin -c green; LINUX HARD
 #   BAN (Ubuntu asm empty .o). Stamps local; no tip overlay.
-# G.7: bodies match mega / full thin; remaining middle stay leftover LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+2rest PREFER.
+# wave435: LINUX index_ko47 + index_addr PREFER — INDEX arm co-file XT001
+#   split (ko47 ~1687B / walker ~1919B Ubuntu -c green).
+# G.7: bodies match mega / full thin; load_operand middle still leftover LINUX.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+rest+index PREFER.
 pipeline_abi_inject_binop_block_peel_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_binop_block_peel_thin.x"
@@ -5424,6 +5426,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   local rest_x rest_stamp
+  local idx_ko idx_ko_s idx_main idx_main_s
   # PLATFORM: LINUX — helpers then may_clobber rest (middle tip BAN).
   case "$(uname -s)" in
     Linux)
@@ -5432,14 +5435,25 @@ pipeline_abi_inject_binop_block_peel_thin() {
       tag="w422-binop-block-peel-helpers"
       rest_x="src/runtime_pipeline_abi_binop_block_peel_rest_thin.x"
       rest_stamp="src/.pabi_w422_binop_block_peel_rest.stamp"
+      idx_ko="src/runtime_pipeline_abi_binop_block_peel_index_ko47_thin.x"
+      idx_ko_s="src/.pabi_w435_binop_block_peel_index_ko47.stamp"
+      idx_main="src/runtime_pipeline_abi_binop_block_peel_index_addr_thin.x"
+      idx_main_s="src/.pabi_w435_binop_block_peel_index_addr.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    # helpers up-to-date; still try rest on LINUX if needed
+    # helpers up-to-date; still try rest / index overlays on LINUX if needed
     if [ -n "${rest_x-}" ] && [ -f "$rest_x" ]; then
-      if [ -f "$rest_stamp" ] && [ ! "$rest_x" -nt "$rest_stamp" ]; then
-        return 0
+      if [ -f "$rest_stamp" ] && [ ! "$rest_x" -nt "$rest_stamp" ] \
+        && [ -f "$idx_ko_s" ] && [ ! "$idx_ko" -nt "$idx_ko_s" ] \
+        && [ -f "$idx_main_s" ] && [ ! "$idx_main" -nt "$idx_main_s" ]; then
+        # also need load_to_rbx stamp check
+        local l2s_chk="src/.pabi_w423_binop_block_peel_load_to_rbx.stamp"
+        local l2x_chk="src/runtime_pipeline_abi_binop_block_peel_load_to_rbx_thin.x"
+        if [ -f "$l2s_chk" ] && [ ! "$l2x_chk" -nt "$l2s_chk" ]; then
+          return 0
+        fi
       fi
     else
       return 0
@@ -5486,6 +5500,25 @@ pipeline_abi_inject_binop_block_peel_thin() {
       rc=$?
       if [ "$rc" -eq 0 ]; then
         touch "$l2s"
+      fi
+    fi
+  fi
+  # PLATFORM: LINUX — fourth/fifth inject index_ko47 then index_addr (wave435).
+  if [ "$rc" -eq 0 ] && [ -n "${idx_ko-}" ] && [ -f "$idx_ko" ]; then
+    if [ ! -f "$idx_ko_s" ] || [ "$idx_ko" -nt "$idx_ko_s" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$idx_ko" "w435-binop-block-peel-index-ko47"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$idx_ko_s"
+      fi
+    fi
+  fi
+  if [ "$rc" -eq 0 ] && [ -n "${idx_main-}" ] && [ -f "$idx_main" ]; then
+    if [ ! -f "$idx_main_s" ] || [ "$idx_main" -nt "$idx_main_s" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$idx_main" "w435-binop-block-peel-index-addr"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$idx_main_s"
       fi
     fi
   fi
@@ -6350,7 +6383,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave432: param_ptr_slot BOTH PREFER (helper extract; Ubuntu -E/CG002 healed).
 # wave433: field_load LINUX layout+main PREFER (nested byte-while → copy+bytes_eq).
 # wave434: type_to_c_repr LINUX named+array_slice+main PREFER (co-file XT001 split).
-# Next: mega BAN／split债（assign rest／arr rest／peel rest…）；禁升钉。
+# wave435: peel index_addr LINUX ko47+walker PREFER (INDEX co-file XT001 split).
+# Next: mega BAN／split债（assign rest／arr rest／peel load_operand…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
