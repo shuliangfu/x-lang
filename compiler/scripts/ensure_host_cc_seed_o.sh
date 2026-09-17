@@ -5330,6 +5330,9 @@ pipeline_abi_inject_block_tree_thin() {
 #   w383: Ubuntu tip PREFER L2 5/5 (option=102); Darwin tip reinject green.
 #   w383b: Ubuntu tip force-reinject flaky (3rd → T001) — HARD BAN delete-
 #     stamp / tip reinject after green; keep PREFER overlay via stamp.
+#   w395: Ubuntu opt=134 after tip mega poison — heal by restoring
+#     /tmp/w383_pabi_u_prefer_green.o (2675520) + FULL=0 g05; keep stamp;
+#     do NOT tip-reinject type_pool (w383b BAN). Dual L2 5/5.
 # G.7 LE name_len@260. PLATFORM: SHARED · PREFER both ends · BAN force tip.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"
