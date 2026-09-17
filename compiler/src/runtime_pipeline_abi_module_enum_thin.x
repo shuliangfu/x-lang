@@ -1,8 +1,8 @@
-// Thin pure: wave306 M2 — module_enum Cap residual C→.x (was wave264 C thin).
+// Thin pure: wave306/360 M2 — module_enum Cap residual C→.x (was wave264 C thin).
 // ModuleEnumEntry LE ~66828B map + mark helpers; 15 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave264 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_module_enum_thin
-// (ALLOW_E_REPLACE + stamp). File-local maps OK under -E+$CC.
+// wave360: w306_* unsafe wrappers for slot/LE/product faces (T001);
+// PRODUCT inject PREFER_ASM try. Stamp w360.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -24,6 +24,71 @@ export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+
+
+/**
+ * Ptr-slot get via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_ptr_get(arr: *u8, i: i32): *u8 {
+  unsafe {
+    return xlang_ptr_slot_get(arr, i);
+  }
+}
+
+/**
+ * Ptr-slot set via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_ptr_set(arr: *u8, i: i32, p: *u8): void {
+  unsafe {
+    xlang_ptr_slot_set(arr, i, p);
+  }
+}
+
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
+/**
+ * Typeck dep ctx via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_get_dep_ctx(): *u8 {
+  unsafe {
+    return pipeline_typeck_get_dep_ctx();
+  }
+}
+
+/**
+ * Field-access is enum variant via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_field_access_is_enum_variant(a: *u8, expr_ref: i32): i32 {
+  unsafe {
+    return pipeline_expr_field_access_is_enum_variant(a, expr_ref);
+  }
+}
+
+/**
+ * Set field-access enum variant tag via unsafe (T001). PLATFORM: SHARED.
+ */
+function w306_set_field_access_enum_variant(a: *u8, expr_ref: i32, tag: i32): void {
+  unsafe {
+    pipeline_expr_set_field_access_enum_variant(a, expr_ref, tag);
+  }
+}
+
 
 let g_pipe_en_mod: u8[1024] = [];
 let g_pipe_en_n: i32[128] = [];
@@ -115,7 +180,7 @@ function pipe_en_get_header_n(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(module, pipe_en_off_header_n());
+  return w306_load_i32(module, pipe_en_off_header_n());
 }
 
 /**
@@ -128,7 +193,7 @@ function pipe_en_set_header_n(module: *u8, n: i32): void {
   if (module == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(module, pipe_en_off_header_n(), n);
+  w306_store_i32(module, pipe_en_off_header_n(), n);
 }
 
 /**
@@ -142,7 +207,7 @@ function pipe_en_find_slot(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_en_mod[0], i);
+    let k: *u8 = w306_ptr_get(&g_pipe_en_mod[0], i);
     if (k == module) {
       return i;
     }
@@ -187,12 +252,12 @@ function pipe_en_find_or_create(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_en_mod[0], i);
+    let k: *u8 = w306_ptr_get(&g_pipe_en_mod[0], i);
     if (k == 0 as *u8) {
-      xlang_ptr_slot_set(&g_pipe_en_mod[0], i, module);
+      w306_ptr_set(&g_pipe_en_mod[0], i, module);
       g_pipe_en_n[i] = 0;
       g_pipe_en_cap[i] = 0;
-      xlang_ptr_slot_set(&g_pipe_en_entries[0], i, 0 as *u8);
+      w306_ptr_set(&g_pipe_en_entries[0], i, 0 as *u8);
       return i;
     }
     i = i + 1;
@@ -239,7 +304,7 @@ function pipe_en_ensure_entries(slot: i32, need: i32): i32 {
   unsafe {
     memset(np, 0, nbytes);
   }
-  let old: *u8 = xlang_ptr_slot_get(&g_pipe_en_entries[0], slot);
+  let old: *u8 = w306_ptr_get(&g_pipe_en_entries[0], slot);
   let old_n: i32 = g_pipe_en_n[slot];
   if (old != 0 as *u8) {
     if (old_n > 0) {
@@ -252,7 +317,7 @@ function pipe_en_ensure_entries(slot: i32, need: i32): i32 {
       free(old);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_en_entries[0], slot, np);
+  w306_ptr_set(&g_pipe_en_entries[0], slot, np);
   g_pipe_en_cap[slot] = new_cap;
   return 1;
 }
@@ -276,7 +341,7 @@ function pipe_en_entry_at(slot: i32, idx: i32): *u8 {
   if (idx >= g_pipe_en_n[slot]) {
     return 0 as *u8;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_en_entries[0], slot);
+  let base: *u8 = w306_ptr_get(&g_pipe_en_entries[0], slot);
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
@@ -321,14 +386,14 @@ export function pipeline_module_enum_storage_release(module: *u8): void {
   if (s < 0) {
     return;
   }
-  let e: *u8 = xlang_ptr_slot_get(&g_pipe_en_entries[0], s);
+  let e: *u8 = w306_ptr_get(&g_pipe_en_entries[0], s);
   if (e != 0 as *u8) {
     unsafe {
       free(e);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_en_mod[0], s, 0 as *u8);
-  xlang_ptr_slot_set(&g_pipe_en_entries[0], s, 0 as *u8);
+  w306_ptr_set(&g_pipe_en_mod[0], s, 0 as *u8);
+  w306_ptr_set(&g_pipe_en_entries[0], s, 0 as *u8);
   g_pipe_en_n[s] = 0;
   g_pipe_en_cap[s] = 0;
   pipe_en_set_header_n(module, 0);
@@ -355,7 +420,7 @@ export function pipeline_module_enum_alloc(module: *u8): i32 {
   if (pipe_en_ensure_entries(s, n + 1) == 0) {
     return 0 - 1;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_en_entries[0], s);
+  let base: *u8 = w306_ptr_get(&g_pipe_en_entries[0], s);
   if (base == 0 as *u8) {
     return 0 - 1;
   }
@@ -414,9 +479,9 @@ export function pipeline_module_enum_set_name(module: *u8, idx: i32, bytes: *u8,
     }
     i = i + 1;
   }
-  pipe_store_i32_le(e, pipe_en_off_name_len(), len);
-  pipe_store_i32_le(e, pipe_en_off_num_variants(), 0);
-  pipe_store_i32_le(e, pipe_en_off_is_export(), 0);
+  w306_store_i32(e, pipe_en_off_name_len(), len);
+  w306_store_i32(e, pipe_en_off_num_variants(), 0);
+  w306_store_i32(e, pipe_en_off_is_export(), 0);
 }
 
 /**
@@ -441,7 +506,7 @@ export function pipeline_module_enum_set_is_export(module: *u8, idx: i32, v: i32
   if (e == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(e, pipe_en_off_is_export(), v);
+  w306_store_i32(e, pipe_en_off_is_export(), v);
 }
 
 /**
@@ -465,7 +530,7 @@ export function pipeline_module_enum_is_export_at(module: *u8, idx: i32): i32 {
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_en_off_is_export());
+  return w306_load_i32(e, pipe_en_off_is_export());
 }
 
 /**
@@ -505,7 +570,7 @@ export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes
   if (e == 0 as *u8) {
     return 0 - 1;
   }
-  let nv: i32 = pipe_load_i32_le(e, pipe_en_off_num_variants());
+  let nv: i32 = w306_load_i32(e, pipe_en_off_num_variants());
   if (nv >= pipe_en_max_variants()) {
     return 0 - 1;
   }
@@ -525,8 +590,8 @@ export function pipeline_module_enum_append_variant(module: *u8, idx: i32, bytes
     k = k + 1;
   }
   let loff: i32 = pipe_en_off_variant_name_len0() + nv * 4;
-  pipe_store_i32_le(e, loff, len);
-  pipe_store_i32_le(e, pipe_en_off_num_variants(), nv + 1);
+  w306_store_i32(e, loff, len);
+  w306_store_i32(e, pipe_en_off_num_variants(), nv + 1);
   return nv;
 }
 
@@ -544,7 +609,7 @@ function pipe_en_name_eq(e: *u8, name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8) {
     return 0;
   }
-  let nlen: i32 = pipe_load_i32_le(e, pipe_en_off_name_len());
+  let nlen: i32 = w306_load_i32(e, pipe_en_off_name_len());
   if (nlen != name_len) {
     return 0;
   }
@@ -576,11 +641,11 @@ function pipe_en_variant_tag_in_entry(e: *u8, variant_name: *u8, variant_len: i3
   if (variant_name == 0 as *u8) {
     return 0 - 1;
   }
-  let nv: i32 = pipe_load_i32_le(e, pipe_en_off_num_variants());
+  let nv: i32 = w306_load_i32(e, pipe_en_off_num_variants());
   let vi: i32 = 0;
   while (vi < nv) {
     let loff: i32 = pipe_en_off_variant_name_len0() + vi * 4;
-    let vlen: i32 = pipe_load_i32_le(e, loff);
+    let vlen: i32 = w306_load_i32(e, loff);
     if (vlen == variant_len) {
       let voff: i32 = pipe_en_off_variant_name0() + vi * 256;
       let j: i32 = 0;
@@ -672,7 +737,7 @@ export function pipeline_module_enum_variant_tag_for_names(m: *u8, enum_name: *u
   if (tag >= 0) {
     return tag;
   }
-  let dep_ctx: *u8 = pipeline_typeck_get_dep_ctx();
+  let dep_ctx: *u8 = w306_get_dep_ctx();
   if (dep_ctx == 0 as *u8) {
     return 0 - 1;
   }
@@ -720,7 +785,7 @@ export function pipeline_module_enum_name_len(module: *u8, idx: i32): i32 {
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_en_off_name_len());
+  return w306_load_i32(e, pipe_en_off_name_len());
 }
 
 /**
@@ -751,7 +816,7 @@ export function pipeline_module_enum_name_byte_at(module: *u8, idx: i32, off: i3
   if (e == 0 as *u8) {
     return 0 as u8;
   }
-  let nlen: i32 = pipe_load_i32_le(e, pipe_en_off_name_len());
+  let nlen: i32 = w306_load_i32(e, pipe_en_off_name_len());
   if (off >= nlen) {
     return 0 as u8;
   }
@@ -783,7 +848,7 @@ export function pipeline_module_enum_num_variants(module: *u8, idx: i32): i32 {
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_en_off_num_variants());
+  return w306_load_i32(e, pipe_en_off_num_variants());
 }
 
 /**
@@ -811,12 +876,12 @@ export function pipeline_module_enum_variant_name_len(module: *u8, idx: i32, var
   if (e == 0 as *u8) {
     return 0;
   }
-  let nv: i32 = pipe_load_i32_le(e, pipe_en_off_num_variants());
+  let nv: i32 = w306_load_i32(e, pipe_en_off_num_variants());
   if (variant_idx >= nv) {
     return 0;
   }
   let loff: i32 = pipe_en_off_variant_name_len0() + variant_idx * 4;
-  return pipe_load_i32_le(e, loff);
+  return w306_load_i32(e, loff);
 }
 
 /**
@@ -851,12 +916,12 @@ export function pipeline_module_enum_variant_name_byte_at(module: *u8, idx: i32,
   if (e == 0 as *u8) {
     return 0 as u8;
   }
-  let nv: i32 = pipe_load_i32_le(e, pipe_en_off_num_variants());
+  let nv: i32 = w306_load_i32(e, pipe_en_off_num_variants());
   if (variant_idx >= nv) {
     return 0 as u8;
   }
   let loff: i32 = pipe_en_off_variant_name_len0() + variant_idx * 4;
-  let vlen: i32 = pipe_load_i32_le(e, loff);
+  let vlen: i32 = w306_load_i32(e, loff);
   if (off >= vlen) {
     return 0 as u8;
   }
@@ -971,7 +1036,7 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   if (kind != 44) {
     return;
   }
-  if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0) {
+  if (w306_field_access_is_enum_variant(a, expr_ref) != 0) {
     return;
   }
   let base_ref: i32 = 0;
@@ -1001,7 +1066,7 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   if (tag < 0) {
     return;
   }
-  pipeline_expr_set_field_access_enum_variant(a, expr_ref, tag);
+  w306_set_field_access_enum_variant(a, expr_ref, tag);
 }
 
 /**
@@ -1032,7 +1097,7 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   if (kind != 44) {
     return;
   }
-  if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0) {
+  if (w306_field_access_is_enum_variant(a, expr_ref) != 0) {
     return;
   }
   let base_ref: i32 = 0;
@@ -1060,7 +1125,7 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   }
   let tag: i32 = pipe_en_tag_in_module(m, &ename[0], elen, &vname[0], vlen);
   if (tag >= 0) {
-    pipeline_expr_set_field_access_enum_variant(a, expr_ref, tag);
+    w306_set_field_access_enum_variant(a, expr_ref, tag);
     return;
   }
   if (dep_ctx == 0 as *u8) {
@@ -1080,7 +1145,7 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
       if (dep_mod != m) {
         tag = pipe_en_tag_in_module(dep_mod, &ename[0], elen, &vname[0], vlen);
         if (tag >= 0) {
-          pipeline_expr_set_field_access_enum_variant(a, expr_ref, tag);
+          w306_set_field_access_enum_variant(a, expr_ref, tag);
           return;
         }
       }
