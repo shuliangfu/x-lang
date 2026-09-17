@@ -90510,6 +90510,8 @@ export function grow_vec_copy_append(dst: *u8, src: *u8): void {
 }
 
 // end wave271 pure-owned leave
+// M2 Class E: .x thin leave = runtime_pipeline_abi_grow_vec_thin.x
+// (wave300 C→.x via -E+$CC inject; was wave271 C thin).
 
 // =============================================================================
 // wave272 pure-owned leave: PipelineDepCtx Cap residual (ast_pool_dep_ctx.c)
