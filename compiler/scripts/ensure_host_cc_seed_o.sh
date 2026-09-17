@@ -5190,57 +5190,22 @@ pipeline_abi_inject_w157_sum_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_w157_sum_thin.x" "w157-sum-thin"
 }
 
-# wave404 M2: binop_var_slot_cache Cap residual — PREFER both ends.
+# wave404 M2: binop_var_slot_cache Cap residual — HARD BAN tip reinject.
 # PRODUCT inject wave404:
-#   BOTH: PREFER_ASM (Darwin -c 8235B / Ubuntu -c 9142B green).
-#   -E path BLD001 host-cc-requires-allow — PREFER only (no -E).
-# G.7: thin body matches mega wave210 leave.
-# PLATFORM: SHARED · both ends PREFER.
+#   BOTH ends: HARD BAN tip reinject (stamp only).
+#   Probe: standalone -c PREFER green Darwin 8235B / Ubuntu 9142B, but
+#   product inject → Darwin ARM64_RELOC_BRANCH26 on ld -r thin member;
+#   Ubuntu inject → xlang_asm SEGV (L2 0/5). Keep leftover; no tip overlay.
+# G.7: thin body matches mega wave210 leave (cold twin only).
+# PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_binop_var_slot_cache_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_binop_var_slot_cache_thin.x"
   local stamp="src/.pabi_w404_binop_var_slot_cache.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (standalone -c gate green both ends).
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w404-binop-var-slot-cache"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — HARD BAN tip reinject (Darwin BRANCH26 / Ubuntu SEGV).
+  touch "$stamp"
+  return 0
 }
 
 # wave211 stack-spill try_reload. Seed cold twin is no-op stub; thin restores
@@ -5778,7 +5743,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave401: field_load_sz MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
 # wave403: assign MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
-# wave404: binop_var_slot_cache PREFER both ends.
+# wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
 # Next: 余 soft -E／mega Ubuntu BAN／split债；禁升钉。
 
 
@@ -11306,7 +11271,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-binop-var-slot-cache|inject_binop_var_slot_cache)
-    # wave404: PREFER both ends.
+    # wave404: HARD BAN tip reinject both ends.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-binop-var-slot-cache: need <out.o>" >&2
