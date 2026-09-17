@@ -1,8 +1,8 @@
-// Thin pure: wave304/361 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
+// Thin pure: wave304/361/430 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
 // AsmLocalSlotEntry LE 264B + AsmBlockSlot tables; 64-slot ctx maps; 12 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave267 leave.
-// wave361: w304_* unsafe wrappers for slot/LE (T001); PRODUCT inject
-// PREFER_ASM try. Stamp w361. Gate=type_alias -c after inject.
+// wave430: LINUX -E+$CC product PREFER (Ubuntu -c ~16390B; pure-asm product
+//   SEGV — do not PREFER_ASM). MACOS HARD BAN tip reinject (w361 SEGV).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
