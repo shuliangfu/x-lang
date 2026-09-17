@@ -1,15 +1,15 @@
-// Thin pure override: dest-ARRAY-of-ARRAY / return Path B0 memcpy size
-// plus dest extras dest-ARRAY of ARRAY extra `[K][N][]T` flatten.
-// G.7: bodies MUST match glue_struct_lit_store_fixed_array_field_elf_c,
+// Thin pure: fixed_array_copy FULL leaf (lea-not-load + return/store/flat).
+// G.7: bodies MUST match glue_call_arg_var_use_lea_not_load_elf_c,
+// glue_struct_lit_store_fixed_array_field_elf_c,
 // pipeline_asm_emit_return_elf_impl, and pipeline_asm_emit_array_lit_flat_elf_c
 // in runtime_pipeline_abi.x (same symbols).
 // Peel-then-measure via glue_index_elem_byte_sz(elem) copied only the first
 // row of [K][N]T (asm run=3). This leaf uses glue_array_lit_force_esz_from_elem_type
 // (TYPE_ARRAY → glue_fixed_array_total_bytes). Twin of 4.2.7 nested SLICE esz.
-// ensure injects via first-wins ld -r so product need not full mega -E.
-// wave408: MACOS PREFER / LINUX hard-skip BAN tip reinject.
-//   Ubuntu tip -c XT001 @glue_call_arg_var_use_lea_not_load_elf_c.
-//   Darwin product inject + relink L2 5/5 verified.
+// ensure: inject_fixed_array_copy_thin injects THIS on MACOS; LINUX injects
+//   fixed_array_copy_helpers_thin only (see wave418).
+// wave408/418: MACOS PREFER full; LINUX PREFER first-export helpers.
+//   Ubuntu full tip XT001 misattr; arr_e1 -c green; rest tip BAN.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
 
 
