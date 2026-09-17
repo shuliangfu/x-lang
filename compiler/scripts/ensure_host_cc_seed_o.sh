@@ -5413,8 +5413,11 @@ pipeline_abi_inject_type_to_c_repr_thin() {
 #   BAN (Ubuntu asm empty .o). Stamps local; no tip overlay.
 # wave435: LINUX index_ko47 + index_addr PREFER — INDEX arm co-file XT001
 #   split (ko47 ~1687B / walker ~1919B Ubuntu -c green).
-# G.7: bodies match mega / full thin; load_operand middle still leftover LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+rest+index PREFER.
+# wave436: LINUX load_operand PREFER — flat peer chain (nested if under
+#   if(ko==N)/deep nests empties Ubuntu asm; single-level if + leaf calls).
+#   Order: leaves→const→var_rbx→var_rax→var_ko3→rest_arms→main dispatcher.
+# G.7: bodies match mega / full thin semantics (flat reshape).
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+rest+index+load_operand PREFER.
 pipeline_abi_inject_binop_block_peel_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_binop_block_peel_thin.x"
@@ -5427,6 +5430,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
   local rc=0
   local rest_x rest_stamp
   local idx_ko idx_ko_s idx_main idx_main_s
+  local lo_main lo_main_s
   # PLATFORM: LINUX — helpers then may_clobber rest (middle tip BAN).
   case "$(uname -s)" in
     Linux)
@@ -5439,15 +5443,18 @@ pipeline_abi_inject_binop_block_peel_thin() {
       idx_ko_s="src/.pabi_w435_binop_block_peel_index_ko47.stamp"
       idx_main="src/runtime_pipeline_abi_binop_block_peel_index_addr_thin.x"
       idx_main_s="src/.pabi_w435_binop_block_peel_index_addr.stamp"
+      lo_main="src/runtime_pipeline_abi_binop_block_peel_load_operand_thin.x"
+      lo_main_s="src/.pabi_w436_binop_block_peel_load_operand.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    # helpers up-to-date; still try rest / index overlays on LINUX if needed
+    # helpers up-to-date; still try rest / index / load_operand overlays on LINUX
     if [ -n "${rest_x-}" ] && [ -f "$rest_x" ]; then
       if [ -f "$rest_stamp" ] && [ ! "$rest_x" -nt "$rest_stamp" ] \
         && [ -f "$idx_ko_s" ] && [ ! "$idx_ko" -nt "$idx_ko_s" ] \
-        && [ -f "$idx_main_s" ] && [ ! "$idx_main" -nt "$idx_main_s" ]; then
+        && [ -f "$idx_main_s" ] && [ ! "$idx_main" -nt "$idx_main_s" ] \
+        && [ -f "$lo_main_s" ] && [ ! "$lo_main" -nt "$lo_main_s" ]; then
         # also need load_to_rbx stamp check
         local l2s_chk="src/.pabi_w423_binop_block_peel_load_to_rbx.stamp"
         local l2x_chk="src/runtime_pipeline_abi_binop_block_peel_load_to_rbx_thin.x"
@@ -5521,6 +5528,33 @@ pipeline_abi_inject_binop_block_peel_thin() {
         touch "$idx_main_s"
       fi
     fi
+  fi
+  # PLATFORM: LINUX — wave436 load_operand flat peer chain then dispatcher.
+  if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
+    local lo_peer lo_x lo_stamp lo_tag lo_rest
+    for lo_peer in \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_leaves_thin.x|.pabi_w436_binop_block_peel_load_operand_leaves.stamp|w436-binop-block-peel-load-operand-leaves" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_const_thin.x|.pabi_w436_binop_block_peel_load_operand_const.stamp|w436-binop-block-peel-load-operand-const" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rbx_thin.x|.pabi_w436_binop_block_peel_load_operand_var_rbx.stamp|w436-binop-block-peel-load-operand-var-rbx" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rax_thin.x|.pabi_w436_binop_block_peel_load_operand_var_rax.stamp|w436-binop-block-peel-load-operand-var-rax" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_ko3_thin.x|.pabi_w436_binop_block_peel_load_operand_var_ko3.stamp|w436-binop-block-peel-load-operand-var-ko3" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_rest_arms_thin.x|.pabi_w436_binop_block_peel_load_operand_rest_arms.stamp|w436-binop-block-peel-load-operand-rest-arms" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_thin.x|.pabi_w436_binop_block_peel_load_operand.stamp|w436-binop-block-peel-load-operand"
+    do
+      lo_x="${lo_peer%%|*}"
+      lo_rest="${lo_peer#*|}"
+      lo_stamp="src/${lo_rest%%|*}"
+      lo_tag="${lo_rest#*|}"
+      if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
+        pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+          touch "$lo_stamp"
+        else
+          break
+        fi
+      fi
+    done
   fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6384,7 +6418,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave433: field_load LINUX layout+main PREFER (nested byte-while → copy+bytes_eq).
 # wave434: type_to_c_repr LINUX named+array_slice+main PREFER (co-file XT001 split).
 # wave435: peel index_addr LINUX ko47+walker PREFER (INDEX co-file XT001 split).
-# Next: mega BAN／split债（assign rest／arr rest／peel load_operand…）；禁升钉。
+# wave436: peel load_operand LINUX flat peer chain PREFER (nested-if asm ban).
+# Next: mega BAN／split债（assign rest／arr rest…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.

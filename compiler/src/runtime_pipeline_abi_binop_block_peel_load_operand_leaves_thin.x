@@ -1,7 +1,6 @@
-// Thin pure: peel REST try_binop_load_operand dispatcher (wave436).
-// G.7: body MUST match glue_try_binop_load_operand_elf_c in peel_thin / mega.
-// wave426: Darwin monolithic -c green; LINUX empty .o (nested if ban).
-// wave436: LINUX PREFER — flat peer helpers + this dispatcher.
+// Thin pure: load_operand VAR leaf loaders (wave436).
+// G.7: f32/int/spill for rax/rbx — single-level if only (Ubuntu asm nest ban).
+// PRODUCT: LINUX PREFER with load_operand peer chain.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -60,54 +59,143 @@ export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr
 export extern function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_emit_may_clobber_rbx_elf_c(arena: *u8, expr_ref: i32): i32;
 
-export extern function glue_try_binop_load_var_ko3_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
-export extern function glue_try_binop_load_field_ko44_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
-export extern function glue_try_binop_load_index_ko47_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
-export extern function glue_try_binop_load_deref_ko52_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
-export extern function glue_try_binop_load_await_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
-export extern function glue_try_binop_load_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
 /**
- * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_try_binop_load_operand_elf_c).
- * @param arena *u8 - parameter
- * @param elf_ctx *u8 - parameter
- * @param expr_ref i32 - parameter
- * @param ctx *u8 - parameter
- * @param ta i32 - parameter
- * @param to_rbx i32 - parameter
- * @return i32 - face-specific status
+ * wave436 leaf: f32 VAR slot → rbx.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
  * PLATFORM: SHARED freestanding emit.
- * wave436: flat helper tree — Ubuntu asm empties on nested if under if(ko==N)/deep nests.
  */
-export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
+#[no_mangle]
+export function glue_try_binop_load_f32_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
   unsafe {
-    let ko: i32 = 0;
-    let blk_inner: i32 = 0;
-    if ((arena == (0 as *u8)) || (elf_ctx == (0 as *u8)) || (ctx == (0 as *u8)) || expr_ref <= 0) {
-      return -2;
+    let off: i32 = 0;
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta) != 0) {
+      return -1;
     }
-    blk_inner = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
-    if (blk_inner > 0) {
-      return glue_try_binop_load_operand_elf_c(arena, elf_ctx, blk_inner, ctx, ta, to_rbx);
-    }
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-    if (ko == 3) {
-      return glue_try_binop_load_var_ko3_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
-    }
-    if (ko == 44) {
-      return glue_try_binop_load_field_ko44_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
-    }
-    if (ko == 47) {
-      return glue_try_binop_load_index_ko47_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
-    }
-    if (ko == 52) {
-      return glue_try_binop_load_deref_ko52_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
-    }
-    if ((glue_expr_is_await_at_c(arena, expr_ref)) != 0) {
-      return glue_try_binop_load_await_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
-    }
-    if ((glue_expr_is_x_as_cast_at_c(arena, expr_ref)) != 0) {
-      return glue_try_binop_load_as_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
-    }
-    return -2;
+    return 0;
   }
 }
+
+/**
+ * wave436 leaf: int VAR slot → rbx.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_try_binop_load_i_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
+  unsafe {
+    let off: i32 = 0;
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off, ta) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave436 leaf: spill-push rbx + cache key.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_try_binop_spill_rbx_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
+  unsafe {
+    let off: i32 = 0;
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, 1) != 0) {
+      return -1;
+    }
+    glue_binop_var_slot_cache_set_ctx_key(ctx);
+    return 0;
+  }
+}
+
+/**
+ * wave436 leaf: f32 VAR slot → rax.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_try_binop_load_f32_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
+  unsafe {
+    let off: i32 = 0;
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave436 leaf: int VAR slot → rax.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_try_binop_load_i_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
+  unsafe {
+    let off: i32 = 0;
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * wave436 leaf: spill-push rax + cache key.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_try_binop_spill_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
+  unsafe {
+    let off: i32 = 0;
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (glue_binop_stack_spill_push_elf_c(elf_ctx, ta, off, 0) != 0) {
+      return -1;
+    }
+    glue_binop_var_slot_cache_set_ctx_key(ctx);
+    return 0;
+  }
+}
+
