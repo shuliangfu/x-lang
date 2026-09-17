@@ -2775,6 +2775,8 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  *   G.7 xlang_ptr_slot_set / xlang_size_slot_set for out slots (char** / size_t*);
  *   i32-overflow raw -> pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
  * PLATFORM: SHARED - same control flow as historical seed _impl.
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_preprocess_malloc_thin.x
+ * (wave299 C→.x via -E+$CC inject; was C strong overlay).
  */
 #[no_mangle]
 export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {

@@ -405,7 +405,8 @@ int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, co
 /* wave60 pure dep_prerun_typeck_only_impl — thin pure gate calls under hybrid. */
 int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx);
-/* wave61 pure preprocess_raw_to_malloc_impl — thin pure gate + load_one paths call under hybrid. */
+/* wave61 pure preprocess_raw_to_malloc_impl — thin pure gate + load_one paths call under hybrid.
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_preprocess_malloc_thin.x (wave299 C→.x via -E+$CC). */
 int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag);
 /* wave62 pure one_ctx map_impl — thin pure one_ctx_for_dep_prerun + seed _impl call under hybrid. */
