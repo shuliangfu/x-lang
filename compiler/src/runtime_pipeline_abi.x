@@ -85776,6 +85776,8 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
 
 
 // wave266: ast_pool_struct_layout.c pure-owned leave (StructLayout multi-module map + faces)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_struct_layout_thin.x
+// (wave307 C→.x via -E+$CC inject; was wave266 C thin).
 // =============================================================================
 // G.7 product authority for:
 //   pipeline_module_struct_layout_alloc / reset_slot / set_name / set_field
