@@ -1,8 +1,9 @@
-// Thin pure: wave328/371 M2 — asm_codegen_mega_body Cap residual C→.x (was wave290 C thin).
+// Thin pure: wave328/371/371b M2 — asm_codegen_mega_body Cap residual C→.x.
 // ctx_reset_for_func_c + backend_asm_codegen_ast_to_elf_mega_body_c.
 // G.7: bodies match deleted C thin / seed WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
-// PRODUCT inject: PREFER try (wave371) — T001 w371_* + L2 gate.
-// POSIX product path only (WIN leftover ARRAY_LIT return stays leftover-PE).
+// PRODUCT inject: Darwin PREFER (wave371); Ubuntu hard-skip prior -E (wave371b)
+// — Ubuntu tip XT001 on w328_store_ptr (Type LE); cannot fresh -E reinject.
+// T001 w371_* helpers. POSIX product path (WIN leftover ARRAY_LIT stays PE).
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
