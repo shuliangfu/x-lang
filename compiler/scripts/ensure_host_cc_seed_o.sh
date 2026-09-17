@@ -5315,11 +5315,10 @@ pipeline_abi_inject_block_tree_thin() {
 #   store_ptr intact; helpers-only (≤61 funcs) green; full 62-fn file red.
 #   Darwin -c full file green. Root = LINUX typeck/arena pressure on
 #   helpers+LOOP combined — next = split LOOP leaf (hand), then unlock try.
-# wave393/393b/393c/393d: mega LOOP split leaf landed (helpers vs loop);
-#   Darwin -c emits mega T; Ubuntu parse OK after emit_one split but tip
-#   -c still CG002 (asm) / if() (C) — inject stays HARD BAN. Next unlock
-#   after Ubuntu -c emits mega T symbol.
-# Next: Ubuntu LOOP -c CG002 root／unlock try／余 BAN 叶根.
+# wave393/393b/393c/393d: mega LOOP split leaf landed (helpers vs loop).
+# wave394: CG002 root = emit_one+mega co-file; third leaf emit_one_thin;
+#   Ubuntu+Darwin -c all three green → unlock three-leaf PREFER inject.
+# Next: 余 BAN 叶根／type_alias -c＋L2；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6146,27 +6145,52 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 
 
 
-# wave290/328/371/371b/389 M2: asm_codegen_mega_body Cap residual C→.x.
-# PRODUCT inject wave389 HARD BAN reinject both ends: stay prior overlay.
-#   Prior: MACOS PREFER / LINUX hard-skip (w371b; Ubuntu tip XT001 on
-#   w328_store_ptr Type LE; cannot fresh -E reinject).
-#   w389: formalize HARD BAN reinject (do not call inject_thin_leaf).
-#   w392 ROOT MAP: Ubuntu XT001@w328_store_ptr is misattribution — bisect
-#   shows LINUX typeck/arena pressure when helpers+LOOP combined (62 funcs);
-#   drop LOOP → -c green; Darwin full -c green.
-#   w393d: LOOP leaf split (mega_loop_thin + w393_mega_emit_one); Darwin -c
-#   emits mega T; Ubuntu parse 62 OK but tip -c CG002 — BAN reinject stays.
+# wave290/328/371/371b/389/394 M2: asm_codegen_mega_body Cap residual C→.x.
+# PRODUCT inject wave394 unlock three leaves (helpers / emit_one / loop):
+#   w389–w393d HARD BAN while Ubuntu tip could not -c mega.
+#   w394 ROOT: CG002 when emit_one+mega_outer co-file; third leaf
+#   mega_emit_one_thin.x — Ubuntu+Darwin -c all three green with T symbols.
+#   Unlock: inject helpers → emit_one → loop (first-wins). Stamp w394.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
-# PLATFORM: SHARED · BAN reinject both ends.
+# PLATFORM: SHARED · PREFER both ends.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local o="$1"
-  local thin_x="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
-  local stamp="src/.pabi_w389_mega_body.stamp"
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
-  touch "$stamp"
-  rm -f src/.pabi_w328_mega_body.stamp src/.pabi_w371_mega_body.stamp
-  return 0
+  local thin_helpers="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
+  local thin_emit="src/runtime_pipeline_abi_asm_codegen_mega_emit_one_thin.x"
+  local thin_loop="src/runtime_pipeline_abi_asm_codegen_mega_loop_thin.x"
+  local stamp="src/.pabi_w394_mega_body.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local had_newer=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_helpers" ] && [ -f "$thin_emit" ] && [ -f "$thin_loop" ] || return 0
+  # Skip when stamp newer than all three .x (already overlaid this unlock).
+  if [ -f "$stamp" ] \
+    && [ ! "$thin_helpers" -nt "$stamp" ] \
+    && [ ! "$thin_emit" -nt "$stamp" ] \
+    && [ ! "$thin_loop" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # Order: helpers (ctx_reset) → emit_one → loop (mega export). PLATFORM: SHARED.
+  pipeline_abi_inject_thin_leaf "$o" "$thin_helpers" "w394-mega-helpers" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_emit" "w394-mega-emit-one" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_loop" "w394-mega-loop" || rc=$?
+  fi
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w328_mega_body.stamp src/.pabi_w371_mega_body.stamp \
+      src/.pabi_w389_mega_body.stamp
+  fi
+  return "$rc"
 }
 
 
@@ -11029,8 +11053,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-mega-body|inject_mega_body|inject-megabody|inject_megabody)
-    # wave389: mega_body HARD BAN reinject both ends (stamp only;
-    #   keep prior Darwin PREFER / Ubuntu hard-skip). PLATFORM: SHARED.
+    # wave394: three-leaf PREFER unlock (helpers / emit_one / loop).
+    # PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-mega-body: need <out.o>" >&2
       exit 2
