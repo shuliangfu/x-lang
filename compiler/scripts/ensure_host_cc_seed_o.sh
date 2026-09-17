@@ -5044,13 +5044,14 @@ pipeline_abi_inject_typeck_active_thin() {
   return "$rc"
 }
 
-# wave295 M2: glue_statics Cap residual C→.x (was wave261 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No BSS — safe C→.x.
-# G.7 match seed wave261 cold twins. PLATFORM: SHARED.
+# wave295/332 M2: glue_statics Cap residual .x thin (2 Cap bridge faces).
+# PRODUCT inject: wave332 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
+# standalone -c green (was -E+$CC interim). G.7 wave261 cold twins.
+# PLATFORM: SHARED.
 pipeline_abi_inject_glue_statics_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_glue_statics_thin.x"
-  local stamp="src/.pabi_w295_glue_statics.stamp"
+  local stamp="src/.pabi_w332_glue_statics.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5070,9 +5071,9 @@ pipeline_abi_inject_glue_statics_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w295-glue-statics"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w332-glue-statics"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -10944,7 +10945,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-glue-statics|inject_glue_statics)
-    # wave295: C→.x glue_statics via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave332: glue_statics PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-glue-statics: need <out.o>" >&2

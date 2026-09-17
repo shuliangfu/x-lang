@@ -31,6 +31,8 @@
 //   Live=wave331 PREFER_ASM WAVE285: typeck_x_ast*_c + layout glue size/align/zero_padding
 //   (runtime_pipeline_abi_typeck_orch_thin.x; was -E+$CC wave318); pure owns soft_suppress/dep_ctx/
 //   dep_prerun strong; cold WEAK under #ifndef FROM_X.
+//   Live=wave332 PREFER_ASM WAVE261: glue_statics Cap residual
+//   (runtime_pipeline_abi_glue_statics_thin.x; was -E+$CC wave295).
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
@@ -83213,12 +83215,14 @@ export function pipeline_typeck_active_module_set_c(m: *u8): void {
 // end wave224 pure-owned leave
 
 // ===========================================================================
-// wave261: glue_statics Cap residual pure-owned leave
+// wave261/332: glue_statics Cap residual pure-owned leave
 // (was pipeline_glue_statics.c — last two Cap bridge bodies after wave221–224
 // moved all process-local BSS cells to pure).
 // G.7 product authority for:
 //   glue_asm_ctx_set_scope_block
 //   glue_block_body_bind_module_dep_from_ctx
+// PRODUCT inject: wave332 PREFER_ASM via pipeline_abi_inject_glue_statics_thin
+// (ALLOW_E_REPLACE + stamp .pabi_w332_glue_statics.stamp); was -E+$CC wave295.
 // glue_asm_ctx_set_scope_block: pure process-local scope_block cell + residual
 //   asm_ctx_set_scope_block sidecar (per-ctx scope_block_ref).
 // glue_block_body_bind_module_dep_from_ctx: read AsmFuncCtx.module_ref@16 and

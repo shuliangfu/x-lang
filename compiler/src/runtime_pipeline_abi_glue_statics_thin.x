@@ -2,8 +2,8 @@
 // (was wave261 C thin). glue_asm_ctx_set_scope_block +
 // glue_block_body_bind_module_dep_from_ctx. No BSS. No FROM_X gate.
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c wave261 cold twins.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_glue_statics_thin
-// (ALLOW_E_REPLACE; stamp). Prefer PREFER_ASM only when proven green.
+// PRODUCT inject: wave332 PREFER_ASM via pipeline_abi_inject_glue_statics_thin
+// (ALLOW_E_REPLACE + stamp). No BSS; standalone -c green (was -E+$CC interim).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 //
 // LP64 layout: module_ref@16 / dep_pipe@1384 (tail_join_label@1392 - 8).
