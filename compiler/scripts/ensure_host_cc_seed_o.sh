@@ -5441,6 +5441,7 @@ pipeline_abi_inject_block_tree_thin() {
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
 # PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No file-local BSS.
+# wave335 PREFER_ASM trial → Darwin L2 0/5 (_main UNDEF); stay -E.
 # G.7 match mega wave270 leave (LE name_len@260). PLATFORM: SHARED.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"
@@ -6001,6 +6002,8 @@ pipeline_abi_inject_module_func_thin() {
 
 # wave325 M2: onefunc Cap residual C→.x (was wave281 C thin).
 # PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). OneFuncSc LE + fill_*.
+# wave335 tried PREFER_ASM → Darwin L2 0/5 SEGV; keep -E until GrowVec/
+# sidecar LE stores proven under pure-asm.
 # G.7 WAVE281_ONEFUNC_DOMAIN_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_onefunc_thin() {
   local o="$1"
@@ -11027,7 +11030,7 @@ case "$MODE" in
     ;;
   inject-type-pool|inject_type_pool)
     # wave301: C→.x type_pool via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave335 PREFER_ASM trial UNDEF main — stay -E. PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-type-pool: need <out.o>" >&2
       exit 2
@@ -11301,7 +11304,7 @@ case "$MODE" in
     ;;
   inject-onefunc|inject_onefunc|inject-ofn|inject_ofn)
     # wave325: C→.x onefunc via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave335 PREFER_ASM SEGV — stay -E. PLATFORM: SHARED shell.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-onefunc: need <out.o>" >&2
       exit 2

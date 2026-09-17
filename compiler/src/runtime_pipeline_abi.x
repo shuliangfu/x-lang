@@ -14,7 +14,7 @@
 // wave279/320/334 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
 //   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x PREFER_ASM wave334; was -E);
 // wave281/325 onefunc Cap residual .x thin (pipeline_onefunc_* + fill_from_onefunc;
-//   runtime_pipeline_abi_onefunc_thin.x via -E+$CC; was C thin);
+//   runtime_pipeline_abi_onefunc_thin.x via -E+$CC; wave335 PREFER_ASM SEGV — stay -E);
 // wave280/324 module_func Cap residual .x thin (Func accessors + param sidecar +
 //   parse-impl owner BSS + asm/arch_arm64 forwarders;
 //   runtime_pipeline_abi_module_func_thin.x via -E+$CC; was C thin);
@@ -37,10 +37,14 @@
 //   (runtime_pipeline_abi_preprocess_malloc_thin.x; was -E+$CC wave299).
 //   Live=wave334 PREFER_ASM WAVE279: lifecycle Cap residual
 //   (runtime_pipeline_abi_lifecycle_thin.x; was -E+$CC wave320).
+//   Live=wave301 .x thin WAVE270: type_pool Cap residual
+//   (wave335 PREFER_ASM trial _main UNDEF — stay -E; pipe_* T001-unsafe).
+//   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc
+//   (wave335 PREFER_ASM trial SEGV — stay -E).
+//   (PREFER_ASM banned wave335 — Darwin L2 SEGV).
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
-//   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
 //   Live=wave328 .x thin WAVE290: asm_codegen_mega_body ctx_reset + mega_body_c.
