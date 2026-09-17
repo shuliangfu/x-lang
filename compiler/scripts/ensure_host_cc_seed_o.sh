@@ -5189,64 +5189,23 @@ pipeline_abi_inject_module_import_thin() {
   return "$rc"
 }
 
-# wave306/360/360b M2: module_enum Cap residual C→.x (was wave264 C thin).
-# PRODUCT inject wave360b:
-#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w306_*; gate type_alias -c; L2 5/5).
-#   · LINUX|UBUNTU: stay -E+$CC — PREFER pure-asm breaks L2 si
-#     (Result_i32 assignment mismatch on stdlib-import).
-# Stamp w360b. G.7 match mega wave264 leave.
-# PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
+# wave306/360/360b/386 M2: module_enum Cap residual C→.x (was wave264 C thin).
+# PRODUCT inject wave386 HARD BAN reinject both ends: stay prior overlay.
+#   Prior: MACOS PREFER / LINUX -E (w360b; Ubuntu PREFER → si Result_i32).
+#   w386: formalize HARD BAN reinject (do not call inject_thin_leaf) —
+#     tip reinject poison class; keep green Darwin PREFER / Ubuntu -E via
+#     stamp only until Result_i32 root.
+# G.7 match mega wave264 leave. PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_module_enum_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_module_enum_thin.x"
-  local stamp="src/.pabi_w360b_module_enum.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  local prefer_asm=0
+  local stamp="src/.pabi_w386_module_enum.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  # PLATFORM: MACOS PREFER; LINUX -E (si Result_i32 on x86_64 pure-asm).
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w360b-module-enum"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w306_module_enum.stamp src/.pabi_w360_module_enum.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w306_module_enum.stamp src/.pabi_w360_module_enum.stamp \
+    src/.pabi_w360b_module_enum.stamp
+  return 0
 }
 
 # wave305/359/359b M2: top_level_let Cap residual C→.x (was wave265 C thin).
@@ -5445,7 +5404,9 @@ pipeline_abi_inject_block_tree_thin() {
 # wave384: value_abi HARD BAN reinject both ends (sret; stay prior -E).
 # wave385: module_func HARD BAN reinject both ends (keep Darwin PREFER /
 #   Ubuntu -E; undef-main root).
-# Next: BAN residual／module_enum BAN reinject／mega Ubuntu／Type LE.
+# wave386: module_enum HARD BAN reinject both ends (keep Darwin PREFER /
+#   Ubuntu -E; Result_i32 root).
+# Next: BAN residual／emit_index|parse_orch BAN reinject／mega Ubuntu／Type LE.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11013,8 +10974,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-module-enum|inject_module_enum)
-    # wave360b: module_enum Darwin PREFER / Ubuntu -E (si Result_i32).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave386: module_enum HARD BAN reinject both ends (stamp only;
+    #   keep prior Darwin PREFER / Ubuntu -E). PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-module-enum: need <out.o>" >&2
       exit 2

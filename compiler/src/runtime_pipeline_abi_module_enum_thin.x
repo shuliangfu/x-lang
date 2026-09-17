@@ -1,8 +1,11 @@
-// Thin pure: wave306/360 M2 — module_enum Cap residual C→.x (was wave264 C thin).
+// Thin pure: wave306/360/360b/386 M2 — module_enum Cap residual C→.x
+//   (was wave264 C thin).
 // ModuleEnumEntry LE ~66828B map + mark helpers; 15 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave264 leave.
-// wave360: w306_* unsafe wrappers for slot/LE/product faces (T001);
-// PRODUCT inject PREFER_ASM try. Stamp w360.
+// wave360: w306_* unsafe wrappers for slot/LE/product faces (T001).
+// wave360b: MACOS PREFER / LINUX -E (Ubuntu PREFER → si Result_i32).
+// wave386: HARD BAN reinject both ends (stamp .pabi_w386_module_enum.stamp);
+//   stay prior Darwin PREFER / Ubuntu -E until Result_i32 root.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
