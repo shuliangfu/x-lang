@@ -1,10 +1,7 @@
-// Thin pure: assign REST rhs_to_rax (wave437 flat helpers).
-// G.7: semantics match glue_emit_assign_rhs_to_rax_elf_c in assign_thin / mega.
-// wave425: Darwin -c green; LINUX empty .o (nested if / micro-unsafe).
-// wave437: LINUX PREFER — flat arm helpers + dispatcher (Ubuntu -c ~12096B).
-// wave445: tip pure-asm regen → product si SEGV; reinject via -E.
-// wave448: to_rax tip pure-asm HARD BAN (alone → si SEGV 139); arms overlay
-//   via runtime_pipeline_abi_assign_rhsrax_arms_thin.x PREFER_ASM.
+// Thin pure: assign REST rhs_to_rax ARMS only (wave448).
+// G.7: arm bodies match glue_emit_assign_rhs_* in assign_thin / mega / rhsrax tip.
+// wave448: tip pure-asm of glue_emit_assign_rhs_to_rax_elf_c alone → product
+//   si SEGV 139; arms-only pure-asm overlay GREEN. Dispatcher stays -E leftover.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS (full assign covers).
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -502,69 +499,4 @@ export function glue_emit_assign_rhs_shr_elf_c(arena: *u8, elf_ctx: *u8, assign_
     }
     return backend_enc_sar_cl_eax_arch(elf_ctx, ta);
   }
-}
-
-/**
- * wave149 pure: G.7 assign RHS→rax (wave437 flat peer reshape).
- * @param arena *u8 - parameter
- * @param elf_ctx *u8 - parameter
- * @param assign_expr_ref i32 - parameter
- * @param left_ref i32 - parameter
- * @param right_ref i32 - parameter
- * @param ctx *u8 - parameter
- * @param ta i32 - parameter
- * @return i32 - face-specific status
- * PLATFORM: SHARED freestanding emit.
- */
-export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
-  let ako: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || assign_expr_ref <= 0 || left_ref <= 0 || right_ref <= 0) {
-    return -1;
-  }
-  unsafe {
-    ako = pipeline_expr_kind_ord_at(arena, assign_expr_ref);
-  }
-  if (ako == 28) {
-    return glue_emit_assign_rhs_plain_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako < 29) {
-    return -1;
-  }
-  if (ako > 38) {
-    return -1;
-  }
-  if (glue_emit_assign_load_lr_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0) {
-    return -1;
-  }
-  if (ako == 29) {
-    return glue_emit_assign_rhs_add_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 30) {
-    return glue_emit_assign_rhs_sub_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 31) {
-    return glue_emit_assign_rhs_mul_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 32) {
-    return glue_emit_assign_rhs_div_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 33) {
-    return glue_emit_assign_rhs_mod_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 34) {
-    return glue_emit_assign_rhs_and_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 35) {
-    return glue_emit_assign_rhs_or_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 36) {
-    return glue_emit_assign_rhs_xor_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 37) {
-    return glue_emit_assign_rhs_shl_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  if (ako == 38) {
-    return glue_emit_assign_rhs_shr_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
-  }
-  return -1;
 }
