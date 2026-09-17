@@ -97139,6 +97139,8 @@ export function pipeline_asm_wpo_pgo_is_hot_func(m: *u8, fi: i32): i32 {
 
 // =============================================================================
 // wave275 pure-owned leave: Arena/Module/OneFunc sidecar process tables
+// M2 Class E: .x thin leave = runtime_pipeline_abi_sidecar_pool_thin.x
+// (wave308 C→.x via -E+$CC inject; was wave275 C thin).
 // (ast_pool_sidecar_pool.c host-cc leave)
 // =============================================================================
 // PLATFORM: SHARED freestanding LP64 little-endian.
