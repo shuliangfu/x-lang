@@ -1,8 +1,9 @@
-// Thin pure: wave310 M2 — module_import Cap residual C→.x (was wave263 C thin).
+// Thin pure: wave310/377 M2 — module_import Cap residual C→.x (was wave263 C thin).
 // ImportEntry LE 532B multi-module map + select rows; 18 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave110/wave263 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_module_import_thin
-// (ALLOW_E_REPLACE + stamp). File-local maps OK under -E+$CC.
+// PRODUCT inject wave377: BAN PREFER (Darwin g05 BRANCH26); MACOS -E of
+//   T001-wrapped thin; LINUX hard-skip (Ubuntu typeck rejects wrapped thin).
+// wave377: whole-body unsafe (T001); PREFER -c 20901B green ≠ product link.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -29,7 +30,11 @@ let g_pipe_imp_sel_lens: u8[1024] = [];
  * PLATFORM: SHARED LP64 - must match C sizeof(ImportEntry).
  */
 function pipe_imp_entry_size(): i32 {
-  return 532;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    return 532;
+  }
 }
 
 /**
@@ -38,7 +43,11 @@ function pipe_imp_entry_size(): i32 {
  * PLATFORM: SHARED LP64 - dual-end verified with sizeof Module=68.
  */
 function pipe_imp_off_num_imports(): i32 {
-  return 8;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    return 8;
+  }
 }
 
 /**
@@ -48,10 +57,14 @@ function pipe_imp_off_num_imports(): i32 {
  * @return void
  */
 function pipe_imp_set_header_n(module: *u8, n: i32): void {
-  if (module == 0 as *u8) {
-    return;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
+    }
+    pipe_store_i32_le(module, pipe_imp_off_num_imports(), n);
   }
-  pipe_store_i32_le(module, pipe_imp_off_num_imports(), n);
 }
 
 /**
@@ -60,10 +73,14 @@ function pipe_imp_set_header_n(module: *u8, n: i32): void {
  * @return i32 - header count
  */
 function pipe_imp_get_header_n(module: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0;
+    }
+    return pipe_load_i32_le(module, pipe_imp_off_num_imports());
   }
-  return pipe_load_i32_le(module, pipe_imp_off_num_imports());
 }
 
 /**
@@ -72,18 +89,22 @@ function pipe_imp_get_header_n(module: *u8): i32 {
  * @return i32 - slot 0..127 or -1
  */
 function pipe_imp_find_slot(module: *u8): i32 {
-  if (module == 0 as *u8) {
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0 - 1;
+    }
+    let i: i32 = 0;
+    while (i < 128) {
+      let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
+      if (k == module) {
+        return i;
+      }
+      i = i + 1;
+    }
     return 0 - 1;
   }
-  let i: i32 = 0;
-  while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
-    if (k == module) {
-      return i;
-    }
-    i = i + 1;
-  }
-  return 0 - 1;
 }
 
 /**
@@ -93,18 +114,22 @@ function pipe_imp_find_slot(module: *u8): i32 {
  * @return void
  */
 function pipe_imp_soft_sync(module: *u8): void {
-  if (module == 0 as *u8) {
-    return;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
+    }
+    if (pipe_imp_get_header_n(module) != 0) {
+      return;
+    }
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
+    }
+    g_pipe_imp_n[s] = 0;
+    g_pipe_imp_sel_n[s] = 0;
   }
-  if (pipe_imp_get_header_n(module) != 0) {
-    return;
-  }
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  g_pipe_imp_n[s] = 0;
-  g_pipe_imp_sel_n[s] = 0;
 }
 
 /**
@@ -113,31 +138,35 @@ function pipe_imp_soft_sync(module: *u8): void {
  * @return i32 - slot or -1 if map full
  */
 function pipe_imp_find_or_create(module: *u8): i32 {
-  if (module == 0 as *u8) {
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0 - 1;
+    }
+    pipe_imp_soft_sync(module);
+    let found: i32 = pipe_imp_find_slot(module);
+    if (found >= 0) {
+      return found;
+    }
+    let i: i32 = 0;
+    while (i < 128) {
+      let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
+      if (k == 0 as *u8) {
+        xlang_ptr_slot_set(&g_pipe_imp_mod[0], i, module);
+        g_pipe_imp_n[i] = 0;
+        g_pipe_imp_cap[i] = 0;
+        g_pipe_imp_sel_n[i] = 0;
+        g_pipe_imp_sel_cap[i] = 0;
+        xlang_ptr_slot_set(&g_pipe_imp_entries[0], i, 0 as *u8);
+        xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], i, 0 as *u8);
+        xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], i, 0 as *u8);
+        return i;
+      }
+      i = i + 1;
+    }
     return 0 - 1;
   }
-  pipe_imp_soft_sync(module);
-  let found: i32 = pipe_imp_find_slot(module);
-  if (found >= 0) {
-    return found;
-  }
-  let i: i32 = 0;
-  while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
-    if (k == 0 as *u8) {
-      xlang_ptr_slot_set(&g_pipe_imp_mod[0], i, module);
-      g_pipe_imp_n[i] = 0;
-      g_pipe_imp_cap[i] = 0;
-      g_pipe_imp_sel_n[i] = 0;
-      g_pipe_imp_sel_cap[i] = 0;
-      xlang_ptr_slot_set(&g_pipe_imp_entries[0], i, 0 as *u8);
-      xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], i, 0 as *u8);
-      xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], i, 0 as *u8);
-      return i;
-    }
-    i = i + 1;
-  }
-  return 0 - 1;
 }
 
 /**
@@ -147,55 +176,59 @@ function pipe_imp_find_or_create(module: *u8): i32 {
  * @return i32 - 1 ok, 0 fail
  */
 function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
-  if (slot < 0) {
-    return 0;
-  }
-  if (slot >= 128) {
-    return 0;
-  }
-  if (need <= 0) {
-    return 1;
-  }
-  let cap: i32 = g_pipe_imp_cap[slot];
-  if (cap >= need) {
-    return 1;
-  }
-  let new_cap: i32 = cap;
-  if (new_cap < 8) {
-    new_cap = 8;
-  }
-  while (new_cap < need) {
-    new_cap = new_cap * 2;
-  }
-  let esz: i32 = pipe_imp_entry_size();
-  let nbytes: usize = (new_cap * esz) as usize;
-  // extern malloc/memset/memcpy/free require unsafe (T001).
-  let np: *u8 = 0 as *u8;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
   unsafe {
-    np = malloc(nbytes);
-  }
-  if (np == 0 as *u8) {
-    return 0;
-  }
-  unsafe {
-    memset(np, 0, nbytes);
-  }
-  let old: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
-  let old_n: i32 = g_pipe_imp_n[slot];
-  if (old != 0 as *u8) {
-    if (old_n > 0) {
-      let old_bytes: usize = (old_n * esz) as usize;
-      unsafe {
-        memcpy(np, old, old_bytes);
-      }
+    if (slot < 0) {
+      return 0;
+    }
+    if (slot >= 128) {
+      return 0;
+    }
+    if (need <= 0) {
+      return 1;
+    }
+    let cap: i32 = g_pipe_imp_cap[slot];
+    if (cap >= need) {
+      return 1;
+    }
+    let new_cap: i32 = cap;
+    if (new_cap < 8) {
+      new_cap = 8;
+    }
+    while (new_cap < need) {
+      new_cap = new_cap * 2;
+    }
+    let esz: i32 = pipe_imp_entry_size();
+    let nbytes: usize = (new_cap * esz) as usize;
+    // extern malloc/memset/memcpy/free require unsafe (T001).
+    let np: *u8 = 0 as *u8;
+    unsafe {
+      np = malloc(nbytes);
+    }
+    if (np == 0 as *u8) {
+      return 0;
     }
     unsafe {
-      free(old);
+      memset(np, 0, nbytes);
     }
+    let old: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+    let old_n: i32 = g_pipe_imp_n[slot];
+    if (old != 0 as *u8) {
+      if (old_n > 0) {
+        let old_bytes: usize = (old_n * esz) as usize;
+        unsafe {
+          memcpy(np, old, old_bytes);
+        }
+      }
+      unsafe {
+        free(old);
+      }
+    }
+    xlang_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
+    g_pipe_imp_cap[slot] = new_cap;
+    return 1;
   }
-  xlang_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
-  g_pipe_imp_cap[slot] = new_cap;
-  return 1;
 }
 
 /**
@@ -205,79 +238,83 @@ function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
  * @return i32 - 1 ok, 0 fail
  */
 function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
-  if (slot < 0) {
-    return 0;
-  }
-  if (slot >= 128) {
-    return 0;
-  }
-  if (need <= 0) {
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (slot < 0) {
+      return 0;
+    }
+    if (slot >= 128) {
+      return 0;
+    }
+    if (need <= 0) {
+      return 1;
+    }
+    let cap: i32 = g_pipe_imp_sel_cap[slot];
+    if (cap >= need) {
+      return 1;
+    }
+    let new_cap: i32 = cap;
+    if (new_cap < 8) {
+      new_cap = 8;
+    }
+    while (new_cap < need) {
+      new_cap = new_cap * 2;
+    }
+    let row_bytes: usize = (new_cap * 64) as usize;
+    let lens_bytes: usize = (new_cap * 4) as usize;
+    let nrows: *u8 = 0 as *u8;
+    let nlens: *u8 = 0 as *u8;
+    unsafe {
+      nrows = malloc(row_bytes);
+      nlens = malloc(lens_bytes);
+    }
+    if (nrows == 0 as *u8) {
+      if (nlens != 0 as *u8) {
+        unsafe {
+          free(nlens);
+        }
+      }
+      return 0;
+    }
+    if (nlens == 0 as *u8) {
+      unsafe {
+        free(nrows);
+      }
+      return 0;
+    }
+    unsafe {
+      memset(nrows, 0, row_bytes);
+      memset(nlens, 0, lens_bytes);
+    }
+    let old_rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
+    let old_lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
+    let old_n: i32 = g_pipe_imp_sel_n[slot];
+    if (old_rows != 0 as *u8) {
+      if (old_n > 0) {
+        unsafe {
+          memcpy(nrows, old_rows, (old_n * 64) as usize);
+        }
+      }
+      unsafe {
+        free(old_rows);
+      }
+    }
+    if (old_lens != 0 as *u8) {
+      if (old_n > 0) {
+        unsafe {
+          memcpy(nlens, old_lens, (old_n * 4) as usize);
+        }
+      }
+      unsafe {
+        free(old_lens);
+      }
+    }
+    xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
+    xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
+    g_pipe_imp_sel_cap[slot] = new_cap;
     return 1;
   }
-  let cap: i32 = g_pipe_imp_sel_cap[slot];
-  if (cap >= need) {
-    return 1;
-  }
-  let new_cap: i32 = cap;
-  if (new_cap < 8) {
-    new_cap = 8;
-  }
-  while (new_cap < need) {
-    new_cap = new_cap * 2;
-  }
-  let row_bytes: usize = (new_cap * 64) as usize;
-  let lens_bytes: usize = (new_cap * 4) as usize;
-  let nrows: *u8 = 0 as *u8;
-  let nlens: *u8 = 0 as *u8;
-  unsafe {
-    nrows = malloc(row_bytes);
-    nlens = malloc(lens_bytes);
-  }
-  if (nrows == 0 as *u8) {
-    if (nlens != 0 as *u8) {
-      unsafe {
-        free(nlens);
-      }
-    }
-    return 0;
-  }
-  if (nlens == 0 as *u8) {
-    unsafe {
-      free(nrows);
-    }
-    return 0;
-  }
-  unsafe {
-    memset(nrows, 0, row_bytes);
-    memset(nlens, 0, lens_bytes);
-  }
-  let old_rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
-  let old_lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
-  let old_n: i32 = g_pipe_imp_sel_n[slot];
-  if (old_rows != 0 as *u8) {
-    if (old_n > 0) {
-      unsafe {
-        memcpy(nrows, old_rows, (old_n * 64) as usize);
-      }
-    }
-    unsafe {
-      free(old_rows);
-    }
-  }
-  if (old_lens != 0 as *u8) {
-    if (old_n > 0) {
-      unsafe {
-        memcpy(nlens, old_lens, (old_n * 4) as usize);
-      }
-    }
-    unsafe {
-      free(old_lens);
-    }
-  }
-  xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
-  xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
-  g_pipe_imp_sel_cap[slot] = new_cap;
-  return 1;
 }
 
 /**
@@ -287,25 +324,29 @@ function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
  * @return *u8 - entry base or null
  */
 export function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
-  if (slot < 0) {
-    return 0 as *u8;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (slot < 0) {
+      return 0 as *u8;
+    }
+    if (idx < 0) {
+      return 0 as *u8;
+    }
+    if (idx >= g_pipe_imp_n[slot]) {
+      return 0 as *u8;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+    if (base == 0 as *u8) {
+      return 0 as *u8;
+    }
+    // Cap 4.2.8: byte offset = idx * pipe_imp_entry_size() (532; was 340).
+    let off: i32 = idx * pipe_imp_entry_size();
+    // return base+off by reconstructing from raw address bits is unavailable;
+    // use index into flat table: xlang path indexes base[off + field]
+    // Callers pass (base, idx) pair - store base and use idx*esz offset in field ops.
+    return base;
   }
-  if (idx < 0) {
-    return 0 as *u8;
-  }
-  if (idx >= g_pipe_imp_n[slot]) {
-    return 0 as *u8;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
-  if (base == 0 as *u8) {
-    return 0 as *u8;
-  }
-  // Cap 4.2.8: byte offset = idx * pipe_imp_entry_size() (532; was 340).
-  let off: i32 = idx * pipe_imp_entry_size();
-  // return base+off by reconstructing from raw address bits is unavailable;
-  // use index into flat table: xlang path indexes base[off + field]
-  // Callers pass (base, idx) pair - store base and use idx*esz offset in field ops.
-  return base;
 }
 
 /**
@@ -314,7 +355,11 @@ export function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
  * @return i32 - byte offset
  */
 function pipe_imp_entry_off(idx: i32): i32 {
-  return idx * pipe_imp_entry_size();
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    return idx * pipe_imp_entry_size();
+  }
 }
 
 /**
@@ -326,39 +371,43 @@ function pipe_imp_entry_off(idx: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_module_import_storage_release(module: *u8): void {
-  if (module == 0 as *u8) {
-    return;
-  }
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  let e: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (e != 0 as *u8) {
-    unsafe {
-      free(e);
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
     }
-  }
-  let r: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
-  if (r != 0 as *u8) {
-    unsafe {
-      free(r);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
     }
-  }
-  let l: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
-  if (l != 0 as *u8) {
-    unsafe {
-      free(l);
+    let e: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (e != 0 as *u8) {
+      unsafe {
+        free(e);
+      }
     }
+    let r: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+    if (r != 0 as *u8) {
+      unsafe {
+        free(r);
+      }
+    }
+    let l: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+    if (l != 0 as *u8) {
+      unsafe {
+        free(l);
+      }
+    }
+    xlang_ptr_slot_set(&g_pipe_imp_mod[0], s, 0 as *u8);
+    xlang_ptr_slot_set(&g_pipe_imp_entries[0], s, 0 as *u8);
+    xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], s, 0 as *u8);
+    xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], s, 0 as *u8);
+    g_pipe_imp_n[s] = 0;
+    g_pipe_imp_cap[s] = 0;
+    g_pipe_imp_sel_n[s] = 0;
+    g_pipe_imp_sel_cap[s] = 0;
   }
-  xlang_ptr_slot_set(&g_pipe_imp_mod[0], s, 0 as *u8);
-  xlang_ptr_slot_set(&g_pipe_imp_entries[0], s, 0 as *u8);
-  xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], s, 0 as *u8);
-  xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], s, 0 as *u8);
-  g_pipe_imp_n[s] = 0;
-  g_pipe_imp_cap[s] = 0;
-  g_pipe_imp_sel_n[s] = 0;
-  g_pipe_imp_sel_cap[s] = 0;
 }
 
 /**
@@ -371,35 +420,39 @@ export function pipeline_module_import_storage_release(module: *u8): void {
  */
 #[no_mangle]
 export function pipeline_module_import_alloc(module: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0 - 1;
-  }
-  let s: i32 = pipe_imp_find_or_create(module);
-  if (s < 0) {
-    return 0 - 1;
-  }
-  let n: i32 = g_pipe_imp_n[s];
-  if (pipe_imp_ensure_entries(s, n + 1) == 0) {
-    return 0 - 1;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0 - 1;
-  }
-  let off: i32 = pipe_imp_entry_off(n);
-  // Cap 4.2.8: zero new ImportEntry (532 bytes; was 340). Incomplete zero left
-  // binding_name_len@520 / select_* garbage → T001 "no impl for method".
-  let esz: i32 = pipe_imp_entry_size();
-  let k: i32 = 0;
-  while (k < esz) {
-    unsafe {
-      base[off + k] = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0 - 1;
     }
-    k = k + 1;
+    let s: i32 = pipe_imp_find_or_create(module);
+    if (s < 0) {
+      return 0 - 1;
+    }
+    let n: i32 = g_pipe_imp_n[s];
+    if (pipe_imp_ensure_entries(s, n + 1) == 0) {
+      return 0 - 1;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0 - 1;
+    }
+    let off: i32 = pipe_imp_entry_off(n);
+    // Cap 4.2.8: zero new ImportEntry (532 bytes; was 340). Incomplete zero left
+    // binding_name_len@520 / select_* garbage → T001 "no impl for method".
+    let esz: i32 = pipe_imp_entry_size();
+    let k: i32 = 0;
+    while (k < esz) {
+      unsafe {
+        base[off + k] = 0;
+      }
+      k = k + 1;
+    }
+    g_pipe_imp_n[s] = n + 1;
+    pipe_imp_set_header_n(module, n + 1);
+    return n;
   }
-  g_pipe_imp_n[s] = n + 1;
-  pipe_imp_set_header_n(module, n + 1);
-  return n;
 }
 
 /**
@@ -413,49 +466,53 @@ export function pipeline_module_import_alloc(module: *u8): i32 {
  */
 #[no_mangle]
 export function pipeline_module_import_set_path(module: *u8, idx: i32, bytes: *u8, len: i32): void {
-  if (module == 0 as *u8) {
-    return;
-  }
-  if (bytes == 0 as *u8) {
-    return;
-  }
-  if (len <= 0) {
-    return;
-  }
-  if (len > 255) {
-    return;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  if (idx < 0) {
-    return;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return;
-  }
-  let off: i32 = pipe_imp_entry_off(idx);
-  let z: i32 = 0;
-  while (z < 256) {
-    unsafe {
-      base[off + z] = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
     }
-    z = z + 1;
-  }
-  let i: i32 = 0;
-  while (i < len) {
-    unsafe {
-      base[off + i] = bytes[i];
+    if (bytes == 0 as *u8) {
+      return;
     }
-    i = i + 1;
+    if (len <= 0) {
+      return;
+    }
+    if (len > 255) {
+      return;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
+    }
+    if (idx < 0) {
+      return;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return;
+    }
+    let off: i32 = pipe_imp_entry_off(idx);
+    let z: i32 = 0;
+    while (z < 256) {
+      unsafe {
+        base[off + z] = 0;
+      }
+      z = z + 1;
+    }
+    let i: i32 = 0;
+    while (i < len) {
+      unsafe {
+        base[off + i] = bytes[i];
+      }
+      i = i + 1;
+    }
+    pipe_store_i32_le(base, off + 256, len);
   }
-  pipe_store_i32_le(base, off + 256, len);
 }
 
 /**
@@ -467,25 +524,29 @@ export function pipeline_module_import_set_path(module: *u8, idx: i32, bytes: *u
  */
 #[no_mangle]
 export function pipeline_module_import_path_len(module: *u8, idx: i32): i32 {
-  if (module == 0 as *u8) {
-    return 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0;
+    }
+    if (idx < 0) {
+      return 0;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0;
+    }
+    return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 256);
   }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0;
-  }
-  if (idx < 0) {
-    return 0;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 256);
 }
 
 /**
@@ -500,47 +561,51 @@ export function pipeline_module_import_path_len(module: *u8, idx: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_module_import_path_copy(module: *u8, idx: i32, dst: *u8, dst_cap: i32): void {
-  if (dst == 0 as *u8) {
-    return;
-  }
-  if (dst_cap <= 0) {
-    return;
-  }
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
   unsafe {
-    dst[0] = 0;
-  }
-  if (module == 0 as *u8) {
-    return;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  if (idx < 0) {
-    return;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return;
-  }
-  let off: i32 = pipe_imp_entry_off(idx);
-  let n: i32 = pipe_load_i32_le(base, off + 256);
-  if (n >= dst_cap) {
-    n = dst_cap - 1;
-  }
-  let i: i32 = 0;
-  while (i < n) {
-    unsafe {
-      dst[i] = base[off + i];
+    if (dst == 0 as *u8) {
+      return;
     }
-    i = i + 1;
-  }
-  unsafe {
-    dst[n] = 0;
+    if (dst_cap <= 0) {
+      return;
+    }
+    unsafe {
+      dst[0] = 0;
+    }
+    if (module == 0 as *u8) {
+      return;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
+    }
+    if (idx < 0) {
+      return;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return;
+    }
+    let off: i32 = pipe_imp_entry_off(idx);
+    let n: i32 = pipe_load_i32_le(base, off + 256);
+    if (n >= dst_cap) {
+      n = dst_cap - 1;
+    }
+    let i: i32 = 0;
+    while (i < n) {
+      unsafe {
+        dst[i] = base[off + i];
+      }
+      i = i + 1;
+    }
+    unsafe {
+      dst[n] = 0;
+    }
   }
 }
 
@@ -554,40 +619,44 @@ export function pipeline_module_import_path_copy(module: *u8, idx: i32, dst: *u8
  */
 #[no_mangle]
 export function pipeline_module_import_path_byte_at(module: *u8, idx: i32, off: i32): u8 {
-  if (module == 0 as *u8) {
-    return 0 as u8;
-  }
-  if (off < 0) {
-    return 0 as u8;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0 as u8;
-  }
-  if (idx < 0) {
-    return 0 as u8;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0 as u8;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0 as u8;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  let plen: i32 = pipe_load_i32_le(base, eoff + 256);
-  if (off >= plen) {
-    return 0 as u8;
-  }
-  if (off >= 256) {
-    return 0 as u8;
-  }
-  let b: u8 = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
   unsafe {
-    b = base[eoff + off];
+    if (module == 0 as *u8) {
+      return 0 as u8;
+    }
+    if (off < 0) {
+      return 0 as u8;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0 as u8;
+    }
+    if (idx < 0) {
+      return 0 as u8;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0 as u8;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0 as u8;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    let plen: i32 = pipe_load_i32_le(base, eoff + 256);
+    if (off >= plen) {
+      return 0 as u8;
+    }
+    if (off >= 256) {
+      return 0 as u8;
+    }
+    let b: u8 = 0;
+    unsafe {
+      b = base[eoff + off];
+    }
+    return b;
   }
-  return b;
 }
 
 /**
@@ -600,25 +669,29 @@ export function pipeline_module_import_path_byte_at(module: *u8, idx: i32, off: 
  */
 #[no_mangle]
 export function pipeline_module_import_set_kind(module: *u8, idx: i32, kind: i32): void {
-  if (module == 0 as *u8) {
-    return;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
+    }
+    if (idx < 0) {
+      return;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return;
+    }
+    pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 260, kind);
   }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  if (idx < 0) {
-    return;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return;
-  }
-  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 260, kind);
 }
 
 /**
@@ -630,25 +703,29 @@ export function pipeline_module_import_set_kind(module: *u8, idx: i32, kind: i32
  */
 #[no_mangle]
 export function pipeline_module_import_kind_at(module: *u8, idx: i32): i32 {
-  if (module == 0 as *u8) {
-    return 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0;
+    }
+    if (idx < 0) {
+      return 0;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0;
+    }
+    return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 260);
   }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0;
-  }
-  if (idx < 0) {
-    return 0;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 260);
 }
 
 /**
@@ -662,49 +739,53 @@ export function pipeline_module_import_kind_at(module: *u8, idx: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_module_import_set_binding_name(module: *u8, idx: i32, bytes: *u8, len: i32): void {
-  if (module == 0 as *u8) {
-    return;
-  }
-  if (bytes == 0 as *u8) {
-    return;
-  }
-  if (len <= 0) {
-    return;
-  }
-  if (len > 64) {
-    return;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  if (idx < 0) {
-    return;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  let z: i32 = 0;
-  while (z < 64) {
-    unsafe {
-      base[eoff + 264 + z] = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
     }
-    z = z + 1;
-  }
-  let i: i32 = 0;
-  while (i < len) {
-    unsafe {
-      base[eoff + 264 + i] = bytes[i];
+    if (bytes == 0 as *u8) {
+      return;
     }
-    i = i + 1;
+    if (len <= 0) {
+      return;
+    }
+    if (len > 64) {
+      return;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
+    }
+    if (idx < 0) {
+      return;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    let z: i32 = 0;
+    while (z < 64) {
+      unsafe {
+        base[eoff + 264 + z] = 0;
+      }
+      z = z + 1;
+    }
+    let i: i32 = 0;
+    while (i < len) {
+      unsafe {
+        base[eoff + 264 + i] = bytes[i];
+      }
+      i = i + 1;
+    }
+    pipe_store_i32_le(base, eoff + 520, len);
   }
-  pipe_store_i32_le(base, eoff + 520, len);
 }
 
 /**
@@ -716,25 +797,29 @@ export function pipeline_module_import_set_binding_name(module: *u8, idx: i32, b
  */
 #[no_mangle]
 export function pipeline_module_import_binding_name_len(module: *u8, idx: i32): i32 {
-  if (module == 0 as *u8) {
-    return 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0;
+    }
+    if (idx < 0) {
+      return 0;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0;
+    }
+    return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 520);
   }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0;
-  }
-  if (idx < 0) {
-    return 0;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 520);
 }
 
 /**
@@ -747,40 +832,44 @@ export function pipeline_module_import_binding_name_len(module: *u8, idx: i32): 
  */
 #[no_mangle]
 export function pipeline_module_import_binding_name_byte_at(module: *u8, idx: i32, off: i32): u8 {
-  if (module == 0 as *u8) {
-    return 0 as u8;
-  }
-  if (off < 0) {
-    return 0 as u8;
-  }
-  if (off >= 64) {
-    return 0 as u8;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0 as u8;
-  }
-  if (idx < 0) {
-    return 0 as u8;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0 as u8;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0 as u8;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  let bl: i32 = pipe_load_i32_le(base, eoff + 520);
-  if (off >= bl) {
-    return 0 as u8;
-  }
-  let b: u8 = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
   unsafe {
-    b = base[eoff + 264 + off];
+    if (module == 0 as *u8) {
+      return 0 as u8;
+    }
+    if (off < 0) {
+      return 0 as u8;
+    }
+    if (off >= 64) {
+      return 0 as u8;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0 as u8;
+    }
+    if (idx < 0) {
+      return 0 as u8;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0 as u8;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0 as u8;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    let bl: i32 = pipe_load_i32_le(base, eoff + 520);
+    if (off >= bl) {
+      return 0 as u8;
+    }
+    let b: u8 = 0;
+    unsafe {
+      b = base[eoff + 264 + off];
+    }
+    return b;
   }
-  return b;
 }
 
 /**
@@ -793,25 +882,29 @@ export function pipeline_module_import_binding_name_byte_at(module: *u8, idx: i3
  */
 #[no_mangle]
 export function pipeline_module_import_set_select_count(module: *u8, idx: i32, n: i32): void {
-  if (module == 0 as *u8) {
-    return;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return;
+    }
+    if (idx < 0) {
+      return;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return;
+    }
+    pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 528, n);
   }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  if (idx < 0) {
-    return;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return;
-  }
-  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 528, n);
 }
 
 /**
@@ -825,70 +918,74 @@ export function pipeline_module_import_set_select_count(module: *u8, idx: i32, n
  */
 #[no_mangle]
 export function pipeline_module_import_append_select_name(module: *u8, idx: i32, bytes: *u8, len: i32): i32 {
-  if (module == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (bytes == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (len <= 0) {
-    return 0 - 1;
-  }
-  if (idx < 0) {
-    return 0 - 1;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_or_create(module);
-  if (s < 0) {
-    return 0 - 1;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0 - 1;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0 - 1;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
-  if (scount == 0) {
-    pipe_store_i32_le(base, eoff + 524, g_pipe_imp_sel_n[s]);
-  }
-  let vi: i32 = g_pipe_imp_sel_n[s];
-  if (pipe_imp_ensure_select(s, vi + 1) == 0) {
-    return 0 - 1;
-  }
-  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
-  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
-  if (rows == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (lens == 0 as *u8) {
-    return 0 - 1;
-  }
-  let row_off: i32 = vi * 64;
-  let z: i32 = 0;
-  while (z < 64) {
-    unsafe {
-      rows[row_off + z] = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0 - 1;
     }
-    z = z + 1;
-  }
-  let n: i32 = len;
-  if (n > 255) {
-    n = 255;
-  }
-  let i: i32 = 0;
-  while (i < n) {
-    unsafe {
-      rows[row_off + i] = bytes[i];
+    if (bytes == 0 as *u8) {
+      return 0 - 1;
     }
-    i = i + 1;
+    if (len <= 0) {
+      return 0 - 1;
+    }
+    if (idx < 0) {
+      return 0 - 1;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_or_create(module);
+    if (s < 0) {
+      return 0 - 1;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0 - 1;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0 - 1;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    let scount: i32 = pipe_load_i32_le(base, eoff + 528);
+    if (scount == 0) {
+      pipe_store_i32_le(base, eoff + 524, g_pipe_imp_sel_n[s]);
+    }
+    let vi: i32 = g_pipe_imp_sel_n[s];
+    if (pipe_imp_ensure_select(s, vi + 1) == 0) {
+      return 0 - 1;
+    }
+    let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+    let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+    if (rows == 0 as *u8) {
+      return 0 - 1;
+    }
+    if (lens == 0 as *u8) {
+      return 0 - 1;
+    }
+    let row_off: i32 = vi * 64;
+    let z: i32 = 0;
+    while (z < 64) {
+      unsafe {
+        rows[row_off + z] = 0;
+      }
+      z = z + 1;
+    }
+    let n: i32 = len;
+    if (n > 255) {
+      n = 255;
+    }
+    let i: i32 = 0;
+    while (i < n) {
+      unsafe {
+        rows[row_off + i] = bytes[i];
+      }
+      i = i + 1;
+    }
+    pipe_store_i32_le(lens, vi * 4, n);
+    g_pipe_imp_sel_n[s] = vi + 1;
+    pipe_store_i32_le(base, eoff + 528, scount + 1);
+    return scount;
   }
-  pipe_store_i32_le(lens, vi * 4, n);
-  g_pipe_imp_sel_n[s] = vi + 1;
-  pipe_store_i32_le(base, eoff + 528, scount + 1);
-  return scount;
 }
 
 /**
@@ -900,25 +997,29 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
  */
 #[no_mangle]
 export function pipeline_module_import_select_count_at(module: *u8, idx: i32): i32 {
-  if (module == 0 as *u8) {
-    return 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0;
+    }
+    if (idx < 0) {
+      return 0;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0;
+    }
+    return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 528);
   }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0;
-  }
-  if (idx < 0) {
-    return 0;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 528);
 }
 
 /**
@@ -933,85 +1034,89 @@ export function pipeline_module_import_select_count_at(module: *u8, idx: i32): i
  */
 #[no_mangle]
 export function pipeline_module_import_set_select_name(module: *u8, idx: i32, sel: i32, bytes: *u8, len: i32): void {
-  if (module == 0 as *u8) {
-    return;
-  }
-  if (bytes == 0 as *u8) {
-    return;
-  }
-  if (len <= 0) {
-    return;
-  }
-  if (sel < 0) {
-    return;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_or_create(module);
-  if (s < 0) {
-    return;
-  }
-  if (idx < 0) {
-    return;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  while (1 == 1) {
-    let scount: i32 = pipe_load_i32_le(base, eoff + 528);
-    if (scount > sel) {
-      break;
-    }
-    let ap: i32 = pipeline_module_import_append_select_name(module, idx, bytes, len);
-    if (ap < 0) {
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
       return;
     }
-    // Cap: if sel < scount-1 after append return - only last append fills target.
-    scount = pipe_load_i32_le(base, eoff + 528);
-    if (sel < scount - 1) {
+    if (bytes == 0 as *u8) {
       return;
     }
-  }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
-  let abs: i32 = sbase + sel;
-  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
-  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
-  if (rows == 0 as *u8) {
-    return;
-  }
-  if (lens == 0 as *u8) {
-    return;
-  }
-  if (abs < 0) {
-    return;
-  }
-  if (abs >= g_pipe_imp_sel_n[s]) {
-    return;
-  }
-  let row_off: i32 = abs * 64;
-  let z: i32 = 0;
-  while (z < 64) {
-    unsafe {
-      rows[row_off + z] = 0;
+    if (len <= 0) {
+      return;
     }
-    z = z + 1;
-  }
-  let n: i32 = len;
-  if (n > 255) {
-    n = 255;
-  }
-  let i: i32 = 0;
-  while (i < n) {
-    unsafe {
-      rows[row_off + i] = bytes[i];
+    if (sel < 0) {
+      return;
     }
-    i = i + 1;
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_or_create(module);
+    if (s < 0) {
+      return;
+    }
+    if (idx < 0) {
+      return;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    while (1 == 1) {
+      let scount: i32 = pipe_load_i32_le(base, eoff + 528);
+      if (scount > sel) {
+        break;
+      }
+      let ap: i32 = pipeline_module_import_append_select_name(module, idx, bytes, len);
+      if (ap < 0) {
+        return;
+      }
+      // Cap: if sel < scount-1 after append return - only last append fills target.
+      scount = pipe_load_i32_le(base, eoff + 528);
+      if (sel < scount - 1) {
+        return;
+      }
+    }
+    let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
+    let abs: i32 = sbase + sel;
+    let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+    let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+    if (rows == 0 as *u8) {
+      return;
+    }
+    if (lens == 0 as *u8) {
+      return;
+    }
+    if (abs < 0) {
+      return;
+    }
+    if (abs >= g_pipe_imp_sel_n[s]) {
+      return;
+    }
+    let row_off: i32 = abs * 64;
+    let z: i32 = 0;
+    while (z < 64) {
+      unsafe {
+        rows[row_off + z] = 0;
+      }
+      z = z + 1;
+    }
+    let n: i32 = len;
+    if (n > 255) {
+      n = 255;
+    }
+    let i: i32 = 0;
+    while (i < n) {
+      unsafe {
+        rows[row_off + i] = bytes[i];
+      }
+      i = i + 1;
+    }
+    pipe_store_i32_le(lens, abs * 4, n);
   }
-  pipe_store_i32_le(lens, abs * 4, n);
 }
 
 /**
@@ -1024,45 +1129,49 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
  */
 #[no_mangle]
 export function pipeline_module_import_select_name_len(module: *u8, idx: i32, sel: i32): i32 {
-  if (module == 0 as *u8) {
-    return 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
+  unsafe {
+    if (module == 0 as *u8) {
+      return 0;
+    }
+    if (sel < 0) {
+      return 0;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0;
+    }
+    if (idx < 0) {
+      return 0;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    let scount: i32 = pipe_load_i32_le(base, eoff + 528);
+    if (sel >= scount) {
+      return 0;
+    }
+    let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
+    let abs: i32 = sbase + sel;
+    if (abs < 0) {
+      return 0;
+    }
+    if (abs >= g_pipe_imp_sel_n[s]) {
+      return 0;
+    }
+    let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+    if (lens == 0 as *u8) {
+      return 0;
+    }
+    return pipe_load_i32_le(lens, abs * 4);
   }
-  if (sel < 0) {
-    return 0;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0;
-  }
-  if (idx < 0) {
-    return 0;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
-  if (sel >= scount) {
-    return 0;
-  }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
-  let abs: i32 = sbase + sel;
-  if (abs < 0) {
-    return 0;
-  }
-  if (abs >= g_pipe_imp_sel_n[s]) {
-    return 0;
-  }
-  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
-  if (lens == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(lens, abs * 4);
 }
 
 /**
@@ -1076,57 +1185,61 @@ export function pipeline_module_import_select_name_len(module: *u8, idx: i32, se
  */
 #[no_mangle]
 export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32, sel: i32, off: i32): u8 {
-  if (module == 0 as *u8) {
-    return 0 as u8;
-  }
-  if (sel < 0) {
-    return 0 as u8;
-  }
-  if (off < 0) {
-    return 0 as u8;
-  }
-  pipe_imp_soft_sync(module);
-  let s: i32 = pipe_imp_find_slot(module);
-  if (s < 0) {
-    return 0 as u8;
-  }
-  if (idx < 0) {
-    return 0 as u8;
-  }
-  if (idx >= g_pipe_imp_n[s]) {
-    return 0 as u8;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
-  if (base == 0 as *u8) {
-    return 0 as u8;
-  }
-  let eoff: i32 = pipe_imp_entry_off(idx);
-  let scount: i32 = pipe_load_i32_le(base, eoff + 528);
-  if (sel >= scount) {
-    return 0 as u8;
-  }
-  let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
-  let abs: i32 = sbase + sel;
-  if (abs < 0) {
-    return 0 as u8;
-  }
-  if (abs >= g_pipe_imp_sel_n[s]) {
-    return 0 as u8;
-  }
-  let nlen: i32 = pipeline_module_import_select_name_len(module, idx, sel);
-  if (off >= nlen) {
-    return 0 as u8;
-  }
-  if (off >= 64) {
-    return 0 as u8;
-  }
-  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
-  if (rows == 0 as *u8) {
-    return 0 as u8;
-  }
-  let b: u8 = 0;
+  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
+  // PLATFORM: SHARED — asm typeck contract.
   unsafe {
-    b = rows[abs * 64 + off];
+    if (module == 0 as *u8) {
+      return 0 as u8;
+    }
+    if (sel < 0) {
+      return 0 as u8;
+    }
+    if (off < 0) {
+      return 0 as u8;
+    }
+    pipe_imp_soft_sync(module);
+    let s: i32 = pipe_imp_find_slot(module);
+    if (s < 0) {
+      return 0 as u8;
+    }
+    if (idx < 0) {
+      return 0 as u8;
+    }
+    if (idx >= g_pipe_imp_n[s]) {
+      return 0 as u8;
+    }
+    let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+    if (base == 0 as *u8) {
+      return 0 as u8;
+    }
+    let eoff: i32 = pipe_imp_entry_off(idx);
+    let scount: i32 = pipe_load_i32_le(base, eoff + 528);
+    if (sel >= scount) {
+      return 0 as u8;
+    }
+    let sbase: i32 = pipe_load_i32_le(base, eoff + 524);
+    let abs: i32 = sbase + sel;
+    if (abs < 0) {
+      return 0 as u8;
+    }
+    if (abs >= g_pipe_imp_sel_n[s]) {
+      return 0 as u8;
+    }
+    let nlen: i32 = pipeline_module_import_select_name_len(module, idx, sel);
+    if (off >= nlen) {
+      return 0 as u8;
+    }
+    if (off >= 64) {
+      return 0 as u8;
+    }
+    let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+    if (rows == 0 as *u8) {
+      return 0 as u8;
+    }
+    let b: u8 = 0;
+    unsafe {
+      b = rows[abs * 64 + off];
+    }
+    return b;
   }
-  return b;
 }
