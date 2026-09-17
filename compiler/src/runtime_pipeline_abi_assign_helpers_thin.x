@@ -1,10 +1,11 @@
-// Thin pure: wave142 assign HELPERS leaf (asg_thin_store/load/ctx/align).
+// Thin pure: wave142 assign HELPERS+lhs leaf (asg_thin_* + glue_assign_lhs).
 // G.7: bodies MUST match the same symbols in runtime_pipeline_abi.x /
-// runtime_pipeline_abi_assign_thin.x (full leaf keeps emit/field/body exports).
+// runtime_pipeline_abi_assign_thin.x (full leaf keeps remaining exports).
 // ensure: pipeline_abi_inject_assign_thin dispatches this on LINUX.
-// wave413: LINUX PREFER helpers-only (full tip -c XT001@asg_thin_store
-//   MISATTRIBUTED; helpers -c green ~1875B). MACOS still full thin PREFER.
-//   Main/export cluster tip reinject still BAN on LINUX.
+// wave413: helpers-only PREFER; wave416: expand to include
+//   glue_assign_lhs_f32_type_ref_elf_c (Ubuntu -c ~3449B green).
+//   Remaining exports (rhs/emit/field/body) tip reinject still BAN on LINUX.
+//   MACOS still full thin PREFER.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -246,4 +247,68 @@ function asg_thin_align_next_offset(ctx: *u8): void {
 }
 
 
+
+/**
+ * Whether assign LHS is an f32 slot (VAR / FIELD_ACCESS / INDEX resolved type).
+ * @param arena *u8 - ASTArena*
+ * @param ctx *u8 - AsmFuncCtx* (for VAR decl type lookup)
+ * @param left_ref i32 - LHS expr ref
+ * @return i32 - f32 type_ref when lhs is f32; 0 otherwise
+ * wave142 pure: G.7 authority (was static glue_assign_lhs_f32_type_ref_elf_c).
+ * Used by assign RHS float-lit imm32 path (avoid f64 movabs trunc).
+ * PLATFORM: SHARED freestanding.
+ */
+export function glue_assign_lhs_f32_type_ref_elf_c(arena: *u8, ctx: *u8, left_ref: i32): i32 {
+  let lko: i32 = 0;
+  let tr: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let tk: i32 = 0;
+  if (arena == (0 as *u8) || left_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    lko = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (lko == 3) {
+    unsafe {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (tk == 14) {
+        return tr;
+      }
+    }
+  }
+  if (lko == 44) {
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+      tr = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (tk == 14) {
+        return tr;
+      }
+    }
+  }
+  if (lko == 47) {
+    unsafe {
+      tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    }
+    if (tr > 0) {
+      unsafe {
+        tk = pipeline_type_kind_ord_at(arena, tr);
+      }
+      if (tk == 14) {
+        return tr;
+      }
+    }
+  }
+  return 0;
+}
 

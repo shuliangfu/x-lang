@@ -3,13 +3,13 @@
 // glue_emit_assign_rhs_* / pipeline_asm_emit_assign_elf_c /
 // glue_field_assign_pair_base_ref_c / glue_body_expr_stmt_at_c
 // in runtime_pipeline_abi.x. ensure: inject_assign_thin injects THIS on MACOS;
-//   LINUX injects assign_helpers_thin only (see wave413).
+//   LINUX injects assign_helpers_thin (helpers+lhs; see wave416).
 // Local asg_thin_* helpers are TU-private names (asm still emits T;
 // unique prefix avoids first-wins replace of product pipe_*/align).
 // w157 / glue_asm_sum_block_call_spill_bytes stay leftover (not this leaf).
-// wave403/413: MACOS PREFER full; LINUX PREFER helpers-only.
-//   Ubuntu full tip XT001@asg_thin_store MISATTRIBUTED; helpers -c green;
-//   export cluster tip reinject still BAN on LINUX.
+// wave403/413/416: MACOS PREFER full; LINUX PREFER helpers+lhs.
+//   Ubuntu full tip XT001@asg_thin_store MISATTRIBUTED; helpers+lhs -c green;
+//   remaining exports tip reinject still BAN on LINUX.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
