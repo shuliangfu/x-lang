@@ -33,6 +33,7 @@
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
 //   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc.
+//   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 // wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
 //   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
 //   simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper;
@@ -1555,8 +1556,8 @@ export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
  */
 export extern function typeck_soa_fill_field_access_for_asm_emit(m: *u8, a: *u8): void;
 
-/* wave277: fixup body is seed ALWAYS + C thin leave
- * (runtime_pipeline_abi_block_domain_thin.c; ast_pool_block domain).
+/* wave277/326: fixup body is seed ALWAYS + .x thin leave
+ * (runtime_pipeline_abi_block_domain_thin.x via -E+$CC; ast_pool_block domain).
  * Dual-export ban: pure no longer provides empty weak body —
  * Cap residual in runtime_pipeline_abi.from_x.c / block_domain_thin. */
 export extern "C" function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void;
