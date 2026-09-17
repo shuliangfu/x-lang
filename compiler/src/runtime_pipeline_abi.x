@@ -11,6 +11,8 @@
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
 // wave279/320 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
 //   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x via -E+$CC; was C thin);
+// wave281/325 onefunc Cap residual .x thin (pipeline_onefunc_* + fill_from_onefunc;
+//   runtime_pipeline_abi_onefunc_thin.x via -E+$CC; was C thin);
 // wave280/324 module_func Cap residual .x thin (Func accessors + param sidecar +
 //   parse-impl owner BSS + asm/arch_arm64 forwarders;
 //   runtime_pipeline_abi_module_func_thin.x via -E+$CC; was C thin);
@@ -30,6 +32,7 @@
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
+//   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc.
 // wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
 //   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
 //   simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper;

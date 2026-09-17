@@ -3348,8 +3348,8 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_module_func_thin.x -nt "$o" ]; then
       stale=1
     fi
-    if [ -f src/runtime_pipeline_abi_onefunc_thin.c ] \
-      && [ src/runtime_pipeline_abi_onefunc_thin.c -nt "$o" ]; then
+    if [ -f src/runtime_pipeline_abi_onefunc_thin.x ] \
+      && [ src/runtime_pipeline_abi_onefunc_thin.x -nt "$o" ]; then
       stale=1
     fi
     if [ -f src/runtime_pipeline_abi_bootstrap_glue_thin.x ] \
@@ -5924,49 +5924,53 @@ pipeline_abi_inject_module_func_thin() {
 
 
 
-# wave281 onefunc Cap residual (C thin; onefunc_* + fill_from_onefunc).
-# Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
-# G.7: match seed WAVE281_ONEFUNC_DOMAIN_ALWAYS. PLATFORM: SHARED.
+# wave325 M2: onefunc Cap residual C→.x (was wave281 C thin).
+# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). OneFuncSc LE + fill_*.
+# G.7 WAVE281_ONEFUNC_DOMAIN_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_onefunc_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_onefunc_thin.c"
-  local thin_o base_o restore_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi w281-onefunc inject skip: $o is libtool archive"
-    return 1
-  fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ofn.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ofn_base.XXXXXX.o")"
-  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_ofn_restore.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi w281-onefunc inject: cc thin failed"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  cp -f "$o" "$restore_o"
-  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-    log "pipeline_abi w281-onefunc inject skip: cannot weaken leftover T"
-    rm -f "$thin_o" "$base_o" "$restore_o"
+  local thin_x="src/runtime_pipeline_abi_onefunc_thin.x"
+  local stamp="src/.pabi_w325_onefunc.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    if pipeline_abi_o_is_libtool_archive "$o"; then
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w281-onefunc inject: libtool archive; restored base"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-    log "pipeline_abi w281-onefunc inject OK (first-wins over leftover)"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 0
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
   fi
-  cp -f "$restore_o" "$o"
-  log "pipeline_abi w281-onefunc inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o" "$restore_o"
-  return 1
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w325-onefunc"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 
@@ -11203,6 +11207,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_module_func_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-onefunc|inject_onefunc|inject-ofn|inject_ofn)
+    # wave325: C→.x onefunc via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-onefunc: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_onefunc_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
