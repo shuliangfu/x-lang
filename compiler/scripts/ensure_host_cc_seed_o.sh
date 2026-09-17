@@ -3872,11 +3872,14 @@ ensure_pipeline_abi_prefer_one() {
     if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+           -DXLANG_RUNTIME_PIPELINE_ABI_MODLET_IN_REST \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       # PLATFORM: MACOS — libtool -static fallback yields ar named .o; Cap LEA
       # and product force_load need a complete hybrid or cold MH_OBJECT, not a
       # thin+rest archive leftover. Discard and fall through to cold seed.
+      # wave345: MODLET_IN_REST puts prepare/bake cold twin in FROM_X rest
+      # (avoids mega -E for ordinal .data bake). PLATFORM: SHARED POSIX rest.
       if pipeline_abi_o_is_libtool_archive "$o"; then
         # Accept complete Darwin prefer archives (thin+rest); discard tiny leftovers.
         # Incomplete Cap residual was ~260KiB (fnptr_thin + pabi_rest_try only).
@@ -6320,6 +6323,91 @@ pipeline_abi_inject_typeck_orch_thin() {
 }
 
 
+
+# wave345: ingest modlet prepare/bake cold twin into product pabi WITHOUT mega -E.
+# Compiles seeds/runtime_pipeline_abi.from_x.c under FROM_X+MODLET_IN_REST,
+# localizes all globals then re-globalizes modlet export faces, weakens those
+# in OUT, ld -r modlet-first. Lands w344 ordinal→.data bake on library TUs.
+# PLATFORM: SHARED shell · LINUX gold · MACOS co-path · no FORCE mega.
+pipeline_abi_inject_modlet_prepare_rest() {
+  local o="$1"
+  local seed="seeds/runtime_pipeline_abi.from_x.c"
+  local stamp="src/.pabi_w345_modlet_prepare.stamp"
+  local rest_o modlet_o base_o out_o
+  local objcopy_bin=""
+  local s=""
+  local rc=0
+  [ -s "$o" ] && [ -f "$seed" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$seed" -nt "$stamp" ]; then
+    return 0
+  fi
+  if command -v objcopy >/dev/null 2>&1; then
+    objcopy_bin="objcopy"
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    objcopy_bin="llvm-objcopy"
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    objcopy_bin="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  else
+    log "pipeline_abi w345-modlet-prepare: no objcopy"
+    return 1
+  fi
+  rest_o="$(mktemp "${TMPDIR:-/tmp}/pabi_modlet_rest.XXXXXX.o")"
+  modlet_o="$(mktemp "${TMPDIR:-/tmp}/pabi_modlet_only.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_modlet_base.XXXXXX.o")"
+  out_o="$(mktemp "${TMPDIR:-/tmp}/pabi_modlet_out.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+       -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+       -DXLANG_RUNTIME_PIPELINE_ABI_MODLET_IN_REST \
+       -c -o "$rest_o" "$seed"; then
+    log "pipeline_abi w345-modlet-prepare: cc rest failed"
+    rm -f "$rest_o" "$modlet_o" "$base_o" "$out_o"
+    return 1
+  fi
+  cp -f "$rest_o" "$modlet_o"
+  # Localize all globals so non-modlet FROM_X T do not collide with product.
+  if ! "$objcopy_bin" -w --localize-symbol='*' "$modlet_o" 2>/dev/null; then
+    log "pipeline_abi w345-modlet-prepare: localize-all failed"
+    rm -f "$rest_o" "$modlet_o" "$base_o" "$out_o"
+    return 1
+  fi
+  for s in \
+    pipeline_asm_modlet_prepare_and_emit_elf_c \
+    pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+    pipeline_asm_modlet_load_to_rax_elf_c \
+    pipeline_asm_modlet_store_from_rax_elf_c \
+    pipeline_asm_modlet_name_is_shared \
+    pipeline_asm_register_module_top_level_lets_c \
+    pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c
+  do
+    "$objcopy_bin" --globalize-symbol="$s" "$modlet_o" 2>/dev/null || true
+    # PLATFORM: MACOS — Mach-O underscore.
+    "$objcopy_bin" --globalize-symbol="_${s}" "$modlet_o" 2>/dev/null || true
+  done
+  cp -f "$o" "$base_o"
+  for s in \
+    pipeline_asm_modlet_prepare_and_emit_elf_c \
+    pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+    pipeline_asm_modlet_load_to_rax_elf_c \
+    pipeline_asm_modlet_store_from_rax_elf_c \
+    pipeline_asm_modlet_name_is_shared \
+    pipeline_asm_register_module_top_level_lets_c \
+    pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c
+  do
+    "$objcopy_bin" --weaken-symbol="$s" "$base_o" 2>/dev/null || true
+    "$objcopy_bin" --weaken-symbol="_${s}" "$base_o" 2>/dev/null || true
+  done
+  if ! ld -r -o "$out_o" "$modlet_o" "$base_o" 2>/dev/null; then
+    log "pipeline_abi w345-modlet-prepare: ld -r merge failed"
+    rm -f "$rest_o" "$modlet_o" "$base_o" "$out_o"
+    return 1
+  fi
+  cp -f "$out_o" "$o"
+  touch "$stamp"
+  log "pipeline_abi w345-modlet-prepare inject OK (MODLET_IN_REST cold twin first-wins)"
+  rm -f "$rest_o" "$modlet_o" "$base_o" "$out_o"
+  return 0
+}
 
 # wave319/343/344 M2: typeck_check_expr Cap residual .x thin (was wave286 C thin).
 # PRODUCT inject: stay -E+$CC both ends (wave344 PREFER re-trial):
@@ -10951,6 +11039,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_macho_write_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-modlet-prepare|inject_modlet_prepare)
+    # wave345: MODLET_IN_REST prepare/bake into product pabi (no mega -E).
+    # PLATFORM: SHARED · LINUX gold · MACOS co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-modlet-prepare: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_modlet_prepare_rest "$1"
     _irc=$?
     set -e
     exit "$_irc"

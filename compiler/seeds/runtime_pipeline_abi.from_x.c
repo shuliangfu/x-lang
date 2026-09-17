@@ -16429,9 +16429,12 @@ int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out
  * leftover standalone already T reset/append — convert unique + BSS
  * siblings together so leftover rest SET/GET/release share leftover rest BSS).
  * PLATFORM: SHARED freestanding modlet COMMON/.data · LINUX gold · MACOS co-path.
+ * wave345: OR MODLET_IN_REST so POSIX FROM_X product rest can own prepare/bake
+ * without mega -E (FORCE mega hangs). Windows still uses WIN_LEFTOVER_GROW_VEC.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC) \
+    || defined(XLANG_RUNTIME_PIPELINE_ABI_MODLET_IN_REST)
 
 /*
  * wave139: pipeline_asm_emit_modlet pure-owned leave cold twins.
@@ -16542,6 +16545,15 @@ extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int
 extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx_bytes, int32_t offset, uint8_t *name,
                                                        int32_t name_len);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+extern int32_t backend_enc_lea_sym_to_reg_arch(void *elf_ctx, int32_t reg, uint8_t *name,
+                                               int32_t name_len, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz,
+                                                         int32_t ta);
+extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t eref,
+                                                       int32_t ta);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern void *pipeline_asm_emit_module_ref_c(void);
 extern int32_t glue_asm_string_lit_len(void *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
 extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
@@ -16788,7 +16800,9 @@ extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_
 extern int32_t pipeline_module_top_level_let_is_const(void *m, int32_t tl);
 extern int32_t pipeline_module_top_level_let_init_ref(void *m, int32_t tl);
 extern int32_t pipeline_module_top_level_let_name_len(void *m, int32_t tl);
-extern int32_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t tl, int32_t k);
+/* G.7: same return type as the cluster's earlier extern (uint8_t).
+ * Duplicate int32_t prototype broke FROM_X+MODLET_IN_REST cc (wave345). */
+extern uint8_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t tl, int32_t k);
 
 /* PLATFORM: SHARED — SHN_COMMON / Mach-O __common merge by name.
  * Historic Lxlang_ml_<idx> aliased every TU's N-th module let (Ubuntu
@@ -17849,7 +17863,7 @@ int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void
   }
   return 0;
 }
-#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE modlet cluster */
+#endif /* !FROM_X || WIN_LEFTOVER || MODLET_IN_REST — modlet cluster */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave136 FROM_X after leftover-PE modlet cluster */
 
