@@ -4,7 +4,10 @@
 // let/const names; report via driver_diagnostic_hint_unused_binding when
 // no EXPR_VAR use exists in the arena. Skip '_' prefix (intentional unused).
 // ensure injects via pipeline_abi_inject_unused_hints_thin (first-wins;
-// avoids Darwin mega -E). PLATFORM: SHARED freestanding lint · LINUX gold.
+// avoids Darwin mega -E).
+// wave398: PRODUCT PREFER_ASM both ends (stamp .pabi_w398_unused_hints.stamp);
+//   standalone -c green Darwin/Ubuntu; was class-E default -E.
+// PLATFORM: SHARED freestanding lint · LINUX gold.
 
 export extern function link_abi_getenv(name: *u8): *u8;
 export extern function pipeline_module_num_funcs(m: *u8): i32;
