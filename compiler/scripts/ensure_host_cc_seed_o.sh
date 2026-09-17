@@ -5563,12 +5563,13 @@ pipeline_abi_inject_block_tree_thin() {
 #   BAN w361: asm_locals hard-skip (PREFER L2 opt/si SEGV; gate -c green).
 #   BAN w362: struct_layout hard-skip (PREFER L2 option=240; gate -c green).
 #   UNLOCKED w363b: module_func Darwin PREFER / Ubuntu -E (undef main).
+#   UNLOCKED w364 try: block_domain PREFER (T001 w326_* · gate+L2).
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
-#       onefunc (BAN PREFER) / expr_sidecar / block_domain / sidecar_pool /
+#       onefunc (BAN PREFER) / expr_sidecar / sidecar_pool /
 #       dep_ctx / elf_ctx / asm_wpo / top_level_let / asm_locals / struct_layout
 #       (BAN) / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
@@ -5591,6 +5592,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave359b: top_level_let hard-skip (overlay poison).
 # wave361: asm_locals hard-skip (PREFER L2 opt/si SEGV; gate -c green).
 # wave363/363b: module_func Darwin PREFER / Ubuntu -E (undef main).
+# wave364: block_domain PREFER try (T001 w326_* · gate+L2).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5965,13 +5967,14 @@ pipeline_abi_inject_value_abi_thin() {
 
 
 
-# wave326 M2: block_domain Cap residual C→.x (was wave277 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Append/getters/patch/stmt_order.
-# G.7 WAVE277_BLOCK_DOMAIN_ALWAYS. PLATFORM: SHARED.
+# wave326/364 M2: block_domain Cap residual C→.x (was wave277 C thin).
+# PRODUCT inject wave364: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
+# T001 w326_* helpers; standalone -c green; gate=type_alias -c + L2.
+# G.7 WAVE277_BLOCK_DOMAIN_ALWAYS. PLATFORM: SHARED · PREFER try.
 pipeline_abi_inject_block_domain_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_block_domain_thin.x"
-  local stamp="src/.pabi_w326_block_domain.stamp"
+  local stamp="src/.pabi_w364_block_domain.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5991,9 +5994,9 @@ pipeline_abi_inject_block_domain_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w326-block-domain"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w364-block-domain"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6010,6 +6013,7 @@ pipeline_abi_inject_block_domain_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w326_block_domain.stamp
   fi
   return "$rc"
 }
@@ -11620,7 +11624,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-block-domain|inject_block_domain|inject-blkdom|inject_blkdom)
-    # wave326: C→.x block_domain via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave364: block_domain PREFER_ASM try (T001 w326_*); L2 gate required.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-block-domain: need <out.o>" >&2

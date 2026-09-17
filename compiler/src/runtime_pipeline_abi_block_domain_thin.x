@@ -1,8 +1,9 @@
-// Thin pure: wave326 M2 — block_domain Cap residual C→.x (was wave277 C thin).
+// Thin pure: wave326/364 M2 — block_domain Cap residual C→.x (was wave277 C thin).
 // pipeline_block_* append/getters/patch/resolve/stmt_order + ast_ast_block_*.
 // G.7: bodies match runtime_pipeline_abi_block_domain_thin.c / seed WAVE277.
 // PRODUCT inject: -E+$CC via pipeline_abi_inject_block_domain_thin
 // (ALLOW_E_REPLACE + stamp). Block 92 / Region 268 / Labeled 528 / StmtOrder 8.
+// wave364: w326_* helpers via unsafe (T001); PREFER try + L2 gate.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -127,11 +128,50 @@ const W326_B_STMT_ORDER_BASE: i32 = 80;
 const W326_B_NUM_STMT_ORDER: i32 = 84;
 const W326_B_PARENT_BLOCK_REF: i32 = 88;
 
-function w326_load(base: *u8, off: i32): i32 { return pipe_load_i32_le(base, off); }
-function w326_store(base: *u8, off: i32, v: i32): void { pipe_store_i32_le(base, off, v); }
-function w326_gv_len(v: *u8): i32 { return pipe_load_i32_le(v, W326_GV_LEN); }
-function w326_gv_data(v: *u8): *u8 { return xlang_ptr_slot_get(v, 0); }
-function w326_gv_elem_sz(v: *u8): i64 { return xlang_size_slot_get(v, 2); }
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w326_load(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w326_store(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
+/**
+ * GrowVec.len via unsafe LE (T001). PLATFORM: SHARED.
+ */
+function w326_gv_len(v: *u8): i32 {
+  unsafe {
+    return pipe_load_i32_le(v, W326_GV_LEN);
+  }
+}
+
+/**
+ * GrowVec data ptr via unsafe (T001). PLATFORM: SHARED.
+ */
+function w326_gv_data(v: *u8): *u8 {
+  unsafe {
+    return xlang_ptr_slot_get(v, 0);
+  }
+}
+
+/**
+ * GrowVec elem size via unsafe (T001). PLATFORM: SHARED.
+ */
+function w326_gv_elem_sz(v: *u8): i64 {
+  unsafe {
+    return xlang_size_slot_get(v, 2);
+  }
+}
 
 function w326_sc(a: *u8, create: i32): *u8 {
   let sc: *u8 = 0 as *u8;
@@ -150,10 +190,10 @@ function w326_block_at(a: *u8, br: i32): *u8 {
 }
 
 function w326_arena_num_blocks(a: *u8): i32 {
-  return pipe_load_i32_le(a, W326_ARENA_NUM_BLOCKS);
+  return w326_load(a, W326_ARENA_NUM_BLOCKS);
 }
 function w326_arena_num_exprs(a: *u8): i32 {
-  return pipe_load_i32_le(a, W326_ARENA_NUM_EXPRS);
+  return w326_load(a, W326_ARENA_NUM_EXPRS);
 }
 
 /**
