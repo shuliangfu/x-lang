@@ -5563,13 +5563,14 @@ pipeline_abi_inject_block_tree_thin() {
 #   BAN w361: asm_locals hard-skip (PREFER L2 opt/si SEGV; gate -c green).
 #   BAN w362: struct_layout hard-skip (PREFER L2 option=240; gate -c green).
 #   UNLOCKED w363b: module_func Darwin PREFER / Ubuntu -E (undef main).
-#   UNLOCKED w364 try: block_domain PREFER (T001 w326_* · gate+L2).
+#   UNLOCKED w364: block_domain PREFER both ends (T001 w326_* · gate+L2).
+#   UNLOCKED w365 try: expr_sidecar PREFER (T001 w327_load/store · gate+L2).
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
-#       onefunc (BAN PREFER) / expr_sidecar / sidecar_pool /
+#       onefunc (BAN PREFER) / sidecar_pool /
 #       dep_ctx / elf_ctx / asm_wpo / top_level_let / asm_locals / struct_layout
 #       (BAN) / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
@@ -5592,7 +5593,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave359b: top_level_let hard-skip (overlay poison).
 # wave361: asm_locals hard-skip (PREFER L2 opt/si SEGV; gate -c green).
 # wave363/363b: module_func Darwin PREFER / Ubuntu -E (undef main).
-# wave364: block_domain PREFER try (T001 w326_* · gate+L2).
+# wave364: block_domain PREFER both ends (T001 w326_* · gate+L2).
+# wave365: expr_sidecar PREFER try (T001 w327_load/store · gate+L2).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6020,13 +6022,14 @@ pipeline_abi_inject_block_domain_thin() {
 
 
 
-# wave327 M2: expr_sidecar Cap residual C→.x (was wave278 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Call/match/struct_lit/array + fields.
-# G.7 WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS. PLATFORM: SHARED.
+# wave327/365 M2: expr_sidecar Cap residual C→.x (was wave278 C thin).
+# PRODUCT inject wave365: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
+# T001 w327_load/store; standalone -c green; gate=type_alias -c + L2.
+# G.7 WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS. PLATFORM: SHARED · PREFER try.
 pipeline_abi_inject_expr_sidecar_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_expr_sidecar_thin.x"
-  local stamp="src/.pabi_w327_expr_sidecar.stamp"
+  local stamp="src/.pabi_w365_expr_sidecar.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6046,9 +6049,9 @@ pipeline_abi_inject_expr_sidecar_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w327-expr-sidecar"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w365-expr-sidecar"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6065,6 +6068,7 @@ pipeline_abi_inject_expr_sidecar_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w327_expr_sidecar.stamp
   fi
   return "$rc"
 }

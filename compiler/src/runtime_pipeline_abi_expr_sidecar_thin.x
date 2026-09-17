@@ -1,8 +1,9 @@
-// Thin pure: wave327 M2 — expr_sidecar Cap residual C→.x (was wave278 C thin).
+// Thin pure: wave327/365 M2 — expr_sidecar Cap residual C→.x (was wave278 C thin).
 // call/method/match/struct_lit/array_lit + type_arg pools + Expr Cap accessors.
 // G.7: bodies match deleted C thin / seed WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_expr_sidecar_thin
-// (ALLOW_E_REPLACE + stamp). Expr 1224 / MatchArm 24 / StructLitField 264.
+// PRODUCT inject: pipeline_abi_inject_expr_sidecar_thin (ALLOW_E_REPLACE + stamp).
+// wave365: w327_load/store via unsafe (T001); PREFER try + L2 gate.
+// Expr 1224 / MatchArm 24 / StructLitField 264.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 // WIN leftover STRUCT_LIT name/nf faces stay export-extern (pure/cold).
 
@@ -142,13 +143,26 @@ const W327_SLF_NAME: i32 = 0;
 const W327_SLF_NAME_LEN: i32 = 256;
 const W327_SLF_INIT_REF: i32 = 260;
 
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ * wave365: wrap pipe_load_i32_le for PREFER_ASM pure-asm leave.
+ */
 function w327_load(p: *u8, off: i32): i32 {
   if (p == (0 as *u8)) { return 0; }
-  return pipe_load_i32_le(p, off);
+  unsafe {
+    return pipe_load_i32_le(p, off);
+  }
 }
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ * wave365: wrap pipe_store_i32_le for PREFER_ASM pure-asm leave.
+ */
 function w327_store(p: *u8, off: i32, v: i32): void {
   if (p == (0 as *u8)) { return; }
-  pipe_store_i32_le(p, off, v);
+  unsafe {
+    pipe_store_i32_le(p, off, v);
+  }
 }
 function w327_num_exprs(a: *u8): i32 {
   if (a == (0 as *u8)) { return 0; }
@@ -1762,7 +1776,9 @@ export function ast_pipeline_expr_field_access_offset(a: *u8, expr_ref: i32): i3
 
 /** Shim codegen_pipeline_module_func_param_type_ref_at. PLATFORM: SHARED */
 export function codegen_pipeline_module_func_param_type_ref_at(m: *u8, func_index: i32, param_index: i32): i32 {
-  return pipeline_module_func_param_type_ref_at(m, func_index, param_index);
+  unsafe {
+    return pipeline_module_func_param_type_ref_at(m, func_index, param_index);
+  }
 }
 
 
@@ -1877,7 +1893,9 @@ export function ast_pipeline_expr_append_struct_lit_field(a: *u8, expr_ref: i32,
 
 /** Shim ast_pipeline_expr_struct_lit_num_fields. PLATFORM: SHARED */
 export function ast_pipeline_expr_struct_lit_num_fields(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+  unsafe {
+    return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+  }
 }
 
 
@@ -1901,19 +1919,25 @@ export function ast_pipeline_expr_struct_lit_field_name_into(a: *u8, expr_ref: i
 
 /** Shim ast_pipeline_expr_struct_lit_type_name_len. PLATFORM: SHARED */
 export function ast_pipeline_expr_struct_lit_type_name_len(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_struct_lit_type_name_len(a, expr_ref);
+  unsafe {
+    return pipeline_expr_struct_lit_type_name_len(a, expr_ref);
+  }
 }
 
 
 /** Shim ast_pipeline_expr_struct_lit_type_name_into. PLATFORM: SHARED */
 export function ast_pipeline_expr_struct_lit_type_name_into(a: *u8, expr_ref: i32, out64: *u8): void {
-  pipeline_expr_struct_lit_type_name_into(a, expr_ref, out64);
+  unsafe {
+    pipeline_expr_struct_lit_type_name_into(a, expr_ref, out64);
+  }
 }
 
 
 /** Shim ast_pipeline_expr_struct_lit_type_name_set. PLATFORM: SHARED */
 export function ast_pipeline_expr_struct_lit_type_name_set(a: *u8, expr_ref: i32, name: *u8, name_len: i32): void {
-  pipeline_expr_struct_lit_type_name_set(a, expr_ref, name, name_len);
+  unsafe {
+    pipeline_expr_struct_lit_type_name_set(a, expr_ref, name, name_len);
+  }
 }
 
 
@@ -1937,13 +1961,17 @@ export function ast_pipeline_expr_array_lit_num_elems_at(a: *u8, expr_ref: i32):
 
 /** Shim ast_pipeline_expr_float_bits_lo_at. PLATFORM: SHARED */
 export function ast_pipeline_expr_float_bits_lo_at(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_float_bits_lo_at(a, expr_ref);
+  unsafe {
+    return pipeline_expr_float_bits_lo_at(a, expr_ref);
+  }
 }
 
 
 /** Shim ast_pipeline_expr_float_bits_hi_at. PLATFORM: SHARED */
 export function ast_pipeline_expr_float_bits_hi_at(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_float_bits_hi_at(a, expr_ref);
+  unsafe {
+    return pipeline_expr_float_bits_hi_at(a, expr_ref);
+  }
 }
 
 
@@ -1979,37 +2007,49 @@ export function ast_pipeline_expr_method_call_name_into(a: *u8, expr_ref: i32, o
 
 /** Shim ast_pipeline_expr_field_access_is_enum_variant. PLATFORM: SHARED */
 export function ast_pipeline_expr_field_access_is_enum_variant(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_field_access_is_enum_variant(a, expr_ref);
+  unsafe {
+    return pipeline_expr_field_access_is_enum_variant(a, expr_ref);
+  }
 }
 
 
 /** Shim ast_pipeline_expr_field_access_layout_offset. PLATFORM: SHARED */
 export function ast_pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_field_access_layout_offset(a, m, expr_ref);
+  unsafe {
+    return pipeline_expr_field_access_layout_offset(a, m, expr_ref);
+  }
 }
 
 
 /** Shim ast_pipeline_expr_field_access_load_byte_sz. PLATFORM: SHARED */
 export function ast_pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_field_access_load_byte_sz(a, m, expr_ref);
+  unsafe {
+    return pipeline_expr_field_access_load_byte_sz(a, m, expr_ref);
+  }
 }
 
 
 /** Shim ast_pipeline_module_import_append_select_name. PLATFORM: SHARED */
 export function ast_pipeline_module_import_append_select_name(m: *u8, idx: i32, bytes: *u8, len: i32): i32 {
-  return pipeline_module_import_append_select_name(m, idx, bytes, len);
+  unsafe {
+    return pipeline_module_import_append_select_name(m, idx, bytes, len);
+  }
 }
 
 
 /** Shim codegen_pipeline_expr_kind_ord_at. PLATFORM: SHARED */
 export function codegen_pipeline_expr_kind_ord_at(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_kind_ord_at(a, expr_ref);
+  unsafe {
+    return pipeline_expr_kind_ord_at(a, expr_ref);
+  }
 }
 
 
 /** Shim codegen_pipeline_expr_struct_lit_num_fields. PLATFORM: SHARED */
 export function codegen_pipeline_expr_struct_lit_num_fields(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+  unsafe {
+    return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+  }
 }
 
 
@@ -2021,7 +2061,9 @@ export function codegen_pipeline_expr_struct_lit_init_ref(a: *u8, expr_ref: i32,
 
 /** Shim backend_pipeline_expr_struct_lit_num_fields. PLATFORM: SHARED */
 export function backend_pipeline_expr_struct_lit_num_fields(a: *u8, expr_ref: i32): i32 {
-  return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+  unsafe {
+    return pipeline_expr_struct_lit_num_fields(a, expr_ref);
+  }
 }
 
 
@@ -2033,23 +2075,31 @@ export function backend_pipeline_expr_struct_lit_init_ref(a: *u8, expr_ref: i32,
 
 /** Shim codegen_pipeline_expr_struct_lit_field_offset_at. PLATFORM: SHARED */
 export function codegen_pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
-  return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);
+  unsafe {
+    return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);
+  }
 }
 
 
 /** Shim codegen_pipeline_expr_struct_lit_field_store_sz. PLATFORM: SHARED */
 export function codegen_pipeline_expr_struct_lit_field_store_sz(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
-  return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
+  unsafe {
+    return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
+  }
 }
 
 
 /** Shim backend_pipeline_expr_struct_lit_field_offset_at. PLATFORM: SHARED */
 export function backend_pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
-  return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);
+  unsafe {
+    return pipeline_expr_struct_lit_field_offset_at(a, m, expr_ref, field_ix);
+  }
 }
 
 
 /** Shim backend_pipeline_expr_struct_lit_field_store_sz. PLATFORM: SHARED */
 export function backend_pipeline_expr_struct_lit_field_store_sz(a: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32 {
-  return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
+  unsafe {
+    return pipeline_expr_struct_lit_field_store_sz(a, m, expr_ref, field_ix);
+  }
 }
