@@ -5350,7 +5350,9 @@ pipeline_abi_inject_block_tree_thin() {
 #   Ubuntu -E; option=240 root).
 # wave388: parse_orch HARD BAN reinject both ends (keep Darwin PREFER /
 #   Ubuntu hard-skip; ParseIntoResult/typeck root).
-# Next: BAN residual／mega_body Ubuntu／Type LE residual.
+# wave389: mega_body HARD BAN reinject both ends (keep Darwin PREFER /
+#   Ubuntu hard-skip; Type LE / fn#116 root).
+# Next: Type LE residual／remaining BAN leaf roots.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6224,67 +6226,24 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 
 
 
-# wave290/328/371/371b M2: asm_codegen_mega_body Cap residual C→.x.
-# PRODUCT inject wave371b:
-#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w371_*; L2 5/5@19825496).
-#   · LINUX|UBUNTU: hard-skip — tip typeck XT001 on w328_store_ptr
-#     (Type LE face); cannot fresh -E reinject. Stay prior -E body in pabi.
+# wave290/328/371/371b/389 M2: asm_codegen_mega_body Cap residual C→.x.
+# PRODUCT inject wave389 HARD BAN reinject both ends: stay prior overlay.
+#   Prior: MACOS PREFER / LINUX hard-skip (w371b; Ubuntu tip XT001 on
+#   w328_store_ptr Type LE; cannot fresh -E reinject).
+#   w389: formalize HARD BAN reinject (do not call inject_thin_leaf) —
+#     tip reinject poison class; keep green Darwin PREFER / Ubuntu prior
+#     -E via stamp only until Type LE / fn#116 root.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
-# PLATFORM: SHARED face · MACOS PREFER · LINUX hard-skip prior -E.
+# PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
-  local stamp="src/.pabi_w371_mega_body.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  local uname_s
+  local stamp="src/.pabi_w389_mega_body.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  uname_s=$(uname -s 2>/dev/null || echo unknown)
-  # PLATFORM: LINUX|UBUNTU — hard-skip (do not call inject_thin_leaf).
-  if [ "$uname_s" = "Linux" ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w328_mega_body.stamp
-    return 0
-  fi
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS|DARWIN — PREFER try.
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w371-mega-body"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w328_mega_body.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w328_mega_body.stamp src/.pabi_w371_mega_body.stamp
+  return 0
 }
 
 
@@ -11147,8 +11106,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-mega-body|inject_mega_body|inject-megabody|inject_megabody)
-    # wave328: C→.x asm_codegen_mega_body via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave389: mega_body HARD BAN reinject both ends (stamp only;
+    #   keep prior Darwin PREFER / Ubuntu hard-skip). PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-mega-body: need <out.o>" >&2
       exit 2

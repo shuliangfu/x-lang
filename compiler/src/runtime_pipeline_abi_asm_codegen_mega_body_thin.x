@@ -1,8 +1,10 @@
-// Thin pure: wave328/371/371b M2 — asm_codegen_mega_body Cap residual C→.x.
+// Thin pure: wave328/371/371b/389 M2 — asm_codegen_mega_body Cap residual C→.x.
 // ctx_reset_for_func_c + backend_asm_codegen_ast_to_elf_mega_body_c.
 // G.7: bodies match deleted C thin / seed WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
-// PRODUCT inject: Darwin PREFER (wave371); Ubuntu hard-skip prior -E (wave371b)
-// — Ubuntu tip XT001 on w328_store_ptr (Type LE); cannot fresh -E reinject.
+// wave371: Darwin PREFER; wave371b Ubuntu hard-skip prior -E
+//   (Ubuntu tip XT001 on w328_store_ptr Type LE; cannot fresh -E reinject).
+// wave389: HARD BAN reinject both ends (stamp .pabi_w389_mega_body.stamp);
+//   stay prior Darwin PREFER / Ubuntu prior -E until Type LE / fn#116 root.
 // T001 w371_* helpers. POSIX product path (WIN leftover ARRAY_LIT stays PE).
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
