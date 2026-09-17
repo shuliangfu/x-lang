@@ -5565,14 +5565,16 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w363b: module_func Darwin PREFER / Ubuntu -E (undef main).
 #   UNLOCKED w364: block_domain PREFER both ends (T001 w326_* · gate+L2).
 #   UNLOCKED w365: expr_sidecar PREFER both ends (T001 w327_* · gate+L2).
-#   UNLOCKED w366 try: sidecar_pool PREFER (T001 w308_* · gate+L2).
+#   UNLOCKED w366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
+#   BAN w367: dep_ctx PREFER (gate type_alias -c绿; L2 opt/si/hello XT001
+#     no-impl method) — stay -E; T001 w309_* kept.
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
-#       onefunc (BAN PREFER) /
-#       dep_ctx / elf_ctx / asm_wpo / top_level_let / asm_locals / struct_layout
+#       onefunc (BAN PREFER) / dep_ctx (BAN PREFER) /
+#       elf_ctx / asm_wpo / top_level_let / asm_locals / struct_layout
 #       (BAN) / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK.
@@ -5596,7 +5598,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave363/363b: module_func Darwin PREFER / Ubuntu -E (undef main).
 # wave364: block_domain PREFER both ends (T001 w326_* · gate+L2).
 # wave365: expr_sidecar PREFER both ends (T001 w327_* · gate+L2).
-# wave366: sidecar_pool PREFER try (T001 w308_* · gate+L2).
+# wave366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
+# wave367/367b: dep_ctx T001 w309_* + BAN PREFER (L2 opt/si/hello XT001).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5714,53 +5717,21 @@ pipeline_abi_inject_grow_vec_thin() {
   return "$rc"
 }
 
-# wave309 M2: dep_ctx Cap residual C→.x (was wave272 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Large BSS via -E+$CC.
-# G.7 match mega wave272 leave. PLATFORM: SHARED.
+# wave309/367b M2: dep_ctx Cap residual C→.x (was wave272 C thin).
+# PRODUCT inject wave367b HARD BAN PREFER: stay prior -E overlay; do not
+# re-overlay. wave367 PREFER pure-asm: gate type_alias -c green but Darwin
+# L2 opt/si/hello XT001 (no-impl method). T001 helper try also broke -E
+# reinject → hard-skip until root. Stamp w367b.
+# PLATFORM: SHARED · both ends hard-skip until product L2 root.
 pipeline_abi_inject_dep_ctx_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_dep_ctx_thin.x"
-  local stamp="src/.pabi_w309_dep_ctx.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w367b_dep_ctx.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w309-dep-ctx"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w309_dep_ctx.stamp src/.pabi_w367_dep_ctx.stamp
+  return 0
 }
 
 # wave312 M2: elf_ctx Cap residual C→.x (was wave273 C thin).
