@@ -5475,25 +5475,25 @@ pipeline_abi_inject_block_tree_thin() {
   return "$rc"
 }
 
-# wave337–342 M2 Cap leaf PREFER_ASM inventory:
+# wave337–343 M2 Cap leaf PREFER_ASM inventory:
 #   DONE PREFER (SHARED): w331 typeck_orch / w332 glue_statics /
 #     w333 preprocess_malloc / w334 lifecycle / w336 ast_forwarders.
 #   DONE PREFER (LINUX gold only, Darwin -E):
 #     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
-#     w342 emit_ctx_bss (Cap A named-BSS set unlocked by w338).
+#     w342 emit_ctx_bss · w343 typeck_check_expr (Cap A named-BSS / COMMON).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A remaining named-BSS: typeck_check_expr / bootstrap_glue scope /
-#       block_tree i32[256] (still need probe+gate; Darwin mega wait).
+#     A remaining named-BSS: block_tree i32[256] walk stack (fixed array stack).
 #     B local fixed arrays / digit-loop / FileView layout
-#       (parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
+#       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
+#        parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
 #        read_file_x_view / import_heap).
 #     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
 #       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
-# wave339–342: Cap A emit_ctx family + typeck_active (LINUX PREFER / DARWIN -E).
-# Next: typeck_check_expr / bootstrap_glue Cap A or GrowVec-LE; Darwin mega when RAM ok.
+# wave339–343: Cap A family (LINUX PREFER / DARWIN -E).
+# Next: block_tree Cap A/B or GrowVec-LE; Darwin mega when RAM ok.
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
@@ -6316,19 +6316,23 @@ pipeline_abi_inject_typeck_orch_thin() {
 
 
 
-# wave319 M2: typeck_check_expr Cap residual C→.x (was wave286 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Match BSS OK under -E.
+# wave319/343 M2: typeck_check_expr Cap residual .x thin (was wave286 C thin).
+# PRODUCT inject wave343:
+#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 null TYPE_PTR → match subject COMMON;
+#     gold probe 34 Lxml vs Darwin 33 — missing null-ptr cell).
+#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild.
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
-# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED.
+# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
-  local stamp="src/.pabi_w319_typeck_check_expr.stamp"
+  local stamp="src/.pabi_w343_typeck_check_expr.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -6342,10 +6346,15 @@ pipeline_abi_inject_typeck_check_expr_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
+  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Linux) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w319-typeck-check-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w343-typeck-check-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -11283,7 +11292,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-typeck-check-expr|inject_typeck_check_expr)
-    # wave319: C→.x typeck_check_expr via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave343: typeck_check_expr Cap A — LINUX PREFER_ASM / DARWIN -E+$CC.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-typeck-check-expr: need <out.o>" >&2

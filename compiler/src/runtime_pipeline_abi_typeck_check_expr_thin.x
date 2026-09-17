@@ -1,11 +1,13 @@
-// Thin pure: wave319 M2 — typeck_check_expr Cap residual C→.x (was wave286 C thin).
+// Thin pure: wave319/343 M2 — typeck_check_expr Cap residual (was wave286 C thin).
 // Dispatch check_expr_*_c + match subject BSS + repr/extern gates; ~22 exports.
 // G.7: bodies match runtime_pipeline_abi_typeck_check_expr_thin.c / seed WAVE286.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_typeck_check_expr_thin
-// (ALLOW_E_REPLACE + stamp). Match BSS OK under -E+$CC.
+// PRODUCT inject (pipeline_abi_inject_typeck_check_expr_thin, stamp w343):
+//   LINUX|UBUNTU: PREFER_ASM (w338 null TYPE_PTR → match subject Lxml_* COMMON;
+//   gold probe 34 vs Darwin 33).
+//   MACOS|DARWIN: -E+$CC until mega prefer rebuild carries w338 (memory ban).
 // Cold WEAK check_expr_impl{,_mega} NOT defined here — typeck_x.o provides strong;
 // impl_c calls extern check_expr_impl_mega (seed/typeck resolve).
-// PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
+// PLATFORM: SHARED freestanding Cap leave · LINUX PREFER · MACOS -E co-path.
 
 // ExprKind / TypeKind product ordinals (LE shared with typeck.x / glue).
 let W286_EXPR_LIT: i32 = 0;

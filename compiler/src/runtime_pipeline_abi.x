@@ -8,8 +8,9 @@
 // wave289 codegen_outbuf seed ALWAYS leave (float_lit + try_propagate; slice_init stays codegen_x).
 // wave287/329 parser_result Cap residual .x thin (slice/lex/result sidecars;
 //   runtime_pipeline_abi_parser_result_thin.x via -E+$CC; was C thin);
-// wave286/319 typeck_check_expr Cap residual
-// .x thin (runtime_pipeline_abi_typeck_check_expr_thin.x via -E+$CC; was C thin);
+// wave286/319/343 typeck_check_expr Cap residual
+// .x thin (runtime_pipeline_abi_typeck_check_expr_thin.x; wave343 LINUX PREFER /
+// DARWIN -E+$CC; was wave319 -E-only; was C thin);
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
 // wave279/320/334 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
 //   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x PREFER_ASM wave334; was -E);
