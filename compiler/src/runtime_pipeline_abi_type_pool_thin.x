@@ -1,12 +1,14 @@
-// Thin pure: wave301/357/372/372b/373/383 M2 — type_pool Cap residual C→.x.
+// Thin pure: wave301/357/372/372b/373/383/383b M2 — type_pool Cap residual C→.x.
 // Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
 //   region_label[256]@272 region_label_len@528 size=532.
 // G.7: bodies match runtime_pipeline_abi.x wave270 leave (correct LE offsets;
 // historic C thin used wrong 132/136/140/144/272 — replaced here).
 // wave357: w301_load/store_i32 unsafe wrappers (T001).
 // wave372/372b/373: Ubuntu PREFER then option T001 — Darwin PREFER / Ubuntu -E.
-// wave383: Ubuntu tip PREFER L2 5/5 (option=102) + reinject stable — PREFER both.
-// PLATFORM: SHARED freestanding Cap leave · PREFER both ends.
+// wave383: Ubuntu tip PREFER L2 5/5 (option=102) — PREFER both ends.
+// wave383b: HARD BAN tip force-reinject after green (Ubuntu 3rd tip reinject
+//   → option T001; keep green PREFER overlay via .pabi_w383_type_pool.stamp).
+// PLATFORM: SHARED freestanding Cap leave · PREFER both ends · BAN force tip.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;

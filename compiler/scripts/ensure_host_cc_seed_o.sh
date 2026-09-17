@@ -5440,17 +5440,21 @@ pipeline_abi_inject_block_tree_thin() {
 #   Ubuntu PREFER XT001; keep prior -E overlay).
 # wave382: elf_ctx HARD BAN reinject both ends (Darwin BRANCH26; Ubuntu SEGV).
 # wave383: type_pool PREFER both ends (Ubuntu tip unlock; option=102).
+# wave383b: HARD BAN tip force-reinject after green (Ubuntu 3rd tip
+#   reinject → option T001; heal prefer_green overlay). Stamp-only.
 # Next: BAN residual roots／mega_body Ubuntu fn#116／Type LE residual.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
-# wave301/357/357b/372/372b/373/383 M2: type_pool Cap residual C→.x (was wave270 C thin).
-# PRODUCT inject wave383: PREFER_ASM both ends.
+# wave301/357/357b/372/372b/373/383/383b M2: type_pool Cap residual C→.x
+#   (was wave270 C thin).
+# PRODUCT inject wave383: PREFER_ASM both ends (first-wins / missing stamp).
 #   w372b/373: MACOS PREFER / LINUX -E (option T001 / non-i32 params root).
-#   w383: Ubuntu tip PREFER L2 5/5 (option=102) + tip reinject stable;
-#     Darwin tip reinject L2 green — unlock PREFER both ends.
-# G.7 LE name_len@260. PLATFORM: SHARED · PREFER both ends.
+#   w383: Ubuntu tip PREFER L2 5/5 (option=102); Darwin tip reinject green.
+#   w383b: Ubuntu tip force-reinject flaky (3rd → T001) — HARD BAN delete-
+#     stamp / tip reinject after green; keep PREFER overlay via stamp.
+# G.7 LE name_len@260. PLATFORM: SHARED · PREFER both ends · BAN force tip.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_pool_thin.x"
@@ -5461,7 +5465,10 @@ pipeline_abi_inject_type_pool_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: SHARED — w383b HARD BAN tip force-reinject: if stamp exists,
+  # skip even when thin.x is newer (git pull mtime must not reinject; Ubuntu
+  # 3rd tip reinject → option T001). Delete stamp only to re-try (banned).
+  if [ -f "$stamp" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -5474,7 +5481,7 @@ pipeline_abi_inject_type_pool_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM both ends (w383 Ubuntu unlock).
+  # PLATFORM: SHARED — PREFER_ASM both ends (w383 Ubuntu unlock; first-wins).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w383-type-pool"
@@ -11011,7 +11018,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-type-pool|inject_type_pool)
-    # wave357b: type_pool MACOS PREFER / LINUX -E (Ubuntu option T001).
+    # wave383/383b: type_pool PREFER_ASM both ends; stamp exists → skip
+    # (HARD BAN tip force-reinject; ignore thin.x mtime after pull).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-type-pool: need <out.o>" >&2
