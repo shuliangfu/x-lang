@@ -4816,16 +4816,16 @@ pipeline_abi_inject_asm73_live_set_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm73_live_set_thin.x" "w214-live-set"
 }
 
-# wave216/348 for_call_args mega leave. G.7: match mega entry.
-# PRODUCT inject stamp w348: historic leftover mega always lea'd i32 VAR
-# CALL args (&a not value) → check_expr PREFER XT001. Current thin does
-# resolve→use_lea→load (scalar rvalue). FORCE -E+$CC both ends (Darwin
-# asm overlay of this leaf not required; -E twin proves load).
-# PLATFORM: SHARED · both ends -E replace.
+# wave216/348/375 for_call_args mega leave. G.7: match mega entry.
+# PRODUCT inject wave375: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# wave348: historic leftover mega lea'd i32 VAR CALL args; thin does
+# resolve→use_lea→load (scalar rvalue). wave375: tip standalone -c 27881B
+# PREFER green — unlock both-end PREFER (was FORCE -E).
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_for_call_args_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_for_call_args_thin.x"
-  local stamp="src/.pabi_w348_for_call_args.stamp"
+  local stamp="src/.pabi_w375_for_call_args.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -4845,12 +4845,11 @@ pipeline_abi_inject_for_call_args_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (standalone -c gate green).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  export XLANG_PABI_THIN_FORCE_INJECT=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w348-for-call-args"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w375-for-call-args"
   rc=$?
-  unset XLANG_PABI_THIN_FORCE_INJECT
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -4866,6 +4865,7 @@ pipeline_abi_inject_for_call_args_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w348_for_call_args.stamp
   fi
   return "$rc"
 }
@@ -5558,7 +5558,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave345: MODLET_IN_REST prepare 入链.
 # wave346: check_expr ordinal let→const.
 # wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
-# wave348: for_call_args rvalue; Darwin check_expr PREFER / Ubuntu -E.
+# wave348/375: for_call_args rvalue; wave375 PREFER both ends (was -E).
+# wave375 BAN: parser_result PREFER (LexerResult.next_lex size under pure-asm).
 # wave349: block_tree T001 unsafe wrap.
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
 # wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
@@ -11515,6 +11516,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_lifecycle_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-for-call-args|inject_for_call_args|inject-fca|inject_fca)
+    # wave375: for_call_args PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-for-call-args: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_for_call_args_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

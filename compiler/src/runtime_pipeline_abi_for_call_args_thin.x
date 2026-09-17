@@ -1,8 +1,8 @@
-// Thin pure: wave216 for_call_args mega leave.
+// Thin pure: wave216/348/375 for_call_args mega leave.
 // G.7: body MUST match mega pipeline_asm_emit_expr_elf_for_call_args.
 // wave348: product ingest unlocks i32 VAR CALL-arg rvalue load (historic
 // leftover mega lea'd &a → check_expr PREFER XT001). PLATFORM: SHARED.
-// ensure injects via inject_thin_leaf (PREFER_ASM).
+// wave375: PREFER_ASM both ends (standalone -c 27881B gate).
 // Entire body in one unsafe: all callees are leftover/product faces.
 // PLATFORM: SHARED freestanding · LINUX+MACOS · MACOS|ARM64.
 

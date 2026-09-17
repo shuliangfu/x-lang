@@ -1,8 +1,10 @@
-// Thin pure: wave329 M2 — parser_result Cap residual C→.x (was wave287 C thin).
+// Thin pure: wave329/375 M2 — parser_result Cap residual C→.x (was wave287 C thin).
 // slice/lex copy sidecars + onefunc/extern/library/try_skip + collect_imports.
 // G.7: bodies match deleted C thin / seed WAVE287_PARSER_RESULT_ALWAYS.
 // PRODUCT inject: -E+$CC via pipeline_abi_inject_parser_result_thin
 // (ALLOW_E_REPLACE + stamp). Local LE layout structs (Lexer/Token/…).
+// wave375 BAN PREFER: LexerResult.next_lex unknown/invalid type size under
+// pure-asm -c — stay -E+$CC both ends.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
 /** LP64 product Lexer — match seed ALWAYS / C thin. */
