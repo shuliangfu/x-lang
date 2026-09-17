@@ -3376,8 +3376,8 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_parser_result_thin.c -nt "$o" ]; then
       stale=1
     fi
-    if [ -f src/runtime_pipeline_abi_asm_label_format_thin.c ] \
-      && [ src/runtime_pipeline_abi_asm_label_format_thin.c -nt "$o" ]; then
+    if [ -f src/runtime_pipeline_abi_asm_label_format_thin.x ] \
+      && [ src/runtime_pipeline_abi_asm_label_format_thin.x -nt "$o" ]; then
       stale=1
     fi
     if [ -f src/runtime_pipeline_abi_codegen_outbuf_thin.c ] \
@@ -4211,7 +4211,12 @@ pipeline_abi_windows_leftover_pe_cannot_e() {
   windows_leftover_pe_cannot_e
 }
 
-# Return 0 if every global text symbol in THIN is already a global T in BASE.
+# Return 0 if ANY global text symbol in THIN is already a global T in BASE.
+# Cap residual C→.x thins often add helper T (e.g. w288_format_*) that are
+# absent from leftover; requiring *all* thin T in base skipped weaken and
+# left overlapping exports strong → Darwin ld -r failed → libtool archive
+# with duplicate members (wave294 asm_label_format). Weaken only needs the
+# intersection; additive-only thins still return 1 (no overlap).
 # PLATFORM: SHARED nm (Darwin leading underscore accepted as-is).
 pipeline_abi_thin_already_defined() {
   local base="$1"
@@ -4223,14 +4228,16 @@ pipeline_abi_thin_already_defined() {
   [ -n "$thin_syms" ] || return 1
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
-    nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
+    if nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
       ($2 == "T" || $2 == "t") && $NF == s { found=1 }
       END { exit !found }
-    ' || return 1
+    '; then
+      return 0
+    fi
   done <<EOF
 $thin_syms
 EOF
-  return 0
+  return 1
 }
 
 # Weaken every global T from THIN inside BASE so Darwin ld -r can overlay
@@ -4371,7 +4378,11 @@ pipeline_abi_inject_thin_leaf() {
   if pipeline_abi_thin_already_defined "$o" "$thin_o"; then
     # Historic -E+$CC: skip second strong overlay (Darwin ld -r / libtool).
     # Pure-asm opt-in replaces leftover T (weaken then first-wins).
-    if [ "$used_asm" != "1" ]; then
+    # Cap residual C→.x via -E (XLANG_PABI_THIN_ALLOW_E_REPLACE=1): same
+    # weaken+first-wins when pure-asm bodies are red (wave294 digit loops).
+    if [ "$used_asm" != "1" ] \
+      && [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE:-0}" != "1" ] \
+      && [ "${XLANG_PABI_THIN_FORCE_INJECT:-0}" != "1" ]; then
       log "pipeline_abi ${tag} inject skip: already defined in $o"
       rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
       return 0
@@ -4385,7 +4396,11 @@ pipeline_abi_inject_thin_leaf() {
       rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
       return 0
     fi
-    log "pipeline_abi ${tag} inject: weakened leftover T (pure-asm replace)"
+    if [ "$used_asm" = "1" ]; then
+      log "pipeline_abi ${tag} inject: weakened leftover T (pure-asm replace)"
+    else
+      log "pipeline_abi ${tag} inject: weakened leftover T (-E replace)"
+    fi
   fi
   if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
     # PLATFORM: MACOS — ld -r may fall back to libtool -static. Accept only if
@@ -6137,49 +6152,55 @@ pipeline_abi_inject_parser_result_thin() {
 
 
 
-# wave288 asm_label_format Cap residual (C thin; emit_next_label / format_label_id).
-# Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
-# G.7: match seed WAVE288_ASM_LABEL_FORMAT_ALWAYS. PLATFORM: SHARED.
+# wave294 M2: asm_label_format Cap residual C→.x (was wave288 C thin).
+# PRODUCT inject: -E+$CC (not PREFER_ASM). Pure-asm digit loops SIGSEGV on
+# Darwin (format_u32 harness / L2 opt·si·hello). -E C matches seed snprintf
+# labels bit-identical. Stamp gate + ALLOW_E_REPLACE weaken leftover T.
+# G.7 match seed WAVE288_ASM_LABEL_FORMAT_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_asm_label_format_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_asm_label_format_thin.c"
-  local thin_o base_o restore_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi w288-asm-label inject skip: $o is libtool archive"
-    return 1
-  fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_albl.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_albl_base.XXXXXX.o")"
-  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_albl_restore.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi w288-asm-label inject: cc thin failed"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  cp -f "$o" "$restore_o"
-  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-    log "pipeline_abi w288-asm-label inject skip: cannot weaken leftover T"
-    rm -f "$thin_o" "$base_o" "$restore_o"
+  local thin_x="src/runtime_pipeline_abi_asm_label_format_thin.x"
+  local stamp="src/.pabi_w294_asm_label.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    if pipeline_abi_o_is_libtool_archive "$o"; then
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w288-asm-label inject: libtool archive; restored base"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-    log "pipeline_abi w288-asm-label inject OK (first-wins over leftover)"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 0
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
   fi
-  cp -f "$restore_o" "$o"
-  log "pipeline_abi w288-asm-label inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o" "$restore_o"
-  return 1
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w294-asm-label"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 
@@ -10688,6 +10709,20 @@ case "$MODE" in
     pipeline_abi_inject_codegen_outbuf_thin "$1"
     pipeline_abi_inject_asm_codegen_mega_body_thin "$1"
     pipeline_abi_inject_elf_codegen_forwarders_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-asm-label|inject_asm_label|inject-asm-label-format)
+    # wave294: C→.x asm_label_format via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # Do NOT use inject-pabi-leaf (forces PREFER_ASM; pure-asm digit loops red).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-asm-label: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_asm_label_format_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

@@ -66987,8 +66987,9 @@ void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t 
  * Deps (same seed/pure TU):
  *   pipeline_asm_ctx_layout (pure identity; seed cold twin under #ifndef FROM_X)
  *   pipeline_elf_label_mod_scope_active (pure; seed cold twin under #ifndef FROM_X)
- * M2 Class E: C thin leave = runtime_pipeline_abi_asm_label_format_thin.c (inject
- * weaken leftover T then first-wins). Seed body remains fallback / cold path.
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_asm_label_format_thin.x
+ * (wave294 C→.x PREFER_ASM inject; was wave288 C thin; no snprintf).
+ * Seed body remains fallback / cold path.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
 /* XLANG_PABI_ASM_LABEL_FORMAT_THIN_BEGIN */
