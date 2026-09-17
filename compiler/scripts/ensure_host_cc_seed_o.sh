@@ -5569,13 +5569,15 @@ pipeline_abi_inject_block_tree_thin() {
 #   BAN w367: dep_ctx PREFER (gate type_alias -c绿; L2 opt/si/hello XT001
 #     no-impl method) — hard-skip; stay prior -E.
 #   UNLOCKED w368b: elf_ctx Darwin PREFER / Ubuntu -E (elf patch offset=-1).
+#   BAN w369: asm_wpo PREFER (ARM64_RELOC_BRANCH26 on non-b/bl in thin;
+#     g05 pure-ld fail) — hard-skip; stay prior -E.
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
-#       onefunc (BAN PREFER) / dep_ctx (BAN PREFER) /
-#       asm_wpo / top_level_let / asm_locals / struct_layout
+#       onefunc (BAN PREFER) / dep_ctx (BAN PREFER) / asm_wpo (BAN PREFER) /
+#       top_level_let / asm_locals / struct_layout
 #       (BAN) / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK.
@@ -5602,6 +5604,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
 # wave367/367b: dep_ctx T001 try + BAN PREFER (L2 opt/si/hello XT001).
 # wave368/368b: elf_ctx Darwin PREFER / Ubuntu -E (elf patch offset=-1).
+# wave369/369b: asm_wpo T001 w311_* + BAN PREFER (ARM64_RELOC_BRANCH26).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5796,53 +5799,20 @@ pipeline_abi_inject_elf_ctx_thin() {
   return "$rc"
 }
 
-# wave311 M2: asm_wpo Cap residual C→.x (was wave274 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Large BSS via -E+$CC.
-# G.7 match mega wave274 leave. PLATFORM: SHARED.
+# wave311/369b M2: asm_wpo Cap residual C→.x (was wave274 C thin).
+# PRODUCT inject wave369b HARD BAN PREFER: stay prior -E overlay; do not
+# re-overlay. wave369 PREFER pure-asm: g05 pure-ld fails
+# ARM64_RELOC_BRANCH26 on non-b/bl in pabi_thin. T001 w311_* stay in .x.
+# Stamp w369b. PLATFORM: SHARED · both ends hard-skip until reloc root.
 pipeline_abi_inject_asm_wpo_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_wpo_thin.x"
-  local stamp="src/.pabi_w311_asm_wpo.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w369b_asm_wpo.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w311-asm-wpo"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w311_asm_wpo.stamp src/.pabi_w369_asm_wpo.stamp
+  return 0
 }
 
 # wave308/366 M2: sidecar_pool Cap residual C→.x (was wave275 C thin).

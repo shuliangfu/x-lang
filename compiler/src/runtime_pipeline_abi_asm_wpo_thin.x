@@ -1,8 +1,8 @@
-// Thin pure: wave311 M2 — asm_wpo Cap residual C→.x (was wave274 C thin).
+// Thin pure: wave311/369b M2 — asm_wpo Cap residual C→.x (was wave274 C thin).
 // WPO reach/DCE + PGO-Lite emit order; 7 exports + file-local BSS.
 // G.7: bodies match runtime_pipeline_abi.x wave274 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_asm_wpo_thin
-// (ALLOW_E_REPLACE + stamp). Large BSS OK under -E+$CC.
+// PRODUCT inject: hard-skip BAN PREFER (wave369b); stay prior -E overlay.
+// wave369: w311_* ptr helpers via unsafe (T001); PREFER g05 BRANCH26 fail.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 export extern "C" function pipeline_typeck_pick_overload_func_index_for_call_c(m: *u8, a: *u8, call_ref: i32): i32;
 
@@ -180,41 +180,61 @@ export function pipeline_asm_wpo_reach_clear(): void {
 }
 
 // --- pointer table helpers ---
+/**
+ * Ptr-slot load via unsafe (T001). PLATFORM: SHARED.
+ * wave369: wrap pipe_load_ptr_slot for PREFER_ASM pure-asm leave.
+ */
+function w311_load_ptr(base: *u8, i: i32): *u8 {
+  unsafe {
+    return pipe_load_ptr_slot(base, i);
+  }
+}
+
+/**
+ * Ptr-slot store via unsafe (T001). PLATFORM: SHARED.
+ * wave369: wrap pipe_store_ptr_slot for PREFER_ASM pure-asm leave.
+ */
+function w311_store_ptr(base: *u8, i: i32, val: *u8): void {
+  unsafe {
+    pipe_store_ptr_slot(base, i, val);
+  }
+}
+
 function asm_wpo_get_entry(): *u8 {
-  return pipe_load_ptr_slot(&g_aw_entry[0], 0);
+  return w311_load_ptr(&g_aw_entry[0], 0);
 }
 function asm_wpo_set_entry(m: *u8): void {
-  pipe_store_ptr_slot(&g_aw_entry[0], 0, m);
+  w311_store_ptr(&g_aw_entry[0], 0, m);
 }
 function asm_wpo_get_dep_ctx(): *u8 {
-  return pipe_load_ptr_slot(&g_aw_dep_ctx[0], 0);
+  return w311_load_ptr(&g_aw_dep_ctx[0], 0);
 }
 function asm_wpo_set_dep_ctx(c: *u8): void {
-  pipe_store_ptr_slot(&g_aw_dep_ctx[0], 0, c);
+  w311_store_ptr(&g_aw_dep_ctx[0], 0, c);
 }
 function asm_wpo_mod_slot(i: i32): *u8 {
-  return pipe_load_ptr_slot(&g_aw_mods[0], i);
+  return w311_load_ptr(&g_aw_mods[0], i);
 }
 function asm_wpo_set_mod_slot(i: i32, m: *u8): void {
-  pipe_store_ptr_slot(&g_aw_mods[0], i, m);
+  w311_store_ptr(&g_aw_mods[0], i, m);
 }
 function asm_wpo_arena_slot(i: i32): *u8 {
-  return pipe_load_ptr_slot(&g_aw_arenas[0], i);
+  return w311_load_ptr(&g_aw_arenas[0], i);
 }
 function asm_wpo_set_arena_slot(i: i32, a: *u8): void {
-  pipe_store_ptr_slot(&g_aw_arenas[0], i, a);
+  w311_store_ptr(&g_aw_arenas[0], i, a);
 }
 function asm_wpo_func_mod_slot(i: i32): *u8 {
-  return pipe_load_ptr_slot(&g_aw_func_mod[0], i);
+  return w311_load_ptr(&g_aw_func_mod[0], i);
 }
 function asm_wpo_set_func_mod_slot(i: i32, m: *u8): void {
-  pipe_store_ptr_slot(&g_aw_func_mod[0], i, m);
+  w311_store_ptr(&g_aw_func_mod[0], i, m);
 }
 function asm_wpo_get_emit_mod(): *u8 {
-  return pipe_load_ptr_slot(&g_aw_pgo_emit_mod[0], 0);
+  return w311_load_ptr(&g_aw_pgo_emit_mod[0], 0);
 }
 function asm_wpo_set_emit_mod(m: *u8): void {
-  pipe_store_ptr_slot(&g_aw_pgo_emit_mod[0], 0, m);
+  w311_store_ptr(&g_aw_pgo_emit_mod[0], 0, m);
 }
 
 /** Find module index in mods[]; -1 if unregistered. */
