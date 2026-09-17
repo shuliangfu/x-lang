@@ -45789,6 +45789,8 @@ void pipeline_typeck_active_module_set_c(void *m) {
  * cold seed keeps bodies under #ifndef FROM_X (scope process-local cell via
  * wave221 cold twin; module/dep via wave222 cold twins; per-ctx sidecar via
  * extern asm_ctx_set_scope_block residual).
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_glue_statics_thin.x
+ * (wave295 C→.x via -E+$CC inject; was wave261 C thin).
  * PLATFORM: SHARED freestanding emit Cap bridges.
  */
 /* XLANG_PABI_GLUE_STATICS_THIN_BEGIN */
