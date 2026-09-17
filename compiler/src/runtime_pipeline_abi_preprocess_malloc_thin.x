@@ -1,12 +1,13 @@
-// Thin pure: wave299 M2 — preprocess_malloc Cap residual C→.x
+// Thin pure: wave299/333 M2 — preprocess_malloc Cap residual C→.x
 // (was preprocess_malloc C strong overlay of
 // xlang_preprocess_raw_to_malloc_impl). PP002 heap scratch: malloc floor
 // 4MiB (or raw_len), preprocess_x_buf, owned NUL dup out. No BSS.
 // No FROM_X gate. G.7: body matches runtime_pipeline_abi.x
 // xlang_preprocess_raw_to_malloc_impl + historic
 // runtime_pipeline_abi_preprocess_malloc_thin.c / seed cold twin.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_preprocess_malloc_thin
-// (ALLOW_E_REPLACE + stamp).
+// PRODUCT inject: wave333 PREFER_ASM via pipeline_abi_inject_preprocess_malloc_thin
+// (ALLOW_E_REPLACE + stamp). All extern calls in unsafe (T001 under pure-asm);
+// no local fixed arrays — heap-only (was -E+$CC interim).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function preprocess_x_buf(src: *u8, src_len: i64, out: *u8, out_cap: i32): i32;
@@ -26,7 +27,8 @@ export extern "C" function free(p: *u8): void;
 /**
  * PP002 heap preprocess: scratch → preprocess_x_buf → owned NUL-terminated dup.
  * out_src / out_src_len are char** / size_t* bases as *u8 (slot 0).
- * PLATFORM: SHARED freestanding Cap leave (wave299 .x thin · -E+$CC).
+ * Contract: all FFI/slot/diag callees run under unsafe (T001).
+ * PLATFORM: SHARED freestanding Cap leave (wave333 PREFER_ASM · was wave299 -E).
  */
 #[no_mangle]
 export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {
@@ -45,17 +47,23 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
   let what2: *u8 = "output buffer";
 
   if (out_src != (0 as *u8)) {
-    xlang_ptr_slot_set(out_src, 0, 0 as *u8);
+    unsafe {
+      xlang_ptr_slot_set(out_src, 0, 0 as *u8);
+    }
   }
   if (out_src_len != (0 as *u8)) {
-    xlang_size_slot_set(out_src_len, 0, 0);
+    unsafe {
+      xlang_size_slot_set(out_src_len, 0, 0);
+    }
   }
   if (raw_len < 0) {
     return -1;
   }
   if (raw_len > (i32_max as i64)) {
     if (emit_diag != 0) {
-      pipeline_diag_preprocess_fail(path_diag);
+      unsafe {
+        pipeline_diag_preprocess_fail(path_diag);
+      }
     }
     return -1;
   }
@@ -68,7 +76,9 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
   }
   if (scratch == (0 as *u8)) {
     if (emit_diag != 0) {
-      pipeline_diag_preprocess_alloc_fail(path_diag, what);
+      unsafe {
+        pipeline_diag_preprocess_alloc_fail(path_diag, what);
+      }
     }
     return -1;
   }
@@ -77,7 +87,9 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
   }
   while (di < ndefines) {
     if (defines != (0 as *u8)) {
-      dname = xlang_ptr_slot_get(defines, di);
+      unsafe {
+        dname = xlang_ptr_slot_get(defines, di);
+      }
       if (dname != (0 as *u8)) {
         unsafe {
           preprocess_define_add(dname);
@@ -95,15 +107,21 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
     }
     if (emit_diag != 0) {
       if (n <= -2) {
-        pipeline_diag_preprocess_directive_code(path_diag, n);
+        unsafe {
+          pipeline_diag_preprocess_directive_code(path_diag, n);
+        }
       } else {
         unsafe {
           stack_n = preprocess_if_stack_len();
         }
         if (stack_n != 0) {
-          pipeline_diag_preprocess_unclosed_if(path_diag);
+          unsafe {
+            pipeline_diag_preprocess_unclosed_if(path_diag);
+          }
         } else {
-          pipeline_diag_preprocess_fail(path_diag);
+          unsafe {
+            pipeline_diag_preprocess_fail(path_diag);
+          }
         }
       }
     }
@@ -117,7 +135,9 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
       free(scratch);
     }
     if (emit_diag != 0) {
-      pipeline_diag_preprocess_unclosed_if(path_diag);
+      unsafe {
+        pipeline_diag_preprocess_unclosed_if(path_diag);
+      }
     }
     return -1;
   }
@@ -129,7 +149,9 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
       free(scratch);
     }
     if (emit_diag != 0) {
-      pipeline_diag_preprocess_alloc_fail(path_diag, what2);
+      unsafe {
+        pipeline_diag_preprocess_alloc_fail(path_diag, what2);
+      }
     }
     return -1;
   }
@@ -142,10 +164,14 @@ export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_
     free(scratch);
   }
   if (out_src != (0 as *u8)) {
-    xlang_ptr_slot_set(out_src, 0, dup);
+    unsafe {
+      xlang_ptr_slot_set(out_src, 0, dup);
+    }
   }
   if (out_src_len != (0 as *u8)) {
-    xlang_size_slot_set(out_src_len, 0, n as i64);
+    unsafe {
+      xlang_size_slot_set(out_src_len, 0, n as i64);
+    }
   }
   return 0;
 }

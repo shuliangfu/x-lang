@@ -33,6 +33,8 @@
 //   dep_prerun strong; cold WEAK under #ifndef FROM_X.
 //   Live=wave332 PREFER_ASM WAVE261: glue_statics Cap residual
 //   (runtime_pipeline_abi_glue_statics_thin.x; was -E+$CC wave295).
+//   Live=wave333 PREFER_ASM WAVE299: preprocess_malloc Cap residual
+//   (runtime_pipeline_abi_preprocess_malloc_thin.x; was -E+$CC wave299).
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
@@ -2802,7 +2804,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  *   i32-overflow raw -> pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
  * PLATFORM: SHARED - same control flow as historical seed _impl.
  * M2 Class E: .x thin leave = runtime_pipeline_abi_preprocess_malloc_thin.x
- * (wave299 C→.x via -E+$CC inject; was C strong overlay).
+ * (wave333 PREFER_ASM; was wave299 -E+$CC; was C strong overlay).
  */
 #[no_mangle]
 export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {

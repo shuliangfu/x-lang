@@ -4492,13 +4492,14 @@ pipeline_abi_inject_thin_leaf() {
   return 1
 }
 
-# wave299 M2: preprocess_malloc Cap residual C→.x (was C strong overlay).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No BSS — safe C→.x.
+# wave299/333 M2: preprocess_malloc Cap residual .x thin (PP002 heap).
+# PRODUCT inject: wave333 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
+# heap-only (no local fixed arrays); T001 unsafe wraps; was -E+$CC interim.
 # G.7 match mega xlang_preprocess_raw_to_malloc_impl. PLATFORM: SHARED.
 pipeline_abi_inject_preprocess_malloc_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_preprocess_malloc_thin.x"
-  local stamp="src/.pabi_w299_preprocess_malloc.stamp"
+  local stamp="src/.pabi_w333_preprocess_malloc.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -4518,9 +4519,9 @@ pipeline_abi_inject_preprocess_malloc_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w299-preprocess-malloc"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w333-preprocess-malloc"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -10998,7 +10999,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-preprocess-malloc|inject_preprocess_malloc)
-    # wave299: C→.x preprocess_malloc via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave333: preprocess_malloc PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-preprocess-malloc: need <out.o>" >&2
