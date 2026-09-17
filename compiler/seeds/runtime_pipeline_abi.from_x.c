@@ -4822,6 +4822,12 @@ int32_t pipeline_dep_ctx_preprocess_len_get(void *ctx) {
   return wave101_load_i32_le((uint8_t *)ctx, wave101_off_preprocess_len());
 }
 
+/**
+ * Resolve-read embed fill (4MiB pin wall). Cold twin under seed.
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_read_file_x_view_thin.x
+ * (wave297 C→.x via -E+$CC inject; was C strong overlay).
+ * PLATFORM: SHARED — view whole file; reject > pin embed (no silent truncate).
+ */
 int32_t pipeline_read_file_x(void *ctx) {
   uint8_t *path;
   uint8_t *buf;
