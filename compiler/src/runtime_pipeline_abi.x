@@ -10556,6 +10556,8 @@ export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
 
 // =============================================================================
 // wave110 pure ImportEntry storage (structure debt close under product PREFER)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_module_import_thin.x
+// (wave310 C→.x via -E+$CC inject; was wave263 C thin).
 // =============================================================================
 // PLATFORM: SHARED LP64 - multi-module pointer-keyed map + malloc grow for entries
 // and select name rows. Mirrors ast_pool ModuleSidecar.imports + import_select_* .
