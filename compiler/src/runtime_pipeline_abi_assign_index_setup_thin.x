@@ -1,4 +1,5 @@
-// Thin pure: INDEX arm setup (wave441).
+// Thin pure: INDEX arm setup (wave441/445).
+// wave445: `*out =` heal Ubuntu pure-asm CG002 from `out[0]=`.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;
@@ -24,12 +25,12 @@ export function glue_emit_assign_index_setup_elf_c(arena: *u8, expr_ref: i32, le
     if (idx_ref <= 0) {
       return 0 - 1;
     }
-    out_esz[0] = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
-    out_base[0] = base_ref;
-    out_idx[0] = idx_ref;
-    out_rko[0] = pipeline_expr_kind_ord_at(arena, right_ref);
-    out_ako[0] = pipeline_expr_kind_ord_at(arena, expr_ref);
-    out_bk[0] = pipeline_expr_kind_ord_at(arena, base_ref);
+    *out_esz = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
+    *out_base = base_ref;
+    *out_idx = idx_ref;
+    *out_rko = pipeline_expr_kind_ord_at(arena, right_ref);
+    *out_ako = pipeline_expr_kind_ord_at(arena, expr_ref);
+    *out_bk = pipeline_expr_kind_ord_at(arena, base_ref);
     return 0;
   }
 }

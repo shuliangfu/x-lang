@@ -1,4 +1,5 @@
-// Thin pure: peel ARRAY/SLICE/PTR layers for INDEX dest type (wave441).
+// Thin pure: peel ARRAY/SLICE/PTR layers for INDEX dest type (wave441/445).
+// wave445: `*out_ltr =` heal Ubuntu pure-asm CG002.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -40,7 +41,7 @@ export function glue_emit_assign_index_array_peel_elf_c(arena: *u8, ltr_in: i32,
     if (ltr <= 0) {
       return 0 - 3;
     }
-    out_ltr[0] = ltr;
+    *out_ltr = ltr;
     return 0;
   }
 }

@@ -1,4 +1,5 @@
-// Thin pure: INDEX TYPE_ARRAY dest-type resolve (wave441).
+// Thin pure: INDEX TYPE_ARRAY dest-type resolve (wave441/445).
+// wave445: `*out_ltr =` heal Ubuntu pure-asm CG002.
 // G.7: peel INDEX chain to element TYPE_ARRAY dest type.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
@@ -51,7 +52,7 @@ export function glue_emit_assign_index_array_resolve_elf_c(arena: *u8, left_ref:
     if (rc != 0) {
       return 0 - 3;
     }
-    out_ltr[0] = peel_s[0];
+    *out_ltr = peel_s[0];
     return 0;
   }
 }

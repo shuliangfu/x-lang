@@ -1,4 +1,5 @@
-// Thin pure: INDEX chain walk for TYPE_ARRAY resolve (wave441).
+// Thin pure: INDEX chain walk for TYPE_ARRAY resolve (wave441/445).
+// wave445: `*out_root =` heal Ubuntu pure-asm CG002.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -28,7 +29,7 @@ export function glue_emit_assign_index_array_walk_elf_c(arena: *u8, left_ref: i3
       chain_n = chain_n + 1;
       walk_cur = pipeline_expr_index_base_ref(arena, walk_cur);
     }
-    out_root[0] = walk_cur;
+    *out_root = walk_cur;
     return chain_n;
   }
 }

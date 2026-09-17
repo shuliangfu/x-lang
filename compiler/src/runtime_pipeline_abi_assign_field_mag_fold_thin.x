@@ -1,4 +1,5 @@
-// Thin pure: FIELD frame-mag fold over chain (wave441).
+// Thin pure: FIELD frame-mag fold over chain (wave441/445).
+// wave445: `*out_off =` heal Ubuntu pure-asm CG002 (`out[0]=`).
 // G.7: part of pipeline_asm_emit_assign_elf_c FIELD VAR-root path.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
@@ -53,7 +54,7 @@ export function glue_emit_assign_field_mag_fold_elf_c(arena: *u8, mod: *u8, chai
       }
       walk_i = walk_i - 1;
     }
-    out_off[0] = off;
+    *out_off = off;
     return hit;
   }
 }
