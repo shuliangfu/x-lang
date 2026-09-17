@@ -5435,6 +5435,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave379: onefunc HARD BAN PREFER + check_expr HARD BAN reinject (prior overlays).
 # wave380: Cap A HARD BAN reinject both ends (Darwin BRANCH26; Ubuntu SEGV);
 #   keep prior overlays (was LINUX PREFER / DARWIN -E).
+# wave381: parser_result HARD BAN reinject both ends (tip T001 next_lex /
+#   Ubuntu PREFER XT001; keep prior -E overlay).
 # Next: BAN residual roots／mega_body Ubuntu fn#116／Type LE option root.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6338,53 +6340,21 @@ pipeline_abi_inject_typeck_check_expr_thin() {
 
 
 
-# wave329 M2: parser_result Cap residual C→.x (was wave287 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). slice/lex/result sidecars.
-# G.7 WAVE287_PARSER_RESULT_ALWAYS. PLATFORM: SHARED.
+# wave329/375/381 M2: parser_result Cap residual C→.x (was wave287 C thin).
+# PRODUCT inject wave381 HARD BAN reinject both ends: stay prior -E overlay.
+#   w375 BAN PREFER (LexerResult.next_lex size under pure-asm).
+#   w381 tip: Darwin -E/PREFER both T001 next_lex; Ubuntu PREFER XT001 unsafe;
+#   Ubuntu -E still emits but reinject banned to match Cap A tip-poison class.
+# G.7 WAVE287_PARSER_RESULT_ALWAYS. PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_parser_result_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_parser_result_thin.x"
-  local stamp="src/.pabi_w329_parser_result.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w381_parser_result.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w329-parser-result"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w329_parser_result.stamp
+  return 0
 }
 
 
@@ -11434,8 +11404,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-parser-result|inject_parser_result|inject-pres|inject_pres)
-    # wave329: C→.x parser_result via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave381: HARD BAN reinject both ends (tip T001 / XT001) — stamp only.
+    # PLATFORM: SHARED shell.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-parser-result: need <out.o>" >&2
       exit 2
