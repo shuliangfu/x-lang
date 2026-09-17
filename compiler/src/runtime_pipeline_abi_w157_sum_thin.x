@@ -2,6 +2,8 @@
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave157 leave.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
 // Unblocked: COMMON + reloc_r_type accessors (PAGE21/PAGEOFF12; ld -r OK).
+// wave406: HARD BAN tip reinject both ends — standalone -c PREFER green
+//   but Darwin product inject ARM64_RELOC_BRANCH26 (same class as w404).
 // PLATFORM: SHARED freestanding frame-size · LINUX gold · MACOS.
 
 export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;

@@ -5183,11 +5183,22 @@ pipeline_abi_inject_assign_thin() {
   return "$rc"
 }
 
-# wave157 spill-sum thin. Unblocked after COMMON + reloc_r_type accessors
-# (macho_write reads g_pipe_elf_* → PAGE21/PAGEOFF12; Darwin ld -r OK).
-# G.7: bodies match mega wave157 leave. PLATFORM: SHARED.
+# wave406 M2: w157_sum Cap residual — HARD BAN tip reinject.
+# PRODUCT inject wave406:
+#   BOTH ends: HARD BAN tip reinject (stamp only).
+#   Probe: standalone -c PREFER green Darwin 24744B / Ubuntu 22031B, but
+#   Darwin product inject → ARM64_RELOC_BRANCH26 on ld -r thin member
+#   (same class as w404 bvsc). Keep leftover; no tip overlay.
+# G.7: thin body matches mega wave157 leave (cold twin only).
+# PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_w157_sum_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_w157_sum_thin.x" "w157-sum-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_w157_sum_thin.x"
+  local stamp="src/.pabi_w406_w157_sum.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — HARD BAN tip reinject (Darwin BRANCH26).
+  touch "$stamp"
+  return 0
 }
 
 # wave404 M2: binop_var_slot_cache Cap residual — HARD BAN tip reinject.
@@ -5792,7 +5803,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave403: assign MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
 # wave405: binop_stack_spill_try_reload PREFER both ends.
-# Next: 余 soft -E／mega Ubuntu BAN／split债；禁升钉。
+# wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
+# Next: 余 soft -E（blkpeel／arrcopy asym？）／mega BAN／split债；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11340,6 +11352,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_binop_stack_spill_try_reload_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-w157-sum|inject_w157_sum)
+    # wave406: HARD BAN tip reinject both ends.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-w157-sum: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_w157_sum_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
