@@ -1,5 +1,6 @@
 // Thin pure: DEREF arm dispatcher (wave441).
 // G.7: body MUST match pipeline_asm_emit_assign_elf_c DEREF path (peer-flat).
+// wave449: LINUX PREFER tip pure-asm (product si green alone + with peers).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;

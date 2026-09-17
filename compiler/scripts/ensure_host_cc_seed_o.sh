@@ -5600,11 +5600,12 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   (Ubuntu empty .o; -E omits T). Same class as rhsrax.
 # wave437: LINUX rhsrax PREFER — flat arm helpers (nested if/micro-unsafe
 #   emptied .o; Ubuntu -c ~12096B / 14T). emit_assign still BAN.
-# wave441/445/448: LINUX emit unlock — flat peer FIELD/INDEX/VAR/DEREF + dispatcher.
+# wave441/445/448/449: LINUX emit unlock — flat peer FIELD/INDEX/VAR/DEREF + dispatcher.
 #   w441b soft -E chain; w445 six-peer pure-asm overlay (`*out=` heal);
-#   tip rhsrax to_rax pure-asm HARD BAN (si SEGV); w448 arms-only PREFER overlay.
+#   tip rhsrax to_rax pure-asm HARD BAN (si SEGV); w448 arms-only PREFER overlay;
+#   w449 deref family PREFER; var+emit tip pure-asm HARD BAN.
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448 heal-asm.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449 heal-asm.
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
@@ -5621,8 +5622,10 @@ pipeline_abi_inject_assign_thin() {
   local need_emit=0
   local need_heal=0
   local need_arms=0
+  local need_deref=0
   # PLATFORM: LINUX — helpers -E; rhsrax to_rax -E (w445/448 BAN tip);
-  #   arms PREFER (w448); emit chain -E (w441b); six-peer heal-asm (w445).
+  #   arms PREFER (w448); emit chain -E (w441b); six-peer heal-asm (w445);
+  #   deref family PREFER (w449); var+emit tip pure-asm HARD BAN.
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
@@ -5677,15 +5680,32 @@ pipeline_abi_inject_assign_thin() {
           break
         fi
       done
+      # wave449: deref family PREFER overlay stamps
+      for _pair in \
+        "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|src/.pabi_w449_heal_deref_vec_var.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_vec_call_thin.x|src/.pabi_w449_heal_deref_vec_call.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|src/.pabi_w449_heal_deref_slice_call.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|src/.pabi_w449_heal_deref_array_call.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|src/.pabi_w449_heal_deref_let_init.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|src/.pabi_w449_heal_deref_scalar.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_thin.x|src/.pabi_w449_heal_deref.stamp"
+      do
+        _hx="${_pair%%|*}"
+        _hs="${_pair#*|}"
+        if [ -f "$_hx" ] && { [ ! -f "$_hs" ] || [ "$_hx" -nt "$_hs" ]; }; then
+          need_deref=1
+          break
+        fi
+      done
       ;;
   esac
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    # helpers up-to-date; still try rhsrax / arms / emit / heal on LINUX
+    # helpers up-to-date; still try rhsrax / arms / emit / heal / deref on LINUX
     if [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
-      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ]; then
+      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ]; then
         return 0
       fi
-    elif [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ]; then
+    elif [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ]; then
       return 0
     fi
   fi
@@ -5741,10 +5761,11 @@ pipeline_abi_inject_assign_thin() {
   # PLATFORM: LINUX — third inject emit peer chain (wave441/445).
   # Order: FIELD leaves → INDEX leaves → VAR → DEREF leaves → arm
   #   dispatchers → emit dispatcher (G.7 first-wins).
-  # wave441b: chain via -E (PREFER_ASM=0). Tip regen of to_rax/var/deref/emit
-  #   pure-asm → product si SEGV 139; keep soft -E for the full chain.
+  # wave441b: chain via -E (PREFER_ASM=0). Tip regen of to_rax/var/emit
+  #   pure-asm → product si SEGV 139; keep soft -E for those tips.
   # wave445: after chain, overlay six `*out=`-healed peers as pure-asm.
   # wave448: rhsrax arms PREFER overlay (above); to_rax stays -E.
+  # wave449: deref family PREFER overlay after heals; var+emit stay -E.
   if [ "$rc" -eq 0 ] && [ -n "${emit_x-}" ] && [ -f "$emit_x" ]; then
     if [ ! -f "$emit_s" ] || [ "$emit_x" -nt "$emit_s" ]; then
       export XLANG_PABI_THIN_PREFER_ASM=0
@@ -5806,7 +5827,7 @@ pipeline_abi_inject_assign_thin() {
   fi
   # wave445: six-peer pure-asm overlay (independent of emit -E stamp gate).
   # Root: Ubuntu CG002 on `out[0]=`/`out[i]=`; heal uses `*out=` / `&a[i]; *p=`.
-  # Ban tip regen of rhsrax/var/deref/emit (si SEGV). PLATFORM: LINUX gold.
+  # Ban tip regen of to_rax/var/emit (si SEGV). PLATFORM: LINUX gold.
   if [ "$rc" -eq 0 ]; then
     local h_x h_rest h_stamp h_tag
     export XLANG_PABI_THIN_PREFER_ASM=1
@@ -5828,6 +5849,37 @@ pipeline_abi_inject_assign_thin() {
         rc=$?
         if [ "$rc" -eq 0 ]; then
           touch "$h_stamp"
+        else
+          break
+        fi
+      fi
+    done
+  fi
+  # wave449: deref family pure-asm overlay (leaves + dispatcher). Product si
+  #   green alone; var tip / emit dispatcher tip pure-asm HARD BAN (si SEGV).
+  # PLATFORM: LINUX gold.
+  if [ "$rc" -eq 0 ]; then
+    local d_x d_rest d_stamp d_tag
+    export XLANG_PABI_THIN_PREFER_ASM=1
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+    for peer in \
+      "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|.pabi_w449_heal_deref_vec_var.stamp|w449-heal-deref-vec-var" \
+      "src/runtime_pipeline_abi_assign_deref_vec_call_thin.x|.pabi_w449_heal_deref_vec_call.stamp|w449-heal-deref-vec-call" \
+      "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|.pabi_w449_heal_deref_slice_call.stamp|w449-heal-deref-slice-call" \
+      "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|.pabi_w449_heal_deref_array_call.stamp|w449-heal-deref-array-call" \
+      "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w449_heal_deref_let_init.stamp|w449-heal-deref-let-init" \
+      "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w449_heal_deref_scalar.stamp|w449-heal-deref-scalar" \
+      "src/runtime_pipeline_abi_assign_deref_thin.x|.pabi_w449_heal_deref.stamp|w449-heal-deref"
+    do
+      d_x="${peer%%|*}"
+      d_rest="${peer#*|}"
+      d_stamp="src/${d_rest%%|*}"
+      d_tag="${d_rest#*|}"
+      if [ -f "$d_x" ] && { [ ! -f "$d_stamp" ] || [ "$d_x" -nt "$d_stamp" ]; }; then
+        pipeline_abi_inject_thin_leaf "$o" "$d_x" "$d_tag"
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+          touch "$d_stamp"
         else
           break
         fi
@@ -6935,7 +6987,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave442: arr_struct_lit LINUX -E peer PREFER (call heal; pure-asm residual).
 # wave443: mega helpers LINUX -E PREFER (+emit_one); loop tip BAN.
 # wave444: mega loop LINUX HARD BAN (-E EM:0 / pure-asm SEGV 139).
-# Next: var/deref/emit tip regen／mega loop reshape；禁 tip to_rax／arrlit+main；禁升钉。
+# Next: mega loop reshape／var tip reshape；禁 tip to_rax／emit／arrlit+main；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.

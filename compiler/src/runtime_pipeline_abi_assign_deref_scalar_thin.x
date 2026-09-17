@@ -1,5 +1,6 @@
-// Thin pure: DEREF scalar store peer (wave441).
-// G.7: part of pipeline_asm_emit_assign_elf_c DEREF path.
+// Thin pure: DEREF scalar leaf (wave441 peer).
+// G.7: match mega / assign_deref dispatcher peer arm.
+// wave449: LINUX PREFER tip pure-asm (product si green).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;

@@ -1,4 +1,6 @@
-// Thin pure: DEREF TYPE_ARRAY CALL park+copy (wave441).
+// Thin pure: DEREF array_call leaf (wave441 peer).
+// G.7: match mega / assign_deref dispatcher peer arm.
+// wave449: LINUX PREFER tip pure-asm (product si green).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;

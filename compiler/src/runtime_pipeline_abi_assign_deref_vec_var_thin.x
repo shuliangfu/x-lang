@@ -1,4 +1,6 @@
-// Thin pure: DEREF vector VAR memcpy dest-in-rbx (wave441).
+// Thin pure: DEREF vec_var leaf (wave441 peer).
+// G.7: match mega / assign_deref dispatcher peer arm.
+// wave449: LINUX PREFER tip pure-asm (product si green).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;

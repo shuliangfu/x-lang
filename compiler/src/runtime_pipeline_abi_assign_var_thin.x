@@ -1,5 +1,7 @@
-// Thin pure: assign emit var arm peer (wave441).
-// G.7: body MUST match pipeline_asm_emit_assign_elf_c var path.
+// Thin pure: VAR assign arm (wave441).
+// G.7: body MUST match glue_emit_assign_var_elf_c in assign_thin / mega.
+// wave441b: LINUX product via -E (tip pure-asm → si SEGV).
+// wave449: tip pure-asm HARD BAN (single T; product si SEGV 139).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;

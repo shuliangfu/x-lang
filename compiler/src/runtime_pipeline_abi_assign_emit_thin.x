@@ -3,6 +3,8 @@
 // wave426: LINUX HARD BAN (Ubuntu empty .o).
 // wave441: LINUX -E peer chain unlock (wave441b: pure-asm peers/emit
 //   CG002 or si SEGV 139 — soft -E product path).
+// wave449: tip pure-asm HARD BAN — dispatcher alone → product si SEGV 139
+//   (same class as rhsrax to_rax). Stay -E leftover.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;

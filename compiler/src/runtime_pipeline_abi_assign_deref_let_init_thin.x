@@ -1,4 +1,6 @@
-// Thin pure: DEREF array/struct let-init dest-in-rbx (wave441).
+// Thin pure: DEREF let_init leaf (wave441 peer).
+// G.7: match mega / assign_deref dispatcher peer arm.
+// wave449: LINUX PREFER tip pure-asm (product si green).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, arr_ty: i32, stack_off: i32): i32;
