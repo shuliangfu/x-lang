@@ -87318,6 +87318,8 @@ export function pipeline_struct_layout_next_field_offset(m: *u8, a: *u8, layout_
 // end wave266 pure-owned leave
 
 // wave267: pipeline_asm_locals.c pure-owned leave (AsmLocal + AsmBlockSlot maps + faces)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_asm_locals_thin.x
+// (wave304 C→.x via -E+$CC inject; was wave267 C thin).
 // =============================================================================
 // G.7 product authority for:
 //   asm_ctx_local_reset / count / append / name_len / name_byte_at / name_copy64
