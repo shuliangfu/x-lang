@@ -3372,8 +3372,8 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_typeck_check_expr_thin.x -nt "$o" ]; then
       stale=1
     fi
-    if [ -f src/runtime_pipeline_abi_parser_result_thin.c ] \
-      && [ src/runtime_pipeline_abi_parser_result_thin.c -nt "$o" ]; then
+    if [ -f src/runtime_pipeline_abi_parser_result_thin.x ] \
+      && [ src/runtime_pipeline_abi_parser_result_thin.x -nt "$o" ]; then
       stale=1
     fi
     if [ -f src/runtime_pipeline_abi_asm_label_format_thin.x ] \
@@ -4283,6 +4283,11 @@ EOF
   # --redefine-sym so Darwin ld -r can first-wins overlay the thin
   # (wave328 mega_body C→.x). Dead renamed bodies stay until next prefer.
   # PLATFORM: LINUX — weaken usually works; redefine only if still T.
+  # Unique dead names: tip often already has *_pabi_superseded from a prior
+  # Cap overlay. Redefining onto an existing name creates duplicate atoms in
+  # one MH_OBJECT → Darwin ld asserts "malformed atom files with duplicate
+  # names" and pure_ld_partial_merge falls back to libtool archive (g05 red).
+  # Pick *_pabi_superseded / *_pabi_superseded2 / … until free (wave329).
   still_t=0
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
@@ -4292,6 +4297,14 @@ EOF
     '; then
       still_t=1
       dead="${sym}_pabi_superseded"
+      n=1
+      while nm -gU "$base" 2>/dev/null | awk -v s="$dead" '
+        $NF == s { found=1 }
+        END { exit !found }
+      '; do
+        n=$((n + 1))
+        dead="${sym}_pabi_superseded${n}"
+      done
       "$oc" --redefine-sym="${sym}=${dead}" "$base" 2>/dev/null || true
       case "$sym" in
         _*)
@@ -4306,8 +4319,21 @@ EOF
 $(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
 EOF
   if [ "$still_t" = "1" ]; then
-    log "pipeline_abi weaken: Darwin/objcopy weaken no-op → redefine-sym *_pabi_superseded"
+    log "pipeline_abi weaken: Darwin/objcopy weaken no-op → redefine-sym unique *_pabi_supersededN"
   fi
+  # Refuse if any thin T still strong in base (redefine failed / no-op).
+  while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    if nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
+      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
+      END { exit !found }
+    '; then
+      log "pipeline_abi weaken: leftover T still strong after redefine ($sym)"
+      return 1
+    fi
+  done <<EOF
+$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+EOF
   return 0
 }
 
@@ -6272,49 +6298,53 @@ pipeline_abi_inject_typeck_check_expr_thin() {
 
 
 
-# wave287 parser_result Cap residual (C thin; slice/lex/result sidecars).
-# Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
-# G.7: match seed WAVE287_PARSER_RESULT_ALWAYS. PLATFORM: SHARED.
+# wave329 M2: parser_result Cap residual C→.x (was wave287 C thin).
+# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). slice/lex/result sidecars.
+# G.7 WAVE287_PARSER_RESULT_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_parser_result_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_parser_result_thin.c"
-  local thin_o base_o restore_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi w287-parser-result inject skip: $o is libtool archive"
-    return 1
-  fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pres.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pres_base.XXXXXX.o")"
-  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_pres_restore.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi w287-parser-result inject: cc thin failed"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  cp -f "$o" "$restore_o"
-  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-    log "pipeline_abi w287-parser-result inject skip: cannot weaken leftover T"
-    rm -f "$thin_o" "$base_o" "$restore_o"
+  local thin_x="src/runtime_pipeline_abi_parser_result_thin.x"
+  local stamp="src/.pabi_w329_parser_result.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    if pipeline_abi_o_is_libtool_archive "$o"; then
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w287-parser-result inject: libtool archive; restored base"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-    log "pipeline_abi w287-parser-result inject OK (first-wins over leftover)"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 0
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
   fi
-  cp -f "$restore_o" "$o"
-  log "pipeline_abi w287-parser-result inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o" "$restore_o"
-  return 1
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w329-parser-result"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 
@@ -11308,6 +11338,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_asm_codegen_mega_body_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-parser-result|inject_parser_result|inject-pres|inject_pres)
+    # wave329: C→.x parser_result via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-parser-result: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_parser_result_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

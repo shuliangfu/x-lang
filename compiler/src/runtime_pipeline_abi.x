@@ -6,7 +6,9 @@
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
 // wave291 elf_codegen_forwarders seed ALWAYS leave (platform.elf/codegen rename shims + sizeof_elf_ctx).
 // wave289 codegen_outbuf seed ALWAYS leave (float_lit + try_propagate; slice_init stays codegen_x).
-// wave287 parser_result seed ALWAYS leave; wave286/319 typeck_check_expr Cap residual
+// wave287/329 parser_result Cap residual .x thin (slice/lex/result sidecars;
+//   runtime_pipeline_abi_parser_result_thin.x via -E+$CC; was C thin);
+// wave286/319 typeck_check_expr Cap residual
 // .x thin (runtime_pipeline_abi_typeck_check_expr_thin.x via -E+$CC; was C thin);
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
 // wave279/320 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
@@ -22,7 +24,7 @@
 // wave283/322 ast_forwarders Cap residual .x thin (ast_pipeline_* rename shims +
 //   pipeline_copy_lib_root_to_buf256; runtime_pipeline_abi_ast_forwarders_thin.x
 //   via -E+$CC; was C thin).
-//   Live=seed ALWAYS WAVE287: parser slice/lex/result-copy Cap residual faces
+//   Live=wave329 .x thin WAVE287: parser slice/lex/result-copy Cap residual faces
 //   (parser_slice_from_buf / parser_lex_from_* / pipeline_parser_*_set_*).
 //   Live=wave319 .x thin WAVE286: check_expr dispatch + match BSS + thin faces;
 //   typeck owns typeck_check_expr_* helpers; cold WEAK check_expr_impl{,_mega}.
@@ -36,6 +38,7 @@
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
 //   Live=wave328 .x thin WAVE290: asm_codegen_mega_body ctx_reset + mega_body_c.
+//   Live=wave329 .x thin WAVE287: parser_result slice/lex/result Cap residual.
 // wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
 //   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
 //   simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper;
