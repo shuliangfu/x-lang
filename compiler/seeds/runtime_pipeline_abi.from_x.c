@@ -18097,18 +18097,12 @@ int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_r
   if (base_ref <= 0 || idx_ref <= 0)
     return -1;
   esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
-  if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
-    int32_t off;
-    uint8_t vname[256];
-    int32_t vlen;
-    vlen = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen <= 0 || vlen > 255)
-      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-    pipeline_expr_var_name_into(arena, base_ref, vname);
-    off = asm_ctx_local_find_offset(ctx, vname, vlen);
-    if (off < 0)
-      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
-  }
+  /* wave350 G.7: no VAR local/modlet early gate. Twin of
+   * runtime_pipeline_abi.x pipeline_asm_emit_index_elf_c — assign INDEX
+   * already goes straight to glue_emit_index_eff_addr_scaled; a local-only
+   * reject here CG002'd module fixed-array rvalue `g[0]` while write/`&`
+   * /ascription stayed green (cold prepare vs product find dual table).
+   * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
   if (glue_index_assign_addr_cache_hit(arena, ctx, base_ref, idx_ref, esz))
     return glue_index_load_from_cached_assign_addr_elf_c(elf_ctx, esz, ta);
   glue_index_assign_addr_cache_clear();

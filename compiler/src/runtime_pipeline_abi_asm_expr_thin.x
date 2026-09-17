@@ -1,6 +1,8 @@
-// Thin override: pipeline_asm_emit_expr_elf_rec + EXPR_ASM (60) slice0.
+// Thin override: pipeline_asm_emit_expr_elf_rec + emit_expr_elf_c + EXPR_ASM.
 // G.7: body matches seeds/runtime_pipeline_abi.from_x.c emit_expr_elf_rec
 // with ko==60 → pipeline_asm_try_emit_inline_asm_expr_elf_c.
+// wave350: also own emit_expr_elf_c so inject redefine-sym cannot leave
+// mega emit_expr_elf_c bound to *_pabi_superseded rec (bare INDEX CG002).
 // ensure injects first-wins over weak pure (skip full mega -E).
 // PLATFORM: SHARED freestanding emit · LINUX gold · MACOS.
 
@@ -204,4 +206,18 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
     out_rc = backend_emit_expr_elf_slow(arena, elf_ctx, expr_ref, ctx, ta);
   }
   return out_rc;
+}
+
+/**
+ * Public expr ELF face — thin delegate to emit_expr_elf_rec.
+ * wave350: must ship with rec in this thin so product inject does not leave
+ * mega emit_expr_elf_c calling *_pabi_superseded rec after redefine-sym.
+ * @return i32 — face status from rec
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
+  }
 }

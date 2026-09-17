@@ -35821,32 +35821,14 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
     return 0 - 1;
   }
   esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
-  let base_kind: i32 = 0;
-  unsafe {
-    base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
-  }
-  if (base_kind == 3) {
-    let off: i32 = 0;
-    let vname: u8[256] = [];
-    let vlen: i32 = 0;
-    unsafe {
-      vlen = pipeline_expr_var_name_len(arena, base_ref);
-    }
-    if (vlen <= 0 || vlen > 255) {
-      return 0 - 99;
-    }
-    unsafe {
-      pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
-      off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
-    }
-    // Stage 12.0.5: module fixed arrays live in SHN_COMMON modlet cells (no stack
-    // slot after register/sum skip). Accept modlet hit so eff_addr can LEA COMMON.
-    if (off < 0) {
-      if (pipeline_asm_modlet_find(&vname[0], vlen) < 0) {
-        return 0 - 99;
-      }
-    }
-  }
+  // wave350 G.7: do NOT early-gate VAR bases via pipeline_asm_modlet_find.
+  // Product find reads g_pipeline_asm_modlet, but PREFER hybrid still links
+  // strong cold prepare/load (g_pipeline_asm_modlet_cold). Module fixed-array
+  // INDEX assign already skips this gate and LEAs via try_index→cold load;
+  // the gate falsely -99'd bare `return g[0]` (code_len=16) while
+  // `g[0]=1`, `&g[0]`, and `(g as T)[0]` stayed green. Authority is
+  // glue_emit_index_eff_addr_scaled → try_index / emit_expr(base).
+  // PLATFORM: SHARED — Darwin ARM64 live fail; Ubuntu gold co-path.
   let hit: i32 = 0;
   unsafe {
     hit = glue_index_assign_addr_cache_hit(arena, ctx, base_ref, idx_ref, esz);
