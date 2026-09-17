@@ -6,6 +6,10 @@
 // high bits (multi-let / multi-mono compare false-red).
 // ensure injects via pipeline_abi_inject_field_load_sz_thin (first-wins
 // ld -r; avoids Darwin mega -E 22-40GB RSS).
+// wave401: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c/-E full file XT001@field_load_sz_bytes_eq MISATTRIBUTED —
+//   helpers-only (cut before main) -c green; root = LINUX typeck/arena on
+//   full leaf. Split deferred.
 // PLATFORM: SHARED freestanding field load · LINUX gold · MACOS co-path.
 
 export extern function pipeline_expr_field_access_base_ref(a: *u8, expr_ref: i32): i32;
