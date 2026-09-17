@@ -83098,7 +83098,7 @@ export function pipeline_asm_host_is_arm64_c(): i32 {
 // ===========================================================================
 // wave222: emit_ctx module + dep_pipe BSS pure leave
 // M2 Class E: .x thin leave = runtime_pipeline_abi_emit_ctx_module_dep_thin.x
-// (wave315 C→.x via -E+$CC inject; was wave222 C thin).
+// (wave340 LINUX PREFER_ASM / DARWIN -E+$CC; was wave315 -E-only; was wave222 C).
 // (was Cap residual pipeline_glue_statics.c static + get/set wave141 public)
 // G.7 product authority for freestanding emit module/dep cells:
 //   pipeline_asm_emit_ctx_module_{get,set}
