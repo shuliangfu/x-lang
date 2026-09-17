@@ -6781,7 +6781,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave441: assign emit LINUX -E peer chain PREFER (pure-asm CG002/SEGV).
 # wave442: arr_struct_lit LINUX -E peer PREFER (call heal; pure-asm residual).
 # wave443: mega helpers LINUX -E PREFER (+emit_one); loop tip BAN.
-# Next: mega loop heal／emit peer pure-asm heal／struct_lit call pure-asm heal；禁升钉。
+# wave444: mega loop LINUX HARD BAN (-E EM:0 / pure-asm SEGV 139).
+# Next: emit peer pure-asm heal／struct_lit call pure-asm heal／mega loop reshape；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -7611,18 +7612,22 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 
 
 
-# wave290/328/371/371b/389/394/394b/424/443 M2: asm_codegen_mega_body Cap residual.
-# PRODUCT inject wave424/443 asymmetric:
+# wave290/328/371/371b/389/394/394b/424/443/444 M2: asm_codegen_mega_body Cap residual.
+# PRODUCT inject wave424/443/444 asymmetric:
 #   MACOS: three-leaf PREFER (helpers → emit_one → loop); Darwin L2 5/5.
-#   LINUX wave424: PREFER emit_one ONLY (helpers/loop three-leaf BAN).
-#   LINUX wave443: helpers via -E unlock (pure-asm helpers → CG002/SEGV w429;
-#     -E helpers L2 5/5). loop still BAN (helpers+loop / all-E → build=1).
+#   LINUX wave424: PREFER emit_one ONLY.
+#   LINUX wave443: helpers via -E unlock (pure-asm helpers → CG002/SEGV w429).
+#   LINUX wave444: loop tip HARD BAN — root map:
+#     · -E tip: codegen drops e_machine/reloc stores + reorders modlet → EM:0
+#       (ld "Relocations in generic ELF (EM: 0)"); L2 0/5 build=1.
+#     · pure-asm tip: inject OK but product SEGV 139 (L2 0/5).
+#     Keep leftover mega_body_c; stamp .pabi_w444_mega_loop (no tip overlay).
 #     Stamp .pabi_w443_mega_helpers + .pabi_w424_mega_emit_one.
 # wave427: loop-alone after emit_one PREFER still BAN (product EM:0 L2 0/5).
 # wave429: mega_body pure-asm product CG002/SEGV; healed by leave leftover;
 #   w443 soft -E helpers unlock.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
-# PLATFORM: SHARED · MACOS three-leaf PREFER / LINUX helpers-E+emit_one.
+# PLATFORM: SHARED · MACOS three-leaf PREFER / LINUX helpers-E+emit_one / loop BAN.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local o="$1"
   local thin_helpers="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
@@ -7634,15 +7639,18 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local rc=0
   [ -s "$o" ] && [ -f "$thin_helpers" ] && [ -f "$thin_emit" ] && [ -f "$thin_loop" ] || return 0
   # PLATFORM: LINUX — helpers -E (w443) then emit_one pure-asm (w424);
-  #   loop tip HARD BAN.
+  #   loop tip HARD BAN (w444: -E EM:0 / pure-asm SEGV).
   case "$(uname -s)" in
     Linux)
       local stamp_h="src/.pabi_w443_mega_helpers.stamp"
       local stamp_l="src/.pabi_w424_mega_emit_one.stamp"
+      local stamp_loop="src/.pabi_w444_mega_loop.stamp"
       local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
       local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
       local had_prefer=0 had_e_repl=0
       local need_h=0 need_e=0
+      # PLATFORM: LINUX — HARD BAN loop tip reinject (stamp only).
+      touch "$stamp_loop"
       if [ ! -f "$stamp_h" ] || [ "$thin_helpers" -nt "$stamp_h" ]; then
         need_h=1
       fi

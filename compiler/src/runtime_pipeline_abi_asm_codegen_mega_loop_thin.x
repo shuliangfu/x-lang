@@ -1,8 +1,10 @@
-// Thin pure: wave393/394 M2 — asm_codegen mega LOOP outer leaf.
+// Thin pure: wave393/394/444 M2 — asm_codegen mega LOOP outer leaf.
 // Export: pipeline_backend_asm_codegen_ast_to_elf_mega_body_c.
 // emit_one lives in runtime_pipeline_abi_asm_codegen_mega_emit_one_thin.x.
 // wave394: split emit_one out — Ubuntu CG002 when both full bodies co-file.
-// BAN reinject until both leaves -c green both ends + unlock try.
+// wave444 LINUX HARD BAN tip reinject:
+//   -E drops e_machine/reloc stores (codegen reorder) → product EM:0;
+//   pure-asm inject OK but product SEGV 139. Keep leftover; MACOS three-leaf OK.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
