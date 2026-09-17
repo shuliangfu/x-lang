@@ -5348,7 +5348,9 @@ pipeline_abi_inject_block_tree_thin() {
 #   Ubuntu -E; Result_i32 root).
 # wave387: emit_index HARD BAN reinject both ends (keep Darwin PREFER /
 #   Ubuntu -E; option=240 root).
-# Next: BAN residual／parse_orch BAN reinject／mega Ubuntu／Type LE.
+# wave388: parse_orch HARD BAN reinject both ends (keep Darwin PREFER /
+#   Ubuntu hard-skip; ParseIntoResult/typeck root).
+# Next: BAN residual／mega_body Ubuntu／Type LE residual.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5913,68 +5915,24 @@ pipeline_abi_inject_ast_forwarders_thin() {
 
 
 
-# wave323/374/374b M2: parse_orch Cap residual C→.x (was wave284 C thin).
-# PRODUCT inject wave374b:
-#   · MACOS|DARWIN: PREFER_ASM (T001 whole-body unsafe; L2 green).
-#   · LINUX|UBUNTU: hard-skip — tip thin with whole-body unsafe fails Ubuntu
-#     typeck (ParseIntoResult + trait check → unknown-field / XT001 even under
-#     -E); keep prior -E overlay. Stamp w374b.
-# G.7 WAVE284_PARSE_ORCH_ALWAYS. PLATFORM: SHARED · MACOS PREFER · LINUX hard-skip.
+# wave323/374/374b/388 M2: parse_orch Cap residual C→.x (was wave284 C thin).
+# PRODUCT inject wave388 HARD BAN reinject both ends: stay prior overlay.
+#   Prior: MACOS PREFER / LINUX hard-skip (w374b; Ubuntu tip whole-body
+#   unsafe → XT001 even under -E).
+#   w388: formalize HARD BAN reinject (do not call inject_thin_leaf) —
+#     tip reinject poison class; keep green Darwin PREFER / Ubuntu prior
+#     -E via stamp only until ParseIntoResult/typeck root.
+# G.7 WAVE284_PARSE_ORCH_ALWAYS. PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_parse_orch_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_parse_orch_thin.x"
-  local stamp="src/.pabi_w374b_parse_orch.stamp"
+  local stamp="src/.pabi_w388_parse_orch.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  # PLATFORM: LINUX|UBUNTU — hard-skip; stay prior -E overlay.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) ;;
-    *)
-      touch "$stamp"
-      rm -f src/.pabi_w323_parse_orch.stamp src/.pabi_w374_parse_orch.stamp
-      return 0
-      ;;
-  esac
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS|DARWIN — PREFER_ASM.
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w374b-parse-orch"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w323_parse_orch.stamp src/.pabi_w374_parse_orch.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w323_parse_orch.stamp src/.pabi_w374_parse_orch.stamp \
+    src/.pabi_w374b_parse_orch.stamp
+  return 0
 }
 
 
@@ -11124,8 +11082,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-parse-orch|inject_parse_orch|inject-porch|inject_porch)
-    # wave374b: C→.x parse_orch MACOS PREFER / LINUX hard-skip.
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave388: parse_orch HARD BAN reinject both ends (stamp only;
+    #   keep prior Darwin PREFER / Ubuntu hard-skip). PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-parse-orch: need <out.o>" >&2
       exit 2
