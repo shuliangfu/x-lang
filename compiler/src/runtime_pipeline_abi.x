@@ -84773,6 +84773,8 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
 
 // =============================================================================
 // wave265: ast_pool_top_level.c pure-owned leave (TopLevelLetEntry storage + faces)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_top_level_let_thin.x
+// (wave305 C→.x via -E+$CC inject; was wave265 C thin).
 // =============================================================================
 // G.7 product authority for:
 //   pipeline_module_top_level_let_alloc / set / set_type_ref / set_is_export
