@@ -74812,16 +74812,33 @@ export function glue_emit_module_from_ctx(ctx: *u8): *u8 {
  * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
  * G.7: complete this walk (same homes as fill_param_slots; no second mapper).
  */
+function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i32): i32 {
+  let pty: i32 = 0;
+  let tk: i32 = 0;
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, pty);
+  }
+  if (tk != 9) {
+    return 0;
+  }
+  return 1;
+}
+
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   let pi: i32 = 0;
   let np: i32 = 0;
-  let pty: i32 = 0;
   let nf: i32 = 0;
-  let tk: i32 = 0;
   let off: i32 = 16;
   let is_arm: i32 = 0;
   let width: i32 = 0;
   let slot_off: i32 = 0;
+  let hit: i32 = 0;
   if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || stack_off < 8) {
     return 0;
   }
@@ -74863,20 +74880,9 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
       }
     }
     if (slot_off == stack_off) {
-      unsafe {
-        pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
-      }
-      if (pty <= 0) {
-        return 0;
-      }
-      unsafe {
-        tk = pipeline_type_kind_ord_at(arena, pty);
-      }
-      /* TYPE_PTR == 9 */
-      if (tk == 9) {
-        return 1;
-      }
-      return 0;
+      /* wave432: isolate TYPE_PTR check (Ubuntu -E CFG scramble). */
+      hit = w189_param_at_is_type_ptr(arena, mod, func_index, pi);
+      return hit;
     }
     pi = pi + 1;
   }

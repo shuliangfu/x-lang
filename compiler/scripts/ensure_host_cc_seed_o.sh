@@ -5194,31 +5194,23 @@ pipeline_abi_inject_wpo_dump_thin() {
 }
 
 
-# wave402 M2: param_ptr_slot Cap residual — asymmetric unlock.
-# PRODUCT inject wave402:
-#   MACOS: PREFER_ASM (full-file -c 3683B green).
-#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c/-E full file
-#     CG002 (elf_ec=-1; patch .Lf0_5); helpers-only also CG002 — LINUX
-#     asm_codegen_elf_o reloc/patch root (not XT001 misattr). Split/fix deferred.
-# Mega leftover may hold strong/weak glue_local_var_slot_needs_ptr_load_elf_c.
-# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+# wave402/432 M2: param_ptr_slot Cap residual — dual-end PREFER unlock.
+# PRODUCT inject wave432:
+#   MACOS: PREFER_ASM (full-file -c ~3902B green; product L2).
+#   LINUX: PREFER_ASM (wave432 helper extract w189_param_at_is_type_ptr —
+#     Ubuntu prior -E empty `if ()` + CFG reorder / CG002 elf patch on
+#     inlined TYPE_PTR arm; helper-isolated -c ~4955B / -E+cc green).
+# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED · both PREFER.
 pipeline_abi_inject_param_ptr_slot_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_param_ptr_slot_thin.x"
-  local stamp="src/.pabi_w402_param_ptr_slot.stamp"
+  local stamp="src/.pabi_w432_param_ptr_slot.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — hard BAN tip reinject (CG002 elf patch); stamp only.
-  case "$(uname -s)" in
-    Linux)
-      touch "$stamp"
-      return 0
-      ;;
-  esac
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
@@ -5232,10 +5224,10 @@ pipeline_abi_inject_param_ptr_slot_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS — PREFER_ASM (full-file -c green).
+  # PLATFORM: SHARED — PREFER_ASM (wave432 helper extract; both ends -c green).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w402-param-ptr-slot"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w432-param-ptr-slot"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5252,6 +5244,7 @@ pipeline_abi_inject_param_ptr_slot_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w402_param_ptr_slot.stamp
   fi
   return "$rc"
 }
@@ -6249,6 +6242,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave400/415: slot_bytes MACOS full PREFER／LINUX helpers PREFER (asm_local tip BAN).
 # wave401/414: field_load_sz MACOS full PREFER／LINUX helpers PREFER (main tip BAN).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
+# wave432: param_ptr_slot BOTH PREFER (helper extract; Ubuntu -E/CG002 healed).
 # wave403/413/416/420/421: assign MACOS full PREFER／LINUX helpers+pair/body PREFER (middle BAN).
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
 # wave405: binop_stack_spill_try_reload PREFER both ends.
@@ -6266,7 +6260,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave417: binop_block_peel LINUX helpers PREFER (rest tip BAN).
 # wave418: fixed_array_copy LINUX helpers PREFER (rest tip BAN).
 # wave419: asm_expr LINUX helpers PREFER (emit_expr_elf_c tip BAN).
-# Next: mega BAN／split债（ttc main／param／assign rest／field main／asm_local／arr rest／peel rest…）；禁升钉。
+# wave432: param_ptr_slot BOTH PREFER (helper extract; Ubuntu -E/CG002 healed).
+# Next: mega BAN／split债（ttc main／field main／assign rest／arr rest／peel rest…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.

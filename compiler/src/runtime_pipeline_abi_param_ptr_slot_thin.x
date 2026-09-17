@@ -8,9 +8,9 @@
 // pipeline_asm_fill_param_slots (param 0 starts at 16).
 // ensure injects via first-wins ld -r so product need not full mega -E
 // (Darwin mega -E peaks 22-40GB RSS).
-// wave402: MACOS PREFER / LINUX hard-skip BAN tip reinject.
-//   Ubuntu tip -c/-E CG002 (elf_ec=-1; patch .Lf0_5); helpers-only also
-//   CG002 — LINUX asm_codegen_elf_o reloc/patch root. Split/fix deferred.
+// wave402: MACOS PREFER / LINUX hard-skip BAN tip reinject (CG002 / -E empty if).
+// wave432: BOTH PREFER — extract w189_param_at_is_type_ptr so Ubuntu -E no
+//   longer emits empty `if ()` / CFG-reorders the walker; -c ~4955B green.
 // PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
 
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
@@ -46,16 +46,42 @@ export extern function pipeline_module_func_param_type_ref_at(mod: *u8, func_ind
  * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
  * G.7: complete this walk (same homes as fill_param_slots; no second mapper).
  */
+/**
+ * TYPE_PTR formal check at one home (wave432: isolate from while/if CFG —
+ * Ubuntu -E otherwise emits empty `if ()` inside the walker).
+ * @param arena *u8 — ASTArena*
+ * @param mod *u8 — Module*
+ * @param func_index i32 — emit function index
+ * @param pi i32 — param index
+ * @return i32 — 1 if param type kind is TYPE_PTR (9); else 0
+ */
+function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i32): i32 {
+  let pty: i32 = 0;
+  let tk: i32 = 0;
+  unsafe {
+    pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+  }
+  if (pty <= 0) {
+    return 0;
+  }
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, pty);
+  }
+  if (tk != 9) {
+    return 0;
+  }
+  return 1;
+}
+
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   let pi: i32 = 0;
   let np: i32 = 0;
-  let pty: i32 = 0;
   let nf: i32 = 0;
-  let tk: i32 = 0;
   let off: i32 = 16;
   let is_arm: i32 = 0;
   let width: i32 = 0;
   let slot_off: i32 = 0;
+  let hit: i32 = 0;
   if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || stack_off < 8) {
     return 0;
   }
@@ -97,20 +123,8 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
       }
     }
     if (slot_off == stack_off) {
-      unsafe {
-        pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
-      }
-      if (pty <= 0) {
-        return 0;
-      }
-      unsafe {
-        tk = pipeline_type_kind_ord_at(arena, pty);
-      }
-      /* TYPE_PTR == 9 */
-      if (tk == 9) {
-        return 1;
-      }
-      return 0;
+      hit = w189_param_at_is_type_ptr(arena, mod, func_index, pi);
+      return hit;
     }
     pi = pi + 1;
   }
