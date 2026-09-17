@@ -92013,6 +92013,9 @@ export function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *u8): i32 {
 
 // =============================================================================
 // wave273 pure-owned leave: ELF/Mach-O ctx accessors + .o writers Cap residual
+// M2 Class E: .x thin leave = runtime_pipeline_abi_elf_ctx_thin.x
+// (wave312 C→.x via -E+$CC inject; ELF portion only — macho_write stays
+// runtime_pipeline_abi_macho_write_thin.c; was wave273 C thin).
 // (pipeline_elf_ctx.c + pipeline_elf_write_o.c mid-file include)
 // =============================================================================
 // PLATFORM: SHARED freestanding LP64 little-endian.
