@@ -7044,6 +7044,8 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 #     helpers-alone SEGV; loop-alone UNDEF w393_mega_emit_one; emit+loop
 #     ld-fail; three-leaf EM:0. Stamp .pabi_w424_mega_emit_one.
 # wave427: loop-alone after emit_one PREFER still BAN (product EM:0 L2 0/5).
+# wave429: mega_body (ctx_reset helpers) Ubuntu -c ~14982B but product
+#   inject → CG002/SEGV L2 0/5 (healed). helpers still BAN on LINUX.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
 # PLATFORM: SHARED · MACOS three-leaf PREFER / LINUX emit_one PREFER.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
