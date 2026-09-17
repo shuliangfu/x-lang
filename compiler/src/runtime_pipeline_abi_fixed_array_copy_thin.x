@@ -7,6 +7,9 @@
 // row of [K][N]T (asm run=3). This leaf uses glue_array_lit_force_esz_from_elem_type
 // (TYPE_ARRAY → glue_fixed_array_total_bytes). Twin of 4.2.7 nested SLICE esz.
 // ensure injects via first-wins ld -r so product need not full mega -E.
+// wave408: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c XT001 @glue_call_arg_var_use_lea_not_load_elf_c.
+//   Darwin product inject + relink L2 5/5 verified.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
 
 
