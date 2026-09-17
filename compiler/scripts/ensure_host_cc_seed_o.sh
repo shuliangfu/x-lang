@@ -4604,14 +4604,15 @@ pipeline_abi_inject_import_heap_thin() {
   return "$rc"
 }
 
-# wave297 M2: read_file_x_view Cap residual C→.x (was C strong overlay).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No BSS — safe C→.x.
-# Local FileView blob: pure-asm unproven; keep -E until green.
-# G.7 match seed pipeline_read_file_x cold twin. PLATFORM: SHARED.
+# wave297/352 M2: read_file_x_view Cap residual C→.x (was C strong overlay).
+# PRODUCT inject wave352: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# Class B local u8[32] FileView blob: standalone -c green after Cap A INDEX
+# (w350); product PREFER unlocks host-cc leave. G.7 match seed
+# pipeline_read_file_x cold twin. PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_read_file_x_view_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_read_file_x_view_thin.x"
-  local stamp="src/.pabi_w297_read_file_x_view.stamp"
+  local stamp="src/.pabi_w352_read_file_x_view.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -4631,9 +4632,10 @@ pipeline_abi_inject_read_file_x_view_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (class B local array FileView proven).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w297-read-file-x-view"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w352-read-file-x-view"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -4650,6 +4652,7 @@ pipeline_abi_inject_read_file_x_view_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w297_read_file_x_view.stamp
   fi
   return "$rc"
 }
@@ -5622,12 +5625,15 @@ pipeline_abi_inject_block_tree_thin() {
 #     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
 #     w342 emit_ctx_bss (small Cap A; w344 .data bake for non-zero imm).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A typeck_check_expr (Ubuntu still XT001; Darwin PREFER w348).
+#     A typeck_check_expr Ubuntu (XT001 expected i32/found i32; Darwin PREFER
+#       w348 OK). w352 probe: x86_64 pure-asm check_expr_c frame ~0x998 +
+#       cltq arg home — stay LINUX -E until ABI root.
 #   UNLOCKED w350: block_tree PREFER (Cap A let-array INDEX).
-#     B local fixed arrays / digit-loop / FileView layout
+#   UNLOCKED w352: read_file_x_view PREFER (class B local u8[32] FileView).
+#     B residual local fixed arrays / digit-loop
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
-#        read_file_x_view / import_heap).
+#        import_heap).
 #     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
 #       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
@@ -5641,7 +5647,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave348: for_call_args rvalue; Darwin check_expr PREFER / Ubuntu -E.
 # wave349: block_tree T001 unsafe wrap.
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
-# Next: var-module array / GrowVec-LE / Ubuntu check_expr PREFER.
+# wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
+# Next: GrowVec-LE / import_heap／asm_label／Ubuntu check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -11292,7 +11299,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-read-file-x-view|inject_read_file_x_view)
-    # wave297: C→.x read_file_x_view via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave352: read_file_x_view PREFER_ASM both ends (class B FileView).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-read-file-x-view: need <out.o>" >&2

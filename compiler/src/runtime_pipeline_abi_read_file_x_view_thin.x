@@ -1,12 +1,11 @@
-// Thin pure: wave297 M2 — pipeline_read_file_x Cap residual C→.x
+// Thin pure: wave297/352 M2 — pipeline_read_file_x Cap residual C→.x
 // (was read_file_x_view C thin overlay). Strong overlay of
 // pipeline_read_file_x: runtime_read_file_view + reject >4MiB + memcpy
 // into PipelineDepCtx loaded_buf. No BSS. No FROM_X gate.
 // G.7: body matches seeds/runtime_pipeline_abi.from_x.c cold twin +
 // historic runtime_pipeline_abi_read_file_x_view_thin.c.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_read_file_x_view_thin
-// (ALLOW_E_REPLACE + stamp). Local FileView blob prefers host-cc C twin
-// over pure-asm until view layout under xlang_asm -c is proven.
+// PRODUCT inject wave352: PREFER_ASM both ends (class B local u8[32]
+// FileView; Cap A INDEX w350 unlocked standalone -c). Stamp w352.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 //
 // XlangRuntimeFileView LP64 layout (match runtime_io_abi.x):
@@ -48,7 +47,7 @@ function w297_view_length(view: *u8): i64 {
 /**
  * Resolve-read embed fill: view whole file, reject >4MiB, copy into loaded_buf.
  * Product import orch heap-reads separately (does not use this face).
- * PLATFORM: SHARED freestanding Cap leave (wave297 .x thin · -E+$CC).
+ * PLATFORM: SHARED freestanding Cap leave (wave352 .x thin · PREFER_ASM).
  */
 #[no_mangle]
 export function pipeline_read_file_x(ctx: *u8): i32 {
