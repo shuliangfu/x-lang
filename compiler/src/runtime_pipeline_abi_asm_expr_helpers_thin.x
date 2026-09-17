@@ -1,11 +1,9 @@
-// Thin pure: asm_expr FULL leaf (emit_expr_elf_rec + emit_expr_elf_c).
-// G.7: body matches seeds/runtime_pipeline_abi.from_x.c emit_expr_elf_rec
-// with ko==60 → pipeline_asm_try_emit_inline_asm_expr_elf_c.
-// wave350: also own emit_expr_elf_c so inject redefine-sym cannot leave
-// mega emit_expr_elf_c bound to *_pabi_superseded rec (bare INDEX CG002).
-// ensure: inject_asm_expr_thin injects THIS on MACOS only.
-// wave409/419: MACOS PREFER full (product L2 green); LINUX HARD BAN tip
-//   reinject (helpers-only also product opt=255 after proper relink).
+// Thin pure: asm_expr HELPERS leaf (pipeline_asm_emit_expr_elf_rec only).
+// G.7: body MUST match pipeline_asm_emit_expr_elf_rec in runtime_pipeline_abi.x /
+// runtime_pipeline_abi_asm_expr_thin.x (full leaf keeps emit_expr_elf_c).
+// wave419: inventory / future probe ONLY — LINUX product inject of this leaf
+//   + proper xlang_asm relink → opt=255 (HARD BAN). Standalone -c ~8425B green.
+//   Do NOT wire into ensure PREFER path until product-proven.
 // PLATFORM: SHARED freestanding emit · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -210,16 +208,3 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   return out_rc;
 }
 
-/**
- * Public expr ELF face — thin delegate to emit_expr_elf_rec.
- * wave350: must ship with rec in this thin so product inject does not leave
- * mega emit_expr_elf_c calling *_pabi_superseded rec after redefine-sym.
- * @return i32 — face status from rec
- * PLATFORM: SHARED.
- */
-#[no_mangle]
-export function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  unsafe {
-    return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
-  }
-}

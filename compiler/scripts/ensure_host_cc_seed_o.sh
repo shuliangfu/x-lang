@@ -4987,24 +4987,27 @@ pipeline_abi_inject_fnptr_as_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
 }
 
-# wave409 M2: asm_expr Cap residual — asymmetric unlock.
-# PRODUCT inject wave409:
-#   MACOS: PREFER_ASM (full-file -c 6850B green; product inject + relink L2 5/5).
-#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c green 8670B, but
-#     product inject → L2 option run=255 (expect 102). Keep leftover on LINUX.
-# G.7: thin body matches mega emit_expr_elf_rec asm branch.
-# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+# wave409/419 M2: asm_expr Cap residual — asymmetric unlock.
+# PRODUCT inject wave419:
+#   MACOS: PREFER_ASM full thin (emit_expr_elf_rec + emit_expr_elf_c;
+#     Darwin product inject + g05 + L2 5/5 opt=102 @20475080).
+#   LINUX: HARD BAN tip reinject (stamp only) — helpers-only
+#     (pipeline_asm_emit_expr_elf_rec) -c ~8425B green, but product inject
+#     + proper xlang_asm relink → opt=255. Probe without cp G05_OUT→xlang_asm
+#     was false-green. Full tip product inject also option=255 (w409).
+# G.7: thin body matches mega; LINUX leftover holds rec+emit_expr_elf_c.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX hard-skip.
 pipeline_abi_inject_asm_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_expr_thin.x"
-  local stamp="src/.pabi_w409_asm_expr.stamp"
+  local stamp="src/.pabi_w419_asm_expr.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — hard BAN tip reinject (option=255); stamp only.
+  # PLATFORM: LINUX — HARD BAN tip reinject (helpers product opt=255); stamp only.
   case "$(uname -s)" in
     Linux)
       touch "$stamp"
@@ -5024,10 +5027,10 @@ pipeline_abi_inject_asm_expr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS — PREFER_ASM (product inject + relink L2 verified).
+  # PLATFORM: MACOS — PREFER_ASM full thin (product L2 green).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w409-asm-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w419-asm-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6127,7 +6130,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
 # wave407/417: binop_block_peel MACOS full PREFER／LINUX helpers PREFER (rest BAN).
 # wave408/418: fixed_array_copy MACOS full PREFER／LINUX helpers PREFER (rest BAN).
-# wave409: asm_expr MACOS PREFER／LINUX BAN; wave409b al_nc HARD BAN.
+# wave409/419: asm_expr MACOS full PREFER／LINUX HARD BAN (helpers product opt=255); wave409b al_nc HARD BAN.
 # wave410: asm73_* HARD BAN (BRANCH26); wave410d reent PREFER both ends.
 # wave411: call_method_wrappers PREFER both ends (last soft -E stub).
 # wave412: type_to_c_repr LINUX helpers PREFER (main tip still BAN).
@@ -6137,7 +6140,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave416: assign LINUX helpers+lhs PREFER (remaining exports tip BAN).
 # wave417: binop_block_peel LINUX helpers PREFER (rest tip BAN).
 # wave418: fixed_array_copy LINUX helpers PREFER (rest tip BAN).
-# Next: mega BAN／split债（ttc main／param／assign rest／field main／asm_expr／arr rest／peel rest…）；禁升钉。
+# wave419: asm_expr LINUX helpers PREFER (emit_expr_elf_c tip BAN).
+# Next: mega BAN／split债（ttc main／param／assign rest／field main／asm_local／arr rest／peel rest…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11729,7 +11733,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-asm-expr|inject_asm_expr)
-    # wave409: MACOS PREFER / LINUX hard-skip BAN.
+    # wave419: MACOS full PREFER / LINUX HARD BAN (helpers product opt=255).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-asm-expr: need <out.o>" >&2
