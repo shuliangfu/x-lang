@@ -1,15 +1,14 @@
-// Thin pure override: FIELD_ACCESS load width (CORE-016 generic mono).
+// Thin pure: field_load_sz FULL leaf (helpers + load_byte_sz export).
 // G.7: body MUST match pipeline_expr_field_access_load_byte_sz in
 // runtime_pipeline_abi.x (same exported symbol). Prefer typeck-resolved
 // scalar (mono stamp) before generic-layout free TYPE_NAMED T/U so
 // Option<i32>.value / Wrap<i32>.v emit ldr w not ldr x0 with garbage
 // high bits (multi-let / multi-mono compare false-red).
-// ensure injects via pipeline_abi_inject_field_load_sz_thin (first-wins
-// ld -r; avoids Darwin mega -E 22-40GB RSS).
-// wave401: MACOS PREFER / LINUX hard-skip BAN tip reinject.
-//   Ubuntu tip -c/-E full file XT001@field_load_sz_bytes_eq MISATTRIBUTED —
-//   helpers-only (cut before main) -c green; root = LINUX typeck/arena on
-//   full leaf. Split deferred.
+// ensure: inject_field_load_sz_thin injects THIS on MACOS; LINUX injects
+//   field_load_sz_helpers_thin only (see wave414).
+// wave401/414: MACOS PREFER full; LINUX PREFER helpers-only.
+//   Ubuntu full tip XT001@bytes_eq MISATTRIBUTED; helpers -c green;
+//   main export tip reinject still BAN on LINUX.
 // PLATFORM: SHARED freestanding field load · LINUX gold · MACOS co-path.
 
 export extern function pipeline_expr_field_access_base_ref(a: *u8, expr_ref: i32): i32;

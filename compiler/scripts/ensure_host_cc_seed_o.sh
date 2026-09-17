@@ -4837,31 +4837,34 @@ pipeline_abi_inject_slot_bytes_thin() {
   return "$rc"
 }
 
-# wave401 M2: field_load_sz Cap residual — asymmetric unlock.
-# PRODUCT inject wave401:
-#   MACOS: PREFER_ASM (full-file -c 4891B green).
-#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c/-E full file
-#     XT001@field_load_sz_bytes_eq MISATTRIBUTED; helpers-only (cut before
-#     main export) -c green; root = LINUX typeck/arena on full leaf.
-# G.7: thin body matches runtime_pipeline_abi.x pipeline_expr_field_access_load_byte_sz.
-# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+# wave401/414 M2: field_load_sz Cap residual — asymmetric helpers unlock.
+# PRODUCT inject wave414:
+#   MACOS: PREFER_ASM full thin (helpers+main; -c green; product L2 verified).
+#   LINUX: PREFER_ASM helpers-only thin (field_load_sz_bytes_eq;
+#     Ubuntu helpers -c ~1023B green). Full tip -c XT001@bytes_eq
+#     MISATTRIBUTED — root = LINUX typeck/arena on main co-file.
+#     Main export tip reinject still BAN on LINUX.
+# G.7: helpers body matches mega / full thin; main stays leftover on LINUX.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
 pipeline_abi_inject_field_load_sz_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_field_load_sz_thin.x"
-  local stamp="src/.pabi_w401_field_load_sz.stamp"
+  local stamp="src/.pabi_w414_field_load_sz.stamp"
+  local tag="w414-field-load-sz"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — hard BAN tip reinject (XT001 misattr); stamp only.
+  # PLATFORM: LINUX — helpers-only tip PREFER (main export still BAN).
   case "$(uname -s)" in
     Linux)
-      touch "$stamp"
-      return 0
+      thin_x="src/runtime_pipeline_abi_field_load_sz_helpers_thin.x"
+      stamp="src/.pabi_w414_field_load_sz_helpers.stamp"
+      tag="w414-field-load-sz-helpers"
       ;;
   esac
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
@@ -4875,10 +4878,10 @@ pipeline_abi_inject_field_load_sz_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS — PREFER_ASM (full-file -c green).
+  # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w401-field-load-sz"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6110,7 +6113,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave398: unused_hints PREFER both ends (-c green both ends).
 # wave399: fnptr_array_esz PREFER both ends (-c green both ends).
 # wave400: slot_bytes MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
-# wave401: field_load_sz MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
+# wave401/414: field_load_sz MACOS full PREFER／LINUX helpers PREFER (main tip BAN).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
 # wave403/413: assign MACOS full PREFER／LINUX helpers PREFER (exports tip BAN).
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
@@ -6123,7 +6126,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave411: call_method_wrappers PREFER both ends (last soft -E stub).
 # wave412: type_to_c_repr LINUX helpers PREFER (main tip still BAN).
 # wave413: assign LINUX helpers PREFER (export cluster tip still BAN).
-# Next: mega BAN／split债（ttc main／slot／field／param／assign exports／asm_expr…）；禁升钉。
+# wave414: field_load_sz LINUX helpers PREFER (main tip still BAN).
+# Next: mega BAN／split债（ttc main／slot／param／assign exports／asm_expr…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11610,8 +11614,8 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
-  inject-field-load-sz|inject_field_load_sz)
-    # wave401: MACOS PREFER / LINUX hard-skip BAN.
+    inject-field-load-sz|inject_field_load_sz)
+    # wave414: MACOS full PREFER / LINUX helpers PREFER.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-field-load-sz: need <out.o>" >&2
