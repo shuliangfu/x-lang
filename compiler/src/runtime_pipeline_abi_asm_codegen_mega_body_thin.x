@@ -1,9 +1,10 @@
-// Thin pure: wave328/371/371b/389/392/393 M2 — asm_codegen mega HELPERS leaf.
+// Thin pure: wave328/371/371b/389/392/393/443 M2 — asm_codegen mega HELPERS leaf.
 // Export: pipeline_asm_ctx_reset_for_func_c (mega LOOP moved to mega_loop_thin.x).
 // G.7: helpers match deleted C thin / seed WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
 // wave393: split LOOP to runtime_pipeline_abi_asm_codegen_mega_loop_thin.x
 //   (Ubuntu typeck/arena: helpers+LOOP combined was XT001 misattr @ store_ptr).
-// wave389 HARD BAN reinject stays until both leaves -c green both ends + unlock.
+// wave429: LINUX pure-asm helpers product CG002/SEGV.
+// wave443: LINUX -E helpers PREFER (+emit_one); loop tip still BAN.
 // T001 w371_* helpers. POSIX product path (WIN leftover ARRAY_LIT stays PE).
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
