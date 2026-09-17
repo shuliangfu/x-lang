@@ -5567,14 +5567,15 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w365: expr_sidecar PREFER both ends (T001 w327_* · gate+L2).
 #   UNLOCKED w366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
 #   BAN w367: dep_ctx PREFER (gate type_alias -c绿; L2 opt/si/hello XT001
-#     no-impl method) — stay -E; T001 w309_* kept.
+#     no-impl method) — hard-skip; stay prior -E.
+#   UNLOCKED w368: elf_ctx PREFER both ends try (T001 w312_* · gate+L2).
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
 #       onefunc (BAN PREFER) / dep_ctx (BAN PREFER) /
-#       elf_ctx / asm_wpo / top_level_let / asm_locals / struct_layout
+#       asm_wpo / top_level_let / asm_locals / struct_layout
 #       (BAN) / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK.
@@ -5599,7 +5600,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave364: block_domain PREFER both ends (T001 w326_* · gate+L2).
 # wave365: expr_sidecar PREFER both ends (T001 w327_* · gate+L2).
 # wave366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
-# wave367/367b: dep_ctx T001 w309_* + BAN PREFER (L2 opt/si/hello XT001).
+# wave367/367b: dep_ctx T001 try + BAN PREFER (L2 opt/si/hello XT001).
+# wave368: elf_ctx PREFER try (T001 w312_* · gate+L2).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5734,14 +5736,15 @@ pipeline_abi_inject_dep_ctx_thin() {
   return 0
 }
 
-# wave312 M2: elf_ctx Cap residual C→.x (was wave273 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Large BSS via -E+$CC.
+# wave312/368 M2: elf_ctx Cap residual C→.x (was wave273 C thin).
+# PRODUCT inject wave368: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
+# T001 w312_* helpers; large BSS; gate=type_alias -c + L2.
 # Excludes macho_write_o (owned by macho_write_thin). G.7 match mega ELF leave.
-# PLATFORM: SHARED.
+# PLATFORM: SHARED · PREFER try.
 pipeline_abi_inject_elf_ctx_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_elf_ctx_thin.x"
-  local stamp="src/.pabi_w312_elf_ctx.stamp"
+  local stamp="src/.pabi_w368_elf_ctx.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5761,9 +5764,9 @@ pipeline_abi_inject_elf_ctx_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w312-elf-ctx"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w368-elf-ctx"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5780,6 +5783,7 @@ pipeline_abi_inject_elf_ctx_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w312_elf_ctx.stamp
   fi
   return "$rc"
 }

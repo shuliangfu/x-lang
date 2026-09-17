@@ -1,9 +1,9 @@
-// Thin pure: wave312 M2 — elf_ctx Cap residual C→.x (was wave273 C thin).
+// Thin pure: wave312/368 M2 — elf_ctx Cap residual C→.x (was wave273 C thin).
 // ELF ctx accessors + write_o (+ label/reloc/PGO); excludes macho_write
-// (owned by runtime_pipeline_abi_macho_write_thin.c — same as C thin).
+// (owned by runtime_pipeline_abi_macho_write_thin — same as C thin).
 // G.7: bodies match runtime_pipeline_abi.x wave273 leave (ELF portion).
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_elf_ctx_thin
-// (ALLOW_E_REPLACE + stamp). Large BSS sidecars OK under -E+$CC.
+// PRODUCT inject: pipeline_abi_inject_elf_ctx_thin (ALLOW_E_REPLACE + stamp).
+// wave368: w312_* helpers via unsafe (T001); PREFER try + L2 gate.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern "C" function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
@@ -16,6 +16,81 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+
+
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ * wave368: wrap for PREFER_ASM pure-asm leave.
+ */
+function w312_load(base: *u8, off: i32): i32 {
+  unsafe { return pipe_load_i32_le(base, off); }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w312_store(base: *u8, off: i32, v: i32): void {
+  unsafe { pipe_store_i32_le(base, off, v); }
+}
+
+/**
+ * codegen_out_buf_len via unsafe (T001). PLATFORM: SHARED.
+ */
+function w312_out_len(out: *u8): i32 {
+  unsafe { return codegen_out_buf_len(out); }
+}
+
+/**
+ * codegen_out_buf_set_len via unsafe (T001). PLATFORM: SHARED.
+ */
+function w312_out_set_len(out: *u8, n: i32): void {
+  unsafe { codegen_out_buf_set_len(out, n); }
+}
+
+/**
+ * link_abi_getenv via unsafe (T001). PLATFORM: SHARED.
+ */
+function w312_getenv(name: *u8): *u8 {
+  unsafe { return link_abi_getenv(name); }
+}
+
+/**
+ * memcpy via unsafe (T001). PLATFORM: SHARED.
+ */
+function w312_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
+  unsafe { return memcpy(dst, src, n); }
+}
+
+/**
+ * memset via unsafe (T001). PLATFORM: SHARED.
+ */
+function w312_memset(dst: *u8, c: i32, n: usize): *u8 {
+  unsafe { return memset(dst, c, n); }
+}
+
+/**
+ * driver_diagnostic_asm_macho_missing_und_reloc via unsafe (T001).
+ * PLATFORM: SHARED.
+ */
+function w312_diag_macho_missing_und(reloc_idx: i32): void {
+  unsafe { driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx); }
+}
+
+/**
+ * driver_diagnostic_asm_macho_empty_reloc via unsafe (T001).
+ * PLATFORM: SHARED.
+ */
+function w312_diag_macho_empty(reloc_idx: i32): void {
+  unsafe { driver_diagnostic_asm_macho_empty_reloc(reloc_idx); }
+}
+
+/**
+ * driver_diagnostic_asm_elf_unresolved_patch via unsafe (T001).
+ * PLATFORM: SHARED.
+ */
+function w312_diag_elf_unresolved(name: *u8, name_len: i32): void {
+  unsafe { driver_diagnostic_asm_elf_unresolved_patch(name, name_len); }
+}
 
 function pipe_elf_table_cap(): i32 { return 16384; }
 function pipe_elf_reloc_heap_cap(): i32 { return 16384; }
@@ -190,7 +265,7 @@ function pipe_elf_bss_store_i32(blob: *u8, idx: i32, v: i32): void {
   if (blob == 0 as *u8 || idx < 0) {
     return;
   }
-  pipe_store_i32_le(blob, idx * 4, v);
+  w312_store(blob, idx * 4, v);
 }
 
 /**
@@ -200,7 +275,7 @@ function pipe_elf_bss_load_i32(blob: *u8, idx: i32): i32 {
   if (blob == 0 as *u8 || idx < 0) {
     return 0;
   }
-  return pipe_load_i32_le(blob, idx * 4);
+  return w312_load(blob, idx * 4);
 }
 
 /**
@@ -291,7 +366,7 @@ function pipe_elf_reloc_sym_heap_at(hi: i32): *u8 {
 export function pipeline_elf_pgo_hot_enabled(): i32 {
   let e: *u8 = 0 as *u8;
   unsafe {
-    e = link_abi_getenv("XLANG_WPO_PGO_HOT");
+    e = w312_getenv("XLANG_WPO_PGO_HOT");
   }
   if (e == 0 as *u8) {
     return 0;
@@ -325,7 +400,7 @@ export function pipeline_elf_ctx_set_emit_hot(ctx_bytes: *u8, hot: i32): void {
   if (hot != 0) {
     v = 1;
   }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_emit_hot(), v);
+  w312_store(ctx_bytes, pipe_elf_off_emit_hot(), v);
 }
 
 /**
@@ -338,7 +413,7 @@ export function pipeline_elf_ctx_total_code_len(ctx_bytes: *u8): i32 {
   if (ctx_bytes == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_len()) + pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_hot_len());
+  return w312_load(ctx_bytes, pipe_elf_off_code_len()) + w312_load(ctx_bytes, pipe_elf_off_code_hot_len());
 }
 
 /**
@@ -351,10 +426,10 @@ export function pipeline_elf_ctx_emit_code_len(ctx_bytes: *u8): i32 {
   if (ctx_bytes == 0 as *u8) {
     return 0;
   }
-  if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
-    return pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_hot_len());
+  if (pipeline_elf_pgo_hot_enabled() != 0 && w312_load(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
+    return w312_load(ctx_bytes, pipe_elf_off_code_hot_len());
   }
-  return pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_len());
+  return w312_load(ctx_bytes, pipe_elf_off_code_len());
 }
 
 /**
@@ -496,7 +571,7 @@ function pipe_elf_current_shndx(ctx: *u8): i32 {
     return g_pipe_elf_shndx_override;
   }
   if (pipeline_elf_pgo_hot_enabled() != 0) {
-    if (pipe_load_i32_le(ctx, pipe_elf_off_emit_hot()) != 0) {
+    if (w312_load(ctx, pipe_elf_off_emit_hot()) != 0) {
       return pipe_elf_shnx_hot();
     }
     return pipe_elf_shnx_unlikely();
@@ -525,9 +600,9 @@ function pipe_elf_section_len(ctx: *u8, shndx: i32): i32 {
     return 0;
   }
   if (shndx == pipe_elf_shnx_hot()) {
-    return pipe_load_i32_le(ctx, pipe_elf_off_code_hot_len());
+    return w312_load(ctx, pipe_elf_off_code_hot_len());
   }
-  return pipe_load_i32_le(ctx, pipe_elf_off_code_len());
+  return w312_load(ctx, pipe_elf_off_code_len());
 }
 
 /**
@@ -544,14 +619,14 @@ export function pipeline_elf_ctx_append_bytes(ctx_bytes: *u8, ptr: *u8, n: i32):
   let buf: *u8 = 0 as *u8;
   let len_off: i32 = pipe_elf_off_code_len();
   let cap: i32 = pipe_elf_code_buf_cap();
-  if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
+  if (pipeline_elf_pgo_hot_enabled() != 0 && w312_load(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
     buf = ctx_bytes + (pipe_elf_off_code_hot_data() as usize);
     len_off = pipe_elf_off_code_hot_len();
     cap = pipe_elf_code_hot_cap();
   } else {
     buf = ctx_bytes + (pipe_elf_off_code_data() as usize);
   }
-  let cur: i32 = pipe_load_i32_le(ctx_bytes, len_off);
+  let cur: i32 = w312_load(ctx_bytes, len_off);
   if (cur + n > cap) {
     return -1;
   }
@@ -562,7 +637,7 @@ export function pipeline_elf_ctx_append_bytes(ctx_bytes: *u8, ptr: *u8, n: i32):
     }
     i = i + 1;
   }
-  pipe_store_i32_le(ctx_bytes, len_off, cur + n);
+  w312_store(ctx_bytes, len_off, cur + n);
   return 0;
 }
 
@@ -572,9 +647,9 @@ export function pipeline_elf_ctx_append_bytes(ctx_bytes: *u8, ptr: *u8, n: i32):
 function pipe_elf_common_sidecar_reset(ctx_bytes: *u8): void {
   g_pipe_elf_common_owner = ctx_bytes;
   unsafe {
-    memset(&g_pipe_elf_sym_is_common[0], 0, 16384 as usize);
-    memset(&g_pipe_elf_sym_common_size[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_sym_common_align[0], 0, 65536 as usize);
+    w312_memset(&g_pipe_elf_sym_is_common[0], 0, 16384 as usize);
+    w312_memset(&g_pipe_elf_sym_common_size[0], 0, 65536 as usize);
+    w312_memset(&g_pipe_elf_sym_common_align[0], 0, 65536 as usize);
   }
 }
 
@@ -594,9 +669,9 @@ function pipe_elf_default_reloc_shndx(): i32 {
 function pipe_elf_shndx_sidecar_reset(ctx_bytes: *u8): void {
   g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
   unsafe {
-    memset(&g_pipe_elf_label_shndx[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_patch_shndx[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_reloc_shndx[0], 0, 65536 as usize);
+    w312_memset(&g_pipe_elf_label_shndx[0], 0, 65536 as usize);
+    w312_memset(&g_pipe_elf_patch_shndx[0], 0, 65536 as usize);
+    w312_memset(&g_pipe_elf_reloc_shndx[0], 0, 65536 as usize);
   }
 }
 
@@ -651,7 +726,7 @@ function pipe_elf_reloc_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
   let hi: i32 = idx - pipe_elf_table_cap();
   let h: *u8 = pipe_elf_reloc_heap_at(hi);
   if (h != 0 as *u8) {
-    pipe_store_i32_le(h, pipe_elf_rh_off_shndx(), shndx);
+    w312_store(h, pipe_elf_rh_off_shndx(), shndx);
   }
 }
 
@@ -665,8 +740,8 @@ export function pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes: *u8): void {
   g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
   pipe_elf_shndx_sidecar_reset(ctx_bytes);
   unsafe {
-    memset(&g_pipe_elf_reloc_r_type[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_reloc_r_pcrel[0], 255, 16384 as usize);
+    w312_memset(&g_pipe_elf_reloc_r_type[0], 0, 65536 as usize);
+    w312_memset(&g_pipe_elf_reloc_r_pcrel[0], 255, 16384 as usize);
   }
 }
 
@@ -680,13 +755,13 @@ export function pipeline_elf_ctx_reloc_offset_at(ctx_bytes: *u8, idx: i32): i32 
   if (ctx_bytes == 0 as *u8 || idx < 0) {
     return 0;
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (idx >= nr) {
     return 0;
   }
   if (idx < pipe_elf_table_cap()) {
     let r: *u8 = pipe_elf_reloc_at(ctx_bytes, idx);
-    return pipe_load_i32_le(r, pipe_elf_rel_off_offset());
+    return w312_load(r, pipe_elf_rel_off_offset());
   }
   if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
     return 0;
@@ -696,7 +771,7 @@ export function pipeline_elf_ctx_reloc_offset_at(ctx_bytes: *u8, idx: i32): i32 
   if (h == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(h, pipe_elf_rh_off_offset());
+  return w312_load(h, pipe_elf_rh_off_offset());
 }
 
 /**
@@ -709,7 +784,7 @@ export function pipeline_elf_ctx_reloc_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
   if (ctx_bytes == 0 as *u8 || idx < 0) {
     return 1;
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (idx >= nr) {
     return pipe_elf_shnx_text();
   }
@@ -727,7 +802,7 @@ export function pipeline_elf_ctx_reloc_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
   if (h == 0 as *u8) {
     return pipe_elf_shnx_text();
   }
-  let sh: i32 = pipe_load_i32_le(h, pipe_elf_rh_off_shndx());
+  let sh: i32 = w312_load(h, pipe_elf_rh_off_shndx());
   if (sh != 0) {
     return sh;
   }
@@ -744,12 +819,12 @@ export function pipeline_elf_ctx_sym_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
   if (ctx_bytes == 0 as *u8 || idx < 0) {
     return 1;
   }
-  let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
+  let ns: i32 = w312_load(ctx_bytes, pipe_elf_off_num_syms());
   if (idx >= ns) {
     return pipe_elf_shnx_text();
   }
   let s: *u8 = pipe_elf_sym_at(ctx_bytes, idx);
-  let sh: i32 = pipe_load_i32_le(s, pipe_elf_sym_off_shndx());
+  let sh: i32 = w312_load(s, pipe_elf_sym_off_shndx());
   if (sh != 0) {
     return sh;
   }
@@ -782,13 +857,13 @@ export function pipeline_elf_ctx_reloc_offset_set(ctx_bytes: *u8, idx: i32, offs
   if (ctx_bytes == 0 as *u8 || idx < 0) {
     return;
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (idx >= nr) {
     return;
   }
   if (idx < pipe_elf_table_cap()) {
     let r: *u8 = pipe_elf_reloc_at(ctx_bytes, idx);
-    pipe_store_i32_le(r, pipe_elf_rel_off_offset(), offset);
+    w312_store(r, pipe_elf_rel_off_offset(), offset);
     return;
   }
   if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
@@ -797,7 +872,7 @@ export function pipeline_elf_ctx_reloc_offset_set(ctx_bytes: *u8, idx: i32, offs
   let hi: i32 = idx - pipe_elf_table_cap();
   let h: *u8 = pipe_elf_reloc_heap_at(hi);
   if (h != 0 as *u8) {
-    pipe_store_i32_le(h, pipe_elf_rh_off_offset(), offset);
+    w312_store(h, pipe_elf_rh_off_offset(), offset);
   }
 }
 
@@ -856,13 +931,13 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
     return -1;
   }
   let shndx: i32 = pipe_elf_current_shndx(ctx_bytes);
-  let nl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_labels());
+  let nl: i32 = w312_load(ctx_bytes, pipe_elf_off_num_labels());
   let l: i32 = 0;
   while (l < nl) {
     let lab: *u8 = pipe_elf_label_at(ctx_bytes, l);
-    let llen: i32 = pipe_load_i32_le(lab, pipe_elf_lab_off_name_len());
+    let llen: i32 = w312_load(lab, pipe_elf_lab_off_name_len());
     if (pipe_elf_name_eq(lab + (pipe_elf_lab_off_name() as usize), llen, name, name_len) != 0) {
-      pipe_store_i32_le(lab, pipe_elf_lab_off_offset(), offset);
+      w312_store(lab, pipe_elf_lab_off_offset(), offset);
       pipe_elf_label_shndx_set(ctx_bytes, l, shndx);
       return 0;
     }
@@ -883,13 +958,13 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
   }
   if (n > 0) {
     unsafe {
-      memcpy(lab2 + (pipe_elf_lab_off_name() as usize), name, n as usize);
+      w312_memcpy(lab2 + (pipe_elf_lab_off_name() as usize), name, n as usize);
     }
   }
-  pipe_store_i32_le(lab2, pipe_elf_lab_off_name_len(), n);
-  pipe_store_i32_le(lab2, pipe_elf_lab_off_offset(), offset);
+  w312_store(lab2, pipe_elf_lab_off_name_len(), n);
+  w312_store(lab2, pipe_elf_lab_off_offset(), offset);
   pipe_elf_label_shndx_set(ctx_bytes, li, shndx);
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_labels(), nl + 1);
+  w312_store(ctx_bytes, pipe_elf_off_num_labels(), nl + 1);
   return 0;
 }
 
@@ -903,11 +978,11 @@ export function pipeline_elf_ctx_ensure_label(ctx_bytes: *u8, name: *u8, name_le
   if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
     return -1;
   }
-  let nl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_labels());
+  let nl: i32 = w312_load(ctx_bytes, pipe_elf_off_num_labels());
   let l: i32 = 0;
   while (l < nl) {
     let lab: *u8 = pipe_elf_label_at(ctx_bytes, l);
-    let llen: i32 = pipe_load_i32_le(lab, pipe_elf_lab_off_name_len());
+    let llen: i32 = w312_load(lab, pipe_elf_lab_off_name_len());
     if (pipe_elf_name_eq(lab + (pipe_elf_lab_off_name() as usize), llen, name, name_len) != 0) {
       return 0;
     }
@@ -945,7 +1020,7 @@ export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i3
   if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
     return -1;
   }
-  let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
+  let ns: i32 = w312_load(ctx_bytes, pipe_elf_off_num_syms());
   if (ns >= pipe_elf_table_cap()) {
     return -1;
   }
@@ -960,7 +1035,7 @@ export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i3
   if (copy_len < 0) {
     copy_len = 0;
   }
-  let snl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_sym_name_len());
+  let snl: i32 = w312_load(ctx_bytes, pipe_elf_off_sym_name_len());
   if (snl + copy_len > 131072) {
     return -1;
   }
@@ -972,23 +1047,23 @@ export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i3
     }
     k = k + 1;
   }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_sym_name_len(), snl + copy_len);
+  w312_store(ctx_bytes, pipe_elf_off_sym_name_len(), snl + copy_len);
   let se: *u8 = pipe_elf_sym_at(ctx_bytes, ns);
-  pipe_store_i32_le(se, pipe_elf_sym_off_name_len(), copy_len);
-  pipe_store_i32_le(se, pipe_elf_sym_off_offset(), offset);
+  w312_store(se, pipe_elf_sym_off_name_len(), copy_len);
+  w312_store(se, pipe_elf_sym_off_offset(), offset);
   let shndx: i32 = pipe_elf_shnx_text();
   if (g_pipe_elf_shndx_override != 0) {
     shndx = g_pipe_elf_shndx_override;
-  } else if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
+  } else if (pipeline_elf_pgo_hot_enabled() != 0 && w312_load(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
     shndx = pipe_elf_shnx_hot();
   } else if (pipeline_elf_pgo_hot_enabled() != 0) {
     shndx = pipe_elf_shnx_unlikely();
   }
-  pipe_store_i32_le(se, pipe_elf_sym_off_shndx(), shndx);
+  w312_store(se, pipe_elf_sym_off_shndx(), shndx);
   unsafe {
     g_pipe_elf_sym_is_common[ns] = 0;
   }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_syms(), ns + 1);
+  w312_store(ctx_bytes, pipe_elf_off_num_syms(), ns + 1);
   return 0;
 }
 
@@ -1012,7 +1087,7 @@ export function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_
   if (pipeline_elf_ctx_add_sym(ctx_bytes, name, name_len, sym_size) != 0) {
     return -1;
   }
-  let si: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms()) - 1;
+  let si: i32 = w312_load(ctx_bytes, pipe_elf_off_num_syms()) - 1;
   if (si < 0 || si >= pipe_elf_table_cap()) {
     return -1;
   }
@@ -1022,7 +1097,7 @@ export function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_
   pipe_elf_bss_store_i32(&g_pipe_elf_sym_common_size[0], si, sym_size);
   pipe_elf_bss_store_i32(&g_pipe_elf_sym_common_align[0], si, al);
   let se: *u8 = pipe_elf_sym_at(ctx_bytes, si);
-  pipe_store_i32_le(se, pipe_elf_sym_off_shndx(), 65522);
+  w312_store(se, pipe_elf_sym_off_shndx(), 65522);
   return 0;
 }
 
@@ -1138,7 +1213,7 @@ export function pipeline_elf_ctx_macho_leading_underscore(ctx_bytes: *u8): i32 {
   if (ctx_bytes == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx_bytes, pipe_elf_off_macho_uscore());
+  return w312_load(ctx_bytes, pipe_elf_off_macho_uscore());
 }
 
 /**
@@ -1153,14 +1228,14 @@ export function pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32,
   if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
     return -1;
   }
-  let np: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_patches());
+  let np: i32 = w312_load(ctx_bytes, pipe_elf_off_num_patches());
   if (np >= pipe_elf_table_cap()) {
     return -1;
   }
   let bits: i32 = imm_bits;
   let pi: i32 = np;
   let ent: *u8 = pipe_elf_patch_at(ctx_bytes, pi);
-  pipe_store_i32_le(ent, pipe_elf_pat_off_rel32(), rel32_offset);
+  w312_store(ent, pipe_elf_pat_off_rel32(), rel32_offset);
   let n: i32 = name_len;
   // Cap 4.2.8: patches.name[256] content ≤255 (was wave580 128).
   if (n > 255) {
@@ -1171,13 +1246,13 @@ export function pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32,
   }
   if (n > 0) {
     unsafe {
-      memcpy(ent + (pipe_elf_pat_off_name() as usize), name, n as usize);
+      w312_memcpy(ent + (pipe_elf_pat_off_name() as usize), name, n as usize);
     }
   }
-  pipe_store_i32_le(ent, pipe_elf_pat_off_name_len(), n);
-  pipe_store_i32_le(ent, pipe_elf_pat_off_imm_bits(), bits);
+  w312_store(ent, pipe_elf_pat_off_name_len(), n);
+  w312_store(ent, pipe_elf_pat_off_imm_bits(), bits);
   pipe_elf_patch_shndx_set(ctx_bytes, pi, pipe_elf_current_shndx(ctx_bytes));
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_patches(), np + 1);
+  w312_store(ctx_bytes, pipe_elf_off_num_patches(), np + 1);
   return 0;
 }
 
@@ -1191,12 +1266,12 @@ export function pipeline_elf_ctx_patch_imm_bits_at(ctx_bytes: *u8, patch_idx: i3
   if (ctx_bytes == 0 as *u8 || patch_idx < 0 || patch_idx >= pipe_elf_table_cap()) {
     return 0;
   }
-  let np: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_patches());
+  let np: i32 = w312_load(ctx_bytes, pipe_elf_off_num_patches());
   if (patch_idx >= np) {
     return 0;
   }
   let p: *u8 = pipe_elf_patch_at(ctx_bytes, patch_idx);
-  return pipe_load_i32_le(p, pipe_elf_pat_off_imm_bits());
+  return w312_load(p, pipe_elf_pat_off_imm_bits());
 }
 
 function pipe_elf_read_u32_le(ctx_bytes: *u8, shndx: i32, off: i32): i32 {
@@ -1278,7 +1353,7 @@ export function pipeline_elf_log_unresolved_patch(ctx: *u8, patch_idx: i32): voi
   if (ctx == 0 as *u8 || patch_idx < 0) {
     return;
   }
-  let _np: i32 = pipe_load_i32_le(ctx, pipe_elf_off_num_patches());
+  let _np: i32 = w312_load(ctx, pipe_elf_off_num_patches());
   if (patch_idx >= _np) {
     return;
   }
@@ -1295,24 +1370,24 @@ export function pipeline_elf_ctx_resolve_patches(ctx_bytes: *u8): i32 {
   if (ctx_bytes == 0 as *u8) {
     return -1;
   }
-  let e_machine: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_e_machine());
-  let np: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_patches());
+  let e_machine: i32 = w312_load(ctx_bytes, pipe_elf_off_e_machine());
+  let np: i32 = w312_load(ctx_bytes, pipe_elf_off_num_patches());
   let p: i32 = 0;
   while (p < np) {
     let patch: *u8 = pipe_elf_patch_at(ctx_bytes, p);
-    let rel32_offset: i32 = pipe_load_i32_le(patch, pipe_elf_pat_off_rel32());
+    let rel32_offset: i32 = w312_load(patch, pipe_elf_pat_off_rel32());
     let patch_shndx: i32 = pipe_elf_patch_shndx_at(ctx_bytes, p);
     let target_offset: i32 = -1;
     let target_shndx: i32 = patch_shndx;
     let pname: *u8 = patch + (pipe_elf_pat_off_name() as usize);
-    let plen: i32 = pipe_load_i32_le(patch, pipe_elf_pat_off_name_len());
-    let nl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_labels());
+    let plen: i32 = w312_load(patch, pipe_elf_pat_off_name_len());
+    let nl: i32 = w312_load(ctx_bytes, pipe_elf_off_num_labels());
     let l: i32 = 0;
     while (l < nl) {
       let lab: *u8 = pipe_elf_label_at(ctx_bytes, l);
-      let llen: i32 = pipe_load_i32_le(lab, pipe_elf_lab_off_name_len());
+      let llen: i32 = w312_load(lab, pipe_elf_lab_off_name_len());
       if (pipe_elf_name_eq(pname, plen, lab + (pipe_elf_lab_off_name() as usize), llen) != 0) {
-        target_offset = pipe_load_i32_le(lab, pipe_elf_lab_off_offset());
+        target_offset = w312_load(lab, pipe_elf_lab_off_offset());
         target_shndx = pipe_elf_label_shndx_at(ctx_bytes, l);
         break;
       }
@@ -1320,14 +1395,14 @@ export function pipeline_elf_ctx_resolve_patches(ctx_bytes: *u8): i32 {
     }
     if (target_offset < 0) {
       unsafe {
-        driver_diagnostic_asm_elf_unresolved_patch(pname, plen);
+        w312_diag_elf_unresolved(pname, plen);
       }
       pipeline_elf_log_unresolved_patch(ctx_bytes, p);
       return -1;
     }
     if (patch_shndx != target_shndx) {
-      let code_len: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_len());
-      let hot_len: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_hot_len());
+      let code_len: i32 = w312_load(ctx_bytes, pipe_elf_off_code_len());
+      let hot_len: i32 = w312_load(ctx_bytes, pipe_elf_off_code_hot_len());
       if (pipeline_elf_pgo_hot_enabled() == 0) {
         patch_shndx = pipe_elf_shnx_text();
         target_shndx = pipe_elf_shnx_text();
@@ -1339,12 +1414,12 @@ export function pipeline_elf_ctx_resolve_patches(ctx_bytes: *u8): i32 {
         target_shndx = pipe_elf_shnx_hot();
       } else {
         unsafe {
-          driver_diagnostic_asm_elf_unresolved_patch(pname, plen);
+          w312_diag_elf_unresolved(pname, plen);
         }
         return -1;
       }
     }
-    let imm_bits: i32 = pipe_load_i32_le(patch, pipe_elf_pat_off_imm_bits());
+    let imm_bits: i32 = w312_load(patch, pipe_elf_pat_off_imm_bits());
     if (imm_bits == 0) {
       imm_bits = pipe_elf_infer_patch_imm_bits(ctx_bytes, patch_shndx, rel32_offset);
     }
@@ -1397,7 +1472,7 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
       return -1;
     }
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (nr >= pipe_elf_reloc_total_cap()) {
     return -1;
   }
@@ -1405,7 +1480,7 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
   let sym_row: *u8 = 0 as *u8;
   if (ri < pipe_elf_table_cap()) {
     let ent: *u8 = pipe_elf_reloc_at(ctx_bytes, ri);
-    pipe_store_i32_le(ent, pipe_elf_rel_off_offset(), offset);
+    w312_store(ent, pipe_elf_rel_off_offset(), offset);
     sym_row = pipe_elf_reloc_name_row(ctx_bytes, ri);
   } else {
     if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
@@ -1416,13 +1491,13 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
     if (hent == 0 as *u8) {
       return -1;
     }
-    pipe_store_i32_le(hent, pipe_elf_rh_off_offset(), offset);
+    w312_store(hent, pipe_elf_rh_off_offset(), offset);
     sym_row = pipe_elf_reloc_sym_heap_at(hi);
   }
   pipe_elf_reloc_shndx_set(ctx_bytes, ri, pipe_elf_current_shndx(ctx_bytes));
   // Cap 4.2.8: reloc_sym_names.bytes[256] (was wave580 memset/clamp 128).
   unsafe {
-    memset(sym_row, 0, 256 as usize);
+    w312_memset(sym_row, 0, 256 as usize);
   }
   let n: i32 = name_len;
   if (n > 255) {
@@ -1433,12 +1508,12 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
   }
   if (n > 0) {
     unsafe {
-      memcpy(sym_row, name, n as usize);
+      w312_memcpy(sym_row, name, n as usize);
     }
   }
   if (ri < pipe_elf_table_cap()) {
     let ent2: *u8 = pipe_elf_reloc_at(ctx_bytes, ri);
-    pipe_store_i32_le(ent2, pipe_elf_rel_off_name_len(), n);
+    w312_store(ent2, pipe_elf_rel_off_name_len(), n);
     pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, 0);
     unsafe {
       g_pipe_elf_reloc_r_pcrel[ri] = 255;
@@ -1447,10 +1522,10 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
     let hi2: i32 = ri - pipe_elf_table_cap();
     let h2: *u8 = pipe_elf_reloc_heap_at(hi2);
     if (h2 != 0 as *u8) {
-      pipe_store_i32_le(h2, pipe_elf_rh_off_name_len(), n);
+      w312_store(h2, pipe_elf_rh_off_name_len(), n);
     }
   }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_relocs(), nr + 1);
+  w312_store(ctx_bytes, pipe_elf_off_num_relocs(), nr + 1);
   return 0;
 }
 
@@ -1464,7 +1539,7 @@ export function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32,
   if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0) {
     return -1;
   }
-  let ri: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
+  let ri: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
   if (ri >= 0 && ri < pipe_elf_table_cap()) {
     pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, r_type);
     if (r_pcrel < 0) {
@@ -1528,7 +1603,7 @@ export function pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes: *u8, idx: i32): *
   if (ctx_bytes == 0 as *u8 || idx < 0) {
     return 0 as *u8;
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (idx >= nr) {
     return 0 as *u8;
   }
@@ -1552,7 +1627,7 @@ export function pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes: *u8, idx: i32,
     return;
   }
   unsafe {
-    memset(dst, 0, 256 as usize);
+    w312_memset(dst, 0, 256 as usize);
   }
   let src: *u8 = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
   if (src == 0 as *u8) {
@@ -1561,7 +1636,7 @@ export function pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes: *u8, idx: i32,
   if (ctx_bytes == 0 as *u8) {
     return;
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (idx < 0 || idx >= nr) {
     return;
   }
@@ -1584,13 +1659,13 @@ export function pipeline_elf_ctx_reloc_name_len(ctx_bytes: *u8, idx: i32): i32 {
   if (ctx_bytes == 0 as *u8 || idx < 0) {
     return 0;
   }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   if (idx >= nr) {
     return 0;
   }
   if (idx < pipe_elf_table_cap()) {
     let r: *u8 = pipe_elf_reloc_at(ctx_bytes, idx);
-    return pipe_load_i32_le(r, pipe_elf_rel_off_name_len());
+    return w312_load(r, pipe_elf_rel_off_name_len());
   }
   if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
     return 0;
@@ -1599,7 +1674,7 @@ export function pipeline_elf_ctx_reloc_name_len(ctx_bytes: *u8, idx: i32): i32 {
   if (h == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(h, pipe_elf_rh_off_name_len());
+  return w312_load(h, pipe_elf_rh_off_name_len());
 }
 
 
@@ -1616,7 +1691,7 @@ function pipe_elf_pgo_undef_len_set(i: i32, v: i32): void {
 function pipe_elf_init_shstr_pgo(): void {
   let p: *u8 = &g_pipe_elf_ws_shstr_pgo[0];
   unsafe {
-    memset(p, 0, 107 as usize);
+    w312_memset(p, 0, 107 as usize);
     p[1] = 46;
     p[2] = 116;
     p[3] = 101;
@@ -1715,7 +1790,7 @@ function pipe_elf_init_shstr_pgo(): void {
 }
 
 function pipe_elf_pgo_emit_rela_for_sh(ctx_bytes: *u8, out: *u8, want_sh: i32, num_undef: i32, ns: i32): i32 {
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   let r: i32 = 0;
   while (r < nr) {
     if (pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r) != want_sh) {
@@ -1724,7 +1799,7 @@ function pipe_elf_pgo_emit_rela_for_sh(ctx_bytes: *u8, out: *u8, want_sh: i32, n
     }
     let rela: *u8 = &g_pipe_elf_ws_rela[0];
     unsafe {
-      memset(rela, 0, 24 as usize);
+      w312_memset(rela, 0, 24 as usize);
       rela[16] = 252; rela[17] = 255; rela[18] = 255; rela[19] = 255;
       rela[20] = 255; rela[21] = 255; rela[22] = 255; rela[23] = 255;
     }
@@ -1735,7 +1810,7 @@ function pipe_elf_pgo_emit_rela_for_sh(ctx_bytes: *u8, out: *u8, want_sh: i32, n
     let sym_pool: *u8 = ctx_bytes + (pipe_elf_off_sym_name_data() as usize);
     while (m < ns) {
       let se: *u8 = pipe_elf_sym_at(ctx_bytes, m);
-      let slen: i32 = pipe_load_i32_le(se, pipe_elf_sym_off_name_len());
+      let slen: i32 = w312_load(se, pipe_elf_sym_off_name_len());
       let off: i32 = pipe_elf_sym_name_off(ctx_bytes, m);
       if (pipe_elf_name_eq(sym_pool + (off as usize), slen, &g_pipe_elf_ws_name[0], rlen) != 0) {
         sym_idx = m + 3;
@@ -1778,11 +1853,11 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   }
   let unlikely: *u8 = ctx_bytes + (pipe_elf_off_code_data() as usize);
   let hot: *u8 = ctx_bytes + (pipe_elf_off_code_hot_data() as usize);
-  let code_unlikely_len: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_len());
-  let code_hot_len: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_hot_len());
-  let e_machine: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_e_machine());
-  let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
+  let code_unlikely_len: i32 = w312_load(ctx_bytes, pipe_elf_off_code_len());
+  let code_hot_len: i32 = w312_load(ctx_bytes, pipe_elf_off_code_hot_len());
+  let e_machine: i32 = w312_load(ctx_bytes, pipe_elf_off_e_machine());
+  let ns: i32 = w312_load(ctx_bytes, pipe_elf_off_num_syms());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
   let num_undef: i32 = 0;
   let num_text_rela: i32 = 0;
   let num_hot_rela: i32 = 0;
@@ -1807,7 +1882,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
         }
         if (rlen > 0) {
           unsafe {
-            memcpy(pipe_elf_pgo_undef_name_row(num_undef), &g_pipe_elf_ws_name[0], rlen as usize);
+            w312_memcpy(pipe_elf_pgo_undef_name_row(num_undef), &g_pipe_elf_ws_name[0], rlen as usize);
           }
         }
         pipe_elf_pgo_undef_len_set(num_undef, rlen);
@@ -1828,7 +1903,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   let s: i32 = 0;
   while (s < ns) {
     let se: *u8 = pipe_elf_sym_at(ctx_bytes, s);
-    strtab_off = strtab_off + pipe_load_i32_le(se, pipe_elf_sym_off_name_len()) + 1;
+    strtab_off = strtab_off + w312_load(se, pipe_elf_sym_off_name_len()) + 1;
     s = s + 1;
   }
   s = 0;
@@ -1853,7 +1928,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   let off_shdr: i32 = off_rela_unlikely + num_unlikely_rela * 24;
   let ehdr: *u8 = &g_pipe_elf_ws_ehdr[0];
   unsafe {
-    memset(ehdr, 0, 128 as usize);
+    w312_memset(ehdr, 0, 128 as usize);
     ehdr[0] = 127; ehdr[1] = 69; ehdr[2] = 76; ehdr[3] = 70;
     ehdr[4] = 2; ehdr[5] = 1; ehdr[6] = 1; ehdr[16] = 1;
     ehdr[18] = ((e_machine as u32) & 255) as u8;
@@ -1861,7 +1936,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
     ehdr[52] = 64; ehdr[58] = 64; ehdr[60] = 10; ehdr[62] = 6;
   }
   pipe_elf_store_i32_bytes(ehdr, 40, off_shdr);
-  codegen_out_buf_set_len(out, 0);
+  w312_out_set_len(out, 0);
   if (pipe_elf_out_append(out, ehdr, 64) != 0) {
     return -1;
   }
@@ -1897,7 +1972,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   s = 0;
   while (s < ns) {
     let se2: *u8 = pipe_elf_sym_at(ctx_bytes, s);
-    let nlen: i32 = pipe_load_i32_le(se2, pipe_elf_sym_off_name_len());
+    let nlen: i32 = w312_load(se2, pipe_elf_sym_off_name_len());
     if (nlen > 0) {
       if (pipe_elf_out_append(out, sym_pool + (pipe_elf_sym_name_off(ctx_bytes, s) as usize), nlen) != 0) {
         return -1;
@@ -1930,7 +2005,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   let sec: i32 = 1;
   while (sec <= 3) {
     unsafe {
-      memset(ent, 0, 24 as usize);
+      w312_memset(ent, 0, 24 as usize);
       ent[4] = 3; ent[6] = (sec as u8);
     }
     if (sec == 2) {
@@ -1947,7 +2022,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   s = 0;
   while (s < ns) {
     unsafe {
-      memset(ent, 0, 24 as usize);
+      w312_memset(ent, 0, 24 as usize);
     }
     let is_common: i32 = 0;
     if (g_pipe_elf_common_owner == ctx_bytes && s < pipe_elf_table_cap()) {
@@ -1980,18 +2055,18 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
         ent[6] = ((shndx as u32) & 255) as u8;
         ent[7] = (((shndx as u32) / 256) & 255) as u8;
       }
-      pipe_elf_store_i32_bytes(ent, 8, pipe_load_i32_le(se3, pipe_elf_sym_off_offset()));
+      pipe_elf_store_i32_bytes(ent, 8, w312_load(se3, pipe_elf_sym_off_offset()));
     }
     if (pipe_elf_out_append(out, ent, 24) != 0) {
       return -1;
     }
-    str_off = str_off + pipe_load_i32_le(se3, pipe_elf_sym_off_name_len()) + 1;
+    str_off = str_off + w312_load(se3, pipe_elf_sym_off_name_len()) + 1;
     s = s + 1;
   }
   s = 0;
   while (s < num_undef) {
     unsafe {
-      memset(ent, 0, 24 as usize);
+      w312_memset(ent, 0, 24 as usize);
       ent[4] = 18;
     }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
@@ -2013,7 +2088,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
   // 10 section headers
   let sh: *u8 = &g_pipe_elf_ws_shdr[0];
   unsafe {
-    memset(sh, 0, 640 as usize);
+    w312_memset(sh, 0, 640 as usize);
   }
   // text (empty size 0)
   let t: *u8 = sh + (64 as usize);
@@ -2101,7 +2176,7 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
     }
     hi = hi + 1;
   }
-  return codegen_out_buf_len(out);
+  return w312_out_len(out);
 }
 
 // (wave273 pgo writer; writers continue)
@@ -2116,7 +2191,7 @@ function pipe_elf_out_append(out: *u8, p: *u8, n: i32): i32 {
   if (out == 0 as *u8 || p == 0 as *u8 || n < 0) {
     return -1;
   }
-  let len: i32 = codegen_out_buf_len(out);
+  let len: i32 = w312_out_len(out);
   if (len + n > pipe_elf_codegen_out_cap()) {
     return -1;
   }
@@ -2127,7 +2202,7 @@ function pipe_elf_out_append(out: *u8, p: *u8, n: i32): i32 {
     }
     i = i + 1;
   }
-  codegen_out_buf_set_len(out, len + n);
+  w312_out_set_len(out, len + n);
   return 0;
 }
 
@@ -2137,10 +2212,10 @@ function pipe_elf_out_append(out: *u8, p: *u8, n: i32): i32 {
 function pipe_elf_sym_name_off(ctx: *u8, sym_idx: i32): i32 {
   let off: i32 = 0;
   let i: i32 = 0;
-  let ns: i32 = pipe_load_i32_le(ctx, pipe_elf_off_num_syms());
+  let ns: i32 = w312_load(ctx, pipe_elf_off_num_syms());
   while (i < sym_idx && i < ns) {
     let se: *u8 = pipe_elf_sym_at(ctx, i);
-    off = off + pipe_load_i32_le(se, pipe_elf_sym_off_name_len());
+    off = off + w312_load(se, pipe_elf_sym_off_name_len());
     i = i + 1;
   }
   return off;
@@ -2154,11 +2229,11 @@ function pipe_elf_reloc_is_defined(ctx: *u8, ctx_bytes: *u8, reloc_idx: i32, rna
     return 0;
   }
   let sym_pool: *u8 = ctx_bytes + (pipe_elf_off_sym_name_data() as usize);
-  let ns: i32 = pipe_load_i32_le(ctx, pipe_elf_off_num_syms());
+  let ns: i32 = w312_load(ctx, pipe_elf_off_num_syms());
   let m: i32 = 0;
   while (m < ns) {
     let se: *u8 = pipe_elf_sym_at(ctx, m);
-    let slen: i32 = pipe_load_i32_le(se, pipe_elf_sym_off_name_len());
+    let slen: i32 = w312_load(se, pipe_elf_sym_off_name_len());
     let off: i32 = pipe_elf_sym_name_off(ctx, m);
     if (pipe_elf_name_eq(sym_pool + (off as usize), slen, rname, rlen) != 0) {
       return 1;
@@ -2181,11 +2256,11 @@ function pipe_elf_call_reloc_type(ctx: *u8, ctx_bytes: *u8, reloc_idx: i32, rnam
       return rt;
     }
   }
-  let em: i32 = pipe_load_i32_le(ctx, pipe_elf_off_e_machine());
+  let em: i32 = w312_load(ctx, pipe_elf_off_e_machine());
   if (em == 62 && pipe_elf_reloc_is_defined(ctx, ctx_bytes, reloc_idx, rname, rlen) == 0) {
     return 4;
   }
-  return pipe_load_i32_le(ctx, pipe_elf_off_reloc_type_r_pc32());
+  return w312_load(ctx, pipe_elf_off_reloc_type_r_pc32());
 }
 
 /**
@@ -2260,7 +2335,7 @@ function pipe_elf_init_shstr_std(): void {
   // Section header index 4 is .data so pipe_elf_shnx_data()==4 is the ELF st_shndx.
   let p: *u8 = &g_pipe_elf_ws_shstr_std[0];
   unsafe {
-    memset(p, 0, 64 as usize);
+    w312_memset(p, 0, 64 as usize);
     p[1] = 46; p[2] = 116; p[3] = 101; p[4] = 120; p[5] = 116;
     p[7] = 46; p[8] = 115; p[9] = 121; p[10] = 109; p[11] = 116; p[12] = 97; p[13] = 98;
     p[15] = 46; p[16] = 115; p[17] = 116; p[18] = 114; p[19] = 116; p[20] = 97; p[21] = 98;
@@ -2301,11 +2376,11 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     return pipeline_elf_write_o_pgo_to_buf(ctx_bytes, out);
   }
   let code: *u8 = pipeline_elf_ctx_code_data_ptr(ctx_bytes);
-  let code_len: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_code_len());
-  let e_machine: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_e_machine());
+  let code_len: i32 = w312_load(ctx_bytes, pipe_elf_off_code_len());
+  let e_machine: i32 = w312_load(ctx_bytes, pipe_elf_off_e_machine());
   let num_undef: i32 = 0;
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
-  let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
+  let nr: i32 = w312_load(ctx_bytes, pipe_elf_off_num_relocs());
+  let ns: i32 = w312_load(ctx_bytes, pipe_elf_off_num_syms());
   /* F7: data section payload (vtable statics). Always present as shndx 4. */
   let data_len: i32 = g_pipe_elf_data_len;
   if (data_len < 0) {
@@ -2332,7 +2407,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
         }
         if (rlen > 0) {
           unsafe {
-            memcpy(pipe_elf_ws_undef_name_row(num_undef), &g_pipe_elf_ws_name[0], rlen as usize);
+            w312_memcpy(pipe_elf_ws_undef_name_row(num_undef), &g_pipe_elf_ws_name[0], rlen as usize);
           }
         }
         pipe_elf_ws_undef_len_set(num_undef, rlen);
@@ -2345,7 +2420,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   let s: i32 = 0;
   while (s < ns) {
     let se: *u8 = pipe_elf_sym_at(ctx_bytes, s);
-    strtab_off = strtab_off + pipe_load_i32_le(se, pipe_elf_sym_off_name_len()) + 1;
+    strtab_off = strtab_off + w312_load(se, pipe_elf_sym_off_name_len()) + 1;
     s = s + 1;
   }
   s = 0;
@@ -2382,7 +2457,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   let off_shdr: i32 = off_rela_data + rela_data_size;
   let ehdr: *u8 = &g_pipe_elf_ws_ehdr[0];
   unsafe {
-    memset(ehdr, 0, 128 as usize);
+    w312_memset(ehdr, 0, 128 as usize);
   }
   unsafe {
     ehdr[0] = 127; ehdr[1] = 69; ehdr[2] = 76; ehdr[3] = 70;
@@ -2400,7 +2475,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   unsafe {
     ehdr[52] = 64; ehdr[58] = 64; ehdr[60] = 8; ehdr[62] = 5;
   }
-  codegen_out_buf_set_len(out, 0);
+  w312_out_set_len(out, 0);
   if (pipe_elf_out_append(out, ehdr, 64) != 0) {
     return -1;
   }
@@ -2439,7 +2514,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   s = 0;
   while (s < ns) {
     let se2: *u8 = pipe_elf_sym_at(ctx_bytes, s);
-    let nlen: i32 = pipe_load_i32_le(se2, pipe_elf_sym_off_name_len());
+    let nlen: i32 = w312_load(se2, pipe_elf_sym_off_name_len());
     if (nlen > 0) {
       if (pipe_elf_out_append(out, sym_pool + (pipe_elf_sym_name_off(ctx_bytes, s) as usize), nlen) != 0) {
         return -1;
@@ -2471,7 +2546,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   // that would shift defined/undef symbol indices used by rela r_sym.
   let ent: *u8 = &g_pipe_elf_ws_ent[0];
   unsafe {
-    memset(ent, 0, 24 as usize);
+    w312_memset(ent, 0, 24 as usize);
     ent[4] = 3; ent[6] = 1;
   }
   pipe_elf_store_i32_bytes(ent, 8, code_len);
@@ -2482,7 +2557,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   s = 0;
   while (s < ns) {
     unsafe {
-      memset(ent, 0, 24 as usize);
+      w312_memset(ent, 0, 24 as usize);
     }
     let is_common: i32 = 0;
     if (g_pipe_elf_common_owner == ctx_bytes && s < pipe_elf_table_cap()) {
@@ -2521,18 +2596,18 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
         ent[6] = (elf_shndx & 255) as u8;
         ent[7] = ((elf_shndx / 256) & 255) as u8;
       }
-      pipe_elf_store_i32_bytes(ent, 8, pipe_load_i32_le(se3, pipe_elf_sym_off_offset()));
+      pipe_elf_store_i32_bytes(ent, 8, w312_load(se3, pipe_elf_sym_off_offset()));
     }
     if (pipe_elf_out_append(out, ent, 24) != 0) {
       return -1;
     }
-    str_off = str_off + pipe_load_i32_le(se3, pipe_elf_sym_off_name_len()) + 1;
+    str_off = str_off + w312_load(se3, pipe_elf_sym_off_name_len()) + 1;
     s = s + 1;
   }
   s = 0;
   while (s < num_undef) {
     unsafe {
-      memset(ent, 0, 24 as usize);
+      w312_memset(ent, 0, 24 as usize);
       ent[4] = 18;
     }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
@@ -2567,7 +2642,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
       let m: i32 = 0;
       while (m < ns) {
         let se4: *u8 = pipe_elf_sym_at(ctx_bytes, m);
-        let slen: i32 = pipe_load_i32_le(se4, pipe_elf_sym_off_name_len());
+        let slen: i32 = w312_load(se4, pipe_elf_sym_off_name_len());
         let off: i32 = pipe_elf_sym_name_off(ctx_bytes, m);
         if (pipe_elf_name_eq(sym_pool + (off as usize), slen, &g_pipe_elf_ws_name[0], rlen2) != 0) {
           sym_idx = m + 1;
@@ -2587,7 +2662,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
       }
       let rela: *u8 = &g_pipe_elf_ws_rela[0];
       unsafe {
-        memset(rela, 0, 24 as usize);
+        w312_memset(rela, 0, 24 as usize);
       }
       pipe_elf_rela_set_addend64(rela, 0 - 4, 0 - 1);
       let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
@@ -2622,7 +2697,7 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
   // section headers (8 x 64): NULL .text .symtab .strtab .data .shstrtab .rela.text .rela.data
   let sh: *u8 = &g_pipe_elf_ws_shdr[0];
   unsafe {
-    memset(sh, 0, 512 as usize);
+    w312_memset(sh, 0, 512 as usize);
   }
   // shdr0 zero
   // shdr_text index 1
@@ -2695,5 +2770,5 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     }
     hi = hi + 1;
   }
-  return codegen_out_buf_len(out);
+  return w312_out_len(out);
 }
