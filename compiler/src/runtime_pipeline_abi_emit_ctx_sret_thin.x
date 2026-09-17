@@ -2,9 +2,9 @@
 // sret_active / sret_home_off(-1) / sret_ret_sz scalar BSS + get/set; 6 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave223 leave.
 // PRODUCT inject (pipeline_abi_inject_emit_ctx_sret_thin, stamp w380):
-//   LINUX|UBUNTU: PREFER_ASM (w338 NEG-over-LIT → home_off=-1 Lxml_* COMMON).
-//   MACOS|DARWIN: HARD BAN PREFER reinject (Cap A tip BRANCH26); prior -E.
-// PLATFORM: SHARED · LINUX PREFER · MACOS hard-skip.
+//   Prior: LINUX PREFER / DARWIN -E overlays kept.
+//   HARD BAN reinject both ends (Darwin BRANCH26; Ubuntu tip SEGV).
+// PLATFORM: SHARED · BAN reinject both ends (keep prior overlays).
 
 let g_pipeline_asm_func_sret_active: i32 = 0;
 // wave223: sret home stack offset; -1 = unset (must survive -E init).

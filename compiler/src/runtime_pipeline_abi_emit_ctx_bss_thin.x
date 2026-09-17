@@ -2,9 +2,9 @@
 // Arm-depth + emit_ctx scalar/pointer BSS + host_is_arm64; 15 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave220/221 leave.
 // PRODUCT inject (pipeline_abi_inject_emit_ctx_bss_thin, stamp w380):
-//   LINUX|UBUNTU: PREFER_ASM (w338 NEG/null → full Lxml_* COMMON; gold=8).
-//   MACOS|DARWIN: HARD BAN PREFER reinject (tip BRANCH26); prior -E overlay.
-// PLATFORM: SHARED · LINUX PREFER · MACOS hard-skip.
+//   Prior: LINUX PREFER / DARWIN -E overlays kept.
+//   HARD BAN reinject both ends (Darwin BRANCH26; Ubuntu tip SEGV).
+// PLATFORM: SHARED · BAN reinject both ends (keep prior overlays).
 
 // wave220: nest depth while emitting if/ternary branch arms (0 = not in arm).
 let g_if_expr_arm_emit_depth: i32 = 0;

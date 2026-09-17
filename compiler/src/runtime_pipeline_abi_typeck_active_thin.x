@@ -2,9 +2,9 @@
 // Process-local active-module cell + get/set; 2 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave224 leave.
 // PRODUCT inject (pipeline_abi_inject_typeck_active_thin, stamp w380):
-//   LINUX|UBUNTU: PREFER_ASM (w338 null TYPE_PTR → Lxml_* COMMON).
-//   MACOS|DARWIN: HARD BAN PREFER reinject (tip BRANCH26); prior -E overlay.
-// PLATFORM: SHARED · LINUX PREFER · MACOS hard-skip.
+//   Prior: LINUX PREFER / DARWIN -E overlays kept.
+//   HARD BAN reinject both ends (Darwin BRANCH26; Ubuntu tip SEGV).
+// PLATFORM: SHARED · BAN reinject both ends (keep prior overlays).
 
 let g_typeck_active_module: *u8 = 0 as *u8;
 
