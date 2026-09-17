@@ -11,8 +11,8 @@
 // wave286/319 typeck_check_expr Cap residual
 // .x thin (runtime_pipeline_abi_typeck_check_expr_thin.x via -E+$CC; was C thin);
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
-// wave279/320 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
-//   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x via -E+$CC; was C thin);
+// wave279/320/334 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
+//   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x PREFER_ASM wave334; was -E);
 // wave281/325 onefunc Cap residual .x thin (pipeline_onefunc_* + fill_from_onefunc;
 //   runtime_pipeline_abi_onefunc_thin.x via -E+$CC; was C thin);
 // wave280/324 module_func Cap residual .x thin (Func accessors + param sidecar +
@@ -35,6 +35,8 @@
 //   (runtime_pipeline_abi_glue_statics_thin.x; was -E+$CC wave295).
 //   Live=wave333 PREFER_ASM WAVE299: preprocess_malloc Cap residual
 //   (runtime_pipeline_abi_preprocess_malloc_thin.x; was -E+$CC wave299).
+//   Live=wave334 PREFER_ASM WAVE279: lifecycle Cap residual
+//   (runtime_pipeline_abi_lifecycle_thin.x; was -E+$CC wave320).
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.

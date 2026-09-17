@@ -5896,13 +5896,14 @@ pipeline_abi_inject_expr_sidecar_thin() {
 
 
 
-# wave320 M2: lifecycle Cap residual C→.x (was wave279 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Sidecar LE byte offs.
+# wave320/334 M2: lifecycle Cap residual .x thin (block/module/arena/onefunc).
+# PRODUCT inject: wave334 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
+# no local fixed arrays; pipe helpers T001-unsafe (was -E+$CC interim).
 # G.7 WAVE279_LIFECYCLE_DOMAIN_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_lifecycle_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_lifecycle_thin.x"
-  local stamp="src/.pabi_w320_lifecycle.stamp"
+  local stamp="src/.pabi_w334_lifecycle.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5922,9 +5923,9 @@ pipeline_abi_inject_lifecycle_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w320-lifecycle"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w334-lifecycle"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -11234,7 +11235,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-lifecycle|inject_lifecycle)
-    # wave320: C→.x lifecycle via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave334: lifecycle PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-lifecycle: need <out.o>" >&2

@@ -1,8 +1,9 @@
-// Thin pure: wave320 M2 — lifecycle Cap residual C→.x (was wave279 C thin).
+// Thin pure: wave320/334 M2 — lifecycle Cap residual C→.x (was wave279 C thin).
 // block_on_alloc / module|arena reset|release / drop_bodies / onefunc reset|release.
 // G.7: bodies match runtime_pipeline_abi_lifecycle_thin.c / seed WAVE279.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_lifecycle_thin
-// (ALLOW_E_REPLACE + stamp). Sidecar LE byte offs match sidecar_pool_thin.x.
+// PRODUCT inject: wave334 PREFER_ASM via pipeline_abi_inject_lifecycle_thin
+// (ALLOW_E_REPLACE + stamp). No BSS; no local fixed arrays; pipe helpers
+// T001-unsafe (was -E+$CC interim). Sidecar LE offs match sidecar_pool_thin.x.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -45,7 +46,11 @@ const W320_GV_LEN_OFF: i32 = 12;
  * @return i32
  */
 function w320_load_i32(base: *u8, off: i32): i32 {
-  return pipe_load_i32_le(base, off);
+  let v: i32 = 0;
+  unsafe {
+    v = pipe_load_i32_le(base, off);
+  }
+  return v;
 }
 
 /**
@@ -55,7 +60,9 @@ function w320_load_i32(base: *u8, off: i32): i32 {
  * @param v i32
  */
 function w320_store_i32(base: *u8, off: i32, v: i32): void {
-  pipe_store_i32_le(base, off, v);
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
 }
 
 /**
@@ -65,7 +72,11 @@ function w320_store_i32(base: *u8, off: i32, v: i32): void {
  * @return i32
  */
 function w320_gv_len(sc: *u8, gv_off: i32): i32 {
-  return pipe_load_i32_le(sc + (gv_off as usize), W320_GV_LEN_OFF);
+  let v: i32 = 0;
+  unsafe {
+    v = pipe_load_i32_le(sc + (gv_off as usize), W320_GV_LEN_OFF);
+  }
+  return v;
 }
 
 /**
@@ -74,7 +85,9 @@ function w320_gv_len(sc: *u8, gv_off: i32): i32 {
  * @param gv_off i32
  */
 function w320_gv_clear_len(sc: *u8, gv_off: i32): void {
-  pipe_store_i32_le(sc + (gv_off as usize), W320_GV_LEN_OFF, 0);
+  unsafe {
+    pipe_store_i32_le(sc + (gv_off as usize), W320_GV_LEN_OFF, 0);
+  }
 }
 
 /**
