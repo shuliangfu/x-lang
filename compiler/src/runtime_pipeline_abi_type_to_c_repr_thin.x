@@ -1,7 +1,11 @@
 // Thin pure: host-C type_to_c_repr (SLICE `*`→`_p` sanitizer family).
 // G.7: bodies MUST match cg_ttc_* / type_kind_copy / vector_type_copy /
 // pipeline_codegen_type_to_c_repr in runtime_pipeline_abi.x.
-// ensure injects via inject_thin_leaf (PREFER_ASM opt-in; no mega -E).
+// ensure injects via pipeline_abi_inject_type_to_c_repr_thin.
+// wave397: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c/-E full file XT001@cg_ttc_write_bytes MISATTRIBUTED —
+//   helpers-only (cut before main) -c green; root = LINUX typeck/arena on
+//   helpers+main co-file. Split main leaf deferred.
 // PLATFORM: SHARED freestanding codegen · LINUX gold · MACOS.
 
 export extern function pipeline_arena_num_types(arena: *u8): i32;
