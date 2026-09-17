@@ -4866,13 +4866,14 @@ pipeline_abi_inject_slot_bytes_thin() {
   return "$rc"
 }
 
-# wave401/414 M2: field_load_sz Cap residual — asymmetric helpers unlock.
+# wave401/414/431 M2: field_load_sz Cap residual — asymmetric helpers unlock.
 # PRODUCT inject wave414:
 #   MACOS: PREFER_ASM full thin (helpers+main; -c green; product L2 verified).
 #   LINUX: PREFER_ASM helpers-only thin (field_load_sz_bytes_eq;
 #     Ubuntu helpers -c ~1023B green). Full tip -c XT001@bytes_eq
 #     MISATTRIBUTED — root = LINUX typeck/arena on main co-file.
-#     Main export tip reinject still BAN on LINUX.
+# wave431: main rest-only Darwin -c ~4571B; LINUX HARD BAN (asm empty;
+#   -E omit T). Main tip reinject still BAN on LINUX.
 # G.7: helpers body matches mega / full thin; main stays leftover on LINUX.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
 pipeline_abi_inject_field_load_sz_thin() {
@@ -5011,16 +5012,16 @@ pipeline_abi_inject_fnptr_as_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
 }
 
-# wave409/419 M2: asm_expr Cap residual — asymmetric unlock.
-# PRODUCT inject wave419:
+# wave409/419/431 M2: asm_expr Cap residual — asymmetric unlock.
+# PRODUCT inject wave431:
 #   MACOS: PREFER_ASM full thin (emit_expr_elf_rec + emit_expr_elf_c;
-#     Darwin product inject + g05 + L2 5/5 opt=102 @20475080).
-#   LINUX: HARD BAN tip reinject (stamp only) — helpers-only
-#     (pipeline_asm_emit_expr_elf_rec) -c ~8425B green, but product inject
-#     + proper xlang_asm relink → opt=255. Probe without cp G05_OUT→xlang_asm
-#     was false-green. Full tip product inject also option=255 (w409).
-# G.7: thin body matches mega; LINUX leftover holds rec+emit_expr_elf_c.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX hard-skip.
+#     Darwin product inject + g05 + L2 5/5 verified).
+#   LINUX: -E+$CC helpers-only (pipeline_asm_emit_expr_elf_rec);
+#     pure-asm helpers/tip product opt=255 (w419); -E helpers product+true
+#     relink L2 5/5 opt=102. Do NOT set PREFER_ASM on LINUX.
+#     Full tip reinject still BAN on LINUX.
+# G.7: thin body matches mega; LINUX leftover holds emit_expr_elf_c tip.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers -E PREFER.
 pipeline_abi_inject_asm_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_expr_thin.x"
@@ -5030,12 +5031,14 @@ pipeline_abi_inject_asm_expr_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local force_e=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — HARD BAN tip reinject (helpers product opt=255); stamp only.
+  # PLATFORM: LINUX — helpers -E only (pure-asm opt=255).
   case "$(uname -s)" in
     Linux)
-      touch "$stamp"
-      return 0
+      thin_x="src/runtime_pipeline_abi_asm_expr_helpers_thin.x"
+      stamp="src/.pabi_w431_asm_expr_helpers.stamp"
+      force_e=1
       ;;
   esac
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
@@ -5051,10 +5054,15 @@ pipeline_abi_inject_asm_expr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS — PREFER_ASM full thin (product L2 green).
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  if [ "$force_e" = "1" ]; then
+    # PLATFORM: LINUX — force -E+$CC (pure-asm product opt=255).
+    unset XLANG_PABI_THIN_PREFER_ASM
+  else
+    # PLATFORM: MACOS — PREFER_ASM full thin.
+    export XLANG_PABI_THIN_PREFER_ASM=1
+  fi
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w419-asm-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w431-asm-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5071,6 +5079,10 @@ pipeline_abi_inject_asm_expr_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    # PLATFORM: LINUX — retire w419 hard-skip stamp.
+    if [ "$force_e" = "1" ]; then
+      rm -f src/.pabi_w419_asm_expr.stamp
+    fi
   fi
   return "$rc"
 }

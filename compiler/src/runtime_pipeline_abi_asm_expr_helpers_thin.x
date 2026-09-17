@@ -1,10 +1,8 @@
 // Thin pure: asm_expr HELPERS leaf (pipeline_asm_emit_expr_elf_rec only).
-// G.7: body MUST match pipeline_asm_emit_expr_elf_rec in runtime_pipeline_abi.x /
-// runtime_pipeline_abi_asm_expr_thin.x (full leaf keeps emit_expr_elf_c).
-// wave419: inventory / future probe ONLY — LINUX product inject of this leaf
-//   + proper xlang_asm relink → opt=255 (HARD BAN). Standalone -c ~8425B green.
-//   Do NOT wire into ensure PREFER path until product-proven.
-// PLATFORM: SHARED freestanding emit · LINUX gold · MACOS.
+// G.7: body MUST match pipeline_asm_emit_expr_elf_rec in asm_expr_thin / mega.
+// wave431: LINUX -E PREFER (pure-asm product opt=255; -E L2 5/5).
+//   MACOS still uses full asm_expr_thin PREFER_ASM.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
