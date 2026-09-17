@@ -4,6 +4,8 @@
 // single-module call graph (main/entry root + CALL/METHOD edges) and write
 // JSON v2 consumed by compiler/scripts/wpo_dce.pl. ensure injects via
 // pipeline_abi_inject_wpo_dump_thin (first-wins; avoids Darwin mega -E).
+// wave396: PRODUCT PREFER_ASM both ends (stamp .pabi_w396_wpo_dump.stamp);
+//   standalone -c green Darwin/Ubuntu; was class-E default -E.
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
 export extern function link_abi_getenv(name: *u8): *u8;

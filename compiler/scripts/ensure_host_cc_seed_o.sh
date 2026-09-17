@@ -4737,11 +4737,57 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_array_esz_thin.x" "fnptr-arr-esz"
 }
 
-# WPO_DUMP_CALLGRAPH (XLANG_WPO_DUMP_CALLGRAPH). G.7: thin body matches
-# runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
-# PLATFORM: SHARED shell · LINUX gold + MACOS.
+# wave396 M2: wpo_dump Cap residual — unlock PREFER_ASM both ends.
+# PRODUCT inject wave396: PREFER_ASM (ALLOW_E_REPLACE + stamp). Standalone
+# -c green both ends (Darwin 29590B / Ubuntu 15090B); was class-E default -E.
+# Gate: type_alias -c also green both ends (w358 residual gate).
+# G.7: thin body matches runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
+# PLATFORM: SHARED · PREFER both ends.
 pipeline_abi_inject_wpo_dump_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_wpo_dump_thin.x" "wpodump-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
+  local stamp="src/.pabi_w396_wpo_dump.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM both ends (w396 unlock; -c green).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w396-wpo-dump"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 
@@ -5318,7 +5364,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave393/393b/393c/393d: mega LOOP split leaf landed (helpers vs loop).
 # wave394: CG002 root = emit_one+mega co-file; third leaf emit_one_thin;
 #   Ubuntu+Darwin -c all three green → unlock three-leaf PREFER inject.
-# Next: 余 BAN 叶根／type_alias -c＋L2；禁升钉。
+# wave396: wpo_dump PREFER both ends (-c green; type_alias -c gate OK).
+# Next: type_to_c_repr Ubuntu XT001／余 soft -E 叶／mega Ubuntu tip BAN；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -10736,6 +10783,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_type_pool_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-wpo-dump|inject_wpo_dump)
+    # wave396: wpo_dump PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-wpo-dump: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_wpo_dump_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
