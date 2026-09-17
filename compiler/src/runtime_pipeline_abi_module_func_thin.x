@@ -1,10 +1,13 @@
-// Thin pure: wave324/363 M2 — module_func Cap residual C→.x.
+// Thin pure: wave324/363/363b/385 M2 — module_func Cap residual C→.x.
 // Module Func cold accessors + param sidecar + parse-impl owner BSS +
 // asm/arch_arm64 rename forwarders.
 // G.7: bodies match runtime_pipeline_abi_module_func_thin.c / seed WAVE280.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_module_func_thin
-// (ALLOW_E_REPLACE + stamp). Func LE 324 / FuncParam 264 / ModuleSc offs.
+// PRODUCT inject: HARD BAN reinject (wave385) — stay prior overlay
+//   (Darwin PREFER / Ubuntu -E from w363b; Ubuntu PREFER → undef main).
+// Func LE 324 / FuncParam 264 / ModuleSc offs.
 // wave363: w324_* unsafe wrappers (T001); PREFER try + L2 gate.
+// wave363b: MACOS PREFER / LINUX -E.
+// wave385: HARD BAN reinject both ends (stamp .pabi_w385_module_func.stamp).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
