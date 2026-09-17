@@ -5979,12 +5979,13 @@ pipeline_abi_inject_arr_return_thin() {
   return "$rc"
 }
 
-# wave440/442/446 M2: arr_struct_lit Cap residual — asymmetric unlock.
+# wave440/442/446/447 M2: arr_struct_lit Cap residual — asymmetric unlock.
 # PRODUCT inject:
 #   MACOS (w440): PREFER_ASM full peer chain.
 #   LINUX (w442): -E peer chain; (w446): nine-peer pure-asm overlay
-#     (call_*+resolve_call+copy_*+zero+resolve_vf). arrlit+main tip pure-asm
-#     → opt SEGV 139 — stay -E leftover.
+#     (call_*+resolve_call+copy_*+zero+resolve_vf).
+#   wave447 HARD BAN tip pure-asm for arrlit+main: tip regen → opt SEGV 139
+#     (even param-touching stubs); bare `return 0` stub → opt=94. Keep -E.
 # G.7: semantics match mega glue_struct_lit_store_fixed_array_field_elf_c.
 # PLATFORM: SHARED · MACOS pure-asm / LINUX -E + w446 heal-asm.
 pipeline_abi_inject_arr_struct_lit_thin() {
@@ -6069,7 +6070,8 @@ pipeline_abi_inject_arr_struct_lit_thin() {
       fi
     fi
   done
-  # wave446: nine-peer pure-asm overlay (LINUX). arrlit+main stay -E leftover.
+  # wave446: nine-peer pure-asm overlay (LINUX).
+  # wave447: arrlit+main tip pure-asm HARD BAN (opt SEGV); stay -E leftover.
   # PLATFORM: LINUX gold · MACOS skipped (full chain already PREFER).
   case "$(uname -s)" in
     Linux)
