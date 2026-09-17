@@ -83252,6 +83252,8 @@ export function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void {
 
 // =============================================================================
 // wave262: ast_pool_type_alias.c pure-owned leave (TypeAliasEntry storage + faces)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_type_alias_thin.x
+// (wave303 C→.x via -E+$CC inject; was wave262 C thin).
 // =============================================================================
 // G.7 product authority for:
 //   pipeline_module_type_alias_alloc / set / name_len / name_byte_at / target_ref
