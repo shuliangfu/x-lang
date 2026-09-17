@@ -5485,8 +5485,7 @@ pipeline_abi_inject_block_tree_thin() {
 #     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
 #     w342 emit_ctx_bss (small Cap A; w344 .data bake for non-zero imm).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A typeck_check_expr (w343/w344 PREFER trials): XT001 remains after
-#       ordinal→.data bake (leftover d W286_* dual-home / dispatch).
+#     A typeck_check_expr (w346 const ordinals; PREFER still XT001 body root) ·
 #       block_tree i32[256] walk stack.
 #     B local fixed arrays / digit-loop / FileView layout
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
@@ -5497,11 +5496,11 @@ pipeline_abi_inject_block_tree_thin() {
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
-# wave339–342: Cap A emit_ctx + typeck_active OK; w343 check_expr PREFER ban.
-# wave344: non-zero scalar imm → .data bake (library TU); check_expr PREFER
-#   still banned (w344b) — bake necessary but not sufficient.
-# Next: check_expr dual-home leftover strip / block_tree / GrowVec-LE;
-#   Darwin mega when RAM ok.
+# wave339–342: Cap A emit_ctx + typeck_active OK.
+# wave344: non-zero scalar imm → .data bake (library TU).
+# wave345: MODLET_IN_REST prepare 入链.
+# wave346: check_expr ordinal let→const; PREFER still ban (body/dispatch).
+# Next: check_expr PREFER body／block_tree／GrowVec-LE; Darwin mega when RAM ok.
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
@@ -6409,18 +6408,18 @@ pipeline_abi_inject_modlet_prepare_rest() {
   return 0
 }
 
-# wave319/343/344 M2: typeck_check_expr Cap residual .x thin (was wave286 C thin).
-# PRODUCT inject: stay -E+$CC both ends (wave344 PREFER re-trial):
-#   LINUX PREFER after w344 .data bake → Ubuntu L2 2/5 same XT001
-#   ("expected i32, found i32"); product binary then fails to -c the thin
-#   itself. Root beyond ordinal COMMON remains (leftover local d W286_*
-#   dual-home / dispatch). Stay -E both ends. Stamp w344b.
+# wave319/343/344/346 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
+# PRODUCT inject: stay -E+$CC both ends (stamp w346):
+#   wave346: ordinal `let`→`const` (seed #define twin; -E emits static const;
+#   PREFER folds imm — no Lxml ordinal storage). PREFER re-trial still
+#   Darwin/Ubuntu XT001 ("expected i32, found i32") → root beyond ordinal
+#   storage (pure-asm body/dispatch). Stay -E. Match subject stays mutable let.
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
 # G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED · both ends -E.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
-  local stamp="src/.pabi_w344b_typeck_check_expr.stamp"
+  local stamp="src/.pabi_w346_typeck_check_expr.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6442,7 +6441,7 @@ pipeline_abi_inject_typeck_check_expr_thin() {
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w344b-typeck-check-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w346-typeck-check-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -11405,7 +11404,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-typeck-check-expr|inject_typeck_check_expr)
-    # wave343: typeck_check_expr stay -E+$CC (PREFER trial Ubuntu typeck red).
+    # wave346: typeck_check_expr stay -E+$CC (const ordinals; PREFER still XT001).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-typeck-check-expr: need <out.o>" >&2

@@ -1,46 +1,46 @@
-// Thin pure: wave319/343/344 M2 — typeck_check_expr Cap residual (was wave286 C).
+// Thin pure: wave319/343/344/346 M2 — typeck_check_expr Cap residual (was wave286 C).
 // Dispatch check_expr_*_c + match subject BSS + repr/extern gates; ~22 exports.
-// G.7: bodies match runtime_pipeline_abi_typeck_check_expr_thin.c / seed WAVE286.
-// PRODUCT inject: -E+$CC both ends (stamp w344b). w344 .data bake fixed ordinal
-// COMMON zeros, but LINUX PREFER re-trial still Ubuntu L2 XT001 (leftover local
-// d W286_* dual-home / dispatch beyond bake). Stay -E.
+// G.7: bodies match seed WAVE286 (#define ordinals — no mutable storage).
+// wave346: ordinal `let`→`const` (imm under PREFER; static const under -E).
+// PREFER re-trial still XT001 (body/dispatch beyond storage) → product stays
+// -E+$CC both ends (stamp w346). Match subject stays mutable `let` (BSS).
 // Cold WEAK check_expr_impl{,_mega} NOT defined here — typeck_x.o provides strong;
 // impl_c calls extern check_expr_impl_mega (seed/typeck resolve).
 // PLATFORM: SHARED freestanding Cap leave · both ends -E+$CC.
 
-// ExprKind / TypeKind product ordinals (LE shared with typeck.x / glue).
-let W286_EXPR_LIT: i32 = 0;
-let W286_EXPR_FLOAT_LIT: i32 = 1;
-let W286_EXPR_BOOL_LIT: i32 = 2;
-let W286_EXPR_VAR: i32 = 3;
-let W286_EXPR_ADD: i32 = 4;
-let W286_EXPR_LOGOR: i32 = 21;
-let W286_EXPR_NEG: i32 = 22;
-let W286_EXPR_BITNOT: i32 = 23;
-let W286_EXPR_LOGNOT: i32 = 24;
-let W286_EXPR_IF: i32 = 25;
-let W286_EXPR_BLOCK: i32 = 26;
-let W286_EXPR_TERNARY: i32 = 27;
-let W286_EXPR_BREAK: i32 = 39;
-let W286_EXPR_CONTINUE: i32 = 40;
-let W286_EXPR_RETURN: i32 = 41;
-let W286_EXPR_PANIC: i32 = 42;
-let W286_EXPR_MATCH: i32 = 43;
-let W286_EXPR_FIELD_ACCESS: i32 = 44;
-let W286_EXPR_STRUCT_LIT: i32 = 45;
-let W286_EXPR_INDEX: i32 = 47;
-let W286_EXPR_CALL: i32 = 48;
-let W286_EXPR_METHOD_CALL: i32 = 49;
-let W286_EXPR_ENUM_VARIANT: i32 = 50;
-let W286_EXPR_ADDR_OF: i32 = 51;
-let W286_EXPR_DEREF: i32 = 52;
-let W286_EXPR_AS: i32 = 54;
-let W286_EXPR_TRY_PROPAGATE: i32 = 58;
-let W286_EXPR_C_TRY_PROPAGATE: i32 = 57;
-let W286_EXPR_STRING_LIT: i32 = 59;
-let W286_TYPE_PTR: i32 = 9;
-let W286_TYPE_ARRAY: i32 = 10;
-let W286_TYPE_SLICE: i32 = 11;
+// ExprKind / TypeKind product ordinals — const (seed #define twin; no let storage).
+const W286_EXPR_LIT: i32 = 0;
+const W286_EXPR_FLOAT_LIT: i32 = 1;
+const W286_EXPR_BOOL_LIT: i32 = 2;
+const W286_EXPR_VAR: i32 = 3;
+const W286_EXPR_ADD: i32 = 4;
+const W286_EXPR_LOGOR: i32 = 21;
+const W286_EXPR_NEG: i32 = 22;
+const W286_EXPR_BITNOT: i32 = 23;
+const W286_EXPR_LOGNOT: i32 = 24;
+const W286_EXPR_IF: i32 = 25;
+const W286_EXPR_BLOCK: i32 = 26;
+const W286_EXPR_TERNARY: i32 = 27;
+const W286_EXPR_BREAK: i32 = 39;
+const W286_EXPR_CONTINUE: i32 = 40;
+const W286_EXPR_RETURN: i32 = 41;
+const W286_EXPR_PANIC: i32 = 42;
+const W286_EXPR_MATCH: i32 = 43;
+const W286_EXPR_FIELD_ACCESS: i32 = 44;
+const W286_EXPR_STRUCT_LIT: i32 = 45;
+const W286_EXPR_INDEX: i32 = 47;
+const W286_EXPR_CALL: i32 = 48;
+const W286_EXPR_METHOD_CALL: i32 = 49;
+const W286_EXPR_ENUM_VARIANT: i32 = 50;
+const W286_EXPR_ADDR_OF: i32 = 51;
+const W286_EXPR_DEREF: i32 = 52;
+const W286_EXPR_AS: i32 = 54;
+const W286_EXPR_TRY_PROPAGATE: i32 = 58;
+const W286_EXPR_C_TRY_PROPAGATE: i32 = 57;
+const W286_EXPR_STRING_LIT: i32 = 59;
+const W286_TYPE_PTR: i32 = 9;
+const W286_TYPE_ARRAY: i32 = 10;
+const W286_TYPE_SLICE: i32 = 11;
 
 export extern function pipeline_expr_kind_ord_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_left_ref_at(a: *u8, expr_ref: i32): i32;
