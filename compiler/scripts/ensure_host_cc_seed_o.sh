@@ -5352,30 +5352,31 @@ pipeline_abi_inject_binop_block_peel_thin() {
   return "$rc"
 }
 
-# wave403/413/416 M2: assign Cap residual — asymmetric helpers+lhs unlock.
-# PRODUCT inject wave416:
-#   MACOS: PREFER_ASM full thin (helpers+exports; -c green; product L2 verified).
-#   LINUX: PREFER_ASM helpers+lhs thin (asg_thin_* + glue_assign_lhs;
-#     Ubuntu -c ~3449B green). Full tip XT001@asg_thin_store MISATTRIBUTED.
-#     Remaining exports (rhs/emit/field/body) tip reinject still BAN on LINUX.
-# G.7: helpers+lhs bodies match mega / full thin; rest stay leftover on LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+lhs PREFER.
+# wave403/413/416/420 M2: assign Cap residual — asymmetric helpers+lhs+rhs unlock.
+# PRODUCT inject wave420:
+#   MACOS: PREFER_ASM full thin (helpers+exports; product L2 verified).
+#   LINUX: PREFER_ASM helpers+lhs+rhs thin (glue_assign_lhs +
+#     glue_emit_assign_rhs_elf_c; Ubuntu -c ~4386B; product inject+relink
+#     L2 5/5 opt=102). Full tip XT001@asg_thin_store MISATTRIBUTED.
+#     Remaining (rhs_to_rax/emit_assign/field_pair/body_stmt) tip BAN LINUX.
+# G.7: helpers bodies match mega / full thin; rest stay leftover on LINUX.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+lhs+rhs PREFER.
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
-  local stamp="src/.pabi_w416_assign.stamp"
-  local tag="w416-assign"
+  local stamp="src/.pabi_w420_assign.stamp"
+  local tag="w420-assign"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  # PLATFORM: LINUX — helpers-only tip PREFER (full export cluster still BAN).
+  # PLATFORM: LINUX — helpers+lhs+rhs tip PREFER (remaining exports still BAN).
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
-      stamp="src/.pabi_w416_assign_helpers.stamp"
-      tag="w416-assign-helpers"
+      stamp="src/.pabi_w420_assign_helpers.stamp"
+      tag="w420-assign-helpers"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
@@ -6124,7 +6125,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave400/415: slot_bytes MACOS full PREFER／LINUX helpers PREFER (asm_local tip BAN).
 # wave401/414: field_load_sz MACOS full PREFER／LINUX helpers PREFER (main tip BAN).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
-# wave403/413/416: assign MACOS full PREFER／LINUX helpers+lhs PREFER (rest BAN).
+# wave403/413/416/420: assign MACOS full PREFER／LINUX helpers+lhs+rhs PREFER (rest BAN).
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
 # wave405: binop_stack_spill_try_reload PREFER both ends.
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
@@ -6134,10 +6135,10 @@ pipeline_abi_inject_block_tree_thin() {
 # wave410: asm73_* HARD BAN (BRANCH26); wave410d reent PREFER both ends.
 # wave411: call_method_wrappers PREFER both ends (last soft -E stub).
 # wave412: type_to_c_repr LINUX helpers PREFER (main tip still BAN).
-# wave413/416: assign LINUX helpers+lhs PREFER (remaining exports tip BAN).
+# wave413/416/420: assign LINUX helpers+lhs+rhs PREFER (rest tip BAN).
 # wave414: field_load_sz LINUX helpers PREFER (main tip still BAN).
 # wave415: slot_bytes LINUX helpers PREFER (asm_local tip still BAN).
-# wave416: assign LINUX helpers+lhs PREFER (remaining exports tip BAN).
+# wave420: assign LINUX helpers+lhs+rhs PREFER (rest tip BAN).
 # wave417: binop_block_peel LINUX helpers PREFER (rest tip BAN).
 # wave418: fixed_array_copy LINUX helpers PREFER (rest tip BAN).
 # wave419: asm_expr LINUX helpers PREFER (emit_expr_elf_c tip BAN).
@@ -11655,7 +11656,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-assign|inject_assign)
-    # wave416: MACOS full PREFER / LINUX helpers+lhs PREFER.
+    # wave420: MACOS full PREFER / LINUX helpers+lhs+rhs PREFER.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-assign: need <out.o>" >&2

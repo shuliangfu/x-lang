@@ -1,11 +1,9 @@
-// Thin pure: wave142 assign HELPERS+lhs leaf (asg_thin_* + glue_assign_lhs).
-// G.7: bodies MUST match the same symbols in runtime_pipeline_abi.x /
-// runtime_pipeline_abi_assign_thin.x (full leaf keeps remaining exports).
-// ensure: pipeline_abi_inject_assign_thin dispatches this on LINUX.
-// wave413: helpers-only PREFER; wave416: expand to include
-//   glue_assign_lhs_f32_type_ref_elf_c (Ubuntu -c ~3449B green).
-//   Remaining exports (rhs/emit/field/body) tip reinject still BAN on LINUX.
-//   MACOS still full thin PREFER.
+// Thin pure: assign HELPERS+lhs+rhs leaf (glue_assign_lhs + glue_emit_assign_rhs).
+// G.7: bodies MUST match same exports in runtime_pipeline_abi_assign_thin.x /
+// runtime_pipeline_abi.x. ensure: inject_assign_thin dispatches this on LINUX.
+// wave420: LINUX PREFER grow helpers past lhs to include glue_emit_assign_rhs_elf_c
+//   (rest tip still BAN: rhs_to_rax / emit_assign / field_pair / body_stmt).
+// wave416: helpers+lhs; wave413: helpers-only. MACOS still full PREFER.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -310,5 +308,44 @@ export function glue_assign_lhs_f32_type_ref_elf_c(arena: *u8, ctx: *u8, left_re
     }
   }
   return 0;
+}
+
+/**
+ * Assign RHS emit: lhs f32 + float lit uses imm32 (not CALL f64 widen).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param left_ref i32 - LHS expr
+ * @param right_ref i32 - RHS expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 failure
+ * wave142 pure: G.7 authority (was static glue_emit_assign_rhs_elf_c).
+ * Cap residual: float lit pure + public emit_expr_elf_c for general RHS.
+ * PLATFORM: SHARED freestanding.
+ */
+export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  let lhs_f32: i32 = 0;
+  let rko: i32 = 0;
+  let rc: i32 = 0;
+  if (arena == (0 as *u8) || right_ref <= 0) {
+    return -1;
+  }
+  unsafe {
+    rko = pipeline_expr_kind_ord_at(arena, right_ref);
+  }
+  // FLOAT_LIT kind_ord == 1
+  if (rko == 1) {
+    lhs_f32 = glue_assign_lhs_f32_type_ref_elf_c(arena, ctx, left_ref);
+    if (lhs_f32 > 0) {
+      unsafe {
+        rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, right_ref, ta, lhs_f32, 0);
+      }
+      return rc;
+    }
+  }
+  unsafe {
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+  }
+  return rc;
 }
 
