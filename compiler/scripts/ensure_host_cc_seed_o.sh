@@ -5120,11 +5120,67 @@ pipeline_abi_inject_binop_block_peel_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_block_peel_thin.x" "blkpeel-thin"
 }
 
-# wave142 dest-in-rbx assign thin inject.
-# M2: C-extract awk markers → .x thin via inject_thin_leaf (PREFER_ASM).
-# G.7: bodies match mega .x assign cluster. PLATFORM: SHARED.
+# wave403 M2: assign Cap residual — asymmetric unlock.
+# PRODUCT inject wave403:
+#   MACOS: PREFER_ASM (full-file -c 60396B green).
+#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c/-E full file
+#     XT001@asg_thin_store_i32_le MISATTRIBUTED; thru_store-only -c green
+#     (998B); root = LINUX typeck/arena when helpers+main co-file.
+#     Split/fix deferred. Darwin -E BLD001 (cc) — PREFER path only.
+# G.7: thin body matches mega .x assign cluster.
+# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
 pipeline_abi_inject_assign_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_assign_thin.x" "asg-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_assign_thin.x"
+  local stamp="src/.pabi_w403_assign.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: LINUX — hard BAN tip reinject (XT001 misattr); stamp only.
+  case "$(uname -s)" in
+    Linux)
+      touch "$stamp"
+      return 0
+      ;;
+  esac
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: MACOS — PREFER_ASM (full-file -c green).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w403-assign"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave157 spill-sum thin. Unblocked after COMMON + reloc_r_type accessors
@@ -5674,7 +5730,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave400: slot_bytes MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
 # wave401: field_load_sz MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
-# Next: assign soft -E／mega Ubuntu BAN；禁升钉。
+# wave403: assign MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
+# Next: mega Ubuntu BAN／split债／余 soft -E；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11183,6 +11240,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_param_ptr_slot_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-assign|inject_assign)
+    # wave403: MACOS PREFER / LINUX hard-skip BAN.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-assign: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_assign_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

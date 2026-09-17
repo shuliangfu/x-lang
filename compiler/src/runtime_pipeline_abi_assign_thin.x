@@ -7,6 +7,9 @@
 // Local asg_thin_* helpers are TU-private names (asm still emits T;
 // unique prefix avoids first-wins replace of product pipe_*/align).
 // w157 / glue_asm_sum_block_call_spill_bytes stay leftover (not this leaf).
+// wave403: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c/-E XT001@asg_thin_store_i32_le MISATTRIBUTED;
+//   thru_store-only -c green; root = LINUX typeck/arena full leaf.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
