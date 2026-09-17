@@ -4896,20 +4896,25 @@ pipeline_abi_inject_for_call_args_thin() {
 }
 
 # PRODUCT inject stamp w350: Cap A module fixed-array INDEX rvalue.
-# Roots (G.7):
-#   1) emit_index VAR gate used product modlet_find (empty) vs cold prepare.
-#   2) inject redefine-sym rewrites block_body→emit_expr_elf_rec to
-#      *_pabi_superseded — bare INDEX never hits the new face.
-# Fix: weaken leftover (no redefine for these faces) + first-wins merge of
-# emit_index_thin ∪ asm_expr_thin (owns emit_expr_elf_c+rec). Unlocks
-# `let g: i32[N]=[]; return g[0]` and block_tree PREFER (i32[256] walk).
-# Residual: bare `var g` module array rvalue still CG002 (separate).
-# PLATFORM: SHARED · LINUX gold · MACOS weaken-first.
+# Roots (G.7): dual-modlet gate + redefine poison of block_body→rec.
+# Fix: weaken+first-wins emit_index∪asm_expr (owns emit_expr_elf_c+rec).
+# PLATFORM: MACOS|DARWIN product inject (L2 5/5 + block_tree PREFER).
+#   LINUX|UBUNTU: skip product overlay — emit_index thin breaks option
+#   L2 (run 255/240); -c PREFER smoke + let-array probe still green under
+#   lab overlay. Residual: var-module array; Ubuntu option under Cap A.
 pipeline_abi_inject_emit_index_thin() {
   local o="$1"
   local thin_idx="src/runtime_pipeline_abi_emit_index_thin.x"
   local thin_ae="src/runtime_pipeline_abi_asm_expr_thin.x"
   local stamp="src/.pabi_w350_emit_index.stamp"
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) ;;
+    *)
+      # PLATFORM: LINUX — stamp so daily path does not retry; no overlay.
+      [ -f "$stamp" ] || touch "$stamp"
+      return 0
+      ;;
+  esac
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5570,10 +5575,11 @@ pipeline_abi_inject_asm_locals_thin() {
 }
 
 # wave302/349/350 M2: block_tree Cap residual C→.x (was wave269 C thin).
-# PRODUCT inject stamp w350: PREFER_ASM both ends (Cap A INDEX unlock).
-#   w349: T001 unsafe wrap. w350: module let-array INDEX rvalue green →
-#   i32[256] walk BSS PREFER -c green; product PREFER inject.
-# G.7 match mega wave269 leave. PLATFORM: SHARED.
+# PRODUCT inject stamp w350:
+#   MACOS|DARWIN: PREFER (Cap A let-array INDEX unlock; L2 5/5).
+#   LINUX|UBUNTU: stay -E — Cap A emit_index product overlay still
+#   breaks option L2 (run≠102); compiler -c PREFER smoke green.
+# G.7 match mega wave269 leave. PLATFORM: SHARED · MACOS PREFER · LINUX -E.
 # Note: wave268 sizing already via slot_bytes_thin.x + NL-04 seed (no C redo).
 pipeline_abi_inject_block_tree_thin() {
   local o="$1"
@@ -5598,7 +5604,13 @@ pipeline_abi_inject_block_tree_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  # PLATFORM: MACOS PREFER; LINUX -E (option L2 residual under Cap A overlay).
+  prefer_asm=0
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w350-block-tree"
   rc=$?
@@ -5646,8 +5658,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
 # wave348: for_call_args rvalue; Darwin check_expr PREFER / Ubuntu -E.
 # wave349: block_tree T001 unsafe wrap.
-# wave350: Cap A INDEX (weaken inject) + block_tree PREFER unlock.
-# Next: var-module array rvalue / GrowVec-LE / Ubuntu check_expr PREFER.
+# wave350: Cap A INDEX + block_tree PREFER (Darwin); Ubuntu Cap A skip (option).
+# Next: Ubuntu Cap A/option root / var-module / GrowVec-LE / Ubuntu check_expr.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
