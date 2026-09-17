@@ -1,15 +1,12 @@
-// Thin pure: wave301/357/372/372b/373 M2 — type_pool Cap residual C→.x (was wave270 C thin).
+// Thin pure: wave301/357/372/372b/373/383 M2 — type_pool Cap residual C→.x.
 // Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
 //   region_label[256]@272 region_label_len@528 size=532.
 // G.7: bodies match runtime_pipeline_abi.x wave270 leave (correct LE offsets;
 // historic C thin used wrong 132/136/140/144/272 — replaced here).
 // wave357: w301_load/store_i32 unsafe wrappers (T001).
-// wave372/372b: Ubuntu PREFER → option T001; stay Darwin PREFER / Ubuntu -E.
-// wave373 root (LINUX|UBUNTU PREFER pure-asm only; MACOS PREFER OK):
-//   · `function f(p: u8): i32` / `*u8`/`*u32`/`*i64` params → return type `?`
-//   · ADDR_OF (`&x`) silent XT001; `let a: *u8 = null` OK; `*i32` param OK
-//   · option T001 at some_ptr_u8 is symptom of the above Type LE / x86_64 asm face
-// BAN Ubuntu PREFER until asm Type-slot face matches host-C -E.
+// wave372/372b/373: Ubuntu PREFER then option T001 — Darwin PREFER / Ubuntu -E.
+// wave383: Ubuntu tip PREFER L2 5/5 (option=102) + reinject stable — PREFER both.
+// PLATFORM: SHARED freestanding Cap leave · PREFER both ends.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
