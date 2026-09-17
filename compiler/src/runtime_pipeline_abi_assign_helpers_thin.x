@@ -1,9 +1,10 @@
-// Thin pure: assign HELPERS+lhs+rhs leaf (glue_assign_lhs + glue_emit_assign_rhs).
+// Thin pure: assign HELPERS LINUX leaf (lhs+rhs + field_pair+body_stmt).
 // G.7: bodies MUST match same exports in runtime_pipeline_abi_assign_thin.x /
 // runtime_pipeline_abi.x. ensure: inject_assign_thin dispatches this on LINUX.
-// wave420: LINUX PREFER grow helpers past lhs to include glue_emit_assign_rhs_elf_c
-//   (rest tip still BAN: rhs_to_rax / emit_assign / field_pair / body_stmt).
-// wave416: helpers+lhs; wave413: helpers-only. MACOS still full PREFER.
+// wave421: LINUX PREFER add glue_field_assign_pair_base_ref_c +
+//   glue_body_expr_stmt_at_c (skip poison middle: rhs_to_rax / emit_assign;
+//   Ubuntu -c XT001 when contiguous grow through middle).
+// wave420: +rhs; wave416: +lhs; wave413: helpers-only. MACOS still full PREFER.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -349,3 +350,80 @@ export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i
   return rc;
 }
 
+/**
+ * Extract pair base VAR ref from field-assign expression `p.a = ...`.
+ * @param arena *u8 - ASTArena*
+ * @param er i32 - expr stmt ref (must be ASSIGN)
+ * @return i32 - base VAR expr_ref; 0 if non-field-assign / null
+ * wave142 pure: G.7 authority (was static glue_field_assign_pair_base_ref_c).
+ * Called from fold_count_up_while Cap residual — must export #[no_mangle].
+ * PLATFORM: SHARED.
+ */
+export function glue_field_assign_pair_base_ref_c(arena: *u8, er: i32): i32 {
+  let left_ref: i32 = 0;
+  let ko: i32 = 0;
+  let lko: i32 = 0;
+  if (arena == (0 as *u8) || er <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, er);
+  }
+  if (ko != 28) {
+    return 0;
+  }
+  unsafe {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, er);
+    lko = pipeline_expr_kind_ord_at(arena, left_ref);
+  }
+  if (lko != 44) {
+    return 0;
+  }
+  unsafe {
+    return pipeline_expr_field_access_base_ref(arena, left_ref);
+  }
+}
+
+/**
+ * Get the si-th expr stmt ref in a block (stmt_order or pure expr_stmts).
+ * @param arena *u8 - ASTArena*
+ * @param body_ref i32 - block ref
+ * @param si i32 - statement index
+ * @param nso i32 - num stmt_order entries (>0 uses order path)
+ * @param out_er *i32 - out expr_ref
+ * @return i32 - 1 on success; 0 otherwise
+ * wave142 pure: G.7 authority (was static glue_body_expr_stmt_at_c).
+ * Called from fold_count_up_while Cap residual — must export #[no_mangle].
+ * PLATFORM: SHARED.
+ */
+export function glue_body_expr_stmt_at_c(arena: *u8, body_ref: i32, si: i32, nso: i32, out_er: *i32): i32 {
+  let er: i32 = 0;
+  let kind: i32 = 0;
+  let idx: i32 = 0;
+  if (arena == (0 as *u8) || body_ref <= 0 || out_er == (0 as *i32)) {
+    return 0;
+  }
+  if (nso > 0) {
+    unsafe {
+      kind = ast_ast_block_stmt_order_kind(arena, body_ref, si);
+    }
+    if (kind != 2) {
+      return 0;
+    }
+    unsafe {
+      idx = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+      er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, idx);
+    }
+  } else {
+    unsafe {
+      er = ast_pipeline_block_expr_stmt_ref(arena, body_ref, si);
+    }
+  }
+  if (er <= 0) {
+    return 0;
+  }
+  unsafe {
+    out_er[0] = er;
+  }
+  return 1;
+}
