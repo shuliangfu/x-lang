@@ -4722,6 +4722,9 @@ pipeline_abi_inject_reent_deep_copy_thin() {
 #     arrcopy exports tip reinject still BAN on LINUX.
 # G.7: helpers body matches mega / full thin; rest stay leftover on LINUX.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
+# wave427: arr rest thins (return/struct_lit/lit_flat) Darwin -c green;
+#   LINUX HARD BAN (Ubuntu asm empty .o). mega loop post-emit_one still
+#   BAN (product EM:0 L2 0/5 healed).
 pipeline_abi_inject_fixed_array_copy_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_fixed_array_copy_thin.x"
@@ -7019,6 +7022,7 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 #   LINUX: PREFER emit_one ONLY — true relink L2 5/5 (md5 binary changed).
 #     helpers-alone SEGV; loop-alone UNDEF w393_mega_emit_one; emit+loop
 #     ld-fail; three-leaf EM:0. Stamp .pabi_w424_mega_emit_one.
+# wave427: loop-alone after emit_one PREFER still BAN (product EM:0 L2 0/5).
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
 # PLATFORM: SHARED · MACOS three-leaf PREFER / LINUX emit_one PREFER.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
