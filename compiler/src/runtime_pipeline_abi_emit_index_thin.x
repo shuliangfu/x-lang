@@ -1,6 +1,10 @@
-// Thin pure: wave351 Cap A — mega emit_index twin with gate removed only.
+// Thin pure: wave351/378/387 Cap A — mega emit_index twin with gate removed.
 // No modlet shortcut (w350 over-eager VAR+lit modlet broke Ubuntu option).
-// G.7 ≡ mega pipeline_asm_emit_index_elf_c post-w350. PLATFORM: SHARED.
+// G.7 ≡ mega pipeline_asm_emit_index_elf_c post-w350.
+// wave378: BAN Ubuntu PREFER (option=240); Darwin PREFER stays.
+// wave387: HARD BAN reinject both ends (stamp .pabi_w387_emit_index.stamp);
+//   stay prior Darwin PREFER / Ubuntu -E until option=240 root.
+// PLATFORM: SHARED.
 
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;

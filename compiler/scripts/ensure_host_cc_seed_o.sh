@@ -4870,85 +4870,25 @@ pipeline_abi_inject_for_call_args_thin() {
   return "$rc"
 }
 
-# PRODUCT inject stamp w351: Cap A module fixed-array INDEX rvalue.
+# PRODUCT inject stamp w351/w378/w387: Cap A module fixed-array INDEX rvalue.
 # Roots: (1) mega VAR modlet_find gate; (2) Darwin redefine poison of
 # block_body→rec; (3) Ubuntu PREFER pure-asm emit_index breaks option
 # (run=240) — host-C -E thin is green. Thin body ≡ mega post-gate.
 # wave378 reconfirm: Ubuntu inject-pabi-leaf PREFER → L2 option=240 again;
 # stay LINUX -E (BAN Ubuntu PREFER). Darwin PREFER path unchanged.
-# PLATFORM: MACOS PREFER weaken∪asm_expr; LINUX -E index-only · BAN Ubuntu PREFER.
+# wave387 HARD BAN reinject both ends: stay prior overlay (Darwin PREFER
+# weaken∪asm_expr / Ubuntu -E); tip reinject poison class.
+# PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_emit_index_thin() {
   local o="$1"
   local thin_idx="src/runtime_pipeline_abi_emit_index_thin.x"
-  local thin_ae="src/runtime_pipeline_abi_asm_expr_thin.x"
-  local stamp="src/.pabi_w351_emit_index.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  local os=""
+  local stamp="src/.pabi_w387_emit_index.stamp"
   [ -s "$o" ] && [ -f "$thin_idx" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_idx" -nt "$stamp" ] && { [ ! -f "$thin_ae" ] || [ ! "$thin_ae" -nt "$stamp" ]; }; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  os="$(uname -s 2>/dev/null || echo unknown)"
-  case "$os" in
-    Darwin)
-      # PREFER weaken first-wins: index∪asm_expr (own emit_expr_elf_c+rec).
-      export XLANG_PABI_THIN_PREFER_ASM=1
-      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      export XLANG_PREFER_ASM_O=1
-      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-      local tmp_idx tmp_ae tmp_cap base_o out_o
-      tmp_idx="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_idx.XXXXXX.o")"
-      tmp_ae="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_ae.XXXXXX.o")"
-      tmp_cap="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_cap.XXXXXX.o")"
-      base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_base.XXXXXX.o")"
-      out_o="$(mktemp "${TMPDIR:-/tmp}/pabi_w351_out.XXXXXX.o")"
-      rc=1
-      if pure_asm_x_to_o "$tmp_idx" "$thin_idx" \
-        && pure_asm_x_to_o "$tmp_ae" "$thin_ae" \
-        && ld -r -o "$tmp_cap" "$tmp_ae" "$tmp_idx" 2>/dev/null; then
-        cp -f "$o" "$base_o"
-        if pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$tmp_cap"; then
-          if objdump -r "$base_o" 2>/dev/null | grep -q "emit_expr_elf_rec_pabi_superseded"; then
-            log "pipeline_abi w351-emit-index: redefine poisoned rec — skip"
-            rc=1
-          elif ld -r -o "$out_o" "$tmp_cap" "$base_o" 2>/dev/null; then
-            cp -f "$out_o" "$o"
-            rc=0
-            log "pipeline_abi w351-emit-index inject OK (Darwin PREFER weaken)"
-          fi
-        fi
-      fi
-      rm -f "$tmp_idx" "$tmp_ae" "$tmp_cap" "$base_o" "$out_o"
-      ;;
-    *)
-      # PLATFORM: LINUX — -E+$CC thin only (w351/w378 BAN Ubuntu PREFER;
-      # pure-asm option=240). Do not call inject-pabi-leaf PREFER here.
-      export XLANG_PABI_THIN_PREFER_ASM=0
-      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      export XLANG_PABI_THIN_FORCE_INJECT=1
-      pipeline_abi_inject_thin_leaf "$o" "$thin_idx" "w351-emit-index"
-      rc=$?
-      unset XLANG_PABI_THIN_FORCE_INJECT
-      ;;
-  esac
-  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
-  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else unset XLANG_PABI_THIN_PREFER_ASM; fi
-  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w350_emit_index.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf /
+  # Darwin weaken path). Keep prior green overlay.
+  touch "$stamp"
+  rm -f src/.pabi_w350_emit_index.stamp src/.pabi_w351_emit_index.stamp
+  return 0
 }
 
 # wave217 CALL/METHOD text wrappers mega leave. G.7: match mega entry.
@@ -5406,7 +5346,9 @@ pipeline_abi_inject_block_tree_thin() {
 #   Ubuntu -E; undef-main root).
 # wave386: module_enum HARD BAN reinject both ends (keep Darwin PREFER /
 #   Ubuntu -E; Result_i32 root).
-# Next: BAN residual／emit_index|parse_orch BAN reinject／mega Ubuntu／Type LE.
+# wave387: emit_index HARD BAN reinject both ends (keep Darwin PREFER /
+#   Ubuntu -E; option=240 root).
+# Next: BAN residual／parse_orch BAN reinject／mega Ubuntu／Type LE.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
