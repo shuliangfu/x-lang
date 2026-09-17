@@ -4771,15 +4771,57 @@ pipeline_abi_inject_asm_expr_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm_expr_thin.x" "asm-expr-thin"
 }
 
-# 10.3.1 slice13: TYPE_FN array-lit esz / fixed-array temp bytes.
+# wave399 M2: fnptr_array_esz Cap residual — unlock PREFER_ASM both ends.
+# PRODUCT inject wave399: PREFER_ASM (ALLOW_E_REPLACE + stamp). Standalone
+# -c green both ends (Darwin 5713B / Ubuntu 6734B); was class-E default -E.
 # Seed rest holds strong glue_array_lit_force_esz_from_elem_type_c /
 # glue_fixed_array_temp_bytes — weaken then first-wins thin (no mega -E).
-# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED shell ·
-# LINUX gold + MACOS.
+# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED · PREFER both.
 pipeline_abi_inject_fnptr_array_esz_thin() {
-  # G.7: same inject_thin_leaf as class E (PREFER_ASM opt-in; default -E).
-  # PLATFORM: SHARED shell · LINUX gold + MACOS.
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_array_esz_thin.x" "fnptr-arr-esz"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_fnptr_array_esz_thin.x"
+  local stamp="src/.pabi_w399_fnptr_array_esz.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM both ends (w399 unlock; -c green).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w399-fnptr-arr-esz"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave396 M2: wpo_dump Cap residual — unlock PREFER_ASM both ends.
@@ -5469,7 +5511,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave397: type_to_c_repr MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr;
 #   helpers+main co-file); split main deferred.
 # wave398: unused_hints PREFER both ends (-c green both ends).
-# Next: fnptr_array_esz PREFER try／余 soft -E／mega Ubuntu tip BAN；禁升钉。
+# wave399: fnptr_array_esz PREFER both ends (-c green both ends).
+# Next: 余 soft -E（slot_bytes／field_load／param_ptr／assign）／mega Ubuntu BAN；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -10926,6 +10969,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_unused_hints_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-fnptr-array-esz|inject_fnptr_array_esz|inject-fnptr-arr-esz)
+    # wave399: fnptr_array_esz PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-fnptr-array-esz: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_fnptr_array_esz_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

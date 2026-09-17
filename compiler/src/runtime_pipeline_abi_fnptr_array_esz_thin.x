@@ -7,6 +7,8 @@
 // G.7: bodies MUST match the same exports in runtime_pipeline_abi.x.
 // ensure injects via weaken + first-wins ld -r (seed rest holds strong defs;
 // avoids Darwin mega -E).
+// wave399: PRODUCT PREFER_ASM both ends (stamp .pabi_w399_fnptr_array_esz.stamp);
+//   standalone -c green Darwin/Ubuntu; was class-E default -E.
 // PLATFORM: SHARED freestanding sizing · LINUX gold · MACOS underscore.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
