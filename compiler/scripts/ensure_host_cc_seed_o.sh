@@ -5630,9 +5630,10 @@ pipeline_abi_inject_block_tree_thin() {
 #       cltq arg home — stay LINUX -E until ABI root.
 #   UNLOCKED w350: block_tree PREFER (Cap A let-array INDEX).
 #   UNLOCKED w352: read_file_x_view PREFER (class B local u8[32] FileView).
-#     B residual local fixed arrays / digit-loop
+#   UNLOCKED w353: asm_label_format PREFER (digit-loop into caller buf).
+#     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
-#        parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
+#        parse_orch / parser_result / value_abi sret / codegen_outbuf /
 #        import_heap).
 #     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
 #       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
@@ -5648,7 +5649,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave349: block_tree T001 unsafe wrap.
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
 # wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
-# Next: GrowVec-LE / import_heap／asm_label／Ubuntu check_expr x86_64 ABI.
+# wave353: asm_label_format PREFER (digit-loop); historic w294 SEGV ban lifted.
+# Next: GrowVec-LE / import_heap／codegen_outbuf／Ubuntu check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -6670,15 +6672,15 @@ pipeline_abi_inject_parser_result_thin() {
 
 
 
-# wave294 M2: asm_label_format Cap residual C→.x (was wave288 C thin).
-# PRODUCT inject: -E+$CC (not PREFER_ASM). Pure-asm digit loops SIGSEGV on
-# Darwin (format_u32 harness / L2 opt·si·hello). -E C matches seed snprintf
-# labels bit-identical. Stamp gate + ALLOW_E_REPLACE weaken leftover T.
+# wave294/353 M2: asm_label_format Cap residual C→.x (was wave288 C thin).
+# PRODUCT inject wave353: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# Digit loops write into caller buf (no local u8[N]); Cap A／FileView unlock
+# made standalone -c + product L2 green (historic w294 SEGV ban lifted).
 # G.7 match seed WAVE288_ASM_LABEL_FORMAT_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_asm_label_format_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_label_format_thin.x"
-  local stamp="src/.pabi_w294_asm_label.stamp"
+  local stamp="src/.pabi_w353_asm_label.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6698,9 +6700,10 @@ pipeline_abi_inject_asm_label_format_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (digit-loop into caller buf proven).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w294-asm-label"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w353-asm-label"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6717,6 +6720,7 @@ pipeline_abi_inject_asm_label_format_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w294_asm_label.stamp
   fi
   return "$rc"
 }
@@ -11258,8 +11262,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-asm-label|inject_asm_label|inject-asm-label-format)
-    # wave294: C→.x asm_label_format via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # Do NOT use inject-pabi-leaf (forces PREFER_ASM; pure-asm digit loops red).
+    # wave353: asm_label_format PREFER_ASM both ends (digit-loop into caller buf).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-asm-label: need <out.o>" >&2

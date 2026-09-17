@@ -1,11 +1,11 @@
-// Thin pure: wave294 M2 — pipeline_asm_label_format Cap residual C→.x
+// Thin pure: wave294/353 M2 — pipeline_asm_label_format Cap residual C→.x
 // (was wave288 C thin). emit_next_label_c / format_label_id_c + local
 // decimal format helpers (no snprintf).
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c
 // WAVE288_ASM_LABEL_FORMAT_ALWAYS. No BSS. No FROM_X gate.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_asm_label_format_thin
-// (ALLOW_E_REPLACE). Pure-asm digit loops SIGSEGV on Darwin — do not
-// PREFER_ASM this leaf until format_u32 is green under xlang_asm -c.
+// PRODUCT inject wave353: PREFER_ASM both ends (digit loops write into
+// caller buf — no local u8[N]; historic w294 Darwin SEGV ban lifted after
+// Cap A／FileView). Stamp w353.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 //
 // Note: inventory wave294 _stubs/xlang_x_stubs host wrappers are already
