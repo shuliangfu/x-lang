@@ -95331,6 +95331,8 @@ export function platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: *u8):
 
 // =============================================================================
 // wave274 pure-owned leave: asm WPO v0 DCE + PGO-Lite Cap residual
+// M2 Class E: .x thin leave = runtime_pipeline_abi_asm_wpo_thin.x
+// (wave311 C→.x via -E+$CC inject; was wave274 C thin).
 // (pipeline_asm_wpo.c mid-file include from ast_pool.c)
 // PLATFORM: SHARED freestanding LP64 little-endian.
 // Authority: pipeline_asm_wpo_* live here (#[no_mangle]). Residual host-cc deleted.
