@@ -5613,10 +5613,57 @@ pipeline_abi_inject_emit_index_thin() {
   return 0
 }
 
-# wave217 CALL/METHOD text wrappers mega leave. G.7: match mega entry.
-# PLATFORM: SHARED.
+# wave411 M2: call_method_wrappers Cap residual — PREFER both ends.
+# PRODUCT inject wave411:
+#   BOTH: PREFER_ASM (Darwin -c 1698B / Ubuntu -c 2299B green).
+#   Darwin + Ubuntu product inject + direct relink L2 5/5 verified.
+# G.7: thin body matches mega wave217 CALL/METHOD leave.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_call_method_wrappers_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_call_method_wrappers_thin.x" "w217-call-method"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_call_method_wrappers_thin.x"
+  local stamp="src/.pabi_w411_call_method_wrappers.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM (product inject + L2 verified both ends).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w411-call-method-wrappers"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave409b M2: al_nc_seq Cap residual — HARD BAN tip reinject.
@@ -6067,7 +6114,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave408: fixed_array_copy MACOS PREFER／LINUX BAN (Ubuntu XT001).
 # wave409: asm_expr MACOS PREFER／LINUX BAN; wave409b al_nc HARD BAN.
 # wave410: asm73_* HARD BAN (BRANCH26); wave410d reent PREFER both ends.
-# Next: mega BAN／split债／余 Cap；禁升钉。
+# wave411: call_method_wrappers PREFER both ends (last soft -E stub).
+# Next: mega BAN／split债；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11705,6 +11753,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_asm73_chaitin_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-call-method-wrappers|inject_call_method_wrappers)
+    # wave411: PREFER both ends.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-call-method-wrappers: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_call_method_wrappers_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

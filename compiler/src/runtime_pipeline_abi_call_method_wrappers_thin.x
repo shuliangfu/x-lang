@@ -3,6 +3,8 @@
 // Seed cold twin is freestanding stub (-1); this thin restores real
 // pool-snapshot + backend_emit_* via inject first-wins.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
+// wave411: PREFER both ends (Darwin -c 1698B / Ubuntu -c 2299B;
+//   dual-end product inject + relink L2 5/5 verified).
 // PLATFORM: SHARED freestanding text CALL/METHOD M8-tail.
 
 /** Arena main-pool expr row pointer (C layout). Null on bad ref. */
