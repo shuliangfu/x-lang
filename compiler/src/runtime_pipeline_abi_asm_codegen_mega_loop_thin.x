@@ -1,13 +1,15 @@
 // Thin pure: wave393 M2 — asm_codegen mega LOOP leaf (minimal).
 // Export: pipeline_backend_asm_codegen_ast_to_elf_mega_body_c only.
 // Helpers / ctx_reset stay in runtime_pipeline_abi_asm_codegen_mega_body_thin.x.
-// wave393b: no local w371 wrappers; whole-body unsafe + direct underlying
-//   callees (Ubuntu typeck/arena cannot host wrappers+LOOP together).
+// wave393b: no local w371 wrappers; whole-body unsafe + direct underlying.
+// wave393c: no w328_store_ptr in this leaf — Ubuntu XT001 when store_ptr
+//   coexists with mega; DEP_PIPE via pipe_store_ptr_slot instead.
 // BAN reinject until both leaves -c green both ends + unlock try.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern function pipeline_asm_ctx_layout(ctx: *u8): *u8;
@@ -106,14 +108,11 @@ function w328_store(p: *u8, off: i32, v: i32): void {
   }
 }
 
-/**
- * Store pointer at byte offset (LP64).
- * PLATFORM: SHARED. wave393 LOOP leaf.
+/* w328_store_ptr intentionally omitted in LOOP leaf: Ubuntu typeck/arena
+ * fails when `as **u8` (or any non-trivial store_ptr) coexists with mega body
+ * (wave393c). Call sites use pipe_store_ptr_slot(base+off, 0, v) instead.
+ * HELPERS leaf keeps w328_store_ptr for ctx_reset. PLATFORM: SHARED.
  */
-function w328_store_ptr(p: *u8, off: i32, v: *u8): void {
-  if (p == (0 as *u8)) { return; }
-  unsafe { *((p + (off as usize)) as **u8) = v; }
-}
 
 /**
  * Per-module asm codegen mega-body loop (WPO/PGO emit order).
@@ -202,7 +201,8 @@ export function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m: *u8, a: *
     pipeline_debug_trace_named_func_bodies("mega_pre_reset" as *u8, m, a);
     /* T001: ctx_reset lives in HELPERS leaf — call via unsafe. */
     unsafe { pipeline_asm_ctx_reset_for_func_c(bctx, m); }
-    w328_store_ptr(bctx, W328_CTX_DEP_PIPE, pipeline_ctx);
+    /* Type LE: pipe_store_ptr_slot — avoid w328_store_ptr + mega co-file (w393c). */
+    pipe_store_ptr_slot(bctx + (W328_CTX_DEP_PIPE as usize), 0, pipeline_ctx);
     /* wave223: sret cells pure BSS — residual writes only via pure setters. */
     pipeline_asm_emit_ctx_sret_active_set(0);
     pipeline_asm_emit_ctx_sret_home_off_set(neg1);
