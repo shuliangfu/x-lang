@@ -5376,19 +5376,23 @@ pipeline_abi_inject_module_import_thin() {
   return "$rc"
 }
 
-# wave306/360 M2: module_enum Cap residual C→.x (was wave264 C thin).
-# PRODUCT inject wave360: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
-# T001 w306_* wrappers; standalone -c green; gate=type_alias -c after inject.
-# G.7 match mega wave264 leave. PLATFORM: SHARED · both ends PREFER try.
+# wave306/360/360b M2: module_enum Cap residual C→.x (was wave264 C thin).
+# PRODUCT inject wave360b:
+#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w306_*; gate type_alias -c; L2 5/5).
+#   · LINUX|UBUNTU: stay -E+$CC — PREFER pure-asm breaks L2 si
+#     (Result_i32 assignment mismatch on stdlib-import).
+# Stamp w360b. G.7 match mega wave264 leave.
+# PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
 pipeline_abi_inject_module_enum_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_module_enum_thin.x"
-  local stamp="src/.pabi_w360_module_enum.stamp"
+  local stamp="src/.pabi_w360b_module_enum.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -5402,11 +5406,15 @@ pipeline_abi_inject_module_enum_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
+  # PLATFORM: MACOS PREFER; LINUX -E (si Result_i32 on x86_64 pure-asm).
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (T001 wrappers + -c green; post-gate).
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w360-module-enum"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w360b-module-enum"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5423,7 +5431,7 @@ pipeline_abi_inject_module_enum_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_w306_module_enum.stamp
+    rm -f src/.pabi_w306_module_enum.stamp src/.pabi_w360_module_enum.stamp
   fi
   return "$rc"
 }
@@ -5616,7 +5624,8 @@ pipeline_abi_inject_block_tree_thin() {
 #   BAN w359 PREFER top_level_let: L2 green but pure-asm overlay poisons
 #     subsequent Cap residual asm_codegen_elf_o (type_alias -c CG002) →
 #     w359b stay -E both ends (T001 w305_* kept).
-#   UNLOCKED w360: module_enum PREFER (T001 w306_* · gate=type_alias -c).
+#   UNLOCKED w360b: module_enum Darwin PREFER / Ubuntu -E (si Result_i32).
+#   BAN w359b: top_level_let hard-skip overlay (elf_o / L2 poison).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
@@ -5640,8 +5649,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
 # wave357/357b: type_pool Darwin PREFER / Ubuntu -E (option T001 x86_64).
 # wave358: type_alias PREFER both ends (T001 w303_* · file-local maps).
-# wave359b: top_level_let stay -E (w359 PREFER poisoned Cap residual elf_o).
-# wave360: module_enum PREFER try (T001 w306_* · gate=type_alias -c).
+# wave360/360b: module_enum Darwin PREFER / Ubuntu -E (si Result_i32).
+# wave359b: top_level_let hard-skip (overlay poison).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11427,7 +11436,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-module-enum|inject_module_enum)
-    # wave360: module_enum PREFER_ASM both ends (T001 w306_* wrappers).
+    # wave360b: module_enum Darwin PREFER / Ubuntu -E (si Result_i32).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-module-enum: need <out.o>" >&2
