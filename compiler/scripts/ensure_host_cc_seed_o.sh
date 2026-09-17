@@ -4832,10 +4832,58 @@ pipeline_abi_inject_asm73_live_set_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm73_live_set_thin.x" "w214-live-set"
 }
 
-# wave216 for_call_args mega leave. G.7: match mega entry.
-# PLATFORM: SHARED.
+# wave216/348 for_call_args mega leave. G.7: match mega entry.
+# PRODUCT inject stamp w348: historic leftover mega always lea'd i32 VAR
+# CALL args (&a not value) → check_expr PREFER XT001. Current thin does
+# resolve→use_lea→load (scalar rvalue). FORCE -E+$CC both ends (Darwin
+# asm overlay of this leaf not required; -E twin proves load).
+# PLATFORM: SHARED · both ends -E replace.
 pipeline_abi_inject_for_call_args_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_for_call_args_thin.x" "w216-call-args"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_for_call_args_thin.x"
+  local stamp="src/.pabi_w348_for_call_args.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  export XLANG_PABI_THIN_FORCE_INJECT=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w348-for-call-args"
+  rc=$?
+  unset XLANG_PABI_THIN_FORCE_INJECT
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave217 CALL/METHOD text wrappers mega leave. G.7: match mega entry.
@@ -5499,11 +5547,10 @@ pipeline_abi_inject_block_tree_thin() {
 # wave339–342: Cap A emit_ctx + typeck_active OK.
 # wave344: non-zero scalar imm → .data bake (library TU).
 # wave345: MODLET_IN_REST prepare 入链.
-# wave346: check_expr ordinal let→const; PREFER still ban.
-# wave347: pure-asm call-arg i32 VAR emits lea not load (root of PREFER XT001);
-#   use_lea=0 still lea → for_call_args resolve/emit_expr_rec; scalar guard in
-#   glue_call_arg_var_use_lea_not_load (mega+arrcopy thin).
-# Next: for_call_args i32 VAR rvalue load → re-trial check_expr PREFER.
+# wave346: check_expr ordinal let→const.
+# wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
+# wave348: product ingest for_call_args thin (rvalue load) + unlock check_expr PREFER.
+# Next: block_tree / GrowVec-LE Cap residual; Darwin mega when RAM ok.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -6412,18 +6459,16 @@ pipeline_abi_inject_modlet_prepare_rest() {
   return 0
 }
 
-# wave319/343/344/346 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
-# PRODUCT inject: stay -E+$CC both ends (stamp w346):
-#   wave346: ordinal `let`→`const` (seed #define twin; -E emits static const;
-#   PREFER folds imm — no Lxml ordinal storage). PREFER re-trial still
-#   Darwin/Ubuntu XT001 ("expected i32, found i32") → root beyond ordinal
-#   storage (pure-asm body/dispatch). Stay -E. Match subject stays mutable let.
+# wave319/343/344/346/348 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
+# PRODUCT inject stamp w348: PREFER_ASM=1 both ends.
+#   w346: ordinal let→const. w347: XT001 root = pure-asm i32 VAR CALL arg lea.
+#   w348: for_call_args thin ingest (rvalue load) unlocks check_expr PREFER.
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
-# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED · both ends -E.
+# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
-  local stamp="src/.pabi_w346_typeck_check_expr.stamp"
+  local stamp="src/.pabi_w348_typeck_check_expr.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6443,9 +6488,9 @@ pipeline_abi_inject_typeck_check_expr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w347-typeck-check-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w348-typeck-check-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
