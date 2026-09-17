@@ -1,8 +1,8 @@
-// Thin pure: wave305 M2 — top_level_let Cap residual C→.x (was wave265 C thin).
+// Thin pure: wave305/359 M2 — top_level_let Cap residual C→.x (was wave265 C thin).
 // TopLevelLetEntry LE 276B map + hoist/sum faces; 16 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave265 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_top_level_let_thin
-// (ALLOW_E_REPLACE + stamp). File-local maps OK under -E+$CC.
+// wave359: w305_* unsafe wrappers for slot/LE (T001); PRODUCT inject
+// PREFER_ASM try (file-local maps). Stamp w359.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -28,6 +28,100 @@ export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+
+
+/**
+ * Ptr-slot get via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_ptr_get(arr: *u8, i: i32): *u8 {
+  unsafe {
+    return xlang_ptr_slot_get(arr, i);
+  }
+}
+
+/**
+ * Ptr-slot set via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_ptr_set(arr: *u8, i: i32, p: *u8): void {
+  unsafe {
+    xlang_ptr_slot_set(arr, i, p);
+  }
+}
+
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
+
+/**
+ * Arena num_exprs offset via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_arena_off_num_exprs(): i32 {
+  unsafe {
+    return pipe_arena_off_num_exprs();
+  }
+}
+
+/**
+ * Module main func index via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_main_func_index(module: *u8): i32 {
+  unsafe {
+    return pipeline_module_main_func_index(module);
+  }
+}
+
+/**
+ * Module num funcs via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_num_funcs(module: *u8): i32 {
+  unsafe {
+    return pipeline_module_num_funcs(module);
+  }
+}
+
+/**
+ * Modlet scalar init is ptr-addr via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_modlet_scalar_init_is_ptr_addr(arena: *u8, m: *u8, init_ref: i32): i32 {
+  unsafe {
+    return pipe_modlet_scalar_init_is_ptr_addr(arena, m, init_ref);
+  }
+}
+
+/**
+ * Modlet name is shared via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_modlet_name_is_shared(name: *u8, name_len: i32): i32 {
+  unsafe {
+    return pipeline_asm_modlet_name_is_shared(name, name_len);
+  }
+}
+
+/**
+ * Let init stack reserve bytes via unsafe (T001). PLATFORM: SHARED.
+ */
+function w305_let_init_stack_reserve_bytes(arena: *u8, type_ref: i32, init_ref: i32): i32 {
+  unsafe {
+    return pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+}
+
+
 
 let g_pipe_tl_mod: u8[1024] = [];
 let g_pipe_tl_n: i32[128] = [];
@@ -110,7 +204,7 @@ function pipe_tl_get_header_n(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(module, pipe_tl_off_header_n());
+  return w305_load_i32(module, pipe_tl_off_header_n());
 }
 
 /**
@@ -123,7 +217,7 @@ function pipe_tl_set_header_n(module: *u8, n: i32): void {
   if (module == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(module, pipe_tl_off_header_n(), n);
+  w305_store_i32(module, pipe_tl_off_header_n(), n);
 }
 
 /**
@@ -137,7 +231,7 @@ function pipe_tl_find_slot(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_tl_mod[0], i);
+    let k: *u8 = w305_ptr_get(&g_pipe_tl_mod[0], i);
     if (k == module) {
       return i;
     }
@@ -182,12 +276,12 @@ function pipe_tl_find_or_create(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_tl_mod[0], i);
+    let k: *u8 = w305_ptr_get(&g_pipe_tl_mod[0], i);
     if (k == 0 as *u8) {
-      xlang_ptr_slot_set(&g_pipe_tl_mod[0], i, module);
+      w305_ptr_set(&g_pipe_tl_mod[0], i, module);
       g_pipe_tl_n[i] = 0;
       g_pipe_tl_cap[i] = 0;
-      xlang_ptr_slot_set(&g_pipe_tl_entries[0], i, 0 as *u8);
+      w305_ptr_set(&g_pipe_tl_entries[0], i, 0 as *u8);
       return i;
     }
     i = i + 1;
@@ -234,7 +328,7 @@ function pipe_tl_ensure_entries(slot: i32, need: i32): i32 {
   unsafe {
     memset(np, 0, nbytes);
   }
-  let old: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], slot);
+  let old: *u8 = w305_ptr_get(&g_pipe_tl_entries[0], slot);
   let old_n: i32 = g_pipe_tl_n[slot];
   if (old != 0 as *u8) {
     if (old_n > 0) {
@@ -247,7 +341,7 @@ function pipe_tl_ensure_entries(slot: i32, need: i32): i32 {
       free(old);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_tl_entries[0], slot, np);
+  w305_ptr_set(&g_pipe_tl_entries[0], slot, np);
   g_pipe_tl_cap[slot] = new_cap;
   return 1;
 }
@@ -271,7 +365,7 @@ function pipe_tl_entry_at(slot: i32, idx: i32): *u8 {
   if (idx >= g_pipe_tl_n[slot]) {
     return 0 as *u8;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], slot);
+  let base: *u8 = w305_ptr_get(&g_pipe_tl_entries[0], slot);
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
@@ -315,14 +409,14 @@ export function pipeline_module_top_level_let_storage_release(module: *u8): void
   if (s < 0) {
     return;
   }
-  let e: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], s);
+  let e: *u8 = w305_ptr_get(&g_pipe_tl_entries[0], s);
   if (e != 0 as *u8) {
     unsafe {
       free(e);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_tl_mod[0], s, 0 as *u8);
-  xlang_ptr_slot_set(&g_pipe_tl_entries[0], s, 0 as *u8);
+  w305_ptr_set(&g_pipe_tl_mod[0], s, 0 as *u8);
+  w305_ptr_set(&g_pipe_tl_entries[0], s, 0 as *u8);
   g_pipe_tl_n[s] = 0;
   g_pipe_tl_cap[s] = 0;
   pipe_tl_set_header_n(module, 0);
@@ -349,7 +443,7 @@ export function pipeline_module_top_level_let_alloc(module: *u8): i32 {
   if (pipe_tl_ensure_entries(s, n + 1) == 0) {
     return 0 - 1;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], s);
+  let base: *u8 = w305_ptr_get(&g_pipe_tl_entries[0], s);
   if (base == 0 as *u8) {
     return 0 - 1;
   }
@@ -412,10 +506,10 @@ export function pipeline_module_top_level_let_set(module: *u8, idx: i32, name: *
     }
     i = i + 1;
   }
-  pipe_store_i32_le(e, pipe_tl_off_name_len(), n);
-  pipe_store_i32_le(e, pipe_tl_off_type_ref(), type_ref);
-  pipe_store_i32_le(e, pipe_tl_off_init_ref(), init_ref);
-  pipe_store_i32_le(e, pipe_tl_off_is_const(), is_const);
+  w305_store_i32(e, pipe_tl_off_name_len(), n);
+  w305_store_i32(e, pipe_tl_off_type_ref(), type_ref);
+  w305_store_i32(e, pipe_tl_off_init_ref(), init_ref);
+  w305_store_i32(e, pipe_tl_off_is_const(), is_const);
 }
 
 /**
@@ -440,7 +534,7 @@ export function pipeline_module_top_level_let_set_type_ref(module: *u8, idx: i32
   if (e == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(e, pipe_tl_off_type_ref(), type_ref);
+  w305_store_i32(e, pipe_tl_off_type_ref(), type_ref);
 }
 
 /**
@@ -464,7 +558,7 @@ export function pipeline_module_top_level_let_name_len(module: *u8, idx: i32): i
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_tl_off_name_len());
+  return w305_load_i32(e, pipe_tl_off_name_len());
 }
 
 /**
@@ -495,7 +589,7 @@ export function pipeline_module_top_level_let_name_byte_at(module: *u8, idx: i32
   if (e == 0 as *u8) {
     return 0;
   }
-  let nlen: i32 = pipe_load_i32_le(e, pipe_tl_off_name_len());
+  let nlen: i32 = w305_load_i32(e, pipe_tl_off_name_len());
   if (off >= nlen) {
     return 0;
   }
@@ -525,7 +619,7 @@ export function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_tl_off_type_ref());
+  return w305_load_i32(e, pipe_tl_off_type_ref());
 }
 
 /**
@@ -549,7 +643,7 @@ export function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_tl_off_init_ref());
+  return w305_load_i32(e, pipe_tl_off_init_ref());
 }
 
 /**
@@ -573,7 +667,7 @@ export function pipeline_module_top_level_let_is_const(module: *u8, idx: i32): i
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_tl_off_is_const());
+  return w305_load_i32(e, pipe_tl_off_is_const());
 }
 
 /**
@@ -598,7 +692,7 @@ export function pipeline_module_top_level_let_set_is_export(module: *u8, idx: i3
   if (e == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(e, pipe_tl_off_is_export(), is_export);
+  w305_store_i32(e, pipe_tl_off_is_export(), is_export);
 }
 
 /**
@@ -622,7 +716,7 @@ export function pipeline_module_top_level_let_is_export_at(module: *u8, idx: i32
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_tl_off_is_export());
+  return w305_load_i32(e, pipe_tl_off_is_export());
 }
 
 /**
@@ -698,11 +792,11 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
-  let mi: i32 = pipeline_module_main_func_index(module);
+  let mi: i32 = w305_main_func_index(module);
   if (mi >= 0) {
     return mi;
   }
-  let nf: i32 = pipeline_module_num_funcs(module);
+  let nf: i32 = w305_num_funcs(module);
   let fi: i32 = 0;
   while (fi < nf) {
     let is_ext: i32 = 0;
@@ -777,10 +871,10 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
   if (n <= 0) {
     return;
   }
-  let mi: i32 = pipeline_module_main_func_index(module);
+  let mi: i32 = w305_main_func_index(module);
   if (mi < 0) {
     mi = 0 - 1;
-    let nf: i32 = pipeline_module_num_funcs(module);
+    let nf: i32 = w305_num_funcs(module);
     let fi: i32 = 0;
     while (fi < nf) {
       let is_ext: i32 = 0;
@@ -815,7 +909,7 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
   unsafe {
     let_start_idx = ast_ast_block_num_lets(arena, br);
   }
-  let nexprs: i32 = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
+  let nexprs: i32 = w305_load_i32(arena, w305_arena_off_num_exprs());
   let hoisted: i32 = 0;
   let tl: i32 = 0;
   while (tl < n) {
@@ -895,7 +989,7 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
           // Scalar ADDR_OF / fn-ptr: same predicate as prepare register.
           // PLATFORM: SHARED — 9.6.0 dual-home class.
           if (skip_common_arr == 0 && (tk_h == 9 || tk_h == 18) && init_ref > 0 && init_ref <= nexprs) {
-            if (pipe_modlet_scalar_init_is_ptr_addr(arena, module, init_ref) != 0) {
+            if (w305_modlet_scalar_init_is_ptr_addr(arena, module, init_ref) != 0) {
               skip_common_arr = 1;
             }
           }
@@ -977,7 +1071,7 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
           name_buf[k] = pipeline_module_top_level_let_name_byte_at(mod, tl, k) as u8;
           k = k + 1;
         }
-        if (pipeline_asm_modlet_name_is_shared(&name_buf[0], name_len) != 0) {
+        if (w305_modlet_name_is_shared(&name_buf[0], name_len) != 0) {
           skip = 1;
         }
       }
@@ -988,7 +1082,7 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
           let _so: i32 = asm_local_slot_reg_offset(arena, type_ref, cur, &off_slot[0]);
         }
         cur = off_slot[0];
-        cur = cur + pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+        cur = cur + w305_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
       }
     }
     tl = tl + 1;

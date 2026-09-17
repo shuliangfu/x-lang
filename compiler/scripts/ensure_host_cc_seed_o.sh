@@ -5425,13 +5425,14 @@ pipeline_abi_inject_module_enum_thin() {
   return "$rc"
 }
 
-# wave305 M2: top_level_let Cap residual C→.x (was wave265 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). File-local maps via -E+$CC.
-# G.7 match mega wave265 leave. PLATFORM: SHARED.
+# wave305/359 M2: top_level_let Cap residual C→.x (was wave265 C thin).
+# PRODUCT inject wave359: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 w305_* wrappers for slot/LE/product faces; dual-end try.
+# G.7 match mega wave265 leave. PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_top_level_let_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_top_level_let_thin.x"
-  local stamp="src/.pabi_w305_top_level_let.stamp"
+  local stamp="src/.pabi_w359_top_level_let.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5451,9 +5452,10 @@ pipeline_abi_inject_top_level_let_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 wrappers proven at -c).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w305-top-level-let"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w359-top-level-let"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5470,6 +5472,7 @@ pipeline_abi_inject_top_level_let_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w305_top_level_let.stamp
   fi
   return "$rc"
 }
@@ -5642,12 +5645,13 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w356: grow_vec PREFER (T001 unsafe LE helpers · class C GrowVec-LE).
 #   UNLOCKED w357b: type_pool Darwin PREFER / Ubuntu -E (class C Type LE).
 #   UNLOCKED w358: type_alias PREFER both ends (T001 w303_* · file-local maps).
+#   UNLOCKED w359: top_level_let PREFER try (T001 w305_* · file-local maps).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
 #       onefunc / expr_sidecar / block_domain / module_func / sidecar_pool /
-#       dep_ctx / elf_ctx / asm_wpo / top_level_let / module_enum /
+#       dep_ctx / elf_ctx / asm_wpo / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK.
@@ -5665,6 +5669,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
 # wave357/357b: type_pool Darwin PREFER / Ubuntu -E (option T001 x86_64).
 # wave358: type_alias PREFER both ends (T001 w303_* · file-local maps).
+# wave359: top_level_let PREFER try (T001 w305_* · file-local maps).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11437,7 +11442,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-top-level-let|inject_top_level_let)
-    # wave305: C→.x top_level_let via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave359: top_level_let PREFER_ASM both ends (T001 w305_* wrappers).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-top-level-let: need <out.o>" >&2
