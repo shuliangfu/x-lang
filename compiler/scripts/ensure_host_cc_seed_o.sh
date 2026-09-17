@@ -5476,14 +5476,17 @@ pipeline_abi_inject_asm_locals_thin() {
   return "$rc"
 }
 
-# wave302 M2: block_tree Cap residual C→.x (was wave269 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Walk stack via -E+$CC.
+# wave302/349 M2: block_tree Cap residual C→.x (was wave269 C thin).
+# PRODUCT inject stamp w349: -E+$CC both ends.
+#   w349: T001 unsafe wrap on export-extern callees (PREFER -c typeck green).
+#   PREFER still BAN: Darwin CG002 elf_ec=-1 on i32[256] walk BSS (Cap A);
+#   nobss stub -c green → root is array/BSS emit, not T001.
 # G.7 match mega wave269 leave. PLATFORM: SHARED.
 # Note: wave268 sizing already via slot_bytes_thin.x + NL-04 seed (no C redo).
 pipeline_abi_inject_block_tree_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_block_tree_thin.x"
-  local stamp="src/.pabi_w302_block_tree.stamp"
+  local stamp="src/.pabi_w349_block_tree.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5505,7 +5508,7 @@ pipeline_abi_inject_block_tree_thin() {
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w302-block-tree"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w349-block-tree"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5533,8 +5536,8 @@ pipeline_abi_inject_block_tree_thin() {
 #     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
 #     w342 emit_ctx_bss (small Cap A; w344 .data bake for non-zero imm).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A typeck_check_expr (w346 const ordinals; PREFER still XT001 body root) ·
-#       block_tree i32[256] walk stack.
+#     A typeck_check_expr (Ubuntu still XT001; Darwin PREFER w348) ·
+#       block_tree i32[256] walk BSS (w349 T001 cleared; CG002 Cap A remain).
 #     B local fixed arrays / digit-loop / FileView layout
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
@@ -5549,8 +5552,9 @@ pipeline_abi_inject_block_tree_thin() {
 # wave345: MODLET_IN_REST prepare 入链.
 # wave346: check_expr ordinal let→const.
 # wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
-# wave348: product ingest for_call_args thin (rvalue load) + unlock check_expr PREFER.
-# Next: block_tree / GrowVec-LE Cap residual; Darwin mega when RAM ok.
+# wave348: for_call_args rvalue; Darwin check_expr PREFER / Ubuntu -E.
+# wave349: block_tree T001 unsafe wrap; PREFER still ban (CG002 i32[256] BSS).
+# Next: Cap A array/BSS emit root OR GrowVec-LE OR Ubuntu check_expr PREFER.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 

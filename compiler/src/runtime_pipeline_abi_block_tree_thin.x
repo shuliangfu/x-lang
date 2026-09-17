@@ -1,11 +1,12 @@
-// Thin pure: wave302 M2 — block_tree Cap residual C→.x (was wave269 C thin).
+// Thin pure: wave302/349 M2 — block_tree Cap residual C→.x (was wave269 C thin).
 // Faces: asm_sum_block_local_slot_bytes / asm_count_block_stack_slots /
 //   asm_sum_block_array_temp_bytes / asm_sum_block_wa_temp_bytes /
 //   asm_ctx_fill_locals_block_tree.
 // Fixed i32[256] walk stack + visits cap 8192 (match mega/C).
 // G.7: bodies match runtime_pipeline_abi.x wave269 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_block_tree_thin
-// (ALLOW_E_REPLACE + stamp). File-local walk stack OK under -E+$CC.
+// wave349: wrap export-extern callees in unsafe (T001) so PREFER_ASM -c
+//   compiles; product inject may unlock PREFER after Cap A BSS check.
+// PRODUCT inject: stamp w349 (see ensure); historic -E+$CC until PREFER green.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
@@ -170,7 +171,10 @@ function pipe_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
   if (ko != 10 || asz <= 0) {
     return 0;
   }
-  bytes = asm_fixed_array_total_bytes_mod(arena, type_ref, 0 as *u8);
+  /* wave349: export-extern callee — T001 requires unsafe (PREFER path). */
+  unsafe {
+    bytes = asm_fixed_array_total_bytes_mod(arena, type_ref, 0 as *u8);
+  }
   if (bytes > 0) {
     return bytes;
   }
@@ -238,7 +242,10 @@ export function asm_sum_block_local_slot_bytes(arena: *u8, block_ref: i32): i32 
         unsafe {
           tref = pipeline_block_const_type_ref(arena, cur, i);
         }
-        total = total + asm_local_slot_bytes(arena, tref);
+        /* wave349: export-extern asm_local_slot_bytes — T001 unsafe. */
+        unsafe {
+          total = total + asm_local_slot_bytes(arena, tref);
+        }
         i = i + 1;
       }
       unsafe {
@@ -249,7 +256,9 @@ export function asm_sum_block_local_slot_bytes(arena: *u8, block_ref: i32): i32 
         unsafe {
           tref = pipeline_block_let_type_ref(arena, cur, i);
         }
-        total = total + asm_local_slot_bytes(arena, tref);
+        unsafe {
+          total = total + asm_local_slot_bytes(arena, tref);
+        }
         i = i + 1;
       }
       sp = pipe_block_tree_push_children(arena, sp, cur);
@@ -436,7 +445,10 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
     if (visits > 8192) {
       sp = 0;
     } else {
-      asm_ctx_ensure_block_locals(ctx, arena, cur, inout_next_offset, inout_num_locals);
+      /* wave349: export-extern asm_ctx_ensure_block_locals — T001 unsafe. */
+      unsafe {
+        asm_ctx_ensure_block_locals(ctx, arena, cur, inout_next_offset, inout_num_locals);
+      }
       sp = pipe_block_tree_push_children(arena, sp, cur);
       // MEM-C1: with_arena / region child lets must register in same order as wa temp zone.
       sp = pipe_block_tree_push_region_children(arena, sp, cur);
