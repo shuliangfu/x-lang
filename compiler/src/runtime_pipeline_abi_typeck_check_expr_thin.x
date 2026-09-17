@@ -1,12 +1,11 @@
-// Thin pure: wave319/343/344/346 M2 — typeck_check_expr Cap residual (was wave286 C).
+// Thin pure: wave319/343/344/346/348/379 M2 — typeck_check_expr Cap residual.
 // Dispatch check_expr_*_c + match subject BSS + repr/extern gates; ~22 exports.
 // G.7: bodies match seed WAVE286 (#define ordinals — no mutable storage).
-// wave346: ordinal `let`→`const` (imm under PREFER; static const under -E).
-// PREFER re-trial still XT001 (body/dispatch beyond storage) → product stays
-// -E+$CC both ends (stamp w346). Match subject stays mutable `let` (BSS).
-// Cold WEAK check_expr_impl{,_mega} NOT defined here — typeck_x.o provides strong;
-// impl_c calls extern check_expr_impl_mega (seed/typeck resolve).
-// PLATFORM: SHARED freestanding Cap leave · both ends -E+$CC.
+// wave346: ordinal `let`→`const`. wave348: Darwin PREFER historic overlay.
+// wave379 HARD BAN reinject: Ubuntu tip XT001 even -E; Darwin tip PREFER
+//   reinject → ARM64_RELOC_BRANCH26. Stay prior overlay both ends.
+// Cold WEAK check_expr_impl{,_mega} NOT defined here — typeck_x.o provides strong.
+// PLATFORM: SHARED · BAN reinject both ends.
 
 // ExprKind / TypeKind product ordinals — const (seed #define twin; no let storage).
 const W286_EXPR_LIT: i32 = 0;

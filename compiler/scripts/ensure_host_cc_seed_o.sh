@@ -5563,12 +5563,13 @@ pipeline_abi_inject_block_tree_thin() {
 #     g05 pure-ld fail) — hard-skip; stay prior -E; T001 w314_* kept.
 #   UNLOCKED w371/371b: mega_body Darwin PREFER／Ubuntu hard-skip stay prior -E
 #     (Ubuntu XT001 w328_store_ptr · Type LE face; cannot -E reinject).
-#   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
+#   BAN historic/w379: onefunc PREFER (w335 SEGV; w379 XP001 parse) — hard-skip;
+#     T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
-#       onefunc (BAN PREFER) / dep_ctx (BAN PREFER) / asm_wpo (BAN PREFER) /
+#       onefunc (BAN PREFER w379) / dep_ctx (BAN PREFER) / asm_wpo (BAN PREFER) /
 #       macho_write (BAN PREFER) / top_level_let / asm_locals / struct_layout
 #       (BAN).
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
@@ -5584,6 +5585,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave378: emit_index Ubuntu PREFER reconfirm BAN (option=240); value_abi BAN PREFER
 #   formal (sret ABI · stamp w378 · -E both ends).
 # wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
+# wave379: onefunc HARD BAN PREFER (XP001 parse reconfirm); check_expr HARD BAN
+#   reinject both ends (Ubuntu XT001; Darwin BRANCH26) — prior overlays kept.
 # wave353: asm_label_format PREFER (digit-loop); historic w294 SEGV ban lifted.
 # wave354: import_heap PREFER (T001 unsafe slot get/set).
 # wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
@@ -5604,6 +5607,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave371/371b: mega_body Darwin PREFER / Ubuntu hard-skip (XT001 store_ptr).
 # wave372/372b: type_pool Darwin PREFER / Ubuntu -E (option T001 reconfirmed).
 # wave378: value_abi BAN PREFER (sret) + emit_index Ubuntu PREFER BAN reconfirm.
+# wave379: onefunc HARD BAN PREFER + check_expr HARD BAN reinject (prior overlays).
 # Next: BAN residual roots／mega_body Ubuntu fn#116／Type LE option root.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6145,55 +6149,21 @@ pipeline_abi_inject_module_func_thin() {
 
 
 
-# wave325 M2: onefunc Cap residual C→.x (was wave281 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). OneFuncSc LE + fill_*.
-# wave335 tried PREFER_ASM → Darwin L2 0/5 SEGV; keep -E until GrowVec/
-# sidecar LE stores proven under pure-asm.
-# G.7 WAVE281_ONEFUNC_DOMAIN_ALWAYS. PLATFORM: SHARED.
+# wave325/335/363/379 M2: onefunc Cap residual C→.x (was wave281 C thin).
+# PRODUCT inject wave379 HARD BAN PREFER: stay prior -E overlay; do not
+# re-overlay. wave335 PREFER → Darwin L2 SEGV; wave379 PREFER reconfirm →
+# Darwin L2 opt/si/hello XP001 parse fail (gate type_alias -c + thin -c green).
+# T001 w325_* kept. Stamp w379.
+# PLATFORM: SHARED · both ends hard-skip until GrowVec/sidecar LE pure-asm root.
 pipeline_abi_inject_onefunc_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_onefunc_thin.x"
-  local stamp="src/.pabi_w325_onefunc.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w379_onefunc.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w325-onefunc"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w325_onefunc.stamp
+  return 0
 }
 
 
@@ -6520,64 +6490,23 @@ pipeline_abi_inject_modlet_prepare_rest() {
   return 0
 }
 
-# wave319/343/344/346/348 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
-# PRODUCT inject stamp w348:
-#   w348: for_call_args thin ingest (i32 VAR rvalue load) unlocks check_expr
-#   PREFER on MACOS|DARWIN (L2 5/5). LINUX|UBUNTU PREFER still XT001
-#   ("expected i32, found i32") → stay -E+$CC until x86_64 body fixed.
+# wave319/343/344/346/348/379 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
+# PRODUCT inject wave379 HARD BAN reinject: stay prior overlay; do not
+# re-overlay. Prior: Darwin PREFER (w348) / Ubuntu -E. wave379 probes:
+#   · Ubuntu tip XT001 on thin (w286_arena_num_exprs) even under -E.
+#   · Darwin tip PREFER reinject → g05 ARM64_RELOC_BRANCH26.
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
 # G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS.
-# PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
+# PLATFORM: SHARED · both ends hard-skip until reloc/typeck root.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
-  local stamp="src/.pabi_w348_typeck_check_expr.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w379_typeck_check_expr.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS|DARWIN PREFER (w348 unlock); LINUX|UBUNTU -E (still XT001).
-  prefer_asm=0
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w348-typeck-check-expr"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w348_typeck_check_expr.stamp src/.pabi_w346_typeck_check_expr.stamp
+  return 0
 }
 
 
@@ -11535,8 +11464,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-typeck-check-expr|inject_typeck_check_expr)
-    # wave346: typeck_check_expr stay -E+$CC (const ordinals; PREFER still XT001).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave379: HARD BAN reinject both ends (Ubuntu XT001; Darwin BRANCH26).
+    # PLATFORM: SHARED shell · stamp only.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-typeck-check-expr: need <out.o>" >&2
       exit 2
@@ -11626,8 +11555,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-onefunc|inject_onefunc|inject-ofn|inject_ofn)
-    # wave325: C→.x onefunc via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # wave335 PREFER_ASM SEGV — stay -E. PLATFORM: SHARED shell.
+    # wave379: HARD BAN PREFER (w335 SEGV; w379 XP001) — stamp only.
+    # PLATFORM: SHARED shell.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-onefunc: need <out.o>" >&2
       exit 2

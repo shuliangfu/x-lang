@@ -1,10 +1,10 @@
-// Thin pure: wave325/363 M2 — onefunc Cap residual C→.x.
+// Thin pure: wave325/363/379 M2 — onefunc Cap residual C→.x.
 // pipeline_onefunc_* mutators + pipeline_block_fill_*_from_onefunc.
 // G.7: bodies match runtime_pipeline_abi_onefunc_thin.c / seed WAVE281.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_onefunc_thin
-// (ALLOW_E_REPLACE + stamp). OneFuncSc LE 944 / Region 268 / Labeled 528.
-// wave363: w325_* unsafe wrappers (T001); PREFER try + L2 gate.
-// PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
+// PRODUCT inject: HARD BAN PREFER (wave379) — stay prior -E overlay.
+// wave335 PREFER SEGV; wave379 PREFER → L2 XP001 parse (opt/si/hello).
+// wave363: w325_* unsafe wrappers (T001) kept.
+// PLATFORM: SHARED freestanding Cap leave · BAN PREFER both ends.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
