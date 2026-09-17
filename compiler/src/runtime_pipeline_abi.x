@@ -28,8 +28,8 @@
 //   (parser_slice_from_buf / parser_lex_from_* / pipeline_parser_*_set_*).
 //   Live=wave319 .x thin WAVE286: check_expr dispatch + match BSS + thin faces;
 //   typeck owns typeck_check_expr_* helpers; cold WEAK check_expr_impl{,_mega}.
-//   Live=wave318 .x thin WAVE285: typeck_x_ast*_c + layout glue size/align/zero_padding
-//   (runtime_pipeline_abi_typeck_orch_thin.x via -E+$CC); pure owns soft_suppress/dep_ctx/
+//   Live=wave331 PREFER_ASM WAVE285: typeck_x_ast*_c + layout glue size/align/zero_padding
+//   (runtime_pipeline_abi_typeck_orch_thin.x; was -E+$CC wave318); pure owns soft_suppress/dep_ctx/
 //   dep_prerun strong; cold WEAK under #ifndef FROM_X.
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.

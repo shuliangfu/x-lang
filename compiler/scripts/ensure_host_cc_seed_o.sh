@@ -6200,13 +6200,14 @@ pipeline_abi_inject_parse_orch_thin() {
 
 
 
-# wave318 M2: typeck_orch Cap residual full C→.x (shims+layout glue).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Out-param *i32 OK under -E.
-# Was: C layout glue + PREFER_ASM shim overlay (wave285/293). PLATFORM: SHARED.
+# wave318/331 M2: typeck_orch Cap residual .x thin (shims+layout glue).
+# PRODUCT inject: wave331 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
+# out-param *i32 reloc OK under pure-asm (was -E+$CC interim).
+# G.7 WAVE285_TYPECK_ORCH_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_typeck_orch_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_orch_thin.x"
-  local stamp="src/.pabi_w318_typeck_orch.stamp"
+  local stamp="src/.pabi_w331_typeck_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6226,9 +6227,9 @@ pipeline_abi_inject_typeck_orch_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w318-typeck-orch"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w331-typeck-orch"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -11205,7 +11206,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-typeck-orch|inject_typeck_orch)
-    # wave318: C→.x typeck_orch (shims+layout glue) via -E+$CC.
+    # wave331: typeck_orch PREFER_ASM (was wave318 -E+$CC).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-typeck-orch: need <out.o>" >&2

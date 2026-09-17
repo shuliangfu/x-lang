@@ -2,10 +2,10 @@
 // (wave293: rename shims; wave318: layout glue was C thin).
 // Faces: typeck_x_ast*_c rename shims + zero_padding / size / align from_layout.
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c WAVE285_TYPECK_ORCH_ALWAYS.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_typeck_orch_thin
-// (ALLOW_E_REPLACE + stamp). Out-param *i32 OK under -E+$CC (pure-asm
-// Option-ptr red was historical — leave pure-asm banned for this leaf).
-// No BSS. No FROM_X gate.
+// PRODUCT inject: wave331 PREFER_ASM via pipeline_abi_inject_typeck_orch_thin
+// (ALLOW_E_REPLACE + stamp). No BSS. Out-param *i32 reloc OK under pure-asm
+// (historical Option-ptr red closed; -E+$CC was interim).
+// No FROM_X gate.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function typeck_x_ast_check_one_func(module: *u8, arena: *u8, ctx: *u8, func_idx: i32): i32;
