@@ -94770,6 +94770,8 @@ function pipe_macho_common_align_log2(calign: i32): i32 {
 
 /**
  * Mach-O MH_OBJECT writer for pure-asm -o .o (product g05 Darwin).
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_macho_write_thin.x
+ * (wave314 C→.x via -E+$CC inject; was Darwin C thin; public elf_ctx accessors).
  * Aligns with clang -c objects so Darwin clang -r onto hybrid pabi.o
  * does not silently poison ELF finalize (CG002 elf_ec=-1):
  *   · empty LC_SEGMENT_64.segname (sections still __TEXT,__text)
