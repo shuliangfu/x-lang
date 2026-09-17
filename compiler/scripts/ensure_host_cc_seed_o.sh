@@ -4874,8 +4874,10 @@ pipeline_abi_inject_slot_bytes_thin() {
 #     MISATTRIBUTED — root = LINUX typeck/arena on main co-file.
 # wave431: main rest-only Darwin -c ~4571B; LINUX HARD BAN (asm empty;
 #   -E omit T). Main tip reinject still BAN on LINUX.
-# G.7: helpers body matches mega / full thin; main stays leftover on LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
+# wave433: LINUX layout+main PREFER — nested byte-compare while →
+#   copy+bytes_eq layout thin + main tip (Ubuntu -c ~3740+3256B; -E T present).
+# G.7: helpers/layout/main match mega; MACOS stays full thin.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+layout+main PREFER.
 pipeline_abi_inject_field_load_sz_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_field_load_sz_thin.x"
@@ -4886,17 +4888,29 @@ pipeline_abi_inject_field_load_sz_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  # PLATFORM: LINUX — helpers-only tip PREFER (main export still BAN).
+  local lay_x lay_stamp main_x main_stamp
+  # PLATFORM: LINUX — helpers then layout then main tip PREFER.
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_field_load_sz_helpers_thin.x"
       stamp="src/.pabi_w414_field_load_sz_helpers.stamp"
       tag="w414-field-load-sz-helpers"
+      lay_x="src/runtime_pipeline_abi_field_load_layout_thin.x"
+      lay_stamp="src/.pabi_w433_field_load_layout.stamp"
+      main_x="src/runtime_pipeline_abi_field_load_main_thin.x"
+      main_stamp="src/.pabi_w433_field_load_main.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
+    if [ -n "${lay_x-}" ] && [ -f "$lay_x" ]; then
+      if [ -f "$lay_stamp" ] && [ ! "$lay_x" -nt "$lay_stamp" ] \
+        && [ -f "$main_stamp" ] && [ ! "$main_x" -nt "$main_stamp" ]; then
+        return 0
+      fi
+    else
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -4911,8 +4925,34 @@ pipeline_abi_inject_field_load_sz_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-  rc=$?
+  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      touch "$stamp"
+    fi
+  else
+    rc=0
+  fi
+  # PLATFORM: LINUX — layout then main tip (wave433).
+  if [ "$rc" -eq 0 ] && [ -n "${lay_x-}" ] && [ -f "$lay_x" ]; then
+    if [ ! -f "$lay_stamp" ] || [ "$lay_x" -nt "$lay_stamp" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$lay_x" "w433-field-load-layout"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$lay_stamp"
+      fi
+    fi
+  fi
+  if [ "$rc" -eq 0 ] && [ -n "${main_x-}" ] && [ -f "$main_x" ]; then
+    if [ ! -f "$main_stamp" ] || [ "$main_x" -nt "$main_stamp" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$main_x" "w433-field-load-main"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$main_stamp"
+      fi
+    fi
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -4925,9 +4965,6 @@ pipeline_abi_inject_field_load_sz_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
   fi
   return "$rc"
 }
@@ -6261,7 +6298,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave418: fixed_array_copy LINUX helpers PREFER (rest tip BAN).
 # wave419: asm_expr LINUX helpers PREFER (emit_expr_elf_c tip BAN).
 # wave432: param_ptr_slot BOTH PREFER (helper extract; Ubuntu -E/CG002 healed).
-# Next: mega BAN／split债（ttc main／field main／assign rest／arr rest／peel rest…）；禁升钉。
+# wave433: field_load LINUX layout+main PREFER (nested byte-while → copy+bytes_eq).
+# Next: mega BAN／split债（ttc main／assign rest／arr rest／peel rest…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.

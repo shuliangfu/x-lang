@@ -56775,30 +56775,119 @@ export function pipeline_expr_field_access_layout_offset(a: *u8, m: *u8, expr_re
  * wave151 pure: G.7 authority (was pipeline_expr_field_access_load_byte_sz).
  * PLATFORM: SHARED.
  */
+/**
+ * Copy layout name bytes at index k into out[0..nlen).
+ * wave433: single-level while — Ubuntu tip emit fails with nested byte-compare.
+ * @param m *u8 — Module*
+ * @param k i32 — layout index
+ * @param out *u8 — destination
+ * @param nlen i32 — byte count
+ * @return void
+ */
+function field_load_sz_copy_layout_name(m: *u8, k: i32, out: *u8, nlen: i32): void {
+  unsafe {
+    let j: i32 = 0;
+    let b: i32 = 0;
+    while (j < nlen) {
+      unsafe {
+        b = pipeline_module_struct_layout_name_byte_at(m, k, j);
+      }
+      out[j] = b as u8;
+      j = j + 1;
+    }
+  }
+}
+
+/**
+ * Match base TYPE_NAMED against module layouts; return field load width or 0.
+ * wave433: copy+wave151_bytes_eq (no nested byte-compare while).
+ * @param a *u8 — ASTArena*
+ * @param m *u8 — Module*
+ * @param base_tr i32 — base type ref (PTR peeled)
+ * @param field_name *u8 — field name
+ * @param flen i32 — name length
+ * @return i32 — load width or 0
+ */
+#[no_mangle]
+export function field_load_sz_layout_match(a: *u8, m: *u8, base_tr: i32, field_name: *u8, flen: i32): i32 {
+  unsafe {
+    let struct_name: u8[256] = [];
+    let layout_name: u8[256] = [];
+    let nlen: i32 = 0;
+    let k: i32 = 0;
+    let j: i32 = 0;
+    let ftr: i32 = 0;
+    let ftr_kind: i32 = 0;
+    let nsl: i32 = 0;
+    let nf: i32 = 0;
+    let fnlen: i32 = 0;
+    let fb: u8[256] = [];
+    let ln: i32 = 0;
+    let hit: i32 = 0;
+    if (a == (0 as *u8) || m == (0 as *u8) || base_tr <= 0 || field_name == (0 as *u8) || flen <= 0) {
+      return 0;
+    }
+    unsafe {
+      nlen = pipeline_type_named_name_into(a, base_tr, &struct_name[0]);
+    }
+    if (nlen <= 0 || nlen > 63) {
+      return 0;
+    }
+    unsafe {
+      nsl = pipeline_module_num_struct_layouts_at(m);
+    }
+    k = 0;
+    while (k < nsl) {
+      unsafe {
+        ln = pipeline_module_struct_layout_name_len(m, k);
+      }
+      if (ln == nlen) {
+        field_load_sz_copy_layout_name(m, k, &layout_name[0], nlen);
+        if (wave151_bytes_eq(&struct_name[0], &layout_name[0], nlen) != 0) {
+          unsafe {
+            nf = pipeline_module_struct_layout_num_fields(m, k);
+          }
+          j = 0;
+          while (j < nf) {
+            unsafe {
+              fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
+            }
+            if (fnlen == flen) {
+              unsafe {
+                pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
+              }
+              if (wave151_bytes_eq(&fb[0], field_name, fnlen) != 0) {
+                unsafe {
+                  ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
+                  ftr_kind = pipeline_type_kind_ord_at(a, ftr);
+                }
+                if (ftr_kind != 8) {
+                  hit = glue_field_access_load_bytes_for_type_ref(a, ftr);
+                  return hit;
+                }
+              }
+            }
+            j = j + 1;
+          }
+        }
+      }
+      k = k + 1;
+    }
+    return 0;
+  }
+}
+
 #[no_mangle]
 export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref: i32): i32 {
   let tr: i32 = 0;
   let base_tr: i32 = 0;
   let base_ref: i32 = 0;
-  let struct_name: u8[256] = [];
-  let nlen: i32 = 0;
   let flen: i32 = 0;
   let field_name: u8[256] = [];
-  let k: i32 = 0;
-  let j: i32 = 0;
-  let ftr: i32 = 0;
   let kind_ord: i32 = 0;
-  let ftr_kind: i32 = 0;
-  let nsl: i32 = 0;
-  let nf: i32 = 0;
-  let fnlen: i32 = 0;
-  let feq: i32 = 0;
-  let fi: i32 = 0;
-  let fb: u8[256] = [];
-  let ln: i32 = 0;
-  let eq: i32 = 0;
   let nm_is_some: u8[7] = [105, 115, 95, 115, 111, 109, 101];
   let nm_is_none: u8[7] = [105, 115, 95, 110, 111, 110, 101];
+  let hit: i32 = 0;
   if (a == (0 as *u8) || expr_ref <= 0) {
     return 8;
   }
@@ -56831,7 +56920,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
   }
-  // 2) Typed base: match layout by base TYPE_NAMED name, then field type width.
+  // 2) Typed base: layout match via field_load_sz_layout_match (wave433).
   // PLATFORM: SHARED — peel TYPE_PTR base (s: *S) so the layout match runs.
   unsafe {
     base_tr = pipeline_expr_resolved_type_ref(a, base_ref);
@@ -56850,77 +56939,9 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       }
     }
     if (kind_ord == 8) {
-      unsafe {
-        nlen = pipeline_type_named_name_into(a, base_tr, &struct_name[0]);
-      }
-      if (nlen > 0 && nlen <= 63 && m != (0 as *u8)) {
-        unsafe {
-          nsl = pipeline_module_num_struct_layouts_at(m);
-        }
-        k = 0;
-        while (k < nsl) {
-          unsafe {
-            ln = pipeline_module_struct_layout_name_len(m, k);
-          }
-          eq = 1;
-          if (ln != nlen) {
-            eq = 0;
-          } else {
-            j = 0;
-            while (j < nlen) {
-              unsafe {
-                if (pipeline_module_struct_layout_name_byte_at(m, k, j) != (struct_name[j] as i32)) {
-                  eq = 0;
-                  break;
-                }
-              }
-              j = j + 1;
-            }
-          }
-          if (eq != 0) {
-            unsafe {
-              nf = pipeline_module_struct_layout_num_fields(m, k);
-            }
-            j = 0;
-            while (j < nf) {
-              unsafe {
-                fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
-              }
-              feq = 1;
-              if (fnlen != flen) {
-                feq = 0;
-              } else {
-                unsafe {
-                  pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
-                }
-                fi = 0;
-                while (fi < fnlen) {
-                  if (fb[fi] != field_name[fi]) {
-                    feq = 0;
-                    break;
-                  }
-                  fi = fi + 1;
-                }
-              }
-              if (feq != 0) {
-                unsafe {
-                  ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
-                  ftr_kind = pipeline_type_kind_ord_at(a, ftr);
-                }
-                /*
-                 * Free type-param fields are TYPE_NAMED — do not return 8 here;
-                 * fall through to is_some heuristic / default. Concrete layout
-                 * field types (i32/u8/…) still use layout width.
-                 */
-                if (ftr_kind != 8) {
-                  return glue_field_access_load_bytes_for_type_ref(a, ftr);
-                }
-              }
-              j = j + 1;
-            }
-          }
-          k = k + 1;
-        }
+      hit = field_load_sz_layout_match(a, m, base_tr, &field_name[0], flen);
+      if (hit != 0) {
+        return hit;
       }
     }
   }
