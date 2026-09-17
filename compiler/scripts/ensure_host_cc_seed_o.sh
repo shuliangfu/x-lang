@@ -5288,12 +5288,13 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   return "$rc"
 }
 
-# wave407/417/422/423 M2: binop_block_peel Cap residual — helpers+rest unlock.
+# wave407/417/422/423/426 M2: binop_block_peel Cap residual — helpers+rest unlock.
 # PRODUCT inject wave423:
 #   MACOS: PREFER_ASM full thin (product L2 verified).
 #   LINUX: helpers (transparent) + may_clobber rest (w422) + load_to_rbx rest
-#     (w423; peers extern→leftover). try_binop_load / index_addr Ubuntu asm
-#     -c empty .o still BAN. Contiguous merge XT001.
+#     (w423; peers extern→leftover).
+# wave426: try_binop_load / index_addr rest-only Darwin -c green; LINUX HARD
+#   BAN (Ubuntu asm empty .o). Stamps local; no tip overlay.
 # G.7: bodies match mega / full thin; remaining middle stay leftover LINUX.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+2rest PREFER.
 pipeline_abi_inject_binop_block_peel_thin() {
@@ -5396,7 +5397,9 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #     Ubuntu -c ~6101B; product inject+relink L2 5/5 opt=102).
 # wave425: rhsrax rest-only thin (Darwin -c ~6425B) — LINUX HARD BAN
 #   (Ubuntu asm -c empty .o; -E omits T; false inject +80B). Stamp
-#   .pabi_w425_assign_rhsrax.stamp; no tip overlay. emit_assign still BAN.
+#   .pabi_w425_assign_rhsrax.stamp; no tip overlay.
+# wave426: emit_assign rest-only (Darwin -c ~50KB) — LINUX HARD BAN
+#   (Ubuntu empty .o; -E omits T). Same class as rhsrax.
 # G.7: helpers bodies match mega / full thin; middle stay leftover on LINUX.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX helpers(+pair/body) PREFER.
 pipeline_abi_inject_assign_thin() {
