@@ -6276,13 +6276,14 @@ pipeline_abi_inject_ast_forwarders_thin() {
 
 
 
-# wave323 M2: parse_orch Cap residual C→.x (was wave284 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). ParseIntoResult Cap-struct OK.
-# G.7 WAVE284_PARSE_ORCH_ALWAYS. PLATFORM: SHARED.
+# wave323/374 M2: parse_orch Cap residual C→.x (was wave284 C thin).
+# PRODUCT inject wave374: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 whole-body unsafe on exports; no BSS; dual-end L2 gate.
+# G.7 WAVE284_PARSE_ORCH_ALWAYS. PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_parse_orch_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_parse_orch_thin.x"
-  local stamp="src/.pabi_w323_parse_orch.stamp"
+  local stamp="src/.pabi_w374_parse_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6302,9 +6303,10 @@ pipeline_abi_inject_parse_orch_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 wrappers proven at -c).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w323-parse-orch"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w374-parse-orch"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6321,6 +6323,7 @@ pipeline_abi_inject_parse_orch_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w323_parse_orch.stamp
   fi
   return "$rc"
 }
@@ -11531,7 +11534,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-parse-orch|inject_parse_orch|inject-porch|inject_porch)
-    # wave323: C→.x parse_orch via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave374: C→.x parse_orch PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-parse-orch: need <out.o>" >&2
