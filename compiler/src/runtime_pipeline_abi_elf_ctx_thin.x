@@ -2,11 +2,11 @@
 // ELF ctx accessors + write_o (+ label/reloc/PGO); excludes macho_write
 // (owned by runtime_pipeline_abi_macho_write_thin — same as C thin).
 // G.7: bodies match runtime_pipeline_abi.x wave273 leave (ELF portion).
-// PRODUCT inject wave382:
-//   LINUX|UBUNTU: PREFER_ASM (tip L2 5/5; historic offset=-1 lifted).
-//   MACOS|DARWIN: HARD BAN tip reinject (BRANCH26); keep prior PREFER overlay.
+// PRODUCT inject wave382 HARD BAN reinject both ends — keep prior overlay
+// (MACOS PREFER / LINUX -E from w368b). Tip Darwin reinject BRANCH26;
+// Ubuntu tip PREFER reinject SEGV (probe flaky) → stamp only.
 // wave368: w312_* helpers via unsafe (T001).
-// PLATFORM: SHARED · LINUX PREFER · MACOS hard-skip prior PREFER.
+// PLATFORM: SHARED · BAN reinject both ends.
 
 export extern "C" function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
 export extern "C" function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void;
