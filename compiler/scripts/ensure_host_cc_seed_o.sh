@@ -5112,12 +5112,66 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   return "$rc"
 }
 
-# binop dual-slot peel of transparent EXPR_BLOCK (`unsafe { e }`).
-# G.7: .x thin matches mega; same inject_thin_leaf as class E (PREFER_ASM).
-# Seed C-extract markers remain cold twin only (not product inject path).
-# PLATFORM: SHARED shell · LINUX gold + MACOS.
+# wave407 M2: binop_block_peel Cap residual — asymmetric unlock.
+# PRODUCT inject wave407:
+#   MACOS: PREFER_ASM (full-file -c 16054B green; product inject + relink L2 5/5).
+#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c T001/XT001
+#     @glue_expr_block_transparent_value_ref_at (extern call requires unsafe).
+#     Split/fix deferred.
+# G.7: thin body matches mega binop peel cluster.
+# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
 pipeline_abi_inject_binop_block_peel_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_block_peel_thin.x" "blkpeel-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_binop_block_peel_thin.x"
+  local stamp="src/.pabi_w407_binop_block_peel.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: LINUX — hard BAN tip reinject (T001/XT001); stamp only.
+  case "$(uname -s)" in
+    Linux)
+      touch "$stamp"
+      return 0
+      ;;
+  esac
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: MACOS — PREFER_ASM (product inject + relink L2 verified).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w407-binop-block-peel"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave403 M2: assign Cap residual — asymmetric unlock.
@@ -5804,7 +5858,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
 # wave405: binop_stack_spill_try_reload PREFER both ends.
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
-# Next: 余 soft -E（blkpeel／arrcopy asym？）／mega BAN／split债；禁升钉。
+# wave407: binop_block_peel MACOS PREFER／LINUX BAN (Ubuntu T001/XT001).
+# Next: arrcopy asym／余 soft -E／mega BAN／split债；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11365,6 +11420,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_w157_sum_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-binop-block-peel|inject_binop_block_peel)
+    # wave407: MACOS PREFER / LINUX hard-skip BAN.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-binop-block-peel: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_binop_block_peel_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
