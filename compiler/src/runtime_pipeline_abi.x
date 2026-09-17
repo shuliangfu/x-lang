@@ -9,6 +9,8 @@
 // wave287 parser_result seed ALWAYS leave; wave286/319 typeck_check_expr Cap residual
 // .x thin (runtime_pipeline_abi_typeck_check_expr_thin.x via -E+$CC; was C thin);
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
+// wave279/320 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
+//   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x via -E+$CC; was C thin);
 // wave284 parse_orch seed ALWAYS leave;
 // wave283 ast_forwarders seed ALWAYS leave.
 //   Live=seed ALWAYS WAVE287: parser slice/lex/result-copy Cap residual faces
