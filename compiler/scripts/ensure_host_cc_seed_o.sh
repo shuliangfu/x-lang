@@ -11339,6 +11339,18 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
+  inject-modlet-prepare|inject_modlet_prepare)
+    # wave345: MODLET_IN_REST prepare/bake (no mega -E). PLATFORM: SHARED.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-modlet-prepare: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_modlet_prepare_rest "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   inject-emit-ctx-module-dep|inject_emit_ctx_module_dep)
     # wave340: emit_ctx_module_dep Cap A — LINUX PREFER_ASM / DARWIN -E+$CC.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
