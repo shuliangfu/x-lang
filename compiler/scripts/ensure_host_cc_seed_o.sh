@@ -4472,43 +4472,54 @@ pipeline_abi_inject_preprocess_malloc_thin() {
   return 1
 }
 
-# Import ctx 4MiB wall: overlay pipeline_load_import_from_disk_c with heap
-# read+pp (view + PP002 malloc). Mega _c is WEAK; Darwin ld -r of two strong
-# T fails, so only overlay while the pabi symbol is still weak.
-# PLATFORM: SHARED — LINUX gold · MACOS co-path. Pin embed stays 4MiB.
+# wave298 M2: import_heap Cap residual C→.x (was C strong overlay).
+# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No BSS — safe C→.x.
+# Local path/view cells: pure-asm unproven; keep -E until green.
+# G.7 match mega pipeline_load_import_from_disk_c. PLATFORM: SHARED.
 pipeline_abi_inject_import_heap_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_import_heap_thin.c"
-  local thin_o base_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi import-heap inject skip: $o is libtool archive"
-    return 1
-  fi
-  if nm -m "$o" 2>/dev/null | grep -E 'pipeline_load_import_from_disk_c' | grep -vq 'weak'; then
-    log "pipeline_abi import-heap inject skip: already strong in $o"
+  local thin_x="src/runtime_pipeline_abi_import_heap_thin.x"
+  local stamp="src/.pabi_w298_import_heap.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_import_heap.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_import_heap_base.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi import-heap inject: cc thin failed"
-    rm -f "$thin_o" "$base_o"
-    return 1
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
   fi
-  cp -f "$o" "$base_o"
-  # PLATFORM: SHARED — GNU ld -r needs --allow-multiple-definition (pure_ld_partial_merge);
-  # Darwin ld -r first-wins weak without the flag. Do not call bare `ld -r`.
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    log "pipeline_abi import-heap inject OK (strong over weak)"
-    rm -f "$thin_o" "$base_o"
-    return 0
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
   fi
-  cp -f "$base_o" "$o"
-  log "pipeline_abi import-heap inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o"
-  return 1
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w298-import-heap"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave297 M2: read_file_x_view Cap residual C→.x (was C strong overlay).
@@ -10784,6 +10795,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_read_file_x_view_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-import-heap|inject_import_heap)
+    # wave298: C→.x import_heap via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-import-heap: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_import_heap_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

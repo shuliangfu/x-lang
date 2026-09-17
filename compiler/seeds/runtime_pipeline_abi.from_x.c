@@ -65688,6 +65688,8 @@ XLANG_WEAK int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8
 }
 /* pipeline_read_file_x cold twin already defined earlier in this seed (~4212). */
 /* wave308: pipeline_parse_into_with_init_buf Cap face is ALWAYS above (not cold-only). */
+/* M2 Class E: .x thin leave = runtime_pipeline_abi_import_heap_thin.x
+ * (wave298 C→.x via -E+$CC; was C strong overlay). Seed WEAK fallback below. */
 XLANG_WEAK int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   return pipeline_load_import_from_disk(module, arena, ctx, import_idx);

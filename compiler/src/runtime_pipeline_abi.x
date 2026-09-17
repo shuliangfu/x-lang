@@ -4063,7 +4063,9 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  * but rejects files > 4MiB (view; no silent truncate).
  * G.7 single product authority for pipeline_load_import_from_disk_c
  * (historical glue strong _c -> X thin / impl_c). Product load_and_sync calls this name.
- * PLATFORM: SHARED — LINUX gold · MACOS co-path. C thin overlays WEAK mega.
+ * PLATFORM: SHARED — LINUX gold · MACOS co-path.
+ * M2 Class E: .x thin leave = runtime_pipeline_abi_import_heap_thin.x
+ * (wave298 C→.x via -E+$CC inject; was C strong overlay).
  */
 #[no_mangle]
 export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
