@@ -35,6 +35,7 @@
 //   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
+//   Live=wave328 .x thin WAVE290: asm_codegen_mega_body ctx_reset + mega_body_c.
 // wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
 //   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
 //   simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper;
@@ -17294,7 +17295,7 @@ export function pipeline_load_one_import_slot_c(module: *u8, arena: *u8, ctx: *u
 // set emit pipe/module/arena/elf_ctx, then seed partial mega / mega_body + WPO thunks.
 // Omits XLANG_ASM_DEBUG fprintf + parser_emit_heavy debug branch (wave106 style).
 // Cap residual: hoist / seed mega / emit_set_* still product chain; mega_body =
-// seed ALWAYS wave290 (not host-cc).
+// seed ALWAYS wave290 + .x thin leave (wave328 -E+$CC).
 //   wpo_mono reset/thunks, elf_label_mod_scope, typeck merge/wpo/soa fill.
 // Cold twins under seed #ifndef FROM_X.
 // PLATFORM: SHARED - dual-end L2 after leave.
@@ -17371,7 +17372,7 @@ export extern function pipeline_asm_try_emit_dyn_coerce_let(arena: *u8, elf_ctx:
  * @param pipeline_ctx *u8 - PipelineDepCtx*; null -> -1
  * @return i32 - mega_body/wpo rc; -1 null gate
  * wave113 pure: G.7 single product authority.
- * PLATFORM: SHARED - emit_set / WPO / typeck merge faces; mega_body = seed ALWAYS wave290.
+ * PLATFORM: SHARED - emit_set / WPO / typeck merge faces; mega_body = seed ALWAYS wave290 + .x thin (wave328).
  */
 #[no_mangle]
 export function pipeline_backend_asm_codegen_ast_to_elf_c(m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {

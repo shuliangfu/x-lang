@@ -3384,8 +3384,8 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_codegen_outbuf_thin.x -nt "$o" ]; then
       stale=1
     fi
-    if [ -f src/runtime_pipeline_abi_asm_codegen_mega_body_thin.c ] \
-      && [ src/runtime_pipeline_abi_asm_codegen_mega_body_thin.c -nt "$o" ]; then
+    if [ -f src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x ] \
+      && [ src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x -nt "$o" ]; then
       stale=1
     fi
     if [ -f src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x ] \
@@ -4262,6 +4262,8 @@ pipeline_abi_weaken_thin_syms_in_obj() {
   local oc=""
   local sym=""
   local any=0
+  local still_t=0
+  local dead=""
   [ -s "$base" ] && [ -s "$thin" ] || return 1
   oc="$(pure_asm_find_objcopy)" || return 1
   while IFS= read -r sym; do
@@ -4275,7 +4277,38 @@ pipeline_abi_weaken_thin_syms_in_obj() {
   done <<EOF
 $(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
 EOF
-  [ "$any" = "1" ]
+  [ "$any" = "1" ] || return 1
+  # PLATFORM: MACOS — llvm-objcopy --weaken-symbol is often a no-op on
+  # multi-ld-r MH_OBJECT (returns 0, symbol stays T). Fall back to
+  # --redefine-sym so Darwin ld -r can first-wins overlay the thin
+  # (wave328 mega_body C→.x). Dead renamed bodies stay until next prefer.
+  # PLATFORM: LINUX — weaken usually works; redefine only if still T.
+  still_t=0
+  while IFS= read -r sym; do
+    [ -n "$sym" ] || continue
+    if nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
+      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
+      END { exit !found }
+    '; then
+      still_t=1
+      dead="${sym}_pabi_superseded"
+      "$oc" --redefine-sym="${sym}=${dead}" "$base" 2>/dev/null || true
+      case "$sym" in
+        _*)
+          "$oc" --redefine-sym="${sym#_}=${dead#_}" "$base" 2>/dev/null || true
+          ;;
+        *)
+          "$oc" --redefine-sym="_${sym}=_${dead}" "$base" 2>/dev/null || true
+          ;;
+      esac
+    fi
+  done <<EOF
+$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
+EOF
+  if [ "$still_t" = "1" ]; then
+    log "pipeline_abi weaken: Darwin/objcopy weaken no-op → redefine-sym *_pabi_superseded"
+  fi
+  return 0
 }
 
 pipeline_abi_inject_thin_leaf() {
@@ -6394,46 +6427,54 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 # wave290 asm_codegen_mega_body Cap residual (C thin; reset + mega emit loop).
 # Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
 # G.7: match seed WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS. PLATFORM: SHARED.
+# wave328 M2: asm_codegen_mega_body Cap residual C→.x (was wave290 C thin).
+# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). ctx_reset + mega_body_c.
+# POSIX product path; WIN leftover ARRAY_LIT wrap stays leftover-PE authority.
+# G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local o="$1"
-  local src="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.c"
-  local thin_o base_o restore_o
-  [ -s "$o" ] && [ -f "$src" ] || return 0
-  if pipeline_abi_o_is_libtool_archive "$o"; then
-    log "pipeline_abi w290-mega-body inject skip: $o is libtool archive"
-    return 1
-  fi
-  thin_o="$(mktemp "${TMPDIR:-/tmp}/pabi_mega.XXXXXX.o")"
-  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_mega_base.XXXXXX.o")"
-  restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_mega_restore.XXXXXX.o")"
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} ${BASE_CFLAGS:--I. -Iinclude -Isrc} -I. -Iinclude -Isrc -Wno-unused-function -c -o "$thin_o" "$src" 2>/dev/null; then
-    log "pipeline_abi w290-mega-body inject: cc thin failed"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 1
-  fi
-  cp -f "$o" "$base_o"
-  cp -f "$o" "$restore_o"
-  if ! pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$thin_o"; then
-    log "pipeline_abi w290-mega-body inject skip: cannot weaken leftover T"
-    rm -f "$thin_o" "$base_o" "$restore_o"
+  local thin_x="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
+  local stamp="src/.pabi_w328_mega_body.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if pure_ld_partial_merge "$o" "$thin_o" "$base_o" 2>/dev/null; then
-    if pipeline_abi_o_is_libtool_archive "$o"; then
-      cp -f "$restore_o" "$o"
-      log "pipeline_abi w290-mega-body inject: libtool archive; restored base"
-      rm -f "$thin_o" "$base_o" "$restore_o"
-      return 1
-    fi
-    log "pipeline_abi w290-mega-body inject OK (first-wins over leftover)"
-    rm -f "$thin_o" "$base_o" "$restore_o"
-    return 0
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
   fi
-  cp -f "$restore_o" "$o"
-  log "pipeline_abi w290-mega-body inject: merge failed; restored base"
-  rm -f "$thin_o" "$base_o" "$restore_o"
-  return 1
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w328-mega-body"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 
@@ -11254,6 +11295,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_expr_sidecar_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-mega-body|inject_mega_body|inject-megabody|inject_megabody)
+    # wave328: C→.x asm_codegen_mega_body via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-mega-body: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_asm_codegen_mega_body_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
