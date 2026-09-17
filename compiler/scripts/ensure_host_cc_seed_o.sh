@@ -5277,8 +5277,8 @@ pipeline_abi_inject_glue_statics_thin() {
 
 # wave303/358 M2: type_alias Cap residual C→.x (was wave262 C thin).
 # PRODUCT inject wave358: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
-# T001 w303_* wrappers for slot/LE; file-local maps; standalone -c green.
-# G.7 match mega wave262 leave. PLATFORM: SHARED · both ends PREFER try.
+# T001 w303_* wrappers for slot/LE; file-local maps; dual-end L2 green.
+# G.7 match mega wave262 leave. PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_type_alias_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_alias_thin.x"
@@ -5641,7 +5641,7 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w355: codegen_outbuf PREFER (T001 unsafe + u8[64] float buf).
 #   UNLOCKED w356: grow_vec PREFER (T001 unsafe LE helpers · class C GrowVec-LE).
 #   UNLOCKED w357b: type_pool Darwin PREFER / Ubuntu -E (class C Type LE).
-#   UNLOCKED w358: type_alias PREFER try (T001 w303_* · file-local maps).
+#   UNLOCKED w358: type_alias PREFER both ends (T001 w303_* · file-local maps).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
@@ -5664,7 +5664,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
 # wave357/357b: type_pool Darwin PREFER / Ubuntu -E (option T001 x86_64).
-# wave358: type_alias PREFER try (T001 w303_* · file-local maps).
+# wave358: type_alias PREFER both ends (T001 w303_* · file-local maps).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
