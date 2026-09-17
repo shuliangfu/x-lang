@@ -5637,11 +5637,12 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w354: import_heap PREFER (T001 unsafe + class B path/view).
 #   UNLOCKED w355: codegen_outbuf PREFER (T001 unsafe + u8[64] float buf).
 #   UNLOCKED w356: grow_vec PREFER (T001 unsafe LE helpers · class C GrowVec-LE).
+#   UNLOCKED w357: type_pool PREFER (T001 w301_load/store · class C Type LE).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
-#     C residual GrowVec/sidecar LE (w335+ peers still -E):
-#       onefunc / type_pool / expr_sidecar / block_domain / module_func / *pool* /
+#     C residual GrowVec/sidecar LE peers still -E:
+#       onefunc / expr_sidecar / block_domain / module_func / sidecar_pool /
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
@@ -5658,18 +5659,21 @@ pipeline_abi_inject_block_tree_thin() {
 # wave354: import_heap PREFER (T001 unsafe slot get/set).
 # wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
+# wave357: type_pool PREFER (T001 w301_load/store wrappers); historic w335
+#   _main UNDEF ban lifted after Cap A／GrowVec unlocks.
 # Next: class C peers／Ubuntu check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
-# wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No file-local BSS.
-# wave335 PREFER_ASM trial → Darwin L2 0/5 (_main UNDEF); stay -E.
-# G.7 match mega wave270 leave (LE name_len@260). PLATFORM: SHARED.
+# wave301/357 M2: type_pool Cap residual C→.x (was wave270 C thin).
+# PRODUCT inject wave357: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 w301_load/store_i32 wrappers; standalone -c green. Historic w335
+# PREFER _main UNDEF ban lifted after Cap A／GrowVec. G.7 LE name_len@260.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_pool_thin.x"
-  local stamp="src/.pabi_w301_type_pool.stamp"
+  local stamp="src/.pabi_w357_type_pool.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5689,9 +5693,10 @@ pipeline_abi_inject_type_pool_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 LE wrappers proven).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w301-type-pool"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w357-type-pool"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5708,6 +5713,7 @@ pipeline_abi_inject_type_pool_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w301_type_pool.stamp
   fi
   return "$rc"
 }
@@ -11368,8 +11374,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-type-pool|inject_type_pool)
-    # wave301: C→.x type_pool via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # wave335 PREFER_ASM trial UNDEF main — stay -E. PLATFORM: SHARED.
+    # wave357: type_pool PREFER_ASM both ends (T001 w301_load/store wrappers).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-type-pool: need <out.o>" >&2
       exit 2

@@ -1,10 +1,10 @@
-// Thin pure: wave301 M2 — type_pool Cap residual C→.x (was wave270 C thin).
+// Thin pure: wave301/357 M2 — type_pool Cap residual C→.x (was wave270 C thin).
 // Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
 //   region_label[256]@272 region_label_len@528 size=532.
 // G.7: bodies match runtime_pipeline_abi.x wave270 leave (correct LE offsets;
 // historic C thin used wrong 132/136/140/144/272 — replaced here).
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_type_pool_thin
-// (ALLOW_E_REPLACE + stamp). No file-local BSS.
+// wave357: w301_load/store_i32 unsafe wrappers (T001); PRODUCT inject
+// PREFER_ASM both ends after typeck green. Stamp w357.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -158,6 +158,24 @@ function pipe_ty_num_types(a: *u8): i32 {
 }
 
 /**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w301_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w301_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
+/**
  * Resolve Type* for ref with bounds check.
  * @param arena *u8 - ASTArena*
  * @param ref i32 - 1-based type ref
@@ -196,7 +214,7 @@ export function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8):
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, w301_ty_name_len_off());
+  let n: i32 = w301_load_i32(t, w301_ty_name_len_off());
   let cn: i32 = n;
   if (cn > 255) {
     cn = 255;
@@ -225,7 +243,7 @@ export function pipeline_type_region_label_into(arena: *u8, ref: i32, out64: *u8
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 528);
+  let n: i32 = w301_load_i32(t, 528);
   if (n <= 0) {
     return 0;
   }
@@ -253,7 +271,7 @@ export function pipeline_type_region_label_len_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  let n: i32 = pipe_load_i32_le(t, 528);
+  let n: i32 = w301_load_i32(t, 528);
   if (n > 0) {
     return n;
   }
@@ -285,7 +303,7 @@ export function pipeline_type_set_region_label_at(arena: *u8, ref: i32, label: *
   if (t == 0 as *u8) {
     return 0;
   }
-  let kind: i32 = pipe_load_i32_le(t, 0);
+  let kind: i32 = w301_load_i32(t, 0);
   if (kind != pipe_ty_ord_slice()) {
     if (kind != pipe_ty_ord_ptr()) {
       return 0;
@@ -299,7 +317,7 @@ export function pipeline_type_set_region_label_at(arena: *u8, ref: i32, label: *
     z = z + 1;
   }
   pipe_ty_copy_bytes(t + 272, label, label_len);
-  pipe_store_i32_le(t, 528, label_len);
+  w301_store_i32(t, 528, label_len);
   return 1;
 }
 
@@ -338,23 +356,23 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 0) != pipe_ty_ord_slice()) {
+    if (w301_load_i32(t, 0) != pipe_ty_ord_slice()) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, w301_ty_elem_off()) != elem_ref) {
+    if (w301_load_i32(t, w301_ty_elem_off()) != elem_ref) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, w301_ty_arr_off()) != 0) {
+    if (w301_load_i32(t, w301_ty_arr_off()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, w301_ty_name_len_off()) != 0) {
+    if (w301_load_i32(t, w301_ty_name_len_off()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 528) != region_len) {
+    if (w301_load_i32(t, 528) != region_len) {
       k = k + 1;
       continue;
     }
@@ -375,12 +393,12 @@ export function pipeline_type_find_or_alloc_slice(a: *u8, elem_ref: i32, reg_lab
     return 0;
   }
   pipe_ty_zero_slot(t2);
-  pipe_store_i32_le(t2, 0, pipe_ty_ord_slice());
-  pipe_store_i32_le(t2, w301_ty_elem_off(), elem_ref);
+  w301_store_i32(t2, 0, pipe_ty_ord_slice());
+  w301_store_i32(t2, w301_ty_elem_off(), elem_ref);
   if (region_len > 0) {
     if (reg_lab != 0 as *u8) {
       pipe_ty_copy_bytes(t2 + 272, reg_lab, region_len);
-      pipe_store_i32_le(t2, 528, region_len);
+      w301_store_i32(t2, 528, region_len);
     }
   }
   return k;
@@ -424,23 +442,23 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 0) != pipe_ty_ord_ptr()) {
+    if (w301_load_i32(t, 0) != pipe_ty_ord_ptr()) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, w301_ty_elem_off()) != elem_ref) {
+    if (w301_load_i32(t, w301_ty_elem_off()) != elem_ref) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, w301_ty_arr_off()) != 0) {
+    if (w301_load_i32(t, w301_ty_arr_off()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, w301_ty_name_len_off()) != 0) {
+    if (w301_load_i32(t, w301_ty_name_len_off()) != 0) {
       k = k + 1;
       continue;
     }
-    if (pipe_load_i32_le(t, 528) != region_len) {
+    if (w301_load_i32(t, 528) != region_len) {
       k = k + 1;
       continue;
     }
@@ -461,12 +479,12 @@ export function pipeline_type_find_or_alloc_ptr(a: *u8, elem_ref: i32, reg_lab: 
     return 0;
   }
   pipe_ty_zero_slot(t2);
-  pipe_store_i32_le(t2, 0, pipe_ty_ord_ptr());
-  pipe_store_i32_le(t2, w301_ty_elem_off(), elem_ref);
+  w301_store_i32(t2, 0, pipe_ty_ord_ptr());
+  w301_store_i32(t2, w301_ty_elem_off(), elem_ref);
   if (region_len > 0) {
     if (reg_lab != 0 as *u8) {
       pipe_ty_copy_bytes(t2 + 272, reg_lab, region_len);
-      pipe_store_i32_le(t2, 528, region_len);
+      w301_store_i32(t2, 528, region_len);
     }
   }
   return k;
@@ -486,7 +504,7 @@ export function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0 - 1;
   }
-  return pipe_load_i32_le(t, 0);
+  return w301_load_i32(t, 0);
 }
 
 /**
@@ -503,7 +521,7 @@ export function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(t, w301_ty_elem_off());
+  return w301_load_i32(t, w301_ty_elem_off());
 }
 
 /**
@@ -522,8 +540,8 @@ export function pipeline_type_set_elem_array_size_at(arena: *u8, ref: i32, elem_
   if (t == 0 as *u8) {
     return 0;
   }
-  pipe_store_i32_le(t, w301_ty_elem_off(), elem_ref);
-  pipe_store_i32_le(t, w301_ty_arr_off(), array_size);
+  w301_store_i32(t, w301_ty_elem_off(), elem_ref);
+  w301_store_i32(t, w301_ty_arr_off(), array_size);
   return 1;
 }
 
@@ -541,7 +559,7 @@ export function pipeline_type_array_size_at(arena: *u8, ref: i32): i32 {
   if (t == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(t, w301_ty_arr_off());
+  return w301_load_i32(t, w301_ty_arr_off());
 }
 
 /**
@@ -569,10 +587,10 @@ export function pipeline_type_ensure_by_kind_ord(a: *u8, kind_ord: i32): i32 {
   while (k <= nt) {
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
-      if (pipe_load_i32_le(t, 0) == kind) {
-        if (pipe_load_i32_le(t, w301_ty_name_len_off()) == 0) {
-          if (pipe_load_i32_le(t, w301_ty_elem_off()) == 0) {
-            if (pipe_load_i32_le(t, w301_ty_arr_off()) == 0) {
+      if (w301_load_i32(t, 0) == kind) {
+        if (w301_load_i32(t, w301_ty_name_len_off()) == 0) {
+          if (w301_load_i32(t, w301_ty_elem_off()) == 0) {
+            if (w301_load_i32(t, w301_ty_arr_off()) == 0) {
               return k;
             }
           }
@@ -590,7 +608,7 @@ export function pipeline_type_ensure_by_kind_ord(a: *u8, kind_ord: i32): i32 {
     return 0;
   }
   pipe_ty_zero_slot(t2);
-  pipe_store_i32_le(t2, 0, kind);
+  w301_store_i32(t2, 0, kind);
   return k;
 }
 
@@ -626,7 +644,7 @@ export function pipeline_type_init_primitive_kind_at(a: *u8, ref: i32, kind_ord:
     return 0;
   }
   pipe_ty_zero_slot(t);
-  pipe_store_i32_le(t, 0, pipe_ty_kind_from_ord(kind_ord));
+  w301_store_i32(t, 0, pipe_ty_kind_from_ord(kind_ord));
   return 1;
 }
 
@@ -666,8 +684,8 @@ export function pipeline_type_init_named_at(a: *u8, ref: i32, name: *u8, name_le
     return 0;
   }
   pipe_ty_zero_slot(t);
-  pipe_store_i32_le(t, 0, pipe_ty_ord_named());
-  pipe_store_i32_le(t, w301_ty_name_len_off(), name_len);
+  w301_store_i32(t, 0, pipe_ty_ord_named());
+  w301_store_i32(t, w301_ty_name_len_off(), name_len);
   pipe_ty_copy_bytes(t + 4, name, name_len);
   return 1;
 }
@@ -707,9 +725,9 @@ export function pipeline_type_init_compound_kind_at(a: *u8, ref: i32, kind_ord: 
     return 0;
   }
   pipe_ty_zero_slot(t);
-  pipe_store_i32_le(t, 0, pipe_ty_kind_from_ord(kind_ord));
-  pipe_store_i32_le(t, w301_ty_elem_off(), elem_ref);
-  pipe_store_i32_le(t, w301_ty_arr_off(), array_size);
+  w301_store_i32(t, 0, pipe_ty_kind_from_ord(kind_ord));
+  w301_store_i32(t, w301_ty_elem_off(), elem_ref);
+  w301_store_i32(t, w301_ty_arr_off(), array_size);
   return 1;
 }
 
@@ -741,8 +759,8 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
   while (k <= nt) {
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
-      if (pipe_load_i32_le(t, 0) == pipe_ty_ord_named()) {
-        if (pipe_load_i32_le(t, w301_ty_name_len_off()) == name_len) {
+      if (w301_load_i32(t, 0) == pipe_ty_ord_named()) {
+        if (w301_load_i32(t, w301_ty_name_len_off()) == name_len) {
           if (pipe_ty_bytes_eq(t + 4, name, name_len) != 0) {
             return k;
           }
@@ -760,8 +778,8 @@ export function pipeline_type_find_or_alloc_named(a: *u8, name: *u8, name_len: i
     return 0;
   }
   pipe_ty_zero_slot(t2);
-  pipe_store_i32_le(t2, 0, pipe_ty_ord_named());
-  pipe_store_i32_le(t2, w301_ty_name_len_off(), name_len);
+  w301_store_i32(t2, 0, pipe_ty_ord_named());
+  w301_store_i32(t2, w301_ty_name_len_off(), name_len);
   pipe_ty_copy_bytes(t2 + 4, name, name_len);
   return k;
 }
@@ -794,11 +812,11 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
   while (k <= nt) {
     let t: *u8 = pipe_ty_ptr(a, k);
     if (t != 0 as *u8) {
-      if (pipe_load_i32_le(t, 0) == kind) {
-        if (pipe_load_i32_le(t, w301_ty_elem_off()) == elem_ref) {
-          if (pipe_load_i32_le(t, w301_ty_arr_off()) == array_size) {
-            if (pipe_load_i32_le(t, w301_ty_name_len_off()) == 0) {
-              if (pipe_load_i32_le(t, 528) == 0) {
+      if (w301_load_i32(t, 0) == kind) {
+        if (w301_load_i32(t, w301_ty_elem_off()) == elem_ref) {
+          if (w301_load_i32(t, w301_ty_arr_off()) == array_size) {
+            if (w301_load_i32(t, w301_ty_name_len_off()) == 0) {
+              if (w301_load_i32(t, 528) == 0) {
                 return k;
               }
             }
@@ -817,9 +835,9 @@ export function pipeline_type_find_or_alloc_compound(a: *u8, kind_ord: i32, elem
     return 0;
   }
   pipe_ty_zero_slot(t2);
-  pipe_store_i32_le(t2, 0, kind);
-  pipe_store_i32_le(t2, w301_ty_elem_off(), elem_ref);
-  pipe_store_i32_le(t2, w301_ty_arr_off(), array_size);
+  w301_store_i32(t2, 0, kind);
+  w301_store_i32(t2, w301_ty_elem_off(), elem_ref);
+  w301_store_i32(t2, w301_ty_arr_off(), array_size);
   return k;
 }
 

@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（双端 L4 真冷；升钉默认不做） |
 | BC（编译层零 host-cc） | ✅ | `pipeline_x` 已退役（wave309）——BC 面余量转 8.3.6 冷孪生三分 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 …＋**w356 grow_vec PREFER**；残 class C peers／Ubuntu check_expr ABI | 下一＝class C peers／Ubuntu check_expr。禁盲翻；禁 Darwin mega `-E`（内存）。|
+| `pipeline_abi` mega pure-asm | 🟡 …＋**w357 type_pool PREFER**；残 class C peers／Ubuntu check_expr ABI | 下一＝class C peers／Ubuntu check_expr。禁盲翻；禁 Darwin mega `-E`（内存）。|
 | nest 冻帽 | ✅ 纪律 | **64** |
 | check 闸门 | ⏸ 暂停 | 自举期须点名才 dogfood |
 
