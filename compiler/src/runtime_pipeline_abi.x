@@ -34,6 +34,7 @@
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
 //   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
+//   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
 // wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
 //   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
 //   simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper;
