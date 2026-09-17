@@ -83677,6 +83677,8 @@ export function pipeline_module_num_type_aliases_at(module: *u8): i32 {
 
 // =============================================================================
 // wave264: ast_pool_module_enum.c pure-owned leave (ModuleEnumEntry storage + faces)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_module_enum_thin.x
+// (wave306 C→.x via -E+$CC inject; was wave264 C thin).
 // =============================================================================
 // G.7 product authority for:
 //   pipeline_module_enum_alloc / set_name / set_is_export / is_export_at
