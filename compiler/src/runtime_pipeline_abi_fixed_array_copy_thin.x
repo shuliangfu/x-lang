@@ -187,6 +187,14 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
     return 0;
   }
   // M2 class A: remaining export-extern calls in this leaf.
+  /* wave347: scalar INTEGER/FP/PTR never lea (see mega twin). PLATFORM: SHARED. */
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, decl_ty);
+  }
+  if (tk == 0 || tk == 1 || tk == 2 || tk == 3 || tk == 4 || tk == 5
+      || tk == 6 || tk == 7 || tk == 9 || tk == 14 || tk == 15) {
+    return 0;
+  }
   unsafe {
     if (glue_type_ref_is_named_struct_layout_elf_c(arena, mod, decl_ty) != 0) {
       sz = glue_type_size_simple(mod, arena, decl_ty, 0);

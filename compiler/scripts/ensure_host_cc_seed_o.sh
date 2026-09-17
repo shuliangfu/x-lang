@@ -5499,8 +5499,12 @@ pipeline_abi_inject_block_tree_thin() {
 # wave339–342: Cap A emit_ctx + typeck_active OK.
 # wave344: non-zero scalar imm → .data bake (library TU).
 # wave345: MODLET_IN_REST prepare 入链.
-# wave346: check_expr ordinal let→const; PREFER still ban (body/dispatch).
-# Next: check_expr PREFER body／block_tree／GrowVec-LE; Darwin mega when RAM ok.
+# wave346: check_expr ordinal let→const; PREFER still ban.
+# wave347: pure-asm call-arg i32 VAR emits lea not load (root of PREFER XT001);
+#   use_lea=0 still lea → for_call_args resolve/emit_expr_rec; scalar guard in
+#   glue_call_arg_var_use_lea_not_load (mega+arrcopy thin).
+# Next: for_call_args i32 VAR rvalue load → re-trial check_expr PREFER.
+
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
@@ -6441,7 +6445,7 @@ pipeline_abi_inject_typeck_check_expr_thin() {
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w346-typeck-check-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w347-typeck-check-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"

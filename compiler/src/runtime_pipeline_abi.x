@@ -75229,6 +75229,19 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
   if (decl_ty <= 0) {
     return 0;
   }
+  /* wave347: scalar INTEGER/FP/PTR never lea the stack slot as a CALL arg.
+   * False-positive named-struct / fixed-array classification left pure-asm
+   * passing &i32 into take_i32 / typeck_check_expr_* (XT001 under check_expr
+   * PREFER). Do NOT treat TYPE_NAMED=8 / SLICE=11 / VECTOR=13 here — those
+   * keep the layout/array gates below.
+   * PLATFORM: SHARED freestanding SysV/AAPCS64 call-arg packing. */
+  unsafe {
+    tk = pipeline_type_kind_ord_at(arena, decl_ty);
+  }
+  if (tk == 0 || tk == 1 || tk == 2 || tk == 3 || tk == 4 || tk == 5
+      || tk == 6 || tk == 7 || tk == 9 || tk == 14 || tk == 15) {
+    return 0;
+  }
   if (glue_type_ref_is_named_struct_layout_elf_c(arena, mod, decl_ty) != 0) {
     /* PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER class ≤16B by-value (load
      * bits into GP). MEMORY class >16B lea of the stack slot.
