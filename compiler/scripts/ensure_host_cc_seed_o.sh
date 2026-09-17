@@ -6174,22 +6174,36 @@ pipeline_abi_inject_onefunc_thin() {
 
 
 
-# wave321 M2: bootstrap_glue Cap residual C→.x (was wave282 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Scope sidecar flat BSS.
-# G.7 WAVE282_BOOTSTRAP_GLUE_ALWAYS. PLATFORM: SHARED.
+# wave321/376 M2: bootstrap_glue Cap residual C→.x (was wave282 C thin).
+# PRODUCT inject wave376:
+#   · BAN PREFER both ends — Darwin g05 ARM64_RELOC_BRANCH26 (same class as
+#     asm_wpo/macho_write). Tip standalone PREFER -c 33310B green ≠ product link.
+#   · MACOS|DARWIN: -E+$CC of T001-wrapped thin (ALLOW_E_REPLACE).
+#   · LINUX|UBUNTU: hard-skip — wrapped thin fails Ubuntu typeck even under -E
+#     (parse_orch w374b class); keep prior -E overlay.
+# G.7 WAVE282_BOOTSTRAP_GLUE_ALWAYS. PLATFORM: SHARED · BAN PREFER · LINUX hard-skip.
 pipeline_abi_inject_bootstrap_glue_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_bootstrap_glue_thin.x"
-  local stamp="src/.pabi_w321_bootstrap_glue.stamp"
+  local stamp="src/.pabi_w376_bootstrap_glue.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  # PLATFORM: LINUX|UBUNTU — hard-skip; stay prior -E overlay.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) ;;
+    *)
+      touch "$stamp"
+      rm -f src/.pabi_w321_bootstrap_glue.stamp
+      return 0
+      ;;
+  esac
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
   fi
@@ -6200,9 +6214,10 @@ pipeline_abi_inject_bootstrap_glue_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: MACOS|DARWIN — BAN PREFER; stay -E+$CC.
   export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w321-bootstrap-glue"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w376-bootstrap-glue"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6219,6 +6234,7 @@ pipeline_abi_inject_bootstrap_glue_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w321_bootstrap_glue.stamp
   fi
   return "$rc"
 }
@@ -11534,7 +11550,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-bootstrap|inject_bootstrap|inject-bootstrap-glue|inject_bootstrap_glue)
-    # wave321: C→.x bootstrap_glue via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave376: BAN PREFER; MACOS -E / LINUX hard-skip.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-bootstrap: need <out.o>" >&2
