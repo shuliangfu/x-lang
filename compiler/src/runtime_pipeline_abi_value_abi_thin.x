@@ -1,9 +1,10 @@
-// Thin pure: wave330 M2 — value_abi Cap residual C→.x (was wave276 C thin).
+// Thin pure: wave330/378 M2 — value_abi Cap residual C→.x (was wave276 C thin).
 // By-value Type/Expr/Block/Func get/set_copy + Cap aliases + float IEEE helpers.
 // G.7: bodies match deleted C thin / seed WAVE276_ARENA_VALUE_ABI_ALWAYS.
 // PRODUCT inject: -E+$CC via pipeline_abi_inject_value_abi_thin
 // (ALLOW_E_REPLACE + stamp). Opaque byte blobs — host cc owns sret ABI
 // (SysV x86_64 vs AAPCS64); do NOT pure-asm this leaf.
+// wave378 BAN PREFER: sret ABI (SysV vs AAPCS64) — stay -E+$CC both ends.
 // PLATFORM: SHARED host-cc Cap leave / LINUX gold / MACOS co-path.
 
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;

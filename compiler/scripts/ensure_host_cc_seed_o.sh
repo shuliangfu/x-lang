@@ -4874,7 +4874,9 @@ pipeline_abi_inject_for_call_args_thin() {
 # Roots: (1) mega VAR modlet_find gate; (2) Darwin redefine poison of
 # block_body→rec; (3) Ubuntu PREFER pure-asm emit_index breaks option
 # (run=240) — host-C -E thin is green. Thin body ≡ mega post-gate.
-# PLATFORM: MACOS PREFER weaken∪asm_expr; LINUX -E index-only.
+# wave378 reconfirm: Ubuntu inject-pabi-leaf PREFER → L2 option=240 again;
+# stay LINUX -E (BAN Ubuntu PREFER). Darwin PREFER path unchanged.
+# PLATFORM: MACOS PREFER weaken∪asm_expr; LINUX -E index-only · BAN Ubuntu PREFER.
 pipeline_abi_inject_emit_index_thin() {
   local o="$1"
   local thin_idx="src/runtime_pipeline_abi_emit_index_thin.x"
@@ -4927,7 +4929,8 @@ pipeline_abi_inject_emit_index_thin() {
       rm -f "$tmp_idx" "$tmp_ae" "$tmp_cap" "$base_o" "$out_o"
       ;;
     *)
-      # PLATFORM: LINUX — -E+$CC thin only (PREFER pure-asm breaks option).
+      # PLATFORM: LINUX — -E+$CC thin only (w351/w378 BAN Ubuntu PREFER;
+      # pure-asm option=240). Do not call inject-pabi-leaf PREFER here.
       export XLANG_PABI_THIN_PREFER_ASM=0
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       export XLANG_PABI_THIN_FORCE_INJECT=1
@@ -5578,6 +5581,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave375 BAN: parser_result PREFER (LexerResult.next_lex size under pure-asm).
 # wave349: block_tree T001 unsafe wrap.
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
+# wave378: emit_index Ubuntu PREFER reconfirm BAN (option=240); value_abi BAN PREFER
+#   formal (sret ABI · stamp w378 · -E both ends).
 # wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
 # wave353: asm_label_format PREFER (digit-loop); historic w294 SEGV ban lifted.
 # wave354: import_heap PREFER (T001 unsafe slot get/set).
@@ -5598,6 +5603,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave370/370b: macho_write T001 w314_* + BAN PREFER (ARM64_RELOC_BRANCH26).
 # wave371/371b: mega_body Darwin PREFER / Ubuntu hard-skip (XT001 store_ptr).
 # wave372/372b: type_pool Darwin PREFER / Ubuntu -E (option T001 reconfirmed).
+# wave378: value_abi BAN PREFER (sret) + emit_index Ubuntu PREFER BAN reconfirm.
 # Next: BAN residual roots／mega_body Ubuntu fn#116／Type LE option root.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5866,14 +5872,15 @@ pipeline_abi_inject_sidecar_pool_thin() {
 
 
 
-# wave330 M2: value_abi Cap residual C→.x (was wave276 C thin).
+# wave330/378 M2: value_abi Cap residual C→.x (was wave276 C thin).
 # PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Opaque byte blobs;
 # host cc owns large-struct sret (SysV vs AAPCS64). Do NOT PREFER_ASM.
-# G.7 WAVE276_ARENA_VALUE_ABI_ALWAYS. PLATFORM: SHARED.
+# wave378 BAN PREFER formal (sret ABI) — stamp w378; stay -E both ends.
+# G.7 WAVE276_ARENA_VALUE_ABI_ALWAYS. PLATFORM: SHARED · BAN PREFER.
 pipeline_abi_inject_value_abi_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_value_abi_thin.x"
-  local stamp="src/.pabi_w330_value_abi.stamp"
+  local stamp="src/.pabi_w378_value_abi.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5895,7 +5902,7 @@ pipeline_abi_inject_value_abi_thin() {
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w330-value-abi"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w378-value-abi"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5912,6 +5919,7 @@ pipeline_abi_inject_value_abi_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w330_value_abi.stamp
   fi
   return "$rc"
 }
