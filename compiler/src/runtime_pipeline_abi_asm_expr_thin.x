@@ -4,8 +4,9 @@
 // wave350: also own emit_expr_elf_c so inject redefine-sym cannot leave
 // mega emit_expr_elf_c bound to *_pabi_superseded rec (bare INDEX CG002).
 // ensure injects first-wins over weak pure (skip full mega -E).
-// wave409: PREFER both ends (Darwin -c 6850B / Ubuntu -c 8670B;
-//   Darwin product inject + relink L2 5/5 verified).
+// wave409: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c green 8670B, but product inject → L2 option=255.
+//   Darwin product inject + relink L2 5/5 verified.
 // PLATFORM: SHARED freestanding emit · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;

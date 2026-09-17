@@ -4929,12 +4929,13 @@ pipeline_abi_inject_fnptr_as_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
 }
 
-# wave409 M2: asm_expr Cap residual — PREFER both ends.
+# wave409 M2: asm_expr Cap residual — asymmetric unlock.
 # PRODUCT inject wave409:
-#   BOTH: PREFER_ASM (Darwin -c 6850B / Ubuntu -c 8670B green).
-#   Darwin product inject + direct relink L2 5/5 verified before unlock.
+#   MACOS: PREFER_ASM (full-file -c 6850B green; product inject + relink L2 5/5).
+#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c green 8670B, but
+#     product inject → L2 option run=255 (expect 102). Keep leftover on LINUX.
 # G.7: thin body matches mega emit_expr_elf_rec asm branch.
-# PLATFORM: SHARED · both ends PREFER.
+# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
 pipeline_abi_inject_asm_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_expr_thin.x"
@@ -4945,6 +4946,13 @@ pipeline_abi_inject_asm_expr_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: LINUX — hard BAN tip reinject (option=255); stamp only.
+  case "$(uname -s)" in
+    Linux)
+      touch "$stamp"
+      return 0
+      ;;
+  esac
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
@@ -4958,7 +4966,7 @@ pipeline_abi_inject_asm_expr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (standalone -c + product inject gate green).
+  # PLATFORM: MACOS — PREFER_ASM (product inject + relink L2 verified).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w409-asm-expr"
@@ -5974,7 +5982,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
 # wave407: binop_block_peel MACOS PREFER／LINUX BAN (Ubuntu T001/XT001).
 # wave408: fixed_array_copy MACOS PREFER／LINUX BAN (Ubuntu XT001).
-# wave409: asm_expr PREFER both ends; wave409b al_nc_seq HARD BAN (BRANCH26).
+# wave409: asm_expr MACOS PREFER／LINUX BAN (Ubuntu option=255); wave409b al_nc HARD BAN.
 # Next: asm73_*／reent／mega BAN／split债；禁升钉。
 
 
@@ -11567,7 +11575,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-asm-expr|inject_asm_expr)
-    # wave409: PREFER both ends.
+    # wave409: MACOS PREFER / LINUX hard-skip BAN.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-asm-expr: need <out.o>" >&2
