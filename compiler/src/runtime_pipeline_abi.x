@@ -50,6 +50,8 @@
 //   in ensure_host_cc_seed_o.sh above type_pool inject).
 //   wave338: modlet scalar COMMON accepts NEG-over-LIT + null TYPE_PTR (prepare
 //   + hoist agree) — Cap library TU durable homes for typeck_active / sret -1.
+//   wave344: non-zero scalar imm → .data bake (library TUs have no
+//   seed_nonzero hoist; COMMON left ordinals at 0 → check_expr XT001).
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
@@ -33678,6 +33680,29 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
               }
             }
           }
+          // wave344: non-zero scalar imm (ordinals / home_off=-1) → .data.
+          // Library Cap thins never run seed_nonzero hoist; COMMON stays 0
+          // and poisons kind tables (check_expr XT001). Zero imm stays COMMON.
+          // PLATFORM: SHARED library-TU .data knife · LINUX gold · MACOS.
+          if (use_data == 0 && pipe_modlet_cell_is_array(csz_raw) == 0) {
+            let imm_d: i32 = 0;
+            imm_d = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
+            if (imm_d != 0) {
+              unsafe {
+                data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
+              }
+              if (data_len_now < 0) {
+                data_len_now = 0;
+              }
+              pad = 0;
+              if (calign > 1) {
+                pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+              }
+              if (data_len_now + pad + csz2 <= 65536) {
+                use_data = 1;
+              }
+            }
+          }
         }
       }
     }
@@ -33727,10 +33752,26 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
         }
       } else {
-        unsafe {
-          rc = pipe_modlet_bake_ptr_addr_elem_to_data(
-            a, elf_ctx, m, init_ref2, 8, data_off);
-          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+        // Ptr-addr bake OR wave344 scalar non-zero imm poke.
+        // bake_ptr_addr returns 1 = not-an-address (must not trip -1).
+        // PLATFORM: SHARED library-TU .data.
+        let pa_b: i32 = 0;
+        let imm_b: i32 = 0;
+        if (init_ref2 > 0) {
+          pa_b = pipe_modlet_scalar_init_is_ptr_addr(a, m, init_ref2);
+        }
+        if (pa_b != 0) {
+          unsafe {
+            rc = pipe_modlet_bake_ptr_addr_elem_to_data(
+              a, elf_ctx, m, init_ref2, 8, data_off);
+            pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          }
+        } else {
+          imm_b = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
+          unsafe {
+            rc = pipe_modlet_bake_scalar_imm_to_data(elf_ctx, data_off, imm_b, csz2);
+            pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          }
         }
       }
       if (rc != 0) {
@@ -33752,6 +33793,66 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
   }
   return 0;
 
+}
+
+/**
+ * Bake a scalar module-let immediate into an already-reserved .data cell.
+ * wave344: library Cap TUs never run seed_nonzero; non-zero COMMON stays 0.
+ * Peels two's-complement LE bytes via u32 (same as ARRAY_LIT LIT peel).
+ * Sign-extends into bytes beyond 4 when csz>=8 (NEG -1 → 0xff..ff).
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param data_off i32 — absolute .data offset of the cell
+ * @param imm i32 — folded init (may be negative)
+ * @param csz i32 — cell payload bytes (1..8 typical; capped at 8)
+ * @return i32 — 0 ok; -1 poke fail / bad args
+ * PLATFORM: SHARED freestanding · ELF .data · Mach-O __DATA,__const.
+ */
+function pipe_modlet_bake_scalar_imm_to_data(
+  elf_ctx: *u8, data_off: i32, imm: i32, csz: i32
+): i32 {
+  let bi: i32 = 0;
+  let n: i32 = 0;
+  let rc: i32 = 0;
+  let uw: u32 = 0;
+  let hi: u32 = 0;
+  if (elf_ctx == (0 as *u8) || data_off < 0 || csz <= 0) {
+    return 0 - 1;
+  }
+  n = csz;
+  if (n > 8) {
+    n = 8;
+  }
+  // Same unsigned LE peel as ARRAY_LIT LIT elems (signed /256 corrupts).
+  uw = imm as u32;
+  bi = 0;
+  while (bi < n && bi < 4) {
+    unsafe {
+      rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (uw & 255) as i32);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    uw = uw / 256;
+    bi = bi + 1;
+  }
+  // Sign-extend into bytes 4..7 for 8-byte cells (NEG -1 → 0xff..ff).
+  if (bi < n) {
+    hi = 0;
+    if (imm < 0) {
+      hi = 4294967295 as u32;
+    }
+    while (bi < n) {
+      unsafe {
+        rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (hi & 255) as i32);
+      }
+      if (rc != 0) {
+        return 0 - 1;
+      }
+      hi = hi / 256;
+      bi = bi + 1;
+    }
+  }
+  return 0;
 }
 
 /**

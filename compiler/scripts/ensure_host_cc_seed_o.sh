@@ -5495,7 +5495,8 @@ pipeline_abi_inject_block_tree_thin() {
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK; w343 check_expr PREFER ban.
-# Next: block_tree Cap A/B or GrowVec-LE / ordinal dual-home root; Darwin mega when RAM ok.
+# wave344: non-zero scalar imm → .data bake (library TU dual-home root).
+# Next: check_expr PREFER re-trial / block_tree / GrowVec-LE; Darwin mega when RAM ok.
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).

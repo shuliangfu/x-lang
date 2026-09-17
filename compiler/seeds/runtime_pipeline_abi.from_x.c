@@ -16960,6 +16960,46 @@ static int32_t pipe_modlet_bake_string_lit_elem_to_data_cold(void *arena, uint8_
   return 0;
 }
 
+/* Bake a scalar module-let immediate into an already-reserved .data cell.
+ * wave344: library Cap TUs never run seed_nonzero; non-zero COMMON stays 0.
+ * Twin of runtime_pipeline_abi.x pipe_modlet_bake_scalar_imm_to_data.
+ * Peels two's-complement LE bytes via u32 (same as ARRAY_LIT LIT peel).
+ * Sign-extends into bytes beyond 4 when csz>=8 (NEG -1 → 0xff..ff).
+ * Returns 0 ok; -1 poke fail / bad args.
+ * PLATFORM: SHARED freestanding · ELF .data · Mach-O __DATA,__const. */
+static int32_t pipe_modlet_bake_scalar_imm_to_data_cold(uint8_t *elf_ctx, int32_t data_off,
+                                                         int32_t imm, int32_t csz) {
+  int32_t bi = 0;
+  int32_t n = 0;
+  uint32_t uw = 0;
+  uint32_t hi = 0;
+  if (!elf_ctx || data_off < 0 || csz <= 0)
+    return -1;
+  n = csz;
+  if (n > 8)
+    n = 8;
+  uw = (uint32_t)imm;
+  bi = 0;
+  while (bi < n && bi < 4) {
+    if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (int32_t)(uw & 255u)) != 0)
+      return -1;
+    uw = uw / 256u;
+    bi = bi + 1;
+  }
+  if (bi < n) {
+    hi = 0;
+    if (imm < 0)
+      hi = 0xffffffffu;
+    while (bi < n) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (int32_t)(hi & 255u)) != 0)
+        return -1;
+      hi = hi / 256u;
+      bi = bi + 1;
+    }
+  }
+  return 0;
+}
+
 /* Bake one address-valued ARRAY_LIT elem as an absolute64 reloc on an
  * already-reserved .data pointer slot (9.4.2). Twin of
  * runtime_pipeline_abi.x pipe_modlet_bake_ptr_addr_elem_to_data.
@@ -17579,6 +17619,21 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
           if (data_len_now + pad + csz <= 65536)
             use_data = 1;
         }
+        /* wave344: non-zero scalar imm (ordinals / home_off=-1) → .data.
+         * Library Cap thins never run seed_nonzero; COMMON stays 0 and
+         * poisons kind tables (check_expr XT001). Zero imm stays COMMON.
+         * PLATFORM: SHARED library-TU .data knife · LINUX gold · MACOS. */
+        if (!use_data && !pipeline_asm_modlet_cell_is_array_cold(csz_raw) &&
+            g_pipeline_asm_modlet_cold.init_imm[i] != 0) {
+          data_len_now = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+          if (data_len_now < 0)
+            data_len_now = 0;
+          pad = 0;
+          if (calign > 1)
+            pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+          if (data_len_now + pad + csz <= 65536)
+            use_data = 1;
+        }
       }
     }
     if (use_data) {
@@ -17607,10 +17662,25 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
           pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
           return -1;
         }
-      } else if (pipe_modlet_bake_ptr_addr_elem_to_data_cold(a, (uint8_t *)elf_ctx, m, init_ref2, 8,
-                                                              data_off) != 0) {
-        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
-        return -1;
+      } else {
+        /* Ptr-addr bake OR wave344 scalar non-zero imm poke.
+         * bake_ptr_addr returns 1 = not-an-address (must not trip -1).
+         * PLATFORM: SHARED library-TU .data. */
+        int32_t pa_b = 0;
+        int32_t imm_b = g_pipeline_asm_modlet_cold.init_imm[i];
+        if (init_ref2 > 0)
+          pa_b = pipe_modlet_scalar_init_is_ptr_addr_cold(a, m, init_ref2);
+        if (pa_b != 0) {
+          if (pipe_modlet_bake_ptr_addr_elem_to_data_cold(a, (uint8_t *)elf_ctx, m, init_ref2, 8,
+                                                          data_off) != 0) {
+            pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+            return -1;
+          }
+        } else if (pipe_modlet_bake_scalar_imm_to_data_cold((uint8_t *)elf_ctx, data_off, imm_b,
+                                                            csz) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        }
       }
       pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
       g_pipeline_asm_modlet_cold.cell_size[i] = csz_raw | XLANG_ASM_MODLET_CELL_DATA_BIT;
