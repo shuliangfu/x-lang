@@ -5585,11 +5585,11 @@ pipeline_abi_inject_block_tree_thin() {
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
-# wave301/357/357b/372/372b M2: type_pool Cap residual C→.x (was wave270 C thin).
-# PRODUCT inject wave372b:
-#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w301_*; L2 5/5@19870024).
-#   · LINUX|UBUNTU: stay -E+$CC — wave372 PREFER breaks option
-#     (T001 argument type mismatch; x86_64 Type LE face ≠ host-C). Reconfirmed.
+# wave301/357/357b/372/372b/373 M2: type_pool Cap residual C→.x (was wave270 C thin).
+# PRODUCT inject wave372b (wave373 root-doc; stamp unchanged):
+#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w301_*; L2 5/5).
+#   · LINUX|UBUNTU: stay -E+$CC — wave373 root: PREFER pure-asm breaks
+#     non-i32 fn params (u8/*u8 → return `?`) + ADDR_OF; option T001 symptom.
 # G.7 LE name_len@260. PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"

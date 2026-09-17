@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（双端 L4 真冷；升钉默认不做） |
 | BC（编译层零 host-cc） | ✅ | `pipeline_x` 已退役（wave309）——BC 面余量转 8.3.6 冷孪生三分 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 …＋**w372b** type_pool Darwin PREFER／Ubuntu `-E`（option T001）；**w371b** mega_body Darwin PREFER／Ubuntu hard-skip；**w370b BAN** macho_write PREFER；**w369b BAN** asm_wpo PREFER；**w368b elf_ctx** Darwin PREFER／Ubuntu `-E`；**w367b BAN** dep_ctx PREFER；**w366 sidecar_pool** PREFER 双端；**w365 expr_sidecar** PREFER 双端；**w364 block_domain** PREFER 双端；**w363b module_func** Darwin PREFER／Ubuntu `-E`；**w361/362 BAN** asm_locals／struct_layout；**w360b module_enum** Darwin PREFER／Ubuntu `-E`；**w359b BAN** top_level_let；**w358 type_alias** PREFER 双端；残 Type LE option 根／BAN 叶／mega Ubuntu fn#116 | 下一＝option T001 根因。PREFER 后强制 type_alias -c 闸。禁盲翻。|
+| `pipeline_abi` mega pure-asm | 🟡 …＋**w373** type_pool option T001 根因（Ubuntu PREFER 非 i32 形参＋ADDR_OF；仍 w372b）；**w372b** type_pool Darwin PREFER／Ubuntu `-E`；**w371b** mega_body Darwin PREFER／Ubuntu hard-skip；**w370b BAN** macho_write PREFER；**w369b BAN** asm_wpo PREFER；**w368b elf_ctx** Darwin PREFER／Ubuntu `-E`；**w367b BAN** dep_ctx PREFER；**w366 sidecar_pool** PREFER 双端；**w365 expr_sidecar** PREFER 双端；**w364 block_domain** PREFER 双端；**w363b module_func** Darwin PREFER／Ubuntu `-E`；**w361/362 BAN** asm_locals／struct_layout；**w360b module_enum** Darwin PREFER／Ubuntu `-E`；**w359b BAN** top_level_let；**w358 type_alias** PREFER 双端；残 BAN 叶／mega Ubuntu fn#116／Type LE asm | 下一＝BAN 叶／mega Ubuntu。PREFER 后强制 type_alias -c 闸。禁盲翻。|
 | nest 冻帽 | ✅ 纪律 | **64** |
 | check 闸门 | ⏸ 暂停 | 自举期须点名才 dogfood |
 
