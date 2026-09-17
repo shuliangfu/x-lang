@@ -90529,6 +90529,8 @@ export function grow_vec_copy_append(dst: *u8, src: *u8): void {
 
 // =============================================================================
 // wave272 pure-owned leave: PipelineDepCtx Cap residual (ast_pool_dep_ctx.c)
+// M2 Class E: .x thin leave = runtime_pipeline_abi_dep_ctx_thin.x
+// (wave309 C→.x via -E+$CC inject; was wave272 C thin).
 // + DepCtxSidecar process table (from ast_pool_sidecar_pool.c)
 // =============================================================================
 // PLATFORM: SHARED freestanding LP64 little-endian.
