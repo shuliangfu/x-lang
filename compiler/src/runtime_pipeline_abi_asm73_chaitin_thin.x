@@ -2,6 +2,8 @@
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave212 leave.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
 // stack_spill_enabled calls wave213 getters (leftover); wrap unsafe.
+// wave410: HARD BAN tip reinject both ends — standalone -c PREFER green
+//   but Darwin product inject ARM64_RELOC_BRANCH26.
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** wave213: cfg parent flag (0 = linear path). */

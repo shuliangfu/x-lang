@@ -2,6 +2,7 @@
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave214 leave.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
 // pipe_load/store + wave176/159 helpers are leftover; wrap unsafe.
+// wave410c: HARD BAN tip reinject both ends — asm73 BSS family with chaitin.
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** Host LE i32 load/store (product helpers; leftover T). */

@@ -2,6 +2,7 @@
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave213 leave.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
 // Calls wave212 final_expr_use_n_set + wave214 live/peak overlays (leftover).
+// wave410b: HARD BAN tip reinject both ends — Darwin product BRANCH26.
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** wave212: clear final_expr VAR-use count (cfg stack-spill gate). */

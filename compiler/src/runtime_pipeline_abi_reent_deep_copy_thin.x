@@ -2,6 +2,7 @@
 // G.7: body MUST match glue_slice_let_reent_deep_copy_after_dual_gp_elf_c in
 // runtime_pipeline_abi.x (same symbol). Regenerate this leaf when that function
 // changes. ensure injects via first-wins ld -r so product need not full mega -E.
+// wave410d: PREFER both ends (Darwin + Ubuntu product inject + L2 5/5).
 // PLATFORM: SHARED freestanding.
 
 export extern function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32;

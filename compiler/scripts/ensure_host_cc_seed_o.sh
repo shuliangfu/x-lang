@@ -4660,8 +4660,58 @@ pipeline_abi_inject_read_file_x_view_thin() {
   return "$rc"
 }
 
+# wave410d M2: reent_deep_copy Cap residual — PREFER both ends.
+# PRODUCT inject wave410d:
+#   BOTH: PREFER_ASM (Darwin product inject + relink L2 5/5; Ubuntu product
+#   inject + relink L2 5/5). Standalone Ubuntu -c may emit empty .o; product
+#   inject path still green.
+# G.7: thin body matches mega reent deep-copy leave.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_reent_deep_copy_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_reent_deep_copy_thin.x" "reent-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_reent_deep_copy_thin.x"
+  local stamp="src/.pabi_w410_reent_deep_copy.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM (product inject + L2 verified both ends).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w410-reent-deep-copy"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave408 M2: fixed_array_copy Cap residual — asymmetric unlock.
@@ -5437,22 +5487,55 @@ pipeline_abi_inject_binop_stack_spill_try_reload_thin() {
   return "$rc"
 }
 
-# wave212 Chaitin color/pin BSS. G.7: bodies match mega wave212.
-# PLATFORM: SHARED.
+# wave410 M2: asm73_chaitin Cap residual — HARD BAN tip reinject.
+# PRODUCT inject wave410:
+#   BOTH ends: HARD BAN tip reinject (stamp only).
+#   Probe: standalone -c PREFER green Darwin 4125B / Ubuntu 4737B, but
+#   Darwin product inject → ARM64_RELOC_BRANCH26 on ld -r thin member.
+# G.7: thin body matches mega wave212 leave (cold twin only).
+# PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_asm73_chaitin_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm73_chaitin_thin.x" "w212-chaitin-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_asm73_chaitin_thin.x"
+  local stamp="src/.pabi_w410_asm73_chaitin.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — HARD BAN tip reinject (Darwin BRANCH26).
+  touch "$stamp"
+  return 0
 }
 
-# wave213 live control + interf BSS + linear_ctx. G.7: match mega wave213.
-# PLATFORM: SHARED.
+# wave410b M2: asm73_live_interf Cap residual — HARD BAN tip reinject.
+# PRODUCT inject wave410b:
+#   BOTH ends: HARD BAN tip reinject (stamp only).
+#   Probe: standalone -c PREFER green both ends, Darwin product inject →
+#   ARM64_RELOC_BRANCH26 (same class as chaitin/al_nc/w157).
+# G.7: thin body matches mega wave213 leave (cold twin only).
+# PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_asm73_live_interf_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm73_live_interf_thin.x" "w213-live-interf"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_asm73_live_interf_thin.x"
+  local stamp="src/.pabi_w410_asm73_live_interf.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — HARD BAN tip reinject (Darwin BRANCH26).
+  touch "$stamp"
+  return 0
 }
 
-# wave214 live set arrays + u8 overlays. G.7: match mega wave214.
-# PLATFORM: SHARED.
+# wave410c M2: asm73_live_set Cap residual — HARD BAN tip reinject.
+# PRODUCT inject wave410c:
+#   BOTH ends: HARD BAN tip reinject (stamp only).
+#   Same BSS/COMMON tip-reinject class as chaitin/live_interf (-c green;
+#   product inject deferred BAN without separate BRANCH26 repro — family).
+# G.7: thin body matches mega wave214 leave (cold twin only).
+# PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_asm73_live_set_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm73_live_set_thin.x" "w214-live-set"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_asm73_live_set_thin.x"
+  local stamp="src/.pabi_w410_asm73_live_set.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — HARD BAN tip reinject (asm73 BSS family).
+  touch "$stamp"
+  return 0
 }
 
 # wave216/348/375 for_call_args mega leave. G.7: match mega entry.
@@ -5982,8 +6065,9 @@ pipeline_abi_inject_block_tree_thin() {
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
 # wave407: binop_block_peel MACOS PREFER／LINUX BAN (Ubuntu T001/XT001).
 # wave408: fixed_array_copy MACOS PREFER／LINUX BAN (Ubuntu XT001).
-# wave409: asm_expr MACOS PREFER／LINUX BAN (Ubuntu option=255); wave409b al_nc HARD BAN.
-# Next: asm73_*／reent／mega BAN／split债；禁升钉。
+# wave409: asm_expr MACOS PREFER／LINUX BAN; wave409b al_nc HARD BAN.
+# wave410: asm73_* HARD BAN (BRANCH26); wave410d reent PREFER both ends.
+# Next: mega BAN／split债／余 Cap；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11596,6 +11680,31 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_al_nc_seq_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-reent-deep-copy|inject_reent_deep_copy)
+    # wave410d: PREFER both ends.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-reent-deep-copy: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_reent_deep_copy_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-asm73-chaitin|inject_asm73_chaitin)
+    # wave410: HARD BAN tip reinject both ends.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-asm73-chaitin: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_asm73_chaitin_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
