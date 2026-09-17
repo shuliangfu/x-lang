@@ -8,6 +8,9 @@
 // pipeline_asm_fill_param_slots (param 0 starts at 16).
 // ensure injects via first-wins ld -r so product need not full mega -E
 // (Darwin mega -E peaks 22-40GB RSS).
+// wave402: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c/-E CG002 (elf_ec=-1; patch .Lf0_5); helpers-only also
+//   CG002 — LINUX asm_codegen_elf_o reloc/patch root. Split/fix deferred.
 // PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
 
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
