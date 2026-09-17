@@ -4,7 +4,7 @@
 // G.7: bodies match runtime_pipeline_abi.x wave270 leave (correct LE offsets;
 // historic C thin used wrong 132/136/140/144/272 — replaced here).
 // wave357: w301_load/store_i32 unsafe wrappers (T001); PRODUCT inject
-// PREFER_ASM both ends after typeck green. Stamp w357.
+// MACOS PREFER / LINUX -E (Ubuntu option T001 on x86_64 pure-asm). Stamp w357.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
