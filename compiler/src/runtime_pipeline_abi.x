@@ -6,14 +6,15 @@
 //   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r -> src/runtime_pipeline_abi.o
 // wave291 elf_codegen_forwarders seed ALWAYS leave (platform.elf/codegen rename shims + sizeof_elf_ctx).
 // wave289 codegen_outbuf seed ALWAYS leave (float_lit + try_propagate; slice_init stays codegen_x).
-// wave287 parser_result seed ALWAYS leave; wave286 typeck_check_expr seed ALWAYS leave;
+// wave287 parser_result seed ALWAYS leave; wave286/319 typeck_check_expr Cap residual
+// .x thin (runtime_pipeline_abi_typeck_check_expr_thin.x via -E+$CC; was C thin);
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
 // wave284 parse_orch seed ALWAYS leave;
 // wave283 ast_forwarders seed ALWAYS leave.
 //   Live=seed ALWAYS WAVE287: parser slice/lex/result-copy Cap residual faces
 //   (parser_slice_from_buf / parser_lex_from_* / pipeline_parser_*_set_*).
-//   Live=seed ALWAYS WAVE286: check_expr dispatch + match BSS + thin faces; typeck owns
-//   typeck_check_expr_* helpers; cold WEAK check_expr_impl{,_mega}.
+//   Live=wave319 .x thin WAVE286: check_expr dispatch + match BSS + thin faces;
+//   typeck owns typeck_check_expr_* helpers; cold WEAK check_expr_impl{,_mega}.
 //   Live=wave318 .x thin WAVE285: typeck_x_ast*_c + layout glue size/align/zero_padding
 //   (runtime_pipeline_abi_typeck_orch_thin.x via -E+$CC); pure owns soft_suppress/dep_ctx/
 //   dep_prerun strong; cold WEAK under #ifndef FROM_X.
