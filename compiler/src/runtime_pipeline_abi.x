@@ -82839,7 +82839,7 @@ export function glue_pipeline_asm_al_nc_seq_take_c(): i32 {
 // ===========================================================================
 // wave220: if/ternary arm emit depth BSS pure leave
 // M2 Class E: .x thin leave = runtime_pipeline_abi_emit_ctx_bss_thin.x
-// (wave317 C→.x via -E+$CC inject; was wave220–221 C thin).
+// (wave342 LINUX PREFER_ASM / DARWIN -E+$CC; was wave317 -E-only; was wave220–221 C).
 // (was Cap residual pipeline_glue_emit_fwd.c static + get/set wave153 public)
 // G.7 product authority for freestanding if/ternary arm nest depth:
 //   glue_if_expr_arm_emit_depth_get  (read process-local depth)
@@ -82894,7 +82894,7 @@ export function glue_if_expr_arm_emit_depth_set(v: i32): void {
 // ===========================================================================
 // wave221: emit_ctx accessor-only BSS + host_is_arm64 pure leave
 // M2 Class E: .x thin leave = runtime_pipeline_abi_emit_ctx_bss_thin.x
-// (wave317 C→.x via -E+$CC inject; was wave220–221 C thin).
+// (wave342 LINUX PREFER_ASM / DARWIN -E+$CC; was wave317 -E-only; was wave220–221 C).
 // (was Cap residual pipeline_glue_statics.c static + get/set wave141 public)
 // G.7 product authority for freestanding emit-context cells that residual C
 // never writes directly (only via get/set faces):

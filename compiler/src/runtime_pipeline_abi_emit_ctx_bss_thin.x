@@ -1,11 +1,11 @@
-// Thin pure: wave317 M2 — emit_ctx_bss Cap residual C→.x (was wave220–221 C thin).
+// Thin pure: wave317/342 M2 — emit_ctx_bss Cap residual (was wave220–221 C thin).
 // Arm-depth + emit_ctx scalar/pointer BSS + host_is_arm64; 15 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave220/221 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_emit_ctx_bss_thin
-// (ALLOW_E_REPLACE + stamp). Named scalar BSS OK under -E+$CC (file-local
-// static cells; strong get/set faces first-wins). Pure-asm still banned
-// (Lxml COMMON dual-home vs mega named .data — f32 SEGV).
-// PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
+// PRODUCT inject (pipeline_abi_inject_emit_ctx_bss_thin, stamp w342):
+//   LINUX|UBUNTU: PREFER_ASM (w338 NEG/null → full Lxml_* COMMON; gold=8).
+//   MACOS|DARWIN: -E+$CC until mega prefer rebuild carries w338 (memory ban;
+//   Darwin pure-asm probe: 5 COMMON vs gold 8 — missing -1 + null ptrs).
+// PLATFORM: SHARED freestanding Cap leave · LINUX PREFER · MACOS -E co-path.
 
 // wave220: nest depth while emitting if/ternary branch arms (0 = not in arm).
 let g_if_expr_arm_emit_depth: i32 = 0;

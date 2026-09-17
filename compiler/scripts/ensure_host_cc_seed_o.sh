@@ -4847,19 +4847,22 @@ pipeline_abi_inject_al_nc_seq_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_al_nc_seq_thin.x" "w219-al-nc-seq"
 }
 
-# wave317 M2: emit_ctx_bss Cap residual C→.x (was wave220–221 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Named scalar BSS OK
-# under -E (file-local static + strong get/set). Pure-asm still banned.
-# G.7 match mega wave220/221 leave. PLATFORM: SHARED.
+# wave317/342 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
+# PRODUCT inject wave342:
+#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 NEG/null → full Lxml_* COMMON set).
+#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild (probe:
+#     pure-asm thin 5 COMMON vs gold 8 — missing -1 func_index + null ptrs).
+# G.7 match mega wave220/221 leave. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
 pipeline_abi_inject_emit_ctx_bss_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_bss_thin.x"
-  local stamp="src/.pabi_w317_emit_ctx_bss.stamp"
+  local stamp="src/.pabi_w342_emit_ctx_bss.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -4873,10 +4876,15 @@ pipeline_abi_inject_emit_ctx_bss_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
+  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Linux) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w317-emit-ctx-bss"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w342-emit-ctx-bss"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5467,16 +5475,15 @@ pipeline_abi_inject_block_tree_thin() {
   return "$rc"
 }
 
-# wave337–341 M2 Cap leaf PREFER_ASM inventory:
+# wave337–342 M2 Cap leaf PREFER_ASM inventory:
 #   DONE PREFER (SHARED): w331 typeck_orch / w332 glue_statics /
 #     w333 preprocess_malloc / w334 lifecycle / w336 ast_forwarders.
 #   DONE PREFER (LINUX gold only, Darwin -E):
-#     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret
-#     (null-ptr / NEG-over-LIT Cap A; needs w338 in product xlang_asm).
+#     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
+#     w342 emit_ctx_bss (Cap A named-BSS set unlocked by w338).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A remaining named-BSS: emit_ctx_bss / typeck_check_expr /
-#       bootstrap_glue scope / block_tree i32[256] (bss partial COMMON on
-#       Darwin still incomplete vs gold).
+#     A remaining named-BSS: typeck_check_expr / bootstrap_glue scope /
+#       block_tree i32[256] (still need probe+gate; Darwin mega wait).
 #     B local fixed arrays / digit-loop / FileView layout
 #       (parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
 #        read_file_x_view / import_heap).
@@ -5485,8 +5492,8 @@ pipeline_abi_inject_block_tree_thin() {
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
-# wave339–341: Cap A flips (LINUX PREFER / DARWIN -E).
-# Next: emit_ctx_bss (same gate) or GrowVec-LE; Darwin mega when RAM ok.
+# wave339–342: Cap A emit_ctx family + typeck_active (LINUX PREFER / DARWIN -E).
+# Next: typeck_check_expr / bootstrap_glue Cap A or GrowVec-LE; Darwin mega when RAM ok.
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
@@ -11249,7 +11256,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-emit-ctx-bss-leaf|inject_emit_ctx_bss_leaf)
-    # wave317: C→.x emit_ctx_bss via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave342: emit_ctx_bss Cap A — LINUX PREFER_ASM / DARWIN -E+$CC.
     # Single leaf only (bulk inject-emit-ctx-bss still runs the Cap residual set).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
