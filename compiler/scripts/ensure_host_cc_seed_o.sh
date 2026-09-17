@@ -5315,7 +5315,11 @@ pipeline_abi_inject_block_tree_thin() {
 #   store_ptr intact; helpers-only (≤61 funcs) green; full 62-fn file red.
 #   Darwin -c full file green. Root = LINUX typeck/arena pressure on
 #   helpers+LOOP combined — next = split LOOP leaf (hand), then unlock try.
-# Next: split mega LOOP leaf／Type LE unlock try／余 BAN 叶根.
+# wave393/393b/393c/393d: mega LOOP split leaf landed (helpers vs loop);
+#   Darwin -c emits mega T; Ubuntu parse OK after emit_one split but tip
+#   -c still CG002 (asm) / if() (C) — inject stays HARD BAN. Next unlock
+#   after Ubuntu -c emits mega T symbol.
+# Next: Ubuntu LOOP -c CG002 root／unlock try／余 BAN 叶根.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6149,7 +6153,9 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 #   w389: formalize HARD BAN reinject (do not call inject_thin_leaf).
 #   w392 ROOT MAP: Ubuntu XT001@w328_store_ptr is misattribution — bisect
 #   shows LINUX typeck/arena pressure when helpers+LOOP combined (62 funcs);
-#   drop LOOP → -c green; Darwin full -c green. Next = split LOOP leaf.
+#   drop LOOP → -c green; Darwin full -c green.
+#   w393d: LOOP leaf split (mega_loop_thin + w393_mega_emit_one); Darwin -c
+#   emits mega T; Ubuntu parse 62 OK but tip -c CG002 — BAN reinject stays.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
 # PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
