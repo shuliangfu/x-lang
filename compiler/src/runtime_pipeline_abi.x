@@ -83168,7 +83168,7 @@ export function pipeline_asm_emit_ctx_dep_pipe_set(ctx: *u8): void {
 // ===========================================================================
 // wave223: emit_ctx sret_active / sret_home_off / sret_ret_sz BSS pure leave
 // M2 Class E: .x thin leave = runtime_pipeline_abi_emit_ctx_sret_thin.x
-// (wave316 C→.x via -E+$CC inject; was wave223 C thin).
+// (wave341 LINUX PREFER_ASM / DARWIN -E+$CC; was wave316 -E-only; was wave223 C).
 // (was Cap residual pipeline_glue_statics.c static + get wave141 public)
 // G.7 product authority for freestanding large-struct return home cells:
 //   pipeline_asm_emit_ctx_sret_active_{get,set}
