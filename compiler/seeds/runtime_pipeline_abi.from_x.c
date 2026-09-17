@@ -17130,6 +17130,47 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
   return 0;
 }
 
+/* wave338 cold twin of pipe_modlet_scalar_init_common_imm.
+ * LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON imm. PLATFORM: SHARED. */
+static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init_ref,
+                                                        int32_t tk, int32_t is_const,
+                                                        int32_t *out_imm) {
+  int32_t ik = 0, fold = 0, op = 0, oek = 0, v = 0;
+  if (is_const != 0 || !arena || init_ref <= 0 || !out_imm)
+    return 0;
+  ik = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ik == 2) {
+    *out_imm = pipeline_expr_int_val_at(arena, init_ref);
+    return 1;
+  }
+  if (pipe_modlet_array_lit_elem_const_val_cold(arena, init_ref, &fold)) {
+    *out_imm = fold;
+    return 1;
+  }
+  if (tk == 9) {
+    if (ik == 0) {
+      v = pipeline_expr_int_val_at(arena, init_ref);
+      if (v == 0) {
+        *out_imm = 0;
+        return 1;
+      }
+    } else if (ik == 54) {
+      op = pipeline_expr_as_operand_ref_at(arena, init_ref);
+      if (op > 0) {
+        oek = pipeline_expr_kind_ord_at(arena, op);
+        if (oek == 0) {
+          v = pipeline_expr_int_val_at(arena, op);
+          if (v == 0) {
+            *out_imm = 0;
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 /* Store ARRAY_LIT elems into the COMMON cell already LEA'd in rbx
  * (hoist-target seed). LIT elems mov-imm64 + store; STRING_LIT elems
  * emit the string bytes inline in .text, LEA them into rax/x0 and store
@@ -17420,10 +17461,9 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
     tk = (type_ref > 0) ? pipeline_type_kind_ord_at(a, type_ref) : 0;
     cell_sz = 8;
     imm = 0;
-    if (init_kind == 0 || init_kind == 2) {
-      if (is_const != 0)
-        continue;
-      imm = pipeline_expr_int_val_at(a, init_ref);
+    /* wave338: LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON.
+     * Twin of pipe_modlet_scalar_init_common_imm. PLATFORM: SHARED. */
+    if (pipe_modlet_scalar_init_common_imm_cold(a, init_ref, tk, is_const, &imm) != 0) {
       cell_sz = 8;
     } else if (tk == 10 && init_kind == 46) {
       /* TYPE_ARRAY + ARRAY_LIT (mutable *and* const scalar/`[K][N]T`).
@@ -47627,17 +47667,15 @@ void pipeline_module_hoist_top_level_lets_into_main(void *module, void *arena) {
         if (pipeline_module_top_level_let_is_const(module, tl) == 0)
           continue;
       }
-      /* 9.6.0: mutable scalar LIT/BOOL init is modlet COMMON-owned (prepare
-       * registers init_kind 0/2 with is_const==0). Hoisting stacked a stale
-       * main frame slot beside the COMMON home and slot-first consumers
-       * (compare fast path) read the slot while RMW reads COMMON. ik is only
-       * sampled when init_ref is in range, so re-check validity: an
-       * un-initialized let has no COMMON cell and must still hoist. Const
-       * scalars keep hoisting (prepare skips those). Twin of the
+      /* 9.6.0 / wave338: mutable scalar COMMON-owned inits stay un-hoisted
+       * (prepare registers LIT/BOOL/NEG-over-LIT/null-ptr). Twin of
        * runtime_pipeline_abi.x hoist guard. PLATFORM: SHARED. */
-      if ((ik == 0 || ik == 2) && init_ref > 0 && init_ref <= nexprs &&
-          pipeline_module_top_level_let_is_const(module, tl) == 0)
-        continue;
+      if (init_ref > 0 && init_ref <= nexprs) {
+        int32_t imm_skip = 0;
+        int32_t is_c_sc = pipeline_module_top_level_let_is_const(module, tl);
+        if (pipe_modlet_scalar_init_common_imm_cold(arena, init_ref, tk, is_c_sc, &imm_skip) != 0)
+          continue;
+      }
       /* Scalar ADDR_OF / fn-ptr: same predicate as prepare register.
        * PLATFORM: SHARED — 9.6.0 dual-home class. */
       if ((tk == 9 || tk == 18) && init_ref > 0 && init_ref <= nexprs &&

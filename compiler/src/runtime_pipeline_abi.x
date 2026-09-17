@@ -47,6 +47,8 @@
 //   wave337: Cap leaf PREFER_ASM safe set exhausted — remaining -E leaves banned
 //   until named-BSS/COMMON CG002 or GrowVec-LE store path rooted (A/B/C catalog
 //   in ensure_host_cc_seed_o.sh above type_pool inject).
+//   wave338: modlet scalar COMMON accepts NEG-over-LIT + null TYPE_PTR (prepare
+//   + hoist agree) — Cap library TU durable homes for typeck_active / sret -1.
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
@@ -33363,7 +33365,8 @@ function pipe_modlet_assign_unique_label(idx: i32, module_fp: i64): void {
 /**
  * Build the modlet table and emit homes for module lets.
  * Accepts:
- *   (1) mutable scalar LIT/BOOL init (kind 0/2) → 8-byte COMMON (historic wave139)
+ *   (1) mutable scalar COMMON init → 8-byte COMMON (historic wave139 LIT/BOOL;
+ *       wave338 adds EXPR_NEG-over-LIT + null TYPE_PTR AS/LIT 0)
  *   (2) fixed TYPE_ARRAY (kind 10) with ARRAY_LIT init (kind 46), e.g. `u8[N]=[]`
  *       and `const A:[2]i32=[10,32]`:
  *       · empty lit `[]` → SHN_COMMON / Mach-O __common (BSS zero; correct)
@@ -33438,7 +33441,10 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     unsafe {
       init_kind = pipeline_expr_kind_ord_at(a, init_ref);
     }
-    // Classify: scalar lit (0/2) vs fixed array empty/filled ARRAY_LIT (46).
+    // Classify: scalar COMMON (LIT/BOOL/NEG-over-LIT/null-ptr) vs fixed
+    // array ARRAY_LIT (46) vs scalar ADDR_OF / fn-ptr bake.
+    // wave338: NEG-over-LIT + null TYPE_PTR join the COMMON arm (was
+    // only ek 0/2) so Cap library TUs get durable homes. PLATFORM: SHARED.
     let cell_sz: i32 = 8;
     let imm: i32 = 0;
     let type_ref: i32 = 0;
@@ -33451,15 +33457,10 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
         tk = pipeline_type_kind_ord_at(a, type_ref);
       }
     }
-    if (init_kind == 0 || init_kind == 2) {
-      // Const scalars stay skipped (hoist / text). Mutable LIT/BOOL → COMMON.
-      if (is_const != 0) {
-        tl = tl + 1;
-        continue;
-      }
-      unsafe {
-        imm = pipeline_expr_int_val_at(a, init_ref);
-      }
+    let imm_buf: i32[1] = [];
+    imm_buf[0] = 0;
+    if (pipe_modlet_scalar_init_common_imm(a, init_ref, tk, is_const, &imm_buf[0]) == 1) {
+      imm = imm_buf[0];
       cell_sz = 8;
     } else {
       // TYPE_ARRAY (10) + ARRAY_LIT (46): durable BSS for mutable *and*
@@ -34373,6 +34374,90 @@ function pipe_modlet_array_lit_elem_const_val(
       out_val[0] = 0 - v;
     }
     return 1;
+  }
+  return 0;
+}
+
+/**
+ * wave338: True when a mutable scalar module-let init is prepare-COMMON-owned.
+ * Completes the historic LIT/BOOL gate (ek 0/2) with:
+ *   · EXPR_NEG-over-LIT (ek 22) — parser normal form for `let g: i32 = -1`
+ *   · Null TYPE_PTR (tk 9): bare LIT 0 or AS(LIT 0) — `let p: *u8 = 0 as *u8`
+ * Library TUs / Cap thins have no hoist-target main; without COMMON the
+ * pure-asm backend constant-folds loads and drops stores (typeck_active /
+ * emit_ctx_sret home_off=-1 class). Hoist skip MUST agree (9.6.0 dual-home).
+ * @param arena *u8 — ASTArena
+ * @param init_ref i32 — top-level let init expr
+ * @param tk i32 — type kind ord (9 = TYPE_PTR)
+ * @param is_const i32 — 1 = const let (prepare skips; hoist keeps)
+ * @param out_imm *i32 — folded two's-complement init (0 for null ptr)
+ * @return i32 — 1 register 8-byte COMMON; 0 keep other arms / hoist
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_scalar_init_common_imm(
+  arena: *u8, init_ref: i32, tk: i32, is_const: i32, out_imm: *i32
+): i32 {
+  let ik: i32 = 0;
+  let fold_buf: i32[1] = [];
+  let op: i32 = 0;
+  let oek: i32 = 0;
+  let v: i32 = 0;
+  if (is_const != 0 || arena == (0 as *u8) || init_ref <= 0 || out_imm == (0 as *i32)) {
+    return 0;
+  }
+  fold_buf[0] = 0;
+  unsafe {
+    ik = pipeline_expr_kind_ord_at(arena, init_ref);
+  }
+  if (ik == 2) {
+    unsafe {
+      v = pipeline_expr_int_val_at(arena, init_ref);
+    }
+    unsafe {
+      out_imm[0] = v;
+    }
+    return 1;
+  }
+  if (pipe_modlet_array_lit_elem_const_val(arena, init_ref, &fold_buf[0]) == 1) {
+    unsafe {
+      out_imm[0] = fold_buf[0];
+    }
+    return 1;
+  }
+  if (tk == 9) {
+    if (ik == 0) {
+      unsafe {
+        v = pipeline_expr_int_val_at(arena, init_ref);
+      }
+      if (v == 0) {
+        unsafe {
+          out_imm[0] = 0;
+        }
+        return 1;
+      }
+    } else {
+      if (ik == 54) {
+        unsafe {
+          op = pipeline_expr_as_operand_ref_at(arena, init_ref);
+        }
+        if (op > 0) {
+          unsafe {
+            oek = pipeline_expr_kind_ord_at(arena, op);
+          }
+          if (oek == 0) {
+            unsafe {
+              v = pipeline_expr_int_val_at(arena, op);
+            }
+            if (v == 0) {
+              unsafe {
+                out_imm[0] = 0;
+              }
+              return 1;
+            }
+          }
+        }
+      }
+    }
   }
   return 0;
 }
@@ -85700,20 +85785,20 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
                 skip_common_arr = 1;
               }
             } else {
-              // 9.6.0: mutable scalar LIT/BOOL init is modlet COMMON-owned
-              // (prepare registers init_kind 0/2 with is_const==0). Hoisting
-              // stacked a stale main frame slot beside the COMMON home and
-              // slot-first consumers read the slot (p12 miscompile). ik_h is
-              // only meaningful when init_ref was in range, so re-check it:
-              // an un-initialized let has no COMMON cell and must still
-              // hoist. Const scalars keep hoisting (prepare skips those).
+              // 9.6.0 / wave338: mutable scalar COMMON-owned inits stay
+              // un-hoisted (prepare registers LIT/BOOL/NEG-over-LIT/null-ptr).
+              // Hoisting stacked a stale main frame slot beside the COMMON
+              // home and slot-first consumers read the slot (p12 miscompile).
+              // init_ref must be in range (un-initialized lets still hoist).
               // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-              if ((ik_h == 0 || ik_h == 2) && init_ref > 0 && init_ref <= nexprs) {
+              if (init_ref > 0 && init_ref <= nexprs) {
                 let is_c_sc: i32 = 0;
+                let imm_skip: i32[1] = [];
+                imm_skip[0] = 0;
                 unsafe {
                   is_c_sc = pipeline_module_top_level_let_is_const(module, tl);
                 }
-                if (is_c_sc == 0) {
+                if (pipe_modlet_scalar_init_common_imm(arena, init_ref, tk_h, is_c_sc, &imm_skip[0]) == 1) {
                   skip_common_arr = 1;
                 }
               }
