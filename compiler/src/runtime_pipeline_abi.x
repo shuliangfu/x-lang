@@ -11,7 +11,9 @@
 // wave285/318 typeck_orch Cap residual .x thin (shims+layout glue; was C layout);
 // wave279/320 lifecycle Cap residual .x thin (block_on_alloc／module|arena／drop_bodies／
 //   onefunc reset|release; runtime_pipeline_abi_lifecycle_thin.x via -E+$CC; was C thin);
-// wave284 parse_orch seed ALWAYS leave;
+// wave284/323 parse_orch Cap residual .x thin (parse/load/typeck orch +
+//   Cap-struct ParseIntoResult + diagnostics + sizeof + expr helpers;
+//   runtime_pipeline_abi_parse_orch_thin.x via -E+$CC; was C thin);
 // wave283/322 ast_forwarders Cap residual .x thin (ast_pipeline_* rename shims +
 //   pipeline_copy_lib_root_to_buf256; runtime_pipeline_abi_ast_forwarders_thin.x
 //   via -E+$CC; was C thin).
@@ -22,6 +24,7 @@
 //   Live=wave318 .x thin WAVE285: typeck_x_ast*_c + layout glue size/align/zero_padding
 //   (runtime_pipeline_abi_typeck_orch_thin.x via -E+$CC); pure owns soft_suppress/dep_ctx/
 //   dep_prerun strong; cold WEAK under #ifndef FROM_X.
+//   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
 // wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
 //   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
