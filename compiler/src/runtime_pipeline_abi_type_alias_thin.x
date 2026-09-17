@@ -1,9 +1,9 @@
-// Thin pure: wave303 M2 — type_alias Cap residual C→.x (was wave262 C thin).
+// Thin pure: wave303/358 M2 — type_alias Cap residual C→.x (was wave262 C thin).
 // TypeAliasEntry LE 264B: name[256]@0 name_len@256 target@260.
 // Multi-module malloc map (128 slots) + 8 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave262 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_type_alias_thin
-// (ALLOW_E_REPLACE + stamp). File-local maps OK under -E+$CC.
+// wave358: w303_* unsafe wrappers for slot/LE (T001); PRODUCT inject
+// PREFER_ASM try (file-local maps). Stamp w358.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -13,6 +13,42 @@ export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
+/**
+ * Ptr-slot get via unsafe (T001). PLATFORM: SHARED.
+ */
+function w303_ptr_get(arr: *u8, i: i32): *u8 {
+  unsafe {
+    return xlang_ptr_slot_get(arr, i);
+  }
+}
+
+/**
+ * Ptr-slot set via unsafe (T001). PLATFORM: SHARED.
+ */
+function w303_ptr_set(arr: *u8, i: i32, p: *u8): void {
+  unsafe {
+    xlang_ptr_slot_set(arr, i, p);
+  }
+}
+
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w303_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w303_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
 
 let g_pipe_ta_mod: u8[1024] = [];
 let g_pipe_ta_n: i32[128] = [];
@@ -66,7 +102,7 @@ function pipe_ta_find_slot(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_ta_mod[0], i);
+    let k: *u8 = w303_ptr_get(&g_pipe_ta_mod[0], i);
     if (k == module) {
       return i;
     }
@@ -90,12 +126,12 @@ function pipe_ta_find_or_create(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_ta_mod[0], i);
+    let k: *u8 = w303_ptr_get(&g_pipe_ta_mod[0], i);
     if (k == 0 as *u8) {
-      xlang_ptr_slot_set(&g_pipe_ta_mod[0], i, module);
+      w303_ptr_set(&g_pipe_ta_mod[0], i, module);
       g_pipe_ta_n[i] = 0;
       g_pipe_ta_cap[i] = 0;
-      xlang_ptr_slot_set(&g_pipe_ta_entries[0], i, 0 as *u8);
+      w303_ptr_set(&g_pipe_ta_entries[0], i, 0 as *u8);
       return i;
     }
     i = i + 1;
@@ -139,7 +175,7 @@ function pipe_ta_ensure_entries(slot: i32, need: i32): i32 {
   if (np == 0 as *u8) {
     return 0;
   }
-  let old: *u8 = xlang_ptr_slot_get(&g_pipe_ta_entries[0], slot);
+  let old: *u8 = w303_ptr_get(&g_pipe_ta_entries[0], slot);
   let old_n: i32 = g_pipe_ta_n[slot];
   if (old != 0 as *u8) {
     if (old_n > 0) {
@@ -152,7 +188,7 @@ function pipe_ta_ensure_entries(slot: i32, need: i32): i32 {
       free(old);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_ta_entries[0], slot, np);
+  w303_ptr_set(&g_pipe_ta_entries[0], slot, np);
   g_pipe_ta_cap[slot] = new_cap;
   return 1;
 }
@@ -176,7 +212,7 @@ function pipe_ta_entry_at(slot: i32, idx: i32): *u8 {
   if (idx >= g_pipe_ta_n[slot]) {
     return 0 as *u8;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_ta_entries[0], slot);
+  let base: *u8 = w303_ptr_get(&g_pipe_ta_entries[0], slot);
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
@@ -218,14 +254,14 @@ export function pipeline_module_type_alias_storage_release(module: *u8): void {
   if (s < 0) {
     return;
   }
-  let e: *u8 = xlang_ptr_slot_get(&g_pipe_ta_entries[0], s);
+  let e: *u8 = w303_ptr_get(&g_pipe_ta_entries[0], s);
   if (e != 0 as *u8) {
     unsafe {
       free(e);
     }
   }
-  xlang_ptr_slot_set(&g_pipe_ta_mod[0], s, 0 as *u8);
-  xlang_ptr_slot_set(&g_pipe_ta_entries[0], s, 0 as *u8);
+  w303_ptr_set(&g_pipe_ta_mod[0], s, 0 as *u8);
+  w303_ptr_set(&g_pipe_ta_entries[0], s, 0 as *u8);
   g_pipe_ta_n[s] = 0;
   g_pipe_ta_cap[s] = 0;
 }
@@ -250,7 +286,7 @@ export function pipeline_module_type_alias_alloc(module: *u8): i32 {
   if (pipe_ta_ensure_entries(s, n + 1) == 0) {
     return 0 - 1;
   }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_ta_entries[0], s);
+  let base: *u8 = w303_ptr_get(&g_pipe_ta_entries[0], s);
   if (base == 0 as *u8) {
     return 0 - 1;
   }
@@ -314,8 +350,8 @@ export function pipeline_module_type_alias_set(module: *u8, idx: i32, name: *u8,
     }
     i = i + 1;
   }
-  pipe_store_i32_le(e, pipe_ta_off_name_len(), name_len);
-  pipe_store_i32_le(e, pipe_ta_off_target(), target_type_ref);
+  w303_store_i32(e, pipe_ta_off_name_len(), name_len);
+  w303_store_i32(e, pipe_ta_off_target(), target_type_ref);
 }
 
 /**
@@ -338,7 +374,7 @@ export function pipeline_module_type_alias_name_len(module: *u8, idx: i32): i32 
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_ta_off_name_len());
+  return w303_load_i32(e, pipe_ta_off_name_len());
 }
 
 /**
@@ -395,7 +431,7 @@ export function pipeline_module_type_alias_target_ref(module: *u8, idx: i32): i3
   if (e == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(e, pipe_ta_off_target());
+  return w303_load_i32(e, pipe_ta_off_target());
 }
 
 /**

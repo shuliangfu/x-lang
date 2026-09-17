@@ -5275,13 +5275,14 @@ pipeline_abi_inject_glue_statics_thin() {
   return "$rc"
 }
 
-# wave303 M2: type_alias Cap residual C→.x (was wave262 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). File-local maps via -E+$CC.
-# G.7 match mega wave262 leave. PLATFORM: SHARED.
+# wave303/358 M2: type_alias Cap residual C→.x (was wave262 C thin).
+# PRODUCT inject wave358: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 w303_* wrappers for slot/LE; file-local maps; standalone -c green.
+# G.7 match mega wave262 leave. PLATFORM: SHARED · both ends PREFER try.
 pipeline_abi_inject_type_alias_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_alias_thin.x"
-  local stamp="src/.pabi_w303_type_alias.stamp"
+  local stamp="src/.pabi_w358_type_alias.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5301,9 +5302,10 @@ pipeline_abi_inject_type_alias_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 wrappers proven at -c).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w303-type-alias"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w358-type-alias"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5320,6 +5322,7 @@ pipeline_abi_inject_type_alias_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w303_type_alias.stamp
   fi
   return "$rc"
 }
@@ -5638,12 +5641,13 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w355: codegen_outbuf PREFER (T001 unsafe + u8[64] float buf).
 #   UNLOCKED w356: grow_vec PREFER (T001 unsafe LE helpers · class C GrowVec-LE).
 #   UNLOCKED w357b: type_pool Darwin PREFER / Ubuntu -E (class C Type LE).
+#   UNLOCKED w358: type_alias PREFER try (T001 w303_* · file-local maps).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
 #       onefunc / expr_sidecar / block_domain / module_func / sidecar_pool /
-#       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
+#       dep_ctx / elf_ctx / asm_wpo / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK.
@@ -5660,6 +5664,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
 # wave357/357b: type_pool Darwin PREFER / Ubuntu -E (option T001 x86_64).
+# wave358: type_alias PREFER try (T001 w303_* · file-local maps).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11406,7 +11411,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-type-alias|inject_type_alias)
-    # wave303: C→.x type_alias via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave358: type_alias PREFER_ASM both ends (T001 w303_* wrappers).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-type-alias: need <out.o>" >&2
