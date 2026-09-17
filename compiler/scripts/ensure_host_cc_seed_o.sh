@@ -5979,15 +5979,14 @@ pipeline_abi_inject_arr_return_thin() {
   return "$rc"
 }
 
-# wave440/442 M2: arr_struct_lit Cap residual — asymmetric unlock.
+# wave440/442/446 M2: arr_struct_lit Cap residual — asymmetric unlock.
 # PRODUCT inject:
-#   MACOS (w440): PREFER_ASM peer chain (L2 5/5＠20668776).
-#   LINUX (w442): -E peer chain PREFER (pure-asm call → opt=94; -E L2 5/5
-#     ＠6155992／pabi＠2883520). Residual: call peer pure-asm heal.
-#   Order: arrlit→zero→resolve_vf→call_bulk→call_one_elem→call_elems→
-#   resolve_call→copy_*→main.
+#   MACOS (w440): PREFER_ASM full peer chain.
+#   LINUX (w442): -E peer chain; (w446): nine-peer pure-asm overlay
+#     (call_*+resolve_call+copy_*+zero+resolve_vf). arrlit+main tip pure-asm
+#     → opt SEGV 139 — stay -E leftover.
 # G.7: semantics match mega glue_struct_lit_store_fixed_array_field_elf_c.
-# PLATFORM: SHARED · MACOS pure-asm / LINUX -E.
+# PLATFORM: SHARED · MACOS pure-asm / LINUX -E + w446 heal-asm.
 pipeline_abi_inject_arr_struct_lit_thin() {
   local o="$1"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
@@ -5997,15 +5996,38 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   local rc=0
   local peer lo_x lo_stamp lo_tag lo_rest
   local prefer_asm=1
+  local need_heal=0
   local main_x="src/runtime_pipeline_abi_arr_struct_lit_thin.x"
-  local main_s="src/.pabi_w440_arr_struct_lit.stamp"
+  local main_s="src/.pabi_w446_arr_struct_lit.stamp"
+  local _hx _hs _pair
   [ -s "$o" ] && [ -f "$main_x" ] || return 0
-  # PLATFORM: LINUX — soft -E unlock (w442). Pure-asm call peers product
-  #   opt=94; -E first-wins L2 verified. MACOS keeps pure-asm PREFER.
+  # PLATFORM: LINUX — soft -E chain (w442) + nine-peer pure-asm heal (w446).
   case "$(uname -s)" in
     Linux) prefer_asm=0 ;;
   esac
-  if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
+  case "$(uname -s)" in
+    Linux)
+      for _pair in \
+        "src/runtime_pipeline_abi_arr_struct_lit_call_bulk_thin.x|src/.pabi_w446_heal_call_bulk.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|src/.pabi_w446_heal_call_one_elem.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_call_elems_thin.x|src/.pabi_w446_heal_call_elems.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|src/.pabi_w446_heal_resolve_call.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_copy_bulk_thin.x|src/.pabi_w446_heal_copy_bulk.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_copy_elems_thin.x|src/.pabi_w446_heal_copy_elems.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|src/.pabi_w446_heal_copy.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_zero_thin.x|src/.pabi_w446_heal_zero.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|src/.pabi_w446_heal_resolve_vf.stamp"
+      do
+        _hx="${_pair%%|*}"
+        _hs="${_pair#*|}"
+        if [ -f "$_hx" ] && { [ ! -f "$_hs" ] || [ "$_hx" -nt "$_hs" ]; }; then
+          need_heal=1
+          break
+        fi
+      done
+      ;;
+  esac
+  if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ] && [ "$need_heal" = "0" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -6047,6 +6069,44 @@ pipeline_abi_inject_arr_struct_lit_thin() {
       fi
     fi
   done
+  # wave446: nine-peer pure-asm overlay (LINUX). arrlit+main stay -E leftover.
+  # PLATFORM: LINUX gold · MACOS skipped (full chain already PREFER).
+  case "$(uname -s)" in
+    Linux)
+      if [ "$rc" -eq 0 ]; then
+        export XLANG_PABI_THIN_PREFER_ASM=1
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+        for peer in \
+          "src/runtime_pipeline_abi_arr_struct_lit_call_bulk_thin.x|.pabi_w446_heal_call_bulk.stamp|w446-heal-call-bulk" \
+          "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|.pabi_w446_heal_call_one_elem.stamp|w446-heal-call-one-elem" \
+          "src/runtime_pipeline_abi_arr_struct_lit_call_elems_thin.x|.pabi_w446_heal_call_elems.stamp|w446-heal-call-elems" \
+          "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w446_heal_resolve_call.stamp|w446-heal-resolve-call" \
+          "src/runtime_pipeline_abi_arr_struct_lit_copy_bulk_thin.x|.pabi_w446_heal_copy_bulk.stamp|w446-heal-copy-bulk" \
+          "src/runtime_pipeline_abi_arr_struct_lit_copy_elems_thin.x|.pabi_w446_heal_copy_elems.stamp|w446-heal-copy-elems" \
+          "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w446_heal_copy.stamp|w446-heal-copy" \
+          "src/runtime_pipeline_abi_arr_struct_lit_zero_thin.x|.pabi_w446_heal_zero.stamp|w446-heal-zero" \
+          "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|.pabi_w446_heal_resolve_vf.stamp|w446-heal-resolve-vf"
+        do
+          lo_x="${peer%%|*}"
+          lo_rest="${peer#*|}"
+          lo_stamp="src/${lo_rest%%|*}"
+          lo_tag="${lo_rest#*|}"
+          if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
+            pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
+            rc=$?
+            if [ "$rc" -eq 0 ]; then
+              touch "$lo_stamp"
+            else
+              break
+            fi
+          fi
+        done
+        if [ "$rc" -eq 0 ]; then
+          touch "$main_s"
+        fi
+      fi
+      ;;
+  esac
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
