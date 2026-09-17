@@ -1,7 +1,8 @@
-// Thin pure: arr_struct_lit dispatcher (wave440).
+// Thin pure: arr_struct_lit dispatcher (wave440/442).
 // G.7: body MUST match glue_struct_lit_store_fixed_array_field_elf_c (peer-flat).
 // wave427: Darwin -c ~14597B; LINUX HARD BAN (Ubuntu asm empty .o RC=0).
-// wave440: LINUX PREFER — flat peer arms + this dispatcher.
+// wave440: MACOS flat peer PREFER; LINUX tip BAN (pure-asm call → opt=94).
+// wave442: LINUX -E peer chain PREFER (call heal; pure-asm residual).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;

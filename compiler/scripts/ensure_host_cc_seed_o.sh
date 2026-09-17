@@ -5912,14 +5912,15 @@ pipeline_abi_inject_arr_return_thin() {
   return "$rc"
 }
 
-# wave440 M2: arr_struct_lit Cap residual — asymmetric unlock.
-# PRODUCT inject wave440:
-#   MACOS: PREFER_ASM peer chain (L2 5/5＠20668776).
-#   LINUX: HARD BAN tip reinject (call peer product opt=94; leftover OK).
-#   Peer sources kept for future LINUX heal. Order (MACOS): arrlit→zero→
-#   resolve_vf→call_bulk→call_one_elem→call_elems→resolve_call→copy_*→main.
+# wave440/442 M2: arr_struct_lit Cap residual — asymmetric unlock.
+# PRODUCT inject:
+#   MACOS (w440): PREFER_ASM peer chain (L2 5/5＠20668776).
+#   LINUX (w442): -E peer chain PREFER (pure-asm call → opt=94; -E L2 5/5
+#     ＠6155992／pabi＠2883520). Residual: call peer pure-asm heal.
+#   Order: arrlit→zero→resolve_vf→call_bulk→call_one_elem→call_elems→
+#   resolve_call→copy_*→main.
 # G.7: semantics match mega glue_struct_lit_store_fixed_array_field_elf_c.
-# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+# PLATFORM: SHARED · MACOS pure-asm / LINUX -E.
 pipeline_abi_inject_arr_struct_lit_thin() {
   local o="$1"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
@@ -5928,16 +5929,14 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   local peer lo_x lo_stamp lo_tag lo_rest
+  local prefer_asm=1
   local main_x="src/runtime_pipeline_abi_arr_struct_lit_thin.x"
   local main_s="src/.pabi_w440_arr_struct_lit.stamp"
   [ -s "$o" ] && [ -f "$main_x" ] || return 0
-  # PLATFORM: LINUX — HARD BAN tip reinject (peer call path product opt=94;
-  #   leftover holds working resolve/call. MACOS peer PREFER L2 verified).
+  # PLATFORM: LINUX — soft -E unlock (w442). Pure-asm call peers product
+  #   opt=94; -E first-wins L2 verified. MACOS keeps pure-asm PREFER.
   case "$(uname -s)" in
-    Linux)
-      touch "$main_s"
-      return 0
-      ;;
+    Linux) prefer_asm=0 ;;
   esac
   if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
     return 0
@@ -5952,7 +5951,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   for peer in \
     "src/runtime_pipeline_abi_arr_struct_lit_arrlit_thin.x|.pabi_w440_arr_struct_lit_arrlit.stamp|w440-arr-struct-lit-arrlit" \
@@ -6780,7 +6779,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave439: arr_return BOTH flat peer chain PREFER.
 # wave440: arr_struct_lit MACOS peer PREFER / LINUX tip BAN (opt=94).
 # wave441: assign emit LINUX -E peer chain PREFER (pure-asm CG002/SEGV).
-# Next: mega BAN／LINUX struct_lit call heal／emit peer pure-asm heal；禁升钉。
+# wave442: arr_struct_lit LINUX -E peer PREFER (call heal; pure-asm residual).
+# Next: mega BAN／emit peer pure-asm heal／struct_lit call pure-asm heal；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -12355,7 +12355,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-arr-struct-lit|inject_arr_struct_lit)
-    # wave440: MACOS PREFER / LINUX hard-skip (call peer opt=94).
+    # wave440/442: MACOS pure-asm PREFER / LINUX -E peer PREFER (call heal).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-arr-struct-lit: need <out.o>" >&2

@@ -1,6 +1,6 @@
-// Thin pure: arr_struct_lit CALL per-elem copy esz<=8 (wave440).
+// Thin pure: arr_struct_lit CALL per-elem copy esz<=8 (wave440/442).
 // G.7: part of glue_struct_lit_store_fixed_array_field_elf_c authority.
-// PRODUCT: LINUX PREFER peer chain for arr_struct_lit.
+// PRODUCT: MACOS pure-asm / LINUX -E (w442; pure-asm residual).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 // wave440b: flatten esz/sret nests — Ubuntu emptied on nested if under while.
 

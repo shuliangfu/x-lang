@@ -1,6 +1,6 @@
-// Thin pure: arr_struct_lit CALL dispatcher (wave440).
+// Thin pure: arr_struct_lit CALL dispatcher (wave440/442).
 // G.7: part of glue_struct_lit_store_fixed_array_field_elf_c authority.
-// PRODUCT: LINUX PREFER peer chain for arr_struct_lit.
+// PRODUCT: MACOS pure-asm / LINUX -E peer chain (w442 call heal).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_struct_lit_call_bulk_elf_c(arena: *u8, elf_ctx: *u8, src: i32, ctx: *u8, ta: i32, sret_direct: i32, field_mag: i32, foff: i32, n_arr: i32, esz: i32): i32;

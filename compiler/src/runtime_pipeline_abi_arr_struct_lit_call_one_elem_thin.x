@@ -1,6 +1,6 @@
-// Thin pure: arr_struct_lit one CALL elem store (wave440).
+// Thin pure: arr_struct_lit one CALL elem store (wave440/442).
 // G.7: part of glue_struct_lit_store_fixed_array_field_elf_c authority.
-// PRODUCT: LINUX PREFER peer chain for arr_struct_lit.
+// PRODUCT: MACOS pure-asm / LINUX -E (w442; pure-asm residual).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
