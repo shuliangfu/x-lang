@@ -1,10 +1,10 @@
-// Thin pure: wave301/357 M2 — type_pool Cap residual C→.x (was wave270 C thin).
+// Thin pure: wave301/357/372 M2 — type_pool Cap residual C→.x (was wave270 C thin).
 // Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
 //   region_label[256]@272 region_label_len@528 size=532.
 // G.7: bodies match runtime_pipeline_abi.x wave270 leave (correct LE offsets;
 // historic C thin used wrong 132/136/140/144/272 — replaced here).
-// wave357: w301_load/store_i32 unsafe wrappers (T001); PRODUCT inject
-// MACOS PREFER / LINUX -E (Ubuntu option T001 on x86_64 pure-asm). Stamp w357.
+// wave357: w301_load/store_i32 unsafe wrappers (T001).
+// wave372: PRODUCT inject PREFER both ends (Ubuntu tip standalone -c green; re-gate L2).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;

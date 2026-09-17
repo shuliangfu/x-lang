@@ -5566,7 +5566,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave354: import_heap PREFER (T001 unsafe slot get/set).
 # wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
-# wave357/357b: type_pool Darwin PREFER / Ubuntu -E (option T001 x86_64).
+# wave357/357b/372: type_pool PREFER both ends try (wave372 re-gate Ubuntu).
 # wave358: type_alias PREFER both ends (T001 w303_* · file-local maps).
 # wave360/360b: module_enum Darwin PREFER / Ubuntu -E (si Result_i32).
 # wave359b: top_level_let hard-skip (overlay poison).
@@ -5580,27 +5580,25 @@ pipeline_abi_inject_block_tree_thin() {
 # wave369/369b: asm_wpo T001 w311_* + BAN PREFER (ARM64_RELOC_BRANCH26).
 # wave370/370b: macho_write T001 w314_* + BAN PREFER (ARM64_RELOC_BRANCH26).
 # wave371/371b: mega_body Darwin PREFER / Ubuntu hard-skip (XT001 store_ptr).
-# Next: Ubuntu Type LE＋check_expr x86_64 ABI／BAN residual roots.
+# wave372: type_pool Ubuntu PREFER re-gate (standalone -c green).
+# Next: BAN residual roots／mega_body Ubuntu fn#116 helper-swarm.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
-# wave301/357 M2: type_pool Cap residual C→.x (was wave270 C thin).
-# PRODUCT inject wave357b:
-#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w301_load/store; L2 5/5).
-#   · LINUX|UBUNTU: stay -E+$CC — PREFER pure-asm breaks option
-#     (T001 argument type mismatch; x86_64 Type LE face ≠ host-C).
-# Historic w335 _main UNDEF was Darwin-only; Ubuntu root is LE/ABI.
-# G.7 LE name_len@260. PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
+# wave301/357/357b/372 M2: type_pool Cap residual C→.x (was wave270 C thin).
+# PRODUCT inject wave372: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
+# Historic w357b Ubuntu -E (option T001); tip standalone type_pool -c green → re-gate.
+# G.7 LE name_len@260. PLATFORM: SHARED face · both ends PREFER try.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_pool_thin.x"
-  local stamp="src/.pabi_w357_type_pool.stamp"
+  local stamp="src/.pabi_w372_type_pool.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local prefer_asm=0
+  local prefer_asm=1
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -5614,15 +5612,11 @@ pipeline_abi_inject_type_pool_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
-  # PLATFORM: MACOS PREFER; LINUX -E (option T001 on x86_64 pure-asm).
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
+  # PLATFORM: SHARED — both ends PREFER try (wave372).
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w357-type-pool"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w372-type-pool"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5639,7 +5633,7 @@ pipeline_abi_inject_type_pool_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_w301_type_pool.stamp
+    rm -f src/.pabi_w301_type_pool.stamp src/.pabi_w357_type_pool.stamp
   fi
   return "$rc"
 }
