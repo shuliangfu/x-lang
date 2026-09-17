@@ -5388,13 +5388,15 @@ pipeline_abi_inject_binop_block_peel_thin() {
   return "$rc"
 }
 
-# wave403/413/416/420/421 M2: assign Cap residual — asymmetric helpers unlock.
+# wave403/413/416/420/421/425 M2: assign Cap residual — asymmetric helpers unlock.
 # PRODUCT inject wave421:
 #   MACOS: PREFER_ASM full thin (helpers+exports; product L2 verified).
 #   LINUX: PREFER_ASM helpers thin = lhs+rhs + field_pair+body_stmt
 #     (skip poison middle rhs_to_rax/emit_assign — contiguous grow XT001;
 #     Ubuntu -c ~6101B; product inject+relink L2 5/5 opt=102).
-#     Middle tip reinject still BAN on LINUX.
+# wave425: rhsrax rest-only thin (Darwin -c ~6425B) — LINUX HARD BAN
+#   (Ubuntu asm -c empty .o; -E omits T; false inject +80B). Stamp
+#   .pabi_w425_assign_rhsrax.stamp; no tip overlay. emit_assign still BAN.
 # G.7: helpers bodies match mega / full thin; middle stay leftover on LINUX.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX helpers(+pair/body) PREFER.
 pipeline_abi_inject_assign_thin() {
