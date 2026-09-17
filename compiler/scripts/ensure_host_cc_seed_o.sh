@@ -5600,8 +5600,10 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   (Ubuntu empty .o; -E omits T). Same class as rhsrax.
 # wave437: LINUX rhsrax PREFER — flat arm helpers (nested if/micro-unsafe
 #   emptied .o; Ubuntu -c ~12096B / 14T). emit_assign still BAN.
-# G.7: helpers+rhsrax match mega / full thin semantics (flat reshape).
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+rhsrax PREFER.
+# wave441: LINUX emit unlock — flat peer FIELD/INDEX/VAR/DEREF + dispatcher
+#   via -E (wave441b: pure-asm peers/emit CG002 or si SEGV; soft -E unlock).
+# G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+rhsrax+emit(-E).
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
@@ -5613,7 +5615,10 @@ pipeline_abi_inject_assign_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   local rhs_x rhs_s
-  # PLATFORM: LINUX — helpers tip PREFER; rhsrax flat PREFER (w437); emit BAN.
+  local emit_x emit_s peer lo_x lo_stamp lo_tag lo_rest
+  local need_emit=0
+  # PLATFORM: LINUX — helpers tip PREFER; rhsrax flat PREFER (w437);
+  #   emit peer chain PREFER (w441).
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
@@ -5621,16 +5626,23 @@ pipeline_abi_inject_assign_thin() {
       tag="w421-assign-helpers"
       rhs_x="src/runtime_pipeline_abi_assign_rhsrax_thin.x"
       rhs_s="src/.pabi_w437_assign_rhsrax.stamp"
+      emit_x="src/runtime_pipeline_abi_assign_emit_thin.x"
+      emit_s="src/.pabi_w441_assign_emit.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -n "${emit_x-}" ] && [ -f "$emit_x" ]; then
+    if [ ! -f "$emit_s" ] || [ "$emit_x" -nt "$emit_s" ]; then
+      need_emit=1
+    fi
+  fi
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    # helpers up-to-date; still try rhsrax on LINUX
+    # helpers up-to-date; still try rhsrax / emit on LINUX
     if [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
-      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ]; then
+      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ]; then
         return 0
       fi
-    else
+    elif [ "$need_emit" = "0" ]; then
       return 0
     fi
   fi
@@ -5664,6 +5676,71 @@ pipeline_abi_inject_assign_thin() {
       if [ "$rc" -eq 0 ]; then
         touch "$rhs_s"
       fi
+    fi
+  fi
+  # PLATFORM: LINUX — third inject emit peer chain (wave441).
+  # Order: FIELD leaves → INDEX leaves → VAR → DEREF leaves → arm
+  #   dispatchers → emit dispatcher (G.7 first-wins).
+  # wave441b: entire emit peer chain via -E (PREFER_ASM=0). Pure-asm peers
+  #   + emit -E → si SEGV 139; pure-asm emit → si CG002. Soft -E unlock;
+  #   residual: emit peer pure-asm heal.
+  if [ "$rc" -eq 0 ] && [ -n "${emit_x-}" ] && [ -f "$emit_x" ]; then
+    if [ ! -f "$emit_s" ] || [ "$emit_x" -nt "$emit_s" ]; then
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      for peer in \
+        "src/runtime_pipeline_abi_assign_field_chain_walk_thin.x|.pabi_w441_assign_field_chain_walk.stamp|w441-assign-field-chain-walk" \
+        "src/runtime_pipeline_abi_assign_field_ptr_hit_thin.x|.pabi_w441_assign_field_ptr_hit.stamp|w441-assign-field-ptr-hit" \
+        "src/runtime_pipeline_abi_assign_field_mag_fold_thin.x|.pabi_w441_assign_field_mag_fold.stamp|w441-assign-field-mag-fold" \
+        "src/runtime_pipeline_abi_assign_field_var_simd_thin.x|.pabi_w441_assign_field_var_simd.stamp|w441-assign-field-var-simd" \
+        "src/runtime_pipeline_abi_assign_field_var_struct_thin.x|.pabi_w441_assign_field_var_struct.stamp|w441-assign-field-var-struct" \
+        "src/runtime_pipeline_abi_assign_field_var_array_thin.x|.pabi_w441_assign_field_var_array.stamp|w441-assign-field-var-array" \
+        "src/runtime_pipeline_abi_assign_field_var_depth1_thin.x|.pabi_w441_assign_field_var_depth1.stamp|w441-assign-field-var-depth1" \
+        "src/runtime_pipeline_abi_assign_field_var_stores_thin.x|.pabi_w441_assign_field_var_stores.stamp|w441-assign-field-var-stores" \
+        "src/runtime_pipeline_abi_assign_field_var_root_thin.x|.pabi_w441_assign_field_var_root.stamp|w441-assign-field-var-root" \
+        "src/runtime_pipeline_abi_assign_field_ptr_thin.x|.pabi_w441_assign_field_ptr.stamp|w441-assign-field-ptr" \
+        "src/runtime_pipeline_abi_assign_field_scalar_thin.x|.pabi_w441_assign_field_scalar.stamp|w441-assign-field-scalar" \
+        "src/runtime_pipeline_abi_assign_field_thin.x|.pabi_w441_assign_field.stamp|w441-assign-field" \
+        "src/runtime_pipeline_abi_assign_index_setup_thin.x|.pabi_w441_assign_index_setup.stamp|w441-assign-index-setup" \
+        "src/runtime_pipeline_abi_assign_index_struct_lit_arr_thin.x|.pabi_w441_assign_index_struct_lit_arr.stamp|w441-assign-index-struct-lit-arr" \
+        "src/runtime_pipeline_abi_assign_index_struct_lit_rbx_thin.x|.pabi_w441_assign_index_struct_lit_rbx.stamp|w441-assign-index-struct-lit-rbx" \
+        "src/runtime_pipeline_abi_assign_index_struct_lit_thin.x|.pabi_w441_assign_index_struct_lit.stamp|w441-assign-index-struct-lit" \
+        "src/runtime_pipeline_abi_assign_index_simd_thin.x|.pabi_w441_assign_index_simd.stamp|w441-assign-index-simd" \
+        "src/runtime_pipeline_abi_assign_index_named_thin.x|.pabi_w441_assign_index_named.stamp|w441-assign-index-named" \
+        "src/runtime_pipeline_abi_assign_index_array_walk_thin.x|.pabi_w441_assign_index_array_walk.stamp|w441-assign-index-array-walk" \
+        "src/runtime_pipeline_abi_assign_index_array_peel_thin.x|.pabi_w441_assign_index_array_peel.stamp|w441-assign-index-array-peel" \
+        "src/runtime_pipeline_abi_assign_index_array_resolve_thin.x|.pabi_w441_assign_index_array_resolve.stamp|w441-assign-index-array-resolve" \
+        "src/runtime_pipeline_abi_assign_index_array_lit_thin.x|.pabi_w441_assign_index_array_lit.stamp|w441-assign-index-array-lit" \
+        "src/runtime_pipeline_abi_assign_index_array_rbx_thin.x|.pabi_w441_assign_index_array_rbx.stamp|w441-assign-index-array-rbx" \
+        "src/runtime_pipeline_abi_assign_index_array_thin.x|.pabi_w441_assign_index_array.stamp|w441-assign-index-array" \
+        "src/runtime_pipeline_abi_assign_index_bulk_thin.x|.pabi_w441_assign_index_bulk.stamp|w441-assign-index-bulk" \
+        "src/runtime_pipeline_abi_assign_index_generic_thin.x|.pabi_w441_assign_index_generic.stamp|w441-assign-index-generic" \
+        "src/runtime_pipeline_abi_assign_index_thin.x|.pabi_w441_assign_index.stamp|w441-assign-index" \
+        "src/runtime_pipeline_abi_assign_var_thin.x|.pabi_w441_assign_var.stamp|w441-assign-var" \
+        "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|.pabi_w441_assign_deref_vec_var.stamp|w441-assign-deref-vec-var" \
+        "src/runtime_pipeline_abi_assign_deref_vec_call_thin.x|.pabi_w441_assign_deref_vec_call.stamp|w441-assign-deref-vec-call" \
+        "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|.pabi_w441_assign_deref_slice_call.stamp|w441-assign-deref-slice-call" \
+        "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|.pabi_w441_assign_deref_array_call.stamp|w441-assign-deref-array-call" \
+        "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w441_assign_deref_let_init.stamp|w441-assign-deref-let-init" \
+        "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w441_assign_deref_scalar.stamp|w441-assign-deref-scalar" \
+        "src/runtime_pipeline_abi_assign_deref_thin.x|.pabi_w441_assign_deref.stamp|w441-assign-deref" \
+        "src/runtime_pipeline_abi_assign_emit_thin.x|.pabi_w441_assign_emit.stamp|w441-assign-emit"
+      do
+        lo_x="${peer%%|*}"
+        lo_rest="${peer#*|}"
+        lo_stamp="src/${lo_rest%%|*}"
+        lo_tag="${lo_rest#*|}"
+        if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
+          pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            touch "$lo_stamp"
+          else
+            break
+          fi
+        fi
+      done
+      export XLANG_PABI_THIN_PREFER_ASM=1
     fi
   fi
   if [ "$had_newer" = "1" ]; then
@@ -6702,7 +6779,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave438: arr_lit_flat BOTH flat peer chain PREFER.
 # wave439: arr_return BOTH flat peer chain PREFER.
 # wave440: arr_struct_lit MACOS peer PREFER / LINUX tip BAN (opt=94).
-# Next: mega BAN／split债（assign emit／LINUX struct_lit call heal…）；禁升钉。
+# wave441: assign emit LINUX -E peer chain PREFER (pure-asm CG002/SEGV).
+# Next: mega BAN／LINUX struct_lit call heal／emit peer pure-asm heal；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
