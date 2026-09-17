@@ -3478,6 +3478,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
       pipeline_abi_inject_arr_return_thin "$o" || true
+      pipeline_abi_inject_arr_struct_lit_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -3931,6 +3932,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
     pipeline_abi_inject_arr_return_thin "$o" || true
+    pipeline_abi_inject_arr_struct_lit_thin "$o" || true
     pipeline_abi_inject_w157_sum_thin "$o" || true
     pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
     pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -4014,6 +4016,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
         pipeline_abi_inject_arr_return_thin "$o" || true
+        pipeline_abi_inject_arr_struct_lit_thin "$o" || true
         pipeline_abi_inject_w157_sum_thin "$o" || true
         pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
         pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -4081,6 +4084,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
       pipeline_abi_inject_arr_return_thin "$o" || true
+      pipeline_abi_inject_arr_struct_lit_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -4156,6 +4160,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_assign_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
   pipeline_abi_inject_arr_return_thin "$o" || true
+  pipeline_abi_inject_arr_struct_lit_thin "$o" || true
   pipeline_abi_inject_w157_sum_thin "$o" || true
   pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
   pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -5830,6 +5835,91 @@ pipeline_abi_inject_arr_return_thin() {
   return "$rc"
 }
 
+# wave440 M2: arr_struct_lit Cap residual — asymmetric unlock.
+# PRODUCT inject wave440:
+#   MACOS: PREFER_ASM peer chain (L2 5/5＠20668776).
+#   LINUX: HARD BAN tip reinject (call peer product opt=94; leftover OK).
+#   Peer sources kept for future LINUX heal. Order (MACOS): arrlit→zero→
+#   resolve_vf→call_bulk→call_one_elem→call_elems→resolve_call→copy_*→main.
+# G.7: semantics match mega glue_struct_lit_store_fixed_array_field_elf_c.
+# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+pipeline_abi_inject_arr_struct_lit_thin() {
+  local o="$1"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  local peer lo_x lo_stamp lo_tag lo_rest
+  local main_x="src/runtime_pipeline_abi_arr_struct_lit_thin.x"
+  local main_s="src/.pabi_w440_arr_struct_lit.stamp"
+  [ -s "$o" ] && [ -f "$main_x" ] || return 0
+  # PLATFORM: LINUX — HARD BAN tip reinject (peer call path product opt=94;
+  #   leftover holds working resolve/call. MACOS peer PREFER L2 verified).
+  case "$(uname -s)" in
+    Linux)
+      touch "$main_s"
+      return 0
+      ;;
+  esac
+  if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  for peer in \
+    "src/runtime_pipeline_abi_arr_struct_lit_arrlit_thin.x|.pabi_w440_arr_struct_lit_arrlit.stamp|w440-arr-struct-lit-arrlit" \
+    "src/runtime_pipeline_abi_arr_struct_lit_zero_thin.x|.pabi_w440_arr_struct_lit_zero.stamp|w440-arr-struct-lit-zero" \
+    "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|.pabi_w440_arr_struct_lit_resolve_vf.stamp|w440-arr-struct-lit-resolve-vf" \
+    "src/runtime_pipeline_abi_arr_struct_lit_call_bulk_thin.x|.pabi_w440_arr_struct_lit_call_bulk.stamp|w440-arr-struct-lit-call-bulk" \
+    "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|.pabi_w440_arr_struct_lit_call_one_elem.stamp|w440-arr-struct-lit-call-one-elem" \
+    "src/runtime_pipeline_abi_arr_struct_lit_call_elems_thin.x|.pabi_w440_arr_struct_lit_call_elems.stamp|w440-arr-struct-lit-call-elems" \
+    "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w440_arr_struct_lit_resolve_call.stamp|w440-arr-struct-lit-resolve-call" \
+    "src/runtime_pipeline_abi_arr_struct_lit_copy_bulk_thin.x|.pabi_w440_arr_struct_lit_copy_bulk.stamp|w440-arr-struct-lit-copy-bulk" \
+    "src/runtime_pipeline_abi_arr_struct_lit_copy_elems_thin.x|.pabi_w440_arr_struct_lit_copy_elems.stamp|w440-arr-struct-lit-copy-elems" \
+    "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w440_arr_struct_lit_copy.stamp|w440-arr-struct-lit-copy" \
+    "src/runtime_pipeline_abi_arr_struct_lit_thin.x|.pabi_w440_arr_struct_lit.stamp|w440-arr-struct-lit"
+  do
+    lo_x="${peer%%|*}"
+    lo_rest="${peer#*|}"
+    lo_stamp="src/${lo_rest%%|*}"
+    lo_tag="${lo_rest#*|}"
+    if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
+      pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$lo_stamp"
+      else
+        break
+      fi
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  return "$rc"
+}
+
 # wave406 M2: w157_sum Cap residual — HARD BAN tip reinject.
 # PRODUCT inject wave406:
 #   BOTH ends: HARD BAN tip reinject (stamp only).
@@ -6611,7 +6701,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave437: assign rhsrax LINUX flat helpers PREFER (emit_assign still BAN).
 # wave438: arr_lit_flat BOTH flat peer chain PREFER.
 # wave439: arr_return BOTH flat peer chain PREFER.
-# Next: mega BAN／split债（assign emit／arr struct_lit…）；禁升钉。
+# wave440: arr_struct_lit MACOS peer PREFER / LINUX tip BAN (opt=94).
+# Next: mega BAN／split债（assign emit／LINUX struct_lit call heal…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -12181,6 +12272,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_arr_return_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-arr-struct-lit|inject_arr_struct_lit)
+    # wave440: MACOS PREFER / LINUX hard-skip (call peer opt=94).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-arr-struct-lit: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_arr_struct_lit_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
