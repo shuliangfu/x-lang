@@ -5645,7 +5645,7 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w356: grow_vec PREFER (T001 unsafe LE helpers · class C GrowVec-LE).
 #   UNLOCKED w357b: type_pool Darwin PREFER / Ubuntu -E (class C Type LE).
 #   UNLOCKED w358: type_alias PREFER both ends (T001 w303_* · file-local maps).
-#   UNLOCKED w359: top_level_let PREFER try (T001 w305_* · file-local maps).
+#   UNLOCKED w359: top_level_let PREFER both ends (T001 w305_* · file-local maps).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
@@ -5669,7 +5669,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave356: grow_vec PREFER (T001 unsafe LE helpers).
 # wave357/357b: type_pool Darwin PREFER / Ubuntu -E (option T001 x86_64).
 # wave358: type_alias PREFER both ends (T001 w303_* · file-local maps).
-# wave359: top_level_let PREFER try (T001 w305_* · file-local maps).
+# wave359: top_level_let PREFER both ends (T001 w305_* · file-local maps).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
