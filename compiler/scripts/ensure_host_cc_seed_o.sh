@@ -4929,10 +4929,57 @@ pipeline_abi_inject_fnptr_as_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
 }
 
-# Stage10 10.2.1: EXPR_ASM emit_expr_elf_rec override (ko==60 → try_emit).
-# G.7: thin body matches seed/mega emit_expr_elf_rec asm branch.
+# wave409 M2: asm_expr Cap residual — PREFER both ends.
+# PRODUCT inject wave409:
+#   BOTH: PREFER_ASM (Darwin -c 6850B / Ubuntu -c 8670B green).
+#   Darwin product inject + direct relink L2 5/5 verified before unlock.
+# G.7: thin body matches mega emit_expr_elf_rec asm branch.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_asm_expr_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_asm_expr_thin.x" "asm-expr-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_asm_expr_thin.x"
+  local stamp="src/.pabi_w409_asm_expr.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM (standalone -c + product inject gate green).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w409-asm-expr"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave399 M2: fnptr_array_esz Cap residual — unlock PREFER_ASM both ends.
@@ -5481,10 +5528,21 @@ pipeline_abi_inject_call_method_wrappers_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_call_method_wrappers_thin.x" "w217-call-method"
 }
 
-# wave219 al_nc_seq mega leave. G.7: match mega entry.
-# PLATFORM: SHARED.
+# wave409b M2: al_nc_seq Cap residual — HARD BAN tip reinject.
+# PRODUCT inject wave409b:
+#   BOTH ends: HARD BAN tip reinject (stamp only).
+#   Probe: standalone -c PREFER green Darwin 632B / Ubuntu 985B, but
+#   Darwin product inject → ARM64_RELOC_BRANCH26 on ld -r thin member.
+# G.7: thin body matches mega wave219 leave (cold twin only).
+# PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_al_nc_seq_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_al_nc_seq_thin.x" "w219-al-nc-seq"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_al_nc_seq_thin.x"
+  local stamp="src/.pabi_w409_al_nc_seq.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — HARD BAN tip reinject (Darwin BRANCH26).
+  touch "$stamp"
+  return 0
 }
 
 # wave317/342/380 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
@@ -5916,7 +5974,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
 # wave407: binop_block_peel MACOS PREFER／LINUX BAN (Ubuntu T001/XT001).
 # wave408: fixed_array_copy MACOS PREFER／LINUX BAN (Ubuntu XT001).
-# Next: 余 soft -E／mega BAN／split债；禁升钉。
+# wave409: asm_expr PREFER both ends; wave409b al_nc_seq HARD BAN (BRANCH26).
+# Next: asm73_*／reent／mega BAN／split债；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11503,6 +11562,32 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_fixed_array_copy_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-asm-expr|inject_asm_expr)
+    # wave409: PREFER both ends.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-asm-expr: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_asm_expr_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-al-nc-seq|inject_al_nc_seq)
+    # wave409b: HARD BAN tip reinject both ends.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-al-nc-seq: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_al_nc_seq_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

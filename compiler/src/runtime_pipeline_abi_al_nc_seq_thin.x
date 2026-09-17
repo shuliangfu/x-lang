@@ -3,6 +3,8 @@
 // Seed cold twin keeps freestanding BSS; inject first-wins.
 // wave220/221 deferred: leftover still reads named g_pipeline_asm_emit_*
 // (file-level let → Lxml COMMON = dual-home SEGV on f32).
+// wave409b: HARD BAN tip reinject both ends — standalone -c PREFER green
+//   but Darwin product inject ARM64_RELOC_BRANCH26.
 // PLATFORM: SHARED freestanding emit label uniqueness.
 
 // wave219: ARRAY_LIT / durable / escape COMMON label seq pure leave
