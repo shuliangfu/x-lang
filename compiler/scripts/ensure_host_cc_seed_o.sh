@@ -5439,6 +5439,24 @@ pipeline_abi_inject_block_tree_thin() {
   return "$rc"
 }
 
+# wave337 M2 Cap leaf PREFER_ASM inventory (safe set exhausted after w336):
+#   DONE PREFER: w331 typeck_orch / w332 glue_statics / w333 preprocess_malloc /
+#     w334 lifecycle / w336 ast_forwarders.
+#   BAN product PREFER (stay -E+$CC until root fix):
+#     A named-BSS under pure-asm elides data or → Lxml_* COMMON
+#       (typeck_active / emit_ctx_* / typeck_check_expr / bootstrap_glue scope /
+#        block_tree i32[256] walk stack).
+#     B local fixed arrays / digit-loop / FileView layout
+#       (parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
+#        read_file_x_view / import_heap).
+#     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
+#       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
+#       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
+#       struct_layout / asm_locals / macho_write / mega_body.
+#   Next rail (not another blind PREFER flip): pure-asm named BSS/COMMON
+#   CG002 root OR GrowVec-LE store path under product pure-asm.
+# PLATFORM: SHARED shell · MACOS + LINUX gold.
+
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
 # PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No file-local BSS.
 # wave335 PREFER_ASM trial → Darwin L2 0/5 (_main UNDEF); stay -E.

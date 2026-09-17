@@ -44,6 +44,9 @@
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
 //   Live=wave336 PREFER_ASM WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256
 //   (runtime_pipeline_abi_ast_forwarders_thin.x; was -E+$CC wave322).
+//   wave337: Cap leaf PREFER_ASM safe set exhausted — remaining -E leaves banned
+//   until named-BSS/COMMON CG002 or GrowVec-LE store path rooted (A/B/C catalog
+//   in ensure_host_cc_seed_o.sh above type_pool inject).
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.
