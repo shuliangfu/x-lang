@@ -21,10 +21,10 @@
 //   (runtime_pipeline_abi_typeck_orch_thin.x via -E+$CC); pure owns soft_suppress/dep_ctx/
 //   dep_prerun strong; cold WEAK under #ifndef FROM_X.
 //   Live=seed ALWAYS WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
-// wave282: ast_pool_bootstrap_glue.c seed ALWAYS leave (host leaf deleted).
-//   Live faces: typeck_i32_ptr_* / layout_metrics init+read / asm scope BSS /
-//   asm_local_slot_reg_offset + align/bump/simd/scoped + patch_parent_links +
-//   dep_skip cluster + redirect_std_c_wrapper. Seed ALWAYS under WAVE282.
+// wave282/321: bootstrap_glue Cap residual .x thin (typeck_i32_ptr_* /
+//   layout_metrics / asm scope BSS / asm_local_slot_reg_offset + align/bump/
+//   simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper;
+//   runtime_pipeline_abi_bootstrap_glue_thin.x via -E+$CC; was C thin).
 //   Pure export-extern only for faces pure imports (dual-export ban).
 // wave272: ast_pool_dep_ctx.c pure-owned leave (PipelineDepCtx + DepCtxSidecar table).
 // wave271: pipeline_grow_vec.c pure-owned leave (GrowVec init/free/ensure/at/push/
