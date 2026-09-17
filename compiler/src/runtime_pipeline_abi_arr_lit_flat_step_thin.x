@@ -1,4 +1,4 @@
-// Thin pure: arr_lit_flat dispatcher (wave438).
+// Thin pure: arr_lit_flat scalar loop step (wave438).
 // G.7: part of pipeline_asm_emit_array_lit_flat_elf_c flatten authority.
 // PRODUCT: LINUX PREFER peer chain for arr_lit_flat.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
@@ -112,54 +112,46 @@ export extern function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8,
  * @return i32 — 0 ok; -1 error
  * PLATFORM: SHARED freestanding multi-dim · LINUX|x86 · MACOS|ARM64.
  */
-export extern function pipeline_asm_emit_array_lit_flat_slice_rows_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32, dest_elem: i32): i32;
-export extern function pipeline_asm_emit_array_lit_flat_scalar_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32): i32;
+export extern function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32): i32;
+export extern function pipeline_asm_emit_array_lit_flat_try_struct_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32, elem_ref: i32, ko: i32): i32;
+export extern function pipeline_asm_emit_array_lit_flat_one_scalar_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32, elem_ref: i32, store_sz: i32): i32;
 /**
- * Flatten ARRAY_LIT into consecutive leaf stores (wave438).
+ * wave438: one ARRAY_LIT flatten scalar-loop step at index ai.
  * @param arena *u8 — ASTArena*
- * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param elf_ctx *u8 — ELF ctx
  * @param init_ref i32 — ARRAY_LIT
- * @param ctx *u8 — AsmFuncCtx*
+ * @param ctx *u8 — emit ctx
  * @param ta i32 — arch
  * @param stack_slot_off i32 — base
  * @param leaf_esz i32 — leaf esz
  * @param flat_i *i32 — flat index
+ * @param ai i32 — element index
+ * @param store_sz i32 — store width
  * @return i32 — 0 ok / -1 error
  * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
-export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32): i32 {
+export function pipeline_asm_emit_array_lit_flat_scalar_step_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32, ai: i32, store_sz: i32): i32 {
   unsafe {
+    let elem_ref: i32 = 0;
     let ko: i32 = 0;
-    let dest_elem: i32 = 0;
-    let dest_ek: i32 = 0;
-    let inner: i32 = 0;
-    let inner_k: i32 = 0;
-    if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || flat_i == (0 as *i32) || init_ref <= 0 || leaf_esz <= 0) {
+    let rc: i32 = 0;
+    let tr: i32 = 0;
+    elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+    if (elem_ref == 0) {
+      return 0;
+    }
+    ko = pipeline_expr_kind_ord_at(arena, elem_ref);
+    if (ko == 46) {
+      return pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, elem_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i);
+    }
+    tr = pipeline_asm_emit_array_lit_flat_try_struct_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i, elem_ref, ko);
+    if (tr < 0) {
       return 0 - 1;
     }
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
-    if (ko != 46) {
-      return 0 - 1;
+    if (tr == 1) {
+      return 0;
     }
-    dest_elem = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
-    dest_ek = 0;
-    if (dest_elem > 0) {
-      dest_ek = pipeline_type_kind_ord_at(arena, dest_elem);
-    }
-    inner = 0;
-    if (dest_ek == 10) {
-      inner = pipeline_type_elem_ref_at(arena, dest_elem);
-    }
-    inner_k = 0;
-    if (inner > 0) {
-      inner_k = pipeline_type_kind_ord_at(arena, inner);
-    }
-    if (inner_k == 11) {
-      return pipeline_asm_emit_array_lit_flat_slice_rows_elf_c(
-          arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i, dest_elem);
-    }
-    return pipeline_asm_emit_array_lit_flat_scalar_elf_c(
-        arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i);
+    return pipeline_asm_emit_array_lit_flat_one_scalar_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i, elem_ref, store_sz);
   }
 }

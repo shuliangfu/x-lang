@@ -1,4 +1,4 @@
-// Thin pure: arr_lit_flat dispatcher (wave438).
+// Thin pure: arr_lit_flat one slice cell (wave438).
 // G.7: part of pipeline_asm_emit_array_lit_flat_elf_c flatten authority.
 // PRODUCT: LINUX PREFER peer chain for arr_lit_flat.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
@@ -112,54 +112,45 @@ export extern function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8,
  * @return i32 — 0 ok; -1 error
  * PLATFORM: SHARED freestanding multi-dim · LINUX|x86 · MACOS|ARM64.
  */
-export extern function pipeline_asm_emit_array_lit_flat_slice_rows_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32, dest_elem: i32): i32;
-export extern function pipeline_asm_emit_array_lit_flat_scalar_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32): i32;
 /**
- * Flatten ARRAY_LIT into consecutive leaf stores (wave438).
+ * wave438 leaf: one slice cell store under row_home.
  * @param arena *u8 — ASTArena*
- * @param elf_ctx *u8 — ElfCodegenCtx*
- * @param init_ref i32 — ARRAY_LIT
- * @param ctx *u8 — AsmFuncCtx*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param init_ref i32 — unused
+ * @param ctx *u8 — emit ctx
  * @param ta i32 — arch
- * @param stack_slot_off i32 — base
- * @param leaf_esz i32 — leaf esz
- * @param flat_i *i32 — flat index
- * @return i32 — 0 ok / -1 error
+ * @param stack_slot_off i32 — unused
+ * @param leaf_esz i32 — unused
+ * @param flat_i *i32 — unused
+ * @param dest_elem i32 — unused
+ * @param elem_ref i32 — unused
+ * @param row_home i32 — row base
+ * @param inner i32 — SLICE type
+ * @param cell_ref i32 — cell expr
+ * @param ji i32 — cell index
+ * @return i32 — 0 ok / -1 error / 1 skipped
  * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
-export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32): i32 {
+export function pipeline_asm_emit_array_lit_flat_one_cell_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, leaf_esz: i32, flat_i: *i32, dest_elem: i32, elem_ref: i32, row_home: i32, inner: i32, cell_ref: i32, ji: i32): i32 {
   unsafe {
-    let ko: i32 = 0;
-    let dest_elem: i32 = 0;
-    let dest_ek: i32 = 0;
-    let inner: i32 = 0;
-    let inner_k: i32 = 0;
-    if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || flat_i == (0 as *i32) || init_ref <= 0 || leaf_esz <= 0) {
+    let cell_home: i32 = 0;
+    let row_st: i32 = 0;
+    if (cell_ref <= 0) {
+      return 1;
+    }
+    cell_home = row_home - ji * 16;
+    if (ta == 1) {
+      cell_home = row_home + ji * 16;
+    }
+    if (cell_home < 0) {
       return 0 - 1;
     }
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
-    if (ko != 46) {
+    row_st = glue_emit_slice_from_array_let_init_elf_c(
+        arena, elf_ctx, 0, 0, cell_ref, inner, ctx, ta, cell_home);
+    if (row_st != 1) {
       return 0 - 1;
     }
-    dest_elem = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
-    dest_ek = 0;
-    if (dest_elem > 0) {
-      dest_ek = pipeline_type_kind_ord_at(arena, dest_elem);
-    }
-    inner = 0;
-    if (dest_ek == 10) {
-      inner = pipeline_type_elem_ref_at(arena, dest_elem);
-    }
-    inner_k = 0;
-    if (inner > 0) {
-      inner_k = pipeline_type_kind_ord_at(arena, inner);
-    }
-    if (inner_k == 11) {
-      return pipeline_asm_emit_array_lit_flat_slice_rows_elf_c(
-          arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i, dest_elem);
-    }
-    return pipeline_asm_emit_array_lit_flat_scalar_elf_c(
-        arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, leaf_esz, flat_i);
+    return 0;
   }
 }

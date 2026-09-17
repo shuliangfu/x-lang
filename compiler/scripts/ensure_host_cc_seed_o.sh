@@ -3476,6 +3476,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || return 1
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_arr_lit_flat_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -3927,6 +3928,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm_expr_thin "$o" || true
     pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_arr_lit_flat_thin "$o" || true
     pipeline_abi_inject_w157_sum_thin "$o" || true
     pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
     pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -4008,6 +4010,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm_expr_thin "$o" || true
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_arr_lit_flat_thin "$o" || true
         pipeline_abi_inject_w157_sum_thin "$o" || true
         pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
         pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -4073,6 +4076,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_arr_lit_flat_thin "$o" || true
       pipeline_abi_inject_w157_sum_thin "$o" || true
       pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
       pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -4146,6 +4150,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm_expr_thin "$o" || true
   pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_arr_lit_flat_thin "$o" || true
   pipeline_abi_inject_w157_sum_thin "$o" || true
   pipeline_abi_inject_binop_var_slot_cache_thin "$o" || true
   pipeline_abi_inject_binop_stack_spill_try_reload_thin "$o" || true
@@ -5667,6 +5672,81 @@ pipeline_abi_inject_assign_thin() {
   return "$rc"
 }
 
+# wave438 M2: arr_lit_flat Cap residual — flat peer chain unlock.
+# PRODUCT inject wave438:
+#   BOTH: PREFER_ASM peer chain (nested if/micro-unsafe emptied Ubuntu .o;
+#   Darwin peers -c green). Order: repark→one_cell→cells→one_row→rows→
+#   struct→one_scalar→step→scalar→main dispatcher.
+# G.7: semantics match mega pipeline_asm_emit_array_lit_flat_elf_c.
+# PLATFORM: SHARED · BOTH PREFER peers.
+pipeline_abi_inject_arr_lit_flat_thin() {
+  local o="$1"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  local peer lo_x lo_stamp lo_tag lo_rest
+  local main_x="src/runtime_pipeline_abi_arr_lit_flat_thin.x"
+  local main_s="src/.pabi_w438_arr_lit_flat.stamp"
+  [ -s "$o" ] && [ -f "$main_x" ] || return 0
+  if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  for peer in \
+    "src/runtime_pipeline_abi_arr_lit_flat_repark_thin.x|.pabi_w438_arr_lit_flat_repark.stamp|w438-arr-lit-flat-repark" \
+    "src/runtime_pipeline_abi_arr_lit_flat_one_cell_thin.x|.pabi_w438_arr_lit_flat_one_cell.stamp|w438-arr-lit-flat-one-cell" \
+    "src/runtime_pipeline_abi_arr_lit_flat_cells_thin.x|.pabi_w438_arr_lit_flat_cells.stamp|w438-arr-lit-flat-cells" \
+    "src/runtime_pipeline_abi_arr_lit_flat_one_row_thin.x|.pabi_w438_arr_lit_flat_one_row.stamp|w438-arr-lit-flat-one-row" \
+    "src/runtime_pipeline_abi_arr_lit_flat_rows_thin.x|.pabi_w438_arr_lit_flat_rows.stamp|w438-arr-lit-flat-rows" \
+    "src/runtime_pipeline_abi_arr_lit_flat_struct_thin.x|.pabi_w438_arr_lit_flat_struct.stamp|w438-arr-lit-flat-struct" \
+    "src/runtime_pipeline_abi_arr_lit_flat_one_scalar_thin.x|.pabi_w438_arr_lit_flat_one_scalar.stamp|w438-arr-lit-flat-one-scalar" \
+    "src/runtime_pipeline_abi_arr_lit_flat_step_thin.x|.pabi_w438_arr_lit_flat_step.stamp|w438-arr-lit-flat-step" \
+    "src/runtime_pipeline_abi_arr_lit_flat_scalar_thin.x|.pabi_w438_arr_lit_flat_scalar.stamp|w438-arr-lit-flat-scalar" \
+    "src/runtime_pipeline_abi_arr_lit_flat_thin.x|.pabi_w438_arr_lit_flat.stamp|w438-arr-lit-flat"
+  do
+    lo_x="${peer%%|*}"
+    lo_rest="${peer#*|}"
+    lo_stamp="src/${lo_rest%%|*}"
+    lo_tag="${lo_rest#*|}"
+    if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
+      pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$lo_stamp"
+      else
+        break
+      fi
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  return "$rc"
+}
+
 # wave406 M2: w157_sum Cap residual — HARD BAN tip reinject.
 # PRODUCT inject wave406:
 #   BOTH ends: HARD BAN tip reinject (stamp only).
@@ -6446,7 +6526,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave435: peel index_addr LINUX ko47+walker PREFER (INDEX co-file XT001 split).
 # wave436: peel load_operand LINUX flat peer chain PREFER (nested-if asm ban).
 # wave437: assign rhsrax LINUX flat helpers PREFER (emit_assign still BAN).
-# Next: mega BAN／split债（assign emit／arr rest…）；禁升钉。
+# wave438: arr_lit_flat BOTH flat peer chain PREFER.
+# Next: mega BAN／split债（assign emit／arr return／arr struct_lit…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11982,7 +12063,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-assign|inject_assign)
-    # wave421: MACOS full PREFER / LINUX helpers+pair/body PREFER (middle BAN).
+    # wave421/437: MACOS full PREFER / LINUX helpers+rhsrax PREFER (emit BAN).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-assign: need <out.o>" >&2
@@ -11990,6 +12071,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_assign_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-arr-lit-flat|inject_arr_lit_flat)
+    # wave438: BOTH PREFER flat peer chain.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-arr-lit-flat: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_arr_lit_flat_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
