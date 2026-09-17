@@ -5542,6 +5542,7 @@ pipeline_abi_inject_block_tree_thin() {
 #     g05 pure-ld fail) — hard-skip; stay prior -E.
 #   BAN w370: macho_write PREFER (ARM64_RELOC_BRANCH26 on non-b/bl in thin;
 #     g05 pure-ld fail) — hard-skip; stay prior -E; T001 w314_* kept.
+#   UNLOCKED w371 try: mega_body PREFER (T001 w371_* · gate+L2).
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
@@ -5549,7 +5550,7 @@ pipeline_abi_inject_block_tree_thin() {
 #     C residual GrowVec/sidecar LE peers still -E:
 #       onefunc (BAN PREFER) / dep_ctx (BAN PREFER) / asm_wpo (BAN PREFER) /
 #       macho_write (BAN PREFER) / top_level_let / asm_locals / struct_layout
-#       (BAN) / mega_body.
+#       (BAN).
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK.
 # wave344: non-zero scalar imm → .data bake (library TU).
@@ -5577,7 +5578,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave368/368b: elf_ctx Darwin PREFER / Ubuntu -E (elf patch offset=-1).
 # wave369/369b: asm_wpo T001 w311_* + BAN PREFER (ARM64_RELOC_BRANCH26).
 # wave370/370b: macho_write T001 w314_* + BAN PREFER (ARM64_RELOC_BRANCH26).
-# Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
+# wave371: mega_body PREFER try (T001 w371_* · gate+L2).
+# Next: Ubuntu Type LE＋check_expr x86_64 ABI／BAN residual roots.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -6684,17 +6686,15 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 
 
 
-# wave290 asm_codegen_mega_body Cap residual (C thin; reset + mega emit loop).
-# Separate leaf: Darwin additive ingest. ALWAYS residual (not FROM_X-gated).
-# G.7: match seed WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS. PLATFORM: SHARED.
-# wave328 M2: asm_codegen_mega_body Cap residual C→.x (was wave290 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). ctx_reset + mega_body_c.
+# wave290/328/371 M2: asm_codegen_mega_body Cap residual C→.x (was wave290 C thin).
+# PRODUCT inject wave371: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
+# T001 w371_* helpers; ctx_reset + mega_body_c; gate=type_alias -c + L2.
 # POSIX product path; WIN leftover ARRAY_LIT wrap stays leftover-PE authority.
-# G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS. PLATFORM: SHARED.
+# G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS. PLATFORM: SHARED · PREFER try.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_codegen_mega_body_thin.x"
-  local stamp="src/.pabi_w328_mega_body.stamp"
+  local stamp="src/.pabi_w371_mega_body.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6714,9 +6714,9 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w328-mega-body"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w371-mega-body"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6733,6 +6733,7 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w328_mega_body.stamp
   fi
   return "$rc"
 }
