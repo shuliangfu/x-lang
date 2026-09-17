@@ -21,9 +21,9 @@
 // wave284/323 parse_orch Cap residual .x thin (parse/load/typeck orch +
 //   Cap-struct ParseIntoResult + diagnostics + sizeof + expr helpers;
 //   runtime_pipeline_abi_parse_orch_thin.x via -E+$CC; was C thin);
-// wave283/322 ast_forwarders Cap residual .x thin (ast_pipeline_* rename shims +
+// wave283/322/336 ast_forwarders Cap residual .x thin (ast_pipeline_* rename shims +
 //   pipeline_copy_lib_root_to_buf256; runtime_pipeline_abi_ast_forwarders_thin.x
-//   via -E+$CC; was C thin).
+//   PREFER_ASM wave336; was -E+$CC wave322; was C thin).
 //   Live=wave329 .x thin WAVE287: parser slice/lex/result-copy Cap residual faces
 //   (parser_slice_from_buf / parser_lex_from_* / pipeline_parser_*_set_*).
 //   Live=wave319 .x thin WAVE286: check_expr dispatch + match BSS + thin faces;
@@ -38,12 +38,12 @@
 //   Live=wave334 PREFER_ASM WAVE279: lifecycle Cap residual
 //   (runtime_pipeline_abi_lifecycle_thin.x; was -E+$CC wave320).
 //   Live=wave301 .x thin WAVE270: type_pool Cap residual
-//   (wave335 PREFER_ASM trial _main UNDEF — stay -E; pipe_* T001-unsafe).
+//   (wave335 PREFER_ASM trial _main UNDEF — stay -E).
 //   Live=wave325 .x thin WAVE281: onefunc mutators + block fill_from_onefunc
 //   (wave335 PREFER_ASM trial SEGV — stay -E).
-//   (PREFER_ASM banned wave335 — Darwin L2 SEGV).
 //   Live=wave323 .x thin WAVE284: parse/load/typeck orch Cap residual faces.
-//   Live=wave322 .x thin WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256.
+//   Live=wave336 PREFER_ASM WAVE283: ast_pipeline_* rename shims + copy_lib_root_to_buf256
+//   (runtime_pipeline_abi_ast_forwarders_thin.x; was -E+$CC wave322).
 //   Live=wave324 .x thin WAVE280: module Func accessors + param sidecar + pmfo BSS.
 //   Live=wave326 .x thin WAVE277: block_domain append/getters/patch/stmt_order.
 //   Live=wave327 .x thin WAVE278: expr_sidecar call/match/struct_lit/array + fields.

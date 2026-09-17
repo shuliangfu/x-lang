@@ -1,8 +1,9 @@
-// Thin pure: wave322 M2 — ast_forwarders Cap residual C→.x (was wave283 C thin).
+// Thin pure: wave322/336 M2 — ast_forwarders Cap residual C→.x (was wave283 C thin).
 // ast_pipeline_* rename shims + pipeline_copy_lib_root_to_buf256.
 // G.7: bodies match runtime_pipeline_abi_ast_forwarders_thin.c / seed WAVE283.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_ast_forwarders_thin
-// (ALLOW_E_REPLACE + stamp). No file-local BSS.
+// PRODUCT inject: wave336 PREFER_ASM via pipeline_abi_inject_ast_forwarders_thin
+// (ALLOW_E_REPLACE + stamp). No file-local BSS; no GrowVec/pipe LE stores;
+// all shim bodies T001-unsafe (was -E+$CC interim).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function ast_pool_onefunc_reset(out: *u8): void;
@@ -198,7 +199,9 @@ export extern function pipeline_onefunc_num_whiles(out: *u8): i32;
  */
 #[no_mangle]
 export function ast_pipeline_module_func_alloc_slot(m: *u8): i32 {
-  return pipeline_module_func_alloc_slot(m);
+  unsafe {
+    return pipeline_module_func_alloc_slot(m);
+  }
 }
 
 /**
@@ -208,7 +211,9 @@ export function ast_pipeline_module_func_alloc_slot(m: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_func_ref_set(m: *u8, fi: i32, func_ref: i32): void {
-  pipeline_module_func_ref_set(m, fi, func_ref);
+  unsafe {
+    pipeline_module_func_ref_set(m, fi, func_ref);
+  }
 }
 
 /**
@@ -218,7 +223,9 @@ export function ast_pipeline_module_func_ref_set(m: *u8, fi: i32, func_ref: i32)
  */
 #[no_mangle]
 export function ast_pipeline_module_func_set_return_type(m: *u8, fi: i32, type_ref: i32): void {
-  pipeline_module_func_set_return_type(m, fi, type_ref);
+  unsafe {
+    pipeline_module_func_set_return_type(m, fi, type_ref);
+  }
 }
 
 /**
@@ -228,7 +235,9 @@ export function ast_pipeline_module_func_set_return_type(m: *u8, fi: i32, type_r
  */
 #[no_mangle]
 export function ast_pipeline_module_func_set_body_ref(m: *u8, fi: i32, body_ref: i32): void {
-  pipeline_module_func_set_body_ref(m, fi, body_ref);
+  unsafe {
+    pipeline_module_func_set_body_ref(m, fi, body_ref);
+  }
 }
 
 /**
@@ -238,7 +247,9 @@ export function ast_pipeline_module_func_set_body_ref(m: *u8, fi: i32, body_ref:
  */
 #[no_mangle]
 export function ast_pipeline_module_func_set_body_expr_ref(m: *u8, fi: i32, body_expr_ref: i32): void {
-  pipeline_module_func_set_body_expr_ref(m, fi, body_expr_ref);
+  unsafe {
+    pipeline_module_func_set_body_expr_ref(m, fi, body_expr_ref);
+  }
 }
 
 /**
@@ -248,7 +259,9 @@ export function ast_pipeline_module_func_set_body_expr_ref(m: *u8, fi: i32, body
  */
 #[no_mangle]
 export function ast_pipeline_module_func_set_is_extern(m: *u8, fi: i32, is_extern: i32): void {
-  pipeline_module_func_set_is_extern(m, fi, is_extern);
+  unsafe {
+    pipeline_module_func_set_is_extern(m, fi, is_extern);
+  }
 }
 
 /**
@@ -258,7 +271,9 @@ export function ast_pipeline_module_func_set_is_extern(m: *u8, fi: i32, is_exter
  */
 #[no_mangle]
 export function ast_pipeline_module_func_set_is_async(m: *u8, fi: i32, is_async: i32): void {
-  pipeline_module_func_set_is_async(m, fi, is_async);
+  unsafe {
+    pipeline_module_func_set_is_async(m, fi, is_async);
+  }
 }
 
 /**
@@ -268,7 +283,9 @@ export function ast_pipeline_module_func_set_is_async(m: *u8, fi: i32, is_async:
  */
 #[no_mangle]
 export function ast_pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32): void {
-  pipeline_module_func_set_num_params(m, fi, n);
+  unsafe {
+    pipeline_module_func_set_num_params(m, fi, n);
+  }
 }
 
 /**
@@ -278,7 +295,9 @@ export function ast_pipeline_module_func_set_num_params(m: *u8, fi: i32, n: i32)
  */
 #[no_mangle]
 export function ast_pipeline_module_func_num_generic_params_at(m: *u8, fi: i32): i32 {
-  return pipeline_module_func_num_generic_params_at(m, fi);
+  unsafe {
+    return pipeline_module_func_num_generic_params_at(m, fi);
+  }
 }
 
 /**
@@ -288,7 +307,9 @@ export function ast_pipeline_module_func_num_generic_params_at(m: *u8, fi: i32):
  */
 #[no_mangle]
 export function ast_pipeline_module_func_return_type_at(m: *u8, fi: i32): i32 {
-  return pipeline_module_func_return_type_at(m, fi);
+  unsafe {
+    return pipeline_module_func_return_type_at(m, fi);
+  }
 }
 
 /**
@@ -298,7 +319,9 @@ export function ast_pipeline_module_func_return_type_at(m: *u8, fi: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_func_name_equal_at(m: *u8, fi: i32, name: *u8, name_len: i32): i32 {
-  return pipeline_module_func_name_equal_at(m, fi, name, name_len);
+  unsafe {
+    return pipeline_module_func_name_equal_at(m, fi, name, name_len);
+  }
 }
 
 /**
@@ -308,7 +331,9 @@ export function ast_pipeline_module_func_name_equal_at(m: *u8, fi: i32, name: *u
  */
 #[no_mangle]
 export function ast_pipeline_module_func_name_byte_at(m: *u8, fi: i32, i: i32): u8 {
-  return pipeline_module_func_name_byte_at(m, fi, i);
+  unsafe {
+    return pipeline_module_func_name_byte_at(m, fi, i);
+  }
 }
 
 /**
@@ -318,7 +343,9 @@ export function ast_pipeline_module_func_name_byte_at(m: *u8, fi: i32, i: i32): 
  */
 #[no_mangle]
 export function ast_pipeline_module_func_body_expr_ref_at(m: *u8, fi: i32): i32 {
-  return pipeline_module_func_body_expr_ref_at(m, fi);
+  unsafe {
+    return pipeline_module_func_body_expr_ref_at(m, fi);
+  }
 }
 
 /**
@@ -328,7 +355,9 @@ export function ast_pipeline_module_func_body_expr_ref_at(m: *u8, fi: i32): i32 
  */
 #[no_mangle]
 export function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32 {
-  return pipeline_ctx_append_lib_root(ctx, path, len);
+  unsafe {
+    return pipeline_ctx_append_lib_root(ctx, path, len);
+  }
 }
 
 /**
@@ -338,7 +367,9 @@ export function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32):
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_reset(ctx: *u8): void {
-  pipeline_dep_ctx_reset(ctx);
+  unsafe {
+    pipeline_dep_ctx_reset(ctx);
+  }
 }
 
 /**
@@ -348,7 +379,9 @@ export function ast_pipeline_dep_ctx_reset(ctx: *u8): void {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32 {
-  return pipeline_dep_ctx_ndep(ctx);
+  unsafe {
+    return pipeline_dep_ctx_ndep(ctx);
+  }
 }
 
 /**
@@ -358,7 +391,9 @@ export function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8 {
-  return pipeline_dep_ctx_module_at(ctx, idx);
+  unsafe {
+    return pipeline_dep_ctx_module_at(ctx, idx);
+  }
 }
 
 /**
@@ -368,7 +403,9 @@ export function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8 {
-  return pipeline_dep_ctx_arena_at(ctx, idx);
+  unsafe {
+    return pipeline_dep_ctx_arena_at(ctx, idx);
+  }
 }
 
 /**
@@ -378,7 +415,9 @@ export function ast_pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void {
-  pipeline_dep_ctx_set_module(ctx, idx, m);
+  unsafe {
+    pipeline_dep_ctx_set_module(ctx, idx, m);
+  }
 }
 
 /**
@@ -388,7 +427,9 @@ export function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): voi
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void {
-  pipeline_dep_ctx_set_arena(ctx, idx, a);
+  unsafe {
+    pipeline_dep_ctx_set_arena(ctx, idx, a);
+  }
 }
 
 /**
@@ -398,7 +439,9 @@ export function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void {
-  pipeline_dep_ctx_set_ndep(ctx, n);
+  unsafe {
+    pipeline_dep_ctx_set_ndep(ctx, n);
+  }
 }
 
 /**
@@ -408,7 +451,9 @@ export function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: *u8, len: i32): void {
-  pipeline_dep_ctx_set_codegen_prefix_mirror(ctx, bytes, len);
+  unsafe {
+    pipeline_dep_ctx_set_codegen_prefix_mirror(ctx, bytes, len);
+  }
 }
 
 /**
@@ -418,7 +463,9 @@ export function ast_pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: 
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_codegen_prefix_len(ctx: *u8): i32 {
-  return pipeline_dep_ctx_codegen_prefix_len(ctx);
+  unsafe {
+    return pipeline_dep_ctx_codegen_prefix_len(ctx);
+  }
 }
 
 /**
@@ -428,7 +475,9 @@ export function ast_pipeline_dep_ctx_codegen_prefix_len(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_codegen_prefix_byte_at(ctx: *u8, off: i32): u8 {
-  return pipeline_dep_ctx_codegen_prefix_byte_at(ctx, off);
+  unsafe {
+    return pipeline_dep_ctx_codegen_prefix_byte_at(ctx, off);
+  }
 }
 
 /**
@@ -438,7 +487,9 @@ export function ast_pipeline_dep_ctx_codegen_prefix_byte_at(ctx: *u8, off: i32):
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_codegen_prefix_copy(ctx: *u8, dst: *u8, cap: i32): void {
-  pipeline_dep_ctx_codegen_prefix_copy(ctx, dst, cap);
+  unsafe {
+    pipeline_dep_ctx_codegen_prefix_copy(ctx, dst, cap);
+  }
 }
 
 /**
@@ -448,7 +499,9 @@ export function ast_pipeline_dep_ctx_codegen_prefix_copy(ctx: *u8, dst: *u8, cap
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_current_codegen_dep_index(ctx: *u8): i32 {
-  return pipeline_dep_ctx_current_codegen_dep_index(ctx);
+  unsafe {
+    return pipeline_dep_ctx_current_codegen_dep_index(ctx);
+  }
 }
 
 /**
@@ -458,7 +511,9 @@ export function ast_pipeline_dep_ctx_current_codegen_dep_index(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_current_codegen_module(ctx: *u8): *u8 {
-  return pipeline_dep_ctx_current_codegen_module(ctx);
+  unsafe {
+    return pipeline_dep_ctx_current_codegen_module(ctx);
+  }
 }
 
 /**
@@ -468,7 +523,9 @@ export function ast_pipeline_dep_ctx_current_codegen_module(ctx: *u8): *u8 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_current_codegen_arena(ctx: *u8): *u8 {
-  return pipeline_dep_ctx_current_codegen_arena(ctx);
+  unsafe {
+    return pipeline_dep_ctx_current_codegen_arena(ctx);
+  }
 }
 
 /**
@@ -478,7 +535,9 @@ export function ast_pipeline_dep_ctx_current_codegen_arena(ctx: *u8): *u8 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_current_func_index(ctx: *u8): i32 {
-  return pipeline_dep_ctx_current_func_index(ctx);
+  unsafe {
+    return pipeline_dep_ctx_current_func_index(ctx);
+  }
 }
 
 /**
@@ -488,7 +547,9 @@ export function ast_pipeline_dep_ctx_current_func_index(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_current_codegen_module(ctx: *u8, m: *u8): void {
-  pipeline_dep_ctx_set_current_codegen_module(ctx, m);
+  unsafe {
+    pipeline_dep_ctx_set_current_codegen_module(ctx, m);
+  }
 }
 
 /**
@@ -498,7 +559,9 @@ export function ast_pipeline_dep_ctx_set_current_codegen_module(ctx: *u8, m: *u8
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_current_codegen_arena(ctx: *u8, a: *u8): void {
-  pipeline_dep_ctx_set_current_codegen_arena(ctx, a);
+  unsafe {
+    pipeline_dep_ctx_set_current_codegen_arena(ctx, a);
+  }
 }
 
 /**
@@ -508,7 +571,9 @@ export function ast_pipeline_dep_ctx_set_current_codegen_arena(ctx: *u8, a: *u8)
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_current_codegen_dep_index(ctx: *u8, ix: i32): void {
-  pipeline_dep_ctx_set_current_codegen_dep_index(ctx, ix);
+  unsafe {
+    pipeline_dep_ctx_set_current_codegen_dep_index(ctx, ix);
+  }
 }
 
 /**
@@ -518,7 +583,9 @@ export function ast_pipeline_dep_ctx_set_current_codegen_dep_index(ctx: *u8, ix:
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_current_func_index(ctx: *u8, ix: i32): void {
-  pipeline_dep_ctx_set_current_func_index(ctx, ix);
+  unsafe {
+    pipeline_dep_ctx_set_current_func_index(ctx, ix);
+  }
 }
 
 /**
@@ -528,7 +595,9 @@ export function ast_pipeline_dep_ctx_set_current_func_index(ctx: *u8, ix: i32): 
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_entry_already_parsed(ctx: *u8): i32 {
-  return pipeline_dep_ctx_entry_already_parsed(ctx);
+  unsafe {
+    return pipeline_dep_ctx_entry_already_parsed(ctx);
+  }
 }
 
 /**
@@ -538,7 +607,9 @@ export function ast_pipeline_dep_ctx_entry_already_parsed(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32 {
-  return pipeline_dep_ctx_asm_entry_module_only(ctx);
+  unsafe {
+    return pipeline_dep_ctx_asm_entry_module_only(ctx);
+  }
 }
 
 /**
@@ -548,7 +619,9 @@ export function ast_pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_check_only_mode(ctx: *u8): i32 {
-  return pipeline_dep_ctx_check_only_mode(ctx);
+  unsafe {
+    return pipeline_dep_ctx_check_only_mode(ctx);
+  }
 }
 
 /**
@@ -558,7 +631,9 @@ export function ast_pipeline_dep_ctx_check_only_mode(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_use_asm_backend(ctx: *u8): i32 {
-  return pipeline_dep_ctx_use_asm_backend(ctx);
+  unsafe {
+    return pipeline_dep_ctx_use_asm_backend(ctx);
+  }
 }
 
 /**
@@ -568,7 +643,9 @@ export function ast_pipeline_dep_ctx_use_asm_backend(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_entry_dir_byte_at(ctx: *u8, off: i32): u8 {
-  return pipeline_dep_ctx_entry_dir_byte_at(ctx, off);
+  unsafe {
+    return pipeline_dep_ctx_entry_dir_byte_at(ctx, off);
+  }
 }
 
 /**
@@ -578,7 +655,9 @@ export function ast_pipeline_dep_ctx_entry_dir_byte_at(ctx: *u8, off: i32): u8 {
  */
 #[no_mangle]
 export function ast_pipeline_codegen_type_kind_copy(dst: *u8, cap: i32, kind: i32): i32 {
-  return pipeline_codegen_type_kind_copy(dst, cap, kind);
+  unsafe {
+    return pipeline_codegen_type_kind_copy(dst, cap, kind);
+  }
 }
 
 /**
@@ -588,7 +667,9 @@ export function ast_pipeline_codegen_type_kind_copy(dst: *u8, cap: i32, kind: i3
  */
 #[no_mangle]
 export function ast_pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w: i32, kind: i32): i32 {
-  return pipeline_codegen_type_kind_append(scratch, cap, w, kind);
+  unsafe {
+    return pipeline_codegen_type_kind_append(scratch, cap, w, kind);
+  }
 }
 
 /**
@@ -598,7 +679,9 @@ export function ast_pipeline_codegen_type_kind_append(scratch: *u8, cap: i32, w:
  */
 #[no_mangle]
 export function ast_pipeline_codegen_vector_type_copy(dst: *u8, cap: i32, elem_kind: i32, lanes: i32): i32 {
-  return pipeline_codegen_vector_type_copy(dst, cap, elem_kind, lanes);
+  unsafe {
+    return pipeline_codegen_vector_type_copy(dst, cap, elem_kind, lanes);
+  }
 }
 
 /**
@@ -608,7 +691,9 @@ export function ast_pipeline_codegen_vector_type_copy(dst: *u8, cap: i32, elem_k
  */
 #[no_mangle]
 export function ast_pipeline_codegen_call_num_args_override_lookup(buf: *u8, full: i32, num_args: i32): i32 {
-  return pipeline_codegen_call_num_args_override_lookup(buf, full, num_args);
+  unsafe {
+    return pipeline_codegen_call_num_args_override_lookup(buf, full, num_args);
+  }
 }
 
 /**
@@ -618,7 +703,9 @@ export function ast_pipeline_codegen_call_num_args_override_lookup(buf: *u8, ful
  */
 #[no_mangle]
 export function ast_pipeline_codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32 {
-  return pipeline_codegen_call_num_args_override(prefix, prefix_len, name, name_len, num_args);
+  unsafe {
+    return pipeline_codegen_call_num_args_override(prefix, prefix_len, name, name_len, num_args);
+  }
 }
 
 /**
@@ -628,7 +715,9 @@ export function ast_pipeline_codegen_call_num_args_override(prefix: *u8, prefix_
  */
 #[no_mangle]
 export function ast_pipeline_codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_is_std_io_driver_bridge_name(name, name_len);
+  unsafe {
+    return pipeline_codegen_is_std_io_driver_bridge_name(name, name_len);
+  }
 }
 
 /**
@@ -638,7 +727,9 @@ export function ast_pipeline_codegen_is_std_io_driver_bridge_name(name: *u8, nam
  */
 #[no_mangle]
 export function ast_pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32 {
-  return pipeline_codegen_path_is_std_io_driver_bytes(path);
+  unsafe {
+    return pipeline_codegen_path_is_std_io_driver_bytes(path);
+  }
 }
 
 /**
@@ -648,7 +739,9 @@ export function ast_pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32
  */
 #[no_mangle]
 export function ast_pipeline_codegen_path_is_std_io_core_bytes(path: *u8): i32 {
-  return pipeline_codegen_path_is_std_io_core_bytes(path);
+  unsafe {
+    return pipeline_codegen_path_is_std_io_core_bytes(path);
+  }
 }
 
 /**
@@ -658,7 +751,9 @@ export function ast_pipeline_codegen_path_is_std_io_core_bytes(path: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_should_skip_emit_std_io_core_io_dup(dep_path, name, name_len);
+  unsafe {
+    return pipeline_codegen_should_skip_emit_std_io_core_io_dup(dep_path, name, name_len);
+  }
 }
 
 /**
@@ -668,7 +763,9 @@ export function ast_pipeline_codegen_should_skip_emit_std_io_core_io_dup(dep_pat
  */
 #[no_mangle]
 export function ast_pipeline_codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_should_skip_emit_std_io_trivial_handle(dep_path, name, name_len);
+  unsafe {
+    return pipeline_codegen_should_skip_emit_std_io_trivial_handle(dep_path, name, name_len);
+  }
 }
 
 /**
@@ -678,7 +775,9 @@ export function ast_pipeline_codegen_should_skip_emit_std_io_trivial_handle(dep_
  */
 #[no_mangle]
 export function ast_pipeline_codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_should_skip_emit_func(dep_path, prefix, prefix_len, name, name_len);
+  unsafe {
+    return pipeline_codegen_should_skip_emit_func(dep_path, prefix, prefix_len, name, name_len);
+  }
 }
 
 /**
@@ -688,7 +787,9 @@ export function ast_pipeline_codegen_should_skip_emit_func(dep_path: *u8, prefix
  */
 #[no_mangle]
 export function ast_pipeline_codegen_skip_emit_extern_io_batch_buf(name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_skip_emit_extern_io_batch_buf(name, name_len);
+  unsafe {
+    return pipeline_codegen_skip_emit_extern_io_batch_buf(name, name_len);
+  }
 }
 
 /**
@@ -698,7 +799,9 @@ export function ast_pipeline_codegen_skip_emit_extern_io_batch_buf(name: *u8, na
  */
 #[no_mangle]
 export function ast_pipeline_codegen_entry_is_lsp_io_module(module: *u8): i32 {
-  return pipeline_codegen_entry_is_lsp_io_module(module);
+  unsafe {
+    return pipeline_codegen_entry_is_lsp_io_module(module);
+  }
 }
 
 /**
@@ -708,7 +811,9 @@ export function ast_pipeline_codegen_entry_is_lsp_io_module(module: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_codegen_entry_is_lsp_main_module(module: *u8): i32 {
-  return pipeline_codegen_entry_is_lsp_main_module(module);
+  unsafe {
+    return pipeline_codegen_entry_is_lsp_main_module(module);
+  }
 }
 
 /**
@@ -718,7 +823,9 @@ export function ast_pipeline_codegen_entry_is_lsp_main_module(module: *u8): i32 
  */
 #[no_mangle]
 export function ast_pipeline_codegen_force_param_std_io_driver_prefix_ok(prefix: *u8, prefix_len: i32): i32 {
-  return pipeline_codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len);
+  unsafe {
+    return pipeline_codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len);
+  }
 }
 
 /**
@@ -728,7 +835,9 @@ export function ast_pipeline_codegen_force_param_std_io_driver_prefix_ok(prefix:
  */
 #[no_mangle]
 export function ast_pipeline_codegen_force_param_size_t(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
-  return pipeline_codegen_force_param_size_t(prefix, prefix_len, name, name_len, param_index);
+  unsafe {
+    return pipeline_codegen_force_param_size_t(prefix, prefix_len, name, name_len, param_index);
+  }
 }
 
 /**
@@ -738,7 +847,9 @@ export function ast_pipeline_codegen_force_param_size_t(prefix: *u8, prefix_len:
  */
 #[no_mangle]
 export function ast_pipeline_codegen_force_param_size_t_std_io_print_str_second(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
-  return pipeline_codegen_force_param_size_t_std_io_print_str_second(prefix, prefix_len, name, name_len, param_index);
+  unsafe {
+    return pipeline_codegen_force_param_size_t_std_io_print_str_second(prefix, prefix_len, name, name_len, param_index);
+  }
 }
 
 /**
@@ -748,7 +859,9 @@ export function ast_pipeline_codegen_force_param_size_t_std_io_print_str_second(
  */
 #[no_mangle]
 export function ast_pipeline_codegen_force_param_ptrdiff_t(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
-  return pipeline_codegen_force_param_ptrdiff_t(prefix, prefix_len, name, name_len, param_index);
+  unsafe {
+    return pipeline_codegen_force_param_ptrdiff_t(prefix, prefix_len, name, name_len, param_index);
+  }
 }
 
 /**
@@ -758,7 +871,9 @@ export function ast_pipeline_codegen_force_param_ptrdiff_t(prefix: *u8, prefix_l
  */
 #[no_mangle]
 export function ast_pipeline_codegen_force_param_uint32_t(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
-  return pipeline_codegen_force_param_uint32_t(prefix, prefix_len, name, name_len, param_index);
+  unsafe {
+    return pipeline_codegen_force_param_uint32_t(prefix, prefix_len, name, name_len, param_index);
+  }
 }
 
 /**
@@ -768,7 +883,9 @@ export function ast_pipeline_codegen_force_param_uint32_t(prefix: *u8, prefix_le
  */
 #[no_mangle]
 export function ast_pipeline_codegen_use_buf_wrapper(name: *u8, name_len: i32, num_args: i32): i32 {
-  return pipeline_codegen_use_buf_wrapper(name, name_len, num_args);
+  unsafe {
+    return pipeline_codegen_use_buf_wrapper(name, name_len, num_args);
+  }
 }
 
 /**
@@ -778,7 +895,9 @@ export function ast_pipeline_codegen_use_buf_wrapper(name: *u8, name_len: i32, n
  */
 #[no_mangle]
 export function ast_pipeline_codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_should_skip_emit_func_by_name(name, name_len);
+  unsafe {
+    return pipeline_codegen_should_skip_emit_func_by_name(name, name_len);
+  }
 }
 
 /**
@@ -788,7 +907,9 @@ export function ast_pipeline_codegen_should_skip_emit_func_by_name(name: *u8, na
  */
 #[no_mangle]
 export function ast_pipeline_codegen_is_submit_batch_buf_call(name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_is_submit_batch_buf_call(name, name_len);
+  unsafe {
+    return pipeline_codegen_is_submit_batch_buf_call(name, name_len);
+  }
 }
 
 /**
@@ -798,7 +919,9 @@ export function ast_pipeline_codegen_is_submit_batch_buf_call(name: *u8, name_le
  */
 #[no_mangle]
 export function ast_pipeline_codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_should_skip_emit_func_core_read_ptr(name, name_len);
+  unsafe {
+    return pipeline_codegen_should_skip_emit_func_core_read_ptr(name, name_len);
+  }
 }
 
 /**
@@ -808,7 +931,9 @@ export function ast_pipeline_codegen_should_skip_emit_func_core_read_ptr(name: *
  */
 #[no_mangle]
 export function ast_pipeline_codegen_io_driver_buf_call_sym(name: *u8, name_len: i32, num_args: i32, sym_out: *u8, sym_cap: i32): i32 {
-  return pipeline_codegen_io_driver_buf_call_sym(name, name_len, num_args, sym_out, sym_cap);
+  unsafe {
+    return pipeline_codegen_io_driver_buf_call_sym(name, name_len, num_args, sym_out, sym_cap);
+  }
 }
 
 /**
@@ -818,7 +943,9 @@ export function ast_pipeline_codegen_io_driver_buf_call_sym(name: *u8, name_len:
  */
 #[no_mangle]
 export function ast_pipeline_codegen_std_io_fixed_fd_emit_impl(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
-  return pipeline_codegen_std_io_fixed_fd_emit_impl(prefix, prefix_len, name, name_len);
+  unsafe {
+    return pipeline_codegen_std_io_fixed_fd_emit_impl(prefix, prefix_len, name, name_len);
+  }
 }
 
 /**
@@ -828,7 +955,9 @@ export function ast_pipeline_codegen_std_io_fixed_fd_emit_impl(prefix: *u8, pref
  */
 #[no_mangle]
 export function ast_pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32 {
-  return pipeline_elf_ctx_append_patch(ctx_bytes, rel32_offset, name, name_len, imm_bits);
+  unsafe {
+    return pipeline_elf_ctx_append_patch(ctx_bytes, rel32_offset, name, name_len, imm_bits);
+  }
 }
 
 /**
@@ -838,7 +967,9 @@ export function ast_pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: 
  */
 #[no_mangle]
 export function ast_pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32 {
-  return pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len);
+  unsafe {
+    return pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len);
+  }
 }
 
 /**
@@ -848,7 +979,9 @@ export function ast_pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, n
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void {
-  pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
+  unsafe {
+    pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
+  }
 }
 
 /**
@@ -858,7 +991,9 @@ export function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: 
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_import_path_len(ctx: *u8, idx: i32): i32 {
-  return pipeline_dep_ctx_import_path_len(ctx, idx);
+  unsafe {
+    return pipeline_dep_ctx_import_path_len(ctx, idx);
+  }
 }
 
 /**
@@ -868,7 +1003,9 @@ export function ast_pipeline_dep_ctx_import_path_len(ctx: *u8, idx: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8): void {
-  pipeline_dep_ctx_import_path_copy64(ctx, idx, dst);
+  unsafe {
+    pipeline_dep_ctx_import_path_copy64(ctx, idx, dst);
+  }
 }
 
 /**
@@ -878,7 +1015,9 @@ export function ast_pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst:
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_path_buf_byte(ctx: *u8, off: i32, b: u8): void {
-  pipeline_dep_ctx_set_path_buf_byte(ctx, off, b);
+  unsafe {
+    pipeline_dep_ctx_set_path_buf_byte(ctx, off, b);
+  }
 }
 
 /**
@@ -888,7 +1027,9 @@ export function ast_pipeline_dep_ctx_set_path_buf_byte(ctx: *u8, off: i32, b: u8
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32 {
-  return pipeline_dep_ctx_entry_dir_len(ctx);
+  unsafe {
+    return pipeline_dep_ctx_entry_dir_len(ctx);
+  }
 }
 
 /**
@@ -898,7 +1039,9 @@ export function ast_pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_ensure_source_buffers(ctx: *u8): i32 {
-  return pipeline_dep_ctx_ensure_source_buffers(ctx);
+  unsafe {
+    return pipeline_dep_ctx_ensure_source_buffers(ctx);
+  }
 }
 
 /**
@@ -908,7 +1051,9 @@ export function ast_pipeline_dep_ctx_ensure_source_buffers(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_free_source_buffers(ctx: *u8): void {
-  pipeline_dep_ctx_free_source_buffers(ctx);
+  unsafe {
+    pipeline_dep_ctx_free_source_buffers(ctx);
+  }
 }
 
 /**
@@ -918,7 +1063,9 @@ export function ast_pipeline_dep_ctx_free_source_buffers(ctx: *u8): void {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_heap_destroy(ctx: *u8): void {
-  pipeline_dep_ctx_heap_destroy(ctx);
+  unsafe {
+    pipeline_dep_ctx_heap_destroy(ctx);
+  }
 }
 
 /**
@@ -928,7 +1075,9 @@ export function ast_pipeline_dep_ctx_heap_destroy(ctx: *u8): void {
  */
 #[no_mangle]
 export function ast_pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: isize): void {
-  pipeline_dep_ctx_set_loaded_len(ctx, n);
+  unsafe {
+    pipeline_dep_ctx_set_loaded_len(ctx, n);
+  }
 }
 
 /**
@@ -938,7 +1087,9 @@ export function ast_pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: isize): void {
  */
 #[no_mangle]
 export function ast_pipeline_ctx_lib_root_count(ctx: *u8): i32 {
-  return pipeline_ctx_lib_root_count(ctx);
+  unsafe {
+    return pipeline_ctx_lib_root_count(ctx);
+  }
 }
 
 /**
@@ -948,7 +1099,9 @@ export function ast_pipeline_ctx_lib_root_count(ctx: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_ctx_lib_root_len(ctx: *u8, i: i32): i32 {
-  return pipeline_ctx_lib_root_len(ctx, i);
+  unsafe {
+    return pipeline_ctx_lib_root_len(ctx, i);
+  }
 }
 
 /**
@@ -958,7 +1111,9 @@ export function ast_pipeline_ctx_lib_root_len(ctx: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_ctx_lib_root_copy(ctx: *u8, i: i32, dst: *u8, cap: i32): void {
-  pipeline_ctx_lib_root_copy(ctx, i, dst, cap);
+  unsafe {
+    pipeline_ctx_lib_root_copy(ctx, i, dst, cap);
+  }
 }
 
 /**
@@ -968,18 +1123,20 @@ export function ast_pipeline_ctx_lib_root_copy(ctx: *u8, i: i32, dst: *u8, cap: 
  */
 #[no_mangle]
 export function pipeline_copy_lib_root_to_buf256(ctx: *u8, lib_idx: i32, dst: *u8): i32 {
-  if (dst == (0 as *u8)) { return 0; }
-  let i: i32 = 0;
-  while (i < 256) {
-    unsafe { dst[i] = 0 as u8; }
-    i = i + 1;
+  unsafe {
+    if (dst == (0 as *u8)) { return 0; }
+    let i: i32 = 0;
+    while (i < 256) {
+      unsafe { dst[i] = 0 as u8; }
+      i = i + 1;
+    }
+    if (ctx == (0 as *u8) || lib_idx < 0) { return 0; }
+    let lr_len: i32 = pipeline_ctx_lib_root_len(ctx, lib_idx);
+    if (lr_len > 0) {
+      pipeline_ctx_lib_root_copy(ctx, lib_idx, dst, 256);
+    }
+    return lr_len;
   }
-  if (ctx == (0 as *u8) || lib_idx < 0) { return 0; }
-  let lr_len: i32 = pipeline_ctx_lib_root_len(ctx, lib_idx);
-  if (lr_len > 0) {
-    pipeline_ctx_lib_root_copy(ctx, lib_idx, dst, 256);
-  }
-  return lr_len;
 }
 
 /**
@@ -989,7 +1146,9 @@ export function pipeline_copy_lib_root_to_buf256(ctx: *u8, lib_idx: i32, dst: *u
  */
 #[no_mangle]
 export function ast_pipeline_ctx_lib_root_byte_at(ctx: *u8, i: i32, off: i32): u8 {
-  return pipeline_ctx_lib_root_byte_at(ctx, i, off);
+  unsafe {
+    return pipeline_ctx_lib_root_byte_at(ctx, i, off);
+  }
 }
 
 /**
@@ -999,7 +1158,9 @@ export function ast_pipeline_ctx_lib_root_byte_at(ctx: *u8, i: i32, off: i32): u
  */
 #[no_mangle]
 export function ast_pipeline_block_append_const(a: *u8, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32 {
-  return pipeline_block_append_const(a, br, name, name_len, type_ref, init_ref);
+  unsafe {
+    return pipeline_block_append_const(a, br, name, name_len, type_ref, init_ref);
+  }
 }
 
 /**
@@ -1009,7 +1170,9 @@ export function ast_pipeline_block_append_const(a: *u8, br: i32, name: *u8, name
  */
 #[no_mangle]
 export function ast_pipeline_block_append_let(a: *u8, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32 {
-  return pipeline_block_append_let(a, br, name, name_len, type_ref, init_ref);
+  unsafe {
+    return pipeline_block_append_let(a, br, name, name_len, type_ref, init_ref);
+  }
 }
 
 /**
@@ -1019,7 +1182,9 @@ export function ast_pipeline_block_append_let(a: *u8, br: i32, name: *u8, name_l
  */
 #[no_mangle]
 export function ast_pipeline_block_append_if(a: *u8, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32 {
-  return pipeline_block_append_if(a, br, cond_ref, then_ref, else_ref);
+  unsafe {
+    return pipeline_block_append_if(a, br, cond_ref, then_ref, else_ref);
+  }
 }
 
 /**
@@ -1029,7 +1194,9 @@ export function ast_pipeline_block_append_if(a: *u8, br: i32, cond_ref: i32, the
  */
 #[no_mangle]
 export function ast_pipeline_block_append_region(a: *u8, br: i32, label: *u8, label_len: i32, body_ref: i32): i32 {
-  return pipeline_block_append_region(a, br, label, label_len, body_ref);
+  unsafe {
+    return pipeline_block_append_region(a, br, label, label_len, body_ref);
+  }
 }
 
 /**
@@ -1039,7 +1206,9 @@ export function ast_pipeline_block_append_region(a: *u8, br: i32, label: *u8, la
  */
 #[no_mangle]
 export function ast_pipeline_block_append_unsafe(a: *u8, br: i32, body_ref: i32): i32 {
-  return pipeline_block_append_unsafe(a, br, body_ref);
+  unsafe {
+    return pipeline_block_append_unsafe(a, br, body_ref);
+  }
 }
 
 /**
@@ -1049,7 +1218,9 @@ export function ast_pipeline_block_append_unsafe(a: *u8, br: i32, body_ref: i32)
  */
 #[no_mangle]
 export function ast_pipeline_block_append_with_arena(a: *u8, br: i32, cap_ref: i32, body_ref: i32): i32 {
-  return pipeline_block_append_with_arena(a, br, cap_ref, body_ref);
+  unsafe {
+    return pipeline_block_append_with_arena(a, br, cap_ref, body_ref);
+  }
 }
 
 /**
@@ -1059,7 +1230,9 @@ export function ast_pipeline_block_append_with_arena(a: *u8, br: i32, cap_ref: i
  */
 #[no_mangle]
 export function ast_pipeline_block_append_while(a: *u8, br: i32, cond_ref: i32, body_ref: i32): i32 {
-  return pipeline_block_append_while(a, br, cond_ref, body_ref);
+  unsafe {
+    return pipeline_block_append_while(a, br, cond_ref, body_ref);
+  }
 }
 
 /**
@@ -1069,7 +1242,9 @@ export function ast_pipeline_block_append_while(a: *u8, br: i32, cond_ref: i32, 
  */
 #[no_mangle]
 export function ast_pipeline_block_append_for(a: *u8, br: i32, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32 {
-  return pipeline_block_append_for(a, br, init_ref, cond_ref, step_ref, body_ref);
+  unsafe {
+    return pipeline_block_append_for(a, br, init_ref, cond_ref, step_ref, body_ref);
+  }
 }
 
 /**
@@ -1079,7 +1254,9 @@ export function ast_pipeline_block_append_for(a: *u8, br: i32, init_ref: i32, co
  */
 #[no_mangle]
 export function ast_pipeline_module_import_alloc(m: *u8): i32 {
-  return pipeline_module_import_alloc(m);
+  unsafe {
+    return pipeline_module_import_alloc(m);
+  }
 }
 
 /**
@@ -1089,7 +1266,9 @@ export function ast_pipeline_module_import_alloc(m: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_import_set_path(m: *u8, idx: i32, bytes: *u8, len: i32): void {
-  pipeline_module_import_set_path(m, idx, bytes, len);
+  unsafe {
+    pipeline_module_import_set_path(m, idx, bytes, len);
+  }
 }
 
 /**
@@ -1099,7 +1278,9 @@ export function ast_pipeline_module_import_set_path(m: *u8, idx: i32, bytes: *u8
  */
 #[no_mangle]
 export function ast_pipeline_module_import_set_kind(m: *u8, idx: i32, kind: i32): void {
-  pipeline_module_import_set_kind(m, idx, kind);
+  unsafe {
+    pipeline_module_import_set_kind(m, idx, kind);
+  }
 }
 
 /**
@@ -1109,7 +1290,9 @@ export function ast_pipeline_module_import_set_kind(m: *u8, idx: i32, kind: i32)
  */
 #[no_mangle]
 export function ast_pipeline_module_import_set_binding_name(m: *u8, idx: i32, bytes: *u8, len: i32): void {
-  pipeline_module_import_set_binding_name(m, idx, bytes, len);
+  unsafe {
+    pipeline_module_import_set_binding_name(m, idx, bytes, len);
+  }
 }
 
 /**
@@ -1119,7 +1302,9 @@ export function ast_pipeline_module_import_set_binding_name(m: *u8, idx: i32, by
  */
 #[no_mangle]
 export function ast_pipeline_module_import_set_select_count(m: *u8, idx: i32, n: i32): void {
-  pipeline_module_import_set_select_count(m, idx, n);
+  unsafe {
+    pipeline_module_import_set_select_count(m, idx, n);
+  }
 }
 
 /**
@@ -1129,7 +1314,9 @@ export function ast_pipeline_module_import_set_select_count(m: *u8, idx: i32, n:
  */
 #[no_mangle]
 export function ast_pipeline_module_import_path_copy(m: *u8, idx: i32, dst: *u8, dst_cap: i32): void {
-  pipeline_module_import_path_copy(m, idx, dst, dst_cap);
+  unsafe {
+    pipeline_module_import_path_copy(m, idx, dst, dst_cap);
+  }
 }
 
 /**
@@ -1139,7 +1326,9 @@ export function ast_pipeline_module_import_path_copy(m: *u8, idx: i32, dst: *u8,
  */
 #[no_mangle]
 export function ast_pipeline_module_enum_alloc(m: *u8): i32 {
-  return pipeline_module_enum_alloc(m);
+  unsafe {
+    return pipeline_module_enum_alloc(m);
+  }
 }
 
 /**
@@ -1149,7 +1338,9 @@ export function ast_pipeline_module_enum_alloc(m: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_enum_set_name(m: *u8, idx: i32, bytes: *u8, len: i32): void {
-  pipeline_module_enum_set_name(m, idx, bytes, len);
+  unsafe {
+    pipeline_module_enum_set_name(m, idx, bytes, len);
+  }
 }
 
 /**
@@ -1159,7 +1350,9 @@ export function ast_pipeline_module_enum_set_name(m: *u8, idx: i32, bytes: *u8, 
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_alloc(m: *u8): i32 {
-  return pipeline_module_top_level_let_alloc(m);
+  unsafe {
+    return pipeline_module_top_level_let_alloc(m);
+  }
 }
 
 /**
@@ -1169,7 +1362,9 @@ export function ast_pipeline_module_top_level_let_alloc(m: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_set(m: *u8, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void {
-  pipeline_module_top_level_let_set(m, idx, name, name_len, type_ref, init_ref, is_const);
+  unsafe {
+    pipeline_module_top_level_let_set(m, idx, name, name_len, type_ref, init_ref, is_const);
+  }
 }
 
 /**
@@ -1179,7 +1374,9 @@ export function ast_pipeline_module_top_level_let_set(m: *u8, idx: i32, name: *u
  */
 #[no_mangle]
 export function ast_pipeline_module_hoist_top_level_lets_into_main(m: *u8, a: *u8): void {
-  pipeline_module_hoist_top_level_lets_into_main(m, a);
+  unsafe {
+    pipeline_module_hoist_top_level_lets_into_main(m, a);
+  }
 }
 
 /**
@@ -1189,7 +1386,9 @@ export function ast_pipeline_module_hoist_top_level_lets_into_main(m: *u8, a: *u
  */
 #[no_mangle]
 export function ast_pipeline_module_import_path_len(m: *u8, idx: i32): i32 {
-  return pipeline_module_import_path_len(m, idx);
+  unsafe {
+    return pipeline_module_import_path_len(m, idx);
+  }
 }
 
 /**
@@ -1199,7 +1398,9 @@ export function ast_pipeline_module_import_path_len(m: *u8, idx: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_import_path_byte_at(m: *u8, idx: i32, off: i32): u8 {
-  return pipeline_module_import_path_byte_at(m, idx, off);
+  unsafe {
+    return pipeline_module_import_path_byte_at(m, idx, off);
+  }
 }
 
 /**
@@ -1209,7 +1410,9 @@ export function ast_pipeline_module_import_path_byte_at(m: *u8, idx: i32, off: i
  */
 #[no_mangle]
 export function ast_pipeline_module_import_kind_at(m: *u8, idx: i32): i32 {
-  return pipeline_module_import_kind_at(m, idx);
+  unsafe {
+    return pipeline_module_import_kind_at(m, idx);
+  }
 }
 
 /**
@@ -1219,7 +1422,9 @@ export function ast_pipeline_module_import_kind_at(m: *u8, idx: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_import_binding_name_len(m: *u8, idx: i32): i32 {
-  return pipeline_module_import_binding_name_len(m, idx);
+  unsafe {
+    return pipeline_module_import_binding_name_len(m, idx);
+  }
 }
 
 /**
@@ -1229,7 +1434,9 @@ export function ast_pipeline_module_import_binding_name_len(m: *u8, idx: i32): i
  */
 #[no_mangle]
 export function ast_pipeline_module_import_binding_name_byte_at(m: *u8, idx: i32, off: i32): u8 {
-  return pipeline_module_import_binding_name_byte_at(m, idx, off);
+  unsafe {
+    return pipeline_module_import_binding_name_byte_at(m, idx, off);
+  }
 }
 
 /**
@@ -1239,7 +1446,9 @@ export function ast_pipeline_module_import_binding_name_byte_at(m: *u8, idx: i32
  */
 #[no_mangle]
 export function ast_pipeline_module_import_select_count_at(m: *u8, idx: i32): i32 {
-  return pipeline_module_import_select_count_at(m, idx);
+  unsafe {
+    return pipeline_module_import_select_count_at(m, idx);
+  }
 }
 
 /**
@@ -1249,7 +1458,9 @@ export function ast_pipeline_module_import_select_count_at(m: *u8, idx: i32): i3
  */
 #[no_mangle]
 export function ast_pipeline_module_import_select_name_len(m: *u8, idx: i32, sel: i32): i32 {
-  return pipeline_module_import_select_name_len(m, idx, sel);
+  unsafe {
+    return pipeline_module_import_select_name_len(m, idx, sel);
+  }
 }
 
 /**
@@ -1259,7 +1470,9 @@ export function ast_pipeline_module_import_select_name_len(m: *u8, idx: i32, sel
  */
 #[no_mangle]
 export function ast_pipeline_module_import_select_name_byte_at(m: *u8, idx: i32, sel: i32, off: i32): u8 {
-  return pipeline_module_import_select_name_byte_at(m, idx, sel, off);
+  unsafe {
+    return pipeline_module_import_select_name_byte_at(m, idx, sel, off);
+  }
 }
 
 /**
@@ -1269,7 +1482,9 @@ export function ast_pipeline_module_import_select_name_byte_at(m: *u8, idx: i32,
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_alloc(m: *u8): i32 {
-  return pipeline_module_struct_layout_alloc(m);
+  unsafe {
+    return pipeline_module_struct_layout_alloc(m);
+  }
 }
 
 /**
@@ -1279,7 +1494,9 @@ export function ast_pipeline_module_struct_layout_alloc(m: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_reset_slot(m: *u8, idx: i32): void {
-  pipeline_module_struct_layout_reset_slot(m, idx);
+  unsafe {
+    pipeline_module_struct_layout_reset_slot(m, idx);
+  }
 }
 
 /**
@@ -1289,7 +1506,9 @@ export function ast_pipeline_module_struct_layout_reset_slot(m: *u8, idx: i32): 
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_set_name(m: *u8, idx: i32, bytes: *u8, len: i32): void {
-  pipeline_module_struct_layout_set_name(m, idx, bytes, len);
+  unsafe {
+    pipeline_module_struct_layout_set_name(m, idx, bytes, len);
+  }
 }
 
 /**
@@ -1299,7 +1518,9 @@ export function ast_pipeline_module_struct_layout_set_name(m: *u8, idx: i32, byt
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_set_field(m: *u8, li: i32, j: i32, fname_bytes: *u8, fname_len: i32, ftype_ref: i32, foff: i32): void {
-  pipeline_module_struct_layout_set_field(m, li, j, fname_bytes, fname_len, ftype_ref, foff);
+  unsafe {
+    pipeline_module_struct_layout_set_field(m, li, j, fname_bytes, fname_len, ftype_ref, foff);
+  }
 }
 
 /**
@@ -1309,7 +1530,9 @@ export function ast_pipeline_module_struct_layout_set_field(m: *u8, li: i32, j: 
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_set_num_fields(m: *u8, idx: i32, nf: i32): void {
-  pipeline_module_struct_layout_set_num_fields(m, idx, nf);
+  unsafe {
+    pipeline_module_struct_layout_set_num_fields(m, idx, nf);
+  }
 }
 
 /**
@@ -1319,7 +1542,9 @@ export function ast_pipeline_module_struct_layout_set_num_fields(m: *u8, idx: i3
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_name_len(m: *u8, idx: i32): i32 {
-  return pipeline_module_struct_layout_name_len(m, idx);
+  unsafe {
+    return pipeline_module_struct_layout_name_len(m, idx);
+  }
 }
 
 /**
@@ -1329,7 +1554,9 @@ export function ast_pipeline_module_struct_layout_name_len(m: *u8, idx: i32): i3
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_name_into(m: *u8, idx: i32, out64: *u8): void {
-  pipeline_module_struct_layout_name_into(m, idx, out64);
+  unsafe {
+    pipeline_module_struct_layout_name_into(m, idx, out64);
+  }
 }
 
 /**
@@ -1339,7 +1566,9 @@ export function ast_pipeline_module_struct_layout_name_into(m: *u8, idx: i32, ou
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_name_byte_at(m: *u8, idx: i32, off: i32): u8 {
-  return pipeline_module_struct_layout_name_byte_at(m, idx, off);
+  unsafe {
+    return pipeline_module_struct_layout_name_byte_at(m, idx, off);
+  }
 }
 
 /**
@@ -1349,7 +1578,9 @@ export function ast_pipeline_module_struct_layout_name_byte_at(m: *u8, idx: i32,
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_num_fields(m: *u8, idx: i32): i32 {
-  return pipeline_module_struct_layout_num_fields(m, idx);
+  unsafe {
+    return pipeline_module_struct_layout_num_fields(m, idx);
+  }
 }
 
 /**
@@ -1359,7 +1590,9 @@ export function ast_pipeline_module_struct_layout_num_fields(m: *u8, idx: i32): 
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_field_name_len(m: *u8, li: i32, j: i32): i32 {
-  return pipeline_module_struct_layout_field_name_len(m, li, j);
+  unsafe {
+    return pipeline_module_struct_layout_field_name_len(m, li, j);
+  }
 }
 
 /**
@@ -1369,7 +1602,9 @@ export function ast_pipeline_module_struct_layout_field_name_len(m: *u8, li: i32
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_field_name_into(m: *u8, li: i32, j: i32, out64: *u8): void {
-  pipeline_module_struct_layout_field_name_into(m, li, j, out64);
+  unsafe {
+    pipeline_module_struct_layout_field_name_into(m, li, j, out64);
+  }
 }
 
 /**
@@ -1379,7 +1614,9 @@ export function ast_pipeline_module_struct_layout_field_name_into(m: *u8, li: i3
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_field_type_ref(m: *u8, li: i32, j: i32): i32 {
-  return pipeline_module_struct_layout_field_type_ref(m, li, j);
+  unsafe {
+    return pipeline_module_struct_layout_field_type_ref(m, li, j);
+  }
 }
 
 /**
@@ -1389,7 +1626,9 @@ export function ast_pipeline_module_struct_layout_field_type_ref(m: *u8, li: i32
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_field_offset_at(m: *u8, li: i32, j: i32): i32 {
-  return pipeline_module_struct_layout_field_offset_at(m, li, j);
+  unsafe {
+    return pipeline_module_struct_layout_field_offset_at(m, li, j);
+  }
 }
 
 /**
@@ -1399,7 +1638,9 @@ export function ast_pipeline_module_struct_layout_field_offset_at(m: *u8, li: i3
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_set_allow_padding(m: *u8, idx: i32, v: i32): void {
-  pipeline_module_struct_layout_set_allow_padding(m, idx, v);
+  unsafe {
+    pipeline_module_struct_layout_set_allow_padding(m, idx, v);
+  }
 }
 
 /**
@@ -1409,7 +1650,9 @@ export function ast_pipeline_module_struct_layout_set_allow_padding(m: *u8, idx:
  */
 #[no_mangle]
 export function ast_pipeline_module_struct_layout_allow_padding_at(m: *u8, idx: i32): i32 {
-  return pipeline_module_struct_layout_allow_padding_at(m, idx);
+  unsafe {
+    return pipeline_module_struct_layout_allow_padding_at(m, idx);
+  }
 }
 
 /**
@@ -1419,7 +1662,9 @@ export function ast_pipeline_module_struct_layout_allow_padding_at(m: *u8, idx: 
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_name_len(m: *u8, idx: i32): i32 {
-  return pipeline_module_top_level_let_name_len(m, idx);
+  unsafe {
+    return pipeline_module_top_level_let_name_len(m, idx);
+  }
 }
 
 /**
@@ -1429,7 +1674,9 @@ export function ast_pipeline_module_top_level_let_name_len(m: *u8, idx: i32): i3
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_name_byte_at(m: *u8, idx: i32, off: i32): u8 {
-  return pipeline_module_top_level_let_name_byte_at(m, idx, off);
+  unsafe {
+    return pipeline_module_top_level_let_name_byte_at(m, idx, off);
+  }
 }
 
 /**
@@ -1439,7 +1686,9 @@ export function ast_pipeline_module_top_level_let_name_byte_at(m: *u8, idx: i32,
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_type_ref(m: *u8, idx: i32): i32 {
-  return pipeline_module_top_level_let_type_ref(m, idx);
+  unsafe {
+    return pipeline_module_top_level_let_type_ref(m, idx);
+  }
 }
 
 /**
@@ -1449,7 +1698,9 @@ export function ast_pipeline_module_top_level_let_type_ref(m: *u8, idx: i32): i3
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_init_ref(m: *u8, idx: i32): i32 {
-  return pipeline_module_top_level_let_init_ref(m, idx);
+  unsafe {
+    return pipeline_module_top_level_let_init_ref(m, idx);
+  }
 }
 
 /**
@@ -1459,7 +1710,9 @@ export function ast_pipeline_module_top_level_let_init_ref(m: *u8, idx: i32): i3
  */
 #[no_mangle]
 export function ast_pipeline_module_top_level_let_is_const(m: *u8, idx: i32): i32 {
-  return pipeline_module_top_level_let_is_const(m, idx);
+  unsafe {
+    return pipeline_module_top_level_let_is_const(m, idx);
+  }
 }
 
 /**
@@ -1469,7 +1722,9 @@ export function ast_pipeline_module_top_level_let_is_const(m: *u8, idx: i32): i3
  */
 #[no_mangle]
 export function ast_pipeline_module_enum_name_len(m: *u8, idx: i32): i32 {
-  return pipeline_module_enum_name_len(m, idx);
+  unsafe {
+    return pipeline_module_enum_name_len(m, idx);
+  }
 }
 
 /**
@@ -1479,7 +1734,9 @@ export function ast_pipeline_module_enum_name_len(m: *u8, idx: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_module_enum_name_byte_at(m: *u8, idx: i32, off: i32): u8 {
-  return pipeline_module_enum_name_byte_at(m, idx, off);
+  unsafe {
+    return pipeline_module_enum_name_byte_at(m, idx, off);
+  }
 }
 
 /**
@@ -1489,7 +1746,9 @@ export function ast_pipeline_module_enum_name_byte_at(m: *u8, idx: i32, off: i32
  */
 #[no_mangle]
 export function ast_pipeline_module_enum_append_variant(m: *u8, idx: i32, bytes: *u8, len: i32): i32 {
-  return pipeline_module_enum_append_variant(m, idx, bytes, len);
+  unsafe {
+    return pipeline_module_enum_append_variant(m, idx, bytes, len);
+  }
 }
 
 /**
@@ -1499,7 +1758,9 @@ export function ast_pipeline_module_enum_append_variant(m: *u8, idx: i32, bytes:
  */
 #[no_mangle]
 export function ast_pipeline_module_enum_variant_tag_for_names(m: *u8, enum_name: *u8, enum_len: i32, variant_name: *u8, variant_len: i32): i32 {
-  return pipeline_module_enum_variant_tag_for_names(m, enum_name, enum_len, variant_name, variant_len);
+  unsafe {
+    return pipeline_module_enum_variant_tag_for_names(m, enum_name, enum_len, variant_name, variant_len);
+  }
 }
 
 /**
@@ -1509,7 +1770,9 @@ export function ast_pipeline_module_enum_variant_tag_for_names(m: *u8, enum_name
  */
 #[no_mangle]
 export function ast_pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_ref: i32): void {
-  pipeline_expr_try_mark_enum_field_access(m, a, expr_ref);
+  unsafe {
+    pipeline_expr_try_mark_enum_field_access(m, a, expr_ref);
+  }
 }
 
 /**
@@ -1519,7 +1782,9 @@ export function ast_pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, exp
  */
 #[no_mangle]
 export function ast_ast_pool_onefunc_reset(out: *u8): void {
-  ast_pool_onefunc_reset(out);
+  unsafe {
+    ast_pool_onefunc_reset(out);
+  }
 }
 
 /**
@@ -1529,7 +1794,9 @@ export function ast_ast_pool_onefunc_reset(out: *u8): void {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_num_consts(out: *u8): i32 {
-  return pipeline_onefunc_num_consts(out);
+  unsafe {
+    return pipeline_onefunc_num_consts(out);
+  }
 }
 
 /**
@@ -1539,7 +1806,9 @@ export function ast_pipeline_onefunc_num_consts(out: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_num_lets(out: *u8): i32 {
-  return pipeline_onefunc_num_lets(out);
+  unsafe {
+    return pipeline_onefunc_num_lets(out);
+  }
 }
 
 /**
@@ -1549,7 +1818,9 @@ export function ast_pipeline_onefunc_num_lets(out: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_num_whiles(out: *u8): i32 {
-  return pipeline_onefunc_num_whiles(out);
+  unsafe {
+    return pipeline_onefunc_num_whiles(out);
+  }
 }
 
 /**
@@ -1559,7 +1830,9 @@ export function ast_pipeline_onefunc_num_whiles(out: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_num_fors(out: *u8): i32 {
-  return pipeline_onefunc_num_fors(out);
+  unsafe {
+    return pipeline_onefunc_num_fors(out);
+  }
 }
 
 /**
@@ -1569,7 +1842,9 @@ export function ast_pipeline_onefunc_num_fors(out: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_const_name_len(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_const_name_len(out, i);
+  unsafe {
+    return pipeline_onefunc_const_name_len(out, i);
+  }
 }
 
 /**
@@ -1579,7 +1854,9 @@ export function ast_pipeline_onefunc_const_name_len(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_const_name_copy64(out: *u8, i: i32, dst: *u8): void {
-  pipeline_onefunc_const_name_copy64(out, i, dst);
+  unsafe {
+    pipeline_onefunc_const_name_copy64(out, i, dst);
+  }
 }
 
 /**
@@ -1589,7 +1866,9 @@ export function ast_pipeline_onefunc_const_name_copy64(out: *u8, i: i32, dst: *u
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_const_init_val(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_const_init_val(out, i);
+  unsafe {
+    return pipeline_onefunc_const_init_val(out, i);
+  }
 }
 
 /**
@@ -1599,7 +1878,9 @@ export function ast_pipeline_onefunc_const_init_val(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_let_name_len(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_let_name_len(out, i);
+  unsafe {
+    return pipeline_onefunc_let_name_len(out, i);
+  }
 }
 
 /**
@@ -1609,7 +1890,9 @@ export function ast_pipeline_onefunc_let_name_len(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *u8): void {
-  pipeline_onefunc_let_name_copy64(out, i, dst);
+  unsafe {
+    pipeline_onefunc_let_name_copy64(out, i, dst);
+  }
 }
 
 /**
@@ -1619,7 +1902,9 @@ export function ast_pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *u8)
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_let_init_val(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_let_init_val(out, i);
+  unsafe {
+    return pipeline_onefunc_let_init_val(out, i);
+  }
 }
 
 /**
@@ -1629,7 +1914,9 @@ export function ast_pipeline_onefunc_let_init_val(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_let_init_ref(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_let_init_ref(out, i);
+  unsafe {
+    return pipeline_onefunc_let_init_ref(out, i);
+  }
 }
 
 /**
@@ -1639,7 +1926,9 @@ export function ast_pipeline_onefunc_let_init_ref(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_let_type_ref(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_let_type_ref(out, i);
+  unsafe {
+    return pipeline_onefunc_let_type_ref(out, i);
+  }
 }
 
 /**
@@ -1649,7 +1938,9 @@ export function ast_pipeline_onefunc_let_type_ref(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_append_let(out: *u8, name: *u8, name_len: i32, init_val: i32, init_ref: i32, type_ref: i32): i32 {
-  return pipeline_onefunc_append_let(out, name, name_len, init_val, init_ref, type_ref);
+  unsafe {
+    return pipeline_onefunc_append_let(out, name, name_len, init_val, init_ref, type_ref);
+  }
 }
 
 /**
@@ -1659,7 +1950,9 @@ export function ast_pipeline_onefunc_append_let(out: *u8, name: *u8, name_len: i
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_append_const(out: *u8, name: *u8, name_len: i32, init_val: i32, init_ref: i32, type_ref: i32): i32 {
-  return pipeline_onefunc_append_const(out, name, name_len, init_val, init_ref, type_ref);
+  unsafe {
+    return pipeline_onefunc_append_const(out, name, name_len, init_val, init_ref, type_ref);
+  }
 }
 
 /**
@@ -1669,7 +1962,9 @@ export function ast_pipeline_onefunc_append_const(out: *u8, name: *u8, name_len:
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_const_init_ref(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_const_init_ref(out, i);
+  unsafe {
+    return pipeline_onefunc_const_init_ref(out, i);
+  }
 }
 
 /**
@@ -1679,7 +1974,9 @@ export function ast_pipeline_onefunc_const_init_ref(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_const_type_ref(out: *u8, i: i32): i32 {
-  return pipeline_onefunc_const_type_ref(out, i);
+  unsafe {
+    return pipeline_onefunc_const_type_ref(out, i);
+  }
 }
 
 /**
@@ -1689,7 +1986,9 @@ export function ast_pipeline_onefunc_const_type_ref(out: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_append_while(out: *u8, cond_ref: i32, body_ref: i32): i32 {
-  return pipeline_onefunc_append_while(out, cond_ref, body_ref);
+  unsafe {
+    return pipeline_onefunc_append_while(out, cond_ref, body_ref);
+  }
 }
 
 /**
@@ -1699,7 +1998,9 @@ export function ast_pipeline_onefunc_append_while(out: *u8, cond_ref: i32, body_
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_append_for(out: *u8, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32 {
-  return pipeline_onefunc_append_for(out, init_ref, cond_ref, step_ref, body_ref);
+  unsafe {
+    return pipeline_onefunc_append_for(out, init_ref, cond_ref, step_ref, body_ref);
+  }
 }
 
 /**
@@ -1709,7 +2010,9 @@ export function ast_pipeline_onefunc_append_for(out: *u8, init_ref: i32, cond_re
  */
 #[no_mangle]
 export function ast_pipeline_onefunc_copy_sidecar(dst: *u8, src: *u8): void {
-  pipeline_onefunc_copy_sidecar(dst, src);
+  unsafe {
+    pipeline_onefunc_copy_sidecar(dst, src);
+  }
 }
 
 /**
@@ -1719,7 +2022,9 @@ export function ast_pipeline_onefunc_copy_sidecar(dst: *u8, src: *u8): void {
  */
 #[no_mangle]
 export function ast_pipeline_block_append_expr_stmt(a: *u8, br: i32, expr_ref: i32): i32 {
-  return pipeline_block_append_expr_stmt(a, br, expr_ref);
+  unsafe {
+    return pipeline_block_append_expr_stmt(a, br, expr_ref);
+  }
 }
 
 /**
@@ -1729,7 +2034,9 @@ export function ast_pipeline_block_append_expr_stmt(a: *u8, br: i32, expr_ref: i
  */
 #[no_mangle]
 export function ast_pipeline_block_append_stmt_order(a: *u8, br: i32, kind: u8, idx: i32): i32 {
-  return pipeline_block_append_stmt_order(a, br, kind, idx);
+  unsafe {
+    return pipeline_block_append_stmt_order(a, br, kind, idx);
+  }
 }
 
 /**
@@ -1739,7 +2046,9 @@ export function ast_pipeline_block_append_stmt_order(a: *u8, br: i32, kind: u8, 
  */
 #[no_mangle]
 export function ast_pipeline_block_stmt_order_fix_prefix_lets(a: *u8, br: i32, prefix_n: i32): void {
-  pipeline_block_stmt_order_fix_prefix_lets(a, br, prefix_n);
+  unsafe {
+    pipeline_block_stmt_order_fix_prefix_lets(a, br, prefix_n);
+  }
 }
 
 /**
@@ -1749,7 +2058,9 @@ export function ast_pipeline_block_stmt_order_fix_prefix_lets(a: *u8, br: i32, p
  */
 #[no_mangle]
 export function ast_pipeline_block_with_arena_fixup_stmt_order(a: *u8, br: i32): void {
-  pipeline_block_with_arena_fixup_stmt_order(a, br);
+  unsafe {
+    pipeline_block_with_arena_fixup_stmt_order(a, br);
+  }
 }
 
 /**
@@ -1759,7 +2070,9 @@ export function ast_pipeline_block_with_arena_fixup_stmt_order(a: *u8, br: i32):
  */
 #[no_mangle]
 export function ast_pipeline_block_append_labeled(a: *u8, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32 {
-  return pipeline_block_append_labeled(a, br, label_len, is_goto, goto_target_len, return_expr_ref);
+  unsafe {
+    return pipeline_block_append_labeled(a, br, label_len, is_goto, goto_target_len, return_expr_ref);
+  }
 }
 
 /**
@@ -1769,7 +2082,9 @@ export function ast_pipeline_block_append_labeled(a: *u8, br: i32, label_len: i3
  */
 #[no_mangle]
 export function ast_pipeline_block_labeled_return_expr_ref(a: *u8, br: i32, li: i32): i32 {
-  return pipeline_block_labeled_return_expr_ref(a, br, li);
+  unsafe {
+    return pipeline_block_labeled_return_expr_ref(a, br, li);
+  }
 }
 
 /**
@@ -1779,7 +2094,9 @@ export function ast_pipeline_block_labeled_return_expr_ref(a: *u8, br: i32, li: 
  */
 #[no_mangle]
 export function ast_pipeline_block_fill_ifs_from_onefunc(a: *u8, br: i32, out: *u8, count: i32): void {
-  pipeline_block_fill_ifs_from_onefunc(a, br, out, count);
+  unsafe {
+    pipeline_block_fill_ifs_from_onefunc(a, br, out, count);
+  }
 }
 
 /**
@@ -1789,7 +2106,9 @@ export function ast_pipeline_block_fill_ifs_from_onefunc(a: *u8, br: i32, out: *
  */
 #[no_mangle]
 export function ast_pipeline_block_fill_whiles_from_onefunc(a: *u8, br: i32, out: *u8, count: i32): void {
-  pipeline_block_fill_whiles_from_onefunc(a, br, out, count);
+  unsafe {
+    pipeline_block_fill_whiles_from_onefunc(a, br, out, count);
+  }
 }
 
 /**
@@ -1799,7 +2118,9 @@ export function ast_pipeline_block_fill_whiles_from_onefunc(a: *u8, br: i32, out
  */
 #[no_mangle]
 export function ast_pipeline_block_fill_fors_from_onefunc(a: *u8, br: i32, out: *u8, count: i32): void {
-  pipeline_block_fill_fors_from_onefunc(a, br, out, count);
+  unsafe {
+    pipeline_block_fill_fors_from_onefunc(a, br, out, count);
+  }
 }
 
 /**
@@ -1809,7 +2130,9 @@ export function ast_pipeline_block_fill_fors_from_onefunc(a: *u8, br: i32, out: 
  */
 #[no_mangle]
 export function ast_pipeline_block_fill_stmt_order_from_onefunc(a: *u8, br: i32, out: *u8, count: i32): void {
-  pipeline_block_fill_stmt_order_from_onefunc(a, br, out, count);
+  unsafe {
+    pipeline_block_fill_stmt_order_from_onefunc(a, br, out, count);
+  }
 }
 
 /**
@@ -1819,7 +2142,9 @@ export function ast_pipeline_block_fill_stmt_order_from_onefunc(a: *u8, br: i32,
  */
 #[no_mangle]
 export function ast_pipeline_block_fill_expr_stmts_from_onefunc(a: *u8, br: i32, out: *u8, count: i32): void {
-  pipeline_block_fill_expr_stmts_from_onefunc(a, br, out, count);
+  unsafe {
+    pipeline_block_fill_expr_stmts_from_onefunc(a, br, out, count);
+  }
 }
 
 /**
@@ -1829,7 +2154,9 @@ export function ast_pipeline_block_fill_expr_stmts_from_onefunc(a: *u8, br: i32,
  */
 #[no_mangle]
 export function ast_pipeline_block_const_init_ref(a: *u8, br: i32, ci: i32): i32 {
-  return pipeline_block_const_init_ref(a, br, ci);
+  unsafe {
+    return pipeline_block_const_init_ref(a, br, ci);
+  }
 }
 
 /**
@@ -1839,7 +2166,9 @@ export function ast_pipeline_block_const_init_ref(a: *u8, br: i32, ci: i32): i32
  */
 #[no_mangle]
 export function ast_pipeline_block_const_type_ref(a: *u8, br: i32, ci: i32): i32 {
-  return pipeline_block_const_type_ref(a, br, ci);
+  unsafe {
+    return pipeline_block_const_type_ref(a, br, ci);
+  }
 }
 
 /**
@@ -1849,7 +2178,9 @@ export function ast_pipeline_block_const_type_ref(a: *u8, br: i32, ci: i32): i32
  */
 #[no_mangle]
 export function ast_pipeline_block_let_init_ref(a: *u8, br: i32, li: i32): i32 {
-  return pipeline_block_let_init_ref(a, br, li);
+  unsafe {
+    return pipeline_block_let_init_ref(a, br, li);
+  }
 }
 
 /**
@@ -1859,7 +2190,9 @@ export function ast_pipeline_block_let_init_ref(a: *u8, br: i32, li: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_block_let_type_ref(a: *u8, br: i32, li: i32): i32 {
-  return pipeline_block_let_type_ref(a, br, li);
+  unsafe {
+    return pipeline_block_let_type_ref(a, br, li);
+  }
 }
 
 /**
@@ -1869,7 +2202,9 @@ export function ast_pipeline_block_let_type_ref(a: *u8, br: i32, li: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_block_expr_stmt_ref(a: *u8, br: i32, ei: i32): i32 {
-  return pipeline_block_expr_stmt_ref(a, br, ei);
+  unsafe {
+    return pipeline_block_expr_stmt_ref(a, br, ei);
+  }
 }
 
 /**
@@ -1879,7 +2214,9 @@ export function ast_pipeline_block_expr_stmt_ref(a: *u8, br: i32, ei: i32): i32 
  */
 #[no_mangle]
 export function ast_pipeline_block_stmt_order_kind(a: *u8, br: i32, si: i32): u8 {
-  return pipeline_block_stmt_order_kind(a, br, si);
+  unsafe {
+    return pipeline_block_stmt_order_kind(a, br, si);
+  }
 }
 
 /**
@@ -1889,7 +2226,9 @@ export function ast_pipeline_block_stmt_order_kind(a: *u8, br: i32, si: i32): u8
  */
 #[no_mangle]
 export function ast_pipeline_block_stmt_order_idx(a: *u8, br: i32, si: i32): i32 {
-  return pipeline_block_stmt_order_idx(a, br, si);
+  unsafe {
+    return pipeline_block_stmt_order_idx(a, br, si);
+  }
 }
 
 /**
@@ -1899,7 +2238,9 @@ export function ast_pipeline_block_stmt_order_idx(a: *u8, br: i32, si: i32): i32
  */
 #[no_mangle]
 export function ast_pipeline_block_if_cond_ref(a: *u8, br: i32, ii: i32): i32 {
-  return pipeline_block_if_cond_ref(a, br, ii);
+  unsafe {
+    return pipeline_block_if_cond_ref(a, br, ii);
+  }
 }
 
 /**
@@ -1909,7 +2250,9 @@ export function ast_pipeline_block_if_cond_ref(a: *u8, br: i32, ii: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_block_if_then_body_ref(a: *u8, br: i32, ii: i32): i32 {
-  return pipeline_block_if_then_body_ref(a, br, ii);
+  unsafe {
+    return pipeline_block_if_then_body_ref(a, br, ii);
+  }
 }
 
 /**
@@ -1919,7 +2262,9 @@ export function ast_pipeline_block_if_then_body_ref(a: *u8, br: i32, ii: i32): i
  */
 #[no_mangle]
 export function ast_pipeline_block_if_else_body_ref(a: *u8, br: i32, ii: i32): i32 {
-  return pipeline_block_if_else_body_ref(a, br, ii);
+  unsafe {
+    return pipeline_block_if_else_body_ref(a, br, ii);
+  }
 }
 
 /**
@@ -1929,7 +2274,9 @@ export function ast_pipeline_block_if_else_body_ref(a: *u8, br: i32, ii: i32): i
  */
 #[no_mangle]
 export function ast_pipeline_block_const_name_len(a: *u8, br: i32, ci: i32): i32 {
-  return pipeline_block_const_name_len(a, br, ci);
+  unsafe {
+    return pipeline_block_const_name_len(a, br, ci);
+  }
 }
 
 /**
@@ -1939,7 +2286,9 @@ export function ast_pipeline_block_const_name_len(a: *u8, br: i32, ci: i32): i32
  */
 #[no_mangle]
 export function ast_pipeline_block_const_name_copy64(a: *u8, br: i32, ci: i32, dst: *u8): void {
-  pipeline_block_const_name_copy64(a, br, ci, dst);
+  unsafe {
+    pipeline_block_const_name_copy64(a, br, ci, dst);
+  }
 }
 
 /**
@@ -1949,7 +2298,9 @@ export function ast_pipeline_block_const_name_copy64(a: *u8, br: i32, ci: i32, d
  */
 #[no_mangle]
 export function ast_pipeline_block_let_name_len(a: *u8, br: i32, li: i32): i32 {
-  return pipeline_block_let_name_len(a, br, li);
+  unsafe {
+    return pipeline_block_let_name_len(a, br, li);
+  }
 }
 
 /**
@@ -1959,7 +2310,9 @@ export function ast_pipeline_block_let_name_len(a: *u8, br: i32, li: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_block_let_name_copy64(a: *u8, br: i32, li: i32, dst: *u8): void {
-  pipeline_block_let_name_copy64(a, br, li, dst);
+  unsafe {
+    pipeline_block_let_name_copy64(a, br, li, dst);
+  }
 }
 
 /**
@@ -1969,7 +2322,9 @@ export function ast_pipeline_block_let_name_copy64(a: *u8, br: i32, li: i32, dst
  */
 #[no_mangle]
 export function ast_pipeline_block_resolve_var_type_ref(a: *u8, block_ref: i32, vname: *u8, vlen: i32): i32 {
-  return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
+  unsafe {
+    return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
+  }
 }
 
 /**
@@ -1979,7 +2334,9 @@ export function ast_pipeline_block_resolve_var_type_ref(a: *u8, block_ref: i32, 
  */
 #[no_mangle]
 export function ast_pipeline_module_func_ref_at(m: *u8, func_index: i32): i32 {
-  return pipeline_module_func_ref_at(m, func_index);
+  unsafe {
+    return pipeline_module_func_ref_at(m, func_index);
+  }
 }
 
 /**
@@ -1989,7 +2346,9 @@ export function ast_pipeline_module_func_ref_at(m: *u8, func_index: i32): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_type_cap(): i32 {
-  return pipeline_arena_type_cap();
+  unsafe {
+    return pipeline_arena_type_cap();
+  }
 }
 
 /**
@@ -1999,7 +2358,9 @@ export function ast_pipeline_arena_type_cap(): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_expr_cap(): i32 {
-  return pipeline_arena_expr_cap();
+  unsafe {
+    return pipeline_arena_expr_cap();
+  }
 }
 
 /**
@@ -2009,7 +2370,9 @@ export function ast_pipeline_arena_expr_cap(): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_block_cap(): i32 {
-  return pipeline_arena_block_cap();
+  unsafe {
+    return pipeline_arena_block_cap();
+  }
 }
 
 /**
@@ -2019,7 +2382,9 @@ export function ast_pipeline_arena_block_cap(): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_func_cap(): i32 {
-  return pipeline_arena_func_cap();
+  unsafe {
+    return pipeline_arena_func_cap();
+  }
 }
 
 /**
@@ -2029,7 +2394,9 @@ export function ast_pipeline_arena_func_cap(): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_type_alloc(a: *u8): i32 {
-  return pipeline_arena_type_alloc(a);
+  unsafe {
+    return pipeline_arena_type_alloc(a);
+  }
 }
 
 /**
@@ -2039,7 +2406,9 @@ export function ast_pipeline_arena_type_alloc(a: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_expr_alloc(a: *u8): i32 {
-  return pipeline_arena_expr_alloc(a);
+  unsafe {
+    return pipeline_arena_expr_alloc(a);
+  }
 }
 
 /**
@@ -2049,7 +2418,9 @@ export function ast_pipeline_arena_expr_alloc(a: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_block_alloc(a: *u8): i32 {
-  return pipeline_arena_block_alloc(a);
+  unsafe {
+    return pipeline_arena_block_alloc(a);
+  }
 }
 
 /**
@@ -2059,6 +2430,8 @@ export function ast_pipeline_arena_block_alloc(a: *u8): i32 {
  */
 #[no_mangle]
 export function ast_pipeline_arena_func_alloc(a: *u8): i32 {
-  return pipeline_arena_func_alloc(a);
+  unsafe {
+    return pipeline_arena_func_alloc(a);
+  }
 }
 

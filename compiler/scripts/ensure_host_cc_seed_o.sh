@@ -6104,13 +6104,14 @@ pipeline_abi_inject_bootstrap_glue_thin() {
 
 
 
-# wave322 M2: ast_forwarders Cap residual C→.x (was wave283 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Rename shims + copy_lib_root.
+# wave322/336 M2: ast_forwarders Cap residual .x thin (rename shims + copy_lib_root).
+# PRODUCT inject: wave336 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
+# no GrowVec/pipe LE; shim bodies T001-unsafe (was -E+$CC interim).
 # G.7 WAVE283_AST_FORWARDERS_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_ast_forwarders_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_ast_forwarders_thin.x"
-  local stamp="src/.pabi_w322_ast_forwarders.stamp"
+  local stamp="src/.pabi_w336_ast_forwarders.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6130,9 +6131,9 @@ pipeline_abi_inject_ast_forwarders_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w322-ast-forwarders"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w336-ast-forwarders"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -11264,7 +11265,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-ast-forwarders|inject_ast_forwarders|inject-astfwd|inject_astfwd)
-    # wave322: C→.x ast_forwarders via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave336: ast_forwarders PREFER_ASM (stamp + ALLOW_E_REPLACE).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-ast-forwarders: need <out.o>" >&2
