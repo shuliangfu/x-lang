@@ -83262,7 +83262,7 @@ export function pipeline_asm_emit_ctx_sret_ret_sz_set(sz: i32): void {
 // ===========================================================================
 // wave224: typeck_active module BSS pure leave
 // M2 Class E: .x thin leave = runtime_pipeline_abi_typeck_active_thin.x
-// (wave313 C→.x via -E+$CC inject; was wave224 C thin).
+// (wave339 LINUX PREFER_ASM / DARWIN -E+$CC; was wave313 -E-only; was wave224 C).
 // (was Cap residual pipeline_glue_statics.c static g_typeck_active_module +
 //  check_block pipeline_typeck_active_module_c / set_active_ctx static write)
 // G.7 product authority for freestanding typeck active-module cell:

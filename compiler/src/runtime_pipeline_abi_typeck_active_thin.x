@@ -1,9 +1,10 @@
-// Thin pure: wave313 M2 — typeck_active Cap residual C→.x (was wave224 C thin).
+// Thin pure: wave313/339 M2 — typeck_active Cap residual (was wave224 C thin).
 // Process-local active-module cell + get/set; 2 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave224 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_typeck_active_thin
-// (ALLOW_E_REPLACE + stamp). Named pointer BSS OK under -E+$CC.
-// PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
+// PRODUCT inject (pipeline_abi_inject_typeck_active_thin, stamp w339):
+//   LINUX|UBUNTU: PREFER_ASM (w338 null TYPE_PTR → Lxml_* COMMON).
+//   MACOS|DARWIN: -E+$CC until mega prefer rebuild carries w338 (memory ban).
+// PLATFORM: SHARED freestanding Cap leave · LINUX PREFER · MACOS -E co-path.
 
 let g_typeck_active_module: *u8 = 0 as *u8;
 
