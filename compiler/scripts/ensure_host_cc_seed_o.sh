@@ -5635,9 +5635,10 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w352: read_file_x_view PREFER (class B local u8[32] FileView).
 #   UNLOCKED w353: asm_label_format PREFER (digit-loop into caller buf).
 #   UNLOCKED w354: import_heap PREFER (T001 unsafe + class B path/view).
+#   UNLOCKED w355: codegen_outbuf PREFER (T001 unsafe + u8[64] float buf).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
-#        parse_orch / parser_result / value_abi sret / codegen_outbuf).
+#        parse_orch / parser_result / value_abi sret).
 #     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
 #       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
@@ -5654,7 +5655,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
 # wave353: asm_label_format PREFER (digit-loop); historic w294 SEGV ban lifted.
 # wave354: import_heap PREFER (T001 unsafe slot get/set).
-# Next: GrowVec-LE／codegen_outbuf／Ubuntu check_expr x86_64 ABI.
+# wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
+# Next: GrowVec-LE／Ubuntu check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -6731,14 +6733,15 @@ pipeline_abi_inject_asm_label_format_thin() {
 
 
 
-# wave296 M2: codegen_outbuf Cap residual C→.x (was wave289 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No BSS — safe C→.x.
-# Local u8[64]+snprintf float face: pure-asm red (same class as w294).
-# G.7 match seed WAVE289_CODEGEN_OUTBUF_ALWAYS. PLATFORM: SHARED.
+# wave296/355 M2: codegen_outbuf Cap residual C→.x (was wave289 C thin).
+# PRODUCT inject wave355: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 unsafe on pipe_store_i32_le in f64_from_bits; local u8[64]+snprintf
+# proven after w353 digit-loop unlock. G.7 WAVE289_CODEGEN_OUTBUF_ALWAYS.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_codegen_outbuf_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_codegen_outbuf_thin.x"
-  local stamp="src/.pabi_w296_codegen_outbuf.stamp"
+  local stamp="src/.pabi_w355_codegen_outbuf.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6758,9 +6761,10 @@ pipeline_abi_inject_codegen_outbuf_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 unsafe + float buf proven).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w296-codegen-outbuf"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w355-codegen-outbuf"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6777,6 +6781,7 @@ pipeline_abi_inject_codegen_outbuf_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w296_codegen_outbuf.stamp
   fi
   return "$rc"
 }
@@ -11292,8 +11297,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-codegen-outbuf|inject_codegen_outbuf)
-    # wave296: C→.x codegen_outbuf via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # Do NOT use inject-pabi-leaf (forces PREFER_ASM; local array+snprintf red).
+    # wave355: codegen_outbuf PREFER_ASM both ends (T001 unsafe + float buf).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-codegen-outbuf: need <out.o>" >&2

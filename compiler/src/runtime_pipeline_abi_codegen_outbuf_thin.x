@@ -1,12 +1,11 @@
-// Thin pure: wave296 M2 — pipeline_codegen_outbuf Cap residual C→.x
+// Thin pure: wave296/355 M2 — pipeline_codegen_outbuf Cap residual C→.x
 // (was wave289 C thin). emit_float_lit_c / emit_expr_try_propagate_c
 // + local append helpers. No BSS. No FROM_X gate.
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c
 // WAVE289_CODEGEN_OUTBUF_ALWAYS.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_codegen_outbuf_thin
-// (ALLOW_E_REPLACE + stamp). Local u8[64] + snprintf float face need
-// host-cc C twin (same class as w294 digit-loop red under pure-asm).
-// PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
+// wave355: wrap pipe_store_i32_le in unsafe (T001); PRODUCT inject
+// PREFER_ASM both ends (local u8[64]+snprintf after w353 digit-loop unlock).
+// Stamp w355. PLATFORM: SHARED freestanding Cap leave · LINUX · MACOS.
 //
 // snprintf is declared fixed-arity (buf, size, fmt, f64): SysV/AAPCS64
 // place the first float the same as a variadic "%.17g" call — bit-identical
@@ -30,9 +29,10 @@ const W289_OUTBUF_CAP: i32 = 9437184;
 function w289_f64_from_bits(lo: i32, hi: i32): f64 {
   let buf: u8[8];
   let out: f64 = 0 as f64;
-  pipe_store_i32_le(&buf[0], 0, lo);
-  pipe_store_i32_le(&buf[0], 4, hi);
+  /* PLATFORM: SHARED — pipe_store_i32_le is extern; must be unsafe (T001). */
   unsafe {
+    pipe_store_i32_le(&buf[0], 0, lo);
+    pipe_store_i32_le(&buf[0], 4, hi);
     memcpy((&out as *u8), &buf[0], 8 as usize);
   }
   return out;
@@ -88,7 +88,7 @@ function w289_glue_codegen_out_append_cstr(out: *u8, s: *u8): i32 {
  * C-backend float literal emit for codegen emit_expr (EXPR_FLOAT_LIT).
  * Prefer float_val; if 0.0 but bits_lo/hi non-zero, reconstruct via IEEE LE words.
  * Integer-looking tokens get a trailing ".0". Returns 0 on success, -1 on failure.
- * PLATFORM: SHARED freestanding Cap leave (wave296 .x thin · -E+$CC).
+ * PLATFORM: SHARED freestanding Cap leave (wave355 .x thin · PREFER_ASM).
  */
 #[no_mangle]
 export function pipeline_codegen_emit_float_lit_c(out: *u8, float_val: f64, bits_lo: i32, bits_hi: i32): i32 {
