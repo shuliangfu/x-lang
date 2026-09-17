@@ -5288,16 +5288,19 @@ pipeline_abi_inject_param_ptr_slot_thin() {
 
 # host-C type_to_c_repr SLICE `*`→`_p` sanitizer family.
 # G.7: .x thin matches mega; inject_thin_leaf class E.
-# wave397/412 M2: type_to_c_repr Cap residual — asymmetric helpers unlock.
+# wave397/412/434 M2: type_to_c_repr Cap residual — asymmetric helpers unlock.
 # PRODUCT inject wave412:
 #   MACOS: PREFER_ASM full thin (helpers+main; -c green; product L2 verified).
 #   LINUX: PREFER_ASM helpers-only thin (cg_ttc_* + kind/vector/append;
 #     Ubuntu helpers -c ~6100B green). Full tip -c XT001@cg_ttc MISATTRIBUTED
 #     — root = LINUX typeck/arena on large main body (short main+helpers green;
 #     full main alone parse-skip). Main leaf tip reinject still BAN.
-# G.7: helpers bodies match mega / full thin; main stays leftover on LINUX.
+# wave434: LINUX named+array_slice+main PREFER — co-file NAMED+ARRAY/SLICE
+#   → Ubuntu XT001/empty; split peer thins (named ~2000B / as ~5726B /
+#   main dispatcher ~2548B). MACOS stays full thin.
+# G.7: helpers/named/array_slice/main match mega / full thin authority.
 # Seed C-extract markers remain cold twin only (not product inject path).
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+named+as+main PREFER.
 pipeline_abi_inject_type_to_c_repr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_to_c_repr_thin.x"
@@ -5308,17 +5311,32 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  # PLATFORM: LINUX — helpers-only tip PREFER (full main still BAN).
+  local named_x named_stamp as_x as_stamp main_x main_stamp
+  # PLATFORM: LINUX — helpers then named + array_slice + main tip PREFER.
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_type_to_c_repr_helpers_thin.x"
       stamp="src/.pabi_w412_type_to_c_repr_helpers.stamp"
       tag="w412-type-to-c-repr-helpers"
+      named_x="src/runtime_pipeline_abi_type_to_c_repr_named_thin.x"
+      named_stamp="src/.pabi_w434_type_to_c_repr_named.stamp"
+      as_x="src/runtime_pipeline_abi_type_to_c_repr_array_slice_thin.x"
+      as_stamp="src/.pabi_w434_type_to_c_repr_array_slice.stamp"
+      main_x="src/runtime_pipeline_abi_type_to_c_repr_main_thin.x"
+      main_stamp="src/.pabi_w434_type_to_c_repr_main.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
+    if [ -n "${named_x-}" ] && [ -f "$named_x" ]; then
+      if [ -f "$named_stamp" ] && [ ! "$named_x" -nt "$named_stamp" ] \
+        && [ -f "$as_stamp" ] && [ ! "$as_x" -nt "$as_stamp" ] \
+        && [ -f "$main_stamp" ] && [ ! "$main_x" -nt "$main_stamp" ]; then
+        return 0
+      fi
+    else
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -5333,8 +5351,43 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-  rc=$?
+  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      touch "$stamp"
+    fi
+  else
+    rc=0
+  fi
+  # PLATFORM: LINUX — named then array_slice then main (wave434).
+  if [ "$rc" -eq 0 ] && [ -n "${named_x-}" ] && [ -f "$named_x" ]; then
+    if [ ! -f "$named_stamp" ] || [ "$named_x" -nt "$named_stamp" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$named_x" "w434-type-to-c-repr-named"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$named_stamp"
+      fi
+    fi
+  fi
+  if [ "$rc" -eq 0 ] && [ -n "${as_x-}" ] && [ -f "$as_x" ]; then
+    if [ ! -f "$as_stamp" ] || [ "$as_x" -nt "$as_stamp" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$as_x" "w434-type-to-c-repr-array-slice"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$as_stamp"
+      fi
+    fi
+  fi
+  if [ "$rc" -eq 0 ] && [ -n "${main_x-}" ] && [ -f "$main_x" ]; then
+    if [ ! -f "$main_stamp" ] || [ "$main_x" -nt "$main_stamp" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$main_x" "w434-type-to-c-repr-main"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$main_stamp"
+      fi
+    fi
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -5347,9 +5400,6 @@ pipeline_abi_inject_type_to_c_repr_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
   fi
   return "$rc"
 }
@@ -6299,7 +6349,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave419: asm_expr LINUX helpers PREFER (emit_expr_elf_c tip BAN).
 # wave432: param_ptr_slot BOTH PREFER (helper extract; Ubuntu -E/CG002 healed).
 # wave433: field_load LINUX layout+main PREFER (nested byte-while → copy+bytes_eq).
-# Next: mega BAN／split债（ttc main／assign rest／arr rest／peel rest…）；禁升钉。
+# wave434: type_to_c_repr LINUX named+array_slice+main PREFER (co-file XT001 split).
+# Next: mega BAN／split债（assign rest／arr rest／peel rest…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
