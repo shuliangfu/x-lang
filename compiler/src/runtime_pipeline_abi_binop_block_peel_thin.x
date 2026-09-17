@@ -4,8 +4,8 @@
 // glue_expr_emit_may_clobber_rbx_elf_c in runtime_pipeline_abi.x.
 // ensure: inject_binop_block_peel_thin injects THIS on MACOS; LINUX injects
 //   helpers (transparent) then rest (may_clobber); see wave422.
-// wave407/417/422: MACOS PREFER full; LINUX PREFER helpers+may_clobber.
-//   Middle three tip BAN (merge/contiguous XT001). Separate rest inject green.
+// wave407/417/422/423: MACOS PREFER full; LINUX helpers+may_clobber+load_to_rbx.
+//   try_binop_load/index_addr Ubuntu empty .o BAN. Separate rest injects green.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;

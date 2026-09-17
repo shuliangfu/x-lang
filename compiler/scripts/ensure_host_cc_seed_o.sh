@@ -5288,19 +5288,19 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   return "$rc"
 }
 
-# wave407/417/422 M2: binop_block_peel Cap residual — asymmetric helpers+rest unlock.
-# PRODUCT inject wave422:
+# wave407/417/422/423 M2: binop_block_peel Cap residual — helpers+rest unlock.
+# PRODUCT inject wave423:
 #   MACOS: PREFER_ASM full thin (product L2 verified).
-#   LINUX: PREFER_ASM helpers (transparent; w417) THEN rest thin
-#     (may_clobber only; peers extern→leftover). Contiguous/skip-middle merge
-#     XT001; separate rest inject product L2 5/5 opt=102. Middle three tip BAN.
-# G.7: helpers+rest bodies match mega / full thin; middle stay leftover LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+may_clobber PREFER.
+#   LINUX: helpers (transparent) + may_clobber rest (w422) + load_to_rbx rest
+#     (w423; peers extern→leftover). try_binop_load / index_addr Ubuntu asm
+#     -c empty .o still BAN. Contiguous merge XT001.
+# G.7: bodies match mega / full thin; remaining middle stay leftover LINUX.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+2rest PREFER.
 pipeline_abi_inject_binop_block_peel_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_binop_block_peel_thin.x"
-  local stamp="src/.pabi_w422_binop_block_peel.stamp"
-  local tag="w422-binop-block-peel"
+  local stamp="src/.pabi_w423_binop_block_peel.stamp"
+  local tag="w423-binop-block-peel"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5357,6 +5357,18 @@ pipeline_abi_inject_binop_block_peel_thin() {
       rc=$?
       if [ "$rc" -eq 0 ]; then
         touch "$rest_stamp"
+      fi
+    fi
+  fi
+  # PLATFORM: LINUX — third inject load_to_rbx rest (wave423).
+  if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
+    local l2x="src/runtime_pipeline_abi_binop_block_peel_load_to_rbx_thin.x"
+    local l2s="src/.pabi_w423_binop_block_peel_load_to_rbx.stamp"
+    if [ -f "$l2x" ] && { [ ! -f "$l2s" ] || [ "$l2x" -nt "$l2s" ]; }; then
+      pipeline_abi_inject_thin_leaf "$o" "$l2x" "w423-binop-block-peel-load-to-rbx"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$l2s"
       fi
     fi
   fi
@@ -6153,7 +6165,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
 # wave405: binop_stack_spill_try_reload PREFER both ends.
 # wave406: w157_sum HARD BAN tip reinject both ends (Darwin BRANCH26).
-# wave407/417/422: binop_block_peel MACOS full PREFER／LINUX helpers+may_clobber PREFER (middle BAN).
+# wave407/417/422/423: binop_block_peel MACOS full PREFER／LINUX helpers+may_clobber+load_to_rbx PREFER (load/index BAN).
 # wave408/418: fixed_array_copy MACOS full PREFER／LINUX helpers PREFER (rest BAN).
 # wave409/419: asm_expr MACOS full PREFER／LINUX HARD BAN (helpers product opt=255); wave409b al_nc HARD BAN.
 # wave410: asm73_* HARD BAN (BRANCH26); wave410d reent PREFER both ends.
@@ -11732,7 +11744,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-binop-block-peel|inject_binop_block_peel)
-    # wave422: MACOS full PREFER / LINUX helpers+may_clobber PREFER (middle BAN).
+    # wave423: MACOS full PREFER / LINUX helpers+may_clobber+load_to_rbx PREFER.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-binop-block-peel: need <out.o>" >&2
