@@ -5636,11 +5636,12 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w353: asm_label_format PREFER (digit-loop into caller buf).
 #   UNLOCKED w354: import_heap PREFER (T001 unsafe + class B path/view).
 #   UNLOCKED w355: codegen_outbuf PREFER (T001 unsafe + u8[64] float buf).
+#   UNLOCKED w356: grow_vec PREFER (T001 unsafe LE helpers · class C GrowVec-LE).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
-#     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
-#       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
+#     C residual GrowVec/sidecar LE (w335+ peers still -E):
+#       onefunc / type_pool / expr_sidecar / block_domain / module_func / *pool* /
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
@@ -5656,7 +5657,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave353: asm_label_format PREFER (digit-loop); historic w294 SEGV ban lifted.
 # wave354: import_heap PREFER (T001 unsafe slot get/set).
 # wave355: codegen_outbuf PREFER (T001 unsafe pipe_store + float buf).
-# Next: GrowVec-LE／Ubuntu check_expr x86_64 ABI.
+# wave356: grow_vec PREFER (T001 unsafe LE helpers).
+# Next: class C peers／Ubuntu check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -5710,13 +5712,15 @@ pipeline_abi_inject_type_pool_thin() {
   return "$rc"
 }
 
-# wave300 M2: grow_vec Cap residual C→.x (was wave271 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No file-local BSS.
-# G.7 match mega wave271 leave. PLATFORM: SHARED.
+# wave300/356 M2: grow_vec Cap residual C→.x (was wave271 C thin).
+# PRODUCT inject wave356: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 unsafe on all LE slot helpers; standalone -c green. Class C GrowVec-LE
+# product unlock after Cap A／FileView／digit-loop. G.7 match mega wave271.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_grow_vec_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_grow_vec_thin.x"
-  local stamp="src/.pabi_w300_grow_vec.stamp"
+  local stamp="src/.pabi_w356_grow_vec.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -5736,9 +5740,10 @@ pipeline_abi_inject_grow_vec_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 unsafe LE helpers proven).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w300-grow-vec"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w356-grow-vec"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5755,6 +5760,7 @@ pipeline_abi_inject_grow_vec_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w300_grow_vec.stamp
   fi
   return "$rc"
 }
@@ -11349,7 +11355,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-grow-vec|inject_grow_vec)
-    # wave300: C→.x grow_vec via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave356: grow_vec PREFER_ASM both ends (T001 unsafe LE helpers).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-grow-vec: need <out.o>" >&2

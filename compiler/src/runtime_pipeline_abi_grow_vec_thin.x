@@ -1,11 +1,11 @@
-// Thin pure: wave300 M2 — grow_vec Cap residual C→.x (was wave271 C thin).
+// Thin pure: wave300/356 M2 — grow_vec Cap residual C→.x (was wave271 C thin).
 // GrowVec LE sizeof 32: data*@0 cap@8 len@12 elem_sz@16 mmap@24.
 // Faces: init / free / ensure / at / push / copy_append.
 // Growth: INIT_CAP=256, GROW=4096, MMAP_THRESH=1MiB (POSIX mmap).
 // G.7: bodies match runtime_pipeline_abi.x wave271 leave + seed cold twins.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_grow_vec_thin
-// (ALLOW_E_REPLACE + stamp). No file-local BSS.
-// PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
+// wave356: wrap all LE slot load/store helpers in unsafe (T001, same as
+// w349/w354); PRODUCT inject PREFER_ASM both ends after typeck green.
+// Stamp w356. PLATFORM: SHARED freestanding Cap leave · LINUX · MACOS.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
@@ -37,59 +37,99 @@ let g_w300_mmap_flags: i32 = 4098;
 #[cfg(not(target_os = "macos"))]
 let g_w300_mmap_flags: i32 = 0;
 
-/** Load GrowVec.data*. PLATFORM: SHARED LP64. */
+/**
+ * Load GrowVec.data*. PLATFORM: SHARED LP64 — extern slot get in unsafe (T001).
+ */
 function w300_load_data(v: *u8): *u8 {
-  return xlang_ptr_slot_get(v, 0);
+  unsafe {
+    return xlang_ptr_slot_get(v, 0);
+  }
 }
 
-/** Store GrowVec.data*. PLATFORM: SHARED LP64. */
+/**
+ * Store GrowVec.data*. PLATFORM: SHARED LP64 — extern slot set in unsafe (T001).
+ */
 function w300_store_data(v: *u8, p: *u8): void {
-  xlang_ptr_slot_set(v, 0, p);
+  unsafe {
+    xlang_ptr_slot_set(v, 0, p);
+  }
 }
 
-/** Load GrowVec.cap. PLATFORM: SHARED LP64. */
+/**
+ * Load GrowVec.cap. PLATFORM: SHARED LP64 — extern LE load in unsafe (T001).
+ */
 function w300_load_cap(v: *u8): i32 {
-  return pipe_load_i32_le(v, W300_OFF_CAP);
+  unsafe {
+    return pipe_load_i32_le(v, W300_OFF_CAP);
+  }
 }
 
-/** Store GrowVec.cap. PLATFORM: SHARED LP64. */
+/**
+ * Store GrowVec.cap. PLATFORM: SHARED LP64 — extern LE store in unsafe (T001).
+ */
 function w300_store_cap(v: *u8, c: i32): void {
-  pipe_store_i32_le(v, W300_OFF_CAP, c);
+  unsafe {
+    pipe_store_i32_le(v, W300_OFF_CAP, c);
+  }
 }
 
-/** Load GrowVec.len. PLATFORM: SHARED LP64. */
+/**
+ * Load GrowVec.len. PLATFORM: SHARED LP64 — extern LE load in unsafe (T001).
+ */
 function w300_load_len(v: *u8): i32 {
-  return pipe_load_i32_le(v, W300_OFF_LEN);
+  unsafe {
+    return pipe_load_i32_le(v, W300_OFF_LEN);
+  }
 }
 
-/** Store GrowVec.len. PLATFORM: SHARED LP64. */
+/**
+ * Store GrowVec.len. PLATFORM: SHARED LP64 — extern LE store in unsafe (T001).
+ */
 function w300_store_len(v: *u8, n: i32): void {
-  pipe_store_i32_le(v, W300_OFF_LEN, n);
+  unsafe {
+    pipe_store_i32_le(v, W300_OFF_LEN, n);
+  }
 }
 
-/** Load GrowVec.elem_sz (size_t @16 = slot 2). PLATFORM: SHARED LP64. */
+/**
+ * Load GrowVec.elem_sz (size_t @16 = slot 2). PLATFORM: SHARED LP64.
+ */
 function w300_load_elem_sz(v: *u8): i64 {
-  return xlang_size_slot_get(v, 2);
+  unsafe {
+    return xlang_size_slot_get(v, 2);
+  }
 }
 
-/** Store GrowVec.elem_sz. PLATFORM: SHARED LP64. */
+/**
+ * Store GrowVec.elem_sz. PLATFORM: SHARED LP64.
+ */
 function w300_store_elem_sz(v: *u8, es: i64): void {
-  xlang_size_slot_set(v, 2, es);
+  unsafe {
+    xlang_size_slot_set(v, 2, es);
+  }
 }
 
-/** Load GrowVec.mmap_backed. PLATFORM: SHARED LP64. */
+/**
+ * Load GrowVec.mmap_backed. PLATFORM: SHARED LP64.
+ */
 function w300_load_mmap(v: *u8): i32 {
-  return pipe_load_i32_le(v, W300_OFF_MMAP);
+  unsafe {
+    return pipe_load_i32_le(v, W300_OFF_MMAP);
+  }
 }
 
-/** Store GrowVec.mmap_backed. PLATFORM: SHARED LP64. */
+/**
+ * Store GrowVec.mmap_backed. PLATFORM: SHARED LP64.
+ */
 function w300_store_mmap(v: *u8, mm: i32): void {
-  pipe_store_i32_le(v, W300_OFF_MMAP, mm);
+  unsafe {
+    pipe_store_i32_le(v, W300_OFF_MMAP, mm);
+  }
 }
 
 /**
  * True when p is MAP_FAILED ((void*)-1).
- * PLATFORM: SHARED LP64.
+ * PLATFORM: SHARED LP64 — slot round-trip in unsafe (T001).
  */
 function w300_ptr_is_map_failed(p: *u8): i32 {
   let cell: u8[8];
@@ -98,8 +138,10 @@ function w300_ptr_is_map_failed(p: *u8): i32 {
   if (p == (0 as *u8)) {
     return 0;
   }
-  xlang_ptr_slot_set(&cell[0], 0, p);
-  bits = xlang_size_slot_get(&cell[0], 0);
+  unsafe {
+    xlang_ptr_slot_set(&cell[0], 0, p);
+    bits = xlang_size_slot_get(&cell[0], 0);
+  }
   if (bits == failed) {
     return 1;
   }
