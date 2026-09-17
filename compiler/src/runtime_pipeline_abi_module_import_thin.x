@@ -1,9 +1,11 @@
-// Thin pure: wave310/377 M2 — module_import Cap residual C→.x (was wave263 C thin).
+// Thin pure: wave310/377/390 M2 — module_import Cap residual C→.x
+//   (was wave263 C thin).
 // ImportEntry LE 532B multi-module map + select rows; 18 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave110/wave263 leave.
-// PRODUCT inject wave377: BAN PREFER (Darwin g05 BRANCH26); MACOS -E of
-//   T001-wrapped thin; LINUX hard-skip (Ubuntu typeck rejects wrapped thin).
-// wave377: whole-body unsafe (T001); PREFER -c 20901B green ≠ product link.
+// wave377: BAN PREFER (Darwin g05 BRANCH26); MACOS -E of T001-wrapped thin;
+//   LINUX hard-skip (Ubuntu typeck rejects wrapped thin).
+// wave390: HARD BAN reinject both ends (stamp .pabi_w390_module_import.stamp);
+//   stay prior Darwin -E / Ubuntu prior -E until BRANCH26 root.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;

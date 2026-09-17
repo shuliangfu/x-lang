@@ -1,10 +1,12 @@
-// Thin pure: wave321/376 M2 — bootstrap_glue Cap residual C→.x (was wave282 C thin).
+// Thin pure: wave321/376/391 M2 — bootstrap_glue Cap residual C→.x
+//   (was wave282 C thin).
 // typeck_i32_ptr_* / layout_metrics / asm scope BSS / asm_local_slot_reg_offset
 // + align/bump/simd/scoped / patch_parent_links / dep_skip / redirect_std_c_wrapper.
 // G.7: bodies match runtime_pipeline_abi_bootstrap_glue_thin.c / seed WAVE282.
-// PRODUCT inject wave376: BAN PREFER (Darwin g05 BRANCH26); MACOS -E of
-//   T001-wrapped thin; LINUX hard-skip (Ubuntu typeck rejects wrapped thin).
-// wave376: whole-body unsafe (T001); PREFER -c 33310B green ≠ product link.
+// wave376: BAN PREFER (Darwin g05 BRANCH26); MACOS -E of T001-wrapped thin;
+//   LINUX hard-skip (Ubuntu typeck rejects wrapped thin).
+// wave391: HARD BAN reinject both ends (stamp .pabi_w391_bootstrap_glue.stamp);
+//   stay prior Darwin -E / Ubuntu prior -E until BRANCH26 root.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 // Slot polarity: pipeline_asm_host_is_arm64_c (was #if __aarch64__/__arm64__).
 

@@ -5064,69 +5064,22 @@ pipeline_abi_inject_type_alias_thin() {
   return "$rc"
 }
 
-# wave310/377 M2: module_import Cap residual C→.x (was wave263 C thin).
-# PRODUCT inject wave377:
-#   · BAN PREFER both ends — Darwin g05 ARM64_RELOC_BRANCH26 (bootstrap_glue
-#     w376 class). Tip standalone PREFER -c 20901B green ≠ product link.
-#   · MACOS|DARWIN: -E+$CC of T001-wrapped thin (ALLOW_E_REPLACE).
-#   · LINUX|UBUNTU: hard-skip — wrapped thin fails Ubuntu typeck even under -E;
-#     keep prior -E overlay.
-# G.7 match mega wave110/wave263 leave. PLATFORM: SHARED · BAN PREFER · LINUX hard-skip.
+# wave310/377/390 M2: module_import Cap residual C→.x (was wave263 C thin).
+# PRODUCT inject wave390 HARD BAN reinject both ends: stay prior overlay.
+#   Prior: BAN PREFER (BRANCH26); MACOS -E / LINUX hard-skip (w377).
+#   w390: formalize HARD BAN reinject (do not call inject_thin_leaf) —
+#     tip reinject poison class; keep green Darwin -E / Ubuntu prior -E
+#     via stamp only until BRANCH26 / Ubuntu typeck root.
+# G.7 match mega wave110/wave263 leave. PLATFORM: SHARED · BAN reinject.
 pipeline_abi_inject_module_import_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_module_import_thin.x"
-  local stamp="src/.pabi_w377_module_import.stamp"
+  local stamp="src/.pabi_w390_module_import.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  # PLATFORM: LINUX|UBUNTU — hard-skip; stay prior -E overlay.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) ;;
-    *)
-      touch "$stamp"
-      rm -f src/.pabi_w310_module_import.stamp
-      return 0
-      ;;
-  esac
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS|DARWIN — BAN PREFER; stay -E+$CC.
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w377-module-import"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w310_module_import.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w310_module_import.stamp src/.pabi_w377_module_import.stamp
+  return 0
 }
 
 # wave306/360/360b/386 M2: module_enum Cap residual C→.x (was wave264 C thin).
@@ -5352,6 +5305,10 @@ pipeline_abi_inject_block_tree_thin() {
 #   Ubuntu hard-skip; ParseIntoResult/typeck root).
 # wave389: mega_body HARD BAN reinject both ends (keep Darwin PREFER /
 #   Ubuntu hard-skip; Type LE / fn#116 root).
+# wave390: module_import HARD BAN reinject both ends (keep Darwin -E /
+#   Ubuntu hard-skip; BRANCH26 root).
+# wave391: bootstrap_glue HARD BAN reinject both ends (keep Darwin -E /
+#   Ubuntu hard-skip; BRANCH26 root).
 # Next: Type LE residual／remaining BAN leaf roots.
 
 
@@ -5798,69 +5755,22 @@ pipeline_abi_inject_onefunc_thin() {
 
 
 
-# wave321/376 M2: bootstrap_glue Cap residual C→.x (was wave282 C thin).
-# PRODUCT inject wave376:
-#   · BAN PREFER both ends — Darwin g05 ARM64_RELOC_BRANCH26 (same class as
-#     asm_wpo/macho_write). Tip standalone PREFER -c 33310B green ≠ product link.
-#   · MACOS|DARWIN: -E+$CC of T001-wrapped thin (ALLOW_E_REPLACE).
-#   · LINUX|UBUNTU: hard-skip — wrapped thin fails Ubuntu typeck even under -E
-#     (parse_orch w374b class); keep prior -E overlay.
-# G.7 WAVE282_BOOTSTRAP_GLUE_ALWAYS. PLATFORM: SHARED · BAN PREFER · LINUX hard-skip.
+# wave321/376/391 M2: bootstrap_glue Cap residual C→.x (was wave282 C thin).
+# PRODUCT inject wave391 HARD BAN reinject both ends: stay prior overlay.
+#   Prior: BAN PREFER (BRANCH26); MACOS -E / LINUX hard-skip (w376).
+#   w391: formalize HARD BAN reinject (do not call inject_thin_leaf) —
+#     tip reinject poison class; keep green Darwin -E / Ubuntu prior -E
+#     via stamp only until BRANCH26 / Ubuntu typeck root.
+# G.7 WAVE282_BOOTSTRAP_GLUE_ALWAYS. PLATFORM: SHARED · BAN reinject.
 pipeline_abi_inject_bootstrap_glue_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_bootstrap_glue_thin.x"
-  local stamp="src/.pabi_w376_bootstrap_glue.stamp"
+  local stamp="src/.pabi_w391_bootstrap_glue.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  # PLATFORM: LINUX|UBUNTU — hard-skip; stay prior -E overlay.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Darwin) ;;
-    *)
-      touch "$stamp"
-      rm -f src/.pabi_w321_bootstrap_glue.stamp
-      return 0
-      ;;
-  esac
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS|DARWIN — BAN PREFER; stay -E+$CC.
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w376-bootstrap-glue"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w321_bootstrap_glue.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w321_bootstrap_glue.stamp src/.pabi_w376_bootstrap_glue.stamp
+  return 0
 }
 
 
@@ -10846,8 +10756,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-module-import|inject_module_import)
-    # wave377: BAN PREFER; MACOS -E / LINUX hard-skip.
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave390: module_import HARD BAN reinject both ends (stamp only;
+    #   keep prior Darwin -E / Ubuntu hard-skip). PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-module-import: need <out.o>" >&2
       exit 2
@@ -11015,8 +10925,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-bootstrap|inject_bootstrap|inject-bootstrap-glue|inject_bootstrap_glue)
-    # wave376: BAN PREFER; MACOS -E / LINUX hard-skip.
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave391: bootstrap_glue HARD BAN reinject both ends (stamp only;
+    #   keep prior Darwin -E / Ubuntu hard-skip). PLATFORM: SHARED.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-bootstrap: need <out.o>" >&2
       exit 2
