@@ -1,11 +1,12 @@
-// Thin pure: wave319/343 M2 — typeck_check_expr Cap residual (was wave286 C thin).
+// Thin pure: wave319/343/344 M2 — typeck_check_expr Cap residual (was wave286 C).
 // Dispatch check_expr_*_c + match subject BSS + repr/extern gates; ~22 exports.
 // G.7: bodies match runtime_pipeline_abi_typeck_check_expr_thin.c / seed WAVE286.
-// PRODUCT inject: -E+$CC (stamp w343). wave343 LINUX PREFER trial → Ubuntu L2
-// typeck XT001 (ordinal Lxml_* COMMON dual-home vs mega); stay -E both ends.
+// PRODUCT inject wave344: LINUX PREFER_ASM / DARWIN -E+$CC (stamp w344).
+//   w343 LINUX PREFER → Ubuntu XT001 (ordinal COMMON dual-home); rooted by
+//   w344 non-zero scalar imm → .data bake for library Cap TUs.
 // Cold WEAK check_expr_impl{,_mega} NOT defined here — typeck_x.o provides strong;
 // impl_c calls extern check_expr_impl_mega (seed/typeck resolve).
-// PLATFORM: SHARED freestanding Cap leave · both ends -E+$CC.
+// PLATFORM: SHARED freestanding Cap leave · LINUX PREFER · DARWIN -E.
 
 // ExprKind / TypeKind product ordinals (LE shared with typeck.x / glue).
 let W286_EXPR_LIT: i32 = 0;

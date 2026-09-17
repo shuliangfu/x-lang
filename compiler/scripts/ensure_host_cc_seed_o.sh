@@ -5475,16 +5475,14 @@ pipeline_abi_inject_block_tree_thin() {
   return "$rc"
 }
 
-# wave337–343 M2 Cap leaf PREFER_ASM inventory:
+# wave337–344 M2 Cap leaf PREFER_ASM inventory:
 #   DONE PREFER (SHARED): w331 typeck_orch / w332 glue_statics /
 #     w333 preprocess_malloc / w334 lifecycle / w336 ast_forwarders.
 #   DONE PREFER (LINUX gold only, Darwin -E):
 #     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
-#     w342 emit_ctx_bss (small Cap A named-BSS unlocked by w338).
+#     w342 emit_ctx_bss · w344 typeck_check_expr (ordinal→.data bake).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A typeck_check_expr (w343 trial): LINUX PREFER → Ubuntu L2 typeck XT001
-#       (ordinal Lxml_* COMMON dual-home vs mega); stay -E both ends.
-#       block_tree i32[256] walk stack.
+#     A block_tree i32[256] walk stack.
 #     B local fixed arrays / digit-loop / FileView layout
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
@@ -5495,8 +5493,9 @@ pipeline_abi_inject_block_tree_thin() {
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
 # wave339–342: Cap A emit_ctx + typeck_active OK; w343 check_expr PREFER ban.
-# wave344: non-zero scalar imm → .data bake (library TU dual-home root).
-# Next: check_expr PREFER re-trial / block_tree / GrowVec-LE; Darwin mega when RAM ok.
+# wave344: non-zero scalar imm → .data bake (library TU dual-home root);
+#   check_expr LINUX PREFER unlocked.
+# Next: block_tree / GrowVec-LE; Darwin mega when RAM ok.
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
@@ -6319,23 +6318,25 @@ pipeline_abi_inject_typeck_orch_thin() {
 
 
 
-# wave319/343 M2: typeck_check_expr Cap residual .x thin (was wave286 C thin).
-# PRODUCT inject: stay -E+$CC both ends (wave343 trial):
-#   LINUX PREFER_ASM trial → Ubuntu L2 2/5 typeck red (opt/si/f32 XT001;
-#   "expected i32, found i32") — ordinal Lxml_* COMMON dual-home vs mega
-#   leftovers poisons kind tables; match-subject null COMMON alone is not enough.
-#   Darwin probe 33 vs gold 34 COMMON; Darwin stayed -E (matrix green).
+# wave319/343/344 M2: typeck_check_expr Cap residual .x thin (was wave286 C thin).
+# PRODUCT inject wave344:
+#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w344 non-zero ordinal imm → .data bake;
+#     w343 trial XT001 dual-home rooted — library TUs no longer zero COMMON).
+#   · MACOS|DARWIN: stay -E+$CC until high-mem mega carries w344 bake
+#     (Darwin tip xlang_asm still pre-w344; pure-asm ordinals would zero).
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
-# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED · both ends -E.
+# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS.
+# PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
-  local stamp="src/.pabi_w343_typeck_check_expr.stamp"
+  local stamp="src/.pabi_w344_typeck_check_expr.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -6349,10 +6350,15 @@ pipeline_abi_inject_typeck_check_expr_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
+  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w344.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Linux) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w343-typeck-check-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w344-typeck-check-expr"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
