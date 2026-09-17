@@ -5309,7 +5309,13 @@ pipeline_abi_inject_block_tree_thin() {
 #   Ubuntu hard-skip; BRANCH26 root).
 # wave391: bootstrap_glue HARD BAN reinject both ends (keep Darwin -E /
 #   Ubuntu hard-skip; BRANCH26 root).
-# Next: Type LE residual／remaining BAN leaf roots.
+# wave392: Type LE residual ROOT MAP (no product unlock yet):
+#   Ubuntu tip -c mega_body thin → XT001 @ w328_store_ptr (fn#116) is
+#   MISATTRIBUTED. Bisect: drop last export (mega LOOP) → -c green with
+#   store_ptr intact; helpers-only (≤61 funcs) green; full 62-fn file red.
+#   Darwin -c full file green. Root = LINUX typeck/arena pressure on
+#   helpers+LOOP combined — next = split LOOP leaf (hand), then unlock try.
+# Next: split mega LOOP leaf／Type LE unlock try／余 BAN 叶根.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6140,9 +6146,10 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 # PRODUCT inject wave389 HARD BAN reinject both ends: stay prior overlay.
 #   Prior: MACOS PREFER / LINUX hard-skip (w371b; Ubuntu tip XT001 on
 #   w328_store_ptr Type LE; cannot fresh -E reinject).
-#   w389: formalize HARD BAN reinject (do not call inject_thin_leaf) —
-#     tip reinject poison class; keep green Darwin PREFER / Ubuntu prior
-#     -E via stamp only until Type LE / fn#116 root.
+#   w389: formalize HARD BAN reinject (do not call inject_thin_leaf).
+#   w392 ROOT MAP: Ubuntu XT001@w328_store_ptr is misattribution — bisect
+#   shows LINUX typeck/arena pressure when helpers+LOOP combined (62 funcs);
+#   drop LOOP → -c green; Darwin full -c green. Next = split LOOP leaf.
 # G.7 WAVE290_ASM_CODEGEN_MEGA_BODY_ALWAYS.
 # PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_asm_codegen_mega_body_thin() {
