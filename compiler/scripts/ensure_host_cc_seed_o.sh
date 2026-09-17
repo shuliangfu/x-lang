@@ -5211,31 +5211,35 @@ pipeline_abi_inject_param_ptr_slot_thin() {
 
 # host-C type_to_c_repr SLICE `*`→`_p` sanitizer family.
 # G.7: .x thin matches mega; inject_thin_leaf class E.
-# PRODUCT inject wave397 asymmetric:
-#   MACOS: PREFER_ASM (full-file -c 14823B green).
-#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c/-E full file
-#     XT001@cg_ttc_write_bytes MISATTRIBUTED; helpers-only (cut before main
-#     export) -c green; root = LINUX typeck/arena when helpers+main co-file.
-#     Split main leaf deferred (main-as-extern-helpers still XT001/T001).
+# wave397/412 M2: type_to_c_repr Cap residual — asymmetric helpers unlock.
+# PRODUCT inject wave412:
+#   MACOS: PREFER_ASM full thin (helpers+main; -c green; product L2 verified).
+#   LINUX: PREFER_ASM helpers-only thin (cg_ttc_* + kind/vector/append;
+#     Ubuntu helpers -c ~6100B green). Full tip -c XT001@cg_ttc MISATTRIBUTED
+#     — root = LINUX typeck/arena on large main body (short main+helpers green;
+#     full main alone parse-skip). Main leaf tip reinject still BAN.
+# G.7: helpers bodies match mega / full thin; main stays leftover on LINUX.
 # Seed C-extract markers remain cold twin only (not product inject path).
-# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
 pipeline_abi_inject_type_to_c_repr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_to_c_repr_thin.x"
-  local stamp="src/.pabi_w397_type_to_c_repr.stamp"
+  local stamp="src/.pabi_w412_type_to_c_repr.stamp"
+  local tag="w412-type-to-c-repr"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — hard BAN tip reinject (XT001 misattr); stamp only.
+  # PLATFORM: LINUX — helpers-only tip PREFER (full main still BAN).
   case "$(uname -s)" in
     Linux)
-      touch "$stamp"
-      return 0
+      thin_x="src/runtime_pipeline_abi_type_to_c_repr_helpers_thin.x"
+      stamp="src/.pabi_w412_type_to_c_repr_helpers.stamp"
+      tag="w412-type-to-c-repr-helpers"
       ;;
   esac
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
@@ -5249,10 +5253,10 @@ pipeline_abi_inject_type_to_c_repr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS — PREFER_ASM (full-file -c green).
+  # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w397-type-to-c-repr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6099,8 +6103,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave394: CG002 root = emit_one+mega co-file; third leaf emit_one_thin;
 #   Ubuntu+Darwin -c all three green → unlock three-leaf PREFER inject.
 # wave396: wpo_dump PREFER both ends (-c green; type_alias -c gate OK).
-# wave397: type_to_c_repr MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr;
-#   helpers+main co-file); split main deferred.
+# wave397/412: type_to_c_repr MACOS full PREFER／LINUX helpers PREFER
+#   (Ubuntu full XT001 misattr; main leaf tip still BAN).
 # wave398: unused_hints PREFER both ends (-c green both ends).
 # wave399: fnptr_array_esz PREFER both ends (-c green both ends).
 # wave400: slot_bytes MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
@@ -6115,7 +6119,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave409: asm_expr MACOS PREFER／LINUX BAN; wave409b al_nc HARD BAN.
 # wave410: asm73_* HARD BAN (BRANCH26); wave410d reent PREFER both ends.
 # wave411: call_method_wrappers PREFER both ends (last soft -E stub).
-# Next: mega BAN／split债；禁升钉。
+# wave412: type_to_c_repr LINUX helpers PREFER (main tip still BAN).
+# Next: mega BAN／split债（main／slot／field／param／assign／asm_expr…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11551,7 +11556,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-type-to-c-repr|inject_type_to_c_repr|inject-ttc)
-    # wave397: MACOS PREFER / LINUX hard-skip BAN.
+    # wave412: MACOS full PREFER / LINUX helpers PREFER.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-type-to-c-repr: need <out.o>" >&2
