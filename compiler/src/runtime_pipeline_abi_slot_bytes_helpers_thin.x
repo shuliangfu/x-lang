@@ -1,18 +1,12 @@
-// Thin pure: slot_bytes FULL leaf (helpers + asm_local_slot_bytes).
-// G.7: bodies MUST match pipe_slot_bytes_named_in_mod /
-// pipe_local_slot_bytes_mod / asm_fixed_array_total_bytes_mod /
-// asm_local_slot_bytes in runtime_pipeline_abi.x (same exported symbol).
-// Product hybrid is thin-first WEAK mega + seed rest; without this inject,
-// inject-only g05 can keep a stale WEAK slot sizer (metrics 16 vs dep 24B
-// PageMmapHeap) — freestanding fs smoke exit=5. Seed-first merge was
-// tried and dropped driver_diag on Ubuntu GNU ld; this strong thin
-// first-wins ld -r over WEAK pure without reordering hybrid.
-// ensure: inject_slot_bytes_thin injects THIS on MACOS; LINUX injects
-//   slot_bytes_helpers_thin only (see wave415).
-// wave400/415: MACOS PREFER full; LINUX PREFER helpers-only.
-//   Ubuntu full tip T001@asm_local MISATTRIBUTED; helpers -c green;
-//   asm_local tip reinject still BAN on LINUX.
-// PLATFORM: SHARED freestanding slot sizing · LINUX gold · MACOS co-path.
+// Thin pure: slot_bytes HELPERS leaf (named + fixed_array + pipe_local).
+// G.7: bodies MUST match the same symbols in runtime_pipeline_abi.x /
+// runtime_pipeline_abi_slot_bytes_thin.x (full leaf keeps asm_local_slot_bytes).
+// ensure: pipeline_abi_inject_slot_bytes_thin dispatches this on LINUX.
+// wave415: LINUX PREFER helpers-only (full tip -c T001@asm_local MISATTRIBUTED;
+//   helpers -c green ~3504B; tip .o first-wins asm_fixed_array_total_bytes_mod;
+//   unused pipe_* may DCE in tip .o — leftover keeps them for asm_local).
+//   MACOS still full thin PREFER. asm_local tip reinject still BAN on LINUX.
+// PLATFORM: SHARED freestanding slot sizing · LINUX gold · MACOS.
 
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 export extern function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
@@ -711,17 +705,4 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   return bytes;
 }
 
-
-/**
- * Public stack slot bytes for const/let (no ctx; emit module + dep walk).
- * @param arena *u8 - ASTArena*
- * @param type_ref i32 - type ref
- * @return i32 - slot bytes
- * wave268 pure: G.7 single product authority (was pipeline_asm_slot_bytes.c).
- * PLATFORM: SHARED freestanding stack layout · LINUX gold · MACOS co-path.
- */
-#[no_mangle]
-export function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32 {
-  return pipe_local_slot_bytes_mod(arena, type_ref, 0 as *u8);
-}
 

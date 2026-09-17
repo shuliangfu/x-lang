@@ -4775,31 +4775,33 @@ pipeline_abi_inject_fixed_array_copy_thin() {
   return "$rc"
 }
 
-# wave400 M2: slot_bytes Cap residual — asymmetric unlock.
-# PRODUCT inject wave400:
-#   MACOS: PREFER_ASM (full-file -c 13953B green).
-#   LINUX: HARD BAN tip reinject (stamp only) — Ubuntu tip -c/-E full file
-#     T001/XT001@asm_local_slot_bytes MISATTRIBUTED; minimal pipe_local+
-#     asm_local -c green; root = LINUX typeck/arena on full leaf.
-# G.7: thin body matches runtime_pipeline_abi.x; first-wins over weak pure.
-# PLATFORM: SHARED · MACOS PREFER / LINUX hard-skip.
+# wave400/415 M2: slot_bytes Cap residual — asymmetric helpers unlock.
+# PRODUCT inject wave415:
+#   MACOS: PREFER_ASM full thin (helpers+asm_local; -c green; product L2 verified).
+#   LINUX: PREFER_ASM helpers-only thin (named/fixed/pipe_local; Ubuntu helpers
+#     -c ~3504B green; tip .o first-wins asm_fixed_array_total_bytes_mod).
+#     Full tip -c T001@asm_local MISATTRIBUTED — asm_local tip still BAN.
+# G.7: helpers bodies match mega / full thin; asm_local stays leftover on LINUX.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
 pipeline_abi_inject_slot_bytes_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_slot_bytes_thin.x"
-  local stamp="src/.pabi_w400_slot_bytes.stamp"
+  local stamp="src/.pabi_w415_slot_bytes.stamp"
+  local tag="w415-slot-bytes"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — hard BAN tip reinject (XT001 misattr); stamp only.
+  # PLATFORM: LINUX — helpers-only tip PREFER (asm_local still BAN).
   case "$(uname -s)" in
     Linux)
-      touch "$stamp"
-      return 0
+      thin_x="src/runtime_pipeline_abi_slot_bytes_helpers_thin.x"
+      stamp="src/.pabi_w415_slot_bytes_helpers.stamp"
+      tag="w415-slot-bytes-helpers"
       ;;
   esac
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
@@ -4813,10 +4815,10 @@ pipeline_abi_inject_slot_bytes_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: MACOS — PREFER_ASM (full-file -c green).
+  # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w400-slot-bytes"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6112,7 +6114,7 @@ pipeline_abi_inject_block_tree_thin() {
 #   (Ubuntu full XT001 misattr; main leaf tip still BAN).
 # wave398: unused_hints PREFER both ends (-c green both ends).
 # wave399: fnptr_array_esz PREFER both ends (-c green both ends).
-# wave400: slot_bytes MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
+# wave400/415: slot_bytes MACOS full PREFER／LINUX helpers PREFER (asm_local tip BAN).
 # wave401/414: field_load_sz MACOS full PREFER／LINUX helpers PREFER (main tip BAN).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
 # wave403/413: assign MACOS full PREFER／LINUX helpers PREFER (exports tip BAN).
@@ -6127,7 +6129,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave412: type_to_c_repr LINUX helpers PREFER (main tip still BAN).
 # wave413: assign LINUX helpers PREFER (export cluster tip still BAN).
 # wave414: field_load_sz LINUX helpers PREFER (main tip still BAN).
-# Next: mega BAN／split债（ttc main／slot／param／assign exports／asm_expr…）；禁升钉。
+# wave415: slot_bytes LINUX helpers PREFER (asm_local tip still BAN).
+# Next: mega BAN／split债（ttc main／param／assign exports／field main／asm_expr…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -11602,7 +11605,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-slot-bytes|inject_slot_bytes)
-    # wave400: MACOS PREFER / LINUX hard-skip BAN.
+    # wave415: MACOS full PREFER / LINUX helpers PREFER.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-slot-bytes: need <out.o>" >&2
