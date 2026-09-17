@@ -1,9 +1,10 @@
-// Thin pure: wave324 M2 — module_func Cap residual C→.x (was wave280 C thin).
+// Thin pure: wave324/363 M2 — module_func Cap residual C→.x.
 // Module Func cold accessors + param sidecar + parse-impl owner BSS +
 // asm/arch_arm64 rename forwarders.
 // G.7: bodies match runtime_pipeline_abi_module_func_thin.c / seed WAVE280.
 // PRODUCT inject: -E+$CC via pipeline_abi_inject_module_func_thin
 // (ALLOW_E_REPLACE + stamp). Func LE 324 / FuncParam 264 / ModuleSc offs.
+// wave363: w324_* unsafe wrappers (T001); PREFER try + L2 gate.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -54,38 +55,42 @@ let g_pmfo_cur_owner: u8[64] = [];
 let g_pmfo_cur_len: i32 = 0;
 
 /**
- * Load i32 LE from base+off.
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
  */
 function w324_load_i32(base: *u8, off: i32): i32 {
-  return pipe_load_i32_le(base, off);
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
 }
 
 /**
- * Store i32 LE at base+off.
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
  */
 function w324_store_i32(base: *u8, off: i32, v: i32): void {
-  pipe_store_i32_le(base, off, v);
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
 }
 
 /**
  * GrowVec.len at sidecar+gv_off.
  */
 function w324_gv_len(sc: *u8, gv_off: i32): i32 {
-  return pipe_load_i32_le(sc + (gv_off as usize), W324_GV_LEN);
+  return w324_load_i32(sc + (gv_off as usize), W324_GV_LEN);
 }
 
 /**
  * Module hdr num_funcs @0.
  */
 function w324_mod_num_funcs(m: *u8): i32 {
-  return pipe_load_i32_le(m, 0);
+  return w324_load_i32(m, 0);
 }
 
 /**
  * Arena hdr num_funcs @12.
  */
 function w324_arena_num_funcs(a: *u8): i32 {
-  return pipe_load_i32_le(a, W324_ARENA_NUM_FUNCS);
+  return w324_load_i32(a, W324_ARENA_NUM_FUNCS);
 }
 
 /**
@@ -149,7 +154,7 @@ function w324_copy_func_params(dst: *u8, dst_base_out: *i32, n: i32, src: *u8, s
     if (push_rc < 0) {
       break;
     }
-    abs_dst = pipe_load_i32_le(dst, W324_GV_LEN) - 1;
+    abs_dst = w324_load_i32(dst, W324_GV_LEN) - 1;
     unsafe {
       de = grow_vec_at(dst, abs_dst);
     }

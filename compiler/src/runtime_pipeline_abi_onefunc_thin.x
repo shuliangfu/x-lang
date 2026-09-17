@@ -1,8 +1,9 @@
-// Thin pure: wave325 M2 — onefunc Cap residual C→.x (was wave281 C thin).
+// Thin pure: wave325/363 M2 — onefunc Cap residual C→.x.
 // pipeline_onefunc_* mutators + pipeline_block_fill_*_from_onefunc.
 // G.7: bodies match runtime_pipeline_abi_onefunc_thin.c / seed WAVE281.
 // PRODUCT inject: -E+$CC via pipeline_abi_inject_onefunc_thin
 // (ALLOW_E_REPLACE + stamp). OneFuncSc LE 944 / Region 268 / Labeled 528.
+// wave363: w325_* unsafe wrappers (T001); PREFER try + L2 gate.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -26,6 +27,26 @@ export extern function pipeline_block_append_while(a: *u8, br: i32, cond_ref: i3
 export extern function pipeline_block_append_for(a: *u8, br: i32, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+
+
+/**
+ * LE i32 load via unsafe (T001). PLATFORM: SHARED.
+ */
+function w325_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * LE i32 store via unsafe (T001). PLATFORM: SHARED.
+ */
+function w325_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
 
 const W325_GV_LEN: i32 = 12;
 const W325_REGION_SZ: i32 = 268;
@@ -74,7 +95,7 @@ const W325_LABELEDS: i32 = 912;
  * GrowVec.len at sidecar+gv_off.
  */
 function w325_gv_len(sc: *u8, gv_off: i32): i32 {
-  return pipe_load_i32_le(sc + (gv_off as usize), W325_GV_LEN);
+  return w325_load_i32(sc + (gv_off as usize), W325_GV_LEN);
 }
 
 /**
@@ -115,7 +136,7 @@ function w325_push_i32(sc: *u8, gv_off: i32, v: i32): i32 {
   if (p == (0 as *u8)) {
     return 0 - 1;
   }
-  pipe_store_i32_le(p, 0, v);
+  w325_store_i32(p, 0, v);
   return idx;
 }
 
@@ -133,7 +154,7 @@ function w325_get_i32(sc: *u8, gv_off: i32, i: i32): i32 {
   if (p == (0 as *u8)) {
     return 0;
   }
-  return pipe_load_i32_le(p, 0);
+  return w325_load_i32(p, 0);
 }
 
 /**
@@ -515,7 +536,7 @@ export function pipeline_onefunc_set_param_type_ref(out: *u8, i: i32, type_ref: 
     p = grow_vec_at(sc + (W325_PARAM_TYPE_REFS as usize), i);
   }
   if (p != (0 as *u8)) {
-    pipe_store_i32_le(p, 0, type_ref);
+    w325_store_i32(p, 0, type_ref);
   }
 }
 
@@ -646,7 +667,7 @@ export function pipeline_onefunc_call_arg_val_at(out: *u8, i: i32): i32 {
 export function pipeline_onefunc_reset_call_args(out: *u8): void {
   let sc: *u8 = w325_sc(out, 0);
   if (sc != (0 as *u8)) {
-    pipe_store_i32_le(sc + (W325_CALL_ARG_VALS as usize), W325_GV_LEN, 0);
+    w325_store_i32(sc + (W325_CALL_ARG_VALS as usize), W325_GV_LEN, 0);
   }
 }
 
@@ -916,8 +937,8 @@ export function pipeline_onefunc_append_labeled(out: *u8, label: *u8, label_len:
   unsafe {
     memset(le, 0, W325_LABELED_SZ as usize);
   }
-  pipe_store_i32_le(le, W325_LE_IS_GOTO, is_goto);
-  pipe_store_i32_le(le, W325_LE_RET, return_expr_ref);
+  w325_store_i32(le, W325_LE_IS_GOTO, is_goto);
+  w325_store_i32(le, W325_LE_RET, return_expr_ref);
   if (label != (0 as *u8) && label_len > 0) {
     n = label_len;
     if (n > 255) {
@@ -926,7 +947,7 @@ export function pipeline_onefunc_append_labeled(out: *u8, label: *u8, label_len:
     unsafe {
       memcpy(le, label, n as usize);
     }
-    pipe_store_i32_le(le, W325_LE_LABEL_LEN, n);
+    w325_store_i32(le, W325_LE_LABEL_LEN, n);
   }
   if (goto_target != (0 as *u8) && goto_target_len > 0) {
     n = goto_target_len;
@@ -936,7 +957,7 @@ export function pipeline_onefunc_append_labeled(out: *u8, label: *u8, label_len:
     unsafe {
       memcpy(le + (W325_LE_GOTO as usize), goto_target, n as usize);
     }
-    pipe_store_i32_le(le, W325_LE_GOTO_LEN, n);
+    w325_store_i32(le, W325_LE_GOTO_LEN, n);
   }
   return idx;
 }
@@ -979,7 +1000,7 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
       b = pipeline_arena_block_ptr(a, br);
     }
     if (b != (0 as *u8)) {
-      pipe_store_i32_le(b, W325_BLK_NUM_LABELED, 0);
+      w325_store_i32(b, W325_BLK_NUM_LABELED, 0);
     }
   }
   while (i < count && i < w325_gv_len(sc, W325_LABELEDS)) {
@@ -987,10 +1008,10 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
       le = grow_vec_at(sc + (W325_LABELEDS as usize), i);
     }
     if (le != (0 as *u8)) {
-      llen = pipe_load_i32_le(le, W325_LE_LABEL_LEN);
-      is_goto = pipe_load_i32_le(le, W325_LE_IS_GOTO);
-      glen = pipe_load_i32_le(le, W325_LE_GOTO_LEN);
-      ret = pipe_load_i32_le(le, W325_LE_RET);
+      llen = w325_load_i32(le, W325_LE_LABEL_LEN);
+      is_goto = w325_load_i32(le, W325_LE_IS_GOTO);
+      glen = w325_load_i32(le, W325_LE_GOTO_LEN);
+      ret = w325_load_i32(le, W325_LE_RET);
       unsafe {
         li = pipeline_block_append_labeled(a, br, llen, is_goto, glen, ret);
       }
@@ -1008,7 +1029,7 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
               memcpy(ls, le, n as usize);
               ls[n] = 0;
             }
-            pipe_store_i32_le(ls, W325_LE_LABEL_LEN, n);
+            w325_store_i32(ls, W325_LE_LABEL_LEN, n);
           }
           if (glen > 0) {
             n = glen;
@@ -1019,7 +1040,7 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
               memcpy(ls + (W325_LE_GOTO as usize), le + (W325_LE_GOTO as usize), n as usize);
               (ls + ((W325_LE_GOTO + n) as usize))[0] = 0;
             }
-            pipe_store_i32_le(ls, W325_LE_GOTO_LEN, n);
+            w325_store_i32(ls, W325_LE_GOTO_LEN, n);
           }
         }
       }
@@ -1127,9 +1148,9 @@ export function pipeline_onefunc_append_region(out: *u8, label: *u8, label_len: 
     memset(re, 0, W325_REGION_SZ as usize);
     memcpy(re, label, label_len as usize);
   }
-  pipe_store_i32_le(re, W325_RE_LABEL_LEN, label_len);
-  pipe_store_i32_le(re, W325_RE_BODY, body_ref);
-  pipe_store_i32_le(re, W325_RE_CAP, 0);
+  w325_store_i32(re, W325_RE_LABEL_LEN, label_len);
+  w325_store_i32(re, W325_RE_BODY, body_ref);
+  w325_store_i32(re, W325_RE_CAP, 0);
   return idx;
 }
 
@@ -1166,8 +1187,8 @@ export function pipeline_onefunc_append_with_arena(out: *u8, cap_ref: i32, body_
   unsafe {
     memset(re, 0, W325_REGION_SZ as usize);
   }
-  pipe_store_i32_le(re, W325_RE_CAP, cap_ref);
-  pipe_store_i32_le(re, W325_RE_BODY, body_ref);
+  w325_store_i32(re, W325_RE_CAP, cap_ref);
+  w325_store_i32(re, W325_RE_BODY, body_ref);
   return idx;
 }
 
@@ -1204,8 +1225,8 @@ export function pipeline_onefunc_append_unsafe(out: *u8, body_ref: i32): i32 {
   unsafe {
     memset(re, 0, W325_REGION_SZ as usize);
   }
-  pipe_store_i32_le(re, W325_RE_CAP, 0 - 1);
-  pipe_store_i32_le(re, W325_RE_BODY, body_ref);
+  w325_store_i32(re, W325_RE_CAP, 0 - 1);
+  w325_store_i32(re, W325_RE_BODY, body_ref);
   return idx;
 }
 
@@ -1242,9 +1263,9 @@ export function pipeline_block_fill_regions_from_onefunc(a: *u8, br: i32, out: *
       re = grow_vec_at(sc + (W325_REGIONS as usize), i);
     }
     if (re != (0 as *u8)) {
-      cap = pipe_load_i32_le(re, W325_RE_CAP);
-      body = pipe_load_i32_le(re, W325_RE_BODY);
-      llen = pipe_load_i32_le(re, W325_RE_LABEL_LEN);
+      cap = w325_load_i32(re, W325_RE_CAP);
+      body = w325_load_i32(re, W325_RE_BODY);
+      llen = w325_load_i32(re, W325_RE_LABEL_LEN);
       if (cap > 0) {
         unsafe {
           pipeline_block_append_with_arena(a, br, cap, body);
@@ -1392,7 +1413,7 @@ export function pipeline_block_fill_ifs_from_onefunc(a: *u8, br: i32, out: *u8, 
       b = pipeline_arena_block_ptr(a, br);
     }
     if (b != (0 as *u8)) {
-      pipe_store_i32_le(b, W325_BLK_NUM_IF, 0);
+      w325_store_i32(b, W325_BLK_NUM_IF, 0);
     }
   }
   while (i < count) {

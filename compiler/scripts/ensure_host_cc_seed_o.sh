@@ -5562,11 +5562,13 @@ pipeline_abi_inject_block_tree_thin() {
 #   BAN w359b: top_level_let hard-skip overlay (elf_o / L2 poison).
 #   BAN w361: asm_locals hard-skip (PREFER L2 opt/si SEGV; gate -c green).
 #   BAN w362: struct_layout hard-skip (PREFER L2 option=240; gate -c green).
+#   UNLOCKED w363 try: module_func PREFER (T001 w324_* · gate+L2).
+#   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret).
 #     C residual GrowVec/sidecar LE peers still -E:
-#       onefunc / expr_sidecar / block_domain / module_func / sidecar_pool /
+#       onefunc (BAN PREFER) / expr_sidecar / block_domain / sidecar_pool /
 #       dep_ctx / elf_ctx / asm_wpo / top_level_let / asm_locals / struct_layout
 #       (BAN) / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
@@ -5588,7 +5590,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave360/360b: module_enum Darwin PREFER / Ubuntu -E (si Result_i32).
 # wave359b: top_level_let hard-skip (overlay poison).
 # wave361: asm_locals hard-skip (PREFER L2 opt/si SEGV; gate -c green).
-# wave362: struct_layout hard-skip (PREFER L2 option=240; gate -c green).
+# wave363: module_func PREFER try (T001 w324_* · gate+L2).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -6117,13 +6119,14 @@ pipeline_abi_inject_lifecycle_thin() {
 
 
 
-# wave324 M2: module_func Cap residual C→.x (was wave280 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Func/param LE + pmfo BSS.
-# G.7 WAVE280_MODULE_FUNC_DOMAIN_ALWAYS. PLATFORM: SHARED.
+# wave324/363 M2: module_func Cap residual C→.x (was wave280 C thin).
+# PRODUCT inject wave363: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
+# T001 w324_* LE wrappers; standalone -c green; gate=type_alias -c + L2.
+# G.7 WAVE280_MODULE_FUNC_DOMAIN_ALWAYS. PLATFORM: SHARED · PREFER try.
 pipeline_abi_inject_module_func_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_module_func_thin.x"
-  local stamp="src/.pabi_w324_module_func.stamp"
+  local stamp="src/.pabi_w363_module_func.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -6143,9 +6146,9 @@ pipeline_abi_inject_module_func_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w324-module-func"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w363-module-func"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6162,6 +6165,7 @@ pipeline_abi_inject_module_func_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w324_module_func.stamp
   fi
   return "$rc"
 }
@@ -11582,7 +11586,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-module-func|inject_module_func|inject-mfn|inject_mfn)
-    # wave324: C→.x module_func via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave363: module_func PREFER_ASM try (T001 w324_*); L2 gate required.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-module-func: need <out.o>" >&2
