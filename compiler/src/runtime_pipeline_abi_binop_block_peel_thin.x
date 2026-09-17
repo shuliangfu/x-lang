@@ -3,6 +3,9 @@
 // glue_try_binop_load_operand_elf_c / glue_binop_operand_* /
 // glue_expr_emit_may_clobber_rbx_elf_c in runtime_pipeline_abi.x.
 // ensure injects via inject_thin_leaf (PREFER_ASM; no mega -E).
+// wave407: MACOS PREFER / LINUX hard-skip BAN tip reinject.
+//   Ubuntu tip -c T001/XT001 @glue_expr_block_transparent_value_ref_at.
+//   Darwin product inject + relink L2 5/5 verified.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
