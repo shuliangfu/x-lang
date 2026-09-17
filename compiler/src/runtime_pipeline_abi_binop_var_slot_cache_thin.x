@@ -2,6 +2,8 @@
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave210 leave.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
 // Unblocked after COMMON + reloc_r_type accessors (file-level let → COMMON).
+// wave404: PREFER both ends (Darwin -c 8235B / Ubuntu -c 9142B green;
+//   -E BLD001 host-cc-requires-allow — PREFER path only).
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** Drop matching frame off from pure stack_spill table (wave208; leftover). */
