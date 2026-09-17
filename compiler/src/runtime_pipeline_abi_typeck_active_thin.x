@@ -1,10 +1,10 @@
-// Thin pure: wave313/339 M2 — typeck_active Cap residual (was wave224 C thin).
+// Thin pure: wave313/339/380 M2 — typeck_active Cap residual (was wave224 C thin).
 // Process-local active-module cell + get/set; 2 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave224 leave.
-// PRODUCT inject (pipeline_abi_inject_typeck_active_thin, stamp w339):
+// PRODUCT inject (pipeline_abi_inject_typeck_active_thin, stamp w380):
 //   LINUX|UBUNTU: PREFER_ASM (w338 null TYPE_PTR → Lxml_* COMMON).
-//   MACOS|DARWIN: -E+$CC until mega prefer rebuild carries w338 (memory ban).
-// PLATFORM: SHARED freestanding Cap leave · LINUX PREFER · MACOS -E co-path.
+//   MACOS|DARWIN: HARD BAN PREFER reinject (tip BRANCH26); prior -E overlay.
+// PLATFORM: SHARED · LINUX PREFER · MACOS hard-skip.
 
 let g_typeck_active_module: *u8 = 0 as *u8;
 

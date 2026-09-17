@@ -4963,236 +4963,191 @@ pipeline_abi_inject_al_nc_seq_thin() {
   pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_al_nc_seq_thin.x" "w219-al-nc-seq"
 }
 
-# wave317/342 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
-# PRODUCT inject wave342:
-#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 NEG/null → full Lxml_* COMMON set).
-#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild (probe:
-#     pure-asm thin 5 COMMON vs gold 8 — missing -1 func_index + null ptrs).
-# G.7 match mega wave220/221 leave. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
+# wave317/342/380 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
+# PRODUCT inject wave380:
+#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 NEG/null → full Lxml_* COMMON).
+#   · MACOS|DARWIN: HARD BAN PREFER reinject — tip pure-asm → g05
+#     ARM64_RELOC_BRANCH26 (w380 probe); stay prior -E overlay (stamp only).
+# G.7 match mega wave220/221 leave. PLATFORM: SHARED · LINUX PREFER · DARWIN hard-skip.
 pipeline_abi_inject_emit_ctx_bss_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_bss_thin.x"
-  local stamp="src/.pabi_w342_emit_ctx_bss.stamp"
+  local stamp="src/.pabi_w380_emit_ctx_bss.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  # PLATFORM: MACOS|DARWIN — hard-skip; BAN PREFER (BRANCH26); keep prior -E.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin)
+      touch "$stamp"
+      rm -f src/.pabi_w342_emit_ctx_bss.stamp
+      return 0
+      ;;
+  esac
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local prefer_asm=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Linux) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  # PLATFORM: LINUX|UBUNTU — PREFER_ASM.
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w342-emit-ctx-bss"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w380-emit-ctx-bss"
   rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w342_emit_ctx_bss.stamp
   fi
   return "$rc"
 }
 
-# wave315/340 M2: emit_ctx_module_dep Cap residual .x thin (was wave222 C thin).
-# PRODUCT inject wave340:
+# wave315/340/380 M2: emit_ctx_module_dep Cap residual .x thin (was wave222 C thin).
+# PRODUCT inject wave380:
 #   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 null TYPE_PTR → Lxml_* COMMON).
-#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild (probe:
-#     pure-asm thin is T-only, no COMMON — same gate as w339 typeck_active).
-# G.7 match mega wave222 leave. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
+#   · MACOS|DARWIN: HARD BAN PREFER reinject — Cap A class same as typeck_active
+#     / emit_ctx_bss (tip BRANCH26); stay prior -E overlay (stamp only).
+# G.7 match mega wave222 leave. PLATFORM: SHARED · LINUX PREFER · DARWIN hard-skip.
 pipeline_abi_inject_emit_ctx_module_dep_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_module_dep_thin.x"
-  local stamp="src/.pabi_w340_emit_ctx_module_dep.stamp"
+  local stamp="src/.pabi_w380_emit_ctx_module_dep.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  # PLATFORM: MACOS|DARWIN — hard-skip; BAN PREFER; keep prior -E.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin)
+      touch "$stamp"
+      rm -f src/.pabi_w340_emit_ctx_module_dep.stamp
+      return 0
+      ;;
+  esac
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local prefer_asm=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Linux) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w340-emit-ctx-mod-dep"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w380-emit-ctx-mod-dep"
   rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w340_emit_ctx_module_dep.stamp
   fi
   return "$rc"
 }
 
-# wave316/341 M2: emit_ctx_sret Cap residual .x thin (was wave223 C thin).
-# PRODUCT inject wave341:
+# wave316/341/380 M2: emit_ctx_sret Cap residual .x thin (was wave223 C thin).
+# PRODUCT inject wave380:
 #   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 NEG-over-LIT → home_off=-1 COMMON).
-#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild (probe:
-#     pure-asm thin has 2 Lxml for 0-inits only; missing -1 COMMON → SEGV risk).
-# G.7 match mega wave223 leave. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
+#   · MACOS|DARWIN: HARD BAN PREFER reinject — Cap A class (tip BRANCH26);
+#     stay prior -E overlay (stamp only).
+# G.7 match mega wave223 leave. PLATFORM: SHARED · LINUX PREFER · DARWIN hard-skip.
 pipeline_abi_inject_emit_ctx_sret_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_sret_thin.x"
-  local stamp="src/.pabi_w341_emit_ctx_sret.stamp"
+  local stamp="src/.pabi_w380_emit_ctx_sret.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  # PLATFORM: MACOS|DARWIN — hard-skip; BAN PREFER; keep prior -E.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin)
+      touch "$stamp"
+      rm -f src/.pabi_w341_emit_ctx_sret.stamp
+      return 0
+      ;;
+  esac
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local prefer_asm=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338 NEG COMMON.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Linux) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w341-emit-ctx-sret"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w380-emit-ctx-sret"
   rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w341_emit_ctx_sret.stamp
   fi
   return "$rc"
 }
 
-# wave313/339 M2: typeck_active Cap residual .x thin (was wave224 C thin).
-# PRODUCT inject wave339:
-#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 modlet COMMON root in product
-#     xlang_asm after FORCE prefer — null TYPE_PTR → Lxml_* COMMON).
-#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild lands
-#     w338 in local xlang_asm (Darwin mega -E / FORCE prefer memory-banned;
-#     probe: pure-asm thin has T-only, no COMMON → would SEGV if flipped).
-# G.7 match mega wave224 leave. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
+# wave313/339 M2:# wave313/339/380 M2: typeck_active Cap residual .x thin (was wave224 C thin).
+# PRODUCT inject wave380:
+#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 null TYPE_PTR → Lxml_* COMMON).
+#   · MACOS|DARWIN: HARD BAN PREFER reinject — tip pure-asm → g05
+#     ARM64_RELOC_BRANCH26 (w380 probe); stay prior -E overlay (stamp only).
+# G.7 match mega wave224 leave. PLATFORM: SHARED · LINUX PREFER · DARWIN hard-skip.
 pipeline_abi_inject_typeck_active_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_active_thin.x"
-  local stamp="src/.pabi_w339_typeck_active.stamp"
+  local stamp="src/.pabi_w380_typeck_active.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  # PLATFORM: MACOS|DARWIN — hard-skip; BAN PREFER (BRANCH26); keep prior -E.
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin)
+      touch "$stamp"
+      rm -f src/.pabi_w339_typeck_active.stamp
+      return 0
+      ;;
+  esac
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local prefer_asm=0
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Linux) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w339-typeck-active"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w380-typeck-active"
   rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w339_typeck_active.stamp
   fi
   return "$rc"
 }
@@ -5608,6 +5563,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave372/372b: type_pool Darwin PREFER / Ubuntu -E (option T001 reconfirmed).
 # wave378: value_abi BAN PREFER (sret) + emit_index Ubuntu PREFER BAN reconfirm.
 # wave379: onefunc HARD BAN PREFER + check_expr HARD BAN reinject (prior overlays).
+# wave380: Cap A Darwin BAN PREFER (typeck_active＋emit_ctx_* tip BRANCH26);
+#   LINUX PREFER stays; Darwin hard-skip prior -E.
 # Next: BAN residual roots／mega_body Ubuntu fn#116／Type LE option root.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.

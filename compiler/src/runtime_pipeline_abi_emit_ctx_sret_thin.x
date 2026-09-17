@@ -1,11 +1,10 @@
-// Thin pure: wave316/341 M2 — emit_ctx_sret Cap residual (was wave223 C thin).
+// Thin pure: wave316/341/380 M2 — emit_ctx_sret Cap residual (was wave223 C thin).
 // sret_active / sret_home_off(-1) / sret_ret_sz scalar BSS + get/set; 6 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave223 leave.
-// PRODUCT inject (pipeline_abi_inject_emit_ctx_sret_thin, stamp w341):
+// PRODUCT inject (pipeline_abi_inject_emit_ctx_sret_thin, stamp w380):
 //   LINUX|UBUNTU: PREFER_ASM (w338 NEG-over-LIT → home_off=-1 Lxml_* COMMON).
-//   MACOS|DARWIN: -E+$CC until mega prefer rebuild carries w338 (memory ban;
-//   Darwin pure-asm probe: 2 COMMON for 0-inits only, missing -1).
-// PLATFORM: SHARED freestanding Cap leave · LINUX PREFER · MACOS -E co-path.
+//   MACOS|DARWIN: HARD BAN PREFER reinject (Cap A tip BRANCH26); prior -E.
+// PLATFORM: SHARED · LINUX PREFER · MACOS hard-skip.
 
 let g_pipeline_asm_func_sret_active: i32 = 0;
 // wave223: sret home stack offset; -1 = unset (must survive -E init).
