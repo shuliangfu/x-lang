@@ -5455,6 +5455,9 @@ pipeline_abi_inject_block_tree_thin() {
 #       struct_layout / asm_locals / macho_write / mega_body.
 #   Next rail (not another blind PREFER flip): pure-asm named BSS/COMMON
 #   CG002 root OR GrowVec-LE store path under product pure-asm.
+# wave338: modlet scalar COMMON root — NEG-over-LIT + null TYPE_PTR accepted
+#   in prepare+hoist (pipe_modlet_scalar_init_common_imm). Unlocks Cap A-class
+#   leaves after product mega rebuild (Darwin mega -E still memory-banned).
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
