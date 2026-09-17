@@ -5572,7 +5572,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
   return "$rc"
 }
 
-# wave403/413/416/420/421/425 M2: assign Cap residual — asymmetric helpers unlock.
+# wave403/413/416/420/421/425/437 M2: assign Cap residual — asymmetric helpers unlock.
 # PRODUCT inject wave421:
 #   MACOS: PREFER_ASM full thin (helpers+exports; product L2 verified).
 #   LINUX: PREFER_ASM helpers thin = lhs+rhs + field_pair+body_stmt
@@ -5583,8 +5583,10 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   .pabi_w425_assign_rhsrax.stamp; no tip overlay.
 # wave426: emit_assign rest-only (Darwin -c ~50KB) — LINUX HARD BAN
 #   (Ubuntu empty .o; -E omits T). Same class as rhsrax.
-# G.7: helpers bodies match mega / full thin; middle stay leftover on LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers(+pair/body) PREFER.
+# wave437: LINUX rhsrax PREFER — flat arm helpers (nested if/micro-unsafe
+#   emptied .o; Ubuntu -c ~12096B / 14T). emit_assign still BAN.
+# G.7: helpers+rhsrax match mega / full thin semantics (flat reshape).
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+rhsrax PREFER.
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
@@ -5595,17 +5597,27 @@ pipeline_abi_inject_assign_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  # PLATFORM: LINUX — helpers tip PREFER (middle rhs_to_rax/emit still BAN).
+  local rhs_x rhs_s
+  # PLATFORM: LINUX — helpers tip PREFER; rhsrax flat PREFER (w437); emit BAN.
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
       stamp="src/.pabi_w421_assign_helpers.stamp"
       tag="w421-assign-helpers"
+      rhs_x="src/runtime_pipeline_abi_assign_rhsrax_thin.x"
+      rhs_s="src/.pabi_w437_assign_rhsrax.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
+    # helpers up-to-date; still try rhsrax on LINUX
+    if [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
+      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ]; then
+        return 0
+      fi
+    else
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -5620,8 +5632,25 @@ pipeline_abi_inject_assign_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-  rc=$?
+  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      touch "$stamp"
+    fi
+  else
+    rc=0
+  fi
+  # PLATFORM: LINUX — second inject flat rhsrax (wave437).
+  if [ "$rc" -eq 0 ] && [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
+    if [ ! -f "$rhs_s" ] || [ "$rhs_x" -nt "$rhs_s" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$rhs_x" "w437-assign-rhsrax"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$rhs_s"
+      fi
+    fi
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -5634,9 +5663,6 @@ pipeline_abi_inject_assign_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
   fi
   return "$rc"
 }
@@ -6419,7 +6445,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave434: type_to_c_repr LINUX named+array_slice+main PREFER (co-file XT001 split).
 # wave435: peel index_addr LINUX ko47+walker PREFER (INDEX co-file XT001 split).
 # wave436: peel load_operand LINUX flat peer chain PREFER (nested-if asm ban).
-# Next: mega BAN／split债（assign rest／arr rest…）；禁升钉。
+# wave437: assign rhsrax LINUX flat helpers PREFER (emit_assign still BAN).
+# Next: mega BAN／split债（assign emit／arr rest…）；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.

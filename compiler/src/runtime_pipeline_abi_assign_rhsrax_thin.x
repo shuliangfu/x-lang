@@ -1,9 +1,7 @@
-// Thin pure: assign REST rhs_to_rax only (peers via leftover/helpers).
-// G.7: body MUST match glue_emit_assign_rhs_to_rax_elf_c in assign_thin / mega.
-// wave425: Darwin -c PREFER green (~6425B, single T). LINUX HARD BAN —
-//   standalone -backend asm -c → empty .o RC=0; -E typeck OK but omits T;
-//   product inject via -E fallback merged +80B false-green (same addr nm).
-//   Middle tip stays leftover on LINUX (helpers+pair/body remain w421 PREFER).
+// Thin pure: assign REST rhs_to_rax (wave437 flat helpers).
+// G.7: semantics match glue_emit_assign_rhs_to_rax_elf_c in assign_thin / mega.
+// wave425: Darwin -c green; LINUX empty .o (nested if / micro-unsafe).
+// wave437: LINUX PREFER — flat arm helpers + dispatcher (Ubuntu -c ~12096B).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS (full assign covers).
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -190,16 +188,333 @@ export extern function glue_body_expr_stmt_at_c(arena: *u8, body_ref: i32, si: i
  *   shifts + divisor_zero pure + emit_expr_elf_c + enc push/pop.
  * PLATFORM: SHARED freestanding · f32/f64 compound reuse binop residual.
  */
+/**
+ * wave437: load left@rax right@rbx for compound assign (or push/pop fallback).
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param left_ref i32 — LHS expr
+ * @param right_ref i32 — RHS expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — 0 ok / -1 fail (maps try_binop -1/-2 paths)
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_load_lr_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    let vr: i32 = 0;
+    let rc: i32 = 0;
+    vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+    if (vr == -1) {
+      return -1;
+    }
+    if (vr != -2) {
+      return 0;
+    }
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    rc = backend_enc_push_rax_arch(elf_ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    rc = backend_enc_pop_rbx_arch(elf_ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    return 0;
+  }
+}
+#[no_mangle]
+export function glue_emit_assign_shr_u_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    let is_64bit: i32 = 0;
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    if (is_64bit != 0) {
+      return backend_enc_shr_cl_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+  }
+}
+/**
+ * wave437 helper: assign rhs_to_rax arm `plain`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_plain_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `add`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_add_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return glue_emit_binop_add_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `sub`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_sub_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `mul`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_mul_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `div`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_div_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    let is_f64_l: i32 = 0;
+    let is_f64_r: i32 = 0;
+    let is_f32_l: i32 = 0;
+    let is_f32_r: i32 = 0;
+    let rc: i32 = 0;
+    is_f64_l = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+    is_f64_r = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
+    if ((ta == 0 || ta == 1) && is_f64_l != 0 && is_f64_r != 0) {
+      return backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
+    }
+    is_f32_l = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+    is_f32_r = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
+    if ((ta == 0 || ta == 1) && is_f32_l != 0 && is_f32_r != 0) {
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
+    }
+    rc = pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `mod`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_mod_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    let rc: i32 = 0;
+    rc = pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    return backend_enc_rem_mod_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `and`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_and_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return backend_enc_and_rbx_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `or`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_or_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return backend_enc_or_rbx_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `xor`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_xor_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `shl`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_shl_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    let rc: i32 = 0;
+    let is_64bit: i32 = 0;
+    glue_binop_var_slot_cache_clear();
+    rc = backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    if (is_64bit != 0) {
+      return backend_enc_shl_cl_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave437 helper: assign rhs_to_rax arm `shr`.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF ctx
+ * @param assign_expr_ref i32 — assign expr (unused in some arms)
+ * @param left_ref i32 — LHS
+ * @param right_ref i32 — RHS
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — arch
+ * @return i32 — status
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
+export function glue_emit_assign_rhs_shr_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    let rc: i32 = 0;
+    let is_64bit: i32 = 0;
+    let is_unsigned: i32 = 0;
+    glue_binop_var_slot_cache_clear();
+    rc = backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta);
+    if (rc != 0) {
+      return -1;
+    }
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
+    is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, 0);
+    if (is_unsigned != 0) {
+      return glue_emit_assign_shr_u_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
+    }
+    if (is_64bit != 0) {
+      return backend_enc_sar_cl_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_sar_cl_eax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * wave149 pure: G.7 assign RHS→rax (wave437 flat peer reshape).
+ * @param arena *u8 - parameter
+ * @param elf_ctx *u8 - parameter
+ * @param assign_expr_ref i32 - parameter
+ * @param left_ref i32 - parameter
+ * @param right_ref i32 - parameter
+ * @param ctx *u8 - parameter
+ * @param ta i32 - parameter
+ * @return i32 - face-specific status
+ * PLATFORM: SHARED freestanding emit.
+ */
 export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
   let ako: i32 = 0;
-  let vr: i32 = 0;
-  let rc: i32 = 0;
-  let is_64bit: i32 = 0;
-  let is_unsigned: i32 = 0;
-  let is_f64_l: i32 = 0;
-  let is_f64_r: i32 = 0;
-  let is_f32_l: i32 = 0;
-  let is_f32_r: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || assign_expr_ref <= 0 || left_ref <= 0 || right_ref <= 0) {
     return -1;
   }
@@ -207,184 +522,46 @@ export function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assi
     ako = pipeline_expr_kind_ord_at(arena, assign_expr_ref);
   }
   if (ako == 28) {
-    // export-extern peer: must be inside unsafe (T001).
-    unsafe {
-      rc = glue_emit_assign_rhs_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_plain_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
-  unsafe {
-    vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
-  }
-  if (vr == -1) {
+  if (ako < 29) {
     return -1;
   }
-  if (vr == -2) {
-    unsafe {
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    unsafe {
-      rc = backend_enc_push_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    unsafe {
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    unsafe {
-      rc = backend_enc_pop_rbx_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
+  if (ako > 38) {
+    return -1;
+  }
+  if (glue_emit_assign_load_lr_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0) {
+    return -1;
   }
   if (ako == 29) {
-    unsafe {
-      rc = glue_emit_binop_add_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_add_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 30) {
-    // PLATFORM: SHARED — f64/f32 -= → subsd/subss (same residual as EXPR_SUB).
-    unsafe {
-      rc = glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_sub_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 31) {
-    unsafe {
-      rc = glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_mul_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 32) {
-    // PLATFORM: SHARED — f64 /= → divsd; f32 /= → divss; else idiv.
-    unsafe {
-      is_f64_l = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
-      is_f64_r = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
-    }
-    if ((ta == 0 || ta == 1) && is_f64_l != 0 && is_f64_r != 0) {
-      unsafe {
-        rc = backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
-      }
-      return rc;
-    }
-    unsafe {
-      is_f32_l = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
-      is_f32_r = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
-    }
-    if ((ta == 0 || ta == 1) && is_f32_l != 0 && is_f32_r != 0) {
-      unsafe {
-        rc = backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
-      }
-      return rc;
-    }
-    unsafe {
-      rc = pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    unsafe {
-      rc = backend_enc_idiv_rbx_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_div_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 33) {
-    unsafe {
-      rc = pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    unsafe {
-      rc = backend_enc_rem_mod_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_mod_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 34) {
-    unsafe {
-      rc = backend_enc_and_rbx_rax_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_and_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 35) {
-    unsafe {
-      rc = backend_enc_or_rbx_rax_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_or_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 36) {
-    unsafe {
-      rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_xor_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 37) {
-    unsafe {
-      glue_binop_var_slot_cache_clear();
-      rc = backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    // left only: compound assign shift width follows lhs type.
-    unsafe {
-      is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
-    }
-    if (is_64bit != 0) {
-      unsafe {
-        rc = backend_enc_shl_cl_rax_arch(elf_ctx, ta);
-      }
-      return rc;
-    }
-    unsafe {
-      rc = backend_enc_shl_cl_eax_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_shl_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   if (ako == 38) {
-    // signed >>= must be SAR; u32/u64 keep SHR (wave648).
-    unsafe {
-      glue_binop_var_slot_cache_clear();
-      rc = backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return -1;
-    }
-    unsafe {
-      is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, 0);
-      is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, 0);
-    }
-    if (is_unsigned != 0) {
-      if (is_64bit != 0) {
-        unsafe {
-          rc = backend_enc_shr_cl_rax_arch(elf_ctx, ta);
-        }
-        return rc;
-      }
-      unsafe {
-        rc = backend_enc_shr_cl_eax_arch(elf_ctx, ta);
-      }
-      return rc;
-    }
-    if (is_64bit != 0) {
-      unsafe {
-        rc = backend_enc_sar_cl_rax_arch(elf_ctx, ta);
-      }
-      return rc;
-    }
-    unsafe {
-      rc = backend_enc_sar_cl_eax_arch(elf_ctx, ta);
-    }
-    return rc;
+    return glue_emit_assign_rhs_shr_elf_c(arena, elf_ctx, assign_expr_ref, left_ref, right_ref, ctx, ta);
   }
   return -1;
 }
