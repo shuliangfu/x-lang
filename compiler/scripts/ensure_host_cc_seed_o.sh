@@ -5442,6 +5442,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave383: type_pool PREFER both ends (Ubuntu tip unlock; option=102).
 # wave383b: HARD BAN tip force-reinject after green (Ubuntu 3rd tip
 #   reinject → option T001; heal prefer_green overlay). Stamp-only.
+# wave384: value_abi HARD BAN reinject both ends (sret; stay prior -E).
 # Next: BAN residual roots／mega_body Ubuntu fn#116／Type LE residual.
 
 
@@ -5670,56 +5671,22 @@ pipeline_abi_inject_sidecar_pool_thin() {
 
 
 
-# wave330/378 M2: value_abi Cap residual C→.x (was wave276 C thin).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). Opaque byte blobs;
-# host cc owns large-struct sret (SysV vs AAPCS64). Do NOT PREFER_ASM.
-# wave378 BAN PREFER formal (sret ABI) — stamp w378; stay -E both ends.
-# G.7 WAVE276_ARENA_VALUE_ABI_ALWAYS. PLATFORM: SHARED · BAN PREFER.
+# wave330/378/384 M2: value_abi Cap residual C→.x (was wave276 C thin).
+# PRODUCT inject wave384 HARD BAN reinject both ends: stay prior -E overlay.
+#   w378 BAN PREFER (sret ABI SysV vs AAPCS64) — stay -E+$CC both ends.
+#   w384: formalize HARD BAN reinject (do not call inject_thin_leaf) —
+#     tip -E reinject of opaque sret blobs is poison-class with Cap A /
+#     tip force-reinject; keep green overlay via stamp only.
+# G.7 WAVE276_ARENA_VALUE_ABI_ALWAYS. PLATFORM: SHARED · BAN reinject.
 pipeline_abi_inject_value_abi_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_value_abi_thin.x"
-  local stamp="src/.pabi_w378_value_abi.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w384_value_abi.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w378-value-abi"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w330_value_abi.stamp
-  fi
-  return "$rc"
+  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w330_value_abi.stamp src/.pabi_w378_value_abi.stamp
+  return 0
 }
 
 
@@ -11383,8 +11350,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-value-abi|inject_value_abi|inject-vabi|inject_vabi)
-    # wave330: C→.x value_abi via -E+$CC (stamp + ALLOW_E_REPLACE).
-    # Large-struct sret: host cc only (ban PREFER_ASM). PLATFORM: SHARED.
+    # wave384: value_abi HARD BAN reinject both ends (sret; stamp only).
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-value-abi: need <out.o>" >&2
       exit 2
