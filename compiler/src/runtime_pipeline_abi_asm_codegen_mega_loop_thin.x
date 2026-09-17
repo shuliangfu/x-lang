@@ -2,8 +2,8 @@
 // Export: pipeline_backend_asm_codegen_ast_to_elf_mega_body_c only.
 // Helpers / ctx_reset stay in runtime_pipeline_abi_asm_codegen_mega_body_thin.x.
 // wave393b: no local w371 wrappers; whole-body unsafe + direct underlying.
-// wave393c: no w328_store_ptr in this leaf — Ubuntu XT001 when store_ptr
-//   coexists with mega; DEP_PIPE via pipe_store_ptr_slot instead.
+// wave393c: no w328_store_ptr — DEP_PIPE via pipe_store_ptr_slot.
+// wave393d: w393_mega_emit_one split (Ubuntu tip silently dropped mega).
 // BAN reinject until both leaves -c green both ends + unlock try.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
@@ -115,92 +115,52 @@ function w328_store(p: *u8, off: i32, v: i32): void {
  */
 
 /**
- * Per-module asm codegen mega-body loop (WPO/PGO emit order).
- * Sets ELF e_machine / reloc defaults from DepCtx.target_arch, emits modlet
- * cells, then for each emit-order function: reset ctx, param homes, prologue,
- * block body / inits, float xmm0 placement, epilogue.
- * POSIX product path only (no WIN leftover ARRAY_LIT durable wrap).
- * @return 0 success, -1 on null/emit failure
- * PLATFORM: SHARED freestanding Cap leave (wave290/328).
- *   LINUX+MACOS x86_64 SysV float return in xmm0; arm64 sret via pure cells.
+ * wave393d: one emit-order iteration of mega LOOP.
+ * Split from mega_body_c so Ubuntu tip parser/codegen does not silently drop
+ * the single large mega function (num_funcs=61, no T symbol).
+ * @return 0 ok (caller advances k), -1 on emit failure
+ * PLATFORM: SHARED. Invoked under mega_body_c unsafe.
  */
-export function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {
+function w393_mega_emit_one(
+    m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8,
+    bctx: *u8, elfb: *u8, ta: i32, i: i32, start_skip: i32,
+    fname_buf: *u8, export_sym: *u8): i32 {
   unsafe {
-  let ta: i32 = 0;
-  let ctx: u8[1528] = [];
-  let fname_buf: u8[256] = [];
-  let export_sym: u8[256] = [];
-  let start_skip: i32 = 0;
-  let emit_n: i32 = 0;
-  let k: i32 = 0;
-  let elfb: *u8 = 0 as *u8;
-  let bctx: *u8 = 0 as *u8;
-  let i: i32 = 0;
-  let body_ref: i32 = 0;
-  let frame_sz: i32 = 0;
-  let fname_len: i32 = 0;
-  let export_sym_len: i32 = 0;
-  let result_ref: i32 = 0;
-  let fn_ret_sz: i32 = 0;
-  let ly_fs: *u8 = 0 as *u8;
-  let slot_base: i32 = 0;
-  let rty: i32 = 0;
-  let rkind: i32 = 0;
-  let neg1: i32 = 0 - 1;
+    let body_ref: i32 = 0;
+    let frame_sz: i32 = 0;
+    let fname_len: i32 = 0;
+    let export_sym_len: i32 = 0;
+    let result_ref: i32 = 0;
+    let fn_ret_sz: i32 = 0;
+    let ly_fs: *u8 = 0 as *u8;
+    let slot_base: i32 = 0;
+    let rty: i32 = 0;
+    let rkind: i32 = 0;
+    let neg1: i32 = 0 - 1;
 
-  if (m == (0 as *u8) || a == (0 as *u8) || elf_ctx == (0 as *u8) || pipeline_ctx == (0 as *u8)) {
-    return neg1;
-  }
-  elfb = elf_ctx;
-  ta = pipeline_dep_ctx_target_arch(pipeline_ctx);
-  if (ta == 1) {
-    w328_store(elfb, W328_ELF_E_MACHINE_OFF, 183);
-    w328_store(elfb, W328_ELF_RELOC_R_PC32_OFF, 283);
-  } else if (ta == 2) {
-    w328_store(elfb, W328_ELF_E_MACHINE_OFF, 243);
-    w328_store(elfb, W328_ELF_RELOC_R_PC32_OFF, 32);
-  } else {
-    w328_store(elfb, W328_ELF_E_MACHINE_OFF, 62);
-    w328_store(elfb, W328_ELF_RELOC_R_PC32_OFF, 2);
-  }
-  unsafe { memset(&ctx[0], 0, W328_CTX_SZ as usize); }
-  bctx = &ctx[0];
-  pipeline_asm_wpo_pgo_emit_order_prepare(m);
-  start_skip = asm_diag_start_func_skip();
-  emit_n = pipeline_asm_wpo_pgo_emit_order_count(m);
-  /* PLATFORM: SHARED x86_64 — text-embedded module mutable lit cells once before funcs. */
-  if (pipeline_asm_modlet_prepare_and_emit_elf_c(m, a, elf_ctx, ta) != 0) {
-    return neg1;
-  }
-  k = 0;
-  while (k < emit_n) {
-    i = pipeline_asm_wpo_pgo_emit_order_at(m, k);
     body_ref = 0;
     frame_sz = 0;
     fname_len = 0;
     export_sym_len = 0;
     result_ref = 0;
     if (i < 0) {
-      k = k + 1;
-      continue;
+      return 0;
     }
     if (i < start_skip) {
-      k = k + 1;
-      continue;
+      return 0;
     }
     /* PLATFORM: SHARED — extern must stay U (text-asm path already skips). */
     if (pipeline_asm_module_func_is_extern_at(m, i) != 0) {
-      k = k + 1;
-      continue;
+      return 0;
     }
     pipeline_elf_ctx_set_emit_hot(elfb, pipeline_asm_wpo_pgo_is_hot_func(m, i));
-    pipeline_asm_module_func_name_copy64(m, i, &fname_buf[0]);
+    pipeline_asm_module_func_name_copy64(m, i, fname_buf);
     fname_len = pipeline_asm_module_func_name_len_at(m, i);
-    driver_diagnostic_asm_set_current_func(&fname_buf[0], fname_len);
+    driver_diagnostic_asm_set_current_func(fname_buf, fname_len);
     pipeline_asm_emit_set_func_index(i);
     pipeline_debug_trace_named_func_bodies("mega_pre_reset" as *u8, m, a);
     /* T001: ctx_reset lives in HELPERS leaf — call via unsafe. */
-    unsafe { pipeline_asm_ctx_reset_for_func_c(bctx, m); }
+    pipeline_asm_ctx_reset_for_func_c(bctx, m);
     /* Type LE: pipe_store_ptr_slot — avoid w328_store_ptr + mega co-file (w393c). */
     pipe_store_ptr_slot(bctx + (W328_CTX_DEP_PIPE as usize), 0, pipeline_ctx);
     /* wave223: sret cells pure BSS — residual writes only via pure setters. */
@@ -225,16 +185,15 @@ export function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m: *u8, a: *
     pipeline_asm_register_module_top_level_lets_c(bctx, m, a, i);
     pipeline_debug_trace_named_func_bodies("mega_post_register_top_level" as *u8, m, a);
     /* Cap 4.2.8: export_sym is u8[256]; out_cap must be 256. */
-    export_sym_len = glue_asm_build_func_export_sym_c(m, a, i, &export_sym[0], 256);
+    export_sym_len = glue_asm_build_func_export_sym_c(m, a, i, export_sym, 256);
     if (export_sym_len <= 0) { return neg1; }
-    if (backend_enc_label_arch(elf_ctx, &export_sym[0], export_sym_len, 1, ta) != 0) {
+    if (backend_enc_label_arch(elf_ctx, export_sym, export_sym_len, 1, ta) != 0) {
       return neg1;
     }
     if (asm_skip_heavy_module_func_body(m, a, i) != 0) {
       if (backend_enc_prologue_arch(elf_ctx, 0, ta) != 0) { return neg1; }
       if (pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(elf_ctx, ta, m, i) != 0) { return neg1; }
-      k = k + 1;
-      continue;
+      return 0;
     }
     body_ref = pipeline_asm_module_func_body_ref_at(m, i);
     frame_sz = 0;
@@ -323,9 +282,67 @@ export function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m: *u8, a: *
       return neg1;
     }
     pipeline_asm_emit_async_cps_end_func_elf_c();
+    return 0;
+
+  }
+}
+
+/**
+ * Per-module asm codegen mega-body loop (WPO/PGO emit order).
+ * Sets ELF e_machine / reloc defaults from DepCtx.target_arch, emits modlet
+ * cells, then for each emit-order function: reset ctx, param homes, prologue,
+ * block body / inits, float xmm0 placement, epilogue.
+ * POSIX product path only (no WIN leftover ARRAY_LIT durable wrap).
+ * @return 0 success, -1 on null/emit failure
+ * PLATFORM: SHARED freestanding Cap leave (wave290/328).
+ *   LINUX+MACOS x86_64 SysV float return in xmm0; arm64 sret via pure cells.
+ */
+export function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {
+  unsafe {
+  let ta: i32 = 0;
+  let ctx: u8[1528] = [];
+  let fname_buf: u8[256] = [];
+  let export_sym: u8[256] = [];
+  let start_skip: i32 = 0;
+  let emit_n: i32 = 0;
+  let k: i32 = 0;
+  let elfb: *u8 = 0 as *u8;
+  let bctx: *u8 = 0 as *u8;
+  let i: i32 = 0;
+  let neg1: i32 = 0 - 1;
+
+  if (m == (0 as *u8) || a == (0 as *u8) || elf_ctx == (0 as *u8) || pipeline_ctx == (0 as *u8)) {
+    return neg1;
+  }
+  elfb = elf_ctx;
+  ta = pipeline_dep_ctx_target_arch(pipeline_ctx);
+  if (ta == 1) {
+    w328_store(elfb, W328_ELF_E_MACHINE_OFF, 183);
+    w328_store(elfb, W328_ELF_RELOC_R_PC32_OFF, 283);
+  } else if (ta == 2) {
+    w328_store(elfb, W328_ELF_E_MACHINE_OFF, 243);
+    w328_store(elfb, W328_ELF_RELOC_R_PC32_OFF, 32);
+  } else {
+    w328_store(elfb, W328_ELF_E_MACHINE_OFF, 62);
+    w328_store(elfb, W328_ELF_RELOC_R_PC32_OFF, 2);
+  }
+  memset(&ctx[0], 0, W328_CTX_SZ as usize);
+  bctx = &ctx[0];
+  pipeline_asm_wpo_pgo_emit_order_prepare(m);
+  start_skip = asm_diag_start_func_skip();
+  emit_n = pipeline_asm_wpo_pgo_emit_order_count(m);
+  /* PLATFORM: SHARED x86_64 — text-embedded module mutable lit cells once before funcs. */
+  if (pipeline_asm_modlet_prepare_and_emit_elf_c(m, a, elf_ctx, ta) != 0) {
+    return neg1;
+  }
+  k = 0;
+  while (k < emit_n) {
+    i = pipeline_asm_wpo_pgo_emit_order_at(m, k);
+    if (w393_mega_emit_one(m, a, elf_ctx, pipeline_ctx, bctx, elfb, ta, i, start_skip, &fname_buf[0], &export_sym[0]) != 0) {
+      return neg1;
+    }
     k = k + 1;
   }
   return 0;
-
   }
 }
