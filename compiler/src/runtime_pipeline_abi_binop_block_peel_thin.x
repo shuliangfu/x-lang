@@ -3,9 +3,9 @@
 // glue_try_binop_load_operand_elf_c / glue_binop_operand_* /
 // glue_expr_emit_may_clobber_rbx_elf_c in runtime_pipeline_abi.x.
 // ensure: inject_binop_block_peel_thin injects THIS on MACOS; LINUX injects
-//   binop_block_peel_helpers_thin only (see wave417).
-// wave407/417: MACOS PREFER full; LINUX PREFER first-export helpers.
-//   Ubuntu full tip T001/XT001 misattr; peel_e1 -c green; rest tip BAN.
+//   helpers (transparent) then rest (may_clobber); see wave422.
+// wave407/417/422: MACOS PREFER full; LINUX PREFER helpers+may_clobber.
+//   Middle three tip BAN (merge/contiguous XT001). Separate rest inject green.
 // PLATFORM: SHARED freestanding asm emit · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
