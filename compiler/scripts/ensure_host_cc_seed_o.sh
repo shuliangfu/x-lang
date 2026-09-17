@@ -5480,9 +5480,11 @@ pipeline_abi_inject_block_tree_thin() {
 #     w333 preprocess_malloc / w334 lifecycle / w336 ast_forwarders.
 #   DONE PREFER (LINUX gold only, Darwin -E):
 #     w339 typeck_active · w340 emit_ctx_module_dep · w341 emit_ctx_sret ·
-#     w342 emit_ctx_bss · w343 typeck_check_expr (Cap A named-BSS / COMMON).
+#     w342 emit_ctx_bss (small Cap A named-BSS unlocked by w338).
 #   BAN product PREFER (stay -E+$CC until root fix):
-#     A remaining named-BSS: block_tree i32[256] walk stack (fixed array stack).
+#     A typeck_check_expr (w343 trial): LINUX PREFER → Ubuntu L2 typeck XT001
+#       (ordinal Lxml_* COMMON dual-home vs mega); stay -E both ends.
+#       block_tree i32[256] walk stack.
 #     B local fixed arrays / digit-loop / FileView layout
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
 #        parse_orch / parser_result / value_abi sret / asm_label / codegen_outbuf /
@@ -5492,8 +5494,8 @@ pipeline_abi_inject_block_tree_thin() {
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
 #       struct_layout / asm_locals / macho_write / mega_body.
 # wave338: modlet scalar COMMON root (NEG-over-LIT + null TYPE_PTR).
-# wave339–343: Cap A family (LINUX PREFER / DARWIN -E).
-# Next: block_tree Cap A/B or GrowVec-LE; Darwin mega when RAM ok.
+# wave339–342: Cap A emit_ctx + typeck_active OK; w343 check_expr PREFER ban.
+# Next: block_tree Cap A/B or GrowVec-LE / ordinal dual-home root; Darwin mega when RAM ok.
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
 # wave301 M2: type_pool Cap residual C→.x (was wave270 C thin).
@@ -6317,12 +6319,13 @@ pipeline_abi_inject_typeck_orch_thin() {
 
 
 # wave319/343 M2: typeck_check_expr Cap residual .x thin (was wave286 C thin).
-# PRODUCT inject wave343:
-#   · LINUX|UBUNTU gold: PREFER_ASM=1 (w338 null TYPE_PTR → match subject COMMON;
-#     gold probe 34 Lxml vs Darwin 33 — missing null-ptr cell).
-#   · MACOS|DARWIN: stay -E+$CC until high-mem mega prefer rebuild.
+# PRODUCT inject: stay -E+$CC both ends (wave343 trial):
+#   LINUX PREFER_ASM trial → Ubuntu L2 2/5 typeck red (opt/si/f32 XT001;
+#   "expected i32, found i32") — ordinal Lxml_* COMMON dual-home vs mega
+#   leftovers poisons kind tables; match-subject null COMMON alone is not enough.
+#   Darwin probe 33 vs gold 34 COMMON; Darwin stayed -E (matrix green).
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
-# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED face · LINUX PREFER · DARWIN -E.
+# G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS. PLATFORM: SHARED · both ends -E.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
@@ -6332,7 +6335,6 @@ pipeline_abi_inject_typeck_check_expr_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -6346,13 +6348,8 @@ pipeline_abi_inject_typeck_check_expr_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
-  # PLATFORM: LINUX gold PREFER; DARWIN -E until mega carries w338.
-  case "$(uname -s 2>/dev/null || echo unknown)" in
-    Linux) prefer_asm=1 ;;
-    *) prefer_asm=0 ;;
-  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
+  export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w343-typeck-check-expr"
   rc=$?
@@ -11292,7 +11289,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-typeck-check-expr|inject_typeck_check_expr)
-    # wave343: typeck_check_expr Cap A — LINUX PREFER_ASM / DARWIN -E+$CC.
+    # wave343: typeck_check_expr stay -E+$CC (PREFER trial Ubuntu typeck red).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-typeck-check-expr: need <out.o>" >&2
