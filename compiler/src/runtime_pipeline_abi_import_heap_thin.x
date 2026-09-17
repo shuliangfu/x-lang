@@ -1,11 +1,12 @@
-// Thin pure: wave298 M2 — import_heap Cap residual C→.x
+// Thin pure: wave298/354 M2 — import_heap Cap residual C→.x
 // (was import_heap C strong overlay of pipeline_load_import_from_disk_c).
 // Heap import orch: resolve path → runtime_read_file_view → PP002
 // xlang_preprocess_raw_to_malloc → parse_into_buf. No BSS. No FROM_X gate.
 // G.7: body matches runtime_pipeline_abi.x pipeline_load_import_from_disk_c
 // + historic runtime_pipeline_abi_import_heap_thin.c / seed cold twin.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_import_heap_thin
-// (ALLOW_E_REPLACE + stamp). Local path/view cells prefer host-cc C twin.
+// wave354: wrap leftover extern slot get/set in unsafe (T001, same as w349);
+// PRODUCT inject PREFER_ASM both ends after typeck green (class B path/view
+// locals). Stamp w354.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32;
@@ -30,7 +31,8 @@ export extern "C" function free(p: *u8): void;
 /**
  * Product import orch: disk → view → PP002 malloc prep → parse dep slot.
  * Rejects prep_len > INT32_MAX; pin embed stays 4MiB (resolve_read separate).
- * PLATFORM: SHARED freestanding Cap leave (wave298 .x thin · -E+$CC).
+ * All extern calls sit in unsafe (T001). PLATFORM: SHARED freestanding Cap
+ * leave (wave354 .x thin · PREFER_ASM).
  */
 #[no_mangle]
 export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
@@ -80,10 +82,13 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   if (view_rc != 0) {
     return -8;
   }
-  raw_data = xlang_ptr_slot_get(&view[0], 0);
-  raw_len = xlang_size_slot_get(&view[0], 1);
-  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
-  xlang_size_slot_set(&out_len[0], 0, 0);
+  /* PLATFORM: SHARED — slot get/set are extern; must be unsafe (T001). */
+  unsafe {
+    raw_data = xlang_ptr_slot_get(&view[0], 0);
+    raw_len = xlang_size_slot_get(&view[0], 1);
+    pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+    xlang_size_slot_set(&out_len[0], 0, 0);
+  }
   unsafe {
     prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, &out_prep[0], &out_len[0], path, 0 as *u8, 0);
     runtime_release_file_view(&view[0]);
@@ -91,8 +96,10 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
   if (prep_rc != 0) {
     return -9;
   }
-  prep = pipe_load_ptr_slot(&out_prep[0], 0);
-  prep_len64 = xlang_size_slot_get(&out_len[0], 0);
+  unsafe {
+    prep = pipe_load_ptr_slot(&out_prep[0], 0);
+    prep_len64 = xlang_size_slot_get(&out_len[0], 0);
+  }
   if (prep == (0 as *u8) || prep_len64 < 0 || prep_len64 > i32_max) {
     if (prep != (0 as *u8)) {
       unsafe {

@@ -4554,14 +4554,15 @@ pipeline_abi_inject_preprocess_malloc_thin() {
   return "$rc"
 }
 
-# wave298 M2: import_heap Cap residual C→.x (was C strong overlay).
-# PRODUCT inject: -E+$CC (ALLOW_E_REPLACE + stamp). No BSS — safe C→.x.
-# Local path/view cells: pure-asm unproven; keep -E until green.
-# G.7 match mega pipeline_load_import_from_disk_c. PLATFORM: SHARED.
+# wave298/354 M2: import_heap Cap residual C→.x (was C strong overlay).
+# PRODUCT inject wave354: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# T001 unsafe wrap on leftover slot get/set (w349 pattern); class B
+# path/view locals proven after Cap A／FileView. G.7 match mega
+# pipeline_load_import_from_disk_c. PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_import_heap_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_import_heap_thin.x"
-  local stamp="src/.pabi_w298_import_heap.stamp"
+  local stamp="src/.pabi_w354_import_heap.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
@@ -4581,9 +4582,10 @@ pipeline_abi_inject_import_heap_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  # PLATFORM: SHARED — PREFER_ASM (T001 unsafe + class B locals proven).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w298-import-heap"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w354-import-heap"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -4600,6 +4602,7 @@ pipeline_abi_inject_import_heap_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w298_import_heap.stamp
   fi
   return "$rc"
 }
@@ -5631,10 +5634,10 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w350: block_tree PREFER (Cap A let-array INDEX).
 #   UNLOCKED w352: read_file_x_view PREFER (class B local u8[32] FileView).
 #   UNLOCKED w353: asm_label_format PREFER (digit-loop into caller buf).
+#   UNLOCKED w354: import_heap PREFER (T001 unsafe + class B path/view).
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
-#        parse_orch / parser_result / value_abi sret / codegen_outbuf /
-#        import_heap).
+#        parse_orch / parser_result / value_abi sret / codegen_outbuf).
 #     C GrowVec/sidecar LE heavy rewrite (w335+): onefunc SEGV / type_pool
 #       _main UNDEF / expr_sidecar / block_domain / module_func / *pool* /
 #       dep_ctx / elf_ctx / asm_wpo / type_alias / top_level_let / module_enum /
@@ -5650,7 +5653,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
 # wave352: read_file_x_view PREFER (class B FileView); Ubuntu check_expr stay -E.
 # wave353: asm_label_format PREFER (digit-loop); historic w294 SEGV ban lifted.
-# Next: GrowVec-LE / import_heap／codegen_outbuf／Ubuntu check_expr x86_64 ABI.
+# wave354: import_heap PREFER (T001 unsafe slot get/set).
+# Next: GrowVec-LE／codegen_outbuf／Ubuntu check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
@@ -11315,7 +11319,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-import-heap|inject_import_heap)
-    # wave298: C→.x import_heap via -E+$CC (stamp + ALLOW_E_REPLACE).
+    # wave354: import_heap PREFER_ASM both ends (T001 unsafe + class B locals).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-import-heap: need <out.o>" >&2
