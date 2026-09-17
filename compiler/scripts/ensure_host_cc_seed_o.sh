@@ -5208,10 +5208,57 @@ pipeline_abi_inject_binop_var_slot_cache_thin() {
   return 0
 }
 
-# wave211 stack-spill try_reload. Seed cold twin is no-op stub; thin restores
-# real arm64 reload. G.7: body matches mega wave211. PLATFORM: SHARED.
+# wave405 M2: binop_stack_spill_try_reload Cap residual — PREFER both ends.
+# PRODUCT inject wave405:
+#   BOTH: PREFER_ASM (Darwin -c 1549B / Ubuntu -c 2136B green).
+#   Darwin product inject + direct relink L2 5/5 verified before unlock.
+# G.7: thin body matches mega wave211 leave.
+# PLATFORM: SHARED · both ends PREFER.
 pipeline_abi_inject_binop_stack_spill_try_reload_thin() {
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_binop_stack_spill_try_reload_thin.x" "w211-reload-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_binop_stack_spill_try_reload_thin.x"
+  local stamp="src/.pabi_w405_binop_stack_spill_try_reload.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM (standalone -c + product inject gate green).
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w405-binop-stack-spill-try-reload"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+  fi
+  return "$rc"
 }
 
 # wave212 Chaitin color/pin BSS. G.7: bodies match mega wave212.
@@ -5744,6 +5791,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
 # wave403: assign MACOS PREFER／LINUX BAN (Ubuntu XT001 misattr full leaf).
 # wave404: binop_var_slot_cache HARD BAN tip reinject both ends (BRANCH26/SEGV).
+# wave405: binop_stack_spill_try_reload PREFER both ends.
 # Next: 余 soft -E／mega Ubuntu BAN／split债；禁升钉。
 
 
@@ -11279,6 +11327,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_binop_var_slot_cache_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+    inject-binop-stack-spill-try-reload|inject_binop_stack_spill_try_reload)
+    # wave405: PREFER both ends.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-binop-stack-spill-try-reload: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_binop_stack_spill_try_reload_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

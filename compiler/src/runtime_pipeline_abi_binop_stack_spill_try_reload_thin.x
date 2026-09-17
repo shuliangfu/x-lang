@@ -3,6 +3,8 @@
 // Seed cold twin is freestanding no-op stub (always miss); this thin
 // restores real arm64 reload via inject first-wins.
 // ensure injects via inject_thin_leaf (PREFER_ASM).
+// wave405: PREFER both ends (Darwin -c 1549B / Ubuntu -c 2136B;
+//   Darwin product inject + relink L2 5/5 verified).
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS|ARM64.
 
 /** wave208: find spill-table depth for frame off; <0 if missing. */
