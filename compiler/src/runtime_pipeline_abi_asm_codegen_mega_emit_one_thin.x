@@ -3,6 +3,7 @@
 // wave394: third leaf (CG002 when emit_one+mega co-file). No local w328_*
 //   (pipe_* direct; HELPERS owns w328 for ctx_reset). BAN until unlock.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
+// wave424: LINUX product PREFER this leaf alone (helpers/loop/三叶 BAN).
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
