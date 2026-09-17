@@ -5568,7 +5568,7 @@ pipeline_abi_inject_block_tree_thin() {
 #   UNLOCKED w366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
 #   BAN w367: dep_ctx PREFER (gate type_alias -c绿; L2 opt/si/hello XT001
 #     no-impl method) — hard-skip; stay prior -E.
-#   UNLOCKED w368: elf_ctx PREFER both ends try (T001 w312_* · gate+L2).
+#   UNLOCKED w368b: elf_ctx Darwin PREFER / Ubuntu -E (elf patch offset=-1).
 #   BAN historic: onefunc PREFER (w335 Darwin L2 SEGV) — stay -E; T001 w325_* kept.
 #     B residual local fixed arrays
 #       (bootstrap_glue u8[1024] scope sidecar — pure-asm XP001 both ends;
@@ -5601,7 +5601,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave365: expr_sidecar PREFER both ends (T001 w327_* · gate+L2).
 # wave366: sidecar_pool PREFER both ends (T001 w308_* · gate+L2).
 # wave367/367b: dep_ctx T001 try + BAN PREFER (L2 opt/si/hello XT001).
-# wave368: elf_ctx PREFER try (T001 w312_* · gate+L2).
+# wave368/368b: elf_ctx Darwin PREFER / Ubuntu -E (elf patch offset=-1).
 # Next: class C peers／Ubuntu Type LE＋check_expr x86_64 ABI.
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -5736,11 +5736,13 @@ pipeline_abi_inject_dep_ctx_thin() {
   return 0
 }
 
-# wave312/368 M2: elf_ctx Cap residual C→.x (was wave273 C thin).
-# PRODUCT inject wave368: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
-# T001 w312_* helpers; large BSS; gate=type_alias -c + L2.
+# wave312/368b M2: elf_ctx Cap residual C→.x (was wave273 C thin).
+# PRODUCT inject wave368b:
+#   · MACOS|DARWIN: PREFER_ASM=1 (T001 w312_*; L2 5/5).
+#   · LINUX|UBUNTU: stay -E+$CC — PREFER pure-asm breaks elf patch
+#     (unresolved label offset=-1; CG002 asm_codegen_elf_o).
 # Excludes macho_write_o (owned by macho_write_thin). G.7 match mega ELF leave.
-# PLATFORM: SHARED · PREFER try.
+# PLATFORM: SHARED face · MACOS PREFER · LINUX -E.
 pipeline_abi_inject_elf_ctx_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_elf_ctx_thin.x"
@@ -5750,6 +5752,7 @@ pipeline_abi_inject_elf_ctx_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
+  local prefer_asm=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
@@ -5763,8 +5766,13 @@ pipeline_abi_inject_elf_ctx_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
+  # PLATFORM: MACOS PREFER; LINUX -E (elf patch label offset poison).
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Darwin) prefer_asm=1 ;;
+    *) prefer_asm=0 ;;
+  esac
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w368-elf-ctx"
   rc=$?

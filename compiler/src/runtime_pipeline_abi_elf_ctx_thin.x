@@ -1,9 +1,10 @@
-// Thin pure: wave312/368 M2 — elf_ctx Cap residual C→.x (was wave273 C thin).
+// Thin pure: wave312/368b M2 — elf_ctx Cap residual C→.x (was wave273 C thin).
 // ELF ctx accessors + write_o (+ label/reloc/PGO); excludes macho_write
 // (owned by runtime_pipeline_abi_macho_write_thin — same as C thin).
 // G.7: bodies match runtime_pipeline_abi.x wave273 leave (ELF portion).
-// PRODUCT inject: pipeline_abi_inject_elf_ctx_thin (ALLOW_E_REPLACE + stamp).
-// wave368: w312_* helpers via unsafe (T001); PREFER try + L2 gate.
+// PRODUCT inject: Darwin PREFER / Ubuntu -E (wave368b platform split).
+// wave368: w312_* helpers via unsafe (T001); PREFER Darwin L2 green.
+// wave368b: Ubuntu PREFER elf patch offset=-1 → stay -E on LINUX.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern "C" function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
