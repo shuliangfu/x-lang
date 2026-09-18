@@ -9332,20 +9332,27 @@ pipeline_abi_inject_typeck_check_expr_thin() {
 
 
 
-# wave329/375/381 M2: parser_result Cap residual C→.x (was wave287 C thin).
+# wave329/375/381/532 M2: parser_result Cap residual C→.x (was wave287 C thin).
 # PRODUCT inject wave381 HARD BAN reinject both ends: stay prior -E overlay.
 #   w375 BAN PREFER (LexerResult.next_lex size under pure-asm).
 #   w381 tip: Darwin -E/PREFER both T001 next_lex; Ubuntu PREFER XT001 unsafe;
 #   Ubuntu -E still emits but reinject banned to match Cap A tip-poison class.
+# wave532 Soft Cap: opaque u8[N] result blobs (ban nested Lexer/Token size);
+#   tipU Soft Cap both ends; stamp → w532; tip PRODUCT reinject HARD BAN
+#   (keep prior -E overlay; stamp-only 禁 prefer 全量误重注).
 # G.7 WAVE287_PARSER_RESULT_ALWAYS. PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_parser_result_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_parser_result_thin.x"
-  local stamp="src/.pabi_w381_parser_result.stamp"
+  local stamp="src/.pabi_w532_parser_result.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w329_parser_result.stamp
+  rm -f src/.pabi_w329_parser_result.stamp src/.pabi_w381_parser_result.stamp
+  log "pipeline_abi w532-parser-result: opaque tipU stamped; tip PRODUCT reinject HARD BAN (keep prior -E)"
   return 0
 }
 
