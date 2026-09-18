@@ -6080,7 +6080,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
       stamp="src/.pabi_w422_binop_block_peel_helpers.stamp"
       tag="w422-binop-block-peel-helpers"
       rest_x="src/runtime_pipeline_abi_binop_block_peel_rest_thin.x"
-      rest_stamp="src/.pabi_w422_binop_block_peel_rest.stamp"
+      rest_stamp="src/.pabi_w549_binop_block_peel_rest.stamp"
       idx_ko="src/runtime_pipeline_abi_binop_block_peel_index_ko47_thin.x"
       idx_ko_s="src/.pabi_w479_binop_block_peel_index_ko47.stamp"
       idx_main="src/runtime_pipeline_abi_binop_block_peel_index_addr_thin.x"
@@ -6153,15 +6153,12 @@ pipeline_abi_inject_binop_block_peel_thin() {
   else
     rc=0
   fi
-  # PLATFORM: LINUX — second inject may_clobber rest (after helpers).
+  # PLATFORM: LINUX — wave549 Soft Cap: may_clobber rest tipU stamped.
+  # HARD BAN tip PRODUCT reinject (keep the w422 overlay).
   if [ "$rc" -eq 0 ] && [ -n "${rest_x-}" ] && [ -f "$rest_x" ]; then
-    if [ ! -f "$rest_stamp" ] || [ "$rest_x" -nt "$rest_stamp" ]; then
-      pipeline_abi_inject_thin_leaf "$o" "$rest_x" "w422-binop-block-peel-rest"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$rest_stamp"
-      fi
-    fi
+    touch "$rest_stamp"
+    rm -f src/.pabi_w422_binop_block_peel_rest.stamp
+    log "pipeline_abi w549 binop_block_peel_rest: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
   # PLATFORM: LINUX — third inject load_to_rbx rest (wave423).
   if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
