@@ -9307,22 +9307,33 @@ pipeline_abi_inject_parser_result_thin() {
 
 
 
-# wave294/353 M2: asm_label_format Cap residual C→.x (was wave288 C thin).
+# wave294/353/520 M2: asm_label_format Cap residual C→.x (was wave288 C thin).
 # PRODUCT inject wave353: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
-# Digit loops write into caller buf (no local u8[N]); Cap A／FileView unlock
-# made standalone -c + product L2 green (historic w294 SEGV ban lifted).
+# wave520 Soft Cap: peer-flat digits + emit_next + format_id (Ubuntu tip
+#   CG002 when all share one tip TU); tipU Soft Cap; stamp → w520;
+#   tip PRODUCT reinject HARD BAN (keep prior PREFER overlay).
 # G.7 match seed WAVE288_ASM_LABEL_FORMAT_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_asm_label_format_thin() {
   local o="$1"
+  local digits_x="src/runtime_pipeline_abi_asm_label_digits_thin.x"
+  local emit_x="src/runtime_pipeline_abi_asm_label_emit_next_thin.x"
   local thin_x="src/runtime_pipeline_abi_asm_label_format_thin.x"
-  local stamp="src/.pabi_w353_asm_label.stamp"
+  local stamp="src/.pabi_w520_asm_label.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: SHARED — w520 HARD BAN tip force-reinject once stamped.
+  if [ -f "$stamp" ]; then
+    return 0
+  fi
+  # Migrate w353 → w520 without reinject (tipU heal inventory only).
+  if [ -f src/.pabi_w353_asm_label.stamp ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w353_asm_label.stamp src/.pabi_w294_asm_label.stamp
+    log "pipeline_abi w520-asm-label: tipU peer-flat stamped; tip force-reinject HARD BAN (keep PREFER overlay)"
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -9335,11 +9346,21 @@ pipeline_abi_inject_asm_label_format_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (digit-loop into caller buf proven).
+  # PLATFORM: SHARED — PREFER_ASM first-wins (cold unlock: digits→emit→format).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w353-asm-label"
-  rc=$?
+  if [ -f "$digits_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$digits_x" "w520-asm-label-digits"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ -f "$emit_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$emit_x" "w520-asm-label-emit"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w520-asm-label-format"
+    rc=$?
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -9355,7 +9376,7 @@ pipeline_abi_inject_asm_label_format_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_w294_asm_label.stamp
+    rm -f src/.pabi_w294_asm_label.stamp src/.pabi_w353_asm_label.stamp
   fi
   return "$rc"
 }
