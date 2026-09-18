@@ -5604,9 +5604,10 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   w441b soft -E chain; w445 six-peer pure-asm overlay (`*out=` heal);
 #   tip rhsrax to_rax pure-asm HARD BAN (si SEGV); w448 arms-only PREFER overlay;
 #   w449 deref family PREFER; w451 var no-local PREFER; emit tip HARD BAN
-#   (w452 no-local reshape tip→si CG002; stay -E).
+#   (w452 no-local reshape tip→si CG002; stay -E);
+#   w454 to_rax dispatcher no-local PREFER (arms stay w448).
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451 heal-asm.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451/w454 heal-asm.
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
@@ -5620,14 +5621,17 @@ pipeline_abi_inject_assign_thin() {
   local rhs_x rhs_s
   local arms_x arms_s
   local var_x var_s
+  local torax_x torax_s
   local emit_x emit_s peer lo_x lo_stamp lo_tag lo_rest
   local need_emit=0
   local need_heal=0
   local need_arms=0
   local need_deref=0
   local need_var=0
-  # PLATFORM: LINUX — helpers -E; rhsrax to_rax -E (w445/448 BAN tip);
-  #   arms PREFER (w448); emit chain -E (w441b); six-peer heal-asm (w445);
+  local need_torax=0
+  # PLATFORM: LINUX — helpers -E; rhsrax full -E (w445);
+  #   arms PREFER (w448); to_rax dispatcher no-local PREFER (w454);
+  #   emit chain -E (w441b); six-peer heal-asm (w445);
   #   deref family PREFER (w449); var no-local PREFER (w451);
   #   emit tip BAN (w452 no-local tip→si CG002).
   case "$(uname -s)" in
@@ -5639,6 +5643,8 @@ pipeline_abi_inject_assign_thin() {
       rhs_s="src/.pabi_w437_assign_rhsrax.stamp"
       arms_x="src/runtime_pipeline_abi_assign_rhsrax_arms_thin.x"
       arms_s="src/.pabi_w448_assign_rhsrax_arms.stamp"
+      torax_x="src/runtime_pipeline_abi_assign_rhsrax_to_rax_thin.x"
+      torax_s="src/.pabi_w454_assign_rhsrax_to_rax.stamp"
       emit_x="src/runtime_pipeline_abi_assign_emit_thin.x"
       emit_s="src/.pabi_w445_assign_emit.stamp"
       var_x="src/runtime_pipeline_abi_assign_var_thin.x"
@@ -5654,6 +5660,11 @@ pipeline_abi_inject_assign_thin() {
   if [ -n "${arms_x-}" ] && [ -f "$arms_x" ]; then
     if [ ! -f "$arms_s" ] || [ "$arms_x" -nt "$arms_s" ]; then
       need_arms=1
+    fi
+  fi
+  if [ -n "${torax_x-}" ] && [ -f "$torax_x" ]; then
+    if [ ! -f "$torax_s" ] || [ "$torax_x" -nt "$torax_s" ]; then
+      need_torax=1
     fi
   fi
   if [ -n "${var_x-}" ] && [ -f "$var_x" ]; then
@@ -5713,10 +5724,10 @@ pipeline_abi_inject_assign_thin() {
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     # helpers up-to-date; still try rhsrax / arms / emit / heal / deref / var on LINUX
     if [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
-      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ] && [ "$need_var" = "0" ]; then
+      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_torax" = "0" ] && [ "$need_deref" = "0" ] && [ "$need_var" = "0" ]; then
         return 0
       fi
-    elif [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ] && [ "$need_var" = "0" ]; then
+    elif [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_torax" = "0" ] && [ "$need_deref" = "0" ] && [ "$need_var" = "0" ]; then
       return 0
     fi
   fi
@@ -5744,8 +5755,8 @@ pipeline_abi_inject_assign_thin() {
   fi
   # PLATFORM: LINUX — second inject flat rhsrax (wave437/445/448).
   # wave445: tip pure-asm regen of full rhsrax → product si SEGV; reinject -E.
-  # wave448: to_rax tip pure-asm HARD BAN (alone → si SEGV); keep -E here, then
-  #   arms-only PREFER overlay (see need_arms block below).
+  # wave448: to_rax tip pure-asm HARD BAN (full thin → si SEGV); keep -E here, then
+  #   arms-only PREFER overlay; w454 dispatcher-only no-local PREFER after arms.
   if [ "$rc" -eq 0 ] && [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
     if [ ! -f "$rhs_s" ] || [ "$rhs_x" -nt "$rhs_s" ]; then
       export XLANG_PABI_THIN_PREFER_ASM=0
@@ -5757,7 +5768,7 @@ pipeline_abi_inject_assign_thin() {
       fi
     fi
   fi
-  # PLATFORM: LINUX — wave448 arms-only pure-asm overlay (to_rax stays -E).
+  # PLATFORM: LINUX — wave448 arms-only pure-asm overlay (to_rax dispatcher → w454).
   if [ "$rc" -eq 0 ] && [ -n "${arms_x-}" ] && [ -f "$arms_x" ]; then
     if [ ! -f "$arms_s" ] || [ "$arms_x" -nt "$arms_s" ]; then
       export XLANG_PABI_THIN_PREFER_ASM=1
@@ -5766,6 +5777,19 @@ pipeline_abi_inject_assign_thin() {
       rc=$?
       if [ "$rc" -eq 0 ]; then
         touch "$arms_s"
+      fi
+    fi
+  fi
+  # wave454: to_rax dispatcher-only no-local PREFER (full to_rax tip still BAN).
+  # PLATFORM: LINUX gold.
+  if [ "$rc" -eq 0 ] && [ -n "${torax_x-}" ] && [ -f "$torax_x" ]; then
+    if [ ! -f "$torax_s" ] || [ "$torax_x" -nt "$torax_s" ]; then
+      export XLANG_PABI_THIN_PREFER_ASM=1
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$torax_x" "w454-assign-rhsrax-to-rax"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$torax_s"
       fi
     fi
   fi

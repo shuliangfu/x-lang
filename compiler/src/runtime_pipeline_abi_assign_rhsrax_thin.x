@@ -3,8 +3,10 @@
 // wave425: Darwin -c green; LINUX empty .o (nested if / micro-unsafe).
 // wave437: LINUX PREFER — flat arm helpers + dispatcher (Ubuntu -c ~12096B).
 // wave445: tip pure-asm regen → product si SEGV; reinject via -E.
-// wave448: to_rax tip pure-asm HARD BAN (alone → si SEGV 139); arms overlay
+// wave448: full to_rax tip pure-asm HARD BAN (alone → si SEGV 139); arms overlay
 //   via runtime_pipeline_abi_assign_rhsrax_arms_thin.x PREFER_ASM.
+// wave454: dispatcher-only no-local PREFER
+//   (runtime_pipeline_abi_assign_rhsrax_to_rax_thin.x); this full thin stays -E.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS (full assign covers).
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
