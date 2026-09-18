@@ -3597,6 +3597,26 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_lifecycle_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_lifecycle_module_reset_thin.x ] \
+      && [ src/runtime_pipeline_abi_lifecycle_module_reset_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_lifecycle_arena_reset_thin.x ] \
+      && [ src/runtime_pipeline_abi_lifecycle_arena_reset_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_lifecycle_onefunc_reset_thin.x ] \
+      && [ src/runtime_pipeline_abi_lifecycle_onefunc_reset_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_lifecycle_block_thin.x ] \
+      && [ src/runtime_pipeline_abi_lifecycle_block_thin.x -nt "$o" ]; then
+      stale=1
+    fi
+    if [ -f src/runtime_pipeline_abi_lifecycle_drop_thin.x ] \
+      && [ src/runtime_pipeline_abi_lifecycle_drop_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     if [ -f src/runtime_pipeline_abi_module_func_thin.x ] \
       && [ src/runtime_pipeline_abi_module_func_thin.x -nt "$o" ]; then
       stale=1
@@ -8942,21 +8962,36 @@ pipeline_abi_inject_expr_sidecar_thin() {
 
 
 
-# wave320/334 M2: lifecycle Cap residual .x thin (block/module/arena/onefunc).
-# PRODUCT inject: wave334 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
-# no local fixed arrays; pipe helpers T001-unsafe (was -E+$CC interim).
-# G.7 WAVE279_LIFECYCLE_DOMAIN_ALWAYS. PLATFORM: SHARED.
+# wave320/334/522 M2: lifecycle Cap residual C→.x (was wave279 C thin).
+# PRODUCT inject wave334: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# wave522 Soft Cap: peer-flat release + module/arena/onefunc reset + block +
+#   drop (Ubuntu tip CG002 on shared monolithic TU; tipU Soft Cap); stamp →
+#   w522; tip PRODUCT reinject HARD BAN (keep prior PREFER overlay).
+# G.7 WAVE279_LIFECYCLE_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_lifecycle_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_lifecycle_thin.x"
-  local stamp="src/.pabi_w334_lifecycle.stamp"
+  local mreset_x="src/runtime_pipeline_abi_lifecycle_module_reset_thin.x"
+  local areset_x="src/runtime_pipeline_abi_lifecycle_arena_reset_thin.x"
+  local oreset_x="src/runtime_pipeline_abi_lifecycle_onefunc_reset_thin.x"
+  local block_x="src/runtime_pipeline_abi_lifecycle_block_thin.x"
+  local drop_x="src/runtime_pipeline_abi_lifecycle_drop_thin.x"
+  local stamp="src/.pabi_w522_lifecycle.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: SHARED — w522 HARD BAN tip force-reinject once stamped.
+  if [ -f "$stamp" ]; then
+    return 0
+  fi
+  # Migrate w334 → w522 without reinject (tipU heal inventory only).
+  if [ -f src/.pabi_w334_lifecycle.stamp ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w334_lifecycle.stamp src/.pabi_w320_lifecycle.stamp
+    log "pipeline_abi w522-lifecycle: tipU peer-flat stamped; tip force-reinject HARD BAN (keep PREFER overlay)"
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -8969,10 +9004,33 @@ pipeline_abi_inject_lifecycle_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — PREFER_ASM first-wins (cold unlock: peers→release).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w334-lifecycle"
-  rc=$?
+  if [ -f "$mreset_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$mreset_x" "w522-lifecycle-module-reset"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ -f "$areset_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$areset_x" "w522-lifecycle-arena-reset"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ -f "$oreset_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$oreset_x" "w522-lifecycle-onefunc-reset"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ -f "$block_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$block_x" "w522-lifecycle-block"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ -f "$drop_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$drop_x" "w522-lifecycle-drop"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w522-lifecycle-release"
+    rc=$?
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -8988,6 +9046,7 @@ pipeline_abi_inject_lifecycle_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w320_lifecycle.stamp src/.pabi_w334_lifecycle.stamp
   fi
   return "$rc"
 }
