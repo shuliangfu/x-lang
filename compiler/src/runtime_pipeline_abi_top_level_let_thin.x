@@ -35,6 +35,10 @@ export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 
+/* tipU Soft Cap: BSS name scratch for hoist append_let (ban stack u8[256] starve). */
+let g_w524_name_buf: u8[256] = [];
+
+
 
 /**
  * malloc via pipe-cell (tipU: ban mid `np=malloc()`).
@@ -129,6 +133,28 @@ function w524_asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, ino
   unsafe {
     pipe_store_i32_le(&icell[0], 0, asm_local_slot_reg_offset(arena, type_ref, off, inout_off));
     return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_let via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_block_append_let(arena: *u8, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_let(arena, br, name, name_len, type_ref, init_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_stmt_order_prepend_lets (tipU: keep void U on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_block_stmt_order_prepend_lets(arena: *u8, br: i32, let_start_idx: i32, let_count: i32): void {
+  unsafe {
+    pipeline_block_stmt_order_prepend_lets(arena, br, let_start_idx, let_count);
   }
 }
 
@@ -1072,15 +1098,12 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
           }
         }
         if (skip_common_arr == 0) {
-          let name_buf: u8[256] = [];
           let k: i32 = 0;
           while (k < name_len) {
-            name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
+            g_w524_name_buf[k] = pipeline_module_top_level_let_name_byte_at(module, tl, k) as u8;
             k = k + 1;
           }
-          unsafe {
-            let _al: i32 = pipeline_block_append_let(arena, br, &name_buf[0], name_len, type_ref, init_ref);
-          }
+          let _al: i32 = w524_block_append_let(arena, br, &g_w524_name_buf[0], name_len, type_ref, init_ref);
           hoisted = hoisted + 1;
         }
       }
@@ -1088,9 +1111,7 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
     tl = tl + 1;
   }
   if (hoisted > 0) {
-    unsafe {
-      pipeline_block_stmt_order_prepend_lets(arena, br, let_start_idx, hoisted);
-    }
+    w524_block_stmt_order_prepend_lets(arena, br, let_start_idx, hoisted);
   }
 }
 
