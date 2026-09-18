@@ -6385,7 +6385,7 @@ pipeline_abi_inject_assign_thin() {
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
-      stamp="src/.pabi_w421_assign_helpers.stamp"
+      stamp="src/.pabi_w558_assign_helpers.stamp"
       tag="w421-assign-helpers"
       rhs_x="src/runtime_pipeline_abi_assign_rhsrax_thin.x"
       rhs_s="src/.pabi_w437_assign_rhsrax.stamp"
@@ -6574,7 +6574,16 @@ pipeline_abi_inject_assign_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+  # LINUX wave558: assign helpers tipU stamped. HARD BAN tip PRODUCT
+  # reinject (keep the w421 overlay). MACOS still injects the full thin.
+  if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$thin_x" ]; then
+      touch "$stamp"
+      rm -f src/.pabi_w421_assign_helpers.stamp
+      log "pipeline_abi w558 assign_helpers: tipU stamped; tip PRODUCT reinject HARD BAN"
+    fi
+    rc=0
+  elif [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
     pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
     rc=$?
     if [ "$rc" -eq 0 ]; then
