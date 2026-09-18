@@ -8,7 +8,8 @@
 // wave452: no-local reshape (re-call left/right/peel/kind; no let-bound
 //   call results — same class as w451 var). Tip pure-asm still HARD BAN:
 //   product inject → si BUILD FAIL CG002 (elf_ec=-1 out_len=0), not SEGV.
-//   Keep soft -E product path; body retained for future tip attempts.
+// wave457: hybrid (let left/right/peel; re-call kind) tip → same si CG002.
+//   Tip .o drops U left/right/peel (U-starved). Keep soft -E; body=w452.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;

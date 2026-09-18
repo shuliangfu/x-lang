@@ -4413,6 +4413,8 @@ pipeline_abi_inject_thin_leaf() {
   base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin_base.XXXXXX.o")"
   restore_o="$(mktemp "${TMPDIR:-/tmp}/pabi_thin_restore.XXXXXX.o")"
   # M2 class E: thins are standalone -c green. Prefer defaults
+# wave457 gate: LINUX tip PREFER forbidden when -c .o is U-starved or 0-call
+#   (field/index/scalar tip empty-body假绿; L2 may still 5/5).
   # XLANG_PABI_THIN_PREFER_ASM=1 (asm overlay). Direct inject without
   # prefer still defaults -E unless the env is set. Darwin refuse only if
   # XLANG_PABI_DARWIN_REFUSE_ASM=1. Mega runtime_pipeline_abi.x stays banned.
@@ -5605,6 +5607,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   tip rhsrax to_rax pure-asm HARD BAN (si SEGV); w448 arms-only PREFER overlay;
 #   w449 deref family PREFER; w451 var no-local PREFER; emit tip HARD BAN
 #   (w452 no-local reshape tip→si CG002; stay -E);
+#   w457 emit hybrid tip→si CG002; field no-local tip U-starved (假绿) BAN;
 #   w454 to_rax dispatcher no-local PREFER (arms stay w448).
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451/w454 heal-asm.

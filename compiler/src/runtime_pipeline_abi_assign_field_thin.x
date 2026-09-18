@@ -1,5 +1,7 @@
-// Thin pure: assign emit FIELD arm dispatcher (wave441).
+// Thin pure: assign emit FIELD arm dispatcher (wave441/457).
 // G.7: body MUST match pipeline_asm_emit_assign_elf_c FIELD path (peer-flat).
+// wave457: no-local tip probe → tip .o U-starved (drops var_root/ptr U);
+//   L2 5/5 is false coverage — HARD BAN tip PREFER; stay -E leftover.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_field_access_is_enum_variant(arena: *u8, expr_ref: i32): i32;
