@@ -5950,6 +5950,7 @@ pipeline_abi_inject_assign_thin() {
   # wave463: index_struct_lit_arr same unlock (U=6/6); MACOS skip.
   # wave464: index_array_rbx esz-only no-local (U=5/5); MACOS skip.
   #   Drop total_bytes dual-tail (tip U-starve / SEGV); stride = caller esz.
+  # wave465: index_struct_lit_rbx shared-emit no-local (U=7/7); MACOS skip.
   # PLATFORM: LINUX gold · MACOS skip (full assign chain already PREFER; Darwin
   #   g05 mega re-inject after stores overlay can UNDEF peer leaves).
   case "$(uname -s)" in
@@ -6042,6 +6043,19 @@ pipeline_abi_inject_assign_thin() {
           rc=$?
           if [ "$rc" -eq 0 ]; then
             touch "$rbx_s"
+          fi
+        fi
+      fi
+      if [ "$rc" -eq 0 ]; then
+        local slr_x="src/runtime_pipeline_abi_assign_index_struct_lit_rbx_thin.x"
+        local slr_s="src/.pabi_w465_heal_index_struct_lit_rbx.stamp"
+        if [ -f "$slr_x" ] && { [ ! -f "$slr_s" ] || [ "$slr_x" -nt "$slr_s" ]; }; then
+          export XLANG_PABI_THIN_PREFER_ASM=1
+          export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+          pipeline_abi_inject_thin_leaf "$o" "$slr_x" "w465-heal-index-struct-lit-rbx"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            touch "$slr_s"
           fi
         fi
       fi
