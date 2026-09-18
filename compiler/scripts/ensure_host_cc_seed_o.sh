@@ -7805,17 +7805,20 @@ pipeline_abi_inject_arr_return_thin() {
   local ban_x ban_s
   [ -s "$o" ] && [ -f "$main_x" ] || return 0
   # wave477/w510: HARD BAN tip product reinject of b0 + c (L2 CG002).
+  # wave560: a0 Ubuntu tip dropped every call; HARD BAN reinject (keep w439).
   # tipU heal bodies remain in tree for inventory; stamp-only skip.
   for ban_peer in \
     "src/runtime_pipeline_abi_arr_return_b0_thin.x|.pabi_w510_arr_return_b0.stamp" \
-    "src/runtime_pipeline_abi_arr_return_c_thin.x|.pabi_w510_arr_return_c.stamp"
+    "src/runtime_pipeline_abi_arr_return_c_thin.x|.pabi_w510_arr_return_c.stamp" \
+    "src/runtime_pipeline_abi_arr_return_a0_thin.x|.pabi_w560_arr_return_a0.stamp"
   do
     ban_x="${ban_peer%%|*}"
     ban_s="src/${ban_peer#*|}"
     if [ -f "$ban_x" ] && { [ ! -f "$ban_s" ] || [ "$ban_x" -nt "$ban_s" ]; }; then
       touch "$ban_s"
       rm -f src/.pabi_w439_arr_return_b0.stamp src/.pabi_w439_arr_return_c.stamp \
-        src/.pabi_w477_arr_return_b0.stamp src/.pabi_w477_arr_return_c.stamp
+        src/.pabi_w477_arr_return_b0.stamp src/.pabi_w477_arr_return_c.stamp \
+        src/.pabi_w439_arr_return_a0.stamp
       log "pipeline_abi w510-arr-return: tipU heal stamped; tip PRODUCT reinject HARD BAN for $(basename "$ban_x") (keep w439)"
     fi
   done
@@ -7837,7 +7840,6 @@ pipeline_abi_inject_arr_return_thin() {
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   # PLATFORM: SHARED — PREFER peers except b0/c (HARD BAN tip reinject).
   for peer in \
-    "src/runtime_pipeline_abi_arr_return_a0_thin.x|.pabi_w439_arr_return_a0.stamp|w439-arr-return-a0" \
     "src/runtime_pipeline_abi_arr_return_a_thin.x|.pabi_w439_arr_return_a.stamp|w439-arr-return-a" \
     "src/runtime_pipeline_abi_arr_return_a2_thin.x|.pabi_w439_arr_return_a2.stamp|w439-arr-return-a2" \
     "src/runtime_pipeline_abi_arr_return_b0_prep_thin.x|.pabi_w439_arr_return_b0_prep.stamp|w439-arr-return-b0-prep" \
