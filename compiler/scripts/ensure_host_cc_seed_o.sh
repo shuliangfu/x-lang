@@ -7941,20 +7941,27 @@ pipeline_abi_inject_asm73_chaitin_thin() {
   return 0
 }
 
-# wave410b M2: asm73_live_interf Cap residual — HARD BAN tip reinject.
+# wave410b/512 M2: asm73_live_interf Cap residual — HARD BAN tip reinject.
 # PRODUCT inject wave410b:
 #   BOTH ends: HARD BAN tip reinject (stamp only).
 #   Probe: standalone -c PREFER green both ends, Darwin product inject →
 #   ARM64_RELOC_BRANCH26 (same class as chaitin/al_nc/w157).
+# wave512: tipU 2/5→5/5 pipe-cell heal (mid live_fwd_n_get / off_at /
+#   live_at_stmt_as_u8); stamp → w512; tip PRODUCT reinject still HARD BAN.
 # G.7: thin body matches mega wave213 leave (cold twin only).
 # PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_asm73_live_interf_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm73_live_interf_thin.x"
-  local stamp="src/.pabi_w410_asm73_live_interf.stamp"
+  local stamp="src/.pabi_w512_asm73_live_interf.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — HARD BAN tip reinject (Darwin BRANCH26).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
+  rm -f src/.pabi_w410_asm73_live_interf.stamp
+  log "pipeline_abi w512-asm73-live-interf: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 

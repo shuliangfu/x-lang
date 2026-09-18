@@ -1,8 +1,10 @@
-// Thin pure: wave213 live control + Chaitin interf BSS + linear_ctx.
+// Thin pure: wave213/410b/512 live control + Chaitin interf BSS + linear_ctx.
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave213 leave.
-// ensure injects via inject_thin_leaf (PREFER_ASM).
+// ensure injects via inject_thin_leaf (PREFER_ASM) historically; wave410b
+// HARD BAN tip reinject both ends — Darwin product BRANCH26 (asm73 family).
+// wave512: tipU 2/5→5/5 — mid `n=/off=/live=call()` drop U; pipe-cell heal;
+//   tip PRODUCT BAN stamp → w512 (keep prior leftover; do not reinject).
 // Calls wave212 final_expr_use_n_set + wave214 live/peak overlays (leftover).
-// wave410b: HARD BAN tip reinject both ends — Darwin product BRANCH26.
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** wave212: clear final_expr VAR-use count (cfg stack-spill gate). */
@@ -14,6 +16,11 @@ export extern function glue_live_fwd_n_get(live: *u8): i32;
 export extern function glue_live_fwd_off_at(live: *u8, i: i32): i32;
 /** wave214: live_at_stmt[stmt_i] as *u8 overlay. */
 export extern function glue_asm73_live_at_stmt_as_u8(stmt_i: i32): *u8;
+/** wave511/512: pipe-cell helpers (keep tip U across mid-call assign). */
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 
 
 // ---------------------------------------------------------------------------
@@ -352,41 +359,37 @@ function w213_interf_index(off: i32): i32 {
  */
 #[no_mangle]
 export function glue_asm73_interf_add_live_set_u8(live: *u8): void {
-  let n: i32 = 0;
+  let ncell: u8[4] = [];
+  let offcell: u8[4] = [];
   let i: i32 = 0;
   let j: i32 = 0;
-  let off_i: i32 = 0;
-  let off_j: i32 = 0;
   let ii: i32 = 0;
   let jj: i32 = 0;
   if (live == 0 as *u8) {
     return;
   }
+  /* wave512: ban mid `n=/off_*=call()`; dual pipe-cell inside one unsafe. */
   unsafe {
-    n = glue_live_fwd_n_get(live);
-  }
-  while (i < n) {
-    unsafe {
-      off_i = glue_live_fwd_off_at(live, i);
-    }
-    ii = w213_interf_index(off_i);
-    if (ii < 0) {
-      return;
-    }
-    j = i + 1;
-    while (j < n) {
-      unsafe {
-        off_j = glue_live_fwd_off_at(live, j);
-      }
-      jj = w213_interf_index(off_j);
-      if (jj < 0) {
+    pipe_store_i32_le(&ncell[0], 0, glue_live_fwd_n_get(live));
+    while (i < pipe_load_i32_le(&ncell[0], 0)) {
+      pipe_store_i32_le(&offcell[0], 0, glue_live_fwd_off_at(live, i));
+      ii = w213_interf_index(pipe_load_i32_le(&offcell[0], 0));
+      if (ii < 0) {
         return;
       }
-      g_asm73_interf_adj[ii] = g_asm73_interf_adj[ii] | (1 << jj);
-      g_asm73_interf_adj[jj] = g_asm73_interf_adj[jj] | (1 << ii);
-      j = j + 1;
+      j = i + 1;
+      while (j < pipe_load_i32_le(&ncell[0], 0)) {
+        pipe_store_i32_le(&offcell[0], 0, glue_live_fwd_off_at(live, j));
+        jj = w213_interf_index(pipe_load_i32_le(&offcell[0], 0));
+        if (jj < 0) {
+          return;
+        }
+        g_asm73_interf_adj[ii] = g_asm73_interf_adj[ii] | (1 << jj);
+        g_asm73_interf_adj[jj] = g_asm73_interf_adj[jj] | (1 << ii);
+        j = j + 1;
+      }
+      i = i + 1;
     }
-    i = i + 1;
   }
 }
 
@@ -401,14 +404,15 @@ export function glue_asm73_interf_add_live_set_u8(live: *u8): void {
  */
 #[no_mangle]
 export function glue_asm73_interf_add_live_at_stmt(stmt_i: i32): void {
-  let live: *u8 = 0 as *u8;
+  let pcell: u8[8] = [];
   if (stmt_i < 0 || stmt_i >= 32) {
     return;
   }
+  /* wave512: ban mid `live=call()`; pipe-ptr cell inside one unsafe. */
   unsafe {
-    live = glue_asm73_live_at_stmt_as_u8(stmt_i);
+    pipe_store_ptr_slot(&pcell[0], 0, glue_asm73_live_at_stmt_as_u8(stmt_i));
+    glue_asm73_interf_add_live_set_u8(pipe_load_ptr_slot(&pcell[0], 0));
   }
-  glue_asm73_interf_add_live_set_u8(live);
 }
 
 /**
