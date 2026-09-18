@@ -32,6 +32,11 @@ export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 
+/* tipU Soft Cap: BSS name scratch (ban stack u8[256] mid-path starve into U). */
+let g_w523_name_tmp: u8[256] = [];
+let g_w523_name_tmp2: u8[256] = [];
+
+
 
 /**
  * malloc via pipe-cell (tipU: ban mid `np=malloc()`).
@@ -114,6 +119,40 @@ function w523_expr_fa_base_ref(arena: *u8, expr_ref: i32): i32 {
   unsafe {
     pipe_store_i32_le(&icell[0], 0, pipeline_expr_field_access_base_ref(arena, expr_ref));
     return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * Copy var name into BSS then into caller out (tipU: keep name_into U).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8, n: i32): void {
+  let i: i32 = 0;
+  unsafe {
+    pipeline_expr_var_name_into(arena, expr_ref, &g_w523_name_tmp[0]);
+  }
+  while (i < n) {
+    unsafe {
+      out[i] = g_w523_name_tmp[i];
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Copy field-access name into BSS then into caller out (tipU: keep into U).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_expr_fa_name_into(arena: *u8, expr_ref: i32, out: *u8, n: i32): void {
+  let i: i32 = 0;
+  unsafe {
+    pipeline_expr_field_access_name_into(arena, expr_ref, &g_w523_name_tmp2[0]);
+  }
+  while (i < n) {
+    unsafe {
+      out[i] = g_w523_name_tmp2[i];
+    }
+    i = i + 1;
   }
 }
 
@@ -1045,9 +1084,7 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
       elen = 127;
     }
     let tmp: u8[256] = [];
-    unsafe {
-      pipeline_expr_var_name_into(arena, base_ref, &tmp[0]);
-    }
+    w523_expr_var_name_into(arena, base_ref, &tmp[0], elen);
     let i: i32 = 0;
     while (i < elen) {
       unsafe {
@@ -1067,9 +1104,7 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
       elen2 = 255;
     }
     let tmp2: u8[256] = [];
-    unsafe {
-      pipeline_expr_field_access_name_into(arena, base_ref, &tmp2[0]);
-    }
+    w523_expr_fa_name_into(arena, base_ref, &tmp2[0], elen2);
     let j: i32 = 0;
     while (j < elen2) {
       unsafe {
@@ -1123,9 +1158,7 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
     return;
   }
   let vname: u8[256] = [];
-  unsafe {
-    pipeline_expr_field_access_name_into(a, expr_ref, &vname[0]);
-  }
+  w523_expr_fa_name_into(a, expr_ref, &vname[0], vlen);
   let tag: i32 = pipeline_module_enum_variant_tag_for_names(m, &ename[0], elen, &vname[0], vlen);
   if (tag < 0) {
     return;
@@ -1175,9 +1208,7 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
     return;
   }
   let vname: u8[256] = [];
-  unsafe {
-    pipeline_expr_field_access_name_into(a, expr_ref, &vname[0]);
-  }
+  w523_expr_fa_name_into(a, expr_ref, &vname[0], vlen);
   let tag: i32 = pipe_en_tag_in_module(m, &ename[0], elen, &vname[0], vlen);
   if (tag >= 0) {
     w306_set_field_access_enum_variant(a, expr_ref, tag);
