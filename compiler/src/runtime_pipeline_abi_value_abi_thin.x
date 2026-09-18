@@ -1,13 +1,13 @@
 // Thin pure: wave330/378/384/517 M2 — value_abi Cap residual C→.x (was wave276 C thin).
-// By-value Type/Expr/Block/Func get/set_copy + Cap aliases + float IEEE helpers.
+// By-value Type/Expr/Block/Func get/set_copy + Cap aliases + IEEE f32/f64 helpers.
 // G.7: bodies match deleted C thin / seed WAVE276_ARENA_VALUE_ABI_ALWAYS.
-// PRODUCT inject: HARD BAN reinject (wave384) — stay prior -E overlay.
+// PRODUCT inject: HARD BAN reinject (wave384/517) — stay prior -E overlay.
 // Opaque byte blobs — host cc owns sret ABI (SysV x86_64 vs AAPCS64);
 // do NOT pure-asm this leaf; do NOT tip reinject -E after green.
 // wave378 BAN PREFER: sret ABI — stay -E+$CC both ends.
-// wave384 HARD BAN reinject both ends (stamp .pabi_w384_value_abi.stamp).
-// wave517: tip T001 heal — wrap typeck_float64_bits_* in unsafe + pipe-cell
-//   (mid/return-subexpr); tipU inventory; stamp → w517; tip PRODUCT reinject
+// wave384 HARD BAN reinject both ends.
+// wave517: float bits peer-flat → value_abi_float_bits_thin (tipU Soft Cap;
+//   Ubuntu tip CG002 on sret monolith); stamp → w517; tip PRODUCT reinject
 //   still HARD BAN (keep prior -E overlay).
 // PLATFORM: SHARED host-cc Cap leave / LINUX gold / MACOS co-path.
 
@@ -18,13 +18,8 @@ export extern function pipeline_arena_type_ptr(a: *u8, ref: i32): *u8;
 export extern function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8;
 export extern function pipeline_arena_block_ptr(a: *u8, ref: i32): *u8;
 export extern function pipeline_arena_func_ptr(a: *u8, ref: i32): *u8;
-export extern function typeck_float64_bits_lo(d: f64): i32;
-export extern function typeck_float64_bits_hi(d: f64): i32;
-/** wave517: pipe-cell helpers (keep tip U across mid-call assign). */
-export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
-export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
-export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
-export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
+/* wave517: float bits moved to value_abi_float_bits_thin (tipU peer; Ubuntu
+ * monolith tip CG002 on sret). PRODUCT -E overlay still has float symbols. */
 
 /** Opaque product Type row — sizeof 532. PLATFORM: SHARED */
 allow(padding) struct W276_Type {
@@ -288,98 +283,8 @@ export function ast_arena_func_set(a: *u8, ref: i32, f: W276_Func): void {
   ast_ast_arena_func_set(a, ref, f);
 }
 
-/**
- * Expr float bits lo: kind==1 uses live f64@+24 via typeck; else stored lo@+684.
- * Layout LE: kind@0, float_val@24, float_bits_lo@684.
- * wave517: ban return-subexpr / mid typeck call outside unsafe; pipe-cell.
- * @param a ASTArena*
- * @param expr_ref 1-based expr ref
- * @return i32 lo bits
- * PLATFORM: SHARED
- */
-export function pipeline_expr_float_bits_lo_at(a: *u8, expr_ref: i32): i32 {
-  let pcell: u8[8] = [];
-  let kcell: u8[4] = [];
-  let cell: u8[4] = [];
-  let fv: f64 = 0.0;
-  unsafe {
-    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, expr_ref));
-    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
-      return 0;
-    }
-    memcpy(&kcell[0], pipe_load_ptr_slot(&pcell[0], 0) + (0 as usize), 4 as usize);
-    if (pipe_load_i32_le(&kcell[0], 0) == 1) {
-      memcpy((&fv) as *u8, pipe_load_ptr_slot(&pcell[0], 0) + (24 as usize), 8 as usize);
-      pipe_store_i32_le(&cell[0], 0, typeck_float64_bits_lo(fv));
-      return pipe_load_i32_le(&cell[0], 0);
-    }
-    memcpy(&cell[0], pipe_load_ptr_slot(&pcell[0], 0) + (684 as usize), 4 as usize);
-    return pipe_load_i32_le(&cell[0], 0);
-  }
-}
-
-/**
- * Expr float bits hi: kind==1 uses live f64@+24 via typeck; else stored hi@+688.
- * wave517: ban return-subexpr / mid typeck call outside unsafe; pipe-cell.
- * @param a ASTArena*
- * @param expr_ref 1-based expr ref
- * @return i32 hi bits
- * PLATFORM: SHARED
- */
-export function pipeline_expr_float_bits_hi_at(a: *u8, expr_ref: i32): i32 {
-  let pcell: u8[8] = [];
-  let kcell: u8[4] = [];
-  let cell: u8[4] = [];
-  let fv: f64 = 0.0;
-  unsafe {
-    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, expr_ref));
-    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
-      return 0;
-    }
-    memcpy(&kcell[0], pipe_load_ptr_slot(&pcell[0], 0) + (0 as usize), 4 as usize);
-    if (pipe_load_i32_le(&kcell[0], 0) == 1) {
-      memcpy((&fv) as *u8, pipe_load_ptr_slot(&pcell[0], 0) + (24 as usize), 8 as usize);
-      pipe_store_i32_le(&cell[0], 0, typeck_float64_bits_hi(fv));
-      return pipe_load_i32_le(&cell[0], 0);
-    }
-    memcpy(&cell[0], pipe_load_ptr_slot(&pcell[0], 0) + (688 as usize), 4 as usize);
-    return pipe_load_i32_le(&cell[0], 0);
-  }
-}
-
-/**
- * Materialize typeck float bits from Expr float_val@+24 into lo@684/hi@688.
- * Bounds-check via arena num_exprs@+4.
- * wave517: ban mid `lo=/hi=typeck()` outside unsafe; pipe-cell.
- * @param a ASTArena*
- * @param expr_ref 1-based expr ref
- * PLATFORM: SHARED
- */
-export function pipeline_expr_typeck_set_float_bits_from_val(a: *u8, expr_ref: i32): void {
-  let pcell: u8[8] = [];
-  let necell: u8[4] = [];
-  let locell: u8[4] = [];
-  let hicell: u8[4] = [];
-  let fv: f64 = 0.0;
-  if (a == (0 as *u8) || expr_ref <= 0) {
-    return;
-  }
-  unsafe {
-    memcpy(&necell[0], a + (4 as usize), 4 as usize);
-    if (expr_ref > pipe_load_i32_le(&necell[0], 0)) {
-      return;
-    }
-    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, expr_ref));
-    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
-      return;
-    }
-    memcpy((&fv) as *u8, pipe_load_ptr_slot(&pcell[0], 0) + (24 as usize), 8 as usize);
-    pipe_store_i32_le(&locell[0], 0, typeck_float64_bits_lo(fv));
-    pipe_store_i32_le(&hicell[0], 0, typeck_float64_bits_hi(fv));
-    memcpy(pipe_load_ptr_slot(&pcell[0], 0) + (684 as usize), &locell[0], 4 as usize);
-    memcpy(pipe_load_ptr_slot(&pcell[0], 0) + (688 as usize), &hicell[0], 4 as usize);
-  }
-}
+/* wave517: float bits authority → runtime_pipeline_abi_value_abi_float_bits_thin.x
+ * (tipU Soft Cap peer; Ubuntu tip CG002 on sret monolith). Do not re-add bodies. */
 
 /**
  * Pack IEEE f64 (lo/hi i32 parts) → f32 bits as i32.

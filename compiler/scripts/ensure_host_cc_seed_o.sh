@@ -8791,22 +8791,29 @@ pipeline_abi_inject_sidecar_pool_thin() {
 #   w384: formalize HARD BAN reinject (do not call inject_thin_leaf) —
 #     tip -E reinject of opaque sret blobs is poison-class with Cap A /
 #     tip force-reinject; keep green overlay via stamp only.
-# wave517: tip T001 heal (typeck_float64_bits_* unsafe+pipe-cell) → tipU;
-#   stamp → w517; tip PRODUCT reinject still HARD BAN (keep prior -E).
+# wave517: float-bits peer-flat tipU Soft Cap (value_abi_float_bits_thin);
+#   Ubuntu tip CG002 on sret monolith; stamp → w517; tip PRODUCT reinject
+#   still HARD BAN (keep prior -E overlay).
 # G.7 WAVE276_ARENA_VALUE_ABI_ALWAYS. PLATFORM: SHARED · BAN reinject.
 pipeline_abi_inject_value_abi_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_value_abi_thin.x"
+  local float_x="src/runtime_pipeline_abi_value_abi_float_bits_thin.x"
   local stamp="src/.pabi_w517_value_abi.stamp"
+  local float_s="src/.pabi_w517_value_abi_float_bits.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] \
+    && { [ ! -f "$float_x" ] || { [ -f "$float_s" ] && [ ! "$float_x" -nt "$float_s" ]; }; }; then
     return 0
   fi
   touch "$stamp"
+  if [ -f "$float_x" ]; then
+    touch "$float_s"
+  fi
   rm -f src/.pabi_w330_value_abi.stamp src/.pabi_w378_value_abi.stamp \
     src/.pabi_w384_value_abi.stamp
-  log "pipeline_abi w517-value-abi: tip T001/tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior -E)"
+  log "pipeline_abi w517-value-abi: float-bits tipU peer stamped; tip PRODUCT reinject HARD BAN (keep prior -E)"
   return 0
 }
 
