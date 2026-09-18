@@ -1,12 +1,18 @@
-// Thin pure: wave305/359 M2 — top_level_let Cap residual C→.x (was wave265 C thin).
+// Thin pure: wave305/359/359b/524 M2 — top_level_let Cap residual C→.x
+//   (was wave265 C thin).
 // TopLevelLetEntry LE 276B map + hoist/sum faces; 16 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave265 leave.
 // wave359: w305_* unsafe wrappers for slot/LE (T001); PRODUCT inject
 // PREFER_ASM try (file-local maps). Stamp w359.
+// wave359b: HARD BAN reinject (poison Cap residual asm_codegen_elf_o).
+// wave524 Soft Cap: tipU pipe-cell heal (malloc／hoist／sum mid-call);
+//   stamp → w524; tip PRODUCT reinject HARD BAN (keep prior overlay).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern function pipe_arena_off_num_exprs(): i32;
@@ -29,6 +35,102 @@ export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 
+
+/**
+ * malloc via pipe-cell (tipU: ban mid `np=malloc()`).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_malloc(n: usize): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, malloc(n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * pipeline_asm_module_func_is_extern_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_func_is_extern_at(module: *u8, fi: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_asm_module_func_is_extern_at(module, fi));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_module_func_body_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_func_body_ref_at(module: *u8, fi: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_module_func_body_ref_at(module, fi));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * ast_ast_block_num_lets via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_block_num_lets(arena: *u8, block_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, ast_ast_block_num_lets(arena, block_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_type_kind_ord_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_type_kind_ord_at(arena: *u8, ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_type_kind_ord_at(arena, ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_kind_ord_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_kind_ord_at(arena, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_type_elem_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_type_elem_ref_at(arena: *u8, ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_type_elem_ref_at(arena, ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * asm_local_slot_reg_offset via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave524).
+ */
+function w524_asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, inout_off: *i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, asm_local_slot_reg_offset(arena, type_ref, off, inout_off));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
 
 /**
  * Ptr-slot get via unsafe (T001). PLATFORM: SHARED.
@@ -318,10 +420,7 @@ function pipe_tl_ensure_entries(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_tl_entry_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
-  unsafe {
-    np = malloc(nbytes);
-  }
+  let np: *u8 = w524_malloc(nbytes);
   if (np == 0 as *u8) {
     return 0;
   }
@@ -799,12 +898,8 @@ export function pipeline_asm_hoist_target_func_index(module: *u8): i32 {
   let nf: i32 = w305_num_funcs(module);
   let fi: i32 = 0;
   while (fi < nf) {
-    let is_ext: i32 = 0;
-    let br: i32 = 0;
-    unsafe {
-      is_ext = pipeline_asm_module_func_is_extern_at(module, fi);
-      br = pipeline_module_func_body_ref_at(module, fi);
-    }
+    let is_ext: i32 = w524_func_is_extern_at(module, fi);
+    let br: i32 = w524_func_body_ref_at(module, fi);
     if (is_ext == 0) {
       if (br > 0) {
         return fi;
@@ -877,12 +972,8 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
     let nf: i32 = w305_num_funcs(module);
     let fi: i32 = 0;
     while (fi < nf) {
-      let is_ext: i32 = 0;
-      let br0: i32 = 0;
-      unsafe {
-        is_ext = pipeline_asm_module_func_is_extern_at(module, fi);
-        br0 = pipeline_module_func_body_ref_at(module, fi);
-      }
+      let is_ext: i32 = w524_func_is_extern_at(module, fi);
+      let br0: i32 = w524_func_body_ref_at(module, fi);
       if (is_ext == 0) {
         if (br0 > 0) {
           mi = fi;
@@ -898,17 +989,11 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
       return;
     }
   }
-  let br: i32 = 0;
-  unsafe {
-    br = pipeline_module_func_body_ref_at(module, mi);
-  }
+  let br: i32 = w524_func_body_ref_at(module, mi);
   if (br <= 0) {
     return;
   }
-  let let_start_idx: i32 = 0;
-  unsafe {
-    let_start_idx = ast_ast_block_num_lets(arena, br);
-  }
+  let let_start_idx: i32 = w524_block_num_lets(arena, br);
   let nexprs: i32 = w305_load_i32(arena, w305_arena_off_num_exprs());
   let hoisted: i32 = 0;
   let tl: i32 = 0;
@@ -921,13 +1006,10 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
         // Skip COMMON-bound fixed arrays (match prepare/sum/register).
         let skip_common_arr: i32 = 0;
         if (type_ref > 0) {
-          let tk_h: i32 = 0;
+          let tk_h: i32 = w524_type_kind_ord_at(arena, type_ref);
           let ik_h: i32 = 0;
-          unsafe {
-            tk_h = pipeline_type_kind_ord_at(arena, type_ref);
-            if (init_ref > 0 && init_ref <= nexprs) {
-              ik_h = pipeline_expr_kind_ord_at(arena, init_ref);
-            }
+          if (init_ref > 0 && init_ref <= nexprs) {
+            ik_h = w524_expr_kind_ord_at(arena, init_ref);
           }
           if (tk_h == 10) {
             let is_c_arr: i32 = 0;
@@ -941,15 +1023,10 @@ export function pipeline_module_hoist_top_level_lets_into_main(module: *u8, aren
             if (is_c_arr == 0) {
               skip_common_arr = 1;
             } else {
-              let et_h: i32 = 0;
+              let et_h: i32 = w524_type_elem_ref_at(arena, type_ref);
               let etk_h: i32 = 0;
-              unsafe {
-                et_h = pipeline_type_elem_ref_at(arena, type_ref);
-              }
               if (et_h > 0) {
-                unsafe {
-                  etk_h = pipeline_type_kind_ord_at(arena, et_h);
-                }
+                etk_h = w524_type_kind_ord_at(arena, et_h);
               }
               if (etk_h != 11) {
                 skip_common_arr = 1;
@@ -1052,13 +1129,10 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
       // Stage 12.0.5: module fixed arrays → COMMON via prepare (never per-func stack).
       // Skip when TYPE_ARRAY (10) OR ARRAY_LIT init (46) — dual signal; type_kind alone
       // can miss when top_level type_ref is not yet stamped ARRAY at sum time.
-      let tk: i32 = 0;
+      let tk: i32 = w524_type_kind_ord_at(arena, type_ref);
       let ik: i32 = 0;
-      unsafe {
-        tk = pipeline_type_kind_ord_at(arena, type_ref);
-        if (init_ref > 0) {
-          ik = pipeline_expr_kind_ord_at(arena, init_ref);
-        }
+      if (init_ref > 0) {
+        ik = w524_expr_kind_ord_at(arena, init_ref);
       }
       if (tk == 10 || ik == 46) {
         skip = 1;
@@ -1078,9 +1152,7 @@ export function pipeline_asm_sum_module_top_level_lets_stack(arena: *u8, mod: *u
       if (skip == 0) {
         let off_slot: i32[1] = [];
         off_slot[0] = cur;
-        unsafe {
-          let _so: i32 = asm_local_slot_reg_offset(arena, type_ref, cur, &off_slot[0]);
-        }
+        let _so: i32 = w524_asm_local_slot_reg_offset(arena, type_ref, cur, &off_slot[0]);
         cur = off_slot[0];
         cur = cur + w305_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
       }

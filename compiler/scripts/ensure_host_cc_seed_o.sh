@@ -8324,20 +8324,27 @@ pipeline_abi_inject_module_enum_thin() {
   return 0
 }
 
-# wave305/359/359b M2: top_level_let Cap residual C→.x (was wave265 C thin).
+# wave305/359/359b/524 M2: top_level_let Cap residual C→.x (was wave265 C thin).
 # PRODUCT inject wave359b HARD BAN: return 0 without overlay.
 # wave359 PREFER (and -E re-inject of T001 thin) poisons Cap residual
 # asm_codegen_elf_o / can break L2 si. T001 wrappers add new T syms so
 # already_defined skip fails — must hard-skip. Stamp w359b.
+# wave524 Soft Cap: tipU pipe-cell heal (malloc／hoist／sum mid-call);
+#   stamp → w524; tip PRODUCT reinject still HARD BAN (keep prior overlay).
 # PLATFORM: SHARED · both ends hard-skip until elf_o root.
 pipeline_abi_inject_top_level_let_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_top_level_let_thin.x"
-  local stamp="src/.pabi_w359b_top_level_let.stamp"
+  local stamp="src/.pabi_w524_top_level_let.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w305_top_level_let.stamp src/.pabi_w359_top_level_let.stamp
+  rm -f src/.pabi_w305_top_level_let.stamp src/.pabi_w359_top_level_let.stamp \
+    src/.pabi_w359b_top_level_let.stamp
+  log "pipeline_abi w524-top-level-let: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
