@@ -7921,6 +7921,14 @@ pipeline_abi_inject_arr_struct_lit_thin() {
       src/.pabi_w446_heal_zero.stamp
     log "pipeline_abi w562 arr_struct_lit_zero: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
+  # wave563: call_one_elem Ubuntu tip dropped every call (rc=call then if).
+  # HARD BAN tip PRODUCT reinject on both ends. Keep the w440/w446 overlay.
+  if [ -f src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x ]; then
+    touch src/.pabi_w563_arr_struct_lit_call_one_elem.stamp
+    rm -f src/.pabi_w440_arr_struct_lit_call_one_elem.stamp \
+      src/.pabi_w446_heal_call_one_elem.stamp
+    log "pipeline_abi w563 arr_struct_lit_call_one_elem: tipU stamped; tip PRODUCT reinject HARD BAN"
+  fi
   # PLATFORM: LINUX — soft -E chain (w442) + nine-peer pure-asm heal (w446).
   case "$(uname -s)" in
     Linux) prefer_asm=0 ;;
@@ -7929,7 +7937,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
     Linux)
       for _pair in \
         "src/runtime_pipeline_abi_arr_struct_lit_call_bulk_thin.x|src/.pabi_w446_heal_call_bulk.stamp" \
-        "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|src/.pabi_w446_heal_call_one_elem.stamp" \
+        "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|src/.pabi_w563_arr_struct_lit_call_one_elem.stamp" \
         "src/runtime_pipeline_abi_arr_struct_lit_call_elems_thin.x|src/.pabi_w561_arr_struct_lit_call_elems.stamp" \
         "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|src/.pabi_w446_heal_resolve_call.stamp" \
         "src/runtime_pipeline_abi_arr_struct_lit_copy_bulk_thin.x|src/.pabi_w446_heal_copy_bulk.stamp" \
@@ -7966,7 +7974,6 @@ pipeline_abi_inject_arr_struct_lit_thin() {
     "src/runtime_pipeline_abi_arr_struct_lit_arrlit_thin.x|.pabi_w440_arr_struct_lit_arrlit.stamp|w440-arr-struct-lit-arrlit" \
     "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|.pabi_w440_arr_struct_lit_resolve_vf.stamp|w440-arr-struct-lit-resolve-vf" \
     "src/runtime_pipeline_abi_arr_struct_lit_call_bulk_thin.x|.pabi_w440_arr_struct_lit_call_bulk.stamp|w440-arr-struct-lit-call-bulk" \
-    "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|.pabi_w440_arr_struct_lit_call_one_elem.stamp|w440-arr-struct-lit-call-one-elem" \
     "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w440_arr_struct_lit_resolve_call.stamp|w440-arr-struct-lit-resolve-call" \
     "src/runtime_pipeline_abi_arr_struct_lit_copy_bulk_thin.x|.pabi_w440_arr_struct_lit_copy_bulk.stamp|w440-arr-struct-lit-copy-bulk" \
     "src/runtime_pipeline_abi_arr_struct_lit_copy_elems_thin.x|.pabi_w440_arr_struct_lit_copy_elems.stamp|w440-arr-struct-lit-copy-elems" \
@@ -7997,7 +8004,6 @@ pipeline_abi_inject_arr_struct_lit_thin() {
         export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
         for peer in \
           "src/runtime_pipeline_abi_arr_struct_lit_call_bulk_thin.x|.pabi_w446_heal_call_bulk.stamp|w446-heal-call-bulk" \
-          "src/runtime_pipeline_abi_arr_struct_lit_call_one_elem_thin.x|.pabi_w446_heal_call_one_elem.stamp|w446-heal-call-one-elem" \
           "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w446_heal_resolve_call.stamp|w446-heal-resolve-call" \
           "src/runtime_pipeline_abi_arr_struct_lit_copy_bulk_thin.x|.pabi_w446_heal_copy_bulk.stamp|w446-heal-copy-bulk" \
           "src/runtime_pipeline_abi_arr_struct_lit_copy_elems_thin.x|.pabi_w446_heal_copy_elems.stamp|w446-heal-copy-elems" \
