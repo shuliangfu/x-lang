@@ -5945,6 +5945,7 @@ pipeline_abi_inject_assign_thin() {
   #   eq-cascade no-local → Ubuntu tip U=4/4; product inject L2 5/5.
   # wave459: field dispatcher same unlock (U=4/4); MACOS skip (same UNDEF risk).
   # wave460: index dispatcher same unlock (U=6/6); MACOS skip.
+  # wave461: index_struct_lit same unlock (U=3/3); MACOS skip.
   # PLATFORM: LINUX gold · MACOS skip (full assign chain already PREFER; Darwin
   #   g05 mega re-inject after stores overlay can UNDEF peer leaves).
   case "$(uname -s)" in
@@ -5985,6 +5986,19 @@ pipeline_abi_inject_assign_thin() {
           rc=$?
           if [ "$rc" -eq 0 ]; then
             touch "$index_s"
+          fi
+        fi
+      fi
+      if [ "$rc" -eq 0 ]; then
+        local isl_x="src/runtime_pipeline_abi_assign_index_struct_lit_thin.x"
+        local isl_s="src/.pabi_w461_heal_index_struct_lit.stamp"
+        if [ -f "$isl_x" ] && { [ ! -f "$isl_s" ] || [ "$isl_x" -nt "$isl_s" ]; }; then
+          export XLANG_PABI_THIN_PREFER_ASM=1
+          export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+          pipeline_abi_inject_thin_leaf "$o" "$isl_x" "w461-heal-index-struct-lit"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            touch "$isl_s"
           fi
         fi
       fi
