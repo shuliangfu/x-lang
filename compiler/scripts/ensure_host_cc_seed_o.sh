@@ -4879,9 +4879,11 @@ pipeline_abi_inject_preprocess_malloc_thin() {
   return "$rc"
 }
 
-# wave298/354/487 M2: import_heap Cap residual C→.x (was C strong overlay).
+# wave298/354/487/509 M2: import_heap Cap residual C→.x (was C strong overlay).
 # wave487: peer-flat no-local (resolve/read_prep/parse+gate); tip U-complete.
-# PRODUCT inject: BOTH PREFER (stamp w487). PLATFORM: SHARED.
+# wave509: parse tipU 6/7→7/7 — i64 wrapper (no cast-on-get) + pipe cell;
+#   stamp parse → w509; BOTH PREFER reinject parse leaf.
+# PRODUCT inject: BOTH PREFER. PLATFORM: SHARED.
 pipeline_abi_inject_import_heap_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_import_heap_thin.x"
@@ -4897,7 +4899,7 @@ pipeline_abi_inject_import_heap_thin() {
     for _pair in \
       "src/runtime_pipeline_abi_import_heap_resolve_thin.x|.pabi_w487_import_heap_resolve.stamp" \
       "src/runtime_pipeline_abi_import_heap_read_prep_thin.x|.pabi_w487_import_heap_read_prep.stamp" \
-      "src/runtime_pipeline_abi_import_heap_parse_thin.x|.pabi_w487_import_heap_parse.stamp"
+      "src/runtime_pipeline_abi_import_heap_parse_thin.x|.pabi_w509_import_heap_parse.stamp"
     do
       _px="${_pair%%|*}"
       _ps="src/${_pair#*|}"
@@ -4925,7 +4927,7 @@ pipeline_abi_inject_import_heap_thin() {
   for p_peer in \
     "src/runtime_pipeline_abi_import_heap_resolve_thin.x|.pabi_w487_import_heap_resolve.stamp|w487-import-heap-resolve|1" \
     "src/runtime_pipeline_abi_import_heap_read_prep_thin.x|.pabi_w487_import_heap_read_prep.stamp|w487-import-heap-read-prep|1" \
-    "src/runtime_pipeline_abi_import_heap_parse_thin.x|.pabi_w487_import_heap_parse.stamp|w487-import-heap-parse|1" \
+    "src/runtime_pipeline_abi_import_heap_parse_thin.x|.pabi_w509_import_heap_parse.stamp|w509-import-heap-parse|1" \
     "src/runtime_pipeline_abi_import_heap_thin.x|.pabi_w487_import_heap.stamp|w487-import-heap|1"
   do
     p_x="${p_peer%%|*}"
@@ -4940,6 +4942,10 @@ pipeline_abi_inject_import_heap_thin() {
       rc=$?
       if [ "$rc" -eq 0 ]; then
         touch "$p_stamp"
+        # wave509: retire w487 parse stamp when parse leaf overlays.
+        if [ "$p_tag" = "w509-import-heap-parse" ]; then
+          rm -f src/.pabi_w487_import_heap_parse.stamp
+        fi
       else
         break
       fi
