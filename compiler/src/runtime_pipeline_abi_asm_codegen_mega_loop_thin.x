@@ -1,4 +1,4 @@
-// Thin pure: wave393/394/444/450 M2 — asm_codegen mega LOOP outer leaf.
+// Thin pure: wave393/394/444/450/453 M2 — asm_codegen mega LOOP outer leaf.
 // Export: pipeline_backend_asm_codegen_ast_to_elf_mega_body_c.
 // emit_one lives in runtime_pipeline_abi_asm_codegen_mega_emit_one_thin.x.
 // wave394: split emit_one out — Ubuntu CG002 when both full bodies co-file.
@@ -10,6 +10,9 @@
 //   - malloc/free in tip mega_body → product si SEGV;
 //   - stack u8[1528]/u8[256] historically SEGV; -E still EM:0.
 //   ret0 stub tip replace → no SEGV (si=1 functional). Keep leftover.
+// wave453 unlock probes (Ubuntu gold) — HARD BAN remains:
+//   - BSS+pipe_elf_off_*+no-local tip → L2 0/5 CG002 code_len=0 (Lxml mid-T);
+//   - same via true -E → L2 0/5 BLD001 no main. Body reverted; stamp-only.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
