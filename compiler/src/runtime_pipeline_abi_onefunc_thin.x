@@ -1,13 +1,17 @@
-// Thin pure: wave325/363/379 M2 — onefunc Cap residual C→.x.
+// Thin pure: wave325/363/379/525 M2 — onefunc Cap residual C→.x.
 // pipeline_onefunc_* mutators + pipeline_block_fill_*_from_onefunc.
 // G.7: bodies match runtime_pipeline_abi_onefunc_thin.c / seed WAVE281.
 // PRODUCT inject: HARD BAN PREFER (wave379) — stay prior -E overlay.
 // wave335 PREFER SEGV; wave379 PREFER → L2 XP001 parse (opt/si/hello).
 // wave363: w325_* unsafe wrappers (T001) kept.
+// wave525 Soft Cap: tipU pipe-cell heal (sidecar／GrowVec／block mid-call);
+//   stamp → w525; tip PRODUCT reinject HARD BAN (keep prior overlay).
 // PLATFORM: SHARED freestanding Cap leave · BAN PREFER both ends.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function onefunc_sidecar_get(out: *u8, create: i32): *u8;
 export extern function grow_vec_at(v: *u8, idx: i32): *u8;
 export extern function grow_vec_push(v: *u8): i32;
@@ -44,6 +48,207 @@ function w325_load_i32(base: *u8, off: i32): i32 {
 function w325_store_i32(base: *u8, off: i32, v: i32): void {
   unsafe {
     pipe_store_i32_le(base, off, v);
+  }
+}
+
+
+/**
+ * onefunc_sidecar_get via pipe-cell (tipU: ban mid `sc=call()`).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_sidecar_get(out: *u8, create: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, onefunc_sidecar_get(out, create));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_grow_vec_at(v: *u8, idx: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, grow_vec_at(v, idx));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_push via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_grow_vec_push(v: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, grow_vec_push(v));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_copy_append (tipU: keep void U on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_grow_vec_copy_append(dst: *u8, src: *u8): void {
+  unsafe {
+    grow_vec_copy_append(dst, src);
+  }
+}
+
+/**
+ * ast_pool_onefunc_reset (tipU: keep void U on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_ast_pool_onefunc_reset(out: *u8): void {
+  unsafe {
+    ast_pool_onefunc_reset(out);
+  }
+}
+
+/**
+ * pipeline_arena_block_ptr via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_arena_block_ptr(a: *u8, ref: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_block_ptr(a, ref));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_defer via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_defer(a: *u8, br: i32, body_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_defer(a, br, body_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_labeled via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_labeled(a: *u8, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_labeled(a, br, label_len, is_goto, goto_target_len, return_expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_labeled_ptr via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_labeled_ptr(a: *u8, br: i32, li: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_block_labeled_ptr(a, br, li));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_if via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_if(a: *u8, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_if(a, br, cond_ref, then_ref, else_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_with_arena via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_with_arena(a: *u8, br: i32, cap_ref: i32, body_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_with_arena(a, br, cap_ref, body_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_unsafe via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_unsafe(a: *u8, br: i32, body_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_unsafe(a, br, body_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_region via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_region(a: *u8, br: i32, label: *u8, label_len: i32, body_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_region(a, br, label, label_len, body_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_stmt_order via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_stmt_order(a: *u8, br: i32, kind: u8, idx_val: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_stmt_order(a, br, kind, idx_val));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_expr_stmt via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_expr_stmt(a: *u8, br: i32, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_expr_stmt(a, br, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_while via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_while(a: *u8, br: i32, cond_ref: i32, body_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_while(a, br, cond_ref, body_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_block_append_for via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave525).
+ */
+function w525_block_append_for(a: *u8, br: i32, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_block_append_for(a, br, init_ref, cond_ref, step_ref, body_ref));
+    return pipe_load_i32_le(&icell[0], 0);
   }
 }
 
@@ -111,7 +316,7 @@ function w325_sc(out: *u8, create: i32): *u8 {
     cf = 1;
   }
   unsafe {
-    sc = onefunc_sidecar_get(out, cf);
+    sc = w525_sidecar_get(out, cf);
   }
   return sc;
 }
@@ -124,14 +329,14 @@ function w325_push_i32(sc: *u8, gv_off: i32, v: i32): i32 {
   let rc: i32 = 0;
   let idx: i32 = 0;
   unsafe {
-    rc = grow_vec_push(sc + (gv_off as usize));
+    rc = w525_grow_vec_push(sc + (gv_off as usize));
   }
   if (rc < 0) {
     return 0 - 1;
   }
   idx = w325_gv_len(sc, gv_off) - 1;
   unsafe {
-    p = grow_vec_at(sc + (gv_off as usize), idx);
+    p = w525_grow_vec_at(sc + (gv_off as usize), idx);
   }
   if (p == (0 as *u8)) {
     return 0 - 1;
@@ -149,7 +354,7 @@ function w325_get_i32(sc: *u8, gv_off: i32, i: i32): i32 {
     return 0;
   }
   unsafe {
-    p = grow_vec_at(sc + (gv_off as usize), i);
+    p = w525_grow_vec_at(sc + (gv_off as usize), i);
   }
   if (p == (0 as *u8)) {
     return 0;
@@ -165,14 +370,14 @@ function w325_push_name_row(sc: *u8, names_off: i32, name: *u8, name_len: i32): 
   let rc: i32 = 0;
   let idx: i32 = 0;
   unsafe {
-    rc = grow_vec_push(sc + (names_off as usize));
+    rc = w525_grow_vec_push(sc + (names_off as usize));
   }
   if (rc < 0) {
     return 0 - 1;
   }
   idx = w325_gv_len(sc, names_off) - 1;
   unsafe {
-    row = grow_vec_at(sc + (names_off as usize), idx);
+    row = w525_grow_vec_at(sc + (names_off as usize), idx);
   }
   if (row == (0 as *u8)) {
     return 0 - 1;
@@ -294,7 +499,7 @@ export function pipeline_onefunc_const_name_byte_at(out: *u8, i: i32, off: i32):
   }
   nlen = w325_get_i32(sc, W325_CONST_NAME_LENS, i);
   unsafe {
-    row = grow_vec_at(sc + (W325_CONST_NAMES as usize), i);
+    row = w525_grow_vec_at(sc + (W325_CONST_NAMES as usize), i);
   }
   if (row == (0 as *u8) || off >= nlen) {
     return 0;
@@ -326,7 +531,7 @@ export function pipeline_onefunc_const_name_copy64(out: *u8, i: i32, dst: *u8): 
   }
   n = w325_get_i32(sc, W325_CONST_NAME_LENS, i);
   unsafe {
-    row = grow_vec_at(sc + (W325_CONST_NAMES as usize), i);
+    row = w525_grow_vec_at(sc + (W325_CONST_NAMES as usize), i);
   }
   if (row == (0 as *u8)) {
     return;
@@ -444,7 +649,7 @@ export function pipeline_onefunc_let_name_byte_at(out: *u8, i: i32, off: i32): u
   }
   nlen = w325_get_i32(sc, W325_LET_NAME_LENS, i);
   unsafe {
-    row = grow_vec_at(sc + (W325_LET_NAMES as usize), i);
+    row = w525_grow_vec_at(sc + (W325_LET_NAMES as usize), i);
   }
   if (row == (0 as *u8) || off >= nlen) {
     return 0;
@@ -476,7 +681,7 @@ export function pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *u8): vo
   }
   n = w325_get_i32(sc, W325_LET_NAME_LENS, i);
   unsafe {
-    row = grow_vec_at(sc + (W325_LET_NAMES as usize), i);
+    row = w525_grow_vec_at(sc + (W325_LET_NAMES as usize), i);
   }
   if (row == (0 as *u8)) {
     return;
@@ -533,7 +738,7 @@ export function pipeline_onefunc_set_param_type_ref(out: *u8, i: i32, type_ref: 
     return;
   }
   unsafe {
-    p = grow_vec_at(sc + (W325_PARAM_TYPE_REFS as usize), i);
+    p = w525_grow_vec_at(sc + (W325_PARAM_TYPE_REFS as usize), i);
   }
   if (p != (0 as *u8)) {
     w325_store_i32(p, 0, type_ref);
@@ -587,7 +792,7 @@ export function pipeline_onefunc_param_name_byte_at(out: *u8, i: i32, off: i32):
   }
   nlen = w325_get_i32(sc, W325_PARAM_NAME_LENS, i);
   unsafe {
-    row = grow_vec_at(sc + (W325_PARAM_NAMES as usize), i);
+    row = w525_grow_vec_at(sc + (W325_PARAM_NAMES as usize), i);
   }
   if (row == (0 as *u8) || off >= nlen) {
     return 0;
@@ -619,7 +824,7 @@ export function pipeline_onefunc_param_name_copy32(out: *u8, i: i32, dst: *u8): 
   }
   n = w325_get_i32(sc, W325_PARAM_NAME_LENS, i);
   unsafe {
-    row = grow_vec_at(sc + (W325_PARAM_NAMES as usize), i);
+    row = w525_grow_vec_at(sc + (W325_PARAM_NAMES as usize), i);
   }
   if (row == (0 as *u8)) {
     return;
@@ -687,40 +892,40 @@ export function pipeline_onefunc_copy_sidecar(dst: *u8, src: *u8): void {
     return;
   }
   unsafe {
-    ast_pool_onefunc_reset(dst);
+    w525_ast_pool_onefunc_reset(dst);
   }
   dsc = w325_sc(dst, 0);
   if (dsc == (0 as *u8)) {
     return;
   }
   unsafe {
-    grow_vec_copy_append(dsc + (W325_IF_COND as usize), ssc + (W325_IF_COND as usize));
-    grow_vec_copy_append(dsc + (W325_IF_THEN as usize), ssc + (W325_IF_THEN as usize));
-    grow_vec_copy_append(dsc + (W325_IF_ELSE as usize), ssc + (W325_IF_ELSE as usize));
-    grow_vec_copy_append(dsc + (W325_CONST_NAMES as usize), ssc + (W325_CONST_NAMES as usize));
-    grow_vec_copy_append(dsc + (W325_CONST_NAME_LENS as usize), ssc + (W325_CONST_NAME_LENS as usize));
-    grow_vec_copy_append(dsc + (W325_CONST_INIT_VALS as usize), ssc + (W325_CONST_INIT_VALS as usize));
-    grow_vec_copy_append(dsc + (W325_CONST_INIT_REFS as usize), ssc + (W325_CONST_INIT_REFS as usize));
-    grow_vec_copy_append(dsc + (W325_CONST_TYPE_REFS as usize), ssc + (W325_CONST_TYPE_REFS as usize));
-    grow_vec_copy_append(dsc + (W325_LET_NAMES as usize), ssc + (W325_LET_NAMES as usize));
-    grow_vec_copy_append(dsc + (W325_LET_NAME_LENS as usize), ssc + (W325_LET_NAME_LENS as usize));
-    grow_vec_copy_append(dsc + (W325_LET_INIT_VALS as usize), ssc + (W325_LET_INIT_VALS as usize));
-    grow_vec_copy_append(dsc + (W325_LET_INIT_REFS as usize), ssc + (W325_LET_INIT_REFS as usize));
-    grow_vec_copy_append(dsc + (W325_LET_TYPE_REFS as usize), ssc + (W325_LET_TYPE_REFS as usize));
-    grow_vec_copy_append(dsc + (W325_SRC_STMT_KIND as usize), ssc + (W325_SRC_STMT_KIND as usize));
-    grow_vec_copy_append(dsc + (W325_SRC_STMT_IDX as usize), ssc + (W325_SRC_STMT_IDX as usize));
-    grow_vec_copy_append(dsc + (W325_SRC_BODY as usize), ssc + (W325_SRC_BODY as usize));
-    grow_vec_copy_append(dsc + (W325_WHILE_COND as usize), ssc + (W325_WHILE_COND as usize));
-    grow_vec_copy_append(dsc + (W325_WHILE_BODY as usize), ssc + (W325_WHILE_BODY as usize));
-    grow_vec_copy_append(dsc + (W325_FOR_INIT as usize), ssc + (W325_FOR_INIT as usize));
-    grow_vec_copy_append(dsc + (W325_FOR_COND as usize), ssc + (W325_FOR_COND as usize));
-    grow_vec_copy_append(dsc + (W325_FOR_STEP as usize), ssc + (W325_FOR_STEP as usize));
-    grow_vec_copy_append(dsc + (W325_FOR_BODY as usize), ssc + (W325_FOR_BODY as usize));
-    grow_vec_copy_append(dsc + (W325_PARAM_NAMES as usize), ssc + (W325_PARAM_NAMES as usize));
-    grow_vec_copy_append(dsc + (W325_PARAM_NAME_LENS as usize), ssc + (W325_PARAM_NAME_LENS as usize));
-    grow_vec_copy_append(dsc + (W325_PARAM_TYPE_REFS as usize), ssc + (W325_PARAM_TYPE_REFS as usize));
-    grow_vec_copy_append(dsc + (W325_CALL_ARG_VALS as usize), ssc + (W325_CALL_ARG_VALS as usize));
-    grow_vec_copy_append(dsc + (W325_LABELEDS as usize), ssc + (W325_LABELEDS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_IF_COND as usize), ssc + (W325_IF_COND as usize));
+    w525_grow_vec_copy_append(dsc + (W325_IF_THEN as usize), ssc + (W325_IF_THEN as usize));
+    w525_grow_vec_copy_append(dsc + (W325_IF_ELSE as usize), ssc + (W325_IF_ELSE as usize));
+    w525_grow_vec_copy_append(dsc + (W325_CONST_NAMES as usize), ssc + (W325_CONST_NAMES as usize));
+    w525_grow_vec_copy_append(dsc + (W325_CONST_NAME_LENS as usize), ssc + (W325_CONST_NAME_LENS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_CONST_INIT_VALS as usize), ssc + (W325_CONST_INIT_VALS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_CONST_INIT_REFS as usize), ssc + (W325_CONST_INIT_REFS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_CONST_TYPE_REFS as usize), ssc + (W325_CONST_TYPE_REFS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_LET_NAMES as usize), ssc + (W325_LET_NAMES as usize));
+    w525_grow_vec_copy_append(dsc + (W325_LET_NAME_LENS as usize), ssc + (W325_LET_NAME_LENS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_LET_INIT_VALS as usize), ssc + (W325_LET_INIT_VALS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_LET_INIT_REFS as usize), ssc + (W325_LET_INIT_REFS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_LET_TYPE_REFS as usize), ssc + (W325_LET_TYPE_REFS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_SRC_STMT_KIND as usize), ssc + (W325_SRC_STMT_KIND as usize));
+    w525_grow_vec_copy_append(dsc + (W325_SRC_STMT_IDX as usize), ssc + (W325_SRC_STMT_IDX as usize));
+    w525_grow_vec_copy_append(dsc + (W325_SRC_BODY as usize), ssc + (W325_SRC_BODY as usize));
+    w525_grow_vec_copy_append(dsc + (W325_WHILE_COND as usize), ssc + (W325_WHILE_COND as usize));
+    w525_grow_vec_copy_append(dsc + (W325_WHILE_BODY as usize), ssc + (W325_WHILE_BODY as usize));
+    w525_grow_vec_copy_append(dsc + (W325_FOR_INIT as usize), ssc + (W325_FOR_INIT as usize));
+    w525_grow_vec_copy_append(dsc + (W325_FOR_COND as usize), ssc + (W325_FOR_COND as usize));
+    w525_grow_vec_copy_append(dsc + (W325_FOR_STEP as usize), ssc + (W325_FOR_STEP as usize));
+    w525_grow_vec_copy_append(dsc + (W325_FOR_BODY as usize), ssc + (W325_FOR_BODY as usize));
+    w525_grow_vec_copy_append(dsc + (W325_PARAM_NAMES as usize), ssc + (W325_PARAM_NAMES as usize));
+    w525_grow_vec_copy_append(dsc + (W325_PARAM_NAME_LENS as usize), ssc + (W325_PARAM_NAME_LENS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_PARAM_TYPE_REFS as usize), ssc + (W325_PARAM_TYPE_REFS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_CALL_ARG_VALS as usize), ssc + (W325_CALL_ARG_VALS as usize));
+    w525_grow_vec_copy_append(dsc + (W325_LABELEDS as usize), ssc + (W325_LABELEDS as usize));
   }
 }
 
@@ -900,7 +1105,7 @@ export function pipeline_block_fill_defers_from_onefunc(a: *u8, br: i32, out: *u
     pr = w325_get_i32(sc, W325_DEFER_BODY, i);
     if (pr > 0) {
       unsafe {
-        pipeline_block_append_defer(a, br, pr);
+        w525_block_append_defer(a, br, pr);
       }
     }
     i = i + 1;
@@ -922,14 +1127,14 @@ export function pipeline_onefunc_append_labeled(out: *u8, label: *u8, label_len:
     return 0 - 1;
   }
   unsafe {
-    rc = grow_vec_push(sc + (W325_LABELEDS as usize));
+    rc = w525_grow_vec_push(sc + (W325_LABELEDS as usize));
   }
   if (rc < 0) {
     return 0 - 1;
   }
   idx = w325_gv_len(sc, W325_LABELEDS) - 1;
   unsafe {
-    le = grow_vec_at(sc + (W325_LABELEDS as usize), idx);
+    le = w525_grow_vec_at(sc + (W325_LABELEDS as usize), idx);
   }
   if (le == (0 as *u8)) {
     return 0 - 1;
@@ -997,7 +1202,7 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
   }
   if (br > 0) {
     unsafe {
-      b = pipeline_arena_block_ptr(a, br);
+      b = w525_arena_block_ptr(a, br);
     }
     if (b != (0 as *u8)) {
       w325_store_i32(b, W325_BLK_NUM_LABELED, 0);
@@ -1005,7 +1210,7 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
   }
   while (i < count && i < w325_gv_len(sc, W325_LABELEDS)) {
     unsafe {
-      le = grow_vec_at(sc + (W325_LABELEDS as usize), i);
+      le = w525_grow_vec_at(sc + (W325_LABELEDS as usize), i);
     }
     if (le != (0 as *u8)) {
       llen = w325_load_i32(le, W325_LE_LABEL_LEN);
@@ -1013,11 +1218,11 @@ export function pipeline_block_fill_labeled_from_onefunc(a: *u8, br: i32, out: *
       glen = w325_load_i32(le, W325_LE_GOTO_LEN);
       ret = w325_load_i32(le, W325_LE_RET);
       unsafe {
-        li = pipeline_block_append_labeled(a, br, llen, is_goto, glen, ret);
+        li = w525_block_append_labeled(a, br, llen, is_goto, glen, ret);
       }
       if (li >= 0) {
         unsafe {
-          ls = pipeline_block_labeled_ptr(a, br, li);
+          ls = w525_block_labeled_ptr(a, br, li);
         }
         if (ls != (0 as *u8)) {
           if (llen > 0) {
@@ -1132,14 +1337,14 @@ export function pipeline_onefunc_append_region(out: *u8, label: *u8, label_len: 
     return 0 - 1;
   }
   unsafe {
-    rc = grow_vec_push(sc + (W325_REGIONS as usize));
+    rc = w525_grow_vec_push(sc + (W325_REGIONS as usize));
   }
   if (rc < 0) {
     return 0 - 1;
   }
   idx = w325_gv_len(sc, W325_REGIONS) - 1;
   unsafe {
-    re = grow_vec_at(sc + (W325_REGIONS as usize), idx);
+    re = w525_grow_vec_at(sc + (W325_REGIONS as usize), idx);
   }
   if (re == (0 as *u8)) {
     return 0 - 1;
@@ -1172,14 +1377,14 @@ export function pipeline_onefunc_append_with_arena(out: *u8, cap_ref: i32, body_
     return 0 - 1;
   }
   unsafe {
-    rc = grow_vec_push(sc + (W325_REGIONS as usize));
+    rc = w525_grow_vec_push(sc + (W325_REGIONS as usize));
   }
   if (rc < 0) {
     return 0 - 1;
   }
   idx = w325_gv_len(sc, W325_REGIONS) - 1;
   unsafe {
-    re = grow_vec_at(sc + (W325_REGIONS as usize), idx);
+    re = w525_grow_vec_at(sc + (W325_REGIONS as usize), idx);
   }
   if (re == (0 as *u8)) {
     return 0 - 1;
@@ -1210,14 +1415,14 @@ export function pipeline_onefunc_append_unsafe(out: *u8, body_ref: i32): i32 {
     return 0 - 1;
   }
   unsafe {
-    rc = grow_vec_push(sc + (W325_REGIONS as usize));
+    rc = w525_grow_vec_push(sc + (W325_REGIONS as usize));
   }
   if (rc < 0) {
     return 0 - 1;
   }
   idx = w325_gv_len(sc, W325_REGIONS) - 1;
   unsafe {
-    re = grow_vec_at(sc + (W325_REGIONS as usize), idx);
+    re = w525_grow_vec_at(sc + (W325_REGIONS as usize), idx);
   }
   if (re == (0 as *u8)) {
     return 0 - 1;
@@ -1260,7 +1465,7 @@ export function pipeline_block_fill_regions_from_onefunc(a: *u8, br: i32, out: *
   }
   while (i < count && i < w325_gv_len(sc, W325_REGIONS)) {
     unsafe {
-      re = grow_vec_at(sc + (W325_REGIONS as usize), i);
+      re = w525_grow_vec_at(sc + (W325_REGIONS as usize), i);
     }
     if (re != (0 as *u8)) {
       cap = w325_load_i32(re, W325_RE_CAP);
@@ -1268,15 +1473,15 @@ export function pipeline_block_fill_regions_from_onefunc(a: *u8, br: i32, out: *
       llen = w325_load_i32(re, W325_RE_LABEL_LEN);
       if (cap > 0) {
         unsafe {
-          pipeline_block_append_with_arena(a, br, cap, body);
+          w525_block_append_with_arena(a, br, cap, body);
         }
       } else if (cap == (0 - 1)) {
         unsafe {
-          pipeline_block_append_unsafe(a, br, body);
+          w525_block_append_unsafe(a, br, body);
         }
       } else if (llen > 0) {
         unsafe {
-          pipeline_block_append_region(a, br, re, llen, body);
+          w525_block_append_region(a, br, re, llen, body);
         }
       }
     }
@@ -1298,7 +1503,7 @@ export function pipeline_onefunc_push_stmt_order(out: *u8, kind: u8, idx: i32): 
     return 0 - 1;
   }
   unsafe {
-    rc = grow_vec_push(sc + (W325_SRC_STMT_KIND as usize));
+    rc = w525_grow_vec_push(sc + (W325_SRC_STMT_KIND as usize));
   }
   if (rc < 0) {
     return 0 - 1;
@@ -1308,7 +1513,7 @@ export function pipeline_onefunc_push_stmt_order(out: *u8, kind: u8, idx: i32): 
   }
   ki = w325_gv_len(sc, W325_SRC_STMT_KIND) - 1;
   unsafe {
-    pk = grow_vec_at(sc + (W325_SRC_STMT_KIND as usize), ki);
+    pk = w525_grow_vec_at(sc + (W325_SRC_STMT_KIND as usize), ki);
   }
   if (pk == (0 as *u8)) {
     return 0 - 1;
@@ -1344,7 +1549,7 @@ export function pipeline_onefunc_src_stmt_kind(out: *u8, i: i32): u8 {
     return 0;
   }
   unsafe {
-    pk = grow_vec_at(sc + (W325_SRC_STMT_KIND as usize), i);
+    pk = w525_grow_vec_at(sc + (W325_SRC_STMT_KIND as usize), i);
   }
   if (pk == (0 as *u8)) {
     return 0;
@@ -1410,7 +1615,7 @@ export function pipeline_block_fill_ifs_from_onefunc(a: *u8, br: i32, out: *u8, 
   let i: i32 = 0;
   if (a != (0 as *u8) && br > 0) {
     unsafe {
-      b = pipeline_arena_block_ptr(a, br);
+      b = w525_arena_block_ptr(a, br);
     }
     if (b != (0 as *u8)) {
       w325_store_i32(b, W325_BLK_NUM_IF, 0);
@@ -1418,7 +1623,7 @@ export function pipeline_block_fill_ifs_from_onefunc(a: *u8, br: i32, out: *u8, 
   }
   while (i < count) {
     unsafe {
-      pipeline_block_append_if(a, br, pipeline_onefunc_if_cond_ref(out, i),
+      w525_block_append_if(a, br, pipeline_onefunc_if_cond_ref(out, i),
                                pipeline_onefunc_if_then_body_ref(out, i),
                                pipeline_onefunc_if_else_body_ref(out, i));
     }
@@ -1435,7 +1640,7 @@ export function pipeline_block_fill_stmt_order_from_onefunc(a: *u8, br: i32, out
   let i: i32 = 0;
   while (i < count) {
     unsafe {
-      pipeline_block_append_stmt_order(a, br, pipeline_onefunc_src_stmt_kind(out, i),
+      w525_block_append_stmt_order(a, br, pipeline_onefunc_src_stmt_kind(out, i),
                                        pipeline_onefunc_src_stmt_idx(out, i));
     }
     i = i + 1;
@@ -1451,7 +1656,7 @@ export function pipeline_block_fill_expr_stmts_from_onefunc(a: *u8, br: i32, out
   let i: i32 = 0;
   while (i < count) {
     unsafe {
-      pipeline_block_append_expr_stmt(a, br, pipeline_onefunc_body_expr_stmt_ref(out, i));
+      w525_block_append_expr_stmt(a, br, pipeline_onefunc_body_expr_stmt_ref(out, i));
     }
     i = i + 1;
   }
@@ -1466,7 +1671,7 @@ export function pipeline_block_fill_whiles_from_onefunc(a: *u8, br: i32, out: *u
   let i: i32 = 0;
   while (i < count) {
     unsafe {
-      pipeline_block_append_while(a, br, pipeline_onefunc_while_cond_ref(out, i),
+      w525_block_append_while(a, br, pipeline_onefunc_while_cond_ref(out, i),
                                   pipeline_onefunc_while_body_ref(out, i));
     }
     i = i + 1;
@@ -1482,7 +1687,7 @@ export function pipeline_block_fill_fors_from_onefunc(a: *u8, br: i32, out: *u8,
   let i: i32 = 0;
   while (i < count) {
     unsafe {
-      pipeline_block_append_for(a, br, pipeline_onefunc_for_init_ref(out, i),
+      w525_block_append_for(a, br, pipeline_onefunc_for_init_ref(out, i),
                                 pipeline_onefunc_for_cond_ref(out, i),
                                 pipeline_onefunc_for_step_ref(out, i),
                                 pipeline_onefunc_for_body_ref(out, i));

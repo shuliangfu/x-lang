@@ -9087,20 +9087,26 @@ pipeline_abi_inject_module_func_thin() {
 
 
 
-# wave325/335/363/379 M2: onefunc Cap residual C→.x (was wave281 C thin).
+# wave325/335/363/379/525 M2: onefunc Cap residual C→.x (was wave281 C thin).
 # PRODUCT inject wave379 HARD BAN PREFER: stay prior -E overlay; do not
 # re-overlay. wave335 PREFER → Darwin L2 SEGV; wave379 PREFER reconfirm →
 # Darwin L2 opt/si/hello XP001 parse fail (gate type_alias -c + thin -c green).
 # T001 w325_* kept. Stamp w379.
+# wave525 Soft Cap: tipU pipe-cell heal (sidecar／GrowVec／block mid-call);
+#   stamp → w525; tip PRODUCT reinject still HARD BAN (keep prior overlay).
 # PLATFORM: SHARED · both ends hard-skip until GrowVec/sidecar LE pure-asm root.
 pipeline_abi_inject_onefunc_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_onefunc_thin.x"
-  local stamp="src/.pabi_w379_onefunc.stamp"
+  local stamp="src/.pabi_w525_onefunc.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w325_onefunc.stamp
+  rm -f src/.pabi_w325_onefunc.stamp src/.pabi_w379_onefunc.stamp
+  log "pipeline_abi w525-onefunc: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
