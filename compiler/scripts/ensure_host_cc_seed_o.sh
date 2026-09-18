@@ -3176,6 +3176,33 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_fnptr_as_thin.x -nt "$o" ]; then
       stale=1
     fi
+    # wave507: Cap-fn-ptr EXPR_AS peer-flat overlay mtime
+    for _fas in \
+      src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_lea_thin.x \
+      src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x
+    do
+      if [ -f "$_fas" ] && [ "$_fas" -nt "$o" ]; then
+        stale=1
+        break
+      fi
+    done
+    unset _fas
     if [ -f src/runtime_pipeline_abi_asm_expr_thin.x ] \
       && [ src/runtime_pipeline_abi_asm_expr_thin.x -nt "$o" ]; then
       stale=1
@@ -5408,14 +5435,122 @@ pipeline_abi_inject_unused_hints_thin() {
   return "$rc"
 }
 
-# Cap-fn-ptr (10.3.2): EXPR_AS same-module fn as *u8 / TYPE_FN → LEA.
-# G.7: thin body matches pipeline_asm_emit_as_elf_impl / _c in mega .x;
-# Cap-fn-ptr LEA spell is pipe_modlet_lea_fn_sym_to_rax (not inlined here).
+# Cap-fn-ptr (10.3.2) / wave507: EXPR_AS peer-flat tip PREFER.
+# G.7: gate + cast_orch + sub-orch + arms + lea; LEA spell stays
+#   pipe_modlet_lea_fn_sym_to_rax. Monolith tip T001/CG002 after i→f32
+#   i64mov; peers tipU-complete. PRODUCT: BOTH tip PREFER (stamp w507).
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_as_thin() {
-  # G.7: same inject_thin_leaf as class E (PREFER_ASM opt-in; default -E).
-  # PLATFORM: SHARED shell · LINUX gold + MACOS.
-  pipeline_abi_inject_thin_leaf "$1" "src/runtime_pipeline_abi_fnptr_as_thin.x" "fnptr-as-thin"
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_fnptr_as_thin.x"
+  local stamp="src/.pabi_w507_fnptr_as.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  local p_peer p_x p_rest p_stamp p_tag p_rest2
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # Skip if gate + all peers stamped fresh.
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    local _ok=1
+    for p_peer in \
+      "src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x|.pabi_w507_fnptr_as_f2i32.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x|.pabi_w507_fnptr_as_f2i64.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x|.pabi_w507_fnptr_as_i2f32_i32.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x|.pabi_w507_fnptr_as_i2f32_i64mov.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x|.pabi_w507_fnptr_as_i2f32_u64.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x|.pabi_w507_fnptr_as_i2f32_i64.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x|.pabi_w507_fnptr_as_i2f32_k15.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x|.pabi_w507_fnptr_as_i2f32_sf64.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x|.pabi_w507_fnptr_as_i2f64_u64.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x|.pabi_w507_fnptr_as_i2f64_i64.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x|.pabi_w507_fnptr_as_i2f64_i64mov.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x|.pabi_w507_fnptr_as_i2f64_i32.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x|.pabi_w507_fnptr_as_i2f64_f32.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x|.pabi_w507_fnptr_as_f2i_orch.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x|.pabi_w507_fnptr_as_i2f32_orch.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x|.pabi_w507_fnptr_as_i2f64_orch.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_lea_thin.x|.pabi_w507_fnptr_as_lea.stamp" \
+      "src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x|.pabi_w507_fnptr_as_cast_orch.stamp"
+    do
+      p_x="${p_peer%%|*}"
+      p_stamp="src/${p_peer#*|}"
+      if [ -f "$p_x" ] && { [ ! -f "$p_stamp" ] || [ "$p_x" -nt "$p_stamp" ]; }; then
+        _ok=0
+        break
+      fi
+    done
+    if [ "$_ok" = "1" ]; then
+      return 0
+    fi
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  # Arms → sub-orch → lea → cast_orch → gate (first-wins ld -r).
+  for p_peer in \
+    "src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x|.pabi_w507_fnptr_as_f2i32.stamp|w507-fnptr-as-f2i32" \
+    "src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x|.pabi_w507_fnptr_as_f2i64.stamp|w507-fnptr-as-f2i64" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x|.pabi_w507_fnptr_as_i2f32_i32.stamp|w507-fnptr-as-i2f32-i32" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x|.pabi_w507_fnptr_as_i2f32_i64mov.stamp|w507-fnptr-as-i2f32-i64mov" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x|.pabi_w507_fnptr_as_i2f32_u64.stamp|w507-fnptr-as-i2f32-u64" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x|.pabi_w507_fnptr_as_i2f32_i64.stamp|w507-fnptr-as-i2f32-i64" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x|.pabi_w507_fnptr_as_i2f32_k15.stamp|w507-fnptr-as-i2f32-k15" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x|.pabi_w507_fnptr_as_i2f32_sf64.stamp|w507-fnptr-as-i2f32-sf64" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x|.pabi_w507_fnptr_as_i2f64_u64.stamp|w507-fnptr-as-i2f64-u64" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x|.pabi_w507_fnptr_as_i2f64_i64.stamp|w507-fnptr-as-i2f64-i64" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x|.pabi_w507_fnptr_as_i2f64_i64mov.stamp|w507-fnptr-as-i2f64-i64mov" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x|.pabi_w507_fnptr_as_i2f64_i32.stamp|w507-fnptr-as-i2f64-i32" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x|.pabi_w507_fnptr_as_i2f64_f32.stamp|w507-fnptr-as-i2f64-f32" \
+    "src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x|.pabi_w507_fnptr_as_f2i_orch.stamp|w507-fnptr-as-f2i-orch" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x|.pabi_w507_fnptr_as_i2f32_orch.stamp|w507-fnptr-as-i2f32-orch" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x|.pabi_w507_fnptr_as_i2f64_orch.stamp|w507-fnptr-as-i2f64-orch" \
+    "src/runtime_pipeline_abi_fnptr_as_lea_thin.x|.pabi_w507_fnptr_as_lea.stamp|w507-fnptr-as-lea" \
+    "src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x|.pabi_w507_fnptr_as_cast_orch.stamp|w507-fnptr-as-cast-orch" \
+    "src/runtime_pipeline_abi_fnptr_as_thin.x|.pabi_w507_fnptr_as.stamp|w507-fnptr-as-gate"
+  do
+    p_x="${p_peer%%|*}"
+    p_rest="${p_peer#*|}"
+    p_stamp="src/${p_rest%%|*}"
+    p_tag="${p_rest#*|}"
+    if [ -f "$p_x" ] && { [ ! -f "$p_stamp" ] || [ "$p_x" -nt "$p_stamp" ]; }; then
+      pipeline_abi_inject_thin_leaf "$o" "$p_x" "$p_tag"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$p_stamp"
+      else
+        break
+      fi
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    rm -f src/.pabi_fnptr_as*.stamp 2>/dev/null || true
+  fi
+  return "$rc"
 }
 
 # wave409/419/431/495 M2: asm_expr Cap residual — asymmetric unlock.
