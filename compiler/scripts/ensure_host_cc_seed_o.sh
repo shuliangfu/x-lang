@@ -8011,55 +8011,24 @@ pipeline_abi_inject_typeck_active_thin() {
   return 0
 }
 
-# wave295/332 M2: glue_statics Cap residual .x thin (2 Cap bridge faces).
-# PRODUCT inject: wave332 PREFER_ASM (ALLOW_E_REPLACE + stamp). No BSS;
-# standalone -c green (was -E+$CC interim). G.7 wave261 cold twins.
-# wave477: tip no-local HARD BAN (reinject → L2 CG002 4/5); keep w332 overlay.
-# PLATFORM: SHARED.
+# wave295/332/477/506 M2: glue_statics Cap residual .x thin (2 Cap bridge faces).
+# PRODUCT inject: wave332 PREFER_ASM overlay kept; wave477 tip reinject HARD BAN
+#   (L2 CG002 4/5). wave506: tipU re-heal (no-local re-call → tipU 6/6) but
+#   tip PRODUCT PREFER still HARD BAN — stamp-only skip inject_thin_leaf.
+# G.7 wave261 cold twins. PLATFORM: SHARED · BAN tip reinject.
 pipeline_abi_inject_glue_statics_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_glue_statics_thin.x"
-  local stamp="src/.pabi_w332_glue_statics.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w506_glue_statics.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # wave477/w506: HARD BAN tip product reinject (keep w332 PREFER overlay).
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w332-glue-statics"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  touch "$stamp"
+  rm -f src/.pabi_w332_glue_statics.stamp src/.pabi_w477_glue_statics.stamp
+  log "pipeline_abi w506-glue-statics: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep w332)"
+  return 0
 }
 
 # wave303/358/491 M2: type_alias Cap residual C→.x (was wave262 C thin).
