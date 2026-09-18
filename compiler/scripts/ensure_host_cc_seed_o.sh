@@ -6225,7 +6225,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
   if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
     local lo_peer lo_x lo_stamp lo_tag lo_rest
     for lo_peer in \
-      "src/runtime_pipeline_abi_binop_block_peel_load_operand_leaves_thin.x|.pabi_w436_binop_block_peel_load_operand_leaves.stamp|w436-binop-block-peel-load-operand-leaves" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_leaves_thin.x|.pabi_w555_binop_block_peel_load_operand_leaves.stamp|w555-ban-load-operand-leaves" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_const_thin.x|.pabi_w548_binop_block_peel_load_operand_const.stamp|w548-ban-load-operand-const" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rbx_thin.x|.pabi_w552_binop_block_peel_load_operand_var_rbx.stamp|w552-ban-load-operand-var-rbx" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rax_thin.x|.pabi_w551_binop_block_peel_load_operand_var_rax.stamp|w551-ban-load-operand-var-rax" \
@@ -6276,6 +6276,14 @@ pipeline_abi_inject_binop_block_peel_thin() {
             touch "$lo_stamp"
             rm -f src/.pabi_w436_binop_block_peel_load_operand.stamp
             log "pipeline_abi w553 load_operand: tipU stamped; tip PRODUCT reinject HARD BAN"
+          fi
+          continue
+          ;;
+        *load_operand_leaves_thin.x)
+          if [ -f "$lo_x" ]; then
+            touch "$lo_stamp"
+            rm -f src/.pabi_w436_binop_block_peel_load_operand_leaves.stamp
+            log "pipeline_abi w555 load_operand_leaves: tipU stamped; tip PRODUCT reinject HARD BAN"
           fi
           continue
           ;;
