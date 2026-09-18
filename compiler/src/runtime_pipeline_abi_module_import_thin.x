@@ -1,15 +1,18 @@
-// Thin pure: wave310/377/390 M2 — module_import Cap residual C→.x
+// Thin pure: wave310/377/390/527 M2 — module_import Cap residual C→.x
 //   (was wave263 C thin).
 // ImportEntry LE 532B multi-module map + select rows; 18 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave110/wave263 leave.
 // wave377: BAN PREFER (Darwin g05 BRANCH26); MACOS -E of T001-wrapped thin;
 //   LINUX hard-skip (Ubuntu typeck rejects wrapped thin).
-// wave390: HARD BAN reinject both ends (stamp .pabi_w390_module_import.stamp);
-//   stay prior Darwin -E / Ubuntu prior -E until BRANCH26 root.
+// wave390: HARD BAN reinject both ends; stay prior overlay.
+// wave527 Soft Cap: hoist nested lets in ensure_* + pipe-cell malloc
+//   (Ubuntu tip XT001); stamp → w527; tip PRODUCT reinject HARD BAN.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern "C" function malloc(n: usize): *u8;
@@ -171,152 +174,174 @@ function pipe_imp_find_or_create(module: *u8): i32 {
   }
 }
 
+
 /**
- * Ensure entry table capacity >= need for slot (malloc grow, double).
- * @param slot i32 - map slot
- * @param need i32 - required live+push capacity
- * @return i32 - 1 ok, 0 fail
+ * malloc via pipe-cell (tipU: ban mid `np=malloc()` / keep ptr-slot U).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave527).
  */
-function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
-  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
-  // PLATFORM: SHARED — asm typeck contract.
+function w527_malloc(n: usize): *u8 {
+  let pcell: u8[8] = [];
   unsafe {
-    if (slot < 0) {
-      return 0;
-    }
-    if (slot >= 128) {
-      return 0;
-    }
-    if (need <= 0) {
-      return 1;
-    }
-    let cap: i32 = g_pipe_imp_cap[slot];
-    if (cap >= need) {
-      return 1;
-    }
-    let new_cap: i32 = cap;
-    if (new_cap < 8) {
-      new_cap = 8;
-    }
-    while (new_cap < need) {
-      new_cap = new_cap * 2;
-    }
-    let esz: i32 = pipe_imp_entry_size();
-    let nbytes: usize = (new_cap * esz) as usize;
-    // extern malloc/memset/memcpy/free require unsafe (T001).
-    let np: *u8 = 0 as *u8;
-    unsafe {
-      np = malloc(nbytes);
-    }
-    if (np == 0 as *u8) {
-      return 0;
-    }
-    unsafe {
-      memset(np, 0, nbytes);
-    }
-    let old: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
-    let old_n: i32 = g_pipe_imp_n[slot];
-    if (old != 0 as *u8) {
-      if (old_n > 0) {
-        let old_bytes: usize = (old_n * esz) as usize;
-        unsafe {
-          memcpy(np, old, old_bytes);
-        }
-      }
-      unsafe {
-        free(old);
-      }
-    }
-    xlang_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
-    g_pipe_imp_cap[slot] = new_cap;
-    return 1;
+    pipe_store_ptr_slot(&pcell[0], 0, malloc(n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
   }
 }
 
 /**
- * Ensure select row/lens capacity >= need for slot.
- * @param slot i32 - map slot
- * @param need i32 - required select row count
- * @return i32 - 1 ok, 0 fail
+ * Ensure entry table capacity >= need for slot (malloc grow, double).
+ * wave527 Soft Cap: hoist nested lets; pipe-cell malloc (Ubuntu tip XT001).
+ * PLATFORM: SHARED Soft Cap tip heal.
  */
-function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
-  // wave377: Cap-T001 whole-body unsafe (PREFER_ASM).
-  // PLATFORM: SHARED — asm typeck contract.
-  unsafe {
-    if (slot < 0) {
-      return 0;
-    }
-    if (slot >= 128) {
-      return 0;
-    }
-    if (need <= 0) {
-      return 1;
-    }
-    let cap: i32 = g_pipe_imp_sel_cap[slot];
-    if (cap >= need) {
-      return 1;
-    }
-    let new_cap: i32 = cap;
-    if (new_cap < 8) {
-      new_cap = 8;
-    }
-    while (new_cap < need) {
-      new_cap = new_cap * 2;
-    }
-    let row_bytes: usize = (new_cap * 64) as usize;
-    let lens_bytes: usize = (new_cap * 4) as usize;
-    let nrows: *u8 = 0 as *u8;
-    let nlens: *u8 = 0 as *u8;
-    unsafe {
-      nrows = malloc(row_bytes);
-      nlens = malloc(lens_bytes);
-    }
-    if (nrows == 0 as *u8) {
-      if (nlens != 0 as *u8) {
-        unsafe {
-          free(nlens);
-        }
-      }
-      return 0;
-    }
-    if (nlens == 0 as *u8) {
-      unsafe {
-        free(nrows);
-      }
-      return 0;
-    }
-    unsafe {
-      memset(nrows, 0, row_bytes);
-      memset(nlens, 0, lens_bytes);
-    }
-    let old_rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
-    let old_lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
-    let old_n: i32 = g_pipe_imp_sel_n[slot];
-    if (old_rows != 0 as *u8) {
-      if (old_n > 0) {
-        unsafe {
-          memcpy(nrows, old_rows, (old_n * 64) as usize);
-        }
-      }
-      unsafe {
-        free(old_rows);
-      }
-    }
-    if (old_lens != 0 as *u8) {
-      if (old_n > 0) {
-        unsafe {
-          memcpy(nlens, old_lens, (old_n * 4) as usize);
-        }
-      }
-      unsafe {
-        free(old_lens);
-      }
-    }
-    xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
-    xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
-    g_pipe_imp_sel_cap[slot] = new_cap;
+function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
+  let cap: i32 = 0;
+  let new_cap: i32 = 0;
+  let esz: i32 = 0;
+  let nbytes: usize = 0 as usize;
+  let old_n: i32 = 0;
+  let old_bytes: usize = 0 as usize;
+  let np: *u8 = 0 as *u8;
+  let old: *u8 = 0 as *u8;
+  if (slot < 0) {
+    return 0;
+  }
+  if (slot >= 128) {
+    return 0;
+  }
+  if (need <= 0) {
     return 1;
   }
+  cap = g_pipe_imp_cap[slot];
+  if (cap >= need) {
+    return 1;
+  }
+  new_cap = cap;
+  if (new_cap < 8) {
+    new_cap = 8;
+  }
+  while (new_cap < need) {
+    new_cap = new_cap * 2;
+  }
+  esz = pipe_imp_entry_size();
+  nbytes = (new_cap * esz) as usize;
+  unsafe {
+    np = w527_malloc(nbytes);
+  }
+  if (np == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    memset(np, 0, nbytes);
+  }
+  unsafe {
+    old = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+  }
+  old_n = g_pipe_imp_n[slot];
+  if (old != 0 as *u8) {
+    if (old_n > 0) {
+      old_bytes = (old_n * esz) as usize;
+      unsafe {
+        memcpy(np, old, old_bytes);
+      }
+    }
+    unsafe {
+      free(old);
+    }
+  }
+  unsafe {
+    xlang_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
+  }
+  g_pipe_imp_cap[slot] = new_cap;
+  return 1;
+}
+
+/**
+ * Ensure select row/lens capacity >= need for slot.
+ * wave527 Soft Cap: hoist nested lets; pipe-cell malloc (Ubuntu tip XT001).
+ * PLATFORM: SHARED Soft Cap tip heal.
+ */
+function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
+  let cap: i32 = 0;
+  let new_cap: i32 = 0;
+  let row_bytes: usize = 0 as usize;
+  let lens_bytes: usize = 0 as usize;
+  let old_n: i32 = 0;
+  let nrows: *u8 = 0 as *u8;
+  let nlens: *u8 = 0 as *u8;
+  let old_rows: *u8 = 0 as *u8;
+  let old_lens: *u8 = 0 as *u8;
+  if (slot < 0) {
+    return 0;
+  }
+  if (slot >= 128) {
+    return 0;
+  }
+  if (need <= 0) {
+    return 1;
+  }
+  cap = g_pipe_imp_sel_cap[slot];
+  if (cap >= need) {
+    return 1;
+  }
+  new_cap = cap;
+  if (new_cap < 8) {
+    new_cap = 8;
+  }
+  while (new_cap < need) {
+    new_cap = new_cap * 2;
+  }
+  row_bytes = (new_cap * 64) as usize;
+  lens_bytes = (new_cap * 4) as usize;
+  nrows = w527_malloc(row_bytes);
+  nlens = w527_malloc(lens_bytes);
+  if (nrows == 0 as *u8) {
+    if (nlens != 0 as *u8) {
+      unsafe {
+        free(nlens);
+      }
+    }
+    return 0;
+  }
+  if (nlens == 0 as *u8) {
+    unsafe {
+      free(nrows);
+    }
+    return 0;
+  }
+  unsafe {
+    memset(nrows, 0, row_bytes);
+    memset(nlens, 0, lens_bytes);
+  }
+  unsafe {
+    old_rows = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
+    old_lens = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
+  }
+  old_n = g_pipe_imp_sel_n[slot];
+  if (old_rows != 0 as *u8) {
+    if (old_n > 0) {
+      unsafe {
+        memcpy(nrows, old_rows, (old_n * 64) as usize);
+      }
+    }
+    unsafe {
+      free(old_rows);
+    }
+  }
+  if (old_lens != 0 as *u8) {
+    if (old_n > 0) {
+      unsafe {
+        memcpy(nlens, old_lens, (old_n * 4) as usize);
+      }
+    }
+    unsafe {
+      free(old_lens);
+    }
+  }
+  unsafe {
+    xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
+    xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
+  }
+  g_pipe_imp_sel_cap[slot] = new_cap;
+  return 1;
 }
 
 /**

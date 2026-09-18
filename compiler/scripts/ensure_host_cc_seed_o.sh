@@ -8281,21 +8281,28 @@ pipeline_abi_inject_type_alias_thin() {
   return 0
 }
 
-# wave310/377/390 M2: module_import Cap residual C→.x (was wave263 C thin).
+# wave310/377/390/527 M2: module_import Cap residual C→.x (was wave263 C thin).
 # PRODUCT inject wave390 HARD BAN reinject both ends: stay prior overlay.
 #   Prior: BAN PREFER (BRANCH26); MACOS -E / LINUX hard-skip (w377).
 #   w390: formalize HARD BAN reinject (do not call inject_thin_leaf) —
 #     tip reinject poison class; keep green Darwin -E / Ubuntu prior -E
 #     via stamp only until BRANCH26 / Ubuntu typeck root.
+# wave527 Soft Cap: tip XT001 heal (hoist ensure_* nested lets + pipe-cell
+#   malloc); tipU 10/10; stamp → w527; tip PRODUCT reinject HARD BAN.
 # G.7 match mega wave110/wave263 leave. PLATFORM: SHARED · BAN reinject.
 pipeline_abi_inject_module_import_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_module_import_thin.x"
-  local stamp="src/.pabi_w390_module_import.stamp"
+  local stamp="src/.pabi_w527_module_import.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w310_module_import.stamp src/.pabi_w377_module_import.stamp
+  rm -f src/.pabi_w310_module_import.stamp src/.pabi_w377_module_import.stamp \
+    src/.pabi_w390_module_import.stamp
+  log "pipeline_abi w527-module-import: tip XT001+tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
