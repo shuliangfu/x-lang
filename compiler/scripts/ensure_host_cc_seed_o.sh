@@ -6388,7 +6388,7 @@ pipeline_abi_inject_assign_thin() {
       stamp="src/.pabi_w558_assign_helpers.stamp"
       tag="w421-assign-helpers"
       rhs_x="src/runtime_pipeline_abi_assign_rhsrax_thin.x"
-      rhs_s="src/.pabi_w437_assign_rhsrax.stamp"
+      rhs_s="src/.pabi_w559_assign_rhsrax.stamp"
       arms_x="src/runtime_pipeline_abi_assign_rhsrax_arms_load_lr_thin.x"
       arms_s="src/.pabi_w474_heal_rhsrax_arms_load_lr.stamp"
       torax_x="src/runtime_pipeline_abi_assign_rhsrax_to_rax_thin.x"
@@ -6596,16 +6596,12 @@ pipeline_abi_inject_assign_thin() {
   # wave445: tip pure-asm regen of full rhsrax → product si SEGV; reinject -E.
   # wave448: to_rax tip pure-asm HARD BAN (full thin → si SEGV); keep -E here, then
   #   arms-only PREFER overlay; w454 dispatcher-only no-local PREFER after arms.
+  # LINUX wave559: rhsrax tipU stamped. HARD BAN tip PRODUCT reinject
+  # (keep the w437 -E overlay). Pure-asm reinject SEGVs (wave445).
   if [ "$rc" -eq 0 ] && [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
-    if [ ! -f "$rhs_s" ] || [ "$rhs_x" -nt "$rhs_s" ]; then
-      export XLANG_PABI_THIN_PREFER_ASM=0
-      pipeline_abi_inject_thin_leaf "$o" "$rhs_x" "w437-assign-rhsrax"
-      rc=$?
-      export XLANG_PABI_THIN_PREFER_ASM=1
-      if [ "$rc" -eq 0 ]; then
-        touch "$rhs_s"
-      fi
-    fi
+    touch "$rhs_s"
+    rm -f src/.pabi_w437_assign_rhsrax.stamp
+    log "pipeline_abi w559 assign_rhsrax: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
   # PLATFORM: LINUX — wave448/w474 arms no-local PREFER (to_rax dispatcher → w454).
   # wave474: seven leaves (load_lr/simple/div_float/div/mod/shl/shr); tip U-complete.
