@@ -5603,7 +5603,8 @@ pipeline_abi_inject_binop_block_peel_thin() {
 # wave441/445/448/449/451: LINUX emit unlock — flat peer FIELD/INDEX/VAR/DEREF + dispatcher.
 #   w441b soft -E chain; w445 six-peer pure-asm overlay (`*out=` heal);
 #   tip rhsrax to_rax pure-asm HARD BAN (si SEGV); w448 arms-only PREFER overlay;
-#   w449 deref family PREFER; w451 var no-local PREFER; emit tip HARD BAN.
+#   w449 deref family PREFER; w451 var no-local PREFER; emit tip HARD BAN
+#   (w452 no-local reshape tip→si CG002; stay -E).
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451 heal-asm.
 pipeline_abi_inject_assign_thin() {
@@ -5627,7 +5628,8 @@ pipeline_abi_inject_assign_thin() {
   local need_var=0
   # PLATFORM: LINUX — helpers -E; rhsrax to_rax -E (w445/448 BAN tip);
   #   arms PREFER (w448); emit chain -E (w441b); six-peer heal-asm (w445);
-  #   deref family PREFER (w449); var no-local PREFER (w451); emit tip BAN.
+  #   deref family PREFER (w449); var no-local PREFER (w451);
+  #   emit tip BAN (w452 no-local tip→si CG002).
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
@@ -5775,6 +5777,8 @@ pipeline_abi_inject_assign_thin() {
   # wave445: after chain, overlay six `*out=`-healed peers as pure-asm.
   # wave448: rhsrax arms PREFER overlay (above); to_rax stays -E.
   # wave449: deref family PREFER overlay after heals; var+emit stay -E.
+  # wave452: emit no-local reshape retained in .x; tip pure-asm still BAN
+  #   (si CG002); this -E chain is the product path for emit dispatcher.
   if [ "$rc" -eq 0 ] && [ -n "${emit_x-}" ] && [ -f "$emit_x" ]; then
     if [ ! -f "$emit_s" ] || [ "$emit_x" -nt "$emit_s" ]; then
       export XLANG_PABI_THIN_PREFER_ASM=0
