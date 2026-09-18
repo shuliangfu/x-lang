@@ -1,11 +1,16 @@
-// Thin pure: wave307/362 M2 — struct_layout Cap residual C→.x (was wave266 C thin).
+// Thin pure: wave307/362/518 M2 — struct_layout Cap residual C→.x (was wave266 C thin).
 // StructLayout multi-module map + field/offset faces; 36 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave266 leave.
 // wave362: w307_* unsafe wrappers (T001); PREFER try + L2 gate.
+// wave362 PRODUCT: HARD BAN tip reinject (Darwin L2 option=240).
+// wave518: tipU 11/12→14/14 — mid `np=malloc()` drop U; pipe-cell heal;
+//   stamp → w518; tip PRODUCT reinject still HARD BAN (keep prior overlay).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
@@ -30,6 +35,20 @@ function w307_ptr_get(arr: *u8, i: i32): *u8 {
  */
 function w307_ptr_set(arr: *u8, i: i32, p: *u8): void {
   unsafe { xlang_ptr_slot_set(arr, i, p); }
+}
+
+/**
+ * malloc via pipe-cell (wave518 tipU — ban mid `np=malloc()`).
+ * @param n usize — bytes
+ * @return *u8 — pointer or null
+ * PLATFORM: SHARED.
+ */
+function w307_malloc(n: usize): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, malloc(n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
 }
 
 /**
@@ -275,10 +294,8 @@ function pipe_sl_ensure_layouts(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_sl_layout_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
-  unsafe {
-    np = malloc(nbytes);
-  }
+  /* wave518: ban mid `np=malloc()`; pipe-cell helper. */
+  let np: *u8 = w307_malloc(nbytes);
   if (np == 0 as *u8) {
     return 0;
   }
@@ -332,10 +349,8 @@ function pipe_sl_ensure_fields(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_sl_field_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
-  unsafe {
-    np = malloc(nbytes);
-  }
+  /* wave518: ban mid `np=malloc()`; pipe-cell helper. */
+  let np: *u8 = w307_malloc(nbytes);
   if (np == 0 as *u8) {
     return 0;
   }
@@ -389,10 +404,8 @@ function pipe_sl_ensure_tp(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_sl_tp_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
-  unsafe {
-    np = malloc(nbytes);
-  }
+  /* wave518: ban mid `np=malloc()`; pipe-cell helper. */
+  let np: *u8 = w307_malloc(nbytes);
   if (np == 0 as *u8) {
     return 0;
   }

@@ -8304,19 +8304,25 @@ pipeline_abi_inject_top_level_let_thin() {
   return 0
 }
 
-# wave307/362 M2: struct_layout Cap residual C→.x (was wave266 C thin).
+# wave307/362/518 M2: struct_layout Cap residual C→.x (was wave266 C thin).
 # PRODUCT inject wave362 HARD BAN: return 0 without overlay.
 # wave362 PREFER: gate type_alias -c green; Darwin L2 option exit 240.
 # T001 w307_* stay in .x. Stamp w362.
+# wave518: tipU 11/12→14/14 pipe-cell heal (mid malloc); stamp → w518;
+#   tip PRODUCT reinject still HARD BAN (keep prior overlay).
 # PLATFORM: SHARED · both ends hard-skip until product L2 root.
 pipeline_abi_inject_struct_layout_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_struct_layout_thin.x"
-  local stamp="src/.pabi_w362_struct_layout.stamp"
+  local stamp="src/.pabi_w518_struct_layout.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w307_struct_layout.stamp
+  rm -f src/.pabi_w307_struct_layout.stamp src/.pabi_w362_struct_layout.stamp
+  log "pipeline_abi w518-struct-layout: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
