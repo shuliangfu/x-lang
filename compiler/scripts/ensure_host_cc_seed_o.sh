@@ -5233,16 +5233,15 @@ pipeline_abi_inject_slot_bytes_thin() {
   else
     rc=0
   fi
-  # PLATFORM: LINUX — second inject asm_local rest (wave428).
+  # PLATFORM: LINUX — wave538 Soft Cap HARD BAN tip reinject (keep w428 PREFER).
+  # Dead extern decls dropped in .x; do not prefer-reinject this leaf.
   if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
     local l2x="src/runtime_pipeline_abi_slot_asm_local_thin.x"
-    local l2s="src/.pabi_w428_slot_asm_local.stamp"
-    if [ -f "$l2x" ] && { [ ! -f "$l2s" ] || [ "$l2x" -nt "$l2s" ]; }; then
-      pipeline_abi_inject_thin_leaf "$o" "$l2x" "w428-slot-asm-local"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$l2s"
-      fi
+    local l2s="src/.pabi_w538_slot_asm_local.stamp"
+    if [ -f "$l2x" ]; then
+      touch "$l2s"
+      rm -f src/.pabi_w428_slot_asm_local.stamp
+      log "pipeline_abi w538-slot-asm-local: tipU 1/1 stamped; tip PRODUCT reinject HARD BAN (keep prior)"
     fi
   fi
   if [ "$had_newer" = "1" ]; then
