@@ -4971,22 +4971,33 @@ pipeline_abi_inject_import_heap_thin() {
   return "$rc"
 }
 
-# wave297/352 M2: read_file_x_view Cap residual C→.x (was C strong overlay).
+# wave297/352/519 M2: read_file_x_view Cap residual C→.x (was C strong overlay).
 # PRODUCT inject wave352: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
-# Class B local u8[32] FileView blob: standalone -c green after Cap A INDEX
-# (w350); product PREFER unlocks host-cc leave. G.7 match seed
-# pipeline_read_file_x cold twin. PLATFORM: SHARED · both ends PREFER.
+# Class B FileView: standalone -c green after Cap A INDEX (w350); product
+# PREFER unlocks host-cc leave. G.7 match seed pipeline_read_file_x cold twin.
+# wave519: tip CG002 heal (BSS FileView + pipe-cell mid path/buf/rc/data) →
+#   tipU Soft Cap; stamp → w519; tip PRODUCT reinject HARD BAN (keep prior
+#   PREFER overlay; do not tip-reinject after green).
+# PLATFORM: SHARED · PREFER first-wins · BAN force tip reinject.
 pipeline_abi_inject_read_file_x_view_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_read_file_x_view_thin.x"
-  local stamp="src/.pabi_w352_read_file_x_view.stamp"
+  local stamp="src/.pabi_w519_read_file_x_view.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: SHARED — w519 HARD BAN tip force-reinject once stamped.
+  if [ -f "$stamp" ]; then
+    return 0
+  fi
+  # Migrate w352 → w519 without reinject (tipU heal inventory only).
+  if [ -f src/.pabi_w352_read_file_x_view.stamp ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w352_read_file_x_view.stamp src/.pabi_w297_read_file_x_view.stamp
+    log "pipeline_abi w519-read-file-x-view: tipU heal stamped; tip force-reinject HARD BAN (keep PREFER overlay)"
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -4999,10 +5010,10 @@ pipeline_abi_inject_read_file_x_view_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (class B local array FileView proven).
+  # PLATFORM: SHARED — PREFER_ASM first-wins (cold unlock only).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w352-read-file-x-view"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w519-read-file-x-view"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5019,7 +5030,7 @@ pipeline_abi_inject_read_file_x_view_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_w297_read_file_x_view.stamp
+    rm -f src/.pabi_w297_read_file_x_view.stamp src/.pabi_w352_read_file_x_view.stamp
   fi
   return "$rc"
 }
