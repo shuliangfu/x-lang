@@ -5943,6 +5943,7 @@ pipeline_abi_inject_assign_thin() {
   # wave458: field_var_stores tip no-local PREFER overlay (LINUX only).
   # Root: tip `let rc = call()` drops mid-peer calls → U-starved (only depth1);
   #   eq-cascade no-local → Ubuntu tip U=4/4; product inject L2 5/5.
+  # wave459: field dispatcher same unlock (U=4/4); MACOS skip (same UNDEF risk).
   # PLATFORM: LINUX gold · MACOS skip (full assign chain already PREFER; Darwin
   #   g05 mega re-inject after stores overlay can UNDEF peer leaves).
   case "$(uname -s)" in
@@ -5957,6 +5958,19 @@ pipeline_abi_inject_assign_thin() {
           rc=$?
           if [ "$rc" -eq 0 ]; then
             touch "$stores_s"
+          fi
+        fi
+      fi
+      if [ "$rc" -eq 0 ]; then
+        local field_x="src/runtime_pipeline_abi_assign_field_thin.x"
+        local field_s="src/.pabi_w459_heal_field.stamp"
+        if [ -f "$field_x" ] && { [ ! -f "$field_s" ] || [ "$field_x" -nt "$field_s" ]; }; then
+          export XLANG_PABI_THIN_PREFER_ASM=1
+          export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+          pipeline_abi_inject_thin_leaf "$o" "$field_x" "w459-heal-field"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            touch "$field_s"
           fi
         fi
       fi
