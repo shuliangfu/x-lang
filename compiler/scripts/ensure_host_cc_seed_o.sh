@@ -6440,7 +6440,7 @@ pipeline_abi_inject_assign_thin() {
         "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|src/.pabi_w449_heal_deref_slice_call.stamp" \
         "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|src/.pabi_w449_heal_deref_array_call.stamp" \
         "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|src/.pabi_w533_assign_deref_let_init.stamp" \
-        "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|src/.pabi_w449_heal_deref_scalar.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|src/.pabi_w534_assign_deref_scalar.stamp" \
         "src/runtime_pipeline_abi_assign_deref_vec_gate_thin.x|src/.pabi_w472_heal_deref_vec_gate.stamp" \
         "src/runtime_pipeline_abi_assign_deref_after_addr_thin.x|src/.pabi_w472_heal_deref_after_addr.stamp" \
         "src/runtime_pipeline_abi_assign_deref_finish_thin.x|src/.pabi_w472_heal_deref_finish.stamp" \
@@ -6607,7 +6607,7 @@ pipeline_abi_inject_assign_thin() {
         "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|.pabi_w445_assign_deref_slice_call.stamp|w441-assign-deref-slice-call" \
         "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|.pabi_w445_assign_deref_array_call.stamp|w441-assign-deref-array-call" \
         "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w533_assign_deref_let_init.stamp|w533-ban-deref-let-init" \
-        "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w445_assign_deref_scalar.stamp|w441-assign-deref-scalar" \
+        "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w534_assign_deref_scalar.stamp|w534-ban-deref-scalar" \
         "src/runtime_pipeline_abi_assign_deref_thin.x|.pabi_w445_assign_deref.stamp|w441-assign-deref" \
         "src/runtime_pipeline_abi_assign_emit_thin.x|.pabi_w445_assign_emit.stamp|w441-assign-emit"
       do
@@ -6615,15 +6615,17 @@ pipeline_abi_inject_assign_thin() {
         lo_rest="${peer#*|}"
         lo_stamp="src/${lo_rest%%|*}"
         lo_tag="${lo_rest#*|}"
-        # wave533 Soft Cap: HARD BAN tip reinject for deref let_init/vec_var.
+        # wave533/w534 Soft Cap: HARD BAN tip reinject for deref let_init/vec_var/scalar.
         case "$lo_x" in
-          *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x)
+          *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x|*assign_deref_scalar_thin.x)
             if [ -f "$lo_x" ]; then
               touch "$lo_stamp"
               rm -f src/.pabi_w445_assign_deref_let_init.stamp \
                 src/.pabi_w445_assign_deref_vec_var.stamp \
+                src/.pabi_w445_assign_deref_scalar.stamp \
                 src/.pabi_w449_heal_deref_let_init.stamp \
-                src/.pabi_w449_heal_deref_vec_var.stamp
+                src/.pabi_w449_heal_deref_vec_var.stamp \
+                src/.pabi_w449_heal_deref_scalar.stamp
             fi
             continue
             ;;
@@ -6683,7 +6685,7 @@ pipeline_abi_inject_assign_thin() {
       "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|.pabi_w449_heal_deref_slice_call.stamp|w449-heal-deref-slice-call" \
       "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|.pabi_w449_heal_deref_array_call.stamp|w449-heal-deref-array-call" \
       "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w533_assign_deref_let_init.stamp|w533-ban-deref-let-init" \
-      "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w449_heal_deref_scalar.stamp|w449-heal-deref-scalar" \
+      "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w534_assign_deref_scalar.stamp|w534-ban-deref-scalar" \
       "src/runtime_pipeline_abi_assign_deref_vec_gate_thin.x|.pabi_w472_heal_deref_vec_gate.stamp|w472-heal-deref-vec-gate" \
       "src/runtime_pipeline_abi_assign_deref_after_addr_thin.x|.pabi_w472_heal_deref_after_addr.stamp|w472-heal-deref-after-addr" \
       "src/runtime_pipeline_abi_assign_deref_finish_thin.x|.pabi_w472_heal_deref_finish.stamp|w472-heal-deref-finish" \
@@ -6695,16 +6697,18 @@ pipeline_abi_inject_assign_thin() {
       d_rest="${peer#*|}"
       d_stamp="src/${d_rest%%|*}"
       d_tag="${d_rest#*|}"
-      # wave533 Soft Cap: HARD BAN tip reinject for deref let_init/vec_var.
+      # wave533/w534 Soft Cap: HARD BAN tip reinject for deref let_init/vec_var/scalar.
       case "$d_x" in
-        *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x)
+        *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x|*assign_deref_scalar_thin.x)
           if [ -f "$d_x" ]; then
             touch "$d_stamp"
             rm -f src/.pabi_w445_assign_deref_let_init.stamp \
               src/.pabi_w445_assign_deref_vec_var.stamp \
+              src/.pabi_w445_assign_deref_scalar.stamp \
               src/.pabi_w449_heal_deref_let_init.stamp \
-              src/.pabi_w449_heal_deref_vec_var.stamp
-            log "pipeline_abi w533-assign-deref: tipU pipe-cell stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+              src/.pabi_w449_heal_deref_vec_var.stamp \
+              src/.pabi_w449_heal_deref_scalar.stamp
+            log "pipeline_abi w534-assign-deref: tipU pipe-cell stamped; tip PRODUCT reinject HARD BAN (keep prior)"
           fi
           continue
           ;;
