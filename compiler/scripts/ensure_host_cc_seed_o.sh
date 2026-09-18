@@ -5697,9 +5697,11 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 #   tipU_o helpers-only. PRODUCT: LINUX -E+$CC replace (full export via host-cc).
 #   MACOS: HARD BAN tip reinject (keep prior w396/w497 overlay; tip same drop).
 # wave502: root-cause + orch leaf probe (export tip OK; append tipU miss).
-# wave503: orch local append/flush — tipU complete + tip EXPORT_OK, but tip
+# wave503/514: orch local append/flush — tipU complete + tip EXPORT_OK, but tip
 #   PRODUCT PREFER overlay → L2 SEGV 0/5 (build 139). HARD BAN orch reinject;
-#   keep orch .x as inventory; stamp w503 skip; product stays w498 -E helpers.
+#   keep orch .x as inventory; stamp skip; product stays w498 -E helpers.
+# wave514: drop dead link_abi_getenv (env via wpo_dump_env_path) → tipU 21/21;
+#   stamp → w514; tip PRODUCT reinject still HARD BAN.
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
 # PLATFORM: SHARED · MACOS hard-skip / LINUX -E helpers · orch BAN tip reinject.
 pipeline_abi_inject_wpo_dump_thin() {
@@ -5707,18 +5709,19 @@ pipeline_abi_inject_wpo_dump_thin() {
   local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
   local stamp="src/.pabi_w498_wpo_dump.stamp"
   local orch_x="src/runtime_pipeline_abi_wpo_dump_orch_thin.x"
-  local orch_s="src/.pabi_w503_wpo_dump_orch.stamp"
+  local orch_s="src/.pabi_w514_wpo_dump_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # wave503: HARD BAN orch tip product reinject (L2 SEGV @ tipU-complete PREFER).
+  # wave503/514: HARD BAN orch tip product reinject (L2 SEGV @ tipU-complete PREFER).
   if [ -f "$orch_x" ]; then
     if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
       touch "$orch_s"
-      log "pipeline_abi w503-wpo-dump-orch: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep w498 -E)"
+      rm -f src/.pabi_w503_wpo_dump_orch.stamp
+      log "pipeline_abi w514-wpo-dump-orch: tipU 21/21 stamped; tip PRODUCT reinject HARD BAN (keep w498 -E)"
     fi
   fi
   # PLATFORM: MACOS — HARD BAN tip reinject (helpers; tip drop class).

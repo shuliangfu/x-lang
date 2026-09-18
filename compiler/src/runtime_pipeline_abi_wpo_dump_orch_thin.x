@@ -1,4 +1,4 @@
-// Thin pure: wave503 WPO dump ORCH peer-flat (export + collect/bfs/emit).
+// Thin pure: wave503/514 WPO dump ORCH peer-flat (export + collect/bfs/emit).
 // G.7: body MUST match pipeline_typeck_wpo_dump_callgraph semantics in
 // runtime_pipeline_abi.x / wpo_dump_thin (same exported symbol).
 // Why separate leaf: tip -c of monolith wpo_dump_thin silently drops the
@@ -8,9 +8,10 @@
 // wave503: local write/append_i32/append_lit/flush copies (G.7 ≡ thin helpers)
 //   → tipU complete + tip EXPORT_OK; tip PRODUCT PREFER → L2 SEGV 0/5 HARD BAN.
 //   Stamp .pabi_w503_wpo_dump_orch.stamp skip; PRODUCT stays w498 -E helpers.
+// wave514: drop dead `link_abi_getenv` extern (env via wpo_dump_env_path);
+//   tipU 21/21; stamp → w514; tip PRODUCT reinject still HARD BAN.
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
-export extern function link_abi_getenv(name: *u8): *u8;
 export extern function pipeline_module_num_funcs(m: *u8): i32;
 export extern function pipeline_module_func_body_ref_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_body_expr_ref_at(m: *u8, fi: i32): i32;
