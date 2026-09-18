@@ -5600,12 +5600,12 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   (Ubuntu empty .o; -E omits T). Same class as rhsrax.
 # wave437: LINUX rhsrax PREFER — flat arm helpers (nested if/micro-unsafe
 #   emptied .o; Ubuntu -c ~12096B / 14T). emit_assign still BAN.
-# wave441/445/448/449: LINUX emit unlock — flat peer FIELD/INDEX/VAR/DEREF + dispatcher.
+# wave441/445/448/449/451: LINUX emit unlock — flat peer FIELD/INDEX/VAR/DEREF + dispatcher.
 #   w441b soft -E chain; w445 six-peer pure-asm overlay (`*out=` heal);
 #   tip rhsrax to_rax pure-asm HARD BAN (si SEGV); w448 arms-only PREFER overlay;
-#   w449 deref family PREFER; var+emit tip pure-asm HARD BAN.
+#   w449 deref family PREFER; w451 var no-local PREFER; emit tip HARD BAN.
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449 heal-asm.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451 heal-asm.
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
@@ -5618,14 +5618,16 @@ pipeline_abi_inject_assign_thin() {
   local rc=0
   local rhs_x rhs_s
   local arms_x arms_s
+  local var_x var_s
   local emit_x emit_s peer lo_x lo_stamp lo_tag lo_rest
   local need_emit=0
   local need_heal=0
   local need_arms=0
   local need_deref=0
+  local need_var=0
   # PLATFORM: LINUX — helpers -E; rhsrax to_rax -E (w445/448 BAN tip);
   #   arms PREFER (w448); emit chain -E (w441b); six-peer heal-asm (w445);
-  #   deref family PREFER (w449); var+emit tip pure-asm HARD BAN.
+  #   deref family PREFER (w449); var no-local PREFER (w451); emit tip BAN.
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_assign_helpers_thin.x"
@@ -5637,6 +5639,8 @@ pipeline_abi_inject_assign_thin() {
       arms_s="src/.pabi_w448_assign_rhsrax_arms.stamp"
       emit_x="src/runtime_pipeline_abi_assign_emit_thin.x"
       emit_s="src/.pabi_w445_assign_emit.stamp"
+      var_x="src/runtime_pipeline_abi_assign_var_thin.x"
+      var_s="src/.pabi_w451_assign_var.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
@@ -5648,6 +5652,11 @@ pipeline_abi_inject_assign_thin() {
   if [ -n "${arms_x-}" ] && [ -f "$arms_x" ]; then
     if [ ! -f "$arms_s" ] || [ "$arms_x" -nt "$arms_s" ]; then
       need_arms=1
+    fi
+  fi
+  if [ -n "${var_x-}" ] && [ -f "$var_x" ]; then
+    if [ ! -f "$var_s" ] || [ "$var_x" -nt "$var_s" ]; then
+      need_var=1
     fi
   fi
   # wave445 heal stamps — any missing/stale forces continue past early return.
@@ -5700,12 +5709,12 @@ pipeline_abi_inject_assign_thin() {
       ;;
   esac
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    # helpers up-to-date; still try rhsrax / arms / emit / heal / deref on LINUX
+    # helpers up-to-date; still try rhsrax / arms / emit / heal / deref / var on LINUX
     if [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
-      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ]; then
+      if [ -f "$rhs_s" ] && [ ! "$rhs_x" -nt "$rhs_s" ] && [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ] && [ "$need_var" = "0" ]; then
         return 0
       fi
-    elif [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ]; then
+    elif [ "$need_emit" = "0" ] && [ "$need_heal" = "0" ] && [ "$need_arms" = "0" ] && [ "$need_deref" = "0" ] && [ "$need_var" = "0" ]; then
       return 0
     fi
   fi
@@ -5856,8 +5865,7 @@ pipeline_abi_inject_assign_thin() {
     done
   fi
   # wave449: deref family pure-asm overlay (leaves + dispatcher). Product si
-  #   green alone; var tip / emit dispatcher tip pure-asm HARD BAN (si SEGV).
-  # PLATFORM: LINUX gold.
+  #   green alone. PLATFORM: LINUX gold.
   if [ "$rc" -eq 0 ]; then
     local d_x d_rest d_stamp d_tag
     export XLANG_PABI_THIN_PREFER_ASM=1
@@ -5885,6 +5893,19 @@ pipeline_abi_inject_assign_thin() {
         fi
       fi
     done
+  fi
+  # wave451: var tip no-local PREFER overlay (let-bound call results → si SEGV).
+  # PLATFORM: LINUX gold.
+  if [ "$rc" -eq 0 ] && [ -n "${var_x-}" ] && [ -f "$var_x" ]; then
+    if [ ! -f "$var_s" ] || [ "$var_x" -nt "$var_s" ]; then
+      export XLANG_PABI_THIN_PREFER_ASM=1
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$var_x" "w451-assign-var"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$var_s"
+      fi
+    fi
   fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6987,7 +7008,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave442: arr_struct_lit LINUX -E peer PREFER (call heal; pure-asm residual).
 # wave443: mega helpers LINUX -E PREFER (+emit_one); loop tip BAN.
 # wave444: mega loop LINUX HARD BAN (-E EM:0 / pure-asm SEGV 139).
-# Next: var tip reshape；禁 tip mega loop／to_rax／emit／arrlit+main；禁升钉。
+# Next: emit tip reshape（禁 let-bound call）／mega loop unlock；禁 tip to_rax／arrlit+main；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
