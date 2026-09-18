@@ -13,6 +13,8 @@
 // wave453 unlock probes (Ubuntu gold) — HARD BAN remains:
 //   - BSS+pipe_elf_off_*+no-local tip → L2 0/5 CG002 code_len=0 (Lxml mid-T);
 //   - same via true -E → L2 0/5 BLD001 no main. Body reverted; stamp-only.
+// wave456 他径 HARD BAN: arch peer tip/-E + loop -E(call peer) → L2 0/5
+//   BLD001 no main (same class as w453 -E). Keep leftover; stamp-only.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;

@@ -6111,6 +6111,7 @@ pipeline_abi_inject_arr_return_thin() {
 #     (call_*+resolve_call+copy_*+zero+resolve_vf).
 #   wave447 HARD BAN tip pure-asm for arrlit+main: tip regen → opt SEGV 139
 #     (even param-touching stubs); bare `return 0` stub → opt=94. Keep -E.
+#   wave455: no-local kind_ord main tip → opt=94 (tip .o U-starved). BAN.
 # G.7: semantics match mega glue_struct_lit_store_fixed_array_field_elf_c.
 # PLATFORM: SHARED · MACOS pure-asm / LINUX -E + w446 heal-asm.
 pipeline_abi_inject_arr_struct_lit_thin() {
@@ -6196,7 +6197,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
     fi
   done
   # wave446: nine-peer pure-asm overlay (LINUX).
-  # wave447: arrlit+main tip pure-asm HARD BAN (opt SEGV); stay -E leftover.
+  # wave447/455: arrlit+main tip pure-asm HARD BAN (opt SEGV / opt=94); stay -E.
   # PLATFORM: LINUX gold · MACOS skipped (full chain already PREFER).
   case "$(uname -s)" in
     Linux)
@@ -7881,6 +7882,7 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 #     each alone → product si SEGV; -E still EM:0. HARD BAN unchanged.
 #   wave453: BSS+pipe_elf_off+no-local tip → L2 0/5 code_len=0; -E → BLD001
 #     no main. HARD BAN unchanged. Stamp-only loop.
+#   wave456: arch peer + loop -E(call peer) → L2 0/5 BLD001 no main. BAN.
 #     Stamp .pabi_w443_mega_helpers + .pabi_w424_mega_emit_one.
 # wave427: loop-alone after emit_one PREFER still BAN (product EM:0 L2 0/5).
 # wave429: mega_body pure-asm product CG002/SEGV; healed by leave leftover;
