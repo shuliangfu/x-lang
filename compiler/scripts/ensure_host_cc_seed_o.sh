@@ -7955,6 +7955,16 @@ pipeline_abi_inject_arr_struct_lit_thin() {
       src/.pabi_w446_heal_call_bulk.stamp
     log "pipeline_abi w566 arr_struct_lit_call_bulk: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
+  # wave567: resolve_vf Ubuntu tip `-backend asm -c` SEGV 139 on
+  #   `*out_src_off = i32`. Original if-after-assign also UND-drops.
+  # HARD BAN tip PRODUCT reinject on both ends. Keep the w440/w446 overlay.
+  # Do not BAN copy dispatcher or call dispatcher (already U-complete).
+  if [ -f src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x ]; then
+    touch src/.pabi_w567_arr_struct_lit_resolve_vf.stamp
+    rm -f src/.pabi_w440_arr_struct_lit_resolve_vf.stamp \
+      src/.pabi_w446_heal_resolve_vf.stamp
+    log "pipeline_abi w567 arr_struct_lit_resolve_vf: tipU stamped; tip PRODUCT reinject HARD BAN"
+  fi
   # PLATFORM: LINUX — soft -E chain (w442) + nine-peer pure-asm heal (w446).
   case "$(uname -s)" in
     Linux) prefer_asm=0 ;;
@@ -7970,7 +7980,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
         "src/runtime_pipeline_abi_arr_struct_lit_copy_elems_thin.x|src/.pabi_w564_arr_struct_lit_copy_elems.stamp" \
         "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|src/.pabi_w446_heal_copy.stamp" \
         "src/runtime_pipeline_abi_arr_struct_lit_zero_thin.x|src/.pabi_w562_arr_struct_lit_zero.stamp" \
-        "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|src/.pabi_w446_heal_resolve_vf.stamp"
+        "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|src/.pabi_w567_arr_struct_lit_resolve_vf.stamp"
       do
         _hx="${_pair%%|*}"
         _hs="${_pair#*|}"
@@ -7998,7 +8008,6 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   for peer in \
     "src/runtime_pipeline_abi_arr_struct_lit_arrlit_thin.x|.pabi_w440_arr_struct_lit_arrlit.stamp|w440-arr-struct-lit-arrlit" \
-    "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|.pabi_w440_arr_struct_lit_resolve_vf.stamp|w440-arr-struct-lit-resolve-vf" \
     "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w440_arr_struct_lit_resolve_call.stamp|w440-arr-struct-lit-resolve-call" \
     "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w440_arr_struct_lit_copy.stamp|w440-arr-struct-lit-copy" \
     "src/runtime_pipeline_abi_arr_struct_lit_thin.x|.pabi_w440_arr_struct_lit.stamp|w440-arr-struct-lit"
@@ -8027,8 +8036,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
         export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
         for peer in \
           "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w446_heal_resolve_call.stamp|w446-heal-resolve-call" \
-          "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w446_heal_copy.stamp|w446-heal-copy" \
-          "src/runtime_pipeline_abi_arr_struct_lit_resolve_vf_thin.x|.pabi_w446_heal_resolve_vf.stamp|w446-heal-resolve-vf"
+          "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w446_heal_copy.stamp|w446-heal-copy"
         do
           lo_x="${peer%%|*}"
           lo_rest="${peer#*|}"
