@@ -5134,7 +5134,7 @@ pipeline_abi_inject_fixed_array_copy_thin() {
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_fixed_array_copy_helpers_thin.x"
-      stamp="src/.pabi_w418_fixed_array_copy_helpers.stamp"
+      stamp="src/.pabi_w557_fixed_array_copy_helpers.stamp"
       tag="w418-fixed-array-copy-helpers"
       ;;
   esac
@@ -5153,10 +5153,21 @@ pipeline_abi_inject_fixed_array_copy_thin() {
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
+  # LINUX wave557: helpers tipU stamped. HARD BAN tip PRODUCT reinject
+  # (keep the w418 overlay). MACOS still injects the full thin.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-  rc=$?
+  if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$thin_x" ]; then
+      touch "$stamp"
+      rm -f src/.pabi_w418_fixed_array_copy_helpers.stamp
+      log "pipeline_abi w557 fixed_array_copy_helpers: tipU stamped; tip PRODUCT reinject HARD BAN"
+    fi
+    rc=0
+  else
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
+    rc=$?
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
