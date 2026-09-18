@@ -5,13 +5,9 @@
 // wave412: LINUX PREFER helpers-only (full tip -c XT001 misattr @cg_ttc;
 //   helpers-only -c green ~6100B; main body size/typeck still BAN tip reinject).
 //   MACOS still injects full thin (helpers+main) PREFER.
+// wave539 Soft Cap: drop 5 unused extern decls (tipU 0/5 → 0/0);
+//   stamp w539 HARD BAN tip PRODUCT reinject (keep prior PREFER; stamp-only).
 // PLATFORM: SHARED freestanding codegen · LINUX gold · MACOS.
-
-export extern function pipeline_arena_num_types(arena: *u8): i32;
-export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
-export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
-export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
-export extern function pipeline_type_named_name_into(arena: *u8, ref: i32, out64: *u8): i32;
 
 function cg_ttc_write_bytes(dst: *u8, cap: i32, src: *u8, n: i32): i32 {
   if (dst == 0 as *u8) {

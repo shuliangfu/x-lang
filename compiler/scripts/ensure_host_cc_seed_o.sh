@@ -5878,9 +5878,11 @@ pipeline_abi_inject_param_ptr_slot_thin() {
 #   tip U=4/4 via pipe_store/load cells; stamp w482. main stays w434.
 # wave483: LINUX main peer-flat no-local PREFER — tip U=2/10 → 12/12
 #   (ptr/vec/named_fb peers + gate); stamp w483.
+# wave539: LINUX helpers tipU 0/0 (drop 5 unused externs) HARD BAN tip
+#   reinject; stamp w539. named/array_slice/main stay w480/w482/w483.
 # G.7: helpers/named/array_slice/main match mega / full thin authority.
 # Seed C-extract markers remain cold twin only (not product inject path).
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+named+as+main PREFER.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers BAN + named+as+main PREFER.
 pipeline_abi_inject_type_to_c_repr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_to_c_repr_thin.x"
@@ -5897,8 +5899,8 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_type_to_c_repr_helpers_thin.x"
-      stamp="src/.pabi_w412_type_to_c_repr_helpers.stamp"
-      tag="w412-type-to-c-repr-helpers"
+      stamp="src/.pabi_w539_type_to_c_repr_helpers.stamp"
+      tag="w539-type-to-c-repr-helpers"
       named_x="src/runtime_pipeline_abi_type_to_c_repr_named_thin.x"
       named_stamp="src/.pabi_w480_type_to_c_repr_named.stamp"
       as_x="src/runtime_pipeline_abi_type_to_c_repr_array_slice_thin.x"
@@ -5949,7 +5951,15 @@ pipeline_abi_inject_type_to_c_repr_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: LINUX — wave539 Soft Cap HARD BAN helpers tip reinject.
+  # Dead extern decls dropped in .x; do not prefer-reinject this leaf.
+  # MACOS still PREFER-injects the full thin selected above.
+  if [ "$(uname -s)" = "Linux" ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w412_type_to_c_repr_helpers.stamp
+    log "pipeline_abi w539-type-to-c-repr-helpers: tipU 0/0 stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+    rc=0
+  elif [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
     pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
     rc=$?
     if [ "$rc" -eq 0 ]; then
