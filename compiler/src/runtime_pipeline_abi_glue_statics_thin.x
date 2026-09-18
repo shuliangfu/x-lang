@@ -4,6 +4,7 @@
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c wave261 cold twins.
 // PRODUCT inject: wave332 PREFER_ASM via pipeline_abi_inject_glue_statics_thin
 // (ALLOW_E_REPLACE + stamp). No BSS; standalone -c green (was -E+$CC interim).
+// wave477: tip no-local HARD BAN (tip U=6/6; reinject → L2 CG002 4/5); keep w332.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 //
 // LP64 layout: module_ref@16 / dep_pipe@1384 (tail_join_label@1392 - 8).

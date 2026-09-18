@@ -1,6 +1,7 @@
 // Thin pure: arr_return path c dispatcher (wave439).
 // G.7: part of pipeline_asm_emit_return_elf_impl Path C.
 // PRODUCT: LINUX PREFER peer chain for arr_return.
+// wave477: tip no-local HARD BAN (tip U=3/3; product reinject → L2 CG002).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_return_path_c_dest_array_elf_c(arena: *u8, elf_ctx: *u8, ret_op: i32, ctx: *u8, ta: i32, mod: *u8, fi: i32): i32;

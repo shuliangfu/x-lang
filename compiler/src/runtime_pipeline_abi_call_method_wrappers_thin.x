@@ -1,14 +1,17 @@
-// Thin pure: wave217 CALL/METHOD text wrappers.
+// Thin pure: wave217/411/492 CALL/METHOD text wrappers.
 // G.7: body MUST match mega runtime_pipeline_abi.x wave217 leave.
 // Seed cold twin is freestanding stub (-1); this thin restores real
 // pool-snapshot + backend_emit_* via inject first-wins.
-// ensure injects via inject_thin_leaf (PREFER_ASM).
-// wave411: PREFER both ends (Darwin -c 1698B / Ubuntu -c 2299B;
-//   dual-end product inject + relink L2 5/5 verified).
+// wave411: PREFER both ends (Darwin/Ubuntu product inject + L2 5/5).
+// wave492: no-local arena expr ptr (tip U starved `ep=call()`); BOTH PREFER L2.
 // PLATFORM: SHARED freestanding text CALL/METHOD M8-tail.
 
 /** Arena main-pool expr row pointer (C layout). Null on bad ref. */
 export extern function pipeline_arena_expr_ptr(arena: *u8, ref: i32): *u8;
+/** Pipe cell store for tip-stable ptr (no mid `x=call()`). */
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+/** Pipe cell load for tip-stable ptr. */
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 
 // wave217: CALL/METHOD text thin wrappers pure leave
 // (was Cap residual pipeline_asm_emit_call_args.c pipeline_asm_emit_expr_call_c
@@ -64,6 +67,8 @@ export extern "C" function backend_emit_expr_method_call(arena: *u8, out: *u8, e
  * Re-fetches Expr from the arena (C layout) so backend.x callers never pass a
  * misaligned X-side Expr by value into the seed partial.
  *
+ * wave492: no-local — pipe cell for arena ptr; ban mid `ep=pipeline_arena_expr_ptr()`.
+ *
  * @param arena *u8 — ASTArena*; null → -1
  * @param out *u8 — CodegenOutBuf*
  * @param expr_ref i32 — CALL expression ref; <=0 → -1
@@ -79,7 +84,7 @@ export function pipeline_asm_emit_expr_call_c(
     arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32 {
   // Stack snapshot of C-layout Expr (sizeof 1224); matches Cap get_copy temp.
   let ebuf: u8[712] = [];
-  let ep: *u8 = 0 as *u8;
+  let cell: u8[8];
   let esz: i32 = 0;
   let i: i32 = 0;
   if (expr_ref <= 0) {
@@ -90,17 +95,18 @@ export function pipeline_asm_emit_expr_call_c(
   }
   // Load live arena row then copy to stack (snapshot; no arena mutate by partial).
   unsafe {
-    ep = pipeline_arena_expr_ptr(arena, expr_ref);
-  }
-  if (ep == 0 as *u8) {
-    return 0 - 1;
+    /* PLATFORM: SHARED — tip drops mid `ep=pipeline_arena_expr_ptr()`; pipe cell. */
+    pipe_store_ptr_slot(&cell[0], 0, pipeline_arena_expr_ptr(arena, expr_ref));
+    if (pipe_load_ptr_slot(&cell[0], 0) == (0 as *u8)) {
+      return 0 - 1;
+    }
   }
   esz = pipeline_ast_expr_sizeof_c();
   // Byte-copy C row into ebuf (equivalent to pipeline_arena_expr_get_copy).
   i = 0;
   while (i < esz) {
     unsafe {
-      ebuf[i] = ep[i];
+      ebuf[i] = pipe_load_ptr_slot(&cell[0], 0)[i];
     }
     i = i + 1;
   }
@@ -114,6 +120,8 @@ export function pipeline_asm_emit_expr_call_c(
  *
  * Same pool-snapshot contract as pipeline_asm_emit_expr_call_c; delegates to
  * backend_emit_expr_method_call.
+ *
+ * wave492: no-local — pipe cell for arena ptr; ban mid `ep=pipeline_arena_expr_ptr()`.
  *
  * @param arena *u8 — ASTArena*; null → -1
  * @param out *u8 — CodegenOutBuf*
@@ -129,7 +137,7 @@ export function pipeline_asm_emit_expr_call_c(
 export function pipeline_asm_emit_expr_method_call_c(
     arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32 {
   let ebuf: u8[712] = [];
-  let ep: *u8 = 0 as *u8;
+  let cell: u8[8];
   let esz: i32 = 0;
   let i: i32 = 0;
   if (expr_ref <= 0) {
@@ -139,16 +147,17 @@ export function pipeline_asm_emit_expr_method_call_c(
     return 0 - 1;
   }
   unsafe {
-    ep = pipeline_arena_expr_ptr(arena, expr_ref);
-  }
-  if (ep == 0 as *u8) {
-    return 0 - 1;
+    /* PLATFORM: SHARED — tip drops mid `ep=pipeline_arena_expr_ptr()`; pipe cell. */
+    pipe_store_ptr_slot(&cell[0], 0, pipeline_arena_expr_ptr(arena, expr_ref));
+    if (pipe_load_ptr_slot(&cell[0], 0) == (0 as *u8)) {
+      return 0 - 1;
+    }
   }
   esz = pipeline_ast_expr_sizeof_c();
   i = 0;
   while (i < esz) {
     unsafe {
-      ebuf[i] = ep[i];
+      ebuf[i] = pipe_load_ptr_slot(&cell[0], 0)[i];
     }
     i = i + 1;
   }
@@ -156,4 +165,3 @@ export function pipeline_asm_emit_expr_method_call_c(
     return backend_emit_expr_method_call(arena, out, expr_ref, &ebuf[0], ctx, target_arch);
   }
 }
-

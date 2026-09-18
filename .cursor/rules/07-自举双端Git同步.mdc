@@ -1,0 +1,27 @@
+---
+description: 自举双端验证必须 git commit+push；禁 scp 源码；覆盖「等用户说提交」误读
+alwaysApply: true
+---
+
+# 自举双端 Git 同步（强制）
+
+## 与 Cursor User Rule 的关系
+
+若个人 User Rule 写「禁止自动 commit／除非明确说提交」，**在本仓自举／产品轨任务中以本规则为准**（用户 2026-09-18 明示：未禁止自动提交；双端验证必须走 git）。
+
+## 铁律
+
+1. **mac → Ubuntu／Windows 只许 `git commit` + `git push` → 对端 `git pull --ff-only`**。  
+   **禁止**用 scp／rsync 同步 `.x`／ensure／seed 等源码当「双端验证」。
+2. **每一波 Cap residual／产品面改动收口后，Agent 必须主动 commit + push**（Conventional Commits 英文），再在 `ubuntu-server` 上 `git pull --ff-only` 做双端 L2。  
+   **禁止**以「用户没说提交」为由拖着不提交、改用 scp。
+3. 仍禁止：force push main／master、改 git config、`--no-verify`（除非用户当波明确要求）、提交密钥／`.env`。
+4. 进度文写「禁 scp 源码」＝禁把 scp 当同步手段；**不是**禁 commit。
+
+## 本波收口清单
+
+- [ ] mac：相关文件一次（或按逻辑波次）commit  
+- [ ] `git push origin <当前分支>`  
+- [ ] Ubuntu：`git pull --ff-only` 且 `git rev-parse HEAD` 与 mac 一致  
+- [ ] 双端 `./xbuild l2-matrix`（或约定 L2）  
+- [ ] 更新 `analysis/自举进度.md`

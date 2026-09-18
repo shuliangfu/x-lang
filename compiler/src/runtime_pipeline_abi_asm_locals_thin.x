@@ -1,12 +1,14 @@
-// Thin pure: wave304/361/430 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
+// Thin pure: wave304/361/430/490 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
 // AsmLocalSlotEntry LE 264B + AsmBlockSlot tables; 64-slot ctx maps; 12 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave267 leave.
-// wave430: LINUX -E+$CC product PREFER (Ubuntu -c ~16390B; pure-asm product
-//   SEGV — do not PREFER_ASM). MACOS HARD BAN tip reinject (w361 SEGV).
+// wave430: LINUX -E+$CC (pure-asm product SEGV). MACOS HARD BAN tip reinject.
+// wave490: no-local malloc (tip U starved `np=malloc()`); tip PREFER try.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern "C" function malloc(n: usize): *u8;
@@ -157,15 +159,14 @@ function pipe_al_ensure_slots(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_al_entry_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
+  let cell: u8[8];
   unsafe {
-    np = malloc(nbytes);
-  }
-  if (np == 0 as *u8) {
-    return 0;
-  }
-  unsafe {
-    memset(np, 0, nbytes);
+    /* PLATFORM: SHARED — tip drops mid `np=malloc()`; pipe cell + re-load. */
+    pipe_store_ptr_slot(&cell[0], 0, malloc(nbytes));
+    if (pipe_load_ptr_slot(&cell[0], 0) == (0 as *u8)) {
+      return 0;
+    }
+    memset(pipe_load_ptr_slot(&cell[0], 0), 0, nbytes);
   }
   let old: *u8 = w304_ptr_get(&g_pipe_al_slots[0], slot);
   let old_n: i32 = g_pipe_al_n[slot];
@@ -173,14 +174,16 @@ function pipe_al_ensure_slots(slot: i32, need: i32): i32 {
     if (old_n > 0) {
       let copy_n: usize = (old_n * esz) as usize;
       unsafe {
-        memcpy(np, old, copy_n);
+        memcpy(pipe_load_ptr_slot(&cell[0], 0), old, copy_n);
       }
     }
     unsafe {
       free(old);
     }
   }
-  w304_ptr_set(&g_pipe_al_slots[0], slot, np);
+  unsafe {
+    w304_ptr_set(&g_pipe_al_slots[0], slot, pipe_load_ptr_slot(&cell[0], 0));
+  }
   g_pipe_al_cap[slot] = new_cap;
   return 1;
 }
@@ -213,24 +216,23 @@ function pipe_al_ensure_blocks(slot: i32, need: i32): i32 {
     new_cap = new_cap * 2;
   }
   let nbytes: usize = (new_cap * 4) as usize;
-  let nr: *u8 = 0 as *u8;
-  let nb: *u8 = 0 as *u8;
+  let cell_r: u8[8];
+  let cell_b: u8[8];
   unsafe {
-    nr = malloc(nbytes);
-    nb = malloc(nbytes);
-  }
-  if (nr == 0 as *u8 || nb == 0 as *u8) {
-    if (nr != 0 as *u8) {
-      unsafe { free(nr); }
+    /* PLATFORM: SHARED — tip drops mid `nr/nb=malloc()`; pipe cells. */
+    pipe_store_ptr_slot(&cell_r[0], 0, malloc(nbytes));
+    pipe_store_ptr_slot(&cell_b[0], 0, malloc(nbytes));
+    if (pipe_load_ptr_slot(&cell_r[0], 0) == (0 as *u8) || pipe_load_ptr_slot(&cell_b[0], 0) == (0 as *u8)) {
+      if (pipe_load_ptr_slot(&cell_r[0], 0) != (0 as *u8)) {
+        free(pipe_load_ptr_slot(&cell_r[0], 0));
+      }
+      if (pipe_load_ptr_slot(&cell_b[0], 0) != (0 as *u8)) {
+        free(pipe_load_ptr_slot(&cell_b[0], 0));
+      }
+      return 0;
     }
-    if (nb != 0 as *u8) {
-      unsafe { free(nb); }
-    }
-    return 0;
-  }
-  unsafe {
-    memset(nr, 0, nbytes);
-    memset(nb, 0, nbytes);
+    memset(pipe_load_ptr_slot(&cell_r[0], 0), 0, nbytes);
+    memset(pipe_load_ptr_slot(&cell_b[0], 0), 0, nbytes);
   }
   let old_r: *u8 = w304_ptr_get(&g_pipe_al_brefs[0], slot);
   let old_b: *u8 = w304_ptr_get(&g_pipe_al_bbases[0], slot);
@@ -238,10 +240,10 @@ function pipe_al_ensure_blocks(slot: i32, need: i32): i32 {
   if (old_n > 0) {
     let copy_n: usize = (old_n * 4) as usize;
     if (old_r != 0 as *u8) {
-      unsafe { memcpy(nr, old_r, copy_n); }
+      unsafe { memcpy(pipe_load_ptr_slot(&cell_r[0], 0), old_r, copy_n); }
     }
     if (old_b != 0 as *u8) {
-      unsafe { memcpy(nb, old_b, copy_n); }
+      unsafe { memcpy(pipe_load_ptr_slot(&cell_b[0], 0), old_b, copy_n); }
     }
   }
   if (old_r != 0 as *u8) {
@@ -250,8 +252,10 @@ function pipe_al_ensure_blocks(slot: i32, need: i32): i32 {
   if (old_b != 0 as *u8) {
     unsafe { free(old_b); }
   }
-  w304_ptr_set(&g_pipe_al_brefs[0], slot, nr);
-  w304_ptr_set(&g_pipe_al_bbases[0], slot, nb);
+  unsafe {
+    w304_ptr_set(&g_pipe_al_brefs[0], slot, pipe_load_ptr_slot(&cell_r[0], 0));
+    w304_ptr_set(&g_pipe_al_bbases[0], slot, pipe_load_ptr_slot(&cell_b[0], 0));
+  }
   g_pipe_al_bcap[slot] = new_cap;
   return 1;
 }

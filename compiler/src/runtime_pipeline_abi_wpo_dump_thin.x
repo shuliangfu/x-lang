@@ -6,6 +6,14 @@
 // pipeline_abi_inject_wpo_dump_thin (first-wins; avoids Darwin mega -E).
 // wave396: PRODUCT PREFER_ASM both ends (stamp .pabi_w396_wpo_dump.stamp);
 //   standalone -c green Darwin/Ubuntu; was class-E default -E.
+// wave498: tipU heal — ban mid `x=export_extern()`; pipe cells + w498_cell_*.
+//   Stamp → .pabi_w498_wpo_dump.stamp.
+//   Tip PREFER -c omits export (file-tail silent drop from append_i32 onward;
+//   not only i32[1024] stack) → LINUX -E PRODUCT; MACOS HARD BAN tip reinject.
+// wave502: root-cause confirmed (tip drops helpers+export tail); orch leaf
+//   `runtime_pipeline_abi_wpo_dump_orch_thin.x` tip -c can emit export in
+//   isolation but append mid `blen=call()` tipU still incomplete — PRODUCT
+//   stays w498 -E (no orch inject yet).
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
 export extern function link_abi_getenv(name: *u8): *u8;
@@ -44,6 +52,37 @@ export extern function xlang_driver_fwrite_opaque(data: *u8, len: i32, stream: *
 export extern function xlang_driver_fclose_opaque(stream: *u8): i32;
 export extern function xlang_driver_fwrite_stdout_n(data: *u8, len: i32): i32;
 
+
+export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+
+/**
+ * Load i32 from pipe cell (local; tip-stable mid `x=cell_load()`).
+ * @param base *u8 — cell base
+ * @return i32 — stored value
+ * PLATFORM: SHARED — wave498 tipU heal helper.
+ */
+function w498_cell_i32(base: *u8): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, 0);
+  }
+}
+
+/**
+ * Load *u8 from pipe ptr slot (local; tip-stable mid `p=cell_load()`).
+ * @param base *u8 — cell base
+ * @return *u8 — stored pointer
+ * PLATFORM: SHARED — wave498 tipU heal helper.
+ */
+function w498_cell_ptr(base: *u8): *u8 {
+  unsafe {
+    return pipe_load_ptr_slot(base, 0);
+  }
+}
+
+
 /**
  * Cap for thin dump tables (S1 smoke + small fixtures).
  * @return i32
@@ -61,6 +100,19 @@ function wpo_dump_max_funcs(): i32 {
 function wpo_dump_max_edges(): i32 {
   return 1024;
 }
+
+/*
+ * wave502: tip silent-drops export when large tables live on the frame.
+ * Zeroed module BSS for edges/reach/queue/name/buf (no inited ASCII — tip CG002).
+ * JSON fragments stay on the export frame (small).
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
+ */
+let g_w502_edge_from: i32[1024] = [];
+let g_w502_edge_to: i32[1024] = [];
+let g_w502_reach: u8[256] = [];
+let g_w502_queue: i32[256] = [];
+let g_w502_name: u8[256] = [];
+let g_w502_buf: u8[512] = [];
 
 /**
  * EXPR_CALL ordinal.
@@ -123,7 +175,9 @@ function wpo_dump_ek_var(): i32 {
  * PLATFORM: SHARED — opt-in dump; default off.
  */
 function wpo_dump_env_path(out_path: *u8): i32 {
-  let e: *u8 = 0 as *u8;
+
+  let w498_cell: u8[8];
+  let w498_pcell: u8[8];  let e: *u8 = 0 as *u8;
   let key: u8[24] = [
     88, 76, 65, 78, 71, 95, 87, 80, 79, 95, 68, 85, 77, 80, 95,
     67, 65, 76, 76, 71, 82, 65, 80, 72
@@ -138,7 +192,9 @@ function wpo_dump_env_path(out_path: *u8): i32 {
   }
   unsafe {
     keyz[24] = 0;
-    e = link_abi_getenv(&keyz[0]);
+    /* wave498: tip drops mid `e=…`; pipe ptr cell. */
+    pipe_store_ptr_slot(&w498_pcell[0], 0, link_abi_getenv(&keyz[0]));
+    e = w498_cell_ptr(&w498_pcell[0]);
   }
   if (e == 0 as *u8) {
     return 0;
@@ -196,7 +252,8 @@ function wpo_dump_load_path(slot: *u8): *u8 {
  * PLATFORM: SHARED — prefer typeck resolved_func_index, else name match.
  */
 function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
-  let ko: i32 = 0;
+
+  let w498_cell: u8[8];  let ko: i32 = 0;
   let rfi: i32 = -1;
   let callee_ref: i32 = 0;
   let cko: i32 = 0;
@@ -209,29 +266,39 @@ function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
     return -1;
   }
   unsafe {
-    ko = pipeline_expr_kind_ord_at(a, er);
+    /* wave498: tip drops mid `ko=…`; pipe cell. */
+    pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_kind_ord_at(a, er));
+    ko = w498_cell_i32(&w498_cell[0]);
   }
   if (ko == wpo_dump_ek_call()) {
     unsafe {
-      rfi = pipeline_expr_call_resolved_func_index_at(a, er);
+      /* wave498: tip drops mid `rfi=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_call_resolved_func_index_at(a, er));
+      rfi = w498_cell_i32(&w498_cell[0]);
     }
     if (rfi >= 0 && rfi < nfuncs) {
       return rfi;
     }
     unsafe {
-      callee_ref = pipeline_expr_call_callee_ref_at(a, er);
+      /* wave498: tip drops mid `callee_ref=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_call_callee_ref_at(a, er));
+      callee_ref = w498_cell_i32(&w498_cell[0]);
     }
     if (callee_ref <= 0) {
       return -1;
     }
     unsafe {
-      cko = pipeline_expr_kind_ord_at(a, callee_ref);
+      /* wave498: tip drops mid `cko=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_kind_ord_at(a, callee_ref));
+      cko = w498_cell_i32(&w498_cell[0]);
     }
     if (cko != wpo_dump_ek_var()) {
       return -1;
     }
     unsafe {
-      clen = pipeline_expr_var_name_len(a, callee_ref);
+      /* wave498: tip drops mid `clen=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_var_name_len(a, callee_ref));
+      clen = w498_cell_i32(&w498_cell[0]);
     }
     if (clen <= 0 || clen >= 128) {
       return -1;
@@ -242,7 +309,9 @@ function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
     fi = 0;
     while (fi < nfuncs) {
       unsafe {
-        eq = pipeline_module_func_name_equal_at(m, fi, &cname[0], clen);
+        /* wave498: tip drops mid `eq=…`; pipe cell. */
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_name_equal_at(m, fi, &cname[0], clen));
+        eq = w498_cell_i32(&w498_cell[0]);
       }
       if (eq != 0) {
         return fi;
@@ -253,13 +322,17 @@ function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
   }
   if (ko == wpo_dump_ek_method()) {
     unsafe {
-      rfi = pipeline_expr_call_resolved_func_index_at(a, er);
+      /* wave498: tip drops mid `rfi=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_call_resolved_func_index_at(a, er));
+      rfi = w498_cell_i32(&w498_cell[0]);
     }
     if (rfi >= 0 && rfi < nfuncs) {
       return rfi;
     }
     unsafe {
-      mlen = pipeline_expr_method_call_name_len(a, er);
+      /* wave498: tip drops mid `mlen=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_method_call_name_len(a, er));
+      mlen = w498_cell_i32(&w498_cell[0]);
     }
     if (mlen <= 0 || mlen >= 128) {
       return -1;
@@ -270,7 +343,9 @@ function wpo_dump_callee_fi(a: *u8, m: *u8, er: i32, nfuncs: i32): i32 {
     fi = 0;
     while (fi < nfuncs) {
       unsafe {
-        eq = pipeline_module_func_name_equal_at(m, fi, &cname[0], mlen);
+        /* wave498: tip drops mid `eq=…`; pipe cell. */
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_name_equal_at(m, fi, &cname[0], mlen));
+        eq = w498_cell_i32(&w498_cell[0]);
       }
       if (eq != 0) {
         return fi;
@@ -328,7 +403,8 @@ function wpo_dump_collect_expr(
   a: *u8, m: *u8, er: i32, caller: i32, nfuncs: i32,
   edge_from: *i32, edge_to: *i32, nedges: *i32, depth: i32
 ): void {
-  let ko: i32 = 0;
+
+  let w498_cell: u8[8];  let ko: i32 = 0;
   let to: i32 = -1;
   let nargs: i32 = 0;
   let ai: i32 = 0;
@@ -341,7 +417,9 @@ function wpo_dump_collect_expr(
     return;
   }
   unsafe {
-    ko = pipeline_expr_kind_ord_at(a, er);
+    /* wave498: tip drops mid `ko=…`; pipe cell. */
+    pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_kind_ord_at(a, er));
+    ko = w498_cell_i32(&w498_cell[0]);
   }
   if (ko == wpo_dump_ek_call() || ko == wpo_dump_ek_method()) {
     to = wpo_dump_callee_fi(a, m, er, nfuncs);
@@ -350,28 +428,38 @@ function wpo_dump_collect_expr(
     }
     if (ko == wpo_dump_ek_call()) {
       unsafe {
-        nargs = pipeline_expr_call_num_args_at(a, er);
+        /* wave498: tip drops mid `nargs=…`; pipe cell. */
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_call_num_args_at(a, er));
+        nargs = w498_cell_i32(&w498_cell[0]);
       }
       ai = 0;
       while (ai < nargs) {
         unsafe {
-          arg = pipeline_expr_call_arg_ref(a, er, ai);
+          /* wave498: tip drops mid `arg=…`; pipe cell. */
+          pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_call_arg_ref(a, er, ai));
+          arg = w498_cell_i32(&w498_cell[0]);
         }
         wpo_dump_collect_expr(a, m, arg, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
         ai = ai + 1;
       }
     } else {
       unsafe {
-        op = pipeline_expr_method_call_base_ref_at(a, er);
+        /* wave498: tip drops mid `op=…`; pipe cell. */
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_method_call_base_ref_at(a, er));
+        op = w498_cell_i32(&w498_cell[0]);
       }
       wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
       unsafe {
-        nargs = pipeline_expr_method_call_num_args_at(a, er);
+        /* wave498: tip drops mid `nargs=…`; pipe cell. */
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_method_call_num_args_at(a, er));
+        nargs = w498_cell_i32(&w498_cell[0]);
       }
       ai = 0;
       while (ai < nargs) {
         unsafe {
-          arg = pipeline_expr_method_call_arg_ref(a, er, ai);
+          /* wave498: tip drops mid `arg=…`; pipe cell. */
+          pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_method_call_arg_ref(a, er, ai));
+          arg = w498_cell_i32(&w498_cell[0]);
         }
         wpo_dump_collect_expr(a, m, arg, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
         ai = ai + 1;
@@ -381,16 +469,24 @@ function wpo_dump_collect_expr(
   }
   if (ko == wpo_dump_ek_return()) {
     unsafe {
-      op = pipeline_expr_unary_operand_ref_at(a, er);
+      /* wave498: tip drops mid `op=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
+      op = w498_cell_i32(&w498_cell[0]);
     }
     wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
     return;
   }
   if (ko == wpo_dump_ek_if()) {
     unsafe {
-      left = pipeline_expr_if_cond_ref_at(a, er);
-      right = pipeline_expr_if_then_ref_at(a, er);
-      op = pipeline_expr_if_else_ref_at(a, er);
+      /* wave498: tip drops mid `left=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_if_cond_ref_at(a, er));
+      left = w498_cell_i32(&w498_cell[0]);
+      /* wave498: tip drops mid `right=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_if_then_ref_at(a, er));
+      right = w498_cell_i32(&w498_cell[0]);
+      /* wave498: tip drops mid `op=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_if_else_ref_at(a, er));
+      op = w498_cell_i32(&w498_cell[0]);
     }
     wpo_dump_collect_expr(a, m, left, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
     wpo_dump_collect_expr(a, m, right, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
@@ -399,7 +495,9 @@ function wpo_dump_collect_expr(
   }
   if (ko == wpo_dump_ek_block()) {
     unsafe {
-      br = pipeline_expr_block_ref_at(a, er);
+      /* wave498: tip drops mid `br=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_block_ref_at(a, er));
+      br = w498_cell_i32(&w498_cell[0]);
     }
     wpo_dump_collect_block(a, m, br, caller, nfuncs, edge_from, edge_to, nedges);
     return;
@@ -407,8 +505,12 @@ function wpo_dump_collect_expr(
   // Binops / assigns share left/right accessors for a useful subset.
   if (ko >= 4 && ko <= 21) {
     unsafe {
-      left = pipeline_expr_binop_left_ref_at(a, er);
-      right = pipeline_expr_binop_right_ref_at(a, er);
+      /* wave498: tip drops mid `left=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_binop_left_ref_at(a, er));
+      left = w498_cell_i32(&w498_cell[0]);
+      /* wave498: tip drops mid `right=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_binop_right_ref_at(a, er));
+      right = w498_cell_i32(&w498_cell[0]);
     }
     wpo_dump_collect_expr(a, m, left, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
     wpo_dump_collect_expr(a, m, right, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
@@ -416,7 +518,9 @@ function wpo_dump_collect_expr(
   }
   if (ko == 22 || ko == 23 || ko == 24 || ko == 51 || ko == 52 || ko == 42) {
     unsafe {
-      op = pipeline_expr_unary_operand_ref_at(a, er);
+      /* wave498: tip drops mid `op=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
+      op = w498_cell_i32(&w498_cell[0]);
     }
     wpo_dump_collect_expr(a, m, op, caller, nfuncs, edge_from, edge_to, nedges, depth + 1);
   }
@@ -438,7 +542,8 @@ function wpo_dump_collect_block(
   a: *u8, m: *u8, br: i32, caller: i32, nfuncs: i32,
   edge_from: *i32, edge_to: *i32, nedges: *i32
 ): void {
-  let nes: i32 = 0;
+
+  let w498_cell: u8[8];  let nes: i32 = 0;
   let i: i32 = 0;
   let er: i32 = 0;
   let fin: i32 = 0;
@@ -446,18 +551,24 @@ function wpo_dump_collect_block(
     return;
   }
   unsafe {
-    nes = ast_ast_block_num_expr_stmts(a, br);
+    /* wave498: tip drops mid `nes=…`; pipe cell. */
+    pipe_store_i32_le(&w498_cell[0], 0, ast_ast_block_num_expr_stmts(a, br));
+    nes = w498_cell_i32(&w498_cell[0]);
   }
   i = 0;
   while (i < nes) {
     unsafe {
-      er = ast_pipeline_block_expr_stmt_ref(a, br, i);
+      /* wave498: tip drops mid `er=…`; pipe cell. */
+      pipe_store_i32_le(&w498_cell[0], 0, ast_pipeline_block_expr_stmt_ref(a, br, i));
+      er = w498_cell_i32(&w498_cell[0]);
     }
     wpo_dump_collect_expr(a, m, er, caller, nfuncs, edge_from, edge_to, nedges, 0);
     i = i + 1;
   }
   unsafe {
-    fin = ast_ast_block_final_expr_ref(a, br);
+    /* wave498: tip drops mid `fin=…`; pipe cell. */
+    pipe_store_i32_le(&w498_cell[0], 0, ast_ast_block_final_expr_ref(a, br));
+    fin = w498_cell_i32(&w498_cell[0]);
   }
   wpo_dump_collect_expr(a, m, fin, caller, nfuncs, edge_from, edge_to, nedges, 0);
 }
@@ -602,44 +713,115 @@ function wpo_dump_flush(fp: *u8, use_stdout: i32, buf: *u8, len: *i32): void {
 }
 
 /**
- * WPO-S1 callgraph dump after successful typeck.
- * Gated by XLANG_WPO_DUMP_CALLGRAPH=<path> or "-" (stdout).
- * Writes JSON version 2 (modules/functions/edges/call_sites/root) for wpo_dce.pl.
- * @param m *u8 - Module*
- * @param a *u8 - ASTArena*
- * @param ctx *u8 - PipelineDepCtx* (unused in v1 single-module dump; reserved)
- * @return i32 - 1 if dumped, 0 if skipped/failed open
- * G.7 sole product authority; thin twin runtime_pipeline_abi_wpo_dump_thin.x.
- * PLATFORM: SHARED.
+ * wave502 peer: collect CALL/METHOD edges for all funcs into g_w502_edge_*.
+ * @param m *u8 — Module*
+ * @param a *u8 — ASTArena*
+ * @param nfuncs i32 — capped func count
+ * @param nedges_out *i32 — out edge count
+ * @return void
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
  */
-#[no_mangle]
-export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i32 {
-  let path_slot: u8[8];
-  let path: *u8 = 0 as *u8;
-  let use_stdout: i32 = 0;
-  let fp: *u8 = 0 as *u8;
-  let nfuncs: i32 = 0;
+function w502_wpo_collect_all(m: *u8, a: *u8, nfuncs: i32, nedges_out: *i32): void {
+  let w498_cell: u8[8];
   let fi: i32 = 0;
-  let root: i32 = -1;
-  let edge_from: i32[1024];
-  let edge_to: i32[1024];
-  let nedges: i32 = 0;
-  let reach: u8[256];
-  let queue: i32[256];
-  let qh: i32 = 0;
-  let qt: i32 = 0;
   let br: i32 = 0;
   let ber: i32 = 0;
+  let nedges: i32 = 0;
+  if (nedges_out == 0 as *i32) {
+    return;
+  }
+  while (fi < nfuncs) {
+    unsafe {
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_body_ref_at(m, fi));
+      br = w498_cell_i32(&w498_cell[0]);
+    }
+    if (br > 0) {
+      wpo_dump_collect_block(a, m, br, fi, nfuncs, &g_w502_edge_from[0], &g_w502_edge_to[0], &nedges);
+    } else {
+      unsafe {
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_body_expr_ref_at(m, fi));
+        ber = w498_cell_i32(&w498_cell[0]);
+      }
+      wpo_dump_collect_expr(a, m, ber, fi, nfuncs, &g_w502_edge_from[0], &g_w502_edge_to[0], &nedges, 0);
+    }
+    fi = fi + 1;
+  }
+  unsafe {
+    nedges_out[0] = nedges;
+  }
+}
+
+/**
+ * wave502 peer: BFS reachability from root into g_w502_reach / g_w502_queue.
+ * @param root i32
+ * @param nfuncs i32
+ * @param nedges i32
+ * @return void
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
+ */
+function w502_wpo_bfs(root: i32, nfuncs: i32, nedges: i32): void {
+  let qh: i32 = 0;
+  let qt: i32 = 1;
   let ei: i32 = 0;
   let to: i32 = 0;
-  let name: u8[256];
+  let cur: i32 = 0;
+  let fi: i32 = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      g_w502_reach[fi] = 0;
+    }
+    fi = fi + 1;
+  }
+  if (root < 0 || root >= nfuncs) {
+    return;
+  }
+  unsafe {
+    g_w502_reach[root] = 1;
+    g_w502_queue[0] = root;
+  }
+  while (qh < qt) {
+    unsafe {
+      cur = g_w502_queue[qh];
+    }
+    qh = qh + 1;
+    ei = 0;
+    while (ei < nedges) {
+      unsafe {
+        if (g_w502_edge_from[ei] == cur) {
+          to = g_w502_edge_to[ei];
+          if (to >= 0 && to < nfuncs && g_w502_reach[to] == 0) {
+            g_w502_reach[to] = 1;
+            if (qt < wpo_dump_max_funcs()) {
+              g_w502_queue[qt] = to;
+              qt = qt + 1;
+            }
+          }
+        }
+      }
+      ei = ei + 1;
+    }
+  }
+}
+
+/**
+ * wave502 peer: emit JSON v2 to fp/stdout (ASCII fragments local to peer).
+ * @param m *u8
+ * @param fp *u8
+ * @param use_stdout i32
+ * @param root i32
+ * @param nfuncs i32
+ * @param nedges i32
+ * @return void
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
+ */
+function w502_wpo_emit(m: *u8, fp: *u8, use_stdout: i32, root: i32, nfuncs: i32, nedges: i32): void {
+  let w498_cell: u8[8];
+  let fi: i32 = 0;
+  let ei: i32 = 0;
   let nlen: i32 = 0;
   let is_ext: i32 = 0;
-  let buf: u8[512];
   let blen: i32 = 0;
   let first: i32 = 0;
-  let _ctx_unused: *u8 = ctx;
-  // Named ASCII fragments (no array reassignment → no host memcpy).
   let s_ver: u8[18] = [123, 10, 32, 32, 34, 118, 101, 114, 115, 105, 111, 110, 34, 58, 32, 50, 44, 10];
   let s_entry: u8[15] = [32, 32, 34, 101, 110, 116, 114, 121, 34, 58, 32, 34, 34, 44, 10];
   let s_mods: u8[46] = [
@@ -665,6 +847,114 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
     32, 32, 34, 114, 111, 111, 116, 34, 58, 32
   ];
   let s_end: u8[3] = [10, 125, 10];
+  blen = 0;
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_ver[0], 18);
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_entry[0], 15);
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_mods[0], 46);
+  wpo_dump_flush(fp, use_stdout, &g_w502_buf[0], &blen);
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_funcs_open[0], 17);
+  wpo_dump_flush(fp, use_stdout, &g_w502_buf[0], &blen);
+  first = 1;
+  fi = 0;
+  while (fi < nfuncs) {
+    unsafe {
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_name_len_at(m, fi));
+      nlen = w498_cell_i32(&w498_cell[0]);
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_asm_module_func_is_extern_at(m, fi));
+      is_ext = w498_cell_i32(&w498_cell[0]);
+    }
+    if (nlen < 0) { nlen = 0; }
+    if (nlen >= 128) { nlen = 127; }
+    if (nlen > 0) {
+      unsafe {
+        pipeline_module_func_name_copy64(m, fi, &g_w502_name[0]);
+      }
+    }
+    blen = 0;
+    if (first == 0) {
+      blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_comma_nl[0], 2);
+    }
+    first = 0;
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_fn_head[0], 11);
+    blen = wpo_dump_append_i32(&g_w502_buf[0], 512, blen, fi);
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_fn_mid[0], 24);
+    if (nlen > 0) {
+      blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &g_w502_name[0], nlen);
+    }
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_ext_key[0], 13);
+    if (is_ext != 0) {
+      blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_true[0], 4);
+    } else {
+      blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_false[0], 5);
+    }
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_reach_key[0], 15);
+    unsafe {
+      if (g_w502_reach[fi] != 0) {
+        blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_true[0], 4);
+      } else {
+        blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_false[0], 5);
+      }
+    }
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_close_obj[0], 1);
+    wpo_dump_flush(fp, use_stdout, &g_w502_buf[0], &blen);
+    fi = fi + 1;
+  }
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_arr_close[0], 6);
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_edges_open[0], 13);
+  wpo_dump_flush(fp, use_stdout, &g_w502_buf[0], &blen);
+  first = 1;
+  ei = 0;
+  while (ei < nedges) {
+    blen = 0;
+    if (first == 0) {
+      blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_comma_nl[0], 2);
+    }
+    first = 0;
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_edge_from[0], 13);
+    unsafe {
+      blen = wpo_dump_append_i32(&g_w502_buf[0], 512, blen, g_w502_edge_from[ei]);
+    }
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_edge_to[0], 8);
+    unsafe {
+      blen = wpo_dump_append_i32(&g_w502_buf[0], 512, blen, g_w502_edge_to[ei]);
+    }
+    blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_close_obj[0], 1);
+    wpo_dump_flush(fp, use_stdout, &g_w502_buf[0], &blen);
+    ei = ei + 1;
+  }
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_arr_close[0], 6);
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_tail[0], 30);
+  blen = wpo_dump_append_i32(&g_w502_buf[0], 512, blen, root);
+  blen = wpo_dump_append_lit(&g_w502_buf[0], 512, blen, &s_end[0], 3);
+  wpo_dump_flush(fp, use_stdout, &g_w502_buf[0], &blen);
+}
+
+/**
+ * WPO-S1 callgraph dump after successful typeck.
+ * Gated by XLANG_WPO_DUMP_CALLGRAPH=<path> or "-" (stdout).
+ * Writes JSON version 2 (modules/functions/edges/call_sites/root) for wpo_dce.pl.
+ * wave502: peer-flat orch (collect/bfs/emit) so tip -c keeps this export.
+ * @param m *u8 - Module*
+ * @param a *u8 - ASTArena*
+ * @param ctx *u8 - PipelineDepCtx* (unused in v1 single-module dump; reserved)
+ * @return i32 - 1 if dumped, 0 if skipped/failed open
+ * G.7 sole product authority; thin twin runtime_pipeline_abi_wpo_dump_thin.x.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i32 {
+  let w498_cell: u8[8];
+  let w498_pcell: u8[8];
+  let path_slot: u8[8];
+  let nedges_cell: i32[1] = [];
+  let path: *u8 = 0 as *u8;
+  let use_stdout: i32 = 0;
+  let fp: *u8 = 0 as *u8;
+  let nfuncs: i32 = 0;
+  let fi: i32 = 0;
+  let root: i32 = -1;
+  let nedges: i32 = 0;
+  let _ctx_unused: *u8 = ctx;
   if (m == 0 as *u8 || a == 0 as *u8) {
     return 0;
   }
@@ -679,16 +969,16 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
     if (path[0] == 45 && path[1] == 0) {
       use_stdout = 1;
     } else {
-      fp = xlang_driver_fopen_write_opaque(path);
+      pipe_store_ptr_slot(&w498_pcell[0], 0, xlang_driver_fopen_write_opaque(path));
+      fp = w498_cell_ptr(&w498_pcell[0]);
     }
   }
   if (use_stdout == 0 && fp == 0 as *u8) {
     return 0;
   }
-  // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
-  // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
   unsafe {
-    nfuncs = pipeline_module_num_funcs(m);
+    pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_num_funcs(m));
+    nfuncs = w498_cell_i32(&w498_cell[0]);
   }
   if (nfuncs <= 0) {
     if (use_stdout == 0) {
@@ -701,18 +991,12 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
   if (nfuncs > wpo_dump_max_funcs()) {
     nfuncs = wpo_dump_max_funcs();
   }
-  fi = 0;
-  while (fi < nfuncs) {
-    unsafe {
-      reach[fi] = 0;
-    }
-    fi = fi + 1;
-  }
   // Prefer main, then entry, then first export as root.
   fi = 0;
   while (fi < nfuncs) {
     unsafe {
-      if (pipeline_module_func_name_equal_at(m, fi, "main", 4) != 0) {
+      pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_name_equal_at(m, fi, "main", 4));
+      if (w498_cell_i32(&w498_cell[0]) != 0) {
         root = fi;
         break;
       }
@@ -723,7 +1007,8 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
     fi = 0;
     while (fi < nfuncs) {
       unsafe {
-        if (pipeline_module_func_name_equal_at(m, fi, "entry", 5) != 0) {
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_name_equal_at(m, fi, "entry", 5));
+        if (w498_cell_i32(&w498_cell[0]) != 0) {
           root = fi;
           break;
         }
@@ -735,7 +1020,8 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
     fi = 0;
     while (fi < nfuncs) {
       unsafe {
-        if (pipeline_module_func_is_export_at(m, fi) != 0) {
+        pipe_store_i32_le(&w498_cell[0], 0, pipeline_module_func_is_export_at(m, fi));
+        if (w498_cell_i32(&w498_cell[0]) != 0) {
           root = fi;
           break;
         }
@@ -746,136 +1032,12 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
   if (root < 0) {
     root = 0;
   }
-  // Collect edges from every function body (reach BFS filters later).
-  nedges = 0;
-  fi = 0;
-  while (fi < nfuncs) {
-    unsafe {
-      br = pipeline_module_func_body_ref_at(m, fi);
-    }
-    if (br > 0) {
-      wpo_dump_collect_block(a, m, br, fi, nfuncs, &edge_from[0], &edge_to[0], &nedges);
-    } else {
-      unsafe {
-        ber = pipeline_module_func_body_expr_ref_at(m, fi);
-      }
-      wpo_dump_collect_expr(a, m, ber, fi, nfuncs, &edge_from[0], &edge_to[0], &nedges, 0);
-    }
-    fi = fi + 1;
-  }
-  // BFS reach from root.
+  w502_wpo_collect_all(m, a, nfuncs, &nedges_cell[0]);
   unsafe {
-    reach[root] = 1;
-    queue[0] = root;
+    nedges = nedges_cell[0];
   }
-  qh = 0;
-  qt = 1;
-  while (qh < qt) {
-    let cur: i32 = 0;
-    unsafe {
-      cur = queue[qh];
-    }
-    qh = qh + 1;
-    ei = 0;
-    while (ei < nedges) {
-      unsafe {
-        if (edge_from[ei] == cur) {
-          to = edge_to[ei];
-          if (to >= 0 && to < nfuncs && reach[to] == 0) {
-            reach[to] = 1;
-            if (qt < wpo_dump_max_funcs()) {
-              queue[qt] = to;
-              qt = qt + 1;
-            }
-          }
-        }
-      }
-      ei = ei + 1;
-    }
-  }
-  // Emit JSON v2 (call_sites empty — S1 wpo_dce only needs functions/reachable).
-  blen = 0;
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_ver[0], 18);
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_entry[0], 15);
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_mods[0], 46);
-  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_funcs_open[0], 17);
-  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
-  first = 1;
-  fi = 0;
-  while (fi < nfuncs) {
-    unsafe {
-      nlen = pipeline_module_func_name_len_at(m, fi);
-      is_ext = pipeline_asm_module_func_is_extern_at(m, fi);
-    }
-    if (nlen < 0) {
-      nlen = 0;
-    }
-    if (nlen >= 128) {
-      nlen = 127;
-    }
-    if (nlen > 0) {
-      unsafe {
-        pipeline_module_func_name_copy64(m, fi, &name[0]);
-      }
-    }
-    blen = 0;
-    if (first == 0) {
-      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_comma_nl[0], 2);
-    }
-    first = 0;
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_fn_head[0], 11);
-    blen = wpo_dump_append_i32(&buf[0], 512, blen, fi);
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_fn_mid[0], 24);
-    if (nlen > 0) {
-      blen = wpo_dump_append_lit(&buf[0], 512, blen, &name[0], nlen);
-    }
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_ext_key[0], 13);
-    if (is_ext != 0) {
-      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_true[0], 4);
-    } else {
-      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_false[0], 5);
-    }
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_reach_key[0], 15);
-    unsafe {
-      if (reach[fi] != 0) {
-        blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_true[0], 4);
-      } else {
-        blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_false[0], 5);
-      }
-    }
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_close_obj[0], 1);
-    wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
-    fi = fi + 1;
-  }
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_arr_close[0], 6);
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_edges_open[0], 13);
-  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
-  first = 1;
-  ei = 0;
-  while (ei < nedges) {
-    blen = 0;
-    if (first == 0) {
-      blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_comma_nl[0], 2);
-    }
-    first = 0;
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_edge_from[0], 13);
-    unsafe {
-      blen = wpo_dump_append_i32(&buf[0], 512, blen, edge_from[ei]);
-    }
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_edge_to[0], 8);
-    unsafe {
-      blen = wpo_dump_append_i32(&buf[0], 512, blen, edge_to[ei]);
-    }
-    blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_close_obj[0], 1);
-    wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
-    ei = ei + 1;
-  }
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_arr_close[0], 6);
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_tail[0], 30);
-  blen = wpo_dump_append_i32(&buf[0], 512, blen, root);
-  blen = wpo_dump_append_lit(&buf[0], 512, blen, &s_end[0], 3);
-  wpo_dump_flush(fp, use_stdout, &buf[0], &blen);
+  w502_wpo_bfs(root, nfuncs, nedges);
+  w502_wpo_emit(m, fp, use_stdout, root, nfuncs, nedges);
   if (use_stdout == 0) {
     unsafe {
       xlang_driver_fclose_opaque(fp);

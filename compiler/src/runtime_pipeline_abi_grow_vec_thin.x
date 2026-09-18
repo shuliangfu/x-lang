@@ -1,19 +1,20 @@
-// Thin pure: wave300/356 M2 — grow_vec Cap residual C→.x (was wave271 C thin).
+// Thin pure: wave300/356/489 M2 — grow_vec Cap residual C→.x (was wave271 C thin).
 // GrowVec LE sizeof 32: data*@0 cap@8 len@12 elem_sz@16 mmap@24.
 // Faces: init / free / ensure / at / push / copy_append.
 // Growth: INIT_CAP=256, GROW=4096, MMAP_THRESH=1MiB (POSIX mmap).
 // G.7: bodies match runtime_pipeline_abi.x wave271 leave + seed cold twins.
-// wave356: wrap all LE slot load/store helpers in unsafe (T001, same as
-// w349/w354); PRODUCT inject PREFER_ASM both ends after typeck green.
-// Stamp w356. PLATFORM: SHARED freestanding Cap leave · LINUX · MACOS.
+// wave356: wrap all LE slot load/store helpers in unsafe (T001).
+// wave489: no-local mmap/realloc (tip U starved); BOTH PREFER stamp w489.
+// PLATFORM: SHARED freestanding Cap leave · LINUX · MACOS.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern function xlang_size_slot_get(arr: *u8, i: i32): i64;
 export extern function xlang_size_slot_set(arr: *u8, i: i32, v: i64): void;
-export extern "C" function malloc(n: usize): *u8;
 export extern "C" function calloc(n: usize, sz: usize): *u8;
 export extern "C" function realloc(p: *u8, n: usize): *u8;
 export extern "C" function free(p: *u8): void;
@@ -150,12 +151,13 @@ function w300_ptr_is_map_failed(p: *u8): i32 {
 
 /**
  * Allocate nbytes (mmap large when POSIX flags; else calloc).
+ * wave489: no-local — pipe cell for mmap; ban mid `p=call()`／`p=load()`.
  * PLATFORM: SHARED · LINUX|MACOS mmap · else calloc.
  */
 function w300_alloc_bytes(nbytes: i64, out_mm: *i32): *u8 {
   let flags: i32 = g_w300_mmap_flags;
-  let p: *u8 = 0 as *u8;
   let fd: i32 = 0 - 1;
+  let cell: u8[8];
   if (out_mm != (0 as *i32)) {
     unsafe {
       out_mm[0] = 0;
@@ -166,15 +168,14 @@ function w300_alloc_bytes(nbytes: i64, out_mm: *i32): *u8 {
   }
   if (flags != 0 && nbytes >= W300_MMAP_THRESH) {
     unsafe {
-      p = mmap(0 as *u8, nbytes as usize, 3, flags, fd, 0);
-    }
-    if (p != (0 as *u8) && w300_ptr_is_map_failed(p) == 0) {
-      if (out_mm != (0 as *i32)) {
-        unsafe {
+      /* PLATFORM: SHARED — tip drops mid bind; re-call pipe_load in cond/return. */
+      pipe_store_ptr_slot(&cell[0], 0, mmap(0 as *u8, nbytes as usize, 3, flags, fd, 0));
+      if (pipe_load_ptr_slot(&cell[0], 0) != (0 as *u8) && w300_ptr_is_map_failed(pipe_load_ptr_slot(&cell[0], 0)) == 0) {
+        if (out_mm != (0 as *i32)) {
           out_mm[0] = 1;
         }
+        return pipe_load_ptr_slot(&cell[0], 0);
       }
-      return p;
     }
   }
   unsafe {
@@ -282,7 +283,7 @@ export function grow_vec_ensure(v: *u8): i32 {
   let data: *u8 = 0 as *u8;
   let mm: i32 = 0;
   let p: *u8 = 0 as *u8;
-  let p2: *u8 = 0 as *u8;
+  let cell: u8[8];
   if (v == (0 as *u8)) {
     return 0;
   }
@@ -341,17 +342,16 @@ export function grow_vec_ensure(v: *u8): i32 {
     return 1;
   }
   unsafe {
-    p2 = realloc(data, new_bytes as usize);
-  }
-  if (p2 == (0 as *u8)) {
-    return 0;
-  }
-  if (new_bytes > old_bytes) {
-    unsafe {
-      memset(p2 + (old_bytes as usize), 0, (new_bytes - old_bytes) as usize);
+    /* PLATFORM: SHARED — tip drops mid `p2=realloc()`／`p2=load()`; re-call load. */
+    pipe_store_ptr_slot(&cell[0], 0, realloc(data, new_bytes as usize));
+    if (pipe_load_ptr_slot(&cell[0], 0) == (0 as *u8)) {
+      return 0;
     }
+    if (new_bytes > old_bytes) {
+      memset(pipe_load_ptr_slot(&cell[0], 0) + (old_bytes as usize), 0, (new_bytes - old_bytes) as usize);
+    }
+    w300_store_data(v, pipe_load_ptr_slot(&cell[0], 0));
   }
-  w300_store_data(v, p2);
   w300_store_mmap(v, 0);
   w300_store_cap(v, nc);
   return 1;

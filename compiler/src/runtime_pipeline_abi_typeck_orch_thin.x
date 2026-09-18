@@ -1,10 +1,12 @@
-// Thin pure: wave318 M2 — pipeline_typeck_orch Cap residual full C→.x
+// Thin pure: wave318/w481 M2 — pipeline_typeck_orch Cap residual full C→.x
 // (wave293: rename shims; wave318: layout glue was C thin).
 // Faces: typeck_x_ast*_c rename shims + zero_padding / size / align from_layout.
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c WAVE285_TYPECK_ORCH_ALWAYS.
-// PRODUCT inject: wave331 PREFER_ASM via pipeline_abi_inject_typeck_orch_thin
+// PRODUCT inject: wave331/w481 PREFER_ASM via pipeline_abi_inject_typeck_orch_thin
 // (ALLOW_E_REPLACE + stamp). No BSS. Out-param *i32 reloc OK under pure-asm
 // (historical Option-ptr red closed; -E+$CC was interim).
+// wave481: no-local validate (ban `nsl=call()` → tip U=5/6). Tip U=6/6.
+//   PRODUCT inject: BOTH PREFER (stamp w481).
 // No FROM_X gate.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
@@ -67,6 +69,7 @@ export function pipeline_typeck_x_ast_c(module: *u8, arena: *u8, ctx: *u8): i32 
 
 /**
  * Validate all struct layouts have zero padding waste.
+ * wave481: no-local — re-call num_layouts in while cond; ban `nsl=call()` / `rc=call()`.
  * @param module *u8 — ast_Module* as *u8
  * @param arena *u8 — ast_ASTArena* as *u8
  * @return i32 — 0 OK; -1 null or metrics fail
@@ -75,27 +78,23 @@ export function pipeline_typeck_x_ast_c(module: *u8, arena: *u8, ctx: *u8): i32 
  */
 #[no_mangle]
 export function typeck_validate_struct_layouts_zero_padding_glue(module: *u8, arena: *u8): i32 {
-  let li: i32 = 0;
-  let nsl: i32 = 0;
-  if (module == (0 as *u8) || arena == (0 as *u8)) {
-    return -1;
-  }
   unsafe {
-    nsl = pipeline_module_num_struct_layouts_at(module);
-  }
-  while (li < nsl) {
+    let li: i32 = 0;
     let dz: i32 = 0;
     let da: i32 = 1;
-    let rc: i32 = 0;
-    unsafe {
-      rc = typeck_typeck_struct_layout_metrics(module, arena, li, 0, 1, &dz, &da);
-    }
-    if (rc != 0) {
+    if (module == (0 as *u8) || arena == (0 as *u8)) {
       return -1;
     }
-    li = li + 1;
+    while (li < pipeline_module_num_struct_layouts_at(module)) {
+      dz = 0;
+      da = 1;
+      if (typeck_typeck_struct_layout_metrics(module, arena, li, 0, 1, &dz, &da) != 0) {
+        return -1;
+      }
+      li = li + 1;
+    }
+    return 0;
   }
-  return 0;
 }
 
 /**
@@ -110,17 +109,17 @@ export function typeck_validate_struct_layouts_zero_padding_glue(module: *u8, ar
  */
 #[no_mangle]
 export function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32 {
-  let z2: i32 = 0;
-  let al2: i32 = 1;
-  if (li < 0) {
-    return 0;
-  }
   unsafe {
+    let z2: i32 = 0;
+    let al2: i32 = 1;
+    if (li < 0) {
+      return 0;
+    }
     if (typeck_typeck_struct_layout_metrics(module, arena, li, depth, 0, &z2, &al2) != 0) {
       return 0;
     }
+    return z2;
   }
-  return z2;
 }
 
 /**
@@ -135,18 +134,18 @@ export function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li:
  */
 #[no_mangle]
 export function typeck_x_type_align_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32 {
-  let z2: i32 = 0;
-  let al2: i32 = 1;
-  if (li < 0) {
-    return 1;
-  }
   unsafe {
+    let z2: i32 = 0;
+    let al2: i32 = 1;
+    if (li < 0) {
+      return 1;
+    }
     if (typeck_typeck_struct_layout_metrics(module, arena, li, depth, 0, &z2, &al2) != 0) {
       return 1;
     }
+    if (al2 > 0) {
+      return al2;
+    }
+    return 1;
   }
-  if (al2 > 0) {
-    return al2;
-  }
-  return 1;
 }

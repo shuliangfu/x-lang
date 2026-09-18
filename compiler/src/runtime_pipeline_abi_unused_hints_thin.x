@@ -7,6 +7,7 @@
 // avoids Darwin mega -E).
 // wave398: PRODUCT PREFER_ASM both ends (stamp .pabi_w398_unused_hints.stamp);
 //   standalone -c green Darwin/Ubuntu; was class-E default -E.
+// wave493: no-local mid `x=call()` (tip U starved 4/14); LINUX -E (tip PREFER SEGV).
 // PLATFORM: SHARED freestanding lint · LINUX gold.
 
 export extern function link_abi_getenv(name: *u8): *u8;
@@ -23,6 +24,12 @@ export extern function ast_pipeline_block_const_name_len(arena: *u8, block_ref: 
 export extern function ast_pipeline_block_const_name_copy64(arena: *u8, block_ref: i32, i: i32, dst: *u8): void;
 export extern function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, name_len: i32): void;
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
+/** Pipe cell store i32 — tip-stable mid call result. */
+export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+/** Pipe cell store ptr — tip-stable mid call result. */
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+/** Pipe cell load ptr. */
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 
 /**
  * LP64 offsetof(ASTArena, num_exprs). Layout: num_types@0 num_exprs@4.
@@ -37,20 +44,20 @@ function l6_arena_off_num_exprs(): i32 {
  * Whether L6 unused-binding hint is enabled (XLANG_UNUSED_HINT=1).
  * @return i32 — 1 enabled, else 0
  * PLATFORM: SHARED — opt-in info lint; default off (does not spam product -o).
+ * wave493: no-local — pipe cell for getenv; ban mid `e=link_abi_getenv()`.
  */
 function l6_unused_hint_enabled(): i32 {
-  let e: *u8 = 0 as *u8;
+  let cell: u8[8];
   let key: u8[18] = [
     88, 76, 65, 78, 71, 95, 85, 78, 85, 83, 69, 68, 95, 72, 73, 78, 84, 0
   ];
   unsafe {
-    e = link_abi_getenv(&key[0]);
-  }
-  if (e == 0 as *u8) {
-    return 0;
-  }
-  unsafe {
-    if (e[0] == 49 && e[1] == 0) {
+    /* PLATFORM: SHARED — tip drops mid `e=link_abi_getenv()`; pipe cell. */
+    pipe_store_ptr_slot(&cell[0], 0, link_abi_getenv(&key[0]));
+    if (pipe_load_ptr_slot(&cell[0], 0) == (0 as *u8)) {
+      return 0;
+    }
+    if (pipe_load_ptr_slot(&cell[0], 0)[0] == 49 && pipe_load_ptr_slot(&cell[0], 0)[1] == 0) {
       return 1;
     }
   }
@@ -88,39 +95,33 @@ function l6_name_eq(name: *u8, nlen: i32, buf: *u8): i32 {
  * @param nlen i32 — length
  * @return i32 — 1 used, 0 unused
  * PLATFORM: SHARED — arena-wide VAR scan (EXPR_VAR kind_ord == 3).
+ * wave493: no-local — pipe cell for mid i32 calls; loops in unsafe (T001).
  */
 function l6_binding_is_used(a: *u8, name: *u8, nlen: i32): i32 {
-  let nexpr: i32 = 0;
   let er: i32 = 1;
-  let ko: i32 = 0;
-  let vlen: i32 = 0;
   /* Cap 4.2.8: var_name_into memset(out,0,256). */
   let vbuf: u8[256] = [];
+  let cell: u8[8];
   if (a == 0 as *u8 || name == 0 as *u8 || nlen <= 0) {
     return 1;
   }
   unsafe {
-    nexpr = pipe_load_i32_le(a, l6_arena_off_num_exprs());
-  }
-  while (er <= nexpr) {
-    unsafe {
-      ko = pipeline_expr_kind_ord_at(a, er);
-    }
-    // EXPR_VAR = 3
-    if (ko == 3) {
-      unsafe {
-        vlen = pipeline_expr_var_name_len(a, er);
-      }
-      if (vlen == nlen && vlen > 0 && vlen < 256) {
-        unsafe {
+    /* cell[0]=nexpr stable; cell[4]=ko then vlen temp. */
+    pipe_store_i32_le(&cell[0], 0, pipe_load_i32_le(a, l6_arena_off_num_exprs()));
+    while (er <= pipe_load_i32_le(&cell[0], 0)) {
+      pipe_store_i32_le(&cell[0], 4, pipeline_expr_kind_ord_at(a, er));
+      // EXPR_VAR = 3
+      if (pipe_load_i32_le(&cell[0], 4) == 3) {
+        pipe_store_i32_le(&cell[0], 4, pipeline_expr_var_name_len(a, er));
+        if (pipe_load_i32_le(&cell[0], 4) == nlen && pipe_load_i32_le(&cell[0], 4) > 0 && pipe_load_i32_le(&cell[0], 4) < 128) {
           pipeline_expr_var_name_into(a, er, &vbuf[0]);
-        }
-        if (l6_name_eq(name, nlen, &vbuf[0]) != 0) {
-          return 1;
+          if (l6_name_eq(name, nlen, &vbuf[0]) != 0) {
+            return 1;
+          }
         }
       }
+      er = er + 1;
     }
-    er = er + 1;
   }
   return 0;
 }
@@ -160,47 +161,38 @@ function l6_maybe_report(a: *u8, name: *u8, nlen: i32): i32 {
  * @param br i32 — block ref
  * @return i32 — hint count
  * PLATFORM: SHARED.
+ * wave493: no-local — pipe cell for mid i32 calls; loops in unsafe (T001).
  */
 function l6_scan_block(a: *u8, br: i32): i32 {
-  let n: i32 = 0;
   let i: i32 = 0;
-  let nlen: i32 = 0;
   let name: u8[256] = [];
   let nh: i32 = 0;
+  let cell: u8[8];
   if (a == 0 as *u8 || br <= 0) {
     return 0;
   }
   unsafe {
-    n = ast_ast_block_num_lets(a, br);
-  }
-  i = 0;
-  while (i < n) {
-    unsafe {
-      nlen = pipeline_block_let_name_len(a, br, i);
-    }
-    if (nlen > 0 && nlen < 128) {
-      unsafe {
+    /* cell[0]=n; cell[4]=nlen */
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_lets(a, br));
+    i = 0;
+    while (i < pipe_load_i32_le(&cell[0], 0)) {
+      pipe_store_i32_le(&cell[0], 4, pipeline_block_let_name_len(a, br, i));
+      if (pipe_load_i32_le(&cell[0], 4) > 0 && pipe_load_i32_le(&cell[0], 4) < 128) {
         pipeline_block_let_name_copy64(a, br, i, &name[0]);
+        nh = nh + l6_maybe_report(a, &name[0], pipe_load_i32_le(&cell[0], 4));
       }
-      nh = nh + l6_maybe_report(a, &name[0], nlen);
+      i = i + 1;
     }
-    i = i + 1;
-  }
-  unsafe {
-    n = ast_ast_block_num_consts(a, br);
-  }
-  i = 0;
-  while (i < n) {
-    unsafe {
-      nlen = ast_pipeline_block_const_name_len(a, br, i);
-    }
-    if (nlen > 0 && nlen < 128) {
-      unsafe {
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_consts(a, br));
+    i = 0;
+    while (i < pipe_load_i32_le(&cell[0], 0)) {
+      pipe_store_i32_le(&cell[0], 4, ast_pipeline_block_const_name_len(a, br, i));
+      if (pipe_load_i32_le(&cell[0], 4) > 0 && pipe_load_i32_le(&cell[0], 4) < 128) {
         ast_pipeline_block_const_name_copy64(a, br, i, &name[0]);
+        nh = nh + l6_maybe_report(a, &name[0], pipe_load_i32_le(&cell[0], 4));
       }
-      nh = nh + l6_maybe_report(a, &name[0], nlen);
+      i = i + 1;
     }
-    i = i + 1;
   }
   return nh;
 }
@@ -213,13 +205,13 @@ function l6_scan_block(a: *u8, br: i32): i32 {
  * @param a *u8 — ASTArena*
  * @return i32 — number of hints emitted
  * PLATFORM: SHARED — G.7 sole product authority (thin twin of abi.x).
+ * wave493: no-local — pipe cell for mid i32 calls; loops in unsafe (T001).
  */
 #[no_mangle]
 export function pipeline_typeck_unused_binding_hints(m: *u8, a: *u8): i32 {
-  let nfuncs: i32 = 0;
   let fi: i32 = 0;
-  let br: i32 = 0;
   let nh: i32 = 0;
+  let cell: u8[8];
   if (m == 0 as *u8 || a == 0 as *u8) {
     return 0;
   }
@@ -229,20 +221,19 @@ export function pipeline_typeck_unused_binding_hints(m: *u8, a: *u8): i32 {
   // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
   // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
   unsafe {
-    nfuncs = pipeline_module_num_funcs(m);
-  }
-  if (nfuncs <= 0) {
-    return 0;
-  }
-  fi = 0;
-  while (fi < nfuncs) {
-    unsafe {
-      br = pipeline_module_func_body_ref_at(m, fi);
+    /* cell[0]=nfuncs; cell[4]=br */
+    pipe_store_i32_le(&cell[0], 0, pipeline_module_num_funcs(m));
+    if (pipe_load_i32_le(&cell[0], 0) <= 0) {
+      return 0;
     }
-    if (br > 0) {
-      nh = nh + l6_scan_block(a, br);
+    fi = 0;
+    while (fi < pipe_load_i32_le(&cell[0], 0)) {
+      pipe_store_i32_le(&cell[0], 4, pipeline_module_func_body_ref_at(m, fi));
+      if (pipe_load_i32_le(&cell[0], 4) > 0) {
+        nh = nh + l6_scan_block(a, pipe_load_i32_le(&cell[0], 4));
+      }
+      fi = fi + 1;
     }
-    fi = fi + 1;
   }
   return nh;
 }

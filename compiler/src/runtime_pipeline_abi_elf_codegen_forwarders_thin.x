@@ -1,9 +1,9 @@
-// Thin pure: wave292 M2 — pipeline_elf_codegen_forwarders Cap residual
+// Thin pure: wave292/w505 M2 — pipeline_elf_codegen_forwarders Cap residual
 // C→.x (was wave291 C thin). Rename shims only: platform.elf / codegen_ /
 // pipeline_ prefixes → authoritative unprefixed callees + sizeof_elf_ctx.
 // G.7: bodies match seeds/runtime_pipeline_abi.from_x.c
 // WAVE291_ELF_CODEGEN_FORWARDERS_ALWAYS. No BSS. No FROM_X gate.
-// ensure injects via pipeline_abi_inject_thin_leaf (PREFER_ASM).
+// wave505: PRODUCT inject BOTH PREFER (tip U-complete; was ambient/-E gap).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 //
 // Note: inventory wave292 bootstrap_orchestration is already seed-only

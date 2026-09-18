@@ -1,18 +1,23 @@
-// Thin pure: wave308/366 M2 — sidecar_pool Cap residual C→.x (was wave275 C thin).
+// Thin pure: wave308/366/w504 M2 — sidecar_pool Cap residual C→.x (was wave275 C thin).
 // Arena/Module/OneFunc sidecar BSS tables + get/free; 6 exports.
-// G.7: bodies match runtime_pipeline_abi.x wave275 leave.
+// G.7: bodies match runtime_pipeline_abi.x wave275 leave (get create path → init peers).
 // PRODUCT inject: pipeline_abi_inject_sidecar_pool_thin (ALLOW_E_REPLACE + stamp).
 // wave366: w308_* helpers via unsafe (T001); PREFER try + L2 gate.
+// wave504: tipU heal inventory — peel gv_init cascades to arena/module/onefunc
+//   init peers (same-TU giant cascade starved tip *_sidecar_get). Main keeps
+//   BSS + thin get/free. tip PRODUCT PREFER HARD BAN (L2 SEGV 0/5; keep w366).
+//   Main tip still file-tail drops (frees / module_get) — ban until tipU 6/6+L2.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function grow_vec_free(v: *u8): void;
-export extern function grow_vec_init(v: *u8, elem_sz: i64, initial_cap: i32): i32;
-export extern function pipe_gv_init_cap(): i32;
 export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+export extern function pipe_arena_sc_init_slot(sc2: *u8): i32;
+export extern function pipe_module_sc_init_slot(sc2: *u8): i32;
+export extern function pipe_onefunc_sc_init_slot(sc2: *u8): i32;
 
 
 /**
@@ -54,15 +59,6 @@ function w308_store_ptr(base: *u8, i: i32, val: *u8): void {
 }
 
 /**
- * grow_vec_init via unsafe (T001). PLATFORM: SHARED.
- */
-function w308_gv_init(v: *u8, elem_sz: i64, initial_cap: i32): i32 {
-  unsafe {
-    return grow_vec_init(v, elem_sz, initial_cap);
-  }
-}
-
-/**
  * grow_vec_free via unsafe (T001). PLATFORM: SHARED.
  */
 function w308_gv_free(v: *u8): void {
@@ -72,11 +68,29 @@ function w308_gv_free(v: *u8): void {
 }
 
 /**
- * pipe_gv_init_cap via unsafe (T001). PLATFORM: SHARED.
+ * Peer arena init via unsafe (T001). wave504 tipU. PLATFORM: SHARED.
  */
-function w308_gv_init_cap(): i32 {
+function w504_arena_init(sc2: *u8): i32 {
   unsafe {
-    return pipe_gv_init_cap();
+    return pipe_arena_sc_init_slot(sc2);
+  }
+}
+
+/**
+ * Peer module init via unsafe (T001). wave504 tipU. PLATFORM: SHARED.
+ */
+function w504_module_init(sc2: *u8): i32 {
+  unsafe {
+    return pipe_module_sc_init_slot(sc2);
+  }
+}
+
+/**
+ * Peer onefunc init via unsafe (T001). wave504 tipU. PLATFORM: SHARED.
+ */
+function w504_onefunc_init(sc2: *u8): i32 {
+  unsafe {
+    return pipe_onefunc_sc_init_slot(sc2);
   }
 }
 
@@ -516,299 +530,6 @@ function pipe_onefunc_sc_free(sc: *u8): void {
  * wave275 pure-owned leave. PLATFORM: SHARED freestanding.
  */
 #[no_mangle]
-export function arena_sidecar_free(sc: *u8): void {
-  pipe_arena_sc_free(sc);
-}
-
-/**
- * Free all GrowVec data buffers owned by a module sidecar and mark slot unused.
- * @param sc *u8 — module sidecar base; null -> no-op
- * @return void
- * wave275 pure-owned leave. PLATFORM: SHARED freestanding.
- */
-#[no_mangle]
-export function module_sidecar_free(sc: *u8): void {
-  pipe_module_sc_free(sc);
-}
-
-/**
- * Free all GrowVec data buffers owned by a onefunc sidecar and mark slot unused.
- * @param sc *u8 — onefunc sidecar base; null -> no-op
- * @return void
- * wave275 pure-owned leave. PLATFORM: SHARED freestanding.
- */
-#[no_mangle]
-export function onefunc_sidecar_free(sc: *u8): void {
-  pipe_onefunc_sc_free(sc);
-}
-
-/**
- * Lookup or create arena sidecar for pointer key.
- * @param key *u8 — arena/module/onefunc key; null -> null
- * @param create i32 — non-zero to allocate free slot + init GrowVecs
- * @return *u8 — sidecar base or null
- * wave275 pure-owned leave; G.7 single process table.
- * P2 Darwin -o: 2-slot MRU before the MAX=512 linear walk.
- * PLATFORM: SHARED freestanding arena Cap leave.
- */
-#[no_mangle]
-export function arena_sidecar_get(key: *u8, create: i32): *u8 {
-  if (key == 0 as *u8) {
-    return 0 as *u8;
-  }
-  let hit: *u8 = pipe_arena_sc_recall(key);
-  if (hit != 0 as *u8) {
-    return hit;
-  }
-  let i: i32 = 0;
-  while (i < pipe_arena_sc_max()) {
-    let sc: *u8 = pipe_arena_sc_at(i);
-    let used: i32 = w308_load(sc, 8);
-    if (used != 0) {
-      let k: *u8 = w308_load_ptr(sc, 0);
-      if (k == key) {
-        pipe_arena_sc_remember(key, sc);
-        return sc;
-      }
-    }
-    i = i + 1;
-  }
-  if (create == 0) {
-    return 0 as *u8;
-  }
-  i = 0;
-  while (i < pipe_arena_sc_max()) {
-    let sc2: *u8 = pipe_arena_sc_at(i);
-    let used2: i32 = w308_load(sc2, 8);
-    if (used2 == 0) {
-      w308_store_ptr(sc2, 0, key);
-      w308_store(sc2, 8, 1);
-      let ic: i32 = w308_gv_init_cap();
-      if (w308_gv_init(sc2 + (16 as usize), 532, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (48 as usize), 1224, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (80 as usize), 92, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (112 as usize), 324, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (144 as usize), 268, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (176 as usize), 268, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (208 as usize), 12, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (240 as usize), 268, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (272 as usize), 8, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (304 as usize), 16, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (336 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      /* Cap 4.2.8 sync: W277_LabeledStmt is 528 (label[256]+goto_target[256]);
-       * the stale 272 (128-era) stride made the 2nd+ labeled stmt's 528-byte
-       * write smash the neighboring slot — same class as the onefunc region
-       * stride fix (2026-09-13). */
-      if (w308_gv_init(sc2 + (368 as usize), 528, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (400 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (432 as usize), 8, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (464 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (496 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (528 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (560 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (592 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (624 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (656 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (688 as usize), 24, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (720 as usize), 264, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (752 as usize), 4, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (784 as usize), 264, ic) == 0) {
-        pipe_arena_sc_free(sc2);
-        return 0 as *u8;
-      }
-      pipe_arena_sc_remember(key, sc2);
-      return sc2;
-    }
-    i = i + 1;
-  }
-  return 0 as *u8;
-}
-
-/**
- * Lookup or create module sidecar for pointer key.
- * @param key *u8 — arena/module/onefunc key; null -> null
- * @param create i32 — non-zero to allocate free slot + init GrowVecs
- * @return *u8 — sidecar base or null
- * wave275 pure-owned leave; G.7 single process table.
- * P2 Darwin -o: 2-slot MRU before the MAX=512 linear walk.
- * PLATFORM: SHARED freestanding module Cap leave.
- */
-#[no_mangle]
-export function module_sidecar_get(key: *u8, create: i32): *u8 {
-  if (key == 0 as *u8) {
-    return 0 as *u8;
-  }
-  let hit: *u8 = pipe_module_sc_recall(key);
-  if (hit != 0 as *u8) {
-    return hit;
-  }
-  let i: i32 = 0;
-  while (i < pipe_module_sc_max()) {
-    let sc: *u8 = pipe_module_sc_at(i);
-    let used: i32 = w308_load(sc, 8);
-    if (used != 0) {
-      let k: *u8 = w308_load_ptr(sc, 0);
-      if (k == key) {
-        pipe_module_sc_remember(key, sc);
-        return sc;
-      }
-    }
-    i = i + 1;
-  }
-  if (create == 0) {
-    return 0 as *u8;
-  }
-  i = 0;
-  while (i < pipe_module_sc_max()) {
-    let sc2: *u8 = pipe_module_sc_at(i);
-    let used2: i32 = w308_load(sc2, 8);
-    if (used2 == 0) {
-      w308_store_ptr(sc2, 0, key);
-      w308_store(sc2, 8, 1);
-      let ic: i32 = w308_gv_init_cap();
-      if (w308_gv_init(sc2 + (16 as usize), 324, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (48 as usize), 4, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (80 as usize), 532, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (112 as usize), 288, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (144 as usize), 276, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (176 as usize), 264, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (208 as usize), 66828, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (240 as usize), 256, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (272 as usize), 4, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (304 as usize), 264, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (336 as usize), 272, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (368 as usize), 260, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (400 as usize), 8, ic) == 0) {
-        pipe_module_sc_free(sc2);
-        return 0 as *u8;
-      }
-      pipe_module_sc_remember(key, sc2);
-      return sc2;
-    }
-    i = i + 1;
-  }
-  return 0 as *u8;
-}
-
-/**
- * Lookup or create onefunc sidecar for pointer key.
- * @param key *u8 — arena/module/onefunc key; null -> null
- * @param create i32 — non-zero to allocate free slot + init GrowVecs
- * @return *u8 — sidecar base or null
- * wave275 pure-owned leave; G.7 single process table.
- * P2 Darwin -o: 16-slot ring before the used_hi linear walk (dummy-wire live
- * keys miss a 2-slot src/dst cache; miss walk stops at last occupied slot).
- * PLATFORM: SHARED freestanding onefunc Cap leave.
- */
-#[no_mangle]
 export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
@@ -844,125 +565,7 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
       if (i + 1 > g_pipe_onefunc_sc_used_hi) {
         g_pipe_onefunc_sc_used_hi = i + 1;
       }
-      let ic: i32 = w308_gv_init_cap();
-      if (w308_gv_init(sc2 + (16 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (48 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (80 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (112 as usize), 256, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (144 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (176 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (208 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (240 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (272 as usize), 256, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (304 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (336 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (368 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (400 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (432 as usize), 1, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (464 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (496 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (528 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (560 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (592 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (624 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (656 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (688 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (720 as usize), 256, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (752 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (784 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (816 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      /* Cap 4.2.8 missed mirror (live thin authority): W281_RegionEntry is
-       * 268 (label[256]) — the stale 140 stride made entry N+1's 268-byte
-       * write overlap entry N's tail, smashing body_ref/with_arena_cap_ref
-       * (offsets 260/264) with label bytes: consecutive unsafe/region
-       * statements lost all but the last (2026-09-13 L4 forensics m5/m9). */
-      if (w308_gv_init(sc2 + (848 as usize), 268, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (880 as usize), 4, ic) == 0) {
-        pipe_onefunc_sc_free(sc2);
-        return 0 as *u8;
-      }
-      if (w308_gv_init(sc2 + (912 as usize), 528, ic) == 0) {
+      if (w504_onefunc_init(sc2) == 0) {
         pipe_onefunc_sc_free(sc2);
         return 0 as *u8;
       }
@@ -972,5 +575,108 @@ export function onefunc_sidecar_get(key: *u8, create: i32): *u8 {
     i = i + 1;
   }
   return 0 as *u8;
+}
+
+#[no_mangle]
+export function arena_sidecar_get(key: *u8, create: i32): *u8 {
+  if (key == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let hit: *u8 = pipe_arena_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
+  }
+  let i: i32 = 0;
+  while (i < pipe_arena_sc_max()) {
+    let sc: *u8 = pipe_arena_sc_at(i);
+    let used: i32 = w308_load(sc, 8);
+    if (used != 0) {
+      let k: *u8 = w308_load_ptr(sc, 0);
+      if (k == key) {
+        pipe_arena_sc_remember(key, sc);
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 as *u8;
+  }
+  i = 0;
+  while (i < pipe_arena_sc_max()) {
+    let sc2: *u8 = pipe_arena_sc_at(i);
+    let used2: i32 = w308_load(sc2, 8);
+    if (used2 == 0) {
+      w308_store_ptr(sc2, 0, key);
+      w308_store(sc2, 8, 1);
+      if (w504_arena_init(sc2) == 0) {
+        pipe_arena_sc_free(sc2);
+        return 0 as *u8;
+      }
+      pipe_arena_sc_remember(key, sc2);
+      return sc2;
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+export function module_sidecar_get(key: *u8, create: i32): *u8 {
+  if (key == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let hit: *u8 = pipe_module_sc_recall(key);
+  if (hit != 0 as *u8) {
+    return hit;
+  }
+  let i: i32 = 0;
+  while (i < pipe_module_sc_max()) {
+    let sc: *u8 = pipe_module_sc_at(i);
+    let used: i32 = w308_load(sc, 8);
+    if (used != 0) {
+      let k: *u8 = w308_load_ptr(sc, 0);
+      if (k == key) {
+        pipe_module_sc_remember(key, sc);
+        return sc;
+      }
+    }
+    i = i + 1;
+  }
+  if (create == 0) {
+    return 0 as *u8;
+  }
+  i = 0;
+  while (i < pipe_module_sc_max()) {
+    let sc2: *u8 = pipe_module_sc_at(i);
+    let used2: i32 = w308_load(sc2, 8);
+    if (used2 == 0) {
+      w308_store_ptr(sc2, 0, key);
+      w308_store(sc2, 8, 1);
+      if (w504_module_init(sc2) == 0) {
+        pipe_module_sc_free(sc2);
+        return 0 as *u8;
+      }
+      pipe_module_sc_remember(key, sc2);
+      return sc2;
+    }
+    i = i + 1;
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+export function arena_sidecar_free(sc: *u8): void {
+  pipe_arena_sc_free(sc);
+}
+
+#[no_mangle]
+export function module_sidecar_free(sc: *u8): void {
+  pipe_module_sc_free(sc);
+}
+
+#[no_mangle]
+export function onefunc_sidecar_free(sc: *u8): void {
+  pipe_onefunc_sc_free(sc);
 }
 

@@ -1,7 +1,8 @@
-// Thin pure: field_load layout-match Cap residual (wave433).
+// Thin pure: field_load layout-match Cap residual (wave433/w485).
 // G.7: layout walk twin of field_load main / mega.
-// PRODUCT: LINUX PREFER with main thin; nested byte-while → copy+bytes_eq
-//   (Ubuntu tip empty .o / -E omit T when byte-compare while nested in layout).
+// wave433: nested byte-while → copy+bytes_eq (Ubuntu empty .o).
+// wave485: no-local — ban mid `x=call()` (tip U=2/11); re-call + pipe cells.
+//   PRODUCT inject: LINUX PREFER (stamp w485); MACOS full thin path unchanged.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_type_named_name_into(a: *u8, ty_ref: i32, out: *u8): i32;
@@ -15,11 +16,12 @@ export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, k: i
 export extern function pipeline_type_kind_ord_at(a: *u8, ty_ref: i32): i32;
 export extern function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): i32;
 export extern function field_load_sz_bytes_eq(a: *u8, b: *u8, n: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 
 /**
  * Copy layout name bytes at index k into out[0..nlen).
- * Single-level while — Ubuntu asm emit fails when this is inlined inside a
- * nested byte-compare while in the layout walker.
+ * wave485: no-local — ban `b=call()` in while; call-as-store.
  * @param m *u8 — Module*
  * @param k i32 — layout index
  * @param out *u8 — destination buffer (capacity >= nlen)
@@ -30,12 +32,8 @@ export extern function field_load_sz_bytes_eq(a: *u8, b: *u8, n: i32): i32;
 function field_load_sz_copy_layout_name(m: *u8, k: i32, out: *u8, nlen: i32): void {
   unsafe {
     let j: i32 = 0;
-    let b: i32 = 0;
     while (j < nlen) {
-      unsafe {
-        b = pipeline_module_struct_layout_name_byte_at(m, k, j);
-      }
-      out[j] = b as u8;
+      out[j] = pipeline_module_struct_layout_name_byte_at(m, k, j) as u8;
       j = j + 1;
     }
   }
@@ -43,7 +41,7 @@ function field_load_sz_copy_layout_name(m: *u8, k: i32, out: *u8, nlen: i32): vo
 
 /**
  * Match base TYPE_NAMED against module layouts; return field load width or 0.
- * Uses copy+field_load_sz_bytes_eq (no nested byte-compare while).
+ * wave485: no-local — pipe cell for nlen; re-call in while; ban mid `x=call()`.
  * @param a *u8 — ASTArena*
  * @param m *u8 — Module*
  * @param base_tr i32 — base type ref (PTR already peeled by caller)
@@ -57,58 +55,34 @@ export function field_load_sz_layout_match(a: *u8, m: *u8, base_tr: i32, field_n
   unsafe {
     let struct_name: u8[256] = [];
     let layout_name: u8[256] = [];
-    let nlen: i32 = 0;
+    let fb: u8[256] = [];
+    /* cell[0]=nlen */
+    let cell: u8[4] = [];
     let k: i32 = 0;
     let j: i32 = 0;
-    let ftr: i32 = 0;
-    let ftr_kind: i32 = 0;
-    let nsl: i32 = 0;
-    let nf: i32 = 0;
-    let fnlen: i32 = 0;
-    let fb: u8[256] = [];
-    let ln: i32 = 0;
-    let hit: i32 = 0;
+
     if (a == (0 as *u8) || m == (0 as *u8) || base_tr <= 0 || field_name == (0 as *u8) || flen <= 0) {
       return 0;
     }
-    unsafe {
-      nlen = pipeline_type_named_name_into(a, base_tr, &struct_name[0]);
-    }
-    if (nlen <= 0 || nlen > 63) {
+    pipe_store_i32_le(&cell[0], 0, pipeline_type_named_name_into(a, base_tr, &struct_name[0]));
+    if (pipe_load_i32_le(&cell[0], 0) <= 0) {
       return 0;
     }
-    unsafe {
-      nsl = pipeline_module_num_struct_layouts_at(m);
+    if (pipe_load_i32_le(&cell[0], 0) > 63) {
+      return 0;
     }
     k = 0;
-    while (k < nsl) {
-      unsafe {
-        ln = pipeline_module_struct_layout_name_len(m, k);
-      }
-      if (ln == nlen) {
-        field_load_sz_copy_layout_name(m, k, &layout_name[0], nlen);
-        if (field_load_sz_bytes_eq(&struct_name[0], &layout_name[0], nlen) != 0) {
-          unsafe {
-            nf = pipeline_module_struct_layout_num_fields(m, k);
-          }
+    while (k < pipeline_module_num_struct_layouts_at(m)) {
+      if (pipeline_module_struct_layout_name_len(m, k) == pipe_load_i32_le(&cell[0], 0)) {
+        field_load_sz_copy_layout_name(m, k, &layout_name[0], pipe_load_i32_le(&cell[0], 0));
+        if (field_load_sz_bytes_eq(&struct_name[0], &layout_name[0], pipe_load_i32_le(&cell[0], 0)) != 0) {
           j = 0;
-          while (j < nf) {
-            unsafe {
-              fnlen = pipeline_module_struct_layout_field_name_len(m, k, j);
-            }
-            if (fnlen == flen) {
-              unsafe {
-                pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
-              }
-              if (field_load_sz_bytes_eq(&fb[0], field_name, fnlen) != 0) {
-                unsafe {
-                  ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
-                  ftr_kind = pipeline_type_kind_ord_at(a, ftr);
-                }
-                /* Free TYPE_NAMED fields → 0 (fall through); concrete → width. */
-                if (ftr_kind != 8) {
-                  hit = glue_field_access_load_bytes_for_type_ref(a, ftr);
-                  return hit;
+          while (j < pipeline_module_struct_layout_num_fields(m, k)) {
+            if (pipeline_module_struct_layout_field_name_len(m, k, j) == flen) {
+              pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
+              if (field_load_sz_bytes_eq(&fb[0], field_name, flen) != 0) {
+                if (pipeline_type_kind_ord_at(a, pipeline_module_struct_layout_field_type_ref(m, k, j)) != 8) {
+                  return glue_field_access_load_bytes_for_type_ref(a, pipeline_module_struct_layout_field_type_ref(m, k, j));
                 }
               }
             }

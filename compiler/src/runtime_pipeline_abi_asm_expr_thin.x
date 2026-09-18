@@ -42,6 +42,22 @@ export extern function pipeline_expr_enum_namespace_field_tag(arena: *u8, expr_r
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 
+export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+
+/**
+ * Load i32 from pipe cell (local; tip-stable mid `x=cell_load()`).
+ * @param base *u8 — cell base
+ * @return i32 — stored value
+ * PLATFORM: SHARED — wave495 tipU heal helper.
+ */
+function w495_cell_i32(base: *u8): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, 0);
+  }
+}
+
+
 /**
  * Freestanding expr ELF recursion with EXPR_ASM (60) slice0.
  * Fast path first; kind dispatch includes asm!("template") → try_emit.
@@ -51,18 +67,26 @@ export extern function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr
  */
 #[no_mangle]
 export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  /* wave495: no-local — pipe cells + w495_cell_i32 (ban mid `x=extern()`). */
   let r: i32 = 0;
   let ko: i32 = 0 - 1;
   let out_rc: i32 = 0;
   let ns_tag: i32 = 0;
+  let cell_ko: u8[8];
+  let cell_r: u8[8];
+  let cell_ns: u8[8];
   if (expr_ref > 0) {
     unsafe {
-      ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+      /* PLATFORM: SHARED — tip drops mid `ko=pipeline_expr_kind_ord_at()`; pipe cell. */
+      pipe_store_i32_le(&cell_ko[0], 0, pipeline_expr_kind_ord_at(arena, expr_ref));
     }
+    ko = w495_cell_i32(&cell_ko[0]);
   }
   unsafe {
-    r = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+    /* PLATFORM: SHARED — tip drops mid `r=pipeline_asm_emit_expr_elf_fast()`; pipe cell. */
+    pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta));
   }
+  r = w495_cell_i32(&cell_r[0]);
   if (r != (0 - 99)) {
     return r;
   }
@@ -197,17 +221,21 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   }
   if (ko == 44) {
     unsafe {
-      ns_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
-      if (ns_tag >= 0) {
+      /* PLATFORM: SHARED — tip drops mid `ns_tag=pipeline_expr_enum_namespace_field_tag()`; pipe cell. */
+      pipe_store_i32_le(&cell_ns[0], 0, pipeline_expr_enum_namespace_field_tag(arena, expr_ref));
+    }
+    ns_tag = w495_cell_i32(&cell_ns[0]);
+    if (ns_tag >= 0) {
+      unsafe {
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, ns_tag, ta);
       }
     }
     return 0 - 1;
   }
   unsafe {
-    out_rc = backend_emit_expr_elf_slow(arena, elf_ctx, expr_ref, ctx, ta);
+    /* PLATFORM: SHARED — tip drops mid `out_rc=backend_emit_expr_elf_slow()`; direct return. */
+    return backend_emit_expr_elf_slow(arena, elf_ctx, expr_ref, ctx, ta);
   }
-  return out_rc;
 }
 
 /**

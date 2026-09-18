@@ -1,13 +1,16 @@
-// Thin pure: wave303/358 M2 — type_alias Cap residual C→.x (was wave262 C thin).
+// Thin pure: wave303/358/491 M2 — type_alias Cap residual C→.x (was wave262 C thin).
 // TypeAliasEntry LE 264B: name[256]@0 name_len@256 target@260.
 // Multi-module malloc map (128 slots) + 8 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave262 leave.
-// wave358: w303_* unsafe wrappers for slot/LE (T001); PRODUCT inject
-// PREFER_ASM try (file-local maps). Stamp w358.
+// wave358: w303_* unsafe wrappers; PRODUCT inject PREFER_ASM.
+// wave491: no-local malloc (tipU 9/9); tip PRODUCT reinject HARD BAN
+//   (opt hang). Stamp w491 skip — keep prior overlay.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern "C" function malloc(n: usize): *u8;
@@ -168,12 +171,13 @@ function pipe_ta_ensure_entries(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_ta_entry_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
+  let cell: u8[8];
   unsafe {
-    np = malloc(nbytes);
-  }
-  if (np == 0 as *u8) {
-    return 0;
+    /* PLATFORM: SHARED — tip drops mid `np=malloc()`; pipe cell + re-load. */
+    pipe_store_ptr_slot(&cell[0], 0, malloc(nbytes));
+    if (pipe_load_ptr_slot(&cell[0], 0) == (0 as *u8)) {
+      return 0;
+    }
   }
   let old: *u8 = w303_ptr_get(&g_pipe_ta_entries[0], slot);
   let old_n: i32 = g_pipe_ta_n[slot];
@@ -181,14 +185,16 @@ function pipe_ta_ensure_entries(slot: i32, need: i32): i32 {
     if (old_n > 0) {
       let copy_n: usize = (old_n * esz) as usize;
       unsafe {
-        memcpy(np, old, copy_n);
+        memcpy(pipe_load_ptr_slot(&cell[0], 0), old, copy_n);
       }
     }
     unsafe {
       free(old);
     }
   }
-  w303_ptr_set(&g_pipe_ta_entries[0], slot, np);
+  unsafe {
+    w303_ptr_set(&g_pipe_ta_entries[0], slot, pipe_load_ptr_slot(&cell[0], 0));
+  }
   g_pipe_ta_cap[slot] = new_cap;
   return 1;
 }

@@ -1,4 +1,4 @@
-// Thin pure: wave302/349 M2 — block_tree Cap residual C→.x (was wave269 C thin).
+// Thin pure: wave302/349/497 M2 — block_tree Cap residual C→.x (was wave269 C thin).
 // Faces: asm_sum_block_local_slot_bytes / asm_count_block_stack_slots /
 //   asm_sum_block_array_temp_bytes / asm_sum_block_wa_temp_bytes /
 //   asm_ctx_fill_locals_block_tree.
@@ -6,7 +6,10 @@
 // G.7: bodies match runtime_pipeline_abi.x wave269 leave.
 // wave349: wrap export-extern callees in unsafe (T001) so PREFER_ASM -c
 //   compiles; product inject may unlock PREFER after Cap A BSS check.
-// PRODUCT inject: stamp w349 (see ensure); historic -E+$CC until PREFER green.
+// wave351: PRODUCT PREFER both ends (stamp .pabi_w351_block_tree.stamp).
+// wave497: tipU heal — ban mid `x=export_extern()`; pipe cells + local
+//   w497_cell_i32 (same pattern as w495/w496). Stamp → .pabi_w497_block_tree.stamp.
+//   PRODUCT: LINUX PREFER；MACOS HARD BAN tip reinject (ARM64 BRANCH26 @ tip .o).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function asm_local_slot_bytes(arena: *u8, type_ref: i32): i32;
@@ -30,6 +33,21 @@ export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32
 export extern function pipeline_block_region_with_arena_cap_ref(arena: *u8, block_ref: i32, ri: i32): i32;
 export extern function pipeline_block_const_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
 export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+
+export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+
+/**
+ * Load i32 from pipe cell (local; tip-stable mid `x=cell_load()`).
+ * @param base *u8 — cell base
+ * @return i32 — stored value
+ * PLATFORM: SHARED — wave497 tipU heal helper.
+ */
+function w497_cell_i32(base: *u8): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, 0);
+  }
+}
 
 let g_w269_block_tree_stack: i32[256] = [];
 
@@ -56,49 +74,58 @@ function pipe_block_tree_push(sp: i32, block_ref: i32): i32 {
  * @param cur i32 - parent block_ref
  * @return i32 - new stack length
  * wave269 pure helper (was static asm_block_tree_push_children).
+ * wave497: no-local tipU heal (pipe cells).
  * PLATFORM: SHARED freestanding walk stack.
  */
 function pipe_block_tree_push_children(arena: *u8, sp: i32, cur: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
   let ch: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || cur <= 0) {
     return sp;
   }
   unsafe {
-    n = ast_ast_block_num_loops(arena, cur);
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_loops(arena, cur));
   }
+  n = w497_cell_i32(&cell[0]);
   i = 0;
   while (i < n) {
     unsafe {
-      ch = pipeline_block_while_body_ref(arena, cur, i);
+      pipe_store_i32_le(&cell[0], 0, pipeline_block_while_body_ref(arena, cur, i));
     }
+    ch = w497_cell_i32(&cell[0]);
     sp = pipe_block_tree_push(sp, ch);
     i = i + 1;
   }
   unsafe {
-    n = ast_ast_block_num_for_loops(arena, cur);
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_for_loops(arena, cur));
   }
+  n = w497_cell_i32(&cell[0]);
   i = 0;
   while (i < n) {
     unsafe {
-      ch = pipeline_block_for_body_ref(arena, cur, i);
+      pipe_store_i32_le(&cell[0], 0, pipeline_block_for_body_ref(arena, cur, i));
     }
+    ch = w497_cell_i32(&cell[0]);
     sp = pipe_block_tree_push(sp, ch);
     i = i + 1;
   }
   unsafe {
-    n = ast_ast_block_num_if_stmts(arena, cur);
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_if_stmts(arena, cur));
   }
+  n = w497_cell_i32(&cell[0]);
   i = 0;
   while (i < n) {
     unsafe {
-      ch = ast_pipeline_block_if_then_body_ref(arena, cur, i);
+      pipe_store_i32_le(&cell[0], 0, ast_pipeline_block_if_then_body_ref(arena, cur, i));
     }
+    ch = w497_cell_i32(&cell[0]);
     sp = pipe_block_tree_push(sp, ch);
     unsafe {
-      ch = ast_pipeline_block_if_else_body_ref(arena, cur, i);
+      pipe_store_i32_le(&cell[0], 0, ast_pipeline_block_if_else_body_ref(arena, cur, i));
     }
+    ch = w497_cell_i32(&cell[0]);
     sp = pipe_block_tree_push(sp, ch);
     i = i + 1;
   }
@@ -112,23 +139,27 @@ function pipe_block_tree_push_children(arena: *u8, sp: i32, cur: i32): i32 {
  * @param cur i32 - parent block_ref
  * @return i32 - new stack length
  * wave269 pure helper (was static asm_block_tree_push_region_children).
+ * wave497: no-local tipU heal.
  * PLATFORM: SHARED freestanding walk stack.
  */
 function pipe_block_tree_push_region_children(arena: *u8, sp: i32, cur: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
   let ch: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || cur <= 0) {
     return sp;
   }
   unsafe {
-    n = ast_ast_block_num_regions(arena, cur);
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_regions(arena, cur));
   }
+  n = w497_cell_i32(&cell[0]);
   i = 0;
   while (i < n) {
     unsafe {
-      ch = pipeline_block_region_body_ref(arena, cur, i);
+      pipe_store_i32_le(&cell[0], 0, pipeline_block_region_body_ref(arena, cur, i));
     }
+    ch = w497_cell_i32(&cell[0]);
     sp = pipe_block_tree_push(sp, ch);
     i = i + 1;
   }
@@ -143,6 +174,7 @@ function pipe_block_tree_push_region_children(arena: *u8, sp: i32, cur: i32): i3
  * wave269 pure helper (was static asm_fixed_array_temp_bytes).
  * Prefers pure asm_fixed_array_total_bytes_mod (wave268); else elem esz heuristic
  * matching C twin (u8=1, f32=4, named/ptr/i64/u64=8).
+ * wave497: no-local tipU heal.
  * PLATFORM: SHARED freestanding array temp layout.
  */
 function pipe_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
@@ -153,36 +185,47 @@ function pipe_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
   let esz: i32 = 4;
   let bytes: i32 = 0;
   let ek: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || type_ref <= 0) {
     return 0;
   }
   unsafe {
-    nt = pipeline_arena_num_types(arena);
+    pipe_store_i32_le(&cell[0], 0, pipeline_arena_num_types(arena));
   }
+  nt = w497_cell_i32(&cell[0]);
   if (type_ref > nt) {
     return 0;
   }
   unsafe {
-    ko = pipeline_type_kind_ord_at(arena, type_ref);
-    asz = pipeline_type_array_size_at(arena, type_ref);
-    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+    pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, type_ref));
   }
+  ko = w497_cell_i32(&cell[0]);
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_type_array_size_at(arena, type_ref));
+  }
+  asz = w497_cell_i32(&cell[0]);
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_type_elem_ref_at(arena, type_ref));
+  }
+  elem_ref = w497_cell_i32(&cell[0]);
   // TYPE_ARRAY = 10 (misuse 9 would treat as TYPE_PTR and skip temp).
   if (ko != 10 || asz <= 0) {
     return 0;
   }
   /* wave349: export-extern callee — T001 requires unsafe (PREFER path). */
   unsafe {
-    bytes = asm_fixed_array_total_bytes_mod(arena, type_ref, 0 as *u8);
+    pipe_store_i32_le(&cell[0], 0, asm_fixed_array_total_bytes_mod(arena, type_ref, 0 as *u8));
   }
+  bytes = w497_cell_i32(&cell[0]);
   if (bytes > 0) {
     return bytes;
   }
   esz = 4;
   if (elem_ref > 0 && elem_ref <= nt) {
     unsafe {
-      ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, elem_ref));
     }
+    ek = w497_cell_i32(&cell[0]);
     if (ek == 2) {
       esz = 1;
     } else {
@@ -208,6 +251,7 @@ function pipe_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
  * @param block_ref i32 - function body (or nested) block
  * @return i32 - total slot bytes (>=0)
  * wave269 pure: G.7 single product authority (was pipeline_asm_block_tree.c).
+ * wave497: no-local tipU heal.
  * PLATFORM: SHARED freestanding frame layout · LINUX gold · MACOS co-path.
  */
 #[no_mangle]
@@ -219,6 +263,7 @@ export function asm_sum_block_local_slot_bytes(arena: *u8, block_ref: i32): i32 
   let i: i32 = 0;
   let n: i32 = 0;
   let tref: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
@@ -235,30 +280,36 @@ export function asm_sum_block_local_slot_bytes(arena: *u8, block_ref: i32): i32 
       sp = 0;
     } else {
       unsafe {
-        n = ast_ast_block_num_consts(arena, cur);
+        pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_consts(arena, cur));
       }
+      n = w497_cell_i32(&cell[0]);
       i = 0;
       while (i < n) {
         unsafe {
-          tref = pipeline_block_const_type_ref(arena, cur, i);
+          pipe_store_i32_le(&cell[0], 0, pipeline_block_const_type_ref(arena, cur, i));
         }
+        tref = w497_cell_i32(&cell[0]);
         /* wave349: export-extern asm_local_slot_bytes — T001 unsafe. */
         unsafe {
-          total = total + asm_local_slot_bytes(arena, tref);
+          pipe_store_i32_le(&cell[0], 0, asm_local_slot_bytes(arena, tref));
         }
+        total = total + w497_cell_i32(&cell[0]);
         i = i + 1;
       }
       unsafe {
-        n = ast_ast_block_num_lets(arena, cur);
+        pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_lets(arena, cur));
       }
+      n = w497_cell_i32(&cell[0]);
       i = 0;
       while (i < n) {
         unsafe {
-          tref = pipeline_block_let_type_ref(arena, cur, i);
+          pipe_store_i32_le(&cell[0], 0, pipeline_block_let_type_ref(arena, cur, i));
         }
+        tref = w497_cell_i32(&cell[0]);
         unsafe {
-          total = total + asm_local_slot_bytes(arena, tref);
+          pipe_store_i32_le(&cell[0], 0, asm_local_slot_bytes(arena, tref));
         }
+        total = total + w497_cell_i32(&cell[0]);
         i = i + 1;
       }
       sp = pipe_block_tree_push_children(arena, sp, cur);
@@ -274,6 +325,7 @@ export function asm_sum_block_local_slot_bytes(arena: *u8, block_ref: i32): i32 
  * @param block_ref i32 - function body (or nested) block
  * @return i32 - total slot count (>=0)
  * wave269 pure: G.7 single product authority (was pipeline_asm_block_tree.c).
+ * wave497: no-local tipU heal.
  * PLATFORM: SHARED freestanding frame layout · LINUX gold · MACOS co-path.
  */
 #[no_mangle]
@@ -284,6 +336,7 @@ export function asm_count_block_stack_slots(arena: *u8, block_ref: i32): i32 {
   let cur: i32 = 0;
   let nc: i32 = 0;
   let nl: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
@@ -299,9 +352,13 @@ export function asm_count_block_stack_slots(arena: *u8, block_ref: i32): i32 {
       sp = 0;
     } else {
       unsafe {
-        nc = ast_ast_block_num_consts(arena, cur);
-        nl = ast_ast_block_num_lets(arena, cur);
+        pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_consts(arena, cur));
       }
+      nc = w497_cell_i32(&cell[0]);
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_lets(arena, cur));
+      }
+      nl = w497_cell_i32(&cell[0]);
       total = total + nc + nl;
       sp = pipe_block_tree_push_children(arena, sp, cur);
       sp = pipe_block_tree_push_region_children(arena, sp, cur);
@@ -317,6 +374,7 @@ export function asm_count_block_stack_slots(arena: *u8, block_ref: i32): i32 {
  * @return i32 - total array temp bytes (>=0)
  * wave269 pure: G.7 single product authority (was pipeline_asm_block_tree.c).
  * Note: does not walk region children (match C twin; wa temp is separate face).
+ * wave497: no-local tipU heal.
  * PLATFORM: SHARED freestanding frame layout · LINUX gold · MACOS co-path.
  */
 #[no_mangle]
@@ -328,6 +386,7 @@ export function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32): i32 
   let i: i32 = 0;
   let n: i32 = 0;
   let tref: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
@@ -343,13 +402,15 @@ export function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32): i32 
       sp = 0;
     } else {
       unsafe {
-        n = ast_ast_block_num_lets(arena, cur);
+        pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_lets(arena, cur));
       }
+      n = w497_cell_i32(&cell[0]);
       i = 0;
       while (i < n) {
         unsafe {
-          tref = pipeline_block_let_type_ref(arena, cur, i);
+          pipe_store_i32_le(&cell[0], 0, pipeline_block_let_type_ref(arena, cur, i));
         }
+        tref = w497_cell_i32(&cell[0]);
         total = total + pipe_fixed_array_temp_bytes(arena, tref);
         i = i + 1;
       }
@@ -366,6 +427,7 @@ export function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32): i32 
  * @param block_ref i32 - function body (or nested) block
  * @return i32 - padded wa temp bytes (>=0)
  * wave269 pure: G.7 single product authority (was pipeline_asm_block_tree.c).
+ * wave497: no-local tipU heal.
  * PLATFORM: SHARED freestanding frame layout · LINUX gold · MACOS co-path.
  */
 #[no_mangle]
@@ -377,6 +439,7 @@ export function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
   let cap_ref: i32 = 0;
+  let cell: u8[8];
   if (arena == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
@@ -392,13 +455,15 @@ export function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32 {
       sp = 0;
     } else {
       unsafe {
-        n = ast_ast_block_num_regions(arena, cur);
+        pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_regions(arena, cur));
       }
+      n = w497_cell_i32(&cell[0]);
       i = 0;
       while (i < n) {
         unsafe {
-          cap_ref = pipeline_block_region_with_arena_cap_ref(arena, cur, i);
+          pipe_store_i32_le(&cell[0], 0, pipeline_block_region_with_arena_cap_ref(arena, cur, i));
         }
+        cap_ref = w497_cell_i32(&cell[0]);
         if (cap_ref > 0) {
           total = total + 24;
         }
@@ -424,6 +489,7 @@ export function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32 {
  * wave269 pure: G.7 single product authority (was pipeline_asm_block_tree.c).
  * Calls pure asm_ctx_ensure_block_locals (wave268) per visited block.
  * MEM-C1: region children registered after cfg children so wa temp aligns with lets.
+ * wave497: no-local tipU heal (children walkers).
  * PLATFORM: SHARED freestanding block locals · LINUX gold · MACOS co-path.
  */
 #[no_mangle]
@@ -455,4 +521,3 @@ export function asm_ctx_fill_locals_block_tree(ctx: *u8, arena: *u8, block_ref: 
     }
   }
 }
-

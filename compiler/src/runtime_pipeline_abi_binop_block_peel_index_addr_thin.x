@@ -3,15 +3,18 @@
 // in binop_block_peel_thin.x / mega.
 // wave426: Darwin -c ~3561B; LINUX HARD BAN (Ubuntu asm -c empty .o RC=0).
 // wave435: LINUX PREFER — INDEX ko47 peer thin (co-file XT001).
+// wave479: peer-flat no-local (monolith tip U=1/8→3/8). Tip U=8/8.
+//   PRODUCT inject: LINUX PREFER (stamp w479); MACOS skip.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function glue_binop_index_addr_await_elf_c(arena: *u8, expr_ref: i32): i32;
+export extern function glue_binop_index_addr_as_elf_c(arena: *u8, expr_ref: i32): i32;
+export extern function glue_binop_index_addr_field_elf_c(arena: *u8, expr_ref: i32): i32;
+export extern function glue_binop_index_addr_deref_elf_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_binop_index_ko47_clobbers_rbx(arena: *u8, expr_ref: i32): i32;
 
 /**
@@ -21,48 +24,30 @@ export extern function glue_binop_index_ko47_clobbers_rbx(arena: *u8, expr_ref: 
  * @return i32 - face-specific status
  * PLATFORM: SHARED freestanding emit.
  * wave435: INDEX arm delegated to glue_binop_index_ko47_clobbers_rbx peer.
+ * wave479: peer-flat — await/as/field/deref peers; ban `let x=call()`.
  */
+#[no_mangle]
 export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, expr_ref: i32): i32 {
   unsafe {
-    let ko: i32 = 0;
-    let op_ref: i32 = 0;
     if ((arena == (0 as *u8)) || expr_ref <= 0) {
       return 0;
     }
-    op_ref = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
-    if (op_ref > 0) {
-      return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
+    if (glue_expr_block_transparent_value_ref_at(arena, expr_ref) > 0) {
+      return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, glue_expr_block_transparent_value_ref_at(arena, expr_ref));
     }
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
     if ((glue_expr_is_await_at_c(arena, expr_ref)) != 0) {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-      if (op_ref > 0) {
-        return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
-      }
-      return 0;
+      return glue_binop_index_addr_await_elf_c(arena, expr_ref);
     }
     if ((glue_expr_is_x_as_cast_at_c(arena, expr_ref)) != 0) {
-      op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
-      if (op_ref > 0) {
-        return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
-      }
-      return 0;
+      return glue_binop_index_addr_as_elf_c(arena, expr_ref);
     }
-    if (ko == 44) {
-      op_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
-      if (op_ref > 0) {
-        return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
-      }
-      return 0;
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) == 44) {
+      return glue_binop_index_addr_field_elf_c(arena, expr_ref);
     }
-    if (ko == 52) {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-      if (op_ref > 0) {
-        return glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref);
-      }
-      return 0;
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) == 52) {
+      return glue_binop_index_addr_deref_elf_c(arena, expr_ref);
     }
-    if (ko == 47) {
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) == 47) {
       return glue_binop_index_ko47_clobbers_rbx(arena, expr_ref);
     }
     return 0;

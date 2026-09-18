@@ -9,6 +9,9 @@
 // avoids Darwin mega -E).
 // wave399: PRODUCT PREFER_ASM both ends (stamp .pabi_w399_fnptr_array_esz.stamp);
 //   standalone -c green Darwin/Ubuntu; was class-E default -E.
+// wave496: tipU heal — ban mid `x=export_extern()`; pipe cells + local
+//   w496_cell_i32 / w496_cell_ptr (same pattern as w495 asm_expr helpers).
+//   Stamp → .pabi_w496_fnptr_array_esz.stamp; PREFER both ends (re-verify tip).
 // PLATFORM: SHARED freestanding sizing · LINUX gold · MACOS underscore.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
@@ -23,12 +26,42 @@ export extern function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i3
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
 
+export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+
+/**
+ * Load i32 from pipe cell (local; tip-stable mid `x=cell_load()`).
+ * @param base *u8 — cell base
+ * @return i32 — stored value
+ * PLATFORM: SHARED — wave496 tipU heal helper.
+ */
+function w496_cell_i32(base: *u8): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, 0);
+  }
+}
+
+/**
+ * Load *u8 from pipe ptr slot (local; tip-stable mid `p=cell_load()`).
+ * @param base *u8 — cell base
+ * @return *u8 — stored pointer
+ * PLATFORM: SHARED — wave496 tipU heal helper.
+ */
+function w496_cell_ptr(base: *u8): *u8 {
+  unsafe {
+    return pipe_load_ptr_slot(base, 0);
+  }
+}
+
 /**
  * Infer ARRAY_LIT element byte width from stamped elem type (force_esz=0 path).
  * @param arena *u8 - ASTArena*
  * @param expr_ref i32 - ARRAY_LIT expr
  * @return i32 - elem bytes; default 4
  * 10.3.1 slice13: TYPE_FN=18 → 8. G.7 thin twin of mega .x.
+ * wave496: no-local — pipe cells + w496_cell_* (ban mid `x=extern()`).
  * PLATFORM: SHARED freestanding.
  */
 #[no_mangle]
@@ -42,20 +75,26 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
   let n_inner: i32 = 0;
   let iesz: i32 = 0;
   let fko: i32 = 0;
+  let cell_i: u8[8];
+  let cell_m: u8[8];
   // M2 class A: -backend asm typeck T001 — export-extern call must sit in unsafe
   // (same glue.x / pthin_fn_block pattern; -E typeck is looser).
   // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
   unsafe {
-    elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+    /* PLATFORM: SHARED — tip drops mid `elem_ty=pipeline_asm_array_lit_elem_type_ref()`. */
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_asm_array_lit_elem_type_ref(arena, expr_ref));
   }
+  elem_ty = w496_cell_i32(&cell_i[0]);
   if (elem_ty > 0) {
     unsafe {
-      kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
+      pipe_store_i32_le(&cell_i[0], 0, pipeline_type_kind_ord_at(arena, elem_ty));
     }
+    kind_ord = w496_cell_i32(&cell_i[0]);
     if (kind_ord == 10) {
       unsafe {
-        nested = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+        pipe_store_i32_le(&cell_i[0], 0, glue_fixed_array_total_bytes_c(arena, elem_ty, 0));
       }
+      nested = w496_cell_i32(&cell_i[0]);
       if (nested > 0) {
         return nested;
       }
@@ -76,12 +115,14 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
     }
     if (kind_ord == 8) {
       unsafe {
-        mod = pipeline_asm_emit_module_ref_c();
+        pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
       }
+      mod = w496_cell_ptr(&cell_m[0]);
       if (mod != (0 as *u8)) {
         unsafe {
-          ssz = glue_type_size_simple(mod, arena, elem_ty, 0);
+          pipe_store_i32_le(&cell_i[0], 0, glue_type_size_simple(mod, arena, elem_ty, 0));
         }
+        ssz = w496_cell_i32(&cell_i[0]);
         if (ssz > 0) {
           return ssz;
         }
@@ -89,17 +130,24 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
     }
   }
   unsafe {
-    first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0));
   }
+  first_ref = w496_cell_i32(&cell_i[0]);
   if (first_ref > 0) {
     unsafe {
-      fko = pipeline_expr_kind_ord_at(arena, first_ref);
+      pipe_store_i32_le(&cell_i[0], 0, pipeline_expr_kind_ord_at(arena, first_ref));
     }
+    fko = w496_cell_i32(&cell_i[0]);
     if (fko == 46) {
       unsafe {
-        n_inner = pipeline_expr_array_lit_num_elems_at(arena, first_ref);
+        pipe_store_i32_le(&cell_i[0], 0, pipeline_expr_array_lit_num_elems_at(arena, first_ref));
       }
-      iesz = pipeline_asm_array_lit_elem_byte_sz_c(arena, first_ref);
+      n_inner = w496_cell_i32(&cell_i[0]);
+      /* Self-rec: also pipe-cell (tip mid-assign starve applies to any call). */
+      unsafe {
+        pipe_store_i32_le(&cell_i[0], 0, pipeline_asm_array_lit_elem_byte_sz_c(arena, first_ref));
+      }
+      iesz = w496_cell_i32(&cell_i[0]);
       if (n_inner > 0 && iesz > 0) {
         return n_inner * iesz;
       }
@@ -114,6 +162,7 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
  * @param et i32 - element type_ref
  * @return i32 - force_esz (0 = lit-infer)
  * 10.3.1 slice13: TYPE_FN=18 → 8 (Cap ABI). G.7 thin twin of mega .x.
+ * wave496: no-local tipU heal.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
 #[no_mangle]
@@ -121,12 +170,15 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
   let ek: i32 = 0;
   let ssz: i32 = 0;
   let mod: *u8 = 0 as *u8;
+  let cell_i: u8[8];
+  let cell_m: u8[8];
   if (arena == (0 as *u8) || et <= 0) {
     return 0;
   }
   unsafe {
-    ek = pipeline_type_kind_ord_at(arena, et);
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_type_kind_ord_at(arena, et));
   }
+  ek = w496_cell_i32(&cell_i[0]);
   if (ek == 2 || ek == 1) {
     return 1;
   }
@@ -139,12 +191,14 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
   }
   if (ek == 8) {
     unsafe {
-      mod = pipeline_asm_emit_module_ref_c();
+      pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
     }
+    mod = w496_cell_ptr(&cell_m[0]);
     if (mod != (0 as *u8)) {
       unsafe {
-        ssz = glue_type_size_simple(mod, arena, et, 0);
+        pipe_store_i32_le(&cell_i[0], 0, glue_type_size_simple(mod, arena, et, 0));
       }
+      ssz = w496_cell_i32(&cell_i[0]);
       if (ssz > 0) {
         return ssz;
       }
@@ -153,8 +207,9 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
   /* TYPE_ARRAY=10: row stride = sizeof([N]T). */
   if (ek == 10) {
     unsafe {
-      ssz = glue_fixed_array_total_bytes_c(arena, et, 0);
+      pipe_store_i32_le(&cell_i[0], 0, glue_fixed_array_total_bytes_c(arena, et, 0));
     }
+    ssz = w496_cell_i32(&cell_i[0]);
     if (ssz > 0) {
       return ssz;
     }
@@ -171,6 +226,7 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
  * @param type_ref i32 - TYPE_ARRAY type_ref
  * @return i32 - bytes; 0 if non-array / invalid
  * 10.3.1 slice13: elem TYPE_FN/PTR → esz 8. G.7 thin twin of mega .x.
+ * wave496: no-local tipU heal.
  * PLATFORM: SHARED — pure type sizing; arch-agnostic.
  */
 #[no_mangle]
@@ -183,41 +239,52 @@ export function glue_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
   let tk: i32 = 0;
   let etk: i32 = 0;
   let mod: *u8 = 0 as *u8;
+  let cell_i: u8[8];
+  let cell_m: u8[8];
   if (arena == (0 as *u8) || type_ref <= 0) {
     return 0;
   }
   unsafe {
-    nt = pipeline_arena_num_types(arena);
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_arena_num_types(arena));
   }
+  nt = w496_cell_i32(&cell_i[0]);
   if (type_ref > nt) {
     return 0;
   }
   unsafe {
-    arr_sz = pipeline_type_array_size_at(arena, type_ref);
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_type_array_size_at(arena, type_ref));
   }
+  arr_sz = w496_cell_i32(&cell_i[0]);
   if (arr_sz <= 0) {
     return 0;
   }
   unsafe {
-    tk = pipeline_type_kind_ord_at(arena, type_ref);
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_type_kind_ord_at(arena, type_ref));
   }
+  tk = w496_cell_i32(&cell_i[0]);
   if (tk == 10) {
     unsafe {
-      mod = pipeline_asm_emit_module_ref_c();
-      bytes = glue_type_size_simple(mod, arena, type_ref, 0);
+      pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
     }
+    mod = w496_cell_ptr(&cell_m[0]);
+    unsafe {
+      pipe_store_i32_le(&cell_i[0], 0, glue_type_size_simple(mod, arena, type_ref, 0));
+    }
+    bytes = w496_cell_i32(&cell_i[0]);
     if (bytes > 0) {
       return bytes;
     }
   }
   unsafe {
-    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+    pipe_store_i32_le(&cell_i[0], 0, pipeline_type_elem_ref_at(arena, type_ref));
   }
+  elem_ref = w496_cell_i32(&cell_i[0]);
   esz = 4;
   if (elem_ref > 0 && elem_ref <= nt) {
     unsafe {
-      etk = pipeline_type_kind_ord_at(arena, elem_ref);
+      pipe_store_i32_le(&cell_i[0], 0, pipeline_type_kind_ord_at(arena, elem_ref));
     }
+    etk = w496_cell_i32(&cell_i[0]);
     if (etk == 2) {
       esz = 1;
     } else {
@@ -226,13 +293,15 @@ export function glue_fixed_array_temp_bytes(arena: *u8, type_ref: i32): i32 {
       } else {
         if (etk == 8) {
           unsafe {
-            mod = pipeline_asm_emit_module_ref_c();
+            pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
           }
+          mod = w496_cell_ptr(&cell_m[0]);
           if (mod != (0 as *u8)) {
             // M2 class A: remaining export-extern call in this leaf.
             unsafe {
-              esz = glue_type_size_simple(mod, arena, elem_ref, 0);
+              pipe_store_i32_le(&cell_i[0], 0, glue_type_size_simple(mod, arena, elem_ref, 0));
             }
+            esz = w496_cell_i32(&cell_i[0]);
           }
           if (esz <= 0) {
             esz = 8;

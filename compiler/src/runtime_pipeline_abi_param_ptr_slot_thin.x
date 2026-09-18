@@ -11,6 +11,7 @@
 // wave402: MACOS PREFER / LINUX hard-skip BAN tip reinject (CG002 / -E empty if).
 // wave432: BOTH PREFER — extract w189_param_at_is_type_ptr so Ubuntu -E no
 //   longer emits empty `if ()` / CFG-reorders the walker; -c ~4955B green.
+// wave494: no-local mid `x=call()` (tip U starved 3/15); LINUX -E (tip PREFER opt=77).
 // PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
 
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
@@ -28,16 +29,43 @@ export extern function pipeline_asm_host_is_arm64_c(): i32;
 export extern function pipeline_module_func_num_params_at(mod: *u8, func_index: i32): i32;
 export extern function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, param_index: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(mod: *u8, func_index: i32, param_index: i32): i32;
+/** Pipe cell store/load — tip-stable mid call results (wave494). */
+export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, p: *u8): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+
+/**
+ * TYPE_PTR formal check at one home (wave432: isolate from while/if CFG —
+ * Ubuntu -E otherwise emits empty `if ()` inside the walker).
+ * wave494: no-local — pipe cell for mid i32 calls.
+ * @param arena *u8 — ASTArena*
+ * @param mod *u8 — Module*
+ * @param func_index i32 — emit function index
+ * @param pi i32 — param index
+ * @return i32 — 1 if param type kind is TYPE_PTR (9); else 0
+ */
+function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i32): i32 {
+  let cell: u8[8];
+  unsafe {
+    /* PLATFORM: SHARED — tip drops mid `pty=call()` / `tk=call()`; pipe cell. */
+    pipe_store_i32_le(&cell[0], 0, pipeline_module_func_param_type_ref_at(mod, func_index, pi));
+    if (pipe_load_i32_le(&cell[0], 0) <= 0) {
+      return 0;
+    }
+    pipe_store_i32_le(&cell[0], 4, pipeline_type_kind_ord_at(arena, pipe_load_i32_le(&cell[0], 0)));
+    if (pipe_load_i32_le(&cell[0], 4) != 9) {
+      return 0;
+    }
+  }
+  return 1;
+}
 
 /**
  * Whether stack_off maps to a *T formal param home.
  * Homes match pipeline_asm_fill_param_slots: param 0 starts at 16, then
- * +8 (or +width when width>8; x86 high-end for wide homes). The old
- * `(stack_off-8)/8` mapped the by-value NAMED self at 16 onto param
- * index 1 — when that extra is TYPE_PTR, `self.v` pointer-loaded the
- * value (dyn extra `*i32` / PTR-outer `*[N][]T` sit-red 139). SLICE
- * extras stay kind 11 so they never hit this helper (dest-SLICE +
- * `self.v` already 7).
+ * +8 (or +width when width>8; x86 high-end for wide homes).
+ * wave494: no-local — pipe cell; loops in unsafe (T001).
  * @param arena *u8 — ASTArena*
  * @param mod *u8 — Module*
  * @param func_index i32 — emit function index
@@ -46,87 +74,56 @@ export extern function pipeline_module_func_param_type_ref_at(mod: *u8, func_ind
  * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
  * G.7: complete this walk (same homes as fill_param_slots; no second mapper).
  */
-/**
- * TYPE_PTR formal check at one home (wave432: isolate from while/if CFG —
- * Ubuntu -E otherwise emits empty `if ()` inside the walker).
- * @param arena *u8 — ASTArena*
- * @param mod *u8 — Module*
- * @param func_index i32 — emit function index
- * @param pi i32 — param index
- * @return i32 — 1 if param type kind is TYPE_PTR (9); else 0
- */
-function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i32): i32 {
-  let pty: i32 = 0;
-  let tk: i32 = 0;
-  unsafe {
-    pty = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
-  }
-  if (pty <= 0) {
-    return 0;
-  }
-  unsafe {
-    tk = pipeline_type_kind_ord_at(arena, pty);
-  }
-  if (tk != 9) {
-    return 0;
-  }
-  return 1;
-}
-
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   let pi: i32 = 0;
-  let np: i32 = 0;
-  let nf: i32 = 0;
   let off: i32 = 16;
-  let is_arm: i32 = 0;
-  let width: i32 = 0;
   let slot_off: i32 = 0;
   let hit: i32 = 0;
+  /* cell: [0]=nf|[4]=is_arm; cell_w: [0]=np|[4]=width */
+  let cell: u8[8];
+  let cell_w: u8[8];
   if (arena == (0 as *u8) || mod == (0 as *u8) || func_index < 0 || stack_off < 8) {
-    return 0;
-  }
-  unsafe {
-    nf = pipeline_module_num_funcs(mod);
-  }
-  if (func_index >= nf) {
     return 0;
   }
   if ((stack_off & 7) != 0) {
     return 0;
   }
   unsafe {
-    is_arm = pipeline_asm_host_is_arm64_c();
-    np = pipeline_module_func_num_params_at(mod, func_index);
-  }
-  pi = 0;
-  while (pi < np) {
-    unsafe {
-      width = glue_func_param_home_width_c(arena, mod, func_index, pi);
+    pipe_store_i32_le(&cell[0], 0, pipeline_module_num_funcs(mod));
+    if (func_index >= pipe_load_i32_le(&cell[0], 0)) {
+      return 0;
     }
-    if (width <= 0) {
-      width = 8;
-    }
-    if (is_arm != 0) {
-      slot_off = off;
-      if (width > 8) {
-        off = off + width;
-      } else {
-        off = off + 8;
+    pipe_store_i32_le(&cell[0], 4, pipeline_asm_host_is_arm64_c());
+    pipe_store_i32_le(&cell_w[0], 0, pipeline_module_func_num_params_at(mod, func_index));
+    pi = 0;
+    while (pi < pipe_load_i32_le(&cell_w[0], 0)) {
+      pipe_store_i32_le(&cell_w[0], 4, glue_func_param_home_width_c(arena, mod, func_index, pi));
+      if (pipe_load_i32_le(&cell_w[0], 4) <= 0) {
+        pipe_store_i32_le(&cell_w[0], 4, 8);
       }
-    } else {
-      if (width > 8) {
-        slot_off = off + width;
-        off = slot_off + 8;
-      } else {
+      if (pipe_load_i32_le(&cell[0], 4) != 0) {
         slot_off = off;
-        off = off + 8;
+        if (pipe_load_i32_le(&cell_w[0], 4) > 8) {
+          off = off + pipe_load_i32_le(&cell_w[0], 4);
+        } else {
+          off = off + 8;
+        }
+      } else {
+        if (pipe_load_i32_le(&cell_w[0], 4) > 8) {
+          slot_off = off + pipe_load_i32_le(&cell_w[0], 4);
+          off = slot_off + 8;
+        } else {
+          slot_off = off;
+          off = off + 8;
+        }
       }
+      if (slot_off == stack_off) {
+        /* wave432: isolate TYPE_PTR check (Ubuntu -E CFG scramble). */
+        hit = w189_param_at_is_type_ptr(arena, mod, func_index, pi);
+        return hit;
+      }
+      pi = pi + 1;
     }
-    if (slot_off == stack_off) {
-      hit = w189_param_at_is_type_ptr(arena, mod, func_index, pi);
-      return hit;
-    }
-    pi = pi + 1;
   }
   return 0;
 }
@@ -148,66 +145,58 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
  *  5. TYPE_SLICE formal (codegen lowers as pointer; local let stays dual-GP)
  *
  * wave189 pure: G.7 authority (was Cap residual index_helpers).
+ * wave494: no-local — pipe cell for mid calls; loops in unsafe (T001).
  * PLATFORM: SHARED freestanding INDEX/field/lvalue · LINUX gold · MACOS co-path.
  */
 #[no_mangle]
 export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8): i32 {
-  let mod: *u8 = 0 as *u8;
-  let holds: i32 = 0;
-  let fi: i32 = 0;
-  let ko: i32 = 0;
   /* Cap 4.2.8: var_name_into memset(out,0,256); align mega runtime_pipeline_abi.x. */
   let vname: u8[256] = [];
-  let vlen: i32 = 0;
-  let pty: i32 = 0;
-  let tk: i32 = 0;
+  let cell_m: u8[8];
+  let cell: u8[8];
+  let cell_t: u8[8];
   // M2 class A: export-extern calls must sit in unsafe (-backend asm T001).
   // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
   unsafe {
-    mod = glue_emit_module_from_ctx(ctx);
-    holds = asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, mod, ctx);
-  }
-  if (holds != 0) {
-    return 1;
-  }
-  unsafe {
-    fi = pipeline_asm_emit_func_index_c();
-  }
-  if (mod != (0 as *u8) && fi >= 0) {
-    unsafe {
-      if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, var_expr_ref) != 0) {
-        return 1;
-      }
-      if (glue_emit_func_param_is_indirect_array_slot_c(arena, mod, var_expr_ref) != 0) {
-        return 1;
-      }
-    }
-    if (w189_stack_off_is_emit_param_ptr_slot(arena, mod, fi, stack_off) != 0) {
+    /* PLATFORM: SHARED — tip drops mid `mod=call()` / `holds=call()`; pipe cells. */
+    pipe_store_ptr_slot(&cell_m[0], 0, glue_emit_module_from_ctx(ctx));
+    pipe_store_i32_le(&cell[0], 0, asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, pipe_load_ptr_slot(&cell_m[0], 0), ctx));
+    if (pipe_load_i32_le(&cell[0], 0) != 0) {
       return 1;
     }
-    // PLATFORM: SHARED — TYPE_SLICE params lower as pointers (1 GP home).
-    // Local TYPE_SLICE lets stay by-value dual-GP (needs_ptr_load=0).
-    if (arena != (0 as *u8) && var_expr_ref > 0) {
-      unsafe {
-        ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+    /* cell[4]=fi stable for rest of walk. */
+    pipe_store_i32_le(&cell[0], 4, pipeline_asm_emit_func_index_c());
+    if (pipe_load_ptr_slot(&cell_m[0], 0) != (0 as *u8) && pipe_load_i32_le(&cell[0], 4) >= 0) {
+      if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, pipe_load_ptr_slot(&cell_m[0], 0), var_expr_ref) != 0) {
+        return 1;
       }
-      // EXPR_VAR == 3
-      if (ko == 3) {
-        unsafe {
-          vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
-        }
-        if (vlen > 0 && vlen <= 255) {
-          unsafe {
+      if (glue_emit_func_param_is_indirect_array_slot_c(arena, pipe_load_ptr_slot(&cell_m[0], 0), var_expr_ref) != 0) {
+        return 1;
+      }
+      if (w189_stack_off_is_emit_param_ptr_slot(arena, pipe_load_ptr_slot(&cell_m[0], 0), pipe_load_i32_le(&cell[0], 4), stack_off) != 0) {
+        return 1;
+      }
+      // PLATFORM: SHARED — TYPE_SLICE params lower as pointers (1 GP home).
+      // Local TYPE_SLICE lets stay by-value dual-GP (needs_ptr_load=0).
+      if (arena != (0 as *u8) && var_expr_ref > 0) {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, var_expr_ref));
+        // EXPR_VAR == 3
+        if (pipe_load_i32_le(&cell[0], 0) == 3) {
+          pipe_store_i32_le(&cell[0], 0, pipeline_expr_var_name_len(arena, var_expr_ref));
+          if (pipe_load_i32_le(&cell[0], 0) > 0 && pipe_load_i32_le(&cell[0], 0) <= 255) {
             pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
-            pty = pipeline_module_func_param_type_ref_for_name(mod, fi, &vname[0], vlen);
-          }
-          if (pty > 0) {
-            unsafe {
-              tk = pipeline_type_kind_ord_at(arena, pty);
-            }
-            // TYPE_SLICE == 11
-            if (tk == 11) {
-              return 1;
+            /* cell_t[0]=pty; cell_t[4]=tk. cell[0]=vlen; cell[4]=fi. */
+            pipe_store_i32_le(&cell_t[0], 0, pipeline_module_func_param_type_ref_for_name(
+                pipe_load_ptr_slot(&cell_m[0], 0),
+                pipe_load_i32_le(&cell[0], 4),
+                &vname[0],
+                pipe_load_i32_le(&cell[0], 0)));
+            if (pipe_load_i32_le(&cell_t[0], 0) > 0) {
+              pipe_store_i32_le(&cell_t[0], 4, pipeline_type_kind_ord_at(arena, pipe_load_i32_le(&cell_t[0], 0)));
+              // TYPE_SLICE == 11
+              if (pipe_load_i32_le(&cell_t[0], 4) == 11) {
+                return 1;
+              }
             }
           }
         }

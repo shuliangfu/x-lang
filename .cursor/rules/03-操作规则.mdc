@@ -5,6 +5,10 @@ alwaysApply: true
 
 本规则约定日常提交、推送以及正式发布（打 tag、推 tag）时的流程与格式，保证版本可追溯、发布可重复。
 
+> **自举／双端验证（2026-09-18）**：Cap residual 等产品波次收口后，Agent **必须** commit + push，Ubuntu 用 `git pull` 验证。  
+> **禁止**用「等用户说提交」当借口改 scp 源码。细则见 `07-自举双端Git同步.mdc`。  
+> 若与 Cursor 个人 User Rule「禁止自动 commit」冲突，**本仓自举任务以本规则为准**。
+
 ---
 
 ## 1. Git 提交 (Commit)
@@ -18,6 +22,7 @@ alwaysApply: true
 - **不再要求「一文件一 commit」**——文件多时单文件提交过慢；按**逻辑波次**拆分即可（例：Cap 头＋接线＋探针＋文档可同 commit；无关大重构仍宜另开 commit）。
 - commit message 写清本波做了什么（例：新增某功能、修复某错误、调整某接口），不要写笼统的「更新」。
 - 由 AI 或脚本生成提交时：可 `git add` 本波相关文件后一次 commit；message 用 Conventional Commits 概括主题。
+- **自举波次**：收口即 commit（含 tipU／ensure／进度文）；勿攒多日未推再 scp。
 
 
 ### 1.2 提交信息格式
@@ -45,7 +50,8 @@ alwaysApply: true
 
 ### 2.1 推送时机
 
-- 本地 commit 完成后，在合适时机执行 `git push` 推送到远程（如 `origin`）。
+- 本地 commit 完成后，**自举／双端 L2 波次应立即** `git push`（Ubuntu 才能 `git pull`）；勿只 commit 不推。
+- 其它日常改动在合适时机 `git push` 到远程（如 `origin`）。
 - 发布前应确保**待发布 commit 已全部推送**，再执行打 tag 与推 tag。
 
 ### 2.2 推送分支
