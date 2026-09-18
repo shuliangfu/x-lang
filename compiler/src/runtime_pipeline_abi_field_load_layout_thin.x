@@ -1,8 +1,10 @@
-// Thin pure: field_load layout-match Cap residual (wave433/w485).
+// Thin pure: field_load layout-match Cap residual (wave433/w485/w508).
 // G.7: layout walk twin of field_load main / mega.
 // wave433: nested byte-while → copy+bytes_eq (Ubuntu empty .o).
 // wave485: no-local — ban mid `x=call()` (tip U=2/11); re-call + pipe cells.
 //   PRODUCT inject: LINUX PREFER (stamp w485); MACOS full thin path unchanged.
+// wave508: tipU 12/13 → 13/13 — `out[j]=name_byte_at() as u8` mid-cast drop;
+//   copy_layout_name uses pipe cell + load (same no-local class as w485).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_type_named_name_into(a: *u8, ty_ref: i32, out: *u8): i32;
@@ -22,6 +24,8 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 /**
  * Copy layout name bytes at index k into out[0..nlen).
  * wave485: no-local — ban `b=call()` in while; call-as-store.
+ * wave508: ban `out[j]=name_byte_at() as u8` (tip drops U for cast-store);
+ *   pipe-store the i32 return, then load into out[j].
  * @param m *u8 — Module*
  * @param k i32 — layout index
  * @param out *u8 — destination buffer (capacity >= nlen)
@@ -32,8 +36,11 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 function field_load_sz_copy_layout_name(m: *u8, k: i32, out: *u8, nlen: i32): void {
   unsafe {
     let j: i32 = 0;
+    /* cell[0]=name_byte_at result — tip keeps U when call is store arg. */
+    let cell: u8[4] = [];
     while (j < nlen) {
-      out[j] = pipeline_module_struct_layout_name_byte_at(m, k, j) as u8;
+      pipe_store_i32_le(&cell[0], 0, pipeline_module_struct_layout_name_byte_at(m, k, j));
+      out[j] = pipe_load_i32_le(&cell[0], 0) as u8;
       j = j + 1;
     }
   }

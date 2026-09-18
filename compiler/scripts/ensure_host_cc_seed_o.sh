@@ -5224,7 +5224,7 @@ pipeline_abi_inject_slot_bytes_thin() {
   return "$rc"
 }
 
-# wave401/414/431/433/485 M2: field_load_sz Cap residual — asymmetric helpers unlock.
+# wave401/414/431/433/485/508 M2: field_load_sz Cap residual — asymmetric helpers unlock.
 # PRODUCT inject wave414:
 #   MACOS: PREFER_ASM full thin (helpers+main; -c green; product L2 verified).
 #   LINUX: PREFER_ASM helpers-only thin (field_load_sz_bytes_eq;
@@ -5236,6 +5236,8 @@ pipeline_abi_inject_slot_bytes_thin() {
 #   copy+bytes_eq layout thin + main tip (Ubuntu -c ~3740+3256B; -E T present).
 # wave485: LINUX layout+try_layout+name_heur+main no-local PREFER — tip U
 #   starved 3/9＋2/11 → peer-flat tip U 齐; stamp w485.
+# wave508: layout tipU 12/13→13/13 — `out[j]=name_byte_at() as u8` mid-cast
+#   drop; pipe-cell heal; stamp → w508 (LINUX PREFER reinject layout leaf).
 # G.7: helpers/layout/main match mega; MACOS stays full thin.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+layout+main PREFER.
 pipeline_abi_inject_field_load_sz_thin() {
@@ -5256,7 +5258,7 @@ pipeline_abi_inject_field_load_sz_thin() {
       stamp="src/.pabi_w414_field_load_sz_helpers.stamp"
       tag="w414-field-load-sz-helpers"
       lay_x="src/runtime_pipeline_abi_field_load_layout_thin.x"
-      lay_stamp="src/.pabi_w485_field_load_layout.stamp"
+      lay_stamp="src/.pabi_w508_field_load_layout.stamp"
       try_x="src/runtime_pipeline_abi_field_load_try_layout_thin.x"
       try_stamp="src/.pabi_w485_field_load_try_layout.stamp"
       heur_x="src/runtime_pipeline_abi_field_load_name_heur_thin.x"
@@ -5300,14 +5302,15 @@ pipeline_abi_inject_field_load_sz_thin() {
   else
     rc=0
   fi
-  # PLATFORM: LINUX — layout → try_layout → name_heur → main (wave485).
+  # PLATFORM: LINUX — layout → try_layout → name_heur → main (wave485/w508).
   if [ "$rc" -eq 0 ] && [ -n "${lay_x-}" ] && [ -f "$lay_x" ]; then
     if [ ! -f "$lay_stamp" ] || [ "$lay_x" -nt "$lay_stamp" ]; then
-      pipeline_abi_inject_thin_leaf "$o" "$lay_x" "w485-field-load-layout"
+      pipeline_abi_inject_thin_leaf "$o" "$lay_x" "w508-field-load-layout"
       rc=$?
       if [ "$rc" -eq 0 ]; then
         touch "$lay_stamp"
-        rm -f src/.pabi_w433_field_load_layout.stamp
+        rm -f src/.pabi_w433_field_load_layout.stamp \
+          src/.pabi_w485_field_load_layout.stamp
       fi
     fi
   fi
