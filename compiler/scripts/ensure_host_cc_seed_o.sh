@@ -7609,14 +7609,9 @@ pipeline_abi_inject_arr_return_thin() {
       log "pipeline_abi w510-arr-return: tipU heal stamped; tip PRODUCT reinject HARD BAN for $(basename "$ban_x") (keep w439)"
     fi
   done
+  # Skip peer PREFER inject when main already overlaid (ban stamps refreshed above).
   if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
-    # Still re-enter when b0/c ban stamps are stale (heal inventory).
-    if [ -f src/.pabi_w510_arr_return_b0.stamp ] \
-      && [ -f src/.pabi_w510_arr_return_c.stamp ] \
-      && [ ! src/runtime_pipeline_abi_arr_return_b0_thin.x -nt src/.pabi_w510_arr_return_b0.stamp ] \
-      && [ ! src/runtime_pipeline_abi_arr_return_c_thin.x -nt src/.pabi_w510_arr_return_c.stamp ]; then
-      return 0
-    fi
+    return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
