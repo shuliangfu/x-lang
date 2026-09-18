@@ -6219,7 +6219,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_leaves_thin.x|.pabi_w436_binop_block_peel_load_operand_leaves.stamp|w436-binop-block-peel-load-operand-leaves" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_const_thin.x|.pabi_w548_binop_block_peel_load_operand_const.stamp|w548-ban-load-operand-const" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rbx_thin.x|.pabi_w436_binop_block_peel_load_operand_var_rbx.stamp|w436-binop-block-peel-load-operand-var-rbx" \
-      "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rax_thin.x|.pabi_w436_binop_block_peel_load_operand_var_rax.stamp|w436-binop-block-peel-load-operand-var-rax" \
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rax_thin.x|.pabi_w551_binop_block_peel_load_operand_var_rax.stamp|w551-ban-load-operand-var-rax" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_ko3_thin.x|.pabi_w547_binop_block_peel_load_operand_var_ko3.stamp|w547-ban-load-operand-var-ko3" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_rest_arms_thin.x|.pabi_w436_binop_block_peel_load_operand_rest_arms.stamp|w436-binop-block-peel-load-operand-rest-arms" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_thin.x|.pabi_w436_binop_block_peel_load_operand.stamp|w436-binop-block-peel-load-operand"
@@ -6243,6 +6243,14 @@ pipeline_abi_inject_binop_block_peel_thin() {
             touch "$lo_stamp"
             rm -f src/.pabi_w436_binop_block_peel_load_operand_const.stamp
             log "pipeline_abi w548 load_operand_const: tipU stamped; tip PRODUCT reinject HARD BAN"
+          fi
+          continue
+          ;;
+        *load_operand_var_rax_thin.x)
+          if [ -f "$lo_x" ]; then
+            touch "$lo_stamp"
+            rm -f src/.pabi_w436_binop_block_peel_load_operand_var_rax.stamp
+            log "pipeline_abi w551 load_operand_var_rax: tipU stamped; tip PRODUCT reinject HARD BAN"
           fi
           continue
           ;;
