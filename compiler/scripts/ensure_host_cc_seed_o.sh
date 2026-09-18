@@ -6987,7 +6987,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave442: arr_struct_lit LINUX -E peer PREFER (call heal; pure-asm residual).
 # wave443: mega helpers LINUX -E PREFER (+emit_one); loop tip BAN.
 # wave444: mega loop LINUX HARD BAN (-E EM:0 / pure-asm SEGV 139).
-# Next: mega loop reshape／var tip reshape；禁 tip to_rax／emit／arrlit+main；禁升钉。
+# Next: var tip reshape；禁 tip mega loop／to_rax／emit／arrlit+main；禁升钉。
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
@@ -7827,6 +7827,8 @@ pipeline_abi_inject_codegen_outbuf_thin() {
 #       (ld "Relocations in generic ELF (EM: 0)"); L2 0/5 build=1.
 #     · pure-asm tip: inject OK but product SEGV 139 (L2 0/5).
 #     Keep leftover mega_body_c; stamp .pabi_w444_mega_loop (no tip overlay).
+#   wave450: reshape probes confirm tip pipe_store / malloc / stack arrays
+#     each alone → product si SEGV; -E still EM:0. HARD BAN unchanged.
 #     Stamp .pabi_w443_mega_helpers + .pabi_w424_mega_emit_one.
 # wave427: loop-alone after emit_one PREFER still BAN (product EM:0 L2 0/5).
 # wave429: mega_body pure-asm product CG002/SEGV; healed by leave leftover;
@@ -7844,7 +7846,7 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local rc=0
   [ -s "$o" ] && [ -f "$thin_helpers" ] && [ -f "$thin_emit" ] && [ -f "$thin_loop" ] || return 0
   # PLATFORM: LINUX — helpers -E (w443) then emit_one pure-asm (w424);
-  #   loop tip HARD BAN (w444: -E EM:0 / pure-asm SEGV).
+  #   loop tip HARD BAN (w444/w450: -E EM:0; tip pipe_store/malloc/stack SEGV).
   case "$(uname -s)" in
     Linux)
       local stamp_h="src/.pabi_w443_mega_helpers.stamp"
