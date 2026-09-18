@@ -7574,6 +7574,14 @@ pipeline_abi_inject_arr_lit_flat_thin() {
 #   b0_durable→b0→b→c_dest_array→c_slice→c_fallback→c→d→main.
 # G.7: semantics match mega pipeline_asm_emit_return_elf_impl.
 # PLATFORM: SHARED · BOTH PREFER peers.
+# wave439/477/510 M2: arr_return Cap residual — peer-flat PREFER + b0/c BAN.
+# PRODUCT inject wave439: BOTH PREFER peer chain.
+# wave477: tip PRODUCT reinject of b0/c → L2 CG002 4/5 HARD BAN (claimed).
+# wave510: b0/c tipU heal (pipe-cell mid `rc=call()`) + formalize HARD BAN
+#   tip reinject (stamp w510; do not call inject_thin_leaf for b0/c; keep
+#   w439 leftover overlay). Other peers stay PREFER.
+# G.7: semantics match mega return path B0/C leave.
+# PLATFORM: SHARED · b0/c BAN tip reinject / other peers PREFER.
 pipeline_abi_inject_arr_return_thin() {
   local o="$1"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
@@ -7584,9 +7592,31 @@ pipeline_abi_inject_arr_return_thin() {
   local peer lo_x lo_stamp lo_tag lo_rest
   local main_x="src/runtime_pipeline_abi_arr_return_thin.x"
   local main_s="src/.pabi_w439_arr_return.stamp"
+  local ban_x ban_s
   [ -s "$o" ] && [ -f "$main_x" ] || return 0
+  # wave477/w510: HARD BAN tip product reinject of b0 + c (L2 CG002).
+  # tipU heal bodies remain in tree for inventory; stamp-only skip.
+  for ban_peer in \
+    "src/runtime_pipeline_abi_arr_return_b0_thin.x|.pabi_w510_arr_return_b0.stamp" \
+    "src/runtime_pipeline_abi_arr_return_c_thin.x|.pabi_w510_arr_return_c.stamp"
+  do
+    ban_x="${ban_peer%%|*}"
+    ban_s="src/${ban_peer#*|}"
+    if [ -f "$ban_x" ] && { [ ! -f "$ban_s" ] || [ "$ban_x" -nt "$ban_s" ]; }; then
+      touch "$ban_s"
+      rm -f src/.pabi_w439_arr_return_b0.stamp src/.pabi_w439_arr_return_c.stamp \
+        src/.pabi_w477_arr_return_b0.stamp src/.pabi_w477_arr_return_c.stamp
+      log "pipeline_abi w510-arr-return: tipU heal stamped; tip PRODUCT reinject HARD BAN for $(basename "$ban_x") (keep w439)"
+    fi
+  done
   if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
-    return 0
+    # Still re-enter when b0/c ban stamps are stale (heal inventory).
+    if [ -f src/.pabi_w510_arr_return_b0.stamp ] \
+      && [ -f src/.pabi_w510_arr_return_c.stamp ] \
+      && [ ! src/runtime_pipeline_abi_arr_return_b0_thin.x -nt src/.pabi_w510_arr_return_b0.stamp ] \
+      && [ ! src/runtime_pipeline_abi_arr_return_c_thin.x -nt src/.pabi_w510_arr_return_c.stamp ]; then
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -7600,18 +7630,17 @@ pipeline_abi_inject_arr_return_thin() {
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  # PLATFORM: SHARED — PREFER peers except b0/c (HARD BAN tip reinject).
   for peer in \
     "src/runtime_pipeline_abi_arr_return_a0_thin.x|.pabi_w439_arr_return_a0.stamp|w439-arr-return-a0" \
     "src/runtime_pipeline_abi_arr_return_a_thin.x|.pabi_w439_arr_return_a.stamp|w439-arr-return-a" \
     "src/runtime_pipeline_abi_arr_return_a2_thin.x|.pabi_w439_arr_return_a2.stamp|w439-arr-return-a2" \
     "src/runtime_pipeline_abi_arr_return_b0_prep_thin.x|.pabi_w439_arr_return_b0_prep.stamp|w439-arr-return-b0-prep" \
     "src/runtime_pipeline_abi_arr_return_b0_durable_thin.x|.pabi_w439_arr_return_b0_durable.stamp|w439-arr-return-b0-durable" \
-    "src/runtime_pipeline_abi_arr_return_b0_thin.x|.pabi_w439_arr_return_b0.stamp|w439-arr-return-b0" \
     "src/runtime_pipeline_abi_arr_return_b_thin.x|.pabi_w439_arr_return_b.stamp|w439-arr-return-b" \
     "src/runtime_pipeline_abi_arr_return_c_dest_array_thin.x|.pabi_w439_arr_return_c_dest_array.stamp|w439-arr-return-c-dest-array" \
     "src/runtime_pipeline_abi_arr_return_c_slice_thin.x|.pabi_w439_arr_return_c_slice.stamp|w439-arr-return-c-slice" \
     "src/runtime_pipeline_abi_arr_return_c_fallback_thin.x|.pabi_w439_arr_return_c_fallback.stamp|w439-arr-return-c-fallback" \
-    "src/runtime_pipeline_abi_arr_return_c_thin.x|.pabi_w439_arr_return_c.stamp|w439-arr-return-c" \
     "src/runtime_pipeline_abi_arr_return_d_thin.x|.pabi_w439_arr_return_d.stamp|w439-arr-return-d" \
     "src/runtime_pipeline_abi_arr_return_thin.x|.pabi_w439_arr_return.stamp|w439-arr-return"
   do
