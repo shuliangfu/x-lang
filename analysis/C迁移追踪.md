@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志、「证：…」长叙事。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古全文**（瘦身前）：[`archive/C迁移追踪-流水账归档-20260910.md`](archive/C迁移追踪-流水账归档-20260910.md) · 更早：[`archive/C迁移追踪-流水账归档-20260825.md`](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-18 · assign rhsrax middle LINUX BAN · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-19 · arr_struct_lit copy_elems tipU BAN · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（双端 L4 真冷；升钉默认不做） |
 | BC（编译层零 host-cc） | ✅ | `pipeline_x` 已退役（wave309）——BC 面余量转 8.3.6 冷孪生三分 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 …＋**w383/383b** type_pool PREFER 双端＋HARD BAN tip force-reinject（Ubuntu 3rd tip→T001）；**w382** elf_ctx HARD BAN reinject 双端；**w381** parser_result HARD BAN reinject；**w380** Cap A HARD BAN reinject 双端；**w379** onefunc HARD BAN PREFER＋check_expr HARD BAN reinject；**w378** value_abi BAN PREFER（sret · `-E` 双端）＋emit_index Ubuntu PREFER BAN 复认（option=240）；**w377** module_import T001＋BAN PREFER（BRANCH26）Darwin `-E`／Ubuntu hard-skip；**w376** bootstrap_glue T001＋BAN PREFER；**w375** for_call_args PREFER＋BAN parser_result；**w374b** parse_orch Darwin PREFER／Ubuntu hard-skip；**w374** T001；**w373** type_pool option T001 根因（仍 w372b）；**w372b** type_pool Darwin PREFER／Ubuntu `-E`；**w371b** mega_body Darwin PREFER／Ubuntu hard-skip；**w370b BAN** macho_write PREFER；**w369b BAN** asm_wpo PREFER；**w368b elf_ctx** Darwin PREFER／Ubuntu `-E`；**w367b BAN** dep_ctx PREFER；**w366 sidecar_pool** PREFER 双端；**w365 expr_sidecar** PREFER 双端；**w364 block_domain** PREFER 双端；**w363b module_func** Darwin PREFER／Ubuntu `-E`；**w361/362 BAN** asm_locals／struct_layout；**w360b module_enum** Darwin PREFER／Ubuntu `-E`；**w359b BAN** top_level_let；**w358 type_alias** PREFER 双端；残 Type LE residual／余 BAN 叶根 | 下一＝Type LE residual／余 BAN 叶根。PREFER 后强制 type_alias -c 闸。禁盲翻。|
+| `pipeline_abi` mega pure-asm | 🟡 Cap residual thin 混成 `-E`+asm。w530–w564 多为 tipU＋PRODUCT BAN（overlay 仍 w440/w446）。下一＝仍注入且 Ubuntu tip 丢 UND 的叶（copy_bulk／copy／call_bulk）。禁盲 FORCE mega；禁升钉。 |
 | nest 冻帽 | ✅ 纪律 | **64** |
 | check 闸门 | ⏸ 暂停 | 自举期须点名才 dogfood |
 
@@ -396,7 +396,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余 soft／obs／leave 见归档软残表 |
-| `pipeline_abi` mega pure-asm | 🟡 ttc＋…＋w219 asm＋w220–291 C＋w292–w299 部分 `.x`（w268=.x） | w292 elf_fwd 全 `.x`；w293 typeck_orch shim＋layout C；w294 asm_label `.x` 经 `-E+$CC`（pure-asm 数字循环红）。下一＝wave295 C→.x。禁 Darwin mega `-E`；禁盲 FORCE 整 mega。 |
+| `pipeline_abi` mega pure-asm | 🟡 Cap residual thin 混成 `-E`+asm | 下一＝Ubuntu tip 丢 UND 的仍注入叶。禁盲 FORCE mega。 |
 | nest 冻 64 | ✅ 纪律 | — |
 
 ---
@@ -413,7 +413,7 @@
 
 ### 推荐推进序（非流水）
 
-1. **主刀 M2**（[自举效率方法-M2主链.md](自举效率方法-M2主链.md)）：**w358 type_alias** PREFER 双端；下一＝class C peers／Ubuntu Type LE＋check_expr；禁盲翻；禁 Darwin mega `-E`（内存）；禁升钉。双端 L2＝mac push→Ubuntu pull。
+1. **主刀 M2**（[自举效率方法-M2主链.md](自举效率方法-M2主链.md)）：Cap residual 仍注入叶；禁盲 FORCE mega；禁 Darwin mega `-E`；禁升钉。双端 L2＝mac push→Ubuntu pull。
 2. 🟡 **7.2.1b leftover flatten 完**＋**8.3.6 有引用冷孪生三分**（P9 suite 46k＋lite 564＋P1b lex_skip portable＋P1c skip_generic_angle_list_count＋P1d ASI advance_past_stmt_semicolon／cond_rparen＋P1e parse_peek_function_name／first_token_kind＋**P1f copy_token_bytes**＋P19b helpers kind／copy／pos／match-kw＋P19c run_len extra／lex_at_token／rewind＋P19d struct_field_name／ident_is_unsafe＋P19e align_lex（2026-09-14；P9a 门）＋**P19f parse_block_return_end_tail（2026-09-16；P1d 面）**＋P4b primary ident＋P3b type_ref kind／dyn／builtin／vector IDENT＋**P3c type-inst mangle**＋**P3d consume_qualified／angle close**＋**P3e TYPE_DYN wrap dest-buffer**＋**P3g postfix array/slice dest-buffer**＋**P3h prefix `[N]T`／`[]T` dest-buffer**＋**P3i type-position `function(...): Ret` dest-buffer**＋**P3j prefix `*T` dest-buffer**＋**P3k IDENT `Linear(T)` dest-buffer**＋**P3l builtin vec token dest-buffer**＋**P3m alloc_vector_type_ref**＋**P3n builtin scalar token dest-buffer**＋**P3o IDENT named／dyn／impl peel dest-buffer**＋**P3p IDENT generic type-arg dest-buffer**＋**P3q IDENT vector spelling consume dest-buffer**＋**P3r parse_type_ref_impl dispatcher dest-buffer**＋**P3s alloc_pointee dest-buffer**＋**P4bj anonymous-struct alloc**＋P7b simd ident／callee 名＋**P7c simd callee+CALL wrap dest-buffer**＋**P7d simd parse dest-buffer**＋P4ub unary TOKEN→ExprKind＋**P4uc unary wrap dest-buffer**＋**P4ud unary parse dest-buffer**＋P4bb binop TOKEN→ExprKind＋**P4bc binop wrap dest-buffer**＋**P4bd binop parse dest-buffer**＋**P4tb ternary wrap dest-buffer**＋**P4as as_suffix wrap dest-buffer**＋**P4ad as_suffix parse dest-buffer**＋**P4tc assign wrap dest-buffer**＋**P4td ternary parse dest-buffer**＋**P4te assign parse dest-buffer**＋**P4bh remaining parse_primary dest-buffer**＋**P4bi parse_struct_lit_fields dest-buffer**＋**P5g match wrap dest-buffer**＋**P5h match subject parse dest-buffer**＋P14b skip_if walks＋**P14c module_try_register_enum_name**＋**P6b struct_layout name-match**＋**P6c packed／soa modifiers**＋**P6d library wrap dest-buffer**＋**P6e parse_struct_record_layout dest-buffer**＋**P2b parse_one_top_level_let／type_alias dest-buffer**＋**P2c parse_cond_expr dest-buffer**＋**P2d body_let_bracket dest-buffer**＋**P5k leftover if_stmt C twin T-shrink**＋P12b skip_tl struct／enum／extern walks＋P12c skip_one_impl dest-buffer＋P12d generic_bound_scan dest-buffer＋P12e skip_one_enum_register／append_variants＋P12f parse_one_extern_skip＋**P12i skip_name_is_self／self_matches_for**＋**P12j named_eq_self／rewrite_self**＋**P12k register_type_params／type_param_index**＋**P12l concrete_implements_trait**＋**P12m bound_check_type_args**＋**P12n impl-seen accessors**＋**P12o bound_check**＋**P12p F3 lookup**＋**P12q F3 simple getters**＋**P12r dest-extras elem_array_dim**＋**P12s method_on_param**＋**P12t skip_hoist_default_methods**＋**P12u trait_check_impls_complete**＋**P12v param_shape＋ret_shape**＋P18b body_tl scalar／skip walks＋P18c cfg_skip／diag_first_ident＋**P18d P010–P014／dup**＋P10b glue skip_one_function_full＋**P13b/P13c try_skip_allow padding＋write_result／parse_into**＋P11b skip_imports＋P11c consume_path／try_skip＋P11d collect_imports dest-buffer＋P5b ctrl brace-skip／kw_at_pos＋P5c scan_sync＋**P5d realign 六段走查**（桥 peek 家族补 tok line/col/next_pos；P19 三标量补冷 C 孪生）＋**P5e match_dest_enum_tag**＋**P5f parse_if_expr**＋P15b library_scan＋P17b diag_late after_structs／fail＋P17c G.7 diag_skip_let_const_buf trampoline over P18b into hybrid 已跳过；残＝产品 `.inc` 切片仍 host-cc含 glue_tail 包装、trait_check dest-SLICE SHAPE 已 P12v（param＋ret）、unary parse 已 P4ud、binop parse 已 P4bd、as_suffix parse 已 P4ad、parse_block_return_end_tail 已 P19f、register_pending 已 P1g（g_gp_pending_* 仍 C；skip_one_trait 已 P12g 纯 asm；align_lex 已 P19e；skip_hoist 已 P12t；trait_check 外层走查已 P12u；if_expr 已 P5f；ternary wrap 已 P4tb；as_suffix wrap 已 P4as；assign wrap 已 P4tc；TYPE_DYN wrap 已 P3e；simd callee+CALL wrap 已 P7c；library wrap 已 P6d）；**禁**再深链分批 eq；pipeline_x mega 须点名）＋ **BC + 8.3** 
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
