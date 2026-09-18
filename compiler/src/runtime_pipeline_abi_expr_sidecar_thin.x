@@ -1,18 +1,24 @@
-// Thin pure: wave327/365 M2 — expr_sidecar Cap residual C→.x (was wave278 C thin).
+// Thin pure: wave327/365/529 M2 — expr_sidecar Cap residual C→.x (was wave278 C thin).
 // call/method/match/struct_lit/array_lit + type_arg pools + Expr Cap accessors.
 // G.7: bodies match deleted C thin / seed WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS.
-// PRODUCT inject: pipeline_abi_inject_expr_sidecar_thin (ALLOW_E_REPLACE + stamp).
+// PRODUCT inject: pipeline_abi_inject_expr_sidecar_thin.
 // wave365: w327_load/store via unsafe (T001); PREFER try + L2 gate.
+// wave529 Soft Cap: tip SEGV heal — i64/f64 load/store via memcpy (ban raw
+//   *i64/*f64 cast store); pipe-cell w327_expr/sc + w529_gv_at/push/block_ptr
+//   (ban mid `x=call()` U-starve); drop dead grow_vec_ensure (tipU); stamp
+//   w529 HARD BAN tip PRODUCT reinject (Ubuntu tip full-leaf still truncates —
+//   tip emit capacity; keep prior PREFER overlay).
 // Expr 1224 / MatchArm 24 / StructLitField 264.
 // PLATFORM: SHARED freestanding Cap leave / LINUX gold / MACOS co-path.
 // WIN leftover STRUCT_LIT name/nf faces stay export-extern (pure/cold).
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function arena_sidecar_get(key: *u8, create: i32): *u8;
 export extern function grow_vec_at(v: *u8, idx: i32): *u8;
 export extern function grow_vec_push(v: *u8): i32;
-export extern function grow_vec_ensure(v: *u8): i32;
 export extern function pipeline_arena_expr_ptr(a: *u8, ref: i32): *u8;
 export extern function pipeline_arena_block_ptr(a: *u8, ref: i32): *u8;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
@@ -44,7 +50,6 @@ export extern function pipeline_expr_struct_lit_type_name_len(a: *u8, expr_ref: 
 export extern function pipeline_expr_struct_lit_type_name_set(a: *u8, expr_ref: i32, name: *u8, name_len: i32): void;
 export extern function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
 export extern function pipeline_module_import_append_select_name(m: *u8, idx: i32, bytes: *u8, len: i32): i32;
-export extern function pipeline_type_elem_ref_at(a: *u8, type_ref: i32): i32;
 
 const W327_EXPR_SZ: i32 = 1224;
 const W327_ARM_SZ: i32 = 24;
@@ -168,41 +173,126 @@ function w327_num_exprs(a: *u8): i32 {
   if (a == (0 as *u8)) { return 0; }
   return w327_load(a, W327_ARENA_NUM_EXPRS);
 }
+/**
+ * pipeline_arena_expr_ptr via pipe-cell (wave529 Soft Cap tipU mid-call).
+ * Ban mid `p = pipeline_arena_expr_ptr(...)` — Ubuntu tip drops call (U-starve).
+ * @param a Arena pointer; null or ref<=0 → null.
+ * @param ref 1-based expr ref.
+ * @return Expr byte pointer, or null.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
 function w327_expr(a: *u8, ref: i32): *u8 {
-  let p: *u8 = 0 as *u8;
+  let pcell: u8[8] = [];
   if (a == (0 as *u8) || ref <= 0) { return 0 as *u8; }
-  unsafe { p = pipeline_arena_expr_ptr(a, ref); }
-  return p;
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, ref));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
 }
+/**
+ * arena_sidecar_get via pipe-cell (wave529 Soft Cap tipU mid-call).
+ * Ban mid `sc = arena_sidecar_get(...)` — Ubuntu tip drops call (U-starve).
+ * @param a Arena key; null → null.
+ * @param create Non-zero to create sidecar.
+ * @return Sidecar pointer, or null.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
 function w327_sc(a: *u8, create: i32): *u8 {
-  let sc: *u8 = 0 as *u8;
+  let pcell: u8[8] = [];
   if (a == (0 as *u8)) { return 0 as *u8; }
-  unsafe { sc = arena_sidecar_get(a, create); }
-  return sc;
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, arena_sidecar_get(a, create));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+/**
+ * grow_vec_at via pipe-cell (wave529 Soft Cap tipU mid-call).
+ * @param v GrowVec pointer.
+ * @param idx Element index.
+ * @return Element pointer, or null.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
+function w529_gv_at(v: *u8, idx: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, grow_vec_at(v, idx));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+/**
+ * grow_vec_push via pipe-cell (wave529 Soft Cap tipU mid-call).
+ * @param v GrowVec pointer.
+ * @return New index, or <0 on failure.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
+function w529_gv_push(v: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, grow_vec_push(v));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+/**
+ * pipeline_arena_block_ptr via pipe-cell (wave529 Soft Cap tipU mid-call).
+ * @param a Arena pointer.
+ * @param ref Block ref.
+ * @return Block byte pointer, or null.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
+function w529_block_ptr(a: *u8, ref: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_block_ptr(a, ref));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
 }
 function w327_gv_len(gv: *u8): i32 {
   if (gv == (0 as *u8)) { return 0; }
   return w327_load(gv, W327_GV_LEN);
 }
+/**
+ * Load i64 from LE byte offset via memcpy (wave529 Soft Cap tip heal).
+ * Ban raw `*((p+off) as *i64)` — Ubuntu tip SEGV at store/load cast path.
+ * @param p Base pointer; null → 0.
+ * @param off Byte offset from p.
+ * @return i64 value copied from p+off.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
 function w327_load_i64(p: *u8, off: i32): i64 {
   let r: i64 = 0;
   if (p == (0 as *u8)) { return 0; }
-  unsafe { r = *((p + (off as usize)) as *i64); }
+  unsafe { memcpy((&r as *u8), p + (off as usize), 8 as usize); }
   return r;
 }
+/**
+ * Store i64 at LE byte offset via memcpy (wave529 Soft Cap tip heal).
+ * Ban raw `*((p+off) as *i64)=v` — Ubuntu tip SEGV at w327_store_i64.
+ * @param p Base pointer; null → no-op.
+ * @param off Byte offset from p.
+ * @param v Value to store.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
 function w327_store_i64(p: *u8, off: i32, v: i64): void {
   if (p == (0 as *u8)) { return; }
-  unsafe { *((p + (off as usize)) as *i64) = v; }
+  unsafe { memcpy(p + (off as usize), (&v as *u8), 8 as usize); }
 }
+/**
+ * Store f64 at LE byte offset via memcpy (wave529 Soft Cap tip heal).
+ * Peer of w327_store_i64 — ban raw *f64 cast store (same SEGV class).
+ * @param p Base pointer; null → no-op.
+ * @param off Byte offset from p.
+ * @param v Value to store.
+ * PLATFORM: SHARED Soft Cap tip heal (wave529).
+ */
 function w327_store_f64(p: *u8, off: i32, v: f64): void {
   if (p == (0 as *u8)) { return; }
-  unsafe { *((p + (off as usize)) as *f64) = v; }
+  unsafe { memcpy(p + (off as usize), (&v as *u8), 8 as usize); }
 }
 function w327_gv_ensure_abs(gv: *u8, abs: i32): i32 {
   let rc: i32 = 0;
   if (gv == (0 as *u8)) { return 0; }
   while (w327_gv_len(gv) <= abs) {
-    unsafe { rc = grow_vec_push(gv); }
+    rc = w529_gv_push(gv);
     if (rc < 0) { return 0; }
   }
   return 1;
@@ -230,7 +320,7 @@ function expr_match_arm_at(a: *u8, expr_ref: i32, idx: i32, create: i32): *u8 {
       return 0 as *u8;
     }
   }
-  unsafe { p = grow_vec_at(sc + (W327_SC_EXPR_MATCH_ARMS as usize), abs); }
+  p = w529_gv_at(sc + (W327_SC_EXPR_MATCH_ARMS as usize), abs);
   return p;
 }
 
@@ -256,7 +346,7 @@ function expr_struct_lit_field_at(a: *u8, expr_ref: i32, idx: i32, create: i32):
       return 0 as *u8;
     }
   }
-  unsafe { p = grow_vec_at(sc + (W327_SC_EXPR_STRUCT_LIT_FIELDS as usize), abs); }
+  p = w529_gv_at(sc + (W327_SC_EXPR_STRUCT_LIT_FIELDS as usize), abs);
   return p;
 }
 
@@ -282,7 +372,7 @@ function expr_call_arg_slot(a: *u8, expr_ref: i32, idx: i32, create: i32): *u8 {
       return 0 as *u8;
     }
   }
-  unsafe { p = grow_vec_at(sc + (W327_SC_EXPR_CALL_ARG_REFS as usize), abs); }
+  p = w529_gv_at(sc + (W327_SC_EXPR_CALL_ARG_REFS as usize), abs);
   return p;
 }
 
@@ -308,7 +398,7 @@ function expr_method_call_arg_slot(a: *u8, expr_ref: i32, idx: i32, create: i32)
       return 0 as *u8;
     }
   }
-  unsafe { p = grow_vec_at(sc + (W327_SC_EXPR_METHOD_CALL_ARG_REFS as usize), abs); }
+  p = w529_gv_at(sc + (W327_SC_EXPR_METHOD_CALL_ARG_REFS as usize), abs);
   return p;
 }
 
@@ -334,7 +424,7 @@ function expr_array_lit_elem_slot(a: *u8, expr_ref: i32, idx: i32, create: i32):
       return 0 as *u8;
     }
   }
-  unsafe { p = grow_vec_at(sc + (W327_SC_EXPR_ARRAY_LIT_ELEM_REFS as usize), abs); }
+  p = w529_gv_at(sc + (W327_SC_EXPR_ARRAY_LIT_ELEM_REFS as usize), abs);
   return p;
 }
 
@@ -1319,13 +1409,13 @@ function expr_call_type_arg_base_cell(a: *u8, expr_ref: i32, create: i32): *u8 {
     return 0 as *u8;
   }
   while (expr_ref >= w327_gv_len(gv)) {
-    unsafe { idx = grow_vec_push(gv); }
+    idx = w529_gv_push(gv);
     if (idx < 0) { return 0 as *u8; }
-    unsafe { cell = grow_vec_at(gv, idx); }
+    cell = w529_gv_at(gv, idx);
     if (cell == (0 as *u8)) { return 0 as *u8; }
     w327_store(cell, 0, neg1);
   }
-  unsafe { cell = grow_vec_at(gv, expr_ref); }
+  cell = w529_gv_at(gv, expr_ref);
   return cell;
 }
 
@@ -1354,7 +1444,7 @@ export function pipeline_expr_append_call_type_arg(a: *u8, expr_ref: i32, type_r
   base = w327_load(base_cell, 0);
   abs = base + w327_load(ex, W327_E_CALL_NUM_TYPE_ARGS);
   if (w327_gv_ensure_abs(sc + (W327_SC_EXPR_CALL_TYPE_ARG_REFS as usize), abs) == 0) { return 0 - 1; }
-  unsafe { slot = grow_vec_at(sc + (W327_SC_EXPR_CALL_TYPE_ARG_REFS as usize), abs); }
+  slot = w529_gv_at(sc + (W327_SC_EXPR_CALL_TYPE_ARG_REFS as usize), abs);
   if (slot == (0 as *u8)) { return 0 - 1; }
   w327_store(slot, 0, type_ref);
   w327_store(ex, W327_E_CALL_NUM_TYPE_ARGS, w327_load(ex, W327_E_CALL_NUM_TYPE_ARGS) + 1);
@@ -1382,7 +1472,7 @@ export function pipeline_expr_call_type_arg_ref_at(a: *u8, expr_ref: i32, idx: i
   base = w327_load(base_cell, 0);
   abs = base + idx;
   if (abs < 0 || abs >= w327_gv_len(sc + (W327_SC_EXPR_CALL_TYPE_ARG_REFS as usize))) { return 0; }
-  unsafe { slot = grow_vec_at(sc + (W327_SC_EXPR_CALL_TYPE_ARG_REFS as usize), abs); }
+  slot = w529_gv_at(sc + (W327_SC_EXPR_CALL_TYPE_ARG_REFS as usize), abs);
   if (slot == (0 as *u8)) { return 0; }
   return w327_load(slot, 0);
 }
@@ -1404,21 +1494,21 @@ export function pipeline_type_append_type_arg(a: *u8, type_ref: i32, arg_ref: i3
   sc = w327_sc(a, 1);
   if (sc == (0 as *u8)) { return 0 - 1; }
   while (type_ref >= w327_gv_len(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize))) {
-    unsafe { idx = grow_vec_push(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize)); }
+    idx = w529_gv_push(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize));
     if (idx < 0) { return 0 - 1; }
-    unsafe { base_cell = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize), idx); }
+    base_cell = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize), idx);
     if (base_cell == (0 as *u8)) { return 0 - 1; }
     w327_store(base_cell, 0, 0 - 1);
   }
   while (type_ref >= w327_gv_len(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize))) {
-    unsafe { idx = grow_vec_push(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize)); }
+    idx = w529_gv_push(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize));
     if (idx < 0) { return 0 - 1; }
-    unsafe { count_cell = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize), idx); }
+    count_cell = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize), idx);
     if (count_cell == (0 as *u8)) { return 0 - 1; }
     w327_store(count_cell, 0, 0);
   }
-  unsafe { base_cell = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize), type_ref); }
-  unsafe { count_cell = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize), type_ref); }
+  base_cell = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize), type_ref);
+  count_cell = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize), type_ref);
   if (base_cell == (0 as *u8) || count_cell == (0 as *u8)) { return 0 - 1; }
   if (w327_load(base_cell, 0) < 0) {
     w327_store(base_cell, 0, w327_gv_len(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize)));
@@ -1428,7 +1518,7 @@ export function pipeline_type_append_type_arg(a: *u8, type_ref: i32, arg_ref: i3
   n = w327_load(count_cell, 0);
   abs = base + n;
   if (w327_gv_ensure_abs(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize), abs) == 0) { return 0 - 1; }
-  unsafe { slot = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize), abs); }
+  slot = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize), abs);
   if (slot == (0 as *u8)) { return 0 - 1; }
   w327_store(slot, 0, arg_ref);
   w327_store(count_cell, 0, n + 1);
@@ -1451,15 +1541,15 @@ export function pipeline_type_type_arg_ref_at(a: *u8, type_ref: i32, idx: i32): 
   if (sc == (0 as *u8)) { return 0; }
   if (type_ref >= w327_gv_len(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize))) { return 0; }
   if (type_ref >= w327_gv_len(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize))) { return 0; }
-  unsafe { base_cell = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize), type_ref); }
-  unsafe { count_cell = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize), type_ref); }
+  base_cell = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_BASES as usize), type_ref);
+  count_cell = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_COUNTS as usize), type_ref);
   if (base_cell == (0 as *u8) || count_cell == (0 as *u8)) { return 0; }
   if (w327_load(base_cell, 0) < 0) { return 0; }
   if (idx >= w327_load(count_cell, 0)) { return 0; }
   base = w327_load(base_cell, 0);
   abs = base + idx;
   if (abs < 0 || abs >= w327_gv_len(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize))) { return 0; }
-  unsafe { slot = grow_vec_at(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize), abs); }
+  slot = w529_gv_at(sc + (W327_SC_TYPE_TYPE_ARG_REFS as usize), abs);
   if (slot == (0 as *u8)) { return 0; }
   return w327_load(slot, 0);
 }
@@ -1619,7 +1709,7 @@ export function glue_fill_var_block_refs_c(a: *u8, block_ref: i32): void {
     cur = stack_blk[sp];
     nblocks = w327_load(a, W327_ARENA_NUM_BLOCKS);
     if (cur <= 0 || cur > nblocks) { continue; }
-    unsafe { b = pipeline_arena_block_ptr(a, cur); }
+    b = w529_block_ptr(a, cur);
     if (b == (0 as *u8)) { continue; }
     unsafe { n = ast_ast_block_num_expr_stmts(a, cur); }
     i = 0;

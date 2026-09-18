@@ -8904,55 +8904,28 @@ pipeline_abi_inject_block_domain_thin() {
 
 
 
-# wave327/365 M2: expr_sidecar Cap residual C→.x (was wave278 C thin).
+# wave327/365/529 M2: expr_sidecar Cap residual C→.x (was wave278 C thin).
 # PRODUCT inject wave365: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
 # T001 w327_load/store; standalone -c green; gate=type_alias -c + L2.
-# G.7 WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS. PLATFORM: SHARED · PREFER try.
+# wave529 Soft Cap: tip SEGV heal (i64/f64 via memcpy) + pipe-cell mid-call
+#   (w327_expr/sc + w529_gv_*/block_ptr) + Darwin tipU complete; stamp → w529;
+#   tip PRODUCT reinject HARD BAN (keep prior PREFER overlay). Ubuntu tip
+#   full-leaf still truncates mid-TU (tip emit capacity) — BAN justified.
+#   Prefer reinject → L2 SEGV class (Soft Cap stamp-only).
+# G.7 WAVE278_EXPR_SIDECAR_DOMAIN_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_expr_sidecar_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_expr_sidecar_thin.x"
-  local stamp="src/.pabi_w365_expr_sidecar.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w529_expr_sidecar.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w365-expr-sidecar"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w327_expr_sidecar.stamp
-  fi
-  return "$rc"
+  touch "$stamp"
+  rm -f src/.pabi_w327_expr_sidecar.stamp src/.pabi_w365_expr_sidecar.stamp
+  log "pipeline_abi w529-expr-sidecar: tip SEGV+pipe-cell+Darwin tipU stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+  return 0
 }
 
 
