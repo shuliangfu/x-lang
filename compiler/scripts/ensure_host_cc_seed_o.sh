@@ -8299,22 +8299,28 @@ pipeline_abi_inject_module_import_thin() {
   return 0
 }
 
-# wave306/360/360b/386 M2: module_enum Cap residual C→.x (was wave264 C thin).
+# wave306/360/360b/386/523 M2: module_enum Cap residual C→.x (was wave264 C thin).
 # PRODUCT inject wave386 HARD BAN reinject both ends: stay prior overlay.
 #   Prior: MACOS PREFER / LINUX -E (w360b; Ubuntu PREFER → si Result_i32).
 #   w386: formalize HARD BAN reinject (do not call inject_thin_leaf) —
 #     tip reinject poison class; keep green Darwin PREFER / Ubuntu -E via
 #     stamp only until Result_i32 root.
+# wave523 Soft Cap: tipU pipe-cell heal (malloc/dep_ctx/expr_* mid-call);
+#   stamp → w523; tip PRODUCT reinject still HARD BAN (keep prior overlay).
 # G.7 match mega wave264 leave. PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_module_enum_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_module_enum_thin.x"
-  local stamp="src/.pabi_w386_module_enum.stamp"
+  local stamp="src/.pabi_w523_module_enum.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
   rm -f src/.pabi_w306_module_enum.stamp src/.pabi_w360_module_enum.stamp \
-    src/.pabi_w360b_module_enum.stamp
+    src/.pabi_w360b_module_enum.stamp src/.pabi_w386_module_enum.stamp
+  log "pipeline_abi w523-module-enum: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 

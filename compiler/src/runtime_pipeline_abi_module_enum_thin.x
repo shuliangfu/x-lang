@@ -1,4 +1,4 @@
-// Thin pure: wave306/360/360b/386 M2 — module_enum Cap residual C→.x
+// Thin pure: wave306/360/360b/386/523 M2 — module_enum Cap residual C→.x
 //   (was wave264 C thin).
 // ModuleEnumEntry LE ~66828B map + mark helpers; 15 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave264 leave.
@@ -6,10 +6,14 @@
 // wave360b: MACOS PREFER / LINUX -E (Ubuntu PREFER → si Result_i32).
 // wave386: HARD BAN reinject both ends (stamp .pabi_w386_module_enum.stamp);
 //   stay prior Darwin PREFER / Ubuntu -E until Result_i32 root.
+// wave523 Soft Cap: tipU pipe-cell heal (mid `x=call()` starved malloc /
+//   dep_ctx / expr_* faces); stamp → w523; tip PRODUCT reinject HARD BAN.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
@@ -28,6 +32,90 @@ export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 
+
+/**
+ * malloc via pipe-cell (tipU: ban mid `np=malloc()`).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_malloc(n: usize): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, malloc(n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * pipeline_dep_ctx_ndep via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_dep_ndep(ctx: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_dep_ctx_ndep(ctx));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_dep_ctx_module_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_dep_module_at(ctx: *u8, idx: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_dep_ctx_module_at(ctx, idx));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_kind_ord_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_kind_ord_at(arena, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_var_name_len via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_expr_var_name_len(arena: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_var_name_len(arena, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_field_access_name_len via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_expr_fa_name_len(arena: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_field_access_name_len(arena, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_field_access_base_ref via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave523).
+ */
+function w523_expr_fa_base_ref(arena: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_field_access_base_ref(arena, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
 
 /**
  * Ptr-slot get via unsafe (T001). PLATFORM: SHARED.
@@ -297,10 +385,7 @@ function pipe_en_ensure_entries(slot: i32, need: i32): i32 {
   }
   let esz: i32 = pipe_en_entry_size();
   let nbytes: usize = (new_cap * esz) as usize;
-  let np: *u8 = 0 as *u8;
-  unsafe {
-    np = malloc(nbytes);
-  }
+  let np: *u8 = w523_malloc(nbytes);
   if (np == 0 as *u8) {
     return 0;
   }
@@ -744,16 +829,10 @@ export function pipeline_module_enum_variant_tag_for_names(m: *u8, enum_name: *u
   if (dep_ctx == 0 as *u8) {
     return 0 - 1;
   }
-  let ndep: i32 = 0;
-  unsafe {
-    ndep = pipeline_dep_ctx_ndep(dep_ctx);
-  }
+  let ndep: i32 = w523_dep_ndep(dep_ctx);
   let di: i32 = 0;
   while (di < ndep) {
-    let dep_mod: *u8 = 0 as *u8;
-    unsafe {
-      dep_mod = pipeline_dep_ctx_module_at(dep_ctx, di);
-    }
+    let dep_mod: *u8 = w523_dep_module_at(dep_ctx, di);
     if (dep_mod != 0 as *u8) {
       if (dep_mod != m) {
         tag = pipe_en_tag_in_module(dep_mod, enum_name, enum_len, variant_name, variant_len);
@@ -955,16 +1034,10 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
   if (base_ref <= 0) {
     return 0;
   }
-  let kind: i32 = 0;
-  unsafe {
-    kind = pipeline_expr_kind_ord_at(arena, base_ref);
-  }
+  let kind: i32 = w523_expr_kind_ord_at(arena, base_ref);
   // EXPR_VAR = 3
   if (kind == 3) {
-    let elen: i32 = 0;
-    unsafe {
-      elen = pipeline_expr_var_name_len(arena, base_ref);
-    }
+    let elen: i32 = w523_expr_var_name_len(arena, base_ref);
     if (elen <= 0) {
       return 0;
     }
@@ -986,10 +1059,7 @@ function pipe_en_name_from_fa_base(arena: *u8, base_ref: i32, ename_out: *u8): i
   }
   // EXPR_FIELD_ACCESS = 44
   if (kind == 44) {
-    let elen2: i32 = 0;
-    unsafe {
-      elen2 = pipeline_expr_field_access_name_len(arena, base_ref);
-    }
+    let elen2: i32 = w523_expr_fa_name_len(arena, base_ref);
     if (elen2 <= 0) {
       return 0;
     }
@@ -1032,29 +1102,20 @@ export function pipeline_expr_try_mark_enum_field_access(m: *u8, a: *u8, expr_re
   if (expr_ref <= 0) {
     return;
   }
-  let kind: i32 = 0;
-  unsafe {
-    kind = pipeline_expr_kind_ord_at(a, expr_ref);
-  }
+  let kind: i32 = w523_expr_kind_ord_at(a, expr_ref);
   if (kind != 44) {
     return;
   }
   if (w306_field_access_is_enum_variant(a, expr_ref) != 0) {
     return;
   }
-  let base_ref: i32 = 0;
-  unsafe {
-    base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
-  }
+  let base_ref: i32 = w523_expr_fa_base_ref(a, expr_ref);
   let ename: u8[256] = [];
   let elen: i32 = pipe_en_name_from_fa_base(a, base_ref, &ename[0]);
   if (elen <= 0) {
     return;
   }
-  let vlen: i32 = 0;
-  unsafe {
-    vlen = pipeline_expr_field_access_name_len(a, expr_ref);
-  }
+  let vlen: i32 = w523_expr_fa_name_len(a, expr_ref);
   if (vlen <= 0) {
     return;
   }
@@ -1093,29 +1154,20 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   if (expr_ref <= 0) {
     return;
   }
-  let kind: i32 = 0;
-  unsafe {
-    kind = pipeline_expr_kind_ord_at(a, expr_ref);
-  }
+  let kind: i32 = w523_expr_kind_ord_at(a, expr_ref);
   if (kind != 44) {
     return;
   }
   if (w306_field_access_is_enum_variant(a, expr_ref) != 0) {
     return;
   }
-  let base_ref: i32 = 0;
-  unsafe {
-    base_ref = pipeline_expr_field_access_base_ref(a, expr_ref);
-  }
+  let base_ref: i32 = w523_expr_fa_base_ref(a, expr_ref);
   let ename: u8[256] = [];
   let elen: i32 = pipe_en_name_from_fa_base(a, base_ref, &ename[0]);
   if (elen <= 0) {
     return;
   }
-  let vlen: i32 = 0;
-  unsafe {
-    vlen = pipeline_expr_field_access_name_len(a, expr_ref);
-  }
+  let vlen: i32 = w523_expr_fa_name_len(a, expr_ref);
   if (vlen <= 0) {
     return;
   }
@@ -1134,16 +1186,10 @@ export function pipeline_codegen_try_mark_enum_field_access(m: *u8, a: *u8, expr
   if (dep_ctx == 0 as *u8) {
     return;
   }
-  let ndep: i32 = 0;
-  unsafe {
-    ndep = pipeline_dep_ctx_ndep(dep_ctx);
-  }
+  let ndep: i32 = w523_dep_ndep(dep_ctx);
   let di: i32 = 0;
   while (di < ndep) {
-    let dep_mod: *u8 = 0 as *u8;
-    unsafe {
-      dep_mod = pipeline_dep_ctx_module_at(dep_ctx, di);
-    }
+    let dep_mod: *u8 = w523_dep_module_at(dep_ctx, di);
     if (dep_mod != 0 as *u8) {
       if (dep_mod != m) {
         tag = pipe_en_tag_in_module(dep_mod, &ename[0], elen, &vname[0], vlen);
