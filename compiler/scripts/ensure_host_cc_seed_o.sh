@@ -6389,7 +6389,7 @@ pipeline_abi_inject_assign_thin() {
       for _pair in \
         "src/runtime_pipeline_abi_assign_field_chain_walk_thin.x|src/.pabi_w445_heal_field_chain_walk.stamp" \
         "src/runtime_pipeline_abi_assign_field_mag_fold_thin.x|src/.pabi_w445_heal_field_mag_fold.stamp" \
-        "src/runtime_pipeline_abi_assign_index_setup_thin.x|src/.pabi_w445_heal_index_setup.stamp" \
+        "src/runtime_pipeline_abi_assign_index_setup_thin.x|src/.pabi_w543_assign_index_setup.stamp" \
         "src/runtime_pipeline_abi_assign_index_array_walk_thin.x|src/.pabi_w541_assign_index_array_walk.stamp" \
         "src/runtime_pipeline_abi_assign_index_array_peel_thin.x|src/.pabi_w542_assign_index_array_peel.stamp" \
         "src/runtime_pipeline_abi_assign_index_array_resolve_thin.x|src/.pabi_w445_heal_index_array_resolve.stamp" \
@@ -6596,7 +6596,7 @@ pipeline_abi_inject_assign_thin() {
         "src/runtime_pipeline_abi_assign_field_ptr_thin.x|.pabi_w445_assign_field_ptr.stamp|w441-assign-field-ptr" \
         "src/runtime_pipeline_abi_assign_field_scalar_thin.x|.pabi_w445_assign_field_scalar.stamp|w441-assign-field-scalar" \
         "src/runtime_pipeline_abi_assign_field_thin.x|.pabi_w445_assign_field.stamp|w441-assign-field" \
-        "src/runtime_pipeline_abi_assign_index_setup_thin.x|.pabi_w445_assign_index_setup.stamp|w441-assign-index-setup" \
+        "src/runtime_pipeline_abi_assign_index_setup_thin.x|.pabi_w543_assign_index_setup.stamp|w543-ban-index-setup" \
         "src/runtime_pipeline_abi_assign_index_struct_lit_arr_thin.x|.pabi_w445_assign_index_struct_lit_arr.stamp|w441-assign-index-struct-lit-arr" \
         "src/runtime_pipeline_abi_assign_index_struct_lit_rbx_thin.x|.pabi_w445_assign_index_struct_lit_rbx.stamp|w441-assign-index-struct-lit-rbx" \
         "src/runtime_pipeline_abi_assign_index_struct_lit_thin.x|.pabi_w445_assign_index_struct_lit.stamp|w441-assign-index-struct-lit" \
@@ -6636,7 +6636,7 @@ pipeline_abi_inject_assign_thin() {
         lo_tag="${lo_rest#*|}"
         # wave533–w537 Soft Cap: HARD BAN tip reinject for deref peers.
         case "$lo_x" in
-          *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x|*assign_deref_scalar_thin.x|*assign_deref_array_call_thin.x|*assign_deref_vec_call_thin.x|*assign_deref_slice_call_thin.x|*assign_index_array_walk_thin.x|*assign_index_array_peel_thin.x)
+          *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x|*assign_deref_scalar_thin.x|*assign_deref_array_call_thin.x|*assign_deref_vec_call_thin.x|*assign_deref_slice_call_thin.x|*assign_index_array_walk_thin.x|*assign_index_array_peel_thin.x|*assign_index_setup_thin.x)
             if [ -f "$lo_x" ]; then
               touch "$lo_stamp"
               rm -f src/.pabi_w445_assign_deref_let_init.stamp \
@@ -6654,7 +6654,9 @@ pipeline_abi_inject_assign_thin() {
                 src/.pabi_w445_assign_index_array_walk.stamp \
                 src/.pabi_w445_heal_index_array_walk.stamp \
                 src/.pabi_w445_assign_index_array_peel.stamp \
-                src/.pabi_w445_heal_index_array_peel.stamp
+                src/.pabi_w445_heal_index_array_peel.stamp \
+                src/.pabi_w445_assign_index_setup.stamp \
+                src/.pabi_w445_heal_index_setup.stamp
             fi
             continue
             ;;
@@ -6682,7 +6684,7 @@ pipeline_abi_inject_assign_thin() {
     for peer in \
       "src/runtime_pipeline_abi_assign_field_chain_walk_thin.x|.pabi_w445_heal_field_chain_walk.stamp|w445-heal-field-chain-walk" \
       "src/runtime_pipeline_abi_assign_field_mag_fold_thin.x|.pabi_w445_heal_field_mag_fold.stamp|w445-heal-field-mag-fold" \
-      "src/runtime_pipeline_abi_assign_index_setup_thin.x|.pabi_w445_heal_index_setup.stamp|w445-heal-index-setup" \
+      "src/runtime_pipeline_abi_assign_index_setup_thin.x|.pabi_w543_assign_index_setup.stamp|w543-ban-index-setup" \
       "src/runtime_pipeline_abi_assign_index_array_walk_thin.x|.pabi_w541_assign_index_array_walk.stamp|w541-ban-index-array-walk" \
       "src/runtime_pipeline_abi_assign_index_array_peel_thin.x|.pabi_w542_assign_index_array_peel.stamp|w542-ban-index-array-peel" \
       "src/runtime_pipeline_abi_assign_index_array_resolve_thin.x|.pabi_w445_heal_index_array_resolve.stamp|w445-heal-index-array-resolve"
@@ -6693,14 +6695,16 @@ pipeline_abi_inject_assign_thin() {
       h_tag="${h_rest#*|}"
       # wave541 Soft Cap: HARD BAN tip reinject (raw *i32 store SEGV on Ubuntu tip).
       case "$h_x" in
-        *assign_index_array_walk_thin.x|*assign_index_array_peel_thin.x)
+          *assign_index_array_walk_thin.x|*assign_index_array_peel_thin.x|*assign_index_setup_thin.x)
           if [ -f "$h_x" ]; then
             touch "$h_stamp"
             rm -f src/.pabi_w445_assign_index_array_walk.stamp \
               src/.pabi_w445_heal_index_array_walk.stamp \
               src/.pabi_w445_assign_index_array_peel.stamp \
-              src/.pabi_w445_heal_index_array_peel.stamp
-            log "pipeline_abi w541/w542 index walk/peel: tipU stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+              src/.pabi_w445_heal_index_array_peel.stamp \
+              src/.pabi_w445_assign_index_setup.stamp \
+              src/.pabi_w445_heal_index_setup.stamp
+            log "pipeline_abi w541/w542/w543 index walk/peel/setup: tipU stamped; tip PRODUCT reinject HARD BAN (keep prior)"
           fi
           continue
           ;;
