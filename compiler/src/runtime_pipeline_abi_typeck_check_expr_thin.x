@@ -1,9 +1,12 @@
-// Thin pure: wave319/343/344/346/348/379 M2 — typeck_check_expr Cap residual.
+// Thin pure: wave319/343/344/346/348/379/530 M2 — typeck_check_expr Cap residual.
 // Dispatch check_expr_*_c + match subject BSS + repr/extern gates; ~22 exports.
 // G.7: bodies match seed WAVE286 (#define ordinals — no mutable storage).
 // wave346: ordinal `let`→`const`. wave348: Darwin PREFER historic overlay.
 // wave379 HARD BAN reinject: Ubuntu tip XT001 even -E; Darwin tip PREFER
 //   reinject → ARM64_RELOC_BRANCH26. Stay prior overlay both ends.
+// wave530 Soft Cap: tip XT001 heal — w286 pipe_load unsafe + flatten mega/impl_c
+//   (ban nested lets in unsafe; ban raw `*((a+4) as *i32)`); tipU Soft Cap;
+//   stamp w530 HARD BAN tip PRODUCT reinject (keep prior overlay).
 // Cold WEAK check_expr_impl{,_mega} NOT defined here — typeck_x.o provides strong.
 // PLATFORM: SHARED · BAN reinject both ends.
 
@@ -40,7 +43,9 @@ const W286_EXPR_STRING_LIT: i32 = 59;
 const W286_TYPE_PTR: i32 = 9;
 const W286_TYPE_ARRAY: i32 = 10;
 const W286_TYPE_SLICE: i32 = 11;
+const W286_ARENA_NUM_EXPRS: i32 = 4;
 
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipeline_expr_kind_ord_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_left_ref_at(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(a: *u8, expr_ref: i32): i32;
@@ -93,16 +98,21 @@ let g_w286_typeck_match_subject_mod: *u8 = 0 as *u8;
 
 /**
  * Arena LE: num_exprs at offset 4 (LP64 ASTArena header).
- * @param a *u8 — ASTArena*
+ * wave530 Soft Cap: pipe_load_i32_le via unsafe assign — ban raw `*((a+4) as *i32)`
+ * and ban bare `return pipe_load(...)` (Ubuntu tip T001→XT001 check_block).
+ * @param a *u8 — ASTArena*; null → 0.
  * @return i32 — num_exprs or 0
+ * PLATFORM: SHARED Soft Cap tip heal (wave530).
  */
 function w286_arena_num_exprs(a: *u8): i32 {
+  let n: i32 = 0;
   if (a == (0 as *u8)) {
     return 0;
   }
   unsafe {
-    return *((a + 4) as *i32);
+    n = pipe_load_i32_le(a, W286_ARENA_NUM_EXPRS);
   }
+  return n;
 }
 
 /**
@@ -331,107 +341,92 @@ export function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *u8,
 export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   let kind: i32 = 0;
   let nexpr: i32 = 0;
+  let left_ref: i32 = 0;
+  let right_ref: i32 = 0;
+  let op_ref: i32 = 0;
+  let rc: i32 = 0;
+  let is_assign: i32 = 0;
   nexpr = w286_arena_num_exprs(arena);
   if (arena == (0 as *u8) || expr_ref <= 0 || expr_ref > nexpr) {
     return 0;
   }
-  unsafe {
-    kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  }
-  unsafe {
-    if (pipeline_typeck_expr_is_any_assign_kind_c(kind) != 0) {
-      let left_ref: i32 = pipeline_expr_binop_left_ref_at(arena, expr_ref);
-      let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
-      let rc: i32 = 0;
-      if (pipeline_typeck_check_struct_stack_escape_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
-        return -1;
-      }
-      if (pipeline_typeck_check_scope_borrow_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
-        return -1;
-      }
-      if (pipeline_typeck_check_allocator_region_assign_c(module, arena, expr_ref, left_ref, ctx) != 0) {
-        return -1;
-      }
-      rc = pipeline_typeck_check_expr_assign_c(module, arena, expr_ref, return_type_ref, ctx);
-      if (rc != 0) {
-        return rc;
-      }
-      return 0;
-    }
-  }
-  if (kind == W286_EXPR_RETURN) {
-    let op_ref: i32 = 0;
-    let rc: i32 = 0;
+  unsafe { kind = pipeline_expr_kind_ord_at(arena, expr_ref); }
+  unsafe { is_assign = pipeline_typeck_expr_is_any_assign_kind_c(kind); }
+  if (is_assign != 0) {
     unsafe {
-      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
-      if (pipeline_typeck_check_scope_borrow_return_c(module, arena, expr_ref, op_ref, return_type_ref, ctx) != 0) {
-        return -1;
-      }
-      if (pipeline_typeck_check_allocator_region_return_c(arena, expr_ref, return_type_ref) != 0) {
-        return -1;
-      }
-      if (pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx) != 0) {
-        return -1;
-      }
-      if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
-        return -1;
-      }
-      rc = pipeline_typeck_check_expr_return_c(module, arena, expr_ref, return_type_ref, ctx);
+      left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+      right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+      rc = pipeline_typeck_check_struct_stack_escape_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx);
     }
-    if (rc != 0) {
-      return rc;
-    }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_scope_borrow_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx); }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_allocator_region_assign_c(module, arena, expr_ref, left_ref, ctx); }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_expr_assign_c(module, arena, expr_ref, return_type_ref, ctx); }
+    if (rc != 0) { return rc; }
     return 0;
   }
-  unsafe {
-    if (kind == W286_EXPR_PANIC) {
-      return typeck_check_expr_panic(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_MATCH) {
-      return typeck_check_expr_match(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_FIELD_ACCESS) {
-      return typeck_check_expr_field_access(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_INDEX) {
-      return typeck_check_expr_index(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_CALL) {
-      let rc: i32 = pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
-      if (rc != 0) {
-        return rc;
-      }
-      return pipeline_typeck_check_call_struct_stack_escape_c(module, arena, expr_ref, ctx);
-    }
-    if (kind == W286_EXPR_METHOD_CALL) {
-      return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind >= W286_EXPR_ADD && kind <= W286_EXPR_LOGOR) {
-      return typeck_check_expr_binop(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_NEG || kind == W286_EXPR_BITNOT || kind == W286_EXPR_LOGNOT) {
-      return typeck_check_expr_unary(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_ADDR_OF) {
-      return typeck_check_expr_addr_of(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_DEREF) {
-      return typeck_check_expr_deref(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_VAR) {
-      return typeck_check_expr_var(module, arena, expr_ref, ctx);
-    }
-    if (kind == W286_EXPR_AS) {
-      return typeck_check_expr_as(module, arena, expr_ref, ctx);
-    }
-    if (kind == W286_EXPR_TRY_PROPAGATE || kind == W286_EXPR_C_TRY_PROPAGATE) {
-      return typeck_check_expr_try_propagate(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_STRUCT_LIT) {
-      return typeck_check_expr_struct_lit(module, arena, expr_ref, return_type_ref, ctx);
-    }
+  if (kind == W286_EXPR_RETURN) {
+    unsafe { op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref); }
+    unsafe { rc = pipeline_typeck_check_scope_borrow_return_c(module, arena, expr_ref, op_ref, return_type_ref, ctx); }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_allocator_region_return_c(arena, expr_ref, return_type_ref); }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx); }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref); }
+    if (rc != 0) { return -1; }
+    unsafe { rc = pipeline_typeck_check_expr_return_c(module, arena, expr_ref, return_type_ref, ctx); }
+    if (rc != 0) { return rc; }
+    return 0;
+  }
+  if (kind == W286_EXPR_PANIC) {
+    unsafe { return typeck_check_expr_panic(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_MATCH) {
+    unsafe { return typeck_check_expr_match(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_FIELD_ACCESS) {
+    unsafe { return typeck_check_expr_field_access(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_INDEX) {
+    unsafe { return typeck_check_expr_index(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_CALL) {
+    unsafe { rc = pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx); }
+    if (rc != 0) { return rc; }
+    unsafe { return pipeline_typeck_check_call_struct_stack_escape_c(module, arena, expr_ref, ctx); }
+  }
+  if (kind == W286_EXPR_METHOD_CALL) {
+    unsafe { return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind >= W286_EXPR_ADD && kind <= W286_EXPR_LOGOR) {
+    unsafe { return typeck_check_expr_binop(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_NEG || kind == W286_EXPR_BITNOT || kind == W286_EXPR_LOGNOT) {
+    unsafe { return typeck_check_expr_unary(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_ADDR_OF) {
+    unsafe { return typeck_check_expr_addr_of(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_DEREF) {
+    unsafe { return typeck_check_expr_deref(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_VAR) {
+    unsafe { return typeck_check_expr_var(module, arena, expr_ref, ctx); }
+  }
+  if (kind == W286_EXPR_AS) {
+    unsafe { return typeck_check_expr_as(module, arena, expr_ref, ctx); }
+  }
+  if (kind == W286_EXPR_TRY_PROPAGATE || kind == W286_EXPR_C_TRY_PROPAGATE) {
+    unsafe { return typeck_check_expr_try_propagate(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_STRUCT_LIT) {
+    unsafe { return typeck_check_expr_struct_lit(module, arena, expr_ref, return_type_ref, ctx); }
   }
   return 0;
+
 }
 
 /**
@@ -443,60 +438,58 @@ export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, 
 export function pipeline_typeck_check_expr_impl_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   let kind: i32 = 0;
   let nexpr: i32 = 0;
+  let u8r: i32 = 0;
+  let slice_u8: i32 = 0;
+  let exp_kind: i32 = 0;
+  let ntypes: i32 = 0;
   nexpr = w286_arena_num_exprs(arena);
   if (arena == (0 as *u8) || expr_ref <= 0 || expr_ref > nexpr) {
     return 0;
   }
-  unsafe {
-    kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-    if (kind == W286_EXPR_FLOAT_LIT) {
-      return typeck_check_expr_float_lit(arena, expr_ref);
-    }
-    if (kind == W286_EXPR_LIT) {
-      return typeck_check_expr_int_lit(arena, expr_ref, return_type_ref);
-    }
-    if (kind == W286_EXPR_BOOL_LIT) {
-      return typeck_check_expr_bool_lit(arena, expr_ref);
-    }
-    if (kind == W286_EXPR_STRING_LIT) {
-      let u8r: i32 = 0;
-      let slice_u8: i32 = 0;
-      let exp_kind: i32 = 0;
-      let ntypes: i32 = pipeline_arena_num_types(arena);
-      if (w286_ref_is_null(return_type_ref) == 0 && return_type_ref > 0 && return_type_ref <= ntypes) {
-        exp_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
-        if (exp_kind == W286_TYPE_PTR || exp_kind == W286_TYPE_ARRAY || exp_kind == W286_TYPE_SLICE) {
-          pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
-          return 0;
-        }
-      }
-      u8r = typeck_ensure_u8_type_ref(arena);
-      if (w286_ref_is_null(u8r) != 0) {
-        return -1;
-      }
-      slice_u8 = typeck_find_or_alloc_ptr_type_ref(arena, u8r);
-      if (w286_ref_is_null(slice_u8) == 0) {
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8);
-      }
-      return 0;
-    }
-    if (kind == W286_EXPR_BREAK || kind == W286_EXPR_CONTINUE) {
-      return typeck_check_expr_break_continue(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_ENUM_VARIANT) {
-      return typeck_check_expr_enum_variant(arena, expr_ref);
-    }
-    if (kind == W286_EXPR_IF || kind == W286_EXPR_TERNARY) {
-      return typeck_check_expr_if_ternary(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_BLOCK) {
-      return typeck_check_expr_block(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    if (kind == W286_EXPR_MATCH) {
-      return typeck_check_expr_match(module, arena, expr_ref, return_type_ref, ctx);
-    }
-    return check_expr_impl_mega(module, arena, expr_ref, return_type_ref, ctx);
+  unsafe { kind = pipeline_expr_kind_ord_at(arena, expr_ref); }
+  if (kind == W286_EXPR_FLOAT_LIT) {
+    unsafe { return typeck_check_expr_float_lit(arena, expr_ref); }
   }
+  if (kind == W286_EXPR_LIT) {
+    unsafe { return typeck_check_expr_int_lit(arena, expr_ref, return_type_ref); }
+  }
+  if (kind == W286_EXPR_BOOL_LIT) {
+    unsafe { return typeck_check_expr_bool_lit(arena, expr_ref); }
+  }
+  if (kind == W286_EXPR_STRING_LIT) {
+    unsafe { ntypes = pipeline_arena_num_types(arena); }
+    if (w286_ref_is_null(return_type_ref) == 0 && return_type_ref > 0 && return_type_ref <= ntypes) {
+      unsafe { exp_kind = pipeline_type_kind_ord_at(arena, return_type_ref); }
+      if (exp_kind == W286_TYPE_PTR || exp_kind == W286_TYPE_ARRAY || exp_kind == W286_TYPE_SLICE) {
+        unsafe { pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref); }
+        return 0;
+      }
+    }
+    unsafe { u8r = typeck_ensure_u8_type_ref(arena); }
+    if (w286_ref_is_null(u8r) != 0) { return -1; }
+    unsafe { slice_u8 = typeck_find_or_alloc_ptr_type_ref(arena, u8r); }
+    if (w286_ref_is_null(slice_u8) == 0) {
+      unsafe { pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8); }
+    }
+    return 0;
+  }
+  if (kind == W286_EXPR_BREAK || kind == W286_EXPR_CONTINUE) {
+    unsafe { return typeck_check_expr_break_continue(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_ENUM_VARIANT) {
+    unsafe { return typeck_check_expr_enum_variant(arena, expr_ref); }
+  }
+  if (kind == W286_EXPR_IF || kind == W286_EXPR_TERNARY) {
+    unsafe { return typeck_check_expr_if_ternary(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_BLOCK) {
+    unsafe { return typeck_check_expr_block(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  if (kind == W286_EXPR_MATCH) {
+    unsafe { return typeck_check_expr_match(module, arena, expr_ref, return_type_ref, ctx); }
+  }
+  unsafe { return check_expr_impl_mega(module, arena, expr_ref, return_type_ref, ctx); }
+
 }
 
 /**

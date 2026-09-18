@@ -9300,22 +9300,31 @@ pipeline_abi_inject_modlet_prepare_rest() {
   return 0
 }
 
-# wave319/343/344/346/348/379 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
+# wave319/343/344/346/348/379/530 M2: typeck_check_expr Cap residual .x thin (was wave286 C).
 # PRODUCT inject wave379 HARD BAN reinject: stay prior overlay; do not
 # re-overlay. Prior: Darwin PREFER (w348) / Ubuntu -E. wave379 probes:
 #   · Ubuntu tip XT001 on thin (w286_arena_num_exprs) even under -E.
 #   · Darwin tip PREFER reinject → g05 ARM64_RELOC_BRANCH26.
+# wave530 Soft Cap: tip XT001 heal (pipe_load unsafe + flatten mega/impl_c
+#   nested lets) + Darwin tipU 46/46; stamp → w530; tip PRODUCT reinject
+#   HARD BAN (keep prior). Ubuntu tip past XT001 → tip CG002 residual
+#   (peer-flat next). Prefer reinject → BRANCH26/L2 class.
 # Cold WEAK check_expr_impl{,_mega} left to typeck_x / seed (not in .x thin).
 # G.7 WAVE286_TYPECK_CHECK_EXPR_ALWAYS.
 # PLATFORM: SHARED · both ends hard-skip until reloc/typeck root.
 pipeline_abi_inject_typeck_check_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_typeck_check_expr_thin.x"
-  local stamp="src/.pabi_w379_typeck_check_expr.stamp"
+  local stamp="src/.pabi_w530_typeck_check_expr.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w348_typeck_check_expr.stamp src/.pabi_w346_typeck_check_expr.stamp
+  rm -f src/.pabi_w348_typeck_check_expr.stamp src/.pabi_w346_typeck_check_expr.stamp \
+    src/.pabi_w379_typeck_check_expr.stamp
+  log "pipeline_abi w530-typeck-check-expr: tip XT001+Darwin tipU stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
