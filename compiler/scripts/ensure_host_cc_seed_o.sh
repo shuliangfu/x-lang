@@ -8053,7 +8053,7 @@ pipeline_abi_inject_for_call_args_thin() {
   return "$rc"
 }
 
-# PRODUCT inject stamp w351/w378/w387: Cap A module fixed-array INDEX rvalue.
+# PRODUCT inject stamp w351/w378/w387/516: Cap A module fixed-array INDEX rvalue.
 # Roots: (1) mega VAR modlet_find gate; (2) Darwin redefine poison of
 # block_body→rec; (3) Ubuntu PREFER pure-asm emit_index breaks option
 # (run=240) — host-C -E thin is green. Thin body ≡ mega post-gate.
@@ -8061,16 +8061,23 @@ pipeline_abi_inject_for_call_args_thin() {
 # stay LINUX -E (BAN Ubuntu PREFER). Darwin PREFER path unchanged.
 # wave387 HARD BAN reinject both ends: stay prior overlay (Darwin PREFER
 # weaken∪asm_expr / Ubuntu -E); tip reinject poison class.
+# wave516: tipU 6/13→15/15 pipe-cell heal (mid base/idx/esz/hit/rc/res_ty/rtk);
+#   stamp → w516; tip PRODUCT reinject still HARD BAN (keep prior overlay).
 # PLATFORM: SHARED · BAN reinject both ends.
 pipeline_abi_inject_emit_index_thin() {
   local o="$1"
   local thin_idx="src/runtime_pipeline_abi_emit_index_thin.x"
-  local stamp="src/.pabi_w387_emit_index.stamp"
+  local stamp="src/.pabi_w516_emit_index.stamp"
   [ -s "$o" ] && [ -f "$thin_idx" ] || return 0
   # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf /
   # Darwin weaken path). Keep prior green overlay.
+  if [ -f "$stamp" ] && [ ! "$thin_idx" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w350_emit_index.stamp src/.pabi_w351_emit_index.stamp
+  rm -f src/.pabi_w350_emit_index.stamp src/.pabi_w351_emit_index.stamp \
+    src/.pabi_w387_emit_index.stamp
+  log "pipeline_abi w516-emit-index: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
