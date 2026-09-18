@@ -5,9 +5,13 @@
 // G.7: body matches seeds/runtime_pipeline_abi.from_x.c cold twin +
 // historic runtime_pipeline_abi_read_file_x_view_thin.c.
 // PRODUCT inject wave352: PREFER_ASM both ends (class B FileView).
-// wave519: tip CG002 heal — BSS FileView (ban stack u8[32]) + pipe-cell
-//   mid `path=/buf=/rc=/data=call()`; tipU Soft Cap; stamp → w519;
-//   tip PRODUCT reinject HARD BAN if PREFER poisons (keep prior overlay).
+// wave519: tip Soft Cap heal —
+//   1) BSS FileView (inventory; stack u8[32] also tip-ok alone)
+//   2) pipe-cell mid path/buf/rc/data (Ubuntu tip mid `x=call()` starve)
+//   3) peer-flat w519_maybe_copy (nested early-return inside memcpy
+//      branch → Ubuntu tip CG002 / elf patch fail)
+//   tipU Soft Cap; stamp → w519; tip PRODUCT reinject HARD BAN
+//   (keep prior PREFER overlay; do not tip-reinject after green).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 //
 // XlangRuntimeFileView LP64 layout (match runtime_io_abi.x):
@@ -27,33 +31,32 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /* Pin embed wall (PipelineDepCtx loaded_buf cap). */
 const W297_LOADED_CAP: i64 = 4194304;
-/* FileView blob bytes (covers LP64 fields + pad). */
-const W297_VIEW_BYTES: i32 = 32;
-const W297_VIEW_OFF_LEN: i32 = 8;
 
-/* wave519: BSS FileView — tip CG002 on stack u8[32] + label patches. */
+/* wave519: BSS FileView blob (covers LP64 fields + pad). */
 let g_w519_file_view: u8[32] = [];
 
 /**
- * Load LP64 usize/i64 length from FileView blob at +8 (LE).
- * PLATFORM: SHARED — freestanding twin of raw_view.length read.
+ * Copy view payload into loaded_buf when len>0; reject null data.
+ * Peer-flat: keeps nested early-return / memcpy out of
+ * pipeline_read_file_x (Ubuntu tip CG002 on nested branch+return).
+ * PLATFORM: SHARED freestanding Cap leave.
  */
-function w297_view_length(view: *u8): i64 {
-  let locell: u8[4] = [];
-  let hicell: u8[4] = [];
-  let u: i64 = 0;
-  unsafe {
-    pipe_store_i32_le(&locell[0], 0, pipe_load_i32_le(view, W297_VIEW_OFF_LEN));
-    pipe_store_i32_le(&hicell[0], 0, pipe_load_i32_le(view, W297_VIEW_OFF_LEN + 4));
-    u = (pipe_load_i32_le(&locell[0], 0) as i64) & 4294967295;
-    u = u | ((pipe_load_i32_le(&hicell[0], 0) as i64) << 32);
+export function w519_maybe_copy(buf: *u8, data: *u8, len: i64): i32 {
+  if (len <= 0) {
+    return 0;
   }
-  return u;
+  if (data == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    memcpy(buf, data, len as usize);
+  }
+  return 0;
 }
 
 /**
  * Resolve-read embed fill: view whole file, reject >4MiB, copy into loaded_buf.
- * wave519: ban mid `path=/buf=/rc=/data=call()`; pipe-cell + BSS view.
+ * wave519: ban mid `path=/buf=/rc=/data=call()`; pipe-cell + peer maybe_copy.
  * Product import orch heap-reads separately (does not use this face).
  * PLATFORM: SHARED freestanding Cap leave (wave352/519 .x thin).
  */
@@ -61,42 +64,52 @@ function w297_view_length(view: *u8): i64 {
 export function pipeline_read_file_x(ctx: *u8): i32 {
   let pcell: u8[8] = [];
   let bcell: u8[8] = [];
-  let rccell: u8[4] = [];
   let dcell: u8[8] = [];
+  let rccell: u8[4] = [];
+  let crccell: u8[4] = [];
+  let lo: i32 = 0;
+  let hi: i32 = 0;
   let len: i64 = 0;
   if (ctx == (0 as *u8)) {
     return 0 - 1;
   }
   unsafe {
+    /* Pipe-cell: Ubuntu tip starves mid `path=/buf=call()`. */
     pipe_store_ptr_slot(&pcell[0], 0, pipeline_dep_ctx_path_buf_ptr(ctx));
     pipe_store_ptr_slot(&bcell[0], 0, pipeline_dep_ctx_loaded_buf_ptr(ctx));
-    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)
-      || pipe_load_ptr_slot(&bcell[0], 0) == (0 as *u8)) {
+    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
       return 0 - 1;
     }
-    memset(&g_w519_file_view[0], 0, W297_VIEW_BYTES as usize);
+    if (pipe_load_ptr_slot(&bcell[0], 0) == (0 as *u8)) {
+      return 0 - 1;
+    }
+    memset(&g_w519_file_view[0], 0, 32 as usize);
+    /* Pipe-cell rc — ban mid `rc=runtime_read_file_view(...)`. */
     pipe_store_i32_le(&rccell[0], 0, runtime_read_file_view(
       pipe_load_ptr_slot(&pcell[0], 0), &g_w519_file_view[0]
     ));
     if (pipe_load_i32_le(&rccell[0], 0) != 0) {
       return 0 - 1;
     }
-    len = w297_view_length(&g_w519_file_view[0]);
+    /* Flat LE length load (no helper mid-call nest). */
+    lo = pipe_load_i32_le(&g_w519_file_view[0], 8);
+    hi = pipe_load_i32_le(&g_w519_file_view[0], 12);
+    len = (lo as i64) & 4294967295;
+    len = len | ((hi as i64) << 32);
     if (len > W297_LOADED_CAP) {
       runtime_release_file_view(&g_w519_file_view[0]);
       return 0 - 1;
     }
-    if (len > 0) {
-      pipe_store_ptr_slot(&dcell[0], 0, pipe_load_ptr_slot(&g_w519_file_view[0], 0));
-      if (pipe_load_ptr_slot(&dcell[0], 0) == (0 as *u8)) {
-        runtime_release_file_view(&g_w519_file_view[0]);
-        return 0 - 1;
-      }
-      memcpy(
-        pipe_load_ptr_slot(&bcell[0], 0),
-        pipe_load_ptr_slot(&dcell[0], 0),
-        len as usize
-      );
+    /* Pipe-cell data + peer copy (nested memcpy branch → CG002). */
+    pipe_store_ptr_slot(&dcell[0], 0, pipe_load_ptr_slot(&g_w519_file_view[0], 0));
+    pipe_store_i32_le(&crccell[0], 0, w519_maybe_copy(
+      pipe_load_ptr_slot(&bcell[0], 0),
+      pipe_load_ptr_slot(&dcell[0], 0),
+      len
+    ));
+    if (pipe_load_i32_le(&crccell[0], 0) != 0) {
+      runtime_release_file_view(&g_w519_file_view[0]);
+      return 0 - 1;
     }
     pipeline_dep_ctx_set_loaded_len(ctx, len);
     runtime_release_file_view(&g_w519_file_view[0]);
