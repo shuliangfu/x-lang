@@ -1,15 +1,19 @@
-// Thin pure: wave212 Chaitin color/pin BSS + accessors.
+// Thin pure: wave212/410/513 Chaitin color/pin BSS + accessors.
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave212 leave.
-// ensure injects via inject_thin_leaf (PREFER_ASM).
+// ensure injects via inject_thin_leaf (PREFER_ASM) historically; wave410
+// HARD BAN tip reinject both ends — Darwin product BRANCH26.
+// wave513: tipU 0/2→4/4 — mid `parent=/max_n=call()` drop U; pipe-cell
+//   heal; tip PRODUCT BAN stamp → w513 (keep prior leftover; do not reinject).
 // stack_spill_enabled calls wave213 getters (leftover); wrap unsafe.
-// wave410: HARD BAN tip reinject both ends — standalone -c PREFER green
-//   but Darwin product inject ARM64_RELOC_BRANCH26.
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** wave213: cfg parent flag (0 = linear path). */
 export extern function glue_block_live_cfg_parent_get(): i32;
 /** wave213: linear-scan max live count for stack-spill gate. */
 export extern function glue_asm73_linear_max_live_n_get(): i32;
+/** wave511/513: pipe-cell helpers (keep tip U across mid-call assign). */
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 
 // ---------------------------------------------------------------------------
 // wave212: Chaitin color/pin BSS + thin accessors pure leave
@@ -231,24 +235,22 @@ export function glue_asm73_cfg_final_expr_use_n_set(n: i32): void {
  */
 #[no_mangle]
 export function glue_asm73_stack_spill_enabled(): i32 {
-  let parent: i32 = 0;
-  let max_n: i32 = 0;
+  let cell: u8[4] = [];
+  /* wave513: ban mid `parent=/max_n=call()`; pipe-cell inside one unsafe. */
   unsafe {
-    parent = glue_block_live_cfg_parent_get();
-  }
-  if (parent != 0) {
-    if (g_asm73_cfg_final_expr_use_n >= 12) {
+    pipe_store_i32_le(&cell[0], 0, glue_block_live_cfg_parent_get());
+    if (pipe_load_i32_le(&cell[0], 0) != 0) {
+      if (g_asm73_cfg_final_expr_use_n >= 12) {
+        return 1;
+      }
+      return 0;
+    }
+    pipe_store_i32_le(&cell[0], 0, glue_asm73_linear_max_live_n_get());
+    if (pipe_load_i32_le(&cell[0], 0) >= 15) {
       return 1;
     }
     return 0;
   }
-  unsafe {
-    max_n = glue_asm73_linear_max_live_n_get();
-  }
-  if (max_n >= 15) {
-    return 1;
-  }
-  return 0;
 }
 
 /**
