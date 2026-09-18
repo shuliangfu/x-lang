@@ -5806,6 +5806,8 @@ pipeline_abi_inject_assign_thin() {
   # wave449: deref family PREFER overlay after heals; var+emit stay -E.
   # wave452: emit no-local reshape retained in .x; tip pure-asm still BAN
   #   (si CG002); this -E chain is the product path for emit dispatcher.
+  # wave458: after chain+heals+var, LINUX overlays field_var_stores no-local
+  #   PREFER (tip `let rc=call()` U-starved → eq-cascade U=4/4).
   if [ "$rc" -eq 0 ] && [ -n "${emit_x-}" ] && [ -f "$emit_x" ]; then
     if [ ! -f "$emit_s" ] || [ "$emit_x" -nt "$emit_s" ]; then
       export XLANG_PABI_THIN_PREFER_ASM=0
@@ -5938,6 +5940,28 @@ pipeline_abi_inject_assign_thin() {
       fi
     fi
   fi
+  # wave458: field_var_stores tip no-local PREFER overlay (LINUX only).
+  # Root: tip `let rc = call()` drops mid-peer calls → U-starved (only depth1);
+  #   eq-cascade no-local → Ubuntu tip U=4/4; product inject L2 5/5.
+  # PLATFORM: LINUX gold · MACOS skip (full assign chain already PREFER; Darwin
+  #   g05 mega re-inject after stores overlay can UNDEF peer leaves).
+  case "$(uname -s)" in
+    Linux)
+      if [ "$rc" -eq 0 ]; then
+        local stores_x="src/runtime_pipeline_abi_assign_field_var_stores_thin.x"
+        local stores_s="src/.pabi_w458_heal_field_var_stores.stamp"
+        if [ -f "$stores_x" ] && { [ ! -f "$stores_s" ] || [ "$stores_x" -nt "$stores_s" ]; }; then
+          export XLANG_PABI_THIN_PREFER_ASM=1
+          export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+          pipeline_abi_inject_thin_leaf "$o" "$stores_x" "w458-heal-field-var-stores"
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            touch "$stores_s"
+          fi
+        fi
+      fi
+      ;;
+  esac
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
