@@ -8869,55 +8869,25 @@ pipeline_abi_inject_value_abi_thin() {
 
 
 
-# wave326/364 M2: block_domain Cap residual C→.x (was wave277 C thin).
+# wave326/364/526 M2: block_domain Cap residual C→.x (was wave277 C thin).
 # PRODUCT inject wave364: PREFER_ASM both ends try (ALLOW_E_REPLACE + stamp).
 # T001 w326_* helpers; standalone -c green; gate=type_alias -c + L2.
-# G.7 WAVE277_BLOCK_DOMAIN_ALWAYS. PLATFORM: SHARED · PREFER try.
+# wave526 Soft Cap: tip CG002 heal (libc memmove) + tipU pipe-cell;
+#   stamp → w526; tip PRODUCT reinject HARD BAN (keep prior PREFER overlay).
+# G.7 WAVE277_BLOCK_DOMAIN_ALWAYS. PLATFORM: SHARED · BAN reinject after w526.
 pipeline_abi_inject_block_domain_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_block_domain_thin.x"
-  local stamp="src/.pabi_w364_block_domain.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w526_block_domain.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — hard BAN tip reinject (do not call inject_thin_leaf).
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w364-block-domain"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w326_block_domain.stamp
-  fi
-  return "$rc"
+  touch "$stamp"
+  rm -f src/.pabi_w326_block_domain.stamp src/.pabi_w364_block_domain.stamp
+  log "pipeline_abi w526-block-domain: tip CG002+tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+  return 0
 }
 
 

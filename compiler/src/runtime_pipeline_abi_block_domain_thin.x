@@ -1,13 +1,17 @@
-// Thin pure: wave326/364 M2 — block_domain Cap residual C→.x (was wave277 C thin).
+// Thin pure: wave326/364/526 M2 — block_domain Cap residual C→.x (was wave277 C thin).
 // pipeline_block_* append/getters/patch/resolve/stmt_order + ast_ast_block_*.
 // G.7: bodies match runtime_pipeline_abi_block_domain_thin.c / seed WAVE277.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_block_domain_thin
-// (ALLOW_E_REPLACE + stamp). Block 92 / Region 268 / Labeled 528 / StmtOrder 8.
+// PRODUCT inject: wave364 PREFER; wave526 Soft Cap tip CG002+tipU heal then
+//   HARD BAN tip reinject (keep prior overlay). Block 92 / Region 268 / Labeled 528.
 // wave364: w326_* helpers via unsafe (T001); PREFER try + L2 gate.
+// wave526: libc memmove (ban hand while-copy → Ubuntu tip CG002/SEGV);
+//   pipe-cell mid-call tipU heal. Stamp → w526.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function arena_sidecar_get(key: *u8, create: i32): *u8;
 export extern function grow_vec_at(v: *u8, idx: i32): *u8;
 export extern function grow_vec_push(v: *u8): i32;
@@ -36,32 +40,317 @@ export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function xlang_size_slot_get(arr: *u8, i: i32): i64;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+export extern "C" function memmove(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
 
 /**
- * Overlap-safe byte move (memmove semantics) without libc memmove decl.
- * PLATFORM: SHARED — Darwin string.h macros memmove; avoid export-extern clash.
- * When dst > src copy backward; when dst < src copy forward.
+ * Overlap-safe byte move via libc memmove (tip Soft Cap).
+ * wave526: hand while-copy loops → Ubuntu tip CG002/SEGV; keep overlap-safe
+ * grow-vec insert slides. PLATFORM: SHARED Soft Cap tip CG002 heal.
  */
 function w326_memmove(dst: *u8, src: *u8, n: usize): void {
-  let i: usize = 0;
-  let d: *u8 = dst;
-  let s: *u8 = src;
-  if (d == s || n == (0 as usize)) {
+  if (dst == src || n == (0 as usize)) {
     return;
   }
-  if ((d as usize) > (s as usize)) {
-    i = n;
-    while (i > (0 as usize)) {
-      i = i - (1 as usize);
-      unsafe { *(d + i) = *(s + i); }
-    }
-  } else {
-    i = 0 as usize;
-    while (i < n) {
-      unsafe { *(d + i) = *(s + i); }
-      i = i + (1 as usize);
-    }
+  unsafe {
+    memmove(dst, src, n);
+  }
+}
+
+/**
+ * arena_sidecar_get via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_sidecar_get(key: *u8, create: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, arena_sidecar_get(key, create));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * pipeline_arena_block_ptr via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_arena_block_ptr(a: *u8, ref: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_block_ptr(a, ref));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_push via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_grow_vec_push(v: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, grow_vec_push(v));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_ensure via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_grow_vec_ensure(v: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, grow_vec_ensure(v));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * memcmp via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_memcmp(a: *u8, b: *u8, n: usize): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, memcmp(a, b, n));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_kind_ord_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_kind_ord_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_kind_ord_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_block_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_block_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_block_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_binop_left_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_binop_left_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_binop_left_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_binop_right_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_binop_right_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_binop_right_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_unary_operand_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_unary_operand_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_unary_operand_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_if_then_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_if_then_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_if_then_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_if_else_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_if_else_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_if_else_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_call_callee_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_call_callee_ref_at(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_call_callee_ref_at(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_type_kind_ord_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_type_kind_ord_at(a: *u8, ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_type_kind_ord_at(a, ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_type_named_name_into via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_type_named_name_into(arena: *u8, ref: i32, out64: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_type_named_name_into(arena, ref, out64));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_struct_lit_type_name_len via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_struct_lit_type_name_len(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_expr_struct_lit_type_name_len(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_struct_lit_type_name_set (tipU: keep void U on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_struct_lit_type_name_set(a: *u8, expr_ref: i32, name: *u8, name_len: i32): void {
+  unsafe {
+    pipeline_expr_struct_lit_type_name_set(a, expr_ref, name, name_len);
+  }
+}
+
+/**
+ * pipeline_module_func_body_ref_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_module_func_body_ref_at(m: *u8, fi: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_module_func_body_ref_at(m, fi));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_module_num_funcs via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_module_num_funcs(m: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_module_num_funcs(m));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_module_func_num_params_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_module_func_num_params_at(m: *u8, fi: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_module_func_num_params_at(m, fi));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_module_func_param_name_len_at via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_module_func_param_name_len_at(m: *u8, fi: i32, pi: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipeline_module_func_param_name_len_at(m, fi, pi));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_module_func_param_name_copy32 (tipU: keep void U on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_module_func_param_name_copy32(m: *u8, fi: i32, pi: i32, dst: *u8): void {
+  unsafe {
+    pipeline_module_func_param_name_copy32(m, fi, pi, dst);
+  }
+}
+
+/**
+ * implicit_tail_expr_disallowed_by_glue via pipe-cell (tipU mid-call ban).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_implicit_tail_disallowed(a: *u8, expr_ref: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, implicit_tail_expr_disallowed_by_glue(a, expr_ref));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipeline_expr_apply_call_resolve (tipU: keep void U on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_expr_apply_call_resolve(a: *u8, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
+  unsafe {
+    pipeline_expr_apply_call_resolve(a, call_expr_ref, dep_ix, func_ix);
+  }
+}
+
+
+
+
+/**
+ * memcpy via pipe-cell (tipU: ban mid `memcpy()` drop on Ubuntu tip).
+ * PLATFORM: SHARED Soft Cap tipU heal (wave526).
+ */
+function w526_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, memcpy(dst, src, n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
   }
 }
 
@@ -178,14 +467,14 @@ function w326_sc(a: *u8, create: i32): *u8 {
   let cf: i32 = 0;
   if (a == (0 as *u8)) { return 0 as *u8; }
   if (create != 0) { cf = 1; }
-  unsafe { sc = arena_sidecar_get(a, cf); }
+  unsafe { sc = w526_sidecar_get(a, cf); }
   return sc;
 }
 
 function w326_block_at(a: *u8, br: i32): *u8 {
   let b: *u8 = 0 as *u8;
   if (a == (0 as *u8) || br <= 0) { return 0 as *u8; }
-  unsafe { b = pipeline_arena_block_ptr(a, br); }
+  unsafe { b = w526_arena_block_ptr(a, br); }
   return b;
 }
 
@@ -216,18 +505,18 @@ function w326_pool_append_pos(a: *u8, br: i32, pool: *u8, base_off: i32, num_bef
   }
   base_field = w326_load(b, base_off);
   if (num_before == 0) {
-    unsafe { abs_pos = grow_vec_push(pool); }
+    unsafe { abs_pos = w526_grow_vec_push(pool); }
     if (abs_pos < 0) { return 0 - 1; }
     w326_store(b, base_off, abs_pos);
     return abs_pos;
   }
   abs_pos = base_field + num_before;
   if (abs_pos >= w326_gv_len(pool)) {
-    unsafe { abs_pos = grow_vec_push(pool); }
+    unsafe { abs_pos = w526_grow_vec_push(pool); }
     if (abs_pos < 0) { return 0 - 1; }
     return abs_pos;
   }
-  unsafe { rc = grow_vec_ensure(pool); }
+  unsafe { rc = w526_grow_vec_ensure(pool); }
   if (rc == 0) { return 0 - 1; }
   esz = w326_gv_elem_sz(pool);
   data = w326_gv_data(pool);
@@ -362,7 +651,7 @@ export function pipeline_block_append_const(a: *u8, br: i32, name: *u8, name_len
   n = name_len;
   if (n > 255) { n = 255; }
   if (n > 0 && name != (0 as *u8)) {
-    unsafe { memcpy(e, name, n as usize); }
+    unsafe { w526_memcpy(e, name, n as usize); }
   }
   w326_store(e, W326_CD_NAME_LEN, n);
   w326_store(e, W326_CD_TYPE, type_ref);
@@ -395,7 +684,7 @@ export function pipeline_block_append_let(a: *u8, br: i32, name: *u8, name_len: 
   n = name_len;
   if (n > 255) { n = 255; }
   if (n > 0 && name != (0 as *u8)) {
-    unsafe { memcpy(e, name, n as usize); }
+    unsafe { w526_memcpy(e, name, n as usize); }
   }
   w326_store(e, W326_CD_NAME_LEN, n);
   w326_store(e, W326_CD_TYPE, type_ref);
@@ -447,7 +736,7 @@ export function pipeline_block_append_region(a: *u8, br: i32, label: *u8, label_
   if (idx < 0) { return 0 - 1; }
   unsafe { e = grow_vec_at(sc + (W326_SC_REGIONS as usize), idx); }
   if (e == (0 as *u8)) { return 0 - 1; }
-  unsafe { memset(e, 0, W326_RE_SZ as usize); memcpy(e, label, label_len as usize); }
+  unsafe { memset(e, 0, W326_RE_SZ as usize); w526_memcpy(e, label, label_len as usize); }
   w326_store(e, W326_RE_LABEL_LEN, label_len);
   w326_store(e, W326_RE_BODY, body_ref);
   w326_store(e, W326_RE_CAP, 0);
@@ -549,7 +838,7 @@ export function pipeline_block_region_label_copy64(a: *u8, br: i32, ri: i32, dst
   if (rb == (0 as *u8)) { return; }
   n = w326_load(rb, W326_RE_LABEL_LEN);
   if (n <= 0) { return; }
-  unsafe { memcpy(dst, rb, n as usize); }
+  unsafe { w526_memcpy(dst, rb, n as usize); }
 }
 
 #[no_mangle]
@@ -834,7 +1123,7 @@ export function pipeline_block_labeled_label_copy32(a: *u8, br: i32, li: i32, ds
   n = w326_load(ls, W326_LE_LABEL_LEN);
   if (n <= 0) { return; }
   if (n > 127) { n = 127; }
-  unsafe { memcpy(dst, ls, n as usize); }
+  unsafe { w526_memcpy(dst, ls, n as usize); }
 }
 #[no_mangle]
 export function pipeline_block_labeled_goto_target_copy32(a: *u8, br: i32, li: i32, dst: *u8): void {
@@ -847,7 +1136,7 @@ export function pipeline_block_labeled_goto_target_copy32(a: *u8, br: i32, li: i
   n = w326_load(ls, W326_LE_GOTO_LEN);
   if (n <= 0) { return; }
   if (n > 127) { n = 127; }
-  unsafe { memcpy(dst, ls + (W326_LE_GOTO as usize), n as usize); }
+  unsafe { w526_memcpy(dst, ls + (W326_LE_GOTO as usize), n as usize); }
 }
 #[no_mangle]
 export function pipeline_block_const_name_copy64(a: *u8, br: i32, ci: i32, dst: *u8): void {
@@ -860,7 +1149,7 @@ export function pipeline_block_const_name_copy64(a: *u8, br: i32, ci: i32, dst: 
   n = w326_load(e, W326_CD_NAME_LEN);
   if (n < 0) { n = 0; }
   if (n > 255) { n = 255; }
-  if (n > 0) { unsafe { memcpy(dst, e, n as usize); } }
+  if (n > 0) { unsafe { w526_memcpy(dst, e, n as usize); } }
 }
 #[no_mangle]
 export function pipeline_block_let_name_copy64(a: *u8, br: i32, li: i32, dst: *u8): void {
@@ -873,7 +1162,7 @@ export function pipeline_block_let_name_copy64(a: *u8, br: i32, li: i32, dst: *u
   n = w326_load(e, W326_CD_NAME_LEN);
   if (n < 0) { n = 0; }
   if (n > 255) { n = 255; }
-  if (n > 0) { unsafe { memcpy(dst, e, n as usize); } }
+  if (n > 0) { unsafe { w526_memcpy(dst, e, n as usize); } }
 }
 #[no_mangle]
 export function pipeline_block_set_let_type_ref(a: *u8, br: i32, li: i32, type_ref: i32): i32 {
@@ -945,9 +1234,9 @@ function w326_expr_has_inner_block(a: *u8, expr_ref: i32, parent_block: i32, dep
   if (a == (0 as *u8) || expr_ref <= 0 || depth > 64) { return 0; }
   ne = w326_arena_num_exprs(a);
   if (expr_ref > ne) { return 0; }
-  unsafe { kind = pipeline_expr_kind_ord_at(a, expr_ref); }
+  unsafe { kind = w526_expr_kind_ord_at(a, expr_ref); }
   if (kind == 26) {
-    unsafe { inner_blk = pipeline_expr_block_ref_at(a, expr_ref); }
+    unsafe { inner_blk = w526_expr_block_ref_at(a, expr_ref); }
     if (inner_blk > 0) {
       ib = w326_block_at(a, inner_blk);
       if (ib != (0 as *u8) && w326_load(ib, W326_B_PARENT_BLOCK_REF) == 0) {
@@ -957,13 +1246,13 @@ function w326_expr_has_inner_block(a: *u8, expr_ref: i32, parent_block: i32, dep
     }
   }
   unsafe {
-    left = pipeline_expr_binop_left_ref_at(a, expr_ref);
-    right = pipeline_expr_binop_right_ref_at(a, expr_ref);
-    op = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-    th = pipeline_expr_if_then_ref_at(a, expr_ref);
-    el = pipeline_expr_if_else_ref_at(a, expr_ref);
-    br = pipeline_expr_block_ref_at(a, expr_ref);
-    cal = pipeline_expr_call_callee_ref_at(a, expr_ref);
+    left = w526_expr_binop_left_ref_at(a, expr_ref);
+    right = w526_expr_binop_right_ref_at(a, expr_ref);
+    op = w526_expr_unary_operand_ref_at(a, expr_ref);
+    th = w526_expr_if_then_ref_at(a, expr_ref);
+    el = w526_expr_if_else_ref_at(a, expr_ref);
+    br = w526_expr_block_ref_at(a, expr_ref);
+    cal = w526_expr_call_callee_ref_at(a, expr_ref);
   }
   if (left > 0) { w326_expr_has_inner_block(a, left, parent_block, depth + 1); }
   if (right > 0) { w326_expr_has_inner_block(a, right, parent_block, depth + 1); }
@@ -1025,8 +1314,8 @@ export function glue_stamp_return_lits_in_block_c(a: *u8, block_ref: i32, rty: i
   let rgb: i32 = 0;
   if (a == (0 as *u8) || block_ref <= 0 || rty <= 0) { return; }
   unsafe {
-    if (pipeline_type_kind_ord_at(a, rty) != 8) { return; }
-    nlen = pipeline_type_named_name_into(a, rty, &nbuf[0]);
+    if (w526_type_kind_ord_at(a, rty) != 8) { return; }
+    nlen = w526_type_named_name_into(a, rty, &nbuf[0]);
   }
   if (nlen <= 0 || nlen > 255) { return; }
   stack_blk[0] = block_ref;
@@ -1042,10 +1331,10 @@ export function glue_stamp_return_lits_in_block_c(a: *u8, block_ref: i32, rty: i
     while (i < ne) {
       er = pipeline_block_expr_stmt_ref(a, cur, i);
       unsafe {
-        if (er > 0 && pipeline_expr_kind_ord_at(a, er) == 41) {
-          rop = pipeline_expr_unary_operand_ref_at(a, er);
-          if (rop > 0 && pipeline_expr_kind_ord_at(a, rop) == 45 && pipeline_expr_struct_lit_type_name_len(a, rop) <= 0) {
-            pipeline_expr_struct_lit_type_name_set(a, rop, &nbuf[0], nlen);
+        if (er > 0 && w526_expr_kind_ord_at(a, er) == 41) {
+          rop = w526_expr_unary_operand_ref_at(a, er);
+          if (rop > 0 && w526_expr_kind_ord_at(a, rop) == 45 && w526_struct_lit_type_name_len(a, rop) <= 0) {
+            w526_struct_lit_type_name_set(a, rop, &nbuf[0], nlen);
           }
         }
       }
@@ -1053,10 +1342,10 @@ export function glue_stamp_return_lits_in_block_c(a: *u8, block_ref: i32, rty: i
     }
     er = ast_ast_block_final_expr_ref(a, cur);
     unsafe {
-      if (er > 0 && pipeline_expr_kind_ord_at(a, er) == 41) {
-        rop = pipeline_expr_unary_operand_ref_at(a, er);
-        if (rop > 0 && pipeline_expr_kind_ord_at(a, rop) == 45 && pipeline_expr_struct_lit_type_name_len(a, rop) <= 0) {
-          pipeline_expr_struct_lit_type_name_set(a, rop, &nbuf[0], nlen);
+      if (er > 0 && w526_expr_kind_ord_at(a, er) == 41) {
+        rop = w526_expr_unary_operand_ref_at(a, er);
+        if (rop > 0 && w526_expr_kind_ord_at(a, rop) == 45 && w526_struct_lit_type_name_len(a, rop) <= 0) {
+          w526_struct_lit_type_name_set(a, rop, &nbuf[0], nlen);
         }
       }
     }
@@ -1192,7 +1481,7 @@ export function pipeline_block_resolve_var_type_ref(a: *u8, block_ref: i32, vnam
     while (i < w326_load(b, W326_B_NUM_CONSTS)) {
       e = w326_const_at(a, cur, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_TYPE) != 0 && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return w326_load(e, W326_CD_TYPE); }
       }
       i = i + 1;
@@ -1201,7 +1490,7 @@ export function pipeline_block_resolve_var_type_ref(a: *u8, block_ref: i32, vnam
     while (i < w326_load(b, W326_B_NUM_LETS)) {
       e = w326_let_at(a, cur, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_TYPE) != 0 && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return w326_load(e, W326_CD_TYPE); }
       }
       i = i + 1;
@@ -1228,7 +1517,7 @@ export function pipeline_block_name_binding_kind(a: *u8, block_ref: i32, vname: 
     while (i < w326_load(b, W326_B_NUM_CONSTS)) {
       e = w326_const_at(a, cur, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return 1; }
       }
       i = i + 1;
@@ -1237,7 +1526,7 @@ export function pipeline_block_name_binding_kind(a: *u8, block_ref: i32, vname: 
     while (i < w326_load(b, W326_B_NUM_LETS)) {
       e = w326_let_at(a, cur, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return 0; }
       }
       i = i + 1;
@@ -1268,7 +1557,7 @@ export function pipeline_block_local_name_redecl_c(a: *u8, block_ref: i32, vname
     if (!(kind == 0 && i == idx)) {
       e = w326_let_at(a, block_ref, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return 1; }
       }
     }
@@ -1279,22 +1568,22 @@ export function pipeline_block_local_name_redecl_c(a: *u8, block_ref: i32, vname
     if (!(kind == 1 && i == idx)) {
       e = w326_const_at(a, block_ref, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return 1; }
       }
     }
     i = i + 1;
   }
   if (m != (0 as *u8) && func_index >= 0) {
-    unsafe { body = pipeline_module_func_body_ref_at(m, func_index); }
+    unsafe { body = w526_module_func_body_ref_at(m, func_index); }
     if (body == block_ref) {
-      unsafe { np = pipeline_module_func_num_params_at(m, func_index); }
+      unsafe { np = w526_module_func_num_params_at(m, func_index); }
       pi = 0;
       while (pi < np) {
-        unsafe { nl = pipeline_module_func_param_name_len_at(m, func_index, pi); }
+        unsafe { nl = w526_module_func_param_name_len_at(m, func_index, pi); }
         if (nl == vlen) {
           if (nl > 255) { nl = 255; }
-          unsafe { pipeline_module_func_param_name_copy32(m, func_index, pi, &pbuf[0]); }
+          unsafe { w526_module_func_param_name_copy32(m, func_index, pi, &pbuf[0]); }
           k = 0;
           while (k < nl) {
             if (pbuf[k] != vname[k]) { break; }
@@ -1325,7 +1614,7 @@ export function pipeline_block_find_var_decl_block_ref(a: *u8, block_ref: i32, v
     while (i < w326_load(b, W326_B_NUM_CONSTS)) {
       e = w326_const_at(a, cur, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return cur; }
       }
       i = i + 1;
@@ -1334,7 +1623,7 @@ export function pipeline_block_find_var_decl_block_ref(a: *u8, block_ref: i32, v
     while (i < w326_load(b, W326_B_NUM_LETS)) {
       e = w326_let_at(a, cur, i);
       if (e != (0 as *u8) && w326_load(e, W326_CD_NAME_LEN) == vlen) {
-        unsafe { cmp = memcmp(e, vname, vlen as usize); }
+        unsafe { cmp = w526_memcmp(e, vname, vlen as usize); }
         if (cmp == 0) { return cur; }
       }
       i = i + 1;
@@ -1371,7 +1660,7 @@ function w326_stmt_order_insert_at(a: *u8, br: i32, pos: i32, kinds: *u8, idxs: 
   move_count = w326_gv_len(sc + (W326_SC_STMT_ORDER as usize)) - abs;
   i = 0;
   while (i < n_items) {
-    unsafe { rc = grow_vec_ensure(sc + (W326_SC_STMT_ORDER as usize)); }
+    unsafe { rc = w526_grow_vec_ensure(sc + (W326_SC_STMT_ORDER as usize)); }
     if (rc == 0) { return; }
     i = i + 1;
   }
@@ -1652,9 +1941,9 @@ export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): vo
   let early: i32 = 0;
   let nf: i32 = 0;
   if (m == (0 as *u8) || a == (0 as *u8)) { return; }
-  unsafe { nf = pipeline_module_num_funcs(m); }
+  unsafe { nf = w526_module_num_funcs(m); }
   while (fi < nf) {
-    unsafe { br = pipeline_module_func_body_ref_at(m, fi); }
+    unsafe { br = w526_module_func_body_ref_at(m, fi); }
     if (br > 0) {
       b = w326_block_at(a, br);
       pipeline_block_with_arena_fixup_stmt_order(a, br);
@@ -1840,9 +2129,9 @@ export function ast_ast_block_resolve_var_to_type_ref(a: *u8, block_ref: i32, vn
 }
 #[no_mangle]
 export function ast_ast_expr_disallows_implicit_tail(a: *u8, expr_ref: i32): i32 {
-  unsafe { return implicit_tail_expr_disallowed_by_glue(a, expr_ref); }
+  unsafe { return w526_implicit_tail_disallowed(a, expr_ref); }
 }
 #[no_mangle]
 export function ast_ast_expr_apply_call_resolve(a: *u8, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
-  unsafe { pipeline_expr_apply_call_resolve(a, call_expr_ref, dep_ix, func_ix); }
+  unsafe { w526_expr_apply_call_resolve(a, call_expr_ref, dep_ix, func_ix); }
 }
