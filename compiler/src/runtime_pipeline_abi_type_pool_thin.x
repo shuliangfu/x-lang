@@ -1,4 +1,4 @@
-// Thin pure: wave301/357/372/372b/373/383/383b M2 — type_pool Cap residual C→.x.
+// Thin pure: wave301/357/372/372b/373/383/383b/515 M2 — type_pool Cap residual C→.x.
 // Type LE: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
 //   region_label[256]@272 region_label_len@528 size=532.
 // G.7: bodies match runtime_pipeline_abi.x wave270 leave (correct LE offsets;
@@ -7,12 +7,16 @@
 // wave372/372b/373: Ubuntu PREFER then option T001 — Darwin PREFER / Ubuntu -E.
 // wave383: Ubuntu tip PREFER L2 5/5 (option=102) — PREFER both ends.
 // wave383b: HARD BAN tip force-reinject after green (Ubuntu 3rd tip reinject
-//   → option T001; keep green PREFER overlay via .pabi_w383_type_pool.stamp).
+//   → option T001; keep green PREFER overlay via stamp).
+// wave515: tipU 2/5→6/6 — mid `tp=/k=/n=call()` drop U; pipe-cell heal;
+//   stamp → w515; tip force-reinject still HARD BAN (keep PREFER overlay).
 // PLATFORM: SHARED freestanding Cap leave · PREFER both ends · BAN force tip.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 export extern function pipeline_arena_type_ptr(arena: *u8, ref: i32): *u8;
 export extern function pipeline_arena_type_alloc(arena: *u8): i32;
 export extern function pipeline_arena_num_types(arena: *u8): i32;
@@ -120,45 +124,48 @@ function pipe_ty_copy_bytes(dst: *u8, src: *u8, n: i32): void {
 
 /**
  * Cap residual type_ptr via unsafe.
+ * wave515: ban mid `tp=call()`; pipe-ptr cell (tip keeps U).
  * @param a *u8 - ASTArena*
  * @param ref i32 - type ref
  * @return *u8 - Type* or null
  * PLATFORM: SHARED.
  */
 function pipe_ty_ptr(a: *u8, ref: i32): *u8 {
-  let tp: *u8 = 0 as *u8;
+  let pcell: u8[8] = [];
   unsafe {
-    tp = pipeline_arena_type_ptr(a, ref);
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_type_ptr(a, ref));
+    return pipe_load_ptr_slot(&pcell[0], 0);
   }
-  return tp;
 }
 
 /**
  * Cap residual type_alloc via unsafe.
+ * wave515: ban mid `k=call()`; pipe-cell (tip keeps U).
  * @param a *u8 - ASTArena*
  * @return i32 - new type ref or 0
  * PLATFORM: SHARED.
  */
 function pipe_ty_alloc(a: *u8): i32 {
-  let k: i32 = 0;
+  let cell: u8[4] = [];
   unsafe {
-    k = pipeline_arena_type_alloc(a);
+    pipe_store_i32_le(&cell[0], 0, pipeline_arena_type_alloc(a));
+    return pipe_load_i32_le(&cell[0], 0);
   }
-  return k;
 }
 
 /**
  * Cap residual num_types via unsafe.
+ * wave515: ban mid `n=call()`; pipe-cell (tip keeps U).
  * @param a *u8 - ASTArena*
  * @return i32 - type count
  * PLATFORM: SHARED.
  */
 function pipe_ty_num_types(a: *u8): i32 {
-  let n: i32 = 0;
+  let cell: u8[4] = [];
   unsafe {
-    n = pipeline_arena_num_types(a);
+    pipe_store_i32_le(&cell[0], 0, pipeline_arena_num_types(a));
+    return pipe_load_i32_le(&cell[0], 0);
   }
-  return n;
 }
 
 /**

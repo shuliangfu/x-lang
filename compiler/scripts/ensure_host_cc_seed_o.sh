@@ -8601,7 +8601,7 @@ pipeline_abi_inject_block_tree_thin() {
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
 
-# wave301/357/357b/372/372b/373/383/383b M2: type_pool Cap residual C→.x
+# wave301/357/357b/372/372b/373/383/383b/515 M2: type_pool Cap residual C→.x
 #   (was wave270 C thin).
 # PRODUCT inject wave383: PREFER_ASM both ends (first-wins / missing stamp).
 #   w372b/373: MACOS PREFER / LINUX -E (option T001 / non-i32 params root).
@@ -8611,21 +8611,30 @@ pipeline_abi_inject_block_tree_thin() {
 #   w395: Ubuntu opt=134 after tip mega poison — heal by restoring
 #     /tmp/w383_pabi_u_prefer_green.o (2675520) + FULL=0 g05; keep stamp;
 #     do NOT tip-reinject type_pool (w383b BAN). Dual L2 5/5.
+# wave515: tipU 2/5→7/7 pipe-cell heal (mid type_ptr/alloc/num_types);
+#   stamp → w515; tip force-reinject still HARD BAN (keep PREFER overlay).
 # G.7 LE name_len@260. PLATFORM: SHARED · PREFER both ends · BAN force tip.
 pipeline_abi_inject_type_pool_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_type_pool_thin.x"
-  local stamp="src/.pabi_w383_type_pool.stamp"
+  local stamp="src/.pabi_w515_type_pool.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — w383b HARD BAN tip force-reinject: if stamp exists,
+  # PLATFORM: SHARED — w383b/515 HARD BAN tip force-reinject: if stamp exists,
   # skip even when thin.x is newer (git pull mtime must not reinject; Ubuntu
   # 3rd tip reinject → option T001). Delete stamp only to re-try (banned).
   if [ -f "$stamp" ]; then
+    return 0
+  fi
+  # Migrate w383 → w515 without reinject (tipU heal inventory only).
+  if [ -f src/.pabi_w383_type_pool.stamp ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w383_type_pool.stamp
+    log "pipeline_abi w515-type-pool: tipU heal stamped; tip force-reinject HARD BAN (keep PREFER overlay)"
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -8641,7 +8650,7 @@ pipeline_abi_inject_type_pool_thin() {
   # PLATFORM: SHARED — PREFER_ASM both ends (w383 Ubuntu unlock; first-wins).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w383-type-pool"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w515-type-pool"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -8659,7 +8668,8 @@ pipeline_abi_inject_type_pool_thin() {
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
     rm -f src/.pabi_w301_type_pool.stamp src/.pabi_w357_type_pool.stamp \
-      src/.pabi_w372_type_pool.stamp src/.pabi_w372b_type_pool.stamp
+      src/.pabi_w372_type_pool.stamp src/.pabi_w372b_type_pool.stamp \
+      src/.pabi_w383_type_pool.stamp
   fi
   return "$rc"
 }
