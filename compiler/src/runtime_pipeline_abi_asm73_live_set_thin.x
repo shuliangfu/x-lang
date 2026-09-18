@@ -1,8 +1,11 @@
-// Thin pure: wave214 live set arrays + opaque u8 overlay thins.
+// Thin pure: wave214/410c/511 live set arrays + opaque u8 overlay thins.
 // G.7: bodies MUST match mega runtime_pipeline_abi.x wave214 leave.
-// ensure injects via inject_thin_leaf (PREFER_ASM).
+// ensure injects via inject_thin_leaf (PREFER_ASM) historically; wave410c
+// HARD BAN tip reinject both ends — asm73 BSS family with chaitin.
+// wave511: tipU 3/6→6/6 — mid `n=pipe_load` / `act=active_get` /
+//   `has_cfg=stmt_order_has_cfg` drop U; pipe-cell heal; tip PRODUCT BAN
+//   stamp → w511 (keep prior leftover; do not reinject).
 // pipe_load/store + wave176/159 helpers are leftover; wrap unsafe.
-// wave410c: HARD BAN tip reinject both ends — asm73 BSS family with chaitin.
 // PLATFORM: SHARED freestanding 7.3 · LINUX gold · MACOS.
 
 /** Host LE i32 load/store (product helpers; leftover T). */
@@ -46,19 +49,20 @@ let g_loop_break_exit_depth: i32 = 0;
 
 /**
  * Private: load live.n from opaque GlueBlockLiveFwd overlay (byte 128).
+ * wave511: ban mid `n=pipe_load()`; pipe-store then load (tip keeps U).
  * @param live *u8 — overlay; null → 0
  * @return i32 — n
  * PLATFORM: SHARED freestanding 7.3.
  */
 function w214_live_n(live: *u8): i32 {
-  let n: i32 = 0;
+  let cell: u8[4] = [];
   if (live == (0 as *u8)) {
     return 0;
   }
   unsafe {
-    n = pipe_load_i32_le(live, 128);
+    pipe_store_i32_le(&cell[0], 0, pipe_load_i32_le(live, 128));
+    return pipe_load_i32_le(&cell[0], 0);
   }
-  return n;
 }
 
 /**
@@ -79,20 +83,21 @@ function w214_live_set_n(live: *u8, n: i32): void {
 
 /**
  * Private: load live.offs[i].
+ * wave511: ban mid `v=pipe_load()`; pipe-cell (tip keeps U).
  * @param live *u8 — overlay
  * @param i i32 — index
  * @return i32 — stack off
  * PLATFORM: SHARED freestanding 7.3.
  */
 function w214_live_off(live: *u8, i: i32): i32 {
+  let cell: u8[4] = [];
   if (live == (0 as *u8) || i < 0) {
     return 0 - 1;
   }
-  let v: i32 = 0;
   unsafe {
-    v = pipe_load_i32_le(live, i * 4);
+    pipe_store_i32_le(&cell[0], 0, pipe_load_i32_le(live, i * 4));
+    return pipe_load_i32_le(&cell[0], 0);
   }
-  return v;
 }
 
 /**
@@ -576,7 +581,7 @@ export function glue_block_live_fwd_set_from_expr_uses(arena: *u8, ctx: *u8, exp
  */
 #[no_mangle]
 export function glue_block_fill_live_end_for_merge(arena: *u8, ctx: *u8, block_ref: i32, out_live: *u8): void {
-  let has_cfg: i32 = 0;
+  let cell: u8[4] = [];
   if (out_live == (0 as *u8)) {
     return;
   }
@@ -584,13 +589,12 @@ export function glue_block_fill_live_end_for_merge(arena: *u8, ctx: *u8, block_r
   if (arena == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0) {
     return;
   }
+  /* wave511: ban mid `has_cfg=call()`; pipe-cell inside one unsafe. */
   unsafe {
-    has_cfg = glue_block_stmt_order_has_cfg(arena, block_ref);
-  }
-  if (has_cfg != 0) {
-    glue_live_fwd_copy_u8(out_live, &g_block_live_sub_exit_snap_blob[0]);
-  } else {
-    unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_block_stmt_order_has_cfg(arena, block_ref));
+    if (pipe_load_i32_le(&cell[0], 0) != 0) {
+      glue_live_fwd_copy_u8(out_live, &g_block_live_sub_exit_snap_blob[0]);
+    } else {
       glue_block_compute_live_end_linear(arena, ctx, block_ref, out_live);
     }
   }
@@ -666,19 +670,20 @@ function w214_live_union_into(dst: *u8, src: *u8): void {
 export function glue_loop_break_exit_note_current(): void {
   let d: i32 = 0;
   let dst: *u8 = 0 as *u8;
+  let cell: u8[4] = [];
   if (g_loop_break_exit_depth <= 0) {
     return;
   }
   d = g_loop_break_exit_depth - 1;
   dst = &g_loop_break_exit_live_stack_blob[d * 136];
-  let act: i32 = 0;
+  /* wave511: ban mid `act=active_get()`; pipe-cell inside one unsafe. */
   unsafe {
-    act = glue_block_live_fwd_active_get();
-  }
-  if (act != 0) {
-    w214_live_union_into(dst, &g_block_live_fwd_blob[0]);
-  } else {
-    w214_live_union_into(dst, &g_block_live_sub_exit_snap_blob[0]);
+    pipe_store_i32_le(&cell[0], 0, glue_block_live_fwd_active_get());
+    if (pipe_load_i32_le(&cell[0], 0) != 0) {
+      w214_live_union_into(dst, &g_block_live_fwd_blob[0]);
+    } else {
+      w214_live_union_into(dst, &g_block_live_sub_exit_snap_blob[0]);
+    }
   }
 }
 
@@ -692,19 +697,20 @@ export function glue_loop_break_exit_note_current(): void {
 export function glue_loop_continue_head_note_current(): void {
   let d: i32 = 0;
   let dst: *u8 = 0 as *u8;
+  let cell: u8[4] = [];
   if (g_loop_break_exit_depth <= 0) {
     return;
   }
   d = g_loop_break_exit_depth - 1;
   dst = &g_loop_continue_head_live_stack_blob[d * 136];
-  let act: i32 = 0;
+  /* wave511: ban mid `act=active_get()`; pipe-cell inside one unsafe. */
   unsafe {
-    act = glue_block_live_fwd_active_get();
-  }
-  if (act != 0) {
-    w214_live_union_into(dst, &g_block_live_fwd_blob[0]);
-  } else {
-    w214_live_union_into(dst, &g_block_live_sub_exit_snap_blob[0]);
+    pipe_store_i32_le(&cell[0], 0, glue_block_live_fwd_active_get());
+    if (pipe_load_i32_le(&cell[0], 0) != 0) {
+      w214_live_union_into(dst, &g_block_live_fwd_blob[0]);
+    } else {
+      w214_live_union_into(dst, &g_block_live_sub_exit_snap_blob[0]);
+    }
   }
 }
 

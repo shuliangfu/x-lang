@@ -7958,20 +7958,27 @@ pipeline_abi_inject_asm73_live_interf_thin() {
   return 0
 }
 
-# wave410c M2: asm73_live_set Cap residual — HARD BAN tip reinject.
+# wave410c/511 M2: asm73_live_set Cap residual — HARD BAN tip reinject.
 # PRODUCT inject wave410c:
 #   BOTH ends: HARD BAN tip reinject (stamp only).
 #   Same BSS/COMMON tip-reinject class as chaitin/live_interf (-c green;
 #   product inject deferred BAN without separate BRANCH26 repro — family).
+# wave511: tipU 3/6→6/6 pipe-cell heal (mid pipe_load / active_get /
+#   stmt_order_has_cfg); stamp → w511; tip PRODUCT reinject still HARD BAN.
 # G.7: thin body matches mega wave214 leave (cold twin only).
 # PLATFORM: SHARED · both ends hard-skip.
 pipeline_abi_inject_asm73_live_set_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm73_live_set_thin.x"
-  local stamp="src/.pabi_w410_asm73_live_set.stamp"
+  local stamp="src/.pabi_w511_asm73_live_set.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — HARD BAN tip reinject (asm73 BSS family).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
+  rm -f src/.pabi_w410_asm73_live_set.stamp
+  log "pipeline_abi w511-asm73-live-set: tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
