@@ -5,23 +5,9 @@
 // wave414: LINUX PREFER helpers-only (full tip -c XT001@bytes_eq MISATTRIBUTED;
 //   helpers -c green ~1023B). MACOS still full thin PREFER.
 //   Main export tip reinject still BAN on LINUX.
+// wave540 Soft Cap: drop 15 unused extern decls (tipU 0/15 → 0/0);
+//   stamp w540 HARD BAN tip PRODUCT reinject (keep prior PREFER; stamp-only).
 // PLATFORM: SHARED freestanding field load · LINUX gold · MACOS.
-
-export extern function pipeline_expr_field_access_base_ref(a: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_field_access_name_len(a: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_field_access_name_into(a: *u8, expr_ref: i32, out: *u8): void;
-export extern function pipeline_expr_resolved_type_ref(a: *u8, expr_ref: i32): i32;
-export extern function pipeline_type_kind_ord_at(a: *u8, ty_ref: i32): i32;
-export extern function pipeline_type_elem_ref_at(a: *u8, ref: i32): i32;
-export extern function pipeline_type_named_name_into(a: *u8, ty_ref: i32, out: *u8): i32;
-export extern function pipeline_module_num_struct_layouts_at(m: *u8): i32;
-export extern function pipeline_module_struct_layout_name_len(m: *u8, k: i32): i32;
-export extern function pipeline_module_struct_layout_name_byte_at(m: *u8, k: i32, j: i32): i32;
-export extern function pipeline_module_struct_layout_num_fields(m: *u8, k: i32): i32;
-export extern function pipeline_module_struct_layout_field_name_len(m: *u8, k: i32, j: i32): i32;
-export extern function pipeline_module_struct_layout_field_name_into(m: *u8, k: i32, j: i32, out: *u8): void;
-export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, k: i32, j: i32): i32;
-export extern function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): i32;
 
 /**
  * Compare n bytes at a and b; 1 if equal, else 0.

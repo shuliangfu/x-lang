@@ -5274,8 +5274,10 @@ pipeline_abi_inject_slot_bytes_thin() {
 #   starved 3/9＋2/11 → peer-flat tip U 齐; stamp w485.
 # wave508: layout tipU 12/13→13/13 — `out[j]=name_byte_at() as u8` mid-cast
 #   drop; pipe-cell heal; stamp → w508 (LINUX PREFER reinject layout leaf).
+# wave540: LINUX helpers tipU 0/0 (drop 15 unused externs) HARD BAN tip
+#   reinject; stamp w540. layout/try/heur/main stay w508/w485.
 # G.7: helpers/layout/main match mega; MACOS stays full thin.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+layout+main PREFER.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers BAN + layout+main PREFER.
 pipeline_abi_inject_field_load_sz_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_field_load_sz_thin.x"
@@ -5291,8 +5293,8 @@ pipeline_abi_inject_field_load_sz_thin() {
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_field_load_sz_helpers_thin.x"
-      stamp="src/.pabi_w414_field_load_sz_helpers.stamp"
-      tag="w414-field-load-sz-helpers"
+      stamp="src/.pabi_w540_field_load_sz_helpers.stamp"
+      tag="w540-field-load-sz-helpers"
       lay_x="src/runtime_pipeline_abi_field_load_layout_thin.x"
       lay_stamp="src/.pabi_w508_field_load_layout.stamp"
       try_x="src/runtime_pipeline_abi_field_load_try_layout_thin.x"
@@ -5329,7 +5331,15 @@ pipeline_abi_inject_field_load_sz_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: LINUX — wave540 Soft Cap HARD BAN helpers tip reinject.
+  # Dead extern decls dropped in .x; do not prefer-reinject this leaf.
+  # MACOS still PREFER-injects the full thin selected above.
+  if [ "$(uname -s)" = "Linux" ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w414_field_load_sz_helpers.stamp
+    log "pipeline_abi w540-field-load-sz-helpers: tipU 0/0 stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+    rc=0
+  elif [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
     pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
     rc=$?
     if [ "$rc" -eq 0 ]; then
