@@ -9383,22 +9383,32 @@ pipeline_abi_inject_asm_label_format_thin() {
 
 
 
-# wave296/355 M2: codegen_outbuf Cap residual C→.x (was wave289 C thin).
+# wave296/355/521 M2: codegen_outbuf Cap residual C→.x (was wave289 C thin).
 # PRODUCT inject wave355: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
-# T001 unsafe on pipe_store_i32_le in f64_from_bits; local u8[64]+snprintf
-# proven after w353 digit-loop unlock. G.7 WAVE289_CODEGEN_OUTBUF_ALWAYS.
-# PLATFORM: SHARED · both ends PREFER.
+# wave521 Soft Cap: peer-flat append + BSS float/bits + pipe-cell mid n/rc/op
+#   (Ubuntu tip CG002 on shared append+float TU; tipU Soft Cap); stamp → w521;
+#   tip PRODUCT reinject HARD BAN (keep prior PREFER overlay).
+# G.7 WAVE289_CODEGEN_OUTBUF_ALWAYS. PLATFORM: SHARED.
 pipeline_abi_inject_codegen_outbuf_thin() {
   local o="$1"
+  local append_x="src/runtime_pipeline_abi_codegen_outbuf_append_thin.x"
   local thin_x="src/runtime_pipeline_abi_codegen_outbuf_thin.x"
-  local stamp="src/.pabi_w355_codegen_outbuf.stamp"
+  local stamp="src/.pabi_w521_codegen_outbuf.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: SHARED — w521 HARD BAN tip force-reinject once stamped.
+  if [ -f "$stamp" ]; then
+    return 0
+  fi
+  # Migrate w355 → w521 without reinject (tipU heal inventory only).
+  if [ -f src/.pabi_w355_codegen_outbuf.stamp ]; then
+    touch "$stamp"
+    rm -f src/.pabi_w355_codegen_outbuf.stamp src/.pabi_w296_codegen_outbuf.stamp
+    log "pipeline_abi w521-codegen-outbuf: tipU peer-flat stamped; tip force-reinject HARD BAN (keep PREFER overlay)"
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -9411,11 +9421,17 @@ pipeline_abi_inject_codegen_outbuf_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (T001 unsafe + float buf proven).
+  # PLATFORM: SHARED — PREFER_ASM first-wins (cold unlock: append→main).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w355-codegen-outbuf"
-  rc=$?
+  if [ -f "$append_x" ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$append_x" "w521-codegen-outbuf-append"
+    rc=$?
+  fi
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w521-codegen-outbuf"
+    rc=$?
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -9431,7 +9447,7 @@ pipeline_abi_inject_codegen_outbuf_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_w296_codegen_outbuf.stamp
+    rm -f src/.pabi_w296_codegen_outbuf.stamp src/.pabi_w355_codegen_outbuf.stamp
   fi
   return "$rc"
 }
