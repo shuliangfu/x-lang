@@ -6086,7 +6086,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
       idx_main="src/runtime_pipeline_abi_binop_block_peel_index_addr_thin.x"
       idx_main_s="src/.pabi_w479_binop_block_peel_index_addr.stamp"
       lo_main="src/runtime_pipeline_abi_binop_block_peel_load_operand_thin.x"
-      lo_main_s="src/.pabi_w436_binop_block_peel_load_operand.stamp"
+      lo_main_s="src/.pabi_w553_binop_block_peel_load_operand.stamp"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
@@ -6222,7 +6222,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_rax_thin.x|.pabi_w551_binop_block_peel_load_operand_var_rax.stamp|w551-ban-load-operand-var-rax" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_var_ko3_thin.x|.pabi_w547_binop_block_peel_load_operand_var_ko3.stamp|w547-ban-load-operand-var-ko3" \
       "src/runtime_pipeline_abi_binop_block_peel_load_operand_rest_arms_thin.x|.pabi_w436_binop_block_peel_load_operand_rest_arms.stamp|w436-binop-block-peel-load-operand-rest-arms" \
-      "src/runtime_pipeline_abi_binop_block_peel_load_operand_thin.x|.pabi_w436_binop_block_peel_load_operand.stamp|w436-binop-block-peel-load-operand"
+      "src/runtime_pipeline_abi_binop_block_peel_load_operand_thin.x|.pabi_w553_binop_block_peel_load_operand.stamp|w553-ban-load-operand"
     do
       lo_x="${lo_peer%%|*}"
       lo_rest="${lo_peer#*|}"
@@ -6259,6 +6259,14 @@ pipeline_abi_inject_binop_block_peel_thin() {
             touch "$lo_stamp"
             rm -f src/.pabi_w436_binop_block_peel_load_operand_var_rbx.stamp
             log "pipeline_abi w552 load_operand_var_rbx: tipU stamped; tip PRODUCT reinject HARD BAN"
+          fi
+          continue
+          ;;
+        *binop_block_peel_load_operand_thin.x)
+          if [ -f "$lo_x" ]; then
+            touch "$lo_stamp"
+            rm -f src/.pabi_w436_binop_block_peel_load_operand.stamp
+            log "pipeline_abi w553 load_operand: tipU stamped; tip PRODUCT reinject HARD BAN"
           fi
           continue
           ;;

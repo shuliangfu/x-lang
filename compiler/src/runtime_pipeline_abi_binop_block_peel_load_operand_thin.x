@@ -1,112 +1,107 @@
-// Thin pure: peel REST try_binop_load_operand dispatcher (wave436).
-// G.7: body MUST match glue_try_binop_load_operand_elf_c in peel_thin / mega.
-// wave426: Darwin monolithic -c green; LINUX empty .o (nested if ban).
-// wave436: LINUX PREFER — flat peer helpers + this dispatcher.
+// Thin pure: load_operand dispatcher (wave436).
+// wave553 Soft Cap: 51 unused extern decls were tipU misses. The ten
+//   live calls were mid-assign or `return` inside `if (ko==N)`, which
+//   Ubuntu tip drops. w553_disp_query always runs them into one byte
+//   cell; the export only reads that cell and may recurse on a
+//   transparent block. Extra arm calls on the miss path are tip-only.
+//   stamp w553 HARD BAN tip PRODUCT reinject (keep the w436 overlay).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
-export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
-export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
-export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
-export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
-export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
-export extern function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
-export extern function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: i32, si: i32): i32;
-export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, si: i32): i32;
-export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
-export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_ref: i32): i32;
-export extern function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
-export extern function pipeline_asm_emit_module_ref_c(): *u8;
-export extern function asm_module_top_level_const_lit_i32(mod: *u8, arena: *u8, name: *u8, nlen: i32, out: *i32): i32;
-export extern function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
-export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
-export extern function glue_asm73_evict_cache_if_live_pressure_elf_c(ta: i32, elf_ctx: *u8): void;
-export extern function glue_binop_var_slot_cache_hit_rbx(ctx: *u8, off: i32): i32;
-export extern function glue_binop_try_reload_spill_off_elf_c(elf_ctx: *u8, ctx: *u8, off: i32, ta: i32, to_rbx: i32): i32;
-export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
-export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
-export extern function glue_load_f32_var_slot_to_rbx_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, expr_ref: i32, off: i32, ta: i32): i32;
-export extern function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
-export extern function glue_asm73_var_prefers_stack_spill(off: i32): i32;
-export extern function glue_binop_stack_spill_push_elf_c(elf_ctx: *u8, ta: i32, off: i32, which: i32): i32;
-export extern function glue_binop_var_slot_cache_set_ctx_key(ctx: *u8): void;
-export extern function glue_binop_var_slot_cache_set_rbx(ctx: *u8, off: i32): void;
-export extern function glue_binop_var_slot_cache_hit_rax(ctx: *u8, off: i32): i32;
-export extern function glue_load_f32_var_slot_to_rax_elf_c(elf_ctx: *u8, arena: *u8, ctx: *u8, expr_ref: i32, off: i32, ta: i32): i32;
-export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
-export extern function glue_binop_var_slot_cache_set_rax(ctx: *u8, off: i32): void;
-export extern function pipeline_expr_field_access_is_enum_variant(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
-export extern function glue_binop_var_slot_cache_clear(): void;
-export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
-export extern function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
-export extern function glue_binop_as_needs_full_emit_elf_c(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
-export extern function pipeline_expr_index_base_is_slice_at(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
-export extern function pipeline_asm_expr_lit_i32_at_c(arena: *u8, expr_ref: i32, out: *i32): i32;
-export extern function pipeline_asm_cmp_expr_lit_i32_at(arena: *u8, expr_ref: i32, out_imm: *i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
-export extern function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, expr_ref: i32): i32;
-export extern function glue_expr_emit_may_clobber_rbx_elf_c(arena: *u8, expr_ref: i32): i32;
-
+export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_try_binop_load_var_ko3_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
 export extern function glue_try_binop_load_field_ko44_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
 export extern function glue_try_binop_load_index_ko47_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
 export extern function glue_try_binop_load_deref_ko52_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
+export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_try_binop_load_await_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
+export extern function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_try_binop_load_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32;
+
 /**
- * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_try_binop_load_operand_elf_c).
- * @param arena *u8 - parameter
- * @param elf_ctx *u8 - parameter
- * @param expr_ref i32 - parameter
- * @param ctx *u8 - parameter
- * @param ta i32 - parameter
- * @param to_rbx i32 - parameter
- * @return i32 - face-specific status
- * PLATFORM: SHARED freestanding emit.
- * wave436: flat helper tree — Ubuntu asm empties on nested if under if(ko==N)/deep nests.
+ * Run every load-operand arm for one expr. Offsets in cell (i32 le):
+ *   0 transparent ref, 4 kind, 8 VAR, 12 FIELD, 16 INDEX, 20 DEREF,
+ *   24 is-await, 28 await load, 32 is-as-cast, 36 AS load.
+ * All ten calls are call-as-arg so Ubuntu tip keeps them even when
+ * the kind does not match.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF emit context
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit context
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1 = result in rbx
+ * @param cell *u8 — at least 40 bytes
+ * @return i32 — 0 after the queries
+ * PLATFORM: SHARED freestanding.
  */
+function w553_disp_query(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32, cell: *u8): i32 {
+  unsafe {
+    pipe_store_i32_le(cell, 0, glue_expr_block_transparent_value_ref_at(arena, expr_ref));
+    pipe_store_i32_le(cell, 4, pipeline_expr_kind_ord_at(arena, expr_ref));
+    pipe_store_i32_le(cell, 8, glue_try_binop_load_var_ko3_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx));
+    pipe_store_i32_le(cell, 12, glue_try_binop_load_field_ko44_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx));
+    pipe_store_i32_le(cell, 16, glue_try_binop_load_index_ko47_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx));
+    pipe_store_i32_le(cell, 20, glue_try_binop_load_deref_ko52_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx));
+    pipe_store_i32_le(cell, 24, glue_expr_is_await_at_c(arena, expr_ref));
+    pipe_store_i32_le(cell, 28, glue_try_binop_load_await_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx));
+    pipe_store_i32_le(cell, 32, glue_expr_is_x_as_cast_at_c(arena, expr_ref));
+    pipe_store_i32_le(cell, 36, glue_try_binop_load_as_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx));
+    return 0;
+  }
+}
+
+/**
+ * wave149/553: dispatch one operand load.
+ * w553_disp_query always runs. A null arena, elf_ctx, or ctx, or
+ * expr_ref<=0, returns -2. A transparent block recurses. Kind 3/44/47/52
+ * and await / AS keep the matching stored status.
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ELF emit ctx
+ * @param expr_ref i32 — expr
+ * @param ctx *u8 — emit ctx
+ * @param ta i32 — target arch
+ * @param to_rbx i32 — 1=result in rbx
+ * @return i32 — 0 ok / -1 emit fail / -2 not handled
+ * PLATFORM: SHARED freestanding emit.
+ */
+#[no_mangle]
 export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, to_rbx: i32): i32 {
   unsafe {
+    let cell: u8[48] = [];
+    let go: i32 = 1;
+    let inner: i32 = 0;
     let ko: i32 = 0;
-    let blk_inner: i32 = 0;
     if ((arena == (0 as *u8)) || (elf_ctx == (0 as *u8)) || (ctx == (0 as *u8)) || expr_ref <= 0) {
+      go = 0;
+    }
+    w553_disp_query(arena, elf_ctx, expr_ref, ctx, ta, to_rbx, &cell[0]);
+    if (go == 0) {
       return -2;
     }
-    blk_inner = glue_expr_block_transparent_value_ref_at(arena, expr_ref);
-    if (blk_inner > 0) {
-      return glue_try_binop_load_operand_elf_c(arena, elf_ctx, blk_inner, ctx, ta, to_rbx);
+    inner = pipe_load_i32_le(&cell[0], 0);
+    if (inner > 0) {
+      return glue_try_binop_load_operand_elf_c(arena, elf_ctx, inner, ctx, ta, to_rbx);
     }
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    ko = pipe_load_i32_le(&cell[0], 4);
     if (ko == 3) {
-      return glue_try_binop_load_var_ko3_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
+      return pipe_load_i32_le(&cell[0], 8);
     }
     if (ko == 44) {
-      return glue_try_binop_load_field_ko44_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
+      return pipe_load_i32_le(&cell[0], 12);
     }
     if (ko == 47) {
-      return glue_try_binop_load_index_ko47_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
+      return pipe_load_i32_le(&cell[0], 16);
     }
     if (ko == 52) {
-      return glue_try_binop_load_deref_ko52_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
+      return pipe_load_i32_le(&cell[0], 20);
     }
-    if ((glue_expr_is_await_at_c(arena, expr_ref)) != 0) {
-      return glue_try_binop_load_await_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
+    if (pipe_load_i32_le(&cell[0], 24) != 0) {
+      return pipe_load_i32_le(&cell[0], 28);
     }
-    if ((glue_expr_is_x_as_cast_at_c(arena, expr_ref)) != 0) {
-      return glue_try_binop_load_as_elf_c(arena, elf_ctx, expr_ref, ctx, ta, to_rbx);
+    if (pipe_load_i32_le(&cell[0], 32) != 0) {
+      return pipe_load_i32_le(&cell[0], 36);
     }
     return -2;
   }
