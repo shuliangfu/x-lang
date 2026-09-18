@@ -6435,11 +6435,11 @@ pipeline_abi_inject_assign_thin() {
       done
       # wave449: deref peer arms PREFER overlay stamps (dispatcher → w472)
       for _pair in \
-        "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|src/.pabi_w449_heal_deref_vec_var.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|src/.pabi_w533_assign_deref_vec_var.stamp" \
         "src/runtime_pipeline_abi_assign_deref_vec_call_thin.x|src/.pabi_w449_heal_deref_vec_call.stamp" \
         "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|src/.pabi_w449_heal_deref_slice_call.stamp" \
         "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|src/.pabi_w449_heal_deref_array_call.stamp" \
-        "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|src/.pabi_w449_heal_deref_let_init.stamp" \
+        "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|src/.pabi_w533_assign_deref_let_init.stamp" \
         "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|src/.pabi_w449_heal_deref_scalar.stamp" \
         "src/runtime_pipeline_abi_assign_deref_vec_gate_thin.x|src/.pabi_w472_heal_deref_vec_gate.stamp" \
         "src/runtime_pipeline_abi_assign_deref_after_addr_thin.x|src/.pabi_w472_heal_deref_after_addr.stamp" \
@@ -6602,11 +6602,11 @@ pipeline_abi_inject_assign_thin() {
         "src/runtime_pipeline_abi_assign_index_generic_thin.x|.pabi_w445_assign_index_generic.stamp|w441-assign-index-generic" \
         "src/runtime_pipeline_abi_assign_index_thin.x|.pabi_w445_assign_index.stamp|w441-assign-index" \
         "src/runtime_pipeline_abi_assign_var_thin.x|.pabi_w445_assign_var.stamp|w441-assign-var" \
-        "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|.pabi_w445_assign_deref_vec_var.stamp|w441-assign-deref-vec-var" \
+        "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|.pabi_w533_assign_deref_vec_var.stamp|w533-ban-deref-vec-var" \
         "src/runtime_pipeline_abi_assign_deref_vec_call_thin.x|.pabi_w445_assign_deref_vec_call.stamp|w441-assign-deref-vec-call" \
         "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|.pabi_w445_assign_deref_slice_call.stamp|w441-assign-deref-slice-call" \
         "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|.pabi_w445_assign_deref_array_call.stamp|w441-assign-deref-array-call" \
-        "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w445_assign_deref_let_init.stamp|w441-assign-deref-let-init" \
+        "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w533_assign_deref_let_init.stamp|w533-ban-deref-let-init" \
         "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w445_assign_deref_scalar.stamp|w441-assign-deref-scalar" \
         "src/runtime_pipeline_abi_assign_deref_thin.x|.pabi_w445_assign_deref.stamp|w441-assign-deref" \
         "src/runtime_pipeline_abi_assign_emit_thin.x|.pabi_w445_assign_emit.stamp|w441-assign-emit"
@@ -6615,6 +6615,19 @@ pipeline_abi_inject_assign_thin() {
         lo_rest="${peer#*|}"
         lo_stamp="src/${lo_rest%%|*}"
         lo_tag="${lo_rest#*|}"
+        # wave533 Soft Cap: HARD BAN tip reinject for deref let_init/vec_var.
+        case "$lo_x" in
+          *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x)
+            if [ -f "$lo_x" ]; then
+              touch "$lo_stamp"
+              rm -f src/.pabi_w445_assign_deref_let_init.stamp \
+                src/.pabi_w445_assign_deref_vec_var.stamp \
+                src/.pabi_w449_heal_deref_let_init.stamp \
+                src/.pabi_w449_heal_deref_vec_var.stamp
+            fi
+            continue
+            ;;
+        esac
         if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
           pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
           rc=$?
@@ -6665,11 +6678,11 @@ pipeline_abi_inject_assign_thin() {
     export XLANG_PABI_THIN_PREFER_ASM=1
     export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
     for peer in \
-      "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|.pabi_w449_heal_deref_vec_var.stamp|w449-heal-deref-vec-var" \
+      "src/runtime_pipeline_abi_assign_deref_vec_var_thin.x|.pabi_w533_assign_deref_vec_var.stamp|w533-ban-deref-vec-var" \
       "src/runtime_pipeline_abi_assign_deref_vec_call_thin.x|.pabi_w449_heal_deref_vec_call.stamp|w449-heal-deref-vec-call" \
       "src/runtime_pipeline_abi_assign_deref_slice_call_thin.x|.pabi_w449_heal_deref_slice_call.stamp|w449-heal-deref-slice-call" \
       "src/runtime_pipeline_abi_assign_deref_array_call_thin.x|.pabi_w449_heal_deref_array_call.stamp|w449-heal-deref-array-call" \
-      "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w449_heal_deref_let_init.stamp|w449-heal-deref-let-init" \
+      "src/runtime_pipeline_abi_assign_deref_let_init_thin.x|.pabi_w533_assign_deref_let_init.stamp|w533-ban-deref-let-init" \
       "src/runtime_pipeline_abi_assign_deref_scalar_thin.x|.pabi_w449_heal_deref_scalar.stamp|w449-heal-deref-scalar" \
       "src/runtime_pipeline_abi_assign_deref_vec_gate_thin.x|.pabi_w472_heal_deref_vec_gate.stamp|w472-heal-deref-vec-gate" \
       "src/runtime_pipeline_abi_assign_deref_after_addr_thin.x|.pabi_w472_heal_deref_after_addr.stamp|w472-heal-deref-after-addr" \
@@ -6682,6 +6695,20 @@ pipeline_abi_inject_assign_thin() {
       d_rest="${peer#*|}"
       d_stamp="src/${d_rest%%|*}"
       d_tag="${d_rest#*|}"
+      # wave533 Soft Cap: HARD BAN tip reinject for deref let_init/vec_var.
+      case "$d_x" in
+        *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x)
+          if [ -f "$d_x" ]; then
+            touch "$d_stamp"
+            rm -f src/.pabi_w445_assign_deref_let_init.stamp \
+              src/.pabi_w445_assign_deref_vec_var.stamp \
+              src/.pabi_w449_heal_deref_let_init.stamp \
+              src/.pabi_w449_heal_deref_vec_var.stamp
+            log "pipeline_abi w533-assign-deref: tipU pipe-cell stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+          fi
+          continue
+          ;;
+      esac
       if [ -f "$d_x" ] && { [ ! -f "$d_stamp" ] || [ "$d_x" -nt "$d_stamp" ]; }; then
         pipeline_abi_inject_thin_leaf "$o" "$d_x" "$d_tag"
         rc=$?
