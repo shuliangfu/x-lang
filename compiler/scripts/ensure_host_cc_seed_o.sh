@@ -6121,7 +6121,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
         && [ "$need_idx" = "0" ] \
         && [ -f "$lo_main_s" ] && [ ! "$lo_main" -nt "$lo_main_s" ]; then
         # also need load_to_rbx stamp check
-        local l2s_chk="src/.pabi_w423_binop_block_peel_load_to_rbx.stamp"
+        local l2s_chk="src/.pabi_w550_binop_block_peel_load_to_rbx.stamp"
         local l2x_chk="src/runtime_pipeline_abi_binop_block_peel_load_to_rbx_thin.x"
         if [ -f "$l2s_chk" ] && [ ! "$l2x_chk" -nt "$l2s_chk" ]; then
           return 0
@@ -6160,16 +6160,15 @@ pipeline_abi_inject_binop_block_peel_thin() {
     rm -f src/.pabi_w422_binop_block_peel_rest.stamp
     log "pipeline_abi w549 binop_block_peel_rest: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
-  # PLATFORM: LINUX — third inject load_to_rbx rest (wave423).
+  # PLATFORM: LINUX — wave550 Soft Cap: load_to_rbx tipU stamped.
+  # HARD BAN tip PRODUCT reinject (keep the w423 overlay).
   if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
     local l2x="src/runtime_pipeline_abi_binop_block_peel_load_to_rbx_thin.x"
-    local l2s="src/.pabi_w423_binop_block_peel_load_to_rbx.stamp"
-    if [ -f "$l2x" ] && { [ ! -f "$l2s" ] || [ "$l2x" -nt "$l2s" ]; }; then
-      pipeline_abi_inject_thin_leaf "$o" "$l2x" "w423-binop-block-peel-load-to-rbx"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$l2s"
-      fi
+    local l2s="src/.pabi_w550_binop_block_peel_load_to_rbx.stamp"
+    if [ -f "$l2x" ]; then
+      touch "$l2s"
+      rm -f src/.pabi_w423_binop_block_peel_load_to_rbx.stamp
+      log "pipeline_abi w550 load_to_rbx: tipU stamped; tip PRODUCT reinject HARD BAN"
     fi
   fi
   # PLATFORM: LINUX — wave479 ko47 peers→gate then index_addr peers→walker.
