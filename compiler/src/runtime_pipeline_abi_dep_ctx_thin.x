@@ -1,8 +1,9 @@
-// Thin pure: wave309 M2 — dep_ctx Cap residual C→.x (was wave272 C thin).
+// Thin pure: wave309/367b/528 M2 — dep_ctx Cap residual C→.x (was wave272 C thin).
 // PipelineDepCtx accessors + DepCtxSidecar×64 BSS; 56 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave272 leave.
-// PRODUCT inject: -E+$CC via pipeline_abi_inject_dep_ctx_thin
-// (ALLOW_E_REPLACE + stamp). Large BSS blob OK under -E+$CC.
+// PRODUCT inject: wave367b HARD BAN PREFER; wave528 Soft Cap tip T001 heal
+//   (unsafe wrap extern calls) + tipU pipe-cell; stamp → w528;
+//   tip PRODUCT reinject HARD BAN (keep prior overlay).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -23,6 +24,185 @@ export extern "C" function driver_check_only_get(): i32;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+
+
+/**
+ * pipe_load_i32_le via unsafe (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_load_i32(base: *u8, off: i32): i32 {
+  unsafe {
+    return pipe_load_i32_le(base, off);
+  }
+}
+
+/**
+ * pipe_store_i32_le via unsafe (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_store_i32(base: *u8, off: i32, v: i32): void {
+  unsafe {
+    pipe_store_i32_le(base, off, v);
+  }
+}
+
+/**
+ * pipe_load_ptr_slot via unsafe (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_load_ptr(base: *u8, i: i32): *u8 {
+  unsafe {
+    return pipe_load_ptr_slot(base, i);
+  }
+}
+
+/**
+ * pipe_store_ptr_slot via unsafe (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_store_ptr(base: *u8, i: i32, val: *u8): void {
+  unsafe {
+    pipe_store_ptr_slot(base, i, val);
+  }
+}
+
+/**
+ * pipe_store_i64_zero via unsafe (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_store_i64_zero(base: *u8, off: i32): void {
+  unsafe {
+    pipe_store_i64_zero(base, off);
+  }
+}
+
+/**
+ * grow_vec_init via pipe-cell (T001 + tipU mid-call). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_gv_init(v: *u8, elem_sz: i64, initial_cap: i32): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, grow_vec_init(v, elem_sz, initial_cap));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_free (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_gv_free(v: *u8): void {
+  unsafe {
+    grow_vec_free(v);
+  }
+}
+
+/**
+ * grow_vec_at via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_gv_at(v: *u8, idx: i32): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, grow_vec_at(v, idx));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_push via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_gv_push(v: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, grow_vec_push(v));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * grow_vec_copy_append (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_gv_copy_append(dst: *u8, src: *u8): void {
+  unsafe {
+    grow_vec_copy_append(dst, src);
+  }
+}
+
+/**
+ * pipe_gv_init_cap via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_gv_init_cap(): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipe_gv_init_cap());
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipe_gv_load_len via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_gv_load_len(v: *u8): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, pipe_gv_load_len(v));
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * pipe_gv_store_len (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_gv_store_len(v: *u8, n: i32): void {
+  unsafe {
+    pipe_gv_store_len(v, n);
+  }
+}
+
+/**
+ * xlang_size_slot_set (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_size_slot_set(arr: *u8, i: i32, v: i64): void {
+  unsafe {
+    xlang_size_slot_set(arr, i, v);
+  }
+}
+
+/**
+ * driver_check_only_get via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_driver_check_only_get(): i32 {
+  let icell: u8[4] = [];
+  unsafe {
+    pipe_store_i32_le(&icell[0], 0, driver_check_only_get());
+    return pipe_load_i32_le(&icell[0], 0);
+  }
+}
+
+/**
+ * free (T001). PLATFORM: SHARED Soft Cap tip heal (wave528).
+ */
+function w528_free(p: *u8): void {
+  unsafe {
+    free(p);
+  }
+}
+
+/**
+ * memcpy via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, memcpy(dst, src, n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
+
+/**
+ * memset via pipe-cell (T001 + tipU). PLATFORM: SHARED Soft Cap (wave528).
+ */
+function w528_memset(dst: *u8, c: i32, n: usize): *u8 {
+  let pcell: u8[8] = [];
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, memset(dst, c, n));
+    return pipe_load_ptr_slot(&pcell[0], 0);
+  }
+}
 
 function pipe_dep_sc_size(): i32 { return 272; }
 function pipe_dep_sc_max(): i32 { return 64; }
@@ -112,24 +292,22 @@ function pipe_dep_sc_gv(sc: *u8, field_off: i32): *u8 {
 
 /**
  * Free all GrowVecs in a DepCtxSidecar and zero the slot.
- * @param sc *u8 - sidecar base
- * @return void
+ * wave528 Soft Cap: Cap-T001 whole-body unsafe (extern grow_vec_free/memset).
+ * PLATFORM: SHARED Soft Cap tip heal.
  */
 function pipe_dep_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices()));
-  grow_vec_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup()));
-  unsafe {
-    memset(sc, 0, pipe_dep_sc_size() as usize);
-  }
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices()));
+  w528_gv_free(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup()));
+  w528_memset(sc, 0, pipe_dep_sc_size() as usize);
 }
 
 /**
@@ -147,9 +325,9 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
   let i: i32 = 0;
   while (i < pipe_dep_sc_max()) {
     let sc: *u8 = pipe_dep_sc_at(i);
-    let used: i32 = pipe_load_i32_le(sc, pipe_dep_sc_off_used());
+    let used: i32 = w528_load_i32(sc, pipe_dep_sc_off_used());
     if (used != 0) {
-      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      let k: *u8 = w528_load_ptr(sc, 0);
       if (k == ctx) {
         return sc;
       }
@@ -162,43 +340,43 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
   i = 0;
   while (i < pipe_dep_sc_max()) {
     let sc2: *u8 = pipe_dep_sc_at(i);
-    let used2: i32 = pipe_load_i32_le(sc2, pipe_dep_sc_off_used());
+    let used2: i32 = w528_load_i32(sc2, pipe_dep_sc_off_used());
     if (used2 == 0) {
       // bind key + mark used before init so partial fail can free
-      pipe_store_ptr_slot(sc2, 0, ctx);
-      pipe_store_i32_le(sc2, pipe_dep_sc_off_used(), 1);
-      let ic: i32 = pipe_gv_init_cap();
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_modules()), 8, ic) == 0) {
+      w528_store_ptr(sc2, 0, ctx);
+      w528_store_i32(sc2, pipe_dep_sc_off_used(), 1);
+      let ic: i32 = w528_gv_init_cap();
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_modules()), 8, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_arenas()), 8, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_arenas()), 8, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
       // path rows: 128-byte elems (wave579)
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 256, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_rows()), 256, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_lens()), 4, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_dep_path_lens()), 4, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
       // lib_root rows: 256-byte elems
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_lib_root_rows()), 256, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_lib_root_rows()), 256, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_lib_root_lens()), 4, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_lib_root_lens()), 4, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_empty_param_indices()), 4, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_empty_param_indices()), 4, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
-      if (grow_vec_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_empty_param_backup()), 4, ic) == 0) {
+      if (w528_gv_init(pipe_dep_sc_gv(sc2, pipe_dep_sc_off_empty_param_backup()), 4, ic) == 0) {
         pipe_dep_sc_free(sc2);
         return 0 as *u8;
       }
@@ -227,36 +405,36 @@ function pipe_depctx_ensure_slot(sc: *u8, idx: i32): i32 {
   let ars: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
-  while (pipe_gv_load_len(mods) < need) {
-    if (grow_vec_push(mods) < 0) {
+  while (w528_gv_load_len(mods) < need) {
+    if (w528_gv_push(mods) < 0) {
       return 0;
     }
-    let pm: *u8 = grow_vec_at(mods, pipe_gv_load_len(mods) - 1);
+    let pm: *u8 = w528_gv_at(mods, w528_gv_load_len(mods) - 1);
     if (pm != 0 as *u8) {
-      pipe_store_ptr_slot(pm, 0, 0 as *u8);
+      w528_store_ptr(pm, 0, 0 as *u8);
     }
-    if (grow_vec_push(ars) < 0) {
+    if (w528_gv_push(ars) < 0) {
       return 0;
     }
-    let pa: *u8 = grow_vec_at(ars, pipe_gv_load_len(ars) - 1);
+    let pa: *u8 = w528_gv_at(ars, w528_gv_load_len(ars) - 1);
     if (pa != 0 as *u8) {
-      pipe_store_ptr_slot(pa, 0, 0 as *u8);
+      w528_store_ptr(pa, 0, 0 as *u8);
     }
-    if (grow_vec_push(rows) < 0) {
+    if (w528_gv_push(rows) < 0) {
       return 0;
     }
-    let row: *u8 = grow_vec_at(rows, pipe_gv_load_len(rows) - 1);
+    let row: *u8 = w528_gv_at(rows, w528_gv_load_len(rows) - 1);
     if (row != 0 as *u8) {
       unsafe {
-        memset(row, 0, 128 as usize);
+        w528_memset(row, 0, 128 as usize);
       }
     }
-    if (grow_vec_push(lens) < 0) {
+    if (w528_gv_push(lens) < 0) {
       return 0;
     }
-    let pl: *u8 = grow_vec_at(lens, pipe_gv_load_len(lens) - 1);
+    let pl: *u8 = w528_gv_at(lens, w528_gv_load_len(lens) - 1);
     if (pl != 0 as *u8) {
-      pipe_store_i32_le(pl, 0, 0);
+      w528_store_i32(pl, 0, 0);
     }
   }
   return 1;
@@ -266,7 +444,7 @@ function pipe_depctx_ensure_slot(sc: *u8, idx: i32): i32 {
  * Release process-wide DepCtx sidecar for this PipelineDepCtx pointer.
  * @param ctx *u8 - PipelineDepCtx*; null -> no-op
  * @return void
- * Call before free(ctx). G.7 single teardown for batch check (wave1228).
+ * Call before w528_free(ctx). G.7 single teardown for batch check (wave1228).
  * wave272 pure-owned leave.
  * PLATFORM: SHARED freestanding DepCtx Cap leave.
  */
@@ -278,9 +456,9 @@ export function pipeline_dep_ctx_sidecar_release(ctx: *u8): void {
   let i: i32 = 0;
   while (i < pipe_dep_sc_max()) {
     let sc: *u8 = pipe_dep_sc_at(i);
-    let used: i32 = pipe_load_i32_le(sc, pipe_dep_sc_off_used());
+    let used: i32 = w528_load_i32(sc, pipe_dep_sc_off_used());
     if (used != 0) {
-      let k: *u8 = pipe_load_ptr_slot(sc, 0);
+      let k: *u8 = w528_load_ptr(sc, 0);
       if (k == ctx) {
         pipe_dep_sc_free(sc);
         return;
@@ -305,15 +483,15 @@ export function pipeline_dep_ctx_reset(ctx: *u8): void {
   }
   let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
   if (sc != 0 as *u8) {
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules()), 0);
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas()), 0);
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows()), 0);
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens()), 0);
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()), 0);
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens()), 0);
   }
-  pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), 0);
-  pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), 0);
+  w528_store_i32(ctx, pipe_pctx_off_ndep(), 0);
+  w528_store_i32(ctx, pipe_pctx_off_num_lib_roots(), 0);
 }
 
 /**
@@ -338,13 +516,13 @@ export function pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void {
     return;
   }
   let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
-  let pm: *u8 = grow_vec_at(mods, idx);
+  let pm: *u8 = w528_gv_at(mods, idx);
   if (pm != 0 as *u8) {
-    pipe_store_ptr_slot(pm, 0, m);
+    w528_store_ptr(pm, 0, m);
   }
-  let nd: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_ndep());
+  let nd: i32 = w528_load_i32(ctx, pipe_pctx_off_ndep());
   if (idx + 1 > nd) {
-    pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), idx + 1);
+    w528_store_i32(ctx, pipe_pctx_off_ndep(), idx + 1);
   }
 }
 
@@ -370,9 +548,9 @@ export function pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void {
     return;
   }
   let ars: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
-  let pa: *u8 = grow_vec_at(ars, idx);
+  let pa: *u8 = w528_gv_at(ars, idx);
   if (pa != 0 as *u8) {
-    pipe_store_ptr_slot(pa, 0, a);
+    w528_store_ptr(pa, 0, a);
   }
 }
 
@@ -394,14 +572,14 @@ export function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8 {
     return 0 as *u8;
   }
   let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
-  if (idx >= pipe_gv_load_len(mods)) {
+  if (idx >= w528_gv_load_len(mods)) {
     return 0 as *u8;
   }
-  let pm: *u8 = grow_vec_at(mods, idx);
+  let pm: *u8 = w528_gv_at(mods, idx);
   if (pm == 0 as *u8) {
     return 0 as *u8;
   }
-  return pipe_load_ptr_slot(pm, 0);
+  return w528_load_ptr(pm, 0);
 }
 
 /**
@@ -422,14 +600,14 @@ export function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8 {
     return 0 as *u8;
   }
   let ars: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
-  if (idx >= pipe_gv_load_len(ars)) {
+  if (idx >= w528_gv_load_len(ars)) {
     return 0 as *u8;
   }
-  let pa: *u8 = grow_vec_at(ars, idx);
+  let pa: *u8 = w528_gv_at(ars, idx);
   if (pa == 0 as *u8) {
     return 0 as *u8;
   }
-  return pipe_load_ptr_slot(pa, 0);
+  return w528_load_ptr(pa, 0);
 }
 
 /**
@@ -456,8 +634,8 @@ export function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8,
   }
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
-  let row: *u8 = grow_vec_at(rows, idx);
-  let pl: *u8 = grow_vec_at(lens, idx);
+  let row: *u8 = w528_gv_at(rows, idx);
+  let pl: *u8 = w528_gv_at(lens, idx);
   if (row == 0 as *u8 || pl == 0 as *u8) {
     return;
   }
@@ -466,11 +644,11 @@ export function pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8,
     n = 255;
   }
   unsafe {
-    memset(row, 0, 128 as usize);
-    memcpy(row, bytes, n as usize);
+    w528_memset(row, 0, 128 as usize);
+    w528_memcpy(row, bytes, n as usize);
   }
   row[n] = 0;
-  pipe_store_i32_le(pl, 0, n);
+  w528_store_i32(pl, 0, n);
 }
 
 /**
@@ -491,14 +669,14 @@ export function pipeline_dep_ctx_import_path_len(ctx: *u8, idx: i32): i32 {
     return 0;
   }
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
-  if (idx >= pipe_gv_load_len(lens)) {
+  if (idx >= w528_gv_load_len(lens)) {
     return 0;
   }
-  let pl: *u8 = grow_vec_at(lens, idx);
+  let pl: *u8 = w528_gv_at(lens, idx);
   if (pl == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(pl, 0);
+  return w528_load_i32(pl, 0);
 }
 
 /**
@@ -521,15 +699,15 @@ export function pipeline_dep_ctx_import_path_byte_at(ctx: *u8, idx: i32, off: i3
   }
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
-  if (idx >= pipe_gv_load_len(rows)) {
+  if (idx >= w528_gv_load_len(rows)) {
     return 0 as u8;
   }
-  let pl: *u8 = grow_vec_at(lens, idx);
-  let row: *u8 = grow_vec_at(rows, idx);
+  let pl: *u8 = w528_gv_at(lens, idx);
+  let row: *u8 = w528_gv_at(rows, idx);
   if (pl == 0 as *u8 || row == 0 as *u8) {
     return 0 as u8;
   }
-  let n: i32 = pipe_load_i32_le(pl, 0);
+  let n: i32 = w528_load_i32(pl, 0);
   if (off >= n) {
     return 0 as u8;
   }
@@ -551,7 +729,7 @@ export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8
     return;
   }
   unsafe {
-    memset(dst, 0, 256 as usize);
+    w528_memset(dst, 0, 256 as usize);
   }
   if (ctx == 0 as *u8 || idx < 0) {
     return;
@@ -562,15 +740,15 @@ export function pipeline_dep_ctx_import_path_copy64(ctx: *u8, idx: i32, dst: *u8
   }
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_path_lens());
-  if (idx >= pipe_gv_load_len(rows)) {
+  if (idx >= w528_gv_load_len(rows)) {
     return;
   }
-  let pl: *u8 = grow_vec_at(lens, idx);
-  let row: *u8 = grow_vec_at(rows, idx);
+  let pl: *u8 = w528_gv_at(lens, idx);
+  let row: *u8 = w528_gv_at(rows, idx);
   if (pl == 0 as *u8 || row == 0 as *u8) {
     return;
   }
-  let n: i32 = pipe_load_i32_le(pl, 0);
+  let n: i32 = w528_load_i32(pl, 0);
   if (n > 255) {
     n = 255;
   }
@@ -594,12 +772,12 @@ export function pipeline_dep_ctx_ndep(ctx: *u8): i32 {
     return 0;
   }
   let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
-  let nd: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_ndep());
+  let nd: i32 = w528_load_i32(ctx, pipe_pctx_off_ndep());
   if (sc != 0 as *u8) {
     let mods: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
-    let ml: i32 = pipe_gv_load_len(mods);
+    let ml: i32 = w528_gv_load_len(mods);
     if (ml > nd) {
-      pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), ml);
+      w528_store_i32(ctx, pipe_pctx_off_ndep(), ml);
       nd = ml;
     }
   }
@@ -623,7 +801,7 @@ export function pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void {
   if (v < 0) {
     v = 0;
   }
-  pipe_store_i32_le(ctx, pipe_pctx_off_ndep(), v);
+  w528_store_i32(ctx, pipe_pctx_off_ndep(), v);
 }
 
 /**
@@ -638,7 +816,7 @@ export function pipeline_dep_ctx_codegen_prefix_len(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len());
+  return w528_load_i32(ctx, pipe_pctx_off_current_codegen_prefix_len());
 }
 
 /**
@@ -654,7 +832,7 @@ export function pipeline_dep_ctx_codegen_prefix_byte_at(ctx: *u8, off: i32): u8 
   if (ctx == 0 as *u8 || off < 0) {
     return 0 as u8;
   }
-  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len());
+  let n: i32 = w528_load_i32(ctx, pipe_pctx_off_current_codegen_prefix_len());
   if (off >= n || off >= 64) {
     return 0 as u8;
   }
@@ -676,7 +854,7 @@ export function pipeline_dep_ctx_codegen_prefix_copy(ctx: *u8, dst: *u8, cap: i3
   if (ctx == 0 as *u8 || dst == 0 as *u8 || cap <= 0) {
     return;
   }
-  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len());
+  let n: i32 = w528_load_i32(ctx, pipe_pctx_off_current_codegen_prefix_len());
   if (n >= cap) {
     n = cap - 1;
   }
@@ -710,7 +888,7 @@ export function pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: *u8,
   if (n < 0) {
     n = 0;
   }
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len(), 0);
+  w528_store_i32(ctx, pipe_pctx_off_current_codegen_prefix_len(), 0);
   let base: *u8 = ctx + (pipe_pctx_off_current_codegen_prefix_mirror() as usize);
   let k: i32 = 0;
   while (k < n) {
@@ -722,7 +900,7 @@ export function pipeline_dep_ctx_set_codegen_prefix_mirror(ctx: *u8, bytes: *u8,
     k = k + 1;
   }
   base[n] = 0;
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_codegen_prefix_len(), n);
+  w528_store_i32(ctx, pipe_pctx_off_current_codegen_prefix_len(), n);
 }
 
 /**
@@ -787,7 +965,7 @@ export function pipeline_dep_ctx_entry_dir_len(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_entry_dir_len());
+  return w528_load_i32(ctx, pipe_pctx_off_entry_dir_len());
 }
 
 /**
@@ -804,7 +982,7 @@ export function pipeline_dep_ctx_entry_dir_copy(ctx: *u8, dst: *u8, cap: i32): v
   if (ctx == 0 as *u8 || dst == 0 as *u8 || cap <= 0) {
     return;
   }
-  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_entry_dir_len());
+  let n: i32 = w528_load_i32(ctx, pipe_pctx_off_entry_dir_len());
   if (n >= cap) {
     n = cap - 1;
   }
@@ -844,12 +1022,12 @@ export function pipeline_dep_ctx_free_source_buffers(ctx: *u8): void {
   if (ctx == 0 as *u8) {
     return;
   }
-  pipe_store_i64_zero(ctx, pipe_pctx_off_loaded_len());
-  pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), 0);
+  w528_store_i64_zero(ctx, pipe_pctx_off_loaded_len());
+  w528_store_i32(ctx, pipe_pctx_off_preprocess_len(), 0);
 }
 
 /**
- * Release sidecar + clear lens + free(ctx) for heap-allocated PipelineDepCtx.
+ * Release sidecar + clear lens + w528_free(ctx) for heap-allocated PipelineDepCtx.
  * @param ctx *u8
  * @return void
  * wave272 pure-owned leave.
@@ -864,7 +1042,7 @@ export function pipeline_dep_ctx_heap_destroy(ctx: *u8): void {
   pipeline_dep_ctx_free_source_buffers(ctx);
   // free is export extern "C" — typeck T001 requires unsafe for extern calls.
   unsafe {
-    free(ctx);
+    w528_free(ctx);
   }
 }
 
@@ -912,7 +1090,7 @@ export function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void {
     return;
   }
   // loaded_len at offset 4195344 = size_t slot index 524418
-  xlang_size_slot_set(ctx, 524418, n);
+  w528_size_slot_set(ctx, 524418, n);
 }
 
 /**
@@ -927,7 +1105,7 @@ export function pipeline_dep_ctx_entry_already_parsed(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_entry_already_parsed());
+  return w528_load_i32(ctx, pipe_pctx_off_entry_already_parsed());
 }
 
 /**
@@ -942,7 +1120,7 @@ export function pipeline_dep_ctx_asm_entry_module_only(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_asm_entry_module_only());
+  return w528_load_i32(ctx, pipe_pctx_off_asm_entry_module_only());
 }
 
 /**
@@ -958,7 +1136,7 @@ export function pipeline_dep_ctx_check_only_mode(ctx: *u8): i32 {
   let co: i32 = 0;
   // driver_check_only_get is export extern "C" — T001 requires unsafe.
   unsafe {
-    co = driver_check_only_get();
+    co = w528_driver_check_only_get();
   }
   return co;
 }
@@ -975,7 +1153,7 @@ export function pipeline_dep_ctx_use_asm_backend(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_use_asm_backend());
+  return w528_load_i32(ctx, pipe_pctx_off_use_asm_backend());
 }
 
 /**
@@ -990,7 +1168,7 @@ export function pipeline_dep_ctx_use_macho_o(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_use_macho_o());
+  return w528_load_i32(ctx, pipe_pctx_off_use_macho_o());
 }
 
 /**
@@ -1005,7 +1183,7 @@ export function pipeline_dep_ctx_use_coff_o(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_use_coff_o());
+  return w528_load_i32(ctx, pipe_pctx_off_use_coff_o());
 }
 
 /**
@@ -1020,7 +1198,7 @@ export function pipeline_dep_ctx_target_arch(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_target_arch());
+  return w528_load_i32(ctx, pipe_pctx_off_target_arch());
 }
 
 /**
@@ -1036,7 +1214,7 @@ export function pipeline_dep_ctx_entry_dir_byte_at(ctx: *u8, off: i32): u8 {
   if (ctx == 0 as *u8 || off < 0) {
     return 0 as u8;
   }
-  let n: i32 = pipe_load_i32_le(ctx, pipe_pctx_off_entry_dir_len());
+  let n: i32 = w528_load_i32(ctx, pipe_pctx_off_entry_dir_len());
   if (off >= n || off >= 512) {
     return 0 as u8;
   }
@@ -1056,7 +1234,7 @@ export function pipeline_dep_ctx_current_codegen_dep_index(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0 - 1;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_current_codegen_dep_index());
+  return w528_load_i32(ctx, pipe_pctx_off_current_codegen_dep_index());
 }
 
 /**
@@ -1072,7 +1250,7 @@ export function pipeline_dep_ctx_current_codegen_module(ctx: *u8): *u8 {
     return 0 as *u8;
   }
   // offset 8389720 / 8 = slot 1048715
-  return pipe_load_ptr_slot(ctx + (pipe_pctx_off_current_codegen_module() as usize), 0);
+  return w528_load_ptr(ctx + (pipe_pctx_off_current_codegen_module() as usize), 0);
 }
 
 /**
@@ -1087,7 +1265,7 @@ export function pipeline_dep_ctx_current_codegen_arena(ctx: *u8): *u8 {
   if (ctx == 0 as *u8) {
     return 0 as *u8;
   }
-  return pipe_load_ptr_slot(ctx + (pipe_pctx_off_current_codegen_arena() as usize), 0);
+  return w528_load_ptr(ctx + (pipe_pctx_off_current_codegen_arena() as usize), 0);
 }
 
 /**
@@ -1102,7 +1280,7 @@ export function pipeline_dep_ctx_current_func_index(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0 - 1;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_current_func_index());
+  return w528_load_i32(ctx, pipe_pctx_off_current_func_index());
 }
 
 /**
@@ -1117,7 +1295,7 @@ export function pipeline_dep_ctx_current_block_ref_at(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_current_block_ref());
+  return w528_load_i32(ctx, pipe_pctx_off_current_block_ref());
 }
 
 /**
@@ -1133,7 +1311,7 @@ export function pipeline_dep_ctx_set_current_codegen_module(ctx: *u8, m: *u8): v
   if (ctx == 0 as *u8) {
     return;
   }
-  pipe_store_ptr_slot(ctx + (pipe_pctx_off_current_codegen_module() as usize), 0, m);
+  w528_store_ptr(ctx + (pipe_pctx_off_current_codegen_module() as usize), 0, m);
 }
 
 /**
@@ -1149,7 +1327,7 @@ export function pipeline_dep_ctx_set_current_codegen_arena(ctx: *u8, a: *u8): vo
   if (ctx == 0 as *u8) {
     return;
   }
-  pipe_store_ptr_slot(ctx + (pipe_pctx_off_current_codegen_arena() as usize), 0, a);
+  w528_store_ptr(ctx + (pipe_pctx_off_current_codegen_arena() as usize), 0, a);
 }
 
 /**
@@ -1165,7 +1343,7 @@ export function pipeline_dep_ctx_set_current_codegen_dep_index(ctx: *u8, ix: i32
   if (ctx == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_codegen_dep_index(), ix);
+  w528_store_i32(ctx, pipe_pctx_off_current_codegen_dep_index(), ix);
 }
 
 /**
@@ -1181,7 +1359,7 @@ export function pipeline_dep_ctx_set_current_func_index(ctx: *u8, ix: i32): void
   if (ctx == 0 as *u8) {
     return;
   }
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_index(), ix);
+  w528_store_i32(ctx, pipe_pctx_off_current_func_index(), ix);
 }
 
 /**
@@ -1204,15 +1382,15 @@ export function pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32
   }
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
-  let idx: i32 = grow_vec_push(rows);
+  let idx: i32 = w528_gv_push(rows);
   if (idx < 0) {
     return 0 - 1;
   }
-  if (grow_vec_push(lens) < 0) {
+  if (w528_gv_push(lens) < 0) {
     return 0 - 1;
   }
-  let row: *u8 = grow_vec_at(rows, idx);
-  let pl: *u8 = grow_vec_at(lens, idx);
+  let row: *u8 = w528_gv_at(rows, idx);
+  let pl: *u8 = w528_gv_at(lens, idx);
   if (row == 0 as *u8 || pl == 0 as *u8) {
     return 0 - 1;
   }
@@ -1221,11 +1399,11 @@ export function pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32
     n = 255;
   }
   unsafe {
-    memset(row, 0, 256 as usize);
-    memcpy(row, path, n as usize);
+    w528_memset(row, 0, 256 as usize);
+    w528_memcpy(row, path, n as usize);
   }
-  pipe_store_i32_le(pl, 0, n);
-  pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), pipe_gv_load_len(rows));
+  w528_store_i32(pl, 0, n);
+  w528_store_i32(ctx, pipe_pctx_off_num_lib_roots(), w528_gv_load_len(rows));
   return idx;
 }
 
@@ -1245,7 +1423,7 @@ export function pipeline_ctx_lib_root_count(ctx: *u8): i32 {
   if (sc == 0 as *u8) {
     return 0;
   }
-  return pipe_gv_load_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()));
+  return w528_gv_load_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows()));
 }
 
 /**
@@ -1266,14 +1444,14 @@ export function pipeline_ctx_lib_root_len(ctx: *u8, i: i32): i32 {
     return 0;
   }
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
-  if (i >= pipe_gv_load_len(lens)) {
+  if (i >= w528_gv_load_len(lens)) {
     return 0;
   }
-  let pl: *u8 = grow_vec_at(lens, i);
+  let pl: *u8 = w528_gv_at(lens, i);
   if (pl == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(pl, 0);
+  return w528_load_i32(pl, 0);
 }
 
 /**
@@ -1292,7 +1470,7 @@ export function pipeline_ctx_lib_root_copy(ctx: *u8, i: i32, dst: *u8, cap: i32)
     return;
   }
   unsafe {
-    memset(dst, 0, cap as usize);
+    w528_memset(dst, 0, cap as usize);
   }
   if (ctx == 0 as *u8 || i < 0) {
     return;
@@ -1303,15 +1481,15 @@ export function pipeline_ctx_lib_root_copy(ctx: *u8, i: i32, dst: *u8, cap: i32)
   }
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
-  if (i >= pipe_gv_load_len(rows)) {
+  if (i >= w528_gv_load_len(rows)) {
     return;
   }
-  let pl: *u8 = grow_vec_at(lens, i);
-  let row: *u8 = grow_vec_at(rows, i);
+  let pl: *u8 = w528_gv_at(lens, i);
+  let row: *u8 = w528_gv_at(rows, i);
   if (pl == 0 as *u8 || row == 0 as *u8) {
     return;
   }
-  let n: i32 = pipe_load_i32_le(pl, 0);
+  let n: i32 = w528_load_i32(pl, 0);
   if (n >= cap) {
     n = cap - 1;
   }
@@ -1342,15 +1520,15 @@ export function pipeline_ctx_lib_root_byte_at(ctx: *u8, i: i32, off: i32): u8 {
   }
   let rows: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_rows());
   let lens: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_lib_root_lens());
-  if (i >= pipe_gv_load_len(rows)) {
+  if (i >= w528_gv_load_len(rows)) {
     return 0 as u8;
   }
-  let pl: *u8 = grow_vec_at(lens, i);
-  let row: *u8 = grow_vec_at(rows, i);
+  let pl: *u8 = w528_gv_at(lens, i);
+  let row: *u8 = w528_gv_at(rows, i);
   if (pl == 0 as *u8 || row == 0 as *u8) {
     return 0 as u8;
   }
-  let n: i32 = pipe_load_i32_le(pl, 0);
+  let n: i32 = w528_load_i32(pl, 0);
   if (off >= n) {
     return 0 as u8;
   }
@@ -1371,9 +1549,9 @@ export function pipeline_dep_ctx_empty_param_reset(ctx: *u8): void {
   }
   let sc: *u8 = pipe_depctx_sidecar_get(ctx, 0);
   if (sc != 0 as *u8) {
-    pipe_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices()), 0);
+    w528_gv_store_len(pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices()), 0);
   }
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_empty_param_count(), 0);
+  w528_store_i32(ctx, pipe_pctx_off_current_func_empty_param_count(), 0);
 }
 
 /**
@@ -1394,16 +1572,16 @@ export function pipeline_dep_ctx_empty_param_append(ctx: *u8, pi: i32): i32 {
     return 0 - 1;
   }
   let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
-  if (grow_vec_push(idxv) < 0) {
+  if (w528_gv_push(idxv) < 0) {
     return 0 - 1;
   }
-  let slot: *u8 = grow_vec_at(idxv, pipe_gv_load_len(idxv) - 1);
+  let slot: *u8 = w528_gv_at(idxv, w528_gv_load_len(idxv) - 1);
   if (slot == 0 as *u8) {
     return 0 - 1;
   }
-  pipe_store_i32_le(slot, 0, pi);
-  let n: i32 = pipe_gv_load_len(idxv);
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_empty_param_count(), n);
+  w528_store_i32(slot, 0, pi);
+  let n: i32 = w528_gv_load_len(idxv);
+  w528_store_i32(ctx, pipe_pctx_off_current_func_empty_param_count(), n);
   return n - 1;
 }
 
@@ -1425,14 +1603,14 @@ export function pipeline_dep_ctx_empty_param_at(ctx: *u8, i: i32): i32 {
     return 0 - 1;
   }
   let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
-  if (i >= pipe_gv_load_len(idxv)) {
+  if (i >= w528_gv_load_len(idxv)) {
     return 0 - 1;
   }
-  let slot: *u8 = grow_vec_at(idxv, i);
+  let slot: *u8 = w528_gv_at(idxv, i);
   if (slot == 0 as *u8) {
     return 0 - 1;
   }
-  return pipe_load_i32_le(slot, 0);
+  return w528_load_i32(slot, 0);
 }
 
 /**
@@ -1453,8 +1631,8 @@ export function pipeline_dep_ctx_empty_param_backup(ctx: *u8): void {
   }
   let bak: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup());
   let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
-  pipe_gv_store_len(bak, 0);
-  grow_vec_copy_append(bak, idxv);
+  w528_gv_store_len(bak, 0);
+  w528_gv_copy_append(bak, idxv);
 }
 
 /**
@@ -1475,9 +1653,9 @@ export function pipeline_dep_ctx_empty_param_restore(ctx: *u8): void {
   }
   let bak: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_backup());
   let idxv: *u8 = pipe_dep_sc_gv(sc, pipe_dep_sc_off_empty_param_indices());
-  pipe_gv_store_len(idxv, 0);
-  grow_vec_copy_append(idxv, bak);
-  pipe_store_i32_le(ctx, pipe_pctx_off_current_func_empty_param_count(), pipe_gv_load_len(idxv));
+  w528_gv_store_len(idxv, 0);
+  w528_gv_copy_append(idxv, bak);
+  w528_store_i32(ctx, pipe_pctx_off_current_func_empty_param_count(), w528_gv_load_len(idxv));
 }
 
 /**
@@ -1492,5 +1670,5 @@ export function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return 0;
   }
-  return pipe_load_i32_le(ctx, pipe_pctx_off_typeck_loop_depth());
+  return w528_load_i32(ctx, pipe_pctx_off_typeck_loop_depth());
 }

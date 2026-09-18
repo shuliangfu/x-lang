@@ -8759,20 +8759,25 @@ pipeline_abi_inject_grow_vec_thin() {
   return 0
 }
 
-# wave309/367b M2: dep_ctx Cap residual C→.x (was wave272 C thin).
+# wave309/367/367b/528 M2: dep_ctx Cap residual C→.x (was wave272 C thin).
 # PRODUCT inject wave367b HARD BAN PREFER: stay prior -E overlay; do not
-# re-overlay. wave367 PREFER pure-asm: gate type_alias -c green but Darwin
-# L2 opt/si/hello XT001 (no-impl method). T001 helper try also broke -E
-# reinject → hard-skip until root. Stamp w367b.
+# re-overlay. Prior PREFER/T001 tries broke L2. Stamp w367b.
+# wave528 Soft Cap: tip T001 heal (w528_* unsafe/pipe-cell wrappers) +
+#   tipU 18/18; stamp → w528; tip PRODUCT reinject HARD BAN (keep prior).
 # PLATFORM: SHARED · both ends hard-skip until product L2 root.
 pipeline_abi_inject_dep_ctx_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_dep_ctx_thin.x"
-  local stamp="src/.pabi_w367b_dep_ctx.stamp"
+  local stamp="src/.pabi_w528_dep_ctx.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w309_dep_ctx.stamp src/.pabi_w367_dep_ctx.stamp
+  rm -f src/.pabi_w309_dep_ctx.stamp src/.pabi_w367_dep_ctx.stamp \
+    src/.pabi_w367b_dep_ctx.stamp
+  log "pipeline_abi w528-dep-ctx: tip T001+tipU heal stamped; tip PRODUCT reinject HARD BAN (keep prior)"
   return 0
 }
 
