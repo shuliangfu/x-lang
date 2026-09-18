@@ -1,4 +1,4 @@
-// Thin pure: wave330/378/384 M2 — value_abi Cap residual C→.x (was wave276 C thin).
+// Thin pure: wave330/378/384/517 M2 — value_abi Cap residual C→.x (was wave276 C thin).
 // By-value Type/Expr/Block/Func get/set_copy + Cap aliases + float IEEE helpers.
 // G.7: bodies match deleted C thin / seed WAVE276_ARENA_VALUE_ABI_ALWAYS.
 // PRODUCT inject: HARD BAN reinject (wave384) — stay prior -E overlay.
@@ -6,6 +6,9 @@
 // do NOT pure-asm this leaf; do NOT tip reinject -E after green.
 // wave378 BAN PREFER: sret ABI — stay -E+$CC both ends.
 // wave384 HARD BAN reinject both ends (stamp .pabi_w384_value_abi.stamp).
+// wave517: tip T001 heal — wrap typeck_float64_bits_* in unsafe + pipe-cell
+//   (mid/return-subexpr); tipU inventory; stamp → w517; tip PRODUCT reinject
+//   still HARD BAN (keep prior -E overlay).
 // PLATFORM: SHARED host-cc Cap leave / LINUX gold / MACOS co-path.
 
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
@@ -17,6 +20,11 @@ export extern function pipeline_arena_block_ptr(a: *u8, ref: i32): *u8;
 export extern function pipeline_arena_func_ptr(a: *u8, ref: i32): *u8;
 export extern function typeck_float64_bits_lo(d: f64): i32;
 export extern function typeck_float64_bits_hi(d: f64): i32;
+/** wave517: pipe-cell helpers (keep tip U across mid-call assign). */
+export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
+export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
 
 /** Opaque product Type row — sizeof 532. PLATFORM: SHARED */
 allow(padding) struct W276_Type {
@@ -283,83 +291,94 @@ export function ast_arena_func_set(a: *u8, ref: i32, f: W276_Func): void {
 /**
  * Expr float bits lo: kind==1 uses live f64@+24 via typeck; else stored lo@+684.
  * Layout LE: kind@0, float_val@24, float_bits_lo@684.
+ * wave517: ban return-subexpr / mid typeck call outside unsafe; pipe-cell.
  * @param a ASTArena*
  * @param expr_ref 1-based expr ref
  * @return i32 lo bits
  * PLATFORM: SHARED
  */
 export function pipeline_expr_float_bits_lo_at(a: *u8, expr_ref: i32): i32 {
-  let ex: *u8 = 0 as *u8;
-  let kind: i32 = 0;
-  let lo: i32 = 0;
+  let pcell: u8[8] = [];
+  let kcell: u8[4] = [];
+  let cell: u8[4] = [];
   let fv: f64 = 0.0;
-  unsafe { ex = pipeline_arena_expr_ptr(a, expr_ref); }
-  if (ex == (0 as *u8)) {
-    return 0;
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, expr_ref));
+    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
+      return 0;
+    }
+    memcpy(&kcell[0], pipe_load_ptr_slot(&pcell[0], 0) + (0 as usize), 4 as usize);
+    if (pipe_load_i32_le(&kcell[0], 0) == 1) {
+      memcpy((&fv) as *u8, pipe_load_ptr_slot(&pcell[0], 0) + (24 as usize), 8 as usize);
+      pipe_store_i32_le(&cell[0], 0, typeck_float64_bits_lo(fv));
+      return pipe_load_i32_le(&cell[0], 0);
+    }
+    memcpy(&cell[0], pipe_load_ptr_slot(&pcell[0], 0) + (684 as usize), 4 as usize);
+    return pipe_load_i32_le(&cell[0], 0);
   }
-  unsafe { memcpy((&kind) as *u8, ex + (0 as usize), 4 as usize); }
-  if (kind == 1) {
-    unsafe { memcpy((&fv) as *u8, ex + (24 as usize), 8 as usize); }
-    return typeck_float64_bits_lo(fv);
-  }
-  unsafe { memcpy((&lo) as *u8, ex + (684 as usize), 4 as usize); }
-  return lo;
 }
 
 /**
  * Expr float bits hi: kind==1 uses live f64@+24 via typeck; else stored hi@+688.
+ * wave517: ban return-subexpr / mid typeck call outside unsafe; pipe-cell.
  * @param a ASTArena*
  * @param expr_ref 1-based expr ref
  * @return i32 hi bits
  * PLATFORM: SHARED
  */
 export function pipeline_expr_float_bits_hi_at(a: *u8, expr_ref: i32): i32 {
-  let ex: *u8 = 0 as *u8;
-  let kind: i32 = 0;
-  let hi: i32 = 0;
+  let pcell: u8[8] = [];
+  let kcell: u8[4] = [];
+  let cell: u8[4] = [];
   let fv: f64 = 0.0;
-  unsafe { ex = pipeline_arena_expr_ptr(a, expr_ref); }
-  if (ex == (0 as *u8)) {
-    return 0;
+  unsafe {
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, expr_ref));
+    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
+      return 0;
+    }
+    memcpy(&kcell[0], pipe_load_ptr_slot(&pcell[0], 0) + (0 as usize), 4 as usize);
+    if (pipe_load_i32_le(&kcell[0], 0) == 1) {
+      memcpy((&fv) as *u8, pipe_load_ptr_slot(&pcell[0], 0) + (24 as usize), 8 as usize);
+      pipe_store_i32_le(&cell[0], 0, typeck_float64_bits_hi(fv));
+      return pipe_load_i32_le(&cell[0], 0);
+    }
+    memcpy(&cell[0], pipe_load_ptr_slot(&pcell[0], 0) + (688 as usize), 4 as usize);
+    return pipe_load_i32_le(&cell[0], 0);
   }
-  unsafe { memcpy((&kind) as *u8, ex + (0 as usize), 4 as usize); }
-  if (kind == 1) {
-    unsafe { memcpy((&fv) as *u8, ex + (24 as usize), 8 as usize); }
-    return typeck_float64_bits_hi(fv);
-  }
-  unsafe { memcpy((&hi) as *u8, ex + (688 as usize), 4 as usize); }
-  return hi;
 }
 
 /**
  * Materialize typeck float bits from Expr float_val@+24 into lo@684/hi@688.
  * Bounds-check via arena num_exprs@+4.
+ * wave517: ban mid `lo=/hi=typeck()` outside unsafe; pipe-cell.
  * @param a ASTArena*
  * @param expr_ref 1-based expr ref
  * PLATFORM: SHARED
  */
 export function pipeline_expr_typeck_set_float_bits_from_val(a: *u8, expr_ref: i32): void {
-  let ex: *u8 = 0 as *u8;
-  let ne: i32 = 0;
+  let pcell: u8[8] = [];
+  let necell: u8[4] = [];
+  let locell: u8[4] = [];
+  let hicell: u8[4] = [];
   let fv: f64 = 0.0;
-  let lo: i32 = 0;
-  let hi: i32 = 0;
   if (a == (0 as *u8) || expr_ref <= 0) {
     return;
   }
-  unsafe { memcpy((&ne) as *u8, a + (4 as usize), 4 as usize); }
-  if (expr_ref > ne) {
-    return;
+  unsafe {
+    memcpy(&necell[0], a + (4 as usize), 4 as usize);
+    if (expr_ref > pipe_load_i32_le(&necell[0], 0)) {
+      return;
+    }
+    pipe_store_ptr_slot(&pcell[0], 0, pipeline_arena_expr_ptr(a, expr_ref));
+    if (pipe_load_ptr_slot(&pcell[0], 0) == (0 as *u8)) {
+      return;
+    }
+    memcpy((&fv) as *u8, pipe_load_ptr_slot(&pcell[0], 0) + (24 as usize), 8 as usize);
+    pipe_store_i32_le(&locell[0], 0, typeck_float64_bits_lo(fv));
+    pipe_store_i32_le(&hicell[0], 0, typeck_float64_bits_hi(fv));
+    memcpy(pipe_load_ptr_slot(&pcell[0], 0) + (684 as usize), &locell[0], 4 as usize);
+    memcpy(pipe_load_ptr_slot(&pcell[0], 0) + (688 as usize), &hicell[0], 4 as usize);
   }
-  unsafe { ex = pipeline_arena_expr_ptr(a, expr_ref); }
-  if (ex == (0 as *u8)) {
-    return;
-  }
-  unsafe { memcpy((&fv) as *u8, ex + (24 as usize), 8 as usize); }
-  lo = typeck_float64_bits_lo(fv);
-  hi = typeck_float64_bits_hi(fv);
-  unsafe { memcpy(ex + (684 as usize), (&lo) as *u8, 4 as usize); }
-  unsafe { memcpy(ex + (688 as usize), (&hi) as *u8, 4 as usize); }
 }
 
 /**
