@@ -6077,7 +6077,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_binop_block_peel_helpers_thin.x"
-      stamp="src/.pabi_w422_binop_block_peel_helpers.stamp"
+      stamp="src/.pabi_w554_binop_block_peel_helpers.stamp"
       tag="w422-binop-block-peel-helpers"
       rest_x="src/runtime_pipeline_abi_binop_block_peel_rest_thin.x"
       rest_stamp="src/.pabi_w549_binop_block_peel_rest.stamp"
@@ -6144,7 +6144,16 @@ pipeline_abi_inject_binop_block_peel_thin() {
   # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+  # LINUX wave554: helpers tipU stamped. HARD BAN tip PRODUCT reinject
+  # (keep the w422 overlay). MACOS still injects the full binop thin.
+  if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$thin_x" ]; then
+      touch "$stamp"
+      rm -f src/.pabi_w422_binop_block_peel_helpers.stamp
+      log "pipeline_abi w554 binop_block_peel_helpers: tipU stamped; tip PRODUCT reinject HARD BAN"
+    fi
+    rc=0
+  elif [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
     pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
     rc=$?
     if [ "$rc" -eq 0 ]; then
