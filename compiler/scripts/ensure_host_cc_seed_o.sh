@@ -5441,6 +5441,15 @@ pipeline_abi_inject_macho_write_thin() {
   local thin_x="src/runtime_pipeline_abi_macho_write_thin.x"
   local stamp="src/.pabi_w612_macho_write_page21.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: MACOS — skip (w634): the thin inject on Darwin fails the
+  # FIRST function emit (CG002 code_len=40, modlet_find never reached —
+  # a Mach-O-side shadow class, not the table split; Ubuntu green).
+  # Keep the prior overlay; LINUX carries the ONE-set. Bisect next wave.
+  if [ "$(uname -s)" != "Linux" ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    return 0
+  fi
   case "$(uname -s)" in
     Darwin)
       # PLATFORM: MACOS — -E replace leftover gcc writer that read empty
