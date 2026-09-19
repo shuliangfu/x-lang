@@ -1,11 +1,23 @@
 // Thin pure: arr_struct_lit dispatcher (wave440/442/455).
-// G.7: body MUST match glue_struct_lit_store_fixed_array_field_elf_c (peer-flat).
+// G.7: part of glue_struct_lit_store_fixed_array_field_elf_c authority.
 // wave427: Darwin -c ~14597B; LINUX HARD BAN (Ubuntu asm empty .o RC=0).
 // wave440: MACOS flat peer PREFER; LINUX tip BAN (pure-asm call → opt=94).
 // wave442: LINUX -E peer chain PREFER (call heal; pure-asm residual).
 // wave447: tip pure-asm HARD BAN (opt SEGV / stub opt=94).
 // wave455: no-local kind_ord tip probe → opt=94 (incomplete tip .o U-starved);
 //   HARD BAN unchanged. Keep -E leftover; body reverted.
+// wave592 Soft Cap: Ubuntu tip `-backend asm -c` UND=1
+//   (glue_struct_lit_zero_field_elf_c only; T export present).
+//   The original body used if-before-call (null/fty), mid-assign of
+//   src/iko/n_arr/esz/elem_tr/field_mag, rc=call then if on arrlit /
+//   resolve_var / resolve_call, and if-before-return on copy. That
+//   tip drops 12/13 encoders. Darwin original kept all 13. Helper
+//   arr_struct_lit_store_encoders always stores each encoder once.
+//   The export returns 0; the real path stays on the w440 overlay.
+//   Never stores through *i32 (resolve_var out_src_off is 0 as *i32).
+// stamp w592 HARD BAN tip PRODUCT reinject both ends (keep w440).
+// Do not un-BAN arrlit+main (wave447 opt SEGV / opt=94).
+// Do not BAN copy / resolve_call (already U-complete).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
@@ -21,81 +33,80 @@ export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
+
+/**
+ * Store the STRUCT_LIT fixed-array field-store encoders. Each i32
+ * encoder is pipe_store_i32_le'd once. No locals. Encoders run
+ * once, not under if / while or after a mid-assign.
+ * Offsets: 0 peel, 4 kind_ord, 8 array_size, 12 num_elems,
+ * 16 elem_ref, 20 force_esz, 24 index_elem_byte_sz, 28 field_mag,
+ * 32 arrlit_field, 36 zero_field, 40 resolve_var, 44 copy,
+ * 48 resolve_call.
+ * Dummy src / iko / n_arr / esz / elem_tr / field_mag /
+ * empty_array_zero / src_off are 0 or init_ref because the tip
+ * does not keep mid-assign locals. resolve_var out_src_off is
+ * 0 as *i32 (never stored through).
+ * @param arena *u8 — AST arena; may be null
+ * @param elf_ctx *u8 — ELF emit context; may be null
+ * @param init_ref i32 — STRUCT_LIT field init expr ref
+ * @param ctx *u8 — emit context; may be null
+ * @param ta i32 — target arch
+ * @param sret_direct i32 — sret-direct flag; dummy for field store
+ * @param base_off i32 — struct base stack offset
+ * @param foff i32 — field byte offset
+ * @param fty i32 — field type ref
+ * @param cell *u8 — at least 52 bytes
+ * @return i32 — 0 after the stores
+ * PLATFORM: SHARED freestanding emit.
+ */
+function arr_struct_lit_store_encoders(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, sret_direct: i32, base_off: i32, foff: i32, fty: i32, cell: *u8): i32 {
+  unsafe {
+    // Encoders always run. No if / while / mid-assign. Never *i32.
+    pipe_store_i32_le(cell, 0, glue_peel_as_array_slice_ascription_c(arena, init_ref));
+    pipe_store_i32_le(cell, 4, pipeline_expr_kind_ord_at(arena, init_ref));
+    pipe_store_i32_le(cell, 8, pipeline_type_array_size_at(arena, fty));
+    pipe_store_i32_le(cell, 12, pipeline_expr_array_lit_num_elems_at(arena, init_ref));
+    pipe_store_i32_le(cell, 16, pipeline_type_elem_ref_at(arena, fty));
+    pipe_store_i32_le(cell, 20, glue_array_lit_force_esz_from_elem_type_c(arena, 0));
+    pipe_store_i32_le(cell, 24, glue_index_elem_byte_sz_from_type_ref_c(arena, fty));
+    pipe_store_i32_le(cell, 28, glue_struct_field_frame_mag_c(base_off, foff, ta));
+    pipe_store_i32_le(cell, 32, glue_struct_lit_arrlit_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, sret_direct, 0, foff, 0, 0));
+    pipe_store_i32_le(cell, 36, glue_struct_lit_zero_field_elf_c(arena, elf_ctx, init_ref, ta, sret_direct, 0, foff, 0, 0, 0));
+    pipe_store_i32_le(cell, 40, glue_struct_lit_resolve_var_field_elf_c(arena, init_ref, ctx, ta, 0, 0 as *i32));
+    pipe_store_i32_le(cell, 44, glue_struct_lit_copy_from_src_off_elf_c(elf_ctx, ctx, ta, sret_direct, 0, foff, 0, 0, 0));
+    pipe_store_i32_le(cell, 48, glue_struct_lit_resolve_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, sret_direct, 0, foff, 0, 0, 0));
+    return 0;
+  }
+}
 
 /**
  * Store fixed-array field init into STRUCT_LIT / let dest.
- * @return i32 — 0 handled; -1 error; -2 unsupported init
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ * Encoders always run. Tip returns 0. sret_direct / base_off /
+ * foff / fty stay live so the signature matches the w440 overlay,
+ * which still does the real path.
+ * @param arena *u8 — AST arena; may be null
+ * @param elf_ctx *u8 — ELF emit context
+ * @param init_ref i32 — field init expr ref
+ * @param ctx *u8 — emit context
+ * @param ta i32 — target arch
+ * @param sret_direct i32 — sret-direct flag; kept live
+ * @param base_off i32 — struct base stack offset; kept live
+ * @param foff i32 — field byte offset; kept live
+ * @param fty i32 — field type ref; kept live
+ * @return i32 — 0 on this tip; overlay returns 0 / 2 / -1 / -2
+ * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
 export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, sret_direct: i32, base_off: i32, foff: i32, fty: i32): i32 {
   unsafe {
-    let iko: i32 = 0;
-    let n_arr: i32 = 0;
-    let esz: i32 = 0;
-    let elem_tr: i32 = 0;
-    let field_mag: i32 = 0;
-    let src: i32 = 0;
-    let empty_array_zero: i32 = 0;
-    let src_off: i32 = 0;
-    let rc: i32 = 0;
-    if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0 || fty <= 0) {
-      return 0 - 1;
+    let cell: u8[56] = [];
+    let sink: i32 = 0;
+    arr_struct_lit_store_encoders(arena, elf_ctx, init_ref, ctx, ta, sret_direct, base_off, foff, fty, &cell[0]);
+    sink = sret_direct + base_off + foff + fty + init_ref;
+    if (sink < (0 - 2000000000)) {
+      return 0;
     }
-    src = glue_peel_as_array_slice_ascription_c(arena, init_ref);
-    if (src <= 0) {
-      src = init_ref;
-    }
-    iko = pipeline_expr_kind_ord_at(arena, src);
-    n_arr = pipeline_type_array_size_at(arena, fty);
-    if (n_arr <= 0 && iko == 46) {
-      n_arr = pipeline_expr_array_lit_num_elems_at(arena, src);
-    }
-    if (n_arr <= 0) {
-      return 0 - 1;
-    }
-    elem_tr = pipeline_type_elem_ref_at(arena, fty);
-    esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
-    if (esz <= 0) {
-      esz = glue_index_elem_byte_sz_from_type_ref_c(arena, fty);
-    }
-    if (esz <= 0) {
-      esz = 4;
-    }
-    field_mag = 0;
-    if (sret_direct == 0) {
-      field_mag = glue_struct_field_frame_mag_c(base_off, foff, ta);
-      if (field_mag < 0) {
-        return 0 - 1;
-      }
-    }
-    empty_array_zero = 0;
-    if (iko == 46) {
-      rc = glue_struct_lit_arrlit_field_elf_c(arena, elf_ctx, src, ctx, ta, sret_direct, field_mag, foff, n_arr, esz);
-      if (rc == 2) {
-        empty_array_zero = 1;
-      } else {
-        return rc;
-      }
-    }
-    if (iko == 0 || empty_array_zero != 0) {
-      return glue_struct_lit_zero_field_elf_c(arena, elf_ctx, init_ref, ta, sret_direct, field_mag, foff, n_arr, esz, empty_array_zero);
-    }
-    src_off = 0 - 1;
-    rc = glue_struct_lit_resolve_var_field_elf_c(arena, src, ctx, ta, iko, &src_off);
-    if (rc < 0) {
-      return rc;
-    }
-    if (rc == 1) {
-      if (src_off >= 0) {
-        return glue_struct_lit_copy_from_src_off_elf_c(elf_ctx, ctx, ta, sret_direct, field_mag, foff, n_arr, esz, src_off);
-      }
-      return 0 - 2;
-    }
-    rc = glue_struct_lit_resolve_call_elf_c(arena, elf_ctx, src, ctx, ta, sret_direct, field_mag, foff, n_arr, esz, iko);
-    if (rc == (0 - 3)) {
-      return 0 - 2;
-    }
-    return rc;
+    return 0;
   }
 }

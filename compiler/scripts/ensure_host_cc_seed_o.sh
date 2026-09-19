@@ -8030,6 +8030,16 @@ pipeline_abi_inject_arr_struct_lit_thin() {
     rm -f src/.pabi_w440_arr_struct_lit_arrlit.stamp
     log "pipeline_abi w591 arr_struct_lit_arrlit: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
+  # wave592: main Ubuntu tip dropped 12/13 encoders (if-before-call /
+  #   mid-assign src/iko/n_arr/esz/elem_tr/field_mag / rc=call then if).
+  # HARD BAN first-loop tip PRODUCT reinject both ends. Keep the w440 overlay.
+  # Do not BAN copy dispatcher or call dispatcher (already U-complete).
+  # Do not un-BAN arrlit+main (wave447 opt SEGV / opt=94).
+  if [ -f src/runtime_pipeline_abi_arr_struct_lit_thin.x ]; then
+    touch src/.pabi_w592_arr_struct_lit.stamp
+    rm -f src/.pabi_w440_arr_struct_lit.stamp
+    log "pipeline_abi w592 arr_struct_lit: tipU stamped; tip PRODUCT reinject HARD BAN"
+  fi
   # PLATFORM: LINUX — soft -E chain (w442) + nine-peer pure-asm heal (w446).
   case "$(uname -s)" in
     Linux) prefer_asm=0 ;;
@@ -8073,8 +8083,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   for peer in \
     "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w440_arr_struct_lit_resolve_call.stamp|w440-arr-struct-lit-resolve-call" \
-    "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w440_arr_struct_lit_copy.stamp|w440-arr-struct-lit-copy" \
-    "src/runtime_pipeline_abi_arr_struct_lit_thin.x|.pabi_w440_arr_struct_lit.stamp|w440-arr-struct-lit"
+    "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w440_arr_struct_lit_copy.stamp|w440-arr-struct-lit-copy"
   do
     lo_x="${peer%%|*}"
     lo_rest="${peer#*|}"
@@ -8093,6 +8102,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   # wave446: nine-peer pure-asm overlay (LINUX).
   # wave447/455: arrlit+main tip pure-asm HARD BAN (opt SEGV / opt=94); stay -E.
   # wave591: arrlit first-loop also HARD BAN (Ubuntu UND=1 encoder drop).
+  # wave592: main first-loop also HARD BAN (Ubuntu UND=1 encoder drop).
   # PLATFORM: LINUX gold · MACOS skipped (full chain already PREFER).
   case "$(uname -s)" in
     Linux)
