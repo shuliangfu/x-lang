@@ -5,6 +5,9 @@
 //   dead locals + 170 unused externs.
 // wave471: try peer — eq-cascade no-local (stores class); Tip U=9/9.
 //   PRODUCT: LINUX PREFER with disp+try2+scaled.
+// wave607: leftover PREFER smash (`sub $0x1098`, no endbr64) emits every
+//   finish_store arm (extra pop overwrites u8 dest). LINUX -E is product.
+//   HARD BAN PREFER. MACOS keep overlay. Do not Soft-Cap.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_try_index_var_lit_addr_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;

@@ -5,6 +5,8 @@
 // wave471: strip dead surface; split try/try2/scaled; no-local dispatcher
 //   (rhs→rax, push, may_clobber clear, cache hit, try cascade, scaled).
 //   Tip U=12/12. PRODUCT inject: LINUX PREFER (stamp w471); MACOS skip.
+// wave607: leftover PREFER smash (`sub $0x1238`, no endbr64). LINUX -E of
+//   this complete family is the product path. HARD BAN PREFER.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;

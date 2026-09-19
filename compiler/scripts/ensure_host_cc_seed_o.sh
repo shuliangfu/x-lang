@@ -3754,6 +3754,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || return 1
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || return 1
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_assign_index_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
       pipeline_abi_inject_arr_return_thin "$o" || true
       pipeline_abi_inject_arr_struct_lit_thin "$o" || true
@@ -4211,6 +4212,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm_expr_thin "$o" || true
     pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
     pipeline_abi_inject_assign_thin "$o" || true
+    pipeline_abi_inject_assign_index_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
     pipeline_abi_inject_arr_return_thin "$o" || true
     pipeline_abi_inject_arr_struct_lit_thin "$o" || true
@@ -4298,6 +4300,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm_expr_thin "$o" || true
         pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
         pipeline_abi_inject_assign_thin "$o" || true
+        pipeline_abi_inject_assign_index_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
         pipeline_abi_inject_arr_return_thin "$o" || true
         pipeline_abi_inject_arr_struct_lit_thin "$o" || true
@@ -4369,6 +4372,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_expr_thin "$o" || true
       pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
       pipeline_abi_inject_assign_thin "$o" || true
+      pipeline_abi_inject_assign_index_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
       pipeline_abi_inject_arr_return_thin "$o" || true
       pipeline_abi_inject_arr_struct_lit_thin "$o" || true
@@ -4448,6 +4452,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm_expr_thin "$o" || true
   pipeline_abi_inject_fnptr_array_esz_thin "$o" || true
   pipeline_abi_inject_assign_thin "$o" || true
+  pipeline_abi_inject_assign_index_thin "$o" || true
       pipeline_abi_inject_arr_lit_flat_thin "$o" || true
   pipeline_abi_inject_arr_return_thin "$o" || true
   pipeline_abi_inject_arr_struct_lit_thin "$o" || true
@@ -5626,6 +5631,146 @@ pipeline_abi_inject_fnptr_as_thin() {
     touch "$stamp"
     touch "$stamp_e"
     log "pipeline_abi w606-fnptr-as: LINUX -E replace (smash leftover T family)"
+  fi
+  return "$rc"
+}
+
+# wave441/460–w471: assign_index family Cap residual.
+# wave607: leftover PREFER smash T (`sub $0xb98`/`$0x1098`, no endbr64)
+#   extra pop+store overwrites u8 `b[2]=7` (first movb 7 is correct;
+#   later pops store stack garbage over the same dest). Darwin overlay
+#   stores once. LINUX -E of complete thins. HARD BAN PREFER.
+#   MACOS stamp-only keep overlay. Do not Soft-Cap. Do not -E
+#   setup/walk/peel/resolve (w541–w546 Soft-Cap keep overlay).
+# PLATFORM: SHARED shell · LINUX gold + MACOS.
+pipeline_abi_inject_assign_index_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_assign_index_thin.x"
+  local stamp="src/.pabi_w460_heal_index.stamp"
+  local stamp_e="src/.pabi_w607_assign_index.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  local p_peer p_x p_rest p_stamp p_tag
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+    local _ok=1
+    for p_peer in \
+      "src/runtime_pipeline_abi_assign_index_struct_lit_arr_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_struct_lit_rbx_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_simd_body_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_named_body_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_bulk_lval_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_bulk_call_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_array_lit_home_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_array_lit_mid_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_array_rbx_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_generic_try_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_generic_try2_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_generic_scaled_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_struct_lit_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_simd_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_named_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_array_lit_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_array_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_bulk_thin.x" \
+      "src/runtime_pipeline_abi_assign_index_generic_thin.x"
+    do
+      if [ -f "$p_peer" ] && [ "$p_peer" -nt "$stamp_e" ]; then
+        _ok=0
+        break
+      fi
+    done
+    if [ "$_ok" = "1" ]; then
+      return 0
+    fi
+  fi
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already stores u8 index once.
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w607-assign-index: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T family.
+      ;;
+    *)
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w607-assign-index: non-POSIX stamp-only (keep prior)"
+      return 0
+      ;;
+  esac
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
+    had_newer=1
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  # Leaves → mid dispatchers → tip (first-wins ld -r).
+  for p_peer in \
+    "src/runtime_pipeline_abi_assign_index_struct_lit_arr_thin.x|.pabi_w463_heal_index_struct_lit_arr.stamp|w607-assign-index-struct-lit-arr-e" \
+    "src/runtime_pipeline_abi_assign_index_struct_lit_rbx_thin.x|.pabi_w465_heal_index_struct_lit_rbx.stamp|w607-assign-index-struct-lit-rbx-e" \
+    "src/runtime_pipeline_abi_assign_index_simd_body_thin.x|.pabi_w466_heal_index_simd_body.stamp|w607-assign-index-simd-body-e" \
+    "src/runtime_pipeline_abi_assign_index_named_body_thin.x|.pabi_w467_heal_index_named_body.stamp|w607-assign-index-named-body-e" \
+    "src/runtime_pipeline_abi_assign_index_bulk_lval_thin.x|.pabi_w468_heal_index_bulk_lval.stamp|w607-assign-index-bulk-lval-e" \
+    "src/runtime_pipeline_abi_assign_index_bulk_call_thin.x|.pabi_w468_heal_index_bulk_call.stamp|w607-assign-index-bulk-call-e" \
+    "src/runtime_pipeline_abi_assign_index_array_lit_home_thin.x|.pabi_w469_heal_index_array_lit_home.stamp|w607-assign-index-array-lit-home-e" \
+    "src/runtime_pipeline_abi_assign_index_array_lit_mid_thin.x|.pabi_w469_heal_index_array_lit_mid.stamp|w607-assign-index-array-lit-mid-e" \
+    "src/runtime_pipeline_abi_assign_index_array_rbx_thin.x|.pabi_w464_heal_index_array_rbx.stamp|w607-assign-index-array-rbx-e" \
+    "src/runtime_pipeline_abi_assign_index_generic_try_thin.x|.pabi_w471_heal_index_generic_try.stamp|w607-assign-index-generic-try-e" \
+    "src/runtime_pipeline_abi_assign_index_generic_try2_thin.x|.pabi_w471_heal_index_generic_try2.stamp|w607-assign-index-generic-try2-e" \
+    "src/runtime_pipeline_abi_assign_index_generic_scaled_thin.x|.pabi_w471_heal_index_generic_scaled.stamp|w607-assign-index-generic-scaled-e" \
+    "src/runtime_pipeline_abi_assign_index_struct_lit_thin.x|.pabi_w461_heal_index_struct_lit.stamp|w607-assign-index-struct-lit-e" \
+    "src/runtime_pipeline_abi_assign_index_simd_thin.x|.pabi_w466_heal_index_simd.stamp|w607-assign-index-simd-e" \
+    "src/runtime_pipeline_abi_assign_index_named_thin.x|.pabi_w467_heal_index_named.stamp|w607-assign-index-named-e" \
+    "src/runtime_pipeline_abi_assign_index_array_lit_thin.x|.pabi_w469_heal_index_array_lit.stamp|w607-assign-index-array-lit-e" \
+    "src/runtime_pipeline_abi_assign_index_array_thin.x|.pabi_w462_heal_index_array.stamp|w607-assign-index-array-e" \
+    "src/runtime_pipeline_abi_assign_index_bulk_thin.x|.pabi_w468_heal_index_bulk.stamp|w607-assign-index-bulk-e" \
+    "src/runtime_pipeline_abi_assign_index_generic_thin.x|.pabi_w471_heal_index_generic.stamp|w607-assign-index-generic-e" \
+    "src/runtime_pipeline_abi_assign_index_thin.x|.pabi_w460_heal_index.stamp|w607-assign-index-gate-e"
+  do
+    p_x="${p_peer%%|*}"
+    p_rest="${p_peer#*|}"
+    p_stamp="src/${p_rest%%|*}"
+    p_tag="${p_rest#*|}"
+    if [ -f "$p_x" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$p_x" "$p_tag"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$p_stamp"
+      else
+        break
+      fi
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then
+    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  fi
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    touch "$stamp_e"
+    log "pipeline_abi w607-assign-index: LINUX -E replace (smash leftover T family)"
   fi
   return "$rc"
 }
@@ -7053,6 +7198,35 @@ pipeline_abi_inject_assign_thin() {
           fi
         fi
       fi
+      # wave607: HARD BAN leftover PREFER of assign_index smash family.
+      # Extra pop/store overwrote u8 `b[2]=7`. LINUX -E is
+      # pipeline_abi_inject_assign_index_thin. Touch heal stamps so the
+      # PREFER overlay below skips (thin not newer than stamp).
+      # PLATFORM: LINUX — MACOS never ran these heals.
+      if [ "$rc" -eq 0 ]; then
+        touch \
+          src/.pabi_w460_heal_index.stamp \
+          src/.pabi_w461_heal_index_struct_lit.stamp \
+          src/.pabi_w462_heal_index_array.stamp \
+          src/.pabi_w463_heal_index_struct_lit_arr.stamp \
+          src/.pabi_w464_heal_index_array_rbx.stamp \
+          src/.pabi_w465_heal_index_struct_lit_rbx.stamp \
+          src/.pabi_w466_heal_index_simd_body.stamp \
+          src/.pabi_w466_heal_index_simd.stamp \
+          src/.pabi_w467_heal_index_named_body.stamp \
+          src/.pabi_w467_heal_index_named.stamp \
+          src/.pabi_w468_heal_index_bulk_lval.stamp \
+          src/.pabi_w468_heal_index_bulk_call.stamp \
+          src/.pabi_w468_heal_index_bulk.stamp \
+          src/.pabi_w469_heal_index_array_lit_home.stamp \
+          src/.pabi_w469_heal_index_array_lit_mid.stamp \
+          src/.pabi_w469_heal_index_array_lit.stamp \
+          src/.pabi_w471_heal_index_generic_try.stamp \
+          src/.pabi_w471_heal_index_generic_try2.stamp \
+          src/.pabi_w471_heal_index_generic_scaled.stamp \
+          src/.pabi_w471_heal_index_generic.stamp
+        log "pipeline_abi w607-assign-index: HARD BAN PREFER heals (LINUX -E via inject_assign_index_thin)"
+      fi
       if [ "$rc" -eq 0 ]; then
         local index_x="src/runtime_pipeline_abi_assign_index_thin.x"
         local index_s="src/.pabi_w460_heal_index.stamp"
@@ -7425,6 +7599,11 @@ pipeline_abi_inject_assign_thin() {
         # wave600: leftover PREFER assign_var family smash. HARD BAN
         #   PREFER reinject; LINUX -E is pipeline_abi_inject_assign_var_thin.
         pipeline_abi_inject_assign_var_thin "$o" || rc=$?
+      fi
+      if [ "$rc" -eq 0 ]; then
+        # wave607: leftover PREFER assign_index smash extra pop/store.
+        #   HARD BAN PREFER; LINUX -E is pipeline_abi_inject_assign_index_thin.
+        pipeline_abi_inject_assign_index_thin "$o" || rc=$?
       fi
       if [ "$rc" -eq 0 ]; then
         local phs_x="src/runtime_pipeline_abi_assign_field_ptr_hit_step_thin.x"
@@ -15012,6 +15191,21 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_fnptr_as_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-assign-index|inject_assign_index)
+    # wave460–w471: PREFER LINUX heals. wave607: LINUX -E replace smash
+    #   leftover assign_index T (extra pop/store overwrites u8 `b[2]=7`).
+    #   HARD BAN PREFER. MACOS stamp-only keep overlay.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-assign-index: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_assign_index_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
