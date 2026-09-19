@@ -85,6 +85,45 @@ export extern function backend_enc_mov_arg_reg_to_rax_arch(elf: *u8, k: i32, ta:
 /* stage10 S3.1 slice2 (10.1.1): raw syscall byte-level encoders (x86_64).
  * bodies in backend_x86_64_enc_c.x — same family as the enc externs above. */
 export extern "C" function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32;
+
+/*
+ * wave614: ARM64 Apple natural stack-arg packing — caller-side placement.
+ * The layout model has ONE authority: glue_arm64_stack_arg_align_pos /
+ * glue_arm64_stack_arg_advance_pos in runtime_pipeline_abi.x (exported;
+ * cold twins in seeds/runtime_pipeline_abi.from_x.c). Call them; never
+ * re-derive. Non-apple keeps the historic uniform 8-byte slots (x86_64
+ * SysV push paths and AAPCS64 8-slot arm64), so apple=0 behavior is
+ * byte-identical to the old stk_slot*8 emission.
+ * Root cause this closes (run-path bytes_eq, Darwin cold L4 130/131):
+ * the callee homing went Apple-natural (0867354e3, clang packs i32 at
+ * +4) while every caller site kept uniform 8-byte slots — xlang→xlang
+ * calls misread stack args 9+ (callee [S'+4] vs caller store [S'+8]).
+ * PLATFORM: MACOS|ARM64 natural (clang-empirical: u8:1, u16:2, i32:4,
+ * i64/ptr:8, aggregates round-8); LINUX unchanged (8-slot).
+ */
+export extern "C" function xlang_host_is_apple_aarch64(): i32;
+export extern "C" function glue_arm64_stack_arg_align_pos(stack_pos: i32, nbytes: i32, apple: i32): i32;
+export extern "C" function glue_arm64_stack_arg_advance_pos(stack_pos: i32, nbytes: i32, apple: i32): i32;
+
+function glue_call_stk_extra_align(pos: i32, nbytes: i32, ta: i32): i32 {
+  if (ta == 1 && xlang_host_is_apple_aarch64() != 0) {
+    return glue_arm64_stack_arg_align_pos(pos, nbytes, 1);
+  }
+  return pos;
+}
+
+function glue_call_stk_extra_advance(pos: i32, nbytes: i32, ta: i32): i32 {
+  if (ta == 1 && xlang_host_is_apple_aarch64() != 0) {
+    return glue_arm64_stack_arg_advance_pos(pos, nbytes, 1);
+  }
+  /* Uniform 8-byte slots; MEMORY multi-word keeps words = floor8 (min 1)
+   * exactly like the old stk_slot counter. */
+  let words: i32 = nbytes / 8;
+  if (words < 1) {
+    words = 1;
+  }
+  return pos + words * 8;
+}
 export extern "C" function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32;
 /* stage10 10.2.1 slice7: lateout/out("r10") → rax. */
 export extern "C" function arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx: *u8): i32;
@@ -2464,26 +2503,30 @@ export function pipeline_asm_emit_call_args_elf_c(
       }
       // Stack / MEMORY: materialize *before* final GP load (do not clobber x0).
       // wave603: MEMORY multi-word via store_to_sp (INDEX/FIELD lvalue copy).
-      // PLATFORM: MACOS|ARM64 AAPCS64.
-      let stk_slot: i32 = 0;
+      // wave614: byte-offset cursor via the pabi natural-packing authority
+      // (glue_call_stk_extra_align/advance); non-apple stays uniform 8-slot.
+      // PLATFORM: MACOS|ARM64 AAPCS64 natural · LINUX 8-slot.
+      let stk_pos: i32 = 0;
       i = 0;
       while (i < nargs) {
         if (gp_start[i] < 0 && fp_slot[i] < 0) {
           let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref2 != 0) {
             if (is_mem_a[i] != 0) {
+              let moff: i32 = glue_call_stk_extra_align(stk_pos, arg_sz_a[i], ta);
               let stored: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
-                arena, elf_ctx, ctx, arg_ref2, arg_sz_a[i], ta, stk_slot * 8);
+                arena, elf_ctx, ctx, arg_ref2, arg_sz_a[i], ta, moff);
               if (stored < 0) { return 0 - 1; }
-              let words: i32 = stored / 8;
-              if (words < 1) { words = 1; }
-              stk_slot = stk_slot + words;
-            } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i, ctx, ta) != 0) {
-              return 0 - 1;
-            } else if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0) {
-              return 0 - 1;
+              stk_pos = glue_call_stk_extra_advance(moff, stored, ta);
             } else {
-              stk_slot = stk_slot + 1;
+              let aoff: i32 = glue_call_stk_extra_align(stk_pos, arg_sz_a[i], ta);
+              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0) {
+                return 0 - 1;
+              }
+              stk_pos = glue_call_stk_extra_advance(aoff, arg_sz_a[i], ta);
             }
           }
         }
@@ -3271,6 +3314,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       let is_f64_e: i32[96] = [];
       let place_e: i32[96] = [];
       let on_stk_e: i32[96] = [];
+      let sz_e: i32[96] = [];
       let xmm_cur: i32 = 0;
       let gp_cur: i32 = 1;
       let n_stk: i32 = 0;
@@ -3283,8 +3327,17 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         is_f64_e[ei] = 0;
         place_e[ei] = 0;
         on_stk_e[ei] = 0;
+        /* wave614: arg byte size for the natural stack-extras cursor. */
+        sz_e[ei] = 8;
         let arg_ex: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
         if (arg_ex == 0) { return 0 - 1; }
+        {
+          let pty_e: i32 = glue_call_param_type_ref_at(arena, expr_ref, ei);
+          let sz_ei: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_e, arg_ex);
+          if (sz_ei > 0) {
+            sz_e[ei] = sz_ei;
+          }
+        }
         /* PLATFORM: LINUX|x86_64 SysV — f32/f64 extras go xmm0–7 then stack.
          * PLATFORM: MACOS|ARM64 AAPCS64 — f64 extras take v-slots (callee
          * param home reads dK since the AAPCS64 f64 boundary wave); f32
@@ -3388,17 +3441,19 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
           if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes, ta) != 0) {
             return 0 - 1;
           }
-          let stk_slot: i32 = 0;
+          let stk_pos: i32 = 0;
           ei = 0;
           while (ei < nargs) {
             if (on_stk_e[ei] != 0) {
               if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0) {
                 return 0 - 1;
               }
-              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0) {
+              /* wave614: natural-packing cursor (see glue_call_stk_extra_*). */
+              let aoff_e: i32 = glue_call_stk_extra_align(stk_pos, sz_e[ei], ta);
+              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_e, ta) != 0) {
                 return 0 - 1;
               }
-              stk_slot = stk_slot + 1;
+              stk_pos = glue_call_stk_extra_advance(aoff_e, sz_e[ei], ta);
             }
             ei = ei + 1;
           }
@@ -3698,7 +3753,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       // arm64 excess: place on [sp] via x0 *before* final GP load (do not clobber GPs).
                       // Skip is_mem==2 (already in GP); only true excess integer stack.
                       if (ta == 1) {
-                        let stk_slot_m: i32 = 0;
+                        let stk_pos_m: i32 = 0;
                         i_m = 0;
                         while (i_m < nargs) {
                           if (gp_start_m[i_m] < 0) {
@@ -3708,10 +3763,13 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                                 if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk_a, i_m, ctx, ta) != 0) {
                                   return 0 - 1;
                                 }
-                                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot_m * 8, ta) != 0) {
+                                /* wave614: natural-packing cursor (see
+                                 * glue_call_stk_extra_*). */
+                                let aoff_m: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
+                                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_m, ta) != 0) {
                                   return 0 - 1;
                                 }
-                                stk_slot_m = stk_slot_m + 1;
+                                stk_pos_m = glue_call_stk_extra_advance(aoff_m, arg_sz_m[i_m], ta);
                               }
                             }
                           }
@@ -4131,9 +4189,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
       }
       // arm64 MEMORY / excess integer stack *before* final GP load.
       // wave606: MEMORY multi-word via store_to_sp (≡ free CALL wave603).
-      // PLATFORM: MACOS|ARM64 AAPCS64.
+      // PLATFORM: MACOS|ARM64 AAPCS64 natural · LINUX 8-slot.
       if (ta == 1) {
-        let stk_slot_u: i32 = 0;
+        let stk_pos_u: i32 = 0;
         i_u = 0;
         while (i_u < n_place) {
           if (gp_start_u[i_u] < 0) {
@@ -4149,12 +4207,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
             }
             if (is_mem_u[i_u] == 1) {
               if (arg_sk == 0) { return 0 - 1; }
+              let moff_u: i32 = glue_call_stk_extra_align(stk_pos_u, arg_sz_u[i_u], ta);
               let stored_u: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
-                arena, elf_ctx, ctx, arg_sk, arg_sz_u[i_u], ta, stk_slot_u * 8);
+                arena, elf_ctx, ctx, arg_sk, arg_sz_u[i_u], ta, moff_u);
               if (stored_u < 0) { return 0 - 1; }
-              let words_u: i32 = stored_u / 8;
-              if (words_u < 1) { words_u = 1; }
-              stk_slot_u = stk_slot_u + words_u;
+              stk_pos_u = glue_call_stk_extra_advance(moff_u, stored_u, ta);
             } else if (is_mem_u[i_u] != 2) {
               if (arg_sk != 0) {
                 if (has_recv != 0) {
@@ -4172,10 +4229,12 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                 } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_sk, i_u, ctx, ta) != 0) {
                   return 0 - 1;
                 }
-                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot_u * 8, ta) != 0) {
+                /* wave614: natural-packing cursor (see glue_call_stk_extra_*). */
+                let aoff_u: i32 = glue_call_stk_extra_align(stk_pos_u, arg_sz_u[i_u], ta);
+                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_u, ta) != 0) {
                   return 0 - 1;
                 }
-                stk_slot_u = stk_slot_u + 1;
+                stk_pos_u = glue_call_stk_extra_advance(aoff_u, arg_sz_u[i_u], ta);
               }
             }
           }

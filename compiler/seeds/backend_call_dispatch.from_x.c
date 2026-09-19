@@ -783,6 +783,34 @@ static int32_t glue_sysv_arg_stack_words_c(int32_t sz, int32_t gp_units) {
  * (SLICE fat=16 would undo E* pack → slice_oob).
  * G.7: one packer; max() not first-wins. PLATFORM: SHARED freestanding dual-GP.
  */
+/*
+ * wave614: ARM64 Apple natural stack-arg packing — caller-side placement.
+ * Model authority = glue_arm64_stack_arg_align_pos/advance_pos in
+ * runtime_pipeline_abi.x (exported; cold twins in the pabi seed). Call,
+ * never re-derive. Non-apple keeps the historic uniform 8-byte slots.
+ * PLATFORM: MACOS|ARM64 natural; LINUX unchanged (8-slot).
+ */
+extern int32_t xlang_host_is_apple_aarch64(void);
+extern int32_t glue_arm64_stack_arg_align_pos(int32_t stack_pos, int32_t nbytes, int32_t apple);
+extern int32_t glue_arm64_stack_arg_advance_pos(int32_t stack_pos, int32_t nbytes, int32_t apple);
+
+static int32_t glue_call_stk_extra_align(int32_t pos, int32_t nbytes, int32_t ta) {
+  if (ta == 1 && xlang_host_is_apple_aarch64())
+    return glue_arm64_stack_arg_align_pos(pos, nbytes, 1);
+  return pos;
+}
+
+static int32_t glue_call_stk_extra_advance(int32_t pos, int32_t nbytes, int32_t ta) {
+  if (ta == 1 && xlang_host_is_apple_aarch64())
+    return glue_arm64_stack_arg_advance_pos(pos, nbytes, 1);
+  {
+    int32_t words = nbytes / 8;
+    if (words < 1)
+      words = 1;
+    return pos + words * 8;
+  }
+}
+
 static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t pty,
                                          int32_t arg_ref) {
   int32_t sz = 0;
@@ -3026,7 +3054,7 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       int32_t fp_slot_a64[GLUE_ASM_MAX_CALL_ARGS];
       int32_t fp_cur_a64 = 0;
       int32_t gp_cur_a64 = 0; /* AAPCS64 sret uses x8 — no GP shift */
-      int32_t stk_slot = 0;
+      int32_t stk_pos = 0;    /* wave614: stack-extras byte-offset cursor */
       int32_t host_mem = g_emit_call_args_arm64_host_mem;
       /*
        * wave603: MEMORY (sz>16) is stack-only for pure→pure (units=0) — do NOT
@@ -3115,10 +3143,10 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       }
       /*
        * Stage 12.0.5: materialize stack/MEMORY places *before* final GP load.
-       * Skip is_mem==2 (already lea'd into GP). PLATFORM: MACOS|ARM64 AAPCS64.
+       * Skip is_mem==2 (already lea'd into GP). wave614: byte-offset cursor
+       * via the pabi natural-packing authority. PLATFORM: MACOS|ARM64.
        */
       for (i = 0; i < nargs; i++) {
-        int32_t words;
         int32_t stored;
         if (gp_start_a64[i] >= 0 || fp_slot_a64[i] >= 0)
           continue;
@@ -3128,22 +3156,23 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         if (is_mem_a64[i] == 2)
           continue;
         if (is_mem_a64[i] == 1) {
-          /* wave603: multi-word MEMORY by-value at [sp+stk*8]. */
+          /* wave603: multi-word MEMORY by-value at [sp+off]. */
+          int32_t moff = glue_call_stk_extra_align(stk_pos, arg_sz_a64[i], ta);
           stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
-                                                                   arg_sz_a64[i], ta, stk_slot * 8);
+                                                                   arg_sz_a64[i], ta, moff);
           if (stored < 0)
             return -1;
-          words = stored / 8;
-          if (words < 1)
-            words = 1;
-          stk_slot += words;
+          stk_pos = glue_call_stk_extra_advance(moff, stored, ta);
           continue;
         }
-        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-          return -1;
-        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
-          return -1;
-        stk_slot++;
+        {
+          int32_t aoff = glue_call_stk_extra_align(stk_pos, arg_sz_a64[i], ta);
+          if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+            return -1;
+          if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0)
+            return -1;
+          stk_pos = glue_call_stk_extra_advance(aoff, arg_sz_a64[i], ta);
+        }
         /* dual-GP stack residual: only low half when excess GP */
         if (gp_units_a64[i] >= 2) {
           /* high half soft when stack-spilled dual — rare on probes */
@@ -6394,6 +6423,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           int32_t is_f64_e[96];
           int32_t place_e[96];
           int32_t on_stk_e[96];
+          int32_t sz_e[96]; /* wave614: natural stack-extras cursor sizes */
           int32_t xmm_cur;
           int32_t gp_cur;
           int32_t n_stk;
@@ -6405,7 +6435,6 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           int32_t fn_off;
           int32_t cur_fn;
           int32_t stk_bytes;
-          int32_t stk_slot;
           xmm_cur = 0;
           gp_cur = 1;
           n_stk = 0;
@@ -6413,14 +6442,21 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           if (reg_max_e < 2)
             reg_max_e = 6;
           for (ei = 0; ei < nargs; ei++) {
+            int32_t pty_e;
+            int32_t sz_ei;
             extra_off[ei] = -1;
             is_sse_e[ei] = 0;
             is_f64_e[ei] = 0;
             place_e[ei] = 0;
             on_stk_e[ei] = 0;
+            sz_e[ei] = 8;
             arg_ex = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
             if (arg_ex == 0)
               return -1;
+            pty_e = glue_call_param_type_ref_at(arena, expr_ref, ei);
+            sz_ei = glue_sysv_arg_byte_size_c(arena, ctx, pty_e, arg_ex);
+            if (sz_ei > 0)
+              sz_e[ei] = sz_ei;
             /* PLATFORM: LINUX|x86_64 SysV — f32/f64 extras go xmm0–7 then stack.
              * PLATFORM: MACOS|ARM64 AAPCS64 — f64 extras take v-slots (callee
              * param home reads dK since the AAPCS64 f64 boundary wave); f32
@@ -6507,18 +6543,20 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 }
               }
             } else {
+              int32_t stk_pos = 0; /* wave614: natural-packing byte cursor */
               stk_bytes = n_stk * 8;
               stk_bytes = (stk_bytes + 15) & -16;
               if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes, ta) != 0)
                 return -1;
-              stk_slot = 0;
               for (ei = 0; ei < nargs; ei++) {
                 if (on_stk_e[ei] != 0) {
+                  int32_t aoff_e;
                   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
                     return -1;
-                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
+                  aoff_e = glue_call_stk_extra_align(stk_pos, sz_e[ei], ta);
+                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_e, ta) != 0)
                     return -1;
-                  stk_slot = stk_slot + 1;
+                  stk_pos = glue_call_stk_extra_advance(aoff_e, sz_e[ei], ta);
                 }
               }
             }
@@ -6820,12 +6858,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 return -1;
               spill_off[i] = so;
             }
-            /* arm64 true MEMORY stack (is_mem==1) before final GP load. */
+            /* arm64 true MEMORY stack (is_mem==1) before final GP load.
+             * wave614: natural-packing byte cursor (glue_call_stk_extra_*). */
             if (ta == 1) {
-              int32_t stk_slot = 0;
+              int32_t stk_pos = 0;
               for (i = 0; i < n_place; i++) {
                 int32_t arg_ref;
-                int32_t words;
                 int32_t stored;
                 if (is_mem[i] != 1 && !is_stk[i])
                   continue;
@@ -6833,21 +6871,22 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 if (arg_ref == 0)
                   return -1;
                 if (is_mem[i] == 1) {
+                  int32_t moff = glue_call_stk_extra_align(stk_pos, arg_sz[i], ta);
                   stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
-                                                                           arg_sz[i], ta, stk_slot * 8);
+                                                                           arg_sz[i], ta, moff);
                   if (stored < 0)
                     return -1;
-                  words = stored / 8;
-                  if (words < 1)
-                    words = 1;
-                  stk_slot += words;
+                  stk_pos = glue_call_stk_extra_advance(moff, stored, ta);
                   continue;
                 }
-                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-                  return -1;
-                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
-                  return -1;
-                stk_slot += 1;
+                {
+                  int32_t aoff = glue_call_stk_extra_align(stk_pos, arg_sz[i], ta);
+                  if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+                    return -1;
+                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0)
+                    return -1;
+                  stk_pos = glue_call_stk_extra_advance(aoff, arg_sz[i], ta);
+                }
               }
             }
             /* Load spills: high place index first (AAPCS64 x0 temp + SysV rax temp). */
@@ -7202,14 +7241,14 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
     /*
      * Stage 12.0.5: arm64 stack/MEMORY places *before* final GP load (≡ free CALL).
      * wave606 originally placed after load; that clobbered x0 when >8 places
-     * (emit stack arg through x0). PLATFORM: MACOS|ARM64 AAPCS64.
+     * (emit stack arg through x0). wave614: natural-packing byte cursor
+     * (glue_call_stk_extra_*). PLATFORM: MACOS|ARM64 AAPCS64 natural.
      */
     if (ta == 1) {
-      int32_t stk_slot = 0;
+      int32_t stk_pos = 0;
       for (i = 0; i < n_place; i++) {
         int32_t arg_ref;
         int32_t formal_ix = i;
-        int32_t words;
         int32_t stored;
         if (!is_mem[i] && !is_stk[i])
           continue;
@@ -7220,14 +7259,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         if (arg_ref == 0)
           return -1;
         if (is_mem[i]) {
+          int32_t moff = glue_call_stk_extra_align(stk_pos, arg_sz[i], ta);
           stored = pipeline_asm_store_memory_by_value_to_sp_elf_c(arena, elf_ctx, ctx, arg_ref,
-                                                                   arg_sz[i], ta, stk_slot * 8);
+                                                                   arg_sz[i], ta, moff);
           if (stored < 0)
             return -1;
-          words = stored / 8;
-          if (words < 1)
-            words = 1;
-          stk_slot += words;
+          stk_pos = glue_call_stk_extra_advance(moff, stored, ta);
           continue;
         }
         /* is_stk: single GP excess → store x0 at [sp+off]. */
@@ -7242,9 +7279,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, formal_ix, ctx, ta) != 0) {
           return -1;
         }
-        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, stk_slot * 8, ta) != 0)
-          return -1;
-        stk_slot++;
+        {
+          int32_t aoff = glue_call_stk_extra_align(stk_pos, arg_sz[i], ta);
+          if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0)
+            return -1;
+          stk_pos = glue_call_stk_extra_advance(aoff, arg_sz[i], ta);
+        }
       }
     }
 

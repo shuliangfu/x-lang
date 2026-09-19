@@ -249,6 +249,43 @@ static void pabi_trace(const char *fmt, ...) {
 /* Cap residual 9.1.10: sibling-dir scan uses xlang_dir_* (no libc opendir). */
 #include <xlang_dir_cap.h>
 #endif
+
+/*
+ * wave614: ARM64 Apple natural stack-arg packing model — exported cold twin
+ * of runtime_pipeline_abi.x glue_arm64_stack_arg_align_pos/advance_pos
+ * (#[no_mangle] export there). backend_call_dispatch rest/cold objects call
+ * these, so the seed rest must always define them (phase1 seed-only link
+ * coverage; w613b lesson). apple=1 aligns/advances at the clang-empirical
+ * natural size (u8:1, u16:2, i32:4, i64/ptr:8, aggregates round-8); apple=0
+ * keeps AAPCS64 uniform 8-byte slots. PLATFORM: SHARED leaf · MACOS|ARM64.
+ */
+int32_t glue_arm64_stack_arg_align_pos(int32_t stack_pos, int32_t nbytes, int32_t apple) {
+  int32_t pos = stack_pos;
+  int32_t na = 8;
+  if (apple) {
+    na = nbytes;
+    if (na > 8)
+      na = 8;
+    if (na < 1)
+      na = 1;
+  }
+  if ((pos % na) != 0)
+    pos = pos + na - (pos % na);
+  return pos;
+}
+
+int32_t glue_arm64_stack_arg_advance_pos(int32_t stack_pos, int32_t nbytes, int32_t apple) {
+  int32_t slot;
+  if (nbytes > 8) {
+    slot = (nbytes + 7) & ~7;
+  } else if (apple && nbytes >= 1 && nbytes <= 4) {
+    slot = nbytes;
+  } else {
+    slot = 8;
+  }
+  return stack_pos + slot;
+}
+
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.

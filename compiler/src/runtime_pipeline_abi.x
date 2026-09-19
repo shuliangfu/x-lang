@@ -36742,17 +36742,27 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
  * @param apple i32 — 1 on macOS (natural alignment); 0 = AAPCS64 8-byte
  * @return i32 — aligned stack_pos
  * PLATFORM: MACOS|ARM64 Apple ABI vs LINUX AAPCS64 8-byte slots.
+ * wave614: apple alignment is the clang-empirical natural alignment capped
+ *   at 8 (u8:1, u16:2, i32:4, i64/ptr:8; aggregates 8). The former
+ *   "≤4-byte rounds to 4" over-aligned u8/u16 and desynced against the
+ *   caller sites (run-path bytes_eq 11-param repro: callee read [S'+4]
+ *   while the caller stored [S'+8]).
  */
-function glue_arm64_stack_arg_align_pos(stack_pos: i32, nbytes: i32, apple: i32): i32 {
+#[no_mangle]
+export function glue_arm64_stack_arg_align_pos(stack_pos: i32, nbytes: i32, apple: i32): i32 {
   let pos: i32 = stack_pos;
-  if (apple != 0 && nbytes > 0 && nbytes <= 4) {
-    if ((pos & 3) != 0) {
-      pos = (pos + 3) & (~3);
+  let na: i32 = 8;
+  if (apple != 0) {
+    na = nbytes;
+    if (na > 8) {
+      na = 8;
     }
-  } else {
-    if ((pos & 7) != 0) {
-      pos = (pos + 7) & (~7);
+    if (na < 1) {
+      na = 1;
     }
+  }
+  if ((pos % na) != 0) {
+    pos = pos + na - (pos % na);
   }
   return pos;
 }
@@ -36761,17 +36771,32 @@ function glue_arm64_stack_arg_align_pos(stack_pos: i32, nbytes: i32, apple: i32)
  * Advance the incoming ARM64 stack-arg cursor after homing one formal.
  * @param stack_pos i32 — offset of the formal just homed (already aligned)
  * @param nbytes i32 — this formal's stack size
- * @param apple i32 — 1 on macOS (i32 occupies 4); 0 = always at least 8
+ * @param apple i32 — 1 on macOS (natural stride); 0 = always at least 8
  * @return i32 — next stack_pos
  * PLATFORM: MACOS|ARM64 Apple ABI vs LINUX AAPCS64 8-byte slots.
+ * wave614: apple stride = natural size (u8:1, u16:2, i32:4, i64/ptr:8,
+ *   aggregates round-8) — matches clang exactly (verified: two chars at
+ *   +0/+1; char,int at +0/+4; char,long at +0/+8). The former ≤4→4 model
+ *   was right for i32 only (into_c, wave 0867354e3) and desynced u8/u16
+ *   against callers. Single authority: backend_call_dispatch.x caller
+ *   sites call this (exported), never re-derive.
  */
-function glue_arm64_stack_arg_advance_pos(stack_pos: i32, nbytes: i32, apple: i32): i32 {
+#[no_mangle]
+export function glue_arm64_stack_arg_advance_pos(stack_pos: i32, nbytes: i32, apple: i32): i32 {
   let slot: i32 = 8;
-  if (nbytes > 8) {
-    slot = (nbytes + 7) & (~7);
+  if (apple != 0) {
+    if (nbytes > 8) {
+      slot = (nbytes + 7) & (~7);
+    } else {
+      if (nbytes >= 1 && nbytes <= 4) {
+        slot = nbytes;
+      } else {
+        slot = 8;
+      }
+    }
   } else {
-    if (apple != 0 && nbytes > 0 && nbytes <= 4) {
-      slot = 4;
+    if (nbytes > 8) {
+      slot = (nbytes + 7) & (~7);
     } else {
       slot = 8;
     }
