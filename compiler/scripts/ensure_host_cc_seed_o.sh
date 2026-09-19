@@ -8692,50 +8692,124 @@ pipeline_abi_inject_al_nc_seq_thin() {
   return 0
 }
 
-# wave317/342/380/601 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
-# wave380: HARD BAN PREFER reinject (Darwin BRANCH26; Ubuntu PREFER L2 SEGV).
-# wave601: do NOT LINUX -E this 15-export TU (option ptr load SEGV). Smash
-#   func_index get/set is pipeline_abi_inject_emit_ctx_func_index_thin.
-# G.7 match mega wave220/221 leave. PLATFORM: SHARED · BAN full-thin reinject.
+# wave317/342/380/601/618 M2: emit_ctx_bss Cap residual .x thin.
+# wave380/601 walls (Darwin BRANCH26; Ubuntu PREFER L2 SEGV; LINUX -E
+#   dual-BSS option ptr SEGV) were pre-fix eras: BRANCH26 = the w612 typed
+#   reloc; the SEGVs = the w613 COMMON class (this TU's file-level let
+#   option cells pinned read-only / dual sidecar instances). Standalone -c
+#   now: T=15 UND=0, all 6 cells proper commons.
+# wave618: product PREFER_ASM both ends, injected as ONE set with the
+#   func_index + module_dep peers (single consistent cell family; partial
+#   replacement was exactly the w601 dual-BSS trigger).
+# G.7 match mega wave220/221 leave. PLATFORM: SHARED · PREFER_ASM.
 pipeline_abi_inject_emit_ctx_bss_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_bss_thin.x"
   local stamp="src/.pabi_w380_emit_ctx_bss.stamp"
+  local stamp_prefer="src/.pabi_w618_emit_ctx_prefer.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN full-thin reinject (do not call inject_thin_leaf).
-  touch "$stamp"
-  rm -f src/.pabi_w342_emit_ctx_bss.stamp src/.pabi_w601_emit_ctx_bss.stamp
-  return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w618-emit-ctx-bss-prefer"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    rm -f src/.pabi_w342_emit_ctx_bss.stamp src/.pabi_w601_emit_ctx_bss.stamp
+    log "pipeline_abi w618-emit-ctx-bss: PREFER_ASM replace (trio set with func_index+module_dep)"
+  fi
+  return "$rc"
 }
 
-# wave601 M2: emit_ctx func_index get/set peer-flat of bss_thin.
-# LINUX -E dual-BSS option ptr load SEGV (same class as w380 full bss_thin).
-# Stamp-only BAN. if-in-while gate is block_final_expr thin.
-# PLATFORM: SHARED · BAN reinject both ends.
+# wave601/618 M2: emit_ctx func_index get/set peer-flat of bss_thin.
+# w601 dual-BSS SEGV was the w613 COMMON/dual-sidecar class; standalone -c
+#   now T=2 UND=0. wave618: PREFER as ONE set with bss + module_dep.
+# PLATFORM: SHARED · PREFER_ASM (w618 trio set).
 pipeline_abi_inject_emit_ctx_func_index_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_func_index_thin.x"
   local stamp_e="src/.pabi_w601_emit_ctx_func_index.stamp"
+  local stamp_prefer="src/.pabi_w618_emit_ctx_prefer.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  touch "$stamp_e"
-  log "pipeline_abi w601-emit-ctx-func-index: stamp-only BAN (LINUX -E dual-BSS option SEGV)"
-  return 0
+  if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w618-emit-ctx-func-index-prefer"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp_e"
+    touch "$stamp_prefer"
+    log "pipeline_abi w618-emit-ctx-func-index: PREFER_ASM replace (trio set)"
+  fi
+  return "$rc"
 }
 
-# wave315/340/380/601 M2: emit_ctx_module_dep Cap residual .x thin (was wave222 C thin).
-# wave380: HARD BAN PREFER reinject both ends (Cap A class w380).
-# wave601: LINUX -E of this TU dual-BSS option ptr load SEGV. Stamp-only BAN.
-#   if-in-while gate is pipeline_abi_inject_block_final_expr_thin.
-# G.7 match mega wave222 leave. PLATFORM: SHARED · BAN reinject both ends.
+# wave315/340/380/601/618 M2: emit_ctx_module_dep Cap residual .x thin.
+# w380/w601 walls were the w612 typed-reloc + w613 COMMON/dual-sidecar
+#   classes; standalone -c now T=4 UND=0, 2 cells proper commons.
+# wave618: PREFER as ONE set with bss + func_index.
+# G.7 match mega wave222 leave. PLATFORM: SHARED · PREFER_ASM (w618 trio).
 pipeline_abi_inject_emit_ctx_module_dep_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_module_dep_thin.x"
   local stamp="src/.pabi_w380_emit_ctx_module_dep.stamp"
+  local stamp_prefer="src/.pabi_w618_emit_ctx_prefer.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
-  touch "$stamp"
-  rm -f src/.pabi_w340_emit_ctx_module_dep.stamp src/.pabi_w601_emit_ctx_module_dep.stamp
-  return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w618-emit-ctx-module-dep-prefer"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    rm -f src/.pabi_w340_emit_ctx_module_dep.stamp src/.pabi_w601_emit_ctx_module_dep.stamp
+    log "pipeline_abi w618-emit-ctx-module-dep: PREFER_ASM replace (trio set)"
+  fi
+  return "$rc"
 }
 
 # wave601 M2: block final_expr tail_join gate.
