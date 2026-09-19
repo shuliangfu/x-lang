@@ -1,10 +1,16 @@
-// Thin pure: wave314/370/370b M2 — macho_write Cap residual C→.x (was Darwin C thin).
+// Thin pure: wave314/370/370b/612 M2 — macho_write Cap residual C→.x.
 // Mach-O MH_OBJECT writer + platform wrapper; 2 exports.
 // G.7: bodies match mega wave273 macho portion; product F7/common/reloc
-// via pipeline_elf_ctx_* (same as C thin — no dual-home elf BSS).
+// via pipeline_elf_ctx_* accessors (no dual-home elf BSS).
 // File-local ws_* scratch only.
-// PRODUCT inject: BAN PREFER (wave370b) — stay prior -E; T001 w314_* kept.
-// wave370: PREFER try hit g05 ARM64_RELOC_BRANCH26 (same class as asm_wpo).
+// wave370: PREFER try hit g05 ARM64_RELOC_BRANCH26 (writer thin file-level
+//   lets compiled with a writer that ignored typed sidecar).
+// wave612: leftover gcc writer read empty C static r_type while live
+//   append_reloc_typed is elf_ctx PREFER overlay; leftover modlet lea
+//   still called append_reloc_typed_pabi_superseded (rebound at elf_ctx
+//   PREFER inject). Product path: Darwin host-cc -E of this thin (accessor)
+//   + ld -r -alias leftover superseded → live typed. HARD BAN PREFER of
+//   this writer thin (file-level ws_* lets).
 // PLATFORM: MACOS ingest · LINUX gold co-path.
 
 export extern function codegen_out_buf_len(out: *u8): i32;

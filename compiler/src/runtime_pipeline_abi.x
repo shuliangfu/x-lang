@@ -95700,17 +95700,20 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
       }
       let use_type: i32 = rel_type;
       let use_pcrel: i32 = 1;
+      // wave612: typed PAGE21/PAGEOFF12 live in the elf_ctx overlay BSS
+      // (pipeline_elf_ctx_append_reloc_typed). Reading g_pipe_elf_reloc_r_type
+      // here is a second home: leftover gcc writer / a later overlay split
+      // sees zeros and emits ARM64_RELOC_BRANCH26 on adrp+add (file-level
+      // let COMMON). G.7 consumer is pipeline_elf_ctx_reloc_r_type_at.
+      // PLATFORM: MACOS|DARWIN writer — PAGE21=3 pcrel=1, PAGEOFF12=4 pcrel=0.
       if (r < pipe_elf_table_cap()) {
-        let rt: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_reloc_r_type[0], r);
+        let rt: i32 = pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, r);
         if (rt != 0) {
           use_type = rt;
         }
-        unsafe {
-          let rpb: u8 = g_pipe_elf_reloc_r_pcrel[r];
-          // stored as i8; 255 means -1 default
-          if (rpb != 255) {
-            use_pcrel = rpb as i32;
-          }
+        let rp: i32 = pipeline_elf_ctx_reloc_r_pcrel_at(ctx_bytes, r);
+        if (rp != 0 - 1) {
+          use_pcrel = rp;
         }
       }
       // F7 absolute64: map sentinel r_type=200 → ARM64_RELOC_UNSIGNED (type=0,

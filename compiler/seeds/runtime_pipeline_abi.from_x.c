@@ -51363,9 +51363,16 @@ static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
  * PLATFORM: SHARED — per-reloc type/pcrel sidecar (wave405 arm64 ADRP/PAGEOFF for modlet).
  * r_type 0 => fall back to call reloc default (Mach-O BRANCH26 / ELF reloc_type_r_pc32).
  * r_pcrel: -1 = default (1 for call-style); 0/1 explicit (PAGEOFF12 needs pcrel=0).
+ *
+ * wave612: leftover-PE / gcc rest still own this static, but the live product
+ * append_reloc_typed is the elf_ctx PREFER overlay (different BSS). Mach-O
+ * write must consume pipeline_elf_ctx_reloc_r_type_at — not this array —
+ * or ADRP of file-level let COMMON is emitted as BRANCH26.
  */
 static int32_t g_pipeline_elf_reloc_r_type[PIPELINE_ELF_CTX_TABLE_CAP];
 static int8_t g_pipeline_elf_reloc_r_pcrel[PIPELINE_ELF_CTX_TABLE_CAP];
+int32_t pipeline_elf_ctx_reloc_r_type_at(uint8_t *ctx_bytes, int32_t r);
+int32_t pipeline_elf_ctx_reloc_r_pcrel_at(uint8_t *ctx_bytes, int32_t r);
 
 /* F7 BSS (g_pipeline_elf_data_* / g_pipeline_elf_shndx_override) lives in the
  * leftover-PE OR block above so WIN FROM_X rest and the cold path both see
@@ -52773,10 +52780,19 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       }
       use_type = rel_type;
       use_pcrel = 1;
-      if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_type[r] != 0)
-        use_type = g_pipeline_elf_reloc_r_type[r];
-      if (r < PIPELINE_ELF_CTX_TABLE_CAP && g_pipeline_elf_reloc_r_pcrel[r] >= 0)
-        use_pcrel = (int32_t)g_pipeline_elf_reloc_r_pcrel[r];
+      /* wave612: G.7 consume typed sidecar via accessors. This TU's
+       * g_pipeline_elf_reloc_r_type is empty when append_reloc_typed is the
+       * elf_ctx PREFER overlay — private read made every ADRP BRANCH26.
+       * PLATFORM: MACOS|DARWIN writer. */
+      {
+        int32_t rt = pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, r);
+        int32_t rp;
+        if (rt != 0)
+          use_type = rt;
+        rp = pipeline_elf_ctx_reloc_r_pcrel_at(ctx_bytes, r);
+        if (rp != -1)
+          use_pcrel = rp;
+      }
       /* F7 absolute64: sentinel r_type=200 → ARM64_RELOC_UNSIGNED (type=0, pcrel=0,
        * length=3 quad-word). Without this vtable data slots fall to default
        * BRANCH26 and ld rejects ("relocation on non-b/bl instruction"). */

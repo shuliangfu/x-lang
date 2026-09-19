@@ -5417,22 +5417,99 @@ pipeline_abi_inject_field_load_sz_thin() {
   return "$rc"
 }
 
-# wave314/370/370b M2: macho_write Cap residual C→.x (was Darwin C thin).
-# PRODUCT inject wave370b: hard BAN PREFER (do not call inject_thin_leaf).
-# Evidence wave370: PREFER pure-asm inject OK then g05 pure-ld
-# ARM64_RELOC_BRANCH26 on non-b/bl in thin (same class as asm_wpo w369).
-# Stay prior -E+$CC body in pabi; T001 w314_* kept in .x for later.
-# G.7 match mega wave273 macho portion (no dual-home elf BSS).
-# PLATFORM: SHARED · BAN PREFER.
+# wave314/370/370b/612 M2: macho_write Cap residual C→.x (was Darwin C thin).
+# wave370b: HARD BAN PREFER — PREFER of this thin hit g05 BRANCH26 because
+#   the live gcc writer ignored typed sidecar (empty C static) while
+#   append_reloc_typed is the elf_ctx PREFER overlay (different BSS).
+# wave612: Darwin host-cc -E of this thin (calls reloc_r_type_at) PLUS
+#   ld -r -alias leftover append_reloc_typed_pabi_superseded → live typed
+#   so leftover modlet lea writes the elf_ctx PREFER sidecar. HARD BAN PREFER
+#   of the writer thin (file-level ws_* lets). LINUX stamp-only (ELF writer).
+# PLATFORM: MACOS -E replace + alias · LINUX stamp-only · BAN PREFER.
 pipeline_abi_inject_macho_write_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_macho_write_thin.x"
-  local stamp="src/.pabi_w370b_macho_write.stamp"
+  local stamp="src/.pabi_w612_macho_write_page21.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — -E replace leftover gcc writer that read empty
+      # C static r_type. Thin calls reloc_r_type_at (elf_ctx PREFER BSS).
+      if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+        pipeline_abi_darwin_alias_leftover_typed_reloc "$o" || return $?
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w612-macho-write-page21"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp"
+        rm -f src/.pabi_w314_macho_write.stamp src/.pabi_w370_macho_write.stamp \
+          src/.pabi_w370b_macho_write.stamp src/.pabi_w612_typed_reloc_forward.stamp
+        log "pipeline_abi w612-macho-write-page21: MACOS -E replace (typed sidecar accessor)"
+        pipeline_abi_darwin_alias_leftover_typed_reloc "$o" || rc=$?
+      fi
+      return "$rc"
+      ;;
+    Linux)
+      # PLATFORM: LINUX — product emit is ELF, not macho. Keep overlay.
+      touch "$stamp"
+      rm -f src/.pabi_w314_macho_write.stamp src/.pabi_w370_macho_write.stamp \
+        src/.pabi_w370b_macho_write.stamp src/.pabi_w612_typed_reloc_forward.stamp
+      log "pipeline_abi w612-macho-write-page21: LINUX stamp-only (ELF writer)"
+      return 0
+      ;;
+  esac
   touch "$stamp"
-  rm -f src/.pabi_w314_macho_write.stamp src/.pabi_w370_macho_write.stamp
+  log "pipeline_abi w612-macho-write-page21: non-POSIX stamp-only"
   return 0
+}
+
+# wave612: leftover modlet lea was rebound to append_reloc_typed_pabi_superseded
+# when elf_ctx PREFER injected. Darwin ld -r -alias that leftover spelling to
+# the live typed authority so ADRP writes the PREFER sidecar the writer reads.
+# inject_thin_leaf unique-redefine cannot intercept in-pabi callers.
+# PLATFORM: MACOS only. Idempotent if addresses already match.
+pipeline_abi_darwin_alias_leftover_typed_reloc() {
+  local o="$1"
+  local live="_pipeline_elf_ctx_append_reloc_typed"
+  local leftover="_pipeline_elf_ctx_append_reloc_typed_pabi_superseded"
+  local live_addr leftover_addr tmp
+  [ "$(uname -s)" = Darwin ] || return 0
+  [ -s "$o" ] || return 0
+  live_addr=$(nm -m "$o" | awk '/ _pipeline_elf_ctx_append_reloc_typed$/{print $1; exit}')
+  leftover_addr=$(nm -m "$o" | awk '/ _pipeline_elf_ctx_append_reloc_typed_pabi_superseded$/{print $1; exit}')
+  if [ -z "$live_addr" ] || [ -z "$leftover_addr" ]; then
+    return 0
+  fi
+  if [ "$live_addr" = "$leftover_addr" ]; then
+    return 0
+  fi
+  tmp=$(mktemp "${o}.alias.XXXXXX")
+  if ld -r -o "$tmp" "$o" -alias "$live" "$leftover"; then
+    mv -f "$tmp" "$o"
+    log "pipeline_abi w612: Darwin alias leftover typed → live PAGE21 sidecar"
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
 }
 
 # wave398/493 M2: unused_hints Cap residual.
