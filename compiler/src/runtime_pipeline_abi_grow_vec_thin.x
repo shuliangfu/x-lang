@@ -5,7 +5,9 @@
 // G.7: bodies match runtime_pipeline_abi.x wave271 leave + seed cold twins.
 // wave356: wrap all LE slot load/store helpers in unsafe (T001).
 // wave489: no-local mmap/realloc (tip U starved); BOTH PREFER stamp w489.
-// PLATFORM: SHARED freestanding Cap leave · LINUX · MACOS.
+// wave597: LINUX product -E replace of starved prior (no realloc/mmap UND
+//   → INIT_CAP=256 parse_skip tail). MACOS keep prior. Do not PREFER.
+// PLATFORM: SHARED freestanding Cap leave · LINUX gold -E · MACOS prior.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;

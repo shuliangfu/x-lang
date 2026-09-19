@@ -9058,24 +9058,72 @@ pipeline_abi_inject_type_pool_thin() {
   return "$rc"
 }
 
-# wave300/356/489 M2: grow_vec Cap residual C→.x (was wave271 C thin).
+# wave300/356/489/597 M2: grow_vec Cap residual C→.x (was wave271 C thin).
 # wave489: tipU heal (no-local mmap/realloc → tipU 15/15) but tip PRODUCT
 #   PREFER HARD BAN — pure-asm inject → L2 BLD001 undefined `main`.
-#   Keep prior overlay; do not re-overlay tip pure-asm. Stamp w489 skip.
-# PLATFORM: SHARED · tip source heal only · product stays prior.
+# wave597: LINUX prior overlay has grow_vec T but ZERO realloc/mmap/calloc
+#   UND → arena stuck at INIT_CAP=256 → parse_skip file-tail (asm_locals
+#   set/get after pipeline_asm_local_offset_c). Healed thin standalone -c
+#   is U-complete. Do not retry PREFER. LINUX -E replace leftover T.
+#   MACOS keep prior (live UND realloc/mmap/calloc). Stamp w597.
+# PLATFORM: LINUX gold -E replace · MACOS keep prior · SHARED shell.
 pipeline_abi_inject_grow_vec_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_grow_vec_thin.x"
   local stamp="src/.pabi_w489_grow_vec.stamp"
+  local stamp_e="src/.pabi_w597_grow_vec.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # wave489 HARD BAN tip product reinject (BLD001 no main @ tip PREFER).
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  # Touch stamp so ensure skip; do not weaken/overlay tip pure-asm.
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — live grow_vec already UND realloc/mmap/calloc.
+      # Keep prior overlay; HARD BAN PREFER (w489 BLD001).
+      if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+        return 0
+      fi
+      touch "$stamp"
+      touch "$stamp_e"
+      rm -f src/.pabi_w300_grow_vec.stamp src/.pabi_w356_grow_vec.stamp
+      log "pipeline_abi w597-grow-vec: MACOS keep prior (realloc live); HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — restore realloc/mmap via -E replace of starved prior.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w597-grow-vec-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp"
+        touch "$stamp_e"
+        rm -f src/.pabi_w300_grow_vec.stamp src/.pabi_w356_grow_vec.stamp
+        log "pipeline_abi w597-grow-vec: LINUX -E replace (restore realloc/mmap)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  # PLATFORM: WINDOWS / other — stamp only; leftover PE cannot -E.
   touch "$stamp"
-  rm -f src/.pabi_w300_grow_vec.stamp src/.pabi_w356_grow_vec.stamp
-  log "pipeline_abi w489-grow-vec: tipU heal stamped; tip PRODUCT PREFER HARD BAN (keep prior)"
+  touch "$stamp_e"
+  log "pipeline_abi w597-grow-vec: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
@@ -14518,8 +14566,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-grow-vec|inject_grow_vec)
-    # wave489: tipU heal stamped; tip PRODUCT PREFER HARD BAN (BLD001 no main).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave597: LINUX -E replace starved grow_vec (restore realloc/mmap).
+    # MACOS keep prior. HARD BAN PREFER (w489 BLD001).
+    # PLATFORM: LINUX gold · MACOS keep prior.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-grow-vec: need <out.o>" >&2
       exit 2
