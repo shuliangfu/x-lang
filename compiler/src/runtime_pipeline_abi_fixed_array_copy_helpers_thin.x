@@ -1,11 +1,13 @@
 // Thin pure: CALL-arg VAR lea-vs-load (wave418 helpers).
-// wave557 Soft Cap: 68 unused extern decls were tipU misses. The 17
-//   live queries were mid-assign or lived only inside `if (local)`,
-//   which Ubuntu tip drops. w557_query always runs them into one byte
-//   cell. module_ref is only a call argument (a `mod = call()` store
-//   is dropped and is not an i32 cell). Null-mod short-circuit is
-//   tip-approximate. stamp w557 HARD BAN tip PRODUCT reinject (keep
-//   the w418 overlay). MACOS still PREFER-injects the full thin.
+// wave608: leftover PREFER smash of glue_call_arg_var_use_lea_not_load_elf_c
+//   (sub $0xac8, no endbr64) returned 0 so CALL-arg T[N] used load of the
+//   payload (u8[4] bytes 01 02 03 04 as pointer 0x4030201) instead of lea.
+//   Darwin overlay already leas. LINUX product path is gcc -E of this thin
+//   (HARD BAN PREFER). MACOS stamp-only keep overlay. Do not -E the full
+//   fixed_array_copy thin (LINUX XT001 / remaining exports BAN).
+// call_arg_lea_query_store always runs the lea-vs-load queries into one
+//   byte cell so the export can branch on pipe_load. module_ref is only a
+//   call argument. Null-mod short-circuit is tip-approximate.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
@@ -44,7 +46,7 @@ export extern function glue_emit_func_param_is_indirect_array_slot_c(arena: *u8,
  * @return i32 — 0 after the stores
  * PLATFORM: SHARED freestanding.
  */
-function w557_query(arena: *u8, expr_ref: i32, ctx: *u8, name: *u8, cell: *u8): i32 {
+function call_arg_lea_query_store(arena: *u8, expr_ref: i32, ctx: *u8, name: *u8, cell: *u8): i32 {
   unsafe {
     pipe_store_i32_le(cell, 0, asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, pipeline_asm_emit_module_ref_c(), ctx));
     pipe_store_i32_le(cell, 4, pipeline_expr_kind_ord_at(arena, expr_ref));
@@ -73,8 +75,8 @@ function w557_query(arena: *u8, expr_ref: i32, ctx: *u8, name: *u8, cell: *u8): 
 }
 
 /**
- * wave418/557: 1 when a CALL-arg VAR should lea the stack payload.
- * w557_query always runs. Null arena/ctx or expr_ref<=0 returns 0.
+ * wave418/608: 1 when a CALL-arg VAR should lea the stack payload.
+ * call_arg_lea_query_store always runs. Null arena/ctx or expr_ref<=0 returns 0.
  * Named structs lea only when size > 16. A fixed array leas unless the
  * param is an indirect slot. Kind 9 params return 0.
  * @param arena *u8 — ASTArena*; null returns 0
@@ -98,7 +100,7 @@ export function glue_call_arg_var_use_lea_not_load_elf_c(arena: *u8, expr_ref: i
     if (arena == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
       go = 0;
     }
-    w557_query(arena, expr_ref, ctx, &vname[0], &cell[0]);
+    call_arg_lea_query_store(arena, expr_ref, ctx, &vname[0], &cell[0]);
     if (go == 0) {
       return 0;
     }

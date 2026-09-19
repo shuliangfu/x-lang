@@ -6,10 +6,9 @@
 // Peel-then-measure via glue_index_elem_byte_sz(elem) copied only the first
 // row of [K][N]T (asm run=3). This leaf uses glue_array_lit_force_esz_from_elem_type
 // (TYPE_ARRAY → glue_fixed_array_total_bytes). Twin of 4.2.7 nested SLICE esz.
-// ensure: inject_fixed_array_copy_thin injects THIS on MACOS; LINUX injects
-//   fixed_array_copy_helpers_thin only (see wave418).
-// wave408/418: MACOS PREFER full; LINUX PREFER first-export helpers.
-//   Ubuntu full tip XT001 misattr; arr_e1 -c green; rest tip BAN.
+// ensure: inject_fixed_array_copy_thin is MACOS stamp-only keep overlay
+//   (wave608). LINUX gcc -E of fixed_array_copy_helpers_thin only
+//   (lea-not-load smash leftover). Do not -E THIS full thin.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
 
 

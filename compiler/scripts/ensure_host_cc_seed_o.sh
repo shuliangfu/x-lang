@@ -5101,82 +5101,72 @@ pipeline_abi_inject_reent_deep_copy_thin() {
   return 0
 }
 
-# wave408/418 M2: fixed_array_copy Cap residual — asymmetric helpers unlock.
-# PRODUCT inject wave418:
-#   MACOS: PREFER_ASM full thin (product inject + relink L2 verified).
-#   LINUX: PREFER_ASM helpers-only thin (glue_call_arg_var_use_lea_not_load_elf_c;
-#     Ubuntu arr_e1 -c ~5035B green). Full tip XT001 misattr — remaining
-#     arrcopy exports tip reinject still BAN on LINUX.
-# G.7: helpers body matches mega / full thin; rest stay leftover on LINUX.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers PREFER.
-# wave427: arr rest thins (return/struct_lit/lit_flat) Darwin -c green;
-#   LINUX HARD BAN (Ubuntu asm empty .o). mega loop post-emit_one still
-#   BAN (product EM:0 L2 0/5 healed).
+# wave408/418/608 M2: fixed_array_copy Cap residual — lea-not-load.
+# PRODUCT inject wave608:
+#   MACOS: stamp-only keep overlay (Darwin already leas CALL-arg T[N]).
+#     HARD BAN PREFER of full thin and helpers.
+#   LINUX: gcc -E helpers-only thin (glue_call_arg_var_use_lea_not_load_elf_c).
+#     leftover PREFER smash T (sub $0xac8, no endbr64) returned 0 so CALL-arg
+#     T[N] loaded the payload as a pointer. HARD BAN PREFER helpers.
+#     Do not -E the full thin (LINUX XT001 / remaining exports BAN).
+# G.7: helpers export matches mega glue_call_arg_var_use_lea_not_load_elf_c.
+# PLATFORM: SHARED · MACOS stamp-only / LINUX helpers -E.
 pipeline_abi_inject_fixed_array_copy_thin() {
   local o="$1"
-  local thin_x="src/runtime_pipeline_abi_fixed_array_copy_thin.x"
-  local stamp="src/.pabi_w418_fixed_array_copy.stamp"
-  local tag="w418-fixed-array-copy"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  # PLATFORM: LINUX — helpers-only tip PREFER (remaining exports still BAN).
+  local thin_x="src/runtime_pipeline_abi_fixed_array_copy_helpers_thin.x"
+  local stamp="src/.pabi_w557_fixed_array_copy_helpers.stamp"
+  local stamp_e="src/.pabi_w608_call_arg_lea.stamp"
+  local stamp_full="src/.pabi_w418_fixed_array_copy.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already leas CALL-arg T[N].
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp"
+      touch "$stamp_e"
+      touch "$stamp_full"
+      log "pipeline_abi w608-call-arg-lea: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
     Linux)
-      thin_x="src/runtime_pipeline_abi_fixed_array_copy_helpers_thin.x"
-      stamp="src/.pabi_w557_fixed_array_copy_helpers.stamp"
-      tag="w418-fixed-array-copy-helpers"
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w608-call-arg-lea-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp"
+        touch "$stamp_e"
+        log "pipeline_abi w608-call-arg-lea: LINUX -E replace (smash leftover T)"
+      fi
+      return "$rc"
       ;;
   esac
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
-  # LINUX wave557: helpers tipU stamped. HARD BAN tip PRODUCT reinject
-  # (keep the w418 overlay). MACOS still injects the full thin.
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ "$(uname -s)" = "Linux" ]; then
-    if [ -f "$thin_x" ]; then
-      touch "$stamp"
-      rm -f src/.pabi_w418_fixed_array_copy_helpers.stamp
-      log "pipeline_abi w557 fixed_array_copy_helpers: tipU stamped; tip PRODUCT reinject HARD BAN"
-    fi
-    rc=0
-  else
-    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-    rc=$?
-  fi
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  touch "$stamp"
+  touch "$stamp_e"
+  log "pipeline_abi w608-call-arg-lea: non-POSIX stamp-only (keep prior)"
+  return 0
 }
 
 # wave400/415/428 M2: slot_bytes Cap residual — asymmetric helpers+asm_local unlock.
@@ -15391,8 +15381,10 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
-    inject-fixed-array-copy|inject_fixed_array_copy)
+    inject-fixed-array-copy|inject_fixed_array_copy|inject-call-arg-lea|inject_call_arg_lea)
     # wave418: MACOS full PREFER / LINUX helpers PREFER.
+    # wave608: LINUX -E replace smash leftover lea-not-load T (CALL-arg T[N]
+    #   loaded payload as pointer). HARD BAN PREFER. MACOS stamp-only keep overlay.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-fixed-array-copy: need <out.o>" >&2
