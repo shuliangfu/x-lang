@@ -11,76 +11,72 @@
 // in the mega. PLATFORM: SHARED — PREFER_ASM both ends.
 
 let g_pipeline_asm_modlet: u8[86020] = [];
-let g_pipe_elf_shndx_sidecar_owner: *u8 = 0 as *u8;
-let g_pipe_elf_reloc_sidecar_owner: *u8 = 0 as *u8;
-let g_pipe_elf_reloc_shndx: u8[65536] = [];
 let g_pipe_elf_shndx_override: i32 = 0;
+let g_pipe_sl_n: i32[128] = [];
+let g_pipe_sl_layouts: u8[1024] = [];
+let g_pipe_elf_data_len: i32 = 0;
+let g_pipe_gv_mmap_flags: i32 = 34;
+let g_pipeline_asm_emit_dep_pipe: *u8 = 0 as *u8;
 let g_pipe_elf_sym_is_common: u8[16384] = [];
 let g_pipe_elf_common_owner: *u8 = 0 as *u8;
-let g_pipe_elf_data_len: i32 = 0;
-let g_pipe_dep_sc_blob: u8[17408] = [];
-let g_pipe_module_sc_last_sc1: *u8 = 0 as *u8;
-let g_pipe_arena_sc_last_sc1: *u8 = 0 as *u8;
-let g_pipe_onefunc_mru_blob: u8[256] = [];
-let g_pipe_module_sc_last_key1: *u8 = 0 as *u8;
-let g_pipe_module_sc_last_key0: *u8 = 0 as *u8;
+let g_pipe_elf_sym_common_size: u8[65536] = [];
+let g_pipe_elf_sym_common_align: u8[65536] = [];
 let g_pipe_arena_sc_blob: u8[417792] = [];
-let g_pipe_module_sc_blob: u8[221184] = [];
-let g_pipe_module_sc_last_sc0: *u8 = 0 as *u8;
-let g_pipe_onefunc_sc_used_hi: i32 = 0;
-let g_pipe_arena_sc_last_sc0: *u8 = 0 as *u8;
-let g_pipe_arena_sc_last_key1: *u8 = 0 as *u8;
-let g_pipe_onefunc_sc_blob: u8[966656] = [];
-let g_pipe_arena_sc_last_key0: *u8 = 0 as *u8;
-let g_pipe_onefunc_mru_clock: i32 = 0;
-let g_pipe_elf_reloc_heap: u8[196608] = [];
-let g_wave148_fb: u8[256] = [];
+let g_pipe_elf_reloc_sym_heap: u8[4194304] = [];
+let g_pipe_elf_reloc_sidecar_owner: *u8 = 0 as *u8;
+let g_pipe_elf_reloc_r_pcrel: u8[16384] = [];
+let g_pipe_elf_reloc_r_type: u8[65536] = [];
+let g_pipe_tl_mod: u8[1024] = [];
 let g_pipe_tl_n: i32[128] = [];
 let g_pipe_tl_entries: u8[1024] = [];
-let g_pipe_sl_mod: u8[1024] = [];
-let g_pipe_tl_mod: u8[1024] = [];
-let g_wave148_tname: u8[64] = [];
-let g_pipe_elf_reloc_r_type: u8[65536] = [];
-let g_pipe_elf_reloc_r_pcrel: u8[16384] = [];
-let g_pipe_elf_reloc_sym_heap: u8[4194304] = [];
-let g_pipe_modlet_strpool_seq: i32 = 0;
-let g_pipe_elf_label_shndx: u8[65536] = [];
-let g_pipe_elf_patch_shndx: u8[65536] = [];
 let g_pipe_elf_data_buf: u8[65536] = [];
-let g_pipe_gv_mmap_flags: i32 = 34;
-let g_pipeline_asm_emit_arena: *u8 = 0 as *u8;
-let g_pipeline_asm_emit_dep_pipe: *u8 = 0 as *u8;
 let g_pipe_sl_fn: i32[128] = [];
-let g_pipe_sl_n: i32[128] = [];
 let g_pipe_sl_tpn: i32[128] = [];
-let g_pipe_elf_ws_hdr32: u8[32] = [];
-let g_pipe_elf_ws_undef_lens: u8[1024] = [];
-let g_pipe_elf_ws_ent: u8[256] = [];
-let g_pipe_elf_label_mod_scope_active: i32 = 0;
-let g_pipe_elf_ws_shstr_ready: i32 = 0;
-let g_pipe_elf_sym_common_size: u8[65536] = [];
-let g_pipe_elf_ws_ehdr: u8[256] = [];
-let g_pipe_elf_sym_common_align: u8[65536] = [];
-let g_pipe_elf_ws_shdr: u8[1280] = [];
-let g_pipe_elf_ws_und_lens: u8[1024] = [];
-let g_pipe_elf_ws_shstr_std: u8[64] = [];
-let g_pipe_elf_ws_seg: u8[152] = [];
-let g_pipe_elf_ws_rela: u8[24] = [];
-let g_pipe_elf_ws_und_src: u8[1024] = [];
-let g_pipe_elf_ws_name2: u8[256] = [];
-let g_pipe_elf_ws_pgo_undef_names: u8[4096] = [];
-let g_pipe_elf_ws_name: u8[256] = [];
-let g_pipe_elf_ws_shstr_pgo: u8[107] = [];
-let g_pipe_elf_ws_pgo_undef_lens: u8[256] = [];
-let g_pipe_elf_ws_lc: u8[48] = [];
-let g_pipe_elf_ws_undef_names: u8[32768] = [];
-let g_pipe_elf_ws_seg2: u8[152] = [];
-let g_pipe_elf_data_owner: *u8 = 0 as *u8;
-let g_pipe_elf_label_mod_scope_base: i32 = 0;
+let g_pipe_dep_sc_blob: u8[17408] = [];
+let g_pipe_arena_sc_last_sc0: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_sc1: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_key1: *u8 = 0 as *u8;
+let g_pipe_arena_sc_last_key0: *u8 = 0 as *u8;
+let g_pipeline_asm_emit_arena: *u8 = 0 as *u8;
+let g_wave148_tname: u8[64] = [];
+let g_pipe_elf_reloc_shndx: u8[65536] = [];
+let g_pipe_elf_patch_shndx: u8[65536] = [];
+let g_pipe_elf_shndx_sidecar_owner: *u8 = 0 as *u8;
+let g_pipe_elf_label_shndx: u8[65536] = [];
 let g_pipeline_asm_emit_module: *u8 = 0 as *u8;
-let g_pipe_sl_layouts: u8[1024] = [];
+let g_pipe_modlet_strpool_seq: i32 = 0;
+let g_pipe_elf_reloc_heap: u8[196608] = [];
+let g_pipe_sl_mod: u8[1024] = [];
+let g_wave148_fb: u8[256] = [];
 
 // True cross-TU faces (call sites are already unsafe in the copied bodies).
+export extern "C" function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern "C" function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(p: *u8): void;
+export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
+export extern "C" function glue_asm_string_lit_len(arena: *u8, expr_ref: i32): i32;
+export extern "C" function link_abi_getenv(name: *u8): *u8;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+export extern "C" function mmap(addr: *u8, length: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+export extern "C" function munmap(addr: *u8, len: usize): i32;
+export extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
+export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
+export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
+export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
+export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
+export extern "C" function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem_type_ref: i32, array_len: i32, depth: i32): i32;
+export extern "C" function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32;
+export extern "C" function xlang_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32;
 
 /**
  * Build the modlet table and emit homes for module lets.
@@ -1869,6 +1865,16 @@ function pipe_ar_load_i32(base: *u8, off: i32): i32 {
   return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 }
 
+function pipe_ar_off_num_types(): i32 { return 0; }
+
+function pipe_ar_sc_types(): i32 { return 16; }
+
+function pipe_ar_ty_arr(): i32 { return 268; }
+
+function pipe_ar_ty_elem(): i32 { return 264; }
+
+function pipe_ar_ty_name_len(): i32 { return 260; }
+
 /**
  * LP64 offsetof(struct ast_ASTArena, num_exprs).
  * Layout: num_types@0 num_exprs@4.
@@ -1946,6 +1952,8 @@ function pipe_arena_sc_free(sc: *u8): void {
   }
 }
 
+function pipe_arena_sc_max(): i32 { return 512; }
+
 /**
  * 2-slot MRU lookup for the arena sidecar table.
  * @param key *u8 — arena pointer key
@@ -1982,40 +1990,6 @@ function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
 }
 
 function pipe_arena_sc_size(): i32 { return 816; }
-function pipe_arena_sc_max(): i32 { return 512; }
-function pipe_module_sc_size(): i32 { return 432; }
-function pipe_module_sc_max(): i32 { return 512; }
-function pipe_onefunc_sc_size(): i32 { return 944; }
-function pipe_onefunc_sc_max(): i32 { return 1024; }
-
-// Flat BSS tables (zero-init; used flags start 0).
-// Arena/module: 2-slot MRU (copy src/dst ping-pong). Onefunc: 16-slot ring
-// + used_hi (dummy-wire live keys). Miss walk for onefunc stops at used_hi.
-// PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
-// Onefunc 16-slot ring: slot i stores key at ptr-index 2*i and sidecar at 2*i+1
-// (LP64 8-byte cells; 16*(key+sc) = 256 bytes). Clock is next insert index.
-// used_hi is exclusive end of occupied process-table slots (0..MAX).
-// PLATFORM: SHARED — Darwin/Linux product thin; leftover-PE seed twin matches.
-
-/**
- * True if sidecar slot is used and its key pointer equals `key`.
- * @param sc *u8 — sidecar base; null -> 0
- * @param key *u8 — lookup key
- * @return i32 — 1 ok, 0 miss
- * PLATFORM: SHARED — 2-slot MRU helper for sidecar_get.
- */
-function pipe_sc_last_slot_ok(sc: *u8, key: *u8): i32 {
-  if (sc == 0 as *u8) {
-    return 0;
-  }
-  if (pipe_load_i32_le(sc, 8) == 0) {
-    return 0;
-  }
-  if (pipe_load_ptr_slot(sc, 0) != key) {
-    return 0;
-  }
-  return 1;
-}
 
 /**
  * Pointer to DepCtxSidecar slot i (0..63).
@@ -2072,44 +2046,27 @@ function pipe_dep_sc_gv(sc: *u8, field_off: i32): *u8 {
   return sc + (field_off as usize);
 }
 
-function pipe_dep_sc_size(): i32 { return 272; }
 function pipe_dep_sc_max(): i32 { return 64; }
-function pipe_dep_sc_off_ctx(): i32 { return 0; }
-function pipe_dep_sc_off_used(): i32 { return 8; }
-function pipe_dep_sc_off_dep_modules(): i32 { return 16; }
+
 function pipe_dep_sc_off_dep_arenas(): i32 { return 48; }
-function pipe_dep_sc_off_dep_path_rows(): i32 { return 80; }
+
+function pipe_dep_sc_off_dep_modules(): i32 { return 16; }
+
 function pipe_dep_sc_off_dep_path_lens(): i32 { return 112; }
-function pipe_dep_sc_off_lib_root_rows(): i32 { return 144; }
-function pipe_dep_sc_off_lib_root_lens(): i32 { return 176; }
-function pipe_dep_sc_off_empty_param_indices(): i32 { return 208; }
+
+function pipe_dep_sc_off_dep_path_rows(): i32 { return 80; }
+
 function pipe_dep_sc_off_empty_param_backup(): i32 { return 240; }
 
-// PipelineDepCtx field offsets (LP64) — match pure pipe_pctx_off_* where present.
-function pipe_pctx_off_ndep(): i32 { return 0; }
-function pipe_pctx_off_path_buf(): i32 { return 524; }
-function pipe_pctx_off_loaded_buf(): i32 { return 1036; }
-function pipe_pctx_off_preprocess_buf(): i32 { return 4195352; }
-function pipe_pctx_off_use_asm_backend(): i32 { return 8389660; }
-function pipe_pctx_off_target_arch(): i32 { return 8389664; }
-function pipe_pctx_off_use_macho_o(): i32 { return 8389672; }
-function pipe_pctx_off_use_coff_o(): i32 { return 8389676; }
-function pipe_pctx_off_current_block_ref(): i32 { return 8389680; }
-function pipe_pctx_off_typeck_loop_depth(): i32 { return 8389684; }
-function pipe_pctx_off_current_func_index(): i32 { return 8389688; }
-function pipe_pctx_off_entry_already_parsed(): i32 { return 8389696; }
-function pipe_pctx_off_current_func_empty_param_count(): i32 { return 8389704; }
-function pipe_pctx_off_current_codegen_module(): i32 { return 8389720; }
-function pipe_pctx_off_current_codegen_arena(): i32 { return 8389728; }
-function pipe_pctx_off_current_codegen_dep_index(): i32 { return 8389736; }
-function pipe_pctx_off_current_codegen_prefix_mirror(): i32 { return 8389740; }
-function pipe_pctx_off_current_codegen_prefix_len(): i32 { return 8389996; }
-function pipe_pctx_off_asm_entry_module_only(): i32 { return 8390000; }
+function pipe_dep_sc_off_empty_param_indices(): i32 { return 208; }
 
-/** Byte size of PipelineDepCtx (Cap 4.2.8 name mirrors [256]). PLATFORM: SHARED LP64. */
-export function pipeline_sizeof_dep_ctx(): usize {
-  return 8390600 as usize;
-}
+function pipe_dep_sc_off_lib_root_lens(): i32 { return 176; }
+
+function pipe_dep_sc_off_lib_root_rows(): i32 { return 144; }
+
+function pipe_dep_sc_off_used(): i32 { return 8; }
+
+function pipe_dep_sc_size(): i32 { return 272; }
 
 /**
  * Lookup or create DepCtxSidecar for PipelineDepCtx key.
@@ -2198,6 +2155,10 @@ function pipe_elf_bss_store_i32(blob: *u8, idx: i32, v: i32): void {
   pipe_store_i32_le(blob, idx * 4, v);
 }
 
+function pipe_elf_code_buf_cap(): i32 { return 8716288; }
+
+function pipe_elf_code_hot_cap(): i32 { return 1048576; }
+
 /**
  * Reset COMMON object sidecar for this ctx owner.
  */
@@ -2231,6 +2192,12 @@ function pipe_elf_current_shndx(ctx: *u8): i32 {
   return pipe_elf_shnx_text();
 }
 
+function pipe_elf_lab_off_name(): i32 { return 0; }
+
+function pipe_elf_lab_off_name_len(): i32 { return 256; }
+
+function pipe_elf_lab_off_offset(): i32 { return 260; }
+
 /**
  * Pointer to label entry i within ctx.
  */
@@ -2242,6 +2209,8 @@ function pipe_elf_label_at(ctx: *u8, i: i32): *u8 {
   return ctx + (off as usize);
 }
 
+function pipe_elf_label_esz(): i32 { return 264; }
+
 function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
   if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
     return;
@@ -2249,6 +2218,71 @@ function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
   g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
   pipe_elf_bss_store_i32(&g_pipe_elf_label_shndx[0], idx, shndx);
 }
+
+/**
+ * Byte equality for name rows.
+ * @param a *u8 @param a_len i32 @param b *u8 @param b_len i32
+ * @return i32 - 1 equal, 0 not
+ * PLATFORM: SHARED freestanding ELF leave.
+ */
+function pipe_elf_name_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+  if (a_len != b_len) {
+    return 0;
+  }
+  if (a_len < 0) {
+    return 0;
+  }
+  if (a_len == 0) {
+    return 1;
+  }
+  if (a == 0 as *u8 || b == 0 as *u8) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < a_len) {
+    unsafe {
+      if (a[i] != b[i]) {
+        return 0;
+      }
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+function pipe_elf_off_code_data(): i32 { return 17432624; }
+
+function pipe_elf_off_code_hot_data(): i32 { return 26148912; }
+
+function pipe_elf_off_code_hot_len(): i32 { return 17432616; }
+
+function pipe_elf_off_code_len(): i32 { return 0; }
+
+function pipe_elf_off_emit_hot(): i32 { return 17432620; }
+
+function pipe_elf_off_labels(): i32 { return 4; }
+
+function pipe_elf_off_macho_uscore(): i32 { return 17432612; }
+
+function pipe_elf_off_num_labels(): i32 { return 4325380; }
+
+function pipe_elf_off_num_relocs(): i32 { return 13041676; }
+
+function pipe_elf_off_num_syms(): i32 { return 17432592; }
+
+function pipe_elf_off_reloc_sym_names(): i32 { return 8847372; }
+
+function pipe_elf_off_relocs(): i32 { return 8716300; }
+
+function pipe_elf_off_sym_name_data(): i32 { return 27197488; }
+
+function pipe_elf_off_sym_name_len(): i32 { return 17432596; }
+
+function pipe_elf_off_syms(): i32 { return 13041680; }
+
+function pipe_elf_rel_off_name_len(): i32 { return 4; }
+
+function pipe_elf_rel_off_offset(): i32 { return 0; }
 
 /**
  * Pointer to inline reloc entry i.
@@ -2261,6 +2295,8 @@ function pipe_elf_reloc_at(ctx: *u8, i: i32): *u8 {
   return ctx + (off as usize);
 }
 
+function pipe_elf_reloc_esz(): i32 { return 8; }
+
 /**
  * Heap reloc entry base for heap index hi.
  */
@@ -2271,6 +2307,12 @@ function pipe_elf_reloc_heap_at(hi: i32): *u8 {
   let off: i64 = (hi as i64) * (pipe_elf_reloc_heap_esz() as i64);
   return &g_pipe_elf_reloc_heap[0] + (off as usize);
 }
+
+function pipe_elf_reloc_heap_cap(): i32 { return 16384; }
+
+function pipe_elf_reloc_heap_esz(): i32 { return 12; }
+
+function pipe_elf_reloc_name_esz(): i32 { return 256; }
 
 /**
  * Pointer to reloc_sym_names[i].bytes.
@@ -2314,6 +2356,14 @@ function pipe_elf_reloc_sym_heap_at(hi: i32): *u8 {
   return &g_pipe_elf_reloc_sym_heap[0] + (off as usize);
 }
 
+function pipe_elf_reloc_total_cap(): i32 { return 32768; }
+
+function pipe_elf_rh_off_name_len(): i32 { return 4; }
+
+function pipe_elf_rh_off_offset(): i32 { return 0; }
+
+function pipe_elf_rh_off_shndx(): i32 { return 8; }
+
 /**
  * Reset label/patch/reloc shndx sidecars.
  */
@@ -2326,6 +2376,12 @@ function pipe_elf_shndx_sidecar_reset(ctx_bytes: *u8): void {
   }
 }
 
+function pipe_elf_shnx_hot(): i32 { return 2; }
+
+function pipe_elf_shnx_text(): i32 { return 1; }
+
+function pipe_elf_shnx_unlikely(): i32 { return 3; }
+
 /**
  * Pointer to sym entry i.
  */
@@ -2337,133 +2393,15 @@ function pipe_elf_sym_at(ctx: *u8, i: i32): *u8 {
   return ctx + (off as usize);
 }
 
-function pipe_elf_table_cap(): i32 { return 16384; }
-function pipe_elf_reloc_heap_cap(): i32 { return 16384; }
-function pipe_elf_reloc_total_cap(): i32 { return 32768; }
-function pipe_elf_code_buf_cap(): i32 { return 8716288; }
-function pipe_elf_code_hot_cap(): i32 { return 1048576; }
-function pipe_elf_shnx_text(): i32 { return 1; }
-function pipe_elf_shnx_hot(): i32 { return 2; }
-function pipe_elf_shnx_unlikely(): i32 { return 3; }
-/**
- * F7: section index for the read-only data section (__DATA,__const on Mach-O).
- * Vtable static data with absolute pointer relocations lives here, separate
- * from __TEXT,__text which is pure_instructions and rejects such relocations.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-function pipe_elf_shnx_data(): i32 { return 4; }
-function pipe_elf_undef_cap(): i32 { return 256; }
-function pipe_elf_macho_undef_cap(): i32 { return 256; }
-function pipe_elf_pgo_undef_cap(): i32 { return 32; }
-function pipe_elf_codegen_out_cap(): i32 { return 9437184; }
-
-// Entry sizes
-function pipe_elf_label_esz(): i32 { return 264; }
-function pipe_elf_patch_esz(): i32 { return 268; }
-function pipe_elf_reloc_esz(): i32 { return 8; }
-function pipe_elf_reloc_name_esz(): i32 { return 256; }
 function pipe_elf_sym_esz(): i32 { return 268; }
-function pipe_elf_reloc_heap_esz(): i32 { return 12; }
 
-// Field offsets inside PipelineElfCtxAccess
-function pipe_elf_off_code_len(): i32 { return 0; }
-function pipe_elf_off_labels(): i32 { return 4; }
-function pipe_elf_off_num_labels(): i32 { return 4325380; }
-function pipe_elf_off_patches(): i32 { return 4325384; }
-function pipe_elf_off_num_patches(): i32 { return 8716296; }
-function pipe_elf_off_relocs(): i32 { return 8716300; }
-function pipe_elf_off_reloc_sym_names(): i32 { return 8847372; }
-function pipe_elf_off_num_relocs(): i32 { return 13041676; }
-function pipe_elf_off_syms(): i32 { return 13041680; }
-function pipe_elf_off_num_syms(): i32 { return 17432592; }
-function pipe_elf_off_sym_name_len(): i32 { return 17432596; }
-function pipe_elf_off_e_machine(): i32 { return 17432600; }
-function pipe_elf_off_reloc_type_r_pc32(): i32 { return 17432604; }
-function pipe_elf_off_current_frame_size(): i32 { return 17432608; }
-function pipe_elf_off_macho_uscore(): i32 { return 17432612; }
-function pipe_elf_off_code_hot_len(): i32 { return 17432616; }
-function pipe_elf_off_emit_hot(): i32 { return 17432620; }
-function pipe_elf_sizeof_access(): i32 { return 17432624; }
-function pipe_elf_off_code_data(): i32 { return 17432624; }
-function pipe_elf_off_code_hot_data(): i32 { return 26148912; }
-function pipe_elf_off_sym_name_data(): i32 { return 27197488; }
-
-// Label entry sub-offsets
-function pipe_elf_lab_off_name(): i32 { return 0; }
-function pipe_elf_lab_off_name_len(): i32 { return 256; }
-function pipe_elf_lab_off_offset(): i32 { return 260; }
-// Patch entry
-function pipe_elf_pat_off_rel32(): i32 { return 0; }
-function pipe_elf_pat_off_name(): i32 { return 4; }
-function pipe_elf_pat_off_name_len(): i32 { return 260; }
-function pipe_elf_pat_off_imm_bits(): i32 { return 264; }
-// Reloc entry
-function pipe_elf_rel_off_offset(): i32 { return 0; }
-function pipe_elf_rel_off_name_len(): i32 { return 4; }
-// Sym entry
-function pipe_elf_sym_off_name(): i32 { return 0; }
 function pipe_elf_sym_off_name_len(): i32 { return 256; }
+
 function pipe_elf_sym_off_offset(): i32 { return 260; }
+
 function pipe_elf_sym_off_shndx(): i32 { return 264; }
-// Heap reloc entry
-function pipe_elf_rh_off_offset(): i32 { return 0; }
-function pipe_elf_rh_off_name_len(): i32 { return 4; }
-function pipe_elf_rh_off_shndx(): i32 { return 8; }
 
-// ---------------------------------------------------------------------------
-// BSS sidecars (G.7 single process tables; bind owner on reset)
-// ---------------------------------------------------------------------------
-// Cap 4.2.8: RELOC_HEAP_CAP(16384) × 256-byte name rows (was 128 → 2097152).
-
-
-
-// default -1 per entry: init on reset via memset 0xff
-
-
-// Writer workspace (avoids huge pure stack frames; single-threaded compile)
-/* F7: shstrtab is 63 bytes once .data + .rela.data are appended after the
- * historic 46-byte ".text.symtab.strtab.shstrtab.rela.text" blob.
- * PLATFORM: LINUX ELF writer (buffer shared with the Mach-O path unused). */
-/* F7: Mach-O writer workspace for the second LC_SEGMENT_64 (__DATA,__const).
- * Single-threaded compile; reused per module. */
-/* F7: data section buffer for vtable static data (read-only data with absolute
- * pointer relocations; cannot live in __TEXT,__text which is pure_instructions).
- * Single-threaded compile; reset per-module via pipeline_elf_ctx_reset_data. */
-/* F7: shndx override (0 = no override; 4 = data section). When non-zero,
- * pipe_elf_current_shndx returns this value, so new relocs/syms/labels are
- * tagged as data-section. Set before emitting vtable statics; clear after.
- * Single-threaded compile; safe as a global mutable. */
-
-/**
- * Byte equality for name rows.
- * @param a *u8 @param a_len i32 @param b *u8 @param b_len i32
- * @return i32 - 1 equal, 0 not
- * PLATFORM: SHARED freestanding ELF leave.
- */
-function pipe_elf_name_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
-  if (a_len != b_len) {
-    return 0;
-  }
-  if (a_len < 0) {
-    return 0;
-  }
-  if (a_len == 0) {
-    return 1;
-  }
-  if (a == 0 as *u8 || b == 0 as *u8) {
-    return 0;
-  }
-  let i: i32 = 0;
-  while (i < a_len) {
-    unsafe {
-      if (a[i] != b[i]) {
-        return 0;
-      }
-    }
-    i = i + 1;
-  }
-  return 1;
-}
+function pipe_elf_table_cap(): i32 { return 16384; }
 
 /**
  * Allocate nbytes for GrowVec data (mmap large; calloc small).
@@ -2526,6 +2464,8 @@ function pipe_gv_dealloc_bytes(p: *u8, nbytes: i64, mmap_backed: i32): void {
   }
 }
 
+function pipe_gv_init_cap(): i32 { return 256; }
+
 /**
  * Load GrowVec.cap.
  * @param v *u8 - GrowVec*
@@ -2533,6 +2473,18 @@ function pipe_gv_dealloc_bytes(p: *u8, nbytes: i64, mmap_backed: i32): void {
  */
 function pipe_gv_load_cap(v: *u8): i32 {
   return pipe_load_i32_le(v, pipe_gv_off_cap());
+}
+
+/**
+ * Load GrowVec.data pointer.
+ * @param v *u8 - GrowVec*
+ * @return *u8 - data or null
+ */
+function pipe_gv_load_data(v: *u8): *u8 {
+  if (v == 0 as *u8) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(v, 0);
 }
 
 /**
@@ -2574,6 +2526,14 @@ function pipe_gv_load_mmap(v: *u8): i32 {
 function pipe_gv_mmap_flags(): i32 {
   return g_pipe_gv_mmap_flags;
 }
+
+function pipe_gv_mmap_thresh(): i64 { return 1048576; }
+
+function pipe_gv_off_cap(): i32 { return 8; }
+
+function pipe_gv_off_len(): i32 { return 12; }
+
+function pipe_gv_off_mmap(): i32 { return 24; }
 
 /**
  * True when p is MAP_FAILED ((void*)-1).
@@ -4193,6 +4153,28 @@ function pipe_modlet_write_hex8(lbase: i32, off: i32, v: i64): void {
   }
 }
 
+function pipe_pctx_off_ndep(): i32 { return 0; }
+
+/**
+ * True if sidecar slot is used and its key pointer equals `key`.
+ * @param sc *u8 — sidecar base; null -> 0
+ * @param key *u8 — lookup key
+ * @return i32 — 1 ok, 0 miss
+ * PLATFORM: SHARED — 2-slot MRU helper for sidecar_get.
+ */
+function pipe_sc_last_slot_ok(sc: *u8, key: *u8): i32 {
+  if (sc == 0 as *u8) {
+    return 0;
+  }
+  if (pipe_load_i32_le(sc, 8) == 0) {
+    return 0;
+  }
+  if (pipe_load_ptr_slot(sc, 0) != key) {
+    return 0;
+  }
+  return 1;
+}
+
 /**
  * Find map slot for module pointer.
  * @param module *u8 - module key; null -> -1
@@ -4261,28 +4243,6 @@ function pipe_sl_layout_size(): i32 {
 }
 
 /**
- * Offsets within pure layout entry.
- */
-function pipe_sl_off_name_len(): i32 { return 256; }
-function pipe_sl_off_field_base(): i32 { return 260; }
-function pipe_sl_off_num_fields(): i32 { return 264; }
-function pipe_sl_off_allow_padding(): i32 { return 268; }
-function pipe_sl_off_soa(): i32 { return 272; }
-function pipe_sl_off_packed(): i32 { return 276; }
-function pipe_sl_off_repr_compatible(): i32 { return 280; }
-function pipe_sl_off_is_export(): i32 { return 284; }
-function pipe_sl_off_tp_base(): i32 { return 288; }
-function pipe_sl_off_tp_count(): i32 { return 292; }
-
-/**
- * Offsets within field entry.
- */
-function pipe_sl_foff_name_len(): i32 { return 256; }
-function pipe_sl_foff_offset(): i32 { return 260; }
-function pipe_sl_foff_type_ref(): i32 { return 264; }
-function pipe_sl_foff_align(): i32 { return 268; }
-
-/**
  * LP64 offsetof(struct ast_Module, num_struct_layouts) == 16.
  * @return i32 - 16
  * PLATFORM: SHARED LP64.
@@ -4290,6 +4250,11 @@ function pipe_sl_foff_align(): i32 { return 268; }
 function pipe_sl_off_header_n(): i32 {
   return 16;
 }
+
+/**
+ * Offsets within pure layout entry.
+ */
+function pipe_sl_off_name_len(): i32 { return 256; }
 
 /**
  * Soft-reset pure counts when header num_struct_layouts is 0.
