@@ -806,11 +806,29 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
     let se2: *u8 = w314_sym_at(ctx_bytes, s);
     let sym_va: i32 = w314_load(se2, w314_sym_off_offset());
     let is_common: i32 = w314_sym_is_common_at(ctx_bytes, s);
+    /* wave613 root fix: SHN_COMMON (65522) authority fallback. The sidecar
+     * (g_pipe_elf_sym_is_common) is per-compiled-copy state — the seed-rest
+     * modlet scan calls its intra-TU add_common_sym copy (writes the from_x.c
+     * statics) while this thin queries the live overlay copy, so cross-copy
+     * lookups always miss and COMMON fell to N_SECT sect=1 __TEXT
+     * (read-only): mutable module lets then faulted on write (wpo_dump dump
+     * path SIGBUS/SEGV both ends, wave611/613). The ctx symbol entry shndx
+     * written by add_common_sym is the single authority; the sidecar now
+     * only enriches size/align. PLATFORM: SHARED — Darwin ingest writer,
+     * LINUX gold co-path unused for Mach-O. */
+    if (is_common == 0 && w314_sym_shndx_at(ctx_bytes, s) == 65522) {
+      is_common = 1;
+    }
     if (is_common != 0) {
       let csize: i32 = w314_sym_common_size_at(ctx_bytes, s);
       let calign: i32 = w314_sym_common_align_at(ctx_bytes, s);
       let alg: i32 = 0;
       let ndesc: i32 = 0;
+      if (csize <= 0) {
+        /* Size fallback: add_common_sym stores sym_size in the symbol
+         * offset field (add_sym 4th arg), which sym_va already loaded. */
+        csize = sym_va;
+      }
       if (csize <= 0) {
         csize = 8;
       }

@@ -94399,6 +94399,11 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
       }
     }
     let shndx: i32 = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+    /* wave613 root fix: SHN_COMMON (65522) authority fallback (same class
+     * as the main ELF/Mach-O writers — see wave613 notes there). */
+    if (is_common == 0 && shndx == 65522) {
+      is_common = 1;
+    }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
     let se3: *u8 = pipe_elf_sym_at(ctx_bytes, s);
     if (is_common != 0) {
@@ -94406,6 +94411,11 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       if (calign <= 0) {
         calign = 8;
+      }
+      if (csize <= 0) {
+        /* Size fallback: add_common_sym stores sym_size in the symbol
+         * offset field (add_sym 4th arg). */
+        csize = pipe_load_i32_le(se3, pipe_elf_sym_off_offset());
       }
       if (csize <= 0) {
         csize = 8;
@@ -94935,11 +94945,24 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
     let se3: *u8 = pipe_elf_sym_at(ctx_bytes, s);
+    /* wave613 root fix: SHN_COMMON (65522) authority fallback — cross-copy
+     * sidecar misses classified mutable COMMON as STT_FUNC shndx=1 .text
+     * (read-only) and Ubuntu dump-path writes SEGV'd. The ctx symbol entry
+     * shndx (written by add_common_sym) is the single authority; the sidecar
+     * only enriches size/align. */
+    if (is_common == 0 && pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+      is_common = 1;
+    }
     if (is_common != 0) {
       let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       if (calign <= 0) {
         calign = 8;
+      }
+      if (csize <= 0) {
+        /* Size fallback: add_common_sym stores sym_size in the symbol
+         * offset field (add_sym 4th arg). */
+        csize = pipe_load_i32_le(se3, pipe_elf_sym_off_offset());
       }
       if (csize <= 0) {
         csize = 8;
@@ -95527,11 +95550,27 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
         }
       }
     }
+    /* wave613 root fix: SHN_COMMON (65522) authority fallback. The sidecar
+     * is per-compiled-copy state (seed-rest intra-TU add_common_sym writes
+     * the from_x.c statics; overlaid writers read the live copy) so
+     * cross-copy queries miss and COMMON fell to N_SECT sect=1 __TEXT
+     * (read-only) — mutable module lets then faulted on write (wpo_dump
+     * dump path SIGBUS/SEGV both ends). The ctx symbol entry shndx written
+     * by add_common_sym is the single authority; sidecar only enriches
+     * size/align. G.7 twin body: runtime_pipeline_abi_macho_write_thin.x. */
+    if (is_common == 0 && pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+      is_common = 1;
+    }
     if (is_common != 0) {
       let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       let alg: i32 = 0;
       let ndesc: i32 = 0;
+      if (csize <= 0) {
+        /* Size fallback: add_common_sym stores sym_size in the symbol
+         * offset field (add_sym 4th arg), which sym_va already loaded. */
+        csize = sym_va;
+      }
       if (csize <= 0) {
         csize = 8;
       }

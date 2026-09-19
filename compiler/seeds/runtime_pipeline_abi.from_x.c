@@ -51845,6 +51845,15 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
                    g_pipeline_elf_sym_is_common[s] != 0)
                       ? 1
                       : 0;
+      /* wave613 root fix: SHN_COMMON (65522) authority fallback — cross-copy
+       * sidecar misses classified mutable COMMON as STT_FUNC shndx=1 .text
+       * (read-only) and dump-path writes SEGV'd both ends. The ctx symbol
+       * entry shndx (written by pipeline_elf_ctx_add_common_sym) is the
+       * single authority; the sidecar only enriches size/align. */
+      if (is_common == 0 &&
+          pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+        is_common = 1;
+      }
       ent[0] = (uint8_t)(str_off & 255);
       ent[1] = (uint8_t)((str_off >> 8) & 255);
       ent[2] = (uint8_t)((str_off >> 16) & 255);
@@ -51855,6 +51864,10 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
         calign = g_pipeline_elf_sym_common_align[s];
         if (calign <= 0)
           calign = 8;
+        /* Size fallback: add_common_sym stores sym_size in the symbol
+         * offset field (add_sym 4th arg). */
+        if (csize <= 0)
+          csize = ctx->syms[s].offset;
         if (csize <= 0)
           csize = 8;
         ent[4] = 17;
@@ -52602,12 +52615,25 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
                  g_pipeline_elf_sym_is_common[s] != 0)
                     ? 1
                     : 0;
+    /* wave613 root fix: SHN_COMMON (65522) authority fallback — cross-copy
+     * sidecar misses pinned mutable COMMON into __TEXT (read-only) and
+     * dump-path writes SIGBUS/SEGV'd both ends. The ctx symbol entry shndx
+     * (written by pipeline_elf_ctx_add_common_sym) is the single authority;
+     * the sidecar only enriches size/align. */
+    if (is_common == 0 &&
+        pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+      is_common = 1;
+    }
     if (is_common != 0) {
       int32_t calign;
       int32_t alg;
       int32_t ndesc;
       csize = g_pipeline_elf_sym_common_size[s];
       calign = g_pipeline_elf_sym_common_align[s];
+      /* Size fallback: add_common_sym stores sym_size in the symbol
+       * offset field (add_sym 4th arg), which sym_va already loaded. */
+      if (csize <= 0)
+        csize = sym_va;
       if (csize <= 0)
         csize = 8;
       if (calign <= 0)
@@ -53064,6 +53090,11 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
                       ? 1
                       : 0;
       shndx = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+      /* wave613 root fix: SHN_COMMON (65522) authority fallback (same class
+       * as the main ELF/Mach-O writers — see wave613 notes there). */
+      if (is_common == 0 && shndx == 65522) {
+        is_common = 1;
+      }
       ent[0] = (uint8_t)(str_off & 255);
       ent[1] = (uint8_t)((str_off >> 8) & 255);
       ent[2] = (uint8_t)((str_off >> 16) & 255);
@@ -53073,6 +53104,10 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
         calign = g_pipeline_elf_sym_common_align[s];
         if (calign <= 0)
           calign = 8;
+        /* Size fallback: add_common_sym stores sym_size in the symbol
+         * offset field (add_sym 4th arg). */
+        if (csize <= 0)
+          csize = ctx->syms[s].offset;
         if (csize <= 0)
           csize = 8;
         ent[4] = 17;
