@@ -2,8 +2,12 @@
 // G.7: match mega / assign_deref dispatcher peer arm.
 // wave449: LINUX PREFER tip pure-asm (product si green).
 // wave534 Soft Cap: tipU heal — pipe-cell mid `rc/tr/store_sz=call()`;
-//   compare via `if (pipe_load…)`; stamp w534 HARD BAN tip PRODUCT
-//   reinject (keep prior PREFER; stamp-only 禁 prefer).
+//   compare via `if (pipe_load…)`; stamp w534 HARD BAN PREFER
+//   (keep prior PREFER leftover).
+// wave598: leftover PREFER scalar smashes the caller frame (gdb: after
+//   scalar returns, peel/gate epilogue pop %rbx with rbp=1 / unwind 0x9).
+//   LINUX -E replace leftover T (real emit body). HARD BAN PREFER.
+//   MACOS keep Darwin overlay (already compiles `*p=`).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;

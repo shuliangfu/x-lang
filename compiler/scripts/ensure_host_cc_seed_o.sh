@@ -7383,6 +7383,11 @@ pipeline_abi_inject_assign_thin() {
         fi
       fi
       if [ "$rc" -eq 0 ]; then
+        # wave598: leftover PREFER scalar smashes caller rbp. LINUX -E
+        #   replace; HARD BAN PREFER; MACOS keep overlay.
+        pipeline_abi_inject_deref_scalar_thin "$o" || rc=$?
+      fi
+      if [ "$rc" -eq 0 ]; then
         local vs_x="src/runtime_pipeline_abi_assign_var_store_slice_thin.x"
         local vs_s="src/.pabi_w473_heal_var_store_slice.stamp"
         if [ -f "$vs_x" ] && { [ ! -f "$vs_s" ] || [ "$vs_x" -nt "$vs_s" ]; }; then
@@ -9126,6 +9131,68 @@ pipeline_abi_inject_grow_vec_thin() {
   touch "$stamp"
   touch "$stamp_e"
   log "pipeline_abi w597-grow-vec: non-POSIX stamp-only (keep prior)"
+  return 0
+}
+
+# wave598: DEREF scalar leftover PREFER smashes caller frame on
+# `unsafe { *p = 1 }` (gate/peel epilogue rbp=1). LINUX -E replace of
+# leftover T with the pipe-cell emit body. HARD BAN PREFER (w534).
+# MACOS keep Darwin overlay (already green). PLATFORM: LINUX gold.
+pipeline_abi_inject_deref_scalar_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_assign_deref_scalar_thin.x"
+  local stamp="src/.pabi_w534_assign_deref_scalar.stamp"
+  local stamp_e="src/.pabi_w598_deref_scalar.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay scalar already compiles `*p=`.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w598-deref-scalar: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w598-deref-scalar-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp"
+        touch "$stamp_e"
+        rm -f src/.pabi_w445_assign_deref_scalar.stamp \
+          src/.pabi_w449_heal_deref_scalar.stamp
+        log "pipeline_abi w598-deref-scalar: LINUX -E replace (smash leftover T)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  touch "$stamp"
+  touch "$stamp_e"
+  log "pipeline_abi w598-deref-scalar: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
@@ -14577,6 +14644,20 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_grow_vec_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-deref-scalar|inject_deref_scalar)
+    # wave598: LINUX -E replace smash leftover scalar PREFER.
+    # MACOS keep overlay. HARD BAN PREFER (w534).
+    # PLATFORM: LINUX gold · MACOS keep prior.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-deref-scalar: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_deref_scalar_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
