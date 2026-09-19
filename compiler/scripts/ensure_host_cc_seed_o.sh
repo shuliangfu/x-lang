@@ -7741,18 +7741,16 @@ pipeline_abi_inject_assign_thin() {
 #   then if + store_sz=leaf_esz then if + while rc=step then if;
 #   Darwin original 2 UND = num_elems + step). HARD BAN tip
 #   PRODUCT reinject both ends; keep the w438 overlay.
+# wave577: main Ubuntu tip dropped kind_ord + elem_type + type_kind
+#   + type_elem (if-before-call + ko=kind_ord then if + dest_elem
+#   then dest_ek + inner then inner_k; only slice_rows + scalar
+#   dispatch UND). Darwin original 6 UND. HARD BAN tip PRODUCT
+#   reinject both ends; keep the w438 overlay. No remaining PREFER.
 # G.7: semantics match mega pipeline_asm_emit_array_lit_flat_elf_c.
-# PLATFORM: SHARED · repark/one_cell/cells/one_row/rows/struct/one_scalar/step/scalar BAN tip reinject / other peers PREFER.
+# PLATFORM: SHARED · repark/one_cell/cells/one_row/rows/struct/one_scalar/step/scalar/main BAN tip reinject / no remaining PREFER.
 pipeline_abi_inject_arr_lit_flat_thin() {
   local o="$1"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  local peer lo_x lo_stamp lo_tag lo_rest
   local main_x="src/runtime_pipeline_abi_arr_lit_flat_thin.x"
-  local main_s="src/.pabi_w438_arr_lit_flat.stamp"
   [ -s "$o" ] && [ -f "$main_x" ] || return 0
   # wave568: repark Ubuntu tip dropped every encoder (rc=call then if).
   # HARD BAN tip PRODUCT reinject on both ends. Keep the w438 overlay.
@@ -7831,53 +7829,18 @@ pipeline_abi_inject_arr_lit_flat_thin() {
     rm -f src/.pabi_w438_arr_lit_flat_scalar.stamp
     log "pipeline_abi w576 arr_lit_flat_scalar: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
-  if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
-    return 0
+  # wave577: main Ubuntu tip dropped kind_ord + elem_type + type_kind
+  # + type_elem (if-before-call + ko=kind_ord then if + dest_elem
+  # then dest_ek + inner then inner_k; only slice_rows + scalar
+  # dispatch UND). Darwin original 6 UND. HARD BAN tip PRODUCT
+  # reinject on both ends. Keep the w438 overlay.
+  if [ -f src/runtime_pipeline_abi_arr_lit_flat_thin.x ]; then
+    touch src/.pabi_w577_arr_lit_flat.stamp
+    rm -f src/.pabi_w438_arr_lit_flat.stamp
+    log "pipeline_abi w577 arr_lit_flat_main: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  # PLATFORM: SHARED — PREFER peers except repark/one_cell/cells/one_row/rows/struct/one_scalar/step/scalar (HARD BAN tip reinject).
-  for peer in \
-    "src/runtime_pipeline_abi_arr_lit_flat_thin.x|.pabi_w438_arr_lit_flat.stamp|w438-arr-lit-flat"
-  do
-    lo_x="${peer%%|*}"
-    lo_rest="${peer#*|}"
-    lo_stamp="src/${lo_rest%%|*}"
-    lo_tag="${lo_rest#*|}"
-    if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
-      pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$lo_stamp"
-      else
-        break
-      fi
-    fi
-  done
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  return "$rc"
+  # wave577: no remaining PREFER peers. Overlay stays w438.
+  return 0
 }
 
 # wave439 M2: arr_return Cap residual — flat peer chain unlock.
@@ -8989,6 +8952,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave574: one_scalar HARD BAN tip PRODUCT reinject (keep w438 overlay).
 # wave575: step HARD BAN tip PRODUCT reinject (keep w438 overlay).
 # wave576: scalar HARD BAN tip PRODUCT reinject (keep w438 overlay).
+# wave577: main HARD BAN tip PRODUCT reinject (keep w438 overlay).
 # wave439: arr_return BOTH flat peer chain PREFER.
 # wave440: arr_struct_lit MACOS peer PREFER / LINUX tip BAN (opt=94).
 # wave441: assign emit LINUX -E peer chain PREFER (pure-asm CG002/SEGV).
@@ -14675,6 +14639,7 @@ case "$MODE" in
     # wave574: one_scalar HARD BAN tip PRODUCT reinject (keep w438 overlay).
     # wave575: step HARD BAN tip PRODUCT reinject (keep w438 overlay).
     # wave576: scalar HARD BAN tip PRODUCT reinject (keep w438 overlay).
+    # wave577: main HARD BAN tip PRODUCT reinject (keep w438 overlay).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-arr-lit-flat: need <out.o>" >&2
