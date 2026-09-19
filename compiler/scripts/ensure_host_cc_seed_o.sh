@@ -6022,9 +6022,9 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 # wave615 M2: LINUX product PREFER_ASM re-verify on top of the w613 COMMON
 #   fix + w614 dual-end L4 (ELF writer side shipped). This TU is now zero
 #   host-cc on BOTH ends. Do not -E as a new repair on either end.
-#   orch thin stays HARD BAN (w503/514/594 PRODUCT PREFER L2 SEGV 0/5).
+#   orch thin PREFER both ends since wave622 (w594 SEGV was the w613 class).
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
-# PLATFORM: SHARED · PREFER_ASM both ends · orch BAN tip reinject.
+# PLATFORM: SHARED · PREFER_ASM both ends (main + orch).
 pipeline_abi_inject_wpo_dump_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
@@ -6038,12 +6038,38 @@ pipeline_abi_inject_wpo_dump_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # wave503/514/594: HARD BAN orch tip product reinject (L2 SEGV @ PREFER).
+  # wave622: orch product PREFER both ends. The w503/514/594 "L2 SEGV 0/5"
+  # wall was the w613 COMMON class (orch's file-level let cells pinned
+  # read-only — standalone -c now T=10 UND=21, 6 cells proper commons;
+  # product probe on a fresh rebuild-only .o: g05 links, dump JSON v2
+  # 233B, L2 5/5). Stamp-gated like the main thin.
   if [ -f "$orch_x" ]; then
     if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
-      touch "$orch_s"
-      rm -f src/.pabi_w503_wpo_dump_orch.stamp src/.pabi_w514_wpo_dump_orch.stamp
-      log "pipeline_abi w594-wpo-dump-orch: standalone EXPORT_OK; tip PRODUCT PREFER HARD BAN (L2 SEGV 0/5; keep w498 -E)"
+      local o_saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local o_saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local o_had_prefer=0 o_had_e_repl=0 o_rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then o_had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then o_had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=1
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$orch_x" "w622-wpo-dump-orch-prefer"
+      o_rc=$?
+      if [ "$o_had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$o_saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$o_had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$o_saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$o_rc" -eq 0 ]; then
+        touch "$orch_s"
+        rm -f src/.pabi_w503_wpo_dump_orch.stamp src/.pabi_w514_wpo_dump_orch.stamp
+        log "pipeline_abi w622-wpo-dump-orch: PREFER_ASM replace (no host-cc for this TU)"
+      fi
     fi
   fi
   # wave615 M2: LINUX product PREFER_ASM too — this TU is now zero host-cc on
