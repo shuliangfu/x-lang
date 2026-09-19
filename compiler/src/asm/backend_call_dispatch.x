@@ -108,15 +108,23 @@ export extern "C" function glue_arm64_stack_arg_align_pos(stack_pos: i32, nbytes
 export extern "C" function glue_arm64_stack_arg_advance_pos(stack_pos: i32, nbytes: i32, apple: i32): i32;
 
 function glue_call_stk_extra_align(pos: i32, nbytes: i32, ta: i32): i32 {
-  if (ta == 1 && xlang_host_is_apple_aarch64() != 0) {
-    return glue_arm64_stack_arg_align_pos(pos, nbytes, 1);
+  if (ta == 1) {
+    let apple: i32 = 0;
+    unsafe { apple = xlang_host_is_apple_aarch64(); }
+    if (apple != 0) {
+      unsafe { return glue_arm64_stack_arg_align_pos(pos, nbytes, 1); }
+    }
   }
   return pos;
 }
 
 function glue_call_stk_extra_advance(pos: i32, nbytes: i32, ta: i32): i32 {
-  if (ta == 1 && xlang_host_is_apple_aarch64() != 0) {
-    return glue_arm64_stack_arg_advance_pos(pos, nbytes, 1);
+  if (ta == 1) {
+    let apple: i32 = 0;
+    unsafe { apple = xlang_host_is_apple_aarch64(); }
+    if (apple != 0) {
+      unsafe { return glue_arm64_stack_arg_advance_pos(pos, nbytes, 1); }
+    }
   }
   /* Uniform 8-byte slots; MEMORY multi-word keeps words = floor8 (min 1)
    * exactly like the old stk_slot counter. */
@@ -3329,12 +3337,14 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
         is_f64_e[ei] = 0;
         place_e[ei] = 0;
         on_stk_e[ei] = 0;
-        /* wave614: arg byte size for the natural stack-extras cursor. */
+        /* wave614: arg byte size for the natural stack-extras cursor.
+           +1 skips self: the impl method's param table has self at 0 while
+           this loop's ei counts user args (self rides x0 separately). */
         sz_e[ei] = 8;
         let arg_ex: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
         if (arg_ex == 0) { return 0 - 1; }
         {
-          let pty_e: i32 = glue_call_param_type_ref_at(arena, expr_ref, ei);
+          let pty_e: i32 = glue_call_param_type_ref_at(arena, expr_ref, ei + 1);
           let sz_ei: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_e, arg_ex);
           if (sz_ei > 0) {
             sz_e[ei] = sz_ei;
@@ -9271,6 +9281,12 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
          * store [sp,#24] before reserve (sp==x29); restore via [x29,#24]
          * after copy. Slot 24 is the unused half of the x19 16B pad.
          * G.7: complete this wrapper (no second dispatcher / no x1 scratch).
+         * wave616: Apple natural packing both hops — the dyn caller placed
+         * these extras at natural offsets (w614) and the impl callee homes
+         * them the same way. One natural cursor serves both hops; the
+         * incoming load keeps the unaligned-safe 8-byte LEA+LDR (low bytes
+         * carry the arg), the outgoing store is width-aware (w614b). x86
+         * stays uniform (SysV push above); non-apple arm64 keeps 8-slots.
          */
         if (backend_enc_store_x0_sp_offset_arch(elf_ctx, 24, ta) != 0) {
           return 0 - 1;
@@ -9281,14 +9297,25 @@ export function pipeline_asm_emit_vtable_wrapper_def(elf_ctx: *u8, ta: i32, modu
           return 0 - 1;
         }
         let si_a: i32 = 0;
+        let nat_pos_w: i32 = 0;
         while (si_a < n_stk_w) {
+          let psz_w: i32 = 8;
+          let ptr_w: i32 = pipeline_module_func_param_type_ref_at(module, impl_fi, reg_max_w + si_a);
+          if (ptr_w > 0) {
+            let sz_w: i32 = glue_type_size_simple(module, arena, ptr_w, 0);
+            if (sz_w > 0 && sz_w <= 8) {
+              psz_w = sz_w;
+            }
+          }
+          let aoff_w: i32 = glue_call_stk_extra_align(nat_pos_w, psz_w, ta);
           /* prologue(16) → frame 32 (aligned request + x19). */
-          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 32 + si_a * 8, ta) != 0) {
+          if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 32 + aoff_w, ta) != 0) {
             return 0 - 1;
           }
-          if (backend_enc_store_x0_sp_offset_arch(elf_ctx, si_a * 8, ta) != 0) {
+          if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_w, psz_w, ta) != 0) {
             return 0 - 1;
           }
+          nat_pos_w = glue_call_stk_extra_advance(aoff_w, psz_w, ta);
           si_a = si_a + 1;
         }
         if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 24, ta) != 0) {

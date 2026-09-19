@@ -6455,7 +6455,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             arg_ex = pipeline_expr_method_call_arg_ref(arena, expr_ref, ei);
             if (arg_ex == 0)
               return -1;
-            pty_e = glue_call_param_type_ref_at(arena, expr_ref, ei);
+            pty_e = glue_call_param_type_ref_at(arena, expr_ref, ei + 1); /* +1 skips self */
             sz_ei = glue_sysv_arg_byte_size_c(arena, ctx, pty_e, arg_ex);
             if (sz_ei > 0)
               sz_e[ei] = sz_ei;
@@ -7527,18 +7527,35 @@ int32_t pipeline_asm_emit_vtable_wrapper_def(struct platform_elf_ElfCodegenCtx *
       /* PLATFORM: MACOS|ARM64 — load_x29_pos writes x0 (arg0). Save remapped
        * self at [sp,#24]==[x29,#24] before reserve; restore after copy.
        * Slot 24 is prologue(16) pad after x19. Do not use mov_rax_to_rbx
-       * (also writes x1). G.7 complete this wrapper. */
+       * (also writes x1). G.7 complete this wrapper.
+       * wave616: Apple natural packing both hops (see the .x authority
+       * docblock) — one natural cursor; unaligned-safe 8-byte incoming
+       * load + width-aware outgoing store. x86 stays uniform. */
       if (backend_enc_store_x0_sp_offset_arch(elf_ctx, 24, ta) != 0)
         return -1;
       stk_bytes_w = n_stk_w * 8;
       stk_bytes_w = (stk_bytes_w + 15) & -16;
       if (backend_enc_call_stack_reserve_arch(elf_ctx, stk_bytes_w, ta) != 0)
         return -1;
-      for (si_w = 0; si_w < n_stk_w; si_w++) {
-        if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 32 + si_w * 8, ta) != 0)
-          return -1;
-        if (backend_enc_store_x0_sp_offset_arch(elf_ctx, si_w * 8, ta) != 0)
-          return -1;
+      {
+        int32_t nat_pos_w = 0;
+        for (si_w = 0; si_w < n_stk_w; si_w++) {
+          int32_t psz_w = 8;
+          int32_t ptr_w = pipeline_module_func_param_type_ref_at(module, impl_fi, reg_max_w + si_w);
+          if (ptr_w > 0) {
+            int32_t sz_w = glue_type_size_simple(module, arena, ptr_w, 0);
+            if (sz_w > 0 && sz_w <= 8)
+              psz_w = sz_w;
+          }
+          {
+            int32_t aoff_w = glue_call_stk_extra_align(nat_pos_w, psz_w, ta);
+            if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 32 + aoff_w, ta) != 0)
+              return -1;
+            if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_w, psz_w, ta) != 0)
+              return -1;
+            nat_pos_w = glue_call_stk_extra_advance(aoff_w, psz_w, ta);
+          }
+        }
       }
       if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 24, ta) != 0)
         return -1;
