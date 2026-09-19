@@ -42036,6 +42036,8 @@ export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 
  * @return i32 — 0 ok; -1 fail
  * wave144 pure: G.7 authority (was static pipeline_asm_emit_return_elf_impl).
  * Public for expr_rec residual callsite. Operand emit uses public emit_expr_elf_c.
+ * wave602: LINUX product path is -E of runtime_pipeline_abi_return_elf_impl_thin.x
+ *   (leftover PREFER smash dropped tail_join ENC_JMP; PREFER BAN).
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */
 #[no_mangle]

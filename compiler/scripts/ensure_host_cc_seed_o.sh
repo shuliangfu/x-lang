@@ -3682,6 +3682,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_block_final_expr_thin "$o" || true
+      pipeline_abi_inject_return_elf_impl_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -3769,6 +3770,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_block_final_expr_thin "$o" || true
+      pipeline_abi_inject_return_elf_impl_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4225,6 +4227,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_block_final_expr_thin "$o" || true
+      pipeline_abi_inject_return_elf_impl_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4311,6 +4314,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_block_final_expr_thin "$o" || true
+      pipeline_abi_inject_return_elf_impl_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4381,6 +4385,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_block_final_expr_thin "$o" || true
+      pipeline_abi_inject_return_elf_impl_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4459,6 +4464,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
       pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_block_final_expr_thin "$o" || true
+      pipeline_abi_inject_return_elf_impl_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -8471,6 +8477,64 @@ pipeline_abi_inject_block_final_expr_thin() {
   esac
   touch "$stamp_e"
   log "pipeline_abi w601-block-final-expr: non-POSIX stamp-only (keep prior)"
+  return 0
+}
+
+# wave602 M2: return_elf_impl Cap residual .x thin.
+# leftover PREFER smash (`sub $0xe98`, no endbr64) drops tail_join ENC_JMP
+# so Ubuntu `if { return 7 }` falls through to `return 1`. LINUX -E replace
+# leftover T with operand+jmp exit. HARD BAN PREFER. MACOS stamp-only keep
+# overlay (already run=7). Do not un-BAN arr_return Soft-Cap.
+# G.7 mega pipeline_asm_emit_return_elf_impl EXIT. PLATFORM: SHARED.
+pipeline_abi_inject_return_elf_impl_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_return_elf_impl_thin.x"
+  local stamp_e="src/.pabi_w602_return_elf_impl.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already runs return-in-if=7.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp_e"
+      log "pipeline_abi w602-return-elf-impl: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace leftover smash T (missing tail_join jmp).
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w602-return-elf-impl-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp_e"
+        log "pipeline_abi w602-return-elf-impl: LINUX -E replace (operand + tail_join jmp)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  touch "$stamp_e"
+  log "pipeline_abi w602-return-elf-impl: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
@@ -14669,6 +14733,7 @@ case "$MODE" in
     pipeline_abi_inject_emit_ctx_bss_thin "$1"
     pipeline_abi_inject_emit_ctx_func_index_thin "$1"
     pipeline_abi_inject_block_final_expr_thin "$1"
+    pipeline_abi_inject_return_elf_impl_thin "$1"
     pipeline_abi_inject_emit_ctx_module_dep_thin "$1"
     pipeline_abi_inject_emit_ctx_sret_thin "$1"
     pipeline_abi_inject_typeck_active_thin "$1"
@@ -15328,6 +15393,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_block_final_expr_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-return-elf-impl|inject_return_elf_impl)
+    # wave602: LINUX -E operand+tail_join jmp; MACOS stamp-only keep overlay.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-return-elf-impl: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_return_elf_impl_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
