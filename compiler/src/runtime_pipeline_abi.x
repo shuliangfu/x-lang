@@ -32260,6 +32260,8 @@ export function glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena: *u8, elf_ctx
  *   float_lit face + elf append (u32 zext mov eax,eax).
  * Cap-fn-ptr (10.3.2 slice0): same-module bare fn as *u8 → LEA link
  *   symbol into rax/x0 (#[no_mangle] only; locals win over same-named funcs).
+ * wave606: product LINUX -E of the fnptr_as family replaces smash leftover
+ *   PREFER of glue_emit_as_cast_orch_elf_c (drops INDEX operand of `as`).
  * PLATFORM: SHARED freestanding cast emit · LINUX gold · MACOS underscore.
  */
 #[no_mangle]

@@ -5491,45 +5491,50 @@ pipeline_abi_inject_unused_hints_thin() {
 # Cap-fn-ptr (10.3.2) / wave507: EXPR_AS peer-flat tip PREFER.
 # G.7: gate + cast_orch + sub-orch + arms + lea; LEA spell stays
 #   pipe_modlet_lea_fn_sym_to_rax. Monolith tip T001/CG002 after i→f32
-#   i64mov; peers tipU-complete. PRODUCT: BOTH tip PREFER (stamp w507).
+#   i64mov; peers tipU-complete.
+# wave606: leftover PREFER glue_emit_as_cast_orch_elf_c smash
+#   (`sub $0x898`, no endbr64) drops the INDEX operand of `as`
+#   (`return b[2] as i32` leaves eax=last ARRAY_LIT store). Gate /
+#   lea / f2i orch are the same smash leftover T. Darwin overlay
+#   already emits the load. LINUX -E replace the family. HARD BAN
+#   PREFER. MACOS stamp-only keep overlay. Do not Soft-Cap.
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_as_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_fnptr_as_thin.x"
   local stamp="src/.pabi_w507_fnptr_as.stamp"
+  local stamp_e="src/.pabi_w606_fnptr_as.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local p_peer p_x p_rest p_stamp p_tag p_rest2
+  local p_peer p_x p_rest p_stamp p_tag
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # Skip if gate + all peers stamped fresh.
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # Skip when w606 stamp is fresh vs every peer thin.
+  if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
     local _ok=1
     for p_peer in \
-      "src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x|.pabi_w507_fnptr_as_f2i32.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x|.pabi_w507_fnptr_as_f2i64.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x|.pabi_w507_fnptr_as_i2f32_i32.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x|.pabi_w507_fnptr_as_i2f32_i64mov.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x|.pabi_w507_fnptr_as_i2f32_u64.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x|.pabi_w507_fnptr_as_i2f32_i64.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x|.pabi_w507_fnptr_as_i2f32_k15.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x|.pabi_w507_fnptr_as_i2f32_sf64.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x|.pabi_w507_fnptr_as_i2f64_u64.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x|.pabi_w507_fnptr_as_i2f64_i64.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x|.pabi_w507_fnptr_as_i2f64_i64mov.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x|.pabi_w507_fnptr_as_i2f64_i32.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x|.pabi_w507_fnptr_as_i2f64_f32.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x|.pabi_w507_fnptr_as_f2i_orch.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x|.pabi_w507_fnptr_as_i2f32_orch.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x|.pabi_w507_fnptr_as_i2f64_orch.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_lea_thin.x|.pabi_w507_fnptr_as_lea.stamp" \
-      "src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x|.pabi_w507_fnptr_as_cast_orch.stamp"
+      "src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_lea_thin.x" \
+      "src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x"
     do
-      p_x="${p_peer%%|*}"
-      p_stamp="src/${p_peer#*|}"
-      if [ -f "$p_x" ] && { [ ! -f "$p_stamp" ] || [ "$p_x" -nt "$p_stamp" ]; }; then
+      if [ -f "$p_peer" ] && [ "$p_peer" -nt "$stamp_e" ]; then
         _ok=0
         break
       fi
@@ -5538,6 +5543,24 @@ pipeline_abi_inject_fnptr_as_thin() {
       return 0
     fi
   fi
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already emits INDEX load for `as`.
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w606-fnptr-as: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T family.
+      ;;
+    *)
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w606-fnptr-as: non-POSIX stamp-only (keep prior)"
+      return 0
+      ;;
+  esac
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
   fi
@@ -5548,35 +5571,35 @@ pipeline_abi_inject_fnptr_as_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   # Arms → sub-orch → lea → cast_orch → gate (first-wins ld -r).
   for p_peer in \
-    "src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x|.pabi_w507_fnptr_as_f2i32.stamp|w507-fnptr-as-f2i32" \
-    "src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x|.pabi_w507_fnptr_as_f2i64.stamp|w507-fnptr-as-f2i64" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x|.pabi_w507_fnptr_as_i2f32_i32.stamp|w507-fnptr-as-i2f32-i32" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x|.pabi_w507_fnptr_as_i2f32_i64mov.stamp|w507-fnptr-as-i2f32-i64mov" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x|.pabi_w507_fnptr_as_i2f32_u64.stamp|w507-fnptr-as-i2f32-u64" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x|.pabi_w507_fnptr_as_i2f32_i64.stamp|w507-fnptr-as-i2f32-i64" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x|.pabi_w507_fnptr_as_i2f32_k15.stamp|w507-fnptr-as-i2f32-k15" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x|.pabi_w507_fnptr_as_i2f32_sf64.stamp|w507-fnptr-as-i2f32-sf64" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x|.pabi_w507_fnptr_as_i2f64_u64.stamp|w507-fnptr-as-i2f64-u64" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x|.pabi_w507_fnptr_as_i2f64_i64.stamp|w507-fnptr-as-i2f64-i64" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x|.pabi_w507_fnptr_as_i2f64_i64mov.stamp|w507-fnptr-as-i2f64-i64mov" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x|.pabi_w507_fnptr_as_i2f64_i32.stamp|w507-fnptr-as-i2f64-i32" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x|.pabi_w507_fnptr_as_i2f64_f32.stamp|w507-fnptr-as-i2f64-f32" \
-    "src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x|.pabi_w507_fnptr_as_f2i_orch.stamp|w507-fnptr-as-f2i-orch" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x|.pabi_w507_fnptr_as_i2f32_orch.stamp|w507-fnptr-as-i2f32-orch" \
-    "src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x|.pabi_w507_fnptr_as_i2f64_orch.stamp|w507-fnptr-as-i2f64-orch" \
-    "src/runtime_pipeline_abi_fnptr_as_lea_thin.x|.pabi_w507_fnptr_as_lea.stamp|w507-fnptr-as-lea" \
-    "src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x|.pabi_w507_fnptr_as_cast_orch.stamp|w507-fnptr-as-cast-orch" \
-    "src/runtime_pipeline_abi_fnptr_as_thin.x|.pabi_w507_fnptr_as.stamp|w507-fnptr-as-gate"
+    "src/runtime_pipeline_abi_fnptr_as_f2i32_thin.x|.pabi_w507_fnptr_as_f2i32.stamp|w606-fnptr-as-f2i32-e" \
+    "src/runtime_pipeline_abi_fnptr_as_f2i64_thin.x|.pabi_w507_fnptr_as_f2i64.stamp|w606-fnptr-as-f2i64-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.x|.pabi_w507_fnptr_as_i2f32_i32.stamp|w606-fnptr-as-i2f32-i32-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.x|.pabi_w507_fnptr_as_i2f32_i64mov.stamp|w606-fnptr-as-i2f32-i64mov-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.x|.pabi_w507_fnptr_as_i2f32_u64.stamp|w606-fnptr-as-i2f32-u64-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.x|.pabi_w507_fnptr_as_i2f32_i64.stamp|w606-fnptr-as-i2f32-i64-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.x|.pabi_w507_fnptr_as_i2f32_k15.stamp|w606-fnptr-as-i2f32-k15-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.x|.pabi_w507_fnptr_as_i2f32_sf64.stamp|w606-fnptr-as-i2f32-sf64-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.x|.pabi_w507_fnptr_as_i2f64_u64.stamp|w606-fnptr-as-i2f64-u64-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.x|.pabi_w507_fnptr_as_i2f64_i64.stamp|w606-fnptr-as-i2f64-i64-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.x|.pabi_w507_fnptr_as_i2f64_i64mov.stamp|w606-fnptr-as-i2f64-i64mov-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.x|.pabi_w507_fnptr_as_i2f64_i32.stamp|w606-fnptr-as-i2f64-i32-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.x|.pabi_w507_fnptr_as_i2f64_f32.stamp|w606-fnptr-as-i2f64-f32-e" \
+    "src/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.x|.pabi_w507_fnptr_as_f2i_orch.stamp|w606-fnptr-as-f2i-orch-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.x|.pabi_w507_fnptr_as_i2f32_orch.stamp|w606-fnptr-as-i2f32-orch-e" \
+    "src/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.x|.pabi_w507_fnptr_as_i2f64_orch.stamp|w606-fnptr-as-i2f64-orch-e" \
+    "src/runtime_pipeline_abi_fnptr_as_lea_thin.x|.pabi_w507_fnptr_as_lea.stamp|w606-fnptr-as-lea-e" \
+    "src/runtime_pipeline_abi_fnptr_as_cast_orch_thin.x|.pabi_w507_fnptr_as_cast_orch.stamp|w606-fnptr-as-cast-orch-e" \
+    "src/runtime_pipeline_abi_fnptr_as_thin.x|.pabi_w507_fnptr_as.stamp|w606-fnptr-as-gate-e"
   do
     p_x="${p_peer%%|*}"
     p_rest="${p_peer#*|}"
     p_stamp="src/${p_rest%%|*}"
     p_tag="${p_rest#*|}"
-    if [ -f "$p_x" ] && { [ ! -f "$p_stamp" ] || [ "$p_x" -nt "$p_stamp" ]; }; then
+    if [ -f "$p_x" ]; then
       pipeline_abi_inject_thin_leaf "$o" "$p_x" "$p_tag"
       rc=$?
       if [ "$rc" -eq 0 ]; then
@@ -5601,7 +5624,8 @@ pipeline_abi_inject_fnptr_as_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    rm -f src/.pabi_fnptr_as*.stamp 2>/dev/null || true
+    touch "$stamp_e"
+    log "pipeline_abi w606-fnptr-as: LINUX -E replace (smash leftover T family)"
   fi
   return "$rc"
 }
@@ -14973,6 +14997,21 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_unused_hints_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-fnptr-as|inject_fnptr_as)
+    # wave507: PREFER both ends. wave606: LINUX -E replace smash leftover
+    #   as_cast_orch T (drops INDEX operand of `as`). HARD BAN PREFER.
+    #   MACOS stamp-only keep overlay.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-fnptr-as: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_fnptr_as_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

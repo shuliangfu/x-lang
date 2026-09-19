@@ -2,7 +2,7 @@
 // G.7: part of pipeline_asm_emit_as_elf_impl cast/fnptr path (peer-flat).
 // tip BB budget: monolith tip T001/CG002 after i→f32 i64mov; single-arm
 //   peers tipU-complete; gate→cast_orch→sub-orch→arms→lea.
-// PRODUCT: BOTH tip PREFER (stamp w507).
+// PRODUCT: LINUX -E (w606 smash leftover as_cast) / MACOS overlay keep.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;

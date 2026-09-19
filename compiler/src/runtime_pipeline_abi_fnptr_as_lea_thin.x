@@ -2,7 +2,7 @@
 // G.7: part of pipeline_asm_emit_as_elf_impl cast/fnptr path (peer-flat).
 // tip BB budget: monolith tip T001/CG002 after i→f32 i64mov; single-arm
 //   peers tipU-complete; gate→cast_orch→sub-orch→arms→lea.
-// PRODUCT: BOTH tip PREFER (stamp w507).
+// PRODUCT: LINUX -E (w606 smash leftover as_cast) / MACOS overlay keep.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
