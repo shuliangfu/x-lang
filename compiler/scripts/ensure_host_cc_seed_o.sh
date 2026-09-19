@@ -6153,6 +6153,18 @@ pipeline_abi_inject_modlet_thin() {
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     return 0
   fi
+  # w632b: HARD BAN again. The pruned (state-free) closure still breaks
+  # the product at startup: new crash is memcmp in
+  # driver_source_scan_top_level_import (file-view path) — some of the 159
+  # "state-free" copies shadow helpers whose behavior depends on state in
+  # their ORIGINAL member (non-transitive state analysis), or a dup-T win
+  # over another family thin. Thin stays standalone-green; next knife:
+  # shrink the thin to ONLY the 15 seed fns + direct table accessors and
+  # extern-wrap everything else.
+  touch "$stamp"
+  touch "$stamp_prefer"
+  log "pipeline_abi w631-modlet: HARD BAN (pruned closure still splits behavior; shrink to seed-only)"
+  return 0
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
   if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
