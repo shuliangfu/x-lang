@@ -6811,7 +6811,26 @@ pipeline_abi_inject_assign_thin() {
       d_stamp="src/${d_rest%%|*}"
       d_tag="${d_rest#*|}"
       # wave533–w537 Soft Cap: HARD BAN tip reinject for deref peers.
+      # wave596: LINUX -E peel — PREFER asm of this export SEGV 139 on
+      #   `unsafe { *p = 1 }` (gdb: frame smash at 0x9 in peel). Darwin
+      #   MACOS skip uses overlay and is fine. Do not PREFER-asm peel.
       case "$d_x" in
+        *assign_deref_peel_thin.x)
+          if [ -f "$d_x" ] && { [ ! -f "$d_stamp" ] || [ "$d_x" -nt "$d_stamp" ]; }; then
+            export XLANG_PABI_THIN_PREFER_ASM=0
+            export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+            pipeline_abi_inject_thin_leaf "$o" "$d_x" "w596-deref-peel-E"
+            rc=$?
+            export XLANG_PABI_THIN_PREFER_ASM=1
+            if [ "$rc" -eq 0 ]; then
+              touch "$d_stamp"
+              touch src/.pabi_w596_deref_peel.stamp
+            else
+              break
+            fi
+          fi
+          continue
+          ;;
         *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x|*assign_deref_scalar_thin.x|*assign_deref_array_call_thin.x|*assign_deref_vec_call_thin.x|*assign_deref_slice_call_thin.x)
           if [ -f "$d_x" ]; then
             touch "$d_stamp"
@@ -7350,13 +7369,16 @@ pipeline_abi_inject_assign_thin() {
         local dp_x="src/runtime_pipeline_abi_assign_deref_peel_thin.x"
         local dp_s="src/.pabi_w472_heal_deref_peel.stamp"
         if [ -f "$dp_x" ] && { [ ! -f "$dp_s" ] || [ "$dp_x" -nt "$dp_s" ]; }; then
-          export XLANG_PABI_THIN_PREFER_ASM=1
+          # wave596: LINUX -E (PREFER asm SEGV 139 on deref store).
+          export XLANG_PABI_THIN_PREFER_ASM=0
           export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-          pipeline_abi_inject_thin_leaf "$o" "$dp_x" "w472-heal-deref-peel"
+          pipeline_abi_inject_thin_leaf "$o" "$dp_x" "w596-deref-peel-E"
           rc=$?
           if [ "$rc" -eq 0 ]; then
             touch "$dp_s"
+            touch src/.pabi_w596_deref_peel.stamp
           fi
+          export XLANG_PABI_THIN_PREFER_ASM=1
         fi
       fi
       if [ "$rc" -eq 0 ]; then
