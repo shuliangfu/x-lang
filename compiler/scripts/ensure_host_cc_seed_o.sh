@@ -5718,45 +5718,34 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 # -c green both ends (Darwin 29590B / Ubuntu 15090B); was class-E default -E.
 # Gate: type_alias -c also green both ends (w358 residual gate).
 # wave498: tipU heal (pipe cells + w498_cell_*). Tip PREFER -c omits export
-#   `pipeline_typeck_wpo_dump_callgraph` — tip silent-drops file tail from
+#   `pipeline_typeck_wpo_dump_callgraph` — Ubuntu silent-drops file tail from
 #   wpo_dump_append_i32 onward (helpers through write stay; export never lands).
-#   tipU_o helpers-only. PRODUCT: LINUX -E+$CC replace (full export via host-cc).
-#   MACOS: HARD BAN tip reinject (keep prior w396/w497 overlay; tip same drop).
-# wave502: root-cause + orch leaf probe (export tip OK; append tipU miss).
-# wave503/514: orch local append/flush — tipU complete + tip EXPORT_OK, but tip
-#   PRODUCT PREFER overlay → L2 SEGV 0/5 (build 139). HARD BAN orch reinject;
-#   keep orch .x as inventory; stamp skip; product stays w498 -E helpers.
-# wave514: drop dead link_abi_getenv (env via wpo_dump_env_path) → tipU 21/21;
-#   stamp → w514; tip PRODUCT reinject still HARD BAN.
+#   Darwin PREFER -c keeps the export. PRODUCT: LINUX -E+$CC helpers.
+#   MACOS: HARD BAN tip reinject (keep prior w396/w497 overlay).
+# wave502: orch leaf probe (export tip OK; append tipU miss).
+# wave503/514: orch local append/flush — tipU complete + tip EXPORT_OK, but
+#   PRODUCT PREFER → L2 SEGV 0/5 (*i32 store). HARD BAN orch; stay w498 -E.
+# wave594: orch no *i32 store. LINUX: -E helpers then PREFER orch (export).
+#   MACOS: still HARD BAN both. Do not Soft-Cap (export stays real dump).
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
-# PLATFORM: SHARED · MACOS hard-skip / LINUX -E helpers · orch BAN tip reinject.
+# PLATFORM: SHARED · MACOS hard-skip / LINUX -E helpers + PREFER orch.
 pipeline_abi_inject_wpo_dump_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
   local stamp="src/.pabi_w498_wpo_dump.stamp"
   local orch_x="src/runtime_pipeline_abi_wpo_dump_orch_thin.x"
-  local orch_s="src/.pabi_w514_wpo_dump_orch.stamp"
+  local orch_s="src/.pabi_w594_wpo_dump_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # wave503/514: HARD BAN orch tip product reinject (L2 SEGV @ tipU-complete PREFER).
-  if [ -f "$orch_x" ]; then
-    if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
-      touch "$orch_s"
-      rm -f src/.pabi_w503_wpo_dump_orch.stamp
-      log "pipeline_abi w514-wpo-dump-orch: tipU 21/21 stamped; tip PRODUCT reinject HARD BAN (keep w498 -E)"
-    fi
-  fi
-  # PLATFORM: MACOS — HARD BAN tip reinject (helpers; tip drop class).
+  # PLATFORM: MACOS — HARD BAN full thin + orch (keep prior overlay).
   if [ "$(uname -s)" != "Linux" ]; then
     touch "$stamp"
-    rm -f src/.pabi_w396_wpo_dump.stamp
-    return 0
-  fi
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    touch "$orch_s"
+    rm -f src/.pabi_w396_wpo_dump.stamp src/.pabi_w514_wpo_dump_orch.stamp src/.pabi_w503_wpo_dump_orch.stamp
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -5768,14 +5757,38 @@ pipeline_abi_inject_wpo_dump_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: LINUX — force -E+$CC helpers (tip PREFER omits export tail).
-  export XLANG_PABI_THIN_PREFER_ASM=0
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w498-wpo-dump"
-  rc=$?
+  # PLATFORM: LINUX — -E+$CC helpers (full thin Ubuntu drops export tail).
+  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
+    unset XLANG_PABI_THIN_INJECT_IF_NEWER
+    export XLANG_PABI_THIN_PREFER_ASM=0
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w498-wpo-dump"
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      touch "$stamp"
+    fi
+  fi
+  # PLATFORM: LINUX — PREFER orch export (first-wins over seed rest).
+  # Helpers come from the -E overlay above; orch is small enough that
+  # Ubuntu -backend asm keeps pipeline_typeck_wpo_dump_callgraph.
+  if [ "$rc" -eq 0 ] && [ -f "$orch_x" ]; then
+    if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=1
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$orch_x" "w594-wpo-dump-orch"
+      rc=$?
+      if [ "$rc" -eq 0 ]; then
+        touch "$orch_s"
+        rm -f src/.pabi_w514_wpo_dump_orch.stamp src/.pabi_w503_wpo_dump_orch.stamp
+        log "pipeline_abi w594-wpo-dump-orch: LINUX PREFER orch export (no *i32 store)"
+      fi
+    fi
+  fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
+  else
+    unset XLANG_PABI_THIN_INJECT_IF_NEWER
   fi
   if [ "$had_prefer" = "1" ]; then
     export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
@@ -5786,9 +5799,6 @@ pipeline_abi_inject_wpo_dump_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
   fi
   return "$rc"
 }

@@ -1,15 +1,14 @@
-// Thin pure: wave503/514 WPO dump ORCH peer-flat (export + collect/bfs/emit).
+// Thin pure: WPO dump ORCH peer-flat (export + collect/bfs/emit).
 // G.7: body MUST match pipeline_typeck_wpo_dump_callgraph semantics in
 // runtime_pipeline_abi.x / wpo_dump_thin (same exported symbol).
-// Why separate leaf: tip -c of monolith wpo_dump_thin silently drops the
-// file tail from wpo_dump_append_i32 onward (helpers through write stay;
-// export never lands). Small orch file tip-emits the export.
-// wave502: orch tip EXPORT_OK but extern append mid `blen=call()` tipU miss.
-// wave503: local write/append_i32/append_lit/flush copies (G.7 ≡ thin helpers)
-//   → tipU complete + tip EXPORT_OK; tip PRODUCT PREFER → L2 SEGV 0/5 HARD BAN.
-//   Stamp .pabi_w503_wpo_dump_orch.stamp skip; PRODUCT stays w498 -E helpers.
-// wave514: drop dead `link_abi_getenv` extern (env via wpo_dump_env_path);
-//   tipU 21/21; stamp → w514; tip PRODUCT reinject still HARD BAN.
+// Why separate leaf: Ubuntu tip -c of monolith wpo_dump_thin silently drops
+// the file tail from wpo_dump_append_i32 onward (17 helpers through write
+// stay; export never lands). Small orch file tip-emits the export both ends.
+// wave503/514: local write/append/flush; tipU 21/21 + EXPORT_OK; PRODUCT
+//   PREFER L2 SEGV 0/5 (x86_64 *i32 store: flush len[0], collect nedges_out,
+//   export i32[1] cell). HARD BAN then; product stayed w498 -E helpers.
+// wave594: no *i32 store (flush takes i32 by value; collect_all returns
+//   i32; export drops i32[1]). LINUX PRODUCT PREFER orch; MACOS keep BAN.
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
 export extern function pipeline_module_num_funcs(m: *u8): i32;
@@ -193,48 +192,39 @@ function w503_append_lit(buf: *u8, cap: i32, len: i32, lit: *u8, lit_len: i32): 
 }
 
 /**
- * Local flush (G.7 ≡ wpo_dump_flush).
- * @param fp *u8
- * @param use_stdout i32
- * @param buf *u8
- * @param len *i32
+ * Local flush (G.7 ≡ wpo_dump_flush write side).
+ * Length is by-value so this leaf never stores through *i32 (Ubuntu
+ * x86_64 -backend asm SEGV 139 class). Caller zeros its length after.
+ * @param fp *u8 — FILE* or unused when stdout
+ * @param use_stdout i32 — nonzero → stdout
+ * @param buf *u8 — bytes to write
+ * @param n i32 — byte count; n<=0 is a no-op
  * @return void
  * PLATFORM: SHARED.
  */
-function w503_flush(fp: *u8, use_stdout: i32, buf: *u8, len: *i32): void {
-  let n: i32 = 0;
-  if (len == 0 as *i32) {
-    return;
-  }
-  unsafe {
-    n = len[0];
-  }
+function w503_flush(fp: *u8, use_stdout: i32, buf: *u8, n: i32): void {
   if (n > 0) {
     w503_write(fp, use_stdout, buf, n);
-    unsafe {
-      len[0] = 0;
-    }
   }
 }
 
 /**
  * Collect CALL/METHOD edges for all funcs into g_w503_edge_*.
+ * Returns the edge count instead of storing through *i32 (Ubuntu x86_64
+ * SEGV 139 class). Extern collect_block/expr still take *i32 nedges;
+ * those stores live in the LINUX -E helper overlay (host-cc), not here.
  * @param m *u8 — Module*
  * @param a *u8 — ASTArena*
  * @param nfuncs i32 — capped func count
- * @param nedges_out *i32 — out edge count
- * @return void
+ * @return i32 — edge count written into g_w503_edge_*
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
  */
-function w503_wpo_collect_all(m: *u8, a: *u8, nfuncs: i32, nedges_out: *i32): void {
-  let cell: u8[8];
+function w503_wpo_collect_all(m: *u8, a: *u8, nfuncs: i32): i32 {
+  let cell: u8[8] = [];
   let fi: i32 = 0;
   let br: i32 = 0;
   let ber: i32 = 0;
   let nedges: i32 = 0;
-  if (nedges_out == 0 as *i32) {
-    return;
-  }
   while (fi < nfuncs) {
     unsafe {
       pipe_store_i32_le(&cell[0], 0, pipeline_module_func_body_ref_at(m, fi));
@@ -249,9 +239,7 @@ function w503_wpo_collect_all(m: *u8, a: *u8, nfuncs: i32, nedges_out: *i32): vo
     }
     fi = fi + 1;
   }
-  unsafe {
-    nedges_out[0] = nedges;
-  }
+  return nedges;
 }
 
 /**
@@ -318,7 +306,7 @@ function w503_wpo_bfs(root: i32, nfuncs: i32, nedges: i32): void {
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
  */
 function w503_wpo_emit(m: *u8, fp: *u8, use_stdout: i32, root: i32, nfuncs: i32, nedges: i32): void {
-  let cell: u8[8];
+  let cell: u8[8] = [];
   let fi: i32 = 0;
   let ei: i32 = 0;
   let nlen: i32 = 0;
@@ -354,9 +342,11 @@ function w503_wpo_emit(m: *u8, fp: *u8, use_stdout: i32, root: i32, nfuncs: i32,
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_ver[0], 18);
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_entry[0], 15);
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_mods[0], 46);
-  w503_flush(fp, use_stdout, &g_w503_buf[0], &blen);
+  w503_flush(fp, use_stdout, &g_w503_buf[0], blen);
+  blen = 0;
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_funcs_open[0], 17);
-  w503_flush(fp, use_stdout, &g_w503_buf[0], &blen);
+  w503_flush(fp, use_stdout, &g_w503_buf[0], blen);
+  blen = 0;
   first = 1;
   fi = 0;
   while (fi < nfuncs) {
@@ -403,12 +393,14 @@ function w503_wpo_emit(m: *u8, fp: *u8, use_stdout: i32, root: i32, nfuncs: i32,
       }
     }
     blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_close_obj[0], 1);
-    w503_flush(fp, use_stdout, &g_w503_buf[0], &blen);
+    w503_flush(fp, use_stdout, &g_w503_buf[0], blen);
+    blen = 0;
     fi = fi + 1;
   }
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_arr_close[0], 6);
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_edges_open[0], 13);
-  w503_flush(fp, use_stdout, &g_w503_buf[0], &blen);
+  w503_flush(fp, use_stdout, &g_w503_buf[0], blen);
+  blen = 0;
   first = 1;
   ei = 0;
   while (ei < nedges) {
@@ -426,14 +418,16 @@ function w503_wpo_emit(m: *u8, fp: *u8, use_stdout: i32, root: i32, nfuncs: i32,
       blen = w503_append_i32(&g_w503_buf[0], 512, blen, g_w503_edge_to[ei]);
     }
     blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_close_obj[0], 1);
-    w503_flush(fp, use_stdout, &g_w503_buf[0], &blen);
+    w503_flush(fp, use_stdout, &g_w503_buf[0], blen);
+    blen = 0;
     ei = ei + 1;
   }
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_arr_close[0], 6);
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_tail[0], 30);
   blen = w503_append_i32(&g_w503_buf[0], 512, blen, root);
   blen = w503_append_lit(&g_w503_buf[0], 512, blen, &s_end[0], 3);
-  w503_flush(fp, use_stdout, &g_w503_buf[0], &blen);
+  w503_flush(fp, use_stdout, &g_w503_buf[0], blen);
+  blen = 0;
 }
 
 /**
@@ -443,14 +437,14 @@ function w503_wpo_emit(m: *u8, fp: *u8, use_stdout: i32, root: i32, nfuncs: i32,
  * @param a *u8 - ASTArena*
  * @param ctx *u8 - PipelineDepCtx* (unused; reserved)
  * @return i32 - 1 if dumped, 0 if skipped/failed open
+ * wave594: no local i32[1] / *i32 store (Ubuntu x86_64 SEGV 139 class).
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
  */
 #[no_mangle]
 export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i32 {
-  let cell: u8[8];
-  let pcell: u8[8];
-  let path_slot: u8[8];
-  let nedges_cell: i32[1] = [];
+  let cell: u8[8] = [];
+  let pcell: u8[8] = [];
+  let path_slot: u8[8] = [];
   let path: *u8 = 0 as *u8;
   let use_stdout: i32 = 0;
   let fp: *u8 = 0 as *u8;
@@ -544,9 +538,9 @@ export function pipeline_typeck_wpo_dump_callgraph(m: *u8, a: *u8, ctx: *u8): i3
   if (root < 0) {
     root = 0;
   }
-  w503_wpo_collect_all(m, a, nfuncs, &nedges_cell[0]);
   unsafe {
-    nedges = nedges_cell[0];
+    pipe_store_i32_le(&cell[0], 0, w503_wpo_collect_all(m, a, nfuncs));
+    nedges = w503_cell_i32(&cell[0]);
   }
   w503_wpo_bfs(root, nfuncs, nedges);
   w503_wpo_emit(m, fp, use_stdout, root, nfuncs, nedges);
