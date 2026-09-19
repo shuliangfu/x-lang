@@ -8812,63 +8812,45 @@ pipeline_abi_inject_emit_ctx_module_dep_thin() {
   return "$rc"
 }
 
-# wave601 M2: block final_expr tail_join gate.
-# Smash leftover func_index_get=-1 used to take the unknown-identity
-# fallback jmp .Lf0_0 (if-in-while run=1). LINUX -E of emit_ctx BSS
-# getters dual-BSS option SEGV — do not replace those T. Complete the
-# gate: unknown identity → no tail_join jmp.
-# LINUX -E replace leftover T; HARD BAN PREFER; MACOS keep overlay.
-# PLATFORM: SHARED · LINUX gold · MACOS.
+# wave601/619 M2: block final_expr tail_join gate.
+# wave601 walls are closed at the roots: the unknown-identity fallback was
+#   the gate bug (fixed in-body), and the emit_ctx getter state it read is
+#   now the w618 ONE-set PREFER family (single cell side).
+# wave619: source-level T001 fixed (six bare extern calls wrapped unsafe;
+#   standalone -c green T=1 UND=14) — product PREFER_ASM both ends.
+# G.7: thin body matches the mega leave (same unsafe fix applied there).
+# PLATFORM: SHARED · PREFER_ASM both ends.
 pipeline_abi_inject_block_final_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_block_final_expr_thin.x"
   local stamp_e="src/.pabi_w601_block_final_expr.stamp"
+  local stamp_prefer="src/.pabi_w619_block_final_expr_prefer.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  case "$(uname -s)" in
-    Darwin)
-      # PLATFORM: MACOS — overlay already runs if-in-while=3.
-      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
-        return 0
-      fi
-      touch "$stamp_e"
-      log "pipeline_abi w601-block-final-expr: MACOS keep prior overlay; HARD BAN PREFER"
-      return 0
-      ;;
-    Linux)
-      # PLATFORM: LINUX — -E replace leftover T (unsafe tail_join fallback).
-      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
-        return 0
-      fi
-      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-      local had_prefer=0 had_e_repl=0 rc=0
-      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
-      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
-      unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
-      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w601-block-final-expr-e"
-      rc=$?
-      if [ "$had_prefer" = "1" ]; then
-        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-      else
-        unset XLANG_PABI_THIN_PREFER_ASM
-      fi
-      if [ "$had_e_repl" = "1" ]; then
-        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-      else
-        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-      fi
-      if [ "$rc" -eq 0 ]; then
-        touch "$stamp_e"
-        log "pipeline_abi w601-block-final-expr: LINUX -E replace (tail_join unknown-identity = 0)"
-      fi
-      return "$rc"
-      ;;
-  esac
-  touch "$stamp_e"
-  log "pipeline_abi w601-block-final-expr: non-POSIX stamp-only (keep prior)"
-  return 0
+  if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w619-block-final-expr-prefer"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp_e"
+    touch "$stamp_prefer"
+    log "pipeline_abi w619-block-final-expr: PREFER_ASM replace (no host-cc for this TU)"
+  fi
+  return "$rc"
 }
 
 # wave602 M2: return_elf_impl Cap residual .x thin.

@@ -60262,11 +60262,13 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || block_ref <= 0) {
     return 0;
   }
-  fref = pipeline_asm_block_final_expr_ref_at(arena, block_ref);
+  unsafe { fref = pipeline_asm_block_final_expr_ref_at(arena, block_ref); }
   if (fref == 0) {
     return 0;
   }
-  if (glue_block_stmt_order_has_return(arena, block_ref) != 0) {
+  let has_ret_fe: i32 = 0;
+  unsafe { has_ret_fe = glue_block_stmt_order_has_return(arena, block_ref); }
+  if (has_ret_fe != 0) {
     return 0;
   }
   unsafe {
@@ -60289,8 +60291,10 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
     depth = glue_if_expr_arm_emit_depth_get();
   }
   if (depth <= 0 && fref_ko != 41) {
-    mod = pipeline_asm_emit_module_ref_c();
-    fi = pipeline_asm_emit_func_index_c();
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+      fi = pipeline_asm_emit_func_index_c();
+    }
     if (mod != 0 as *u8 && fi >= 0) {
       unsafe {
         fb = pipeline_module_func_body_ref_at(mod, fi);
@@ -60305,9 +60309,10 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
     // wave601: do not jmp function tail_join from nested while/if bodies.
   }
   if (allow_tail_join != 0) {
-    ly = pipeline_asm_ctx_layout(ctx);
+    ly = 0 as *u8;
+    unsafe { ly = pipeline_asm_ctx_layout(ctx); }
     if (ly != 0 as *u8) {
-      tj_len = pipe_load_i32_le(ly, 1520);
+      unsafe { tj_len = pipe_load_i32_le(ly, 1520); }
       if (tj_len > 0) {
         tk = 0;
         while (tk < tj_len && tk < 128) {
