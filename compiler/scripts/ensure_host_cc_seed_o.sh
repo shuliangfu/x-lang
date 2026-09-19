@@ -8331,58 +8331,29 @@ pipeline_abi_inject_asm73_live_set_thin() {
   return 0
 }
 
-# wave216/348/375 for_call_args mega leave. G.7: match mega entry.
+# wave216/348/375/588 for_call_args mega leave. G.7: match mega entry.
 # PRODUCT inject wave375: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
 # wave348: historic leftover mega lea'd i32 VAR CALL args; thin does
 # resolve→use_lea→load (scalar rvalue). wave375: tip standalone -c 27881B
 # PREFER green — unlock both-end PREFER (was FORCE -E).
-# PLATFORM: SHARED · both ends PREFER.
+# wave588: Ubuntu tip `-backend asm -c` empty .o (if-before-call /
+#   mid-assign / rc=call then if / local u8[256] / *i32 out slots).
+#   Darwin original 68/68. for_call_args_store_encoders recovered
+#   68/68. HARD BAN tip PRODUCT reinject both ends. Keep w375 overlay.
+# PLATFORM: SHARED · stamp-only BAN then return 0.
 pipeline_abi_inject_for_call_args_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_for_call_args_thin.x"
-  local stamp="src/.pabi_w375_for_call_args.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w588_for_call_args.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — wave588 Soft Cap HARD BAN tip reinject (keep w375).
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (standalone -c gate green).
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w375-for-call-args"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w348_for_call_args.stamp
-  fi
-  return "$rc"
+  touch "$stamp"
+  rm -f src/.pabi_w375_for_call_args.stamp src/.pabi_w348_for_call_args.stamp
+  log "pipeline_abi w588-for-call-args: tipU stamped; tip PRODUCT reinject HARD BAN (keep w375)"
+  return 0
 }
 
 # PRODUCT inject stamp w351/w378/w387/516: Cap A module fixed-array INDEX rvalue.
@@ -8859,6 +8830,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave346: check_expr ordinal let→const.
 # wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
 # wave348/375: for_call_args rvalue; wave375 PREFER both ends (was -E).
+# wave588: for_call_args tipU 68/68 + PRODUCT BAN (Ubuntu original empty .o).
 # wave375 BAN: parser_result PREFER (LexerResult.next_lex size under pure-asm).
 # wave349: block_tree T001 unsafe wrap.
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
@@ -15064,6 +15036,7 @@ case "$MODE" in
     ;;
   inject-for-call-args|inject_for_call_args|inject-fca|inject_fca)
     # wave375: for_call_args PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
+    # wave588: HARD BAN tip PRODUCT reinject (keep w375 overlay).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-for-call-args: need <out.o>" >&2
