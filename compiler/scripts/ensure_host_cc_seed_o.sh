@@ -7941,6 +7941,10 @@ pipeline_abi_inject_arr_return_thin() {
 #   wave447 HARD BAN tip pure-asm for arrlit+main: tip regen → opt SEGV 139
 #     (even param-touching stubs); bare `return 0` stub → opt=94. Keep -E.
 #   wave455: no-local kind_ord main tip → opt=94 (tip .o U-starved). BAN.
+# wave591: arrlit Ubuntu tip `-backend asm -c` UND=1 (vector_let_init
+#   only). Darwin original 9/9. arr_struct_lit_arrlit_store_encoders
+#   recovered 10/10. HARD BAN tip PRODUCT reinject both ends (first
+#   loop too). Keep w440 overlay. Do not un-BAN arrlit+main.
 # G.7: semantics match mega glue_struct_lit_store_fixed_array_field_elf_c.
 # PLATFORM: SHARED · MACOS pure-asm / LINUX -E + w446 heal-asm.
 pipeline_abi_inject_arr_struct_lit_thin() {
@@ -8017,6 +8021,15 @@ pipeline_abi_inject_arr_struct_lit_thin() {
       src/.pabi_w446_heal_resolve_vf.stamp
     log "pipeline_abi w567 arr_struct_lit_resolve_vf: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
+  # wave591: arrlit Ubuntu tip dropped 8/9 encoders (mid-assign lit_n
+  #   then if / if-before-return sret_direct / while / rc=call then if).
+  # HARD BAN tip PRODUCT reinject on both ends. Keep the w440 overlay.
+  # Do not un-BAN arrlit+main (wave447 opt SEGV / opt=94).
+  if [ -f src/runtime_pipeline_abi_arr_struct_lit_arrlit_thin.x ]; then
+    touch src/.pabi_w591_arr_struct_lit_arrlit.stamp
+    rm -f src/.pabi_w440_arr_struct_lit_arrlit.stamp
+    log "pipeline_abi w591 arr_struct_lit_arrlit: tipU stamped; tip PRODUCT reinject HARD BAN"
+  fi
   # PLATFORM: LINUX — soft -E chain (w442) + nine-peer pure-asm heal (w446).
   case "$(uname -s)" in
     Linux) prefer_asm=0 ;;
@@ -8059,7 +8072,6 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   export XLANG_PABI_THIN_PREFER_ASM="$prefer_asm"
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   for peer in \
-    "src/runtime_pipeline_abi_arr_struct_lit_arrlit_thin.x|.pabi_w440_arr_struct_lit_arrlit.stamp|w440-arr-struct-lit-arrlit" \
     "src/runtime_pipeline_abi_arr_struct_lit_resolve_call_thin.x|.pabi_w440_arr_struct_lit_resolve_call.stamp|w440-arr-struct-lit-resolve-call" \
     "src/runtime_pipeline_abi_arr_struct_lit_copy_thin.x|.pabi_w440_arr_struct_lit_copy.stamp|w440-arr-struct-lit-copy" \
     "src/runtime_pipeline_abi_arr_struct_lit_thin.x|.pabi_w440_arr_struct_lit.stamp|w440-arr-struct-lit"
@@ -8080,6 +8092,7 @@ pipeline_abi_inject_arr_struct_lit_thin() {
   done
   # wave446: nine-peer pure-asm overlay (LINUX).
   # wave447/455: arrlit+main tip pure-asm HARD BAN (opt SEGV / opt=94); stay -E.
+  # wave591: arrlit first-loop also HARD BAN (Ubuntu UND=1 encoder drop).
   # PLATFORM: LINUX gold · MACOS skipped (full chain already PREFER).
   case "$(uname -s)" in
     Linux)
@@ -8933,7 +8946,8 @@ pipeline_abi_inject_block_tree_thin() {
 # wave443: mega helpers LINUX -E PREFER (+emit_one); loop tip BAN.
 # wave444: mega loop LINUX HARD BAN (-E EM:0 / pure-asm SEGV 139).
 # wave453: loop BSS+pipe_elf_off+no-local tip→code_len=0; -E→BLD001. BAN.
-# Next: mega loop 他径／to_rax／arrlit tip；禁 tip emit／loop reinject；禁升钉。
+# Next: arr_struct_lit main (Ubuntu UND=1 vs Darwin 13; already BAN PREFER overlay).
+#   Remaining PREFER copy／resolve_call U-complete, do not BAN. 禁 un-BAN arrlit＋main.
 
 
 # PLATFORM: SHARED shell · MACOS + LINUX gold.
