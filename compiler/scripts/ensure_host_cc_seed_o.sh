@@ -6916,7 +6916,7 @@ pipeline_abi_inject_assign_thin() {
   if [ "$rc" -eq 0 ]; then
     pipeline_abi_inject_rhsrax_to_rax_thin "$o" || rc=$?
   fi
-  # wave600: leftover PREFER assign_var family smashes (`sub $0x898`).
+  # wave600 smash was stale-era; family is PREFER both ends since w620.
   #   LINUX -E replace; HARD BAN PREFER; MACOS keep overlay.
   # PLATFORM: LINUX gold.
   if [ "$rc" -eq 0 ]; then
@@ -7157,7 +7157,7 @@ pipeline_abi_inject_assign_thin() {
     done
   fi
   # wave451/w473: var tip + peers were PREFER overlay (LINUX only).
-  # wave600: leftover PREFER smash (`sub $0x898`, no endbr64) — LINUX
+  # wave600 smash was stale-era (family PREFER both ends since w620) — LINUX
   #   -E replace via pipeline_abi_inject_assign_var_thin; HARD BAN PREFER.
   # PLATFORM: LINUX gold.
   if [ "$rc" -eq 0 ]; then
@@ -7695,7 +7695,7 @@ pipeline_abi_inject_assign_thin() {
         pipeline_abi_inject_deref_scalar_thin "$o" || rc=$?
       fi
       if [ "$rc" -eq 0 ]; then
-        # wave600: leftover PREFER assign_var family smash. HARD BAN
+        # assign_var family PREFER both ends since w620 (stale-era ban lifted)
         #   PREFER reinject; LINUX -E is pipeline_abi_inject_assign_var_thin.
         pipeline_abi_inject_assign_var_thin "$o" || rc=$?
       fi
@@ -9669,111 +9669,81 @@ pipeline_abi_inject_rhsrax_to_rax_thin() {
   return 0
 }
 
-# wave600: leftover PREFER glue_emit_assign_var_elf_c family smashes
-# the caller (huge frame, no endbr64, cltq on ctx). Ubuntu
-# `di = 1` / `while (di < n) { di = di + 1 }` then hangs because
-# the store never lands. LINUX -E replace leftover T with the
-# no-local var family thins. HARD BAN PREFER (w473). MACOS keep
-# Darwin overlay (while_inc already returns 3).
-# PLATFORM: LINUX gold.
+# wave600/620 M2: glue_emit_assign_var_elf_c 7-leaf family.
+# wave600 walls ("leftover PREFER smashes the caller, huge frame, di store
+#   never lands") were the stale warm-composition era — probe w620 on the
+#   w613–w619 dual-L4 chain: all 7 leaves PREFER'd, Ubuntu w600 repro
+#   (di=1 / while(di<n){di++}) = 3, nested-while inner-lets = 63,
+#   if-in-while = 4, L2 5/5. MACOS already ran the PREFER overlay.
+# wave620: product PREFER_ASM both ends (7 leaves, one w620 prefer stamp).
+#   Do not -E as a new repair.
+# PLATFORM: SHARED · PREFER_ASM both ends.
 pipeline_abi_inject_assign_var_thin() {
   local o="$1"
   local stamp_e="src/.pabi_w600_assign_var.stamp"
+  local stamp_prefer="src/.pabi_w620_assign_var_prefer.stamp"
   local gate_x="src/runtime_pipeline_abi_assign_var_thin.x"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  local _px _ps _need=0
   [ -s "$o" ] && [ -f "$gate_x" ] || return 0
-  case "$(uname -s)" in
-    Darwin)
-      # PLATFORM: MACOS — overlay already runs while_inc=3.
-      if [ -f "$stamp_e" ] && [ ! "$gate_x" -nt "$stamp_e" ]; then
-        return 0
-      fi
-      touch src/.pabi_w473_heal_var.stamp \
-        src/.pabi_w473_heal_var_try_let.stamp \
-        src/.pabi_w473_heal_var_finish.stamp \
-        src/.pabi_w473_heal_var_store.stamp \
-        src/.pabi_w473_heal_var_store_pair.stamp \
-        src/.pabi_w473_heal_var_store_f32.stamp \
-        src/.pabi_w473_heal_var_store_slice.stamp \
-        "$stamp_e"
-      log "pipeline_abi w600-assign-var: MACOS keep prior overlay; HARD BAN PREFER"
-      return 0
-      ;;
-    Linux)
-      # PLATFORM: LINUX — -E replace smash leftover PREFER T (family).
-      local _px _ps _need=0
-      if [ ! -f "$stamp_e" ]; then
-        _need=1
-      fi
-      for _pair in \
-        "src/runtime_pipeline_abi_assign_var_store_slice_thin.x|.pabi_w473_heal_var_store_slice.stamp" \
-        "src/runtime_pipeline_abi_assign_var_store_f32_thin.x|.pabi_w473_heal_var_store_f32.stamp" \
-        "src/runtime_pipeline_abi_assign_var_store_pair_thin.x|.pabi_w473_heal_var_store_pair.stamp" \
-        "src/runtime_pipeline_abi_assign_var_store_thin.x|.pabi_w473_heal_var_store.stamp" \
-        "src/runtime_pipeline_abi_assign_var_finish_thin.x|.pabi_w473_heal_var_finish.stamp" \
-        "src/runtime_pipeline_abi_assign_var_try_let_thin.x|.pabi_w473_heal_var_try_let.stamp" \
-        "src/runtime_pipeline_abi_assign_var_thin.x|.pabi_w473_heal_var.stamp"
-      do
-        _px="${_pair%%|*}"
-        if [ -f "$_px" ] && { [ ! -f "$stamp_e" ] || [ "$_px" -nt "$stamp_e" ]; }; then
-          _need=1
-          break
-        fi
-      done
-      if [ "$_need" != "1" ]; then
-        return 0
-      fi
-      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-      local had_prefer=0 had_e_repl=0 rc=0
-      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
-      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
-      unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
-      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      local p_x p_rest p_stamp p_tag
-      for p_peer in \
-        "src/runtime_pipeline_abi_assign_var_store_slice_thin.x|.pabi_w473_heal_var_store_slice.stamp|w600-assign-var-store-slice-e" \
-        "src/runtime_pipeline_abi_assign_var_store_f32_thin.x|.pabi_w473_heal_var_store_f32.stamp|w600-assign-var-store-f32-e" \
-        "src/runtime_pipeline_abi_assign_var_store_pair_thin.x|.pabi_w473_heal_var_store_pair.stamp|w600-assign-var-store-pair-e" \
-        "src/runtime_pipeline_abi_assign_var_store_thin.x|.pabi_w473_heal_var_store.stamp|w600-assign-var-store-e" \
-        "src/runtime_pipeline_abi_assign_var_finish_thin.x|.pabi_w473_heal_var_finish.stamp|w600-assign-var-finish-e" \
-        "src/runtime_pipeline_abi_assign_var_try_let_thin.x|.pabi_w473_heal_var_try_let.stamp|w600-assign-var-try-let-e" \
-        "src/runtime_pipeline_abi_assign_var_thin.x|.pabi_w473_heal_var.stamp|w600-assign-var-e"
-      do
-        p_x="${p_peer%%|*}"
-        p_rest="${p_peer#*|}"
-        p_stamp="src/${p_rest%%|*}"
-        p_tag="${p_rest#*|}"
-        if [ -f "$p_x" ]; then
-          pipeline_abi_inject_thin_leaf "$o" "$p_x" "$p_tag"
-          rc=$?
-          if [ "$rc" -eq 0 ]; then
-            touch "$p_stamp"
-          else
-            break
-          fi
-        fi
-      done
-      if [ "$had_prefer" = "1" ]; then
-        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-      else
-        unset XLANG_PABI_THIN_PREFER_ASM
-      fi
-      if [ "$had_e_repl" = "1" ]; then
-        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-      else
-        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-      fi
-      if [ "$rc" -eq 0 ]; then
-        touch "$stamp_e"
-        log "pipeline_abi w600-assign-var: LINUX -E replace (smash leftover T family)"
-      fi
-      return "$rc"
-      ;;
-  esac
-  touch src/.pabi_w473_heal_var.stamp "$stamp_e"
-  log "pipeline_abi w600-assign-var: non-POSIX stamp-only (keep prior)"
-  return 0
+  if [ -f "$stamp_e" ] && [ ! "$gate_x" -nt "$stamp_e" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  for _pair in \
+    "src/runtime_pipeline_abi_assign_var_thin.x|.pabi_w473_heal_var.stamp" \
+    "src/runtime_pipeline_abi_assign_var_try_let_thin.x|.pabi_w473_heal_var_try_let.stamp" \
+    "src/runtime_pipeline_abi_assign_var_finish_thin.x|.pabi_w473_heal_var_finish.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_thin.x|.pabi_w473_heal_var_store.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_pair_thin.x|.pabi_w473_heal_var_store_pair.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_f32_thin.x|.pabi_w473_heal_var_store_f32.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_slice_thin.x|.pabi_w473_heal_var_store_slice.stamp"
+  do
+    _px="${_pair%%|*}"
+    _ps="src/${_pair##*|}"
+    if [ -f "$_px" ] && { [ ! -f "$stamp_e" ] || [ "$_px" -nt "$stamp_e" ] || [ ! -f "$_ps" ]; }; then
+      _need=1
+      break
+    fi
+  done
+  if [ "$_need" != "1" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  rc=0
+  for _pair in \
+    "src/runtime_pipeline_abi_assign_var_store_slice_thin.x|.pabi_w473_heal_var_store_slice.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_f32_thin.x|.pabi_w473_heal_var_store_f32.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_pair_thin.x|.pabi_w473_heal_var_store_pair.stamp" \
+    "src/runtime_pipeline_abi_assign_var_store_thin.x|.pabi_w473_heal_var_store.stamp" \
+    "src/runtime_pipeline_abi_assign_var_finish_thin.x|.pabi_w473_heal_var_finish.stamp" \
+    "src/runtime_pipeline_abi_assign_var_try_let_thin.x|.pabi_w473_heal_var_try_let.stamp" \
+    "src/runtime_pipeline_abi_assign_var_thin.x|.pabi_w473_heal_var.stamp"
+  do
+    _px="${_pair%%|*}"
+    _ps="src/${_pair##*|}"
+    if [ -f "$_px" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "$_px" "w620-assign-var-prefer" || { rc=$?; break; }
+      touch "$_ps"
+    fi
+  done
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp_e"
+    touch "$stamp_prefer"
+    log "pipeline_abi w620-assign-var: PREFER_ASM replace 7 leaves (no host-cc for this family)"
+  fi
+  return "$rc"
 }
 
 # wave309/367/367b/528 M2: dep_ctx Cap residual C→.x (was wave272 C thin).
@@ -15261,9 +15231,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-assign-var|inject_assign_var)
-    # wave600: LINUX -E replace smash leftover assign_var PREFER family.
-    # MACOS keep overlay. HARD BAN PREFER (w473).
-    # PLATFORM: LINUX gold · MACOS keep prior.
+    # wave600 -E replaced the smash-era PREFER; wave620 re-verified on the
+    # w613–w619 chain and flipped the family to PREFER_ASM both ends.
+    # PLATFORM: SHARED · PREFER_ASM.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-assign-var: need <out.o>" >&2
       exit 2
