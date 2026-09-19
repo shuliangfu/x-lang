@@ -9020,46 +9020,37 @@ pipeline_abi_inject_struct_layout_thin() {
   return 0
 }
 
-# wave304/361/430/490/595 M2: asm_locals Cap residual C→.x (was wave267 C thin).
-# PRODUCT inject wave490:
-#   tipU heal (no-local malloc → tipU 10/10) but tip PRODUCT PREFER HARD BAN
-#   (pure-asm inject → L2 SEGV 0/5; same as w430). Keep LINUX -E+$CC.
-#   MACOS HARD BAN tip reinject (w361 SEGV). Stamp w490.
-# wave595: Ubuntu tip -c of the monolith drops trailing asm_ctx_block_slot_get
-#   (isolated get compiles; Darwin keeps all 12 faces). Get peer standalone
-#   EXPORT_OK UND=5/5; LINUX PRODUCT PREFER still L2 SEGV 0/5 — HARD BAN
-#   get peer (stamp w595 skip). Product stays w490 -E main. MACOS HARD BAN.
+# wave304/361/430/490/595/604/617 M2: asm_locals Cap residual C→.x.
+# wave490/595 walls (PRODUCT PREFER → L2 SEGV 0/5 both ends) were the w613
+#   COMMON misclassification class: this thin's file-level let BSS cells
+#   (Lxml_*, incl. the get/set slot tables) were pinned read-only __TEXT and
+#   the compiler faulted writing its own locals state on every compile. The
+#   w613 ctx-shndx authority fix emits them as proper commons (verified:
+#   standalone -c all N_UNDF 2^4-aligned, T=27 UND=10) and w614–w616
+#   dual-end L4 shipped it.
+# wave617: product PREFER_ASM both ends (this TU zero host-cc). The w604
+#   monolith keeps get+set in ONE TU (single BSS face; get peer stays
+#   skip-stamped). Do not -E as a new repair.
 # G.7: thin body matches mega wave267 leave.
-# PLATFORM: SHARED · MACOS hard-skip / LINUX -E main; get peer BAN.
+# PLATFORM: SHARED · PREFER_ASM both ends; get peer stays merged (no split).
 pipeline_abi_inject_asm_locals_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_locals_thin.x"
   local stamp="src/.pabi_w604_asm_locals.stamp"
+  local stamp_prefer="src/.pabi_w617_asm_locals_prefer.stamp"
   local get_x="src/runtime_pipeline_abi_asm_locals_get_thin.x"
   local get_stamp="src/.pabi_w595_asm_locals_get.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0 need_main=0
+  local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: MACOS — HARD BAN tip reinject (w361 pure-asm SEGV).
-  if [ "$(uname -s)" != "Linux" ]; then
-    touch "$stamp"
-    touch src/.pabi_w490_asm_locals.stamp
-    [ -f "$get_x" ] && touch "$get_stamp"
-    rm -f src/.pabi_w361_asm_locals.stamp src/.pabi_w304_asm_locals.stamp src/.pabi_w430_asm_locals.stamp
-    return 0
-  fi
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
-    need_main=1
-  fi
-  # PLATFORM: LINUX — HARD BAN get peer PREFER (w595 L2 SEGV 0/5).
-  # w604: complete -E of this monolith (get+set one BSS); do not PREFER get peer.
+  # w617: get peer stays merged in the monolith (w604 single-BSS rule).
   if [ -f "$get_x" ]; then
     touch "$get_stamp"
   fi
-  if [ "$need_main" = "0" ]; then
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -9072,18 +9063,18 @@ pipeline_abi_inject_asm_locals_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: SHARED — product PREFER_ASM both ends (wave617, on the w613
+  # COMMON fix + w614–w616 dual-end L4).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ "$need_main" = "1" ]; then
-    # PLATFORM: LINUX — force -E+$CC for the monolith (tip PREFER SEGV / tail drop).
-    # w604: re-inject after grow_vec so trailing get lands in the same TU as set.
-    unset XLANG_PABI_THIN_PREFER_ASM
-    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w604-asm-locals"
-    rc=$?
-    if [ "$rc" -eq 0 ]; then
-      touch "$stamp"
-      touch src/.pabi_w490_asm_locals.stamp
-      rm -f src/.pabi_w361_asm_locals.stamp src/.pabi_w304_asm_locals.stamp src/.pabi_w430_asm_locals.stamp
-    fi
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w617-asm-locals-prefer"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    touch src/.pabi_w490_asm_locals.stamp
+    rm -f src/.pabi_w361_asm_locals.stamp src/.pabi_w304_asm_locals.stamp src/.pabi_w430_asm_locals.stamp
+    log "pipeline_abi w617-asm-locals: PREFER_ASM replace (no host-cc for this TU)"
   fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
