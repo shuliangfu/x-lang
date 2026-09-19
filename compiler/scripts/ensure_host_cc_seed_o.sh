@@ -3680,6 +3680,7 @@ ensure_pipeline_abi_prefer_one() {
       # PLATFORM: SHARED shell · MACOS + LINUX gold.
       pipeline_abi_inject_macho_write_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -3765,6 +3766,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4219,6 +4221,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_call_method_wrappers_thin "$o" || true
     pipeline_abi_inject_al_nc_seq_thin "$o" || true
     pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4303,6 +4306,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_call_method_wrappers_thin "$o" || true
         pipeline_abi_inject_al_nc_seq_thin "$o" || true
         pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4371,6 +4375,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -4447,6 +4452,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_call_method_wrappers_thin "$o" || true
   pipeline_abi_inject_al_nc_seq_thin "$o" || true
   pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
+      pipeline_abi_inject_emit_ctx_func_index_thin "$o" || true
       pipeline_abi_inject_emit_ctx_module_dep_thin "$o" || true
       pipeline_abi_inject_emit_ctx_sret_thin "$o" || true
       pipeline_abi_inject_typeck_active_thin "$o" || true
@@ -8359,17 +8365,29 @@ pipeline_abi_inject_al_nc_seq_thin() {
 
 # wave317/342/380/601 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
 # wave380: HARD BAN PREFER reinject (Darwin BRANCH26; Ubuntu PREFER L2 SEGV).
-# wave601: leftover PREFER smash T (`sub $0x858`, no endbr64) makes
-#   pipeline_asm_emit_ctx_func_index_get return -1, so while-body final_expr
-#   (if-in-while) takes glue_emit_block_final_expr_elf tail_join fallback
-#   and jmp .Lf0_0 (function epilogue). LINUX -E replace leftover T;
-#   HARD BAN PREFER; MACOS keep overlay (if-in-while already run=3).
-# G.7 match mega wave220/221 leave. PLATFORM: SHARED · LINUX gold · MACOS.
+# wave601: do NOT LINUX -E this 15-export TU (option ptr load SEGV). Smash
+#   func_index get/set is pipeline_abi_inject_emit_ctx_func_index_thin.
+# G.7 match mega wave220/221 leave. PLATFORM: SHARED · BAN full-thin reinject.
 pipeline_abi_inject_emit_ctx_bss_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_bss_thin.x"
   local stamp="src/.pabi_w380_emit_ctx_bss.stamp"
-  local stamp_e="src/.pabi_w601_emit_ctx_bss.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — hard BAN full-thin reinject (do not call inject_thin_leaf).
+  touch "$stamp"
+  rm -f src/.pabi_w342_emit_ctx_bss.stamp src/.pabi_w601_emit_ctx_bss.stamp
+  return 0
+}
+
+# wave601 M2: emit_ctx func_index get/set peer-flat of bss_thin.
+# leftover PREFER smash T (`sub $0x858`, no endbr64) returns -1, so
+# if-in-while final_expr tail_join fallback jmp function epilogue.
+# LINUX -E replace leftover T; HARD BAN PREFER; MACOS keep overlay.
+# G.7 match mega wave221 leave. PLATFORM: SHARED · LINUX gold · MACOS.
+pipeline_abi_inject_emit_ctx_func_index_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_emit_ctx_func_index_thin.x"
+  local stamp_e="src/.pabi_w601_emit_ctx_func_index.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   case "$(uname -s)" in
     Darwin)
@@ -8377,9 +8395,8 @@ pipeline_abi_inject_emit_ctx_bss_thin() {
       if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
         return 0
       fi
-      touch "$stamp" "$stamp_e"
-      rm -f src/.pabi_w342_emit_ctx_bss.stamp
-      log "pipeline_abi w601-emit-ctx-bss: MACOS keep prior overlay; HARD BAN PREFER"
+      touch "$stamp_e"
+      log "pipeline_abi w601-emit-ctx-func-index: MACOS keep prior overlay; HARD BAN PREFER"
       return 0
       ;;
     Linux)
@@ -8395,7 +8412,7 @@ pipeline_abi_inject_emit_ctx_bss_thin() {
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
       export XLANG_PABI_THIN_PREFER_ASM=0
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w601-emit-ctx-bss-e"
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w601-emit-ctx-func-index-e"
       rc=$?
       if [ "$had_prefer" = "1" ]; then
         export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
@@ -8408,15 +8425,14 @@ pipeline_abi_inject_emit_ctx_bss_thin() {
         unset XLANG_PABI_THIN_ALLOW_E_REPLACE
       fi
       if [ "$rc" -eq 0 ]; then
-        touch "$stamp" "$stamp_e"
-        rm -f src/.pabi_w342_emit_ctx_bss.stamp
-        log "pipeline_abi w601-emit-ctx-bss: LINUX -E replace (smash leftover T)"
+        touch "$stamp_e"
+        log "pipeline_abi w601-emit-ctx-func-index: LINUX -E replace (smash leftover T)"
       fi
       return "$rc"
       ;;
   esac
-  touch "$stamp" "$stamp_e"
-  log "pipeline_abi w601-emit-ctx-bss: non-POSIX stamp-only (keep prior)"
+  touch "$stamp_e"
+  log "pipeline_abi w601-emit-ctx-func-index: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
@@ -14675,6 +14691,7 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_emit_ctx_bss_thin "$1"
+    pipeline_abi_inject_emit_ctx_func_index_thin "$1"
     pipeline_abi_inject_emit_ctx_module_dep_thin "$1"
     pipeline_abi_inject_emit_ctx_sret_thin "$1"
     pipeline_abi_inject_typeck_active_thin "$1"
@@ -15325,9 +15342,21 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
+  inject-emit-ctx-func-index|inject_emit_ctx_func_index)
+    # wave601: LINUX -E replace smash leftover func_index get/set; MACOS stamp-only.
+    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-emit-ctx-func-index: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_emit_ctx_func_index_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   inject-emit-ctx-bss-leaf|inject_emit_ctx_bss_leaf)
-    # wave601: LINUX -E replace smash leftover T; MACOS stamp-only keep overlay.
-    # Single leaf only (bulk inject-emit-ctx-bss still runs the Cap residual set).
+    # wave380: stamp-only BAN full bss_thin. wave601 smash is func-index peer.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-emit-ctx-bss-leaf: need <out.o>" >&2
@@ -15335,6 +15364,7 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_emit_ctx_bss_thin "$1"
+    pipeline_abi_inject_emit_ctx_func_index_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
