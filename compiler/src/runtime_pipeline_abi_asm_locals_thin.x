@@ -4,9 +4,9 @@
 // wave430: LINUX -E+$CC (pure-asm product SEGV). MACOS HARD BAN tip reinject.
 // wave490: no-local malloc (tip U starved `np=malloc()`); tip PREFER try.
 // wave595: Ubuntu tip -c of this monolith drops trailing asm_ctx_block_slot_get
-//   (isolated get compiles; Darwin keeps all 12 faces). Get lives in peer
-//   runtime_pipeline_abi_asm_locals_get_thin.x and reads this TU's maps via
-//   pipe_al_bn_at / pipe_al_brefs_slot / pipe_al_bbases_slot (one BSS).
+//   (isolated get compiles; Darwin keeps all 12 faces). Get peer standalone
+//   EXPORT_OK; LINUX PRODUCT PREFER L2 SEGV 0/5 — HARD BAN. Product stays
+//   w490 -E. Accessors kept for a future get peer (one BSS).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;

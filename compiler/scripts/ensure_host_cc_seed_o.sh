@@ -8652,12 +8652,11 @@ pipeline_abi_inject_struct_layout_thin() {
 #   (pure-asm inject → L2 SEGV 0/5; same as w430). Keep LINUX -E+$CC.
 #   MACOS HARD BAN tip reinject (w361 SEGV). Stamp w490.
 # wave595: Ubuntu tip -c of the monolith drops trailing asm_ctx_block_slot_get
-#   (isolated get compiles; Darwin keeps all 12 faces). LINUX PREFER-injects
-#   get peer (stamp w595) first-wins over -E get; maps stay in the -E main
-#   thin via pipe_al_bn_at / brefs_slot / bbases_slot (one BSS). Main stays
-#   -E (whole-thin PREFER still drops the tail). MACOS HARD BAN both.
+#   (isolated get compiles; Darwin keeps all 12 faces). Get peer standalone
+#   EXPORT_OK UND=5/5; LINUX PRODUCT PREFER still L2 SEGV 0/5 — HARD BAN
+#   get peer (stamp w595 skip). Product stays w490 -E main. MACOS HARD BAN.
 # G.7: thin body matches mega wave267 leave.
-# PLATFORM: SHARED · MACOS hard-skip / LINUX -E main + PREFER get peer.
+# PLATFORM: SHARED · MACOS hard-skip / LINUX -E main; get peer BAN.
 pipeline_abi_inject_asm_locals_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_locals_thin.x"
@@ -8668,7 +8667,7 @@ pipeline_abi_inject_asm_locals_thin() {
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0 need_main=0 need_get=0
+  local rc=0 need_main=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   # PLATFORM: MACOS — HARD BAN tip reinject (w361 pure-asm SEGV).
   if [ "$(uname -s)" != "Linux" ]; then
@@ -8680,10 +8679,11 @@ pipeline_abi_inject_asm_locals_thin() {
   if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
     need_main=1
   fi
-  if [ -f "$get_x" ] && { [ ! -f "$get_stamp" ] || [ "$get_x" -nt "$get_stamp" ]; }; then
-    need_get=1
+  # PLATFORM: LINUX — HARD BAN get peer PREFER (w595 L2 SEGV 0/5).
+  if [ -f "$get_x" ]; then
+    touch "$get_stamp"
   fi
-  if [ "$need_main" = "0" ] && [ "$need_get" = "0" ]; then
+  if [ "$need_main" = "0" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -8705,15 +8705,6 @@ pipeline_abi_inject_asm_locals_thin() {
     if [ "$rc" -eq 0 ]; then
       touch "$stamp"
       rm -f src/.pabi_w361_asm_locals.stamp src/.pabi_w304_asm_locals.stamp src/.pabi_w430_asm_locals.stamp
-    fi
-  fi
-  if [ "$rc" -eq 0 ] && [ "$need_get" = "1" ]; then
-    # PLATFORM: LINUX — PREFER get peer (Ubuntu monolith drops trailing get).
-    export XLANG_PABI_THIN_PREFER_ASM=1
-    pipeline_abi_inject_thin_leaf "$o" "$get_x" "w595-asm-locals-get"
-    rc=$?
-    if [ "$rc" -eq 0 ]; then
-      touch "$get_stamp"
     fi
   fi
   if [ "$had_newer" = "1" ]; then
@@ -14869,7 +14860,7 @@ case "$MODE" in
     ;;
   inject-asm-locals|inject_asm_locals)
     # wave430/490: LINUX -E replace; MACOS HARD BAN (pure-asm SEGV).
-    # wave595: LINUX PREFER get peer (monolith drops trailing get).
+    # wave595: get peer PREFER BAN (L2 SEGV); product stays -E main.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-asm-locals: need <out.o>" >&2
