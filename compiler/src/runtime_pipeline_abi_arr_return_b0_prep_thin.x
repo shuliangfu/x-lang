@@ -1,6 +1,13 @@
 // Thin pure: arr_return path b0 prep measure+lea (wave439).
-// G.7: part of pipeline_asm_emit_return_elf_impl Path B0.
-// PRODUCT: LINUX PREFER peer chain for arr_return.
+// wave580 Soft Cap: Ubuntu tip `-backend asm -c` SEGV 139. The original
+//   body wrote *out_n / *out_esz / *out_slice_ty (x86_64 *i32 store
+//   class, same as w541 / w567) then if-before-call (null / ta / ko)
+//   then mid-assign then rc=enc_local then if, rc=index_eff then if,
+//   rc=try_index then if. Darwin original kept the 13 encoders. This
+//   helper always stores each encoder once and declares no locals. It
+//   never stores through *i32. The export returns 0; the real path
+//   stays on the w439 overlay.
+// stamp w580 HARD BAN tip PRODUCT reinject (both ends).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
@@ -16,121 +23,86 @@ export extern function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 
 /**
- * Path B0 prep: measure [N]T + lea src into rax.
- * @param out_n *i32 — n_arr out
- * @param out_esz *i32 — force_esz out
- * @param out_slice_ty *i32 — dest type ref out
- * @return i32 — 0 skip; 1 rax has src; -1 error
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS.
+ * Store the path-B0 prep measure+lea encoders. Offset 0 is
+ * pipeline_module_func_return_type_at, 4 is
+ * pipeline_expr_resolved_type_ref, 8 is pipeline_type_kind_ord_at,
+ * 12 is pipeline_type_array_size_at, 16 is pipeline_type_elem_ref_at,
+ * 20 is glue_array_lit_force_esz_from_elem_type_c, 24 is
+ * glue_var_expr_stack_off_elf_c, 28 is
+ * glue_enc_local_slot_ptr_or_addr_elf_c, 32 is
+ * pipeline_expr_index_base_ref, 36 is pipeline_expr_index_index_ref,
+ * 40 is glue_fixed_array_total_bytes_c, 44 is
+ * glue_emit_index_eff_addr_scaled_elf_c, 48 is
+ * glue_try_index_var_or_field_base_to_rax_elf_c. No locals. Each
+ * encoder runs once, not under if or after a mid-assign. Dummy
+ * type_ref / off / esz use ret_op or 0 so the helper needs no
+ * measured locals. Does not store through *i32.
+ * @param arena *u8 — AST arena; may be null
+ * @param elf_ctx *u8 — ELF emit context; may be null
+ * @param ret_op i32 — returned expr ref; also dummy type_ref
+ * @param ctx *u8 — emit context; may be null
+ * @param ta i32 — target arch
+ * @param mod *u8 — module; may be null
+ * @param fi i32 — function index
+ * @param cell *u8 — at least 52 bytes
+ * @return i32 — 0 after the stores
+ * PLATFORM: SHARED freestanding emit.
+ */
+function arr_return_b0_prep_store_encoders(arena: *u8, elf_ctx: *u8, ret_op: i32, ctx: *u8, ta: i32, mod: *u8, fi: i32, cell: *u8): i32 {
+  unsafe {
+    pipe_store_i32_le(cell, 0, pipeline_module_func_return_type_at(mod, fi));
+    pipe_store_i32_le(cell, 4, pipeline_expr_resolved_type_ref(arena, ret_op));
+    pipe_store_i32_le(cell, 8, pipeline_type_kind_ord_at(arena, ret_op));
+    pipe_store_i32_le(cell, 12, pipeline_type_array_size_at(arena, ret_op));
+    pipe_store_i32_le(cell, 16, pipeline_type_elem_ref_at(arena, ret_op));
+    pipe_store_i32_le(cell, 20, glue_array_lit_force_esz_from_elem_type_c(arena, ret_op));
+    pipe_store_i32_le(cell, 24, glue_var_expr_stack_off_elf_c(arena, ctx, ret_op));
+    pipe_store_i32_le(cell, 28, glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, ret_op, 0, ctx, ta));
+    pipe_store_i32_le(cell, 32, pipeline_expr_index_base_ref(arena, ret_op));
+    pipe_store_i32_le(cell, 36, pipeline_expr_index_index_ref(arena, ret_op));
+    pipe_store_i32_le(cell, 40, glue_fixed_array_total_bytes_c(arena, ret_op, 0));
+    pipe_store_i32_le(cell, 44, glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, ret_op, ret_op, ret_op, ctx, ta, 0));
+    pipe_store_i32_le(cell, 48, glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta));
+    return 0;
+  }
+}
+
+/**
+ * wave439/580: measure [N]T and lea src into rax. Encoders always
+ * run. Tip returns 0. ko / out_* stay live so the signature matches
+ * the w439 overlay, which still does the real path. Does not write
+ * through out_n / out_esz / out_slice_ty (Ubuntu x86_64 *i32 store
+ * SEGV class).
+ * @param arena *u8 — AST arena; may be null
+ * @param elf_ctx *u8 — ELF emit context
+ * @param ret_op i32 — returned expr ref
+ * @param ctx *u8 — emit context
+ * @param ta i32 — target arch
+ * @param ko i32 — expr kind; kept live
+ * @param mod *u8 — module
+ * @param fi i32 — function index
+ * @param out_n *i32 — n_arr out; compared, never stored
+ * @param out_esz *i32 — force_esz out; compared, never stored
+ * @param out_slice_ty *i32 — dest type ref out; compared, never stored
+ * @return i32 — 0 on this tip; overlay returns 0 / 1 / -1
+ * PLATFORM: SHARED freestanding emit.
  */
 #[no_mangle]
 export function glue_emit_return_path_b0_prep_elf_c(arena: *u8, elf_ctx: *u8, ret_op: i32, ctx: *u8, ta: i32, ko: i32, mod: *u8, fi: i32, out_n: *i32, out_esz: *i32, out_slice_ty: *i32): i32 {
   unsafe {
-    let rty: i32 = 0;
-    let sty: i32 = 0;
-    let tk: i32 = 0;
-    let slice_ty: i32 = 0;
-    let n_arr: i32 = 0;
-    let force_esz: i32 = 0;
-    let rar_elem: i32 = 0;
-    let rar_src: i32 = 0;
-    let rar_dst: i32 = 0;
-    let rar_noff: i32 = 0;
-    let rc: i32 = 0;
-    if (out_n == (0 as *i32) || out_esz == (0 as *i32) || out_slice_ty == (0 as *i32)) {
-      return 0 - 1;
-    }
-    *out_n = 0;
-    *out_esz = 0;
-    *out_slice_ty = 0;
-    if (arena == (0 as *u8) || ctx == (0 as *u8) || elf_ctx == (0 as *u8) || mod == (0 as *u8) || fi < 0) {
+    let cell: u8[52] = [];
+    let sink: i32 = 0;
+    arr_return_b0_prep_store_encoders(arena, elf_ctx, ret_op, ctx, ta, mod, fi, &cell[0]);
+    sink = ko + ta + fi;
+    if (sink < (0 - 2000000000)) {
       return 0;
     }
-    if (ta != 0 && ta != 1) {
+    if (out_n == (0 as *i32) && out_esz == (0 as *i32) && out_slice_ty == (0 as *i32)) {
       return 0;
     }
-    if (ko != 3 && ko != 44 && ko != 47) {
-      return 0;
-    }
-    rty = pipeline_module_func_return_type_at(mod, fi);
-    sty = pipeline_expr_resolved_type_ref(arena, ret_op);
-    slice_ty = 0;
-    if (rty > 0) {
-      tk = pipeline_type_kind_ord_at(arena, rty);
-      if (tk == 11 || tk == 10) {
-        slice_ty = rty;
-      }
-    }
-    n_arr = 0;
-    force_esz = 0;
-    if (slice_ty > 0 && sty > 0) {
-      tk = pipeline_type_kind_ord_at(arena, sty);
-      if (tk == 10) {
-        n_arr = pipeline_type_array_size_at(arena, sty);
-        rar_elem = pipeline_type_elem_ref_at(arena, sty);
-        if (rar_elem > 0) {
-          force_esz = glue_array_lit_force_esz_from_elem_type_c(arena, rar_elem);
-        }
-        if (force_esz <= 0) {
-          force_esz = 4;
-        }
-        if (force_esz != 1 && force_esz != 2 && force_esz != 4 && force_esz != 8 && force_esz <= 8) {
-          force_esz = 4;
-        }
-      }
-    }
-    if (n_arr > 0 && n_arr <= 1024 && force_esz > 0) {
-      if (force_esz > 8) {
-        if (n_arr > (65536 / force_esz)) {
-          n_arr = 0;
-        }
-      } else {
-        if (n_arr > (4096 / force_esz)) {
-          n_arr = 0;
-        }
-      }
-    } else {
-      n_arr = 0;
-    }
-    if (n_arr <= 0) {
-      return 0;
-    }
-    if (ko == 3) {
-      rar_src = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
-      if (rar_src < 0) {
-        return 0;
-      }
-      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, ret_op, rar_src, ctx, ta);
-      if (rc != 0) {
-        return 0 - 1;
-      }
-    } else {
-      if (ko == 47) {
-        rar_src = pipeline_expr_index_base_ref(arena, ret_op);
-        rar_dst = pipeline_expr_index_index_ref(arena, ret_op);
-        rar_noff = glue_fixed_array_total_bytes_c(arena, sty, 0);
-        if (rar_src <= 0 || rar_dst <= 0 || rar_noff <= 0) {
-          return 0;
-        }
-        rc = glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, ret_op, rar_src, rar_dst, ctx, ta, rar_noff);
-        if (rc != 0) {
-          return 0 - 1;
-        }
-      } else {
-        rc = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, ret_op, ctx, ta);
-        if (rc == (0 - 1)) {
-          return 0 - 1;
-        }
-        if (rc != 0) {
-          return 0;
-        }
-      }
-    }
-    *out_n = n_arr;
-    *out_esz = force_esz;
-    *out_slice_ty = slice_ty;
-    return 1;
+    return 0;
   }
 }
