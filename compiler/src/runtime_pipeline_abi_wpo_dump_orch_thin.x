@@ -8,7 +8,8 @@
 //   PREFER L2 SEGV 0/5 (x86_64 *i32 store: flush len[0], collect nedges_out,
 //   export i32[1] cell). HARD BAN then; product stayed w498 -E helpers.
 // wave594: no *i32 store (flush takes i32 by value; collect_all returns
-//   i32; export drops i32[1]). LINUX PRODUCT PREFER orch; MACOS keep BAN.
+//   i32; export drops i32[1]). LINUX PRODUCT PREFER still L2 SEGV 0/5
+//   — keep HARD BAN orch; product stays w498 -E helpers.
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
 export extern function pipeline_module_num_funcs(m: *u8): i32;

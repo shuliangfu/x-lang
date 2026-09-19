@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-19 · 简写 · 余 PREFER U-complete 不 BAN · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-19 · 简写 · w594 wpo_dump orch PREFER L2 红回 BAN · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。余 PREFER 已双端 U-complete **不 BAN**。下一＝LINUX `-E` 产品路径（不 Soft-Cap）／mega FORCE 禁。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。余 PREFER 已双端 U-complete **不 BAN**。w594 wpo_dump orch PREFER L2 红，BAN 回 `-E`。下一＝LINUX `-E` 余叶（param_ptr_slot／asm_locals／add_defs；skip unused_hints／asm_expr）不 Soft-Cap。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。禁 PREFER wpo_dump orch。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 

@@ -5725,10 +5725,10 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 # wave502: orch leaf probe (export tip OK; append tipU miss).
 # wave503/514: orch local append/flush — tipU complete + tip EXPORT_OK, but
 #   PRODUCT PREFER → L2 SEGV 0/5 (*i32 store). HARD BAN orch; stay w498 -E.
-# wave594: orch no *i32 store. LINUX: -E helpers then PREFER orch (export).
-#   MACOS: still HARD BAN both. Do not Soft-Cap (export stays real dump).
+# wave594: orch no *i32 store; LINUX PREFER orch still L2 SEGV 0/5. Keep
+#   HARD BAN orch both ends; LINUX -E helpers. Do not Soft-Cap.
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
-# PLATFORM: SHARED · MACOS hard-skip / LINUX -E helpers + PREFER orch.
+# PLATFORM: SHARED · MACOS hard-skip / LINUX -E helpers · orch BAN tip reinject.
 pipeline_abi_inject_wpo_dump_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
@@ -5741,11 +5741,21 @@ pipeline_abi_inject_wpo_dump_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: MACOS — HARD BAN full thin + orch (keep prior overlay).
+  # wave503/514/594: HARD BAN orch tip product reinject (L2 SEGV @ PREFER).
+  if [ -f "$orch_x" ]; then
+    if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
+      touch "$orch_s"
+      rm -f src/.pabi_w503_wpo_dump_orch.stamp src/.pabi_w514_wpo_dump_orch.stamp
+      log "pipeline_abi w594-wpo-dump-orch: standalone EXPORT_OK; tip PRODUCT PREFER HARD BAN (L2 SEGV 0/5; keep w498 -E)"
+    fi
+  fi
+  # PLATFORM: MACOS — HARD BAN tip reinject (helpers; tip drop class).
   if [ "$(uname -s)" != "Linux" ]; then
     touch "$stamp"
-    touch "$orch_s"
-    rm -f src/.pabi_w396_wpo_dump.stamp src/.pabi_w514_wpo_dump_orch.stamp src/.pabi_w503_wpo_dump_orch.stamp
+    rm -f src/.pabi_w396_wpo_dump.stamp
+    return 0
+  fi
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -5757,38 +5767,14 @@ pipeline_abi_inject_wpo_dump_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
     had_e_repl=1
   fi
-  # PLATFORM: LINUX — -E+$CC helpers (full thin Ubuntu drops export tail).
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
-    unset XLANG_PABI_THIN_INJECT_IF_NEWER
-    export XLANG_PABI_THIN_PREFER_ASM=0
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w498-wpo-dump"
-    rc=$?
-    if [ "$rc" -eq 0 ]; then
-      touch "$stamp"
-    fi
-  fi
-  # PLATFORM: LINUX — PREFER orch export (first-wins over seed rest).
-  # Helpers come from the -E overlay above; orch is small enough that
-  # Ubuntu -backend asm keeps pipeline_typeck_wpo_dump_callgraph.
-  if [ "$rc" -eq 0 ] && [ -f "$orch_x" ]; then
-    if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
-      unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=1
-      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      pipeline_abi_inject_thin_leaf "$o" "$orch_x" "w594-wpo-dump-orch"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$orch_s"
-        rm -f src/.pabi_w514_wpo_dump_orch.stamp src/.pabi_w503_wpo_dump_orch.stamp
-        log "pipeline_abi w594-wpo-dump-orch: LINUX PREFER orch export (no *i32 store)"
-      fi
-    fi
-  fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  # PLATFORM: LINUX — force -E+$CC helpers (tip PREFER omits export tail).
+  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w498-wpo-dump"
+  rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  else
-    unset XLANG_PABI_THIN_INJECT_IF_NEWER
   fi
   if [ "$had_prefer" = "1" ]; then
     export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
@@ -5799,6 +5785,9 @@ pipeline_abi_inject_wpo_dump_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
   fi
   return "$rc"
 }
