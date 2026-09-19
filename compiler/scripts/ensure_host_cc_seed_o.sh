@@ -3722,6 +3722,9 @@ ensure_pipeline_abi_prefer_one() {
       #   (tip U-complete but product reinject → L2 CG002 4/5); keep prior overlays.
       #   Does not re-run mega -E. PLATFORM: SHARED shell · LINUX gold.
       pipeline_abi_inject_assign_thin "$o" || true
+      # wave609 M2: add_defs product PREFER_ASM (stamp-gated; no host-cc).
+      # PLATFORM: SHARED shell.
+      pipeline_abi_inject_preprocess_malloc_thin "$o" || true
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
@@ -4821,28 +4824,31 @@ pipeline_abi_inject_thin_leaf() {
 
 # wave299/333/484/486/488/500/501 M2: preprocess_malloc Cap residual .x thin (PP002 heap).
 # wave501: tip PREFER alloc_dup via memcpy (byte-while tip PREFER SEGV @w488).
-#   add tip PREFER 仍 BAN（L2 hang @w501 probe）；留 -E.
+#   add_defs tip PREFER was BAN'd (L2 hang @w501) — leftover assign_var smash.
+# wave609 M2: add_defs product PREFER_ASM (standalone -c complete after w600).
+#   Stamp w609 both ends. Do not fall back to -E for this TU.
 # wave500: tip PREFER scratch + after + main (tipU 齐; L2 验).
-# Stamp w501 both ends. G.7 match mega xlang_preprocess_raw_to_malloc_impl.
+# Stamp w501 peers + w609 add_defs. G.7 match mega xlang_preprocess_raw_to_malloc_impl.
 # PLATFORM: SHARED.
 pipeline_abi_inject_preprocess_malloc_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_preprocess_malloc_thin.x"
   local stamp="src/.pabi_w501_preprocess_malloc.stamp"
+  local stamp_prefer="src/.pabi_w609_add_defs_prefer.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     local _ok=1 _px _ps
     for _pair in \
       "src/runtime_pipeline_abi_preprocess_malloc_clear_outs_thin.x|.pabi_w501_preprocess_malloc_clear_outs.stamp" \
       "src/runtime_pipeline_abi_preprocess_malloc_validate_len_thin.x|.pabi_w501_preprocess_malloc_validate_len.stamp" \
       "src/runtime_pipeline_abi_preprocess_malloc_gate_setup_thin.x|.pabi_w501_preprocess_malloc_gate_setup.stamp" \
       "src/runtime_pipeline_abi_preprocess_malloc_scratch_thin.x|.pabi_w501_preprocess_malloc_scratch.stamp" \
-      "src/runtime_pipeline_abi_preprocess_malloc_add_defs_thin.x|.pabi_w501_preprocess_malloc_add_defs.stamp" \
+      "src/runtime_pipeline_abi_preprocess_malloc_add_defs_thin.x|.pabi_w609_add_defs_prefer.stamp" \
       "src/runtime_pipeline_abi_preprocess_malloc_try_buf_thin.x|.pabi_w501_preprocess_malloc_try_buf.stamp" \
       "src/runtime_pipeline_abi_preprocess_malloc_check_stack_thin.x|.pabi_w501_preprocess_malloc_check_stack.stamp" \
       "src/runtime_pipeline_abi_preprocess_malloc_alloc_dup_thin.x|.pabi_w501_preprocess_malloc_alloc_dup.stamp" \
@@ -4876,7 +4882,7 @@ pipeline_abi_inject_preprocess_malloc_thin() {
     "src/runtime_pipeline_abi_preprocess_malloc_validate_len_thin.x|.pabi_w501_preprocess_malloc_validate_len.stamp|w501-preprocess-malloc-validate-len|1" \
     "src/runtime_pipeline_abi_preprocess_malloc_gate_setup_thin.x|.pabi_w501_preprocess_malloc_gate_setup.stamp|w501-preprocess-malloc-gate-setup|1" \
     "src/runtime_pipeline_abi_preprocess_malloc_scratch_thin.x|.pabi_w501_preprocess_malloc_scratch.stamp|w501-preprocess-malloc-scratch|1" \
-    "src/runtime_pipeline_abi_preprocess_malloc_add_defs_thin.x|.pabi_w501_preprocess_malloc_add_defs.stamp|w501-preprocess-malloc-add-defs|0" \
+    "src/runtime_pipeline_abi_preprocess_malloc_add_defs_thin.x|.pabi_w609_add_defs_prefer.stamp|w609-add-defs-prefer|1" \
     "src/runtime_pipeline_abi_preprocess_malloc_try_buf_thin.x|.pabi_w501_preprocess_malloc_try_buf.stamp|w501-preprocess-malloc-try-buf|1" \
     "src/runtime_pipeline_abi_preprocess_malloc_check_stack_thin.x|.pabi_w501_preprocess_malloc_check_stack.stamp|w501-preprocess-malloc-check-stack|1" \
     "src/runtime_pipeline_abi_preprocess_malloc_alloc_dup_thin.x|.pabi_w501_preprocess_malloc_alloc_dup.stamp|w501-preprocess-malloc-alloc-dup|1" \
@@ -4895,6 +4901,11 @@ pipeline_abi_inject_preprocess_malloc_thin() {
       rc=$?
       if [ "$rc" -eq 0 ]; then
         touch "$p_stamp"
+        # PLATFORM: SHARED — keep historic w501 add_defs stamp so leftover
+        # skip-up-to-date peers do not re-enter the -E path.
+        if [ "$p_stamp" = "$stamp_prefer" ]; then
+          touch src/.pabi_w501_preprocess_malloc_add_defs.stamp
+        fi
       else
         break
       fi
@@ -4915,6 +4926,7 @@ pipeline_abi_inject_preprocess_malloc_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    touch "$stamp_prefer"
     rm -f src/.pabi_w333_preprocess_malloc.stamp src/.pabi_w484_preprocess_malloc*.stamp \
       src/.pabi_w486_preprocess_malloc*.stamp src/.pabi_w488_preprocess_malloc*.stamp \
       src/.pabi_w500_preprocess_malloc*.stamp
@@ -15048,8 +15060,9 @@ case "$MODE" in
     set -e
     exit "$_irc"
     ;;
-  inject-preprocess-malloc|inject_preprocess_malloc)
+  inject-preprocess-malloc|inject_preprocess_malloc|inject-add-defs|inject_add_defs)
     # wave333: preprocess_malloc PREFER_ASM (stamp + ALLOW_E_REPLACE).
+    # wave609 M2: add_defs leaf product PREFER_ASM (no host-cc).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-preprocess-malloc: need <out.o>" >&2

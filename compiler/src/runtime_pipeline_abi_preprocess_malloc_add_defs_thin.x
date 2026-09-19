@@ -1,17 +1,21 @@
-// Thin pure: preprocess add-defines loop (wave486).
+// Thin pure: preprocess add-defines loop.
 // G.7: part of xlang_preprocess_raw_to_malloc_impl (peer-flat).
-// wave486: PRODUCT inject **-E only** for this leaf (tip while hang; tip unroll
-//   drops early-return → PP002). Other preprocess peers tip PREFER.
-//   Stamp w486. PLATFORM: SHARED freestanding · LINUX gold · MACOS.
+// wave609 M2: product path is PREFER_ASM (no host-cc for this TU).
+//   w501 leftover BAN'd tip PREFER because assign_var smash hung the
+//   `while (di < ndefines)` increment; w600 replaced assign_var with
+//   gcc -E in the compiler, so this thin's own -backend asm -c now
+//   stores di++ and fills the back-edge. Do not fall back to -E.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function preprocess_define_add(name: *u8): i32;
 
 /**
- * Apply ndefines names from defines slot array.
- * wave486: -E body (full while). Tip PREFER BAN this leaf only.
+ * Apply ndefines names from the preprocessor -D slot array.
+ * @param defines *u8 — slot array of define-name pointers; null → no-op
+ * @param ndefines i32 — slot count; loop di in [0, ndefines)
  * @return i32 — 0
- * PLATFORM: SHARED freestanding Cap leave.
+ * PLATFORM: SHARED freestanding. Product inject is PREFER_ASM (wave609).
  */
 #[no_mangle]
 export function prep_add_defines_elf_c(defines: *u8, ndefines: i32): i32 {
