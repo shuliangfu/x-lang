@@ -3723,8 +3723,10 @@ ensure_pipeline_abi_prefer_one() {
       #   Does not re-run mega -E. PLATFORM: SHARED shell · LINUX gold.
       pipeline_abi_inject_assign_thin "$o" || true
       # wave609 M2: add_defs product PREFER_ASM (stamp-gated; no host-cc).
+      # wave610 M2: param_ptr_slot product PREFER_ASM (stamp-gated; no host-cc).
       # PLATFORM: SHARED shell.
       pipeline_abi_inject_preprocess_malloc_thin "$o" || true
+      pipeline_abi_inject_param_ptr_slot_thin "$o" || true
       return 0
     fi
     # Thin inject: mega .x prefer -E is hang-prone (92k LOC). When a hybrid
@@ -5997,31 +5999,28 @@ pipeline_abi_inject_wpo_dump_thin() {
 }
 
 
-# wave402/432/494 M2: param_ptr_slot Cap residual.
-# PRODUCT inject wave494:
-#   tipU heal (no-local mid `x=call()` → tipU 19/19).
-#   tip PREFER → L2 opt=77 (expect 102) → BAN pure-asm reinject.
-#   LINUX: -E+$CC replace (tipU heal body via host-cc).
-#   MACOS: HARD BAN tip reinject (keep prior w432 PREFER overlay).
-# G.7: thin body matches runtime_pipeline_abi.x.
-# PLATFORM: SHARED · MACOS hard-skip / LINUX -E replace.
+# wave402/432/494/610 M2: param_ptr_slot Cap residual.
+# wave494: tipU 19/19; tip PREFER then L2 opt=77 (leftover smash in the
+#   compiler's assign/deref family). LINUX stayed -E; MACOS stamp-only.
+# wave610 M2: standalone PREFER is U-complete both ends (T=3 UND=19,
+#   PLT32 to glue_emit_module_from_ctx / pipe_* / kind_ord). Compiler
+#   assign_var/deref/rhs_to_rax are gcc -E after w598–w600, so this
+#   thin's own -backend asm -c now emits the ptr-load walk. Product
+#   path is PREFER_ASM both ends. Do not fall back to -E.
+# G.7: thin body matches runtime_pipeline_abi.x glue_local_var_slot_needs_ptr_load_elf_c.
+# PLATFORM: SHARED · PREFER_ASM first-wins · LINUX gold + MACOS.
 pipeline_abi_inject_param_ptr_slot_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_param_ptr_slot_thin.x"
   local stamp="src/.pabi_w494_param_ptr_slot.stamp"
+  local stamp_prefer="src/.pabi_w610_param_ptr_slot_prefer.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: MACOS — HARD BAN tip reinject (tip PREFER opt=77 @w494).
-  if [ "$(uname -s)" != "Linux" ]; then
-    touch "$stamp"
-    rm -f src/.pabi_w432_param_ptr_slot.stamp src/.pabi_w402_param_ptr_slot.stamp
-    return 0
-  fi
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -6034,10 +6033,10 @@ pipeline_abi_inject_param_ptr_slot_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: LINUX — force -E+$CC (tip PREFER opt=77; tipU heal only).
-  unset XLANG_PABI_THIN_PREFER_ASM
+  # PLATFORM: SHARED — product PREFER_ASM (wave610). First-wins over leftover T.
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w494-param-ptr-slot"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w610-param-ptr-slot-prefer"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6054,7 +6053,9 @@ pipeline_abi_inject_param_ptr_slot_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    touch "$stamp_prefer"
     rm -f src/.pabi_w432_param_ptr_slot.stamp src/.pabi_w402_param_ptr_slot.stamp
+    log "pipeline_abi w610-param-ptr-slot: PREFER_ASM replace (no host-cc for this TU)"
   fi
   return "$rc"
 }
@@ -15256,8 +15257,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
     inject-param-ptr-slot|inject_param_ptr_slot)
-    # wave402: MACOS PREFER / LINUX hard-skip BAN.
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave610 M2: product PREFER_ASM both ends (no host-cc for this TU).
+    # PLATFORM: SHARED shell · LINUX gold + MACOS.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-param-ptr-slot: need <out.o>" >&2
       exit 2

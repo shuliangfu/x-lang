@@ -11,8 +11,12 @@
 // wave402: MACOS PREFER / LINUX hard-skip BAN tip reinject (CG002 / -E empty if).
 // wave432: BOTH PREFER — extract w189_param_at_is_type_ptr so Ubuntu -E no
 //   longer emits empty `if ()` / CFG-reorders the walker; -c ~4955B green.
-// wave494: no-local mid `x=call()` (tip U starved 3/15); LINUX -E (tip PREFER opt=77).
-// PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
+// wave494: no-local mid `x=call()` (tip U starved 3/15); LINUX -E (tip PREFER
+//   opt=77 — leftover smash in the compiler assign/deref family).
+// wave610 M2: product path is PREFER_ASM both ends (no host-cc for this TU).
+//   Standalone -backend asm -c is U-complete (T=3 UND=19). Do not fall back
+//   to -E.
+// PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS.
 
 export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
 export extern function asm_local_var_slot_holds_indirect_ptr(arena: *u8, var_expr_ref: i32, mod: *u8, ctx: *u8): i32;
@@ -146,7 +150,8 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
  *
  * wave189 pure: G.7 authority (was Cap residual index_helpers).
  * wave494: no-local — pipe cell for mid calls; loops in unsafe (T001).
- * PLATFORM: SHARED freestanding INDEX/field/lvalue · LINUX gold · MACOS co-path.
+ * PLATFORM: SHARED freestanding INDEX/field/lvalue · LINUX gold · MACOS.
+ * Product inject is PREFER_ASM (wave610).
  */
 #[no_mangle]
 export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8): i32 {
