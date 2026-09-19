@@ -39753,6 +39753,8 @@ export function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit_expr_
  * @return i32 - element byte size (default 4)
  * wave143 pure: G.7 authority (was static pipeline_asm_array_lit_elem_byte_sz_c).
  * Cap residual: fixed_array_total_bytes + type_size_simple + module_ref.
+ * wave605: product path is LINUX -E of fnptr_array_esz_thin (smash leftover
+ *   PREFER T returned 4 for u8 ARRAY_LIT). PREFER BAN. MACOS overlay stays.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
 #[no_mangle]

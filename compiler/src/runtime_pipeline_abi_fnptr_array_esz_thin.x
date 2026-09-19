@@ -12,6 +12,11 @@
 // wave496: tipU heal — ban mid `x=export_extern()`; pipe cells + local
 //   w496_cell_i32 / w496_cell_ptr (same pattern as w495 asm_expr helpers).
 //   Stamp → .pabi_w496_fnptr_array_esz.stamp; PREFER both ends (re-verify tip).
+// wave605: leftover PREFER pipeline_asm_array_lit_elem_byte_sz_c smash
+//   (`sub $0xb38`, no endbr64) returns 4 for u8 ARRAY_LIT so flatten
+//   stores i32 (`mov %eax, off(%rbx)`) instead of byte. LINUX -E of this
+//   complete thin replaces leftover T (TYPE_U8=2 → 1). HARD BAN PREFER.
+//   MACOS keep Darwin overlay (already strb). Do not Soft-Cap.
 // PLATFORM: SHARED freestanding sizing · LINUX gold · MACOS underscore.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;

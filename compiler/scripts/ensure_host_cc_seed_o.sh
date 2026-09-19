@@ -5683,52 +5683,67 @@ pipeline_abi_inject_asm_expr_thin() {
 # Seed rest holds strong glue_array_lit_force_esz_from_elem_type_c /
 # glue_fixed_array_temp_bytes — weaken then first-wins thin (no mega -E).
 # wave496: tipU heal (no-local pipe cells); stamp → w496; keep PREFER both.
-# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED · PREFER both.
+# wave605: leftover PREFER pipeline_asm_array_lit_elem_byte_sz_c smash
+#   (`sub $0xb38`, no endbr64) returns 4 for u8 ARRAY_LIT, so flatten
+#   stores `mov %eax, off(%rbx)` (i32) instead of byte. Darwin overlay
+#   already `strb`. LINUX -E replace leftover T. HARD BAN PREFER.
+#   MACOS keep Darwin overlay. Do not Soft-Cap. Do not BAN the other
+#   remaining U-complete PREFER families.
+# G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED.
 pipeline_abi_inject_fnptr_array_esz_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_fnptr_array_esz_thin.x"
   local stamp="src/.pabi_w496_fnptr_array_esz.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp_e="src/.pabi_w605_fnptr_array_esz.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM both ends (w399 unlock; w496 tipU re-verify).
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w496-fnptr-arr-esz"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already stores u8 ARRAY_LIT as strb.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w605-fnptr-arr-esz: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w605-fnptr-arr-esz-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp"
+        touch "$stamp_e"
+        log "pipeline_abi w605-fnptr-arr-esz: LINUX -E replace (smash leftover T)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  touch "$stamp"
+  touch "$stamp_e"
+  log "pipeline_abi w605-fnptr-arr-esz: non-POSIX stamp-only (keep prior)"
+  return 0
 }
 
 # wave396 M2: wpo_dump Cap residual — unlock PREFER_ASM both ends.
@@ -14963,7 +14978,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-fnptr-array-esz|inject_fnptr_array_esz|inject-fnptr-arr-esz)
-    # wave399: fnptr_array_esz PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
+    # wave399/w496: PREFER both ends. wave605: LINUX -E replace smash leftover
+    #   elem_byte_sz T (u8 ARRAY_LIT store_sz=4). HARD BAN PREFER.
+    #   MACOS stamp-only keep overlay.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-fnptr-array-esz: need <out.o>" >&2
