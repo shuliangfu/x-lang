@@ -6153,17 +6153,6 @@ pipeline_abi_inject_modlet_thin() {
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     return 0
   fi
-  # w631b: HARD BAN until the closure is pruned. The full-closure copy
-  # duplicates STATE-CARRYING helpers (arena sidecars / grow_vec / their
-  # g_* lets) — first-wins then split their state across members and the
-  # compiler broke at startup (L2 0/5 "cannot read file"). Prune to the
-  # table-touching family + STATE-FREE helpers only; state carriers stay
-  # extern (their call sites in copied bodies need unsafe-wrapping or the
-  # helpers stay in the mega and the family calls them cross-TU).
-  touch "$stamp"
-  touch "$stamp_prefer"
-  log "pipeline_abi w631-modlet: HARD BAN (state-carrying closure helpers split state; prune first)"
-  return 0
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
   if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi

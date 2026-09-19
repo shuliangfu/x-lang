@@ -1,56 +1,19 @@
-// Thin pure: wave631 M2 — modlet family ONE-set.
-// Root fix for the w629 dual-table split: the from_x rest's prepare wrote
-// g_pipeline_asm_modlet_cold while the -E chunk lane's weak find/load/lea
-// read the hot g_pipeline_asm_modlet — addr_of(&module_scalar_cell) then
-// failed find (-1) → CG002 -99 (user) / mov $0 (monofile slot fns).
-// This thin carries the WHOLE table-touching family + the table + its
-// companion state in ONE member; product PREFER both ends makes
-// prepare/find/load/lea share a single table. G.7: bodies copied
-// verbatim from the mega leaves; the transitive callee closure rides
-// along as same-file copies so bare calls stay unsafe-free exactly as
-// in the mega. PLATFORM: SHARED — PREFER_ASM both ends.
+// Thin pure: wave632 M2 — modlet family ONE-set (pruned closure).
+// Root fix for the w629 dual-table split. wave631's full-closure copy
+// duplicated STATE-CARRYING helpers (arena sidecars / grow_vec / pipe_sl
+// / pipe_tl and their g_* module lets) — first-wins split that state
+// across members and broke the compiler at startup (L2 0/5). This pruned
+// thin keeps ONLY the table-touching family + state-free helpers; the 27
+// state carriers stay in their owning member and are called cross-TU
+// (their 14 mega-private members gained #[no_mangle] export in the same
+// commit; call sites below are unsafe-wrapped — the only divergence from
+// the verbatim mega bodies). Family state = the table + strpool seq.
+// PLATFORM: SHARED — PREFER_ASM both ends.
 
 let g_pipeline_asm_modlet: u8[86020] = [];
-let g_pipe_elf_shndx_override: i32 = 0;
-let g_pipe_sl_n: i32[128] = [];
-let g_pipe_sl_layouts: u8[1024] = [];
-let g_pipe_elf_data_len: i32 = 0;
-let g_pipe_gv_mmap_flags: i32 = 34;
-let g_pipeline_asm_emit_dep_pipe: *u8 = 0 as *u8;
-let g_pipe_elf_sym_is_common: u8[16384] = [];
-let g_pipe_elf_common_owner: *u8 = 0 as *u8;
-let g_pipe_elf_sym_common_size: u8[65536] = [];
-let g_pipe_elf_sym_common_align: u8[65536] = [];
-let g_pipe_arena_sc_blob: u8[417792] = [];
-let g_pipe_elf_reloc_sym_heap: u8[4194304] = [];
-let g_pipe_elf_reloc_sidecar_owner: *u8 = 0 as *u8;
-let g_pipe_elf_reloc_r_pcrel: u8[16384] = [];
-let g_pipe_elf_reloc_r_type: u8[65536] = [];
-let g_pipe_tl_mod: u8[1024] = [];
-let g_pipe_tl_n: i32[128] = [];
-let g_pipe_tl_entries: u8[1024] = [];
-let g_pipe_elf_data_buf: u8[65536] = [];
-let g_pipe_sl_fn: i32[128] = [];
-let g_pipe_sl_tpn: i32[128] = [];
-let g_pipe_dep_sc_blob: u8[17408] = [];
-let g_pipe_arena_sc_last_sc0: *u8 = 0 as *u8;
-let g_pipe_arena_sc_last_sc1: *u8 = 0 as *u8;
-let g_pipe_arena_sc_last_key1: *u8 = 0 as *u8;
-let g_pipe_arena_sc_last_key0: *u8 = 0 as *u8;
-let g_pipeline_asm_emit_arena: *u8 = 0 as *u8;
-let g_wave148_tname: u8[64] = [];
-let g_pipe_elf_reloc_shndx: u8[65536] = [];
-let g_pipe_elf_patch_shndx: u8[65536] = [];
-let g_pipe_elf_shndx_sidecar_owner: *u8 = 0 as *u8;
-let g_pipe_elf_label_shndx: u8[65536] = [];
-let g_pipeline_asm_emit_module: *u8 = 0 as *u8;
 let g_pipe_modlet_strpool_seq: i32 = 0;
-let g_pipe_elf_reloc_heap: u8[196608] = [];
-let g_pipe_sl_mod: u8[1024] = [];
-let g_wave148_fb: u8[256] = [];
 
-// True cross-TU faces (call sites are already unsafe in the copied bodies).
-export extern "C" function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+// Cross-TU faces (state carriers + library faces; call sites unsafe-wrapped where private).
 export extern "C" function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 export extern "C" function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
@@ -59,11 +22,38 @@ export extern "C" function calloc(nmemb: usize, size: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
 export extern "C" function glue_asm_string_lit_len(arena: *u8, expr_ref: i32): i32;
+export extern function glue_module_func_index_by_name_c(mod: *u8, name: *u8, name_len: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 export extern "C" function mmap(addr: *u8, length: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 export extern "C" function munmap(addr: *u8, len: usize): i32;
+export extern function pipe_arena_sc_at(i: i32): *u8;
+export extern function pipe_arena_sc_drop_last(sc: *u8): void;
+export extern function pipe_arena_sc_recall(key: *u8): *u8;
+export extern function pipe_arena_sc_remember(key: *u8, sc: *u8): void;
+export extern function pipe_dep_sc_at(i: i32): *u8;
+export extern function pipe_elf_current_shndx(ctx: *u8): i32;
+export extern function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void;
+export extern function pipe_gv_mmap_flags(): i32;
+export extern function pipe_sl_find_slot(module: *u8): i32;
+export extern function pipe_sl_layout_at(slot: i32, idx: i32): *u8;
+export extern function pipe_sl_soft_sync(module: *u8): void;
+export extern function pipe_tl_entry_at(slot: i32, idx: i32): *u8;
+export extern function pipe_tl_find_slot(module: *u8): i32;
+export extern function pipe_tl_soft_sync(module: *u8): void;
+export extern function pipeline_asm_emit_ctx_arena_get(): *u8;
+export extern function pipeline_asm_emit_ctx_dep_pipe_get(): *u8;
+export extern function pipeline_asm_emit_ctx_module_get(): *u8;
+export extern function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32;
+export extern function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32;
+export extern function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32;
+export extern function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32;
+export extern function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32;
+export extern function pipeline_elf_ctx_emit_data_len(ctx_bytes: *u8): i32;
+export extern function pipeline_elf_ctx_set_shndx_override(ctx_bytes: *u8, shndx: i32): void;
 export extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
 export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -72,11 +62,8 @@ export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32):
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
-export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
-export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
 export extern "C" function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem_type_ref: i32, array_len: i32, depth: i32): i32;
 export extern "C" function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32;
-export extern "C" function xlang_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32;
 
 /**
  * Build the modlet table and emit homes for module lets.
@@ -362,7 +349,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           pool_bytes = pipe_modlet_array_lit_string_pool_bytes(a, init_ref2);
           if (pool_bytes >= 0) {
             unsafe {
-              data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
+              unsafe { data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx); }
             }
             if (data_len_now < 0) {
               data_len_now = 0;
@@ -379,7 +366,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           if (pipe_modlet_cell_is_array(csz_raw) == 0 && (tk2 == 9 || tk2 == 18)) {
             if (pipe_modlet_scalar_init_is_ptr_addr(a, m, init_ref2) != 0) {
               unsafe {
-                data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
+                unsafe { data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx); }
               }
               if (data_len_now < 0) {
                 data_len_now = 0;
@@ -402,7 +389,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
             imm_d = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
             if (imm_d != 0) {
               unsafe {
-                data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx);
+                unsafe { data_len_now = pipeline_elf_ctx_emit_data_len(elf_ctx); }
               }
               if (data_len_now < 0) {
                 data_len_now = 0;
@@ -422,38 +409,38 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
     if (use_data != 0) {
       if (pad > 0) {
         unsafe {
-          rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, pad);
+          unsafe { rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, pad); }
         }
         if (rc != 0) {
           return 0 - 1;
         }
       }
       unsafe {
-        data_off = pipeline_elf_ctx_emit_data_len(elf_ctx);
-        pipeline_elf_ctx_set_shndx_override(elf_ctx, 4);
+        unsafe { data_off = pipeline_elf_ctx_emit_data_len(elf_ctx); }
+        unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 4); }
         rc = pipeline_elf_ctx_add_label(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, data_off);
       }
       if (rc != 0) {
         unsafe {
-          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 0); }
         }
         return 0 - 1;
       }
       unsafe {
-        rc = pipeline_elf_ctx_add_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, data_off);
+        unsafe { rc = pipeline_elf_ctx_add_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, data_off); }
       }
       if (rc != 0) {
         unsafe {
-          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 0); }
         }
         return 0 - 1;
       }
       unsafe {
-        rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, csz2);
+        unsafe { rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, csz2); }
       }
       if (rc != 0) {
         unsafe {
-          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 0); }
         }
         return 0 - 1;
       }
@@ -462,7 +449,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           et2 = pipeline_type_elem_ref_at(a, type_ref2);
           rc = pipe_modlet_bake_array_lit_elems_to_data(
             a, elf_ctx, init_ref2, et2, data_off, 0, csz2, m);
-          pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+          unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 0); }
         }
       } else {
         // Ptr-addr bake OR wave344 scalar non-zero imm poke.
@@ -477,13 +464,13 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
           unsafe {
             rc = pipe_modlet_bake_ptr_addr_elem_to_data(
               a, elf_ctx, m, init_ref2, 8, data_off);
-            pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+            unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 0); }
           }
         } else {
           imm_b = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i));
           unsafe {
             rc = pipe_modlet_bake_scalar_imm_to_data(elf_ctx, data_off, imm_b, csz2);
-            pipeline_elf_ctx_set_shndx_override(elf_ctx, 0);
+            unsafe { pipeline_elf_ctx_set_shndx_override(elf_ctx, 0); }
           }
         }
       }
@@ -496,7 +483,7 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
         csz_raw | pipe_modlet_cell_data_bit());
     } else {
       unsafe {
-        rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, csz2, calign);
+        unsafe { rc = pipeline_elf_ctx_add_common_sym(elf_ctx, &g_pipeline_asm_modlet[lbase2], llen2, csz2, calign); }
       }
       if (rc != 0) {
         return 0 - 1;
@@ -700,7 +687,8 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
   // until we store elems here (hoist skips all TYPE_ARRAY). dest-SLICE
   // wrap / INDEX LEAs the cell; without this seed A[0] reads 0.
   // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-  let arena: *u8 = pipeline_asm_emit_ctx_arena_get();
+  let arena: *u8 = (0 as *u8);
+  unsafe { arena = pipeline_asm_emit_ctx_arena_get(); }
   let mod: *u8 = pipeline_asm_emit_module_ref_c();
   if (arena != (0 as *u8) && mod != (0 as *u8)) {
     let nlets: i32 = pipe_mod_get_num_top_level_lets(mod);
@@ -840,7 +828,7 @@ function pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx: *u8, idx: i32): i32 {
   let rel32_at: i32 = 0;
   unsafe {
     rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen);
+    unsafe { rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen); }
   }
   return rc;
 }
@@ -879,7 +867,7 @@ function pipeline_asm_modlet_lea_rax_rip_x86(elf_ctx: *u8, idx: i32): i32 {
   let rel32_at: i32 = 0;
   unsafe {
     rel32_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen);
+    unsafe { rc = pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &g_pipeline_asm_modlet[lbase], llen); }
   }
   return rc;
 }
@@ -914,7 +902,7 @@ function pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
   let adrp_at: i32 = 0;
   unsafe {
     adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1);
+    unsafe { rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1); }
   }
   if (rc != 0) {
     return 0 - 1;
@@ -933,7 +921,7 @@ function pipeline_asm_modlet_lea_rbx_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
   let add_at: i32 = 0;
   unsafe {
     add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0);
+    unsafe { rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0); }
   }
   return rc;
 }
@@ -969,7 +957,7 @@ function pipeline_asm_modlet_lea_rax_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
   let adrp_at: i32 = 0;
   unsafe {
     adrp_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1);
+    unsafe { rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, &g_pipeline_asm_modlet[lbase], llen, 3, 1); }
   }
   if (rc != 0) {
     return 0 - 1;
@@ -989,7 +977,7 @@ function pipeline_asm_modlet_lea_rax_adrp_arm64(elf_ctx: *u8, idx: i32): i32 {
   let add_at: i32 = 0;
   unsafe {
     add_at = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
-    rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0);
+    unsafe { rc = pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, &g_pipeline_asm_modlet[lbase], llen, 4, 0); }
   }
   return rc;
 }
@@ -1095,7 +1083,7 @@ export function pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx: *u8, m: *u8, 
   }
   if (m != (0 as *u8)) {
     unsafe {
-      fi = glue_module_func_index_by_name_c(m, name, name_len);
+      unsafe { fi = glue_module_func_index_by_name_c(m, name, name_len); }
     }
     if (fi >= 0) {
       return pipe_modlet_lea_fn_sym_to_rax(elf_ctx, name, name_len, ta);
@@ -1118,18 +1106,20 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
   if (key == 0 as *u8) {
     return 0 as *u8;
   }
-  let hit: *u8 = pipe_arena_sc_recall(key);
+  let hit: *u8 = (0 as *u8);
+  unsafe { hit = pipe_arena_sc_recall(key); }
   if (hit != 0 as *u8) {
     return hit;
   }
   let i: i32 = 0;
   while (i < pipe_arena_sc_max()) {
-    let sc: *u8 = pipe_arena_sc_at(i);
+    let sc: *u8 = (0 as *u8);
+    unsafe { sc = pipe_arena_sc_at(i); }
     let used: i32 = pipe_load_i32_le(sc, 8);
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
       if (k == key) {
-        pipe_arena_sc_remember(key, sc);
+        unsafe { pipe_arena_sc_remember(key, sc); }
         return sc;
       }
     }
@@ -1140,7 +1130,8 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
   }
   i = 0;
   while (i < pipe_arena_sc_max()) {
-    let sc2: *u8 = pipe_arena_sc_at(i);
+    let sc2: *u8 = (0 as *u8);
+    unsafe { sc2 = pipe_arena_sc_at(i); }
     let used2: i32 = pipe_load_i32_le(sc2, 8);
     if (used2 == 0) {
       pipe_store_ptr_slot(sc2, 0, key);
@@ -1250,7 +1241,7 @@ export function arena_sidecar_get(key: *u8, create: i32): *u8 {
         pipe_arena_sc_free(sc2);
         return 0 as *u8;
       }
-      pipe_arena_sc_remember(key, sc2);
+      unsafe { pipe_arena_sc_remember(key, sc2); }
       return sc2;
     }
     i = i + 1;
@@ -1407,52 +1398,6 @@ export function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i
 }
 
 /**
- * Module function index by name; -1 not found.
- * @param mod *u8 - Module*
- * @param name *u8 - name bytes
- * @param name_len i32 - length
- * @return i32 - func index or -1
- * wave148 pure: G.7 authority (was static glue_module_func_index_by_name_c).
- * PLATFORM: SHARED — Cap residual: typeck_check_expr / typeck_ctfe / fold_count_up_while.
- */
-#[no_mangle]
-export function glue_module_func_index_by_name_c(mod: *u8, name: *u8, name_len: i32): i32 {
-  let fi: i32 = 0;
-  let flen: i32 = 0;
-  let nfuncs: i32 = 0;
-  let k: i32 = 0;
-  if (mod == (0 as *u8) || name == (0 as *u8) || name_len <= 0 || name_len > 255) {
-    return 0 - 1;
-  }
-  unsafe {
-    nfuncs = pipeline_module_num_funcs(mod);
-  }
-  fi = 0;
-  while (fi < nfuncs) {
-    unsafe {
-      flen = pipeline_module_func_name_len_at(mod, fi);
-    }
-    if (flen == name_len) {
-      unsafe {
-        pipeline_module_func_name_copy64(mod, fi, &g_wave148_fb[0]);
-      }
-      k = 0;
-      while (k < name_len) {
-        if (g_wave148_fb[k] != name[k]) {
-          break;
-        }
-        k = k + 1;
-      }
-      if (k == name_len) {
-        return fi;
-      }
-    }
-    fi = fi + 1;
-  }
-  return 0 - 1;
-}
-
-/**
  * Compare module struct layout name at index k to name[0..nlen).
  * @return i32 - 1 equal; 0 otherwise
  * wave154 pure helper. PLATFORM: SHARED.
@@ -1565,7 +1510,9 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     if (elem_ref <= 0 || asz <= 0) {
       /* TYPE_VECTOR without array_size: still SIMD. lanes*esz, not 0→8B floor. */
       if (kind_ord == 13) {
-        if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+        let vl_ok: i32 = 0;
+        unsafe { vl_ok = glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves); }
+        if (vl_ok == 0 && vl > 0 && ves > 0) {
           return vl * ves;
         }
       }
@@ -1644,103 +1591,12 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
     }
     /* No struct layout: SIMD named spelling is lanes*esz (16B dual-GP /
      * 32B sret), not the 4B scalar miss. Non-SIMD named stay 4. */
-    if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+    let vl_ok: i32 = 0;
+    unsafe { vl_ok = glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves); }
+    if (vl_ok == 0 && vl > 0 && ves > 0) {
       return vl * ves;
     }
     return 4;
-  }
-  return 0;
-}
-
-/**
- * Extract lane count and element byte-width for a TYPE_VECTOR / SIMD spelling.
- * @param arena *u8 - ASTArena*
- * @param type_ref i32 - type ref
- * @param out_lanes *i32 - written lanes
- * @param out_esz *i32 - written element size
- * @return i32 - 0 ok; -1 not SIMD / null
- * wave148 pure: G.7 authority (was static glue_vector_type_lanes_esz_c).
- * PLATFORM: SHARED pure type introspection.
- */
-#[no_mangle]
-export function glue_vector_type_lanes_esz_c(arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32): i32 {
-  let lanes: i32 = 4;
-  let esz: i32 = 4;
-  let elem_ref: i32 = 0;
-  let tk: i32 = 0;
-  let nlen: i32 = 0;
-  let nt: i32 = 0;
-  let arr_sz: i32 = 0;
-  let spell_lanes: i32 = 0;
-  let spell_esz: i32 = 0;
-  let rc: i32 = 0;
-  let etk: i32 = 0;
-  if (arena == (0 as *u8) || out_lanes == (0 as *i32) || out_esz == (0 as *i32)) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = asm_type_is_simd_vector_spelling(arena, type_ref);
-  }
-  if (rc == 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    nt = pipeline_arena_num_types(arena);
-    arr_sz = pipeline_type_array_size_at(arena, type_ref);
-    tk = pipeline_type_kind_ord_at(arena, type_ref);
-  }
-  if (arr_sz > 0) {
-    lanes = arr_sz;
-  } else {
-    lanes = 4;
-  }
-  if (tk == 8) {
-    unsafe {
-      nlen = pipeline_type_named_name_into(arena, type_ref, &g_wave148_tname[0]);
-    }
-    if (nlen > 0) {
-      unsafe {
-        rc = xlang_simd_vector_lanes_esz_from_spelling(&g_wave148_tname[0], nlen as usize, &spell_lanes, &spell_esz);
-      }
-      if (rc == 0) {
-        unsafe {
-          out_lanes[0] = spell_lanes;
-          out_esz[0] = spell_esz;
-        }
-        return 0;
-      }
-    }
-    lanes = 4;
-    if (nlen == 5 && g_wave148_tname[4] == 56) {
-      lanes = 8;
-    }
-    if (nlen == 6 && g_wave148_tname[4] == 49 && g_wave148_tname[5] == 54) {
-      lanes = 16;
-    }
-  }
-  esz = 4;
-  unsafe {
-    elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
-  }
-  if (elem_ref > 0 && elem_ref <= nt) {
-    unsafe {
-      etk = pipeline_type_kind_ord_at(arena, elem_ref);
-    }
-    if (etk == 2) {
-      esz = 1;
-    } else {
-      if (etk == 14) {
-        esz = 4;
-      } else {
-        if (etk == 8 || etk == 4 || etk == 5 || etk == 6) {
-          esz = 8;
-        }
-      }
-    }
-  }
-  unsafe {
-    out_lanes[0] = lanes;
-    out_esz[0] = esz;
   }
   return 0;
 }
@@ -1885,43 +1741,11 @@ function pipe_arena_off_num_exprs(): i32 {
   return 4;
 }
 
-/**
- * Pointer to ArenaSidecar slot i (0..511).
- * @param i i32 - slot index
- * @return *u8 - sidecar base or null if i out of range
- * PLATFORM: SHARED freestanding arena sidecar table.
- */
-function pipe_arena_sc_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i >= pipe_arena_sc_max()) {
-    return 0 as *u8;
-  }
-  let off: i64 = (i as i64) * (pipe_arena_sc_size() as i64);
-  return &g_pipe_arena_sc_blob[0] + (off as usize);
-}
-
-/**
- * Drop arena last-hit slots that point at `sc` (called from free).
- * @param sc *u8 — sidecar being freed
- */
-function pipe_arena_sc_drop_last(sc: *u8): void {
-  if (g_pipe_arena_sc_last_sc0 == sc) {
-    g_pipe_arena_sc_last_key0 = 0 as *u8;
-    g_pipe_arena_sc_last_sc0 = 0 as *u8;
-  }
-  if (g_pipe_arena_sc_last_sc1 == sc) {
-    g_pipe_arena_sc_last_key1 = 0 as *u8;
-    g_pipe_arena_sc_last_sc1 = 0 as *u8;
-  }
-}
-
 function pipe_arena_sc_free(sc: *u8): void {
   if (sc == 0 as *u8) {
     return;
   }
-  pipe_arena_sc_drop_last(sc);
+  unsafe { pipe_arena_sc_drop_last(sc); }
   grow_vec_free(sc + (16 as usize));
   grow_vec_free(sc + (48 as usize));
   grow_vec_free(sc + (80 as usize));
@@ -1954,59 +1778,7 @@ function pipe_arena_sc_free(sc: *u8): void {
 
 function pipe_arena_sc_max(): i32 { return 512; }
 
-/**
- * 2-slot MRU lookup for the arena sidecar table.
- * @param key *u8 — arena pointer key
- * @return *u8 — cached sidecar or null
- */
-function pipe_arena_sc_recall(key: *u8): *u8 {
-  if (g_pipe_arena_sc_last_key0 == key) {
-    if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc0, key) != 0) {
-      return g_pipe_arena_sc_last_sc0;
-    }
-  }
-  if (g_pipe_arena_sc_last_key1 == key) {
-    if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc1, key) != 0) {
-      return g_pipe_arena_sc_last_sc1;
-    }
-  }
-  return 0 as *u8;
-}
-
-/**
- * Remember arena sidecar as MRU slot 0; previous slot 0 shifts to 1.
- * @param key *u8 — arena pointer key
- * @param sc *u8 — sidecar base
- */
-function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
-  if (g_pipe_arena_sc_last_key0 == key) {
-    g_pipe_arena_sc_last_sc0 = sc;
-    return;
-  }
-  g_pipe_arena_sc_last_key1 = g_pipe_arena_sc_last_key0;
-  g_pipe_arena_sc_last_sc1 = g_pipe_arena_sc_last_sc0;
-  g_pipe_arena_sc_last_key0 = key;
-  g_pipe_arena_sc_last_sc0 = sc;
-}
-
 function pipe_arena_sc_size(): i32 { return 816; }
-
-/**
- * Pointer to DepCtxSidecar slot i (0..63).
- * @param i i32 - slot index
- * @return *u8 - sidecar base or null if i out of range
- * PLATFORM: SHARED freestanding DepCtx table.
- */
-function pipe_dep_sc_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i >= pipe_dep_sc_max()) {
-    return 0 as *u8;
-  }
-  let off: i64 = (i as i64) * (pipe_dep_sc_size() as i64);
-  return &g_pipe_dep_sc_blob[0] + (off as usize);
-}
 
 /**
  * Free all GrowVecs in a DepCtxSidecar and zero the slot.
@@ -2082,7 +1854,8 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
   }
   let i: i32 = 0;
   while (i < pipe_dep_sc_max()) {
-    let sc: *u8 = pipe_dep_sc_at(i);
+    let sc: *u8 = (0 as *u8);
+    unsafe { sc = pipe_dep_sc_at(i); }
     let used: i32 = pipe_load_i32_le(sc, pipe_dep_sc_off_used());
     if (used != 0) {
       let k: *u8 = pipe_load_ptr_slot(sc, 0);
@@ -2097,7 +1870,8 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
   }
   i = 0;
   while (i < pipe_dep_sc_max()) {
-    let sc2: *u8 = pipe_dep_sc_at(i);
+    let sc2: *u8 = (0 as *u8);
+    unsafe { sc2 = pipe_dep_sc_at(i); }
     let used2: i32 = pipe_load_i32_le(sc2, pipe_dep_sc_off_used());
     if (used2 == 0) {
       // bind key + mark used before init so partial fail can free
@@ -2145,52 +1919,9 @@ function pipe_depctx_sidecar_get(ctx: *u8, create: i32): *u8 {
   return 0 as *u8;
 }
 
-/**
- * Store i32 LE into flat u8 BSS array at element index.
- */
-function pipe_elf_bss_store_i32(blob: *u8, idx: i32, v: i32): void {
-  if (blob == 0 as *u8 || idx < 0) {
-    return;
-  }
-  pipe_store_i32_le(blob, idx * 4, v);
-}
-
 function pipe_elf_code_buf_cap(): i32 { return 8716288; }
 
 function pipe_elf_code_hot_cap(): i32 { return 1048576; }
-
-/**
- * Reset COMMON object sidecar for this ctx owner.
- */
-function pipe_elf_common_sidecar_reset(ctx_bytes: *u8): void {
-  g_pipe_elf_common_owner = ctx_bytes;
-  unsafe {
-    memset(&g_pipe_elf_sym_is_common[0], 0, 16384 as usize);
-    memset(&g_pipe_elf_sym_common_size[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_sym_common_align[0], 0, 65536 as usize);
-  }
-}
-
-/**
- * Current emit ELF section index.
- * F7: respects the shndx override (when non-zero, returns it so new
- * relocs/syms/labels are tagged as data-section).
- */
-function pipe_elf_current_shndx(ctx: *u8): i32 {
-  if (ctx == 0 as *u8) {
-    return pipe_elf_shnx_text();
-  }
-  if (g_pipe_elf_shndx_override != 0) {
-    return g_pipe_elf_shndx_override;
-  }
-  if (pipeline_elf_pgo_hot_enabled() != 0) {
-    if (pipe_load_i32_le(ctx, pipe_elf_off_emit_hot()) != 0) {
-      return pipe_elf_shnx_hot();
-    }
-    return pipe_elf_shnx_unlikely();
-  }
-  return pipe_elf_shnx_text();
-}
 
 function pipe_elf_lab_off_name(): i32 { return 0; }
 
@@ -2210,14 +1941,6 @@ function pipe_elf_label_at(ctx: *u8, i: i32): *u8 {
 }
 
 function pipe_elf_label_esz(): i32 { return 264; }
-
-function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
-  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
-    return;
-  }
-  g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
-  pipe_elf_bss_store_i32(&g_pipe_elf_label_shndx[0], idx, shndx);
-}
 
 /**
  * Byte equality for name rows.
@@ -2266,141 +1989,6 @@ function pipe_elf_off_macho_uscore(): i32 { return 17432612; }
 
 function pipe_elf_off_num_labels(): i32 { return 4325380; }
 
-function pipe_elf_off_num_relocs(): i32 { return 13041676; }
-
-function pipe_elf_off_num_syms(): i32 { return 17432592; }
-
-function pipe_elf_off_reloc_sym_names(): i32 { return 8847372; }
-
-function pipe_elf_off_relocs(): i32 { return 8716300; }
-
-function pipe_elf_off_sym_name_data(): i32 { return 27197488; }
-
-function pipe_elf_off_sym_name_len(): i32 { return 17432596; }
-
-function pipe_elf_off_syms(): i32 { return 13041680; }
-
-function pipe_elf_rel_off_name_len(): i32 { return 4; }
-
-function pipe_elf_rel_off_offset(): i32 { return 0; }
-
-/**
- * Pointer to inline reloc entry i.
- */
-function pipe_elf_reloc_at(ctx: *u8, i: i32): *u8 {
-  if (ctx == 0 as *u8 || i < 0) {
-    return 0 as *u8;
-  }
-  let off: i64 = (pipe_elf_off_relocs() as i64) + (i as i64) * (pipe_elf_reloc_esz() as i64);
-  return ctx + (off as usize);
-}
-
-function pipe_elf_reloc_esz(): i32 { return 8; }
-
-/**
- * Heap reloc entry base for heap index hi.
- */
-function pipe_elf_reloc_heap_at(hi: i32): *u8 {
-  if (hi < 0 || hi >= pipe_elf_reloc_heap_cap()) {
-    return 0 as *u8;
-  }
-  let off: i64 = (hi as i64) * (pipe_elf_reloc_heap_esz() as i64);
-  return &g_pipe_elf_reloc_heap[0] + (off as usize);
-}
-
-function pipe_elf_reloc_heap_cap(): i32 { return 16384; }
-
-function pipe_elf_reloc_heap_esz(): i32 { return 12; }
-
-function pipe_elf_reloc_name_esz(): i32 { return 256; }
-
-/**
- * Pointer to reloc_sym_names[i].bytes.
- */
-function pipe_elf_reloc_name_row(ctx: *u8, i: i32): *u8 {
-  if (ctx == 0 as *u8 || i < 0) {
-    return 0 as *u8;
-  }
-  let off: i64 = (pipe_elf_off_reloc_sym_names() as i64) + (i as i64) * (pipe_elf_reloc_name_esz() as i64);
-  return ctx + (off as usize);
-}
-
-function pipe_elf_reloc_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
-  if (ctx_bytes == 0 as *u8 || idx < 0) {
-    return;
-  }
-  if (idx < pipe_elf_table_cap()) {
-    g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
-    pipe_elf_bss_store_i32(&g_pipe_elf_reloc_shndx[0], idx, shndx);
-    return;
-  }
-  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
-    pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
-  }
-  let hi: i32 = idx - pipe_elf_table_cap();
-  let h: *u8 = pipe_elf_reloc_heap_at(hi);
-  if (h != 0 as *u8) {
-    pipe_store_i32_le(h, pipe_elf_rh_off_shndx(), shndx);
-  }
-}
-
-/**
- * Heap reloc sym name row for heap index hi.
- */
-function pipe_elf_reloc_sym_heap_at(hi: i32): *u8 {
-  if (hi < 0 || hi >= pipe_elf_reloc_heap_cap()) {
-    return 0 as *u8;
-  }
-  // Cap 4.2.8: row stride 256 (was wave580 128).
-  let off: i64 = (hi as i64) * 256;
-  return &g_pipe_elf_reloc_sym_heap[0] + (off as usize);
-}
-
-function pipe_elf_reloc_total_cap(): i32 { return 32768; }
-
-function pipe_elf_rh_off_name_len(): i32 { return 4; }
-
-function pipe_elf_rh_off_offset(): i32 { return 0; }
-
-function pipe_elf_rh_off_shndx(): i32 { return 8; }
-
-/**
- * Reset label/patch/reloc shndx sidecars.
- */
-function pipe_elf_shndx_sidecar_reset(ctx_bytes: *u8): void {
-  g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
-  unsafe {
-    memset(&g_pipe_elf_label_shndx[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_patch_shndx[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_reloc_shndx[0], 0, 65536 as usize);
-  }
-}
-
-function pipe_elf_shnx_hot(): i32 { return 2; }
-
-function pipe_elf_shnx_text(): i32 { return 1; }
-
-function pipe_elf_shnx_unlikely(): i32 { return 3; }
-
-/**
- * Pointer to sym entry i.
- */
-function pipe_elf_sym_at(ctx: *u8, i: i32): *u8 {
-  if (ctx == 0 as *u8 || i < 0) {
-    return 0 as *u8;
-  }
-  let off: i64 = (pipe_elf_off_syms() as i64) + (i as i64) * (pipe_elf_sym_esz() as i64);
-  return ctx + (off as usize);
-}
-
-function pipe_elf_sym_esz(): i32 { return 268; }
-
-function pipe_elf_sym_off_name_len(): i32 { return 256; }
-
-function pipe_elf_sym_off_offset(): i32 { return 260; }
-
-function pipe_elf_sym_off_shndx(): i32 { return 264; }
-
 function pipe_elf_table_cap(): i32 { return 16384; }
 
 /**
@@ -2420,7 +2008,8 @@ function pipe_gv_alloc_bytes(nbytes: i64, out_mm: *i32): *u8 {
     return 0 as *u8;
   }
   // Prefer mmap for large blocks when POSIX flags available (RSS munmap path).
-  let flags: i32 = pipe_gv_mmap_flags();
+  let flags: i32 = 0;
+  unsafe { flags = pipe_gv_mmap_flags(); }
   if (flags != 0 && nbytes >= pipe_gv_mmap_thresh()) {
     let p: *u8 = 0 as *u8;
     let fd: i32 = 0;
@@ -2516,15 +2105,6 @@ function pipe_gv_load_len(v: *u8): i32 {
  */
 function pipe_gv_load_mmap(v: *u8): i32 {
   return pipe_load_i32_le(v, pipe_gv_off_mmap());
-}
-
-/**
- * MAP_PRIVATE|MAP_ANON flags for anonymous mmap.
- * @return i32 - flags (0 => disable mmap path)
- * PLATFORM: LINUX MAP_ANON=0x20; MACOS MAP_ANON=0x1000; else 0.
- */
-function pipe_gv_mmap_flags(): i32 {
-  return g_pipe_gv_mmap_flags;
 }
 
 function pipe_gv_mmap_thresh(): i64 { return 1048576; }
@@ -2671,15 +2251,6 @@ function pipe_mod_get_num_top_level_lets(module: *u8): i32 {
     return 0;
   }
   return pipe_load_i32_le(module, pipe_mod_off_num_top_level_lets());
-}
-
-/**
- * LP64 offsetof(struct ast_Module, num_funcs).
- * @return i32 - 0
- * PLATFORM: SHARED LP64.
- */
-function pipe_mod_off_num_funcs(): i32 {
-  return 0;
 }
 
 /**
@@ -3116,7 +2687,7 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
       return 0 - 1;
     }
     unsafe {
-      fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+      unsafe { fi = glue_module_func_index_by_name_c(m, &name[0], vlen); }
     }
     if (fi < 0) {
       return 0 - 1;
@@ -3137,7 +2708,7 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
     return 1;
   }
   unsafe {
-    fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+    unsafe { fi = glue_module_func_index_by_name_c(m, &name[0], vlen); }
   }
   if (fi < 0) {
     return 1;
@@ -3187,7 +2758,7 @@ function pipe_modlet_bake_scalar_imm_to_data(
   bi = 0;
   while (bi < n && bi < 4) {
     unsafe {
-      rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (uw & 255) as i32);
+      unsafe { rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (uw & 255) as i32); }
     }
     if (rc != 0) {
       return 0 - 1;
@@ -3203,7 +2774,7 @@ function pipe_modlet_bake_scalar_imm_to_data(
     }
     while (bi < n) {
       unsafe {
-        rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (hi & 255) as i32);
+        unsafe { rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (hi & 255) as i32); }
       }
       if (rc != 0) {
         return 0 - 1;
@@ -3261,13 +2832,13 @@ function pipe_modlet_bake_string_lit_elem_to_data(
     return 0 - 1;
   }
   unsafe {
-    pool_off = pipeline_elf_ctx_emit_data_len(elf_ctx);
+    unsafe { pool_off = pipeline_elf_ctx_emit_data_len(elf_ctx); }
   }
   if (pool_off < 0) {
     return 0 - 1;
   }
   unsafe {
-    rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, slen + 1);
+    unsafe { rc = pipeline_elf_ctx_append_data_zeros(elf_ctx, slen + 1); }
   }
   if (rc != 0) {
     return 0 - 1;
@@ -3297,7 +2868,7 @@ function pipe_modlet_bake_string_lit_elem_to_data(
     bi = 0;
     while (bi < n) {
       unsafe {
-        rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, pool_off + copied + bi, sbuf[bi] as i32);
+        unsafe { rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, pool_off + copied + bi, sbuf[bi] as i32); }
       }
       if (rc != 0) {
         return 0 - 1;
@@ -3355,7 +2926,7 @@ function pipe_modlet_bake_string_lit_elem_to_data(
     return 0 - 1;
   }
   unsafe {
-    rc = pipeline_elf_ctx_add_sym(elf_ctx, &lab[0], 22, pool_off);
+    unsafe { rc = pipeline_elf_ctx_add_sym(elf_ctx, &lab[0], 22, pool_off); }
   }
   if (rc != 0) {
     return 0 - 1;
@@ -3788,7 +3359,7 @@ function pipe_modlet_scalar_init_is_ptr_addr(
   }
   unsafe {
     pipeline_expr_var_name_into(arena, nref, &name[0]);
-    fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+    unsafe { fi = glue_module_func_index_by_name_c(m, &name[0], vlen); }
   }
   if (fi >= 0) {
     return 1;
@@ -4098,7 +3669,7 @@ function pipe_modlet_seed_ptr_addr_elem_to_rbx(
       return 1;
     }
     unsafe {
-      fi = glue_module_func_index_by_name_c(m, &name[0], vlen);
+      unsafe { fi = glue_module_func_index_by_name_c(m, &name[0], vlen); }
     }
     if (fi < 0) {
       // Bare name that is not a same-module fn (module-let value copy):
@@ -4156,46 +3727,6 @@ function pipe_modlet_write_hex8(lbase: i32, off: i32, v: i64): void {
 function pipe_pctx_off_ndep(): i32 { return 0; }
 
 /**
- * True if sidecar slot is used and its key pointer equals `key`.
- * @param sc *u8 — sidecar base; null -> 0
- * @param key *u8 — lookup key
- * @return i32 — 1 ok, 0 miss
- * PLATFORM: SHARED — 2-slot MRU helper for sidecar_get.
- */
-function pipe_sc_last_slot_ok(sc: *u8, key: *u8): i32 {
-  if (sc == 0 as *u8) {
-    return 0;
-  }
-  if (pipe_load_i32_le(sc, 8) == 0) {
-    return 0;
-  }
-  if (pipe_load_ptr_slot(sc, 0) != key) {
-    return 0;
-  }
-  return 1;
-}
-
-/**
- * Find map slot for module pointer.
- * @param module *u8 - module key; null -> -1
- * @return i32 - slot 0..127 or -1
- */
-function pipe_sl_find_slot(module: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0 - 1;
-  }
-  let i: i32 = 0;
-  while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_sl_mod[0], i);
-    if (k == module) {
-      return i;
-    }
-    i = i + 1;
-  }
-  return 0 - 1;
-}
-
-/**
  * Read module.num_struct_layouts header (null -> 0).
  * @param module *u8 - opaque ast_Module
  * @return i32 - header count
@@ -4205,41 +3736,6 @@ function pipe_sl_get_header_n(module: *u8): i32 {
     return 0;
   }
   return pipe_load_i32_le(module, pipe_sl_off_header_n());
-}
-
-/**
- * Pointer to layout entry at (slot, idx); null if OOB.
- * @param slot i32 - map slot
- * @param idx i32 - layout index
- * @return *u8 - entry base or null
- */
-function pipe_sl_layout_at(slot: i32, idx: i32): *u8 {
-  if (slot < 0) {
-    return 0 as *u8;
-  }
-  if (slot >= 128) {
-    return 0 as *u8;
-  }
-  if (idx < 0) {
-    return 0 as *u8;
-  }
-  if (idx >= g_pipe_sl_n[slot]) {
-    return 0 as *u8;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_sl_layouts[0], slot);
-  if (base == 0 as *u8) {
-    return 0 as *u8;
-  }
-  return base + (idx * pipe_sl_layout_size());
-}
-
-/**
- * Byte size of one pure StructLayout entry (C 160 + tp meta 8).
- * @return i32 - 296
- * PLATFORM: SHARED LP64.
- */
-function pipe_sl_layout_size(): i32 {
-  return 296;
 }
 
 /**
@@ -4255,28 +3751,6 @@ function pipe_sl_off_header_n(): i32 {
  * Offsets within pure layout entry.
  */
 function pipe_sl_off_name_len(): i32 { return 256; }
-
-/**
- * Soft-reset pure counts when header num_struct_layouts is 0.
- * Zeros layout/field/tp live n; keeps malloc capacity.
- * @param module *u8 - module key
- * @return void
- */
-function pipe_sl_soft_sync(module: *u8): void {
-  if (module == 0 as *u8) {
-    return;
-  }
-  if (pipe_sl_get_header_n(module) != 0) {
-    return;
-  }
-  let s: i32 = pipe_sl_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  g_pipe_sl_n[s] = 0;
-  g_pipe_sl_fn[s] = 0;
-  g_pipe_sl_tpn[s] = 0;
-}
 
 /**
  * Store host LE i32 at base[off..off+3]. Null base or off negative -> no-op.
@@ -4343,91 +3817,6 @@ function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void {
 }
 
 /**
- * Pointer to TopLevelLetEntry at (slot, idx); null if OOB.
- * @param slot i32 - map slot
- * @param idx i32 - entry index
- * @return *u8 - entry base or null
- */
-function pipe_tl_entry_at(slot: i32, idx: i32): *u8 {
-  if (slot < 0) {
-    return 0 as *u8;
-  }
-  if (slot >= 128) {
-    return 0 as *u8;
-  }
-  if (idx < 0) {
-    return 0 as *u8;
-  }
-  if (idx >= g_pipe_tl_n[slot]) {
-    return 0 as *u8;
-  }
-  let base: *u8 = xlang_ptr_slot_get(&g_pipe_tl_entries[0], slot);
-  if (base == 0 as *u8) {
-    return 0 as *u8;
-  }
-  return base + pipe_tl_entry_off(idx);
-}
-
-/**
- * Byte offset of entry idx within the flat entry table.
- * @param idx i32 - entry index
- * @return i32 - byte offset
- */
-function pipe_tl_entry_off(idx: i32): i32 {
-  return idx * pipe_tl_entry_size();
-}
-
-/**
- * Byte size of one TopLevelLetEntry (name + 5 i32 fields).
- * @return i32 - 276
- * PLATFORM: SHARED LP64 - must match C sizeof(TopLevelLetEntry).
- */
-function pipe_tl_entry_size(): i32 {
-  return 276;
-}
-
-/**
- * Find map slot for module pointer (exact key match).
- * @param module *u8 - module key; null -> -1
- * @return i32 - slot 0..127 or -1
- */
-function pipe_tl_find_slot(module: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0 - 1;
-  }
-  let i: i32 = 0;
-  while (i < 128) {
-    let k: *u8 = xlang_ptr_slot_get(&g_pipe_tl_mod[0], i);
-    if (k == module) {
-      return i;
-    }
-    i = i + 1;
-  }
-  return 0 - 1;
-}
-
-/**
- * Read module.num_top_level_lets header field (null -> 0).
- * @param module *u8 - opaque ast_Module
- * @return i32 - header count
- */
-function pipe_tl_get_header_n(module: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(module, pipe_tl_off_header_n());
-}
-
-/**
- * LP64 offsetof(struct ast_Module, num_top_level_lets).
- * @return i32 - 12
- * PLATFORM: SHARED LP64 - dual-end; see pipe_mod_off_num_top_level_lets.
- */
-function pipe_tl_off_header_n(): i32 {
-  return 12;
-}
-
-/**
  * Byte offset of init_ref within TopLevelLetEntry.
  * @return i32 - 264
  */
@@ -4457,26 +3846,6 @@ function pipe_tl_off_name_len(): i32 {
  */
 function pipe_tl_off_type_ref(): i32 {
   return 260;
-}
-
-/**
- * Soft-reset pure counts when header num_top_level_lets is 0 (parse/module reset).
- * Keeps malloc capacity; zeros live n.
- * @param module *u8 - module key
- * @return void
- */
-function pipe_tl_soft_sync(module: *u8): void {
-  if (module == 0 as *u8) {
-    return;
-  }
-  if (pipe_tl_get_header_n(module) != 0) {
-    return;
-  }
-  let s: i32 = pipe_tl_find_slot(module);
-  if (s < 0) {
-    return;
-  }
-  g_pipe_tl_n[s] = 0;
 }
 
 /**
@@ -4596,39 +3965,6 @@ export function pipeline_arena_type_ptr(a: *u8, ref: i32): *u8 {
 }
 
 /**
- * Get current emit AST arena pointer.
- * @return *u8 — ast_ASTArena* as *u8, or null
- * wave221 pure: G.7 authority (was Cap residual glue_statics).
- * PLATFORM: SHARED freestanding emit.
- */
-#[no_mangle]
-export function pipeline_asm_emit_ctx_arena_get(): *u8 {
-  return g_pipeline_asm_emit_arena;
-}
-
-/**
- * Get current asm emit dep pipe pointer.
- * @return *u8 — ast_PipelineDepCtx* as *u8, or null
- * wave222 pure: G.7 authority (was Cap residual glue_statics).
- * PLATFORM: SHARED freestanding emit.
- */
-#[no_mangle]
-export function pipeline_asm_emit_ctx_dep_pipe_get(): *u8 {
-  return g_pipeline_asm_emit_dep_pipe;
-}
-
-/**
- * Get current asm emit module pointer.
- * @return *u8 — ast_Module* as *u8, or null
- * wave222 pure: G.7 authority (was Cap residual glue_statics).
- * PLATFORM: SHARED freestanding emit.
- */
-#[no_mangle]
-export function pipeline_asm_emit_ctx_module_get(): *u8 {
-  return g_pipeline_asm_emit_module;
-}
-
-/**
  * Read the current emit dep pipe.
  * @return *u8 - PipelineDepCtx* or null
  * wave141 pure: G.7 authority (was pipeline_asm_emit_dep_pipe_c).
@@ -4638,7 +3974,7 @@ export function pipeline_asm_emit_ctx_module_get(): *u8 {
 export function pipeline_asm_emit_dep_pipe_c(): *u8 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = pipeline_asm_emit_ctx_dep_pipe_get();
+    unsafe { p = pipeline_asm_emit_ctx_dep_pipe_get(); }
   }
   return p;
 }
@@ -4653,7 +3989,7 @@ export function pipeline_asm_emit_dep_pipe_c(): *u8 {
 export function pipeline_asm_emit_module_ref_c(): *u8 {
   let m: *u8 = 0 as *u8;
   unsafe {
-    m = pipeline_asm_emit_ctx_module_get();
+    unsafe { m = pipeline_asm_emit_ctx_module_get(); }
   }
   return m;
 }
@@ -4740,40 +4076,6 @@ export function pipeline_dep_ctx_ndep(ctx: *u8): i32 {
 }
 
 /**
- * Add SHN_COMMON object symbol (linker BSS, writable). Used by modlet mutable lets.
- * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || sym_size <= 0) {
-    return -1;
-  }
-  let al: i32 = sym_align;
-  if (al <= 0) {
-    al = 8;
-  }
-  if (g_pipe_elf_common_owner != ctx_bytes) {
-    pipe_elf_common_sidecar_reset(ctx_bytes);
-  }
-  if (pipeline_elf_ctx_add_sym(ctx_bytes, name, name_len, sym_size) != 0) {
-    return -1;
-  }
-  let si: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms()) - 1;
-  if (si < 0 || si >= pipe_elf_table_cap()) {
-    return -1;
-  }
-  unsafe {
-    g_pipe_elf_sym_is_common[si] = 1;
-  }
-  pipe_elf_bss_store_i32(&g_pipe_elf_sym_common_size[0], si, sym_size);
-  pipe_elf_bss_store_i32(&g_pipe_elf_sym_common_align[0], si, al);
-  let se: *u8 = pipe_elf_sym_at(ctx_bytes, si);
-  pipe_store_i32_le(se, pipe_elf_sym_off_shndx(), 65522);
-  return 0;
-}
-
-/**
  * Add or update a local label at offset in current emit section.
  * @return i32 - 0 ok, -1 full/null
  * wave273 pure-owned leave.
@@ -4784,7 +4086,8 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
   if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
     return -1;
   }
-  let shndx: i32 = pipe_elf_current_shndx(ctx_bytes);
+  let shndx: i32 = 0;
+  unsafe { shndx = pipe_elf_current_shndx(ctx_bytes); }
   let nl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_labels());
   let l: i32 = 0;
   while (l < nl) {
@@ -4792,7 +4095,7 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
     let llen: i32 = pipe_load_i32_le(lab, pipe_elf_lab_off_name_len());
     if (pipe_elf_name_eq(lab + (pipe_elf_lab_off_name() as usize), llen, name, name_len) != 0) {
       pipe_store_i32_le(lab, pipe_elf_lab_off_offset(), offset);
-      pipe_elf_label_shndx_set(ctx_bytes, l, shndx);
+      unsafe { pipe_elf_label_shndx_set(ctx_bytes, l, shndx); }
       return 0;
     }
     l = l + 1;
@@ -4817,65 +4120,8 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
   }
   pipe_store_i32_le(lab2, pipe_elf_lab_off_name_len(), n);
   pipe_store_i32_le(lab2, pipe_elf_lab_off_offset(), offset);
-  pipe_elf_label_shndx_set(ctx_bytes, li, shndx);
+  unsafe { pipe_elf_label_shndx_set(ctx_bytes, li, shndx); }
   pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_labels(), nl + 1);
-  return 0;
-}
-
-/**
- * Record export symbol; name bytes go into sym_name_data pool (cap 131072).
- * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
-    return -1;
-  }
-  let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
-  if (ns >= pipe_elf_table_cap()) {
-    return -1;
-  }
-  if (g_pipe_elf_common_owner != ctx_bytes) {
-    pipe_elf_common_sidecar_reset(ctx_bytes);
-  }
-  let copy_len: i32 = name_len;
-  // Cap 4.2.8: sym name pool holds '_' + ≤255 AST content (was wave580 128).
-  if (copy_len > 256) {
-    copy_len = 256;
-  }
-  if (copy_len < 0) {
-    copy_len = 0;
-  }
-  let snl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_sym_name_len());
-  if (snl + copy_len > 131072) {
-    return -1;
-  }
-  let sym_pool: *u8 = ctx_bytes + (pipe_elf_off_sym_name_data() as usize);
-  let k: i32 = 0;
-  while (k < copy_len) {
-    unsafe {
-      sym_pool[snl + k] = name[k];
-    }
-    k = k + 1;
-  }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_sym_name_len(), snl + copy_len);
-  let se: *u8 = pipe_elf_sym_at(ctx_bytes, ns);
-  pipe_store_i32_le(se, pipe_elf_sym_off_name_len(), copy_len);
-  pipe_store_i32_le(se, pipe_elf_sym_off_offset(), offset);
-  let shndx: i32 = pipe_elf_shnx_text();
-  if (g_pipe_elf_shndx_override != 0) {
-    shndx = g_pipe_elf_shndx_override;
-  } else if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
-    shndx = pipe_elf_shnx_hot();
-  } else if (pipeline_elf_pgo_hot_enabled() != 0) {
-    shndx = pipe_elf_shnx_unlikely();
-  }
-  pipe_store_i32_le(se, pipe_elf_sym_off_shndx(), shndx);
-  unsafe {
-    g_pipe_elf_sym_is_common[ns] = 0;
-  }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_syms(), ns + 1);
   return 0;
 }
 
@@ -4916,112 +4162,6 @@ export function pipeline_elf_ctx_append_bytes(ctx_bytes: *u8, ptr: *u8, n: i32):
 }
 
 /**
- * F7: Append `n` zero bytes to the data section buffer (reserve + clear).
- * Used by modlet prepare to place a .data cell before poking ARRAY_LIT bytes.
- * @param ctx_bytes *u8 — ElfCodegenCtx*
- * @param n i32 — byte count; n<=0 is a no-op success
- * @return i32 — 0 ok; -1 overflow/null
- * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32 {
-  if (ctx_bytes == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (n <= 0) {
-    return 0;
-  }
-  if (g_pipe_elf_data_len < 0) {
-    g_pipe_elf_data_len = 0;
-  }
-  if (g_pipe_elf_data_len + n > 65536) {
-    return 0 - 1;
-  }
-  let off: i32 = g_pipe_elf_data_len;
-  let i: i32 = 0;
-  while (i < n) {
-    unsafe {
-      g_pipe_elf_data_buf[off + i] = 0 as u8;
-    }
-    i = i + 1;
-  }
-  g_pipe_elf_data_len = off + n;
-  return 0;
-}
-
-/**
- * Append external reloc; >TABLE_CAP uses heap sidecar.
- * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len <= 0) {
-    return -1;
-  }
-  unsafe {
-    if (name[0] == 0) {
-      return -1;
-    }
-  }
-  let nr: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs());
-  if (nr >= pipe_elf_reloc_total_cap()) {
-    return -1;
-  }
-  let ri: i32 = nr;
-  let sym_row: *u8 = 0 as *u8;
-  if (ri < pipe_elf_table_cap()) {
-    let ent: *u8 = pipe_elf_reloc_at(ctx_bytes, ri);
-    pipe_store_i32_le(ent, pipe_elf_rel_off_offset(), offset);
-    sym_row = pipe_elf_reloc_name_row(ctx_bytes, ri);
-  } else {
-    if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
-      pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
-    }
-    let hi: i32 = ri - pipe_elf_table_cap();
-    let hent: *u8 = pipe_elf_reloc_heap_at(hi);
-    if (hent == 0 as *u8) {
-      return -1;
-    }
-    pipe_store_i32_le(hent, pipe_elf_rh_off_offset(), offset);
-    sym_row = pipe_elf_reloc_sym_heap_at(hi);
-  }
-  pipe_elf_reloc_shndx_set(ctx_bytes, ri, pipe_elf_current_shndx(ctx_bytes));
-  // Cap 4.2.8: reloc_sym_names.bytes[256] (was wave580 memset/clamp 128).
-  unsafe {
-    memset(sym_row, 0, 256 as usize);
-  }
-  let n: i32 = name_len;
-  if (n > 255) {
-    n = 255;
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 0) {
-    unsafe {
-      memcpy(sym_row, name, n as usize);
-    }
-  }
-  if (ri < pipe_elf_table_cap()) {
-    let ent2: *u8 = pipe_elf_reloc_at(ctx_bytes, ri);
-    pipe_store_i32_le(ent2, pipe_elf_rel_off_name_len(), n);
-    pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, 0);
-    unsafe {
-      g_pipe_elf_reloc_r_pcrel[ri] = 255;
-    }
-  } else {
-    let hi2: i32 = ri - pipe_elf_table_cap();
-    let h2: *u8 = pipe_elf_reloc_heap_at(hi2);
-    if (h2 != 0 as *u8) {
-      pipe_store_i32_le(h2, pipe_elf_rh_off_name_len(), n);
-    }
-  }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_relocs(), nr + 1);
-  return 0;
-}
-
-/**
  * Append an absolute 64-bit pointer relocation (data slot holding a symbol address).
  *
  * F7 vtable statics store function pointers in a read-only data array, mirroring
@@ -5052,56 +4192,7 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
 export function pipeline_elf_ctx_append_reloc_absolute64(
   ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32 {
   /* r_type=200 sentinel; r_pcrel=0 (absolute). Writers map 200 → platform type. */
-  return pipeline_elf_ctx_append_reloc_typed(ctx_bytes, offset, name, name_len, 200, 0);
-}
-
-/**
- * Append reloc with explicit r_type / r_pcrel (arm64 ADRP/PAGEOFF modlet).
- * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32 {
-  if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0) {
-    return -1;
-  }
-  let ri: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
-  if (ri >= 0 && ri < pipe_elf_table_cap()) {
-    pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, r_type);
-    if (r_pcrel < 0) {
-      unsafe {
-        g_pipe_elf_reloc_r_pcrel[ri] = 255;
-      }
-    } else {
-      let pv: u8 = 0;
-      if (r_pcrel != 0) {
-        pv = 1;
-      }
-      unsafe {
-        g_pipe_elf_reloc_r_pcrel[ri] = pv;
-      }
-    }
-  }
-  return 0;
-}
-
-/**
- * F7: Poke one byte into an already-reserved data-section offset.
- * @param ctx_bytes *u8 — ElfCodegenCtx*
- * @param off i32 — absolute offset within g_pipe_elf_data_buf
- * @param b i32 — byte value (low 8 bits)
- * @return i32 — 0 ok; -1 OOB/null
- * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || off < 0 || off >= g_pipe_elf_data_len) {
-    return 0 - 1;
-  }
-  unsafe {
-    g_pipe_elf_data_buf[off] = (b & 255) as u8;
-  }
-  return 0;
+  unsafe { return pipeline_elf_ctx_append_reloc_typed(ctx_bytes, offset, name, name_len, 200, 0); }
 }
 
 /**
@@ -5121,18 +4212,6 @@ export function pipeline_elf_ctx_emit_code_len(ctx_bytes: *u8): i32 {
 }
 
 /**
- * F7: Current data section length (bytes already emitted to data buf).
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_emit_data_len(ctx_bytes: *u8): i32 {
-  if (ctx_bytes == 0 as *u8) {
-    return 0;
-  }
-  return g_pipe_elf_data_len;
-}
-
-/**
  * Read macho_leading_underscore (Darwin call/reloc prefix '_').
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
@@ -5143,32 +4222,6 @@ export function pipeline_elf_ctx_macho_leading_underscore(ctx_bytes: *u8): i32 {
     return 0;
   }
   return pipe_load_i32_le(ctx_bytes, pipe_elf_off_macho_uscore());
-}
-
-/**
- * Bind reloc sidecar owner; clear typed reloc rows; reset shndx sidecars.
- * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes: *u8): void {
-  g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
-  pipe_elf_shndx_sidecar_reset(ctx_bytes);
-  unsafe {
-    memset(&g_pipe_elf_reloc_r_type[0], 0, 65536 as usize);
-    memset(&g_pipe_elf_reloc_r_pcrel[0], 255, 16384 as usize);
-  }
-}
-
-/**
- * F7: Set/clear shndx override. When set to 4 (data section), subsequent
- * relocs/syms/labels are tagged as data-section. Set to 0 to restore default
- * (text section). Single-threaded compile; safe as a global mutable.
- * PLATFORM: SHARED freestanding ELF leave.
- */
-#[no_mangle]
-export function pipeline_elf_ctx_set_shndx_override(ctx_bytes: *u8, shndx: i32): void {
-  g_pipe_elf_shndx_override = shndx;
 }
 
 /**
@@ -5200,21 +4253,6 @@ export function pipeline_elf_pgo_hot_enabled(): i32 {
 }
 
 /**
- * Read module.num_funcs (null -> 0).
- * @param module *u8 - opaque ast_Module*
- * @return i32 - function count
- * wave121 pure: G.7 single product authority (was pipeline_lint_meta.c).
- * PLATFORM: SHARED - sole provider after lint_meta leave.
- */
-#[no_mangle]
-export function pipeline_module_num_funcs(module: *u8): i32 {
-  if (module == 0 as *u8) {
-    return 0;
-  }
-  return pipe_load_i32_le(module, pipe_mod_off_num_funcs());
-}
-
-/**
  * Read module.num_struct_layouts (header; soft-sync pure map).
  * @param module *u8 - module
  * @return i32 - count or 0
@@ -5225,7 +4263,7 @@ export function pipeline_module_num_struct_layouts_at(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0;
   }
-  pipe_sl_soft_sync(module);
+  unsafe { pipe_sl_soft_sync(module); }
   return pipe_sl_get_header_n(module);
 }
 
@@ -5247,12 +4285,14 @@ export function pipeline_module_struct_layout_name_byte_at(module: *u8, idx: i32
   if (off >= 128) {
     return 0;
   }
-  pipe_sl_soft_sync(module);
-  let s: i32 = pipe_sl_find_slot(module);
+  unsafe { pipe_sl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_sl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let sl: *u8 = pipe_sl_layout_at(s, idx);
+  let sl: *u8 = (0 as *u8);
+  unsafe { sl = pipe_sl_layout_at(s, idx); }
   if (sl == 0 as *u8) {
     return 0;
   }
@@ -5276,12 +4316,14 @@ export function pipeline_module_struct_layout_name_len(module: *u8, idx: i32): i
   if (module == 0 as *u8) {
     return 0;
   }
-  pipe_sl_soft_sync(module);
-  let s: i32 = pipe_sl_find_slot(module);
+  unsafe { pipe_sl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_sl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let sl: *u8 = pipe_sl_layout_at(s, idx);
+  let sl: *u8 = (0 as *u8);
+  unsafe { sl = pipe_sl_layout_at(s, idx); }
   if (sl == 0 as *u8) {
     return 0;
   }
@@ -5300,12 +4342,14 @@ export function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i
   if (module == 0 as *u8) {
     return 0;
   }
-  pipe_tl_soft_sync(module);
-  let s: i32 = pipe_tl_find_slot(module);
+  unsafe { pipe_tl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_tl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let e: *u8 = pipe_tl_entry_at(s, idx);
+  let e: *u8 = (0 as *u8);
+  unsafe { e = pipe_tl_entry_at(s, idx); }
   if (e == 0 as *u8) {
     return 0;
   }
@@ -5324,12 +4368,14 @@ export function pipeline_module_top_level_let_is_const(module: *u8, idx: i32): i
   if (module == 0 as *u8) {
     return 0;
   }
-  pipe_tl_soft_sync(module);
-  let s: i32 = pipe_tl_find_slot(module);
+  unsafe { pipe_tl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_tl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let e: *u8 = pipe_tl_entry_at(s, idx);
+  let e: *u8 = (0 as *u8);
+  unsafe { e = pipe_tl_entry_at(s, idx); }
   if (e == 0 as *u8) {
     return 0;
   }
@@ -5355,12 +4401,14 @@ export function pipeline_module_top_level_let_name_byte_at(module: *u8, idx: i32
   if (off >= 127) {
     return 0;
   }
-  pipe_tl_soft_sync(module);
-  let s: i32 = pipe_tl_find_slot(module);
+  unsafe { pipe_tl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_tl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let e: *u8 = pipe_tl_entry_at(s, idx);
+  let e: *u8 = (0 as *u8);
+  unsafe { e = pipe_tl_entry_at(s, idx); }
   if (e == 0 as *u8) {
     return 0;
   }
@@ -5385,12 +4433,14 @@ export function pipeline_module_top_level_let_name_len(module: *u8, idx: i32): i
   if (module == 0 as *u8) {
     return 0;
   }
-  pipe_tl_soft_sync(module);
-  let s: i32 = pipe_tl_find_slot(module);
+  unsafe { pipe_tl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_tl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let e: *u8 = pipe_tl_entry_at(s, idx);
+  let e: *u8 = (0 as *u8);
+  unsafe { e = pipe_tl_entry_at(s, idx); }
   if (e == 0 as *u8) {
     return 0;
   }
@@ -5409,12 +4459,14 @@ export function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i
   if (module == 0 as *u8) {
     return 0;
   }
-  pipe_tl_soft_sync(module);
-  let s: i32 = pipe_tl_find_slot(module);
+  unsafe { pipe_tl_soft_sync(module); }
+  let s: i32 = 0;
+  unsafe { s = pipe_tl_find_slot(module); }
   if (s < 0) {
     return 0;
   }
-  let e: *u8 = pipe_tl_entry_at(s, idx);
+  let e: *u8 = (0 as *u8);
+  unsafe { e = pipe_tl_entry_at(s, idx); }
   if (e == 0 as *u8) {
     return 0;
   }

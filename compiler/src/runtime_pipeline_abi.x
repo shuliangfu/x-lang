@@ -85312,7 +85312,8 @@ function pipe_tl_set_header_n(module: *u8, n: i32): void {
  * @param module *u8 - module key; null -> -1
  * @return i32 - slot 0..127 or -1
  */
-function pipe_tl_find_slot(module: *u8): i32 {
+#[no_mangle]
+export function pipe_tl_find_slot(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -85333,7 +85334,8 @@ function pipe_tl_find_slot(module: *u8): i32 {
  * @param module *u8 - module key
  * @return void
  */
-function pipe_tl_soft_sync(module: *u8): void {
+#[no_mangle]
+export function pipe_tl_soft_sync(module: *u8): void {
   if (module == 0 as *u8) {
     return;
   }
@@ -85439,7 +85441,8 @@ function pipe_tl_ensure_entries(slot: i32, need: i32): i32 {
  * @param idx i32 - entry index
  * @return *u8 - entry base or null
  */
-function pipe_tl_entry_at(slot: i32, idx: i32): *u8 {
+#[no_mangle]
+export function pipe_tl_entry_at(slot: i32, idx: i32): *u8 {
   if (slot < 0) {
     return 0 as *u8;
   }
@@ -86318,7 +86321,8 @@ function pipe_sl_set_header_n(module: *u8, n: i32): void {
  * @param module *u8 - module key; null -> -1
  * @return i32 - slot 0..127 or -1
  */
-function pipe_sl_find_slot(module: *u8): i32 {
+#[no_mangle]
+export function pipe_sl_find_slot(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -86339,7 +86343,8 @@ function pipe_sl_find_slot(module: *u8): i32 {
  * @param module *u8 - module key
  * @return void
  */
-function pipe_sl_soft_sync(module: *u8): void {
+#[no_mangle]
+export function pipe_sl_soft_sync(module: *u8): void {
   if (module == 0 as *u8) {
     return;
   }
@@ -86567,7 +86572,8 @@ function pipe_sl_ensure_tp(slot: i32, need: i32): i32 {
  * @param idx i32 - layout index
  * @return *u8 - entry base or null
  */
-function pipe_sl_layout_at(slot: i32, idx: i32): *u8 {
+#[no_mangle]
+export function pipe_sl_layout_at(slot: i32, idx: i32): *u8 {
   if (slot < 0) {
     return 0 as *u8;
   }
@@ -90662,7 +90668,8 @@ let g_pipe_gv_mmap_flags: i32 = 0;
  * @return i32 - flags (0 => disable mmap path)
  * PLATFORM: LINUX MAP_ANON=0x20; MACOS MAP_ANON=0x1000; else 0.
  */
-function pipe_gv_mmap_flags(): i32 {
+#[no_mangle]
+export function pipe_gv_mmap_flags(): i32 {
   return g_pipe_gv_mmap_flags;
 }
 
@@ -91052,7 +91059,8 @@ let g_pipe_dep_sc_blob: u8[17408] = [];
  * @return *u8 - sidecar base or null if i out of range
  * PLATFORM: SHARED freestanding DepCtx table.
  */
-function pipe_dep_sc_at(i: i32): *u8 {
+#[no_mangle]
+export function pipe_dep_sc_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
   }
@@ -92961,7 +92969,8 @@ export function pipeline_elf_ctx_set_shndx_override(ctx_bytes: *u8, shndx: i32):
  * F7: respects the shndx override (when non-zero, returns it so new
  * relocs/syms/labels are tagged as data-section).
  */
-function pipe_elf_current_shndx(ctx: *u8): i32 {
+#[no_mangle]
+export function pipe_elf_current_shndx(ctx: *u8): i32 {
   if (ctx == 0 as *u8) {
     return pipe_elf_shnx_text();
   }
@@ -93083,7 +93092,8 @@ function pipe_elf_label_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
   return pipe_elf_bss_load_i32(&g_pipe_elf_label_shndx[0], idx);
 }
 
-function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
+#[no_mangle]
+export function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
   if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
     return;
   }
@@ -97728,7 +97738,8 @@ function pipe_sc_last_slot_ok(sc: *u8, key: *u8): i32 {
  * @param key *u8 — arena pointer key
  * @return *u8 — cached sidecar or null
  */
-function pipe_arena_sc_recall(key: *u8): *u8 {
+#[no_mangle]
+export function pipe_arena_sc_recall(key: *u8): *u8 {
   if (g_pipe_arena_sc_last_key0 == key) {
     if (pipe_sc_last_slot_ok(g_pipe_arena_sc_last_sc0, key) != 0) {
       return g_pipe_arena_sc_last_sc0;
@@ -97747,7 +97758,8 @@ function pipe_arena_sc_recall(key: *u8): *u8 {
  * @param key *u8 — arena pointer key
  * @param sc *u8 — sidecar base
  */
-function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
+#[no_mangle]
+export function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
   if (g_pipe_arena_sc_last_key0 == key) {
     g_pipe_arena_sc_last_sc0 = sc;
     return;
@@ -97762,7 +97774,8 @@ function pipe_arena_sc_remember(key: *u8, sc: *u8): void {
  * Drop arena last-hit slots that point at `sc` (called from free).
  * @param sc *u8 — sidecar being freed
  */
-function pipe_arena_sc_drop_last(sc: *u8): void {
+#[no_mangle]
+export function pipe_arena_sc_drop_last(sc: *u8): void {
   if (g_pipe_arena_sc_last_sc0 == sc) {
     g_pipe_arena_sc_last_key0 = 0 as *u8;
     g_pipe_arena_sc_last_sc0 = 0 as *u8;
@@ -97936,7 +97949,8 @@ function pipe_onefunc_sc_used_lim(): i32 {
  * @return *u8 - sidecar base or null if i out of range
  * PLATFORM: SHARED freestanding arena sidecar table.
  */
-function pipe_arena_sc_at(i: i32): *u8 {
+#[no_mangle]
+export function pipe_arena_sc_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
   }
