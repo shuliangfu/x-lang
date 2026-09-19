@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-19 · 简写 · w597 parse_skip＝grow_vec 256 帽 LINUX `-E` 换回 · `*p=` peel 仍 BAN · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-19 · 简写 · w598 `*p=` SEGV＝scalar 砸帧已 LINUX `-E` 换；余 CG002 · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。余 PREFER 已双端 U-complete **不 BAN**。LINUX `-E` 余叶均产品 PREFER 红不 Soft-Cap。M1：parse_skip 掉尾＝grow_vec INIT_CAP=256（w597 LINUX `-E` 换回）；`unsafe { *p=1 }` peel SEGV 仍 BAN。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。余 PREFER 已双端 U-complete **不 BAN**。LINUX `-E` 余叶均产品 PREFER 红不 Soft-Cap。M1：parse_skip＝grow_vec 256 帽已 `-E`；`*p=` SEGV＝leftover scalar 砸帧已 LINUX `-E` 换，余 CG002。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
@@ -240,7 +240,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余见归档 |
-| `pipeline_abi` mega pure-asm | 🟡 | 余 PREFER 已双端 U-complete **不 BAN**。parse_skip 掉尾＝grow_vec 256 帽已 LINUX `-E` 换回。下一＝M1 墙（`*p=` peel SEGV／while hang）不 Soft-Cap `-E` 余叶。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 余 PREFER 已双端 U-complete **不 BAN**。parse_skip＝grow_vec 256 帽已 `-E`。`*p=` SEGV＝scalar 砸帧已 LINUX `-E` 换；余 CG002。不 Soft-Cap `-E` 余叶。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
 | nest 冻 64 | ✅ | — |
 
 ---
@@ -255,7 +255,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：Cap residual 仍注入叶；M1 墙（`*p=` peel SEGV／while hang）穿插；禁盲 FORCE mega；禁 Darwin mega `-E`；禁升钉。  
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：Cap residual 仍注入叶；M1 墙（`*p=` store CG002／while hang）穿插；禁盲 FORCE mega；禁 Darwin mega `-E`；禁升钉。  
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
