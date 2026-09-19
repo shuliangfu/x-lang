@@ -32652,7 +32652,7 @@ export function pipeline_asm_emit_as_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 // PLATFORM: SHARED - layout matches host-cc pipeline_asm_modlet_table_t.
 // Stage 12.0.5: +cell_size[N] so TYPE_ARRAY module lets emit full COMMON (not stack).
 // MAX 64→256 (modlet 64-cap knife): 4 + 256*168 = 43012.
-let g_pipeline_asm_modlet: u8[43012] = [];
+let g_pipeline_asm_modlet: u8[86020] = [];
 // Per-TU sequence for .data string-pool labels (Lxmls_ + hex8(seq) + hex8(fp)).
 // Reset with the modlet table so interned names never leak across modules.
 let g_pipe_modlet_strpool_seq: i32 = 0;
@@ -32664,7 +32664,12 @@ let g_pipe_modlet_strpool_seq: i32 = 0;
  * G.7: complete the existing table; do not add a second growable table.
  */
 function pipe_modlet_max(): i32 {
-  return 256;
+  /* wave624: 512 — the mega TU itself has 331 registrable top-level lets;
+   * the old 256 cap hit the loud-fail gate at monofile codegen START
+   * (CG002 code_len=0, mega FORCE blocker head). 512 covers the mega with
+   * headroom; buffer g_pipeline_asm_modlet grows 43012→86020 to match.
+   * PLATFORM: SHARED — single authority (seed twin mirrors). */
+  return 512;
 }
 
 /**

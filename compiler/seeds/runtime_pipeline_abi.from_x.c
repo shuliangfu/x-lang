@@ -16480,7 +16480,7 @@ int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out
  * Cap residual: top_level readers, common_sym, enc load/store/mov, hoist, let_init_reserve.
  */
 
-#define XLANG_ASM_MODLET_MAX 256
+#define XLANG_ASM_MODLET_MAX 512 /* wave624: mega TU has 331 top-level lets; 256 hit the loud-fail cap */
 
 typedef struct {
   int32_t n;
