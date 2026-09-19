@@ -1,8 +1,12 @@
-// Thin pure: wave304/361/430/490 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
+// Thin pure: wave304/361/430/490/595 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
 // AsmLocalSlotEntry LE 264B + AsmBlockSlot tables; 64-slot ctx maps; 12 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave267 leave.
 // wave430: LINUX -E+$CC (pure-asm product SEGV). MACOS HARD BAN tip reinject.
 // wave490: no-local malloc (tip U starved `np=malloc()`); tip PREFER try.
+// wave595: Ubuntu tip -c of this monolith drops trailing asm_ctx_block_slot_get
+//   (isolated get compiles; Darwin keeps all 12 faces). Get lives in peer
+//   runtime_pipeline_abi_asm_locals_get_thin.x and reads this TU's maps via
+//   pipe_al_bn_at / pipe_al_brefs_slot / pipe_al_bbases_slot (one BSS).
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -278,6 +282,39 @@ function pipe_al_at(slot: i32, idx: i32): *u8 {
     return 0 as *u8;
   }
   return base + (idx * pipe_al_entry_size());
+}
+
+/**
+ * Block-table length at map slot s (peer get reads this TU's BSS).
+ * @param s i32 — map slot 0..63; out of range → 0
+ * @return i32 — g_pipe_al_bn[s]
+ * PLATFORM: SHARED — single BSS with set; LINUX gold get peer first-wins.
+ */
+export function pipe_al_bn_at(s: i32): i32 {
+  if (s < 0 || s >= 64) {
+    return 0;
+  }
+  return g_pipe_al_bn[s];
+}
+
+/**
+ * Block-ref table pointer at map slot s (peer get).
+ * @param s i32 — map slot 0..63
+ * @return *u8 — slot pointer or null
+ * PLATFORM: SHARED — one BSS; do not duplicate g_pipe_al_brefs in the get peer.
+ */
+export function pipe_al_brefs_slot(s: i32): *u8 {
+  return w304_ptr_get(&g_pipe_al_brefs[0], s);
+}
+
+/**
+ * Slot-base table pointer at map slot s (peer get).
+ * @param s i32 — map slot 0..63
+ * @return *u8 — slot pointer or null
+ * PLATFORM: SHARED — one BSS; do not duplicate g_pipe_al_bbases in the get peer.
+ */
+export function pipe_al_bbases_slot(s: i32): *u8 {
+  return w304_ptr_get(&g_pipe_al_bbases[0], s);
 }
 
 /**
