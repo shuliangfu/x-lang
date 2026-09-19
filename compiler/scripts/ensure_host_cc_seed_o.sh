@@ -5055,58 +5055,27 @@ pipeline_abi_inject_read_file_x_view_thin() {
   return "$rc"
 }
 
-# wave410d M2: reent_deep_copy Cap residual — PREFER both ends.
-# PRODUCT inject wave410d:
-#   BOTH: PREFER_ASM (Darwin product inject + relink L2 5/5; Ubuntu product
-#   inject + relink L2 5/5). Standalone Ubuntu -c may emit empty .o; product
-#   inject path still green.
-# G.7: thin body matches mega reent deep-copy leave.
-# PLATFORM: SHARED · both ends PREFER.
+# wave410d/589 M2: reent_deep_copy Cap residual. G.7: match mega leave.
+# PRODUCT inject wave410d: PREFER_ASM both ends (ALLOW_E_REPLACE + stamp).
+# wave589: Ubuntu tip `-backend asm -c` empty .o (if-before-call /
+#   mid-assign / rc=call then if / nested while COMMON digit fill /
+#   local u8 label buffers / branch-gated encoders). Darwin original
+#   36/36. reent_deep_copy_store_encoders recovered 36/36. HARD BAN
+#   tip PRODUCT reinject both ends. Keep w410 overlay.
+# PLATFORM: SHARED · stamp-only BAN then return 0.
 pipeline_abi_inject_reent_deep_copy_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_reent_deep_copy_thin.x"
-  local stamp="src/.pabi_w410_reent_deep_copy.stamp"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
+  local stamp="src/.pabi_w589_reent_deep_copy.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: SHARED — wave589 Soft Cap HARD BAN tip reinject (keep w410).
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
     return 0
   fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM (product inject + L2 verified both ends).
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w410-reent-deep-copy"
-  rc=$?
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-  fi
-  return "$rc"
+  touch "$stamp"
+  rm -f src/.pabi_w410_reent_deep_copy.stamp
+  log "pipeline_abi w589-reent-deep-copy: tipU stamped; tip PRODUCT reinject HARD BAN (keep w410)"
+  return 0
 }
 
 # wave408/418 M2: fixed_array_copy Cap residual — asymmetric helpers unlock.
@@ -8831,6 +8800,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave347: pure-asm call-arg i32 VAR lea root of PREFER XT001; scalar use_lea guard.
 # wave348/375: for_call_args rvalue; wave375 PREFER both ends (was -E).
 # wave588: for_call_args tipU 68/68 + PRODUCT BAN (Ubuntu original empty .o).
+# wave589: reent_deep_copy tipU 36/36 + PRODUCT BAN (Ubuntu original empty .o).
 # wave375 BAN: parser_result PREFER (LexerResult.next_lex size under pure-asm).
 # wave349: block_tree T001 unsafe wrap.
 # wave351: Cap A emit_index (Darwin PREFER / Ubuntu -E) + block_tree PREFER both.
@@ -14777,6 +14747,7 @@ case "$MODE" in
     ;;
   inject-reent-deep-copy|inject_reent_deep_copy)
     # wave410d: PREFER both ends.
+    # wave589: HARD BAN tip PRODUCT reinject (keep w410 overlay).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-reent-deep-copy: need <out.o>" >&2
