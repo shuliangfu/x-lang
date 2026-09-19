@@ -5,8 +5,9 @@
 // pipe_al_brefs_slot / pipe_al_bbases_slot — one BSS, no second table.
 // Why separate leaf: Ubuntu tip -c of the monolith drops the trailing
 // asm_ctx_block_slot_get (isolated get compiles; Darwin keeps the export).
-// wave595: LINUX PRODUCT PREFER L2 SEGV 0/5 — HARD BAN; product stays
-//   w490 -E main. Keep this peer as inventory (do not PREFER until a new root).
+// wave595: LINUX PRODUCT PREFER L2 SEGV 0/5 — HARD BAN.
+// wave604: product get is the trailing export of the complete main -E TU
+//   (one BSS with set). Keep this peer as inventory; do not PREFER.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_al_find(ctx: *u8, create: i32): i32;

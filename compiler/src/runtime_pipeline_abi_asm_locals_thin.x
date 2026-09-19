@@ -1,12 +1,14 @@
-// Thin pure: wave304/361/430/490/595 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
+// Thin pure: wave304/361/430/490/595/604 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
 // AsmLocalSlotEntry LE 264B + AsmBlockSlot tables; 64-slot ctx maps; 12 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave267 leave.
 // wave430: LINUX -E+$CC (pure-asm product SEGV). MACOS HARD BAN tip reinject.
 // wave490: no-local malloc (tip U starved `np=malloc()`); tip PREFER try.
-// wave595: Ubuntu tip -c of this monolith drops trailing asm_ctx_block_slot_get
-//   (isolated get compiles; Darwin keeps all 12 faces). Get peer standalone
-//   EXPORT_OK; LINUX PRODUCT PREFER L2 SEGV 0/5 — HARD BAN. Product stays
-//   w490 -E. Accessors kept for a future get peer (one BSS).
+// wave595: Ubuntu tip -c of this monolith dropped trailing asm_ctx_block_slot_get
+//   (grow_vec INIT_CAP=256 / parse_skip). Get peer PREFER L2 SEGV 0/5 — HARD BAN.
+// wave604: w597 grow_vec -E restored full parse; LINUX -E re-injects this whole
+//   TU so trailing get/set share one g_pipe_al_* BSS. Dual-BSS leftover get
+//   returned -1 → backend_block_slot_base_for fell back to num_locals-nlet
+//   (nested while + inner let stored one slot ahead). Do not PREFER get peer.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
