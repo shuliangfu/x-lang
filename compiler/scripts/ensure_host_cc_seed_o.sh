@@ -5919,20 +5919,24 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
   return 0
 }
 
-# wave396 M2: wpo_dump Cap residual — unlock PREFER_ASM both ends.
-# PRODUCT inject wave396: PREFER_ASM (ALLOW_E_REPLACE + stamp). Standalone
-# -c green both ends (Darwin 29590B / Ubuntu 15090B); was class-E default -E.
-# Gate: type_alias -c also green both ends (w358 residual gate).
-# wave498: tipU heal (pipe cells + w498_cell_*). Tip PREFER -c omits export
-#   `pipeline_typeck_wpo_dump_callgraph` — Ubuntu silent-drops file tail from
-#   wpo_dump_append_i32 onward (helpers through write stay; export never lands).
-#   Darwin PREFER -c keeps the export. PRODUCT: LINUX -E+$CC helpers.
-#   MACOS: HARD BAN tip reinject (keep prior w396/w497 overlay).
-# wave502: orch leaf probe (export tip OK; append tipU miss).
-# wave503/514: orch local append/flush — tipU complete + tip EXPORT_OK, but
-#   PRODUCT PREFER → L2 SEGV 0/5 (*i32 store). HARD BAN orch; stay w498 -E.
-# wave594: orch no *i32 store; LINUX PREFER orch still L2 SEGV 0/5. Keep
-#   HARD BAN orch both ends; LINUX -E helpers. Do not Soft-Cap.
+# wave396/498/502/503/514/594/611 M2: wpo_dump Cap residual.
+# wave498: tip PREFER omitted export (Ubuntu file-tail parse_skip from
+#   append_i32 onward). LINUX stayed -E; MACOS stamp-only keep overlay.
+# wave597: grow_vec -E restored realloc/mmap; standalone -backend asm -c
+#   of this helpers thin now emits append_i32 + the export both ends
+#   (Darwin T=24 UND=39; Ubuntu T=30 UND=39). Live product export is
+#   leftover smash PREFER (Ubuntu sub $0x7368 no endbr64; Darwin 7x
+#   subsp #0xfff+#0x377). Current thin is sub $0xa18 / #0xa20.
+# wave611 M2 diagnose (do not product PREFER this TU):
+#   · Darwin current-thin -c is U-complete but g05 ld rejects
+#     ARM64_RELOC_BRANCH26 on COMMON Lxml adrp+add (r_address=0x3454 in
+#     w502_wpo_collect_all). Origin = untyped default reloc on file-level
+#     let lea; authority = glue_asm_lea_rax_common_adrp_arm64 PAGE21/12.
+#   · Ubuntu current-thin PREFER first-wins links and L2 5/5 (getenv unset),
+#     but XLANG_WPO_DUMP_CALLGRAPH dump path SEGV 139. Smash leftover dump
+#     still writes JSON v2. Same class as orch *i32 store (w594 BAN).
+#   Stay LINUX -E+$CC helpers / MACOS keep overlay. Do not -E as a new repair.
+#   orch thin stays HARD BAN (w503/514/594 PRODUCT PREFER L2 SEGV 0/5).
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
 # PLATFORM: SHARED · MACOS hard-skip / LINUX -E helpers · orch BAN tip reinject.
 pipeline_abi_inject_wpo_dump_thin() {
@@ -5955,10 +5959,10 @@ pipeline_abi_inject_wpo_dump_thin() {
       log "pipeline_abi w594-wpo-dump-orch: standalone EXPORT_OK; tip PRODUCT PREFER HARD BAN (L2 SEGV 0/5; keep w498 -E)"
     fi
   fi
-  # PLATFORM: MACOS — HARD BAN tip reinject (helpers; tip drop class).
+  # PLATFORM: MACOS — HARD BAN tip reinject (COMMON lea BRANCH26 @w611).
   if [ "$(uname -s)" != "Linux" ]; then
     touch "$stamp"
-    rm -f src/.pabi_w396_wpo_dump.stamp
+    rm -f src/.pabi_w396_wpo_dump.stamp src/.pabi_w611_wpo_dump_prefer.stamp
     return 0
   fi
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
@@ -5974,7 +5978,7 @@ pipeline_abi_inject_wpo_dump_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: LINUX — force -E+$CC helpers (tip PREFER omits export tail).
+  # PLATFORM: LINUX — keep -E+$CC helpers (w611: current-thin PREFER dump SEGV).
   export XLANG_PABI_THIN_PREFER_ASM=0
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w498-wpo-dump"
@@ -5994,6 +5998,7 @@ pipeline_abi_inject_wpo_dump_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    rm -f src/.pabi_w611_wpo_dump_prefer.stamp
   fi
   return "$rc"
 }
@@ -15146,7 +15151,8 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-wpo-dump|inject_wpo_dump)
-    # wave396: wpo_dump PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
+    # wave498: LINUX -E helpers. wave611: standalone PREFER U-complete but
+    #   product PREFER = Darwin BRANCH26 + Ubuntu dump SEGV — stay -E.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-wpo-dump: need <out.o>" >&2
