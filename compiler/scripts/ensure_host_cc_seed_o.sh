@@ -5162,8 +5162,16 @@ pipeline_abi_inject_fixed_array_copy_thin() {
 #   LINUX: helpers-only (w415) then asm_local rest-only (w428; peers extern;
 #     Ubuntu -c ~879B; product inject+true relink L2 5/5 opt=102 md5 changed).
 # wave428 also BAN probes: ttc main empty .o; field XT001; param CG002.
+# wave538: LINUX asm_local Soft Cap HARD BAN (keep w428 overlay).
+# wave590: LINUX helpers Ubuntu tip `-backend asm -c` UND=1 (kind_ord only;
+#   T only asm_fixed_array_total_bytes_mod). Darwin original 22 UND / 3 T.
+#   Cause: if-before-call / mid-assign nlen/nt/asz/ko / nested while
+#   name-match / local u8[256] / i32[1] *i32 metrics out.
+#   slot_bytes_store_encoders recovered 22+pipe_store. HARD BAN LINUX
+#   tip PRODUCT reinject (keep w415 overlay). MACOS still PREFER-injects
+#   the full thin.
 # G.7: helpers+asm_local bodies match mega / full thin.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers+asm_local PREFER.
+# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers BAN + asm_local BAN.
 pipeline_abi_inject_slot_bytes_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_slot_bytes_thin.x"
@@ -5174,22 +5182,35 @@ pipeline_abi_inject_slot_bytes_thin() {
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  # PLATFORM: LINUX — helpers then asm_local rest (w428).
+  # PLATFORM: LINUX — helpers then asm_local rest (w428); both BAN tip reinject.
   case "$(uname -s)" in
     Linux)
       thin_x="src/runtime_pipeline_abi_slot_bytes_helpers_thin.x"
-      stamp="src/.pabi_w415_slot_bytes_helpers.stamp"
-      tag="w415-slot-bytes-helpers"
+      stamp="src/.pabi_w590_slot_bytes_helpers.stamp"
+      tag="w590-slot-bytes-helpers"
       ;;
   esac
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    # helpers up-to-date; still try asm_local rest on LINUX
-    if [ "$(uname -s)" = "Linux" ]; then
-      :
-    else
-      return 0
+  # PLATFORM: LINUX — wave590 Soft Cap HARD BAN helpers tip reinject
+  # (keep the w415 overlay). wave538 still BAN asm_local. Do not
+  # prefer-reinject these leaves. MACOS still injects the full thin.
+  if [ "$(uname -s)" = "Linux" ]; then
+    if [ -f "$thin_x" ]; then
+      touch "$stamp"
+      rm -f src/.pabi_w415_slot_bytes_helpers.stamp
+      log "pipeline_abi w590-slot-bytes-helpers: tipU stamped; tip PRODUCT reinject HARD BAN (keep w415)"
     fi
+    local l2x="src/runtime_pipeline_abi_slot_asm_local_thin.x"
+    local l2s="src/.pabi_w538_slot_asm_local.stamp"
+    if [ -f "$l2x" ]; then
+      touch "$l2s"
+      rm -f src/.pabi_w428_slot_asm_local.stamp
+      log "pipeline_abi w538-slot-asm-local: tipU 1/1 stamped; tip PRODUCT reinject HARD BAN (keep prior)"
+    fi
+    return 0
+  fi
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -5201,29 +5222,11 @@ pipeline_abi_inject_slot_bytes_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: SHARED — PREFER_ASM for the leaf selected above.
+  # PLATFORM: MACOS — PREFER_ASM full thin (product L2 verified).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  if [ ! -f "$stamp" ] || [ "$thin_x" -nt "$stamp" ]; then
-    pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
-    rc=$?
-    if [ "$rc" -eq 0 ]; then
-      touch "$stamp"
-    fi
-  else
-    rc=0
-  fi
-  # PLATFORM: LINUX — wave538 Soft Cap HARD BAN tip reinject (keep w428 PREFER).
-  # Dead extern decls dropped in .x; do not prefer-reinject this leaf.
-  if [ "$rc" -eq 0 ] && [ "$(uname -s)" = "Linux" ]; then
-    local l2x="src/runtime_pipeline_abi_slot_asm_local_thin.x"
-    local l2s="src/.pabi_w538_slot_asm_local.stamp"
-    if [ -f "$l2x" ]; then
-      touch "$l2s"
-      rm -f src/.pabi_w428_slot_asm_local.stamp
-      log "pipeline_abi w538-slot-asm-local: tipU 1/1 stamped; tip PRODUCT reinject HARD BAN (keep prior)"
-    fi
-  fi
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "$tag"
+  rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
   fi
@@ -5236,6 +5239,9 @@ pipeline_abi_inject_slot_bytes_thin() {
     export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
   else
     unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
   fi
   return "$rc"
 }
@@ -8868,6 +8874,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave398: unused_hints PREFER both ends (-c green both ends).
 # wave399: fnptr_array_esz PREFER both ends (-c green both ends).
 # wave400/415: slot_bytes MACOS full PREFER／LINUX helpers PREFER (asm_local tip BAN).
+# wave590: LINUX helpers HARD BAN tip PRODUCT reinject (keep w415 overlay).
 # wave401/414: field_load_sz MACOS full PREFER／LINUX helpers PREFER (main tip BAN).
 # wave402: param_ptr_slot MACOS PREFER／LINUX BAN (Ubuntu CG002 elf patch).
 # wave432: param_ptr_slot BOTH PREFER (helper extract; Ubuntu -E/CG002 healed).
@@ -8884,6 +8891,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave413/416/420/421: assign LINUX helpers+pair/body PREFER (middle BAN).
 # wave414: field_load_sz LINUX helpers PREFER (main tip still BAN).
 # wave415: slot_bytes LINUX helpers PREFER (asm_local tip still BAN).
+# wave590: LINUX helpers HARD BAN (Ubuntu UND=1 kind_ord only; Darwin 22/22).
 # wave421: assign LINUX helpers+pair/body PREFER (middle BAN).
 # wave417: binop_block_peel LINUX helpers PREFER (rest tip BAN).
 # wave418: fixed_array_copy LINUX helpers PREFER (rest tip BAN).
@@ -14543,6 +14551,7 @@ case "$MODE" in
     ;;
   inject-slot-bytes|inject_slot_bytes)
     # wave415: MACOS full PREFER / LINUX helpers PREFER.
+    # wave590: LINUX helpers HARD BAN tip PRODUCT reinject (keep w415).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-slot-bytes: need <out.o>" >&2
