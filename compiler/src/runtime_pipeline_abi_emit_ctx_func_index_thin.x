@@ -1,13 +1,9 @@
 // Thin pure: wave601 M2 — emit_ctx func_index get/set peer-flat.
-// Smash leftover PREFER of the w342/w380 bss_thin family
-// (`sub $0x858`, no endbr64) makes pipeline_asm_emit_ctx_func_index_get
-// return -1, so while-body final_expr (if-in-while) takes
-// glue_emit_block_final_expr_elf tail_join fallback and jmp .Lf0_0.
-// Full emit_ctx_bss_thin PREFER stays HARD BAN (w380 L2 SEGV; w601
-// -E of the 15-export TU broke option ptr load). This peer is only
-// the func_index cell. G.7: bodies match mega wave221 leave / bss_thin.
-// PRODUCT: LINUX -E replace leftover T; HARD BAN PREFER; MACOS overlay.
-// PLATFORM: SHARED · LINUX gold · MACOS.
+// Smash leftover PREFER (`sub $0x858`, no endbr64) returns -1.
+// LINUX -E of this peer dual-BSS option ptr load SEGV — HARD BAN.
+// if-in-while gate is runtime_pipeline_abi_block_final_expr_thin.x.
+// G.7: bodies match mega wave221 leave / bss_thin.
+// PLATFORM: SHARED · BAN reinject both ends.
 
 // wave221: current emit function index (-1 = none).
 let g_pipeline_asm_emit_func_index: i32 = -1;

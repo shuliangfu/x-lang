@@ -1,14 +1,11 @@
 // Thin pure: wave315/340/380/601 M2 — emit_ctx_module_dep Cap residual (was wave222 C thin).
 // Emit module + dep_pipe pointer BSS + get/set; 4 exports.
 // G.7: bodies match runtime_pipeline_abi.x wave222 leave.
-// PRODUCT inject (pipeline_abi_inject_emit_ctx_module_dep_thin):
-//   wave380: HARD BAN PREFER (Darwin BRANCH26; Ubuntu tip SEGV).
-//   wave601: leftover PREFER smash T (`sub $0x858`, no endbr64) makes
-//     pipeline_asm_emit_ctx_module_get return 0xffffffff; paired with
-//     smash func_index_get=-1, if-in-while final_expr tail_join fallback
-//     jmp epilogue. LINUX -E replace leftover T. HARD BAN PREFER.
-//     MACOS keep overlay.
-// PLATFORM: SHARED · LINUX gold · MACOS.
+// PRODUCT inject (pipeline_abi_inject_emit_ctx_module_dep_thin, stamp w380):
+//   HARD BAN PREFER both ends (Darwin BRANCH26; Ubuntu tip SEGV).
+//   wave601: LINUX -E dual-BSS option ptr load SEGV — keep BAN.
+//   if-in-while gate is runtime_pipeline_abi_block_final_expr_thin.x.
+// PLATFORM: SHARED · BAN reinject both ends (keep prior overlays).
 
 let g_pipeline_asm_emit_module: *u8 = 0 as *u8;
 // wave222: current emit PipelineDepCtx* (import layout / WPO dep pool).

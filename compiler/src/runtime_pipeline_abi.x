@@ -60267,9 +60267,11 @@ export function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_r
       if (fb > 0 && fb == block_ref) {
         allow_tail_join = 1;
       }
-    } else {
-      allow_tail_join = 1;
     }
+    // Unknown emit module/func_index: keep allow_tail_join=0.
+    // Smash leftover func_index_get returns -1; the old fallback
+    // jmp .Lf0_0 skipped while backedges (if-in-while run=1).
+    // wave601: do not jmp function tail_join from nested while/if bodies.
   }
   if (allow_tail_join != 0) {
     ly = pipeline_asm_ctx_layout(ctx);
