@@ -6328,6 +6328,7 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   (w452 no-local reshape tip→si CG002; stay -E);
 #   w457 emit hybrid tip→si CG002; field no-local tip U-starved (假绿) BAN;
 #   w454 to_rax dispatcher no-local PREFER (arms stay w448).
+#   w599 LINUX -E replace smash leftover to_rax; HARD BAN PREFER.
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451/w454 heal-asm.
 pipeline_abi_inject_assign_thin() {
@@ -6352,7 +6353,7 @@ pipeline_abi_inject_assign_thin() {
   local need_var=0
   local need_torax=0
   # PLATFORM: LINUX — helpers -E; rhsrax full -E (w445);
-  #   arms PREFER (w448); to_rax dispatcher no-local PREFER (w454);
+  #   arms PREFER (w448); to_rax dispatcher LINUX -E (w599; PREFER BAN);
   #   emit chain -E (w441b); six-peer heal-asm (w445);
   #   deref family PREFER (w449); var no-local PREFER (w451);
   #   emit tip BAN (w452 no-local tip→si CG002).
@@ -6569,7 +6570,7 @@ pipeline_abi_inject_assign_thin() {
   # PLATFORM: LINUX — second inject flat rhsrax (wave437/445/448).
   # wave445: tip pure-asm regen of full rhsrax → product si SEGV; reinject -E.
   # wave448: to_rax tip pure-asm HARD BAN (full thin → si SEGV); keep -E here, then
-  #   arms-only PREFER overlay; w454 dispatcher-only no-local PREFER after arms.
+  #   arms-only PREFER overlay; w599 to_rax LINUX -E after arms (PREFER BAN).
   # LINUX wave559: rhsrax tipU stamped. HARD BAN tip PRODUCT reinject
   # (keep the w437 -E overlay). Pure-asm reinject SEGVs (wave445).
   if [ "$rc" -eq 0 ] && [ -n "${rhs_x-}" ] && [ -f "$rhs_x" ]; then
@@ -6608,17 +6609,11 @@ pipeline_abi_inject_assign_thin() {
     done
   fi
   # wave454: to_rax dispatcher-only no-local PREFER (full to_rax tip still BAN).
+  # wave599: leftover PREFER to_rax smashes scalar caller (`sub $0x1158`).
+  #   LINUX -E replace; HARD BAN PREFER; MACOS keep overlay.
   # PLATFORM: LINUX gold.
-  if [ "$rc" -eq 0 ] && [ -n "${torax_x-}" ] && [ -f "$torax_x" ]; then
-    if [ ! -f "$torax_s" ] || [ "$torax_x" -nt "$torax_s" ]; then
-      export XLANG_PABI_THIN_PREFER_ASM=1
-      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      pipeline_abi_inject_thin_leaf "$o" "$torax_x" "w454-assign-rhsrax-to-rax"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$torax_s"
-      fi
-    fi
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_inject_rhsrax_to_rax_thin "$o" || rc=$?
   fi
   # PLATFORM: LINUX — third inject emit peer chain (wave441/445).
   # Order: FIELD leaves → INDEX leaves → VAR → DEREF leaves → arm
@@ -9193,6 +9188,69 @@ pipeline_abi_inject_deref_scalar_thin() {
   touch "$stamp"
   touch "$stamp_e"
   log "pipeline_abi w598-deref-scalar: non-POSIX stamp-only (keep prior)"
+  return 0
+}
+
+# wave599: leftover PREFER glue_emit_assign_rhs_to_rax_elf_c smashes
+# the caller (w598 -E scalar). objdump: `sub $0x1158,%rsp`, no endbr64.
+# Ubuntu `unsafe { *p = 1 }` then CG002 because pipe_load after the
+# smash sees -1 (rhs_elf itself returned 0). LINUX -E replace leftover
+# T with the no-local dispatcher thin. HARD BAN PREFER (w454).
+# MACOS keep Darwin overlay (already compiles `*p=`).
+# PLATFORM: LINUX gold.
+pipeline_abi_inject_rhsrax_to_rax_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_assign_rhsrax_to_rax_thin.x"
+  local stamp="src/.pabi_w454_assign_rhsrax_to_rax.stamp"
+  local stamp_e="src/.pabi_w599_rhsrax_to_rax.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already compiles `*p=`.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp"
+      touch "$stamp_e"
+      log "pipeline_abi w599-rhsrax-to-rax: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w599-rhsrax-to-rax-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp"
+        touch "$stamp_e"
+        log "pipeline_abi w599-rhsrax-to-rax: LINUX -E replace (smash leftover T)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  touch "$stamp"
+  touch "$stamp_e"
+  log "pipeline_abi w599-rhsrax-to-rax: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
@@ -14658,6 +14716,20 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_deref_scalar_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-rhsrax-to-rax|inject_rhsrax_to_rax)
+    # wave599: LINUX -E replace smash leftover rhs_to_rax PREFER.
+    # MACOS keep overlay. HARD BAN PREFER (w454).
+    # PLATFORM: LINUX gold · MACOS keep prior.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-rhsrax-to-rax: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_rhsrax_to_rax_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"

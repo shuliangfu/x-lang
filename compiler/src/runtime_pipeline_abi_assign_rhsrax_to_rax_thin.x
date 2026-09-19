@@ -4,6 +4,11 @@
 //   arms-only PREFER; to_rax stays -E.
 // wave454: dispatcher-only no-local reshape (re-call kind_ord; no let ako=call)
 //   — same class as w451 var / w452 emit. Probe LINUX PREFER overlay.
+// wave599: leftover PREFER to_rax is a huge-frame smash (objdump:
+//   `sub $0x1158,%rsp`, no endbr64). After w598 -E scalar, Ubuntu
+//   `unsafe { *p = 1 }` CG002 because smash to_rax returns into scalar
+//   and pipe_load reads -1 (rhs_elf itself returned 0). LINUX -E
+//   replace leftover T. HARD BAN PREFER. MACOS keep overlay.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -24,6 +29,7 @@ export extern function glue_emit_assign_rhs_shr_elf_c(arena: *u8, elf_ctx: *u8, 
  * Assign RHS → rax dispatcher (plain / compound ops 28..38).
  * wave454: no-local — re-call pipeline_expr_kind_ord_at in each arm gate
  *   (tip let-bound call results → si SEGV class; same as w451 var).
+ * wave599: LINUX product path is -E of this dispatcher (PREFER smash BAN).
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF codegen ctx
  * @param assign_expr_ref i32 — ASSIGN expr kind carrier
