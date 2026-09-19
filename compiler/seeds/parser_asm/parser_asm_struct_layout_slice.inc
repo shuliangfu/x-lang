@@ -403,7 +403,17 @@ void parser_asm_struct_layout_pack_tp_commit_c(void *pack, void *module, int32_t
 /**
  * PLATFORM: SHARED — P6e. Fill fname via P19d from_kind (IDENT / SOA /
  * PACKED / TYPE). Returns written length or -1.
+ * wave613: cold twin. P19d "skip C twin" left this slice calling the .x
+ * body name unguarded — warm hybrid links the P19b weak thin over the
+ * monothin, but cold chains (L4 phase1 / post-wipe recovery) compile the
+ * seed with no .x bodies and the link went UNDEF both ends (first green
+ * L4 9/13 < P19d 9/14). Same #ifndef convention as helpers_slice.inc:
+ * hybrid keeps the from_kind trampoline; cold inlines the IDENT copy +
+ * keyword spellings (identical semantics to the .x body).
  */
+#ifdef XLANG_PTHIN_HELPERS_BODIES_FROM_X
+extern int32_t parser_asm_struct_field_name_from_kind_c(int32_t kind, uint8_t *data, int32_t length, size_t next_pos,
+                                                        int32_t ident_len, uint8_t *out);
 int32_t parser_asm_struct_layout_pack_copy_fname_c(void *pack, void *source, int32_t kind, int32_t ident_len,
                                                    size_t next_pos) {
   struct parser_asm_struct_layout_pack *p;
@@ -422,6 +432,51 @@ int32_t parser_asm_struct_layout_pack_copy_fname_c(void *pack, void *source, int
   p->fname_len = n;
   return n;
 }
+#else
+int32_t parser_asm_struct_layout_pack_copy_fname_c(void *pack, void *source, int32_t kind, int32_t ident_len,
+                                                   size_t next_pos) {
+  struct parser_asm_struct_layout_pack *p;
+  struct parser_asm_slice_u8 *src;
+  p = (struct parser_asm_struct_layout_pack *)pack;
+  src = (struct parser_asm_slice_u8 *)source;
+  if (!p || !src)
+    return -1;
+  memset(p->fname, 0, sizeof(p->fname));
+  /* Field name content ≤255 (StructLayoutFieldEntry.name[256]; wave583). */
+  if (kind == (int32_t)TOKEN_IDENT && ident_len > 0 && ident_len <= 255) {
+    parser_asm_copy_slice_to_name64_at_end_slice_c(src, next_pos, ident_len, p->fname);
+    p->fname_len = ident_len;
+    return ident_len;
+  }
+  if (kind == (int32_t)TOKEN_SOA) {
+    p->fname[0] = (uint8_t)'s';
+    p->fname[1] = (uint8_t)'o';
+    p->fname[2] = (uint8_t)'a';
+    p->fname_len = 3;
+    return 3;
+  }
+  if (kind == (int32_t)TOKEN_PACKED) {
+    p->fname[0] = (uint8_t)'p';
+    p->fname[1] = (uint8_t)'a';
+    p->fname[2] = (uint8_t)'c';
+    p->fname[3] = (uint8_t)'k';
+    p->fname[4] = (uint8_t)'e';
+    p->fname[5] = (uint8_t)'d';
+    p->fname_len = 6;
+    return 6;
+  }
+  if (kind == (int32_t)TOKEN_TYPE) {
+    p->fname[0] = (uint8_t)'t';
+    p->fname[1] = (uint8_t)'y';
+    p->fname[2] = (uint8_t)'p';
+    p->fname[3] = (uint8_t)'e';
+    p->fname_len = 4;
+    return 4;
+  }
+  p->fname_len = -1;
+  return -1;
+}
+#endif
 
 /**
  * PLATFORM: SHARED — P6e. Duplicate-field scan over packed fname.
