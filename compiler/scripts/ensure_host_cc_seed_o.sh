@@ -3532,6 +3532,10 @@ ensure_pipeline_abi_prefer_one() {
       && [ src/runtime_pipeline_abi_top_level_let_thin.x -nt "$o" ]; then
       stale=1
     fi
+    if [ -f src/runtime_pipeline_abi_modlet_thin.x ] \
+      && [ src/runtime_pipeline_abi_modlet_thin.x -nt "$o" ]; then
+      stale=1
+    fi
     if [ -f src/runtime_pipeline_abi_struct_layout_thin.x ] \
       && [ src/runtime_pipeline_abi_struct_layout_thin.x -nt "$o" ]; then
       stale=1
@@ -3691,6 +3695,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_module_import_thin "$o" || true
       pipeline_abi_inject_module_enum_thin "$o" || true
       pipeline_abi_inject_top_level_let_thin "$o" || true
+      pipeline_abi_inject_modlet_thin "$o" || true
       pipeline_abi_inject_struct_layout_thin "$o" || true
       pipeline_abi_inject_asm_locals_thin "$o" || true
       pipeline_abi_inject_block_tree_thin "$o" || true
@@ -3785,6 +3790,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_module_import_thin "$o" || true
       pipeline_abi_inject_module_enum_thin "$o" || true
       pipeline_abi_inject_top_level_let_thin "$o" || true
+      pipeline_abi_inject_modlet_thin "$o" || true
       pipeline_abi_inject_struct_layout_thin "$o" || true
       pipeline_abi_inject_asm_locals_thin "$o" || true
       pipeline_abi_inject_block_tree_thin "$o" || true
@@ -4243,6 +4249,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_module_import_thin "$o" || true
       pipeline_abi_inject_module_enum_thin "$o" || true
       pipeline_abi_inject_top_level_let_thin "$o" || true
+      pipeline_abi_inject_modlet_thin "$o" || true
       pipeline_abi_inject_struct_layout_thin "$o" || true
       pipeline_abi_inject_asm_locals_thin "$o" || true
       pipeline_abi_inject_block_tree_thin "$o" || true
@@ -4331,6 +4338,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_module_import_thin "$o" || true
       pipeline_abi_inject_module_enum_thin "$o" || true
       pipeline_abi_inject_top_level_let_thin "$o" || true
+      pipeline_abi_inject_modlet_thin "$o" || true
       pipeline_abi_inject_struct_layout_thin "$o" || true
       pipeline_abi_inject_asm_locals_thin "$o" || true
       pipeline_abi_inject_block_tree_thin "$o" || true
@@ -4403,6 +4411,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_module_import_thin "$o" || true
       pipeline_abi_inject_module_enum_thin "$o" || true
       pipeline_abi_inject_top_level_let_thin "$o" || true
+      pipeline_abi_inject_modlet_thin "$o" || true
       pipeline_abi_inject_struct_layout_thin "$o" || true
       pipeline_abi_inject_asm_locals_thin "$o" || true
       pipeline_abi_inject_block_tree_thin "$o" || true
@@ -4483,6 +4492,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_module_import_thin "$o" || true
       pipeline_abi_inject_module_enum_thin "$o" || true
       pipeline_abi_inject_top_level_let_thin "$o" || true
+      pipeline_abi_inject_modlet_thin "$o" || true
       pipeline_abi_inject_struct_layout_thin "$o" || true
       pipeline_abi_inject_asm_locals_thin "$o" || true
       pipeline_abi_inject_block_tree_thin "$o" || true
@@ -6120,6 +6130,47 @@ pipeline_abi_inject_wpo_dump_thin() {
   return "$rc"
 }
 
+
+# wave631 M2: modlet family ONE-set — root fix of the w629 dual-table split
+#   (rest cold prepare vs chunk-lane weak hot find/load/lea →
+#   addr_of(&module_scalar_cell) CG002 -99 / monofile mov $0).
+#   runtime_pipeline_abi_modlet_thin.x carries the whole family + table +
+#   companion state in ONE member (standalone -c green: T=228 UND=28,
+#   40 commons). PREFER both ends, stamp-gated (.pabi_w631 prefer stamp).
+#   Do not -E; do not split the family.
+# PLATFORM: SHARED — PREFER_ASM both ends.
+pipeline_abi_inject_modlet_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_modlet_thin.x"
+  local stamp="src/.pabi_w631_modlet.stamp"
+  local stamp_prefer="src/.pabi_w631_modlet_prefer.stamp"
+  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+  local had_newer=0 had_prefer=0 had_e_repl=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then had_newer=1; fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+  unset XLANG_PABI_THIN_INJECT_IF_NEWER
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w631-modlet-prefer"
+  rc=$?
+  if [ "$had_newer" = "1" ]; then export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"; fi
+  if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
+  if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
+  if [ "$rc" -eq 0 ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    log "pipeline_abi w631-modlet: PREFER_ASM replace (ONE-set: prepare/find/load/lea share one table)"
+  fi
+  return "$rc"
+}
 
 # wave402/432/494/610 M2: param_ptr_slot Cap residual.
 # wave494: tipU 19/19; tip PREFER then L2 opt=77 (leftover smash in the
@@ -15280,6 +15331,19 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_type_pool_thin "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  inject-modlet|inject_modlet)
+    # wave631: modlet family ONE-set PREFER (w629 dual-table root fix).
+    # PLATFORM: SHARED · PREFER_ASM both ends.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o inject-modlet: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    pipeline_abi_inject_modlet_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
