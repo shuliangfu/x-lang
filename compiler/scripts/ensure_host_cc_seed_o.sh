@@ -7848,13 +7848,12 @@ pipeline_abi_inject_arr_lit_flat_thin() {
 #   BOTH: PREFER_ASM peer chain (Ubuntu emptied on co-located Path arms /
 #   nested micro-unsafe / CG002 label patch). Order was a0→a→a2→b0_prep→
 #   b0_durable→b0→b→c_dest_array→c_slice→c_fallback→c→d→main.
-#   Remaining PREFER:
-#   main (b0/c/a0/a/a2/b0_prep/b0_durable/b/c_dest_array/c_slice/c_fallback/d HARD BAN tip reinject; keep w439).
+#   Remaining PREFER: none (family HARD BAN tip reinject; keep w439).
 # G.7: semantics match mega pipeline_asm_emit_return_elf_impl.
-# PLATFORM: SHARED · BOTH PREFER peers.
-# wave439/477/510/560/578/579/580/581/582/583/584/585 M2: arr_return Cap residual — peer-flat PREFER
-#   + b0/c/a0/a/a2/b0_prep/b0_durable/b/c_dest_array/c_slice/c_fallback/d BAN.
-# PRODUCT inject wave439: BOTH PREFER peer chain.
+# PLATFORM: SHARED · stamp-only BAN (no PREFER peers).
+# wave439/477/510/560/578/579/580/581/582/583/584/585/586/587 M2:
+#   arr_return Cap residual — peer-flat then HARD BAN tip reinject.
+# PRODUCT inject wave439: BOTH PREFER peer chain (now stamp-only BAN).
 # wave477: tip PRODUCT reinject of b0/c → L2 CG002 4/5 HARD BAN (claimed).
 # wave510: b0/c tipU heal (pipe-cell mid `rc=call()`) + formalize HARD BAN
 #   tip reinject (stamp w510; do not call inject_thin_leaf for b0/c; keep
@@ -7878,20 +7877,16 @@ pipeline_abi_inject_arr_lit_flat_thin() {
 #   if-before-assign + mid-assign rty/sty + rc=promote then if).
 # wave586: d HARD BAN (Ubuntu UND=0 = unused ko/sret sink then if +
 #   rc=emit then if + if-before-assign + mid-assign rty/sty +
-#   rc=promote then if). Remaining PREFER: main.
+#   rc=promote then if).
+# wave587: main HARD BAN (Ubuntu UND=1 = jmp only; mid-assign ly/ret_op
+#   + if-before-call + sequential rc=path then if + rc=spills/cps then
+#   if + while tj_lbl). Remaining PREFER: none.
 # G.7: semantics match mega return path B0/C leave.
-# PLATFORM: SHARED · b0/c/a0/a/a2/b0_prep/b0_durable/b/c_dest_array/c_slice/c_fallback/d BAN tip reinject / other peers PREFER.
+# PLATFORM: SHARED · b0/c/a0/a/a2/b0_prep/b0_durable/b/c_dest_array/c_slice/c_fallback/d/main BAN tip reinject.
 pipeline_abi_inject_arr_return_thin() {
   local o="$1"
-  local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
-  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
-  local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
-  local had_newer=0 had_prefer=0 had_e_repl=0
-  local rc=0
-  local peer lo_x lo_stamp lo_tag lo_rest
   local main_x="src/runtime_pipeline_abi_arr_return_thin.x"
-  local main_s="src/.pabi_w439_arr_return.stamp"
-  local ban_x ban_s
+  local ban_x ban_s ban_peer
   [ -s "$o" ] && [ -f "$main_x" ] || return 0
   # wave477/w510: HARD BAN tip product reinject of b0 + c (L2 CG002).
   # wave560: a0 Ubuntu tip dropped every call; HARD BAN reinject (keep w439).
@@ -7922,6 +7917,10 @@ pipeline_abi_inject_arr_return_thin() {
   # wave586: d Ubuntu tip UND=0 from unused ko/sret sink then if /
   #   rc=emit then if / if-before-assign / mid-assign rty/sty /
   #   rc=promote then if. HARD BAN tip PRODUCT reinject (keep w439).
+  # wave587: main Ubuntu tip UND=1 (jmp only) from mid-assign
+  #   ly/ret_op + if (ret_op != 0) + sequential rc=path then if +
+  #   rc=spills/cps then if + while tj_lbl. Darwin original 19 UND.
+  #   HARD BAN tip PRODUCT reinject (keep w439).
   # tipU heal bodies remain in tree for inventory; stamp-only skip.
   for ban_peer in \
     "src/runtime_pipeline_abi_arr_return_b0_thin.x|.pabi_w510_arr_return_b0.stamp" \
@@ -7935,7 +7934,8 @@ pipeline_abi_inject_arr_return_thin() {
     "src/runtime_pipeline_abi_arr_return_c_dest_array_thin.x|.pabi_w583_arr_return_c_dest_array.stamp" \
     "src/runtime_pipeline_abi_arr_return_c_slice_thin.x|.pabi_w584_arr_return_c_slice.stamp" \
     "src/runtime_pipeline_abi_arr_return_c_fallback_thin.x|.pabi_w585_arr_return_c_fallback.stamp" \
-    "src/runtime_pipeline_abi_arr_return_d_thin.x|.pabi_w586_arr_return_d.stamp"
+    "src/runtime_pipeline_abi_arr_return_d_thin.x|.pabi_w586_arr_return_d.stamp" \
+    "src/runtime_pipeline_abi_arr_return_thin.x|.pabi_w587_arr_return.stamp"
   do
     ban_x="${ban_peer%%|*}"
     ban_s="src/${ban_peer#*|}"
@@ -7949,58 +7949,13 @@ pipeline_abi_inject_arr_return_thin() {
         src/.pabi_w439_arr_return_c_dest_array.stamp \
         src/.pabi_w439_arr_return_c_slice.stamp \
         src/.pabi_w439_arr_return_c_fallback.stamp \
-        src/.pabi_w439_arr_return_d.stamp
+        src/.pabi_w439_arr_return_d.stamp \
+        src/.pabi_w439_arr_return.stamp
       log "pipeline_abi w510-arr-return: tipU heal stamped; tip PRODUCT reinject HARD BAN for $(basename "$ban_x") (keep w439)"
     fi
   done
-  # Skip peer PREFER inject when main already overlaid (ban stamps refreshed above).
-  if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
-    return 0
-  fi
-  if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
-    had_newer=1
-  fi
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-  fi
-  unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  # PLATFORM: SHARED — PREFER peers except b0/c/a0/a/a2/b0_prep/b0_durable/b/c_dest_array/c_slice/c_fallback/d (HARD BAN tip reinject).
-  for peer in \
-    "src/runtime_pipeline_abi_arr_return_thin.x|.pabi_w439_arr_return.stamp|w439-arr-return"
-  do
-    lo_x="${peer%%|*}"
-    lo_rest="${peer#*|}"
-    lo_stamp="src/${lo_rest%%|*}"
-    lo_tag="${lo_rest#*|}"
-    if [ -f "$lo_x" ] && { [ ! -f "$lo_stamp" ] || [ "$lo_x" -nt "$lo_stamp" ]; }; then
-      pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
-      rc=$?
-      if [ "$rc" -eq 0 ]; then
-        touch "$lo_stamp"
-      else
-        break
-      fi
-    fi
-  done
-  if [ "$had_newer" = "1" ]; then
-    export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
-  fi
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  return "$rc"
+  # wave587: no remaining PREFER peers. Overlay stays w439.
+  return 0
 }
 
 # wave440/442/446/447 M2: arr_struct_lit Cap residual — asymmetric unlock.
@@ -9021,6 +8976,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave584: c_slice HARD BAN tip PRODUCT reinject (keep w439 overlay).
 # wave585: c_fallback HARD BAN tip PRODUCT reinject (keep w439 overlay).
 # wave586: d HARD BAN tip PRODUCT reinject (keep w439 overlay).
+# wave587: main HARD BAN tip PRODUCT reinject (keep w439 overlay).
 # wave440: arr_struct_lit MACOS peer PREFER / LINUX tip BAN (opt=94).
 # wave441: assign emit LINUX -E peer chain PREFER (pure-asm CG002/SEGV).
 # wave442: arr_struct_lit LINUX -E peer PREFER (call heal; pure-asm residual).
@@ -14731,6 +14687,7 @@ case "$MODE" in
     # wave584: c_slice HARD BAN tip PRODUCT reinject (keep w439 overlay).
     # wave585: c_fallback HARD BAN tip PRODUCT reinject (keep w439 overlay).
     # wave586: d HARD BAN tip PRODUCT reinject (keep w439 overlay).
+    # wave587: main HARD BAN tip PRODUCT reinject (keep w439 overlay).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-arr-return: need <out.o>" >&2
