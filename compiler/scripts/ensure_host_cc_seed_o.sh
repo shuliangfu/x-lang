@@ -6811,23 +6811,15 @@ pipeline_abi_inject_assign_thin() {
       d_stamp="src/${d_rest%%|*}"
       d_tag="${d_rest#*|}"
       # wave533–w537 Soft Cap: HARD BAN tip reinject for deref peers.
-      # wave596: LINUX -E peel — PREFER asm of this export SEGV 139 on
-      #   `unsafe { *p = 1 }` (gdb: frame smash at 0x9 in peel). Darwin
-      #   MACOS skip uses overlay and is fine. Do not PREFER-asm peel.
+      # wave596: HARD BAN peel PRODUCT reinject — PREFER asm and -E both
+      #   SEGV 139 on `unsafe { *p = 1 }` (gdb: frame smash at 0x9 in peel).
+      #   Darwin MACOS skip / overlay is fine. Keep prior w472 leftover.
       case "$d_x" in
         *assign_deref_peel_thin.x)
-          if [ -f "$d_x" ] && { [ ! -f "$d_stamp" ] || [ "$d_x" -nt "$d_stamp" ]; }; then
-            export XLANG_PABI_THIN_PREFER_ASM=0
-            export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-            pipeline_abi_inject_thin_leaf "$o" "$d_x" "w596-deref-peel-E"
-            rc=$?
-            export XLANG_PABI_THIN_PREFER_ASM=1
-            if [ "$rc" -eq 0 ]; then
-              touch "$d_stamp"
-              touch src/.pabi_w596_deref_peel.stamp
-            else
-              break
-            fi
+          if [ -f "$d_x" ]; then
+            touch "$d_stamp"
+            touch src/.pabi_w596_deref_peel.stamp
+            log "pipeline_abi w596-deref-peel: PRODUCT reinject HARD BAN (keep prior)"
           fi
           continue
           ;;
@@ -7368,17 +7360,11 @@ pipeline_abi_inject_assign_thin() {
       if [ "$rc" -eq 0 ]; then
         local dp_x="src/runtime_pipeline_abi_assign_deref_peel_thin.x"
         local dp_s="src/.pabi_w472_heal_deref_peel.stamp"
-        if [ -f "$dp_x" ] && { [ ! -f "$dp_s" ] || [ "$dp_x" -nt "$dp_s" ]; }; then
-          # wave596: LINUX -E (PREFER asm SEGV 139 on deref store).
-          export XLANG_PABI_THIN_PREFER_ASM=0
-          export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-          pipeline_abi_inject_thin_leaf "$o" "$dp_x" "w596-deref-peel-E"
-          rc=$?
-          if [ "$rc" -eq 0 ]; then
-            touch "$dp_s"
-            touch src/.pabi_w596_deref_peel.stamp
-          fi
-          export XLANG_PABI_THIN_PREFER_ASM=1
+        if [ -f "$dp_x" ]; then
+          # wave596: HARD BAN peel PRODUCT reinject (PREFER asm / -E both SEGV).
+          touch "$dp_s"
+          touch src/.pabi_w596_deref_peel.stamp
+          log "pipeline_abi w596-deref-peel: PRODUCT reinject HARD BAN (keep prior)"
         fi
       fi
       if [ "$rc" -eq 0 ]; then
