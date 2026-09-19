@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-19 · 简写 · w606 `as` 下标＝smash `as_cast_orch` 已 `-E`；`b[2]=7` 仍红；add_defs 仍 `-E` · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-19 · 简写 · w607 u8 `b[2]=7`＝smash `assign_index` 已 `-E`；add_defs 仍 `-E` · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。余 PREFER 已双端 U-complete **不 BAN**。LINUX `-E` 余叶均产品 PREFER 红不 Soft-Cap。M1：parse_skip／`*p=`／while／if-in-while／return-in-if／嵌套 while＋内层 `let`／u8 ARRAY_LIT store_sz／`as` 下标 已 `-E`。`b[2]=7` 仍红。add_defs 独立 PREFER 已齐**仍 `-E`**。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／add_defs／fnptr_arr_esz／fnptr_as。禁 LINUX `-E` emit_ctx BSS。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。余 PREFER 已双端 U-complete **不 BAN**。LINUX `-E` 余叶均产品 PREFER 红不 Soft-Cap。M1：parse_skip／`*p=`／while／if-in-while／return-in-if／嵌套 while＋内层 `let`／u8 ARRAY_LIT store_sz／`as` 下标／u8 `b[2]=7` 已 `-E`。add_defs 独立 PREFER 已齐**仍 `-E`**。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／add_defs／fnptr_arr_esz／fnptr_as／assign_index。禁 LINUX `-E` emit_ctx BSS。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
@@ -240,7 +240,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余见归档 |
-| `pipeline_abi` mega pure-asm | 🟡 | 余 PREFER 已双端 U-complete **不 BAN**。M1 parse_skip／`*p=`／while／if-in-while／return-in-if 已 `-E`。add_defs 独立 PREFER 已齐仍 `-E`。下一＝嵌套 while＋内层 `let`。不 Soft-Cap `-E` 余叶。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／add_defs。禁 LINUX `-E` emit_ctx BSS。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 余 PREFER 已双端 U-complete **不 BAN**。M1 parse_skip／`*p=`／while／if-in-while／return-in-if／嵌套 while＋内层 `let`／u8 ARRAY_LIT／`as` 下标／u8 `b[2]=7` 已 `-E`。add_defs 独立 PREFER 已齐仍 `-E`。不 Soft-Cap `-E` 余叶。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／add_defs／fnptr_arr_esz／fnptr_as／assign_index。禁 LINUX `-E` emit_ctx BSS。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
 | nest 冻 64 | ✅ | — |
 
 ---
