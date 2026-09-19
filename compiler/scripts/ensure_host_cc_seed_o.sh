@@ -8357,33 +8357,128 @@ pipeline_abi_inject_al_nc_seq_thin() {
   return 0
 }
 
-# wave317/342/380 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
-# PRODUCT inject wave380 HARD BAN reinject both ends: stay prior overlay.
-#   Prior: LINUX PREFER / DARWIN -E. Tip Darwin PREFER → BRANCH26; tip Ubuntu
-#   PREFER reinject → L2 SEGV all probes. Stamp only until reloc/COMMON root.
-# G.7 match mega wave220/221 leave. PLATFORM: SHARED · BAN reinject both ends.
+# wave317/342/380/601 M2: emit_ctx_bss Cap residual .x thin (was wave220–221 C thin).
+# wave380: HARD BAN PREFER reinject (Darwin BRANCH26; Ubuntu PREFER L2 SEGV).
+# wave601: leftover PREFER smash T (`sub $0x858`, no endbr64) makes
+#   pipeline_asm_emit_ctx_func_index_get return -1, so while-body final_expr
+#   (if-in-while) takes glue_emit_block_final_expr_elf tail_join fallback
+#   and jmp .Lf0_0 (function epilogue). LINUX -E replace leftover T;
+#   HARD BAN PREFER; MACOS keep overlay (if-in-while already run=3).
+# G.7 match mega wave220/221 leave. PLATFORM: SHARED · LINUX gold · MACOS.
 pipeline_abi_inject_emit_ctx_bss_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_bss_thin.x"
   local stamp="src/.pabi_w380_emit_ctx_bss.stamp"
+  local stamp_e="src/.pabi_w601_emit_ctx_bss.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
-  touch "$stamp"
-  rm -f src/.pabi_w342_emit_ctx_bss.stamp
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already runs if-in-while=3.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp" "$stamp_e"
+      rm -f src/.pabi_w342_emit_ctx_bss.stamp
+      log "pipeline_abi w601-emit-ctx-bss: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w601-emit-ctx-bss-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp" "$stamp_e"
+        rm -f src/.pabi_w342_emit_ctx_bss.stamp
+        log "pipeline_abi w601-emit-ctx-bss: LINUX -E replace (smash leftover T)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  touch "$stamp" "$stamp_e"
+  log "pipeline_abi w601-emit-ctx-bss: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
-# wave315/340/380 M2: emit_ctx_module_dep Cap residual .x thin (was wave222 C thin).
-# PRODUCT inject wave380 HARD BAN reinject both ends (Cap A class w380).
-# G.7 match mega wave222 leave. PLATFORM: SHARED · BAN reinject both ends.
+# wave315/340/380/601 M2: emit_ctx_module_dep Cap residual .x thin (was wave222 C thin).
+# wave380: HARD BAN PREFER reinject both ends (Cap A class w380).
+# wave601: leftover PREFER smash T (`sub $0x858`, no endbr64) makes
+#   pipeline_asm_emit_ctx_module_get return 0xffffffff; paired with smash
+#   func_index_get=-1, if-in-while final_expr tail_join fallback jmp epilogue.
+#   LINUX -E replace leftover T; HARD BAN PREFER; MACOS keep overlay.
+# G.7 match mega wave222 leave. PLATFORM: SHARED · LINUX gold · MACOS.
 pipeline_abi_inject_emit_ctx_module_dep_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_emit_ctx_module_dep_thin.x"
   local stamp="src/.pabi_w380_emit_ctx_module_dep.stamp"
+  local stamp_e="src/.pabi_w601_emit_ctx_module_dep.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN reinject (do not call inject_thin_leaf).
-  touch "$stamp"
-  rm -f src/.pabi_w340_emit_ctx_module_dep.stamp
+  case "$(uname -s)" in
+    Darwin)
+      # PLATFORM: MACOS — overlay already runs if-in-while=3.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      touch "$stamp" "$stamp_e"
+      rm -f src/.pabi_w340_emit_ctx_module_dep.stamp
+      log "pipeline_abi w601-emit-ctx-module-dep: MACOS keep prior overlay; HARD BAN PREFER"
+      return 0
+      ;;
+    Linux)
+      # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+        return 0
+      fi
+      local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+      local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
+      local had_prefer=0 had_e_repl=0 rc=0
+      if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
+      if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
+      unset XLANG_PABI_THIN_INJECT_IF_NEWER
+      export XLANG_PABI_THIN_PREFER_ASM=0
+      export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w601-emit-ctx-module-dep-e"
+      rc=$?
+      if [ "$had_prefer" = "1" ]; then
+        export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+      else
+        unset XLANG_PABI_THIN_PREFER_ASM
+      fi
+      if [ "$had_e_repl" = "1" ]; then
+        export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+      else
+        unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+      fi
+      if [ "$rc" -eq 0 ]; then
+        touch "$stamp" "$stamp_e"
+        rm -f src/.pabi_w340_emit_ctx_module_dep.stamp
+        log "pipeline_abi w601-emit-ctx-module-dep: LINUX -E replace (smash leftover T)"
+      fi
+      return "$rc"
+      ;;
+  esac
+  touch "$stamp" "$stamp_e"
+  log "pipeline_abi w601-emit-ctx-module-dep: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
@@ -15205,7 +15300,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-emit-ctx-module-dep|inject_emit_ctx_module_dep)
-    # wave340: emit_ctx_module_dep Cap A — LINUX PREFER_ASM / DARWIN -E+$CC.
+    # wave601: LINUX -E replace smash leftover T; MACOS stamp-only keep overlay.
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-emit-ctx-module-dep: need <out.o>" >&2
@@ -15231,7 +15326,7 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-emit-ctx-bss-leaf|inject_emit_ctx_bss_leaf)
-    # wave342: emit_ctx_bss Cap A — LINUX PREFER_ASM / DARWIN -E+$CC.
+    # wave601: LINUX -E replace smash leftover T; MACOS stamp-only keep overlay.
     # Single leaf only (bulk inject-emit-ctx-bss still runs the Cap residual set).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
