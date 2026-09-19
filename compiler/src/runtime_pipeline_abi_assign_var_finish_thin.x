@@ -1,6 +1,7 @@
 // Thin pure: VAR finish — RHS→rax + float promote/demote → store (wave473).
 // G.7: part of glue_emit_assign_var_elf_c (peer-flat).
 // wave473: no-local tip U=6/6. PRODUCT inject: LINUX PREFER (stamp w473); MACOS skip.
+// wave600: LINUX -E replace smash leftover PREFER T. HARD BAN PREFER.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_assign_rhs_to_rax_elf_c(arena: *u8, elf_ctx: *u8, assign_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;

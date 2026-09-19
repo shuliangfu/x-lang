@@ -1,6 +1,7 @@
 // Thin pure: VAR store dispatcher — slice / f32 / retval-pair (wave473).
 // G.7: part of glue_emit_assign_var_finish_elf_c (peer-flat).
 // wave473: no-local tip U=5/5. PRODUCT inject: LINUX PREFER (stamp w473); MACOS skip.
+// wave600: LINUX -E replace smash leftover PREFER T. HARD BAN PREFER.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;

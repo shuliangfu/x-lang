@@ -4,6 +4,8 @@
 // wave451: LINUX PREFER reshape — tip SEGV root is `let x = call()`.
 // wave473: gate + try_let + finish + store{,slice,f32,pair} no-local split.
 //   Tip U=4/4 (was 10/18). PRODUCT inject: LINUX PREFER (stamp w473); MACOS skip.
+// wave600: LINUX -E replace smash leftover PREFER T (`sub $0x898`,
+//   no endbr64, cltq on ctx). HARD BAN PREFER. MACOS keep overlay.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -15,6 +17,7 @@ export extern function glue_emit_assign_var_finish_elf_c(arena: *u8, elf_ctx: *u
  * VAR lvalue assign gate — null/stack_off checks; ako==28 → try_let; else finish.
  * wave473: no-local — no `let x=call()`. Deferred vs mega: modlet shared-name,
  *   slice←array_lit / slice←[N]T, name-buffer lookup.
+ * wave600: LINUX product path is host-cc -E of this dispatcher (PREFER BAN).
  * @return i32 — 0 ok; -1 fail
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */

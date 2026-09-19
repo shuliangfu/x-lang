@@ -1,6 +1,7 @@
 // Thin pure: VAR try_let — array/vector/struct let-init arms (wave473).
 // G.7: part of glue_emit_assign_var_elf_c (peer-flat).
 // wave473: no-local tip U=7/7. PRODUCT inject: LINUX PREFER (stamp w473); MACOS skip.
+// wave600: LINUX -E replace smash leftover PREFER T. HARD BAN PREFER.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
