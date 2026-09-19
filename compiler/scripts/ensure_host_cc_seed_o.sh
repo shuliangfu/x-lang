@@ -7712,8 +7712,11 @@ pipeline_abi_inject_assign_thin() {
 # wave569: one_cell Ubuntu tip dropped the slice-init encoder
 #   (if-before-call + mid-assign). HARD BAN tip PRODUCT reinject
 #   both ends; keep the w438 overlay.
+# wave570: cells Ubuntu tip dropped every encoder (while +
+#   st=one_cell then if). HARD BAN tip PRODUCT reinject both
+#   ends; keep the w438 overlay.
 # G.7: semantics match mega pipeline_asm_emit_array_lit_flat_elf_c.
-# PLATFORM: SHARED · repark/one_cell BAN tip reinject / other peers PREFER.
+# PLATFORM: SHARED · repark/one_cell/cells BAN tip reinject / other peers PREFER.
 pipeline_abi_inject_arr_lit_flat_thin() {
   local o="$1"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
@@ -7740,6 +7743,14 @@ pipeline_abi_inject_arr_lit_flat_thin() {
     rm -f src/.pabi_w438_arr_lit_flat_one_cell.stamp
     log "pipeline_abi w569 arr_lit_flat_one_cell: tipU stamped; tip PRODUCT reinject HARD BAN"
   fi
+  # wave570: cells Ubuntu tip dropped every encoder (while +
+  # st=one_cell then if). HARD BAN tip PRODUCT reinject on both
+  # ends. Keep the w438 overlay.
+  if [ -f src/runtime_pipeline_abi_arr_lit_flat_cells_thin.x ]; then
+    touch src/.pabi_w570_arr_lit_flat_cells.stamp
+    rm -f src/.pabi_w438_arr_lit_flat_cells.stamp
+    log "pipeline_abi w570 arr_lit_flat_cells: tipU stamped; tip PRODUCT reinject HARD BAN"
+  fi
   if [ -f "$main_s" ] && [ ! "$main_x" -nt "$main_s" ]; then
     return 0
   fi
@@ -7755,9 +7766,8 @@ pipeline_abi_inject_arr_lit_flat_thin() {
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  # PLATFORM: SHARED — PREFER peers except repark/one_cell (HARD BAN tip reinject).
+  # PLATFORM: SHARED — PREFER peers except repark/one_cell/cells (HARD BAN tip reinject).
   for peer in \
-    "src/runtime_pipeline_abi_arr_lit_flat_cells_thin.x|.pabi_w438_arr_lit_flat_cells.stamp|w438-arr-lit-flat-cells" \
     "src/runtime_pipeline_abi_arr_lit_flat_one_row_thin.x|.pabi_w438_arr_lit_flat_one_row.stamp|w438-arr-lit-flat-one-row" \
     "src/runtime_pipeline_abi_arr_lit_flat_rows_thin.x|.pabi_w438_arr_lit_flat_rows.stamp|w438-arr-lit-flat-rows" \
     "src/runtime_pipeline_abi_arr_lit_flat_struct_thin.x|.pabi_w438_arr_lit_flat_struct.stamp|w438-arr-lit-flat-struct" \
@@ -8898,6 +8908,7 @@ pipeline_abi_inject_block_tree_thin() {
 # wave438: arr_lit_flat BOTH flat peer chain PREFER.
 # wave568: repark HARD BAN tip PRODUCT reinject (keep w438 overlay).
 # wave569: one_cell HARD BAN tip PRODUCT reinject (keep w438 overlay).
+# wave570: cells HARD BAN tip PRODUCT reinject (keep w438 overlay).
 # wave439: arr_return BOTH flat peer chain PREFER.
 # wave440: arr_struct_lit MACOS peer PREFER / LINUX tip BAN (opt=94).
 # wave441: assign emit LINUX -E peer chain PREFER (pure-asm CG002/SEGV).
@@ -14577,6 +14588,7 @@ case "$MODE" in
     # wave438: BOTH PREFER flat peer chain.
     # wave568: repark HARD BAN tip PRODUCT reinject (keep w438 overlay).
     # wave569: one_cell HARD BAN tip PRODUCT reinject (keep w438 overlay).
+    # wave570: cells HARD BAN tip PRODUCT reinject (keep w438 overlay).
     # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-arr-lit-flat: need <out.o>" >&2
