@@ -5155,7 +5155,7 @@ pipeline_abi_inject_fixed_array_copy_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w608-call-arg-lea-e"
       rc=$?
@@ -5657,7 +5657,7 @@ pipeline_abi_inject_fnptr_as_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   # Arms → sub-orch → lea → cast_orch → gate (first-wins ld -r).
   for p_peer in \
@@ -5796,7 +5796,7 @@ pipeline_abi_inject_assign_index_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   # Leaves → mid dispatchers → tip (first-wins ld -r).
   for p_peer in \
@@ -5968,7 +5968,7 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w605-fnptr-arr-esz-e"
       rc=$?
@@ -8885,7 +8885,7 @@ pipeline_abi_inject_return_elf_impl_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w602-return-elf-impl-e"
       rc=$?
@@ -9514,7 +9514,7 @@ pipeline_abi_inject_grow_vec_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w597-grow-vec-e"
       rc=$?
@@ -9576,7 +9576,7 @@ pipeline_abi_inject_deref_scalar_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w598-deref-scalar-e"
       rc=$?
@@ -9641,7 +9641,7 @@ pipeline_abi_inject_rhsrax_to_rax_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-      export XLANG_PABI_THIN_PREFER_ASM=0
+  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
       pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w599-rhsrax-to-rax-e"
       rc=$?
