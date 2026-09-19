@@ -106,6 +106,58 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
 }
 
 /**
+ * Width-aware store of an outgoing ARM64 stack extra at [sp+#off_bytes]
+ * (wave614 Apple natural packing; see backend_enc_dispatch.x authority
+ * docblock). nbytes 1/2/4 select STRB/STRH/STR w0 at their natural
+ * immediate scale; anything else routes to the 8-byte str x0 body.
+ * @param elf_ctx *u8
+ * @param off_bytes i32
+ * @param nbytes i32
+ * @return i32
+ * PLATFORM: MACOS|ARM64 natural stack-arg packing (wave614).
+ */
+#[no_mangle]
+export function backend_enc_arm64_store_arg_sp_offset_c(elf_ctx: *u8, off_bytes: i32, nbytes: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (off_bytes < 0) {
+    return 0 - 1;
+  }
+  if (nbytes == 1) {
+    if (off_bytes > 4095) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_append_u32_le_c_impl(elf_ctx, (956302304 as u32) | ((off_bytes as u32) * 1024));
+    }
+  }
+  if (nbytes == 2) {
+    if ((off_bytes & 1) != 0) {
+      return 0 - 1;
+    }
+    if (off_bytes / 2 > 4095) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_append_u32_le_c_impl(elf_ctx, (2030044128 as u32) | (((off_bytes / 2) as u32) * 1024));
+    }
+  }
+  if (nbytes == 4) {
+    if ((off_bytes & 3) != 0) {
+      return 0 - 1;
+    }
+    if (off_bytes / 4 > 4095) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_append_u32_le_c_impl(elf_ctx, (3103785952 as u32) | (((off_bytes / 4) as u32) * 1024));
+    }
+  }
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
+}
+
+/**
  * Load one 32-bit product-frame slot into x0 as a signed 64-bit value.
  * @param elf_ctx *u8 — emit context; null rejected
  * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095

@@ -374,6 +374,44 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
 }
 
 /**
+ * Width-aware store of an outgoing ARM64 stack extra at [sp+#off_bytes].
+ * wave614: the Apple natural-packing caller sites place sub-word scalars at
+ * natural byte offsets (a u8 may sit at +1). The 64-bit-only str x0 encoder
+ * floors off/8 — a u8 at +1 silently stored over slot 0 (run-path bytes_eq
+ * h-overwrites-g). Pick the store width from the arg byte size so the
+ * immediate is encodable at its natural scale:
+ *   nbytes==1 → STRB w0,[sp,#off]  (imm12 unscaled bytes)
+ *   nbytes==2 → STRH w0,[sp,#off]  (imm12 scaled by 2)
+ *   nbytes==4 → STR  w0,[sp,#off]  (imm12 scaled by 4)
+ *   else      → STR  x0,[sp,#off]  (8-byte path, exactly the historic body)
+ * @param elf_ctx *u8 - emit context; null rejected
+ * @param off_bytes i32 - byte offset from sp (>=0)
+ * @param nbytes i32 - arg byte size (1/2/4 select width; else 8-byte store)
+ * @return i32 - 0 ok; -1 bad ctx/offset/imm range
+ * PLATFORM: MACOS|ARM64 — Apple natural stack-arg packing (wave614).
+ */
+#[no_mangle]
+export function backend_enc_arm64_store_arg_sp_offset_c(elf_ctx: *u8, off_bytes: i32, nbytes: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (off_bytes < 0) { return 0 - 1; }
+  if (nbytes == 1) {
+    if (off_bytes > 4095) { return 0 - 1; }
+    return backend_enc_append_u32_le_c(elf_ctx, (956302304 as u32) | ((off_bytes as u32) * 1024));
+  }
+  if (nbytes == 2) {
+    if ((off_bytes & 1) != 0) { return 0 - 1; }
+    if (off_bytes / 2 > 4095) { return 0 - 1; }
+    return backend_enc_append_u32_le_c(elf_ctx, (2030044128 as u32) | (((off_bytes / 2) as u32) * 1024));
+  }
+  if (nbytes == 4) {
+    if ((off_bytes & 3) != 0) { return 0 - 1; }
+    if (off_bytes / 4 > 4095) { return 0 - 1; }
+    return backend_enc_append_u32_le_c(elf_ctx, (3103785952 as u32) | (((off_bytes / 4) as u32) * 1024));
+  }
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
+}
+
+/**
  * Load one 32-bit product-frame slot into x0 as a signed 64-bit value.
  * @param elf_ctx *u8 — emit context; null rejected
  * @param offset i32 — logical frame bytes; >=0, multiple of 4, /4 <= 4095
@@ -1777,6 +1815,23 @@ export function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, t
 #[no_mangle]
 export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, ta: i32): i32 {
   if (ta == 1) { return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes); }
+  return 0 - 1;
+}
+
+/**
+ * Arch wrapper for backend_enc_arm64_store_arg_sp_offset_c (wave614 width-
+ * aware stack-extra store; see that docblock). x86_64 keeps the SysV push
+ * discipline and never routes here.
+ * @param elf_ctx *u8 - emit context
+ * @param off_bytes i32 - byte offset from sp
+ * @param nbytes i32 - arg byte size (1/2/4 select width; else 8-byte store)
+ * @param ta i32 - target arch (1=arm64)
+ * @return i32 - 0 ok; -1 rejected
+ * PLATFORM: MACOS|ARM64 natural stack-arg packing (wave614).
+ */
+#[no_mangle]
+export function backend_enc_store_arg_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, nbytes: i32, ta: i32): i32 {
+  if (ta == 1) { return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes); }
   return 0 - 1;
 }
 

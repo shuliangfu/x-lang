@@ -56,6 +56,8 @@ export extern function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: 
 export extern function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
 export extern function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
+/* wave614: width-aware stack-extra store (natural packing; see backend_enc_dispatch.x). */
+export extern function backend_enc_store_arg_sp_offset_arch(elf: *u8, off_bytes: i32, nbytes: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
 export extern function pipeline_asm_emit_call_arg_begin_c(): void;
 export extern function pipeline_asm_emit_call_arg_end_c(): void;
@@ -2523,7 +2525,7 @@ export function pipeline_asm_emit_call_args_elf_c(
               if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref2, i, ctx, ta) != 0) {
                 return 0 - 1;
               }
-              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0) {
+              if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff, arg_sz_a[i], ta) != 0) {
                 return 0 - 1;
               }
               stk_pos = glue_call_stk_extra_advance(aoff, arg_sz_a[i], ta);
@@ -3450,7 +3452,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
               }
               /* wave614: natural-packing cursor (see glue_call_stk_extra_*). */
               let aoff_e: i32 = glue_call_stk_extra_align(stk_pos, sz_e[ei], ta);
-              if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_e, ta) != 0) {
+              if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_e, sz_e[ei], ta) != 0) {
                 return 0 - 1;
               }
               stk_pos = glue_call_stk_extra_advance(aoff_e, sz_e[ei], ta);
@@ -3766,7 +3768,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                                 /* wave614: natural-packing cursor (see
                                  * glue_call_stk_extra_*). */
                                 let aoff_m: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
-                                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_m, ta) != 0) {
+                                if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_m, arg_sz_m[i_m], ta) != 0) {
                                   return 0 - 1;
                                 }
                                 stk_pos_m = glue_call_stk_extra_advance(aoff_m, arg_sz_m[i_m], ta);
@@ -4231,7 +4233,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                 }
                 /* wave614: natural-packing cursor (see glue_call_stk_extra_*). */
                 let aoff_u: i32 = glue_call_stk_extra_align(stk_pos_u, arg_sz_u[i_u], ta);
-                if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_u, ta) != 0) {
+                if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_u, arg_sz_u[i_u], ta) != 0) {
                   return 0 - 1;
                 }
                 stk_pos_u = glue_call_stk_extra_advance(aoff_u, arg_sz_u[i_u], ta);

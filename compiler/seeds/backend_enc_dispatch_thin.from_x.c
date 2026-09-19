@@ -215,6 +215,51 @@ int32_t backend_enc_arm64_str_x0_sp_offset_c(uint8_t * elf_ctx, int32_t off_byte
   }
   return (0 - 1);
 }
+
+/* wave614: width-aware stack-extra store (Apple natural packing).
+ * Twin of backend_enc_dispatch_thin.x backend_enc_arm64_store_arg_sp_offset_c
+ * (see the .x authority docblock). nbytes 1/2/4 select STRB/STRH/STR w0 at
+ * their natural immediate scale; else the 8-byte str x0 body.
+ * PLATFORM: MACOS|ARM64 natural stack-arg packing (wave614). */
+int32_t backend_enc_arm64_store_arg_sp_offset_c(uint8_t * elf_ctx, int32_t off_bytes, int32_t nbytes) {
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if ((off_bytes < 0)) {
+    return (0 - 1);
+  }
+  if ((nbytes == 1)) {
+    if ((off_bytes > 4095)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, ((uint32_t)(956302304) | (((uint32_t)(off_bytes)) * 1024)));
+  }
+  if ((nbytes == 2)) {
+    if (((off_bytes & 1) != 0)) {
+      return (0 - 1);
+    }
+    if (((off_bytes / 2) > 4095)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, ((uint32_t)(2030044128) | (((uint32_t)((off_bytes / 2))) * 1024)));
+  }
+  if ((nbytes == 4)) {
+    if (((off_bytes & 3) != 0)) {
+      return (0 - 1);
+    }
+    if (((off_bytes / 4) > 4095)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, ((uint32_t)(3103785952) | (((uint32_t)((off_bytes / 4))) * 1024)));
+  }
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
+}
+int32_t backend_enc_store_arg_sp_offset_arch(uint8_t * elf_ctx, int32_t off_bytes, int32_t nbytes, int32_t ta) {
+  if ((ta == 1)) {
+    return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes);
+  }
+  return (0 - 1);
+}
 /* PLATFORM: MACOS|ARM64 — product-positive LDRSW x0,[x29,#off].
  * Twin of backend_enc_dispatch_thin.x (was LDUR w0,[x29,#-off]). */
 int32_t arm64_enc_load_w0_from_rbp_c(uint8_t * elf_ctx, int32_t offset) {

@@ -524,6 +524,8 @@ extern int32_t backend_enc_call_stack_reserve_arch(struct platform_elf_ElfCodege
                                                    int32_t ta);
 extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
                                                    int32_t ta);
+extern int32_t backend_enc_store_arg_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
+                                                    int32_t nbytes, int32_t ta);
 
 /** bench stream_*_batch 等最多 11 实参；与 backend.x 6 参上限解耦。 */
 /** 与 grow 池一致：>64 实参边界见 tests/pool-limits/many_call_args.x。 */
@@ -3169,7 +3171,7 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
           int32_t aoff = glue_call_stk_extra_align(stk_pos, arg_sz_a64[i], ta);
           if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
             return -1;
-          if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0)
+          if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff, arg_sz_a64[i], ta) != 0)
             return -1;
           stk_pos = glue_call_stk_extra_advance(aoff, arg_sz_a64[i], ta);
         }
@@ -6554,7 +6556,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, extra_off[ei], ta) != 0)
                     return -1;
                   aoff_e = glue_call_stk_extra_align(stk_pos, sz_e[ei], ta);
-                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff_e, ta) != 0)
+                  if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff_e, sz_e[ei], ta) != 0)
                     return -1;
                   stk_pos = glue_call_stk_extra_advance(aoff_e, sz_e[ei], ta);
                 }
@@ -6883,7 +6885,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                   int32_t aoff = glue_call_stk_extra_align(stk_pos, arg_sz[i], ta);
                   if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
                     return -1;
-                  if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0)
+                  if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff, arg_sz[i], ta) != 0)
                     return -1;
                   stk_pos = glue_call_stk_extra_advance(aoff, arg_sz[i], ta);
                 }
@@ -7281,7 +7283,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
         }
         {
           int32_t aoff = glue_call_stk_extra_align(stk_pos, arg_sz[i], ta);
-          if (backend_enc_store_x0_sp_offset_arch(elf_ctx, aoff, ta) != 0)
+          if (backend_enc_store_arg_sp_offset_arch(elf_ctx, aoff, arg_sz[i], ta) != 0)
             return -1;
           stk_pos = glue_call_stk_extra_advance(aoff, arg_sz[i], ta);
         }
