@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。**w610** param_ptr_slot 产品 PREFER_ASM（本 TU 零 host-cc；w609 add_defs 同）。**w612** Darwin 文件级 `let` COMMON lea PAGE21（小文件绿；wpo_dump 独立 Lxml 0×BR26）。**w611** wpo_dump 产品 PREFER 仍不绿（Ubuntu dump SEGV）stay `-E`。余 PREFER 已双端 U-complete **不 BAN**。LINUX `-E` 余叶不 Soft-Cap。smash leftover 已 `-E` 的叶不回 PREFER。mega FORCE 禁。禁 PREFER wpo_dump helpers／orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／fnptr_arr_esz／fnptr_as／assign_index／call_arg_lea。禁 LINUX `-E` emit_ctx BSS。禁 `-E` full fixed_array_copy。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | Cap residual thin 混成 `-E`+asm。**w613** 根修 COMMON 分类＝ctx `shndx==65522` 单一权威（7 位点：macho thin＋mega macho/ELF/ELF-PGO＋from_x×3；根因＝sidecar 双实例＋seed rest intra-TU 直调，COMMON 曾落只读 `__TEXT` 致 dump 写崩双端）；**wpo_dump 产品 PREFER MACOS 站住**（dump JSON v2 绿；LINUX 仍 `-E` 待重验）。**w613b** struct_layout `pack_copy_fname` 冷孪生体（双端 L4 phase1 解锁）。**w610** param_ptr_slot／w609 add_defs 产品 PREFER_ASM。**w612** Darwin COMMON lea PAGE21。余 PREFER 已双端 U-complete **不 BAN**。LINUX `-E` 余叶不 Soft-Cap。mega FORCE 禁。禁 PREFER wpo_dump orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／fnptr_arr_esz／fnptr_as／assign_index／call_arg_lea。禁 LINUX `-E` emit_ctx BSS。禁 `-E` full fixed_array_copy。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
