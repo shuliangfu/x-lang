@@ -7371,9 +7371,11 @@ pipeline_abi_inject_assign_thin() {
         local dd_x="src/runtime_pipeline_abi_assign_deref_thin.x"
         local dd_s="src/.pabi_w472_heal_deref.stamp"
         if [ -f "$dd_x" ] && { [ ! -f "$dd_s" ] || [ "$dd_x" -nt "$dd_s" ]; }; then
+          # wave598: gate skips leftover peel (w596 BAN). PREFER the
+          #   scalar-dispatch body; do not reinject peel.
           export XLANG_PABI_THIN_PREFER_ASM=1
           export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-          pipeline_abi_inject_thin_leaf "$o" "$dd_x" "w472-heal-deref"
+          pipeline_abi_inject_thin_leaf "$o" "$dd_x" "w598-deref-gate-scalar"
           rc=$?
           if [ "$rc" -eq 0 ]; then
             touch "$dd_s"
