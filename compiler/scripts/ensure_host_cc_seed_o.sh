@@ -5996,7 +5996,7 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
   return 0
 }
 
-# wave396/498/502/503/514/594/611/613 M2: wpo_dump Cap residual.
+# wave396/498/502/503/514/594/611/613/615 M2: wpo_dump Cap residual.
 # wave498: tip PREFER omitted export (Ubuntu file-tail parse_skip from
 #   append_i32 onward). LINUX stayed -E; MACOS stamp-only keep overlay.
 # wave597: grow_vec -E restored realloc/mmap; standalone -backend asm -c
@@ -6014,17 +6014,22 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 #   · Ubuntu current-thin PREFER first-wins links and L2 5/5 (getenv unset),
 #     but XLANG_WPO_DUMP_CALLGRAPH dump path SEGV 139. Smash leftover dump
 #     still writes JSON v2. Same class as orch *i32 store (w594 BAN).
-# wave613 M2: MACOS product PREFER_ASM stamp-gated (.pabi_w613 prefer
-#   stamp; no host-cc for this TU on Darwin). LINUX keeps -E+$CC helpers.
-#   Do not -E as a new repair on either end.
+#     ROOT-CAUSED by wave613: COMMON misclassification at the writers (dual
+#     sidecar instances) pinned the thin's Lxml cells into read-only
+#     __TEXT/__text — the dump path's first write faulted on BOTH ends.
+#     Fixed by the ctx shndx==65522 single-authority classification.
+# wave613 M2: MACOS product PREFER_ASM (dump probe JSON v2 green, L2 5/5).
+# wave615 M2: LINUX product PREFER_ASM re-verify on top of the w613 COMMON
+#   fix + w614 dual-end L4 (ELF writer side shipped). This TU is now zero
+#   host-cc on BOTH ends. Do not -E as a new repair on either end.
 #   orch thin stays HARD BAN (w503/514/594 PRODUCT PREFER L2 SEGV 0/5).
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
-# PLATFORM: SHARED · MACOS PREFER_ASM / LINUX -E helpers · orch BAN tip reinject.
+# PLATFORM: SHARED · PREFER_ASM both ends · orch BAN tip reinject.
 pipeline_abi_inject_wpo_dump_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
   local stamp="src/.pabi_w498_wpo_dump.stamp"
-  local stamp_prefer="src/.pabi_w613_wpo_dump_prefer.stamp"
+  local stamp_prefer="src/.pabi_w615_wpo_dump_prefer.stamp"
   local orch_x="src/runtime_pipeline_abi_wpo_dump_orch_thin.x"
   local orch_s="src/.pabi_w594_wpo_dump_orch.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
@@ -6041,19 +6046,15 @@ pipeline_abi_inject_wpo_dump_thin() {
       log "pipeline_abi w594-wpo-dump-orch: standalone EXPORT_OK; tip PRODUCT PREFER HARD BAN (L2 SEGV 0/5; keep w498 -E)"
     fi
   fi
-  # wave613 M2: MACOS product PREFER_ASM (this TU no longer host-cc here).
-  #   w612 typed-reloc fix landed (leftover modlet lea → live elf_ctx reloc
-  #   table): standalone thin has PAGE21 on adrp / BRANCH26 on bl only,
-  #   0 mispaired relocs, and links. LINUX stays -E+$CC helpers (w611:
-  #   current-thin PREFER dump path SEGV 139 under XLANG_WPO_DUMP_CALLGRAPH).
-  if [ "$(uname -s)" != "Linux" ]; then
-    if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
-      return 0
-    fi
-  else
-    if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-      return 0
-    fi
+  # wave615 M2: LINUX product PREFER_ASM too — this TU is now zero host-cc on
+  #   BOTH ends. w611's "Ubuntu dump SEGV 139" root cause was the COMMON
+  #   misclassification w613 fixed at the writers (ctx shndx==65522 single
+  #   authority): the thin's Lxml cells were pinned read-only __TEXT/__text
+  #   and the dump path's first write faulted. The ELF writer side of that
+  #   fix shipped and dual-end-L4-verified in w614 (@45f8c48ec). Stamp-gated
+  #   identically on both platforms.
+  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
+    return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -6065,15 +6066,11 @@ pipeline_abi_inject_wpo_dump_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: LINUX — keep -E+$CC helpers (w611: current-thin PREFER dump SEGV).
-  # PLATFORM: MACOS — PREFER_ASM first-wins (w613; w612 PAGE21 typed reloc).
-  if [ "$(uname -s)" = "Linux" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM=0
-  else
-    export XLANG_PABI_THIN_PREFER_ASM=1
-  fi
+  # PLATFORM: SHARED — product PREFER_ASM both ends (wave613 MACOS,
+  #   wave615 LINUX re-verify after the w613/w614 COMMON + cold-chain fixes).
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w613-wpo-dump"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w615-wpo-dump-prefer"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6090,13 +6087,9 @@ pipeline_abi_inject_wpo_dump_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
-    if [ "$(uname -s)" != "Linux" ]; then
-      touch "$stamp_prefer"
-    fi
-    rm -f src/.pabi_w611_wpo_dump_prefer.stamp
-    if [ "$(uname -s)" != "Linux" ]; then
-      log "pipeline_abi w613-wpo-dump: MACOS PREFER_ASM replace (no host-cc for this TU)"
-    fi
+    touch "$stamp_prefer"
+    rm -f src/.pabi_w611_wpo_dump_prefer.stamp src/.pabi_w613_wpo_dump_prefer.stamp
+    log "pipeline_abi w615-wpo-dump: PREFER_ASM replace (no host-cc for this TU)"
   fi
   return "$rc"
 }
@@ -15249,10 +15242,10 @@ case "$MODE" in
     exit "$_irc"
     ;;
   inject-wpo-dump|inject_wpo_dump)
-    # wave498: LINUX -E helpers. wave611: standalone PREFER U-complete but
-    #   product PREFER was Darwin BRANCH26 + Ubuntu dump SEGV. wave612 fixed
-    #   the typed reloc → wave613: MACOS PREFER_ASM / LINUX stays -E.
-    # PLATFORM: SHARED shell · MACOS PREFER · LINUX -E co-path.
+    # wave498: LINUX -E helpers. wave611: standalone PREFER U-complete;
+    #   product PREFER blocked on the COMMON misclassification. wave613
+    #   fixed it (MACOS PREFER); wave615: PREFER both ends.
+    # PLATFORM: SHARED shell · PREFER_ASM both ends.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-wpo-dump: need <out.o>" >&2
       exit 2
