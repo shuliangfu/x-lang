@@ -516,7 +516,7 @@ int32_t arch_x86_64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_idiv_rbx */
 int32_t arch_x86_64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {247, 251};
+  static const uint8_t ins[] = {72, 247, 251}; /* wave676: REX.W — 64-bit idiv (was 32-bit, truncated 64-bit dividends) */
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
@@ -655,7 +655,7 @@ int32_t arch_x86_64_enc_enc_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_c
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_div_rbx */
 int32_t arch_x86_64_enc_enc_div_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {247, 243};
+  static const uint8_t ins[] = {72, 247, 243}; /* wave676: REX.W — 64-bit div */
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }

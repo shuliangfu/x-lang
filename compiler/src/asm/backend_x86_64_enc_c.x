@@ -650,8 +650,15 @@ export function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_idiv_rbx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [247, 251];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  /* wave676: REX.W (0x48/72) + F7 FB = idiv %rbx — 64-BIT divide.
+   * The 32-bit form (div/idiv %ebx) truncated every 64-bit dividend to
+   * its low 32 bits: pipe_store_ptr_slot's `u0 / 256` on a heap pointer
+   * lost the high half and the byte-extracted pointer came back as
+   * 0x00000000_xxxxxxxx (force-chain lexer crash, w673-w675 chase).
+   * Matches enc_imul_rbx_rax which has always carried REX.W.
+   * PLATFORM: SHARED x86_64 SysV. */
+  let ins: u8[3] = [72, 247, 251];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
 /** Emit fixed x86_64 insn `imul_rbx_rax` (4 bytes).
@@ -819,8 +826,10 @@ export function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_div_rbx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [247, 243];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  /* wave676: REX.W + F7 F3 = div %rbx — 64-BIT unsigned divide (same
+   * truncation class as enc_idiv_rbx; see its note). PLATFORM: SHARED. */
+  let ins: u8[3] = [72, 247, 243];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
 /** Emit fixed x86_64 insn `load_32_from_rax` (2 bytes).
