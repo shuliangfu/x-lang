@@ -19502,6 +19502,17 @@ export function asm_skip_heavy_module_func_body(m: *u8, arena: *u8, func_index: 
     if (m == 0 as *u8 || func_index < 0) {
       return 0;
     }
+    // wave650: XLANG_ASM_FORCE_FULL_BODIES=1 — full-body escape for the
+    // monofile pure-asm FORCE channel. The Stage 12.0.5 gates below
+    // deliberately ret0-stub the tail of big selfhost modules because the
+    // product hybrid takes those bodies from the C rest; the FORCE chain
+    // replaces that rest, so the mono compile must emit every body
+    // (remaining gaps surface as loud CG002, not silent stubs).
+    // Default off = zero product behavior change. Seed twin mirrors.
+    // PLATFORM: SHARED.
+    if (asm_env_force_full_bodies() != 0) {
+      return 0;
+    }
     // User programs (non compiler selfhost): always real emit.
     if (asm_module_is_compiler_selfhost(m) == 0) {
       return 0;
@@ -19799,6 +19810,20 @@ export function asm_skip_heavy_module_func_body(m: *u8, arena: *u8, func_index: 
 export function asm_env_entry_emit_heavy(): i32 {
   unsafe {
     return asm_diag_env_truthy(link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY"));
+  }
+}
+
+/**
+ * wave650: XLANG_ASM_FORCE_FULL_BODIES env gate — full-body escape for the
+ * FORCE monofile pure-asm channel (bypasses every skip_heavy ret0-stub gate;
+ * seed twin mirrors). Default off.
+ * @return i32 — 1 when the FORCE channel must emit every function body
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function asm_env_force_full_bodies(): i32 {
+  unsafe {
+    return asm_diag_env_truthy(link_abi_getenv("XLANG_ASM_FORCE_FULL_BODIES"));
   }
 }
 

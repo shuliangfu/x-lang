@@ -9324,8 +9324,9 @@ int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t func_index
    * the FORCE chain replaces that rest, so the mono compile must emit every
    * body (remaining emit gaps then surface as loud CG002 instead of silent
    * stubs — the w648/w649 chase ended here, 72/2048 real). Default off =
-   * zero product behavior change. PLATFORM: SHARED. */
-  if (wave119_env_truthy(link_abi_getenv("XLANG_ASM_FORCE_FULL_BODIES")))
+   * zero product behavior change. Twin of pure asm_env_force_full_bodies.
+   * PLATFORM: SHARED. */
+  if (asm_env_force_full_bodies_cold())
     return 0;
   if (!asm_module_is_compiler_selfhost(m))
     return 0;
@@ -9541,6 +9542,12 @@ static int32_t wave119_env_truthy(const char *e) {
 
 int32_t asm_env_entry_emit_heavy(void) {
   return wave119_env_truthy(link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY"));
+}
+
+/* wave650: cold twin of pure asm_env_force_full_bodies (FORCE full-bodies
+ * escape; default off). PLATFORM: SHARED. */
+static int32_t asm_env_force_full_bodies_cold(void) {
+  return wave119_env_truthy(link_abi_getenv("XLANG_ASM_FORCE_FULL_BODIES"));
 }
 
 int32_t asm_env_build_skip_typeck(void) {
