@@ -624,11 +624,39 @@ function w328_store(p: *u8, off: i32, v: i32): void {
 
 /**
  * Store pointer at byte offset (LP64).
- * PLATFORM: SHARED
+ * wave656: the old body `*((p + off) as **u8) = v` (pointer-deref store
+ * through a **u8 cast) emitted as a SINGLE strb on the pure-asm backend —
+ * only byte 0 of the pointer landed (w652/w653 mac 0xa0: module_ref@16
+ * kept the memset zero in bytes 1..7, so the slot read back as the low
+ * byte of the real module pointer, and bind_module_dep copied it into
+ * the BSS module cell). Root fix mirrors the G.7 authority
+ * pipe_store_ptr_slot's explicit 8-byte little-endian store, which the
+ * pure emitter has always lowered correctly. Byte-offset (not
+ * slot-index) variant for the W328 AsmFuncCtx layout family.
+ * PLATFORM: SHARED LP64 little-endian.
  */
 function w328_store_ptr(p: *u8, off: i32, v: *u8): void {
   if (p == (0 as *u8)) { return; }
-  unsafe { *((p + (off as usize)) as **u8) = v; }
+  unsafe {
+    let m: usize = 256 as usize;
+    let b255: usize = 255 as usize;
+    let u0: usize = v as usize;
+    p[off] = (u0 & b255) as u8;
+    let u1: usize = u0 / m;
+    p[off + 1] = (u1 & b255) as u8;
+    let u2: usize = u1 / m;
+    p[off + 2] = (u2 & b255) as u8;
+    let u3: usize = u2 / m;
+    p[off + 3] = (u3 & b255) as u8;
+    let u4: usize = u3 / m;
+    p[off + 4] = (u4 & b255) as u8;
+    let u5: usize = u4 / m;
+    p[off + 5] = (u5 & b255) as u8;
+    let u6: usize = u5 / m;
+    p[off + 6] = (u6 & b255) as u8;
+    let u7: usize = u6 / m;
+    p[off + 7] = (u7 & b255) as u8;
+  }
 }
 
 /**
