@@ -16529,7 +16529,25 @@ static void pipeline_asm_modlet_reset_cold(void) {
   g_pipe_modlet_strpool_seq_cold = 0;
 }
 
-int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len) {
+/* wave647: MODLET_IN_REST public faces are XLANG_WEAK so the initial
+ * thin+rest hybrid resolves weak-vs-weak FIRST-WINS (Darwin ld -r keeps
+ * the first object; G05_X_O_WEAK=1 pure-asm mega thin is merged first).
+ * STRONG rest faces won that race on Darwin (weak thin + strong rest ->
+ * strong wins) and split the modlet table (hot .x table empty, cold C
+ * table written); Linux --allow-multiple-definition was first-wins so
+ * only Darwin split. Per-leaf strong overlay (w631 modlet thin) then
+ * lands as strong-over-weak instead of duplicate-strong. PE/MinGW keeps
+ * empty macro -> WIN_LEFTOVER twins stay strong (no Darwin ld -r there).
+ * PLATFORM: SHARED · LINUX gold first-wins · MACOS weak-weak first-wins. */
+#ifndef XLANG_WEAK
+#if defined(__GNUC__) || defined(__clang__)
+#define XLANG_WEAK __attribute__((weak))
+#else
+#define XLANG_WEAK
+#endif
+#endif
+
+XLANG_WEAK int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len) {
   int32_t i, k;
   if (!name || name_len <= 0 || g_pipeline_asm_modlet_cold.n <= 0)
     return 0;
@@ -16718,7 +16736,7 @@ static int32_t pipeline_asm_modlet_lea_rax_arch_cold(void *elf_ctx, int32_t idx,
   return -1;
 }
 
-int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+XLANG_WEAK int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
   int32_t idx;
   int32_t csz;
   if ((ta != 0 && ta != 1) || !elf_ctx)
@@ -16748,7 +16766,7 @@ int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int3
   }
 }
 
-int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+XLANG_WEAK int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
   int32_t idx;
   if ((ta != 0 && ta != 1) || !elf_ctx)
     return -1;
@@ -17529,7 +17547,7 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
   return 0;
 }
 
-int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
+XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
   int32_t tl, n, i;
   pipeline_asm_modlet_reset_cold();
   if (!m || !a || !elf_ctx || (ta != 0 && ta != 1) || cold_mod_num_top_level_lets(m) <= 0)
@@ -17744,7 +17762,7 @@ int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_c
   return 0;
 }
 
-int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) {
+XLANG_WEAK int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) {
   int32_t i;
   if (!elf_ctx || (ta != 0 && ta != 1))
     return 0;

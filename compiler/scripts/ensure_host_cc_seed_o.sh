@@ -4558,22 +4558,45 @@ pipeline_abi_windows_leftover_pe_cannot_e() {
 # with duplicate members (wave294 asm_label_format). Weaken only needs the
 # intersection; additive-only thins still return 1 (no overlap).
 # PLATFORM: SHARED nm (Darwin leading underscore accepted as-is).
+# wave647: strong-text symbol names in OBJ (one per line).
+# Darwin plain `nm` displays Mach-O WEAK text as 'T' (ELF shows 'W'), so the
+# historic `nm -gU | awk '$2=="T"'` ELF check misread weak externals as
+# strong and tripped the destructive --redefine-sym fallback (a rename
+# redirects the base's OWN callers to the dead *_pabi_superseded copy —
+# w647 `&g` CG002: addr_of called the superseded lea, cold table empty).
+# Darwin authority = `nm -m`: weak text prints "weak external", strong
+# prints "external"; text section is (__TEXT,__text) (incl. non-external).
+# ELF keeps plain nm (W/w never match T/t). G.7: single strong-T predicate
+# for already_defined + weaken verify loops.
+# PLATFORM: SHARED — Darwin nm -m · LINUX nm -gU.
+pipeline_abi_strong_text_syms() {
+  local obj="$1"
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ]; then
+    nm -m "$obj" 2>/dev/null | awk '$0 ~ /\(__TEXT,__text\)/ && $0 !~ /weak/ { print $NF }'
+  else
+    nm -gU "$obj" 2>/dev/null | awk '/ [Tt] / { print $NF }'
+  fi
+}
+
 pipeline_abi_thin_already_defined() {
   local base="$1"
   local thin="$2"
   local sym
   local thin_syms
+  local base_strong
   [ -f "$base" ] && [ -f "$thin" ] || return 1
   thin_syms="$(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')"
   [ -n "$thin_syms" ] || return 1
+  base_strong="$(pipeline_abi_strong_text_syms "$base")"
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
-    if nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
-      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
-      END { exit !found }
-    '; then
-      return 0
-    fi
+    case "
+$base_strong
+" in
+      *"
+$sym
+"*) return 0 ;;
+    esac
   done <<EOF
 $thin_syms
 EOF
@@ -4604,6 +4627,7 @@ pipeline_abi_weaken_thin_syms_in_obj() {
   local any=0
   local still_t=0
   local dead=""
+  local base_strong
   [ -s "$base" ] && [ -s "$thin" ] || return 1
   oc="$(pure_asm_find_objcopy)" || return 1
   while IFS= read -r sym; do
@@ -4622,6 +4646,9 @@ EOF
   # multi-ld-r MH_OBJECT (returns 0, symbol stays T). Fall back to
   # --redefine-sym so Darwin ld -r can first-wins overlay the thin
   # (wave328 mega_body C→.x). Dead renamed bodies stay until next prefer.
+  # wave647: the strong-T check is now weak-aware (nm -m on Darwin) — a
+  # rename redirects the BASE's own callers to the dead copy, so it must
+  # only ever run on genuinely strong leftovers, never on already-weak text.
   # PLATFORM: LINUX — weaken usually works; redefine only if still T.
   # Unique dead names: tip often already has *_pabi_superseded from a prior
   # Cap overlay. Redefining onto an existing name creates duplicate atoms in
@@ -4629,32 +4656,36 @@ EOF
   # names" and pure_ld_partial_merge falls back to libtool archive (g05 red).
   # Pick *_pabi_superseded / *_pabi_superseded2 / … until free (wave329).
   still_t=0
+  base_strong="$(pipeline_abi_strong_text_syms "$base")"
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
-    if nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
-      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
-      END { exit !found }
-    '; then
-      still_t=1
-      dead="${sym}_pabi_superseded"
-      n=1
-      while nm -gU "$base" 2>/dev/null | awk -v s="$dead" '
-        $NF == s { found=1 }
-        END { exit !found }
-      '; do
-        n=$((n + 1))
-        dead="${sym}_pabi_superseded${n}"
-      done
-      "$oc" --redefine-sym="${sym}=${dead}" "$base" 2>/dev/null || true
-      case "$sym" in
-        _*)
-          "$oc" --redefine-sym="${sym#_}=${dead#_}" "$base" 2>/dev/null || true
-          ;;
-        *)
-          "$oc" --redefine-sym="_${sym}=_${dead}" "$base" 2>/dev/null || true
-          ;;
-      esac
-    fi
+    case "
+$base_strong
+" in
+      *"
+$sym
+"*)
+        still_t=1
+        dead="${sym}_pabi_superseded"
+        n=1
+        while nm -gU "$base" 2>/dev/null | awk -v s="$dead" '
+          $NF == s { found=1 }
+          END { exit !found }
+        '; do
+          n=$((n + 1))
+          dead="${sym}_pabi_superseded${n}"
+        done
+        "$oc" --redefine-sym="${sym}=${dead}" "$base" 2>/dev/null || true
+        case "$sym" in
+          _*)
+            "$oc" --redefine-sym="${sym#_}=${dead#_}" "$base" 2>/dev/null || true
+            ;;
+          *)
+            "$oc" --redefine-sym="_${sym}=_${dead}" "$base" 2>/dev/null || true
+            ;;
+        esac
+        ;;
+    esac
   done <<EOF
 $(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
 EOF
@@ -4662,15 +4693,19 @@ EOF
     log "pipeline_abi weaken: Darwin/objcopy weaken no-op → redefine-sym unique *_pabi_supersededN"
   fi
   # Refuse if any thin T still strong in base (redefine failed / no-op).
+  base_strong="$(pipeline_abi_strong_text_syms "$base")"
   while IFS= read -r sym; do
     [ -n "$sym" ] || continue
-    if nm -gU "$base" 2>/dev/null | awk -v s="$sym" '
-      ($2 == "T" || $2 == "t") && $NF == s { found=1 }
-      END { exit !found }
-    '; then
-      log "pipeline_abi weaken: leftover T still strong after redefine ($sym)"
-      return 1
-    fi
+    case "
+$base_strong
+" in
+      *"
+$sym
+"*)
+        log "pipeline_abi weaken: leftover T still strong after redefine ($sym)"
+        return 1
+        ;;
+    esac
   done <<EOF
 $(nm -gU "$thin" 2>/dev/null | awk '/ [Tt] / { print $NF }')
 EOF
