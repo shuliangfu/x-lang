@@ -51920,8 +51920,8 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
       int32_t sym_shndx;
       int32_t elf_shndx;
       memset(ent, 0, sizeof(ent));
-      is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
-                   g_pipeline_elf_sym_is_common[s] != 0)
+      is_common = (s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                   pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) /* wave672: shndx sole authority (stale sidecar bits misclassified functions as COM) */
                       ? 1
                       : 0;
       /* wave613 root fix: SHN_COMMON (65522) authority fallback — cross-copy
@@ -52690,8 +52690,8 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
     ent[2] = (uint8_t)((str_off >> 16) & 255);
     ent[3] = (uint8_t)((str_off >> 24) & 255);
     /* wave405: COMMON → N_UNDF|N_EXT + n_value=size (linker BSS). Never N_SECT in __text (RX SEGV). */
-    is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
-                 g_pipeline_elf_sym_is_common[s] != 0)
+    is_common = (s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                 pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) /* wave672 */
                     ? 1
                     : 0;
     /* wave613 root fix: SHN_COMMON (65522) authority fallback — cross-copy
@@ -53164,8 +53164,8 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
       int32_t csize;
       int32_t calign;
       memset(ent, 0, sizeof(ent));
-      is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
-                   g_pipeline_elf_sym_is_common[s] != 0)
+      is_common = (s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                   pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) /* wave672: shndx sole authority (stale sidecar bits misclassified functions as COM) */
                       ? 1
                       : 0;
       shndx = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);

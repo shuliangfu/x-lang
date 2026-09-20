@@ -94469,12 +94469,17 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
     unsafe {
       memset(ent, 0, 24 as usize);
     }
+    /* wave672: shndx==65522 is the SOLE common-classification authority
+     * (w670: the ctx entries are identical and correct across modes; the
+     * is_common sidecar carried 269 stale bits on FUNCTION slots under
+     * FORCE_FULL_BODIES and misclassified them GLOBAL+OBJECT+COM — the
+     * force-chain runtime crash). The sidecar remains only as the
+     * size/align lookup for entries already classified common.
+     * PLATFORM: SHARED — all three writers. */
     let is_common: i32 = 0;
-    if (g_pipe_elf_common_owner == ctx_bytes && s < pipe_elf_table_cap()) {
-      unsafe {
-        if (g_pipe_elf_sym_is_common[s] != 0) {
-          is_common = 1;
-        }
+    if (s < pipe_elf_table_cap()) {
+      if (pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+        is_common = 1;
       }
     }
     let shndx: i32 = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
@@ -95014,12 +95019,17 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     unsafe {
       memset(ent, 0, 24 as usize);
     }
+    /* wave672: shndx==65522 is the SOLE common-classification authority
+     * (w670: the ctx entries are identical and correct across modes; the
+     * is_common sidecar carried 269 stale bits on FUNCTION slots under
+     * FORCE_FULL_BODIES and misclassified them GLOBAL+OBJECT+COM — the
+     * force-chain runtime crash). The sidecar remains only as the
+     * size/align lookup for entries already classified common.
+     * PLATFORM: SHARED — all three writers. */
     let is_common: i32 = 0;
-    if (g_pipe_elf_common_owner == ctx_bytes && s < pipe_elf_table_cap()) {
-      unsafe {
-        if (g_pipe_elf_sym_is_common[s] != 0) {
-          is_common = 1;
-        }
+    if (s < pipe_elf_table_cap()) {
+      if (pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+        is_common = 1;
       }
     }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
@@ -95621,12 +95631,17 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
     pipe_elf_store_i32_bytes(ent, 0, str_off);
     let se2: *u8 = pipe_elf_sym_at(ctx_bytes, s);
     let sym_va: i32 = pipe_load_i32_le(se2, pipe_elf_sym_off_offset());
+    /* wave672: shndx==65522 is the SOLE common-classification authority
+     * (w670: the ctx entries are identical and correct across modes; the
+     * is_common sidecar carried 269 stale bits on FUNCTION slots under
+     * FORCE_FULL_BODIES and misclassified them GLOBAL+OBJECT+COM — the
+     * force-chain runtime crash). The sidecar remains only as the
+     * size/align lookup for entries already classified common.
+     * PLATFORM: SHARED — all three writers. */
     let is_common: i32 = 0;
-    if (g_pipe_elf_common_owner == ctx_bytes && s < pipe_elf_table_cap()) {
-      unsafe {
-        if (g_pipe_elf_sym_is_common[s] != 0) {
-          is_common = 1;
-        }
+    if (s < pipe_elf_table_cap()) {
+      if (pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+        is_common = 1;
       }
     }
     /* wave613 root fix: SHN_COMMON (65522) authority fallback. The sidecar
