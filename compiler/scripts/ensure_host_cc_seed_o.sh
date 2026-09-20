@@ -5447,7 +5447,6 @@ pipeline_abi_inject_macho_write_thin() {
   # Keep the prior overlay; LINUX carries the ONE-set. Bisect next wave.
   if [ "$(uname -s)" != "Linux" ]; then
     touch "$stamp"
-    touch "$stamp_prefer"
     return 0
   fi
   case "$(uname -s)" in
@@ -6159,6 +6158,14 @@ pipeline_abi_inject_modlet_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # PLATFORM: MACOS — skip (w644): the modlet thin inject on Darwin breaks
+  # the macho writer (w642: weak-vs-weak race; the pabi .o's platform_macho_write
+  # is ALL-weak from G05_X_O_WEAK=1). LINUX carries the ONE-set.
+  if [ "$(uname -s)" != "Linux" ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    return 0
+  fi
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     return 0
   fi
