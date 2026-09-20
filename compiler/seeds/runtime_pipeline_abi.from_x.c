@@ -9317,6 +9317,16 @@ int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t func_index
   int32_t nfuncs;
   if (!m || func_index < 0)
     return 0;
+  /* wave650: XLANG_ASM_FORCE_FULL_BODIES=1 — full-body escape for the
+   * monofile pure-asm FORCE channel. The Stage 12.0.5 selfhost gates below
+   * deliberately ret0-stub the tail of big selfhost modules (ordinal>=72,
+   * slots>48) because the product hybrid takes those bodies from the C rest;
+   * the FORCE chain replaces that rest, so the mono compile must emit every
+   * body (remaining emit gaps then surface as loud CG002 instead of silent
+   * stubs — the w648/w649 chase ended here, 72/2048 real). Default off =
+   * zero product behavior change. PLATFORM: SHARED. */
+  if (wave119_env_truthy(link_abi_getenv("XLANG_ASM_FORCE_FULL_BODIES")))
+    return 0;
   if (!asm_module_is_compiler_selfhost(m))
     return 0;
   if (asm_module_is_ast_selfhost(m) && asm_env_build_skip_typeck() != 0 && asm_env_entry_emit_heavy() == 0) {
