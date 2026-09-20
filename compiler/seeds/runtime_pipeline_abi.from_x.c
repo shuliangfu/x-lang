@@ -67605,6 +67605,7 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
 extern void pipeline_asm_emit_ctx_sret_active_set(int32_t v);
 extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off);
 extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz);
+extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
 extern void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index);
 extern int32_t asm_ctx_local_count(uint8_t *ctx);
 extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
@@ -67781,22 +67782,16 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
               (int)(plen0 > 0 ? plen0 : 0), (char *)p0);
     }
     /*
-     * >16B return: reserve 8B to save incoming hidden dest (before top-level lets).
-     * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
+     * >16B return: mark sret active + record ret_sz. The 8B hidden-dest slot
+     * is reserved after fill_local_slots (wave692) so 532-byte Type / 1224-byte
+     * Expr locals cannot overlap it. PLATFORM: LINUX+MACOS x86_64 SysV (rdi) ·
+     * MACOS|ARM64 AAPCS64 x8.
      */
     if (ta == 0 || ta == 1) {
       int32_t fn_ret_sz = glue_func_return_byte_size_c(m, a, i);
       if (fn_ret_sz > 16) {
         pipeline_asm_emit_ctx_sret_ret_sz_set(fn_ret_sz);
         pipeline_asm_emit_ctx_sret_active_set(1);
-        /* PLATFORM: WINDOWS leftover-PE — SAT emit_struct_lit intra SAT
-         * sret_active=0 allocates implicit dest at high-end home≈vb
-         * (24B → lea [rbp-0x18] occupying [rbp-24,rbp), which clobbers
-         * sret_home=16). Park the hidden dest pointer 256B above the
-         * current next_offset (compute_frame_size scratch ≥512).
-         * POSIX .x emit_struct_lit takes sret dest and does not overlap. */
-        pipeline_asm_emit_ctx_sret_home_off_set(ctx.next_offset + 256);
-        ctx.next_offset += 8;
       }
     }
     pipeline_asm_register_module_top_level_lets_c(bctx, m, a, i);
@@ -67828,6 +67823,17 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
        * PLATFORM: WINDOWS leftover-PE hybrid. */
       pipeline_asm_fill_local_slots(bctx, a, body_ref);
       pipeline_debug_trace_named_func_bodies("mega_post_fill_local_slots", m, a);
+    }
+    /*
+     * wave692: park the incoming sret dest pointer AFTER body locals.
+     * next_offset+256 (pre-local) left a hole that 532-byte Type / 1224-byte
+     * Expr locals filled, overlapping the saved pointer (force9 get_copy
+     * smash). The home is the reserved slot itself; +8 is the reservation.
+     * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
+     */
+    if ((ta == 0 || ta == 1) && pipeline_asm_emit_ctx_sret_ret_sz_get() > 16) {
+      pipeline_asm_emit_ctx_sret_home_off_set(ctx.next_offset);
+      ctx.next_offset += 8;
     }
     if (backend_enc_prologue_arch(elf_ctx, frame_sz, ta) != 0)
       return -1;

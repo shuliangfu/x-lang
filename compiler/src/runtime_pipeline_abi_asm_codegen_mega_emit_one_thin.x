@@ -92,7 +92,9 @@ export function w393_mega_emit_one(
     pipeline_asm_fill_param_slots(bctx, m, i);
     pipeline_debug_trace_named_func_bodies("mega_post_param_slots" as *u8, m, a);
     /*
-     * >16B return: reserve 8B to save incoming hidden dest (before top-level lets).
+     * >16B return: mark sret active + record ret_sz. The 8B hidden-dest slot
+     * itself is reserved in w499_mega_emit_frame AFTER fill_local_slots
+     * (wave692) so 532-byte Type / 1224-byte Expr locals cannot overlap it.
      * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
      */
     if (ta == 0 || ta == 1) {
@@ -101,8 +103,6 @@ export function w393_mega_emit_one(
       if (v > 16) {
         pipeline_asm_emit_ctx_sret_ret_sz_set(v);
         pipeline_asm_emit_ctx_sret_active_set(1);
-        pipeline_asm_emit_ctx_sret_home_off_set(pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET) + 256);
-        pipe_store_i32_le(bctx, W328_CTX_NEXT_OFFSET, pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET) + 8);
       }
     }
     pipeline_asm_register_module_top_level_lets_c(bctx, m, a, i);

@@ -13,6 +13,8 @@ export extern function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta
 export extern function pipeline_asm_module_func_num_params_at(m: *u8, fi: i32): i32;
 export extern function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, func_index: i32): i32;
 export extern function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
+export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+export extern function pipeline_asm_emit_ctx_sret_home_off_set(off: i32): void;
 export extern function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a: *u8, elf_ctx: *u8, ctx: *u8, m: *u8, func_index: i32, ta: i32): i32;
 export extern function pipeline_asm_hoist_target_func_index(m: *u8): i32;
@@ -44,6 +46,7 @@ function w499f_cptr(base: *u8): *u8 {
 }
 
 const W328_CTX_FRAME_SIZE: i32 = 0;
+const W328_CTX_NEXT_OFFSET: i32 = 4;
 
 /**
  * Frame size + prologue + param home + modlet seed + async cps entry.
@@ -72,6 +75,20 @@ export function w499_mega_emit_frame(
       pipeline_debug_trace_named_func_bodies("mega_post_frame_size" as *u8, m, a);
       pipeline_asm_fill_local_slots(bctx, a, body_ref);
       pipeline_debug_trace_named_func_bodies("mega_post_fill_local_slots" as *u8, m, a);
+    }
+    /*
+     * wave692: park the incoming sret dest pointer AFTER body locals.
+     * next_offset+256 (pre-local) left a hole that 532-byte Type / 1224-byte
+     * Expr locals filled, overlapping the saved pointer (force9 get_copy
+     * smash). The home is the reserved slot itself; +8 is the reservation.
+     * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
+     */
+    if (ta == 0 || ta == 1) {
+      pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_ctx_sret_ret_sz_get());
+      if (w499f_c32(&cell[0]) > 16) {
+        pipeline_asm_emit_ctx_sret_home_off_set(pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET));
+        pipe_store_i32_le(bctx, W328_CTX_NEXT_OFFSET, pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET) + 8);
+      }
     }
     pipe_store_i32_le(&cell[0], 0, backend_enc_prologue_arch(elf_ctx, frame_sz, ta));
     if (w499f_c32(&cell[0]) != 0) { return neg1; }
