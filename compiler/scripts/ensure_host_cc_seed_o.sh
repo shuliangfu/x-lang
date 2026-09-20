@@ -6139,7 +6139,9 @@ pipeline_abi_inject_wpo_dump_thin() {
 }
 
 
-# wave631 M2: modlet family ONE-set — root fix of the w629 dual-table split
+# wave631/646 M2: modlet family ONE-set — root fix of the w629 dual-table split
+# wave646: MACOS skip removed — the strong writer seed (w645,
+#   seeds/pabi_strong_writer.from_x.c) resolves the CG002 writer layer
 #   (rest cold prepare vs chunk-lane weak hot find/load/lea →
 #   addr_of(&module_scalar_cell) CG002 -99 / monofile mov $0).
 #   runtime_pipeline_abi_modlet_thin.x carries the whole family + table +
@@ -6158,14 +6160,6 @@ pipeline_abi_inject_modlet_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: MACOS — skip (w644): the modlet thin inject on Darwin breaks
-  # the macho writer (w642: weak-vs-weak race; the pabi .o's platform_macho_write
-  # is ALL-weak from G05_X_O_WEAK=1). LINUX carries the ONE-set.
-  if [ "$(uname -s)" != "Linux" ]; then
-    touch "$stamp"
-    touch "$stamp_prefer"
-    return 0
-  fi
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
     return 0
   fi
@@ -6183,7 +6177,23 @@ pipeline_abi_inject_modlet_thin() {
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
     touch "$stamp_prefer"
-    log "pipeline_abi w631-modlet: PREFER_ASM replace (ONE-set: prepare/find/load/lea share one table)"
+    # wave645/646: merge the strong writer .o to override the all-weak
+    # G05_X_O_WEAK=1 platform_macho_write (cc -r weak-vs-strong → strong wins).
+    local strong_x="seeds/pabi_strong_writer.from_x.c"
+    local strong_o="src/pabi_strong_writer.o"
+    if [ -f "$strong_x" ] && { [ ! -f "$strong_o" ] || [ "$strong_x" -nt "$strong_o" ]; }; then
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$strong_o" "$strong_x" 2>/dev/null || true
+    fi
+    if [ -s "$strong_o" ]; then
+      local merged_o
+      merged_o="$(mktemp "${TMPDIR:-/tmp}/pabi_strong_merge.XXXXXX")"
+      if cc -r -nostdlib -o "$merged_o" "$o" "$strong_o" 2>/dev/null; then
+        mv -f "$merged_o" "$o"
+      else
+        rm -f "$merged_o" 2>/dev/null || true
+      fi
+    fi
+    log "pipeline_abi w631-modlet: PREFER_ASM replace + strong writer (ONE-set)"
   fi
   return "$rc"
 }
