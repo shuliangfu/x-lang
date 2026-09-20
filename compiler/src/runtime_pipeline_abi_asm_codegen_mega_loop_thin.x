@@ -81,8 +81,8 @@ export extern function w393_mega_emit_one(m: *u8, a: *u8, elf_ctx: *u8, pipeline
 /** LP64 AsmFuncCtx overlay size — match pipeline_glue_AsmFuncCtxLayout. */
 const W328_CTX_SZ: i32 = 1528;
 /** LP64 SHARED — match pure pipe_elf_off_e_machine / reloc_type_r_pc32. */
-const W328_ELF_E_MACHINE_OFF: i32 = 17432600;
-const W328_ELF_RELOC_R_PC32_OFF: i32 = 17432604;
+const W328_ELF_E_MACHINE_OFF: i32 = 30605336;
+const W328_ELF_RELOC_R_PC32_OFF: i32 = 30605340;
 
 /**
  * Per-module asm codegen mega-body loop (WPO/PGO emit order).
