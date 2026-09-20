@@ -175,7 +175,12 @@ export function pipeline_arena_func_set_copy(a: *u8, ref: i32, f: W276_Func): vo
 
 /** Cap rename: ast_pipeline_arena_type_get_copy → pipeline_arena_type_get_copy. */
 export function ast_pipeline_arena_type_get_copy(a: *u8, ref: i32): W276_Type {
-  return pipeline_arena_type_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Type;
+  t683 = pipeline_arena_type_get_copy(a, ref);
+  return t683;
 }
 /** Cap rename: ast_pipeline_arena_type_set_copy → pipeline_arena_type_set_copy. */
 export function ast_pipeline_arena_type_set_copy(a: *u8, ref: i32, t: W276_Type): void {
@@ -183,7 +188,12 @@ export function ast_pipeline_arena_type_set_copy(a: *u8, ref: i32, t: W276_Type)
 }
 /** Cap rename: ast_pipeline_arena_expr_get_copy → pipeline_arena_expr_get_copy. */
 export function ast_pipeline_arena_expr_get_copy(a: *u8, ref: i32): W276_Expr {
-  return pipeline_arena_expr_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Expr;
+  t683 = pipeline_arena_expr_get_copy(a, ref);
+  return t683;
 }
 /** Cap rename: ast_pipeline_arena_expr_set_copy → pipeline_arena_expr_set_copy. */
 export function ast_pipeline_arena_expr_set_copy(a: *u8, ref: i32, e: W276_Expr): void {
@@ -191,7 +201,12 @@ export function ast_pipeline_arena_expr_set_copy(a: *u8, ref: i32, e: W276_Expr)
 }
 /** Cap rename: ast_pipeline_arena_block_get_copy → pipeline_arena_block_get_copy. */
 export function ast_pipeline_arena_block_get_copy(a: *u8, ref: i32): W276_Block {
-  return pipeline_arena_block_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Block;
+  t683 = pipeline_arena_block_get_copy(a, ref);
+  return t683;
 }
 /** Cap rename: ast_pipeline_arena_block_set_copy → pipeline_arena_block_set_copy. */
 export function ast_pipeline_arena_block_set_copy(a: *u8, ref: i32, b: W276_Block): void {
@@ -199,7 +214,12 @@ export function ast_pipeline_arena_block_set_copy(a: *u8, ref: i32, b: W276_Bloc
 }
 /** Cap rename: ast_pipeline_arena_func_get_copy → pipeline_arena_func_get_copy. */
 export function ast_pipeline_arena_func_get_copy(a: *u8, ref: i32): W276_Func {
-  return pipeline_arena_func_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Func;
+  t683 = pipeline_arena_func_get_copy(a, ref);
+  return t683;
 }
 /** Cap rename: ast_pipeline_arena_func_set_copy → pipeline_arena_func_set_copy. */
 export function ast_pipeline_arena_func_set_copy(a: *u8, ref: i32, f: W276_Func): void {
@@ -227,7 +247,12 @@ export function ast_ast_arena_type_set(a: *u8, ref: i32, t: W276_Type): void {
 }
 /** Cap expr get → get_copy. */
 export function ast_ast_arena_expr_get(a: *u8, ref: i32): W276_Expr {
-  return pipeline_arena_expr_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Expr;
+  t683 = pipeline_arena_expr_get_copy(a, ref);
+  return t683;
 }
 /** Cap expr set → set_copy. */
 export function ast_ast_arena_expr_set(a: *u8, ref: i32, e: W276_Expr): void {
@@ -235,7 +260,12 @@ export function ast_ast_arena_expr_set(a: *u8, ref: i32, e: W276_Expr): void {
 }
 /** Cap block get → get_copy. */
 export function ast_ast_arena_block_get(a: *u8, ref: i32): W276_Block {
-  return pipeline_arena_block_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Block;
+  t683 = pipeline_arena_block_get_copy(a, ref);
+  return t683;
 }
 /** Cap block set → set_copy. */
 export function ast_ast_arena_block_set(a: *u8, ref: i32, b: W276_Block): void {
@@ -243,16 +273,31 @@ export function ast_ast_arena_block_set(a: *u8, ref: i32, b: W276_Block): void {
 }
 /** Cap func get → get_copy. */
 export function ast_ast_arena_func_get(a: *u8, ref: i32): W276_Func {
-  return pipeline_arena_func_get_copy(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Func;
+  t683 = pipeline_arena_func_get_copy(a, ref);
+  return t683;
 }
 /** Cap func set → set_copy. */
 export function ast_ast_arena_func_set(a: *u8, ref: i32, f: W276_Func): void {
   pipeline_arena_func_set_copy(a, ref, f);
 }
 
-/** Short alias: ast_arena_type_get → ast_ast_arena_type_get. */
+/** Short alias: ast_arena_type_get → ast_ast_arena_type_get.
+ * wave683: explicit temp (NOT a tail `return f(...)` forward) — the pure
+ * backend's tail-forward path drops the hidden sret pointer when
+ * forwarding a by-value struct return (outer passed (a,ref) as ordinary
+ * args while the inner reads sret layout: real arena discarded, ref=1
+ * read as arena — force-chain arena=1 crash). A named temp forces the
+ * struct through memory so both sides use the ordinary call ABI for
+ * the inner call and the outer's own sret buffer is filled by the
+ * return-copy path. PLATFORM: SHARED. */
 export function ast_arena_type_get(a: *u8, ref: i32): W276_Type {
-  return ast_ast_arena_type_get(a, ref);
+  let t: W276_Type;
+  t = ast_ast_arena_type_get(a, ref);
+  return t;
 }
 /** Short alias: ast_arena_type_set → ast_ast_arena_type_set. */
 export function ast_arena_type_set(a: *u8, ref: i32, t: W276_Type): void {
@@ -260,7 +305,12 @@ export function ast_arena_type_set(a: *u8, ref: i32, t: W276_Type): void {
 }
 /** Short alias: ast_arena_expr_get → ast_ast_arena_expr_get. */
 export function ast_arena_expr_get(a: *u8, ref: i32): W276_Expr {
-  return ast_ast_arena_expr_get(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Expr;
+  t683 = ast_ast_arena_expr_get(a, ref);
+  return t683;
 }
 /** Short alias: ast_arena_expr_set → ast_ast_arena_expr_set. */
 export function ast_arena_expr_set(a: *u8, ref: i32, e: W276_Expr): void {
@@ -268,7 +318,12 @@ export function ast_arena_expr_set(a: *u8, ref: i32, e: W276_Expr): void {
 }
 /** Short alias: ast_arena_block_get → ast_ast_arena_block_get. */
 export function ast_arena_block_get(a: *u8, ref: i32): W276_Block {
-  return ast_ast_arena_block_get(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Block;
+  t683 = ast_ast_arena_block_get(a, ref);
+  return t683;
 }
 /** Short alias: ast_arena_block_set → ast_ast_arena_block_set. */
 export function ast_arena_block_set(a: *u8, ref: i32, b: W276_Block): void {
@@ -276,7 +331,12 @@ export function ast_arena_block_set(a: *u8, ref: i32, b: W276_Block): void {
 }
 /** Short alias: ast_arena_func_get → ast_ast_arena_func_get. */
 export function ast_arena_func_get(a: *u8, ref: i32): W276_Func {
-  return ast_ast_arena_func_get(a, ref);
+  /* wave683: explicit temp, not tail-forward — the pure backend drops
+   * the hidden sret pointer on struct-return tail forwards (arena=1
+   * class). PLATFORM: SHARED. */
+  let t683: W276_Func;
+  t683 = ast_ast_arena_func_get(a, ref);
+  return t683;
 }
 /** Short alias: ast_arena_func_set → ast_ast_arena_func_set. */
 export function ast_arena_func_set(a: *u8, ref: i32, f: W276_Func): void {
