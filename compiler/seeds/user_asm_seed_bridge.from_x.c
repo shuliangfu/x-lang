@@ -104,7 +104,7 @@ struct platform_elf_ElfCodegenCtx {
   int32_t code_len;
   struct platform_elf_ElfLabelEntry labels[16384];
   int32_t num_labels;
-  struct platform_elf_ElfPatchEntry patches[16384];
+  struct platform_elf_ElfPatchEntry patches[65536]; /* wave651: patches-only 65536 */
   int32_t num_patches;
   struct platform_elf_ElfRelocEntry relocs[16384];
   struct platform_elf_ElfRelocSymName64 reloc_sym_names[16384];

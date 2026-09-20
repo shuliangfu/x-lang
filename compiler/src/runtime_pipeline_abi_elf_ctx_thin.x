@@ -95,6 +95,11 @@ function w312_diag_elf_unresolved(name: *u8, name_len: i32): void {
 }
 
 function pipe_elf_table_cap(): i32 { return 16384; }
+/* wave651: FORCE monofile needs ~45K patches (full-body emit);
+ * patches-only raise 16384->65536 (labels/relocs/syms stay 16384).
+ * Shifts every field after patches by +13172736. Seed twins mirror.
+ * PLATFORM: SHARED. */
+function pipe_elf_patch_cap(): i32 { return 65536; }
 function pipe_elf_reloc_heap_cap(): i32 { return 16384; }
 function pipe_elf_reloc_total_cap(): i32 { return 32768; }
 function pipe_elf_code_buf_cap(): i32 { return 8716288; }
@@ -127,23 +132,23 @@ function pipe_elf_off_code_len(): i32 { return 0; }
 function pipe_elf_off_labels(): i32 { return 4; }
 function pipe_elf_off_num_labels(): i32 { return 4325380; }
 function pipe_elf_off_patches(): i32 { return 4325384; }
-function pipe_elf_off_num_patches(): i32 { return 8716296; }
-function pipe_elf_off_relocs(): i32 { return 8716300; }
-function pipe_elf_off_reloc_sym_names(): i32 { return 8847372; }
-function pipe_elf_off_num_relocs(): i32 { return 13041676; }
-function pipe_elf_off_syms(): i32 { return 13041680; }
-function pipe_elf_off_num_syms(): i32 { return 17432592; }
-function pipe_elf_off_sym_name_len(): i32 { return 17432596; }
-function pipe_elf_off_e_machine(): i32 { return 17432600; }
-function pipe_elf_off_reloc_type_r_pc32(): i32 { return 17432604; }
-function pipe_elf_off_current_frame_size(): i32 { return 17432608; }
-function pipe_elf_off_macho_uscore(): i32 { return 17432612; }
-function pipe_elf_off_code_hot_len(): i32 { return 17432616; }
-function pipe_elf_off_emit_hot(): i32 { return 17432620; }
-function pipe_elf_sizeof_access(): i32 { return 17432624; }
-function pipe_elf_off_code_data(): i32 { return 17432624; }
-function pipe_elf_off_code_hot_data(): i32 { return 26148912; }
-function pipe_elf_off_sym_name_data(): i32 { return 27197488; }
+function pipe_elf_off_num_patches(): i32 { return 21889032; }
+function pipe_elf_off_relocs(): i32 { return 21889036; }
+function pipe_elf_off_reloc_sym_names(): i32 { return 22020108; }
+function pipe_elf_off_num_relocs(): i32 { return 26214412; }
+function pipe_elf_off_syms(): i32 { return 26214416; }
+function pipe_elf_off_num_syms(): i32 { return 30605328; }
+function pipe_elf_off_sym_name_len(): i32 { return 30605332; }
+function pipe_elf_off_e_machine(): i32 { return 30605336; }
+function pipe_elf_off_reloc_type_r_pc32(): i32 { return 30605340; }
+function pipe_elf_off_current_frame_size(): i32 { return 30605344; }
+function pipe_elf_off_macho_uscore(): i32 { return 30605348; }
+function pipe_elf_off_code_hot_len(): i32 { return 30605352; }
+function pipe_elf_off_emit_hot(): i32 { return 30605356; }
+function pipe_elf_sizeof_access(): i32 { return 30605360; }
+function pipe_elf_off_code_data(): i32 { return 30605360; }
+function pipe_elf_off_code_hot_data(): i32 { return 39321648; }
+function pipe_elf_off_sym_name_data(): i32 { return 40370224; }
 
 // Label entry sub-offsets
 function pipe_elf_lab_off_name(): i32 { return 0; }
@@ -696,7 +701,7 @@ function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
 }
 
 function pipe_elf_patch_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
+  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_patch_cap()) {
     return pipe_elf_shnx_text();
   }
   if (g_pipe_elf_shndx_sidecar_owner != ctx_bytes || pipe_elf_bss_load_i32(&g_pipe_elf_patch_shndx[0], idx) == 0) {
@@ -706,7 +711,7 @@ function pipe_elf_patch_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
 }
 
 function pipe_elf_patch_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
-  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
+  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_patch_cap()) {
     return;
   }
   g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
@@ -1231,7 +1236,7 @@ export function pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32,
     return -1;
   }
   let np: i32 = w312_load(ctx_bytes, pipe_elf_off_num_patches());
-  if (np >= pipe_elf_table_cap()) {
+  if (np >= pipe_elf_patch_cap()) {
     return -1;
   }
   let bits: i32 = imm_bits;
@@ -1265,7 +1270,7 @@ export function pipeline_elf_ctx_append_patch(ctx_bytes: *u8, rel32_offset: i32,
  */
 #[no_mangle]
 export function pipeline_elf_ctx_patch_imm_bits_at(ctx_bytes: *u8, patch_idx: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || patch_idx < 0 || patch_idx >= pipe_elf_table_cap()) {
+  if (ctx_bytes == 0 as *u8 || patch_idx < 0 || patch_idx >= pipe_elf_patch_cap()) {
     return 0;
   }
   let np: i32 = w312_load(ctx_bytes, pipe_elf_off_num_patches());

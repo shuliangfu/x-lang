@@ -13,6 +13,8 @@
 #include <string.h>
 
 #define RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP 16384
+/* wave651 twin: patches-only 65536 (layout must match pabi ctx). */
+#define RUNTIME_PIPELINE_ELF_CTX_PATCH_CAP 65536
 
 typedef struct {
   uint8_t name[256];
@@ -31,7 +33,7 @@ typedef struct {
   int32_t code_len;
   RuntimePipelineElfLabelEntry labels[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_labels;
-  RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
+  RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_PATCH_CAP];
   int32_t num_patches;
 } RuntimePipelineElfCtxAccess;
 

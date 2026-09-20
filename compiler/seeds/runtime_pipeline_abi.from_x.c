@@ -51067,6 +51067,10 @@ struct codegen_CodegenOutBuf;
 /** ElfCodegenCtx 标签/补丁/重定位/符号表行数；与 platform/elf.x 内联数组维度一致（改须全链 rebuild）。
  * parser EMIT_HEAVY 真 emit 时 num_patches/labels 可上千；4096 与 elf.x 16384 漂移会导致 resolve_patches 失败。 */
 #define PIPELINE_ELF_CTX_TABLE_CAP 16384
+/* wave651: patches-only 65536 for the FORCE monofile full-body emit
+ * (labels/relocs/syms stay 16384). Shifts fields after patches.
+ * Twin of pure pipe_elf_patch_cap. PLATFORM: SHARED. */
+#define PIPELINE_ELF_CTX_PATCH_CAP 65536
 /** 堆 sidecar 扩 reloc 总上限（内联 16384 + heap 16384）。 */
 #define PIPELINE_ELF_CTX_RELOC_TOTAL_CAP 32768
 #define PIPELINE_ELF_CTX_RELOC_HEAP_CAP (PIPELINE_ELF_CTX_RELOC_TOTAL_CAP - PIPELINE_ELF_CTX_TABLE_CAP)
@@ -51120,7 +51124,7 @@ typedef struct {
   int32_t code_len;
   PipelineElfLabelEntry labels[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_labels;
-  PipelineElfPatchEntry patches[PIPELINE_ELF_CTX_TABLE_CAP];
+  PipelineElfPatchEntry patches[PIPELINE_ELF_CTX_PATCH_CAP];
   int32_t num_patches;
   PipelineElfRelocEntry relocs[PIPELINE_ELF_CTX_TABLE_CAP];
   PipelineElfRelocSymName64 reloc_sym_names[PIPELINE_ELF_CTX_TABLE_CAP];
@@ -53829,8 +53833,8 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
   if (!ctx_bytes || !name || name_len < 0)
     return -1;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
-  if (ctx->num_patches >= PIPELINE_ELF_CTX_TABLE_CAP) {
-    pabi_trace( "xlang: elf num_patches limit %d reached\n", PIPELINE_ELF_CTX_TABLE_CAP);
+  if (ctx->num_patches >= PIPELINE_ELF_CTX_PATCH_CAP) {
+    pabi_trace( "xlang: elf num_patches limit %d reached\n", PIPELINE_ELF_CTX_PATCH_CAP);
     return -1;
   }
   bits = imm_bits;
@@ -68046,11 +68050,12 @@ extern uint8_t *pipeline_scratch_buf64_slot(int32_t slot);
 /*
  * LP64 sizeof(struct platform_elf_ElfCodegenCtx) matching pipeline_gen /
  * platform/elf.x layout (labels/patches/relocs/syms ×16384 + code buffers).
- * Measured 27328560 on host; keep in lockstep with ElfCodegenCtx field set.
+ * wave651: measured 40501296 (patches 65536); keep in lockstep with field set.
  * PLATFORM: SHARED LP64 — not host sizeof() (struct incomplete in freestanding).
  */
 #ifndef WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE
-#define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)27328560)
+/* wave651: patches 16384->65536 (+13172736); measured 40501296 on host. */
+#define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)40501296)
 #endif
 
 /* --- platform.elf prefix forwarders (12) --- */
