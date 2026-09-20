@@ -92512,13 +92512,13 @@ export function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *u8): i32 {
 // live here (#[no_mangle]). Residual host-cc leaves deleted; seed cold twins under
 // #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X.
 // PipelineElfCtxAccess LE layout (match elf.x ElfCodegenCtx prefix + glue offsetof):
-//   code_len@0 labels[65536]@4 num_labels@17301508 patches@17301512 num_patches@34865160
-//   relocs@34865164 reloc_sym_names@34996236 num_relocs@39190540 syms@39190544
-//   num_syms@43581456 sym_name_len@43581460 e_machine@43581464 reloc_type_r_pc32@43581468
-//   current_frame_size@43581472 macho_leading_underscore@43581476 code_hot_len@43581480
-//   emit_hot@43581484 sizeof_access=43581488
-//   code_data@43581488 code_hot@52297776 sym_name_data@53346352
-// Caps: TABLE=16384 LABELS=65536 (wave652) PATCHES=65536 (wave651) RELOC_HEAP=16384 RELOC_TOTAL=32768 CODE=8716288 HOT=1048576
+//   code_len@0 labels[16384]@4 num_labels@4325380 patches@4325384 num_patches@21889032
+//   relocs@21889036 reloc_sym_names@22020108 num_relocs@26214412 syms@26214416
+//   num_syms@30605328 sym_name_len@30605332 e_machine@30605336 reloc_type_r_pc32@30605340
+//   current_frame_size@30605344 macho_leading_underscore@30605348 code_hot_len@30605352
+//   emit_hot@30605356 sizeof_access=30605360
+//   code_data@30605360 code_hot@39321648 sym_name_data@40370224
+// Caps: TABLE=16384 PATCHES=65536 (wave651) RELOC_HEAP=16384 RELOC_TOTAL=32768 CODE=8716288 HOT=1048576
 // BSS sidecars (G.7 single authority; was residual statics before write_o include).
 // =============================================================================
 
@@ -92529,10 +92529,6 @@ function pipe_elf_table_cap(): i32 { return 16384; }
  * Shifts every field after patches by +13172736. Seed twins mirror.
  * PLATFORM: SHARED. */
 function pipe_elf_patch_cap(): i32 { return 65536; }
-/* wave652: labels-only 16384->65536 (mono full-body needs ~26K labels;
- * relocs/syms stay 16384). Shifts every field after labels by
- * +12976128. Seed twins mirror. PLATFORM: SHARED. */
-function pipe_elf_label_cap(): i32 { return 65536; }
 function pipe_elf_reloc_heap_cap(): i32 { return 16384; }
 function pipe_elf_reloc_total_cap(): i32 { return 32768; }
 function pipe_elf_code_buf_cap(): i32 { return 8716288; }
@@ -92563,25 +92559,25 @@ function pipe_elf_reloc_heap_esz(): i32 { return 12; }
 // Field offsets inside PipelineElfCtxAccess
 function pipe_elf_off_code_len(): i32 { return 0; }
 function pipe_elf_off_labels(): i32 { return 4; }
-function pipe_elf_off_num_labels(): i32 { return 17301508; }
-function pipe_elf_off_patches(): i32 { return 17301512; }
-function pipe_elf_off_num_patches(): i32 { return 34865160; }
-function pipe_elf_off_relocs(): i32 { return 34865164; }
-function pipe_elf_off_reloc_sym_names(): i32 { return 34996236; }
-function pipe_elf_off_num_relocs(): i32 { return 39190540; }
-function pipe_elf_off_syms(): i32 { return 39190544; }
-function pipe_elf_off_num_syms(): i32 { return 43581456; }
-function pipe_elf_off_sym_name_len(): i32 { return 43581460; }
-function pipe_elf_off_e_machine(): i32 { return 43581464; }
-function pipe_elf_off_reloc_type_r_pc32(): i32 { return 43581468; }
-function pipe_elf_off_current_frame_size(): i32 { return 43581472; }
-function pipe_elf_off_macho_uscore(): i32 { return 43581476; }
-function pipe_elf_off_code_hot_len(): i32 { return 43581480; }
-function pipe_elf_off_emit_hot(): i32 { return 43581484; }
-function pipe_elf_sizeof_access(): i32 { return 43581488; }
-function pipe_elf_off_code_data(): i32 { return 43581488; }
-function pipe_elf_off_code_hot_data(): i32 { return 52297776; }
-function pipe_elf_off_sym_name_data(): i32 { return 53346352; }
+function pipe_elf_off_num_labels(): i32 { return 4325380; }
+function pipe_elf_off_patches(): i32 { return 4325384; }
+function pipe_elf_off_num_patches(): i32 { return 21889032; }
+function pipe_elf_off_relocs(): i32 { return 21889036; }
+function pipe_elf_off_reloc_sym_names(): i32 { return 22020108; }
+function pipe_elf_off_num_relocs(): i32 { return 26214412; }
+function pipe_elf_off_syms(): i32 { return 26214416; }
+function pipe_elf_off_num_syms(): i32 { return 30605328; }
+function pipe_elf_off_sym_name_len(): i32 { return 30605332; }
+function pipe_elf_off_e_machine(): i32 { return 30605336; }
+function pipe_elf_off_reloc_type_r_pc32(): i32 { return 30605340; }
+function pipe_elf_off_current_frame_size(): i32 { return 30605344; }
+function pipe_elf_off_macho_uscore(): i32 { return 30605348; }
+function pipe_elf_off_code_hot_len(): i32 { return 30605352; }
+function pipe_elf_off_emit_hot(): i32 { return 30605356; }
+function pipe_elf_sizeof_access(): i32 { return 30605360; }
+function pipe_elf_off_code_data(): i32 { return 30605360; }
+function pipe_elf_off_code_hot_data(): i32 { return 39321648; }
+function pipe_elf_off_sym_name_data(): i32 { return 40370224; }
 
 // Label entry sub-offsets
 function pipe_elf_lab_off_name(): i32 { return 0; }
@@ -93117,7 +93113,7 @@ function pipe_elf_shndx_sidecar_reset(ctx_bytes: *u8): void {
 }
 
 function pipe_elf_label_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_label_cap()) {
+  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
     return pipe_elf_shnx_text();
   }
   if (g_pipe_elf_shndx_sidecar_owner != ctx_bytes || pipe_elf_bss_load_i32(&g_pipe_elf_label_shndx[0], idx) == 0) {
@@ -93128,7 +93124,7 @@ function pipe_elf_label_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
 
 #[no_mangle]
 export function pipe_elf_label_shndx_set(ctx_bytes: *u8, idx: i32, shndx: i32): void {
-  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_label_cap()) {
+  if (ctx_bytes == 0 as *u8 || idx < 0 || idx >= pipe_elf_table_cap()) {
     return;
   }
   g_pipe_elf_shndx_sidecar_owner = ctx_bytes;
@@ -93385,7 +93381,7 @@ export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: 
     }
     l = l + 1;
   }
-  if (nl >= pipe_elf_label_cap()) {
+  if (nl >= pipe_elf_table_cap()) {
     return -1;
   }
   let li: i32 = nl;

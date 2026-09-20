@@ -51071,9 +51071,6 @@ struct codegen_CodegenOutBuf;
  * (labels/relocs/syms stay 16384). Shifts fields after patches.
  * Twin of pure pipe_elf_patch_cap. PLATFORM: SHARED. */
 #define PIPELINE_ELF_CTX_PATCH_CAP 65536
-/* wave652: labels-only 65536 (mono full-body ~26K labels); relocs/syms stay
- * 16384. Twin of pure pipe_elf_label_cap. PLATFORM: SHARED. */
-#define PIPELINE_ELF_CTX_LABEL_CAP 65536
 /** 堆 sidecar 扩 reloc 总上限（内联 16384 + heap 16384）。 */
 #define PIPELINE_ELF_CTX_RELOC_TOTAL_CAP 32768
 #define PIPELINE_ELF_CTX_RELOC_HEAP_CAP (PIPELINE_ELF_CTX_RELOC_TOTAL_CAP - PIPELINE_ELF_CTX_TABLE_CAP)
@@ -51125,7 +51122,7 @@ typedef struct {
 /** code_data 之前的完整前缀；glue 用 offsetof 取 e_machine / code_data，避免手算偏移漂移。 */
 typedef struct {
   int32_t code_len;
-  PipelineElfLabelEntry labels[PIPELINE_ELF_CTX_LABEL_CAP];
+  PipelineElfLabelEntry labels[PIPELINE_ELF_CTX_TABLE_CAP];
   int32_t num_labels;
   PipelineElfPatchEntry patches[PIPELINE_ELF_CTX_PATCH_CAP];
   int32_t num_patches;
@@ -53644,7 +53641,7 @@ int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t na
     }
     l = l + 1;
   }
-  if (ctx->num_labels >= PIPELINE_ELF_CTX_LABEL_CAP)
+  if (ctx->num_labels >= PIPELINE_ELF_CTX_TABLE_CAP)
     return -1;
   li = ctx->num_labels;
   /* Cap 4.2.8: labels.name is u8[256]; store up to 255 content (was wave580 128). */
@@ -67523,7 +67520,7 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
  *     frame_size@0 next_offset@4 num_locals@8 label_counter@12 module_ref@16
  *     break_len@1240 continue_len@1372 loop_label_depth@1376 dep_pipe@1384
  *     tail_join_label@1392 tail_join_label_len@1520 (sizeof 1528 w/ trailing pad)
- *   Elf e_machine@43581464 reloc_type_r_pc32@43581468 (pure pipe_elf_off_*)
+ *   Elf e_machine@30605336 reloc_type_r_pc32@30605340 (pure pipe_elf_off_*)
  *   DepCtx.target_arch via pipeline_dep_ctx_target_arch pure/seed face
  *   TypeKind f32=14 f64=15 (GLUE_TYPE_KIND_*_ORD)
  *
@@ -67548,8 +67545,8 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
 
 /* LP64 SHARED — match pure pipe_elf_off_e_machine / reloc_type_r_pc32. */
 enum {
-  W290_ELF_E_MACHINE_OFF = 43581464,
-  W290_ELF_RELOC_R_PC32_OFF = 43581468
+  W290_ELF_E_MACHINE_OFF = 30605336,
+  W290_ELF_RELOC_R_PC32_OFF = 30605340
 };
 
 #ifndef W290_GLUE_TYPE_KIND_F32_ORD
@@ -68053,12 +68050,12 @@ extern uint8_t *pipeline_scratch_buf64_slot(int32_t slot);
 /*
  * LP64 sizeof(struct platform_elf_ElfCodegenCtx) matching pipeline_gen /
  * platform/elf.x layout (labels/patches/relocs/syms ×16384 + code buffers).
- * wave652: measured 53477424 (labels+patches 65536); keep in lockstep with field set.
+ * wave651: measured 40501296 (patches 65536); keep in lockstep with field set.
  * PLATFORM: SHARED LP64 — not host sizeof() (struct incomplete in freestanding).
  */
 #ifndef WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE
 /* wave651: patches 16384->65536 (+13172736); measured 40501296 on host. */
-#define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)53477424)
+#define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)40501296)
 #endif
 
 /* --- platform.elf prefix forwarders (12) --- */
