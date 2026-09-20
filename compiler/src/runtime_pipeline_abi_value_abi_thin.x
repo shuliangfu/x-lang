@@ -234,12 +234,28 @@ export function ast_pipeline_arena_func_set_copy(a: *u8, ref: i32, f: W276_Func)
  * PLATFORM: SHARED
  */
 export function ast_ast_arena_type_get(a: *u8, ref: i32): W276_Type {
-  let empty: W276_Type;
+  /* wave689: no tail-forward — the pure backend's `return f(args)` for a
+   * struct-returning callee forwards (sret-buf, args...) correctly, but the
+   * w683 audit found the family inconsistent; keep every struct-returning
+   * wrapper in the explicit-temp form so each hop passes the sret buffer
+   * deliberately (buf in rdi, then a, then ref). PLATFORM: SHARED. */
+  let t: W276_Type;
   if (ref <= 0) {
-    unsafe { memset(&(empty._b[0]), 0, 532 as usize); }
-    return empty;
+    t = empty_type_row();
+    return t;
   }
-  return pipeline_arena_type_get_copy(a, ref);
+  t = pipeline_arena_type_get_copy(a, ref);
+  return t;
+}
+
+/**
+ * Zero W276_Type row (shared by get wrappers' ref<=0 path).
+ * wave689 helper. PLATFORM: SHARED.
+ */
+function empty_type_row(): W276_Type {
+  let e: W276_Type;
+  unsafe { memset(&(e._b[0]), 0, 532 as usize); }
+  return e;
 }
 /** Cap set → pipeline_arena_type_set_copy. */
 export function ast_ast_arena_type_set(a: *u8, ref: i32, t: W276_Type): void {
