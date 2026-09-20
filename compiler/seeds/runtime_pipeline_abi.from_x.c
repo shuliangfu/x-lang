@@ -67832,8 +67832,14 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
      * PLATFORM: LINUX+MACOS x86_64 SysV (rdi) · MACOS|ARM64 AAPCS64 x8.
      */
     if ((ta == 0 || ta == 1) && pipeline_asm_emit_ctx_sret_ret_sz_get() > 16) {
-      pipeline_asm_emit_ctx_sret_home_off_set(ctx.next_offset);
-      ctx.next_offset += 8;
+      /* fill_local_slots may leave next_offset at a >16B let's START.
+       * Skip ret_sz so the 8B dest pointer is not inside the blob
+       * (w693: Type local and sret home both rbp-0x238). Align 8.
+       * PLATFORM: LINUX+MACOS x86_64 SysV / MACOS|ARM64 AAPCS64. */
+      int32_t sret_home = ctx.next_offset + pipeline_asm_emit_ctx_sret_ret_sz_get();
+      sret_home = (sret_home + 7) & ~7;
+      pipeline_asm_emit_ctx_sret_home_off_set(sret_home);
+      ctx.next_offset = sret_home + 8;
     }
     if (backend_enc_prologue_arch(elf_ctx, frame_sz, ta) != 0)
       return -1;

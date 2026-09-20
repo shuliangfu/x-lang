@@ -86,8 +86,15 @@ export function w499_mega_emit_frame(
     if (ta == 0 || ta == 1) {
       pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_ctx_sret_ret_sz_get());
       if (w499f_c32(&cell[0]) > 16) {
-        pipeline_asm_emit_ctx_sret_home_off_set(pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET));
-        pipe_store_i32_le(bctx, W328_CTX_NEXT_OFFSET, pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET) + 8);
+        /* fill_local_slots currently homes a >16B let at next_offset and may
+         * leave next_offset at that let's START (8-byte bump only). Adding
+         * ret_sz skips the under-reserved blob so the 8B dest pointer does
+         * not sit inside the 532B Type / 1224B Expr local (w693 probe: both
+         * at rbp-0x238, memset wiped the saved dest). Align 8. */
+        pipe_store_i32_le(&cell[0], 4, pipe_load_i32_le(bctx, W328_CTX_NEXT_OFFSET) + w499f_c32(&cell[0]));
+        pipe_store_i32_le(&cell[0], 4, (pipe_load_i32_le(&cell[0], 4) + 7) & (0 - 8));
+        pipeline_asm_emit_ctx_sret_home_off_set(pipe_load_i32_le(&cell[0], 4));
+        pipe_store_i32_le(bctx, W328_CTX_NEXT_OFFSET, pipe_load_i32_le(&cell[0], 4) + 8);
       }
     }
     pipe_store_i32_le(&cell[0], 0, backend_enc_prologue_arch(elf_ctx, frame_sz, ta));
