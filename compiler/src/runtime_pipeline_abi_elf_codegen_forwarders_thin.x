@@ -30,7 +30,7 @@ export extern function pipeline_scratch_buf64_slot(slot: i32): *u8;
 /* LP64 sizeof(ElfCodegenCtx); keep lockstep with seed WAVE291 constant. */
 /* wave651: patches 16384->65536 (+13172736). Keep in lockstep with
  * ElfCodegenCtx field set + seed twin. */
-const WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE: i64 = 40501296;
+const WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE: i64 = 53477424;
 
 /**
  * platform.elf prefix → pipeline_elf_ctx_reloc_sym_name_ptr.

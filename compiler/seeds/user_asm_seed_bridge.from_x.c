@@ -102,7 +102,7 @@ struct platform_elf_ElfSymEntry {
 };
 struct platform_elf_ElfCodegenCtx {
   int32_t code_len;
-  struct platform_elf_ElfLabelEntry labels[16384];
+  struct platform_elf_ElfLabelEntry labels[65536]; /* wave652: labels-only 65536 */
   int32_t num_labels;
   struct platform_elf_ElfPatchEntry patches[65536]; /* wave651: patches-only 65536 */
   int32_t num_patches;
