@@ -2004,6 +2004,24 @@ export extern function glue_copy_large_struct_from_rax_ptr_elf_c(
   elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32
 ): i32;
 
+/**
+ * G.7: leftover gcc overlay owns glue_emit_vector_type_let_init_elf_c
+ * (W 0x2c5). FORCE mega T smash first-won leftover W. leftover gcc
+ * let-init / assign SIMD paths CALL leftover gcc this face (non-vector
+ * returns -2). Thins assign_thin / assign_var_try_let /
+ * assign_index_simd_body / assign_field_var_simd /
+ * assign_deref_vec_call / for_call_args export-extern (no body)
+ * — still localize. Mega same-TU remaining callers: 5. Do not leftover-first
+ * skip_heavy, skip_heavy_or_thin_stub parent, rax_plus_rbx_scaled,
+ * local_slot rbx twin, wrapper pipeline_asm_index_elem_byte_sz,
+ * store_retval_pair, or vector children (vector_let_init / var_copy /
+ * binop / simd_try_inline_*). Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -46167,70 +46185,24 @@ export function pipeline_asm_simd_try_inline_binop2_call_elf_c(arena: *u8, elf_c
  * lane binop / CALL inline.
  * FIELD `h.v` and chain `w.h.v` reuse vector_var_copy (stack_off).
  * @return i32 - 0 handled; -1 error; -2 not vector let init
- * G.7 authority (was glue_emit_vector_type_let_init_elf_c).
- * PLATFORM: SHARED freestanding emit.
+ * G.7 leftover gcc overlay owns this face (was mega body).
+ * wave732: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x2c5 (endbr64 sub $0x40) is the sole global. FORCE mega T smash
+ *   first-won leftover gcc. Thins assign_thin / assign_var_try_let /
+ *   assign_index_simd_body / assign_field_var_simd / assign_deref_vec_call /
+ *   for_call_args export-extern (no body) — still localize. Do not leftover-first
+ *   skip_heavy, rax_plus_rbx, local_slot rbx twin, wrapper, store_retval_pair,
+ *   or vector children (vector_let_init / var_copy / binop / simd_try_inline_*).
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-#[no_mangle]
-export function glue_emit_vector_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
-  let ko: i32 = 0;
-  let inl: i32 = 0;
-  let rc: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
-    return 0 - 2;
-  }
-  unsafe {
-    rc = asm_type_is_simd_vector_spelling(arena, type_ref);
-  }
-  if (rc == 0) {
-    return 0 - 2;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
-  }
-  if (ko == 46) {
-    unsafe {
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    }
-  }
-  if (ko == 3 || ko == 44) {
-    /* VAR or FIELD / FIELD-chain source: per-lane copy via stack_off. */
-    return pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-  }
-  unsafe {
-    rc = glue_is_vector_lane_scalar_binop_ko(ko);
-  }
-  if (rc != 0) {
-    return pipeline_asm_emit_vector_binop_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-  }
-  /* CALL=48 and METHOD_CALL=49 (import simd.shuffle/splat/select is METHOD). */
-  if (ko == 48 || ko == 49) {
-    inl = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-    if (inl == 1) {
-      return 0;
-    }
-    inl = pipeline_asm_simd_try_inline_select_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-    if (inl == 1) {
-      return 0;
-    }
-    inl = pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-    if (inl == 1) {
-      return 0;
-    }
-    inl = pipeline_asm_simd_try_inline_fma3_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-    if (inl == 1) {
-      return 0;
-    }
-    inl = pipeline_asm_simd_try_inline_binop2_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-    if (inl == 1) {
-      return 0;
-    }
-    inl = pipeline_asm_simd_try_inline_identity_call_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, type_ref);
-    if (inl == 1) {
-      return 0;
-    }
-  }
-  return 0 - 2;
-}
+// wave732: glue_emit_vector_type_let_init_elf_c is export-extern at file top
+// (leftover gcc W 0x2c5, endbr64 sub $0x40). FORCE mega T smash first-won
+// leftover gcc W. Thins assign_thin / assign_var_try_let /
+// assign_index_simd_body / assign_field_var_simd /
+// assign_deref_vec_call / for_call_args export-extern (no body)
+// — still localize. Do not leftover-first skip_heavy, rax_plus_rbx,
+// local_slot rbx twin, wrapper, store_retval_pair, or vector children.
+// Mega must emit U. leftover gcc overlay provides the body.
 
 /**
  * CTFE: pure 1-param scalar callee eval at known arg const.
