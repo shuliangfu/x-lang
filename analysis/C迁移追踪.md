@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | **w704** FORCE leftover-first emit_fast：mega `export extern` `pipeline_asm_emit_expr_elf_fast`（砸体 `sub $0x2e98` 盖 leftover W 0x1200）。parse_orch emit_one#2 文件级 const 走 leftover fast VAR；localize `resolve_var`（W 0x70b）／`stack_off`（W 0x72）／`asm_module_top_level_const_lit_i32`（W 0x14c）后 **parse_orch `-c` 绿**（26246B／59T）。FORCE L2 五件套绿。产品 overlay 未改。禁整表 localize ~2000 个 FORCE 默认帧 `sub $0x888`。禁 mega FORCE 产品默认。**w703** FORCE 扩探针：hello／option／si／f32＋5 小卫星 thin `-c` 绿。中等 `parse_orch_thin` 曾 CG002 `code_len=699`：mega 砸体先赢 leftover body_sync（`sub $0x8a8`/`$0x5228` 盖 84B／0x22c6）。G.7 mega `export extern`。禁 mega FORCE 产品默认。**w702** mega 不得先赢 WPO emit-order：FORCE mega/thin asm 把 `order_index >= g_aw_pgo_emit_n` 编成 `mov $0`（无 reloc）→ `at()` 恒 −1 → emit_one `i<0` 空成功 → CG002 `code_len=0`。G.7 mega 三面 `export extern`；合链 leftover gcc W（prepare 0x270／count 0x2f／at 0x65）唯一全局。FORCE 两函数 `-o` run=42。产品 overlay 未改。禁 mega FORCE 产品默认。**w701** WAVE273 writers overlay keep-globals 扩到 append_reloc／offset_at／name_len／copy64／shndx_at／sidecar_reset。FORCE 探针过 parse。产品保留 overlay。禁 mega FORCE 产品默认。**w700** leftover ELF UND 帽 256→2048。**w699** FORCE mega `parser_*` 不得盖 parser_x。**w698** leftover-weaken FORCE 全链能链。**w697** leftover compact WAVE273 writer 已入链（**禁** elf_ctx_thin overlay）。**w696** FORCE COMMON size=1＝dual-copy sidecar。**w695** FORCE 全链 get_copy 6 hit 已净。8 EOF 别名 parse-drop。勿复用 w690_force。**w610** param_ptr_slot／w609 add_defs 产品 PREFER_ASM。**w612** Darwin COMMON lea PAGE21。余 PREFER 已双端 U-complete **不 BAN**。mega FORCE 禁。禁 LINUX `-E` emit_ctx BSS。禁 `-E` full fixed_array_copy。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | **w705** FORCE leftover-weaken 12 中等＋8 大卫星 `-c` 绿（含 elf_ctx **用户 `-c`**／modlet／assign）。墙＝`asm_wpo_thin` CG002 `code_len=0`：砸体 `modlet_prepare_and_emit` 返 −1（leftover T 亦砸，无 gcc W 可 leftover-first 该面）。产品 overlay 未改。禁整叶 elf_ctx overlay。禁 mega FORCE 产品默认。**w704** leftover-first emit_fast＋resolve／stack_off／top_level_const_lit；parse_orch `-c` 绿。**w703** hello／option／si／f32＋5 小卫星绿。**w702** mega 不得先赢 WPO emit-order。**w701** writers overlay reloc heap 单权威。**w700** leftover ELF UND 帽 2048。**w699** mega `parser_*` 不得盖 parser_x。**w698** leftover-weaken 全链能链。**w697** leftover compact WAVE273 writer 入链（**禁** elf_ctx_thin overlay）。8 EOF 别名 parse-drop。勿复用 w690_force。**w610** param_ptr_slot／w609 add_defs 产品 PREFER_ASM。**w612** Darwin COMMON lea PAGE21。余 PREFER 已双端 U-complete **不 BAN**。mega FORCE 禁。禁 LINUX `-E` emit_ctx BSS。禁 `-E` full fixed_array_copy。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。禁整表 localize ~2000 个 FORCE 默认帧 `sub $0x888`。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
@@ -255,7 +255,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。下一刀＝FORCE 扩中等卫星（parse_orch 已绿）。禁盲 FORCE mega 入产品；禁 `-E` 当修法；禁升钉；禁整表 localize FORCE 默认帧。  
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。下一刀＝asm_wpo 砸体 `modlet_prepare` 的 callee leftover-first（该面自身无 gcc W）。禁盲 FORCE mega 入产品；禁 `-E` 当修法；禁升钉；禁整表 localize FORCE 默认帧；禁整叶 elf_ctx overlay。  
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
