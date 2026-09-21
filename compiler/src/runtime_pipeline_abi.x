@@ -656,6 +656,10 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // (leftover gcc W 0x64, endbr64 sub $0x20). FORCE mega T smash
 // first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
 // itself. Mega must emit U.
+// wave722: pipeline_asm_emit_lvalue_eff_addr_elf_c is export-extern at file top
+// (leftover gcc W 0x890, endbr64 sub $0x170). FORCE mega T smash
+// first-won leftover gcc W. Thins export-extern (no body). Do not leftover-first
+// skip_heavy itself. Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1847,6 +1851,19 @@ export extern function asm_typeck_m8_tail_thin_delegate_c_name(
  */
 export extern function asm_driver_m8_tail_thin_delegate_c_name(
   m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
+): i32;
+
+/**
+ * G.7: leftover gcc overlay owns pipeline_asm_emit_lvalue_eff_addr_elf_c
+ * (W 0x890, endbr64 sub $0x170). FORCE mega T smash first-won leftover W.
+ * leftover gcc emit_assign (w710) CALLs leftover gcc this face for FIELD/INDEX
+ * /DEREF lvalues. Thins export-extern (no body). Mega same-TU callers already
+ * unsafe. Do not leftover-first skip_heavy or skip_heavy_or_thin_stub parent.
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
+  arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32
 ): i32;
 
 
@@ -67765,187 +67782,16 @@ export function glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena: *u
  * - DEREF (ko==52): emit operand only (pointer bits in rax) — not load of *p.
  *
  * wave185 pure: G.7 authority (was pipeline_asm_emit_lvalue_eff_addr_elf_c Cap residual).
+ * wave722: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x890 (endbr64 sub $0x170) is the sole global. Mega smash T first-won
+ *   leftover gcc. Thins export-extern (no body). Do not leftover-first skip_heavy.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
-#[no_mangle]
-export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32): i32 {
-  let ko: i32 = 0;
-  let vname: u8[256] = [];
-  let vlen: i32 = 0;
-  let off: i32 = 0;
-  let base_ref: i32 = 0;
-  let field_off: i32 = 0;
-  let var_off: i32 = 0;
-  let idx_ref: i32 = 0;
-  let esz: i32 = 0;
-  let op: i32 = 0;
-  let mod: *u8 = 0 as *u8;
-  let soa_stride: i32 = 0;
-  let base_ko: i32 = 0;
-  let rc: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || lval_ref <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, lval_ref);
-  }
-  // VAR (ko==3): local slot lea/load.
-  if (ko == 3) {
-    unsafe {
-      vlen = pipeline_expr_var_name_len(arena, lval_ref);
-    }
-    if (vlen <= 0 || vlen > 255) {
-      return 0 - 1;
-    }
-    unsafe {
-      pipeline_expr_var_name_into(arena, lval_ref, &vname[0]);
-      off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
-    }
-    if (off < 0) {
-      // 9.4.2: non-local binding → module-let COMMON cell (modlet-first,
-      // twin of the generic VAR rvalue path) or same-module fn link
-      // symbol. Address lands in rax/x0 — correct for ADDR_OF consumers
-      // and for store targets alike. Loud -1 only when the name is
-      // neither (`&g` via the first-wins strict_minimal thin reaches
-      // exactly here).
-      mod = pipeline_asm_emit_module_ref_c();
-      if (mod != (0 as *u8)) {
-        unsafe {
-          rc = pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx, mod, &vname[0], vlen, ta);
-        }
-        if (rc == 0) {
-          return 0;
-        }
-      }
-      return 0 - 1;
-    }
-    // Lvalue VAR defaults to lea; *T/T[N] load via holds_indirect + decl type.
-    return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, lval_ref, off, ctx, ta);
-  }
-  // FIELD_ACCESS (ko==44).
-  if (ko == 44) {
-    unsafe {
-      if (pipeline_expr_field_access_is_enum_variant(arena, lval_ref) != 0) {
-        return 0 - 1;
-      }
-      base_ref = pipeline_expr_field_access_base_ref(arena, lval_ref);
-    }
-    if (base_ref <= 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
-    }
-    // VAR base field lvalue: let struct lea / param struct load pointer.
-    if (base_ko == 3) {
-      unsafe {
-        vlen = pipeline_expr_var_name_len(arena, base_ref);
-      }
-      if (vlen <= 0 || vlen > 255) {
-        return 0 - 1;
-      }
-      unsafe {
-        pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
-        var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
-      }
-      if (var_off < 0) {
-        unsafe {
-          var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
-        }
-      }
-      if (var_off < 0) {
-        return 0 - 1;
-      }
-      rc = glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta);
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      mod = pipeline_asm_emit_module_ref_c();
-      unsafe {
-        field_off = glue_field_access_effective_offset_c(arena, mod, lval_ref);
-      }
-      if (field_off != 0) {
-        unsafe {
-          if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-      }
-      return 0;
-    }
-    // DoD-S1: arr[i].field column-major — do not stack AoS INDEX+field_off.
-    if (base_ko == 47) {
-      mod = pipeline_asm_emit_module_ref_c();
-      unsafe {
-        soa_stride = pipeline_expr_field_access_soa_stride(arena, lval_ref);
-      }
-      if (soa_stride <= 0 && mod != (0 as *u8)) {
-        // 8.3.3 host-cc leave: typeck.x authority (no pipeline_typeck_soa.c thin).
-        unsafe {
-          let _soa_rc: i32 = typeck_soa_field_soa_index(mod, arena, lval_ref, base_ref);
-        }
-        unsafe {
-          soa_stride = pipeline_expr_field_access_soa_stride(arena, lval_ref);
-        }
-      }
-      if (soa_stride > 0) {
-        // wave186 pure SoA face (same TU) — no unsafe needed.
-        return glue_emit_soa_index_field_addr_elf_c(arena, elf_ctx, base_ref, lval_ref, ctx, ta);
-      }
-    }
-    // Recurse on base chain.
-    rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    // wave596: *T intermediate only (w.p.f). TYPE_SLICE mid-field is by-value fat —
-    // keep address so outer .length/.data apply to embedded fat (sp.left.length).
-    // INDEX peel of fat.data stays in glue_index_deref_ptr_field_slot_*.
-    if (base_ko == 44) {
-      unsafe {
-        if (glue_field_chain_mid_auto_deref_ptr_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-          return 0 - 1;
-        }
-      }
-    }
-    mod = pipeline_asm_emit_module_ref_c();
-    unsafe {
-      field_off = glue_field_access_effective_offset_c(arena, mod, lval_ref);
-    }
-    if (field_off != 0) {
-      unsafe {
-        if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
-          return 0 - 1;
-        }
-      }
-    }
-    return 0;
-  }
-  // INDEX (ko==47).
-  if (ko == 47) {
-    unsafe {
-      base_ref = pipeline_expr_index_base_ref(arena, lval_ref);
-      idx_ref = pipeline_expr_index_index_ref(arena, lval_ref);
-    }
-    if (base_ref <= 0 || idx_ref <= 0) {
-      return 0 - 1;
-    }
-    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
-    return glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, lval_ref, base_ref, idx_ref, ctx, ta, esz);
-  }
-  // DEREF (ko==52): *p = rhs needs pointer bits in rax (operand only).
-  // PLATFORM: SHARED emit / LINUX freestanding gold (mac host-gcc hid via *(p)=).
-  if (ko == 52) {
-    unsafe {
-      op = pipeline_expr_unary_operand_ref_at(arena, lval_ref);
-    }
-    if (op <= 0) {
-      return 0 - 1;
-    }
-    return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta);
-  }
-  return 0 - 1;
-}
+// wave722: pipeline_asm_emit_lvalue_eff_addr_elf_c is export-extern at file top
+// (leftover gcc W 0x890, endbr64 sub $0x170). FORCE mega T smash first-won
+// leftover gcc W. Thins export-extern (no body). Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Assign lvalue effective address text path (VAR / chained FIELD_ACCESS / INDEX).
