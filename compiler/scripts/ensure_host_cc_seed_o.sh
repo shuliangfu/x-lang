@@ -5565,31 +5565,38 @@ pipeline_abi_darwin_alias_leftover_typed_reloc() {
   return 1
 }
 
-# wave398/493 M2: unused_hints Cap residual.
+# wave398/493/738 M2: unused_hints Cap residual.
 # PRODUCT inject wave493:
 #   tipU heal (no-local mid `x=call()` → tipU 17/17).
-#   tip PREFER → L2 SEGV 0/5 both probes → BAN pure-asm reinject.
-#   LINUX: -E+$CC replace (tipU heal body via host-cc).
-#   MACOS: HARD BAN tip reinject (keep prior w398 PREFER overlay).
+#   tip PREFER → L2 SEGV 0/5 both probes → BAN pure-asm (smash leftover era).
+#   LINUX stayed -E+$CC; MACOS keep w398 PREFER overlay.
+# wave738 M2: standalone -c U-complete both ends (T=7 U=17). Smash leftover
+#   families already -E healed (w598–w608). LINUX product leftover gcc W
+#   (endbr64, sub $0x30, size 0x13b) → PREFER_ASM T (no host-cc).
+#   MACOS keep prior PREFER overlay (do not re-inject Darwin ld -r).
+#   Do not fall back to -E for this TU.
 # G.7: thin body matches runtime_pipeline_abi.x pipeline_typeck_unused_binding_hints.
-# PLATFORM: SHARED · MACOS hard-skip / LINUX -E replace.
+# PLATFORM: SHARED · MACOS keep overlay / LINUX PREFER_ASM replace.
 pipeline_abi_inject_unused_hints_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_unused_hints_thin.x"
   local stamp="src/.pabi_w493_unused_hints.stamp"
+  local stamp_prefer="src/.pabi_w738_unused_hints_prefer.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: MACOS — HARD BAN tip reinject (tip PREFER SEGV @w493).
+  # PLATFORM: MACOS — keep w398 PREFER overlay; do not re-inject.
   if [ "$(uname -s)" != "Linux" ]; then
     touch "$stamp"
+    touch "$stamp_prefer"
     rm -f src/.pabi_w398_unused_hints.stamp
+    log "pipeline_abi w738-unused-hints: MACOS keep prior PREFER overlay"
     return 0
   fi
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  if [ -f "$stamp_prefer" ] && [ ! "$thin_x" -nt "$stamp_prefer" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -5602,10 +5609,10 @@ pipeline_abi_inject_unused_hints_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  # PLATFORM: LINUX — force -E+$CC (tip PREFER SEGV; tipU heal only).
-  unset XLANG_PABI_THIN_PREFER_ASM
+  # PLATFORM: LINUX — product PREFER_ASM first-wins leftover gcc W.
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w493-unused-hints"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w738-unused-hints-prefer"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5622,7 +5629,9 @@ pipeline_abi_inject_unused_hints_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    touch "$stamp_prefer"
     rm -f src/.pabi_w398_unused_hints.stamp
+    log "pipeline_abi w738-unused-hints: LINUX PREFER_ASM replace (no host-cc for this TU)"
   fi
   return "$rc"
 }
@@ -15439,7 +15448,10 @@ case "$MODE" in
     ;;
   inject-unused-hints|inject_unused_hints)
     # wave398: unused_hints PREFER_ASM both ends (stamp + ALLOW_E_REPLACE).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave493: LINUX -E after tip PREFER SEGV. wave738: LINUX PREFER_ASM
+    #   replace leftover gcc W (standalone U-complete; no host-cc).
+    #   MACOS keep prior PREFER overlay.
+    # PLATFORM: SHARED shell · MACOS keep overlay · LINUX gold ingest.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-unused-hints: need <out.o>" >&2
       exit 2

@@ -8,6 +8,8 @@
 // wave398: PRODUCT PREFER_ASM both ends (stamp .pabi_w398_unused_hints.stamp);
 //   standalone -c green Darwin/Ubuntu; was class-E default -E.
 // wave493: no-local mid `x=call()` (tip U starved 4/14); LINUX -E (tip PREFER SEGV).
+// wave738: LINUX product PREFER_ASM replace leftover gcc W (standalone T=7 U=17);
+//   MACOS keep prior PREFER overlay. Do not fall back to -E for this TU.
 // PLATFORM: SHARED freestanding lint · LINUX gold.
 
 export extern function link_abi_getenv(name: *u8): *u8;
