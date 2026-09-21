@@ -3703,11 +3703,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_grow_vec_thin "$o" || true
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
-      pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
-      pipeline_abi_inject_const_lit_is_const "$o" || true
+      pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -3802,11 +3802,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_grow_vec_thin "$o" || true
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
-      pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
-      pipeline_abi_inject_const_lit_is_const "$o" || true
+      pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4265,11 +4265,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_grow_vec_thin "$o" || true
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
-      pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
-      pipeline_abi_inject_const_lit_is_const "$o" || true
+      pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4358,11 +4358,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_grow_vec_thin "$o" || true
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
-      pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
-      pipeline_abi_inject_const_lit_is_const "$o" || true
+      pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4435,11 +4435,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_grow_vec_thin "$o" || true
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
-      pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
-      pipeline_abi_inject_const_lit_is_const "$o" || true
+      pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4520,11 +4520,11 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_grow_vec_thin "$o" || true
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
-      pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
-      pipeline_abi_inject_const_lit_is_const "$o" || true
+      pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -9998,11 +9998,22 @@ pipeline_abi_inject_asm_wpo_thin() {
     log "pipeline_abi w745-asm-wpo-thin: no xlang to -c thin"
     return 0
   }
-  # Skip compile until const_lit sidecar is live (non-weak T). Old leftover
-  # gcc weak folds mutable let init → smash at() → CG002 if prepended.
+  # Skip compile until const_lit sidecar is linked into xlang.
+  # Leftover gcc (Darwin weak / LINUX W) folds mutable let init → smash at().
+  # const_lit.o newer than xlang means this inject pass has not g05'd yet.
   # PLATFORM: SHARED — first g05 after pull keeps cap until this heals.
+  if [ -s src/runtime_pipeline_abi_const_lit.o ] \
+      && [ src/runtime_pipeline_abi_const_lit.o -nt "$xlang" ]; then
+    log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar linked"
+    return 0
+  fi
   if nm -m "$xlang" 2>/dev/null | grep 'asm_module_top_level_const_lit_i32$' \
       | grep -q 'weak'; then
+    log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar live"
+    return 0
+  fi
+  if nm -g "$xlang" 2>/dev/null | grep 'asm_module_top_level_const_lit_i32$' \
+      | grep -q ' W '; then
     log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar live"
     return 0
   fi
@@ -15511,11 +15522,11 @@ case "$MODE" in
     pipeline_abi_inject_grow_vec_thin "$1"
     pipeline_abi_inject_dep_ctx_thin "$1"
     pipeline_abi_inject_elf_ctx_thin "$1"
-    pipeline_abi_inject_asm_wpo_thin "$1"
+    pipeline_abi_inject_const_lit_is_const "$1"
     pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_reloc_typed_page21 "$1"
     pipeline_abi_inject_data_len_dual_bss "$1"
-    pipeline_abi_inject_const_lit_is_const "$1"
+    pipeline_abi_inject_asm_wpo_thin "$1"
     pipeline_abi_inject_sidecar_pool_thin "$1"
     pipeline_abi_inject_value_abi_thin "$1"
     pipeline_abi_inject_block_domain_thin "$1"
@@ -16125,11 +16136,11 @@ case "$MODE" in
       exit 2
     fi
     set +e
-    pipeline_abi_inject_asm_wpo_thin "$1"
+    pipeline_abi_inject_const_lit_is_const "$1"
     pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_reloc_typed_page21 "$1"
     pipeline_abi_inject_data_len_dual_bss "$1"
-    pipeline_abi_inject_const_lit_is_const "$1"
+    pipeline_abi_inject_asm_wpo_thin "$1"
     _irc=$?
     set -e
     exit "$_irc"
