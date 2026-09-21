@@ -1932,6 +1932,22 @@ export extern function glue_try_index_var_or_field_base_to_rax_elf_c(
 
 
 /**
+ * G.7: leftover gcc overlay owns glue_try_index_rvalue_slice_once_elf_c
+ * (W 0xd2e). FORCE mega T smash first-won leftover W. leftover gcc INDEX
+ * scaled (w725) CALLs leftover gcc this face (CALL/METHOD/INDEX/DEREF
+ * TYPE_SLICE rvalue-once). No thin defines this symbol. Mega same-TU
+ * remaining callers after scaled leftover-first: 0. Do not leftover-first
+ * skip_heavy, skip_heavy_or_thin_stub parent, rbx twin, bounds_guard,
+ * or wrapper pipeline_asm_index_elem_byte_sz. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_try_index_rvalue_slice_once_elf_c(
+  arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32,
+  ctx: *u8, ta: i32, esz: i32
+): i32;
+
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -42557,295 +42573,27 @@ export function glue_emit_index_bounds_guard_elf_c(arena: *u8, elf_ctx: *u8, ctx
 /**
  * Call-as-INDEX base evaluated once: materialize TYPE_SLICE CALL/METHOD/INDEX
  * dual-GP into temp, then bounds+addr only load temp (no second base emit).
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param ix_ref i32 - INDEX expr ref (may be 0)
+ * @param base_ref i32 - CALL/METHOD/INDEX/DEREF TYPE_SLICE base
+ * @param idx_ref i32 - index expr
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @param esz i32 - element byte size
  * @return i32 - 0 handled (eff addr in rax); -2 N/A; -1 error
  * wave147 pure: G.7 authority (was static glue_try_index_rvalue_slice_once_elf_c).
+ * wave727: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0xd2e is the sole global. FORCE mega T smash first-won leftover gcc.
+ *   No thin defines this symbol. Do not leftover-first skip_heavy or rbx twin.
  * PLATFORM: SHARED freestanding · LINUX gold.
  */
-#[no_mangle]
-export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
-  let base_ko: i32 = 0;
-  let bty: i32 = 0;
-  let btk: i32 = 0;
-  let dual_gp: i32 = 0;
-  let home: i32 = 0;
-  let base_off: i32 = 0;
-  let ly: *u8 = 0 as *u8;
-  let proven: i32 = 0;
-  let lit_idx: i32 = 0;
-  let lit_slot: i32[1] = [];
-  let ok_lo_len: i32 = 0;
-  let ok_hi_len: i32 = 0;
-  let ok_lo: u8[256] = [];
-  let ok_hi: u8[256] = [];
-  let is_lit: i32 = 0;
-  let off: i32 = 0;
-  let nd: i32 = 0;
-  let rc: i32 = 0;
-  let next_off: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
-    return 0 - 2;
-  }
-  unsafe {
-    base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
-  }
-  // CALL=48 METHOD_CALL=49 INDEX=47 nested rows[i][j]
-  // DEREF=52: `(*p[i])[j]` where p[i] is *[]T — DEREF yields TYPE_SLICE
-  // (16B dual-GP rax:rdx). Without this, base falls through to
-  // glue_emit_slice_length_to_rbx_elf_c non-VAR path which does add 8; load 64
-  // on slice.ptr (data pointer), reading *(data+8) = OOB → panic 134 on x86.
-  if (base_ko != 48 && base_ko != 49 && base_ko != 47 && base_ko != 52) {
-    return 0 - 2;
-  }
-  unsafe {
-    bty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  }
-  if (bty <= 0) {
-    return 0 - 2;
-  }
-  unsafe {
-    btk = pipeline_type_kind_ord_at(arena, bty);
-  }
-  if (btk != 11) {
-    return 0 - 2;
-  }
-  dual_gp = 0;
-  // DEREF(52) of *[]T yields TYPE_SLICE 16B dual-GP (rax=data, rdx=length),
-  // same as METHOD_CALL(49)/INDEX(47) — emit once, store both halves.
-  if (base_ko == 49 || base_ko == 47 || base_ko == 52) {
-    dual_gp = 1;
-  } else {
-    if (base_ko == 48) {
-      unsafe {
-        nd = pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, base_ref);
-      }
-      if (nd == 0) {
-        dual_gp = 1;
-      }
-    }
-  }
-  ly = pipeline_asm_ctx_layout(ctx);
-  if (ly == (0 as *u8)) {
-    return 0 - 1;
-  }
-  base_off = pipe_load_i32_le(ly, pipe_asm_ctx_off_next_offset());
-  if ((base_off % 8) != 0) {
-    base_off = (base_off + 7) / 8 * 8;
-  }
-  home = base_off + 16;
-  if (ta == 1) {
-    next_off = home + 16;
-  } else {
-    next_off = home + 8;
-  }
-  pipe_store_i32_le(ly, pipe_asm_ctx_off_next_offset(), next_off);
-  glue_align_next_offset(ctx);
-  unsafe {
-    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  if (dual_gp != 0) {
-    unsafe {
-      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  } else {
-    // fat*: spill both halves into dual-GP home
-    unsafe {
-      rc = backend_enc_push_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  }
-  // Bounds from materialized length only
-  proven = 0;
-  if (ix_ref > 0) {
-    unsafe {
-      proven = pipeline_expr_index_proven_in_bounds_at(arena, ix_ref);
-    }
-  }
-  if (proven == 0) {
-    is_lit = pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]);
-    if (is_lit != 0) {
-      lit_idx = lit_slot[0];
-      if (lit_idx < 0) {
-        return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-      }
-    }
-    unsafe {
-      ok_lo_len = pipeline_asm_emit_next_label_c(ctx, &ok_lo[0], 64);
-      ok_hi_len = pipeline_asm_emit_next_label_c(ctx, &ok_hi[0], 64);
-    }
-    if (ok_lo_len <= 0 || ok_hi_len <= 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 0, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_jge_arch(elf_ctx, &ok_lo[0], ok_lo_len, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    rc = pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_label_arch(elf_ctx, &ok_lo[0], ok_lo_len, 0, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_load_rbp_to_rbx_arch(elf_ctx, glue_slice_dual_gp_length_off_c(home, ta), ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_add_imm_to_rbx_arch(elf_ctx, 0 - 1, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_jge_arch(elf_ctx, &ok_hi[0], ok_hi_len, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    rc = pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_label_arch(elf_ctx, &ok_hi[0], ok_hi_len, 0, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  }
-  // Effective address: data@home + index * esz → rax
-  is_lit = pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]);
-  if (is_lit != 0) {
-    lit_idx = lit_slot[0];
-    unsafe {
-      rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    if (lit_idx != 0 && esz != 0) {
-      off = lit_idx * esz;
-      if (off != 0) {
-        unsafe {
-          rc = backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-      }
-    }
-    return 0;
-  }
-  // Non-lit: after bounds, index is in rax; move to rbx then load data
-  if (proven != 0) {
-    unsafe {
-      rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  }
-  unsafe {
-    rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
-}
+// wave727: glue_try_index_rvalue_slice_once_elf_c is export-extern at file top
+// (leftover gcc W 0xd2e). FORCE mega T smash first-won leftover gcc W.
+// No thin defines this symbol. Do not leftover-first skip_heavy or rbx twin.
+// Mega must emit U. leftover gcc overlay provides the body.
+
+
 
 /**
  * Full scaled INDEX address entry: try rvalue-once, bounds, lit/fast try forest, then scale.
