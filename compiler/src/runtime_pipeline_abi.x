@@ -652,6 +652,10 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // (leftover gcc W 0xed, endbr64 sub $0x30). FORCE mega T smash
 // first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
 // itself. Mega must emit U.
+// wave721: asm_driver_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0x64, endbr64 sub $0x20). FORCE mega T smash
+// first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
+// itself. Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1830,6 +1834,18 @@ export extern function asm_pipeline_m8_tail_thin_delegate_c_name(
  * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
  */
 export extern function asm_typeck_m8_tail_thin_delegate_c_name(
+  m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
+): i32;
+
+/**
+ * G.7: leftover gcc overlay owns asm_driver_m8_tail_thin_delegate_c_name
+ * (W 0x64, endbr64 sub $0x20). FORCE mega T smash first-won leftover W.
+ * Mega skip_heavy_or_thin_stub CALLs this (already unsafe). No thin copy.
+ * Do not leftover-first skip_heavy or skip_heavy_or_thin_stub parent.
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function asm_driver_m8_tail_thin_delegate_c_name(
   m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
 ): i32;
 
@@ -18638,20 +18654,17 @@ function asm_thin_delegate_emit(out: *u8, out_cap: i32, out_len: *i32, c_name: *
 
 /**
  * Driver/compile M8-tail thin delegate (table empty; guard only).
- * wave116 pure: G.7 single product authority. PLATFORM: SHARED.
+ * wave116 pure: G.7 single product authority.
+ * wave721: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x64 (endbr64 sub $0x20) is the sole global. Mega smash T first-won
+ *   leftover gcc. No thin copy. Do not leftover-first skip_heavy.
+ * PLATFORM: SHARED.
  */
-#[no_mangle]
-export function asm_driver_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
-  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
-    return 0;
-  }
-  if (asm_module_is_driver_compile_selfhost(m) == 0) {
-    return 0;
-  }
-  unsafe {
-    return 0;
-  }
-}
+// wave721: asm_driver_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0x64, endbr64 sub $0x20). FORCE mega T smash first-won
+// leftover gcc W. No thin copy. Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Typeck EMIT_HEAVY M8-tail thin delegate (table empty). Guarded by
