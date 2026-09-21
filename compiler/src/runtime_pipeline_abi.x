@@ -2022,6 +2022,22 @@ export extern function glue_emit_vector_type_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
 ): i32;
 
+/**
+ * G.7: leftover gcc overlay owns pipeline_asm_emit_vector_let_init_elf_c
+ * (W 0x73f). FORCE mega T smash first-won leftover W (`sub $0x13a8`).
+ * leftover gcc vector_type_let_init (w732 W 0x2c5) CALLs leftover gcc this
+ * face for ARRAY_LIT. Thin fixed_array_copy / arr_struct_lit_arrlit
+ * export-extern (no body) — still localize. Mega same-TU remaining callers: 1.
+ * Do not leftover-first skip_heavy, skip_heavy_or_thin_stub parent,
+ * rax_plus_rbx_scaled, local_slot rbx twin, wrapper, store_retval_pair,
+ * or other vector children (var_copy / binop / simd_try_inline_*).
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_asm_emit_vector_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -40402,261 +40418,22 @@ export function pipeline_asm_emit_array_lit_flat_elf_c(arena: *u8, elf_ctx: *u8,
  * @param ta i32 - target arch
  * @param stack_slot_off i32 - destination frame magnitude
  * @return i32 - 0 ok; -1 error
- * wave146 pure: G.7 authority (was static pipeline_asm_emit_vector_let_init_elf_c).
- * PLATFORM: SHARED freestanding · LINUX|x86 high-end · MACOS|ARM64 low-end.
+ * wave146 pure: G.7 leftover gcc overlay owns this face (was mega body).
+ * wave733: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x73f (endbr64 sub $0x80) is the sole global. FORCE mega T smash
+ *   (`sub $0x13a8`) first-won leftover gcc. Thin fixed_array_copy /
+ *   arr_struct_lit_arrlit export-extern (no body) — still localize.
+ *   Do not leftover-first skip_heavy, rax_plus_rbx, local_slot rbx twin,
+ *   wrapper, store_retval_pair, or other vector children.
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-#[no_mangle]
-export function pipeline_asm_emit_vector_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32 {
-  let n_arr: i32 = 0;
-  let esz: i32 = 0;
-  let ai: i32 = 0;
-  let elem_ref: i32 = 0;
-  let store_sz: i32 = 0;
-  let flat_i: i32 = 0;
-  let has_nested: i32 = 0;
-  let elem_ty: i32 = 0;
-  let ko: i32 = 0;
-  let elem_home: i32 = 0;
-  let st: i32 = 0;
-  let may_clobber: i32 = 0;
-  let rc: i32 = 0;
-  let etk: i32 = 0;
-  let noff: i32 = 0;
-  let len_spill: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, init_ref);
-  }
-  if (ko != 46) {
-    return 0 - 1;
-  }
-  unsafe {
-    n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
-  }
-  if (n_arr <= 0 || n_arr > 1024) {
-    return 0 - 1;
-  }
-  has_nested = 0;
-  ai = 0;
-  while (ai < n_arr && ai < 1024) {
-    unsafe {
-      elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-    }
-    if (elem_ref > 0) {
-      unsafe {
-        ko = pipeline_expr_kind_ord_at(arena, elem_ref);
-      }
-      if (ko == 46) {
-        has_nested = 1;
-        break;
-      }
-    }
-    ai = ai + 1;
-  }
-  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, init_ref);
-  if (elem_ty > 0) {
-    unsafe {
-      etk = pipeline_type_kind_ord_at(arena, elem_ty);
-    }
-  }
-  if (has_nested != 0 && etk != 11) {
-    esz = pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena, init_ref);
-    if (esz <= 0) {
-      esz = 4;
-    }
-    flat_i = 0;
-    return pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off, esz, &flat_i);
-  }
-  esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, init_ref);
-  if (esz <= 0) {
-    esz = 4;
-  }
-  store_sz = esz;
-  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {
-    store_sz = 4;
-  }
-  ai = 0;
-  while (ai < n_arr && ai < 1024) {
-    unsafe {
-      elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-    }
-    if (elem_ref == 0) {
-      ai = ai + 1;
-      continue;
-    }
-    unsafe {
-      ko = pipeline_expr_kind_ord_at(arena, elem_ref);
-    }
-    // TYPE_SLICE row: durable + explicit n_arr, not flatten / 4B store.
-    // PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
-    if (etk == 11) {
-      if (ta == 1) {
-        elem_home = stack_slot_off + ai * esz;
-      } else {
-        elem_home = stack_slot_off - ai * esz;
-      }
-      if (elem_home < 0) {
-        return 0 - 1;
-      }
-      st = glue_emit_slice_from_array_let_init_elf_c(arena, elf_ctx, 0, 0, elem_ref, elem_ty, ctx, ta, elem_home);
-      if (st == 1) {
-        ai = ai + 1;
-        continue;
-      }
-      if (st == 0 - 1) {
-        return 0 - 1;
-      }
-      noff = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
-      if (noff + 16 < noff) {
-        return 0 - 1;
-      }
-      noff = noff + 16;
-      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), noff);
-      len_spill = noff;
-      unsafe {
-        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, elem_ref, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_spill, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, elem_home, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, len_spill, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(elem_home, ta), ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      ai = ai + 1;
-      continue;
-    }
-    /* SIMD named elem (`let arr:[2]i32x4 = [z, z]`): dest is the
-     * real frame home. Scalar emit_expr of a 16B VAR loads dual-GP
-     * into x0+x1 and clobbers dest-in-x1; `str [x1]` with z high=0
-     * is Darwin 139. G.7: glue_emit_vector_type_let_init (VAR copy
-     * / CALL / lane ARRAY_LIT) before struct let-init.
-     * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-    if (ta == 1) {
-      elem_home = stack_slot_off + ai * esz;
-    } else {
-      elem_home = stack_slot_off - ai * esz;
-    }
-    if (elem_home < 0) {
-      return 0 - 1;
-    }
-    if (elem_ty <= 0) {
-      unsafe {
-        noff = pipeline_expr_resolved_type_ref(arena, elem_ref);
-      }
-    } else {
-      noff = elem_ty;
-    }
-    if (noff > 0) {
-      unsafe {
-        st = glue_emit_vector_type_let_init_elf_c(
-            arena, elf_ctx, elem_ref, ctx, ta, elem_home, noff);
-      }
-      if (st == 0) {
-        ai = ai + 1;
-        continue;
-      }
-      if (st == 0 - 1) {
-        return 0 - 1;
-      }
-    }
-    if (esz > 8 || ko == 45) {
-      if (elem_ty > 0) {
-        unsafe {
-          st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, elem_ty, elem_home);
-        }
-      } else {
-        unsafe {
-          st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, elem_ref, ctx, ta, 0, elem_home);
-        }
-      }
-      if (st == 0) {
-        ai = ai + 1;
-        continue;
-      }
-      if (st == 0 - 1) {
-        return 0 - 1;
-      }
-    }
-    unsafe {
-      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      may_clobber = glue_expr_emit_may_clobber_rbx_elf_c(arena, elem_ref);
-      /* G.7 ≡ emit_array_lit_force_esz scalar path (wave617 f32 pack authority).
-       * PLATFORM: SHARED freestanding · Vec4f/f32xN let-init pure-asm gold. */
-      rc = glue_array_lit_emit_scalar_elem_to_rax_elf_c(arena, elf_ctx, init_ref, elem_ref, ctx, ta, esz);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    if (may_clobber != 0) {
-      unsafe {
-        rc = backend_enc_push_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-    }
-    unsafe {
-      rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, ai * esz, store_sz, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    ai = ai + 1;
-  }
-  return 0;
-}
+// wave733: pipeline_asm_emit_vector_let_init_elf_c is export-extern at file top
+// (leftover gcc W 0x73f, endbr64 sub $0x80). FORCE mega T smash first-won
+// leftover gcc W (`sub $0x13a8`). Thin fixed_array_copy /
+// arr_struct_lit_arrlit export-extern (no body) — still localize.
+// Do not leftover-first skip_heavy, rax_plus_rbx, local_slot rbx twin,
+// wrapper, store_retval_pair, or other vector children.
+// Mega must emit U. leftover gcc overlay provides the body.
 
 /**
  * Arch-aware frame magnitude of a struct field at byte offset foff from Outer byte0.
@@ -40800,7 +40577,9 @@ export function glue_struct_lit_store_fixed_array_field_elf_c(arena: *u8, elf_ct
     } else if (n_arr > 1024) {
       return 0 - 1;
     } else if (sret_direct == 0) {
-      return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, src, ctx, ta, field_mag);
+      unsafe {
+        return pipeline_asm_emit_vector_let_init_elf_c(arena, elf_ctx, src, ctx, ta, field_mag);
+      }
     } else {
       unsafe {
         sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
