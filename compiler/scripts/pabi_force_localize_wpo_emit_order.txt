@@ -30,9 +30,33 @@
 # (`sub $0x8c8`) first-won leftover W 0x14c. Keep rec on this list
 # (thin W 0x48 stub must not first-win leftover rec W 0x6a1).
 #
+# wave706: FORCE mega T of pipe_modlet_bake_scalar_imm_to_data
+# (`sub $0x8c8` / cltq) returns -1 on asm_wpo_thin wave344
+# `g_aw_root_id = -1` .data bake. gdb: add_common_sym/add_label/
+# append_data_zeros/emit_data_len all 0; bake#1 eax=-1 → prepare
+# eax=-1 → mega_body eax=-1 → CG002 code_len=0. Leftover pabi T
+# of bake is also smash (`sub $0x8a8`) but product gdb bake eax=0.
+# Inner leftover gcc W pipeline_elf_ctx_data_poke_u8 (0x4c) must
+# not lose to mega T / elf_ctx_thin W. Localize bake + poke so
+# leftover bake T (weaken→W) and leftover poke W are sole globals.
+# Also localize modlet_thin bake W and elf_ctx_thin poke W.
+# Do NOT leftover-first prepare itself: leftover smash prepare + mega
+# assign_unique_label mismatch (add_common_sym rdx=name_len 0). Mega
+# smash prepare DID register COMMON (rdx=0x15) then failed at bake.
+# Root of bake -1: leftover gcc poke (0x4c) sees data_len=0 after leftover
+# gcc append W 0xa2 returns 0. Mega smash emit_data_len (`sub $0x888`)
+# still first-wins leftover gcc W 0x22 of the same overlay TU (RIP-load
+# of g_pipeline_elf_data_len). Localize the leftover gcc data family:
+# emit_data_len + append_data_zeros + data_poke_u8. Do not leftover-first
+# prepare (modlet table mismatch). Also leftover-first bake so mega smash
+# bake (`sub $0x8c8`) cannot first-win leftover smash bake that product
+# gdb showed eax=0.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
+# AND runtime_pipeline_abi_modlet_thin.o
+# AND runtime_pipeline_abi_elf_ctx_thin.o
 # before `ld -r --allow-multiple-definition` (mono then thins then
 # leftover-weak pabi). objcopy --localize-symbols this list.
 #
@@ -52,3 +76,7 @@ pipeline_asm_emit_expr_elf_fast
 glue_call_arg_resolve_var_stack_off_elf_c
 glue_var_expr_stack_off_elf_c
 asm_module_top_level_const_lit_i32
+pipe_modlet_bake_scalar_imm_to_data
+pipeline_elf_ctx_data_poke_u8
+pipeline_elf_ctx_append_data_zeros
+pipeline_elf_ctx_emit_data_len

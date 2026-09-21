@@ -1510,6 +1510,43 @@ export extern function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8
  */
 export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 
+/**
+ * G.7: leftover WAVE273 gcc overlay owns F7 data-section length.
+ * FORCE mega T smash (`sub $0x888`) first-won leftover W 0x22 and RIP-loads
+ * mega `g_pipe_elf_data_len`, not leftover `g_pipeline_elf_data_len`.
+ * Same-TU localize of mega T still binds prepare's CALL to mega local t.
+ * Mega must emit U so leftover gcc W is the sole global.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_emit_data_len(ctx_bytes: *u8): i32;
+
+/**
+ * G.7: leftover WAVE273 gcc overlay owns F7 append-zeros (grows data_len).
+ * FORCE mega T smash (`sub $0x898` / cltq) first-won leftover W 0xa2.
+ * gdb asm_wpo: mega smash append $rip, leftover gcc poke then sees data_len=0.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32;
+
+/**
+ * G.7: leftover WAVE273 gcc overlay owns F7 data poke (0x4c, RIP data_len).
+ * FORCE mega T first-won smash poke; leftover gcc poke requires leftover
+ * gcc append to have grown the same BSS. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32;
+
+/**
+ * G.7: leftover smash T of bake_scalar_imm_to_data is the working body
+ * (product gdb eax=0; mega smash `sub $0x8c8` eax=-1). No leftover gcc W
+ * of this face. Same-TU localize still binds mega prepare to mega local t.
+ * Mega must emit U so leftover T (weaken→W) is the sole global.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover pabi T provides the body.
+ */
+export extern function pipe_modlet_bake_scalar_imm_to_data(
+  elf_ctx: *u8, data_off: i32, imm: i32, csz: i32
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -33907,65 +33944,8 @@ export function pipeline_asm_modlet_prepare_and_emit_elf_c(m: *u8, a: *u8, elf_c
 
 }
 
-/**
- * Bake a scalar module-let immediate into an already-reserved .data cell.
- * wave344: library Cap TUs never run seed_nonzero; non-zero COMMON stays 0.
- * Peels two's-complement LE bytes via u32 (same as ARRAY_LIT LIT peel).
- * Sign-extends into bytes beyond 4 when csz>=8 (NEG -1 → 0xff..ff).
- * @param elf_ctx *u8 — ElfCodegenCtx*
- * @param data_off i32 — absolute .data offset of the cell
- * @param imm i32 — folded init (may be negative)
- * @param csz i32 — cell payload bytes (1..8 typical; capped at 8)
- * @return i32 — 0 ok; -1 poke fail / bad args
- * PLATFORM: SHARED freestanding · ELF .data · Mach-O __DATA,__const.
- */
-function pipe_modlet_bake_scalar_imm_to_data(
-  elf_ctx: *u8, data_off: i32, imm: i32, csz: i32
-): i32 {
-  let bi: i32 = 0;
-  let n: i32 = 0;
-  let rc: i32 = 0;
-  let uw: u32 = 0;
-  let hi: u32 = 0;
-  if (elf_ctx == (0 as *u8) || data_off < 0 || csz <= 0) {
-    return 0 - 1;
-  }
-  n = csz;
-  if (n > 8) {
-    n = 8;
-  }
-  // Same unsigned LE peel as ARRAY_LIT LIT elems (signed /256 corrupts).
-  uw = imm as u32;
-  bi = 0;
-  while (bi < n && bi < 4) {
-    unsafe {
-      rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (uw & 255) as i32);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    uw = uw / 256;
-    bi = bi + 1;
-  }
-  // Sign-extend into bytes 4..7 for 8-byte cells (NEG -1 → 0xff..ff).
-  if (bi < n) {
-    hi = 0;
-    if (imm < 0) {
-      hi = 4294967295 as u32;
-    }
-    while (bi < n) {
-      unsafe {
-        rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (hi & 255) as i32);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      hi = hi / 256;
-      bi = bi + 1;
-    }
-  }
-  return 0;
-}
+// wave706: pipe_modlet_bake_scalar_imm_to_data is export-extern at file top
+// (leftover pabi smash T, product gdb eax=0). Mega must not emit a competing T.
 
 /**
  * Bake ARRAY_LIT constant elems into an already-reserved .data cell.
@@ -91939,13 +91919,8 @@ export function pipeline_elf_ctx_reset_data(ctx_bytes: *u8): void {
  * F7: Current data section length (bytes already emitted to data buf).
  * PLATFORM: SHARED freestanding ELF leave.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_emit_data_len(ctx_bytes: *u8): i32 {
-  if (ctx_bytes == 0 as *u8) {
-    return 0;
-  }
-  return g_pipe_elf_data_len;
-}
+// wave706: pipeline_elf_ctx_emit_data_len is export-extern at file top
+// (leftover WAVE273 gcc W 0x22). Mega must not emit a competing T.
 
 /**
  * F7: Pointer to data section buffer start.
@@ -91994,31 +91969,8 @@ export function pipeline_elf_ctx_append_data_u32_le(ctx_bytes: *u8, word: u32): 
  * @return i32 — 0 ok; -1 overflow/null
  * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32 {
-  if (ctx_bytes == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (n <= 0) {
-    return 0;
-  }
-  if (g_pipe_elf_data_len < 0) {
-    g_pipe_elf_data_len = 0;
-  }
-  if (g_pipe_elf_data_len + n > 65536) {
-    return 0 - 1;
-  }
-  let off: i32 = g_pipe_elf_data_len;
-  let i: i32 = 0;
-  while (i < n) {
-    unsafe {
-      g_pipe_elf_data_buf[off + i] = 0 as u8;
-    }
-    i = i + 1;
-  }
-  g_pipe_elf_data_len = off + n;
-  return 0;
-}
+// wave706: pipeline_elf_ctx_append_data_zeros is export-extern at file top
+// (leftover WAVE273 gcc W 0xa2). Mega must not emit a competing T.
 
 /**
  * F7: Poke one byte into an already-reserved data-section offset.
@@ -92028,16 +91980,8 @@ export function pipeline_elf_ctx_append_data_zeros(ctx_bytes: *u8, n: i32): i32 
  * @return i32 — 0 ok; -1 OOB/null
  * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || off < 0 || off >= g_pipe_elf_data_len) {
-    return 0 - 1;
-  }
-  unsafe {
-    g_pipe_elf_data_buf[off] = (b & 255) as u8;
-  }
-  return 0;
-}
+// wave706: pipeline_elf_ctx_data_poke_u8 is export-extern at file top
+// (leftover WAVE273 gcc W 0x4c). Mega must not emit a competing T.
 
 /**
  * F7: Set/clear shndx override. When set to 4 (data section), subsequent
