@@ -12,11 +12,14 @@
 //   `runtime_pipeline_abi_wpo_dump_orch_thin.x` tip -c can emit export in
 //   isolation but append mid `blen=call()` tipU still incomplete — PRODUCT
 //   stays w498 -E (no orch inject yet).
-// wave611 M2: standalone -c is now U-complete (Darwin T=24 UND=39; Ubuntu
-//   T=30 UND=39) after w597 grow_vec -E, but product PREFER is not:
-//   Darwin g05 ld rejects BRANCH26 on COMMON Lxml adrp; Ubuntu dump path
-//   SEGV 139 (*i32 store class). Smash leftover dump still writes JSON.
-//   Stay LINUX -E / MACOS overlay. Do not PREFER. orch stays HARD BAN.
+// wave611 M2: standalone -c is U-complete (Darwin T=24 UND=39; Ubuntu
+//   T=24 UND=39) after w597 grow_vec -E. Historic product PREFER walls:
+//   Darwin BRANCH26 on COMMON Lxml adrp (r_address=0x3454) — closed w743
+//   PAGE21 sidecar; Ubuntu dump SEGV 139 was TEXT-pinned COMMON (w613).
+// wave746 M2: leftover from_x rebuild wiped the PREFER overlay (live dump
+//   was leftover gcc Darwin weak / LINUX W). Re-PREFER when live dump is
+//   leftover gcc weak/W. Product PREFER_ASM both ends (JSON v2 233B).
+//   orch stamp skip stays (not this knife). Do not gcc -E as the repair.
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
 export extern function link_abi_getenv(name: *u8): *u8;

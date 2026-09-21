@@ -6087,21 +6087,20 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
   return 0
 }
 
-# wave396/498/502/503/514/594/611/613/615 M2: wpo_dump Cap residual.
+# wave396/498/502/503/514/594/611/613/615/746 M2: wpo_dump Cap residual.
 # wave498: tip PREFER omitted export (Ubuntu file-tail parse_skip from
 #   append_i32 onward). LINUX stayed -E; MACOS stamp-only keep overlay.
 # wave597: grow_vec -E restored realloc/mmap; standalone -backend asm -c
 #   of this helpers thin now emits append_i32 + the export both ends
-#   (Darwin T=24 UND=39; Ubuntu T=30 UND=39). Live product export is
-#   leftover smash PREFER (Ubuntu sub $0x7368 no endbr64; Darwin 7x
-#   subsp #0xfff+#0x377). Current thin is sub $0xa18 / #0xa20.
+#   (Darwin T=24 UND=39; Ubuntu T=24 UND=39).
 # wave611 M2 diagnose:
 #   · Darwin current-thin -c is U-complete but g05 ld rejects
 #     ARM64_RELOC_BRANCH26 on COMMON Lxml adrp+add (r_address=0x3454 in
 #     w502_wpo_collect_all). Origin = untyped default reloc on file-level
 #     let lea; authority = glue_asm_lea_rax_common_adrp_arm64 PAGE21/12.
-#     FIXED by wave612 (leftover modlet lea → live elf_ctx typed reloc;
-#     standalone thin now PAGE21-on-adrp / BRANCH26-on-bl only).
+#     FIXED by wave612 / re-closed wave743 leftover-gcc reloc sidecar
+#     (standalone thin PAGE21-on-adrp / BRANCH26-on-bl only; r_address
+#     0x3454 is now PAGE21 on _Lxml_f091ea8477a2a1c3).
 #   · Ubuntu current-thin PREFER first-wins links and L2 5/5 (getenv unset),
 #     but XLANG_WPO_DUMP_CALLGRAPH dump path SEGV 139. Smash leftover dump
 #     still writes JSON v2. Same class as orch *i32 store (w594 BAN).
@@ -6111,11 +6110,16 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 #     Fixed by the ctx shndx==65522 single-authority classification.
 # wave613 M2: MACOS product PREFER_ASM (dump probe JSON v2 green, L2 5/5).
 # wave615 M2: LINUX product PREFER_ASM re-verify on top of the w613 COMMON
-#   fix + w614 dual-end L4 (ELF writer side shipped). This TU is now zero
-#   host-cc on BOTH ends. Do not -E as a new repair on either end.
-#   orch thin PREFER both ends since wave622 (w594 SEGV was the w613 class).
+#   fix + w614 dual-end L4 (ELF writer side shipped).
+# wave746 M2: leftover from_x rebuild wiped the PREFER overlay (live dump
+#   is leftover gcc Darwin weak / LINUX W, endbr64 sub $0x1c0) while
+#   w615 stamps still skipped. Standalone thin is U-complete both ends
+#   (T=24 U=39, Lxml COMMON, Darwin PAGE21=52 PAGOF12=52 nsects=1).
+#   Re-PREFER when live dump is leftover gcc weak/W. Do not gcc -E as
+#   the repair. Do not Darwin ld -r merge a two-segment thin (this thin
+#   is nsects=1 + COMMON). orch stamp skip stays (not this knife).
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
-# PLATFORM: SHARED · PREFER_ASM both ends (main + orch).
+# PLATFORM: SHARED · PREFER_ASM both ends (main); orch stamp-gated.
 pipeline_abi_inject_wpo_dump_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_wpo_dump_thin.x"
@@ -6171,7 +6175,14 @@ pipeline_abi_inject_wpo_dump_thin() {
   #   fix shipped and dual-end-L4-verified in w614 (@45f8c48ec). Stamp-gated
   #   identically on both platforms.
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
-    return 0
+    # w746: leftover from_x rebuild wipes PREFER but stamps still skip.
+    # Re-inject when live dump is leftover gcc Darwin weak / LINUX W.
+    # PLATFORM: SHARED nm — Darwin `nm -m` "weak"; LINUX `nm -g` " W ".
+    if ! nm -m "$o" 2>/dev/null | grep 'pipeline_typeck_wpo_dump_callgraph$' | grep -q 'weak' \
+      && ! nm -g "$o" 2>/dev/null | grep 'pipeline_typeck_wpo_dump_callgraph$' | grep -q ' W '; then
+      return 0
+    fi
+    log "pipeline_abi w746-wpo-dump: live leftover gcc weak/W; re-PREFER"
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -6184,10 +6195,11 @@ pipeline_abi_inject_wpo_dump_thin() {
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   # PLATFORM: SHARED — product PREFER_ASM both ends (wave613 MACOS,
-  #   wave615 LINUX re-verify after the w613/w614 COMMON + cold-chain fixes).
+  #   wave615 LINUX re-verify after the w613/w614 COMMON + cold-chain fixes;
+  #   wave746 leftover-wipe re-PREFER).
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w615-wpo-dump-prefer"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w746-wpo-dump-prefer"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -6205,8 +6217,9 @@ pipeline_abi_inject_wpo_dump_thin() {
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
     touch "$stamp_prefer"
+    touch src/.pabi_w746_wpo_dump_prefer.stamp
     rm -f src/.pabi_w611_wpo_dump_prefer.stamp src/.pabi_w613_wpo_dump_prefer.stamp
-    log "pipeline_abi w615-wpo-dump: PREFER_ASM replace (no host-cc for this TU)"
+    log "pipeline_abi w746-wpo-dump: PREFER_ASM replace (no host-cc for this TU)"
   fi
   return "$rc"
 }
@@ -15714,6 +15727,7 @@ case "$MODE" in
     # wave498: LINUX -E helpers. wave611: standalone PREFER U-complete;
     #   product PREFER blocked on the COMMON misclassification. wave613
     #   fixed it (MACOS PREFER); wave615: PREFER both ends.
+    # wave746: leftover rebuild wipe → re-PREFER when live dump is weak/W.
     # PLATFORM: SHARED shell · PREFER_ASM both ends.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-wpo-dump: need <out.o>" >&2
