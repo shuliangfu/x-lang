@@ -5192,8 +5192,13 @@ pipeline_abi_inject_reent_deep_copy_thin() {
 #     leftover PREFER smash T (sub $0xac8, no endbr64) returned 0 so CALL-arg
 #     T[N] loaded the payload as a pointer. HARD BAN PREFER helpers.
 #     Do not -E the full thin (LINUX XT001 / remaining exports BAN).
+# wave749: classify thin frame. Live unique = leftover gcc W of the same
+#   glue (Darwin weak sub #0x180 / LINUX W endbr64 sub $0x160 size 0x58e).
+#   Standalone -c still smash (sub $0xbc8 / #0xbd0). Stamp skip correct.
+#   Do NOT re-PREFER (dest-overwrite). Do NOT gcc -E as the repair.
+#   Not leftover-first. Not the w748 assign_index inline class.
 # G.7: helpers export matches mega glue_call_arg_var_use_lea_not_load_elf_c.
-# PLATFORM: SHARED · MACOS stamp-only / LINUX helpers -E.
+# PLATFORM: SHARED · MACOS stamp-only / LINUX helpers -E (historical; BAN tip -E).
 pipeline_abi_inject_fixed_array_copy_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_fixed_array_copy_helpers_thin.x"
@@ -5204,6 +5209,7 @@ pipeline_abi_inject_fixed_array_copy_thin() {
   case "$(uname -s)" in
     Darwin)
       # PLATFORM: MACOS — overlay already leas CALL-arg T[N].
+      # wave749: stamp skip keeps weak live; HARD BAN PREFER smash thin.
       if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
         return 0
       fi
@@ -5215,6 +5221,7 @@ pipeline_abi_inject_fixed_array_copy_thin() {
       ;;
     Linux)
       # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      # wave749: stamp skip keeps leftover gcc W live; re-PREFER / tip -E BAN.
       if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
         return 0
       fi

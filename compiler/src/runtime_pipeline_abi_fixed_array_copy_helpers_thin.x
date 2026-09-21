@@ -5,6 +5,13 @@
 //   Darwin overlay already leas. LINUX product path is gcc -E of this thin
 //   (HARD BAN PREFER). MACOS stamp-only keep overlay. Do not -E the full
 //   fixed_array_copy thin (LINUX XT001 / remaining exports BAN).
+// wave749: classify thin frame — NOT leftover-wipe. Live unique is leftover
+//   gcc W glue_call_arg_var_use_lea_not_load_elf_c (Darwin weak sub #0x180 /
+//   LINUX W endbr64 sub $0x160 size 0x58e). Stamp skip keeps that W.
+//   Standalone -c T=2 U=19 nsects=1 still smash (Darwin sub #0xbd0 /
+//   LINUX push+sub $0xbc8, no endbr64). Re-PREFER would dest-overwrite
+//   healthy leftover W with smash T. HARD BAN PREFER remains. Do not
+//   gcc -E as the repair. Do not leftover-first.
 // call_arg_lea_query_store always runs the lea-vs-load queries into one
 //   byte cell so the export can branch on pipe_load. module_ref is only a
 //   call argument. Null-mod short-circuit is tip-approximate.
