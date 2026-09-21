@@ -1989,6 +1989,21 @@ export extern function glue_local_var_slot_needs_ptr_load_elf_c(
   arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8
 ): i32;
 
+/**
+ * G.7: leftover gcc overlay owns glue_copy_large_struct_from_rax_ptr_elf_c
+ * (W 0x482). FORCE mega T smash first-won leftover W. leftover gcc
+ * store_retval_pair (W 0x2bb) CALLs leftover gcc this face (>16B CALL
+ * memcpy). Thins assign_thin / assign_deref_* export-extern (no body)
+ * — still localize. Mega same-TU remaining callers: 5. Do not leftover-first
+ * skip_heavy, skip_heavy_or_thin_stub parent, rax_plus_rbx_scaled,
+ * local_slot rbx twin, wrapper pipeline_asm_index_elem_byte_sz, or
+ * store_retval_pair itself. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_copy_large_struct_from_rax_ptr_elf_c(
+  elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -70211,183 +70226,21 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
  * wave204 pure: G.7 helper for store_retval_pair and >16B VAR let-init
  * (was Cap residual static). Same-TU public so let-init can lea-src then copy.
  * dest-in-rbx (-3): rax=src, dest already in rbx/x19 (pointer / INDEX FIELD).
+ *
+ * wave731: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x482 (endbr64 sub $0x40) is the sole global. FORCE mega T smash
+ *   first-won leftover gcc. Thins assign_thin / assign_deref_* export-extern
+ *   (no body) — still localize. Do not leftover-first skip_heavy, rax_plus_rbx,
+ *   local_slot rbx twin, wrapper, or store_retval_pair itself.
  * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-#[no_mangle]
-export function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32 {
-  let memcpy_sym: u8[8] = [];
-  let rc: i32 = 0;
-  // "memcpy"
-  memcpy_sym[0] = 109 as u8;
-  memcpy_sym[1] = 101 as u8;
-  memcpy_sym[2] = 109 as u8;
-  memcpy_sym[3] = 99 as u8;
-  memcpy_sym[4] = 112 as u8;
-  memcpy_sym[5] = 121 as u8;
-  memcpy_sym[6] = 0 as u8;
-  /* Frame dest stays >16B (≤16B dual-GP). dest-in-rbx ≥8B memcpy is
-   * the VAR dest-in-rbx path (DEREF / pointer FIELD / ARRAY `[2]i32`).
-   * PLATFORM: SHARED — do not lower the frame dest gate. */
-  if (elf_ctx == (0 as *u8) || (ta != 0 && ta != 1) || sz < 8) {
-    return 0 - 1;
-  }
-  if (sz <= 16 && slot_off != (0 - 3)) {
-    return 0 - 1;
-  }
-  /* dest-in-rbx: dest already in rbx (x86) / x19 (ARM64 dest-shadow).
-   * Do not mov_rax_to_rbx — that would clobber dest with src.
-   * PLATFORM: SHARED — pointer / INDEX FIELD dest. */
-  if (slot_off == (0 - 3)) {
-    if (ta == 1) {
-      unsafe {
-        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      unsafe {
-        return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
-      }
-    }
-    unsafe {
-      rc = backend_enc_push_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
-    }
-  }
-  /* ARM64: x0=src after leave-addr. Park src@x1, n@x2, dest@x0 last.
-   * PLATFORM: MACOS|ARM64 AAPCS64 — ≡ sret memcpy order (arg0≡x0). */
-  if (ta == 1) {
-    unsafe {
-      rc = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
-    }
-  }
-  unsafe {
-    rc = backend_enc_push_rax_arch(elf_ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_pop_rax_arch(elf_ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    return backend_enc_call_arch(elf_ctx, &memcpy_sym[0], 6, ta);
-  }
-}
+// wave731: glue_copy_large_struct_from_rax_ptr_elf_c is export-extern at file top
+// (leftover gcc W 0x482, endbr64 sub $0x40). FORCE mega T smash first-won
+// leftover gcc W. Thins assign_thin / assign_deref_* export-extern (no body)
+// — still localize. Do not leftover-first skip_heavy, rax_plus_rbx,
+// local_slot rbx twin, wrapper, or store_retval_pair itself.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Store CALL/METHOD/INDEX/expr result into a let stack slot (rax half first;
@@ -70434,7 +70287,9 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       ko = pipeline_expr_kind_ord_at(arena, init_ref);
     }
     if (ko == 48 || ko == 49 || ko == 47) {
-      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+      unsafe {
+        return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
+      }
     }
   }
   // 9–16B CALL returning struct16 via rax-pointer may need *rax → dual-GP first.
