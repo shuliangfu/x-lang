@@ -5918,35 +5918,44 @@ pipeline_abi_inject_assign_index_thin() {
   return "$rc"
 }
 
-# wave409/419/431/495 M2: asm_expr Cap residual — asymmetric unlock.
+# wave409/419/431/495/739 M2: asm_expr Cap residual — asymmetric unlock.
 # PRODUCT inject wave495:
 #   tipU heal (no-local mid `x=call()` → tipU 35/35 both full+helpers).
 #   tip helpers PREFER → L2 FAIL (rv=232／opt SEGV／hello) → BAN pure-asm.
 #   MACOS: PREFER_ASM full thin (stamp w495).
-#   LINUX: -E+$CC helpers (stamp w495 helpers; tipU heal via host-cc).
-#     Full tip reinject still BAN on LINUX.
+#   LINUX: stayed -E+$CC helpers (stamp w495 helpers; tipU heal via host-cc).
+#     Full emit_expr_elf_c tip reinject still BAN on LINUX.
+# wave739 M2: standalone -c U-complete both ends (helpers T=2 U=35). Smash
+#   leftover families already -E healed (w598–w608). LINUX product leftover
+#   gcc W rec (endbr64, sub $0x50, size 0x6a1) → PREFER_ASM T (no host-cc).
+#   MACOS keep prior full-thin PREFER overlay (do not re-inject Darwin ld -r).
+#   Do not fall back to -E for this TU. Full emit_expr_elf_c tip still BAN.
 # G.7: thin body matches mega; LINUX leftover holds emit_expr_elf_c tip.
-# PLATFORM: SHARED · MACOS full PREFER / LINUX helpers -E.
+# PLATFORM: SHARED · MACOS full PREFER keep / LINUX helpers PREFER_ASM.
 pipeline_abi_inject_asm_expr_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_expr_thin.x"
   local stamp="src/.pabi_w495_asm_expr.stamp"
+  local stamp_prefer="src/.pabi_w739_asm_expr_helpers_prefer.stamp"
   local saved_newer="${XLANG_PABI_THIN_INJECT_IF_NEWER-}"
   local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
   local saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE-}"
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
-  local force_e=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: LINUX — helpers -E (tip PREFER BAN @w495).
-  case "$(uname -s)" in
-    Linux)
-      thin_x="src/runtime_pipeline_abi_asm_expr_helpers_thin.x"
-      stamp="src/.pabi_w495_asm_expr_helpers.stamp"
-      force_e=1
-      ;;
-  esac
-  if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
+  # PLATFORM: MACOS — keep w495 full PREFER overlay; do not re-inject.
+  if [ "$(uname -s)" != "Linux" ]; then
+    touch "$stamp"
+    touch "$stamp_prefer"
+    rm -f src/.pabi_w419_asm_expr.stamp src/.pabi_w409_asm_expr.stamp src/.pabi_w431_asm_expr_helpers.stamp
+    log "pipeline_abi w739-asm-expr: MACOS keep prior full PREFER overlay"
+    return 0
+  fi
+  # PLATFORM: LINUX — helpers PREFER_ASM first-wins leftover gcc W rec.
+  thin_x="src/runtime_pipeline_abi_asm_expr_helpers_thin.x"
+  stamp="src/.pabi_w495_asm_expr_helpers.stamp"
+  [ -f "$thin_x" ] || return 0
+  if [ -f "$stamp_prefer" ] && [ ! "$thin_x" -nt "$stamp_prefer" ]; then
     return 0
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
@@ -5959,15 +5968,9 @@ pipeline_abi_inject_asm_expr_thin() {
     had_e_repl=1
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  if [ "$force_e" = "1" ]; then
-    # PLATFORM: LINUX — force -E+$CC (tip PREFER product FAIL @w495).
-    unset XLANG_PABI_THIN_PREFER_ASM
-  else
-    # PLATFORM: MACOS — PREFER_ASM full thin.
-    export XLANG_PABI_THIN_PREFER_ASM=1
-  fi
+  export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w495-asm-expr"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w739-asm-expr-helpers-prefer"
   rc=$?
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -5984,7 +5987,9 @@ pipeline_abi_inject_asm_expr_thin() {
   fi
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
+    touch "$stamp_prefer"
     rm -f src/.pabi_w419_asm_expr.stamp src/.pabi_w409_asm_expr.stamp src/.pabi_w431_asm_expr_helpers.stamp
+    log "pipeline_abi w739-asm-expr: LINUX PREFER_ASM replace (no host-cc for rec TU)"
   fi
   return "$rc"
 }
@@ -15690,7 +15695,10 @@ case "$MODE" in
     ;;
     inject-asm-expr|inject_asm_expr)
     # wave419: MACOS full PREFER / LINUX HARD BAN (helpers product opt=255).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave495: LINUX helpers -E after tip PREFER L2 FAIL.
+    # wave739: LINUX helpers PREFER_ASM replace leftover gcc W rec
+    #   (standalone U-complete; no host-cc). MACOS keep full overlay.
+    # PLATFORM: SHARED shell · MACOS keep overlay · LINUX gold ingest.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-asm-expr: need <out.o>" >&2
       exit 2

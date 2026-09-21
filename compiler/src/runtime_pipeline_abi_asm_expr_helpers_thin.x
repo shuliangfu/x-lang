@@ -2,6 +2,10 @@
 // G.7: body MUST match pipeline_asm_emit_expr_elf_rec in asm_expr_thin / mega.
 // wave431: LINUX -E PREFER (pure-asm product opt=255; -E L2 5/5).
 //   MACOS still uses full asm_expr_thin PREFER_ASM.
+// wave495: tipU heal; helpers PREFER L2 FAIL → LINUX stayed -E+$CC.
+// wave739: LINUX product PREFER_ASM replace leftover gcc W rec
+//   (standalone T=2 U=35); MACOS keep full thin overlay.
+//   Do not fall back to -E for this TU. Full emit_expr_elf_c tip still BAN.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
