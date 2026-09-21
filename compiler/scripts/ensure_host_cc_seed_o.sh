@@ -6049,6 +6049,11 @@ pipeline_abi_inject_asm_expr_thin() {
 #   already `strb`. LINUX -E replace leftover T. HARD BAN PREFER.
 #   MACOS keep Darwin overlay. Do not Soft-Cap. Do not BAN the other
 #   remaining U-complete PREFER families.
+# wave750: classify thin frame. Live unique = leftover gcc W of the three
+#   exports (Darwin weak / LINUX W endbr64 small frames). Standalone -c
+#   still smash (sub $0xb38 / #0xb40 on elem_byte_sz). Stamp skip correct.
+#   Do NOT re-PREFER (dest-overwrite). Do NOT gcc -E as the repair.
+#   Not leftover-first. Same class as w749 call_arg_lea (W live, smash thin).
 # G.7: thin body matches runtime_pipeline_abi.x. PLATFORM: SHARED.
 pipeline_abi_inject_fnptr_array_esz_thin() {
   local o="$1"
@@ -6059,6 +6064,7 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
   case "$(uname -s)" in
     Darwin)
       # PLATFORM: MACOS — overlay already stores u8 ARRAY_LIT as strb.
+      # wave750: stamp skip keeps weak live; HARD BAN PREFER smash thin.
       if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
         return 0
       fi
@@ -6069,6 +6075,7 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
       ;;
     Linux)
       # PLATFORM: LINUX — -E replace smash leftover PREFER T.
+      # wave750: stamp skip keeps leftover gcc W live; re-PREFER / tip -E BAN.
       if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
         return 0
       fi

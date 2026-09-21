@@ -17,6 +17,13 @@
 //   stores i32 (`mov %eax, off(%rbx)`) instead of byte. LINUX -E of this
 //   complete thin replaces leftover T (TYPE_U8=2 → 1). HARD BAN PREFER.
 //   MACOS keep Darwin overlay (already strb). Do not Soft-Cap.
+// wave750: classify thin frame — NOT leftover-wipe. Live unique is leftover
+//   gcc W of the three exports (Darwin weak sub #0xf0/#0xa0/#0xf0 /
+//   LINUX W endbr64 sub $0x50/$0x40/$0x50). Stamp skip keeps that W.
+//   Standalone -c T=5 U=15 nsects=1 still smash (Darwin sub #0xb40/#0x8b0/
+//   #0xad0 / LINUX push+sub $0xb38/$0x8a8/$0xac8, no endbr64). Re-PREFER
+//   would dest-overwrite healthy leftover W with smash T. HARD BAN PREFER
+//   remains. Do not gcc -E as the repair. Do not leftover-first.
 // PLATFORM: SHARED freestanding sizing · LINUX gold · MACOS underscore.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
