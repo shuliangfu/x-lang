@@ -1903,6 +1903,21 @@ export extern function pipeline_asm_index_elem_byte_sz_c(
 
 
 /**
+ * G.7: leftover gcc overlay owns glue_emit_index_eff_addr_scaled_elf_c
+ * (W 0x73e). FORCE mega T smash first-won leftover W. leftover gcc INDEX
+ * / lvalue_eff_addr / assign CALLs leftover gcc this face (index_i32 gdb
+ * HIT). Thins export-extern (no body). Mega same-TU callers already unsafe.
+ * Do not leftover-first skip_heavy or skip_heavy_or_thin_stub parent.
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_emit_index_eff_addr_scaled_elf_c(
+  arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32,
+  ctx: *u8, ta: i32, esz: i32
+): i32;
+
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -42830,218 +42845,16 @@ export function glue_try_index_rvalue_slice_once_elf_c(arena: *u8, elf_ctx: *u8,
  * @param esz i32 - element byte size
  * @return i32 - 0 ok; -1 error
  * wave147 pure: G.7 authority (was glue_emit_index_eff_addr_scaled_elf_c Cap residual).
+ * wave725: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x73e is the sole global. FORCE mega T smash first-won leftover gcc.
+ *   Thins export-extern (no body). Do not leftover-first skip_heavy.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 co-path.
  */
-#[no_mangle]
-export function glue_emit_index_eff_addr_scaled_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32 {
-  let vr: i32 = 0;
-  let lit_imm: i32 = 0;
-  let lit_slot: i32[1] = [];
-  let once_rc: i32 = 0;
-  let is_lit: i32 = 0;
-  let br: i32 = 0;
-  let off: i32 = 0;
-  let mr: i32 = 0;
-  let rc: i32 = 0;
-  once_rc = glue_try_index_rvalue_slice_once_elf_c(arena, elf_ctx, ix_ref, base_ref, idx_ref, ctx, ta, esz);
-  if (once_rc == 0) {
-    return 0;
-  }
-  if (once_rc == 0 - 1) {
-    return 0 - 1;
-  }
-  rc = glue_emit_index_bounds_guard_elf_c(arena, elf_ctx, ctx, ta, ix_ref, base_ref, idx_ref);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  // Literal index: base→rax then add imm*esz
-  is_lit = pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]);
-  if (is_lit != 0) {
-    lit_imm = lit_slot[0];
-    unsafe {
-      br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    }
-    if (br == 0 - 2) {
-      unsafe {
-        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-    } else {
-      if (br != 0) {
-        return 0 - 1;
-      }
-    }
-    if (lit_imm != 0 || esz != 0) {
-      off = lit_imm * esz;
-      if (off != 0) {
-        unsafe {
-          rc = backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta);
-        }
-        if (rc != 0) {
-          return 0 - 1;
-        }
-      }
-    }
-    return 0;
-  }
-  unsafe {
-    mr = glue_try_index_var_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_plus_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_plus_var_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_var_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_mul_var_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_plus_var_plus_var_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_var_plus_var_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_var_minus_var_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_add3_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_var_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_add3_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_subadd3_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_subsub3_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  unsafe {
-    mr = glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta, esz);
-  }
-  if (mr == 0) {
-    return 0;
-  }
-  if (mr == 0 - 1) {
-    return 0 - 1;
-  }
-  vr = glue_try_index_base_rax_index_rbx_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta);
-  if (vr == 0 - 1) {
-    return 0 - 1;
-  }
-  if (vr == 0 - 2) {
-    rc = glue_finish_index_base_rax_index_rbx_slow_elf_c(arena, elf_ctx, base_ref, idx_ref, ctx, ta);
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  }
-  return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
-}
+// wave725: glue_emit_index_eff_addr_scaled_elf_c is export-extern at file top
+// (leftover gcc W 0x73e). FORCE mega T smash first-won leftover gcc W.
+// Thins export-extern (no body). Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Text path: local VAR slot address (*T/T[N] load ptr, else lea stack slot).
