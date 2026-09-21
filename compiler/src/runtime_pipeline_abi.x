@@ -92518,11 +92518,12 @@ function pipe_elf_shnx_unlikely(): i32 { return 3; }
  * PLATFORM: SHARED freestanding ELF leave.
  */
 function pipe_elf_shnx_data(): i32 { return 4; }
-/* wave679: 256 -> 2048 — the FORCE full-body mono needs 256+ UND faces
- * (it saturates exactly 256); every face past the cap lost its undef
- * entry, its relocs' r_sym resolution fell to 0, and the .o carried
- * 971 anonymous PLT32s (force-chain gv_alloc crash). Workspace rows
- * are 128B name + 4B len (wave580 layout). PLATFORM: SHARED. */
+/* wave679/.x: 256 -> 2048. wave700: leftover C write_o still used
+ * stack[256] (this function was W and unused by leftover); FORCE mega
+ * saturates 256 UND, calloc/mmap PLT32 r_sym=0, pipe_gv_alloc_bytes
+ * calls 0. Leftover from_x.c now twins this cap with BSS rows.
+ * Workspace rows are 128B name + 4B len (wave580 layout).
+ * PLATFORM: SHARED. */
 function pipe_elf_undef_cap(): i32 { return 2048; }
 function pipe_elf_macho_undef_cap(): i32 { return 256; }
 function pipe_elf_pgo_undef_cap(): i32 { return 32; }

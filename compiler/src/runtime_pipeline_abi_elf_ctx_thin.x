@@ -118,7 +118,10 @@ function pipe_elf_shnx_unlikely(): i32 { return 3; }
  * PLATFORM: SHARED freestanding ELF leave.
  */
 function pipe_elf_shnx_data(): i32 { return 4; }
-function pipe_elf_undef_cap(): i32 { return 256; }
+/* wave700: 256 -> 2048. Twin of mega pipe_elf_undef_cap. Leftover write_o
+ * stack[256] dropped calloc/mmap → PLT32 r_sym=0. Workspace rows stay
+ * 128B name + i32 len (wave580). PLATFORM: SHARED ELF writer. */
+function pipe_elf_undef_cap(): i32 { return 2048; }
 function pipe_elf_macho_undef_cap(): i32 { return 256; }
 function pipe_elf_pgo_undef_cap(): i32 { return 32; }
 function pipe_elf_codegen_out_cap(): i32 { return 9437184; }
@@ -202,8 +205,8 @@ let g_pipe_elf_label_mod_scope_base: i32 = 0;
 let g_pipe_elf_label_mod_scope_active: i32 = 0;
 
 // Writer workspace (avoids huge pure stack frames; single-threaded compile)
-let g_pipe_elf_ws_undef_names: u8[32768] = [];
-let g_pipe_elf_ws_undef_lens: u8[1024] = [];
+let g_pipe_elf_ws_undef_names: u8[262144] = []; /* wave700: 2048 rows x 128B (was 256) */
+let g_pipe_elf_ws_undef_lens: u8[8192] = []; /* wave700: 2048 x i32 */
 let g_pipe_elf_ws_und_src: u8[1024] = [];
 let g_pipe_elf_ws_und_lens: u8[1024] = [];
 let g_pipe_elf_ws_pgo_undef_names: u8[4096] = [];

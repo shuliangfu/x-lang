@@ -51692,7 +51692,16 @@ static int32_t pipeline_elf_call_reloc_type(PipelineElfCtxAccess *ctx, uint8_t *
   return ctx->reloc_type_r_pc32;
 }
 
-#define PIPELINE_ELF_UNDEF_SYM_CAP 256
+/* wave700: FORCE full-body unique UND saturates 256. Leftover stack
+ * undef_names[256][128] silently dropped calloc/mmap (and ~1K other faces)
+ * so write_o emitted R_X86_64_PLT32 with r_sym=0 → call-to-0 inside
+ * pipe_gv_alloc_bytes. Twin of runtime_pipeline_abi.x::pipe_elf_undef_cap()
+ * (already 2048). File-scope BSS, not 256KB auto — the compiler stack is
+ * already deep in parse/typeck/codegen when this writer runs.
+ * PLATFORM: LINUX ELF writer (linked SHARED; unused on Darwin Mach-O path). */
+#define PIPELINE_ELF_UNDEF_SYM_CAP 2048
+static uint8_t g_pipeline_elf_undef_names[PIPELINE_ELF_UNDEF_SYM_CAP][128];
+static int32_t g_pipeline_elf_undef_lens[PIPELINE_ELF_UNDEF_SYM_CAP];
 
 /** 向 ELF64 Rela 条目 bytes[16..23] 写入 signed 64-bit r_addend（须全 8 字节符号扩展，勿只写低 32 位）。 */
 static void pipeline_elf_rela_set_addend64(uint8_t *rela_buf, int64_t addend) {
@@ -51730,8 +51739,8 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   uint8_t *data_buf;
   int32_t strtab_off;
   int32_t num_undef;
-  uint8_t undef_names[PIPELINE_ELF_UNDEF_SYM_CAP][128];
-  int32_t undef_lens[PIPELINE_ELF_UNDEF_SYM_CAP];
+  uint8_t (*undef_names)[128];
+  int32_t *undef_lens;
   int32_t strtab_size;
   int32_t symtab_ents;
   int32_t symtab_size;
@@ -51776,6 +51785,8 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
   if (data_len < 0)
     data_len = 0;
   data_buf = &g_pipeline_elf_data_buf[0];
+  undef_names = g_pipeline_elf_undef_names;
+  undef_lens = g_pipeline_elf_undef_lens;
   num_undef = 0;
   r0 = 0;
   while (r0 < ctx->num_relocs) {
