@@ -8,7 +8,12 @@
 // G.7: complete mega pipeline_asm_emit_return_elf_impl EXIT (operand emit
 // then jmp ly[1392..] tail_join). sret/array Path A–C stay on leftover
 // helpers via emit_expr of the operand. Do not un-BAN arr_return Soft-Cap.
-// PRODUCT: LINUX -E replace leftover T; HARD BAN PREFER; MACOS overlay.
+// PRODUCT: LINUX leftover gcc W overlay; HARD BAN PREFER; MACOS overlay.
+// wave740 Class A: wrap remaining export-extern calls in unsafe so
+// standalone `-backend asm -c` is no longer T001. Small-file
+// `let x=call(); if` UND-drop is green both ends; this thin is T=1 U=7
+// after the wrap. Do not product-PREFER this simplified exit (leftover
+// gcc W already run=7; Path A–C stay on leftover).
 // PLATFORM: SHARED · LINUX gold · MACOS.
 
 export extern function pipeline_asm_ctx_layout(ctx: *u8): *u8;
@@ -29,7 +34,8 @@ export extern function backend_enc_jmp_arch(elf_ctx: *u8, name: *u8, name_len: i
  * @param ctx *u8 — AsmFuncCtx*
  * @param ta i32 — 0 x86_64 SysV / 1 arm64 AAPCS64
  * @return i32 — 0 ok; -1 encoder/null/missing tail_join
- * PLATFORM: SHARED freestanding · LINUX gold -E product path · MACOS overlay.
+ * PLATFORM: SHARED freestanding · LINUX leftover gcc W overlay · MACOS overlay.
+ * wave740: Class A unsafe wrap; HARD BAN product PREFER.
  */
 #[no_mangle]
 export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -42,8 +48,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || expr_ref <= 0) {
     return 0 - 1;
   }
-  ly = pipeline_asm_ctx_layout(ctx);
+  // Class A: export-extern calls must sit in unsafe (wave740).
   unsafe {
+    ly = pipeline_asm_ctx_layout(ctx);
     ret_op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   }
   if (ret_op != 0) {
@@ -60,7 +67,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
   if (rc != 0) {
     return 0 - 1;
   }
-  rc = glue_async_cps_emit_phase_reset(elf_ctx, ta);
+  unsafe {
+    rc = glue_async_cps_emit_phase_reset(elf_ctx, ta);
+  }
   if (rc != 0) {
     return 0 - 1;
   }
@@ -68,7 +77,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
     return 0 - 1;
   }
   // AsmFuncCtxLayout: tail_join name at 1392, length i32 at 1520.
-  tj_len = pipe_load_i32_le(ly, 1520);
+  unsafe {
+    tj_len = pipe_load_i32_le(ly, 1520);
+  }
   if (tj_len <= 0) {
     return 0 - 1;
   }

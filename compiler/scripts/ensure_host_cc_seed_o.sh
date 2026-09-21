@@ -9005,30 +9005,43 @@ pipeline_abi_inject_block_final_expr_thin() {
   return "$rc"
 }
 
-# wave602 M2: return_elf_impl Cap residual .x thin.
+# wave602/740 M2: return_elf_impl Cap residual .x thin.
 # leftover PREFER smash (`sub $0xe98`, no endbr64) drops tail_join ENC_JMP
-# so Ubuntu `if { return 7 }` falls through to `return 1`. LINUX -E replace
-# leftover T with operand+jmp exit. HARD BAN PREFER. MACOS stamp-only keep
-# overlay (already run=7). Do not un-BAN arr_return Soft-Cap.
+# so Ubuntu `if { return 7 }` falls through to `return 1`. LINUX w602 -E
+# replaced smash T; live leftover gcc W (endbr64, sub $0x1e8) already run=7.
+# wave740 Class A: wrap remaining export-extern in unsafe so standalone
+# `-backend asm -c` is T=1 U=7 (no T001). HARD BAN product PREFER of this
+# simplified exit (Path A–C stay on leftover). Stamp-exists skip even if
+# .x is newer so the unsafe wrap cannot first-win as PREFER_ASM.
+# MACOS stamp-only keep overlay. Do not un-BAN arr_return Soft-Cap.
 # G.7 mega pipeline_asm_emit_return_elf_impl EXIT. PLATFORM: SHARED.
 pipeline_abi_inject_return_elf_impl_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_return_elf_impl_thin.x"
   local stamp_e="src/.pabi_w602_return_elf_impl.stamp"
+  local stamp_ban="src/.pabi_w740_return_elf_impl_class_a.stamp"
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   case "$(uname -s)" in
     Darwin)
       # PLATFORM: MACOS — overlay already runs return-in-if=7.
-      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+      # wave740: stamp-exists skip even if .x is newer (HARD BAN PREFER).
+      if [ -f "$stamp_e" ]; then
+        touch "$stamp_ban"
+        log "pipeline_abi w740-return-elf-impl: MACOS keep prior overlay; HARD BAN PREFER"
         return 0
       fi
       touch "$stamp_e"
-      log "pipeline_abi w602-return-elf-impl: MACOS keep prior overlay; HARD BAN PREFER"
+      touch "$stamp_ban"
+      log "pipeline_abi w740-return-elf-impl: MACOS keep prior overlay; HARD BAN PREFER"
       return 0
       ;;
     Linux)
-      # PLATFORM: LINUX — -E replace leftover smash T (missing tail_join jmp).
-      if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
+      # PLATFORM: LINUX — keep leftover gcc W overlay (run=7).
+      # wave740: do not PREFER_ASM this simplified exit even if .x is newer.
+      # Missing stamp (cold) still -E replaces smash T; PREFER_ASM stays 0.
+      if [ -f "$stamp_e" ]; then
+        touch "$stamp_ban"
+        log "pipeline_abi w740-return-elf-impl: LINUX keep leftover gcc W; HARD BAN PREFER"
         return 0
       fi
       local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
@@ -9037,9 +9050,9 @@ pipeline_abi_inject_return_elf_impl_thin() {
       if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then had_prefer=1; fi
       if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
       unset XLANG_PABI_THIN_INJECT_IF_NEWER
-  export XLANG_PABI_THIN_PREFER_ASM=1  # wave621: stale-era smash wall re-verified
+      export XLANG_PABI_THIN_PREFER_ASM=0
       export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w602-return-elf-impl-e"
+      pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w740-return-elf-impl-e"
       rc=$?
       if [ "$had_prefer" = "1" ]; then
         export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
@@ -9053,13 +9066,15 @@ pipeline_abi_inject_return_elf_impl_thin() {
       fi
       if [ "$rc" -eq 0 ]; then
         touch "$stamp_e"
-        log "pipeline_abi w602-return-elf-impl: LINUX -E replace (operand + tail_join jmp)"
+        touch "$stamp_ban"
+        log "pipeline_abi w740-return-elf-impl: LINUX -E replace (HARD BAN PREFER)"
       fi
       return "$rc"
       ;;
   esac
   touch "$stamp_e"
-  log "pipeline_abi w602-return-elf-impl: non-POSIX stamp-only (keep prior)"
+  touch "$stamp_ban"
+  log "pipeline_abi w740-return-elf-impl: non-POSIX stamp-only (keep prior)"
   return 0
 }
 
