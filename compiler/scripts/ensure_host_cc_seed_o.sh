@@ -3704,6 +3704,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -3799,6 +3800,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4258,6 +4260,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4347,6 +4350,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4420,6 +4424,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4501,6 +4506,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_dep_ctx_thin "$o" || true
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
+      pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -9954,9 +9960,10 @@ pipeline_abi_inject_elf_ctx_thin() {
 }
 
 # wave311/369b M2: asm_wpo Cap residual C→.x (was wave274 C thin).
-# PRODUCT inject wave369b HARD BAN PREFER: stay prior -E overlay; do not
+# PRODUCT inject wave369b HARD BAN PREFER: stay leftover gcc overlay; do not
 # re-overlay. wave369 PREFER pure-asm: g05 pure-ld fails
 # ARM64_RELOC_BRANCH26 on non-b/bl in pabi_thin. T001 w311_* stay in .x.
+# wave741: cap raise is leftover from_x overlay (inject-asm-wpo-cap), not PREFER.
 # Stamp w369b. PLATFORM: SHARED · both ends hard-skip until reloc root.
 pipeline_abi_inject_asm_wpo_thin() {
   local o="$1"
@@ -9966,6 +9973,25 @@ pipeline_abi_inject_asm_wpo_thin() {
   # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
   touch "$stamp"
   rm -f src/.pabi_w311_asm_wpo.stamp src/.pabi_w369_asm_wpo.stamp
+  return 0
+}
+
+# wave741 M2: WPO FUNCS 2048→4096 / EDGES 8192→16384 (source).
+# Dummy pad≥2048 + mega-EOF aliases compile as exactly 2048 T,
+# XLANG_DEBUG_PARSE skips=0 — emit-order cap, not parser skip.
+# Live leftover gcc still 2048: FROM_X rest skips WAVE274 bodies; whole
+# from_x without FROM_X type-conflicts; Darwin PREFER of asm_wpo_thin
+# g05 n_sect (w369b BAN still holds). Stamp-only; do not PREFER; do not
+# gcc -E as the repair. PLATFORM: SHARED · HARD BAN PREFER asm_wpo_thin.
+pipeline_abi_inject_asm_wpo_cap() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_asm_wpo_thin.x"
+  local stamp="src/.pabi_w741_asm_wpo_cap.stamp"
+  local stamp_ban="src/.pabi_w369b_asm_wpo.stamp"
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  touch "$stamp"
+  touch "$stamp_ban"
+  log "pipeline_abi w741-asm-wpo-cap: stamp-only; HARD BAN PREFER (Darwin n_sect / leftover re-cc blocked)"
   return 0
 }
 
@@ -15255,6 +15281,7 @@ case "$MODE" in
     pipeline_abi_inject_dep_ctx_thin "$1"
     pipeline_abi_inject_elf_ctx_thin "$1"
     pipeline_abi_inject_asm_wpo_thin "$1"
+    pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_sidecar_pool_thin "$1"
     pipeline_abi_inject_value_abi_thin "$1"
     pipeline_abi_inject_block_domain_thin "$1"
@@ -15865,6 +15892,7 @@ case "$MODE" in
     fi
     set +e
     pipeline_abi_inject_asm_wpo_thin "$1"
+    pipeline_abi_inject_asm_wpo_cap "$1"
     _irc=$?
     set -e
     exit "$_irc"
