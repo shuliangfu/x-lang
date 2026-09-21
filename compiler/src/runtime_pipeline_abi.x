@@ -660,6 +660,11 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // (leftover gcc W 0x890, endbr64 sub $0x170). FORCE mega T smash
 // first-won leftover gcc W. Thins export-extern (no body). Do not leftover-first
 // skip_heavy itself. Mega must emit U.
+// wave723: glue_enc_local_slot_ptr_or_addr_elf_c is export-extern at file top
+// (leftover gcc W 0x82, endbr64 sub $0x40). FORCE mega T smash sub $0x8b8
+// first-won leftover gcc W. leftover gcc emit_assign CALLs leftover gcc this
+// face (field_assign HIT smash). Thins export-extern (no body). Do not
+// leftover-first skip_heavy itself. Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1864,6 +1869,19 @@ export extern function asm_driver_m8_tail_thin_delegate_c_name(
  */
 export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
   arena: *u8, elf_ctx: *u8, lval_ref: i32, ctx: *u8, ta: i32
+): i32;
+
+/**
+ * G.7: leftover gcc overlay owns glue_enc_local_slot_ptr_or_addr_elf_c
+ * (W 0x82, endbr64 sub $0x40). FORCE mega T smash sub $0x8b8 first-won leftover W.
+ * leftover gcc emit_assign CALLs leftover gcc this face (field_assign HIT smash).
+ * Thins export-extern (no body). Mega same-TU callers already unsafe.
+ * Do not leftover-first skip_heavy or skip_heavy_or_thin_stub parent.
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_enc_local_slot_ptr_or_addr_elf_c(
+  arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32
 ): i32;
 
 
@@ -63325,26 +63343,15 @@ export function glue_asm73_evict_rbx_cache_entry(stmt_i: i32, ta: i32, elf_ctx: 
  * @param ta i32 - target arch (0=x86_64, 1=arm64)
  * @return i32 - 0 ok, non-zero enc error
  * wave179 pure-owned G.7 authority (was Cap residual index_helpers).
+ * wave723: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x82 (endbr64 sub $0x40) is the sole global. Mega smash T first-won
+ *   leftover gcc. Thins export-extern (no body). Do not leftover-first skip_heavy.
  * PLATFORM: SHARED freestanding INDEX / field base.
  */
-#[no_mangle]
-export function glue_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32 {
-  let needs: i32 = 0;
-  if (elf_ctx == (0 as *u8)) {
-    return 0 - 1;
-  }
-  unsafe {
-    needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, var_ref, var_off, ctx);
-  }
-  if (needs != 0) {
-    unsafe {
-      return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
-    }
-  }
-  unsafe {
-    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, var_off, ta);
-  }
-}
+// wave723: glue_enc_local_slot_ptr_or_addr_elf_c is export-extern at file top
+// (leftover gcc W 0x82, endbr64 sub $0x40). FORCE mega T smash first-won
+// leftover gcc W. Thins export-extern (no body). Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
 
 /**
  * Materialize local VAR slot into rbx/x1 (mirror of rax twin; assign rhs stays in rax).
