@@ -17783,6 +17783,16 @@ XLANG_WEAK int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, i
   int32_t i;
   if (!elf_ctx || (ta != 0 && ta != 1))
     return 0;
+  /* wave344 / wave699: library TUs (no main) bake non-zero scalar imms
+   * into .data at prepare. Runtime seed is for programs with main().
+   * FORCE mega has no main; dumping seed into the first export made
+   * parser_parse_into_init first-win over parser_x.
+   * PLATFORM: SHARED. */
+  {
+    void *mod0 = pipeline_asm_emit_module_ref_c();
+    if (mod0 && pipeline_module_main_func_index(mod0) < 0)
+      return 0;
+  }
   for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
     int32_t imm = g_pipeline_asm_modlet_cold.init_imm[i];
     /* .data-backed arrays must not be scalar-seeded (imm stays 0). */

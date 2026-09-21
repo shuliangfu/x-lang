@@ -28,6 +28,7 @@ export extern function pipe_mod_get_num_top_level_lets(module: *u8): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function pipeline_asm_emit_ctx_arena_get(): *u8;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function pipeline_module_main_func_index(module: *u8): i32;
 export extern function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32;
 export extern function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32): i32;
 export extern function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32): i32;
@@ -2554,6 +2555,10 @@ function pipeline_asm_modlet_reset(): void {
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 mov/store fail
  * wave139 pure: G.7 authority (was static seed_nonzero_inits_elf_c).
+ * wave344 / wave699: library TUs (main_func_index < 0) bake non-zero
+ *   scalar imms into .data at prepare. Runtime seed is for programs
+ *   with main(). FORCE mega has no main; dumping seed into the first
+ *   export made parser_parse_into_init first-win over parser_x.
  * Cap residual: backend_enc_mov_imm64_to_rax_arch + store_from_rax +
  *   store_rax_to_rbx_offset + ARRAY_LIT readers.
  * PLATFORM: SHARED.
@@ -2562,6 +2567,17 @@ function pipeline_asm_modlet_reset(): void {
 export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i32): i32 {
   if (elf_ctx == 0 as *u8 || (ta != 0 && ta != 1)) {
     return 0;
+  }
+  // wave344 / wave699: no runtime seed for library TUs (no main).
+  // PLATFORM: SHARED.
+  let mod0: *u8 = (0 as *u8);
+  unsafe { mod0 = pipeline_asm_emit_module_ref_c(); }
+  if (mod0 != (0 as *u8)) {
+    let mi: i32 = 0;
+    unsafe { mi = pipeline_module_main_func_index(mod0); }
+    if (mi < 0) {
+      return 0;
+    }
   }
   let n: i32 = pipe_modlet_get_n();
   let i: i32 = 0;

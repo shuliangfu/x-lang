@@ -7785,6 +7785,10 @@ export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_star
 export function parse_into_init(module: *Module, arena: *ASTArena): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+  /* wave699: G.7 complete parser_x authority — trait registry reset
+   * lived only on the mega duplicate wrapper; parser_x is the sole T
+   * after mega export-extern. Twin of parse_into / parse_into_buf. */
+  xlang_trait_reg_reset_c(arena);
   ast.ast_arena_init(arena);
   /* See implementation. */
   ast_pool_module_reset(module);

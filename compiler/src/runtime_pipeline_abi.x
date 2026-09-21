@@ -1440,72 +1440,27 @@ export extern "C" function driver_diagnostic_parse_fail(main_idx: i32, num_funcs
  * Cap-struct-return impl_c / strict_parse_into_init. */
 
 /**
- * Initialize AST arena and module state before parsing a new file.
- *
- * Why: this is the per-file reset point. Without it, arena counters
- *      (num_types/num_exprs/num_blocks/num_funcs) and module parse
- *      counters leak across files in directory check mode, causing
- *      function index drift and cascading T001 "unresolved function"
- *      errors that do not reproduce in single-file mode.
- *      wave1222: also resets trait registry (xlang_trait_reg_reset_c) to
- *      prevent cross-file trait/generic state leak that caused the parser
- *      to truncate function lists (num_funcs 356->106) in directory mode.
- * Contract: must be called before every parser_parse_into_buf call;
- *           zeroes arena counters, resets module fields, primes the
- *           onefunc result layout cache, resets trait registry, and sets
- *           the active match module pointer for parse_match enum tag
- *           resolution.
- * Body mirrors parser_gen.c L6318-6331 (C authority) + trait reset.
- * PLATFORM: SHARED - pure delegation to platform-agnostic externs.
+ * G.7: parser_x owns parser_parse_into_init. This TU must not emit a
+ * competing T — FORCE mega previously first-won (g05 pabi is #8,
+ * parser_x.o is #20) with hoist-target modlet seed dumped into the
+ * wrapper (1744B lea COMMON inits, then the 13 calls). Product Ubuntu
+ * already used parser_x (pabi W); Darwin pabi T was the duplicate.
+ * PLATFORM: SHARED — link-name contract; parser_x.o provides the body.
  */
-#[no_mangle]
-export function parser_parse_into_init(module: *u8, arena: *u8): void {
-  unsafe {
-    // wave1222: trait registry reset MUST come first; without it, stale trait
-    // entries from previous files cause the parser to misbehave in directory
-    // mode (num_funcs drops from 358 to 106 for runtime_pipeline_abi.x).
-    xlang_trait_reg_reset_c(arena);
-    ast_ast_arena_init(arena);
-    ast_pool_module_reset(module);
-    ast_pool_arena_reset(arena);
-    parser_onefunc_result_layout_prime();
-    parser_onefunc_result_layout_prime_b();
-    parser_onefunc_result_layout_prime_c();
-    parser_onefunc_result_layout_prime_d();
-    parser_onefunc_result_layout_prime_d_b();
-    parser_onefunc_result_layout_prime_e();
-    parser_onefunc_result_layout_prime_f();
-    parser_pipeline_module_reset_parse_counters(module);
-    pipeline_parser_set_match_module(module);
-  }
-}
+export extern function parser_parse_into_init(module: *u8, arena: *u8): void;
 
-/** Exported function `parser_get_module_num_imports`.
- * Implements `parser_get_module_num_imports`.
- * @param module *u8
- * @return i32
+/**
+ * G.7: parser_x owns parser_get_module_num_imports. Mega's `return 0`
+ * stub first-wins under FORCE and reports zero imports.
+ * PLATFORM: SHARED — parser_x.o provides the body.
  */
-#[no_mangle]
-export function parser_get_module_num_imports(module: *u8): i32 {
-  return 0;
-}
+export extern function parser_get_module_num_imports(module: *u8): i32;
 
-/** Exported function `parser_get_module_import_path`.
- * Implements `parser_get_module_import_path`.
- * @param module *u8
- * @param idx i32
- * @param path_buf *u8
- * @return void
+/**
+ * G.7: parser_x owns parser_get_module_import_path.
+ * PLATFORM: SHARED — parser_x.o provides the body.
  */
-#[no_mangle]
-export function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *u8): void {
-  if (path_buf == 0 as *u8) {
-    return;
-  }
-  unsafe {
-    path_buf[0] = 0;
-  }
-}
+export extern function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *u8): void;
 
 /**
  * Copy import path at index i into out[0..64) (NUL-terminated) and return path length.
@@ -35158,6 +35113,11 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
  * @param ta i32 - target arch
  * @return i32 - 0 ok; -1 mov/store fail
  * wave139 pure: G.7 authority (was static seed_nonzero_inits_elf_c).
+ * wave344 / wave699: library TUs (main_func_index < 0) bake non-zero
+ *   scalar imms into .data at prepare. Runtime seed is for programs
+ *   with main() (once on hoist-target entry). FORCE mega has no main;
+ *   dumping seed into the first export made parser_parse_into_init
+ *   first-win over parser_x and reseed compiler globals on every parse.
  * Cap residual: backend_enc_mov_imm64_to_rax_arch + store_from_rax +
  *   store_rax_to_rbx_offset + ARRAY_LIT readers.
  * PLATFORM: SHARED.
@@ -35166,6 +35126,14 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
 export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i32): i32 {
   if (elf_ctx == 0 as *u8 || (ta != 0 && ta != 1)) {
     return 0;
+  }
+  // wave344 / wave699: no runtime seed for library TUs (no main).
+  // PLATFORM: SHARED.
+  let mod0: *u8 = pipeline_asm_emit_module_ref_c();
+  if (mod0 != (0 as *u8)) {
+    if (pipeline_module_main_func_index(mod0) < 0) {
+      return 0;
+    }
   }
   let n: i32 = pipe_modlet_get_n();
   let i: i32 = 0;

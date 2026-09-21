@@ -6697,6 +6697,12 @@ void parser_import_path_dot_segment_copy_buf(uint8_t * data, int32_t len, size_t
   }
 }
 void parser_parse_into_init(struct ast_Module * module, struct ast_ASTArena * arena) {
+  /* wave699: G.7 complete parser_x authority — trait registry reset
+   * lived only on the mega duplicate wrapper. PLATFORM: SHARED. */
+  {
+    extern void xlang_trait_reg_reset_c(void *arena);
+    xlang_trait_reg_reset_c((void *)arena);
+  }
   (void)(ast_ast_arena_init(arena));
   (void)(ast_pool_module_reset(module));
   (void)(ast_pool_arena_reset(arena));
