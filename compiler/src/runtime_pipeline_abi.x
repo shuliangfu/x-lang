@@ -1918,6 +1918,20 @@ export extern function glue_emit_index_eff_addr_scaled_elf_c(
 
 
 /**
+ * G.7: leftover gcc overlay owns glue_try_index_var_or_field_base_to_rax_elf_c
+ * (W 0xe0c). FORCE mega T smash first-won leftover W. leftover gcc INDEX
+ * scaled (w725) CALLs leftover gcc this face (INDEX lit path). Thins
+ * export-extern (no body). Mega same-TU callers wrapped unsafe. Do not
+ * leftover-first skip_heavy, skip_heavy_or_thin_stub parent, rbx twin,
+ * or wrapper pipeline_asm_index_elem_byte_sz. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_try_index_var_or_field_base_to_rax_elf_c(
+  arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32
+): i32;
+
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -63944,366 +63958,16 @@ export function glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena: *u8, elf
  * INDEX(47) as INDEX base (`arr[0][0]`): leave the inner element
  * address (same scaled lea as FIELD-over-INDEX). emit_expr fallback
  * is rvalue deref_struct16 — rax holds packed lanes, not a pointer.
+ * wave726: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0xe0c is the sole global. FORCE mega T smash first-won leftover gcc.
+ *   Thins export-extern (no body). Do not leftover-first skip_heavy or rbx twin.
  * PLATFORM: SHARED freestanding INDEX base (lit-index + scaled both use this).
  */
-#[no_mangle]
-export function glue_try_index_var_or_field_base_to_rax_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32 {
-  let ko: i32 = 0;
-  let boff: i32 = 0;
-  let field_off: i32 = 0;
-  let var_base: i32 = 0;
-  let tr: i32 = 0;
-  let call_fa: i32 = 0;
-  let base_ko: i32 = 0;
-  let d_op: i32 = 0;
-  let ix_base: i32 = 0;
-  let ix_idx: i32 = 0;
-  let ix_esz: i32 = 0;
-  let needs: i32 = 0;
-  let is_enum: i32 = 0;
-  let import_rc: i32 = 0;
-  let is_simd: i32 = 0;
-  let sz: i32 = 0;
-  let nbytes: i32 = 0;
-  let next_off: i32 = 0;
-  let temp_home: i32 = 0;
-  let st: i32 = 0;
-  let mod: *u8 = 0 as *u8;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
-    return 0 - 2;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, base_ref);
-  }
-  // GLUE_EXPR_KIND_VAR == 3
-  if (ko == 3) {
-    unsafe {
-      boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
-    }
-    // Stage 12.0.5: module fixed arrays → SHN_COMMON modlet (no stack).
-    // LEA address into rax for INDEX base (load_to_rax decays arrays).
-    if (boff < 0) {
-      let vn: u8[256] = [];
-      let vnlen: i32 = 0;
-      unsafe {
-        vnlen = pipeline_expr_var_name_len(arena, base_ref);
-      }
-      if (vnlen <= 0 || vnlen > 255) {
-        return 0 - 2;
-      }
-      unsafe {
-        pipeline_expr_var_name_into(arena, base_ref, &vn[0]);
-        if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, &vn[0], vnlen, ta) == 0) {
-          return 0;
-        }
-      }
-      return 0 - 2;
-    }
-    // TYPE_SLICE base → array data pointer in rax.
-    // Local let: dual-GP home holds data@boff → load slot.
-    // Formal param: slot is slice* → load ptr then load fat.data@0.
-    unsafe {
-      tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
-    }
-    if (tr > 0) {
-      unsafe {
-        ko = pipeline_type_kind_ord_at(arena, tr);
-      }
-      // GLUE_TYPE_KIND_SLICE == 11
-      if (ko == 11) {
-        unsafe {
-          needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, boff, ctx);
-        }
-        if (needs != 0) {
-          unsafe {
-            if (backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta) != 0) {
-              return 0 - 1;
-            }
-            if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          return 0;
-        }
-        unsafe {
-          return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
-        }
-      }
-    }
-    unsafe {
-      return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
-    }
-  }
-  // EXPR_FIELD_ACCESS == 44
-  if (ko == 44) {
-    unsafe {
-      is_enum = pipeline_expr_field_access_is_enum_variant(arena, base_ref);
-    }
-    if (is_enum != 0) {
-      return 0 - 2;
-    }
-    // Import-module const ARRAY_LIT FIELD as INDEX base (`dep.A[1]`).
-    // Not a struct member; durable ptr into rax. PLATFORM: SHARED.
-    unsafe {
-      import_rc = glue_emit_import_module_const_field_to_rax_elf_c(
-          arena, elf_ctx, base_ref, ctx, ta, 0 as *i32);
-    }
-    if (import_rc == 0) {
-      return 0;
-    }
-    if (import_rc < 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      var_base = pipeline_expr_field_access_base_ref(arena, base_ref);
-    }
-    if (var_base > 0) {
-      unsafe {
-        base_ko = pipeline_expr_kind_ord_at(arena, var_base);
-      }
-      // VAR-base FIELD → slot ± field_off (± ptr-field deref)
-      if (base_ko == 3) {
-        unsafe {
-          boff = glue_var_expr_stack_off_elf_c(arena, ctx, var_base);
-        }
-        if (boff < 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, var_base, boff, ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          mod = pipeline_asm_emit_module_ref_c();
-          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
-          if (field_off != 0) {
-            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-      // FIELD over EXPR_DEREF (`(*p).xs`) — emit pointer operand, +field_off.
-      // EXPR_DEREF == 52
-      if (base_ko == 52) {
-        unsafe {
-          d_op = pipeline_expr_unary_operand_ref_at(arena, var_base);
-        }
-        if (d_op <= 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, d_op, ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          mod = pipeline_asm_emit_module_ref_c();
-          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
-          if (field_off != 0) {
-            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-      // FIELD over EXPR_INDEX (`m[i].xs`) — INDEX eff_addr then +field_off.
-      // EXPR_INDEX == 47
-      if (base_ko == 47) {
-        unsafe {
-          ix_base = pipeline_expr_index_base_ref(arena, var_base);
-          ix_idx = pipeline_expr_index_index_ref(arena, var_base);
-        }
-        if (ix_base <= 0 || ix_idx <= 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, var_base);
-        }
-        if (ix_esz <= 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, var_base, ix_base, ix_idx, ctx, ta, ix_esz) != 0) {
-            return 0 - 1;
-          }
-          mod = pipeline_asm_emit_module_ref_c();
-          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
-          if (field_off != 0) {
-            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-      /* FIELD-chain as INDEX base (`w.h.v[i]`). VAR / DEREF / INDEX
-       * bases already handled. base_ko==44 used to fall through to
-       * call_fa, which only accepts CALL / METHOD / STRUCT_LIT roots —
-       * a VAR-rooted chain returned -99 → emit_expr rvalue of the SIMD
-       * field (packed lanes used as a pointer; Darwin garbage / 138).
-       * G.7: reuse pipeline_asm_emit_lvalue_eff_addr (already walks the
-       * chain to the VAR root, lea + field_off, mid-chain *T deref).
-       * Leave the leaf address; INDEX then adds idx*esz.
-       * Do not use stack_off+lea (x86 high-end lane polarity is not
-       * INDEX dest+idx*esz). Do not pass dest-in-rbx -3.
-       * lvalue -1 (CALL / STRUCT_LIT root) falls through to call_fa.
-       * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-      if (base_ko == 44) {
-        unsafe {
-          st = pipeline_asm_emit_lvalue_eff_addr_elf_c(
-              arena, elf_ctx, base_ref, ctx, ta);
-        }
-        if (st == 0) {
-          unsafe {
-            if (glue_index_deref_ptr_field_slot_rax_elf_c(
-                    arena, elf_ctx, base_ref, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          return 0;
-        }
-      }
-    }
-    // STRUCT_LIT/CALL/METHOD-rooted FIELD as INDEX base — leave_addr materialize.
-    unsafe {
-      call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, base_ref, ctx, ta, 1);
-    }
-    // PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED == -99
-    if (call_fa == (0 - 99)) {
-      return 0 - 2;
-    }
-    if (call_fa != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-        return 0 - 1;
-      }
-    }
-    return 0;
-  }
-  /* INDEX as INDEX base (`arr[0][0]` / `arr[0][1]`).
-   * emit_expr fallback is rvalue: esz=16 deref_struct16 so rax holds
-   * packed lanes; the outer load then treats that value as an address
-   * (Darwin 174). G.7: same scaled lea as FIELD-over-INDEX — leave
-   * the inner element address, do not load.
-   * PLATFORM: SHARED — Ubuntu gold; Darwin ARM64 is the live fail. */
-  if (ko == 47) {
-    unsafe {
-      ix_base = pipeline_expr_index_base_ref(arena, base_ref);
-      ix_idx = pipeline_expr_index_index_ref(arena, base_ref);
-    }
-    if (ix_base <= 0 || ix_idx <= 0) {
-      return 0 - 2;
-    }
-    unsafe {
-      ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, base_ref);
-    }
-    if (ix_esz <= 0) {
-      return 0 - 2;
-    }
-    unsafe {
-      if (glue_emit_index_eff_addr_scaled_elf_c(
-              arena, elf_ctx, base_ref, ix_base, ix_idx, ctx, ta, ix_esz) != 0) {
-        return 0 - 1;
-      }
-    }
-    return 0;
-  }
-  // CALL=48 / METHOD_CALL=49 returning SIMD: rax+rdx (or sret) holds the
-  // vector value, not an address. emit_expr fallback then add idx*esz
-  // treated lanes as a pointer → SEGV (`simd.add(...)[0]`).
-  // G.7: try glue_emit_vector_type_let_init first (identity peel +
-  // binop2 / splat / select). `return idv(add4)[i]` and `return add4[i]`
-  // used to go through struct let-init → real CALL → callee lane0 only
-  // (Darwin 0, host-C 22). Vector let-init writes linear dest+i*esz,
-  // same as store_retval_pair, so the later lea+idx*esz load matches.
-  // -2 falls through to glue_emit_struct_type_let_init (try_inline /
-  // dual-GP / sret). Do not spill TYPE_ARRAY / TYPE_SLICE CALL (rax is
-  // already E* / fat.data). Do not pass dest-in-rbx −3 (would lea rbp-3).
-  // Assign twin: glue_try_index_var_or_field_base_to_rbx (push/pop rax).
-  // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
-  if (ko == 48 || ko == 49) {
-    unsafe {
-      tr = pipeline_expr_resolved_type_ref(arena, base_ref);
-    }
-    is_simd = 0;
-    if (tr > 0) {
-      unsafe {
-        if (asm_type_is_simd_vector_spelling(arena, tr) != 0) {
-          is_simd = 1;
-        }
-      }
-      if (is_simd == 0) {
-        unsafe {
-          if (pipeline_type_kind_ord_at(arena, tr) == 13) {
-            is_simd = 1;
-          }
-        }
-      }
-    }
-    if (is_simd != 0) {
-      unsafe {
-        sz = glue_call_return_byte_size_c(arena, base_ref);
-      }
-      if (sz <= 0) {
-        unsafe {
-          mod = glue_emit_module_from_ctx(ctx);
-          sz = glue_type_size_simple(mod, arena, tr, 0);
-        }
-      }
-      if (sz < 16) {
-        sz = 16;
-      }
-      nbytes = (sz + 7) & (~7);
-      glue_align_next_offset(ctx);
-      next_off = pipe_load_i32_le(ctx, pipe_asm_ctx_off_next_offset());
-      if (next_off + nbytes < next_off) {
-        return 0 - 1;
-      }
-      next_off = next_off + nbytes;
-      temp_home = next_off;
-      pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), next_off);
-      /* Vector let-init first: peel idv and inline add4. dest is a real
-       * frame-mag temp (not dest-in-rbx). -2 → struct CALL store. */
-      unsafe {
-        st = glue_emit_vector_type_let_init_elf_c(
-            arena, elf_ctx, base_ref, ctx, ta, temp_home, tr);
-      }
-      if (st == 0 - 1) {
-        return 0 - 1;
-      }
-      if (st != 0) {
-        unsafe {
-          st = glue_emit_struct_type_let_init_elf_c(
-              arena, elf_ctx, base_ref, ctx, ta, tr, temp_home);
-        }
-      }
-      if (st == 0 - 1) {
-        return 0 - 1;
-      }
-      if (st != 0) {
-        return 0 - 2;
-      }
-      unsafe {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, temp_home, ta) != 0) {
-          return 0 - 1;
-        }
-      }
-      return 0;
-    }
-  }
-  return 0 - 2;
-}
+// wave726: glue_try_index_var_or_field_base_to_rax_elf_c is export-extern at file top
+// (leftover gcc W 0xe0c). FORCE mega T smash first-won leftover gcc W.
+// Thins export-extern (no body). Do not leftover-first skip_heavy or rbx twin.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Materialize INDEX base address into rbx/x1 for assign paths (rhs stays in rax).
@@ -67506,7 +67170,9 @@ export function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, i
   if (base_ref <= 0 || idx_ref <= 0 || stride <= 0) {
     return 0 - 1;
   }
-  br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  unsafe {
+    br = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+  }
   if (br != 0) {
     return br;
   }
