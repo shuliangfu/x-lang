@@ -1948,6 +1948,21 @@ export extern function glue_try_index_rvalue_slice_once_elf_c(
 
 
 /**
+ * G.7: leftover gcc overlay owns glue_emit_index_bounds_guard_elf_c
+ * (W 0x90f). FORCE mega T smash first-won leftover W. leftover gcc INDEX
+ * scaled (w725) CALLs leftover gcc this face (INDEX bounds). No thin
+ * defines this symbol. Mega same-TU remaining callers after scaled
+ * leftover-first: 0. Do not leftover-first skip_heavy, skip_heavy_or_thin_stub
+ * parent, rbx twin, rax_plus_rbx_scaled, or wrapper
+ * pipeline_asm_index_elem_byte_sz. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_emit_index_bounds_guard_elf_c(
+  arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, ix_ref: i32, base_ref: i32, idx_ref: i32
+): i32;
+
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -42406,169 +42421,16 @@ export function glue_emit_slice_length_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, ct
  * ix_ref: INDEX expr (reads proven_in_bounds / base_is_slice); <=0 still type-checks base.
  * @return i32 - 0 ok/skipped; -1 error
  * wave147 pure: G.7 authority (was static glue_emit_index_bounds_guard_elf_c).
- * PLATFORM: SHARED freestanding · LINUX|x86 jl/jge · MACOS|ARM64 bounds twin.
+ * wave728: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x90f is the sole global. FORCE mega T smash first-won leftover gcc.
+ *   No thin defines this symbol. Do not leftover-first skip_heavy or rbx twin.
+ * PLATFORM: SHARED freestanding · LINUX gold.
  */
-#[no_mangle]
-export function glue_emit_index_bounds_guard_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, ix_ref: i32, base_ref: i32, idx_ref: i32): i32 {
-  let base_ty: i32 = 0;
-  let bt_kind: i32 = 0;
-  let is_slice: i32 = 0;
-  let lit_idx: i32 = 0;
-  let lit_slot: i32[1] = [];
-  let array_sz: i32 = 0;
-  let ok_lo: u8[256] = [];
-  let ok_hi: u8[256] = [];
-  let ok_lo_len: i32 = 0;
-  let ok_hi_len: i32 = 0;
-  let proven: i32 = 0;
-  let is_lit: i32 = 0;
-  let rc: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0 || idx_ref <= 0) {
-    return 0;
-  }
-  if (ix_ref > 0) {
-    unsafe {
-      proven = pipeline_expr_index_proven_in_bounds_at(arena, ix_ref);
-      is_slice = pipeline_expr_index_base_is_slice_at(arena, ix_ref);
-    }
-    if (proven != 0) {
-      return 0;
-    }
-  } else {
-    is_slice = 0;
-  }
-  unsafe {
-    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
-  }
-  if (base_ty <= 0) {
-    return 0;
-  }
-  unsafe {
-    bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-  }
-  if (is_slice == 0 && bt_kind == 11) {
-    is_slice = 1;
-  }
-  if (is_slice == 0 && bt_kind != 10) {
-    return 0;
-  }
-  is_lit = pipeline_asm_cmp_expr_lit_i32_at(arena, idx_ref, &lit_slot[0]);
-  if (is_lit != 0) {
-    lit_idx = lit_slot[0];
-    if (lit_idx < 0) {
-      return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-    }
-    if (is_slice == 0) {
-      unsafe {
-        array_sz = pipeline_type_array_size_at(arena, base_ty);
-      }
-      if (array_sz > 0 && lit_idx >= array_sz) {
-        return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-      }
-      return 0;
-    }
-  }
-  // Stage 12.0.5: fixed-array non-lit index — match host -E (no runtime panic).
-  // Slice path continues below with length-based lo/hi guards.
-  if (is_slice == 0) {
-    return 0;
-  }
-  unsafe {
-    ok_lo_len = pipeline_asm_emit_next_label_c(ctx, &ok_lo[0], 64);
-    ok_hi_len = pipeline_asm_emit_next_label_c(ctx, &ok_hi[0], 64);
-  }
-  if (ok_lo_len <= 0 || ok_hi_len <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 0, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_cmp_rax_rbx_arch(elf_ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_jge_arch(elf_ctx, &ok_lo[0], ok_lo_len, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  rc = pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_label_arch(elf_ctx, &ok_lo[0], ok_lo_len, 0, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  if (is_slice != 0) {
-    rc = glue_emit_slice_length_to_rbx_elf_c(arena, elf_ctx, ctx, ta, base_ref);
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      rc = backend_enc_add_imm_to_rbx_arch(elf_ctx, 0 - 1, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  } else {
-    unsafe {
-      array_sz = pipeline_type_array_size_at(arena, base_ty);
-    }
-    if (array_sz <= 0) {
-      return 0;
-    }
-    unsafe {
-      rc = backend_enc_mov_imm32_to_rbx_arch(elf_ctx, array_sz - 1, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-  }
-  unsafe {
-    rc = backend_enc_cmp_rbx_rax_arch(elf_ctx, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_jge_arch(elf_ctx, &ok_hi[0], ok_hi_len, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  rc = pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    rc = backend_enc_label_arch(elf_ctx, &ok_hi[0], ok_hi_len, 0, ta);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  return 0;
-}
+// wave728: glue_emit_index_bounds_guard_elf_c is export-extern at file top
+// (leftover gcc W 0x90f). FORCE mega T smash first-won leftover gcc W.
+// No thin defines this symbol. Do not leftover-first skip_heavy or rbx twin.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Call-as-INDEX base evaluated once: materialize TYPE_SLICE CALL/METHOD/INDEX
