@@ -9221,7 +9221,10 @@ export function xlang_module_num_imports(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0;
   }
-  return parser_get_module_num_imports(module);
+  // wave699: parser_get_module_num_imports is export-extern (parser_x T).
+  unsafe {
+    return parser_get_module_num_imports(module);
+  }
 }
 
 /**
