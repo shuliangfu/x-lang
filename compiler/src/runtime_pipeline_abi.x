@@ -665,6 +665,11 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // first-won leftover gcc W. leftover gcc emit_assign CALLs leftover gcc this
 // face (field_assign HIT smash). Thins export-extern (no body). Do not
 // leftover-first skip_heavy itself. Mega must emit U.
+// wave724: pipeline_asm_index_elem_byte_sz_c is export-extern at file top
+// (leftover gcc W 0x1103, endbr64). FORCE mega T smash first-won leftover gcc
+// W. leftover gcc INDEX / lvalue_eff_addr CALLs leftover gcc this face.
+// Thins export-extern (no body). Do not leftover-first skip_heavy itself.
+// Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1882,6 +1887,18 @@ export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
  */
 export extern function glue_enc_local_slot_ptr_or_addr_elf_c(
   arena: *u8, elf_ctx: *u8, var_ref: i32, var_off: i32, ctx: *u8, ta: i32
+): i32;
+
+/**
+ * G.7: leftover gcc overlay owns pipeline_asm_index_elem_byte_sz_c
+ * (W 0x1103). FORCE mega T smash first-won leftover W. leftover gcc INDEX
+ * / lvalue_eff_addr CALLs leftover gcc this face. Thins export-extern
+ * (no body). Mega same-TU callers wrapped unsafe. Do not leftover-first
+ * skip_heavy or skip_heavy_or_thin_stub parent. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_asm_index_elem_byte_sz_c(
+  arena: *u8, expr_ref: i32
 ): i32;
 
 
@@ -33521,356 +33538,16 @@ export function pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a: *u
  * @return i32 - element width in bytes (1/2/4/8/16 or layout size)
  * wave140 pure: G.7 authority (was static pipeline_asm_index_elem_byte_sz_c).
  * Residual assign/binop/spill/lvalue Cap-call this short name.
+ * wave724: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x1103 is the sole global. Mega smash T first-won leftover gcc.
+ *   Thins export-extern (no body). Do not leftover-first skip_heavy.
  * PLATFORM: SHARED freestanding.
  */
-#[no_mangle]
-export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32 {
-  let base_ref: i32 = 0;
-  let tr: i32 = 0;
-  let kind_ord: i32 = 0;
-  let pointee: i32 = 0;
-  let esz_base: i32 = 0;
-  let mod: *u8 = 0 as *u8;
-  let func_idx: i32 = 0;
-  unsafe {
-    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
-  }
-  if (base_ref > 0) {
-    let base_kind: i32 = 0;
-    unsafe {
-      base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
-    }
-    if (base_kind == 44) {
-      let flen: i32 = 0;
-      unsafe {
-        flen = pipeline_expr_field_access_name_len(arena, base_ref);
-      }
-      if (flen == 3) {
-        let fname: u8[256] = [];
-        unsafe {
-          pipeline_expr_field_access_name_into(arena, base_ref, &fname[0]);
-        }
-        if (fname[0] == (112 as u8) && fname[1] == (116 as u8) && fname[2] == (114 as u8)) {
-          let vref: i32 = 0;
-          unsafe {
-            vref = pipeline_expr_field_access_base_ref(arena, base_ref);
-            mod = pipeline_asm_emit_module_ref_c();
-            func_idx = pipeline_asm_emit_func_index_c();
-          }
-          let vkind: i32 = 0;
-          if (vref > 0 && mod != (0 as *u8)) {
-            unsafe {
-              vkind = pipeline_expr_kind_ord_at(arena, vref);
-            }
-          }
-          if (vref > 0 && mod != (0 as *u8) && vkind == 3) {
-            let vn: u8[256] = [];
-            let vl: i32 = 0;
-            let pty: i32 = 0;
-            unsafe {
-              vl = pipeline_expr_var_name_len(arena, vref);
-            }
-            if (vl > 0 && vl <= 63 && func_idx >= 0) {
-              unsafe {
-                pipeline_expr_var_name_into(arena, vref, &vn[0]);
-                pty = pipeline_module_func_param_type_ref_for_name(mod, func_idx, &vn[0], vl);
-              }
-            }
-            let pty_kind: i32 = 0;
-            if (pty > 0) {
-              unsafe {
-                pty_kind = pipeline_type_kind_ord_at(arena, pty);
-              }
-            }
-            if (pty > 0 && pty_kind == 9) {
-              let st: i32 = 0;
-              let sn: u8[256] = [];
-              let sl: i32 = 0;
-              unsafe {
-                st = pipeline_type_elem_ref_at(arena, pty);
-              }
-              if (st > 0) {
-                unsafe {
-                  sl = pipeline_type_named_name_into(arena, st, &sn[0]);
-                }
-              }
-              if (sl >= 6 && sn[sl - 1] == (56 as u8) && sn[sl - 2] == (117 as u8) &&
-                  sn[sl - 3] == (95 as u8) && sn[sl - 4] == (99 as u8) && sn[sl - 5] == (101 as u8) &&
-                  sn[sl - 6] == (86 as u8)) {
-                return 1;
-              }
-            }
-          }
-        }
-      }
-    }
-    if (base_kind == 44) {
-      unsafe {
-        mod = pipeline_asm_emit_module_ref_c();
-        tr = glue_field_access_field_type_ref_c(arena, mod, base_ref);
-      }
-    } else {
-      unsafe {
-        tr = pipeline_expr_resolved_type_ref(arena, base_ref);
-      }
-    }
-    let tr_kind: i32 = 0;
-    if (tr > 0) {
-      unsafe {
-        tr_kind = pipeline_type_kind_ord_at(arena, tr);
-      }
-    }
-    // Base type is *T (or **T / *Named…): glue_index_elem_byte_sz_from_type_ref_c
-    // peels the outer PTR once and returns sizeof(T). Call it with the *base*
-    // type `tr`, never with a pre-peeled pointee — double-peel on **u8 yields
-    // sizeof(u8)=1 instead of pointer width 8 (argv[i] pure-asm scale1+ldrb
-    // SEGV). PLATFORM: SHARED freestanding · pure-asm INDEX stride authority.
-    if (tr > 0 && tr_kind == 9) {
-      // PLATFORM: SHARED — `.data` of a TYPE_SLICE base resolves to a bare
-      // PTR (no pointee) for the deref decision; recover the stride from the
-      // slice's element type so []u8 indexes with scale 1 (parse-only dep
-      // previously defaulted to 4 → OOB read, run-slice FAIL). Checked BEFORE
-      // the generic peel (a bare PTR defaults to 4 there).
-      if (base_kind == 44) {
-        let d_vb2: i32 = pipeline_expr_field_access_base_ref(arena, base_ref);
-        if (d_vb2 > 0 && pipeline_expr_kind_ord_at(arena, d_vb2) == 3) {
-          let d_sty2: i32 = glue_var_expr_type_ref_with_decl_fallback_c(arena, d_vb2);
-          if (d_sty2 > 0 && pipeline_type_kind_ord_at(arena, d_sty2) == 11) {
-            let d_elem2: i32 = pipeline_type_elem_ref_at(arena, d_sty2);
-            if (d_elem2 > 0) {
-              let d_esz2: i32 = glue_index_elem_byte_sz_from_type_ref_c(arena, d_elem2);
-              // <=8 (not <8): a u64/f64 slice element strides 8; the generic
-              // bare-PTR peel below would default to 4 (last_u64 OOB-ish read).
-              if (d_esz2 > 0 && d_esz2 <= 8) {
-                return d_esz2;
-              }
-            }
-          }
-        }
-      }
-      unsafe {
-        esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
-      }
-      if (esz_base > 0 && esz_base < 8) {
-        return esz_base;
-      }
-      if (esz_base <= 0 && base_kind == 44) {
-        let d_vb: i32 = pipeline_expr_field_access_base_ref(arena, base_ref);
-        if (d_vb > 0 && pipeline_expr_kind_ord_at(arena, d_vb) == 3) {
-          let d_sty: i32 = glue_var_expr_type_ref_with_decl_fallback_c(arena, d_vb);
-          if (d_sty > 0 && pipeline_type_kind_ord_at(arena, d_sty) == 11) {
-            let d_elem: i32 = pipeline_type_elem_ref_at(arena, d_sty);
-            if (d_elem > 0) {
-              let d_esz: i32 = glue_index_elem_byte_sz_from_type_ref_c(arena, d_elem);
-              if (d_esz > 0 && d_esz < 8) {
-                return d_esz;
-              }
-            }
-          }
-        }
-      }
-      // esz_base == 8 (pointer / i64 element): fall through so INDEX result
-      // TYPE_PTR arm returns 8; do not early-return here.
-    } else {
-      if (tr > 0) {
-        unsafe {
-          esz_base = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
-        }
-        if (esz_base > 0 && esz_base < 8) {
-          return esz_base;
-        }
-      }
-    }
-  }
-  unsafe {
-    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-  }
-  if (tr > 0) {
-    let esz_res: i32 = 0;
-    let trk: i32 = 0;
-    unsafe {
-      trk = pipeline_type_kind_ord_at(arena, tr);
-    }
-    if (trk == 10) {
-      let asz: i32 = 0;
-      unsafe {
-        asz = glue_fixed_array_total_bytes_c(arena, tr, 0);
-      }
-      if (asz > 0) {
-        return asz;
-      }
-    }
-    if (trk == 9) {
-      return 8;
-    }
-    if (trk == 11) {
-      return 16;
-    }
-    unsafe {
-      esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
-    }
-    if (esz_res >= 8) {
-      let base_ref2: i32 = 0;
-      let tr_base: i32 = 0;
-      let pointee2: i32 = 0;
-      let esz_pt: i32 = 0;
-      unsafe {
-        base_ref2 = pipeline_expr_index_base_ref(arena, expr_ref);
-      }
-      if (base_ref2 > 0) {
-        let bk2: i32 = 0;
-        unsafe {
-          bk2 = pipeline_expr_kind_ord_at(arena, base_ref2);
-        }
-        if (bk2 == 44) {
-          unsafe {
-            mod = pipeline_asm_emit_module_ref_c();
-            tr_base = glue_field_access_field_type_ref_c(arena, mod, base_ref2);
-          }
-        } else {
-          unsafe {
-            tr_base = pipeline_expr_resolved_type_ref(arena, base_ref2);
-          }
-        }
-        let tbk: i32 = 0;
-        if (tr_base > 0) {
-          unsafe {
-            tbk = pipeline_type_kind_ord_at(arena, tr_base);
-          }
-        }
-        // Base *T: glue peels once. Pass tr_base, not a pre-peeled pointee2
-        // (same double-peel trap as the early path). PLATFORM: SHARED.
-        if (tr_base > 0 && tbk == 9) {
-          unsafe {
-            esz_pt = glue_index_elem_byte_sz_from_type_ref_c(arena, tr_base);
-          }
-          if (esz_pt > 0 && esz_pt < esz_res) {
-            return esz_pt;
-          }
-        }
-      }
-    }
-    return esz_res;
-  }
-  unsafe {
-    base_ref = pipeline_expr_index_base_ref(arena, expr_ref);
-  }
-  if (base_ref <= 0) {
-    return 4;
-  }
-  let bk: i32 = 0;
-  unsafe {
-    bk = pipeline_expr_kind_ord_at(arena, base_ref);
-  }
-  if (bk == 44) {
-    unsafe {
-      mod = pipeline_asm_emit_module_ref_c();
-      tr = glue_field_access_field_type_ref_c(arena, mod, base_ref);
-    }
-    if (tr > 0) {
-      let r: i32 = 0;
-      unsafe {
-        r = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
-      }
-      return r;
-    }
-    return 4;
-  }
-  unsafe {
-    tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
-  }
-  if (tr <= 0) {
-    unsafe {
-      tr = pipeline_expr_resolved_type_ref(arena, base_ref);
-    }
-  }
-  if (tr <= 0) {
-    return 4;
-  }
-  unsafe {
-    kind_ord = pipeline_type_kind_ord_at(arena, tr);
-  }
-  // PTR base fallback: single peel via G.7 glue (handles *u8→1, *i32→4,
-  // **T→8). Inline re-peel here historically missed pointee PTR → default 4.
-  if (kind_ord == 9) {
-    unsafe {
-      return glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
-    }
-  }
-  if (kind_ord == 10 || kind_ord == 11) {
-    unsafe {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
-    }
-    if (pointee > 0) {
-      unsafe {
-        kind_ord = pipeline_type_kind_ord_at(arena, pointee);
-      }
-      if (kind_ord == 2 || kind_ord == 1) {
-        return 1;
-      }
-      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
-        return 4;
-      }
-      if (kind_ord == 9) {
-        return 8;
-      }
-      if (kind_ord == 10) {
-        let asz2: i32 = 0;
-        unsafe {
-          asz2 = glue_fixed_array_total_bytes_c(arena, pointee, 0);
-        }
-        if (asz2 > 0) {
-          return asz2;
-        }
-      }
-      if (kind_ord == 11) {
-        return 16;
-      }
-      if (kind_ord == 8) {
-        unsafe {
-          mod = pipeline_asm_emit_module_ref_c();
-        }
-        if (mod != (0 as *u8)) {
-          let esz_s: i32 = 0;
-          unsafe {
-            esz_s = glue_type_size_simple(mod, arena, pointee, 0);
-          }
-          if (esz_s > 0) {
-            return esz_s;
-          }
-        }
-      }
-    }
-  }
-  if (kind_ord == 8) {
-    unsafe {
-      mod = pipeline_asm_emit_module_ref_c();
-    }
-    if (mod != (0 as *u8)) {
-      let esz_n: i32 = 0;
-      unsafe {
-        esz_n = glue_type_size_simple(mod, arena, tr, 0);
-      }
-      if (esz_n > 0) {
-        return esz_n;
-      }
-    }
-  }
-  if (kind_ord == 13) {
-    unsafe {
-      pointee = pipeline_type_elem_ref_at(arena, tr);
-    }
-    if (pointee > 0) {
-      let r2: i32 = 0;
-      unsafe {
-        r2 = glue_index_elem_byte_sz_from_type_ref_c(arena, pointee);
-      }
-      return r2;
-    }
-    return 4;
-  }
-  return 8;
-}
+// wave724: pipeline_asm_index_elem_byte_sz_c is export-extern at file top
+// (leftover gcc W 0x1103). FORCE mega T smash first-won leftover gcc W.
+// Thins export-extern (no body). Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Public wrapper for INDEX element byte size (seed / cross-TU callers).
@@ -33882,7 +33559,9 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
  */
 #[no_mangle]
 export function pipeline_asm_index_elem_byte_sz(a: *u8, index_expr_ref: i32): i32 {
-  return pipeline_asm_index_elem_byte_sz_c(a, index_expr_ref);
+  unsafe {
+    return pipeline_asm_index_elem_byte_sz_c(a, index_expr_ref);
+  }
 }
 
 /**
@@ -33916,7 +33595,9 @@ export function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref
   if (base_ref <= 0 || idx_ref <= 0) {
     return 0 - 1;
   }
-  esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
+  unsafe {
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
+  }
   // wave350 G.7: do NOT early-gate VAR bases via pipeline_asm_modlet_find.
   // Product find reads g_pipeline_asm_modlet, but PREFER hybrid still links
   // strong cold prepare/load (g_pipeline_asm_modlet_cold). Module fixed-array
@@ -34092,7 +33773,9 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
     if (base_ref <= 0 || idx_ref <= 0) {
       return 0 - 99;
     }
-    esz = pipeline_asm_index_elem_byte_sz_c(arena, op);
+    unsafe {
+      esz = pipeline_asm_index_elem_byte_sz_c(arena, op);
+    }
     unsafe {
       rc = glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, op, base_ref, idx_ref, ctx, ta, esz);
     }
@@ -67946,7 +67629,9 @@ export function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *u8, out: *u8, l
     return 0;
   }
   if (ko == 47) {
-    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    unsafe {
+      esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    }
     return pipeline_asm_emit_index_eff_addr_text_c(arena, out, lval_ref, ctx, ta, esz);
   }
   return 0 - 1;
@@ -69766,7 +69451,9 @@ export function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, ar
     // G.7: same size harvest as FIELD — do not add a second packer.
     // PLATFORM: SHARED freestanding CALL-arg SysV packing.
     if (ek == 47) {
-      sz2 = pipeline_asm_index_elem_byte_sz_c(arena, arg_ref);
+      unsafe {
+        sz2 = pipeline_asm_index_elem_byte_sz_c(arena, arg_ref);
+      }
       if (sz2 > sz) {
         sz = sz2;
       }
