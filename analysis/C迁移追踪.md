@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-19 · 简写 · w612 Darwin COMMON lea PAGE21 · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-21 · 简写 · w743 Darwin COMMON lea PAGE21 sidecar · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | add_defs／param_ptr_slot／unused_hints／asm_expr helpers 产品 PREFER_ASM。`return_elf_impl_thin` 独立 `-c` T=1 U=7（Class A unsafe）；产品 leftover gcc W 未改。HARD BAN PREFER。小文件 `x=call(); if` 绿。8 EOF 别名＝WPO 帽 2048 已活体 sidecar 4096（pad≥2048 T=N+8）。余 HARD BAN PREFER：wpo_dump／asm_locals／assign_index／return_elf_impl_thin／full tip／`asm_wpo_thin`。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
+| `pipeline_abi` mega pure-asm | 🟡 | add_defs／param_ptr_slot／unused_hints／asm_expr helpers 产品 PREFER_ASM。Darwin COMMON lea PAGE21 sidecar（小文件 PAGE21／`set_g` 链跑 42）。`return_elf_impl_thin` 独立 `-c` T=1 U=7（Class A unsafe）；产品 leftover gcc W 未改。HARD BAN PREFER。小文件 `x=call(); if` 绿。8 EOF 别名＝WPO 帽 2048 已活体 sidecar 4096（pad≥2048 T=N+8）。余 HARD BAN PREFER：wpo_dump／asm_locals／assign_index／return_elf_impl_thin／full tip／`asm_wpo_thin`（COMMON lea PAGE21 已绿；墙＝Lxml S `n_sect=2`）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
@@ -240,7 +240,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余见归档 |
-| `pipeline_abi` mega pure-asm | 🟡 | 余 PREFER 已双端 U-complete **不 BAN**。add_defs／param_ptr_slot／unused_hints／asm_expr helpers 产品 PREFER_ASM。`return_elf_impl_thin` 独立 `-c` T=1 U=7；产品 leftover gcc W 未改。小文件 `x=call(); if` 绿。8 EOF 别名＝WPO 帽 2048 已活体 sidecar 4096（pad≥2048 T=N+8）。wpo_dump 活体仍 leftover gcc W。不 Soft-Cap `-E` 余叶。mega FORCE 禁。leftover-first 非主刀。禁 PREFER wpo_dump helpers／orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／fnptr_arr_esz／fnptr_as／assign_index／call_arg_lea／full `emit_expr_elf_c` tip／`asm_wpo_thin`。禁 LINUX `-E` emit_ctx BSS。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 余 PREFER 已双端 U-complete **不 BAN**。add_defs／param_ptr_slot／unused_hints／asm_expr helpers 产品 PREFER_ASM。Darwin COMMON lea PAGE21 sidecar。`return_elf_impl_thin` 独立 `-c` T=1 U=7；产品 leftover gcc W 未改。小文件 `x=call(); if` 绿。8 EOF 别名＝WPO 帽 2048 已活体 sidecar 4096（pad≥2048 T=N+8）。wpo_dump 活体仍 leftover gcc W。不 Soft-Cap `-E` 余叶。mega FORCE 禁。leftover-first 非主刀。禁 PREFER wpo_dump helpers／orch／asm_locals get／deref peel／grow_vec／deref scalar／rhs_to_rax／assign_var／emit_ctx BSS／final_expr／return_impl／fnptr_arr_esz／fnptr_as／assign_index／call_arg_lea／full `emit_expr_elf_c` tip／`asm_wpo_thin`（墙＝Lxml S `n_sect=2`）。禁 LINUX `-E` emit_ctx BSS。禁 BAN 已齐余 PREFER。禁 un-BAN arrlit＋main。 |
 | nest 冻 64 | ✅ | — |
 
 ---
@@ -255,7 +255,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。小文件 `x=call(); if` 绿。`return_elf_impl_thin` 独立 `-c` T=1 U=7（HARD BAN PREFER）。8 EOF 别名＝WPO 帽 2048 已活体 sidecar 4096（pad≥2048 T=N+8）。下一刀＝Darwin reloc 后 PREFER `asm_wpo_thin`（去掉 leftover-gcc sidecar）。禁 leftover-first 当主刀；禁 `-E` 当修法；禁盲 FORCE mega；禁升钉；禁 PREFER wpo_dump／asm_locals／assign_index／return_elf_impl_thin／full `emit_expr_elf_c` tip／`asm_wpo_thin`。  
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。小文件 `x=call(); if` 绿。Darwin COMMON lea PAGE21 sidecar（小文件 PAGE21／`set_g` 链跑 42）。`return_elf_impl_thin` 独立 `-c` T=1 U=7（HARD BAN PREFER）。8 EOF 别名＝WPO 帽 2048 已活体 sidecar 4096（pad≥2048 T=N+8）。下一刀＝PREFER `asm_wpo_thin`（墙＝Lxml S `n_sect=2`，COMMON lea PAGE21 已绿）。禁 leftover-first 当主刀；禁 `-E` 当修法；禁盲 FORCE mega；禁升钉；禁 PREFER wpo_dump／asm_locals／assign_index／return_elf_impl_thin／full `emit_expr_elf_c` tip／`asm_wpo_thin`。  
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

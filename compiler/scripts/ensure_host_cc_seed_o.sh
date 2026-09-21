@@ -3705,6 +3705,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
+      pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -3801,6 +3802,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
+      pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4261,6 +4263,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
+      pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4351,6 +4354,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
+      pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4425,6 +4429,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
+      pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4507,6 +4512,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_elf_ctx_thin "$o" || true
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
+      pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -10014,6 +10020,75 @@ pipeline_abi_inject_asm_wpo_cap() {
   return 0
 }
 
+# wave743 M2: Darwin COMMON lea PAGE21. leftover gcc lea writes g_pipe_elf
+# reloc rows with no owner; leftover compact macho_write inlines leftover C
+# static g_pipeline_elf_reloc_r_type + owner check → empty → BRANCH26.
+# Heal: globalize both BSS homes, leftover-gcc sidecar append_reloc_typed
+# (strong T) writes both arrays and binds both owners. Do not gcc -E .x.
+# Do not PREFER macho_write_thin. Do not Darwin ld -r into pabi. Do not
+# redefine leftover T (w647). HARD BAN PREFER asm_wpo_thin until this
+# sidecar is live and standalone thin COMMON lea is PAGE21/PAGEOFF12.
+# PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS writer co-path.
+pipeline_abi_w743_objcopy() {
+  if [ "$(uname -s)" = Darwin ]; then
+    if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      echo /opt/homebrew/opt/llvm/bin/llvm-objcopy
+      return 0
+    fi
+  fi
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    command -v llvm-objcopy
+    return 0
+  fi
+  if command -v objcopy >/dev/null 2>&1; then
+    command -v objcopy
+    return 0
+  fi
+  return 1
+}
+
+pipeline_abi_inject_reloc_typed_page21() {
+  local o="$1"
+  local src="seeds/runtime_pipeline_abi_reloc_typed_overlay.c"
+  local cap="src/runtime_pipeline_abi_reloc_typed.o"
+  local stamp="src/.pabi_w743_reloc_typed_page21.stamp"
+  local objcopy pfx
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if [ "$(uname -s)" = Darwin ]; then
+    pfx="_"
+  else
+    pfx=""
+  fi
+  objcopy="$(pipeline_abi_w743_objcopy)" || {
+    log "pipeline_abi w743-reloc-typed: objcopy missing"
+    return 1
+  }
+  # PLATFORM: SHARED — leftover C statics are non-external; sidecar must
+  # write them, so globalize. Idempotent if already external.
+  if ! "$objcopy" \
+    --globalize-symbol="${pfx}g_pipe_elf_reloc_r_type" \
+    --globalize-symbol="${pfx}g_pipe_elf_reloc_r_pcrel" \
+    --globalize-symbol="${pfx}g_pipe_elf_reloc_sidecar_owner" \
+    --globalize-symbol="${pfx}g_pipeline_elf_reloc_r_type" \
+    --globalize-symbol="${pfx}g_pipeline_elf_reloc_r_pcrel" \
+    --globalize-symbol="${pfx}g_pipeline_elf_reloc_sidecar_owner" \
+    "$o"; then
+    log "pipeline_abi w743-reloc-typed: globalize BSS failed"
+    return 1
+  fi
+  if [ -f "$stamp" ] && [ -s "$cap" ] && [ ! "$src" -nt "$stamp" ]; then
+    return 0
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o "$cap" "$src"; then
+    log "pipeline_abi w743-reloc-typed: cc overlay failed"
+    return 1
+  fi
+  touch "$stamp"
+  log "pipeline_abi w743-reloc-typed: leftover gcc sidecar PAGE21 owner bind"
+  return 0
+}
+
 # wave308/366/w504 M2: sidecar_pool Cap residual C→.x (was wave275 C thin).
 # PRODUCT inject wave366: PREFER_ASM both ends (prior green overlay).
 # wave504: tipU heal inventory (init peers + thin get) but tip PRODUCT PREFER
@@ -15301,6 +15376,7 @@ case "$MODE" in
     pipeline_abi_inject_elf_ctx_thin "$1"
     pipeline_abi_inject_asm_wpo_thin "$1"
     pipeline_abi_inject_asm_wpo_cap "$1"
+    pipeline_abi_inject_reloc_typed_page21 "$1"
     pipeline_abi_inject_sidecar_pool_thin "$1"
     pipeline_abi_inject_value_abi_thin "$1"
     pipeline_abi_inject_block_domain_thin "$1"
@@ -15912,6 +15988,7 @@ case "$MODE" in
     set +e
     pipeline_abi_inject_asm_wpo_thin "$1"
     pipeline_abi_inject_asm_wpo_cap "$1"
+    pipeline_abi_inject_reloc_typed_page21 "$1"
     _irc=$?
     set -e
     exit "$_irc"

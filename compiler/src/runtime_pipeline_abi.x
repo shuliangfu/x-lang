@@ -84301,13 +84301,23 @@ export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name:
 /**
  * Append reloc with explicit r_type / r_pcrel (arm64 ADRP/PAGEOFF modlet).
  * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
+ * wave743: bind g_pipe_elf_reloc_sidecar_owner so reloc_r_type_at does not
+ * return 0 (writer default ARM64_RELOC_BRANCH26) on file-level let COMMON
+ * adrp+add. Table-path append_reloc never called sidecar_reset.
+ * PLATFORM: SHARED freestanding ELF leave · MACOS writer co-path.
  */
 #[no_mangle]
 export function pipeline_elf_ctx_append_reloc_typed(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32 {
   if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0) {
     return -1;
   }
+  // First typed row for this ctx: bind owner and prefill pcrel to 255 so
+  // untyped call slots keep writer-default pcrel=1 (BRANCH26 r_pcrel=0 is
+  // rejected by Darwin ld). Table-path append_reloc never called reset.
+  if (g_pipe_elf_reloc_sidecar_owner != ctx_bytes) {
+    pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
+  }
+  g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
   let ri: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
   if (ri >= 0 && ri < pipe_elf_table_cap()) {
     pipe_elf_bss_store_i32(&g_pipe_elf_reloc_r_type[0], ri, r_type);

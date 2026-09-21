@@ -7,6 +7,9 @@
 # share one g_pipeline_elf_reloc_heap. write_o-only keep left overlay
 # `t` copies on a second heap; FORCE mega heap relocs became empty-name
 # PLT32 r_sym=0 and later functions (block_alloc) kept call-next-insn.
+# wave743: reloc_r_type_at / r_pcrel_at stay overlay-local (macho_write
+# inlines leftover C statics). Do not keep-global those names — the PAGE21
+# heal is leftover-gcc sidecar append_reloc_typed writing both BSS homes.
 pipeline_elf_write_o_standard_to_buf_c
 pipeline_elf_write_o_pgo_to_buf
 pipeline_macho_write_o_to_buf_c

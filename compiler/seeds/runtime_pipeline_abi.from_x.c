@@ -54185,6 +54185,12 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
   int32_t ri;
   if (pipeline_elf_ctx_append_reloc(ctx_bytes, offset, name, name_len) != 0)
     return -1;
+  /* wave743: first typed row binds owner and prefills pcrel to 255 so untyped
+   * call slots keep writer-default pcrel=1. Empty leftover C pcrel=0 after
+   * owner bind made BRANCH26 r_pcrel=0 (Darwin ld rejects). PLATFORM: SHARED. */
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    pipeline_elf_ctx_reloc_sidecar_reset(ctx_bytes);
+  g_pipeline_elf_reloc_sidecar_owner = ctx_bytes;
   {
     PipelineElfCtxAccess *ctx = (PipelineElfCtxAccess *)ctx_bytes;
     ri = ctx->num_relocs - 1;
