@@ -820,14 +820,15 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
       is_common = 1;
     }
     if (is_common != 0) {
-      let csize: i32 = w314_sym_common_size_at(ctx_bytes, s);
+      /* wave696: ctx offset (sym_va) is the COMMON size authority. Sidecar
+       * size is dual-copy and FORCE full-body emit smashes it to 1
+       * (same class as w672 is_common bits). PLATFORM: SHARED. */
+      let csize: i32 = sym_va;
       let calign: i32 = w314_sym_common_align_at(ctx_bytes, s);
       let alg: i32 = 0;
       let ndesc: i32 = 0;
       if (csize <= 0) {
-        /* Size fallback: add_common_sym stores sym_size in the symbol
-         * offset field (add_sym 4th arg), which sym_va already loaded. */
-        csize = sym_va;
+        csize = w314_sym_common_size_at(ctx_bytes, s);
       }
       if (csize <= 0) {
         csize = 8;

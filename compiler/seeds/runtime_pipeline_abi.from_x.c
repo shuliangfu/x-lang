@@ -51938,15 +51938,16 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
       ent[2] = (uint8_t)((str_off >> 16) & 255);
       ent[3] = (uint8_t)((str_off >> 24) & 255);
       if (is_common != 0) {
-        /* STB_GLOBAL|STT_OBJECT=17; SHN_COMMON=0xfff2; st_value=align, st_size=size */
-        csize = g_pipeline_elf_sym_common_size[s];
+        /* STB_GLOBAL|STT_OBJECT=17; SHN_COMMON=0xfff2; st_value=align, st_size=size
+         * wave696: ctx offset is the COMMON size authority (add_common_sym 4th
+         * arg). Sidecar size is dual-copy and FORCE full-body emit smashes it
+         * to 1 (same class as w672 is_common bits). PLATFORM: SHARED. */
+        csize = ctx->syms[s].offset;
         calign = g_pipeline_elf_sym_common_align[s];
         if (calign <= 0)
           calign = 8;
-        /* Size fallback: add_common_sym stores sym_size in the symbol
-         * offset field (add_sym 4th arg). */
         if (csize <= 0)
-          csize = ctx->syms[s].offset;
+          csize = g_pipeline_elf_sym_common_size[s];
         if (csize <= 0)
           csize = 8;
         ent[4] = 17;
@@ -52707,12 +52708,13 @@ int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_Codeg
       int32_t calign;
       int32_t alg;
       int32_t ndesc;
-      csize = g_pipeline_elf_sym_common_size[s];
+      /* wave696: ctx offset (sym_va) is the COMMON size authority. Sidecar
+       * size is dual-copy and FORCE full-body emit smashes it to 1
+       * (same class as w672 is_common bits). PLATFORM: SHARED. */
+      csize = sym_va;
       calign = g_pipeline_elf_sym_common_align[s];
-      /* Size fallback: add_common_sym stores sym_size in the symbol
-       * offset field (add_sym 4th arg), which sym_va already loaded. */
       if (csize <= 0)
-        csize = sym_va;
+        csize = g_pipeline_elf_sym_common_size[s];
       if (csize <= 0)
         csize = 8;
       if (calign <= 0)
@@ -53179,14 +53181,15 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
       ent[2] = (uint8_t)((str_off >> 16) & 255);
       ent[3] = (uint8_t)((str_off >> 24) & 255);
       if (is_common != 0) {
-        csize = g_pipeline_elf_sym_common_size[s];
+        /* wave696: ctx offset is the COMMON size authority. Sidecar size is
+         * dual-copy and FORCE full-body emit smashes it to 1 (same class as
+         * w672 is_common bits). PLATFORM: SHARED. */
+        csize = ctx->syms[s].offset;
         calign = g_pipeline_elf_sym_common_align[s];
         if (calign <= 0)
           calign = 8;
-        /* Size fallback: add_common_sym stores sym_size in the symbol
-         * offset field (add_sym 4th arg). */
         if (csize <= 0)
-          csize = ctx->syms[s].offset;
+          csize = g_pipeline_elf_sym_common_size[s];
         if (csize <= 0)
           csize = 8;
         ent[4] = 17;
@@ -53778,10 +53781,17 @@ int32_t pipeline_elf_ctx_sym_is_common_at(uint8_t *ctx_bytes, int32_t s) {
   return g_pipeline_elf_sym_is_common[s] != 0 ? 1 : 0;
 }
 
-/** COMMON size for writer. PLATFORM: SHARED. */
+/** COMMON size for writer. wave696: ctx offset is the size authority
+ * (add_common_sym 4th arg); sidecar is FORCE-smashable. PLATFORM: SHARED. */
 int32_t pipeline_elf_ctx_sym_common_size_at(uint8_t *ctx_bytes, int32_t s) {
-  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0)
+  PipelineElfCtxAccess *ctx;
+  int32_t off;
+  if (!ctx_bytes || s < 0 || s >= PIPELINE_ELF_CTX_TABLE_CAP)
     return 0;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  off = ctx->syms[s].offset;
+  if (off > 0)
+    return off;
   return g_pipeline_elf_sym_common_size[s];
 }
 

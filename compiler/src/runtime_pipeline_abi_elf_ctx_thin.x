@@ -1148,8 +1148,21 @@ export function pipeline_elf_ctx_sym_is_common_at(ctx_bytes: *u8, s: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_elf_ctx_sym_common_size_at(ctx_bytes: *u8, s: i32): i32 {
-  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0) {
+  /* wave696: ctx symbol offset is the size authority (add_common_sym 4th
+   * arg). Do not gate on the is_common sidecar (w672: FORCE smashes it)
+   * and do not prefer sidecar size (FORCE full-body emit writes 1s into
+   * the dual-copy BSS). Callers already classified via shndx==65522.
+   * PLATFORM: SHARED. */
+  if (ctx_bytes == 0 as *u8 || s < 0 || s >= pipe_elf_table_cap()) {
     return 0;
+  }
+  let se: *u8 = pipe_elf_sym_at(ctx_bytes, s);
+  let off: i32 = 0;
+  if (se != 0 as *u8) {
+    off = w312_load(se, pipe_elf_sym_off_offset());
+  }
+  if (off > 0) {
+    return off;
   }
   return pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
 }
@@ -2044,13 +2057,21 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
       }
     }
     let shndx: i32 = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
+    /* wave672: shndx==65522 is the sole common-classification authority. */
+    if (is_common == 0 && shndx == 65522) {
+      is_common = 1;
+    }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
     let se3: *u8 = pipe_elf_sym_at(ctx_bytes, s);
     if (is_common != 0) {
-      let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      /* wave696: ctx offset is the COMMON size authority. PLATFORM: SHARED. */
+      let csize: i32 = w312_load(se3, pipe_elf_sym_off_offset());
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       if (calign <= 0) {
         calign = 8;
+      }
+      if (csize <= 0) {
+        csize = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       }
       if (csize <= 0) {
         csize = 8;
@@ -2580,11 +2601,19 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
     }
     pipe_elf_store_i32_bytes(ent, 0, str_off);
     let se3: *u8 = pipe_elf_sym_at(ctx_bytes, s);
+    /* wave672: shndx==65522 is the sole common-classification authority. */
+    if (is_common == 0 && pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) == 65522) {
+      is_common = 1;
+    }
     if (is_common != 0) {
-      let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      /* wave696: ctx offset is the COMMON size authority. PLATFORM: SHARED. */
+      let csize: i32 = w312_load(se3, pipe_elf_sym_off_offset());
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       if (calign <= 0) {
         calign = 8;
+      }
+      if (csize <= 0) {
+        csize = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       }
       if (csize <= 0) {
         csize = 8;

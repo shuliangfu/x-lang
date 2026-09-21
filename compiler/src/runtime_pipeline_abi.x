@@ -93584,8 +93584,21 @@ export function pipeline_elf_ctx_sym_is_common_at(ctx_bytes: *u8, s: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_elf_ctx_sym_common_size_at(ctx_bytes: *u8, s: i32): i32 {
-  if (pipeline_elf_ctx_sym_is_common_at(ctx_bytes, s) == 0) {
+  /* wave696: ctx symbol offset is the size authority (add_common_sym 4th
+   * arg). Do not gate on the is_common sidecar (w672: FORCE smashes it)
+   * and do not prefer sidecar size (FORCE full-body emit writes 1s into
+   * the dual-copy BSS). Callers already classified via shndx==65522.
+   * PLATFORM: SHARED. */
+  if (ctx_bytes == 0 as *u8 || s < 0 || s >= pipe_elf_table_cap()) {
     return 0;
+  }
+  let se: *u8 = pipe_elf_sym_at(ctx_bytes, s);
+  let off: i32 = 0;
+  if (se != 0 as *u8) {
+    off = pipe_load_i32_le(se, pipe_elf_sym_off_offset());
+  }
+  if (off > 0) {
+    return off;
   }
   return pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
 }
@@ -94496,15 +94509,17 @@ export function pipeline_elf_write_o_pgo_to_buf(ctx_bytes: *u8, out: *u8): i32 {
     pipe_elf_store_i32_bytes(ent, 0, str_off);
     let se3: *u8 = pipe_elf_sym_at(ctx_bytes, s);
     if (is_common != 0) {
-      let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      /* wave696: ctx offset is the COMMON size authority (add_common_sym
+       * stores sym_size as add_sym 4th arg). Sidecar size is dual-copy and
+       * FORCE full-body emit smashes it to 1 (same class as w672 is_common
+       * bits). PLATFORM: SHARED. */
+      let csize: i32 = pipe_load_i32_le(se3, pipe_elf_sym_off_offset());
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       if (calign <= 0) {
         calign = 8;
       }
       if (csize <= 0) {
-        /* Size fallback: add_common_sym stores sym_size in the symbol
-         * offset field (add_sym 4th arg). */
-        csize = pipe_load_i32_le(se3, pipe_elf_sym_off_offset());
+        csize = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       }
       if (csize <= 0) {
         csize = 8;
@@ -95048,15 +95063,17 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
       is_common = 1;
     }
     if (is_common != 0) {
-      let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      /* wave696: ctx offset is the COMMON size authority (add_common_sym
+       * stores sym_size as add_sym 4th arg). Sidecar size is dual-copy and
+       * FORCE full-body emit smashes it to 1 (same class as w672 is_common
+       * bits). PLATFORM: SHARED. */
+      let csize: i32 = pipe_load_i32_le(se3, pipe_elf_sym_off_offset());
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       if (calign <= 0) {
         calign = 8;
       }
       if (csize <= 0) {
-        /* Size fallback: add_common_sym stores sym_size in the symbol
-         * offset field (add_sym 4th arg). */
-        csize = pipe_load_i32_le(se3, pipe_elf_sym_off_offset());
+        csize = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       }
       if (csize <= 0) {
         csize = 8;
@@ -95661,14 +95678,15 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
       is_common = 1;
     }
     if (is_common != 0) {
-      let csize: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
+      /* wave696: ctx offset (sym_va) is the COMMON size authority. Sidecar
+       * size is dual-copy and FORCE full-body emit smashes it to 1
+       * (same class as w672 is_common bits). PLATFORM: SHARED. */
+      let csize: i32 = sym_va;
       let calign: i32 = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_align[0], s);
       let alg: i32 = 0;
       let ndesc: i32 = 0;
       if (csize <= 0) {
-        /* Size fallback: add_common_sym stores sym_size in the symbol
-         * offset field (add_sym 4th arg), which sym_va already loaded. */
-        csize = sym_va;
+        csize = pipe_elf_bss_load_i32(&g_pipe_elf_sym_common_size[0], s);
       }
       if (csize <= 0) {
         csize = 8;
