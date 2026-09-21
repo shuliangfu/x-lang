@@ -640,6 +640,10 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // (leftover gcc W 0x12d3, endbr64 sub $0x10). FORCE mega T smash
 // first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
 // itself. Mega must emit U.
+// wave718: asm_backend_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0xa62, endbr64 sub $0x20). FORCE mega T smash
+// first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
+// itself. Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1784,6 +1788,18 @@ export extern function pipeline_asm_emit_return_elf_impl(
  * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
  */
 export extern function asm_parser_func_is_thin_delegate(m: *u8, func_index: i32): i32;
+
+/**
+ * G.7: leftover gcc overlay owns asm_backend_m8_tail_thin_delegate_c_name
+ * (W 0xa62, endbr64 sub $0x20). FORCE mega T smash first-won leftover W.
+ * Mega skip_heavy_or_thin_stub CALLs this (already unsafe). No thin copy.
+ * Do not leftover-first skip_heavy or skip_heavy_or_thin_stub parent.
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function asm_backend_m8_tail_thin_delegate_c_name(
+  m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
+): i32;
 
 
 /**
@@ -18562,131 +18578,17 @@ function asm_thin_delegate_emit(out: *u8, out_cap: i32, out_len: *i32, c_name: *
 /**
  * Backend M8-tail thin delegate: resolve C delegate symbol for a backend.x
  * thin-wrapper func name. @return 1 on hit (out/out_len set), else 0.
- * wave116 pure: G.7 single product authority. PLATFORM: SHARED.
+ * wave116 pure: G.7 single product authority.
+ * wave718: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0xa62 (endbr64 sub $0x20) is the sole global. Mega smash T first-won
+ *   leftover gcc. No thin copy. Do not leftover-first skip_heavy.
+ * PLATFORM: SHARED.
  */
-#[no_mangle]
-export function asm_backend_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
-  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
-    return 0;
-  }
-  unsafe {
-    if (pipeline_module_func_name_equal_at(m, func_index, "fill_param_slots", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_fill_param_slots", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "fill_local_slots", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_fill_local_slots", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "compute_frame_size", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_compute_frame_size_c", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body_elf", 19) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "backend_emit_block_body_sync_elf", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits_elf", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_block_inits_elf_c", 35);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_elf", 27) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_if_then_block_body_elf_c", 42);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop_elf", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_while_loop_elf_c", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop_elf", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_for_loop_elf_c", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_loop_body_content_c", 35);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_loop_body_content_elf", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_loop_body_content_elf_c", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_next_label", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_next_label_c", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "format_label_id", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_format_label_id_c", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_call", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_call_elf_c", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf_method_call", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_method_call_elf_c", 35);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_elf", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_call_args_elf_c", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_inits", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_block_inits_c", 31);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_block_body", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_block_body_c", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_while_loop", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_while_loop_c", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_for_loop", 13) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_for_loop_c", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_if_then_block_body_text", 28) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_if_then_block_body_text_c", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr", 9) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_c", 24);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_call", 14) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_call_c", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_method_call", 21) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_method_call_c", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_expr_elf", 13) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_expr_elf_c", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_index_eff_addr_text", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_index_eff_addr_text_c", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_index_eff_addr_elf", 23) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_index_eff_addr_elf_c", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_lvalue_eff_addr_text", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_lvalue_eff_addr_text_c", 40);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_lvalue_eff_addr_elf", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_lvalue_eff_addr_elf_c", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "asm_emit_call_args_text", 23) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_call_args_text_c", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "local_offset", 12) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_local_offset_c", 27);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "asm_resolve_whole_import_qualified_symbol", 41) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_resolve_whole_import_qualified_symbol_c", 52);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "emit_skip_heavy_stub_elf", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_emit_skip_heavy_stub_elf_c", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_shuffle_call_elf", 32) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_shuffle_call_elf_c", 47);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_select_call_elf", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_select_call_elf_c", 46);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_binop2_call_elf", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_binop2_call_elf_c", 46);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "simd_try_inline_fma3_call_elf", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_asm_simd_try_inline_fma3_call_elf_c", 46);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_backend_asm_codegen_ast_c", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "asm_codegen_ast_to_elf", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_backend_asm_codegen_ast_to_elf_c", 41);
-    }
-    return 0;
-  }
-}
+// wave718: asm_backend_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0xa62, endbr64 sub $0x20). FORCE mega T smash first-won
+// leftover gcc W. No thin copy. Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 /**
  * Pipeline M8-tail thin delegate. Guarded by asm_module_is_pipeline_selfhost.
