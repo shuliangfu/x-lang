@@ -53781,14 +53781,16 @@ int32_t pipeline_elf_ctx_sym_is_common_at(uint8_t *ctx_bytes, int32_t s) {
   return g_pipeline_elf_sym_is_common[s] != 0 ? 1 : 0;
 }
 
-/** COMMON size for writer. wave696: ctx offset is the size authority
- * (add_common_sym 4th arg); sidecar is FORCE-smashable. PLATFORM: SHARED. */
+/** COMMON size for writer. wave696: classify via shndx==65522 (w672),
+ * then ctx offset is the size authority. PLATFORM: SHARED. */
 int32_t pipeline_elf_ctx_sym_common_size_at(uint8_t *ctx_bytes, int32_t s) {
   PipelineElfCtxAccess *ctx;
   int32_t off;
   if (!ctx_bytes || s < 0 || s >= PIPELINE_ELF_CTX_TABLE_CAP)
     return 0;
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (ctx->syms[s].sym_shndx != 0xfff2)
+    return 0;
   off = ctx->syms[s].offset;
   if (off > 0)
     return off;

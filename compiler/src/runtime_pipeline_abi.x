@@ -93584,12 +93584,14 @@ export function pipeline_elf_ctx_sym_is_common_at(ctx_bytes: *u8, s: i32): i32 {
  */
 #[no_mangle]
 export function pipeline_elf_ctx_sym_common_size_at(ctx_bytes: *u8, s: i32): i32 {
-  /* wave696: ctx symbol offset is the size authority (add_common_sym 4th
-   * arg). Do not gate on the is_common sidecar (w672: FORCE smashes it)
-   * and do not prefer sidecar size (FORCE full-body emit writes 1s into
-   * the dual-copy BSS). Callers already classified via shndx==65522.
+  /* wave696: classify via shndx==65522 (w672; is_common sidecar is
+   * FORCE-smashable), then ctx offset is the size authority
+   * (add_common_sym 4th arg). Sidecar size is enrichment only.
    * PLATFORM: SHARED. */
   if (ctx_bytes == 0 as *u8 || s < 0 || s >= pipe_elf_table_cap()) {
+    return 0;
+  }
+  if (pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s) != 65522) {
     return 0;
   }
   let se: *u8 = pipe_elf_sym_at(ctx_bytes, s);
