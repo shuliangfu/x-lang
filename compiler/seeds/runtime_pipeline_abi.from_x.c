@@ -51810,10 +51810,17 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
         /* wave580 Cap: undef_names rows are u8[128]; full row ('_'+127). */
         if (rlen > 128)
           rlen = 128;
-        if (rlen > 0)
+        /* wave700: empty reloc names must not enter the ELF symtab.
+         * GNU ld rejects STT_FUNC GLOBAL UND with st_name=="" as
+         * "corrupt symbol table". Those rows were previously dropped by
+         * the 256 cap; 2048 lets calloc/mmap in and would also admit
+         * nameless PLT32s. Skip rlen<=0; leave those rela r_sym=0.
+         * PLATFORM: LINUX ELF writer. */
+        if (rlen > 0) {
           memcpy(undef_names[num_undef], rname, (size_t)rlen);
-        undef_lens[num_undef] = rlen;
-        num_undef = num_undef + 1;
+          undef_lens[num_undef] = rlen;
+          num_undef = num_undef + 1;
+        }
       }
     }
     r0 = r0 + 1;

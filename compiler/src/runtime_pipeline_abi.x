@@ -94859,13 +94859,16 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
         if (rlen > 128) {
           rlen = 128;
         }
+        /* wave700: GNU ld rejects empty-name GLOBAL UND ("corrupt symbol
+         * table"). Skip rlen<=0; nameless PLT32s stay r_sym=0.
+         * PLATFORM: LINUX ELF writer. */
         if (rlen > 0) {
           unsafe {
             memcpy(pipe_elf_ws_undef_name_row(num_undef), &g_pipe_elf_ws_name[0], rlen as usize);
           }
+          pipe_elf_ws_undef_len_set(num_undef, rlen);
+          num_undef = num_undef + 1;
         }
-        pipe_elf_ws_undef_len_set(num_undef, rlen);
-        num_undef = num_undef + 1;
       }
     }
     r0 = r0 + 1;
