@@ -1,5 +1,5 @@
-# FORCE leftover-weaken: localize smashed mega/thin WPO emit-order
-# faces so leftover WAVE274 gcc W is the sole global.
+# FORCE leftover-weaken: localize smashed mega/thin faces so leftover
+# gcc W is the sole global.
 # PLATFORM: LINUX gold FORCE probe (not product default).
 #
 # wave702: FORCE mega/thin asm of emit_order_at lowered
@@ -7,6 +7,13 @@
 # count still returned 2; at() returned -1; emit_one `i < 0` no-op
 # → CG002 code_len=0. Leftover pabi W sizes: prepare 0x270 /
 # count 0x2f / at 0x65 (RIP load of emit_n). Thin/mega ~128B smash.
+#
+# wave703: FORCE mega T of backend_emit_block_body_sync_elf
+# (`sub $0x8a8` / call-next-insn) first-won leftover 84B gcc wrapper;
+# inner pipeline_asm_emit_block_body_sync_elf mega T (`sub $0x5228` /
+# cltq on i32) first-won leftover W 0x22c6. parse_orch emit_one#2
+# (w323_arena_num_exprs) then failed in w499_mega_emit_body_sync
+# → CG002 code_len=699 labels=0. Leftover W is the live body.
 #
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # before `ld -r --allow-multiple-definition` (mono then thins then
@@ -21,3 +28,7 @@ pipeline_asm_wpo_pgo_emit_order_at
 asm_wpo_get_emit_mod
 asm_wpo_set_emit_mod
 asm_wpo_max_funcs
+backend_emit_block_body_sync_elf
+pipeline_asm_emit_block_body_sync_elf
+pipeline_asm_emit_expr_elf_rec
+pipeline_asm_emit_expr_elf_fast

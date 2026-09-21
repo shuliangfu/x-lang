@@ -34245,6 +34245,12 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   return 0;
 }
 
+/* wave703: leftover gcc WAVE153 is FORCE/product authority for
+ * backend_emit_block_body_sync_elf (84B) and
+ * pipeline_asm_emit_block_body_sync_elf (0x22c6). Mega FORCE asm of
+ * both first-won smash (`sub $0x8a8` / `sub $0x5228`); mega .x now
+ * export-externs so leftover W is the sole global.
+ * PLATFORM: LINUX gold FORCE probe — not product-default mega FORCE. */
 int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
   return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
 }
