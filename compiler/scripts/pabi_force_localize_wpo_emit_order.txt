@@ -87,6 +87,15 @@
 # leftover-first asm_skip_heavy_module_func_body itself (wave650
 # FORCE_FULL_BODIES escape). Do not bulk-localize ~1970 default-frame names.
 #
+# wave713: FORCE mega T of glue_emit_struct_type_let_init_elf_c first-won leftover
+# gcc W 0x20c9 (endbr64 sub $0x3b8). leftover gcc parent CALLs leftover gcc
+# pipeline_asm_emit_struct_let_init_elf_c (W 0xa0) which CALLs leftover gcc
+# pipeline_asm_emit_struct_lit_fields_elf_c (W 0x169e). leftover gcc emit_expr
+# STRUCT_LIT CALLs leftover gcc pipeline_asm_emit_struct_lit_elf_c (W 0x44).
+# Family leftover-first all four. Localize assign_thin / asm_expr_thin so
+# thin W cannot first-win leftover gcc W. Do NOT leftover-first skip_heavy.
+# Do not leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -124,3 +133,7 @@ glue_emit_assign_rhs_to_rax_elf_c
 glue_emit_assign_rhs_elf_c
 pipeline_asm_emit_expr_elf_for_call_args
 asm_parser_emit_heavy_safe_helper
+glue_emit_struct_type_let_init_elf_c
+pipeline_asm_emit_struct_let_init_elf_c
+pipeline_asm_emit_struct_lit_fields_elf_c
+pipeline_asm_emit_struct_lit_elf_c
