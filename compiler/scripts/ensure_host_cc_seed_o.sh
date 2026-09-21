@@ -3706,6 +3706,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
+      pipeline_abi_inject_data_len_dual_bss "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -3803,6 +3804,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
+      pipeline_abi_inject_data_len_dual_bss "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4264,6 +4266,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
+      pipeline_abi_inject_data_len_dual_bss "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4355,6 +4358,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
+      pipeline_abi_inject_data_len_dual_bss "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4430,6 +4434,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
+      pipeline_abi_inject_data_len_dual_bss "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4513,6 +4518,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_thin "$o" || true
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
+      pipeline_abi_inject_data_len_dual_bss "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -9970,7 +9976,11 @@ pipeline_abi_inject_elf_ctx_thin() {
 # re-overlay. wave369 PREFER pure-asm: g05 pure-ld fails
 # ARM64_RELOC_BRANCH26 on non-b/bl in pabi_thin. T001 w311_* stay in .x.
 # wave741: cap raise is leftover from_x overlay (inject-asm-wpo-cap), not PREFER.
-# Stamp w369b. PLATFORM: SHARED · both ends hard-skip until reloc root.
+# wave744: Darwin n_sect=2 closed (F7 data_len dual-BSS sidecar emits
+# __DATA,__data for g_aw_root_id=-1). g05 prepend of standalone thin then
+# links, but live WPO thin → CG002 code_len=0 on user files. Keep cap
+# sidecar. Do not G05-prepend the thin. Stamp w369b.
+# PLATFORM: SHARED · both ends hard-skip until thin WPO CG002 is healed.
 pipeline_abi_inject_asm_wpo_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_wpo_thin.x"
@@ -10086,6 +10096,69 @@ pipeline_abi_inject_reloc_typed_page21() {
   fi
   touch "$stamp"
   log "pipeline_abi w743-reloc-typed: leftover gcc sidecar PAGE21 owner bind"
+  return 0
+}
+
+# wave744 M2: Darwin Lxml S n_sect=2. leftover gcc emit/append/poke write
+# .x g_pipe_elf_data_len; leftover compact macho_write inlines leftover C
+# g_pipeline_elf_data_len (empty → nsects=1) while wave344 non-zero scalar
+# imm (g_aw_root_id=-1) is SHNX_DATA n_sect=2. Heal: globalize both BSS
+# homes, leftover-gcc sidecar F7 data family (strong T) writes both buffers.
+# Do not gcc -E .x. Do not PREFER macho_write_thin. Do not Darwin ld -r
+# into pabi. Do not redefine leftover T (w647). HARD BAN PREFER
+# asm_wpo_thin: n_sect closed, but g05-prepend thin is CG002 code_len=0.
+# PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS writer co-path.
+pipeline_abi_inject_data_len_dual_bss() {
+  local o="$1"
+  local src="seeds/runtime_pipeline_abi_data_len_overlay.c"
+  local cap="src/runtime_pipeline_abi_data_len.o"
+  local stamp="src/.pabi_w744_data_len_dual_bss.stamp"
+  local objcopy pfx
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if [ "$(uname -s)" = Darwin ]; then
+    pfx="_"
+  else
+    pfx=""
+  fi
+  objcopy="$(pipeline_abi_w743_objcopy)" || {
+    log "pipeline_abi w744-data-len: objcopy missing"
+    return 1
+  }
+  # PLATFORM: SHARED — leftover C statics are non-external; sidecar must
+  # write them, so globalize. Mega .x BSS is already local; globalize so
+  # the sidecar can bind both homes. Idempotent if already external.
+  if ! "$objcopy" \
+    --globalize-symbol="${pfx}g_pipe_elf_data_buf" \
+    --globalize-symbol="${pfx}g_pipe_elf_data_len" \
+    --globalize-symbol="${pfx}g_pipe_elf_data_owner" \
+    --globalize-symbol="${pfx}g_pipeline_elf_data_buf" \
+    --globalize-symbol="${pfx}g_pipeline_elf_data_len" \
+    "$o"; then
+    log "pipeline_abi w744-data-len: globalize BSS failed"
+    return 1
+  fi
+  # Mega smash T of reset / data_ptr / append_u32 is strong; leftover gcc
+  # emit/append_zeros/poke is already weak. Weaken so sidecar strong T
+  # first-wins. Do not --redefine-sym leftover T (w647).
+  # PLATFORM: SHARED objcopy weaken · Darwin leftover already weak is a no-op.
+  "$objcopy" \
+    --weaken-symbol="${pfx}pipeline_elf_ctx_emit_data_len" \
+    --weaken-symbol="${pfx}pipeline_elf_ctx_append_data_zeros" \
+    --weaken-symbol="${pfx}pipeline_elf_ctx_data_poke_u8" \
+    --weaken-symbol="${pfx}pipeline_elf_ctx_append_data_u32_le" \
+    --weaken-symbol="${pfx}pipeline_elf_ctx_data_data_ptr" \
+    --weaken-symbol="${pfx}pipeline_elf_ctx_reset_data" \
+    "$o" || true
+  if [ -f "$stamp" ] && [ -s "$cap" ] && [ ! "$src" -nt "$stamp" ]; then
+    return 0
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o "$cap" "$src"; then
+    log "pipeline_abi w744-data-len: cc overlay failed"
+    return 1
+  fi
+  touch "$stamp"
+  log "pipeline_abi w744-data-len: leftover gcc sidecar dual BSS F7 data"
   return 0
 }
 
@@ -15377,6 +15450,7 @@ case "$MODE" in
     pipeline_abi_inject_asm_wpo_thin "$1"
     pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_reloc_typed_page21 "$1"
+    pipeline_abi_inject_data_len_dual_bss "$1"
     pipeline_abi_inject_sidecar_pool_thin "$1"
     pipeline_abi_inject_value_abi_thin "$1"
     pipeline_abi_inject_block_domain_thin "$1"
@@ -15989,6 +16063,7 @@ case "$MODE" in
     pipeline_abi_inject_asm_wpo_thin "$1"
     pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_reloc_typed_page21 "$1"
+    pipeline_abi_inject_data_len_dual_bss "$1"
     _irc=$?
     set -e
     exit "$_irc"

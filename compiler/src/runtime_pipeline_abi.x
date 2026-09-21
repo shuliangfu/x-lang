@@ -1583,6 +1583,8 @@ export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8,
  * mega `g_pipe_elf_data_len`, not leftover `g_pipeline_elf_data_len`.
  * Same-TU localize of mega T still binds prepare's CALL to mega local t.
  * Mega must emit U so leftover gcc W is the sole global.
+ * wave744: leftover-gcc sidecar first-wins this weak T and writes both BSS
+ * homes so compact macho_write (inlines leftover C) emits __DATA.
  * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
  */
 export extern function pipeline_elf_ctx_emit_data_len(ctx_bytes: *u8): i32;

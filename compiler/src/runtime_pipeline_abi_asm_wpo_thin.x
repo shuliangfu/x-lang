@@ -4,8 +4,10 @@
 // PRODUCT inject: hard-skip BAN PREFER (wave369b); stay leftover gcc overlay.
 // wave369: w311_* ptr helpers via unsafe (T001); PREFER g05 BRANCH26 fail.
 // wave741: FUNCS 2048→4096 / EDGES 8192→16384 (mega-EOF alias silent
-// truncate was emit-order cap, not parser skip). HARD BAN PREFER remains;
-// live cap raise is leftover from_x WAVE274 overlay (inject-asm-wpo-cap).
+// truncate was emit-order cap, not parser skip).
+// wave744: Darwin Lxml S n_sect=2 closed (g_aw_root_id=-1 is __DATA,__data).
+// g05 prepend of this thin links, but live WPO is CG002 code_len=0 on user
+// files. HARD BAN PREFER remains; live cap is leftover-gcc WAVE274 sidecar.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 export extern "C" function pipeline_typeck_pick_overload_func_index_for_call_c(m: *u8, a: *u8, call_ref: i32): i32;
 
