@@ -15,7 +15,24 @@
 # (w323_arena_num_exprs) then failed in w499_mega_emit_body_sync
 # → CG002 code_len=699 labels=0. Leftover W is the live body.
 #
+# wave704: FORCE mega T of pipeline_asm_emit_expr_elf_fast
+# (`sub $0x2e98` / cltq) first-won leftover W 0x1200 after leftover
+# body_sync W was live. After export-extern, leftover fast W is live
+# but parse_orch still CG002; gdb innermost leftover fast#63 eax=-1
+# because leftover fast VAR path calls mega T
+# glue_call_arg_resolve_var_stack_off_elf_c (`sub $0xcf8` / cltq)
+# covering leftover W 0x70b. After resolve leftover W live, leftover
+# resolve#8/#9 still -1 because mega T glue_var_expr_stack_off_elf_c
+# (`sub $0x898` / cltq) first-won leftover gcc W 0x72 (endbr64
+# sub $0x30). parse_orch emit_one#2 is `return load_i32(a, CONST)`
+# with file-level const W323_ARENA_OFF_NUM_EXPRS: leftover fast VAR
+# path then calls asm_module_top_level_const_lit_i32; mega T
+# (`sub $0x8c8`) first-won leftover W 0x14c. Keep rec on this list
+# (thin W 0x48 stub must not first-win leftover rec W 0x6a1).
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
+# AND runtime_pipeline_abi_asm_expr_thin.o AND
+# runtime_pipeline_abi_asm_expr_helpers_thin.o
 # before `ld -r --allow-multiple-definition` (mono then thins then
 # leftover-weak pabi). objcopy --localize-symbols this list.
 #
@@ -32,3 +49,6 @@ backend_emit_block_body_sync_elf
 pipeline_asm_emit_block_body_sync_elf
 pipeline_asm_emit_expr_elf_rec
 pipeline_asm_emit_expr_elf_fast
+glue_call_arg_resolve_var_stack_off_elf_c
+glue_var_expr_stack_off_elf_c
+asm_module_top_level_const_lit_i32

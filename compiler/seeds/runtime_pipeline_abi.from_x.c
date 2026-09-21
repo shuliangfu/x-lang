@@ -33725,7 +33725,11 @@ int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_r
 }
 #endif /* FROM_X — leftover rest WIN leftover ADDR_OF/DEREF (rec cluster already WIN) */
 
-/* wave152 cold twin pipeline_asm_emit_expr_elf_fast. PLATFORM: SHARED. */
+/* wave152 cold twin pipeline_asm_emit_expr_elf_fast. PLATFORM: SHARED.
+ * wave704: leftover gcc WAVE152 is FORCE/product authority (W 0x1200
+ * endbr64). Mega FORCE asm first-won smash (`sub $0x2e98` / cltq);
+ * mega .x now export-externs so leftover W is the sole global.
+ * PLATFORM: LINUX gold FORCE probe — not product-default mega FORCE. */
 int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t ko;
   int32_t nexprs;

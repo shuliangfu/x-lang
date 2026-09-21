@@ -1499,6 +1499,17 @@ export extern function pipeline_asm_emit_block_body_sync_elf(arena: *u8, elf_ctx
  */
 export extern function backend_emit_block_body_sync_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 
+/**
+ * G.7: leftover WAVE152 gcc owns emit_expr_elf fast path (LIT / const_fold /
+ * VAR / binop). FORCE mega T first-won smash (`sub $0x2e98` / cltq) over
+ * leftover W 0x1200. parse_orch emit_one#2 then failed innermost at
+ * pipeline_asm_emit_expr_elf_fast#63 eax=-1 after leftover body_sync W
+ * was already live. Mega must not emit a competing T.
+ * Same-TU callers (binop load_operand / emit_expr_elf_rec) stay in unsafe.
+ * PLATFORM: SHARED — leftover from_x WAVE152 provides the body.
+ */
+export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -52323,7 +52334,9 @@ export extern "C" function arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx: *u8): i32;
 // wave200 pure-owned: glue_load_f32_var_slot_to_rax_elf_c / _to_rbx_elf_c at EOF (#[no_mangle]).
 // G.7 ban dual export extern + pure export for the same symbol.
 // wave151 pure-owned leave: pipeline_asm_emit_field_access_elf_fast_c lives in EOF wave151 section.
-// wave152 pure-owned faces: pipeline_asm_emit_expr_elf_fast / rec / lit_i32 / c live in EOF section.
+// wave152 pure-owned faces: pipeline_asm_emit_expr_elf_rec / lit_i32 / c live in EOF.
+// wave704: pipeline_asm_emit_expr_elf_fast is export-extern at file top
+// (leftover WAVE152 T, 0x1200). Do not restore mega T.
 // Cap residual callees for wave152 expr_rec leave (host residual or other pure modules):
 export extern "C" function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -57905,7 +57918,7 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
 // G.7 product authority for:
 //   pipeline_asm_expr_lit_i32_at_c
 //   glue_try_emit_match_subject_field_var_elf_c  (private pure; match field-bind)
-//   pipeline_asm_emit_expr_elf_fast
+//   pipeline_asm_emit_expr_elf_fast  (wave704: export-extern leftover WAVE152)
 //   pipeline_asm_emit_expr_elf_rec
 //   pipeline_asm_emit_expr_elf_c
 // Cap residual: pool accessors (sidecar) + enc + kind faces + call/method/struct_lit
@@ -58065,282 +58078,9 @@ export function glue_try_emit_match_subject_field_var_elf_c(arena: *u8, elf_ctx:
   }
 }
 
-/**
- * emit_expr_elf fast path: LIT / const_fold / VAR / binop arms.
- * @param arena *u8 - ASTArena*
- * @param elf_ctx *u8 - ElfCodegenCtx*
- * @param expr_ref i32 - expr pool ref
- * @param ctx *u8 - AsmFuncCtx*
- * @param ta i32 - target arch
- * @return i32 - 0 ok; -1 error; -99 UNHANDLED (PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED)
- * wave152 pure: G.7 authority (was pipeline_asm_emit_expr_elf_fast).
- * PLATFORM: SHARED freestanding emit · LINUX+MACOS x86_64 · MACOS|ARM64.
- */
-#[no_mangle]
-export function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  let ko: i32 = 0;
-  let nexprs: i32 = 0;
-  let cfold_valid: i32 = 0;
-  let cfold_imm: i32 = 0;
-  let cfold_use_imm32: i32 = 1;
-  let wpo_mono: *u8 = 0 as *u8;
-  let wpo_nofold: *u8 = 0 as *u8;
-  let cfold_tr: i32 = 0;
-  let cfold_k: i32 = 0;
-  let nm: u8[256] = [];
-  let nlen: i32 = 0;
-  let fb: i32 = 0;
-  let flo: i32 = 0;
-  let fhi: i32 = 0;
-  let v64: i64 = 0;
-  let rty: i32 = 0;
-  let rk: i32 = 0;
-  let lo: i32 = 0;
-  let hi: i32 = 0;
-  let vname: u8[256] = [];
-  let vlen: i32 = 0;
-  let off: i32 = 0;
-  let mod: *u8 = 0 as *u8;
-  let mod_imm: i32 = 0;
-  let vtr: i32 = 0;
-  /* Cap-fn-ptr bare VAR LEA scratch (10.3.1 slice3 / 10.3.2). PLATFORM: SHARED.
-   * 9.4.2: the Mach-O '_' / ELF bare spell lives in pipe_modlet_lea_fn_sym_to_rax. */
-  let fnptr_fi: i32 = 0;
-  let cap_tr: i32 = 0;
-  let cap_ko: i32 = 0;
-  let cap_er: i32 = 0;
-  let cap_eko: i32 = 0;
-  let cap_ok: i32 = 0;
-  // INT32_MAX for non-negative imm32 range
-  let int32_max: i64 = 2147483647;
-  if (expr_ref == 0) {
-    return 0 - 1;
-  }
-  if (arena == (0 as *u8)) {
-    return 0 - 99;
-  }
-  unsafe {
-    nexprs = pipe_load_i32_le(arena, pipe_arena_off_num_exprs());
-  }
-  if (expr_ref <= 0 || expr_ref > nexprs) {
-    return 0 - 99;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-    // CTFE fold: skip VAR (pool mis-fold risk). CALL may still need real dispatch under WPO env.
-    cfold_valid = pipeline_expr_const_folded_valid_at(arena, expr_ref);
-  }
-  if (cfold_valid != 0 && ko != 3) {
-    unsafe {
-      cfold_imm = pipeline_expr_const_folded_val_at(arena, expr_ref);
-    }
-    cfold_use_imm32 = 1;
-    if (ko == 48) {
-      unsafe {
-        wpo_mono = link_abi_getenv("XLANG_WPO_MONO");
-        wpo_nofold = link_abi_getenv("XLANG_WPO_NO_FOLD");
-      }
-      if ((wpo_mono != (0 as *u8) && wpo_mono[0] != (0 as u8)) || (wpo_nofold != (0 as *u8) && wpo_nofold[0] != (0 as u8))) {
-        cfold_use_imm32 = 0;
-      }
-    }
-    if (cfold_use_imm32 != 0) {
-      unsafe {
-        cfold_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-        cfold_k = 0 - 1;
-        if (cfold_tr > 0) {
-          cfold_k = pipeline_type_kind_ord_at(arena, cfold_tr);
-        }
-        // TYPE_U8 = 2
-        if (cfold_k == 2) {
-          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm & 255, ta);
-        }
-        // TYPE_U32 = 3
-        if (cfold_k == 3) {
-          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
-        }
-        // TYPE_NAMED = 8 → u16 spelling
-        if (cfold_k == 8) {
-          nlen = pipeline_type_named_name_into(arena, cfold_tr, &nm[0]);
-          if (nlen == 3 && nm[0] == (117 as u8) && nm[1] == (49 as u8) && nm[2] == (54 as u8)) {
-            return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm & 65535, ta);
-          }
-        }
-        // TYPE_F32 = 14 / TYPE_F64 = 15 — int CTFE → IEEE bits
-        if (cfold_k == 14) {
-          fb = glue_i32_to_f32_bits(cfold_imm);
-          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
-        }
-        if (cfold_k == 15) {
-          glue_i64_to_f64_bits(cfold_imm as i64, &flo, &fhi);
-          return backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta);
-        }
-        if (cfold_imm >= 0) {
-          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
-        }
-        // sign-extend i32 → i64 halves
-        v64 = cfold_imm as i64;
-        lo = v64 as i32;
-        hi = (v64 >> 32) as i32;
-        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
-      }
-    }
-  }
-  // EXPR_LIT / BOOL_LIT
-  if (ko == 0 || ko == 2) {
-    unsafe {
-      v64 = pipeline_expr_int64_val_at(arena, expr_ref);
-      if (ko == 0) {
-        rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
-        if (rty > 0) {
-          rk = pipeline_type_kind_ord_at(arena, rty);
-          if (rk == 14) {
-            fb = glue_i64_to_f32_bits(v64);
-            return backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
-          }
-          if (rk == 15) {
-            glue_i64_to_f64_bits(v64, &flo, &fhi);
-            return backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta);
-          }
-        }
-      }
-      if (ko == 2 || (v64 >= 0 && v64 <= int32_max)) {
-        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, v64 as i32, ta);
-      }
-      lo = v64 as i32;
-      // arithmetic right-shift hi half via unsigned-ish: use glue for full bits
-      // Extract hi: (v64 >> 32) as i32 — pure may not have >> on i64; use dual path:
-      // For negative values hi is -1; for large positive use float helper? Better:
-      // store via glue_i64_to_f64_bits is wrong. Use bit split via two halves:
-      // Cap residual already used for f64; for integer mov_imm64 split:
-      // pure i64: lo = (v64 as i32) truncates low 32; hi needs >> 32.
-      // Many pure leaves cast; check if >> works on i64.
-      hi = ((v64 >> 32) as i32);
-      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
-    }
-  }
-  // FLOAT_LIT
-  if (ko == 1) {
-    unsafe {
-      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);
-    }
-  }
-  // ENUM_VARIANT tag
-  if (ko == 50) {
-    unsafe {
-      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
-    }
-  }
-  // FIELD_ACCESS
-  if (ko == 44) {
-    unsafe {
-      return pipeline_asm_emit_field_access_elf_fast_c(arena, elf_ctx, expr_ref, ctx, ta);
-    }
-  }
-  // EXPR_VAR
-  if (ko == 3) {
-    unsafe {
-      vlen = pipeline_expr_var_name_len(arena, expr_ref);
-      if (vlen <= 0) {
-        return 0 - 1;
-      }
-      pipeline_expr_var_name_into(arena, expr_ref, &vname[0]);
-      if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, &vname[0], vlen, ta) == 0) {
-        return 0;
-      }
-      off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
-      if (off < 0) {
-        mod = pipeline_asm_emit_module_ref_c();
-        if (mod != (0 as *u8) && asm_module_top_level_const_lit_i32(mod, arena, &vname[0], vlen, &mod_imm) != 0) {
-          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
-        }
-        if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, &vname[0], vlen) == 0) {
-          return 0;
-        }
-        /*
-         * Cap-fn-ptr bare name (10.3.1 slice3): wave100 types same-module fn
-         * as Cap *u8 / TYPE_FN but there is no stack slot. LEA link symbol
-         * (same algorithm as EXPR_AS Cap path). Locals already failed above.
-         * #[no_mangle] only. PLATFORM: SHARED · MACOS '_' · LINUX bare.
-         */
-        cap_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-        cap_ok = 0;
-        if (cap_tr > 0) {
-          cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
-          if (cap_ko == 18) {
-            cap_ok = 1;
-          } else if (cap_ko == 9) {
-            cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
-            if (cap_er > 0) {
-              cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
-              if (cap_eko == 2) {
-                cap_ok = 1;
-              }
-            }
-          }
-        }
-        if (cap_ok != 0 && vlen > 0 && vlen < 128) {
-          mod = glue_emit_module_from_ctx(ctx);
-          if (mod != (0 as *u8)) {
-            fnptr_fi = glue_module_func_index_by_name_c(mod, &vname[0], vlen);
-            if (fnptr_fi >= 0) {
-              // Cap-fn-ptr: load effective address of any same-module function into rax/x0.
-              // 9.4.2: symbol spell (Mach-O '_' / ELF bare) is the
-              // pipe_modlet_lea_fn_sym_to_rax authority.
-              unsafe {
-                return pipe_modlet_lea_fn_sym_to_rax(elf_ctx, &vname[0], vlen, ta);
-              }
-            }
-          }
-        }
-        return 0 - 1;
-      }
-      vtr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
-      if (vtr > 0 && pipeline_type_kind_ord_at(arena, vtr) == 14) {
-        return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
-      }
-      return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
-    }
-  }
-  // EXPR_RETURN must not fast-peel (needs jmp tail_join)
-  if (ko == 41) {
-    return 0 - 99;
-  }
-  // binops
-  unsafe {
-    if (ko == 4) {
-      return pipeline_asm_emit_binop_add_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
-    }
-    if (ko == 5) {
-      return pipeline_asm_emit_binop_sub_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
-    }
-    if (ko == 6) {
-      return pipeline_asm_emit_binop_mul_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
-    }
-    if (ko == 7) {
-      return pipeline_asm_emit_binop_div_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
-    }
-    if (ko == 8) {
-      return pipeline_asm_emit_binop_mod_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
-    }
-    if (ko == 11) {
-      return pipeline_asm_emit_binop_and_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
-    }
-    if (ko == 9) {
-      return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
-    }
-    if (ko == 10) {
-      return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
-    }
-    if (ko == 12) {
-      return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
-    }
-    if (ko == 13) {
-      return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
-    }
-  }
-  return 0 - 99;
-}
+// wave704: pipeline_asm_emit_expr_elf_fast is export-extern at file
+// top (leftover WAVE152 T, 0x1200). Mega FORCE asm first-won smash
+// (`sub $0x2e98` / cltq). Do not restore mega T.
 
 /**
  * Freestanding expr ELF recursion: fast → kind dispatch → slow residual.
