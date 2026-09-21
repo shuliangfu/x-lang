@@ -2072,6 +2072,23 @@ export extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
 
 
 /**
+ * G.7: leftover gcc overlay owns pipeline_asm_simd_try_inline_fma3_call_elf_c
+ * (W 0x47e). FORCE mega T smash first-won leftover W (`sub $0xcf8`).
+ * leftover gcc vector_type_let_init (w732 W 0x2c5) CALLs leftover gcc this
+ * face for CALL/METHOD simd.fma. Mega same-TU remaining callers: 0
+ * (parent leftover-first). No thin defines this symbol — still localize.
+ * Do not leftover-first skip_heavy, skip_heavy_or_thin_stub parent,
+ * rax_plus_rbx_scaled, local_slot rbx twin, wrapper, store_retval_pair,
+ * or other vector children (var_copy / binop / splat / identity / binop2).
+ * Mega may not emit U (unused export-extern).
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -45195,142 +45212,31 @@ function glue_simd_select_arg_stack_off_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta
 /**
  * Inline vec4f_fma / vec4f_madd / simd_fma CALL or METHOD import simd.fma.
  * Completes METHOD path + bare "fma" (s4 shuffle/select pattern).
+ * @param arena *u8 — ASTArena*
+ * @param elf_ctx *u8 — ElfCodegenCtx*
+ * @param call_ref i32 — CALL(48) or METHOD_CALL(49) expr
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @param stack_slot_off i32 — dst slot
+ * @param type_ref i32 — result vector type
  * @return i32 - 1 inlined; 0 no match; -1 error
- * wave148 pure: G.7 authority (was pipeline_asm_simd_try_inline_fma3_call_elf_c).
- * PLATFORM: SHARED freestanding · LINUX|x86 FMA.
+ * G.7 leftover gcc overlay owns this face (was mega body).
+ * wave736: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x47e (endbr64 sub $0x80) is the sole global. FORCE mega T smash
+ *   (`sub $0xcf8`) first-won leftover gcc. Mega same-TU remaining callers: 0.
+ *   No thin defines this symbol — still localize. Do not leftover-first
+ *   skip_heavy, rax_plus_rbx, local_slot rbx twin, wrapper, store_retval_pair,
+ *   or other vector children.
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-#[no_mangle]
-export function pipeline_asm_simd_try_inline_fma3_call_elf_c(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
-  let callee_ref: i32 = 0;
-  let clen: i32 = 0;
-  let arg0: i32 = 0;
-  let arg1: i32 = 0;
-  let arg2: i32 = 0;
-  let lanes: i32 = 0;
-  let esz: i32 = 0;
-  let off_a: i32 = 0;
-  let off_b: i32 = 0;
-  let off_c: i32 = 0;
-  let feats: u32 = 0;
-  let hw_env: *u8 = 0 as *u8;
-  let ko: i32 = 0;
-  let nargs: i32 = 0;
-  let rc: i32 = 0;
-  let is_method: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, call_ref);
-  }
-  /* CALL=48, METHOD_CALL=49 (import simd.fma is METHOD). */
-  if (ko != 48 && ko != 49) {
-    return 0;
-  }
-  if (ko == 49) {
-    is_method = 1;
-  }
-  if (is_method != 0) {
-    unsafe {
-      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
-    }
-  } else {
-    unsafe {
-      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
-    }
-  }
-  if (nargs != 3) {
-    return 0;
-  }
-  if (is_method != 0) {
-    unsafe {
-      clen = pipeline_expr_method_call_name_len(arena, call_ref);
-    }
-    if (clen <= 0 || clen >= 64) {
-      return 0;
-    }
-    unsafe {
-      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
-    }
-  } else {
-    unsafe {
-      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-    }
-    if (callee_ref <= 0) {
-      return 0;
-    }
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
-  }
-  if (clen <= 0 || glue_callee_is_vec4f_fma3_c(&g_wave148_cname[0], clen) == 0) {
-    return 0;
-  }
-  rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  if (lanes != 4 || esz != 4 || glue_vector_elem_is_f32_c(arena, type_ref) == 0) {
-    return 0;
-  }
-  if (is_method != 0) {
-    unsafe {
-      arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
-      arg1 = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
-      arg2 = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
-    }
-  } else {
-    unsafe {
-      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-      arg1 = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-      arg2 = pipeline_expr_call_arg_ref(arena, call_ref, 2);
-    }
-  }
-  if (arg0 <= 0 || arg1 <= 0 || arg2 <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg0);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg1);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg2);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
-  off_b = glue_asm_local_var_stack_off_scoped(arena, ctx, arg1);
-  off_c = glue_asm_local_var_stack_off_scoped(arena, ctx, arg2);
-  if (off_a < 0 || off_b < 0 || off_c < 0) {
-    return 0;
-  }
-  unsafe {
-    hw_env = link_abi_getenv("XLANG_SIMD_HW");
-  }
-  if (hw_env != (0 as *u8) && hw_env[0] == 48) {
-    return 0;
-  }
-  feats = glue_simd_emit_cpu_features_c();
-  if (feats == 0) {
-    unsafe {
-      feats = xlang_target_cpu_detect_host();
-    }
-  }
-  unsafe {
-    rc = simd_enc_try_hw_vector_fma_rbp(elf_ctx, off_a, off_b, off_c, stack_slot_off, lanes, esz, ta, feats);
-  }
-  if (rc == 0) {
-    return 1;
-  }
-  return 0;
-}
+// wave736: pipeline_asm_simd_try_inline_fma3_call_elf_c is export-extern at file top
+// (leftover gcc W 0x47e, endbr64 sub $0x80). FORCE mega T smash first-won
+// leftover gcc W (`sub $0xcf8`). Mega same-TU remaining callers: 0.
+// No thin defines this symbol — still localize. Do not leftover-first
+// skip_heavy, rax_plus_rbx, local_slot rbx twin, wrapper, store_retval_pair,
+// or other vector children. Mega may not emit U. leftover gcc overlay
+// provides the body.
+
 
 /**
  * Typed vector fold: return param0 binop param1 with dst vector type.
