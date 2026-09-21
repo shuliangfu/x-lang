@@ -127,6 +127,12 @@
 # leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
 # leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
 #
+# wave719: FORCE mega T of asm_pipeline_m8_tail_thin_delegate_c_name first-won
+# leftover gcc W 0x130 (endbr64 sub $0x20). Mega skip_heavy_or_thin_stub
+# CALLs leftover gcc this face (already unsafe). No thin copy. Do NOT
+# leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -175,3 +181,4 @@ asm_wpo_collect_walk
 pipeline_asm_emit_return_elf_impl
 asm_parser_func_is_thin_delegate
 asm_backend_m8_tail_thin_delegate_c_name
+asm_pipeline_m8_tail_thin_delegate_c_name
