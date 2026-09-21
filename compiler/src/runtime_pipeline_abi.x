@@ -604,6 +604,9 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // wave707: pipeline_elf_ctx_add_common_sym / add_sym are export-extern at
 // file top (leftover WAVE273 gcc W 0x138 / 0x22d). Mega must not emit a
 // competing T. G.7 dual-export ban — was Cap residual export extern.
+// wave708: pipeline_elf_ctx_add_label / ensure_label are export-extern at
+// file top (leftover WAVE273 gcc W 0x1f0 / 0xd5). Mega must not emit a
+// competing T. leftover gcc ensure_label CALLs leftover gcc add_label.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1571,6 +1574,31 @@ export extern function pipeline_elf_ctx_add_sym(
  */
 export extern function pipeline_elf_ctx_add_common_sym(
   ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32
+): i32;
+
+/**
+ * G.7: leftover WAVE273 gcc overlay owns add_label (W 0x1f0, endbr64).
+ * FORCE mega T smash first-won leftover W. Dual BSS: mega
+ * `g_pipe_elf_label_shndx` ≠ leftover `g_pipeline_elf_label_shndx`.
+ * leftover gcc add_label uses leftover STATIC current_shndx /
+ * label_shndx_set (not first-win-able). leftover gcc ensure_label
+ * CALLs leftover gcc add_label (same family). Same-TU localize of
+ * mega T still binds mega prepare's CALL to local t. Mega must emit
+ * U so leftover gcc W is the sole global.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_add_label(
+  ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32
+): i32;
+
+/**
+ * G.7: leftover WAVE273 gcc overlay owns ensure_label (W 0xd5, endbr64).
+ * FORCE mega T smash first-won leftover W. leftover gcc ensure_label
+ * CALLs leftover gcc add_label; leftover-first both faces together.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_ensure_label(
+  ctx_bytes: *u8, name: *u8, name_len: i32
 ): i32;
 
 
@@ -92385,75 +92413,19 @@ export function pipeline_elf_label_mod_scope_active(): i32 {
 
 /**
  * Add or update a local label at offset in current emit section.
- * @return i32 - 0 ok, -1 full/null
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_add_label(ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
-    return -1;
-  }
-  let shndx: i32 = pipe_elf_current_shndx(ctx_bytes);
-  let nl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_labels());
-  let l: i32 = 0;
-  while (l < nl) {
-    let lab: *u8 = pipe_elf_label_at(ctx_bytes, l);
-    let llen: i32 = pipe_load_i32_le(lab, pipe_elf_lab_off_name_len());
-    if (pipe_elf_name_eq(lab + (pipe_elf_lab_off_name() as usize), llen, name, name_len) != 0) {
-      pipe_store_i32_le(lab, pipe_elf_lab_off_offset(), offset);
-      pipe_elf_label_shndx_set(ctx_bytes, l, shndx);
-      return 0;
-    }
-    l = l + 1;
-  }
-  if (nl >= pipe_elf_label_cap()) {
-    return -1;
-  }
-  let li: i32 = nl;
-  let lab2: *u8 = pipe_elf_label_at(ctx_bytes, li);
-  let n: i32 = name_len;
-  // Cap 4.2.8: labels.name[256] content ≤255 (was wave580 128 → asm -o long-name CG002).
-  if (n > 255) {
-    n = 255;
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 0) {
-    unsafe {
-      memcpy(lab2 + (pipe_elf_lab_off_name() as usize), name, n as usize);
-    }
-  }
-  pipe_store_i32_le(lab2, pipe_elf_lab_off_name_len(), n);
-  pipe_store_i32_le(lab2, pipe_elf_lab_off_offset(), offset);
-  pipe_elf_label_shndx_set(ctx_bytes, li, shndx);
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_labels(), nl + 1);
-  return 0;
-}
+// wave708: pipeline_elf_ctx_add_label is export-extern at file top
+// (leftover WAVE273 gcc W 0x1f0). Mega must not emit a competing T.
 
 /**
  * Ensure forward-jump placeholder label (offset=-1) exists.
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_ensure_label(ctx_bytes: *u8, name: *u8, name_len: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
-    return -1;
-  }
-  let nl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_labels());
-  let l: i32 = 0;
-  while (l < nl) {
-    let lab: *u8 = pipe_elf_label_at(ctx_bytes, l);
-    let llen: i32 = pipe_load_i32_le(lab, pipe_elf_lab_off_name_len());
-    if (pipe_elf_name_eq(lab + (pipe_elf_lab_off_name() as usize), llen, name, name_len) != 0) {
-      return 0;
-    }
-    l = l + 1;
-  }
-  return pipeline_elf_ctx_add_label(ctx_bytes, name, name_len, -1);
-}
+// wave708: pipeline_elf_ctx_ensure_label is export-extern at file top
+// (leftover WAVE273 gcc W 0xd5). Mega must not emit a competing T.
 
 /**
  * Pad current emit section to 4-byte alignment (Mach-O/ELF function entry).

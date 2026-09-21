@@ -60,6 +60,13 @@
 # modlet_prepare (add_common_sym rdx=name_len 0 mismatch). Localize
 # elf_ctx_thin copies so leftover W is the sole global.
 #
+# wave708: FORCE mega T of pipeline_elf_ctx_add_label first-won leftover
+# gcc W 0x1f0 (endbr64). Dual BSS: mega g_pipe_elf_label_shndx ≠ leftover
+# g_pipeline_elf_label_shndx. leftover gcc add_label uses leftover STATIC
+# current_shndx / label_shndx_set (not first-win-able). leftover gcc
+# ensure_label (W 0xd5) CALLs leftover gcc add_label; leftover-first both
+# faces. Do NOT leftover-first smash-only modlet_prepare.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -90,3 +97,5 @@ pipeline_elf_ctx_append_data_zeros
 pipeline_elf_ctx_emit_data_len
 pipeline_elf_ctx_add_sym
 pipeline_elf_ctx_add_common_sym
+pipeline_elf_ctx_add_label
+pipeline_elf_ctx_ensure_label
