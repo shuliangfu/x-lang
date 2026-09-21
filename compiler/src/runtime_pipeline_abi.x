@@ -648,6 +648,10 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // (leftover gcc W 0x130, endbr64 sub $0x20). FORCE mega T smash
 // first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
 // itself. Mega must emit U.
+// wave720: asm_typeck_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0xed, endbr64 sub $0x30). FORCE mega T smash
+// first-won leftover gcc W. No thin copy. Do not leftover-first skip_heavy
+// itself. Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1814,6 +1818,18 @@ export extern function asm_backend_m8_tail_thin_delegate_c_name(
  * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
  */
 export extern function asm_pipeline_m8_tail_thin_delegate_c_name(
+  m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
+): i32;
+
+/**
+ * G.7: leftover gcc overlay owns asm_typeck_m8_tail_thin_delegate_c_name
+ * (W 0xed, endbr64 sub $0x30). FORCE mega T smash first-won leftover W.
+ * Mega skip_heavy_or_thin_stub CALLs this (already unsafe). No thin copy.
+ * Do not leftover-first skip_heavy or skip_heavy_or_thin_stub parent.
+ * Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function asm_typeck_m8_tail_thin_delegate_c_name(
   m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
 ): i32;
 
@@ -18640,33 +18656,17 @@ export function asm_driver_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32,
 /**
  * Typeck EMIT_HEAVY M8-tail thin delegate (table empty). Guarded by
  * is_typeck_selfhost + asm_env_entry_emit_heavy; skips extern funcs; fallback
- * copies the func's own name. wave116 pure: G.7 single authority. PLATFORM: SHARED.
+ * copies the func's own name. wave116 pure: G.7 single authority.
+ * wave720: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0xed (endbr64 sub $0x30) is the sole global. Mega smash T first-won
+ *   leftover gcc. No thin copy. Do not leftover-first skip_heavy.
+ * PLATFORM: SHARED.
  */
-#[no_mangle]
-export function asm_typeck_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
-  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
-    return 0;
-  }
-  if (asm_module_is_typeck_selfhost(m) == 0) {
-    return 0;
-  }
-  unsafe {
-    if (asm_env_entry_emit_heavy() == 0) {
-      return 0;
-    }
-    if (pipeline_asm_module_func_is_extern_at(m, func_index) != 0) {
-      return 0;
-    }
-    let nl: i32 = pipeline_module_func_name_len_at(m, func_index);
-    if (nl <= 0 || nl >= out_cap) {
-      return 0;
-    }
-    pipeline_module_func_name_copy64(m, func_index, out);
-    out[nl] = 0;
-    out_len[0] = nl;
-    return 1;
-  }
-}
+// wave720: asm_typeck_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0xed, endbr64 sub $0x30). FORCE mega T smash first-won
+// leftover gcc W. No thin copy. Do not leftover-first skip_heavy.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 // ---------------------------------------------------------------------------
 // wave117: asm emit_heavy safe-helper pure-owned leave (was pipeline_asm_emit_heavy_safe_helper.c).
 // G.7 product authority for 9 EMIT_HEAVY 2nd-pass per-module classifiers:
