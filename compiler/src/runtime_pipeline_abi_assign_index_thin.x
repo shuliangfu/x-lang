@@ -7,6 +7,15 @@
 // wave607: leftover PREFER smash (`sub $0xb98`, no endbr64) extra pop+store
 //   overwrites u8 `b[2]=7`. LINUX -E of this complete family is the
 //   product path. HARD BAN PREFER. MACOS keep overlay. Do not Soft-Cap.
+// wave748: not leftover-wipe of a live peel. leftover from_x rebuild drops
+//   glue_emit_assign_index_* from pabi; live unique INDEX is leftover gcc
+//   pipeline_asm_emit_assign_elf_c inline (Darwin weak sub #0x330 /
+//   LINUX W endbr64 sub $0x238). Standalone -c is U-complete (T=1 U=6,
+//   nsects=1) but the body is still smash (`sub $0xb98` / `#0xba0`).
+//   Small-file b[2]=7 run=7 and a[0]=9 run=9 on leftover both ends.
+//   Re-PREFER of this peel is dead (emit_assign does not call it) or
+//   dest-overwrite if assign_emit_thin is also PREFERed (w452 BAN).
+//   HARD BAN PREFER remains. Do not gcc -E. Do not leftover-first.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_assign_index_struct_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;

@@ -5809,6 +5809,14 @@ pipeline_abi_inject_fnptr_as_thin() {
 #   stores once. LINUX -E of complete thins. HARD BAN PREFER.
 #   MACOS stamp-only keep overlay. Do not Soft-Cap. Do not -E
 #   setup/walk/peel/resolve (w541–w546 Soft-Cap keep overlay).
+# wave748: leftover from_x wipe drops glue_emit_assign_index_* from pabi
+#   (stamps still skip). Live unique INDEX is leftover gcc
+#   pipeline_asm_emit_assign_elf_c inline (Darwin weak / LINUX W
+#   endbr64 sub $0x238), not this peel. Standalone -c T=1 U=6 still
+#   smash (`sub $0xb98` / `#0xba0`). b[2]=7 run=7 / a[0]=9 run=9 on
+#   leftover. Do NOT re-PREFER (dead peel, or dest-overwrite if
+#   assign_emit_thin is also PREFERed — w452 BAN). Not the w746/w747
+#   leftover-wipe class. Do not gcc -E as the repair.
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_assign_index_thin() {
   local o="$1"
@@ -5822,6 +5830,10 @@ pipeline_abi_inject_assign_index_thin() {
   local rc=0
   local p_peer p_x p_rest p_stamp p_tag
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # wave748: stamp skip is correct. Live unique INDEX is leftover
+  # gcc emit_assign inline; re-PREFER of this smash peel is BAN even
+  # when glue_emit_assign_index_* is missing from pabi (leftover-wipe
+  # of a dead overlay, not of a live unique T).
   if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
     local _ok=1
     for p_peer in \
