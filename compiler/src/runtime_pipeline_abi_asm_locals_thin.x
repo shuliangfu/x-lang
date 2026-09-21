@@ -1,4 +1,4 @@
-// Thin pure: wave304/361/430/490/595/604 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
+// Thin pure: wave304/361/430/490/595/604/617/747 M2 — asm_locals Cap residual C→.x (was wave267 C thin).
 // AsmLocalSlotEntry LE 264B + AsmBlockSlot tables; 64-slot ctx maps; 12 faces.
 // G.7: bodies match runtime_pipeline_abi.x wave267 leave.
 // wave430: LINUX -E+$CC (pure-asm product SEGV). MACOS HARD BAN tip reinject.
@@ -9,6 +9,12 @@
 //   TU so trailing get/set share one g_pipe_al_* BSS. Dual-BSS leftover get
 //   returned -1 → backend_block_slot_base_for fell back to num_locals-nlet
 //   (nested while + inner let stored one slot ahead). Do not PREFER get peer.
+// wave617: product PREFER_ASM both ends after w613 COMMON + dual-end L4.
+// wave747: leftover from_x rebuild wiped that overlay while w617 stamps skipped.
+//   Standalone -c T=27 U=10, Lxml COMMON, Darwin PAGE21=44 / nsects=1.
+//   Product PREFER_ASM both ends when live get is leftover gcc Darwin weak /
+//   LINUX W (endbr64 sub $0x30). Do not gcc -E. Do not Darwin ld -r a
+//   two-segment thin. Isolated get peer stays BAN.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;

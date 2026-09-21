@@ -9280,7 +9280,7 @@ pipeline_abi_inject_struct_layout_thin() {
   return 0
 }
 
-# wave304/361/430/490/595/604/617 M2: asm_locals Cap residual C→.x.
+# wave304/361/430/490/595/604/617/747 M2: asm_locals Cap residual C→.x.
 # wave490/595 walls (PRODUCT PREFER → L2 SEGV 0/5 both ends) were the w613
 #   COMMON misclassification class: this thin's file-level let BSS cells
 #   (Lxml_*, incl. the get/set slot tables) were pinned read-only __TEXT and
@@ -9291,6 +9291,10 @@ pipeline_abi_inject_struct_layout_thin() {
 # wave617: product PREFER_ASM both ends (this TU zero host-cc). The w604
 #   monolith keeps get+set in ONE TU (single BSS face; get peer stays
 #   skip-stamped). Do not -E as a new repair.
+# wave747: leftover from_x rebuild wipes PREFER while w617 stamps skip.
+#   Re-PREFER when live asm_ctx_block_slot_get is Darwin nm -m weak /
+#   LINUX nm -g W. Thin is nsects=1 + COMMON (inject_thin_leaf OK).
+#   Do not gcc -E. Do not Darwin ld -r a two-segment thin.
 # G.7: thin body matches mega wave267 leave.
 # PLATFORM: SHARED · PREFER_ASM both ends; get peer stays merged (no split).
 pipeline_abi_inject_asm_locals_thin() {
@@ -9311,7 +9315,14 @@ pipeline_abi_inject_asm_locals_thin() {
     touch "$get_stamp"
   fi
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
-    return 0
+    # w747: leftover from_x rebuild wipes PREFER but stamps still skip.
+    # Re-inject when live get is leftover gcc Darwin weak / LINUX W.
+    # PLATFORM: SHARED nm — Darwin `nm -m` "weak"; LINUX `nm -g` " W ".
+    if ! nm -m "$o" 2>/dev/null | grep 'asm_ctx_block_slot_get$' | grep -q 'weak' \
+      && ! nm -g "$o" 2>/dev/null | grep 'asm_ctx_block_slot_get$' | grep -q ' W '; then
+      return 0
+    fi
+    log "pipeline_abi w747-asm-locals: live leftover gcc weak/W; re-PREFER"
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
@@ -9324,17 +9335,20 @@ pipeline_abi_inject_asm_locals_thin() {
   fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   # PLATFORM: SHARED — product PREFER_ASM both ends (wave617, on the w613
-  # COMMON fix + w614–w616 dual-end L4).
+  # COMMON fix + w614–w616 dual-end L4; wave747 leftover-wipe re-PREFER).
+  # Do not gcc -E. Do not Darwin ld -r a two-segment thin. Do not PREFER
+  # the isolated get peer (w595 BAN). Thin is nsects=1 + COMMON.
   export XLANG_PABI_THIN_PREFER_ASM=1
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w617-asm-locals-prefer"
+  pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w747-asm-locals-prefer"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     touch "$stamp"
     touch "$stamp_prefer"
     touch src/.pabi_w490_asm_locals.stamp
+    touch src/.pabi_w747_asm_locals_prefer.stamp
     rm -f src/.pabi_w361_asm_locals.stamp src/.pabi_w304_asm_locals.stamp src/.pabi_w430_asm_locals.stamp
-    log "pipeline_abi w617-asm-locals: PREFER_ASM replace (no host-cc for this TU)"
+    log "pipeline_abi w747-asm-locals: PREFER_ASM replace (no host-cc for this TU)"
   fi
   if [ "$had_newer" = "1" ]; then
     export XLANG_PABI_THIN_INJECT_IF_NEWER="$saved_newer"
@@ -16092,7 +16106,9 @@ case "$MODE" in
     # wave430/490/604: LINUX -E replace; MACOS HARD BAN (pure-asm SEGV).
     # wave595: get peer PREFER BAN (L2 SEGV).
     # wave604: complete -E so trailing get shares BSS with set (nested inner let).
-    # PLATFORM: SHARED shell · MACOS ingest · LINUX gold co-path.
+    # wave617: product PREFER_ASM both ends (w613 COMMON + dual-end L4).
+    # wave747: leftover rebuild wipe → re-PREFER when live get is weak/W.
+    # PLATFORM: SHARED shell · PREFER_ASM both ends.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o inject-asm-locals: need <out.o>" >&2
       exit 2
