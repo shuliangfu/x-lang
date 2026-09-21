@@ -76,6 +76,12 @@
 # thin W cannot first-win leftover gcc W. Do NOT leftover-first smash-only
 # modlet_prepare. Do not bulk-localize ~1970 default-frame names.
 #
+# wave711: FORCE mega T of pipeline_asm_emit_expr_elf_for_call_args first-won
+# leftover gcc W 0x2c4f (endbr64 sub $0x248). FORCE smash is sub $0x5c38 /
+# cltq. Localize for_call_args_thin so thin W cannot first-win leftover gcc
+# W. Do NOT leftover-first smash-only modlet_prepare. Do not bulk-localize
+# ~1970 default-frame names.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -111,3 +117,4 @@ pipeline_elf_ctx_ensure_label
 pipeline_asm_emit_assign_elf_c
 glue_emit_assign_rhs_to_rax_elf_c
 glue_emit_assign_rhs_elf_c
+pipeline_asm_emit_expr_elf_for_call_args
