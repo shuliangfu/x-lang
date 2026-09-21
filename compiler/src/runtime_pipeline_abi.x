@@ -624,6 +624,10 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // export-extern at file top (leftover gcc W 0x20c9 / 0xa0 / 0x169e / 0x44,
 // endbr64 sub $0x3b8 / $0x40 / $0xb8 / $0x20). FORCE mega T smash first-won
 // leftover gcc W. leftover gcc parent CALLs leftover gcc children. Mega must emit U.
+// wave714: asm_parser_m8_tail_thin_delegate_c_name is export-extern at
+// file top (leftover gcc W 0x1f1a, endbr64 sub $0x20). FORCE mega T smash
+// first-won leftover gcc W. Do not leftover-first skip_heavy itself
+// (FORCE_FULL_BODIES dual env). Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1718,6 +1722,18 @@ export extern function pipeline_asm_emit_struct_lit_fields_elf_c(
  */
 export extern function pipeline_asm_emit_struct_lit_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32;
+
+/**
+ * G.7: leftover gcc overlay owns asm_parser_m8_tail_thin_delegate_c_name
+ * (W 0x1f1a, endbr64 sub $0x20). FORCE mega T smash first-won leftover W.
+ * leftover gcc skip_heavy_or_thin_stub / resolve_call_to_glue CALL this.
+ * Do not leftover-first asm_skip_heavy_module_func_body (FORCE_FULL_BODIES
+ * dual env). Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function asm_parser_m8_tail_thin_delegate_c_name(
+  m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
 ): i32;
 
 
@@ -21133,363 +21149,10 @@ export function asm_parser_func_is_thin_delegate(m: *u8, func_index: i32): i32 {
  * @return i32 — 1 hit
  * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
  */
-#[no_mangle]
-export function asm_parser_m8_tail_thin_delegate_c_name(m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
-  if (m == 0 as *u8 || func_index < 0 || out == 0 as *u8 || out_len == 0 as *i32 || out_cap <= 0) {
-    return 0;
-  }
-  unsafe {
-    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_collect_imports_buf_glue", 31);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_cond_rparen_into", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_advance_past_cond_rparen_into_glue", 41);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "advance_past_stmt_semicolon_into", 32) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_advance_past_stmt_semicolon_into_glue", 44);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "alloc_pointee_type_ref_from_tok", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_alloc_pointee_type_ref_from_tok_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "append_block_lets_from_res", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_append_block_lets_from_res_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_buf", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_body_skip_let_const_then_if_buf_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if", 27) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_body_skip_let_const_then_if_glue", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "body_skip_let_const_then_if_into", 32) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_body_skip_let_const_then_if_into_glue", 44);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_collect_imports_glue", 27);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "copy_lex_from_import_into", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_copy_from_import_into_glue", 37);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "consume_qualified_type_ident_name", 33) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_consume_qualified_type_ident_name_glue", 45);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_after_imports_then_structs", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_after_imports_then_structs_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_fail_at_token_kind", 23) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_fail_at_token_kind_glue", 35);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_first_ident_len", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_first_ident_len_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_lex_after_imports", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_lex_after_imports_glue", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_buf", 23) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_skip_let_const_buf_glue", 35);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const", 19) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_skip_let_const_glue", 31);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "diag_skip_let_const_into", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_diag_skip_let_const_into_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "expr_set_common_zeros", 21) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_expr_set_common_zeros_glue", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "fill_block_const_let_from_res", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_fill_block_const_let_from_res_glue", 41);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "finish_struct_lit_from_type_ident_into", 38) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_finish_struct_lit_from_type_ident_into_glue", 50);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "first_token_kind", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_first_token_kind_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_at_token_from_result", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_at_token_from_result_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_library_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_library_into", 21) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_library_into_glue", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_onefunc_next_into", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_onefunc_next_into_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_next_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_next_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_result_ptr_into", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_result_ptr_into_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_try_skip_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "lex_from_try_skip_into", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_lex_from_try_skip_into_glue", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "module_append_enum_variants_and_skip_body_into", 46) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_module_append_enum_variants_and_skip_body_into_glue", 58);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_addsub_into", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_addsub_into_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_as_suffix_into", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_as_suffix_into_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_assign_into", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_assign_into_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_at_simd_builtin_into", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_at_simd_builtin_into_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitand_into", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_bitand_into_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitor_into", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_bitor_into_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_bitxor_into", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_bitxor_into_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_body_let_bracket_compound_init_ref", 40) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_body_let_bracket_compound_init_ref_glue", 52);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cast_into", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_cast_into_glue", 27);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_compare_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_compare_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_cond_expr_into", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_cond_expr_into_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_expr_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_if_expr_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_if_stmt_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_if_stmt_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_buf", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_buf_glue", 41);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_glue", 37);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into_buf", 34) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_into_buf_glue", 46);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_try_skip_allow_into", 30) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_try_skip_allow_into_glue", 42);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_into_set_main_index_glue", 37);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logand_into", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_logand_into_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_logor_into", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_logor_into_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_into", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_match_into_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_match_subject_into", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_match_subject_into_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into_buf", 33) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_extern_and_add_into_buf_glue", 45);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_and_add_into", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_extern_and_add_into_glue", 41);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_extern_skip_into", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_extern_skip_into_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_buf_into", 27) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_buf_into_glue", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_library_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_into", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_library_into_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_function_library_scan", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_function_library_scan_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_one_top_level_let_into", 28) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_one_top_level_let_into_glue", 40);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_primary_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_primary_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_relcompare_into", 21) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_relcompare_into_glue", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_shift_into", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_shift_into_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_struct_record_layout_into", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_struct_record_layout_into_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_term_into", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_term_into_glue", 27);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_ternary_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_ternary_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_type_ref_for_arena_into", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_type_ref_for_arena_into_glue", 41);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parse_unary_into", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parse_unary_into_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_rewind_lex_for_following_stmt", 36) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parser_rewind_lex_for_following_stmt_glue", 48);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_vector_type_ref_from_ident_spelling", 42) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_parser_vector_type_ref_from_ident_spelling_glue", 54);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_buf", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_braces_buf_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_braces_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_braces_into", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_braces_into_glue", 37);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_buf", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_parens_buf_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_parens_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_balanced_parens_into", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_balanced_parens_into_glue", 37);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_imports", 12) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_imports_glue", 24);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_buf", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_buf_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum", 13) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_glue", 25);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_into_buf", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_into_buf_glue", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into_buf", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_register_into_buf_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_enum_register_into", 27) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_enum_register_into_glue", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_buf", 19) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_buf_glue", 31);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_glue", 27);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into_buf", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_into_buf_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_extern_into", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_extern_into_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_buf", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_buf_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_glue", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into_buf", 31) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_into_buf_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_function_full_into", 27) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_function_full_into_glue", 39);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_buf", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_core_buf_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core", 16) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_core_glue", 28);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_core_into", 21) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_core_into_glue", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_buf", 25) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_statement_buf_glue", 37);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement", 21) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_statement_glue", 33);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_if_statement_into", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_if_statement_into_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_buf", 17) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_buf_glue", 29);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl", 13) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_glue", 25);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into_buf", 22) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_into_buf_glue", 34);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_impl_into", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_impl_into_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_buf", 19) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_buf_glue", 31);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct", 15) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_glue", 27);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into_buf", 24) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_into_buf_glue", 36);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_struct_into", 20) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_struct_into_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_buf", 18) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_buf_glue", 30);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait", 14) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_glue", 26);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into_buf", 23) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_into_buf_glue", 35);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "skip_one_trait_into", 19) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_skip_one_trait_into_glue", 31);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "struct_field_name_from_tok", 26) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_struct_field_name_from_tok_glue", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_token_is_label_start", 27) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_token_is_label_start_glue", 32);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_should_wrap_func_tail_in_return", 38) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_should_wrap_func_tail_in_return_glue", 43);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "pipeline_module_reset_parse_counters", 36) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "pipeline_module_reset_parse_counters_c", 38);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_try_skip_allow_padding_struct_buf_glue", 45);
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
-      return asm_thin_delegate_emit(out, out_cap, out_len, "parser_try_skip_allow_padding_struct_glue", 41);
-    }
-    return 0;
-  }
-}
+// wave714: asm_parser_m8_tail_thin_delegate_c_name is export-extern at file top
+// (leftover gcc W 0x1f1a, endbr64 sub $0x20). Mega must not emit a competing T.
+// leftover gcc skip_heavy_or_thin_stub / resolve_call_to_glue CALL leftover gcc
+// this face. Do not leftover-first skip_heavy itself.
 
 /**
  * wave120 pure: redirect same-module call to glue when thin_delegate / reset counters.
@@ -59259,11 +58922,13 @@ export function pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(elf_ctx: *u8, ta
   clen = 0;
   if (mod != (0 as *u8)) {
     clen_slot[0] = 0;
-    if (asm_backend_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
-      if (asm_pipeline_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
-        if (asm_parser_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
-          if (asm_driver_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
-            rc = asm_typeck_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]);
+    unsafe {
+      if (asm_backend_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+        if (asm_pipeline_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+          if (asm_parser_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+            if (asm_driver_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]) == 0) {
+              rc = asm_typeck_m8_tail_thin_delegate_c_name(mod, func_index, &cname[0], 72, &clen_slot[0]);
+            }
           }
         }
       }

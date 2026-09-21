@@ -96,6 +96,12 @@
 # thin W cannot first-win leftover gcc W. Do NOT leftover-first skip_heavy.
 # Do not leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
 #
+# wave714: FORCE mega T of asm_parser_m8_tail_thin_delegate_c_name first-won leftover
+# gcc W 0x1f1a (endbr64 sub $0x20). leftover gcc skip_heavy_or_thin_stub /
+# resolve_call_to_glue CALL leftover gcc this face. Do NOT leftover-first
+# asm_skip_heavy_module_func_body (FORCE_FULL_BODIES dual env). Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -137,3 +143,4 @@ glue_emit_struct_type_let_init_elf_c
 pipeline_asm_emit_struct_let_init_elf_c
 pipeline_asm_emit_struct_lit_fields_elf_c
 pipeline_asm_emit_struct_lit_elf_c
+asm_parser_m8_tail_thin_delegate_c_name
