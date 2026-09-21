@@ -628,6 +628,10 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // file top (leftover gcc W 0x1f1a, endbr64 sub $0x20). FORCE mega T smash
 // first-won leftover gcc W. Do not leftover-first skip_heavy itself
 // (FORCE_FULL_BODIES dual env). Mega must emit U.
+// wave715: asm_wpo_collect_walk is export-extern at file top
+// (leftover gcc W 0x1e56, endbr64 sub $0x210). FORCE mega T smash
+// first-won leftover gcc W. Thin copy must localize. Do not leftover-first
+// skip_heavy itself. Mega must emit U.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1735,6 +1739,19 @@ export extern function pipeline_asm_emit_struct_lit_elf_c(
 export extern function asm_parser_m8_tail_thin_delegate_c_name(
   m: *u8, func_index: i32, out: *u8, out_cap: i32, out_len: *i32
 ): i32;
+
+/**
+ * G.7: leftover gcc overlay owns asm_wpo_collect_walk
+ * (W 0x1e56, endbr64 sub $0x210). FORCE mega T smash first-won leftover W.
+ * Mega wrappers collect_edges_from_expr / collect_from_block CALL this.
+ * asm_wpo_thin also has a body — localize so thin W cannot first-win.
+ * Do not leftover-first asm_skip_heavy_module_func_body (FORCE_FULL_BODIES
+ * dual env). Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function asm_wpo_collect_walk(
+  is_block: i32, a: *u8, ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32
+): void;
 
 
 /**
@@ -90063,373 +90080,21 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
  * Unified recursive walk: is_block!=0 => block_ref walk; else expr_ref walk.
  * depth caps at 64 for expr recursion (match residual).
  */
-function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
+// wave715: asm_wpo_collect_walk is export-extern at file top
+// (leftover gcc W 0x1e56, endbr64 sub $0x210). Mega must not emit a competing T.
+// leftover gcc collect_edges_from_expr / collect_from_block CALL leftover gcc
+// this face. Localize asm_wpo_thin copy. Do not leftover-first skip_heavy itself.
+
+function asm_wpo_collect_edges_from_expr(a: *u8, expr_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
   unsafe {
-    if (a == 0 as *u8 || ref <= 0 || caller_id < 0) {
-      return;
-    }
-    if (is_block != 0) {
-      let block_ref: i32 = ref;
-      let nso: i32 = ast_ast_block_num_stmt_order(a, block_ref);
-      let i: i32 = 0;
-      let er: i32 = 0;
-      if (nso > 0) {
-        i = 0;
-        while (i < nso) {
-
-          // inlined stmt_order one (si = i) — avoid mutual forward decl
-          {
-            let si: i32 = i;
-            let nso2: i32 = ast_ast_block_num_stmt_order(a, block_ref);
-            if (si >= 0 && si < nso2) {
-              let sk: i32 = ast_ast_block_stmt_order_kind(a, block_ref, si);
-              let idx: i32 = ast_ast_block_stmt_order_idx(a, block_ref, si);
-              let er0: i32 = 0;
-              if (sk == 0 && idx >= 0 && idx < ast_ast_block_num_consts(a, block_ref)) {
-                er0 = ast_pipeline_block_const_init_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              } else if (sk == 1 && idx >= 0 && idx < ast_ast_block_num_lets(a, block_ref)) {
-                er0 = pipeline_block_let_init_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              } else if (sk == 2 && idx >= 0 && idx < ast_ast_block_num_expr_stmts(a, block_ref)) {
-                er0 = ast_pipeline_block_expr_stmt_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              } else if (sk == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref)) {
-                er0 = ast_ast_block_while_cond_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-                er0 = ast_ast_block_while_body_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              } else if (sk == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref)) {
-                er0 = ast_ast_block_for_init_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-                er0 = ast_ast_block_for_cond_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-                er0 = ast_ast_block_for_step_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-                er0 = ast_ast_block_for_body_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              } else if (sk == 5 && idx >= 0 && idx < ast_ast_block_num_if_stmts(a, block_ref)) {
-                er0 = ast_pipeline_block_if_cond_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-                er0 = ast_pipeline_block_if_then_body_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-                er0 = ast_pipeline_block_if_else_body_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              } else if (sk == 6) {
-                er0 = pipeline_block_region_body_ref(a, block_ref, idx);
-                if (er0 > 0) {
-                  asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
-                }
-              }
-            }
-          }
-
-          i = i + 1;
-        }
-        // stmt_order / expr_stmt pool may desync — rescan expr_stmts.
-        let nes: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
-        i = 0;
-        while (i < nes) {
-          er = ast_pipeline_block_expr_stmt_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-      } else {
-        let nc: i32 = ast_ast_block_num_consts(a, block_ref);
-        i = 0;
-        while (i < nc) {
-          er = ast_pipeline_block_const_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nl: i32 = ast_ast_block_num_lets(a, block_ref);
-        i = 0;
-        while (i < nl) {
-          er = pipeline_block_let_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nlp: i32 = ast_ast_block_num_loops(a, block_ref);
-        i = 0;
-        while (i < nlp) {
-          er = ast_ast_block_while_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_while_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nf: i32 = ast_ast_block_num_for_loops(a, block_ref);
-        i = 0;
-        while (i < nf) {
-          er = ast_ast_block_for_init_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_step_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_ast_block_for_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let ni: i32 = ast_ast_block_num_if_stmts(a, block_ref);
-        i = 0;
-        while (i < ni) {
-          er = ast_pipeline_block_if_cond_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_pipeline_block_if_then_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          er = ast_pipeline_block_if_else_body_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(1, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-        let nes2: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
-        i = 0;
-        while (i < nes2) {
-          er = ast_pipeline_block_expr_stmt_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-          i = i + 1;
-        }
-      }
-      // Labeled returns (C parser) not always in stmt_order.
-      let nlab: i32 = pipeline_block_num_labeled_stmts(a, block_ref);
-      i = 0;
-      while (i < nlab) {
-        if (pipeline_block_labeled_is_goto(a, block_ref, i) == 0) {
-          er = pipeline_block_labeled_return_expr_ref(a, block_ref, i);
-          if (er > 0) {
-            asm_wpo_collect_walk(0, a, er, caller_id, caller_mod, ctx, 0);
-          }
-        }
-        i = i + 1;
-      }
-      let fer: i32 = ast_ast_block_final_expr_ref(a, block_ref);
-      if (fer > 0) {
-        asm_wpo_collect_walk(0, a, fer, caller_id, caller_mod, ctx, 0);
-      }
-      return;
-    }
-
-    // ---- expr walk ----
-    if (depth > 64) {
-      return;
-    }
-    let expr_ref: i32 = ref;
-    let ko: i32 = pipeline_expr_kind_ord_at(a, expr_ref);
-    let i2: i32 = 0;
-    if (ko == asm_wpo_ek_call()) {
-      let cid: i32 = asm_wpo_call_callee_id(a, expr_ref, caller_mod, ctx);
-      if (cid >= 0) {
-        asm_wpo_add_edge(caller_id, cid);
-      }
-      let na: i32 = pipeline_expr_call_num_args_at(a, expr_ref);
-      i2 = 0;
-      while (i2 < na) {
-        let ar: i32 = pipeline_expr_call_arg_ref(a, expr_ref, i2);
-        if (ar > 0) {
-          asm_wpo_collect_walk(0, a, ar, caller_id, caller_mod, ctx, depth + 1);
-        }
-        i2 = i2 + 1;
-      }
-      let cr: i32 = pipeline_expr_call_callee_ref_at(a, expr_ref);
-      if (cr > 0) {
-        asm_wpo_collect_walk(0, a, cr, caller_id, caller_mod, ctx, depth + 1);
-      }
-      return;
-    }
-    // METHOD_CALL exclusive path (wave358 Cap residual pure).
-    if (ko == asm_wpo_ek_method_call()) {
-      let r_fn: i32 = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
-      let r_dep: i32 = pipeline_expr_call_resolved_dep_index_at(a, expr_ref);
-      let mcid: i32 = -1;
-      let mlen: i32 = pipeline_expr_method_call_name_len(a, expr_ref);
-      let mbase: i32 = pipeline_expr_method_call_base_ref_at(a, expr_ref);
-      let mnargs: i32 = pipeline_expr_method_call_num_args_at(a, expr_ref);
-      let mnm: u8[256] = [];
-      if (r_fn >= 0 && r_dep < 0 && caller_mod != 0 as *u8) {
-        mcid = asm_wpo_func_id_of(caller_mod, r_fn);
-      }
-      if (mcid < 0 && mlen > 0 && mlen <= 63) {
-        pipeline_expr_method_call_name_into(a, expr_ref, &mnm[0]);
-        mcid = asm_wpo_func_id_in_module(caller_mod, &mnm[0], mlen);
-        if (mcid < 0) {
-          mcid = asm_wpo_func_id_by_name(&mnm[0], mlen);
-        }
-        if (caller_mod != 0 as *u8 && mcid < 0) {
-          let fi_m: i32 = 0;
-          let nf_m: i32 = pipeline_module_num_funcs(caller_mod);
-          while (fi_m < nf_m) {
-            if (pipeline_module_func_name_equal_at(caller_mod, fi_m, &mnm[0], mlen) != 0) {
-              let id_m: i32 = asm_wpo_func_id_of(caller_mod, fi_m);
-              if (id_m >= 0) {
-                asm_wpo_add_edge(caller_id, id_m);
-              }
-            }
-            fi_m = fi_m + 1;
-          }
-        }
-      }
-      if (mcid >= 0) {
-        asm_wpo_add_edge(caller_id, mcid);
-      }
-      if (mbase > 0) {
-        asm_wpo_collect_walk(0, a, mbase, caller_id, caller_mod, ctx, depth + 1);
-      }
-      i2 = 0;
-      while (i2 < mnargs) {
-        let mar: i32 = pipeline_expr_method_call_arg_ref(a, expr_ref, i2);
-        if (mar > 0) {
-          asm_wpo_collect_walk(0, a, mar, caller_id, caller_mod, ctx, depth + 1);
-        }
-        i2 = i2 + 1;
-      }
-      return;
-    }
-    if (ko == asm_wpo_ek_return() || ko == asm_wpo_ek_panic() || ko == asm_wpo_ek_neg() ||
-        ko == asm_wpo_ek_bitnot() || ko == asm_wpo_ek_lognot() || ko == asm_wpo_ek_addr_of() ||
-        ko == asm_wpo_ek_deref() || ko == asm_wpo_ek_await() || ko == asm_wpo_ek_run() ||
-        ko == asm_wpo_ek_spawn()) {
-      let uop: i32 = pipeline_expr_unary_operand_ref_at(a, expr_ref);
-      if (uop > 0) {
-        asm_wpo_collect_walk(0, a, uop, caller_id, caller_mod, ctx, depth + 1);
-      }
-      return;
-    }
-    if (ko == asm_wpo_ek_as()) {
-      let aop: i32 = pipeline_expr_as_operand_ref_at(a, expr_ref);
-      if (aop > 0) {
-        asm_wpo_collect_walk(0, a, aop, caller_id, caller_mod, ctx, depth + 1);
-      }
-      return;
-    }
-    if (ko == asm_wpo_ek_if() || ko == asm_wpo_ek_ternary()) {
-      let ic: i32 = pipeline_expr_if_cond_ref_at(a, expr_ref);
-      if (ic > 0) {
-        asm_wpo_collect_walk(0, a, ic, caller_id, caller_mod, ctx, depth + 1);
-      }
-      let it: i32 = pipeline_expr_if_then_ref_at(a, expr_ref);
-      if (it > 0) {
-        asm_wpo_collect_walk(0, a, it, caller_id, caller_mod, ctx, depth + 1);
-      }
-      let ie: i32 = pipeline_expr_if_else_ref_at(a, expr_ref);
-      if (ie > 0) {
-        asm_wpo_collect_walk(0, a, ie, caller_id, caller_mod, ctx, depth + 1);
-      }
-      return;
-    }
-    if (ko == asm_wpo_ek_block()) {
-      let br: i32 = pipeline_expr_block_ref_at(a, expr_ref);
-      if (br > 0) {
-        asm_wpo_collect_walk(1, a, br, caller_id, caller_mod, ctx, 0);
-      }
-      return;
-    }
-    let bl: i32 = pipeline_expr_binop_left_ref_at(a, expr_ref);
-    let brt: i32 = pipeline_expr_binop_right_ref_at(a, expr_ref);
-    if (bl > 0 || brt > 0) {
-      if (bl > 0) {
-        asm_wpo_collect_walk(0, a, bl, caller_id, caller_mod, ctx, depth + 1);
-      }
-      if (brt > 0) {
-        asm_wpo_collect_walk(0, a, brt, caller_id, caller_mod, ctx, depth + 1);
-      }
-      return;
-    }
-    if (ko == asm_wpo_ek_struct_lit()) {
-      let nf: i32 = pipeline_expr_struct_lit_num_fields(a, expr_ref);
-      i2 = 0;
-      while (i2 < nf) {
-        let iref: i32 = pipeline_expr_struct_lit_init_ref(a, expr_ref, i2);
-        if (iref > 0) {
-          asm_wpo_collect_walk(0, a, iref, caller_id, caller_mod, ctx, depth + 1);
-        }
-        i2 = i2 + 1;
-      }
-      return;
-    }
-    if (ko == asm_wpo_ek_array_lit()) {
-      let ne: i32 = pipeline_expr_array_lit_num_elems_at(a, expr_ref);
-      i2 = 0;
-      while (i2 < ne) {
-        let eref: i32 = pipeline_expr_array_lit_elem_ref(a, expr_ref, i2);
-        if (eref > 0) {
-          asm_wpo_collect_walk(0, a, eref, caller_id, caller_mod, ctx, depth + 1);
-        }
-        i2 = i2 + 1;
-      }
-      return;
-    }
-    let fbase: i32 = pipeline_expr_field_access_base_ref(a, expr_ref);
-    if (fbase > 0) {
-      asm_wpo_collect_walk(0, a, fbase, caller_id, caller_mod, ctx, depth + 1);
-    }
-    let ibase: i32 = pipeline_expr_index_base_ref(a, expr_ref);
-    if (ibase > 0) {
-      asm_wpo_collect_walk(0, a, ibase, caller_id, caller_mod, ctx, depth + 1);
-    }
-    let iidx: i32 = pipeline_expr_index_index_ref(a, expr_ref);
-    if (iidx > 0) {
-      asm_wpo_collect_walk(0, a, iidx, caller_id, caller_mod, ctx, depth + 1);
-    }
-
+    asm_wpo_collect_walk(0, a, expr_ref, caller_id, caller_mod, ctx, depth);
   }
 }
 
-function asm_wpo_collect_edges_from_expr(a: *u8, expr_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
-  asm_wpo_collect_walk(0, a, expr_ref, caller_id, caller_mod, ctx, depth);
-}
-
 function asm_wpo_collect_from_block(a: *u8, block_ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8): void {
-  asm_wpo_collect_walk(1, a, block_ref, caller_id, caller_mod, ctx, 0);
+  unsafe {
+    asm_wpo_collect_walk(1, a, block_ref, caller_id, caller_mod, ctx, 0);
+  }
 }
 
 /** User single-file + PGO_HOT and not compiler selfhost. */
