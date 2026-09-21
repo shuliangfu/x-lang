@@ -93897,7 +93897,13 @@ export function pipeline_elf_ctx_resolve_patches(ctx_bytes: *u8): i32 {
 /**
  * Append external reloc; >TABLE_CAP uses heap sidecar.
  * wave273 pure-owned leave.
- * PLATFORM: SHARED freestanding ELF leave.
+ * wave701: leftover WAVE273 writers overlay must keep-global this face
+ * together with reloc_offset_at / name_len / copy64 / shndx_at /
+ * sidecar_reset (compiler/scripts/pabi_wave273_writers_keep.txt). A
+ * write_o-only keep list leaves overlay-local helper copies on a second
+ * heap BSS; write_o then drops heap relocs (empty name / r_offset=0) and
+ * FORCE mega later TUs emit `call next_insn` (block_alloc returned 12).
+ * PLATFORM: SHARED freestanding ELF leave; LINUX gold overlay ingest.
  */
 #[no_mangle]
 export function pipeline_elf_ctx_append_reloc(ctx_bytes: *u8, offset: i32, name: *u8, name_len: i32): i32 {

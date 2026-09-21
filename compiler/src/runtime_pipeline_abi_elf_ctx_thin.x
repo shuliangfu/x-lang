@@ -1489,6 +1489,10 @@ export function pipeline_elf_ctx_resolve_patches(ctx_bytes: *u8): i32 {
 /**
  * Append external reloc; >TABLE_CAP uses heap sidecar.
  * wave273 pure-owned leave.
+ * wave701: writers overlay keep-globals must include this face plus
+ * reloc_offset_at / name_len / copy64 (see
+ * compiler/scripts/pabi_wave273_writers_keep.txt). HARD BAN product
+ * PREFER of this whole thin (leftover ctx layout).
  * PLATFORM: SHARED freestanding ELF leave.
  */
 #[no_mangle]

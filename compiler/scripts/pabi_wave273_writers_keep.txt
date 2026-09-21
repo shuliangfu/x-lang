@@ -1,0 +1,22 @@
+# Keep-globals for leftover WAVE273 ELF/Mach-O writers overlay
+# (localize-all then re-globalize this list; overlay-first ld -r).
+# PLATFORM: LINUX gold ingest; Darwin Mach-O uses the same faces.
+#
+# wave697: write_o + common_size_at (COMMON size authority).
+# wave701: also reloc append/read helpers so write_o and append_reloc
+# share one g_pipeline_elf_reloc_heap. write_o-only keep left overlay
+# `t` copies on a second heap; FORCE mega heap relocs became empty-name
+# PLT32 r_sym=0 and later functions (block_alloc) kept call-next-insn.
+pipeline_elf_write_o_standard_to_buf_c
+pipeline_elf_write_o_pgo_to_buf
+pipeline_macho_write_o_to_buf_c
+pipeline_elf_ctx_sym_common_size_at
+pipeline_elf_ctx_append_reloc
+pipeline_elf_ctx_append_reloc_typed
+pipeline_elf_ctx_append_reloc_absolute64
+pipeline_elf_ctx_reloc_offset_at
+pipeline_elf_ctx_reloc_offset_set
+pipeline_elf_ctx_reloc_name_len
+pipeline_elf_ctx_reloc_sym_name_copy64
+pipeline_elf_ctx_reloc_shndx_at
+pipeline_elf_ctx_reloc_sidecar_reset

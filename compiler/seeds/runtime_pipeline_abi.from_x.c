@@ -54097,7 +54097,15 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
   return 0;
 }
 
-/** 追加一条外部重定位；ctx 为 *ElfCodegenCtx 转 *u8；超 TABLE_CAP 写入 heap sidecar。 */
+/** 追加一条外部重定位；ctx 为 *ElfCodegenCtx 转 *u8；超 TABLE_CAP 写入 heap sidecar。
+ * wave701: WAVE273 writers overlay must keep-global this face plus
+ * reloc_offset_at / name_len / copy64 / shndx_at / sidecar_reset (see
+ * compiler/scripts/pabi_wave273_writers_keep.txt). Overlay-local `t`
+ * copies of these helpers own a second g_pipeline_elf_reloc_heap; write_o
+ * then emits heap relocs with empty names / r_offset=0, so FORCE mega
+ * later functions (block_alloc) keep `call next_insn` and parse P001.
+ * PLATFORM: LINUX ELF writer overlay; Mach-O typed reloc uses the same
+ * helpers on Darwin overlay ingest. */
 int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len) {
   PipelineElfCtxAccess *ctx;
   int32_t ri;
