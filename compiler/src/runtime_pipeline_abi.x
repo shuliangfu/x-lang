@@ -20445,13 +20445,17 @@ export function asm_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i
 }
 
 /**
- * wave119 pure: if module top-level let/const name is int lit init, write *out_imm.
+ * wave119 pure: if module top-level *const* name is int lit init, write *out_imm.
+ * wave745: mutable `let` with an int-lit initializer must miss. load_operand
+ * used this helper for any file-level name without a stack slot, so
+ * `order_index >= g_aw_pgo_emit_n` (let init 0) became `mov imm 0` and
+ * thin WPO at() always returned -1 (CG002 code_len=0).
  * @param m *u8 — Module*
  * @param a *u8 — ASTArena*
  * @param name *u8 — name bytes
  * @param name_len i32 — name length
  * @param out_imm *i32 — output immediate
- * @return i32 — 1 found, 0 miss
+ * @return i32 — 1 found const, 0 miss
  * PLATFORM: SHARED — sole provider after emit_heavy_env leave.
  */
 #[no_mangle]
@@ -20473,6 +20477,10 @@ export function asm_module_top_level_const_lit_i32(m: *u8, a: *u8, name: *u8, na
           k = k + 1;
         }
         if (k == name_len) {
+          // wave745: only `const` may fold to an immediate.
+          if (pipeline_module_top_level_let_is_const(m, tl) == 0) {
+            return 0;
+          }
           let init_ref: i32 = pipeline_module_top_level_let_init_ref(m, tl);
           if (init_ref > 0) {
             let ek: i32 = pipeline_expr_kind_ord_at(a, init_ref);
@@ -46315,7 +46323,19 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
             return 0;
           }
         }
-        return -2;
+        /* wave745: mutable file-level let — load the global via emit_expr. */
+        glue_binop_var_slot_cache_clear();
+        vr = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+        if (vr == -99) {
+          return -2;
+        }
+        if (vr != 0) {
+          return -1;
+        }
+        if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        return 0;
       }
       glue_asm73_evict_cache_if_live_pressure_elf_c(ta, elf_ctx);
       if (to_rbx != 0) {

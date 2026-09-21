@@ -218,8 +218,15 @@ _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/
 # (w744: n_sect closed; live thin WPO is CG002 code_len=0). Do not prepend
 # src/runtime_pipeline_abi_asm_wpo_thin.o.
 # PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS co-path.
+# wave745: PREFER asm_wpo_thin first-wins leftover WPO (4096 cap in the
+# thin). leftover-gcc cap sidecar is fallback only when the thin .o is
+# absent. Do not prepend both (two WPO BSS homes). Do not ld -r into pabi.
+# PLATFORM: SHARED PREFER_ASM sidecar · LINUX gold · MACOS co-path.
 _PABI_WPO_CAP=""
-if [ -s src/runtime_pipeline_abi_asm_wpo_cap.o ]; then
+_PABI_WPO_THIN=""
+if [ -s src/runtime_pipeline_abi_asm_wpo_thin.o ]; then
+  _PABI_WPO_THIN="src/runtime_pipeline_abi_asm_wpo_thin.o"
+elif [ -s src/runtime_pipeline_abi_asm_wpo_cap.o ]; then
   _PABI_WPO_CAP="src/runtime_pipeline_abi_asm_wpo_cap.o"
 fi
 # wave743: leftover gcc append_reloc_typed sidecar (PAGE21 owner bind).
@@ -236,7 +243,14 @@ _PABI_DATA_LEN=""
 if [ -s src/runtime_pipeline_abi_data_len.o ]; then
   _PABI_DATA_LEN="src/runtime_pipeline_abi_data_len.o"
 fi
-_DRIVER_SEED_OBJS="$_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
+# wave745: leftover gcc const_lit is_const + load_operand file-level let
+# fallback. Strong T first-wins leftover gcc weak. Do not ld -r into pabi.
+# PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS co-path.
+_PABI_CONST_LIT=""
+if [ -s src/runtime_pipeline_abi_const_lit.o ]; then
+  _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
+fi
+_DRIVER_SEED_OBJS="$_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

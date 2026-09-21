@@ -206,7 +206,19 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
             return 0;
           }
         }
-        return -2;
+        /* wave745: mutable file-level let — load the global via emit_expr. */
+        glue_binop_var_slot_cache_clear();
+        vr = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+        if (vr == -99) {
+          return -2;
+        }
+        if (vr != 0) {
+          return -1;
+        }
+        if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+          return -1;
+        }
+        return 0;
       }
       glue_asm73_evict_cache_if_live_pressure_elf_c(ta, elf_ctx);
       if (to_rbx != 0) {

@@ -3707,6 +3707,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -3805,6 +3806,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4267,6 +4269,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4359,6 +4362,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4435,6 +4439,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -4519,6 +4524,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm_wpo_cap "$o" || true
       pipeline_abi_inject_reloc_typed_page21 "$o" || true
       pipeline_abi_inject_data_len_dual_bss "$o" || true
+      pipeline_abi_inject_const_lit_is_const "$o" || true
       pipeline_abi_inject_sidecar_pool_thin "$o" || true
       pipeline_abi_inject_value_abi_thin "$o" || true
       pipeline_abi_inject_block_domain_thin "$o" || true
@@ -9972,23 +9978,40 @@ pipeline_abi_inject_elf_ctx_thin() {
 }
 
 # wave311/369b M2: asm_wpo Cap residual C→.x (was wave274 C thin).
-# PRODUCT inject wave369b HARD BAN PREFER: stay leftover gcc overlay; do not
-# re-overlay. wave369 PREFER pure-asm: g05 pure-ld fails
-# ARM64_RELOC_BRANCH26 on non-b/bl in pabi_thin. T001 w311_* stay in .x.
-# wave741: cap raise is leftover from_x overlay (inject-asm-wpo-cap), not PREFER.
-# wave744: Darwin n_sect=2 closed (F7 data_len dual-BSS sidecar emits
-# __DATA,__data for g_aw_root_id=-1). g05 prepend of standalone thin then
-# links, but live WPO thin → CG002 code_len=0 on user files. Keep cap
-# sidecar. Do not G05-prepend the thin. Stamp w369b.
-# PLATFORM: SHARED · both ends hard-skip until thin WPO CG002 is healed.
+# wave745 product PREFER: g05 prepends src/runtime_pipeline_abi_asm_wpo_thin.o
+# (const_lit sidecar must already be live). Cap sidecar is fallback only.
 pipeline_abi_inject_asm_wpo_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_asm_wpo_thin.x"
-  local stamp="src/.pabi_w369b_asm_wpo.stamp"
+  local thin_o="src/runtime_pipeline_abi_asm_wpo_thin.o"
+  local stamp="src/.pabi_w745_asm_wpo_thin_prefer.stamp"
+  local xlang
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  # PLATFORM: SHARED — hard BAN PREFER (do not call inject_thin_leaf).
+  rm -f src/.pabi_w369b_asm_wpo.stamp src/.pabi_w311_asm_wpo.stamp src/.pabi_w369_asm_wpo.stamp
+  if [ -f "$stamp" ] && [ -s "$thin_o" ] \
+    && [ ! "$thin_x" -nt "$stamp" ]; then
+    return 0
+  fi
+  xlang="$(pwd)/xlang_asm"
+  [ -x "$xlang" ] || xlang="$(pwd)/xlang"
+  [ -x "$xlang" ] || {
+    log "pipeline_abi w745-asm-wpo-thin: no xlang to -c thin"
+    return 0
+  }
+  # Skip compile until const_lit sidecar is live (non-weak T). Old leftover
+  # gcc weak folds mutable let init → smash at() → CG002 if prepended.
+  # PLATFORM: SHARED — first g05 after pull keeps cap until this heals.
+  if nm -m "$xlang" 2>/dev/null | grep 'asm_module_top_level_const_lit_i32$' \
+      | grep -q 'weak'; then
+    log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar live"
+    return 0
+  fi
+  if ! "$xlang" -backend asm -c "$thin_x" -o "$thin_o"; then
+    log "pipeline_abi w745-asm-wpo-thin: PREFER -c failed"
+    return 1
+  fi
   touch "$stamp"
-  rm -f src/.pabi_w311_asm_wpo.stamp src/.pabi_w369_asm_wpo.stamp
+  log "pipeline_abi w745-asm-wpo-thin: PREFER_ASM sidecar (g05 prepend, no ld -r)"
   return 0
 }
 
@@ -10159,6 +10182,47 @@ pipeline_abi_inject_data_len_dual_bss() {
   fi
   touch "$stamp"
   log "pipeline_abi w744-data-len: leftover gcc sidecar dual BSS F7 data"
+  return 0
+}
+
+# wave745 M2: const_lit only hits `const`; load_operand VAR-without-slot
+# falls back to emit_expr_elf_fast. leftover gcc sidecar first-wins leftover
+# gcc weak T. Do not gcc -E .x. Do not PREFER peel_thin. Do not ld -r
+# into pabi. Do not redefine leftover T (w647).
+# PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS co-path.
+pipeline_abi_inject_const_lit_is_const() {
+  local o="$1"
+  local src="seeds/runtime_pipeline_abi_const_lit_overlay.c"
+  local cap="src/runtime_pipeline_abi_const_lit.o"
+  local stamp="src/.pabi_w745_const_lit_is_const.stamp"
+  local objcopy pfx
+  [ -s "$o" ] && [ -f "$src" ] || return 0
+  if [ "$(uname -s)" = Darwin ]; then
+    pfx="_"
+  else
+    pfx=""
+  fi
+  objcopy="$(pipeline_abi_w743_objcopy)" || {
+    log "pipeline_abi w745-const-lit: objcopy missing"
+    return 1
+  }
+  # Leftover gcc const_lit / load_operand is already weak; mega smash T
+  # of load_operand (if present) needs weaken so sidecar strong T wins.
+  # PLATFORM: SHARED objcopy weaken · Darwin leftover already weak is a no-op.
+  "$objcopy" \
+    --weaken-symbol="${pfx}asm_module_top_level_const_lit_i32" \
+    --weaken-symbol="${pfx}glue_try_binop_load_operand_elf_c" \
+    "$o" || true
+  if [ -f "$stamp" ] && [ -s "$cap" ] && [ ! "$src" -nt "$stamp" ]; then
+    return 0
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o "$cap" "$src"; then
+    log "pipeline_abi w745-const-lit: cc overlay failed"
+    return 1
+  fi
+  touch "$stamp"
+  log "pipeline_abi w745-const-lit: leftover gcc sidecar const_lit is_const + load_operand fallback"
   return 0
 }
 
@@ -15451,6 +15515,7 @@ case "$MODE" in
     pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_reloc_typed_page21 "$1"
     pipeline_abi_inject_data_len_dual_bss "$1"
+    pipeline_abi_inject_const_lit_is_const "$1"
     pipeline_abi_inject_sidecar_pool_thin "$1"
     pipeline_abi_inject_value_abi_thin "$1"
     pipeline_abi_inject_block_domain_thin "$1"
@@ -16064,6 +16129,7 @@ case "$MODE" in
     pipeline_abi_inject_asm_wpo_cap "$1"
     pipeline_abi_inject_reloc_typed_page21 "$1"
     pipeline_abi_inject_data_len_dual_bss "$1"
+    pipeline_abi_inject_const_lit_is_const "$1"
     _irc=$?
     set -e
     exit "$_irc"

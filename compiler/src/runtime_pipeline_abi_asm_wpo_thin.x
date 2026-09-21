@@ -1,13 +1,15 @@
 // Thin pure: wave311/369b M2 — asm_wpo Cap residual C→.x (was wave274 C thin).
 // WPO reach/DCE + PGO-Lite emit order; 7 exports + file-local BSS.
 // G.7: bodies match runtime_pipeline_abi.x wave274 leave.
-// PRODUCT inject: hard-skip BAN PREFER (wave369b); stay leftover gcc overlay.
 // wave369: w311_* ptr helpers via unsafe (T001); PREFER g05 BRANCH26 fail.
 // wave741: FUNCS 2048→4096 / EDGES 8192→16384 (mega-EOF alias silent
 // truncate was emit-order cap, not parser skip).
 // wave744: Darwin Lxml S n_sect=2 closed (g_aw_root_id=-1 is __DATA,__data).
-// g05 prepend of this thin links, but live WPO is CG002 code_len=0 on user
-// files. HARD BAN PREFER remains; live cap is leftover-gcc WAVE274 sidecar.
+// wave745: product PREFER. Root of live thin WPO CG002 code_len=0 was
+// asm_module_top_level_const_lit_i32 folding mutable `let` init (emit_n=0)
+// in binop load_operand; leftover-gcc sidecar is_const + emit_expr fallback.
+// g05 prepends this thin (drop leftover-gcc WPO cap first-win). Do not
+// gcc -E. Do not ld -r into pabi.
 // PLATFORM: SHARED freestanding Cap leave · LINUX gold · MACOS co-path.
 export extern "C" function pipeline_typeck_pick_overload_func_index_for_call_c(m: *u8, a: *u8, call_ref: i32): i32;
 

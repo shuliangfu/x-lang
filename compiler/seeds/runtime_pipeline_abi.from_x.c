@@ -9620,6 +9620,8 @@ void asm_import_path_to_c_prefix_into(uint8_t *path, uint8_t *buf, int32_t buf_c
   buf[off] = 0;
 }
 
+extern int32_t pipeline_module_top_level_let_is_const(void *m, int32_t tl);
+
 int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int32_t name_len,
     int32_t *out_imm) {
   int32_t tl;
@@ -9641,6 +9643,10 @@ int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int3
     }
     if (k != name_len)
       continue;
+    /* wave745: only `const` may fold to an immediate. Mutable `let`
+     * with int-lit init must miss so load_operand lea+loads the global. */
+    if (pipeline_module_top_level_let_is_const(m, tl) == 0)
+      return 0;
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
     if (init_ref <= 0)
       continue;
@@ -27388,7 +27394,16 @@ int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ex
         }
         return 0;
       }
-      return -2;
+      /* wave745: mutable file-level let — load the global via emit_expr. */
+      glue_binop_var_slot_cache_clear();
+      vr = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+      if (vr == -99)
+        return -2;
+      if (vr != 0)
+        return -1;
+      if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
     }
     glue_asm73_evict_cache_if_live_pressure_elf_c(ta, elf_ctx);
     if (to_rbx != 0) {
@@ -42849,7 +42864,16 @@ int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ex
         }
         return 0;
       }
-      return -2;
+      /* wave745: mutable file-level let — load the global via emit_expr. */
+      glue_binop_var_slot_cache_clear();
+      vr = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+      if (vr == -99)
+        return -2;
+      if (vr != 0)
+        return -1;
+      if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
     }
     glue_asm73_evict_cache_if_live_pressure_elf_c(ta, elf_ctx);
     if (to_rbx != 0) {
