@@ -9976,22 +9976,41 @@ pipeline_abi_inject_asm_wpo_thin() {
   return 0
 }
 
-# wave741 M2: WPO FUNCS 2048→4096 / EDGES 8192→16384 (source).
-# Dummy pad≥2048 + mega-EOF aliases compile as exactly 2048 T,
-# XLANG_DEBUG_PARSE skips=0 — emit-order cap, not parser skip.
-# Live leftover gcc still 2048: FROM_X rest skips WAVE274 bodies; whole
-# from_x without FROM_X type-conflicts; Darwin PREFER of asm_wpo_thin
-# g05 n_sect (w369b BAN still holds). Stamp-only; do not PREFER; do not
-# gcc -E as the repair. PLATFORM: SHARED · HARD BAN PREFER asm_wpo_thin.
+# wave742 M2: live WPO cap FUNCS 4096 / EDGES 16384 leftover-gcc sidecar.
+# wave741 classified dummy pad≥2048 T=2048 (aliases missing, parse skips=0)
+# as emit-order cap, not parser skip; source already 4096.
+# Live leftover is host-cc of the .x leave (g_aw_* 2048, Darwin weak T /
+# Ubuntu W). FROM_X rest skips WAVE274; whole from_x type-conflicts;
+# PREFER asm_wpo_thin stays HARD BAN (Darwin Lxml COMMON BRANCH26 +
+# ld -r → libtool n_sect=2 on _Lxml_eeba97b0edf5c0f6, w369b).
+# Overlay: host-cc seeds/runtime_pipeline_abi_asm_wpo_overlay.c (complete
+# product-pool structs + leftover C twin using global accessors) →
+# src/runtime_pipeline_abi_asm_wpo_cap.o, g05 first-wins over leftover
+# weak. Do not Darwin ld -r merge into pabi. Do not PREFER the thin.
+# Do not gcc -E of .x as the repair. Do not redefine leftover T (w647:
+# rename redirects pabi's own callers onto the dead 2048 body).
+# PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS co-path.
 pipeline_abi_inject_asm_wpo_cap() {
   local o="$1"
-  local thin_x="src/runtime_pipeline_abi_asm_wpo_thin.x"
-  local stamp="src/.pabi_w741_asm_wpo_cap.stamp"
+  local src="seeds/runtime_pipeline_abi_asm_wpo_overlay.c"
+  local twin="seeds/runtime_pipeline_abi_asm_wpo.from_x.c"
+  local cap="src/runtime_pipeline_abi_asm_wpo_cap.o"
+  local stamp="src/.pabi_w742_asm_wpo_cap.stamp"
   local stamp_ban="src/.pabi_w369b_asm_wpo.stamp"
-  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
-  touch "$stamp"
+  [ -s "$o" ] && [ -f "$src" ] && [ -f "$twin" ] || return 0
   touch "$stamp_ban"
-  log "pipeline_abi w741-asm-wpo-cap: stamp-only; HARD BAN PREFER (Darwin n_sect / leftover re-cc blocked)"
+  if [ -f "$stamp" ] && [ -s "$cap" ] \
+    && [ ! "$src" -nt "$stamp" ] && [ ! "$twin" -nt "$stamp" ]; then
+    return 0
+  fi
+  # PLATFORM: SHARED — leftover gcc overlay sidecar (clang Darwin / gcc LINUX).
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o "$cap" "$src"; then
+    log "pipeline_abi w742-asm-wpo-cap: cc overlay failed"
+    return 1
+  fi
+  touch "$stamp"
+  log "pipeline_abi w742-asm-wpo-cap: leftover gcc sidecar FUNCS=4096 (HARD BAN PREFER thin)"
   return 0
 }
 

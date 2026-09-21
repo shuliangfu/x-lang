@@ -2,6 +2,11 @@
  * Included from runtime_pipeline_abi.from_x.c AFTER the leftover-PE
  * #ifndef FROM_X skip region so FROM_X+WAVE274_COLD can compile the bodies.
  * Caps: FUNCS 4096 / EDGES 16384 (wave741; was 2048/8192 silent truncate).
+ * wave742: live overlay is host-cc of runtime_pipeline_abi_asm_wpo_overlay.c
+ * (complete product-pool structs + this twin) sidecared into g05; do not
+ * Darwin ld -r merge into pabi; do not PREFER asm_wpo_thin (Lxml n_sect).
+ * Local-only module_func_at / expr_*_arg_slot are pabi `t`; overlay uses
+ * global pipeline_module_func_* / pipeline_expr_*_arg_ref accessors.
  * G.7 twin of runtime_pipeline_abi.x / asm_wpo_thin.x. Do not PREFER the thin.
  * PLATFORM: SHARED leftover gcc · LINUX gold · MACOS co-path.
  */
@@ -22,12 +27,11 @@ struct ast_Block;
 struct ast_Expr;
 struct ast_LabeledStmt;
 
-extern struct ast_Func *module_func_at(struct ast_Module *m, int32_t fi);
 extern struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t expr_ref);
 extern struct ast_Block *pipeline_arena_block_ptr(struct ast_ASTArena *a, int32_t block_ref);
-extern int32_t *expr_call_arg_slot(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t create);
-extern int32_t *expr_method_call_arg_slot(struct ast_ASTArena *a, int32_t expr_ref, int32_t i, int32_t create);
 extern struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t block_ref, int32_t li);
+extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t i);
 
 extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
 extern int32_t pipeline_module_main_func_index(struct ast_Module *m);
@@ -36,6 +40,7 @@ extern int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t fi
 extern void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t fi, uint8_t *dst);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi);
+extern int32_t pipeline_module_func_is_used_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t fi);
 
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
@@ -246,12 +251,11 @@ static int32_t asm_wpo_func_id_of(struct ast_Module *m, int32_t fi) {
 
 /** 登记单个非 extern 函数节点。 */
 static int32_t asm_wpo_register_func(struct ast_Module *m, int32_t fi) {
-  struct ast_Func *f;
   int32_t id;
   if (!m || fi < 0 || g_asm_wpo.nfuncs >= ASM_WPO_MAX_FUNCS)
     return -1;
-  f = module_func_at(m, fi);
-  if (!f || f->is_extern)
+  /* Product leftover helpers are local t; overlay sidecar uses global accessors. */
+  if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
     return -1;
   id = asm_wpo_func_id_of(m, fi);
   if (id >= 0)
@@ -412,7 +416,7 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
   struct ast_Expr *ex;
   int32_t i;
   int32_t cid;
-  int32_t *arg_slot;
+  int32_t arg_ref;
   if (!a || expr_ref <= 0 || caller_id < 0 || depth > 64)
     return;
   ex = pipeline_arena_expr_ptr(a, expr_ref);
@@ -423,9 +427,9 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
     if (cid >= 0)
       asm_wpo_add_edge(caller_id, cid);
     for (i = 0; i < ex->call_num_args; i++) {
-      arg_slot = expr_call_arg_slot(a, expr_ref, i, 0);
-      if (arg_slot && *arg_slot > 0)
-        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
+      arg_ref = pipeline_expr_call_arg_ref(a, expr_ref, i);
+      if (arg_ref > 0)
+        asm_wpo_collect_edges_from_expr(a, arg_ref, caller_id, caller_mod, ctx, depth + 1);
     }
     if (ex->call_callee_ref > 0)
       asm_wpo_collect_edges_from_expr(a, ex->call_callee_ref, caller_id, caller_mod, ctx, depth + 1);
@@ -473,9 +477,9 @@ static void asm_wpo_collect_edges_from_expr(struct ast_ASTArena *a, int32_t expr
     if (mbase > 0)
       asm_wpo_collect_edges_from_expr(a, mbase, caller_id, caller_mod, ctx, depth + 1);
     for (i = 0; i < mnargs; i++) {
-      arg_slot = expr_method_call_arg_slot(a, expr_ref, i, 0);
-      if (arg_slot && *arg_slot > 0)
-        asm_wpo_collect_edges_from_expr(a, *arg_slot, caller_id, caller_mod, ctx, depth + 1);
+      arg_ref = pipeline_expr_method_call_arg_ref(a, expr_ref, i);
+      if (arg_ref > 0)
+        asm_wpo_collect_edges_from_expr(a, arg_ref, caller_id, caller_mod, ctx, depth + 1);
     }
     return;
   }
@@ -750,16 +754,18 @@ static int32_t asm_wpo_user_main_func_id(void) {
 /** 扫描单函数体中的 call 边（caller_id 固定为图节点 id）。 */
 static void asm_wpo_scan_func_body_calls(struct ast_ASTArena *a, struct ast_Module *mod, int32_t func_fi,
                                          int32_t caller_id, struct ast_PipelineDepCtx *ctx) {
-  struct ast_Func *f;
+  int32_t br;
+  int32_t ber;
   if (!a || !mod || caller_id < 0 || func_fi < 0)
     return;
-  f = module_func_at(mod, func_fi);
-  if (!f)
-    return;
-  if (f->body_ref > 0)
-    asm_wpo_collect_from_block(a, f->body_ref, caller_id, mod, ctx);
-  else if (f->body_expr_ref > 0)
-    asm_wpo_collect_edges_from_expr(a, f->body_expr_ref, caller_id, mod, ctx, 0);
+  br = pipeline_module_func_body_ref_at(mod, func_fi);
+  if (br > 0)
+    asm_wpo_collect_from_block(a, br, caller_id, mod, ctx);
+  else {
+    ber = pipeline_module_func_body_expr_ref_at(mod, func_fi);
+    if (ber > 0)
+      asm_wpo_collect_edges_from_expr(a, ber, caller_id, mod, ctx, 0);
+  }
 }
 
 /** BFS 前预收集全模块 call 边（避免 root 误指 #0 时漏扫 main 体）。 */
@@ -780,7 +786,7 @@ static void asm_wpo_precollect_all_func_edges(void) {
 static int32_t asm_wpo_user_pgo_force_main_callee_edge(struct ast_Module *entry, struct ast_ASTArena *a) {
   int32_t main_id;
   int32_t main_fi;
-  struct ast_Func *f;
+  int32_t br;
   struct ast_Block *b;
   int32_t er;
   int32_t op;
@@ -792,15 +798,15 @@ static int32_t asm_wpo_user_pgo_force_main_callee_edge(struct ast_Module *entry,
   if (main_id < 0)
     return -1;
   main_fi = g_asm_wpo.func_fi[main_id];
-  f = module_func_at(entry, main_fi);
-  if (!f || f->body_ref <= 0)
+  br = pipeline_module_func_body_ref_at(entry, main_fi);
+  if (br <= 0)
     return -1;
-  b = pipeline_arena_block_ptr(a, f->body_ref);
+  b = pipeline_arena_block_ptr(a, br);
   if (!b)
     return -1;
   er = 0;
   if (b->num_expr_stmts > 0)
-    er = pipeline_block_expr_stmt_ref(a, f->body_ref, b->num_expr_stmts - 1);
+    er = pipeline_block_expr_stmt_ref(a, br, b->num_expr_stmts - 1);
   if (er <= 0 && b->final_expr_ref > 0)
     er = b->final_expr_ref;
   if (er <= 0)
@@ -869,7 +875,6 @@ static void asm_wpo_reach_fixpoint_expand(void) {
   int32_t expanded;
   struct ast_Module *m;
   struct ast_ASTArena *a;
-  struct ast_Func *f;
   int32_t mi;
   int32_t fi;
   int32_t ei;
@@ -884,13 +889,9 @@ static void asm_wpo_reach_fixpoint_expand(void) {
       fi = g_asm_wpo.func_fi[fid];
       mi = asm_wpo_mod_index(m);
       a = (mi >= 0) ? g_asm_wpo.arenas[mi] : NULL;
-      f = module_func_at(m, fi);
-      if (!a || !f)
+      if (!a || !m)
         continue;
-      if (f->body_ref > 0)
-        asm_wpo_collect_from_block(a, f->body_ref, fid, m, g_asm_wpo.dep_ctx);
-      else if (f->body_expr_ref > 0)
-        asm_wpo_collect_edges_from_expr(a, f->body_expr_ref, fid, m, g_asm_wpo.dep_ctx, 0);
+      asm_wpo_scan_func_body_calls(a, m, fi, fid, g_asm_wpo.dep_ctx);
     }
     qh = 0;
     qt = 0;
@@ -927,7 +928,6 @@ static void asm_wpo_build_reach(void) {
   int32_t fid;
   struct ast_Module *m;
   struct ast_ASTArena *a;
-  struct ast_Func *f;
   int32_t mi;
   int32_t fi;
   int32_t ei;
@@ -954,13 +954,8 @@ static void asm_wpo_build_reach(void) {
     fi = g_asm_wpo.func_fi[fid];
     mi = asm_wpo_mod_index(m);
     a = (mi >= 0) ? g_asm_wpo.arenas[mi] : NULL;
-    f = module_func_at(m, fi);
-    if (a && f) {
-      if (f->body_ref > 0)
-        asm_wpo_collect_from_block(a, f->body_ref, fid, m, g_asm_wpo.dep_ctx);
-      else if (f->body_expr_ref > 0)
-        asm_wpo_collect_edges_from_expr(a, f->body_expr_ref, fid, m, g_asm_wpo.dep_ctx, 0);
-    }
+    if (a && m)
+      asm_wpo_scan_func_body_calls(a, m, fi, fid, g_asm_wpo.dep_ctx);
     for (ei = 0; ei < g_asm_wpo.nedges; ei++) {
       if (g_asm_wpo.edges[ei].from != fid)
         continue;
@@ -1525,15 +1520,13 @@ static int32_t asm_wpo_pipeline_strict_preserve_emit(struct ast_Module *m, int32
  * asm emit 前查询：1=应发射，0= WPO dead export 跳过；未启用 WPO 或 extern 保守保留。
  */
 int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
-  struct ast_Func *f;
   int32_t id;
   if (!g_asm_wpo.valid)
     return 1;
   /* F7: impl methods marked used by vtable wrapper emit (no WPO call edge). */
   if (m && fi >= 0 && pipeline_module_func_is_used_at(m, fi) != 0)
     return 1;
-  f = module_func_at(m, fi);
-  if (!f || f->is_extern)
+  if (!m || fi < 0 || pipeline_asm_module_func_is_extern_at(m, fi) != 0)
     return 1;
   /** 入口模块的 entry 符号须保留（CLI / crt0 / bridge 链）。 */
   if (m == g_asm_wpo.entry && pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"entry", 5))

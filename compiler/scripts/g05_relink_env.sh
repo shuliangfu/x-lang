@@ -212,7 +212,15 @@ _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/
 # PLATFORM: SHARED — runtime_process_argv.o provides process_xlang_argc/argv_get
 # (Makefile DRIVER_SEED_OBJS). Without it g05 link fails U process_xlang_* from
 # runtime_link_abi.o process_args_*_c.
-_DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
+# wave742: leftover WAVE274 cap sidecar first-wins over leftover 2048 weak
+# (Darwin strong vs weak; LINUX --allow-multiple-definition). Do not ld -r
+# merge into pabi (Darwin libtool n_sect). HARD BAN PREFER asm_wpo_thin.
+# PLATFORM: SHARED leftover gcc sidecar · LINUX gold · MACOS co-path.
+_PABI_WPO_CAP=""
+if [ -s src/runtime_pipeline_abi_asm_wpo_cap.o ]; then
+  _PABI_WPO_CAP="src/runtime_pipeline_abi_asm_wpo_cap.o"
+fi
+_DRIVER_SEED_OBJS="$_PABI_WPO_CAP $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
