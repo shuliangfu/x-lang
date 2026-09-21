@@ -601,8 +601,9 @@ export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i
 // wave139 Cap residual: modlet pure leave callees (still host-cc residual / pool / enc).
 // PLATFORM: SHARED freestanding emit — pure owns modlet table BSS + 7 public faces.
 // wave265: pipeline_module_top_level_let_is_const / type_ref pure (top_level leave).
-// wave273 pure-owned: pipeline_elf_ctx_add_common_sym live at EOF (#[no_mangle]).
-// G.7 dual-export ban — was Cap residual export extern.
+// wave707: pipeline_elf_ctx_add_common_sym / add_sym are export-extern at
+// file top (leftover WAVE273 gcc W 0x138 / 0x22d). Mega must not emit a
+// competing T. G.7 dual-export ban — was Cap residual export extern.
 // wave265: pipeline_asm_hoist_target_func_index pure (top_level leave).
 // wave145 pure leave: pipeline_asm_let_init_stack_reserve_bytes live in this file.
 export extern "C" function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -1545,6 +1546,31 @@ export extern function pipeline_elf_ctx_data_poke_u8(ctx_bytes: *u8, off: i32, b
  */
 export extern function pipe_modlet_bake_scalar_imm_to_data(
   elf_ctx: *u8, data_off: i32, imm: i32, csz: i32
+): i32;
+
+/**
+ * G.7: leftover WAVE273 gcc overlay owns add_sym (W 0x22d, endbr64).
+ * FORCE mega T smash first-won leftover W. leftover gcc add_common_sym
+ * CALLs this face; mega smash add_sym RIP-loads `g_pipe_elf_*` sidecar
+ * while leftover gcc uses `g_pipeline_elf_*` + leftover ctx layout.
+ * Same-TU localize of mega T still binds mega prepare's CALL to local t.
+ * Mega must emit U so leftover gcc W is the sole global.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_add_sym(
+  ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32
+): i32;
+
+/**
+ * G.7: leftover WAVE273 gcc overlay owns add_common_sym (W 0x138, endbr64).
+ * FORCE mega T smash first-won leftover W. Dual BSS: mega
+ * `g_pipe_elf_sym_is_common` ≠ leftover `g_pipeline_elf_sym_is_common`.
+ * leftover gcc add_common_sym calls leftover gcc add_sym (same family).
+ * Do not leftover-first smash-only `modlet_prepare` (layout mismatch).
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_elf_ctx_add_common_sym(
+  ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32
 ): i32;
 
 
@@ -92453,91 +92479,16 @@ export function pipeline_elf_ctx_pad_code_to_4(ctx_bytes: *u8): i32 {
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_add_sym(ctx_bytes: *u8, name: *u8, name_len: i32, offset: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len < 0) {
-    return -1;
-  }
-  let ns: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms());
-  if (ns >= pipe_elf_table_cap()) {
-    return -1;
-  }
-  if (g_pipe_elf_common_owner != ctx_bytes) {
-    pipe_elf_common_sidecar_reset(ctx_bytes);
-  }
-  let copy_len: i32 = name_len;
-  // Cap 4.2.8: sym name pool holds '_' + ≤255 AST content (was wave580 128).
-  if (copy_len > 256) {
-    copy_len = 256;
-  }
-  if (copy_len < 0) {
-    copy_len = 0;
-  }
-  let snl: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_sym_name_len());
-  if (snl + copy_len > 131072) {
-    return -1;
-  }
-  let sym_pool: *u8 = ctx_bytes + (pipe_elf_off_sym_name_data() as usize);
-  let k: i32 = 0;
-  while (k < copy_len) {
-    unsafe {
-      sym_pool[snl + k] = name[k];
-    }
-    k = k + 1;
-  }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_sym_name_len(), snl + copy_len);
-  let se: *u8 = pipe_elf_sym_at(ctx_bytes, ns);
-  pipe_store_i32_le(se, pipe_elf_sym_off_name_len(), copy_len);
-  pipe_store_i32_le(se, pipe_elf_sym_off_offset(), offset);
-  let shndx: i32 = pipe_elf_shnx_text();
-  if (g_pipe_elf_shndx_override != 0) {
-    shndx = g_pipe_elf_shndx_override;
-  } else if (pipeline_elf_pgo_hot_enabled() != 0 && pipe_load_i32_le(ctx_bytes, pipe_elf_off_emit_hot()) != 0) {
-    shndx = pipe_elf_shnx_hot();
-  } else if (pipeline_elf_pgo_hot_enabled() != 0) {
-    shndx = pipe_elf_shnx_unlikely();
-  }
-  pipe_store_i32_le(se, pipe_elf_sym_off_shndx(), shndx);
-  unsafe {
-    g_pipe_elf_sym_is_common[ns] = 0;
-  }
-  pipe_store_i32_le(ctx_bytes, pipe_elf_off_num_syms(), ns + 1);
-  return 0;
-}
+// wave707: pipeline_elf_ctx_add_sym is export-extern at file top
+// (leftover WAVE273 gcc W 0x22d). Mega must not emit a competing T.
 
 /**
  * Add SHN_COMMON object symbol (linker BSS, writable). Used by modlet mutable lets.
  * wave273 pure-owned leave.
  * PLATFORM: SHARED freestanding ELF leave.
  */
-#[no_mangle]
-export function pipeline_elf_ctx_add_common_sym(ctx_bytes: *u8, name: *u8, name_len: i32, sym_size: i32, sym_align: i32): i32 {
-  if (ctx_bytes == 0 as *u8 || name == 0 as *u8 || name_len <= 0 || sym_size <= 0) {
-    return -1;
-  }
-  let al: i32 = sym_align;
-  if (al <= 0) {
-    al = 8;
-  }
-  if (g_pipe_elf_common_owner != ctx_bytes) {
-    pipe_elf_common_sidecar_reset(ctx_bytes);
-  }
-  if (pipeline_elf_ctx_add_sym(ctx_bytes, name, name_len, sym_size) != 0) {
-    return -1;
-  }
-  let si: i32 = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_syms()) - 1;
-  if (si < 0 || si >= pipe_elf_table_cap()) {
-    return -1;
-  }
-  unsafe {
-    g_pipe_elf_sym_is_common[si] = 1;
-  }
-  pipe_elf_bss_store_i32(&g_pipe_elf_sym_common_size[0], si, sym_size);
-  pipe_elf_bss_store_i32(&g_pipe_elf_sym_common_align[0], si, al);
-  let se: *u8 = pipe_elf_sym_at(ctx_bytes, si);
-  pipe_store_i32_le(se, pipe_elf_sym_off_shndx(), 65522);
-  return 0;
-}
+// wave707: pipeline_elf_ctx_add_common_sym is export-extern at file top
+// (leftover WAVE273 gcc W 0x138). Mega must not emit a competing T.
 
 /**
  * Query whether sym[s] is SHN_COMMON (linker BSS / Mach-O tentative).

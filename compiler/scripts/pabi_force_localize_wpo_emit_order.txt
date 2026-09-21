@@ -52,6 +52,14 @@
 # bake (`sub $0x8c8`) cannot first-win leftover smash bake that product
 # gdb showed eax=0.
 #
+# wave707: FORCE mega T of pipeline_elf_ctx_add_common_sym first-won
+# leftover gcc W 0x138 (endbr64). Dual BSS: mega g_pipe_elf_sym_is_common
+# ≠ leftover g_pipeline_elf_sym_is_common. leftover gcc add_common_sym
+# CALLs leftover gcc add_sym (W 0x22d); mega smash add_sym first-won that
+# W. Family leftover-first both faces. Do NOT leftover-first smash-only
+# modlet_prepare (add_common_sym rdx=name_len 0 mismatch). Localize
+# elf_ctx_thin copies so leftover W is the sole global.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -80,3 +88,5 @@ pipe_modlet_bake_scalar_imm_to_data
 pipeline_elf_ctx_data_poke_u8
 pipeline_elf_ctx_append_data_zeros
 pipeline_elf_ctx_emit_data_len
+pipeline_elf_ctx_add_sym
+pipeline_elf_ctx_add_common_sym
