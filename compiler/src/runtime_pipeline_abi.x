@@ -1457,6 +1457,31 @@ export extern function parser_parse_into_init(module: *u8, arena: *u8): void;
 export extern function parser_get_module_num_imports(module: *u8): i32;
 
 /**
+ * G.7: leftover WAVE274 / asm_wpo_thin owns PGO emit-order prepare.
+ * FORCE mega T first-won a smashed body (call-next-insn / emit_n imm 0);
+ * mega_body then called emit_order_at which returned -1 for every slot
+ * so w393_mega_emit_one hit `if (i < 0) return 0` and wrote no text
+ * (CG002 code_len=0). This TU must not emit a competing T.
+ * PLATFORM: SHARED — leftover from_x WAVE274 provides the body.
+ */
+export extern function pipeline_asm_wpo_pgo_emit_order_prepare(m: *u8): void;
+
+/**
+ * G.7: leftover WAVE274 owns emit-order count (pairs with prepare/at).
+ * FORCE mega T of count happened to load emit_n=2 while at() used imm 0.
+ * PLATFORM: SHARED — leftover from_x WAVE274 provides the body.
+ */
+export extern function pipeline_asm_wpo_pgo_emit_order_count(m: *u8): i32;
+
+/**
+ * G.7: leftover WAVE274 owns emit-order at (func index or -1).
+ * FORCE mega/thin asm lowered `order_index >= g_aw_pgo_emit_n` to
+ * `mov $0, %eax` (no reloc); leftover gcc keeps RIP load of emit_n.
+ * PLATFORM: SHARED — leftover from_x WAVE274 provides the body.
+ */
+export extern function pipeline_asm_wpo_pgo_emit_order_at(m: *u8, order_index: i32): i32;
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -95903,7 +95928,9 @@ export function platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: *u8):
 // (wave311 C→.x via -E+$CC inject; was wave274 C thin).
 // (pipeline_asm_wpo.c mid-file include from ast_pool.c)
 // PLATFORM: SHARED freestanding LP64 little-endian.
-// Authority: pipeline_asm_wpo_* live here (#[no_mangle]). Residual host-cc deleted.
+// Authority: leftover from_x WAVE274 (product) + asm_wpo_thin (HARD BAN
+// PREFER, wave369b). Mega must not emit T for public emit-order faces
+// (wave702: FORCE mega/thin asm first-won smashed at() → CG002 code_len=0).
 // Seed cold twins under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X (WAVE274).
 // Flat BSS + accessors; G.7 dual-export ban for public faces.
 // Caps: ASM_WPO_MAX_FUNCS=2048 MAX_MODS=64 MAX_EDGES=8192
@@ -97572,113 +97599,10 @@ export function pipeline_asm_wpo_should_emit_func(m: *u8, fi: i32): i32 {
   }
 }
 
-/**
- * Build emit order table for module: WPO filter + sort by call-depth.
- * @param m *u8 - ast_Module*
- * wave274 pure-owned leave.
- * PLATFORM: SHARED freestanding WPO leave.
- */
-#[no_mangle]
-export function pipeline_asm_wpo_pgo_emit_order_prepare(m: *u8): void {
-  unsafe {
-    if (m == 0 as *u8) {
-      asm_wpo_set_emit_mod(0 as *u8);
-      g_aw_pgo_emit_n = 0;
-      return;
-    }
-    asm_wpo_set_emit_mod(m);
-    let n: i32 = 0;
-    let nf: i32 = pipeline_module_num_funcs(m);
-    let fi: i32 = 0;
-    // PLATFORM: SHARED — g_aw_pgo_emit_order is i32[ASM_WPO_MAX_FUNCS].
-    // Historical bug: n kept growing past capacity while the array stopped
-    // being written; g_aw_pgo_emit_n = n then made order_at() read OOB into
-    // adjacent BSS (emit_n / queue), re-emitting the same bogus body hundreds
-    // of times as T _strchr and inflating abi-scale pipeline_wpo.o ~800KiB+.
-    // Only increment n when a slot is stored; emit_n never exceeds capacity.
-    while (fi < nf) {
-      if (pipeline_asm_module_func_is_extern_at(m, fi) == 0 && pipeline_asm_wpo_should_emit_func(m, fi) != 0) {
-        if (n < asm_wpo_max_funcs()) {
-          g_aw_pgo_emit_order[n] = fi;
-          n = n + 1;
-        }
-      }
-      fi = fi + 1;
-    }
-    // Empty emit set is fatal for asm -o; fall back to all non-extern.
-    if (n == 0 && nf > 0) {
-      fi = 0;
-      while (fi < nf) {
-        if (pipeline_asm_module_func_is_extern_at(m, fi) == 0) {
-          if (n < asm_wpo_max_funcs()) {
-            g_aw_pgo_emit_order[n] = fi;
-            n = n + 1;
-          }
-        }
-        fi = fi + 1;
-      }
-    }
-    if (pipeline_elf_pgo_hot_enabled() != 0 && g_aw_valid != 0) {
-      let a: i32 = 0;
-      while (a < n) {
-        let b: i32 = a + 1;
-        while (b < n) {
-          let da: i32 = asm_wpo_pgo_depth_of(m, g_aw_pgo_emit_order[a]);
-          let db: i32 = asm_wpo_pgo_depth_of(m, g_aw_pgo_emit_order[b]);
-          if (da > db || (da == db && g_aw_pgo_emit_order[a] > g_aw_pgo_emit_order[b])) {
-            let tmp: i32 = g_aw_pgo_emit_order[a];
-            g_aw_pgo_emit_order[a] = g_aw_pgo_emit_order[b];
-            g_aw_pgo_emit_order[b] = tmp;
-          }
-          b = b + 1;
-        }
-        a = a + 1;
-      }
-    }
-    g_aw_pgo_emit_n = n;
-
-  }
-}
-
-/**
- * Count of funcs to emit for module (lazy prepare).
- * @param m *u8 - ast_Module*
- * wave274 pure-owned leave.
- * PLATFORM: SHARED freestanding WPO leave.
- */
-#[no_mangle]
-export function pipeline_asm_wpo_pgo_emit_order_count(m: *u8): i32 {
-  unsafe {
-    if (m != asm_wpo_get_emit_mod()) {
-      pipeline_asm_wpo_pgo_emit_order_prepare(m);
-    }
-    return g_aw_pgo_emit_n;
-
-  }
-}
-
-/**
- * Func index at emit order_index; -1 OOB.
- * @param m *u8 - ast_Module*
- * @param order_index i32
- * wave274 pure-owned leave.
- * PLATFORM: SHARED freestanding WPO leave.
- */
-#[no_mangle]
-export function pipeline_asm_wpo_pgo_emit_order_at(m: *u8, order_index: i32): i32 {
-  unsafe {
-    if (m != asm_wpo_get_emit_mod()) {
-      pipeline_asm_wpo_pgo_emit_order_prepare(m);
-    }
-    // Belt: reject OOB past array capacity even if emit_n were stale/corrupt.
-    if (order_index < 0 || order_index >= g_aw_pgo_emit_n ||
-        order_index >= asm_wpo_max_funcs()) {
-      return -1;
-    }
-    return g_aw_pgo_emit_order[order_index];
-
-  }
-}
+// wave702: pipeline_asm_wpo_pgo_emit_order_{prepare,count,at} are
+// export-extern at file top (leftover WAVE274 T). Mega FORCE asm of
+// these three first-won smashed bodies (emit_n imm 0 → at()=-1 →
+// empty __text CG002). Do not restore mega T.
 
 /**
  * PGO-Lite: 1 => emit into .text.hot; 0 => .text. Disabled when PGO_HOT off.

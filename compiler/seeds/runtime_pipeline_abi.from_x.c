@@ -54473,6 +54473,9 @@ enum {
  *   + pipeline_asm_wpo_reach_clear/reach_compute_for_elf
  *   + pipeline_asm_wpo_should_emit_func
  *   + pipeline_asm_wpo_pgo_emit_order_prepare/count/at/is_hot_func
+ * wave702: mega .x export-externs prepare/count/at so FORCE mega/thin
+ * smashed asm (emit_n lowered to imm 0) cannot first-win this leftover
+ * gcc family. Product leftover W (0x270/0x2f/0x65) is the live body.
  *
  * WPO v0 (asm backend DCE): mark reachable funcs via typeck-resolved call
  * graph, skip dead exports at emit time. PGO-Lite: root + direct callees

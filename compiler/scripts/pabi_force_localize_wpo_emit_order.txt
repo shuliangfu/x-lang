@@ -1,0 +1,23 @@
+# FORCE leftover-weaken: localize smashed mega/thin WPO emit-order
+# faces so leftover WAVE274 gcc W is the sole global.
+# PLATFORM: LINUX gold FORCE probe (not product default).
+#
+# wave702: FORCE mega/thin asm of emit_order_at lowered
+# `order_index >= g_aw_pgo_emit_n` to `mov $0, %eax` (no reloc).
+# count still returned 2; at() returned -1; emit_one `i < 0` no-op
+# → CG002 code_len=0. Leftover pabi W sizes: prepare 0x270 /
+# count 0x2f / at 0x65 (RIP load of emit_n). Thin/mega ~128B smash.
+#
+# Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
+# before `ld -r --allow-multiple-definition` (mono then thins then
+# leftover-weak pabi). objcopy --localize-symbols this list.
+#
+# Public faces are also export-extern in runtime_pipeline_abi.x so
+# FORCE mega compile emits U. Helpers stay mega-local T unless
+# localized here (leftover at() calls global get_emit_mod/max_funcs).
+pipeline_asm_wpo_pgo_emit_order_prepare
+pipeline_asm_wpo_pgo_emit_order_count
+pipeline_asm_wpo_pgo_emit_order_at
+asm_wpo_get_emit_mod
+asm_wpo_set_emit_mod
+asm_wpo_max_funcs
