@@ -2038,6 +2038,22 @@ export extern function pipeline_asm_emit_vector_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32;
 
+/**
+ * G.7: leftover gcc overlay owns pipeline_asm_simd_try_inline_select_call_elf_c
+ * (W 0x691). FORCE mega T smash first-won leftover W (`sub $0x13f8`).
+ * leftover gcc vector_type_let_init (w732 W 0x2c5) CALLs leftover gcc this
+ * face for CALL/METHOD simd.select. Mega same-TU remaining callers: 0
+ * (parent leftover-first). No thin defines this symbol — still localize.
+ * Do not leftover-first skip_heavy, skip_heavy_or_thin_stub parent,
+ * rax_plus_rbx_scaled, local_slot rbx twin, wrapper, store_retval_pair,
+ * or other vector children (var_copy / binop / splat / shuffle / fma /
+ * identity / binop2). Mega may not emit U (unused export-extern).
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_asm_simd_try_inline_select_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -45270,189 +45286,23 @@ function glue_simd_select_arg_stack_off_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta
 /**
  * Inline vec4f/vec8i/simd_select CALL.
  * @return i32 - 1 inlined; 0 no match; -1 error
- * wave148 pure: G.7 authority (was pipeline_asm_simd_try_inline_select_call_elf_c).
+ * G.7 leftover gcc overlay owns this face (was mega body).
  * G.7 complete: nested splat(const) args (heat-loop select(splat(1), r8, splat(0))).
- * PLATFORM: SHARED freestanding.
+ * wave734: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x691 (endbr64 sub $0x90) is the sole global. FORCE mega T smash
+ *   (`sub $0x13f8`) first-won leftover gcc. Mega same-TU remaining callers: 0.
+ *   No thin defines this symbol — still localize. Do not leftover-first
+ *   skip_heavy, rax_plus_rbx, local_slot rbx twin, wrapper, store_retval_pair,
+ *   or other vector children.
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-#[no_mangle]
-export function pipeline_asm_simd_try_inline_select_call_elf_c(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
-  let callee_ref: i32 = 0;
-  let clen: i32 = 0;
-  let expect_lanes: i32 = 0;
-  let arg_m: i32 = 0;
-  let arg_a: i32 = 0;
-  let arg_b: i32 = 0;
-  let lanes: i32 = 0;
-  let esz: i32 = 0;
-  let off_m: i32 = 0;
-  let off_a: i32 = 0;
-  let off_b: i32 = 0;
-  let is_f32: i32 = 0;
-  let feats: u32 = 0;
-  let hw_env: *u8 = 0 as *u8;
-  let ko: i32 = 0;
-  let nargs: i32 = 0;
-  let rc: i32 = 0;
-  let is_method: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, call_ref);
-  }
-  /* CALL=48, METHOD_CALL=49 (import simd.select is METHOD). */
-  if (ko != 48 && ko != 49) {
-    return 0;
-  }
-  if (ko == 49) {
-    is_method = 1;
-  }
-  if (is_method != 0) {
-    unsafe {
-      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
-    }
-  } else {
-    unsafe {
-      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
-    }
-  }
-  if (nargs != 3) {
-    return 0;
-  }
-  if (is_method != 0) {
-    unsafe {
-      clen = pipeline_expr_method_call_name_len(arena, call_ref);
-    }
-    if (clen <= 0 || clen >= 64) {
-      return 0;
-    }
-    unsafe {
-      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
-    }
-  } else {
-    unsafe {
-      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-    }
-    if (callee_ref <= 0) {
-      return 0;
-    }
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
-    if (clen <= 0) {
-      return 0;
-    }
-  }
-  expect_lanes = 0;
-  if (clen == 12 && wave148_bytes_eq(&g_wave148_cname[0], "vec4f_select", 12) != 0) {
-    expect_lanes = 4;
-  } else {
-    if (clen == 12 && wave148_bytes_eq(&g_wave148_cname[0], "vec8i_select", 12) != 0) {
-      expect_lanes = 8;
-    } else {
-      if (clen == 11 && wave148_bytes_eq(&g_wave148_cname[0], "simd_select", 11) != 0) {
-        expect_lanes = 0;
-      } else {
-        if (clen == 6 && wave148_bytes_eq(&g_wave148_cname[0], "select", 6) != 0) {
-          expect_lanes = 0;
-        } else {
-          return 0;
-        }
-      }
-    }
-  }
-  rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  if (expect_lanes != 0 && lanes != expect_lanes) {
-    return 0;
-  }
-  if (is_method != 0) {
-    unsafe {
-      arg_m = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
-      arg_a = pipeline_expr_method_call_arg_ref(arena, call_ref, 1);
-      arg_b = pipeline_expr_method_call_arg_ref(arena, call_ref, 2);
-    }
-  } else {
-    unsafe {
-      arg_m = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-      arg_a = pipeline_expr_call_arg_ref(arena, call_ref, 1);
-      arg_b = pipeline_expr_call_arg_ref(arena, call_ref, 2);
-    }
-  }
-  if (arg_m <= 0 || arg_a <= 0 || arg_b <= 0) {
-    return 0 - 1;
-  }
-  /* Comptime-uniform mask: select(splat(k), a, b) → a if k!=0 else b. */
-  let mask_imm_slot: i32[1] = [];
-  let pick: i32 = 0;
-  if (glue_simd_expr_splat_int_imm_c(arena, arg_m, &mask_imm_slot[0]) != 0) {
-    if (mask_imm_slot[0] != 0) {
-      pick = arg_a;
-    } else {
-      pick = arg_b;
-    }
-    unsafe {
-      ko = pipeline_expr_kind_ord_at(arena, pick);
-    }
-    if (ko == 3) {
-      if (pipeline_asm_emit_vector_var_copy_elf_c(arena, elf_ctx, pick, ctx, ta, stack_slot_off, type_ref) != 0) {
-        return 0 - 1;
-      }
-      return 1;
-    }
-    if (pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, pick, ctx, ta, stack_slot_off, type_ref) == 1) {
-      return 1;
-    }
-    return 0;
-  }
-  off_m = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_m, type_ref);
-  off_a = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_a, type_ref);
-  off_b = glue_simd_select_arg_stack_off_c(arena, elf_ctx, ctx, ta, arg_b, type_ref);
-  if (off_m < 0 || off_a < 0 || off_b < 0) {
-    return 0;
-  }
-  is_f32 = glue_vector_elem_is_f32_c(arena, type_ref);
-  unsafe {
-    hw_env = link_abi_getenv("XLANG_SIMD_HW");
-  }
-  if (hw_env == (0 as *u8) || hw_env[0] != 48) {
-    feats = glue_simd_emit_cpu_features_c();
-    if (feats == 0) {
-      unsafe {
-        feats = xlang_target_cpu_detect_host();
-      }
-    }
-    unsafe {
-      rc = simd_enc_try_hw_vector_select_rbp(elf_ctx, off_m, off_a, off_b, stack_slot_off, lanes, is_f32, ta, feats);
-    }
-    if (rc == 0) {
-      return 1;
-    }
-  }
-  /* Lane-scalar fallback still requires IDENT args (expr refs, not temps). */
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg_m);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg_a);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg_b);
-  }
-  if (ko != 3) {
-    return 0;
-  }
-  if (glue_emit_vector_select_lane_scalar_elf_c(arena, elf_ctx, arg_m, arg_a, arg_b, stack_slot_off, type_ref, ctx, ta) != 0) {
-    return 0;
-  }
-  return 1;
-}
+// wave734: pipeline_asm_simd_try_inline_select_call_elf_c is export-extern at file top
+// (leftover gcc W 0x691, endbr64 sub $0x90). FORCE mega T smash first-won
+// leftover gcc W (`sub $0x13f8`). Mega same-TU remaining callers: 0.
+// No thin defines this symbol — still localize. Do not leftover-first
+// skip_heavy, rax_plus_rbx, local_slot rbx twin, wrapper, store_retval_pair,
+// or other vector children. Mega may not emit U. leftover gcc overlay
+// provides the body.
 
 /**
  * Inline vec4f_fma / vec4f_madd / simd_fma CALL or METHOD import simd.fma.
