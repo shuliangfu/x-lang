@@ -116,6 +116,11 @@
 # Do NOT leftover-first skip_heavy. Do not leftover-first smash-only
 # modlet_prepare. Do not bulk-localize ~1970.
 #
+# wave717: FORCE mega T of asm_parser_func_is_thin_delegate first-won leftover
+# gcc W 0x12d3 (endbr64 sub $0x10). Mega skip_heavy CALLs leftover gcc this
+# face. No thin copy. Do NOT leftover-first skip_heavy. Do not leftover-first
+# smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
 # Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
 # AND runtime_pipeline_abi_asm_expr_thin.o AND
 # runtime_pipeline_abi_asm_expr_helpers_thin.o
@@ -162,3 +167,4 @@ pipeline_asm_emit_struct_lit_elf_c
 asm_parser_m8_tail_thin_delegate_c_name
 asm_wpo_collect_walk
 pipeline_asm_emit_return_elf_impl
+asm_parser_func_is_thin_delegate
