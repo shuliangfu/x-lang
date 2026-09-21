@@ -1961,6 +1961,20 @@ export extern function glue_emit_index_bounds_guard_elf_c(
   arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, ix_ref: i32, base_ref: i32, idx_ref: i32
 ): i32;
 
+/**
+ * G.7: leftover gcc overlay owns glue_try_index_var_or_field_base_to_rbx_elf_c
+ * (W 0x7dc). FORCE mega T smash first-won leftover W. leftover gcc INDEX
+ * assign-addr→rbx forest CALLs leftover gcc this face (INDEX assign base).
+ * No thin defines this symbol. Mega same-TU remaining callers: 18 (already
+ * unsafe). Do not leftover-first skip_heavy, skip_heavy_or_thin_stub
+ * parent, rax_plus_rbx_scaled, local_slot rbx twin, or wrapper
+ * pipeline_asm_index_elem_byte_sz. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_try_index_var_or_field_base_to_rbx_elf_c(
+  arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -63591,279 +63605,16 @@ export function glue_try_index_var_mul_var_idx_addr_to_rbx_elf_c(arena: *u8, elf
  * @param ta i32 — target arch (0=x86_64, 1=arm64)
  * @return i32 — 0 ok, -1 enc error, -2 not applicable
  * wave182 pure-owned G.7 authority (was Cap residual index_helpers).
+ * wave729: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x7dc is the sole global. FORCE mega T smash first-won leftover gcc.
+ *   No thin defines this symbol. Do not leftover-first skip_heavy or rax_plus_rbx.
  * PLATFORM: SHARED freestanding INDEX assign base.
  */
-#[no_mangle]
-export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32 {
-  let ko: i32 = 0;
-  let boff: i32 = 0;
-  let field_off: i32 = 0;
-  let var_base: i32 = 0;
-  let tr: i32 = 0;
-  let call_fa: i32 = 0;
-  let d_op: i32 = 0;
-  let ix_base: i32 = 0;
-  let ix_idx: i32 = 0;
-  let ix_esz: i32 = 0;
-  let needs: i32 = 0;
-  let is_enum: i32 = 0;
-  let import_rc: i32 = 0;
-  let st: i32 = 0;
-  let mod: *u8 = 0 as *u8;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || base_ref <= 0) {
-    return 0 - 2;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, base_ref);
-  }
-  // GLUE_EXPR_KIND_VAR == 3
-  if (ko == 3) {
-    unsafe {
-      boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
-    }
-    if (boff < 0) {
-      return 0 - 2;
-    }
-    unsafe {
-      tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
-    }
-    if (tr > 0) {
-      unsafe {
-        ko = pipeline_type_kind_ord_at(arena, tr);
-      }
-      // GLUE_TYPE_KIND_SLICE == 11
-      if (ko == 11) {
-        // slice* param → load fat* then .data to rbx (mirror rax path).
-        unsafe {
-          needs = glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, boff, ctx);
-        }
-        if (needs != 0) {
-          unsafe {
-            if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta) != 0) {
-              return 0 - 1;
-            }
-            if (backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
-            }
-            if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          return 0;
-        }
-        unsafe {
-          return backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta);
-        }
-      }
-    }
-    unsafe {
-      return glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
-    }
-  }
-  // EXPR_FIELD_ACCESS == 44
-  if (ko == 44) {
-    unsafe {
-      is_enum = pipeline_expr_field_access_is_enum_variant(arena, base_ref);
-    }
-    if (is_enum != 0) {
-      return 0 - 2;
-    }
-    // Import-module const ARRAY_LIT FIELD as INDEX assign base.
-    // Helper leaves ptr in rax; mov to rbx. PLATFORM: SHARED.
-    unsafe {
-      import_rc = glue_emit_import_module_const_field_to_rax_elf_c(
-          arena, elf_ctx, base_ref, ctx, ta, 0 as *i32);
-    }
-    if (import_rc == 0) {
-      unsafe {
-        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-          return 0 - 1;
-        }
-      }
-      return 0;
-    }
-    if (import_rc < 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      var_base = pipeline_expr_field_access_base_ref(arena, base_ref);
-    }
-    if (var_base > 0) {
-      unsafe {
-        ko = pipeline_expr_kind_ord_at(arena, var_base);
-      }
-      // VAR-base FIELD
-      if (ko == 3) {
-        unsafe {
-          boff = glue_var_expr_stack_off_elf_c(arena, ctx, var_base);
-        }
-        if (boff < 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          if (glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, var_base, boff, ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          mod = pipeline_asm_emit_module_ref_c();
-          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
-          if (field_off != 0) {
-            if (backend_enc_add_imm_to_rbx_arch(elf_ctx, field_off, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-      // FIELD over EXPR_DEREF — pointer bits in rax then mov→rbx (rhs stays in rax until after).
-      // EXPR_DEREF == 52
-      if (ko == 52) {
-        unsafe {
-          d_op = pipeline_expr_unary_operand_ref_at(arena, var_base);
-        }
-        if (d_op <= 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, d_op, ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          mod = pipeline_asm_emit_module_ref_c();
-          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
-          if (field_off != 0) {
-            if (backend_enc_add_imm_to_rbx_arch(elf_ctx, field_off, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-      // FIELD over EXPR_INDEX — emit &m[i].xs into rax then mov→rbx.
-      // EXPR_INDEX == 47
-      if (ko == 47) {
-        unsafe {
-          ix_base = pipeline_expr_index_base_ref(arena, var_base);
-          ix_idx = pipeline_expr_index_index_ref(arena, var_base);
-        }
-        if (ix_base <= 0 || ix_idx <= 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          ix_esz = pipeline_asm_index_elem_byte_sz_c(arena, var_base);
-        }
-        if (ix_esz <= 0) {
-          return 0 - 2;
-        }
-        unsafe {
-          if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, var_base, ix_base, ix_idx, ctx, ta, ix_esz) != 0) {
-            return 0 - 1;
-          }
-          mod = pipeline_asm_emit_module_ref_c();
-          field_off = glue_field_access_effective_offset_c(arena, mod, base_ref);
-          if (field_off != 0) {
-            if (backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          if (glue_index_deref_ptr_field_slot_rax_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-            return 0 - 1;
-          }
-          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-      /* FIELD-chain as INDEX assign base. Reuse the rax twin (lvalue
-       * walk + call_fa). rhs stays in rax so push/pop around it.
-       * PLATFORM: SHARED — same produce as the rax helper. */
-      if (ko == 44) {
-        unsafe {
-          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          st = glue_try_index_var_or_field_base_to_rax_elf_c(
-              arena, elf_ctx, base_ref, ctx, ta);
-        }
-        if (st != 0) {
-          unsafe {
-            if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
-            }
-          }
-          return st;
-        }
-        unsafe {
-          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-            return 0 - 1;
-          }
-          if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
-            return 0 - 1;
-          }
-        }
-        return 0;
-      }
-    }
-    // STRUCT_LIT/CALL/METHOD-rooted FIELD → addr in rax then mov→rbx.
-    unsafe {
-      call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, base_ref, ctx, ta, 1);
-    }
-    if (call_fa == (0 - 99)) {
-      return 0 - 2;
-    }
-    if (call_fa != 0) {
-      return 0 - 1;
-    }
-    unsafe {
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-        return 0 - 1;
-      }
-      if (glue_index_deref_ptr_field_slot_rbx_elf_c(arena, elf_ctx, base_ref, ta) != 0) {
-        return 0 - 1;
-      }
-    }
-    return 0;
-  }
-  // INDEX=47 / CALL=48 / METHOD_CALL=49: reuse the rax twin (inner lea
-  // or SIMD spill+LEA), then mov→rbx. Contract: rhs stays in rax, so
-  // push/pop around the rax helper. TYPE_ARRAY / TYPE_SLICE CALL stay
-  // -2 (rax helper returns -2; fallback emit_expr already has E* / fat.data).
-  // PLATFORM: SHARED freestanding · LINUX+MACOS SysV · MACOS|ARM64.
-  if (ko == 47 || ko == 48 || ko == 49) {
-    unsafe {
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
-        return 0 - 1;
-      }
-      st = glue_try_index_var_or_field_base_to_rax_elf_c(arena, elf_ctx, base_ref, ctx, ta);
-    }
-    if (st != 0) {
-      unsafe {
-        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
-          return 0 - 1;
-        }
-      }
-      return st;
-    }
-    unsafe {
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-        return 0 - 1;
-      }
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
-        return 0 - 1;
-      }
-    }
-    return 0;
-  }
-  return 0 - 2;
-}
+// wave729: glue_try_index_var_or_field_base_to_rbx_elf_c is export-extern at file top
+// (leftover gcc W 0x7dc). FORCE mega T smash first-won leftover gcc W.
+// No thin defines this symbol. Do not leftover-first skip_heavy or rax_plus_rbx.
+// Mega must emit U. leftover gcc overlay provides the body.
+
 
 // end wave182 pure-owned leave
 
