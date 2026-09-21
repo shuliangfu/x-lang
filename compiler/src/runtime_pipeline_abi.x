@@ -2089,6 +2089,24 @@ export extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
 
 
 /**
+ * G.7: leftover gcc overlay owns pipeline_asm_simd_try_inline_splat_call_elf_c
+ * (W 0x423). FORCE mega T smash first-won leftover W (`sub $0xbb8`).
+ * leftover gcc vector_type_let_init (w732 W 0x2c5) CALLs leftover gcc this
+ * face for CALL/METHOD simd.splat. Mega same-TU remaining callers: 1
+ * (glue_simd_select_arg_stack_off_c, wrapped unsafe). No thin defines this
+ * symbol — still localize.
+ * Do not leftover-first skip_heavy, skip_heavy_or_thin_stub parent,
+ * rax_plus_rbx_scaled, local_slot rbx twin, wrapper, store_retval_pair,
+ * or other vector children (var_copy / binop / identity / binop2).
+ * Mega may emit U (remaining caller).
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function pipeline_asm_simd_try_inline_splat_call_elf_c(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32
+): i32;
+
+
+/**
  * G.7: parser_x owns parser_get_module_import_path.
  * PLATFORM: SHARED — parser_x.o provides the body.
  */
@@ -45008,147 +45026,23 @@ function glue_simd_alloc_vector_temp_slot_c(arena: *u8, ctx: *u8, type_ref: i32)
  * @param stack_slot_off i32 — dst slot
  * @param type_ref i32 — result vector type
  * @return i32 — 1 inlined; 0 no match; -1 error
- * G.7 无才新增: sibling of try_inline_select/shuffle (no second fill path).
- * PLATFORM: SHARED freestanding · LINUX gold / MACOS L2 same emit.
+ * G.7 leftover gcc overlay owns this face (was mega body).
+ * wave737: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x423 (endbr64 sub $0x78) is the sole global. FORCE mega T smash
+ *   (`sub $0xbb8`) first-won leftover gcc. Mega same-TU remaining callers: 1
+ *   (glue_simd_select_arg_stack_off_c, wrapped unsafe). No thin defines this
+ *   symbol — still localize. Do not leftover-first skip_heavy, rax_plus_rbx,
+ *   local_slot rbx twin, wrapper, store_retval_pair, or other vector children.
+ * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
-#[no_mangle]
-export function pipeline_asm_simd_try_inline_splat_call_elf_c(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32, type_ref: i32): i32 {
-  let callee_ref: i32 = 0;
-  let clen: i32 = 0;
-  let arg0: i32 = 0;
-  let lanes: i32 = 0;
-  let esz: i32 = 0;
-  let ko: i32 = 0;
-  let nargs: i32 = 0;
-  let is_method: i32 = 0;
-  let imm: i32 = 0;
-  let store_sz: i32 = 0;
-  let li: i32 = 0;
-  let rc: i32 = 0;
-  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || call_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, call_ref);
-  }
-  if (ko != 48 && ko != 49) {
-    return 0;
-  }
-  if (ko == 49) {
-    is_method = 1;
-  }
-  if (is_method != 0) {
-    unsafe {
-      nargs = pipeline_expr_method_call_num_args_at(arena, call_ref);
-    }
-  } else {
-    unsafe {
-      nargs = pipeline_expr_call_num_args_at(arena, call_ref);
-    }
-  }
-  if (nargs != 1) {
-    return 0;
-  }
-  if (is_method != 0) {
-    unsafe {
-      clen = pipeline_expr_method_call_name_len(arena, call_ref);
-    }
-    if (clen <= 0 || clen >= 64) {
-      return 0;
-    }
-    unsafe {
-      pipeline_expr_method_call_name_into(arena, call_ref, &g_wave148_cname[0]);
-    }
-  } else {
-    unsafe {
-      callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
-    }
-    if (callee_ref <= 0) {
-      return 0;
-    }
-    clen = glue_call_callee_func_name_into_c(arena, callee_ref, &g_wave148_cname[0], 64);
-    if (clen <= 0) {
-      return 0;
-    }
-  }
-  if (wave148_cname_is_splat(&g_wave148_cname[0], clen) == 0) {
-    return 0;
-  }
-  rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz);
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  if (is_method != 0) {
-    unsafe {
-      arg0 = pipeline_expr_method_call_arg_ref(arena, call_ref, 0);
-    }
-  } else {
-    unsafe {
-      arg0 = pipeline_expr_call_arg_ref(arena, call_ref, 0);
-    }
-  }
-  if (arg0 <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    ko = pipeline_expr_kind_ord_at(arena, arg0);
-  }
-  if (ko == 0 || ko == 2) {
-    unsafe {
-      imm = pipeline_expr_int_val_at(arena, arg0);
-    }
-    if (glue_simd_emit_imm_fill_slot_c(elf_ctx, stack_slot_off, lanes, esz, ta, imm) != 0) {
-      return 0 - 1;
-    }
-    return 1;
-  }
-  if (ko == 1) {
-    /*
-     * FLOAT_LIT splat: dest esz==4 is f32 lanes (Vec4f / f32x4).
-     * Unstamped 1.0 is IEEE f64 (0x3FF00000_00000000); store-4 of that
-     * low half is 0.0f — same ARRAY_LIT residual typeck already stamped.
-     * G.7 complete: reuse force_esz==4 pack + imm_fill (no second store path).
-     * PLATFORM: SHARED freestanding emit · LINUX gold.
-     */
-    if (esz == 4) {
-      unsafe {
-        imm = glue_ieee_f64_bits_to_f32_bits(
-            pipeline_expr_float_bits_lo_at(arena, arg0),
-            pipeline_expr_float_bits_hi_at(arena, arg0));
-      }
-      if (glue_simd_emit_imm_fill_slot_c(elf_ctx, stack_slot_off, lanes, esz, ta, imm) != 0) {
-        return 0 - 1;
-      }
-      return 1;
-    }
-    rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, arg0, ta, 0, 0);
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    store_sz = esz;
-    if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8) {
-      store_sz = 4;
-    }
-    unsafe {
-      rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
-    }
-    if (rc != 0) {
-      return 0 - 1;
-    }
-    li = 0;
-    while (li < lanes) {
-      unsafe {
-        rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, li * store_sz, store_sz, ta);
-      }
-      if (rc != 0) {
-        return 0 - 1;
-      }
-      li = li + 1;
-    }
-    return 1;
-  }
-  return 0;
-}
+// wave737: pipeline_asm_simd_try_inline_splat_call_elf_c is export-extern at file top
+// (leftover gcc W 0x423, endbr64 sub $0x78). FORCE mega T smash first-won
+// leftover gcc W (`sub $0xbb8`). Mega same-TU remaining callers: 1
+// (glue_simd_select_arg_stack_off_c, wrapped unsafe). No thin defines this
+// symbol — still localize. Do not leftover-first skip_heavy, rax_plus_rbx,
+// local_slot rbx twin, wrapper, store_retval_pair, or other vector children.
+// leftover gcc overlay provides the body.
+
 
 /**
  * Resolve a select operand to a rbp slot: IDENT local or nested splat(const) temp.
@@ -45181,7 +45075,9 @@ function glue_simd_select_arg_stack_off_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta
   if (tmp < 0) {
     return 0 - 1;
   }
-  rc = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, arg_ref, ctx, ta, tmp, type_ref);
+  unsafe {
+    rc = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, arg_ref, ctx, ta, tmp, type_ref);
+  }
   if (rc == 1) {
     return tmp;
   }
