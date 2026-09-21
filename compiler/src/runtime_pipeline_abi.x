@@ -1975,6 +1975,20 @@ export extern function glue_try_index_var_or_field_base_to_rbx_elf_c(
   arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32
 ): i32;
 
+/**
+ * G.7: leftover gcc overlay owns glue_local_var_slot_needs_ptr_load_elf_c
+ * (W 0x542). FORCE mega T smash first-won leftover W. leftover gcc local_slot
+ * (w723 W 0x82) CALLs leftover gcc this face. Thin param_ptr_slot_thin HAS a
+ * body (W 0x8dc) — must localize or thin W first-wins leftover gcc. Mega
+ * same-TU remaining callers: 4. Do not leftover-first skip_heavy,
+ * skip_heavy_or_thin_stub parent, rax_plus_rbx_scaled, local_slot rbx twin,
+ * or wrapper pipeline_asm_index_elem_byte_sz. Mega must emit U.
+ * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ */
+export extern function glue_local_var_slot_needs_ptr_load_elf_c(
+  arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8
+): i32;
+
 
 /**
  * G.7: parser_x owns parser_get_module_import_path.
@@ -67133,61 +67147,21 @@ export function pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena: *u
  *  5. TYPE_SLICE formal (codegen lowers as pointer; local let stays dual-GP)
  *
  * wave189 pure: G.7 authority (was Cap residual index_helpers).
- * PLATFORM: SHARED freestanding INDEX/field/lvalue · LINUX gold · MACOS co-path.
+ * wave730: FORCE leftover-first — mega export-extern at file top so leftover
+ *   gcc W 0x542 (endbr64 sub $0x150) is the sole global. FORCE mega T smash
+ *   first-won leftover gcc. Thin param_ptr_slot_thin HAS a body (W 0x8dc) —
+ *   must localize or thin W first-wins leftover gcc. Do not leftover-first
+ *   skip_heavy, rax_plus_rbx, or local_slot rbx twin.
+ * PLATFORM: SHARED freestanding INDEX/field/lvalue · LINUX gold · MACOS.
  */
-#[no_mangle]
-export function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_expr_ref: i32, stack_off: i32, ctx: *u8): i32 {
-  // wave494: no-local — pipe cell for mid calls; loops in unsafe (T001).
-  let vname: u8[256] = [];
-  let cell_m: u8[8];
-  let cell: u8[8];
-  let cell_t: u8[8];
-  unsafe {
-    /* PLATFORM: SHARED — tip drops mid `mod=call()` / `holds=call()`; pipe cells. */
-    pipe_store_ptr_slot(&cell_m[0], 0, glue_emit_module_from_ctx(ctx));
-    pipe_store_i32_le(&cell[0], 0, asm_local_var_slot_holds_indirect_ptr(arena, var_expr_ref, pipe_load_ptr_slot(&cell_m[0], 0), ctx));
-    if (pipe_load_i32_le(&cell[0], 0) != 0) {
-      return 1;
-    }
-    pipe_store_i32_le(&cell[0], 4, pipeline_asm_emit_func_index_c());
-    if (pipe_load_ptr_slot(&cell_m[0], 0) != (0 as *u8) && pipe_load_i32_le(&cell[0], 4) >= 0) {
-      if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, pipe_load_ptr_slot(&cell_m[0], 0), var_expr_ref) != 0) {
-        return 1;
-      }
-      if (glue_emit_func_param_is_indirect_array_slot_c(arena, pipe_load_ptr_slot(&cell_m[0], 0), var_expr_ref) != 0) {
-        return 1;
-      }
-      if (w189_stack_off_is_emit_param_ptr_slot(arena, pipe_load_ptr_slot(&cell_m[0], 0), pipe_load_i32_le(&cell[0], 4), stack_off) != 0) {
-        return 1;
-      }
-      // PLATFORM: SHARED — TYPE_SLICE params lower as pointers (1 GP home).
-      // Local TYPE_SLICE lets stay by-value dual-GP (needs_ptr_load=0).
-      if (arena != (0 as *u8) && var_expr_ref > 0) {
-        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, var_expr_ref));
-        // EXPR_VAR == 3
-        if (pipe_load_i32_le(&cell[0], 0) == 3) {
-          pipe_store_i32_le(&cell[0], 0, pipeline_expr_var_name_len(arena, var_expr_ref));
-          if (pipe_load_i32_le(&cell[0], 0) > 0 && pipe_load_i32_le(&cell[0], 0) <= 63) {
-            pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
-            pipe_store_i32_le(&cell_t[0], 0, pipeline_module_func_param_type_ref_for_name(
-                pipe_load_ptr_slot(&cell_m[0], 0),
-                pipe_load_i32_le(&cell[0], 4),
-                &vname[0],
-                pipe_load_i32_le(&cell[0], 0)));
-            if (pipe_load_i32_le(&cell_t[0], 0) > 0) {
-              pipe_store_i32_le(&cell_t[0], 4, pipeline_type_kind_ord_at(arena, pipe_load_i32_le(&cell_t[0], 0)));
-              // TYPE_SLICE == 11
-              if (pipe_load_i32_le(&cell_t[0], 4) == 11) {
-                return 1;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  return 0;
-}
+// wave730: glue_local_var_slot_needs_ptr_load_elf_c is export-extern at file top
+// (leftover gcc W 0x542, endbr64 sub $0x150). FORCE mega T smash first-won
+// leftover gcc W. Thin param_ptr_slot_thin HAS a body — localize. Do not
+// leftover-first skip_heavy, rax_plus_rbx, or local_slot rbx twin.
+// Mega must emit U. leftover gcc overlay provides the body.
+
+
+
 
 // end wave189 pure-owned leave
 
@@ -67882,11 +67856,16 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
   let mod: *u8 = 0 as *u8;
   let rc: i32 = 0;
   let kind_ord: i32 = 0 - 1;
+  let needs_ptr: i32 = 0;
   if (elf_ctx == (0 as *u8) || off < 0) {
     return -1;
   }
   // *T / T[N] / T[] formal: load pointer home, then optional 9–16B deref.
-  if (glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, off, ctx) != 0) {
+  // wave730: leftover-first export-extern of needs_ptr_load requires unsafe (T001).
+  unsafe {
+    needs_ptr = glue_local_var_slot_needs_ptr_load_elf_c(arena, var_expr_ref, off, ctx);
+  }
+  if (needs_ptr != 0) {
     // T001: backend_enc_* / residual deref are export extern "C"
     unsafe {
       rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
