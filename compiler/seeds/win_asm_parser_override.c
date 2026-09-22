@@ -375,3 +375,25 @@ int32_t asm_parser_func_is_thin_delegate(void *m, int32_t func_index) {
   }
   return 0;
 }
+
+/* Class AA: real m8_tail (was return "" wrong ABI). Uses k_wave120 table above. */
+int32_t asm_parser_m8_tail_thin_delegate_c_name(void *m, int32_t func_index, uint8_t *out,
+                                                 int32_t out_cap, int32_t *out_len) {
+  int32_t i;
+  int32_t nrows;
+  if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
+    return 0;
+  nrows = (int32_t)(sizeof(k_wave120_parser_thin_delegate) / sizeof(k_wave120_parser_thin_delegate[0]));
+  for (i = 0; i < nrows; i++) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (const uint8_t *)k_wave120_parser_thin_delegate[i].x_name,
+                                           k_wave120_parser_thin_delegate[i].x_len)) {
+      if (k_wave120_parser_thin_delegate[i].c_len >= out_cap)
+        return 0;
+      memcpy(out, k_wave120_parser_thin_delegate[i].c_name, (size_t)k_wave120_parser_thin_delegate[i].c_len);
+      out[k_wave120_parser_thin_delegate[i].c_len] = 0;
+      *out_len = k_wave120_parser_thin_delegate[i].c_len;
+      return 1;
+    }
+  }
+  return 0;
+}
