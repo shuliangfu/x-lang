@@ -56742,7 +56742,11 @@ void glue_stamp_return_lits_in_block_c(void *a, int32_t block_ref, int32_t rty) 
   sp = 0;
   stack_blk[sp] = block_ref;
   sp++;
+  {
+  int32_t stamp_steps = 0;
   while (sp > 0) {
+    if (stamp_steps++ > 4096)
+      break;
     sp--;
     cur = stack_blk[sp];
     if (cur <= 0 || cur > w277_as_arena(a)->num_blocks)
@@ -56769,22 +56773,23 @@ void glue_stamp_return_lits_in_block_c(void *a, int32_t block_ref, int32_t rty) 
     }
     for (i = 0; i < b->num_loops; i++) {
       int32_t wb = pipeline_block_while_body_ref(a, cur, i);
-      if (wb > 0 && sp < 8192) { stack_blk[sp] = wb; sp++; }
+      if (wb > 0 && sp < 256) { stack_blk[sp] = wb; sp++; }
     }
     for (i = 0; i < b->num_for_loops; i++) {
       int32_t fb = pipeline_block_for_body_ref(a, cur, i);
-      if (fb > 0 && sp < 8192) { stack_blk[sp] = fb; sp++; }
+      if (fb > 0 && sp < 256) { stack_blk[sp] = fb; sp++; }
     }
     for (i = 0; i < b->num_if_stmts; i++) {
       int32_t tb = pipeline_block_if_then_body_ref(a, cur, i);
-      if (tb > 0 && sp < 8192) { stack_blk[sp] = tb; sp++; }
+      if (tb > 0 && sp < 256) { stack_blk[sp] = tb; sp++; }
       int32_t eb = pipeline_block_if_else_body_ref(a, cur, i);
-      if (eb > 0 && sp < 8192) { stack_blk[sp] = eb; sp++; }
+      if (eb > 0 && sp < 256) { stack_blk[sp] = eb; sp++; }
     }
     for (i = 0; i < b->num_regions; i++) {
       int32_t rgb = pipeline_block_region_body_ref(a, cur, i);
-      if (rgb > 0 && sp < 8192) { stack_blk[sp] = rgb; sp++; }
+      if (rgb > 0 && sp < 256) { stack_blk[sp] = rgb; sp++; }
     }
+  }
   }
 }
 
@@ -56822,43 +56827,61 @@ void pipeline_patch_block_parent_links(void *a, int32_t block_ref, int32_t paren
     b = w277_block_at(a, cur);
     if (!b)
       continue;
+    /* Only enqueue unvisited children (parent_block_ref==0). Cycles among
+     * while/if/region body refs used to spin forever; sp cap alone does not
+     * stop A→B→A. PLATFORM: SHARED parse-only dep prerun. */
     for (i = 0; i < b->num_loops; i++) {
       wb = pipeline_block_while_body_ref(a, cur, i);
-      if (wb > 0 && sp < 8192) {
-        stack_blk[sp] = wb;
-        stack_par[sp] = cur;
-        sp++;
+      if (wb > 0 && sp < 256) {
+        W277_Block *ch = w277_block_at(a, wb);
+        if (ch && ch->parent_block_ref == 0) {
+          stack_blk[sp] = wb;
+          stack_par[sp] = cur;
+          sp++;
+        }
       }
     }
     for (i = 0; i < b->num_for_loops; i++) {
       fb = pipeline_block_for_body_ref(a, cur, i);
-      if (fb > 0 && sp < 8192) {
-        stack_blk[sp] = fb;
-        stack_par[sp] = cur;
-        sp++;
+      if (fb > 0 && sp < 256) {
+        W277_Block *ch = w277_block_at(a, fb);
+        if (ch && ch->parent_block_ref == 0) {
+          stack_blk[sp] = fb;
+          stack_par[sp] = cur;
+          sp++;
+        }
       }
     }
     for (i = 0; i < b->num_if_stmts; i++) {
       tb = pipeline_block_if_then_body_ref(a, cur, i);
-      if (tb > 0 && sp < 8192) {
-        stack_blk[sp] = tb;
-        stack_par[sp] = cur;
-        sp++;
+      if (tb > 0 && sp < 256) {
+        W277_Block *ch = w277_block_at(a, tb);
+        if (ch && ch->parent_block_ref == 0) {
+          stack_blk[sp] = tb;
+          stack_par[sp] = cur;
+          sp++;
+        }
       }
       eb = pipeline_block_if_else_body_ref(a, cur, i);
-      if (eb > 0 && sp < 8192) {
-        stack_blk[sp] = eb;
-        stack_par[sp] = cur;
-        sp++;
+      if (eb > 0 && sp < 256) {
+        W277_Block *ch = w277_block_at(a, eb);
+        if (ch && ch->parent_block_ref == 0) {
+          stack_blk[sp] = eb;
+          stack_par[sp] = cur;
+          sp++;
+        }
       }
     }
     /** M-3：region 体块须挂 parent，否则块内可访问外层 let（如 region_block_escape 的 outer）。 */
     for (i = 0; i < b->num_regions; i++) {
       rgb = pipeline_block_region_body_ref(a, cur, i);
-      if (rgb > 0 && sp < 8192) {
-        stack_blk[sp] = rgb;
-        stack_par[sp] = cur;
-        sp++;
+      if (rgb > 0 && sp < 256) {
+        W277_Block *ch = w277_block_at(a, rgb);
+        if (ch && ch->parent_block_ref == 0) {
+          stack_blk[sp] = rgb;
+          stack_par[sp] = cur;
+          sp++;
+        }
       }
     }
     /* G-02f-477: patch block expression (EXPR_BLOCK) parent links. */
@@ -58037,21 +58060,21 @@ void glue_fill_var_block_refs_c(void *a, int32_t block_ref) {
       glue_var_blk_walk_expr(a, pipeline_block_const_init_ref(a, cur, i), cur);
     for (i = 0; i < b->num_loops; i++) {
       int32_t wb = pipeline_block_while_body_ref(a, cur, i);
-      if (wb > 0 && sp < 8192) { stack_blk[sp] = wb; sp++; }
+      if (wb > 0 && sp < 256) { stack_blk[sp] = wb; sp++; }
     }
     for (i = 0; i < b->num_for_loops; i++) {
       int32_t fb = pipeline_block_for_body_ref(a, cur, i);
-      if (fb > 0 && sp < 8192) { stack_blk[sp] = fb; sp++; }
+      if (fb > 0 && sp < 256) { stack_blk[sp] = fb; sp++; }
     }
     for (i = 0; i < b->num_if_stmts; i++) {
       int32_t tb = pipeline_block_if_then_body_ref(a, cur, i);
-      if (tb > 0 && sp < 8192) { stack_blk[sp] = tb; sp++; }
+      if (tb > 0 && sp < 256) { stack_blk[sp] = tb; sp++; }
       int32_t eb = pipeline_block_if_else_body_ref(a, cur, i);
-      if (eb > 0 && sp < 8192) { stack_blk[sp] = eb; sp++; }
+      if (eb > 0 && sp < 256) { stack_blk[sp] = eb; sp++; }
     }
     for (i = 0; i < b->num_regions; i++) {
       int32_t rgb = pipeline_block_region_body_ref(a, cur, i);
-      if (rgb > 0 && sp < 8192) { stack_blk[sp] = rgb; sp++; }
+      if (rgb > 0 && sp < 256) { stack_blk[sp] = rgb; sp++; }
     }
   }
 }
