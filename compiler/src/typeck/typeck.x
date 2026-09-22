@@ -346,6 +346,9 @@ export function typeck_live_dep_module(ctx: *PipelineDepCtx, dep_i: i32): *Modul
     if (ctx != 0 as *PipelineDepCtx && dep_i >= 0) {
       dm = pipeline_dep_ctx_module_at(ctx, dep_i);
     }
+    if (dm != 0 as *Module) {
+      return dm;
+    }
     let alt: *u8 = typeck_driver_dep_module_buf(dep_i);
     if (alt != 0 as *u8) {
       return alt as *Module;
@@ -2890,7 +2893,7 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
     let nd: i32 = pipeline_dep_ctx_ndep(ctx);
     let di: i32 = 0;
     while (di < nd) {
-      let dm: *Module = typeck_live_dep_module(ctx, di);
+      let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
       if (dm != 0 as *Module) {
         r = get_field_offset_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
         if (r >= 0) {
@@ -5933,7 +5936,7 @@ field_name_len: i32): i32 {
     let nd2: i32 = pipeline_dep_ctx_ndep(ctx);
     let di: i32 = 0;
     while (di < nd2) {
-      let dm: *Module = typeck_live_dep_module(ctx, di);
+      let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
       if (dm != 0 as *Module) {
         r = get_field_type_ref_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
         if (r != 0) {
@@ -6211,8 +6214,14 @@ ctx: *PipelineDepCtx): void {
     nd_merge = pipeline_dep_ctx_ndep(ctx);
     di = 0;
     while (di < nd_merge) {
-      dm = typeck_live_dep_module(ctx, di);
+      dm = pipeline_dep_ctx_module_at(ctx, di);
       darena = pipeline_dep_ctx_arena_at(ctx, di);
+      if (dm == 0 as *Module) {
+        dm = typeck_driver_dep_module_buf(di) as *Module;
+      }
+      if (darena == 0 as *ASTArena) {
+        darena = typeck_driver_dep_arena_buf(di) as *ASTArena;
+      }
       if (dm == 0 as *Module || darena == 0 as *ASTArena) {
         di = di + 1;
         continue;

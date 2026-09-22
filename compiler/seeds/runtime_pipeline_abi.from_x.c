@@ -63180,6 +63180,7 @@ int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path) {
     return 1;
   if (memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.'))
     return 1;
+  if (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == "."))
     return 1;
   return 0;
 }
