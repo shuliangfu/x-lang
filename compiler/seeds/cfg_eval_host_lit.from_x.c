@@ -1,4 +1,6 @@
 /* seeds/cfg_eval_host_lit.from_x.c — wave98 host OS/arch lit residual
+ * wave758 Class I: product Rung0 prefers pure-asm src/lexer/cfg_eval_host_lit.x;
+ * this seed remains cold fallback when xlang_asm missing / pure-asm fails.
  *
  * PLATFORM: SHARED — C #if host probe (same strings as bootstrap stub /
  * cfg_eval_link_alias). Used when product -E emits bare cfg_* names (no

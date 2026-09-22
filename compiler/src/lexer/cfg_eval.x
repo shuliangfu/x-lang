@@ -30,9 +30,10 @@ let g_cfg_freestanding: i32 = 0;
 // G.7: eval/all/not/target_os/arch authority stays in this file; host lit only here as
 // export-extern surface; link_alias provides strong bodies when merged into cfg_eval.o.
 // PLATFORM: SHARED — mac + Ubuntu both take -E-extern+alias when pure-asm CG002 fails.
-// wave755 Class F: standalone `-backend asm -c` green both ends (host lit U;
-//   alias supplies cfg_host_*). Product ladder prefers pure-asm rung first
-//   (no host-cc of cfg_eval gen.c when rung 0 wins). Do not -E as repair.
+// wave755 Class F: standalone `-backend asm -c` green both ends (host lit U).
+//   Product ladder prefers pure-asm rung first (no host-cc of cfg_eval gen.c).
+// wave758 Class I: cfg_host_* from pure-asm cfg_eval_host_lit.x (not seed cc)
+//   on Rung0 when xlang_asm present. Do not -E as repair.
 /**
  * Host target_os literal ("linux" / "macos" / "windows" / "freebsd" / "unknown").
  * @return *u8 — NUL-terminated static string; never null

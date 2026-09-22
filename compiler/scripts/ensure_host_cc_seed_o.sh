@@ -13069,10 +13069,12 @@ try_ensure_gen_c_to_o_one() {
 # was make-target xlang-c); pin/stub rungs do not require it.
 #
 # wave755 Class F (cfg_eval pure-asm): live `-backend asm -c` of cfg_eval.x is
-# U-complete both ends (host lit stays U; alias supplies cfg_host_*). Prefer
-# that pure-asm rung BEFORE -E-extern+cc so this TU stops host-cc of gen.c.
-# Link host_lit only (not full link_alias). host_lit still host-cc (tiny).
-# Do not gcc -E as the repair. Do not bump pin.
+# U-complete both ends (host lit stays U). Prefer that pure-asm rung BEFORE
+# -E-extern+cc so this TU stops host-cc of gen.c. Link host_lit only (not full
+# link_alias).
+# wave758 Class I: host_lit itself from pure-asm of cfg_eval_host_lit.x (cold
+# fallback still cc_inc_tu of seeds/cfg_eval_host_lit.from_x.c). Zero host-cc
+# on Rung0 when xlang_asm present. Do not -E as the repair. Do not bump pin.
 #
 # Exit codes:
 #   0 — OUT is B5 member; ladder produced OUT (or skip up-to-date)
@@ -13113,30 +13115,64 @@ _cfg_eval_default_ld_relflags() {
   esac
 }
 
-# Link cfg_eval pure-asm .o + host_lit only → OUT (wave755 Class F).
-# Bare cfg_* names from -backend asm -c clash with link_alias wrappers
-# (those expect lexer_cfg_* from -E-extern). host_lit supplies only
-# cfg_host_os_lit / cfg_host_arch_lit.
+# Link cfg_eval pure-asm .o + host_lit only → OUT (wave755 Class F /
+# wave758 Class I). Bare cfg_* names from -backend asm -c clash with
+# link_alias wrappers (those expect lexer_cfg_* from -E-extern). host_lit
+# supplies only cfg_host_os_lit / cfg_host_arch_lit.
+# Class I: prefer pure-asm -c of src/lexer/cfg_eval_host_lit.x; cold fallback
+# cc_inc_tu of seeds/cfg_eval_host_lit.from_x.c.
 # PLATFORM: SHARED — same LD/LD_RELFLAGS defaults as alias link.
 _cfg_eval_link_x_plus_host_lit() {
   local out="$1" x_o="$2"
   local ld_bin="${LD:-ld}"
   local ld_rel="${LD_RELFLAGS-}"
   local lit_o="src/lexer/cfg_eval_host_lit.o"
+  local lit_x="src/lexer/cfg_eval_host_lit.x"
+  local lit_from_asm=0
   if [ -z "${LD_RELFLAGS+x}" ]; then
     ld_rel="$(_cfg_eval_default_ld_relflags)"
   fi
-  if [ ! -f scripts/cc_inc_tu.sh ]; then
-    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing scripts/cc_inc_tu.sh" >&2
-    return 1
+  # Class I: pure-asm host_lit.x first (same asm_bin preference as Rung0).
+  if [ -f "$lit_x" ]; then
+    local asm_bin=""
+    if [ -x "./xlang_asm" ]; then
+      asm_bin="./xlang_asm"
+    elif [ -x "./xlang" ]; then
+      asm_bin="./xlang"
+    elif [ -x "./xlang-c" ]; then
+      asm_bin="./xlang-c"
+    fi
+    if [ -n "$asm_bin" ]; then
+      if "$asm_bin" -backend asm -c "$lit_x" -o "$lit_o" 2>/dev/null \
+        && [ -s "$lit_o" ]; then
+        lit_from_asm=1
+      else
+        rm -f "$lit_o"
+      fi
+    fi
   fi
-  if [ ! -f seeds/cfg_eval_host_lit.from_x.c ]; then
-    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing seeds/cfg_eval_host_lit.from_x.c" >&2
-    return 1
+  if [ "$lit_from_asm" != "1" ]; then
+    if [ ! -f scripts/cc_inc_tu.sh ]; then
+      echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing scripts/cc_inc_tu.sh" >&2
+      return 1
+    fi
+    if [ ! -f seeds/cfg_eval_host_lit.from_x.c ]; then
+      echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing seeds/cfg_eval_host_lit.from_x.c" >&2
+      return 1
+    fi
+    sh scripts/cc_inc_tu.sh seeds/cfg_eval_host_lit.from_x.c "$lit_o" || return 1
   fi
-  sh scripts/cc_inc_tu.sh seeds/cfg_eval_host_lit.from_x.c "$lit_o" || return 1
   # shellcheck disable=SC2086
-  $ld_bin $ld_rel -r -o "$out" "$x_o" "$lit_o"
+  if ! $ld_bin $ld_rel -r -o "$out" "$x_o" "$lit_o"; then
+    return 1
+  fi
+  if [ "$lit_from_asm" = "1" ]; then
+    # Marker for callers / logs (Rung0 also logs Class I).
+    export CFG_EVAL_HOST_LIT_FROM_ASM=1
+  else
+    export CFG_EVAL_HOST_LIT_FROM_ASM=0
+  fi
+  return 0
 }
 
 # Link cfg_eval_x.o + link_alias → OUT (historic Makefile $(LD) -r twin).
@@ -13181,7 +13217,8 @@ ensure_cfg_eval_ladder_one() {
 
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
     stale=0
-    for d in "$x_src" "$alias_seed" "$pin" "$host_lit" "$stub_seed"; do
+    local host_lit_x="src/lexer/cfg_eval_host_lit.x"
+    for d in "$x_src" "$alias_seed" "$pin" "$host_lit" "$host_lit_x" "$stub_seed"; do
       if [ -f "$d" ] && [ "$d" -nt "$o" ]; then
         stale=1
         break
@@ -13214,10 +13251,11 @@ ensure_cfg_eval_ladder_one() {
 
   rm -f "$x_o"
 
-  # Rung 0 (wave755 Class F): pure-asm -c of cfg_eval.x + host_lit only.
-  # PLATFORM: SHARED — xlang_asm preferred; fall back to xlang / xlang-c -backend.
-  # Host lit stays U in the .x object; do NOT link full link_alias (dup
-  # cfg_eval_expr_c vs bare pure-asm T). Do not -E as the first repair.
+  # Rung 0 (wave755 Class F / wave758 Class I): pure-asm -c of cfg_eval.x +
+  # host_lit (prefer host_lit.x pure-asm; cold seed cc). PLATFORM: SHARED —
+  # xlang_asm preferred; fall back to xlang / xlang-c -backend. Host lit stays
+  # U in cfg_eval.x; do NOT link full link_alias (dup cfg_eval_expr_c vs bare
+  # pure-asm T). Do not -E as the first repair.
   if [ -f "$x_src" ]; then
     local asm_bin=""
     if [ -x "./xlang_asm" ]; then
@@ -13231,7 +13269,11 @@ ensure_cfg_eval_ladder_one() {
       if "$asm_bin" -backend asm -c "$x_src" -o "$x_o" 2>/dev/null \
         && [ -s "$x_o" ] \
         && _cfg_eval_link_x_plus_host_lit "$o" "$x_o"; then
-        log "cfg_eval.o from cfg_eval.x (pure-asm -c + host_lit) [Class F]"
+        if [ "${CFG_EVAL_HOST_LIT_FROM_ASM:-0}" = "1" ]; then
+          log "cfg_eval.o from cfg_eval.x (pure-asm -c + host_lit.x) [Class I]"
+        else
+          log "cfg_eval.o from cfg_eval.x (pure-asm -c + host_lit cc) [Class F]"
+        fi
         return 0
       fi
       rm -f "$x_o"
