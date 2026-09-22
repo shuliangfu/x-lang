@@ -1,7 +1,8 @@
 /* seeds/parser_asm_parse_expr_link.from_x.c — G-02f-10 product parse_expr bridge
  * G-02f-116 true .x pure helpers.
  * G-02f-102 helper gates.
- * G-02f-333：PREFER_X_O hybrid 时 debug_enabled 由 .x thin 提供，本文件出 _impl。
+ * G-02f-333：PREFER_X_O hybrid 时 debug_enabled 由 .x thin 提供，本文件出 rest。
+ * Class AG: Cap IO debug (xlang_io / snprintf / getenv) retired from this TU.
  * Compile with -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS for product G05.
  * Product: → src/asm/parser_asm_parse_expr_link.o
  */
@@ -18,25 +19,7 @@
 #include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
-/* Cap residual 9.5.3 slice3b: stderr diagnostics go through xlang_snprintf (10.7.2
- * fmt authority, %zu supported) + xlang_io_write on raw fd 2 — libc <stdio.h>
- * dropped (fflush becomes a no-op concept: raw fd writes are unbuffered). */
-#include <xlang_fmt_cap.h>
-#include <xlang_io_cap.h>
-#undef snprintf
-#define snprintf xlang_snprintf
-
-/* Cap stderr write helpers (fd 2). Single authority inside this TU for the
- * parse_expr debug diagnostics. */
-static void cap_err_puts(const char *s) {
-  if (s)
-    (void)xlang_io_write(2, s, strlen(s));
-}
-static void cap_err_putc(char c) {
-  (void)xlang_io_write(2, &c, 1);
-}
 
 /** 与 parser_asm / lexer.x Lexer 布局一致。 */
 struct parser_asm_lexer {
@@ -90,63 +73,24 @@ extern void parser_parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexe
 extern int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out);
 extern int32_t parser_parse_one_function_ok_for_pipeline_glue(void *arena, struct xlang_slice_uint8_t *source);
 extern int32_t parser_diag_token_after_collect_imports_glue(struct xlang_slice_uint8_t *source, void *module);
-/* wave237 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
- * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
- * PLATFORM: SHARED — cold seed twin uses same face as product hybrid pure .x. */
-extern char *link_abi_getenv(const char *name);
-/* G-02f-116 / G-02f-333 / wave237：debug_enabled pure orch in .x (hybrid FROM_X);
- * cold seed keeps same-semantics twin under #ifndef (no *_impl residual).
- * Rules: null / empty / leading '0' → 0; any other non-empty → 1. */
+/* Class AG: Cap getenv debug gate retired; hybrid .x returns 0; cold twin matches. */
 #ifndef XLANG_L2_PEL_THIN_FROM_X
 int parser_asm_parse_expr_debug_enabled(void) {
-  const char *v = link_abi_getenv("XLANG_PARSER_ASM_DEBUG");
-  return v && *v && *v != '0';
+  return 0;
 }
 #else
-/* wave237: pure orch in .x; no rest *_impl rename for debug_enabled. */
 extern int parser_asm_parse_expr_debug_enabled(void);
 #endif
-/* G-02f-165 / wave237：逻辑源 .x（批折叠）；cold seed 保留同语义 C 供无 PREFER 冷路径。 */
+
 
 
 
 void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *source, size_t pos) {
-  size_t start;
-  size_t end;
-  size_t i;
-  if (!source || !source->data || source->length == 0) {
-    cap_err_puts(" snippet=<no-source>\n");
-    return;
-  }
-  start = pos;
-  if (start > source->length)
-    start = source->length;
-  if (start > 12)
-    start -= 12;
-  else
-    start = 0;
-  end = pos + 24;
-  if (end > source->length)
-    end = source->length;
-  cap_err_puts(" snippet=");
-  for (i = start; i < end; i++) {
-    unsigned char ch = source->data[i];
-    if (ch == (unsigned char)'\n')
-      cap_err_puts("\\n");
-    else if (ch == (unsigned char)'\r')
-      cap_err_puts("\\r");
-    else if (ch == (unsigned char)'\t')
-      cap_err_puts("\\t");
-    else if (ch < 32 || ch > 126) {
-      char _xb[8];
-      int _xn = snprintf(_xb, sizeof _xb, "\\x%02x", ch);
-      if (_xn > 0)
-        (void)xlang_io_write(2, _xb, (size_t)_xn);
-    } else
-      cap_err_putc((char)ch);
-  }
-  cap_err_putc('\n');
+  (void)source;
+  (void)pos;
+  /* Class AG: Cap IO snippet retired. */
 }
+
 
 
 
@@ -156,56 +100,19 @@ void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *source, s
  */
 void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                      struct parser_asm_parse_expr_result *out) {
-  enum { PARSER_ASM_PARSE_EXPR_SAME_POS_WARN = 4096 };
-  static size_t prev_in_pos = (size_t)-1;
-  static int32_t same_in_pos_count = 0;
-  static int32_t parse_expr_debug_calls = 0;
-  int debug_enabled;
   struct lexer_Lexer mega_lex;
   struct xlang_slice_uint8_t mega_src;
   struct parser_ParseExprResult mega_out;
   if (!source || !out) {
     return;
   }
-  debug_enabled = parser_asm_parse_expr_debug_enabled();
-  parse_expr_debug_calls++;
-  if (lex.pos == prev_in_pos) {
-    same_in_pos_count++;
-  } else {
-    prev_in_pos = lex.pos;
-    same_in_pos_count = 0;
-  }
-  if (debug_enabled && (parse_expr_debug_calls <= 64 || (parse_expr_debug_calls % 4096) == 0
-      || same_in_pos_count == PARSER_ASM_PARSE_EXPR_SAME_POS_WARN)) {
-    {
-      char _db[256];
-      int _dn = snprintf(_db, sizeof _db,
-                         "parser_asm parse_expr enter call=%d in_pos=%zu line=%d col=%d len=%zu same=%d\n",
-                         parse_expr_debug_calls, lex.pos, lex.line, lex.col, source->length, same_in_pos_count);
-      if (_dn > 0)
-        (void)xlang_io_write(2, _db, (size_t)_dn);
-    }
-    if (parse_expr_debug_calls <= 16)
-      parser_asm_parse_expr_debug_snippet_c(source, lex.pos);
-  }
+  /* Class AG: Cap parse_expr enter/leave debug IO retired. */
   mega_lex.pos = lex.pos;
   mega_lex.line = lex.line;
   mega_lex.col = lex.col;
   mega_src.data = source->data;
   mega_src.length = source->length;
   parser_parse_expr_into((struct ast_ASTArena *)arena, mega_lex, &mega_src, &mega_out);
-  if (debug_enabled && (parse_expr_debug_calls <= 64 || (parse_expr_debug_calls % 4096) == 0 || mega_out.next_lex.pos < lex.pos
-      || mega_out.next_lex.pos == lex.pos || same_in_pos_count >= PARSER_ASM_PARSE_EXPR_SAME_POS_WARN)) {
-    {
-      char _db[256];
-      int _dn = snprintf(_db, sizeof _db,
-                         "parser_asm parse_expr leave call=%d ok=%d in_pos=%zu out_pos=%zu expr=%d out_line=%d out_col=%d\n",
-                         parse_expr_debug_calls, mega_out.ok, lex.pos, mega_out.next_lex.pos, mega_out.expr_ref, mega_out.next_lex.line,
-                         mega_out.next_lex.col);
-      if (_dn > 0)
-        (void)xlang_io_write(2, _db, (size_t)_dn);
-    }
-  }
   out->ok = mega_out.ok;
   out->expr_ref = mega_out.expr_ref;
   out->next_lex.pos = mega_out.next_lex.pos;
