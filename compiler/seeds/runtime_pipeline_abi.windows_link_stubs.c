@@ -15,7 +15,93 @@ const char *asm_typeck_m8_tail_thin_delegate_c_name(void) { return ""; }
 void asm_wpo_collect_walk(void *a, void *b) { (void)a; (void)b; }
 /* int32_t pipe_modlet_bake_scalar_imm_to_data() { return -1; } — real body in windows_e extras; stubs merge last */
 /* int32_t pipeline_asm_emit_assign_elf_c() { return -1; } — real body in windows_e extras; stubs merge last */
-int32_t glue_emit_struct_type_let_init_elf_c() { return -2; } /* -2 not-handled: scalar let falls through */
+/* Real CALL/METHOD/STRUCT_LIT let-init (stub was return -2 → bare store_rax
+ * dropped Option_ptr rdx half → tests/option -16). PLATFORM: WINDOWS leftover-PE. */
+extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
+                                                    int32_t slot_off, int32_t ta, int32_t init_ref, void *ctx);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
+extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t v);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf, int32_t k, int32_t ta);
+extern int32_t try_inline_struct_lit_return_call_to_slot_elf(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
+                                                              int32_t ta, int32_t stack_slot_off);
+extern int32_t try_inline_const_struct_lit_return_call_to_slot_elf(void *arena, void *elf_ctx, int32_t call_ref,
+                                                                    void *ctx, int32_t ta, int32_t stack_slot_off);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
+
+int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx, int32_t ta,
+                                             int32_t let_ty_ref, int32_t stack_slot_off) {
+  int32_t ko;
+  int32_t inl;
+  int32_t emit_rc;
+  int32_t call_ret_sz;
+  int32_t let_sz;
+  int32_t named_sz;
+  int32_t best;
+  int32_t dest_in_rbx;
+  void *modp;
+  if (!arena || !elf_ctx || !ctx || init_ref <= 0)
+    return -2;
+  dest_in_rbx = (stack_slot_off == -3) ? 1 : 0;
+  ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ko == 45) {
+    /* STRUCT_LIT: leave to existing twin / fallthrough (pipeline_asm_emit_struct_let_init stub=-1) */
+    return -2;
+  }
+  if (ko == 48 || ko == 49) {
+    if (!dest_in_rbx) {
+      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      if (inl == 1)
+        return 0;
+      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      if (inl == 1)
+        return 0;
+    }
+    pipeline_asm_set_call_expected_ret_ty_c(let_ty_ref > 0 ? let_ty_ref : 0);
+    call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
+    if (call_ret_sz <= 16 && let_ty_ref > 0) {
+      modp = glue_emit_module_from_ctx(ctx);
+      let_sz = glue_type_size_simple(modp, arena, let_ty_ref, 0);
+      named_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty_ref);
+      best = let_sz;
+      if (named_sz > best)
+        best = named_sz;
+      if (best > call_ret_sz)
+        call_ret_sz = best;
+    }
+    if (call_ret_sz > 16 && ta == 0 && !dest_in_rbx) {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return -1;
+      }
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return -1;
+      }
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      return emit_rc != 0 ? -1 : 0;
+    }
+    emit_rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta);
+    pipeline_asm_set_call_expected_ret_ty_c(0);
+    if (emit_rc != 0)
+      return -1;
+    if (dest_in_rbx)
+      return -2;
+    modp = glue_emit_module_from_ctx(ctx);
+    if (glue_store_retval_pair_to_rbp_elf_c(modp, arena, elf_ctx, let_ty_ref, stack_slot_off, ta, init_ref, ctx) != 0)
+      return -1;
+    return 0;
+  }
+  return -2;
+}
 int32_t glue_emit_vector_type_let_init_elf_c() { return -2; } /* -2 not-handled: scalar let falls through */
 int32_t pipeline_asm_emit_struct_let_init_elf_c() { return -1; }
 /* Prior stub returned -1 → Option STRUCT_LIT (`none_i32` etc) CG002 code_len=12.
