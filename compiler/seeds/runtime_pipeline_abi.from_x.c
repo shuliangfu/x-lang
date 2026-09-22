@@ -34465,10 +34465,23 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
       tk0 = pipeline_type_kind_ord_at(arena, ty_ref);
       if (tk0 == 8) {
         nl = pipeline_type_named_name_into(arena, ty_ref, nm);
-        if (nl >= 11 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105 &&
-            nm[4] == 111 && nm[5] == 110 && nm[6] == 95 && nm[7] == 112 && nm[8] == 116 &&
-            nm[9] == 114 && nm[10] == 95) {
-          if (sz < 16)
+        /* Match Option_ptr_ anywhere (core.option.Option_ptr_u8). */
+        {
+          int32_t si;
+          int32_t hit;
+          hit = 0;
+          si = 0;
+          while (si + 11 <= nl) {
+            if (nm[si] == 79 && nm[si + 1] == 112 && nm[si + 2] == 116 &&
+                nm[si + 3] == 105 && nm[si + 4] == 111 && nm[si + 5] == 110 &&
+                nm[si + 6] == 95 && nm[si + 7] == 112 && nm[si + 8] == 116 &&
+                nm[si + 9] == 114 && nm[si + 10] == 95) {
+              hit = 1;
+              break;
+            }
+            si = si + 1;
+          }
+          if (hit != 0 && sz < 16)
             sz = 16;
         }
       }
@@ -34497,10 +34510,24 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
           rty = pipeline_module_func_return_type_at(rmod, rfi);
           if (rty > 0) {
             nl = pipeline_type_named_name_into(arena, rty, nm);
-            if (nl >= 11 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105 &&
-                nm[4] == 111 && nm[5] == 110 && nm[6] == 95 && nm[7] == 112 && nm[8] == 116 &&
-                nm[9] == 114 && nm[10] == 95)
-              sz = 16;
+            /* Match Option_ptr_ anywhere in return type name. */
+            {
+              int32_t si;
+              int32_t hit;
+              hit = 0;
+              si = 0;
+              while (si + 11 <= nl) {
+                if (nm[si] == 79 && nm[si + 1] == 112 && nm[si + 2] == 116 && nm[si + 3] == 105 &&
+                    nm[si + 4] == 111 && nm[si + 5] == 110 && nm[si + 6] == 95 && nm[si + 7] == 112 &&
+                    nm[si + 8] == 116 && nm[si + 9] == 114 && nm[si + 10] == 95) {
+                  hit = 1;
+                  break;
+                }
+                si = si + 1;
+              }
+              if (hit != 0)
+                sz = 16;
+            }
           }
         }
       }
@@ -41372,10 +41399,23 @@ int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index,
       tk0 = pipeline_type_kind_ord_at(arena, pty);
       if (tk0 == 8) {
         nl = pipeline_type_named_name_into(arena, pty, nm);
-        if (nl >= 11 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105 &&
-            nm[4] == 111 && nm[5] == 110 && nm[6] == 95 && nm[7] == 112 && nm[8] == 116 &&
-            nm[9] == 114 && nm[10] == 95) {
-          if (sz < 16)
+        /* Match Option_ptr_ anywhere (core.option.Option_ptr_u8). */
+        {
+          int32_t si;
+          int32_t hit;
+          hit = 0;
+          si = 0;
+          while (si + 11 <= nl) {
+            if (nm[si] == 79 && nm[si + 1] == 112 && nm[si + 2] == 116 &&
+                nm[si + 3] == 105 && nm[si + 4] == 111 && nm[si + 5] == 110 &&
+                nm[si + 6] == 95 && nm[si + 7] == 112 && nm[si + 8] == 116 &&
+                nm[si + 9] == 114 && nm[si + 10] == 95) {
+              hit = 1;
+              break;
+            }
+            si = si + 1;
+          }
+          if (hit != 0 && sz < 16)
             sz = 16;
         }
       }
