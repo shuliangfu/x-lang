@@ -1487,6 +1487,9 @@ ensure_r3_prefer() {
 #   FROM_X rest skips Cap #if impls — cuts host-cc of those two bodies.
 # wave761 Class L: same L2 slice owns link_abi_host_is_{apple,windows,
 #   linux_x86_64,posix_aarch64}; FROM_X rest skips four more Cap #if gates.
+# wave762 Class M: same L2 slice owns bootstrap_nostdlib_pthread_is_stub;
+#   FROM_X rest skips that Cap #if WEAK. compile_sync argv uses runtime
+#   host gates (spawn still Cap #if — _spawnvp is Windows-only).
 #
 # Single leaf: src/runtime_link_abi.o (in R1_CORE_SEED_OBJS; cold twin = ensure_one).
 # When XLANG_G05_PREFER_X_O=1 and an xlang binary works:

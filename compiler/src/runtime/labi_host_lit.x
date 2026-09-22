@@ -147,3 +147,24 @@ export function link_abi_host_is_posix_aarch64(): i32 { return link_abi_host_is_
 #[cfg(not(target_os = "macos"))]
 #[no_mangle]
 export function link_abi_host_is_posix_aarch64(): i32 { return link_abi_host_is_posix_aarch64_off(); }
+
+// wave762 Class M: pthread stub gate was Cap #if WEAK in link_abi rest.
+// Two-level helpers avoid Darwin same-name #[cfg] dual-emission.
+// WINDOWS=1 (winpthreads crash on 256MiB custom stack); POSIX=0.
+
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function bootstrap_nostdlib_pthread_is_stub_on(): i32 { return 1; }
+#[cfg(not(target_os = "windows"))]
+#[no_mangle]
+export function bootstrap_nostdlib_pthread_is_stub_off(): i32 { return 0; }
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function bootstrap_nostdlib_pthread_is_stub(): i32 {
+  return bootstrap_nostdlib_pthread_is_stub_on();
+}
+#[cfg(not(target_os = "windows"))]
+#[no_mangle]
+export function bootstrap_nostdlib_pthread_is_stub(): i32 {
+  return bootstrap_nostdlib_pthread_is_stub_off();
+}

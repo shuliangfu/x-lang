@@ -258,26 +258,29 @@ int xlang_path_has_sep(const char *s);
  *           并让 Windows 宿主走 _spawnvp 同步路径（无 fork）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* wave762 Class M: argv host flags use runtime gates (already pure-asm
+ * under FROM_X). Spawn still Cap #if — _spawnvp is a Windows-only API. */
+int link_abi_host_is_windows(void);
+int link_abi_host_is_apple(void);
 int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
                                     const char *inc0, const char *inc1, const char *inc2,
                                     int from_asm_s,
                                     const char *const *extra_flags) {
     const char *argv[32];
     int ai = 0;
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    argv[ai++] = "gcc";
-#else
-    argv[ai++] = "cc";
-#endif
+    if (link_abi_host_is_windows())
+        argv[ai++] = "gcc";
+    else
+        argv[ai++] = "cc";
     /* PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0 (0x000B0000).
      * Host-cc default SDK stamps LC_BUILD_VERSION minos 26.0; Apple ld then
      * warns when those .o are linked with product-asm objects at 11.0.
      * Applies to .c and .s (from_asm_s) — both get the Mach-O load command from cc.
      * Do not -w swallow; do not raise macho.x minos to 26.0.
-     * PLATFORM: LINUX / WINDOWS — no-op (GNU ld / link have no Mach-O minos check). */
-#if defined(__APPLE__)
-    argv[ai++] = "-mmacosx-version-min=11.0";
-#endif
+     * PLATFORM: LINUX / WINDOWS — no-op (GNU ld / link have no Mach-O minos check).
+     * wave762: runtime gate, not Cap #if. */
+    if (link_abi_host_is_apple())
+        argv[ai++] = "-mmacosx-version-min=11.0";
     if (!from_asm_s) {
         argv[ai++] = "-Wall";
         argv[ai++] = "-Wextra";
@@ -6629,6 +6632,9 @@ XLANG_WEAK void bootstrap_init_environ(int argc, char **argv) {
  *   Authority: this XLANG_WEAK def is the sole linked definition on all
  *     platforms; the strong def in bootstrap_nostdlib_stubs.from_x.c
  *     (returns 1) is an orphan target never linked. G.4 single authority. */
+/* wave762 Class M: when XLANG_LABI_HOST_LIT_FROM_X, gate lives in
+ * labi_host_lit.x (pure-asm #[cfg]); skip Cap #if host-cc here. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 XLANG_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
 #if defined(_WIN32) || defined(_WIN64)
   return 1;
@@ -6636,4 +6642,7 @@ XLANG_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
   return 0;
 #endif
 }
+#else
+int bootstrap_nostdlib_pthread_is_stub(void);
+#endif
 

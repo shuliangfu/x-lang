@@ -1,6 +1,7 @@
 /* seeds/labi_host_lit.from_x.c — G-02f-269/L P2 link_abi L2 host lit → R2 full
  * wave760 Class K: product FROM_X prefers labi_host_lit.x (owns _impl);
  * Cap #if _impl skipped in runtime_link_abi rest under FROM_X.
+ * wave762 Class M: also owns bootstrap_nostdlib_pthread_is_stub (#[cfg]).
  * Logic source: src/runtime/labi_host_lit.x
  * Hybrid: XLANG_LABI_HOST_LIT_FROM_X + ld -r into runtime_link_abi.o
  *
