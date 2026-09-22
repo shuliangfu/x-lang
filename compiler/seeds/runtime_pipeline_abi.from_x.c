@@ -3441,8 +3441,16 @@ int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, co
      * unbound; emit-time scope walks need them for block-let local types
      * (u32 >> must emit SHR not SAR). G.7 typeck.x patch authority. Mirrors
      * the .x twin. */
-    if (parse_rc == 0)
+    if (parse_rc == 0) {
+        if (pipeline_asm_debug_enabled())
+          diag_reportf(NULL, 0, 0, "note", NULL,
+                       "asm debug: dep_prerun_parse_only patch_parent_links begin funcs=%d",
+                       pipeline_module_num_funcs(dep_mod));
         pipeline_typeck_patch_all_body_parent_links_c(dep_mod, dep_arena);
+        if (pipeline_asm_debug_enabled())
+          diag_reportf(NULL, 0, 0, "note", NULL,
+                       "asm debug: dep_prerun_parse_only patch_parent_links end");
+    }
     return (parse_rc == 0) ? 0 : -1;
 }
 
