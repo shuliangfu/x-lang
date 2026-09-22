@@ -1457,12 +1457,7 @@ void driver_diagnostic_asm_current_func_store_impl(const uint8_t *name, int32_t 
     }
 }
 void driver_diagnostic_asm_current_func_maybe_trace_impl(void) {
-    const char *trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
-    if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "asm trace: %.*s", driver_diagnostic_asm_current_func_len,
-                     (const char *)driver_diagnostic_asm_current_func);
-    }
+    /* Class AO: XLANG_ASM_FUNC_TRACE Cap note retired (mirror thin). */
 }
 void driver_diagnostic_asm_current_func_store(const uint8_t *name, int32_t len) {
     driver_diagnostic_asm_current_func_store_impl(name, len);
@@ -1543,34 +1538,26 @@ void driver_diagnostic_asm_fail_at(int32_t loc)
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_debug_log(int32_t step)
 {
-    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
-        return;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "parse debug: step=%d", (int)step);
+    /* Class AO: Cap parse-step note retired; keep DEBUG_PARSE||STRICT for real diags. */
+    (void)step;
 }
 
 void parser_diag_tok_kind(int32_t k)
 {
-    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
-        return;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "parse debug: r.tok.kind=%d", (int)k);
+    /* Class AO: Cap tok.kind note retired. */
+    (void)k;
 }
 
 void parser_diag_ident_len(int32_t len)
 {
-    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
-        return;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "parse debug: first ident_len=%d", (int)len);
+    /* Class AO: Cap ident_len note retired. */
+    (void)len;
 }
 
 void parser_diag_scan_fail(int32_t step)
 {
-    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
-        return;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "library scan failed at step=%d", (int)step);
+    /* Class AO: Cap library-scan note retired. */
+    (void)step;
 }
 #endif
 

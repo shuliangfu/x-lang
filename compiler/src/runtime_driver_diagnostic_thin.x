@@ -905,19 +905,7 @@ export function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): v
  * PLATFORM: SHARED — pure in thin. */
 #[no_mangle]
 export function driver_diagnostic_asm_current_func_maybe_trace(): void {
-  // PLATFORM: SHARED — LANG-007 S0: extern driver_env_flag_truthy requires unsafe.
-  unsafe {
-    if (driver_env_flag_truthy("XLANG_ASM_FUNC_TRACE") == 0) {
-      return;
-    }
-  }
-  if (g_asm_current_func_len <= 0) {
-    return;
-  }
-  let msg: u8[160] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 160, 0, "asm trace: ");
-  at = driver_diag_append_name(&msg[0], 160, at, &g_asm_current_func[0], g_asm_current_func_len);
-  driver_diag_note(&msg[0]);
+  // Class AO: XLANG_ASM_FUNC_TRACE Cap note retired.
 }
 
 /** Store name then maybe_trace (historical set_current_func surface; composes pure authorities). */
@@ -1068,13 +1056,7 @@ function driver_diag_parse_debug_enabled(): i32 {
  */
 #[no_mangle]
 export function driver_debug_log(step: i32): void {
-  if (driver_diag_parse_debug_enabled() == 0) {
-    return;
-  }
-  let msg: u8[128] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "parse debug: step=");
-  at = driver_diag_append_i32(&msg[0], 128, at, step);
-  driver_diag_note(&msg[0]);
+  // Class AO: Cap parse-step note retired; keep DEBUG_PARSE||STRICT for real diags.
 }
 
 // pure:tok.kind note
@@ -1085,13 +1067,7 @@ export function driver_debug_log(step: i32): void {
  */
 #[no_mangle]
 export function parser_diag_tok_kind(k: i32): void {
-  if (driver_diag_parse_debug_enabled() == 0) {
-    return;
-  }
-  let msg: u8[128] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "parse debug: r.tok.kind=");
-  at = driver_diag_append_i32(&msg[0], 128, at, k);
-  driver_diag_note(&msg[0]);
+  // Class AO: Cap tok.kind note retired.
 }
 
 // pure:first ident_len note
@@ -1102,13 +1078,7 @@ export function parser_diag_tok_kind(k: i32): void {
  */
 #[no_mangle]
 export function parser_diag_ident_len(len: i32): void {
-  if (driver_diag_parse_debug_enabled() == 0) {
-    return;
-  }
-  let msg: u8[128] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "parse debug: first ident_len=");
-  at = driver_diag_append_i32(&msg[0], 128, at, len);
-  driver_diag_note(&msg[0]);
+  // Class AO: Cap ident_len note retired.
 }
 
 // pure:library scan fail note
@@ -1119,13 +1089,7 @@ export function parser_diag_ident_len(len: i32): void {
  */
 #[no_mangle]
 export function parser_diag_scan_fail(step: i32): void {
-  if (driver_diag_parse_debug_enabled() == 0) {
-    return;
-  }
-  let msg: u8[128] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "library scan failed at step=");
-  at = driver_diag_append_i32(&msg[0], 128, at, step);
-  driver_diag_note(&msg[0]);
+  // Class AO: Cap library-scan note retired.
 }
 
 // pure: XLANG_TYPECK_BLOCK set -> block count note (append+note, no va_list)
