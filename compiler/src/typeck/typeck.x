@@ -6216,11 +6216,21 @@ ctx: *PipelineDepCtx): void {
     while (di < nd_merge) {
       dm = pipeline_dep_ctx_module_at(ctx, di);
       darena = pipeline_dep_ctx_arena_at(ctx, di);
-      if (dm == 0 as *Module) {
-        dm = typeck_driver_dep_module_buf(di) as *Module;
+      let altm: *Module = typeck_driver_dep_module_buf(di) as *Module;
+      let altar: *ASTArena = typeck_driver_dep_arena_buf(di) as *ASTArena;
+      let dm_nsl: i32 = 0;
+      let alt_nsl: i32 = 0;
+      if (dm != 0 as *Module) {
+        dm_nsl = pipeline_module_num_struct_layouts_at(dm);
+      }
+      if (altm != 0 as *Module) {
+        alt_nsl = pipeline_module_num_struct_layouts_at(altm);
+      }
+      if (dm == 0 as *Module || (dm_nsl == 0 && alt_nsl > 0)) {
+        dm = altm;
       }
       if (darena == 0 as *ASTArena) {
-        darena = typeck_driver_dep_arena_buf(di) as *ASTArena;
+        darena = altar;
       }
       if (dm == 0 as *Module || darena == 0 as *ASTArena) {
         di = di + 1;

@@ -5955,12 +5955,19 @@ void typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct 
     while ((di < nd_merge)) {
       (void)((dm = pipeline_dep_ctx_module_at(ctx, di)));
       (void)((darena = pipeline_dep_ctx_arena_at(ctx, di)));
-      /* Win leftover-PE: ctx slots may be null while driver_dep_*_buf is live. */
-      if ((dm ==0)) {
-        (void)((dm = ((struct ast_Module *)typeck_driver_dep_module_buf(di))));
-      }
-      if ((darena ==0)) {
-        (void)((darena = ((struct ast_ASTArena *)driver_dep_arena_buf(di))));
+      /* Win leftover-PE: ctx module_at may be non-null but empty (nsl=0) while
+       * driver_dep_module_buf holds parse layouts (Result_i32 / Option_*). */
+      {
+        struct ast_Module * altm = ((struct ast_Module *)typeck_driver_dep_module_buf(di));
+        struct ast_ASTArena * altar = ((struct ast_ASTArena *)driver_dep_arena_buf(di));
+        int32_t dm_nsl = ((dm !=0) ? pipeline_module_num_struct_layouts_at(dm) : 0);
+        int32_t alt_nsl = ((altm !=0) ? pipeline_module_num_struct_layouts_at(altm) : 0);
+        if (((dm ==0) || ((dm_nsl ==0) && (alt_nsl > 0)))) {
+          (void)((dm = altm));
+        }
+        if ((darena ==0)) {
+          (void)((darena = altar));
+        }
       }
       if (((dm ==0) || (darena ==0))) {
         (void)((di = (di + 1)));

@@ -702,7 +702,6 @@ export function pipeline_codegen_dep_skip_asm_user_core_lib(path: *u8): i32 {
     if (w321_path_prefix_dot(path, "core.fmt", 8) != 0) { return 1; }
     if (w321_path_prefix_dot(path, "core.types", 10) != 0) { return 1; }
     if (w321_path_prefix_dot(path, "core.option", 11) != 0) { return 1; }
-    if (w321_path_prefix_dot(path, "core.result", 11) != 0) { return 1; }
     return 0;
   }
 }
