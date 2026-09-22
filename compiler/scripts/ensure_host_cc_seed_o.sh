@@ -4147,9 +4147,10 @@ ensure_pipeline_abi_prefer_one() {
     win_e="seeds/runtime_pipeline_abi.windows_e.c"
     if [ -f "$win_e" ]; then
       mkdir -p "$(dirname "$o")"
-      # PLATFORM: WINDOWS — keep merged egg+FROM_X (>=1.5MB) even under sat
-      # FORCE=1 (try-heat). MinGW mtime is unreliable; mktemp .c required.
-      if [ -s "$o" ]; then
+      # PLATFORM: WINDOWS — keep merged egg+FROM_X (>=1.5MB) under sat try-heat
+      # when FORCE!=1. MinGW mtime is unreliable; mktemp .c required.
+      # XLANG_HOST_CC_SEED_FORCE=1 must rebuild (pipe_elf_off / stub fixes).
+      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
         win_sz=$(wc -c <"$o" | tr -d ' ')
         if [ -n "$win_sz" ] && [ "$win_sz" -gt 1500000 ]; then
           log "pipeline_abi prefer: keep Windows egg+FROM_X $o (${win_sz}B)"
