@@ -2778,11 +2778,6 @@ int xlang_asm_user_std_io_driver_dep_path(const char *dep_path) {
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
   {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    if (dep_path && memcmp(dep_path, "core.option", 11) == 0 &&
-        (dep_path[11] == 0 || dep_path[11] == '.'))
-      return 1;
-#endif
     if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
       return 1;
     }
@@ -62838,13 +62833,10 @@ int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
     if (strstr((const char *)p, "/std/") != NULL)
       continue;
     /* Only in-tree core/ — scratch core.m6 etc. must co-emit (UN _core_*).
-     * PLATFORM: WINDOWS PE — no shipped core.option PE object
-     * (Darwin has Mach-O). Do NOT trip on core.fmt/types: hello imports
-     * those and must stay entry-only (hosted std.fmt.o). */
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    if (memcmp(p, "core.option", 11) == 0 && (p[11] == 0 || p[11] == '.'))
-      return 1;
-#endif
+     * PLATFORM: WINDOWS PE — core.option asm emit itself CG002 (code_len=12)
+     * even as ENTRY_MODULE_ONLY standalone; do not clear entry-only via
+     * need_coemit until PE option.o exists or option module emit is fixed.
+     * hello also imports core.result — must stay entry-only. */
     if (pipeline_asm_user_dep_is_in_tree_core(p) != 0)
       continue;
     return 1;
@@ -62865,15 +62857,8 @@ int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
     return 1;
   if (pipeline_codegen_dep_skip_asm_user_std_misc(path) != 0)
     return 1;
-  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0) {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    /* Product .x prerun: skip_x_typeck→parse_only leaves option co-emit CG002.
-     * Return 0 so .x takes parse_skip_typeck_path (below) instead. */
-    if (memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.'))
-      return 0;
-#endif
+  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0)
     return 1;
-  }
   if (pipeline_asm_user_std_net_dep_path(path) != 0)
     return 1;
   return 0;

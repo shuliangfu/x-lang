@@ -735,23 +735,13 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
           continue;
         if (pipeline_codegen_dep_skip_asm_user_std_misc(dep_path_buf) != 0)
           continue;
-        /* PLATFORM: SHARED — core.fmt/types/option/result skip co-emit when
-         * formal core PE objects exist (Darwin/Ubuntu). WINDOWS PE: co-emit
-         * only core.option (hello pulls core.result — must stay entry-only). */
-        if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0) {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-          int win_co = 0;
-          if (memcmp(dep_path_buf, "core.option", 11) == 0 &&
-              (dep_path_buf[11] == 0 || dep_path_buf[11] == '.'))
-            win_co = 1;
-          if (!win_co)
-#endif
-            continue;
-        }
-#if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
+        if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0)
+          continue;
+        /* PLATFORM: SHARED — in-tree core.* use formal .o on Darwin/Ubuntu.
+         * WINDOWS PE: same skip until core/option/option.o PE exists; co-emit
+         * of option.mod itself is CG002 code_len=12 on current Win asm. */
         if (pipeline_asm_user_dep_is_in_tree_core(dep_path_buf) != 0)
           continue;
-#endif
         /* PLATFORM: SHARED — hosted std.compress (and the rest of the
          * link_only table) must not co-emit into user.o. Ubuntu ELF has no
          * -dead_strip: co-emitted lib.x stored s.hdr.inited as movq@0 and
