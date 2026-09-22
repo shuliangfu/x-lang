@@ -81,6 +81,10 @@ cc_inc_tu_seed_for_out() {
     ;;
   esac
   case "$(basename "$1")" in
+    # PLATFORM: WINDOWS — cold PE entry when no product egg for -x -E (7.2.1
+    # deleted seed; restore as prefer-.x fallback). Prefer-.x arm above prints
+    # gen.c when egg exists; this arm is the no-product path.
+    crt0_mingw.o) printf '%s\n' seeds/crt0_mingw.from_x.c ;;
     asm_experimental_symbol_bridge.o) printf '%s\n' seeds/asm_experimental_symbol_bridge.from_x.c ;;
     lsp_diag_pipeline_sizes.o) printf '%s\n' seeds/lsp_diag_pipeline_sizes_weak.from_x.c ;;
     cfg_eval_bootstrap_stub.o) printf '%s\n' seeds/cfg_eval_bootstrap_stub.from_x.c ;;

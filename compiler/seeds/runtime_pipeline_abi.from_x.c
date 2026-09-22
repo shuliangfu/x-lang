@@ -15637,6 +15637,9 @@ extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *
 extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
 extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
 
+/* WIN_LEFTOVER file-scope forward: static proto @15406 nest is FROM_X-closed. */
+static int32_t pipe_modlet_lea_fn_sym_to_rax_cold(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+
 int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
   int32_t op, tgt, tgt_kind, src_tr, src_kind, op_ko, src_is_f32, src_is_f64;
   static const uint8_t mov_eax_eax[2] = {0x89, 0xc0};
@@ -36679,11 +36682,17 @@ extern int32_t pipeline_type_named_name_into(void *a, int32_t ty_ref, uint8_t *o
 extern int32_t pipeline_block_resolve_var_type_ref(void *a, int32_t block_ref, uint8_t *vname, int32_t vlen);
 extern int32_t pipeline_asm_emit_func_index_c(void);
 extern void *pipeline_asm_emit_dep_pipe_c(void);
+/* Under FROM_X, always-compiled struct* proto @2833 wins — skip void* re-extern. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 extern int32_t pipeline_dep_ctx_ndep(void *ctx);
+#endif
 extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t idx);
 extern void *pipeline_dep_ctx_arena_at(void *ctx, int32_t idx);
 extern int32_t typeck_get_field_offset_from_layout_deps(void *m, void *ctx, uint8_t *type_name, int32_t type_name_len,
                                                        uint8_t *field_name, int32_t field_name_len);
+
+/* FROM_X WIN_LEFTOVER: offset_at extern lives in !FROM_X nest @29224 — redeclare. */
+extern int32_t pipeline_module_struct_layout_field_offset_at(void *module, int32_t li, int32_t j);
 
 int32_t glue_struct_layout_field_offset_by_name_c(void *m, void *a, int32_t li,
                                                          uint8_t *field_name, int32_t flen) {
