@@ -12778,13 +12778,17 @@ try_ensure_std_core_prefer_one() {
 # authority — dedicated table is the single body for these two leaves.
 #
 # leaf_kind:
-#   direct_e   — PREFER: xlang-c -E .x → host-cc -x c -c → OUT (no rest merge).
+#   direct_e   — PREFER: pure-asm -c first (wave756 Class G), else xlang-c -E
+#                .x → host-cc -x c -c → OUT (no rest merge).
 #                cold: seeds/lsp_diag_pipeline_sizes.from_x.c
 #                Historic Makefile: prefer when ./xlang-c exists (no PREFER env).
 #   thin_rest_e — PREFER: xlang-c -E .x → thin.o + seed rest
 #                 -DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X → ld -r multidef.
 #                 cold: seeds/lsp_diag_stubs_no_c.from_x.c
 # Prefer fail / no xlang-c → cold seed. NOT physical delete — Makefile thin-call.
+# wave756 Class G: lsp_diag_pipeline_sizes.x standalone -backend asm -c is
+# U-complete both ends (T=3). Prefer that before -E+cc so this satellite
+# stops host-cc of gen. Do not -E as the repair when rung wins. Pin unchanged.
 # Callers: Makefile 2 leaves (wave781).
 # Exit codes:
 #   0 — OUT is a table member; body produced OUT
@@ -12879,7 +12883,25 @@ ensure_lsp_sat_prefer_one() {
 
   case "$leaf_kind" in
     direct_e)
-      # PLATFORM: SHARED — PREFER xlang-c -E → host-cc; cold seed (Makefile twin).
+      # PLATFORM: SHARED — Class G pure-asm first; else -E → host-cc; cold seed.
+      if [ -f "$x_src" ]; then
+        local asm_bin=""
+        if [ -x "./xlang_asm" ]; then
+          asm_bin="./xlang_asm"
+        elif [ -x "./xlang" ]; then
+          asm_bin="./xlang"
+        elif [ -x ./xlang-c ]; then
+          asm_bin="./xlang-c"
+        fi
+        if [ -n "$asm_bin" ]; then
+          if "$asm_bin" -backend asm -c "$x_src" -o "$o" 2>/dev/null \
+            && [ -s "$o" ]; then
+            log "prefer direct_e pure-asm $o <- $x_src (try-lsp-sat-prefer/Class G)"
+            return 0
+          fi
+          rm -f "$o"
+        fi
+      fi
       if [ -f "$x_src" ] && [ -x ./xlang-c ]; then
         tmp_c="$(mktemp "${TMPDIR:-/tmp}/lsp_sizes.XXXXXX")"
         # shellcheck disable=SC2086

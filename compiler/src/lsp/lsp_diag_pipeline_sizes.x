@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// wave756 Class G: standalone `-backend asm -c` U-complete both ends
+//   (T=3). Product try-lsp-sat-prefer prefers pure-asm before -E+cc
+//   so this satellite cuts host-cc gen. Do not -E as repair.
+// PLATFORM: SHARED freestanding sizeof constants · LINUX + MACOS.
 
 /** Exported function `lsp_diag_pipeline_sizeof_arena`.
  * Implements `lsp_diag_pipeline_sizeof_arena`.

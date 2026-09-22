@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · Class F cfg_eval 纯 asm 站住 tip `27d9723d1` · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-22 · 状态债 · Class G lsp sizes 纯 asm 站住 · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -255,7 +255,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F**：`cfg_eval` 产品纯 asm 站住（减 host-cc gen）。下一刀＝下一命名 CG002／emit 类。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F**：`cfg_eval` 纯 asm。**Class G**：`lsp_diag_pipeline_sizes` 纯 asm（减 host-cc）。下一刀＝下一命名产品梯／emit 类。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
