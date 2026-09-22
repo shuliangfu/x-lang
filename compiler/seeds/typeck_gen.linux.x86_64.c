@@ -13205,11 +13205,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
   int32_t _j;
   int32_t _hits = 0;
   for (_j = 0; _j < _nf && _j < 40; _j++) {
+    int32_t _nl = pipeline_module_func_name_len_at(dm, _j);
+    if (_j < 5) {
+      uint8_t _nb[64]; int32_t _k;
+      for (_k=0;_k<64;_k++) _nb[_k]=0;
+      pipeline_module_func_name_copy64(dm, _j, &_nb[0]);
+      fprintf(stderr, "xlang: WINDBG2 func[%d] len=%d name=%.*s\n", (int)_j, (int)_nl, (int)((_nl>0&&_nl<60)?_nl:0), (char*)_nb);
+    }
     if (pipeline_module_func_name_equal_at(dm, _j, &((method_nm)[0]), method_nlen) != 0) {
       _hits++;
-      fprintf(stderr, "xlang: WINDBG2 name_hit j=%d nparams=%d export=%d\n",
-        (int)_j, (int)pipeline_module_func_num_params_at(dm, _j),
-        (int)pipeline_module_func_is_export_at(dm, _j));
+      fprintf(stderr, "xlang: WINDBG2 name_hit j=%d nparams=%d\n",
+        (int)_j, (int)pipeline_module_func_num_params_at(dm, _j));
     }
   }
   fprintf(stderr, "xlang: WINDBG2 nf=%d hits=%d method_nlen=%d\n", (int)_nf, (int)_hits, (int)method_nlen);
