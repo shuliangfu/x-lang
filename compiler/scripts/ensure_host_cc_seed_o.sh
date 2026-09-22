@@ -6038,64 +6038,40 @@ pipeline_abi_heal_assign_index_undef() {
     && [ "$need_walk" = "0" ] && [ "$need_peel" = "0" ]; then
     return 0
   fi
-  log "pipeline_abi Class P heal assign_index UNDEF: setup=$need_setup walk=$need_walk peel=$need_peel resolve=$need_resolve"
-  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
-    had_prefer=1
-    saved_prefer="${XLANG_PABI_THIN_PREFER_ASM}"
-  fi
-  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
-    had_e_repl=1
-    saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE}"
-  fi
-  unset XLANG_PABI_THIN_PREFER_ASM
-  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-  export XLANG_PABI_THIN_FORCE_INJECT=1
-  if [ "$need_walk" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_array_walk_thin.x ]; then
-    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_walk_thin.x" "ClassP-heal-index-walk" || rc=$?
-  fi
-  if [ "$rc" -eq 0 ] && [ "$need_peel" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_array_peel_thin.x ]; then
-    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_peel_thin.x" "ClassP-heal-index-peel" || rc=$?
-  fi
-  if [ "$rc" -eq 0 ] && [ "$need_setup" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_setup_thin.x ]; then
-    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_setup_thin.x" "ClassP-heal-index-setup" || rc=$?
-  fi
-  if [ "$rc" -eq 0 ] && [ "$need_resolve" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_array_resolve_thin.x ]; then
-    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_resolve_thin.x" "ClassP-heal-index-resolve" || rc=$?
-  fi
-  unset XLANG_PABI_THIN_FORCE_INJECT
-  if [ "$had_prefer" = "1" ]; then
-    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
-  else
-    unset XLANG_PABI_THIN_PREFER_ASM
-  fi
-  if [ "$had_e_repl" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
-  else
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  u_syms=$(nm -u "$o" 2>/dev/null | awk '{print $NF}')
-  need_walk=0
-  need_peel=0
-  case "$u_syms" in *glue_emit_assign_index_array_walk_elf_c*) need_walk=1 ;; esac
-  case "$u_syms" in *glue_emit_assign_index_array_peel_elf_c*) need_peel=1 ;; esac
-  if [ "$need_walk" = "1" ] || [ "$need_peel" = "1" ]; then
-    export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
-    export XLANG_PABI_THIN_FORCE_INJECT=1
-    unset XLANG_PABI_THIN_PREFER_ASM
-    if [ "$need_walk" = "1" ]; then
-      pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_walk_thin.x" "ClassP-heal-index-walk2" || true
-    fi
-    if [ "$need_peel" = "1" ]; then
-      pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_peel_thin.x" "ClassP-heal-index-peel2" || true
-    fi
-    unset XLANG_PABI_THIN_FORCE_INJECT
-    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
-  fi
-  if nm -u "$o" 2>/dev/null | grep -q 'glue_emit_assign_index_setup_elf_c\|glue_emit_assign_index_array_resolve_elf_c'; then
-    log "pipeline_abi Class P heal: still UNDEF after inject"
+  log "pipeline_abi Class P heal assign_index UNDEF (link stubs): setup=$need_setup walk=$need_walk peel=$need_peel resolve=$need_resolve"
+  # Soft-Cap -E tip bodies SEGV on Ubuntu product (w543/w546). Use fail-closed
+  # C stubs for link only; live INDEX stays leftover emit_assign (w748).
+  local stub_c="seeds/assign_index_undef_link_stubs.c"
+  local stub_o base_o
+  if [ ! -f "$stub_c" ]; then
+    log "pipeline_abi Class P heal: missing $stub_c"
     return 1
   fi
-  log "pipeline_abi Class P heal assign_index UNDEF: OK"
+  stub_o="$(mktemp "${TMPDIR:-/tmp}/pabi_idx_stub.XXXXXX.o")"
+  base_o="$(mktemp "${TMPDIR:-/tmp}/pabi_idx_base.XXXXXX.o")"
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$stub_o" "$stub_c" 2>/dev/null; then
+    log "pipeline_abi Class P heal: cc stubs failed"
+    rm -f "$stub_o" "$base_o"
+    return 1
+  fi
+  cp -f "$o" "$base_o"
+  # If Soft-Cap tip T already present (bad prior heal), weaken then stub overlay.
+  if pipeline_abi_thin_already_defined "$o" "$stub_o"; then
+    pipeline_abi_weaken_thin_syms_in_obj "$base_o" "$stub_o" || true
+  fi
+  if ! pure_ld_partial_merge "$o" "$stub_o" "$base_o" 2>/dev/null; then
+    cp -f "$base_o" "$o"
+    log "pipeline_abi Class P heal: ld -r stubs failed; restored"
+    rm -f "$stub_o" "$base_o"
+    return 1
+  fi
+  rm -f "$stub_o" "$base_o"
+  if nm -u "$o" 2>/dev/null | grep -q 'glue_emit_assign_index_setup_elf_c\|glue_emit_assign_index_array_resolve_elf_c'; then
+    log "pipeline_abi Class P heal: still UNDEF after stubs"
+    return 1
+  fi
+  log "pipeline_abi Class P heal assign_index UNDEF: OK (link stubs)"
   return 0
 }
 
