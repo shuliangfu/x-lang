@@ -1485,6 +1485,8 @@ ensure_r3_prefer() {
 # wave765: try-labi-prefer OUT — g05 labi multi-slice product PREFER (single body).
 # wave760 Class K: labi_host_lit.x owns xlang_host_is_*_impl (#[cfg] two-level);
 #   FROM_X rest skips Cap #if impls — cuts host-cc of those two bodies.
+# wave761 Class L: same L2 slice owns link_abi_host_is_{apple,windows,
+#   linux_x86_64,posix_aarch64}; FROM_X rest skips four more Cap #if gates.
 #
 # Single leaf: src/runtime_link_abi.o (in R1_CORE_SEED_OBJS; cold twin = ensure_one).
 # When XLANG_G05_PREFER_X_O=1 and an xlang binary works:

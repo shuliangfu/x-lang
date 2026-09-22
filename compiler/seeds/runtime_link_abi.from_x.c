@@ -2817,6 +2817,9 @@ int labi_net_tls_join_repo_rel(char *path_buf, int cap, const char *repo_root, c
 void ensure_std_net_o_auto_tls(const char *repo_root);
 #endif
 
+/* wave761 Class L: link_abi host gates live in labi_host_lit.x under
+ * XLANG_LABI_HOST_LIT_FROM_X; cold rest keeps Cap #if bodies. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 /**
  * Cap residual (wave152): return 1 iff host is Apple (any arch).
  * PLATFORM: MACOS — #if defined(__APPLE__); Linux/Windows → 0.
@@ -2866,6 +2869,12 @@ int link_abi_host_is_posix_aarch64(void) {
     return 0;
 #endif
 }
+#else
+int link_abi_host_is_apple(void);
+int link_abi_host_is_windows(void);
+int link_abi_host_is_linux_x86_64(void);
+int link_abi_host_is_posix_aarch64(void);
+#endif /* !XLANG_LABI_HOST_LIT_FROM_X */
 
 /* wave152: ld_append_brew_lib_paths pure orch lives in labi_invoke_ld_list
  * (table scan + Cap residual host_is_apple). Cold twin via #include
