@@ -10467,6 +10467,21 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
           (void)(typeck_coerce_array_lit_struct_elems_to_decl(module, arena, arg_ref, pty_c));
         }
         (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
+        if ((sc < 0) && (arg_ref > 0)) {
+          int32_t _at = pipeline_expr_resolved_type_ref(arena, arg_ref);
+          int32_t _pt = param_raw;
+          if ((dep >=0)) {
+            int32_t _m = typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_PipelineDepCtx_ptr_reti32(dep, param_raw, arena, ctx);
+            if ((_m > 0)) _pt = _m;
+          }
+          fprintf(stderr, "xlang: WINDBG_SCORE er=%d ai=%d sc=%d arg_ty=%d ak=%d param_raw=%d pt=%d pk=%d ae=%d pe=%d\n",
+            (int)expr_ref, (int)ai, (int)sc, (int)_at,
+            (int)(_at>0?pipeline_type_kind_ord_at(arena,_at):-1),
+            (int)param_raw, (int)_pt,
+            (int)(_pt>0?pipeline_type_kind_ord_at(arena,_pt):-1),
+            (int)(_at>0?pipeline_type_elem_ref_at(arena,_at):-1),
+            (int)(_pt>0?pipeline_type_elem_ref_at(arena,_pt):-1));
+        }
         ((sc < 0) ? ({   if (((arg_ref > 0) && (typeck_call_arg_repr_compatible_ok(mod, arena, param_raw, arg_ref) !=0))) {
     (void)((ai = (ai + 1)));
     continue;
