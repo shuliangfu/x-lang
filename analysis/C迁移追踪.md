@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · HARD BAN 分类含 return_elf_impl · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-22 · 状态债 · wpo_dump orch 已分类 · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -35,7 +35,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN PREFER 仍跳：assign_index／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full `emit_expr_elf_c` tip／wpo_dump orch／asm_locals get peer（均已分类：活体 leftover gcc W 或薄包装，thin 独立 `-c` 仍 smash）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN：assign_index／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full tip／wpo_dump orch（已分类：活体 dump＝主 thin T；orch `-c` smash）／asm_locals get peer（未分类）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
@@ -240,7 +240,7 @@
 | 项 | 状态 | 备注 |
 |----|------|------|
 | STD／CORE／gate soft SKIP 邻域 | 🟡 | 主池多空；余见归档 |
-| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN PREFER 仍跳：assign_index／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full `emit_expr_elf_c` tip／wpo_dump orch／asm_locals get peer（均已分类：活体 leftover gcc W 或薄包装，thin 独立 `-c` 仍 smash）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN：assign_index／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full tip／wpo_dump orch（已分类：活体 dump＝主 thin T；orch `-c` smash）／asm_locals get peer（未分类）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
 | nest 冻 64 | ✅ | — |
 
 ---
@@ -255,7 +255,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN 分类族（assign_index／call_arg_lea／fnptr_arr_esz／fnptr_as／full `emit_expr_elf_c` tip／return_elf_impl_thin）＝活体 leftover gcc W（或 tip 薄包装），thin smash，禁再 PREFER。下一刀＝下一命名 CG002 墙。禁 leftover-first 当主刀；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN 分类族（assign_index／call_arg_lea／fnptr_arr_esz／fnptr_as／full tip／return_elf_impl_thin／wpo_dump orch）已记账；余 `asm_locals get peer`／命名 CG002 墙。禁再 PREFER。下一刀＝`asm_locals get peer` 或命名 CG002。禁 leftover-first 当主刀；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

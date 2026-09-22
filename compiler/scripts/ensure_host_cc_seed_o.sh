@@ -6156,6 +6156,9 @@ pipeline_abi_inject_fnptr_array_esz_thin() {
 #   Re-PREFER when live dump is leftover gcc weak/W. Do not gcc -E as
 #   the repair. Do not Darwin ld -r merge a two-segment thin (this thin
 #   is nsects=1 + COMMON). orch stamp skip stays (not this knife).
+# wave754: classify orch. Live dump = main thin PREFER T (sub ~$0xa18 /
+#   #0xa20). Orch -c smash export $0xcc8/#0xcd0. HARD BAN orch PREFER.
+#   No named CG002 wall this tip. Do not leftover-first.
 # G.7: thin/orch body match runtime_pipeline_abi.x pipeline_typeck_wpo_dump_callgraph.
 # PLATFORM: SHARED · PREFER_ASM both ends (main); orch stamp-gated.
 pipeline_abi_inject_wpo_dump_thin() {
@@ -6176,6 +6179,7 @@ pipeline_abi_inject_wpo_dump_thin() {
   # read-only — standalone -c now T=10 UND=21, 6 cells proper commons;
   # product probe on a fresh rebuild-only .o: g05 links, dump JSON v2
   # 233B, L2 5/5). Stamp-gated like the main thin.
+  # wave754: stamp skip keeps orch out; live dump face stays main thin T.
   if [ -f "$orch_x" ]; then
     if [ ! -f "$orch_s" ] || [ "$orch_x" -nt "$orch_s" ]; then
       local o_saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"

@@ -10,6 +10,14 @@
 // wave594: no *i32 store (flush takes i32 by value; collect_all returns
 //   i32; export drops i32[1]). LINUX PRODUCT PREFER still L2 SEGV 0/5
 //   — keep HARD BAN orch; product stays w498 -E helpers.
+// wave754: classify orch peer — no new named CG002 wall this tip; chose
+//   this HARD BAN leftover. Live dump export pipeline_typeck_wpo_dump_callgraph
+//   is main wpo_dump_thin PREFER T (Darwin external sub #0xa20 / LINUX T
+//   push+sub $0xa18), NOT this orch leaf. Orch stamp skip keeps peer out.
+//   Standalone orch -c T=10 U=21 nsects=1 + COMMON; export still smash
+//   (Darwin sub #0xcd0 / LINUX push+sub $0xcc8). Re-PREFER orch would
+//   dest-overwrite the main dump face. HARD BAN orch PREFER remains.
+//   Do not gcc -E. Do not leftover-first.
 // PLATFORM: SHARED freestanding WPO dump · LINUX gold + MACOS.
 
 export extern function pipeline_module_num_funcs(m: *u8): i32;
