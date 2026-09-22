@@ -11557,6 +11557,7 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
     int32_t callee_ref = 0;
     int32_t ret_ty = 0;
     if ((typeck_check_extern_call_unsafe_boundary(module, arena, expr_ref, ctx) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail extern_unsafe er=%d\n", (int)expr_ref);
       return -1;
     }
     (void)((num_args = pipeline_expr_call_num_args_at(arena, expr_ref)));
@@ -11566,26 +11567,32 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
     }
     (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), expect_store));
     if ((typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail args er=%d nargs=%d\n", (int)expr_ref, (int)num_args);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_expr_call_resolve(module, arena, expr_ref, ctx) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail resolve er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_call_arity(module, arena, expr_ref, ctx) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail arity er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_call_arg_types(module, arena, expr_ref, ctx) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail arg_types er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32(module, arena, expr_ref, ctx, expect_store) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail generic er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_call_slice_region(module, arena, expr_ref, ctx) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_CALL fail slice er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
