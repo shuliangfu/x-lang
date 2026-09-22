@@ -2778,6 +2778,11 @@ int xlang_asm_user_std_io_driver_dep_path(const char *dep_path) {
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
   {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (dep_path && memcmp(dep_path, "core.option", 11) == 0 &&
+        (dep_path[11] == 0 || dep_path[11] == '.'))
+      return 1;
+#endif
     if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
       return 1;
     }
@@ -62860,8 +62865,15 @@ int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
     return 1;
   if (pipeline_codegen_dep_skip_asm_user_std_misc(path) != 0)
     return 1;
-  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0)
+  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    /* Product .x prerun: skip_x_typeck→parse_only leaves option co-emit CG002.
+     * Return 0 so .x takes parse_skip_typeck_path (below) instead. */
+    if (memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.'))
+      return 0;
+#endif
     return 1;
+  }
   if (pipeline_asm_user_std_net_dep_path(path) != 0)
     return 1;
   return 0;
