@@ -4147,9 +4147,9 @@ ensure_pipeline_abi_prefer_one() {
     win_e="seeds/runtime_pipeline_abi.windows_e.c"
     if [ -f "$win_e" ]; then
       mkdir -p "$(dirname "$o")"
-      # PLATFORM: WINDOWS — MinGW touch/mtime vs seed is unreliable; keep any
-      # merged egg+FROM_X (>=1.5MB) unless FORCE=1. Prevents sat wipe to rest-only.
-      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
+      # PLATFORM: WINDOWS — keep merged egg+FROM_X (>=1.5MB) even under sat
+      # FORCE=1 (try-heat). MinGW mtime is unreliable; mktemp .c required.
+      if [ -s "$o" ]; then
         win_sz=$(wc -c <"$o" | tr -d ' ')
         if [ -n "$win_sz" ] && [ "$win_sz" -gt 1500000 ]; then
           log "pipeline_abi prefer: keep Windows egg+FROM_X $o (${win_sz}B)"
@@ -4157,7 +4157,10 @@ ensure_pipeline_abi_prefer_one() {
         fi
       fi
       log "pipeline_abi prefer: Windows egg+FROM_X host-cc $win_e + $seed → $o"
-      win_e_tmp="$(mktemp "${TMPDIR:-/tmp}/pabi_win_e.XXXXXX")"
+      # BusyBox/w64 mktemp: XXXXXX is suffix; gcc -c needs .c
+      _t="$(mktemp "${TMPDIR:-/tmp}/pabi_win_e.XXXXXX")" || return 1
+      win_e_tmp="${_t}.c"
+      mv "$_t" "$win_e_tmp" || return 1
       win_egg_o="$(mktemp "${TMPDIR:-/tmp}/pabi_win_egg.XXXXXX")"
       win_rest="$(mktemp "${TMPDIR:-/tmp}/pabi_win_rest.XXXXXX")"
       # Strip mmap/munmap externs that clash with win32_compat.h inline shims.
@@ -4190,7 +4193,9 @@ ensure_pipeline_abi_prefer_one() {
       for win_extra in         seeds/runtime_pipeline_abi_elf_ctx.windows_e.c         seeds/runtime_pipeline_abi_assign_emit.windows_e.c         seeds/runtime_pipeline_abi_modlet.windows_e.c         seeds/runtime_pipeline_abi_asm_wpo.from_x.c; do
         [ -f "$win_extra" ] || continue
         win_xo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_x.XXXXXX")"
-        win_xt="$(mktemp "${TMPDIR:-/tmp}/pabi_win_xt.XXXXXX")"
+        _t="$(mktemp "${TMPDIR:-/tmp}/pabi_win_xt.XXXXXX")" || return 1
+        win_xt="${_t}.c"
+        mv "$_t" "$win_xt" || return 1
         win_mo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_mo.XXXXXX")"
         sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_extra" >"$win_xt"           || { rm -f "$win_xo" "$win_xt" "$win_mo"; return 1; }
         # shellcheck disable=SC2086
