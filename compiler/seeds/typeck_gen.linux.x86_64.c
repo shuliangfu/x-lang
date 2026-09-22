@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <stdio.h> /* WINDBG_STDIO */
 #ifndef XLANG_DYN_OBJ
 #define XLANG_DYN_OBJ
 
@@ -13190,15 +13191,17 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
       (void)((func_ix = -1));
       if ((dep_slot >=0)) {
         (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_slot)));
-        /* Win: dep_ctx module pointer may be stale (num_funcs=0) while
-         * driver_dep_module_buf(dep_slot) still holds the parsed module. */
-        if (((dm ==0) || (pipeline_module_num_funcs(dm) ==0))) {
+        {
           uint8_t * alt_dm = typeck_driver_dep_module_buf(dep_slot);
+          fprintf(stderr, "xlang: WINDBG2 dm_n=%d alt=%p alt_n=%d\n",
+            dm?(int)pipeline_module_num_funcs(dm):-1, (void*)alt_dm,
+            alt_dm?(int)pipeline_module_num_funcs((struct ast_Module*)alt_dm):-1);
           if (((alt_dm !=0) && (pipeline_module_num_funcs(((struct ast_Module *)alt_dm)) > 0))) {
             (void)((dm = ((struct ast_Module *)alt_dm)));
           }
         }
         (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({   (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
+  fprintf(stderr, "xlang: WINDBG2 find ret=%d fix=%d\n", (int)import_ret_ty, (int)func_ix);
   ((import_ret_ty > 0) ? ({   (void)((dep_ix = dep_slot));
  }) : 0);
  }) : 0);
