@@ -482,7 +482,86 @@ int32_t glue_emit_index_eff_addr_scaled_elf_c(void *arena, void *elf_ctx, int32_
     return -1;
   return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
 }
-int32_t glue_copy_large_struct_from_rax_ptr_elf_c() { return -1; }
+/* wave771 Class V: was return -1. Seed twin of FROM_X glue_copy_large_struct
+ * (memcpy via arg_reg 0/1/2 — Win64 enc maps rcx/rdx/r8). PLATFORM: WINDOWS leftover-PE. */
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_call_arch(void *elf_ctx, uint8_t *sym, int32_t sym_len, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t off, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t glue_arm64_mov_x19_to_x0_elf_c(void *elf_ctx);
+
+int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz, int32_t ta) {
+  uint8_t memcpy_sym[8];
+  memcpy_sym[0] = 109;
+  memcpy_sym[1] = 101;
+  memcpy_sym[2] = 109;
+  memcpy_sym[3] = 99;
+  memcpy_sym[4] = 112;
+  memcpy_sym[5] = 121;
+  memcpy_sym[6] = 0;
+  if (!elf_ctx || (ta != 0 && ta != 1) || sz < 8)
+    return -1;
+  if (sz <= 16 && slot_off != -3)
+    return -1;
+  if (slot_off == -3) {
+    if (ta == 1) {
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+        return -1;
+      if (glue_arm64_mov_x19_to_x0_elf_c(elf_ctx) != 0)
+        return -1;
+      return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+  }
+  if (ta == 1) {
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
+      return -1;
+    return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+  }
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, sz, 0, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
+    return -1;
+  return backend_enc_call_arch(elf_ctx, memcpy_sym, 6, ta);
+}
 /* Win PE egg calls Cap-mangled name; Cap residual body is #ifndef FROM_X.
  * Prior stub returned -1 → fixed-array let init fail → option CG002 after unwrap_or
  * (`let buf: u8[4] = [1,2,3,4]`). Real scalar ARRAY_LIT → stack slot (G.7 twin of

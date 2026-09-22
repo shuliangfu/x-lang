@@ -2322,7 +2322,7 @@ fi
 # PLATFORM: WINDOWS | MSYS | MINGW.
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _pair in       "seeds/win_assign_var_override.c|src/win_assign_var_override.o"       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_assign_deref_override.c|src/win_assign_deref_override.o"       "seeds/win_struct_let_init_override.c|src/win_struct_let_init_override.o"
+    for _pair in       "seeds/win_assign_var_override.c|src/win_assign_var_override.o"       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_assign_deref_override.c|src/win_assign_deref_override.o"       "seeds/win_struct_let_init_override.c|src/win_struct_let_init_override.o"       "seeds/win_copy_large_struct_override.c|src/win_copy_large_struct_override.o"
     do
       _src="${_pair%%|*}"
       _out="${_pair#*|}"
