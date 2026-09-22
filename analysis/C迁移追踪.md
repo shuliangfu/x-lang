@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · **三端 L2 硬闸已启用** ✅；BC inventory present **13→0**（Class O wave309 物理退役）✅ · 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-22 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；Class P assign_index UNDEF **2→0**（link stubs）✅ · 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -36,7 +36,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 host-cc seed／`.inc` |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN：assign_index／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full tip／wpo_dump orch（已分类：活体 dump＝主 thin T；orch `-c` smash）／asm_locals get peer（未分类）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN：assign_index（Class P：g05 UNDEF setup／resolve **2→0** via link stubs；禁 tip `-E`／禁 PREFER）／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full tip／wpo_dump orch（已分类：活体 dump＝主 thin T；orch `-c` smash）／asm_locals get peer（未分类）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
