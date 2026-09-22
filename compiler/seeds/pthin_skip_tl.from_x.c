@@ -50,11 +50,8 @@
  */
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-/* Cap residual 9.5.3: skip_tl_slice.inc stderr debug via xlang_io_write. */
-#include <xlang_io_cap.h>
+/* Class AF: Cap IO debug face removed from skip_tl_slice. */
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
