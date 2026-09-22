@@ -819,6 +819,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 7.2.1 P19b Route C: helpers .x bodies (kind/copy/pos/match-kw)
   _pthin_p19b_x=src/asm/pthin_helpers.x
   _pthin_p20_seed=seeds/pthin_foundation.from_x.c
+  # Class AD P20b: foundation .x zeros body
+  _pthin_p20b_x=src/asm/pthin_foundation.x
   if [ -f "$_pthin" ]; then
     if [ ! -f parser_asm_thin_glue.o ] || [ "$_pthin" -nt parser_asm_thin_glue.o ] \
       || { [ -f "$_pthin_p1_seed" ] && [ "$_pthin_p1_seed" -nt parser_asm_thin_glue.o ]; } \
@@ -868,6 +870,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p19_seed" ] && [ "$_pthin_p19_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p19b_x" ] && [ "$_pthin_p19b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p20_seed" ] && [ "$_pthin_p20_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p20b_x" ] && [ "$_pthin_p20b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_glue_tail_slice.inc ] && [ seeds/parser_asm/parser_asm_glue_tail_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_library_wrap_slice.inc ] && [ seeds/parser_asm/parser_asm_library_wrap_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_body_tl_slice.inc ] && [ seeds/parser_asm/parser_asm_body_tl_slice.inc -nt parser_asm_thin_glue.o ]; } \
@@ -934,6 +937,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p19_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p19.XXXXXX") || true
         _pthin_p19b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p19b_thin.XXXXXX") || true
         _pthin_p20_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p20.XXXXXX") || true
+        _pthin_p20b_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p20b_thin.XXXXXX") || true
         _pthin_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_rest.XXXXXX") || true
         _pthin_p1_ok=0
         _pthin_p1b_ok=0
@@ -981,6 +985,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p19_ok=0
         _pthin_p19b_ok=0
         _pthin_p20_ok=0
+        _pthin_p20b_ok=0
         _pthin_rest_defs="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
         # P1 C is compiled after P9a so P1b BODIES_FROM_X can require the
         # lexer-step bridge (skip_balanced U symbols). See P1b block below.
@@ -1798,10 +1803,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P19 helpers ← $_pthin_p19_seed (G-02f-328 seed slice)"
           fi
         fi
+        # Class AD P20b: zeros from pthin_foundation.x
+        _pthin_p20_extra=""
+        if [ -n "$_pthin_p20b_thin_o" ] && [ -f "$_pthin_p20b_x" ]; then
+          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p20b_x" "$_pthin_p20b_thin_o"; then
+            _pthin_p20b_ok=1
+            _pthin_p20_extra="-DXLANG_PTHIN_FOUNDATION_BODIES_FROM_X"
+            echo "g05_ensure: P20b foundation zeros ← $_pthin_p20b_x (Class AD pure-asm)"
+          else
+            echo "g05_ensure: P20b foundation .x thin failed; zeros stay host-cc in seed" >&2
+          fi
+        fi
         if [ -n "$_pthin_p20_o" ] && [ -f "$_pthin_p20_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p20_o" "$_pthin_p20_seed"; then
+               $_pthin_p20_extra -c -o "$_pthin_p20_o" "$_pthin_p20_seed"; then
             _pthin_p20_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_FOUNDATION_FROM_X"
             echo "g05_ensure: P20 foundation ← $_pthin_p20_seed (G-02f-329 seed slice)"
@@ -1947,6 +1963,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_pthin_p20_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p20_o"
+        fi
+        if [ "$_pthin_p20b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p20b_thin_o"
         fi
         if [ "$_pthin_p13_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p13_o"
