@@ -5123,15 +5123,35 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         }
     }
 #else
-    (void)link_argv0;
-    (void)user_o;
-    (void)lib_roots;
-    (void)n_lib_roots;
-    (void)bank;
-    (void)argv;
-    (void)la;
-    (void)max_la;
-    (void)flags;
+    /* PLATFORM: WINDOWS — product -o previously no-op'd on_demand (linux/apple
+     * only). Entry-only asm then left core_option_* UNDEF despite formal
+     * core/option/option.o on disk. Push simple-group formals (option/result/…)
+     * for any UNDEF hit; skip-missing keeps hello clean. */
+    {
+        int sg;
+        if (!user_o || !user_o[0] || !la || *la >= max_la - 1)
+            return;
+        for (sg = 0; sg < labi_od_simple_group_count(); sg++) {
+            const char *rel = labi_od_simple_group_rel(sg);
+            if (!rel || !rel[0])
+                continue;
+            if (!labi_od_user_needs_simple_group(user_o, sg))
+                continue;
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                char make_tgt[512];
+                if (include_root && include_root[0] &&
+                    (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
+                    (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
+            }
+            link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        /* option.o expect_* → xlang_panic_; core/debug often supplies it. */
+        if (labi_od_user_needs_simple_group(user_o, 6)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "core/debug/debug.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+        }
+    }
 #endif
 }
 
