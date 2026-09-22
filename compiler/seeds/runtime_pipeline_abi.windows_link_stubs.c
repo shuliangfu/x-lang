@@ -32,3 +32,7 @@ int32_t pipeline_elf_ctx_add_common_sym() { return -1; }
 int32_t pipeline_elf_ctx_add_label() { return -1; }
 int32_t pipeline_elf_ctx_add_sym() { return -1; }
 int32_t pipeline_elf_ctx_ensure_label() { return -1; }
+int32_t glue_emit_assign_field_elf_c() { return -1; }
+int32_t glue_emit_assign_index_elf_c() { return -1; }
+int32_t glue_emit_assign_var_elf_c() { return -1; }
+int32_t glue_emit_assign_deref_elf_c() { return -1; }
