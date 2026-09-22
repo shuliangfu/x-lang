@@ -451,11 +451,42 @@ export function enc_store_rax_to_rbp(ctx: *ElfCodegenCtx, offset: i32): i32 {
  * @param k i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function enc_mov_arg_reg_to_rax(ctx: *ElfCodegenCtx, k: i32): i32 {
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
   if (idx > 5) { idx = 5; }
-  /* See implementation. */
+  /* Win64: rcx, rdx, r8, r9 — mirror seed enc_mov_rax_to_arg_reg. */
+  if (idx == 0) {
+    let w0: u8[3] = [72, 137, 200];
+    return elf.append_elf_bytes(ctx, w0, 3);
+  }
+  if (idx == 1) {
+    let w1: u8[3] = [72, 137, 208];
+    return elf.append_elf_bytes(ctx, w1, 3);
+  }
+  if (idx == 2) {
+    let w2: u8[3] = [76, 137, 192];
+    return elf.append_elf_bytes(ctx, w2, 3);
+  }
+  if (idx == 3) {
+    let w3: u8[3] = [76, 137, 200];
+    return elf.append_elf_bytes(ctx, w3, 3);
+  }
+  if (idx == 4) {
+    let w4: u8[3] = [76, 137, 192];
+    return elf.append_elf_bytes(ctx, w4, 3);
+  }
+  let w5: u8[3] = [76, 137, 200];
+  return elf.append_elf_bytes(ctx, w5, 3);
+}
+
+#[cfg(not(target_os = "windows"))]
+export function enc_mov_arg_reg_to_rax(ctx: *ElfCodegenCtx, k: i32): i32 {
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  /* SysV: rdi, rsi, rdx, rcx, r8, r9. */
   if (idx == 0) {
     let b0: u8[3] = [72, 137, 248];
     return elf.append_elf_bytes(ctx, b0, 3);

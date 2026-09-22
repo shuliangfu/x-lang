@@ -1434,23 +1434,44 @@ int32_t arch_x86_64_enc_enc_imul_imm_to_ebx(struct platform_elf_ElfCodegenCtx *e
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_mov_arg_reg_to_rax */
+/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_mov_arg_reg_to_rax.
+ * Mirror enc_mov_rax_to_arg_reg: SysV rdi..r9 vs Win64 rcx,rdx,r8,r9.
+ * Prior always-SysV made Option is_some read %rdi while callers passed %rcx
+ * → tests/option run=-2. PLATFORM: WINDOWS leftover-PE. */
 int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
-  static const uint8_t b0[] = {72,137,248};
-  static const uint8_t b1[] = {72,137,240};
-  static const uint8_t b2[] = {72,137,208};
-  static const uint8_t b3[] = {72,137,200};
-  static const uint8_t b4[] = {76,137,192};
-  static const uint8_t b5[] = {76,137,200};
+  static const uint8_t sysv0[] = {72,137,248}; /* rdi */
+  static const uint8_t sysv1[] = {72,137,240}; /* rsi */
+  static const uint8_t sysv2[] = {72,137,208}; /* rdx */
+  static const uint8_t sysv3[] = {72,137,200}; /* rcx */
+  static const uint8_t sysv4[] = {76,137,192}; /* r8 */
+  static const uint8_t sysv5[] = {76,137,200}; /* r9 */
+  static const uint8_t win0[] = {72,137,200}; /* rcx */
+  static const uint8_t win1[] = {72,137,208}; /* rdx */
+  static const uint8_t win2[] = {76,137,192}; /* r8 */
+  static const uint8_t win3[] = {76,137,200}; /* r9 */
   int32_t idx;
+  int32_t is_win;
   if (!elf_ctx) return -1;
   idx = k; if (idx < 0) idx = 0; if (idx > 5) idx = 5;
-  if (idx == 0) return x86_enc_bytes(elf_ctx, b0, 3);
-  if (idx == 1) return x86_enc_bytes(elf_ctx, b1, 3);
-  if (idx == 2) return x86_enc_bytes(elf_ctx, b2, 3);
-  if (idx == 3) return x86_enc_bytes(elf_ctx, b3, 3);
-  if (idx == 4) return x86_enc_bytes(elf_ctx, b4, 3);
-  return x86_enc_bytes(elf_ctx, b5, 3);
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+  is_win = 1;
+#else
+  is_win = 0;
+#endif
+  if (is_win != 0) {
+    if (idx == 0) return x86_enc_bytes(elf_ctx, win0, 3);
+    if (idx == 1) return x86_enc_bytes(elf_ctx, win1, 3);
+    if (idx == 2) return x86_enc_bytes(elf_ctx, win2, 3);
+    if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
+    if (idx == 4) return x86_enc_bytes(elf_ctx, win2, 3);
+    return x86_enc_bytes(elf_ctx, win3, 3);
+  }
+  if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);
+  if (idx == 1) return x86_enc_bytes(elf_ctx, sysv1, 3);
+  if (idx == 2) return x86_enc_bytes(elf_ctx, sysv2, 3);
+  if (idx == 3) return x86_enc_bytes(elf_ctx, sysv3, 3);
+  if (idx == 4) return x86_enc_bytes(elf_ctx, sysv4, 3);
+  return x86_enc_bytes(elf_ctx, sysv5, 3);
 }
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
