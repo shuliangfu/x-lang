@@ -574,6 +574,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             int need_import_map = 1;
             if (asm_smoke_only)
                 need_import_map = 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            else if (emit_elf_o && dep_paths[j] &&
+                     ((memcmp(dep_paths[j], "core.option", 11) == 0 &&
+                       (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')) ||
+                      (memcmp(dep_paths[j], "core.result", 11) == 0 &&
+                       (dep_paths[j][11] == 0 || dep_paths[j][11] == '.'))))
+                need_import_map = 1;
+#endif
             else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j]))
                 need_import_map = 0;
             else if (emit_elf_o && xlang_asm_user_dep_parse_skip_typeck_path(dep_paths[j]))
@@ -602,6 +610,17 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                                  dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
                 ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            } else if (emit_elf_o && dep_paths[j] &&
+                       ((memcmp(dep_paths[j], "core.option", 11) == 0 &&
+                         (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')) ||
+                        (memcmp(dep_paths[j], "core.result", 11) == 0 &&
+                         (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')))) {
+                /* Win co-emit option/result: parse_only → CG002; full .x typeck can hang.
+                 * parse_skip_typeck fills func slots (std.net twin). PLATFORM: WINDOWS PE. */
+                ec_loop = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                    (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
+#endif
             } else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
                 /*
                  * 用户 asm -o：std.io/fs 由并列 *.o 提供 *_c，dep 仅 parse 填 import 槽；

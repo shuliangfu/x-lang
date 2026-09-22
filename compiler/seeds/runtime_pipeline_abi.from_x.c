@@ -62863,15 +62863,8 @@ int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
     return 1;
   if (pipeline_codegen_dep_skip_asm_user_std_misc(path) != 0)
     return 1;
-  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0) {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    /* Win co-emits option/result: parse-only leaves mega_body fail (code_len=12). */
-    if ((memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.')) ||
-        (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == '.')))
-      return 0;
-#endif
+  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0)
     return 1;
-  }
   if (pipeline_asm_user_std_net_dep_path(path) != 0)
     return 1;
   return 0;
