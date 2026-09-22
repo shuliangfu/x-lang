@@ -4189,8 +4189,9 @@ ensure_pipeline_abi_prefer_one() {
         return 1
       fi
       rm -f "$win_egg_o" "$win_rest"
-      # Thin windows_e extras first (real bodies), then weak stubs last.
-      for win_extra in         seeds/runtime_pipeline_abi_elf_ctx.windows_e.c         seeds/runtime_pipeline_abi_assign_emit.windows_e.c         seeds/runtime_pipeline_abi_modlet.windows_e.c         seeds/runtime_pipeline_abi_asm_wpo.from_x.c; do
+      # Thin windows_e extras first. asm_wpo AFTER stubs (below) so PE ld -r
+      # last-wins keeps real emit_order_* (stub -1 was CG002 empty root).
+      for win_extra in         seeds/runtime_pipeline_abi_elf_ctx.windows_e.c         seeds/runtime_pipeline_abi_assign_emit.windows_e.c         seeds/runtime_pipeline_abi_modlet.windows_e.c; do
         [ -f "$win_extra" ] || continue
         win_xo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_x.XXXXXX")"
         _t="$(mktemp "${TMPDIR:-/tmp}/pabi_win_xt.XXXXXX")" || return 1
@@ -4230,6 +4231,30 @@ ensure_pipeline_abi_prefer_one() {
         fi
         mv -f "$win_mo" "$o"
         rm -f "$win_stub_o"
+      fi
+      # asm_wpo emit_order AFTER stubs (PE last-wins / FIRST both safe with identity stubs).
+      win_extra="seeds/runtime_pipeline_abi_asm_wpo.from_x.c"
+      if [ -f "$win_extra" ]; then
+        win_xo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_x.XXXXXX")"
+        _t="$(mktemp "${TMPDIR:-/tmp}/pabi_win_xt.XXXXXX")" || return 1
+        win_xt="${_t}.c"
+        mv "$_t" "$win_xt" || return 1
+        win_mo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_mo.XXXXXX")"
+        sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_extra" >"$win_xt"           || { rm -f "$win_xo" "$win_xt" "$win_mo"; return 1; }
+        # shellcheck disable=SC2086
+        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE              $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$win_xo" "$win_xt"; then
+          echo "ensure_host_cc_seed_o: Windows extra cc failed: $win_extra" >&2
+          rm -f "$win_xo" "$win_xt" "$win_mo"
+          return 1
+        fi
+        rm -f "$win_xt"
+        if ! pure_ld_partial_merge "$win_mo" "$o" "$win_xo"; then
+          echo "ensure_host_cc_seed_o: Windows extra merge failed: $win_extra" >&2
+          rm -f "$win_xo" "$win_mo"
+          return 1
+        fi
+        mv -f "$win_mo" "$o"
+        rm -f "$win_xo"
       fi
       win_sz=$(wc -c <"$o" | tr -d ' ')
       log "prefer Windows egg+FROM_X+extras $o (${win_sz:-0}B)"

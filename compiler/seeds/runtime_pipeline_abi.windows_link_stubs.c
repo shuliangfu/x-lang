@@ -25,9 +25,32 @@ int32_t pipeline_asm_emit_struct_let_init_elf_c() { return -1; }
 int32_t pipeline_asm_emit_struct_lit_elf_c() { return -1; }
 int32_t pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32() { return -1; }
 int32_t pipeline_asm_simd_try_inline_splat_call_elf_c() { return -1; }
-int32_t pipeline_asm_wpo_pgo_emit_order_at() { return -1; }
-int32_t pipeline_asm_wpo_pgo_emit_order_count() { return -1; }
+/* Win PE: identity emit-order (was return -1 → mega loop 0× → CG002 empty).
+ * Real asm_wpo.from_x may be clobbered by PE ld -r stub merge; these must work. */
+extern int32_t pipeline_module_num_funcs(void *m);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
 void pipeline_asm_wpo_pgo_emit_order_prepare(void *m) { (void)m; }
+int32_t pipeline_asm_wpo_pgo_emit_order_count(void *m) {
+  int32_t nf, fi, n = 0;
+  if (!m) return 0;
+  nf = pipeline_module_num_funcs(m);
+  for (fi = 0; fi < nf; fi++) {
+    if (pipeline_asm_module_func_is_extern_at(m, fi) == 0)
+      n++;
+  }
+  return n;
+}
+int32_t pipeline_asm_wpo_pgo_emit_order_at(void *m, int32_t order_index) {
+  int32_t nf, fi, n = 0;
+  if (!m || order_index < 0) return -1;
+  nf = pipeline_module_num_funcs(m);
+  for (fi = 0; fi < nf; fi++) {
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0) continue;
+    if (n == order_index) return fi;
+    n++;
+  }
+  return -1;
+}
 int32_t pipeline_elf_ctx_add_common_sym() { return -1; }
 int32_t pipeline_elf_ctx_add_label() { return -1; }
 int32_t pipeline_elf_ctx_add_sym() { return -1; }
