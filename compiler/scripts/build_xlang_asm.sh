@@ -4899,8 +4899,33 @@ ensure_asm_gen_driver_x_objs() {
   echo " pinned preprocess_gen.c -> $GEN_DIR/preprocess_gen.c ($(wc -c <preprocess_gen.c | tr -d ' ') bytes)"
   cp -f preprocess_gen.c "$GEN_DIR/preprocess_gen.c"
   else
+  # PLATFORM: WINDOWS leftover-PE — xlang-c -E often empty/fail; mirror driver_gen seed fallback.
+  preprocess_gen_tmp="$GEN_DIR/preprocess_gen.c.tmp"
+  preprocess_gen_seed="seeds/preprocess_gen.linux.x86_64.c"
+  preprocess_gen_ok=0
+  rm -f "$preprocess_gen_tmp"
   echo " $XLANG_E -E preprocess.x (-E-extern) -> $GEN_DIR/preprocess_gen.c ..."
-  "$XLANG_E" -L src/lexer -E -E-extern src/preprocess/preprocess.x >"$GEN_DIR/preprocess_gen.c"
+  "$XLANG_E" -L src/lexer -E -E-extern src/preprocess/preprocess.x >"$preprocess_gen_tmp" 2>/dev/null || true
+  if [ -s "$preprocess_gen_tmp" ] && grep -q 'preprocess_x(' "$preprocess_gen_tmp"; then
+  mv -f "$preprocess_gen_tmp" "$GEN_DIR/preprocess_gen.c"
+  preprocess_gen_ok=1
+  else
+  rm -f "$preprocess_gen_tmp"
+  if [ -f "$preprocess_gen_seed" ] && [ -s "$preprocess_gen_seed" ]; then
+  echo " preprocess_gen: -E failed/empty; fallback seed $preprocess_gen_seed (driver_gen parity)"
+  cp -f "$preprocess_gen_seed" "$GEN_DIR/preprocess_gen.c"
+  cp -f "$preprocess_gen_seed" preprocess_gen.c
+  touch preprocess_gen.c
+  preprocess_gen_ok=1
+  else
+  echo " preprocess_gen: FAIL (-E failed and no seed $preprocess_gen_seed)" >&2
+  : >"$GEN_DIR/preprocess_gen.c"
+  fi
+  fi
+  if [ "$preprocess_gen_ok" != "1" ]; then
+  echo "ensure_asm_gen_driver_x_objs: preprocess_gen.c missing/empty after pin/-E/seed" >&2
+  return 1
+  fi
   fi
   dedupe_xlang_slice_struct "$GEN_DIR/preprocess_gen.c"
 
