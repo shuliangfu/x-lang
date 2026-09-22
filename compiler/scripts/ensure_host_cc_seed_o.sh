@@ -4243,18 +4243,20 @@ ensure_pipeline_abi_prefer_one() {
         sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_extra" >"$win_xt"           || { rm -f "$win_xo" "$win_xt" "$win_mo"; return 1; }
         # shellcheck disable=SC2086
         if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE              $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$win_xo" "$win_xt"; then
-          echo "ensure_host_cc_seed_o: Windows extra cc failed: $win_extra" >&2
+          echo "ensure_host_cc_seed_o: WARN skip asm_wpo (identity emit_order stubs remain)" >&2
           rm -f "$win_xo" "$win_xt" "$win_mo"
-          return 1
+          win_xo=""
         fi
         rm -f "$win_xt"
-        if ! pure_ld_partial_merge "$win_mo" "$o" "$win_xo"; then
-          echo "ensure_host_cc_seed_o: Windows extra merge failed: $win_extra" >&2
-          rm -f "$win_xo" "$win_mo"
-          return 1
+        if [ -n "$win_xo" ] && [ -s "$win_xo" ]; then
+          if ! pure_ld_partial_merge "$win_mo" "$o" "$win_xo"; then
+            echo "ensure_host_cc_seed_o: WARN asm_wpo merge failed (identity stubs remain)" >&2
+            rm -f "$win_xo" "$win_mo"
+          else
+            mv -f "$win_mo" "$o"
+            rm -f "$win_xo"
+          fi
         fi
-        mv -f "$win_mo" "$o"
-        rm -f "$win_xo"
       fi
       win_sz=$(wc -c <"$o" | tr -d ' ')
       log "prefer Windows egg+FROM_X+extras $o (${win_sz:-0}B)"

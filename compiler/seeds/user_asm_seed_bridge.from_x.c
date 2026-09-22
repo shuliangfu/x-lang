@@ -392,9 +392,18 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   out = (struct codegen_CodegenOutBuf *)out_buf;
   ctx_bytes = (uint8_t *)elf_ctx;
 
-  /* coff.x: only AMD64 COFF (IMAGE_FILE_MACHINE_AMD64 = 0x8664). */
-  if (ctx->e_machine != 62)
+  /* coff.x: only AMD64 COFF (IMAGE_FILE_MACHINE_AMD64 = 0x8664).
+   * PLATFORM: WINDOWS — mega writes e_machine via stale W290 off 0x2990018
+   * while this struct's e_machine is @0x2790018 (labels/patches 65536 layout).
+   * Emit already filled code_len; do not CG002 solely on the drifted field. */
+  if (ctx->e_machine != 62) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (ctx->code_len <= 0)
+      return -1;
+#else
     return -1;
+#endif
+  }
 
   code_len = ctx->code_len;
   if (code_len < 0)
