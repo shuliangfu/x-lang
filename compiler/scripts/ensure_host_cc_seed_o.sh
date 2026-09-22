@@ -4147,10 +4147,10 @@ ensure_pipeline_abi_prefer_one() {
     win_e="seeds/runtime_pipeline_abi.windows_e.c"
     if [ -f "$win_e" ]; then
       mkdir -p "$(dirname "$o")"
-      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$win_e" -nt "$o" ] \
-        && [ ! "$seed" -nt "$o" ]; then
+      # PLATFORM: WINDOWS — MinGW touch/mtime vs seed is unreliable; keep any
+      # merged egg+FROM_X (>=1.5MB) unless FORCE=1. Prevents sat wipe to rest-only.
+      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
         win_sz=$(wc -c <"$o" | tr -d ' ')
-        # Merged egg+rest is ~2MB; bare egg ~1MB — keep only merged.
         if [ -n "$win_sz" ] && [ "$win_sz" -gt 1500000 ]; then
           log "pipeline_abi prefer: keep Windows egg+FROM_X $o (${win_sz}B)"
           return 0
