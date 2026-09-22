@@ -1047,8 +1047,8 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
 /* pure 权威：thin.x driver_diag_env_debug_pipe；冷启动保留 _impl + public；FROM_X 剔除 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 int driver_diag_env_debug_pipe_impl(void) {
-    const char *e = link_abi_getenv("XLANG_DEBUG_PIPE");
-    return (e && e[0] && e[0] != '0') ? 1 : 0;
+    /* Class AL: XLANG_DEBUG_PIPE gate retired (always off; mirror thin). */
+    return 0;
 }
 
 int driver_diag_env_debug_pipe(void) {
@@ -1060,18 +1060,10 @@ int driver_diag_env_debug_pipe(void) {
  * kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker。 */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_pipe_note_impl(int32_t kind, int32_t a, int32_t b) {
-    if (kind == 0)
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: before_codegen num_funcs=%d out_len=%d", (int)a, (int)b);
-    else if (kind == 1)
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: entry_source_len=%d", (int)a);
-    else if (kind == 2)
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: after_entry_parse num_funcs=%d", (int)a);
-    else if (kind == 3)
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: pipe_marker=%d", (int)a);
+    /* Class AL: DEBUG_PIPE pipe_note retired (mirror thin wrappers; keep symbol). */
+    (void)kind;
+    (void)a;
+    (void)b;
 }
 void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
     driver_diag_pipe_note_impl(kind, a, b);
@@ -1083,8 +1075,9 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len)
 {
-    if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(0, num_funcs, out_len);
+    /* Class AL: DEBUG_PIPE note retired (mirror thin). */
+    (void)num_funcs;
+    (void)out_len;
 }
 #endif
 
@@ -1103,8 +1096,8 @@ void driver_diagnostic_entry_already(int32_t v) {
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_source_len(int32_t len)
 {
-    if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(1, len, 0);
+    /* Class AL: DEBUG_PIPE note retired (mirror thin). */
+    (void)len;
 }
 #endif
 
@@ -1116,8 +1109,8 @@ void driver_diagnostic_source_len(int32_t len)
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_entry_parse(int32_t num_funcs)
 {
-    if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(2, num_funcs, 0);
+    /* Class AL: DEBUG_PIPE note retired (mirror thin). */
+    (void)num_funcs;
 }
 #endif
 
@@ -1168,14 +1161,13 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
 void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t num_generic_params, int32_t is_main)
 {
-    char namebuf[72];
-    if (!link_abi_getenv("XLANG_DEBUG_PARSE_GENERIC"))
-        return;
-    driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "parse generic debug: byte=%d num_funcs=%d generic=%d is_main=%d name=%s",
-                 (int)byte_pos, (int)num_funcs_so_far, (int)num_generic_params, (int)is_main,
-                 namebuf[0] ? namebuf : "?");
+    /* Class AL: XLANG_DEBUG_PARSE_GENERIC retired (mirror thin). */
+    (void)byte_pos;
+    (void)num_funcs_so_far;
+    (void)name;
+    (void)name_len;
+    (void)num_generic_params;
+    (void)is_main;
 }
 #endif
 
@@ -1198,18 +1190,24 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
                                           int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
                                           int32_t final_expr_ref)
 {
-    char namebuf[72];
-    const char *phase_name;
-    if (!link_abi_getenv("XLANG_DEBUG_PARSE_COMMIT"))
-        return;
-    driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
-    phase_name = (phase == 0) ? "pre_fill" : ((phase == 1) ? "post_block" : "unknown");
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "parse commit debug: byte=%d num_funcs=%d phase=%s block=%d pool(c=%d l=%d if=%d reg=%d so=%d) block(c=%d l=%d if=%d reg=%d so=%d fin=%d) name=%s",
-                 (int)byte_pos, (int)num_funcs_so_far, phase_name, (int)block_ref, (int)pool_num_consts,
-                 (int)pool_num_lets, (int)pool_num_ifs, (int)pool_num_regions, (int)pool_num_stmt_order,
-                 (int)block_num_consts, (int)block_num_lets, (int)block_num_ifs, (int)block_num_regions,
-                 (int)block_num_stmt_order, (int)final_expr_ref, namebuf[0] ? namebuf : "?");
+    /* Class AL: XLANG_DEBUG_PARSE_COMMIT retired (mirror thin). */
+    (void)byte_pos;
+    (void)num_funcs_so_far;
+    (void)name;
+    (void)name_len;
+    (void)phase;
+    (void)block_ref;
+    (void)pool_num_consts;
+    (void)pool_num_lets;
+    (void)pool_num_ifs;
+    (void)pool_num_regions;
+    (void)pool_num_stmt_order;
+    (void)block_num_consts;
+    (void)block_num_lets;
+    (void)block_num_ifs;
+    (void)block_num_regions;
+    (void)block_num_stmt_order;
+    (void)final_expr_ref;
 }
 #endif
 
@@ -1293,34 +1291,8 @@ void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *na
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_entry_parse_module(void *module)
 {
-    int32_t nf, i, ndef, next;
-    if (!link_abi_getenv("XLANG_DEBUG_PIPE") || !module)
-        return;
-    nf = pipeline_module_num_funcs(module);
-    ndef = 0;
-    next = 0;
-    for (i = 0; i < nf; i++) {
-        if (pipeline_module_func_is_extern_at(module, i) != 0)
-            next++;
-        else
-            ndef++;
-    }
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "pipeline debug: after_entry_parse num_funcs=%d num_defined=%d num_extern=%d",
-                 (int)nf, (int)ndef, (int)next);
-    {
-        struct ast_ModuleThin {
-            int32_t num_funcs;
-            int32_t main_func_index;
-            int32_t num_imports;
-            int32_t num_top_level_lets;
-        };
-        struct ast_ModuleThin *m_local = (struct ast_ModuleThin *)module;
-        int32_t ntl = m_local ? m_local->num_top_level_lets : 0;
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: after_entry_parse num_top_level_lets=%d",
-                     (int)ntl);
-    }
+    /* Class AL: XLANG_DEBUG_PIPE after_entry_parse notes retired (mirror thin). */
+    (void)module;
 }
 #endif
 
@@ -1333,8 +1305,8 @@ void driver_diagnostic_after_entry_parse_module(void *module)
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_pipe_marker(int32_t id)
 {
-    if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(3, id, 0);
+    /* Class AL: DEBUG_PIPE note retired (mirror thin). */
+    (void)id;
 }
 #endif
 

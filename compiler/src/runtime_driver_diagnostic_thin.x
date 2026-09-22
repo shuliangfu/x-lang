@@ -272,10 +272,8 @@ export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8)
  */
 #[no_mangle]
 export function driver_diag_env_debug_pipe(): i32 {
-  // PLATFORM: SHARED - LANG-007 S0: is_extern calls require unsafe (align tests/unsafe U4).
-  unsafe {
-    return driver_env_flag_truthy("XLANG_DEBUG_PIPE");
-  }
+  // Class AL: XLANG_DEBUG_PIPE gate retired (always off).
+  return 0;
 }
 
 /** Exported function `driver_diagnostic_before_codegen`.
@@ -286,11 +284,7 @@ export function driver_diag_env_debug_pipe(): i32 {
  */
 #[no_mangle]
 export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void {
-  unsafe {
-    if (driver_diag_env_debug_pipe() != 0) {
-      driver_diag_pipe_note(0, num_funcs, out_len);
-    }
-  }
+  // Class AL: DEBUG_PIPE note retired.
 }
 
 /** Exported function `driver_diagnostic_source_len`.
@@ -300,11 +294,7 @@ export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): 
  */
 #[no_mangle]
 export function driver_diagnostic_source_len(len: i32): void {
-  unsafe {
-    if (driver_diag_env_debug_pipe() != 0) {
-      driver_diag_pipe_note(1, len, 0);
-    }
-  }
+  // Class AL: DEBUG_PIPE note retired.
 }
 
 /** Exported function `driver_diagnostic_after_entry_parse`.
@@ -314,11 +304,7 @@ export function driver_diagnostic_source_len(len: i32): void {
  */
 #[no_mangle]
 export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
-  unsafe {
-    if (driver_diag_env_debug_pipe() != 0) {
-      driver_diag_pipe_note(2, num_funcs, 0);
-    }
-  }
+  // Class AL: DEBUG_PIPE note retired.
 }
 
 /** Exported function `driver_diagnostic_pipe_marker`.
@@ -328,11 +314,7 @@ export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
  */
 #[no_mangle]
 export function driver_diagnostic_pipe_marker(id: i32): void {
-  unsafe {
-    if (driver_diag_env_debug_pipe() != 0) {
-      driver_diag_pipe_note(3, id, 0);
-    }
-  }
+  // Class AL: DEBUG_PIPE note retired.
 }
 
 /** Exported function `driver_diagnostic_typeck_if_condition_not_bool`.
@@ -1090,33 +1072,7 @@ export function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void
  */
 #[no_mangle]
 export function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
-  let msg: u8[128] = [];
-  if (kind == 0) {
-    let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "pipeline debug: before_codegen num_funcs=");
-    at = driver_diag_append_i32(&msg[0], 128, at, a);
-    at = driver_diag_append_cstr(&msg[0], 128, at, " out_len=");
-    at = driver_diag_append_i32(&msg[0], 128, at, b);
-    driver_diag_note(&msg[0]);
-    return;
-  }
-  if (kind == 1) {
-    let at1: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "pipeline debug: entry_source_len=");
-    at1 = driver_diag_append_i32(&msg[0], 128, at1, a);
-    driver_diag_note(&msg[0]);
-    return;
-  }
-  if (kind == 2) {
-    let at2: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "pipeline debug: after_entry_parse num_funcs=");
-    at2 = driver_diag_append_i32(&msg[0], 128, at2, a);
-    driver_diag_note(&msg[0]);
-    return;
-  }
-  if (kind == 3) {
-    let at3: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "pipeline debug: pipe_marker=");
-    at3 = driver_diag_append_i32(&msg[0], 128, at3, a);
-    driver_diag_note(&msg[0]);
-    return;
-  }
+  // Class AL: DEBUG_PIPE pipe_note retired (keep symbol).
 }
 
 // pure: same shape as seed Cap residual - link_abi_getenv("XLANG_DEBUG_PARSE") non-null or parse_strict.
@@ -1762,36 +1718,10 @@ export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
  * PLATFORM: SHARED — pure in thin; cold C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_DEBUG_PARSE_GENERIC") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[240] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "parse generic debug: byte=");
-  at = driver_diag_append_i32(&msg[0], 240, at, byte_pos);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " num_funcs=");
-  at = driver_diag_append_i32(&msg[0], 240, at, num_funcs_so_far);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " generic=");
-  at = driver_diag_append_i32(&msg[0], 240, at, num_generic_params);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " is_main=");
-  at = driver_diag_append_i32(&msg[0], 240, at, is_main);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " name=");
-  if (name != 0 as *u8) {
-    if (name_len > 0) {
-      at = driver_diag_append_name(&msg[0], 240, at, name, name_len);
-    } else {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "?");
-    }
-  } else {
-    at = driver_diag_append_cstr(&msg[0], 240, at, "?");
-  }
-  driver_diag_note(&msg[0]);
+  // Class AL: XLANG_DEBUG_PARSE_GENERIC retired.
 }
 
-/** OneFunc param type_ref debug. Gate: XLANG_PARSE_PARAM non-NULL.
- * Message: "parser param debug: func=F stage=S param_idx=I param=P type_ref=T".
- * PLATFORM: SHARED — pure in thin; cold C body; FROM_X no pure-dup _impl. */
+
 #[no_mangle]
 export function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void {
   unsafe {
@@ -1973,61 +1903,10 @@ export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref:
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_DEBUG_PARSE_COMMIT") == 0 as *u8) {
-      return;
-    }
-  }
-  let namebuf: u8[72] = [];
-  driver_diag_fill_expr_part(&namebuf[0], 72, name, name_len);
-  // Inline phase tag (avoid *u8-returning helper — -E may omit its body).
-  let phase_name: *u8 = "unknown";
-  if (phase == 0) {
-    phase_name = "pre_fill";
-  } else {
-    if (phase == 1) {
-      phase_name = "post_block";
-    }
-  }
-  let msg: u8[512] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 512, 0, "parse commit debug: byte=");
-  at = driver_diag_append_i32(&msg[0], 512, at, byte_pos);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " num_funcs=");
-  at = driver_diag_append_i32(&msg[0], 512, at, num_funcs_so_far);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " phase=");
-  at = driver_diag_append_cstr(&msg[0], 512, at, phase_name);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " block=");
-  at = driver_diag_append_i32(&msg[0], 512, at, block_ref);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " pool(c=");
-  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_consts);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " l=");
-  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_lets);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " if=");
-  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_ifs);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " reg=");
-  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_regions);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " so=");
-  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_stmt_order);
-  at = driver_diag_append_cstr(&msg[0], 512, at, ") block(c=");
-  at = driver_diag_append_i32(&msg[0], 512, at, block_num_consts);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " l=");
-  at = driver_diag_append_i32(&msg[0], 512, at, block_num_lets);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " if=");
-  at = driver_diag_append_i32(&msg[0], 512, at, block_num_ifs);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " reg=");
-  at = driver_diag_append_i32(&msg[0], 512, at, block_num_regions);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " so=");
-  at = driver_diag_append_i32(&msg[0], 512, at, block_num_stmt_order);
-  at = driver_diag_append_cstr(&msg[0], 512, at, " fin=");
-  at = driver_diag_append_i32(&msg[0], 512, at, final_expr_ref);
-  at = driver_diag_append_cstr(&msg[0], 512, at, ") name=");
-  at = driver_diag_append_cstr(&msg[0], 512, at, &namebuf[0]);
-  driver_diag_note(&msg[0]);
+  // Class AL: XLANG_DEBUG_PARSE_COMMIT retired.
 }
 
-/** Parser-facing alias of driver_diagnostic_parse_commit_shape (same args / same body path).
- * G.7: zero business logic — single authority is driver_diagnostic_parse_commit_shape.
- * PLATFORM: SHARED — pure thin public; cold seed forwards; FROM_X no pure-dup _impl. */
+
 #[no_mangle]
 export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
@@ -2131,52 +2010,10 @@ export function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_DEBUG_PIPE") == 0 as *u8) {
-      return;
-    }
-    if (module == 0 as *u8) {
-      return;
-    }
-    let nf: i32 = pipeline_module_num_funcs(module);
-    let ndef: i32 = 0;
-    let next: i32 = 0;
-    let i: i32 = 0;
-    while (i < nf) {
-      if (pipeline_module_func_is_extern_at(module, i) != 0) {
-        next = next + 1;
-      } else {
-        ndef = ndef + 1;
-      }
-      i = i + 1;
-    }
-    let msg: u8[200] = [];
-    let at: i32 = driver_diag_append_cstr(&msg[0], 200, 0, "pipeline debug: after_entry_parse num_funcs=");
-    at = driver_diag_append_i32(&msg[0], 200, at, nf);
-    at = driver_diag_append_cstr(&msg[0], 200, at, " num_defined=");
-    at = driver_diag_append_i32(&msg[0], 200, at, ndef);
-    at = driver_diag_append_cstr(&msg[0], 200, at, " num_extern=");
-    at = driver_diag_append_i32(&msg[0], 200, at, next);
-    driver_diag_note(&msg[0]);
-    // ast_Module shared prefix: [num_funcs, main_func_index, num_imports, num_top_level_lets]
-    // PLATFORM: SHARED — LE i32 at byte offset 12; keep in sync with C struct layout.
-    let m: *u8 = module;
-    let ntl: i32 = (m[12] as i32)
-      | ((m[13] as i32) << 8)
-      | ((m[14] as i32) << 16)
-      | ((m[15] as i32) << 24);
-    let msg2: u8[120] = [];
-    let at2: i32 = driver_diag_append_cstr(&msg2[0], 120, 0, "pipeline debug: after_entry_parse num_top_level_lets=");
-    at2 = driver_diag_append_i32(&msg2[0], 120, at2, ntl);
-    driver_diag_note(&msg2[0]);
-  }
+  // Class AL: XLANG_DEBUG_PIPE after_entry_parse notes retired.
 }
 
-/** CG003 when codegen fails to emit one function. Reads name via pipeline_module_func_name_*
- * (G.7 authority; not a second name path). Assembles
- * "failed to emit function 'NAME' (idx=N)" with append; empty name -> "?".
- * Path: check-only note + diag_report_with_code("codegen error","CG003",msg). No va_list reportf.
- * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
+
 #[no_mangle]
 export function driver_diagnostic_codegen_emit_func_fail(module: *u8, func_index: i32): void {
   unsafe {
