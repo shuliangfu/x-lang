@@ -5472,9 +5472,8 @@ int32_t typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_Pipeline
     }
     {
       struct ast_ASTArena * alt_ar = ((struct ast_ASTArena *)driver_dep_arena_buf(from_dep_index));
-      /* Prefer live dep arena buffer when sidecar pointer is missing or empty. */
-      if ((alt_ar !=0) && (((dep_arena ==0) || (((dep_arena)->num_types) <= 0) ||
-          ((dep_return_type_ref > 0) && (dep_return_type_ref > ((dep_arena)->num_types)))))) {
+      /* Win PE: always prefer live dep arena buffer over sidecar pointer. */
+      if ((alt_ar !=0)) {
         (void)((dep_arena = alt_ar));
       }
     }
@@ -13213,10 +13212,6 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
     _local_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, -1, num_args, expr_ref, 1, ctx, &_local_fi);
     if ((_local_ret > 0)) {
       (void)((import_ret_ty = typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_PipelineDepCtx_ptr_reti32(dep_slot, _local_ret, arena, ctx)));
-      if ((import_ret_ty <=0)) {
-        /* last resort: keep dep-local type ref (same arena family on Win). */
-        (void)((import_ret_ty = _local_ret));
-      }
       (void)((func_ix = _local_fi));
     }
   }
