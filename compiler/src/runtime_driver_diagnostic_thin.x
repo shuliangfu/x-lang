@@ -1724,39 +1724,7 @@ export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
 
 #[no_mangle]
 export function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_PARSE_PARAM") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[240] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "parser param debug: func=");
-  if (func_name != 0 as *u8) {
-    if (func_name_len > 0) {
-      at = driver_diag_append_name(&msg[0], 240, at, func_name, func_name_len);
-    } else {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "?");
-    }
-  } else {
-    at = driver_diag_append_cstr(&msg[0], 240, at, "?");
-  }
-  at = driver_diag_append_cstr(&msg[0], 240, at, " stage=");
-  at = driver_diag_append_i32(&msg[0], 240, at, stage);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " param_idx=");
-  at = driver_diag_append_i32(&msg[0], 240, at, param_idx);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " param=");
-  if (param_name != 0 as *u8) {
-    if (param_name_len > 0) {
-      at = driver_diag_append_name(&msg[0], 240, at, param_name, param_name_len);
-    } else {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "?");
-    }
-  } else {
-    at = driver_diag_append_cstr(&msg[0], 240, at, "?");
-  }
-  at = driver_diag_append_cstr(&msg[0], 240, at, " type_ref=");
-  at = driver_diag_append_i32(&msg[0], 240, at, type_ref);
-  driver_diag_note(&msg[0]);
+  // Class AM: XLANG_PARSE_PARAM Cap debug retired.
 }
 
 /** Import top-level const bare-name access must be qualified. Assembles fixed message then
@@ -1860,41 +1828,7 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_TYPECK_BINOP") == 0 as *u8) {
-      return;
-    }
-  }
-  let left_buf: u8[112] = [];
-  let right_buf: u8[112] = [];
-  // Match cold seed: empty / missing type name -> "?".
-  driver_diag_fill_expr_part(&left_buf[0], 112, left_ty, left_ty_len);
-  driver_diag_fill_expr_part(&right_buf[0], 112, right_ty, right_ty_len);
-  let msg: u8[384] = [];
-  // Split long cstrs: product codegen string-lit cap ~127 bytes.
-  let at: i32 = driver_diag_append_cstr(&msg[0], 384, 0, "typeck binop debug: expr=");
-  at = driver_diag_append_i32(&msg[0], 384, at, expr_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " left_ref=");
-  at = driver_diag_append_i32(&msg[0], 384, at, left_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " left_kind=");
-  at = driver_diag_append_i32(&msg[0], 384, at, left_kind);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " left_block=");
-  at = driver_diag_append_i32(&msg[0], 384, at, left_block_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " left_ty_ref=");
-  at = driver_diag_append_i32(&msg[0], 384, at, left_ty_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " left_ty=");
-  at = driver_diag_append_cstr(&msg[0], 384, at, &left_buf[0]);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " right_ref=");
-  at = driver_diag_append_i32(&msg[0], 384, at, right_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " right_kind=");
-  at = driver_diag_append_i32(&msg[0], 384, at, right_kind);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " right_block=");
-  at = driver_diag_append_i32(&msg[0], 384, at, right_block_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " right_ty_ref=");
-  at = driver_diag_append_i32(&msg[0], 384, at, right_ty_ref);
-  at = driver_diag_append_cstr(&msg[0], 384, at, " right_ty=");
-  at = driver_diag_append_cstr(&msg[0], 384, at, &right_buf[0]);
-  driver_diag_note(&msg[0]);
+  // Class AM: XLANG_TYPECK_BINOP Cap debug retired.
 }
 
 /** Optional parse-commit shape debug when link_abi_getenv("XLANG_DEBUG_PARSE_COMMIT") is set.

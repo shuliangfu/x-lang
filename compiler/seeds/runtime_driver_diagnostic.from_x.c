@@ -407,16 +407,20 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
                                              const uint8_t *left_ty, int32_t left_ty_len,
                                              const uint8_t *right_ty, int32_t right_ty_len)
 {
-    char left_buf[112];
-    char right_buf[112];
-    if (!link_abi_getenv("XLANG_TYPECK_BINOP"))
-        return;
-    driver_diag_copy_bytes(left_buf, sizeof(left_buf), left_ty, left_ty_len);
-    driver_diag_copy_bytes(right_buf, sizeof(right_buf), right_ty, right_ty_len);
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "typeck binop debug: expr=%d left_ref=%d left_kind=%d left_block=%d left_ty_ref=%d left_ty=%s right_ref=%d right_kind=%d right_block=%d right_ty_ref=%d right_ty=%s",
-                 (int)expr_ref, (int)left_ref, (int)left_kind, (int)left_block_ref, (int)left_ty_ref, left_buf[0] ? left_buf : "?",
-                 (int)right_ref, (int)right_kind, (int)right_block_ref, (int)right_ty_ref, right_buf[0] ? right_buf : "?");
+    /* Class AM: XLANG_TYPECK_BINOP Cap debug retired (mirror thin). */
+    (void)expr_ref;
+    (void)left_ref;
+    (void)right_ref;
+    (void)left_kind;
+    (void)right_kind;
+    (void)left_block_ref;
+    (void)right_block_ref;
+    (void)left_ty_ref;
+    (void)right_ty_ref;
+    (void)left_ty;
+    (void)left_ty_len;
+    (void)right_ty;
+    (void)right_ty_len;
 }
 #endif
 
@@ -430,16 +434,14 @@ void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_
                                                 const uint8_t *param_name, int32_t param_name_len,
                                                 int32_t stage, int32_t param_idx, int32_t type_ref)
 {
-    char func_buf[72];
-    char param_buf[72];
-    if (!link_abi_getenv("XLANG_PARSE_PARAM"))
-        return;
-    driver_diag_copy_bytes(func_buf, sizeof(func_buf), func_name, func_name_len);
-    driver_diag_copy_bytes(param_buf, sizeof(param_buf), param_name, param_name_len);
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "parser param debug: func=%s stage=%d param_idx=%d param=%s type_ref=%d",
-                 func_buf[0] ? func_buf : "?", (int)stage, (int)param_idx,
-                 param_buf[0] ? param_buf : "?", (int)type_ref);
+    /* Class AM: XLANG_PARSE_PARAM Cap debug retired (mirror thin). */
+    (void)func_name;
+    (void)func_name_len;
+    (void)param_name;
+    (void)param_name_len;
+    (void)stage;
+    (void)param_idx;
+    (void)type_ref;
 }
 #endif
 
