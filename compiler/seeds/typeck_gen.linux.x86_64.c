@@ -9952,6 +9952,8 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     (void)((num_args = pipeline_expr_call_num_args_at(arena, expr_ref)));
     (void)((fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref)));
     (void)((dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref)));
+    fprintf(stderr, "xlang: WINDBG_ARITY0 er=%d fi=%d dep=%d nargs=%d\n",
+      (int)expr_ref, (int)fi, (int)dep, (int)num_args);
     if ((fi >=0)) {
       (void)((mod = module));
       if (((dep >=0) && (ctx !=0))) {
@@ -10044,6 +10046,9 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
       }
       (void)((j = (j + 1)));
     }
+    fprintf(stderr, "xlang: WINDBG_ARITY2 er=%d fi=%d dep=%d nargs=%d hits=%d/%d name=%.*s nf=%d\n",
+      (int)expr_ref, (int)fi, (int)dep, (int)num_args, (int)name_hits, (int)arity_hits,
+      (int)((cnml>0&&cnml<40)?cnml:0), (char*)cnm, (int)((module)->num_funcs));
     if (((name_hits > 0) && (arity_hits ==0))) {
       (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
       (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
