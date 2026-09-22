@@ -34533,6 +34533,17 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
       }
     }
   }
+  /* Named struct CALL return: size_simple may be 8 while ABI uses rax:rdx
+   * (Option_i32 fits one GP; Option_ptr needs both — always park rdx for
+   * TYPE_NAMED CALL so ptr half is not dropped). PLATFORM: WINDOWS leftover-PE. */
+  if (sz <= 8 && arena && ty_ref > 0 && init_ref > 0) {
+    int32_t ko_c;
+    int32_t tk_c;
+    ko_c = pipeline_expr_kind_ord_at(arena, init_ref);
+    tk_c = pipeline_type_kind_ord_at(arena, ty_ref);
+    if ((ko_c == 48 || ko_c == 49) && tk_c == 8)
+      sz = 16;
+  }
   /* leftover rest glue_type_size_simple TYPE_SLICE (11) is 16.
    * SAT extract may still report 8 — tk==11 path below is the
    * G.7 TYPE_SLICE dual-GP store, not size_simple.
