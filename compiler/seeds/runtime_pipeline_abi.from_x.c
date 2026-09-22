@@ -1795,6 +1795,10 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
   if ((i >=32)) {
     return;
   }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: dep_publish_slot begin i=%d path=%s",
+                 (int)i, import_path ? import_path : "(null)");
   (void)(({   {
     (void)(driver_dep_arena_ptr_set(i, arena));
     (void)(driver_dep_module_ptr_set(i, module));
@@ -1802,6 +1806,9 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
     (void)(driver_dep_path_registry_set(i, import_path));
   }
  }));
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: dep_publish_slot end i=%d", (int)i);
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -2479,6 +2486,9 @@ void xlang_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, voi
     int i;
     if (!ctx)
         return;
+    if (pipeline_asm_debug_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: pctx_seed_dep_slots begin n=%d", n);
     ast_pipeline_dep_ctx_reset(ctx);
     for (i = 0; i < n; i++) {
         ast_pipeline_dep_ctx_set_module(ctx, i, (struct ast_Module *)dep_mods[i]);
@@ -2489,6 +2499,9 @@ void xlang_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, voi
         }
     }
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
+    if (pipeline_asm_debug_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: pctx_seed_dep_slots end n=%d", n);
 }
 
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
@@ -3450,6 +3463,9 @@ int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, co
         if (pipeline_asm_debug_enabled())
           diag_reportf(NULL, 0, 0, "note", NULL,
                        "asm debug: dep_prerun_parse_only patch_parent_links end");
+        if (pipeline_asm_debug_enabled())
+          diag_reportf(NULL, 0, 0, "note", NULL,
+                       "asm debug: dep_prerun_parse_only returning rc=0");
     }
     return (parse_rc == 0) ? 0 : -1;
 }
@@ -5889,17 +5905,28 @@ int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_
   int32_t asm_only;
   if (!module || !arena || !out_buf || !ctx)
     return -1;
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run enter len=%zu skip_tk=%d skip_cg=%d",
+                 source_len, (int)driver_x_pipeline_skip_typeck_get(),
+                 (int)driver_x_pipeline_skip_codegen_get());
   driver_compile_phase_timing_begin(0);
   if (pipeline_run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
     driver_compile_phase_timing_end(0);
     driver_compile_phase_timing_flush();
     return -2;
   }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run after parse_entry");
   if (pipeline_run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
     driver_compile_phase_timing_end(0);
     driver_compile_phase_timing_flush();
     return run_x_pipeline_last_rc_get();
   }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run after load_deps");
   driver_compile_phase_timing_end(0);
   driver_compile_phase_timing_begin(1);
   if (pipeline_run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
@@ -5907,15 +5934,24 @@ int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_
     driver_compile_phase_timing_flush();
     return run_x_pipeline_last_rc_get();
   }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run after typeck");
   driver_compile_phase_timing_end(1);
   check_only = driver_check_only_get();
   skip_cg = driver_x_pipeline_skip_codegen_get();
   if (check_only != 0) {
     driver_compile_phase_timing_flush();
+    if (pipeline_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: pipeline_run exit check_only");
     return 0;
   }
   if (skip_cg != 0) {
     driver_compile_phase_timing_flush();
+    if (pipeline_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: pipeline_run exit skip_cg");
     return 0;
   }
   codegen_out_buf_set_len(out_buf, 0);
@@ -6016,6 +6052,13 @@ int32_t run_x_pipeline_typecheck_entry_c(void *module, void *arena, void *ctx) {
    * XLANG_ASM_BUILD_SKIP_TYPECK → dep_prerun only; else full typeck. */
   if (!module || !arena || !ctx)
     return -1;
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: typecheck_entry skip_tk=%d skip_cg=%d imports=%d build_skip=%d",
+                 (int)driver_x_pipeline_skip_typeck_get(),
+                 (int)driver_x_pipeline_skip_codegen_get(),
+                 (int)parser_get_module_num_imports(module),
+                 (int)pipeline_driver_asm_build_skip_typeck());
   if (driver_x_pipeline_skip_typeck_get() != 0) {
     if (parser_get_module_num_imports(module) == 0 && driver_x_pipeline_skip_codegen_get() != 0)
       return pipeline_typeck_entry_module_c(module, arena, ctx);
@@ -50821,10 +50864,16 @@ void pipeline_dep_ctx_free_source_buffers(struct ast_PipelineDepCtx *ctx) {
 void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx) {
   if (!ctx)
     return;
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: dep_ctx_heap_destroy begin");
   /* same-TU: pipeline_dep_ctx_sidecar_release in ast_pool.c */
   pipeline_dep_ctx_sidecar_release(ctx);
   pipeline_dep_ctx_free_source_buffers(ctx);
   free(ctx);
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: dep_ctx_heap_destroy end");
 }
 
 /** pipeline.x：返回 loaded_buf 首地址，供 fs_read 等 *u8 API。 */
@@ -58041,12 +58090,15 @@ void glue_fill_var_block_refs_c(void *a, int32_t block_ref) {
   int32_t n;
   int32_t er;
   W277_Block *b;
+  int32_t fill_steps = 0;
   if (!a || block_ref <= 0)
     return;
   sp = 0;
   stack_blk[sp] = block_ref;
   sp++;
   while (sp > 0) {
+    if (fill_steps++ > 4096)
+      break;
     sp--;
     cur = stack_blk[sp];
     if (cur <= 0 || cur > w277_as_arena(a)->num_blocks)
