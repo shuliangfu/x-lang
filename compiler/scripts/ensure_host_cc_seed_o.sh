@@ -9088,6 +9088,10 @@ pipeline_abi_inject_block_final_expr_thin() {
 # `-backend asm -c` is T=1 U=7 (no T001). HARD BAN product PREFER of this
 # simplified exit (Path A–C stay on leftover). Stamp-exists skip even if
 # .x is newer so the unsafe wrap cannot first-win as PREFER_ASM.
+# wave753: classify thin frame. Live = leftover gcc W (Darwin weak sub
+#   #0x260 / LINUX W endbr64 sub $0x1e8 size 0x1a7e). Standalone -c still
+#   smash (sub $0xaa8 / #0xab0). Stamp skip correct. Do NOT re-PREFER.
+#   Do NOT gcc -E as the repair. Not leftover-first.
 # MACOS stamp-only keep overlay. Do not un-BAN arr_return Soft-Cap.
 # G.7 mega pipeline_asm_emit_return_elf_impl EXIT. PLATFORM: SHARED.
 pipeline_abi_inject_return_elf_impl_thin() {
@@ -9099,7 +9103,7 @@ pipeline_abi_inject_return_elf_impl_thin() {
   case "$(uname -s)" in
     Darwin)
       # PLATFORM: MACOS — overlay already runs return-in-if=7.
-      # wave740: stamp-exists skip even if .x is newer (HARD BAN PREFER).
+      # wave740/753: stamp-exists skip even if .x is newer (HARD BAN PREFER).
       if [ -f "$stamp_e" ]; then
         touch "$stamp_ban"
         log "pipeline_abi w740-return-elf-impl: MACOS keep prior overlay; HARD BAN PREFER"
@@ -9112,7 +9116,7 @@ pipeline_abi_inject_return_elf_impl_thin() {
       ;;
     Linux)
       # PLATFORM: LINUX — keep leftover gcc W overlay (run=7).
-      # wave740: do not PREFER_ASM this simplified exit even if .x is newer.
+      # wave740/753: do not PREFER_ASM this simplified exit even if .x is newer.
       # Missing stamp (cold) still -E replaces smash T; PREFER_ASM stays 0.
       if [ -f "$stamp_e" ]; then
         touch "$stamp_ban"

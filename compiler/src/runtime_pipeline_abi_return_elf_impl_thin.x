@@ -14,6 +14,13 @@
 // `let x=call(); if` UND-drop is green both ends; this thin is T=1 U=7
 // after the wrap. Do not product-PREFER this simplified exit (leftover
 // gcc W already run=7; Path A–C stay on leftover).
+// wave753: classify thin frame — NOT leftover-wipe. Live unique is leftover
+//   gcc W pipeline_asm_emit_return_elf_impl (Darwin weak sub #0x260 /
+//   LINUX W endbr64 sub $0x1e8 size 0x1a7e). Stamp skip keeps that W.
+//   Standalone -c T=1 U=7 nsects=1 still smash (Darwin sub #0xab0 /
+//   LINUX push+sub $0xaa8, no endbr64). Re-PREFER would dest-overwrite
+//   healthy leftover W with smash T. HARD BAN PREFER remains. Do not
+//   gcc -E as the repair. Do not leftover-first.
 // PLATFORM: SHARED · LINUX gold · MACOS.
 
 export extern function pipeline_asm_ctx_layout(ctx: *u8): *u8;
