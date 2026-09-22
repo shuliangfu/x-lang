@@ -4151,12 +4151,18 @@ ensure_pipeline_abi_prefer_one() {
         return 0
       fi
       log "pipeline_abi prefer: Windows egg-thin host-cc $win_e → $o"
+      # Strip mmap/munmap externs that clash with win32_compat.h inline shims.
+      win_e_fix="$(mktemp "${TMPDIR:-/tmp}/pabi_win_e.XXXXXX")"
+      sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_e" >"$win_e_fix" \
+        || { rm -f "$win_e_fix"; return 1; }
       # shellcheck disable=SC2086
-      if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE            $(host_cc_win_compat_cflags) -c -o "$o" "$win_e"; then
+      if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+           $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$o" "$win_e_fix"; then
         echo "ensure_host_cc_seed_o: Windows egg-thin cc failed for $o" >&2
+        rm -f "$win_e_fix"
         return 1
       fi
-      win_sz=$(wc -c <"$o" | tr -d ' ')
+      rm -f "$win_e_fix"
       log "prefer Windows egg-thin $o <- $win_e (${win_sz:-0}B)"
       return 0
     fi
