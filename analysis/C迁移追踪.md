@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · Win PE egg ✅；B-hybrid ✅；Win L2 **4/5**（rv＋opt102＋hello＋f32）🟡；opt＝**102** ✅；si T001 🟡；**三端硬闸仍未启用** 🟡 · tip `d27f0b00a` · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-22 · 状态债 · Win PE egg ✅；B-hybrid ✅；Win L2 **5/5**（rv＋opt102＋hello＋si＋f32）🟡；**三端硬闸仍未启用** 🟡 · tip `89d99eb0c` · 钉盘 **`ecdb5cc1e`**
 
 ### 维护约定
 
@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 产品链已退役；冷孪生／`.inc` 仍开 |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 |
-| Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **4/5**（rv＋opt102＋hello＋f32）＠`d27f0b00a`；opt＝**102** ✅；si T001 🟡；**三端硬闸仍未启用** 🟡 |
+| Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**＠`89d99eb0c`（hello lea rcx＋assign_var 解 stub＋PE `core/types/types.o`）；Darwin／Ubuntu 抽验 5/5；**三端硬闸仍未启用** 🟡 |
 | 语言能力 L2（阶段 10） | 🟡 | 主面 ✅；残 NT／MSVC／qemu／Win 实机 |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；终局／零 cc CI 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
@@ -187,7 +187,7 @@
 
 - 🟡 **11.1.1–11.1.6** 依赖图／调度／平台／链接／`build.x`／吞并 g05 — 终局未完  
 - ⬜ **11.2.1** stage1→2→3 编排 + 自动 v2==v3  
-- 🟡 **11.2.4** Windows／MSYS2 冷底座（g05＋crt0）✅；PE egg＋B-hybrid ✅；默认 asm **3/5**（rv＋hello＋f32）🟡；opt 建链 ✅／run=-2 ABI 🟡；si T001 🟡；**三端硬闸仍未启用** ⬜  
+- 🟡 **11.2.4** Windows／MSYS2 冷底座（g05＋crt0）✅；PE egg＋B-hybrid ✅；默认 asm **5/5**＠`89d99eb0c` 🟡；**三端硬闸仍未启用** ⬜  
 - ⬜ **11.3.3** 其它 make 碎片（含 tree-sitter）  
 - ⬜ **11.3.4** 「无 make + 无 cc」CI 闸门  
 - 🟡 **11.4.5** docker 仍装 gcc／make  

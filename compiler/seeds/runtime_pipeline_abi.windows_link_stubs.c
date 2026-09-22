@@ -279,7 +279,54 @@ int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t e
                                           int32_t ta) {
   return pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -1);
 }
-int32_t glue_emit_assign_var_elf_c() { return -1; }
+/* VAR assign: real leftover body (was return -1 → si/if-assign CG002).
+ * FIELD/INDEX/DEREF still stub until their windows_e peers land; si uses VAR dest.
+ * PLATFORM: WINDOWS leftover-PE. Full twin: seeds/win_assign_var_override.c */
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_store_eax_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t glue_slice_dual_gp_length_off_c(int32_t data_home, int32_t ta);
+extern int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx, int32_t ty_ref,
+                                                    int32_t slot_off, int32_t ta, int32_t init_ref, void *ctx);
+extern void *glue_emit_module_from_ctx(void *ctx);
+
+int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
+                                  int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t off;
+  int32_t ltr;
+  int32_t ltk;
+  int32_t ako;
+  if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
+  if (off < 0)
+    return -1;
+  ako = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ako != 28)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+  ltk = (ltr > 0) ? pipeline_type_kind_ord_at(arena, ltr) : 0;
+  if (ltk == 11) {
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+      return -1;
+    if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, glue_slice_dual_gp_length_off_c(off, ta), ta) != 0)
+      return -1;
+  } else if (ltr > 0 && ltk == 14) {
+    if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, ta) != 0)
+      return -1;
+  } else if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, ltr, off, ta,
+                                                right_ref, ctx) != 0) {
+    return -1;
+  }
+  return 0;
+}
 int32_t glue_emit_assign_field_elf_c() { return -1; }
 int32_t glue_emit_assign_index_elf_c() { return -1; }
 int32_t glue_emit_assign_deref_elf_c() { return -1; }
