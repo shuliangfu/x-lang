@@ -50,7 +50,7 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
   dest_in_rbx = (stack_slot_off == -3) ? 1 : 0;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
   if (ko == 45) {
-    /* STRUCT_LIT: leave to existing twin / fallthrough (pipeline_asm_emit_struct_let_init stub=-1) */
+    /* STRUCT_LIT: leave to existing twin / fallthrough (pipeline_asm_emit_struct_let_init Class U real) */
     return -2;
   }
   if (ko == 48 || ko == 49) {
@@ -103,7 +103,7 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
   return -2;
 }
 int32_t glue_emit_vector_type_let_init_elf_c() { return -2; } /* -2 not-handled: scalar let falls through */
-int32_t pipeline_asm_emit_struct_let_init_elf_c() { return -1; }
+/* Class U: pipeline_asm_emit_struct_let_init_elf_c defined after struct_lit_fields below. */
 /* Prior stub returned -1 → Option STRUCT_LIT (`none_i32` etc) CG002 code_len=12.
  * G.7 twin of leftover_emit_struct_lit_into_parked_rbx + array_lit stack home.
  * PE stubs merge last (last-wins) — real body must live here. PLATFORM: WINDOWS leftover-PE. */
@@ -279,6 +279,18 @@ int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t e
                                           int32_t ta) {
   return pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, expr_ref, ctx, ta, -1);
 }
+
+/* wave770 Class U: STRUCT_LIT let-init was return -1; forward to fields body.
+ * Twin of FROM_X thin wrapper. PLATFORM: WINDOWS leftover-PE. */
+int32_t pipeline_asm_emit_struct_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref,
+                                               void *ctx, int32_t ta, int32_t stack_slot_off) {
+  if (!arena || !elf_ctx || !ctx || init_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) != 45)
+    return -1;
+  return pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+}
+
 /* VAR assign: real leftover body (was return -1 → si/if-assign CG002).
  * FIELD/INDEX/DEREF still stub until their windows_e peers land; si uses VAR dest.
  * PLATFORM: WINDOWS leftover-PE. Full twin: seeds/win_assign_var_override.c */
