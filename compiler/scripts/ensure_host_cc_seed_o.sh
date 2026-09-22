@@ -4139,31 +4139,95 @@ ensure_pipeline_abi_prefer_one() {
   # Merge rest-first so tip FROM_X wins overlaps; leftover fills missing twins.
   # POSIX (Linux gold / Darwin): FORCE hybrid -E stays the product path.
   if pipeline_abi_windows_leftover_pe_cannot_e; then
-    local win_rest win_thin win_sz win_e
-    # PLATFORM: WINDOWS — committed Darwin -E thin (windows_e.c) is the PE-egg
-    # substitute for this leaf: full product bodies, no FROM_X dual-decl hybrid.
+    local win_rest win_thin win_sz win_e win_egg_o win_e_tmp
+    # PLATFORM: WINDOWS — PE-egg substitute = Darwin -E thin (windows_e.c)
+    # product bodies + FROM_X rest (Cap trampolines / #ifndef FROM_X twins).
+    # Egg alone leaves ~300 Cap/twin UNDEFs; rest alone misses mega product
+    # bodies. Merge rest-first (allow-multiple) so Cap/twins win overlaps.
     win_e="seeds/runtime_pipeline_abi.windows_e.c"
     if [ -f "$win_e" ]; then
       mkdir -p "$(dirname "$o")"
-      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$win_e" -nt "$o" ]; then
+      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$win_e" -nt "$o" ] \
+        && [ ! "$seed" -nt "$o" ]; then
         win_sz=$(wc -c <"$o" | tr -d ' ')
-        log "pipeline_abi prefer: keep Windows egg-thin $o (${win_sz}B) vs $win_e"
-        return 0
+        # Merged egg+rest is ~2MB; bare egg ~1MB — keep only merged.
+        if [ -n "$win_sz" ] && [ "$win_sz" -gt 1500000 ]; then
+          log "pipeline_abi prefer: keep Windows egg+FROM_X $o (${win_sz}B)"
+          return 0
+        fi
       fi
-      log "pipeline_abi prefer: Windows egg-thin host-cc $win_e → $o"
+      log "pipeline_abi prefer: Windows egg+FROM_X host-cc $win_e + $seed → $o"
+      win_e_tmp="$(mktemp "${TMPDIR:-/tmp}/pabi_win_e.XXXXXX")"
+      win_egg_o="$(mktemp "${TMPDIR:-/tmp}/pabi_win_egg.XXXXXX")"
+      win_rest="$(mktemp "${TMPDIR:-/tmp}/pabi_win_rest.XXXXXX")"
       # Strip mmap/munmap externs that clash with win32_compat.h inline shims.
-      win_e_fix="$(mktemp "${TMPDIR:-/tmp}/pabi_win_e.XXXXXX")"
-      sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_e" >"$win_e_fix" \
-        || { rm -f "$win_e_fix"; return 1; }
+      sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_e" >"$win_e_tmp" \
+        || { rm -f "$win_e_tmp" "$win_egg_o" "$win_rest"; return 1; }
       # shellcheck disable=SC2086
       if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
-           $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$o" "$win_e_fix"; then
+           $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$win_egg_o" "$win_e_tmp"; then
         echo "ensure_host_cc_seed_o: Windows egg-thin cc failed for $o" >&2
-        rm -f "$win_e_fix"
+        rm -f "$win_e_tmp" "$win_egg_o" "$win_rest"
         return 1
       fi
-      rm -f "$win_e_fix"
-      log "prefer Windows egg-thin $o <- $win_e (${win_sz:-0}B)"
+      rm -f "$win_e_tmp"
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+           -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
+           -DXLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC \
+           $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$win_rest" "$seed"; then
+        echo "ensure_host_cc_seed_o: Windows FROM_X rest cc failed for $o" >&2
+        rm -f "$win_egg_o" "$win_rest"
+        return 1
+      fi
+      if ! pure_ld_partial_merge "$o" "$win_rest" "$win_egg_o"; then
+        echo "ensure_host_cc_seed_o: Windows egg+FROM_X merge failed for $o" >&2
+        rm -f "$win_egg_o" "$win_rest"
+        return 1
+      fi
+      rm -f "$win_egg_o" "$win_rest"
+      # Thin windows_e extras first (real bodies), then weak stubs last.
+      for win_extra in         seeds/runtime_pipeline_abi_elf_ctx.windows_e.c         seeds/runtime_pipeline_abi_assign_emit.windows_e.c         seeds/runtime_pipeline_abi_modlet.windows_e.c         seeds/runtime_pipeline_abi_asm_wpo.from_x.c; do
+        [ -f "$win_extra" ] || continue
+        win_xo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_x.XXXXXX")"
+        win_xt="$(mktemp "${TMPDIR:-/tmp}/pabi_win_xt.XXXXXX")"
+        win_mo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_mo.XXXXXX")"
+        sed -e "/extern .*[ ]munmap(/d" -e "/extern .*[ ]mmap(/d" "$win_extra" >"$win_xt"           || { rm -f "$win_xo" "$win_xt" "$win_mo"; return 1; }
+        # shellcheck disable=SC2086
+        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE              $(host_cc_win_compat_cflags) -Wno-pointer-sign -c -o "$win_xo" "$win_xt"; then
+          echo "ensure_host_cc_seed_o: Windows extra cc failed: $win_extra" >&2
+          rm -f "$win_xo" "$win_xt" "$win_mo"
+          return 1
+        fi
+        rm -f "$win_xt"
+        if ! pure_ld_partial_merge "$win_mo" "$o" "$win_xo"; then
+          echo "ensure_host_cc_seed_o: Windows extra merge failed: $win_extra" >&2
+          rm -f "$win_xo" "$win_mo"
+          return 1
+        fi
+        mv -f "$win_mo" "$o"
+        rm -f "$win_xo"
+      done
+      win_stub="seeds/runtime_pipeline_abi.windows_link_stubs.c"
+      if [ -f "$win_stub" ]; then
+        win_stub_o="$(mktemp "${TMPDIR:-/tmp}/pabi_win_stub.XXXXXX")"
+        win_mo="$(mktemp "${TMPDIR:-/tmp}/pabi_win_mo.XXXXXX")"
+        # shellcheck disable=SC2086
+        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc $(host_cc_win_compat_cflags)              -c -o "$win_stub_o" "$win_stub"; then
+          echo "ensure_host_cc_seed_o: Windows link-stubs cc failed for $o" >&2
+          rm -f "$win_stub_o" "$win_mo"
+          return 1
+        fi
+        if ! pure_ld_partial_merge "$win_mo" "$o" "$win_stub_o"; then
+          echo "ensure_host_cc_seed_o: Windows link-stubs merge failed for $o" >&2
+          rm -f "$win_stub_o" "$win_mo"
+          return 1
+        fi
+        mv -f "$win_mo" "$o"
+        rm -f "$win_stub_o"
+      fi
+      win_sz=$(wc -c <"$o" | tr -d ' ')
+      log "prefer Windows egg+FROM_X+extras $o (${win_sz:-0}B)"
       return 0
     fi
     win_thin="build_asm/pipeline_glue_standalone.o"
