@@ -16,19 +16,13 @@
  */
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"
 #include "diag.h"
 
-/* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
- * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
- * PLATFORM: SHARED orch / host getenv residual via single face.
- * Compiler-only TU (parser thin glue) — not in user STD_AND_PANIC bag. */
-extern char *link_abi_getenv(const char *name);
+/* Class AE: Cap TRACE getenv/fprintf face removed from arena_expr_set. */
 
 struct parser_asm_token {
   int32_t kind;
@@ -191,78 +185,13 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
 /* primary_slice.inc 期望 static set/zeros 同 TU（mega 中亦为 static）。 */
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae) {
   struct ast_Expr e;
-  const char *trace_name;
-  const char *trace_type;
-  int trace_ty;
-  int trace_hit;
   memcpy(&e, &ae, sizeof(e));
-  trace_name = link_abi_getenv("XLANG_TRACE_EXPR_NAME");
-  trace_type = link_abi_getenv("XLANG_TRACE_TYPE_REF");
-  trace_ty = 0;
-  trace_hit = 0;
-  if (trace_name && *trace_name && e.var_name_len > 0) {
-    size_t want_len = strlen(trace_name);
-    if ((int32_t)want_len == e.var_name_len && want_len < sizeof(e.var_name) &&
-        memcmp(e.var_name, trace_name, want_len) == 0)
-      trace_hit = 1;
-  }
-  if (trace_type && *trace_type) {
-    trace_ty = atoi(trace_type);
-    if (trace_ty != 0 && e.resolved_type_ref == trace_ty)
-      trace_hit = 1;
-  }
-  if (trace_hit) {
-    fprintf(stderr,
-            "note: parser expr watch: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d name=%.*s\n",
-            (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref, (int)e.binop_left_ref,
-            (int)e.binop_right_ref, (int)e.var_name_len, (int)e.var_name_len, (const char *)e.var_name);
-  }
+  /* Class AE: Cap TRACE watch (link_abi_getenv + fprintf) removed — mirror foundation Class AD. */
   ast_arena_expr_set(arena, ref, e);
 }
 
-static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
-  if (!e)
-    return;
-  e->resolved_type_ref = 0;
-  e->binop_left_ref = 0;
-  e->binop_right_ref = 0;
-  e->unary_operand_ref = 0;
-  e->if_cond_ref = 0;
-  e->if_then_ref = 0;
-  e->if_else_ref = 0;
-  e->block_ref = 0;
-  e->match_matched_ref = 0;
-  e->match_arm_base = 0;
-  e->match_num_arms = 0;
-  e->match_arm_base = 0;
-  e->enum_variant_tag = 0;
-  e->field_access_base_ref = 0;
-  e->field_access_field_len = 0;
-  e->field_access_is_enum_variant = 0;
-  e->field_access_offset = 0;
-  e->index_base_ref = 0;
-  e->index_index_ref = 0;
-  e->index_base_is_slice = 0;
-  e->call_callee_ref = 0;
-  e->call_arg_base = 0;
-  e->call_num_args = 0;
-  e->call_num_type_args = 0;
-  e->method_call_base_ref = 0;
-  e->method_call_name_len = 0;
-  e->method_call_arg_base = 0;
-  e->method_call_num_args = 0;
-  e->const_folded_val = 0;
-  e->const_folded_valid = 0;
-  e->index_proven_in_bounds = 0;
-  e->struct_lit_field_base = 0;
-  e->struct_lit_num_fields = 0;
-  e->array_lit_elem_base = 0;
-  e->array_lit_num_elems = 0;
-  e->as_operand_ref = 0;
-  e->as_target_type_ref = 0;
-  e->call_resolved_func_index = -1;
-  e->call_resolved_dep_index = -1;
-}
+/* Class AE: zeros authority = pthin_foundation.x (P20b) / foundation seed; no per-slice host-cc twin. */
+void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);

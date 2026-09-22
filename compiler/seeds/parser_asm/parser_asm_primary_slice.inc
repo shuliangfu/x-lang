@@ -190,8 +190,9 @@ static int32_t parser_asm_alloc_float_lit_c(void *arena, double fval) {
 }
 
 static int parser_asm_suffix_debug_enabled(void) {
-  const char *v = getenv("XLANG_PARSER_ASM_DEBUG");
-  return v && *v && *v != '0';
+  /* Class AE: Cap getenv debug gate retired (always off). Cold #else suffix loop
+   * still calls this; product BODIES path uses .x suffix without Cap IO. */
+  return 0;
 }
 
 #ifndef XLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X

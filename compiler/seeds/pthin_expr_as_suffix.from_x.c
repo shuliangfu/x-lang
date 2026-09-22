@@ -259,49 +259,8 @@ static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_
   ast_arena_expr_set(arena, ref, e);
 }
 
-static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
-  if (!e)
-    return;
-  e->resolved_type_ref = 0;
-  e->binop_left_ref = 0;
-  e->binop_right_ref = 0;
-  e->unary_operand_ref = 0;
-  e->if_cond_ref = 0;
-  e->if_then_ref = 0;
-  e->if_else_ref = 0;
-  e->block_ref = 0;
-  e->match_matched_ref = 0;
-  e->match_arm_base = 0;
-  e->match_num_arms = 0;
-  e->match_arm_base = 0;
-  e->enum_variant_tag = 0;
-  e->field_access_base_ref = 0;
-  e->field_access_field_len = 0;
-  e->field_access_is_enum_variant = 0;
-  e->field_access_offset = 0;
-  e->index_base_ref = 0;
-  e->index_index_ref = 0;
-  e->index_base_is_slice = 0;
-  e->call_callee_ref = 0;
-  e->call_arg_base = 0;
-  e->call_num_args = 0;
-  e->call_num_type_args = 0;
-  e->method_call_base_ref = 0;
-  e->method_call_name_len = 0;
-  e->method_call_arg_base = 0;
-  e->method_call_num_args = 0;
-  e->const_folded_val = 0;
-  e->const_folded_valid = 0;
-  e->index_proven_in_bounds = 0;
-  e->struct_lit_field_base = 0;
-  e->struct_lit_num_fields = 0;
-  e->array_lit_elem_base = 0;
-  e->array_lit_num_elems = 0;
-  e->as_operand_ref = 0;
-  e->as_target_type_ref = 0;
-  e->call_resolved_func_index = -1;
-  e->call_resolved_dep_index = -1;
-}
+/* Class AE: zeros authority = pthin_foundation.x (P20b) / foundation seed; no per-slice host-cc twin. */
+void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
