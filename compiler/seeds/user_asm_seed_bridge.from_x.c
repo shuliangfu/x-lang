@@ -736,7 +736,7 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
         if (pipeline_codegen_dep_skip_asm_user_std_misc(dep_path_buf) != 0)
           continue;
         /* PLATFORM: SHARED — core.fmt/types/option/result skip co-emit when
-         * formal core/*.o exists (Darwin/Ubuntu). WINDOWS PE has no those
+         * formal core PE objects exist (Darwin/Ubuntu). WINDOWS PE has no those
          * objects: do not skip in-tree core or option stays U core_option_*. */
         if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
