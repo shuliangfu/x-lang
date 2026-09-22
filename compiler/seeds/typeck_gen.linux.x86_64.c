@@ -14429,8 +14429,11 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
  }) : 0);
       }
       ((typeck_check_expr(module, arena, ld_ir, init_ctx, ctx) !=0) ? ({
-  fprintf(stderr, "xlang: WINDBG_LET check_expr fail idx=%d ld_ir=%d ld_tr=%d init_ctx=%d\n",
-    (int)idx, (int)ld_ir, (int)ld_tr, (int)init_ctx);
+  fprintf(stderr, "xlang: WINDBG_LET check_expr fail idx=%d ld_ir=%d ld_tr=%d init_ctx=%d ek=%d tk=%d lname=%.*s\n",
+    (int)idx, (int)ld_ir, (int)ld_tr, (int)init_ctx,
+    (int)pipeline_expr_kind_ord_at(arena, ld_ir),
+    (int)(ld_tr>0?pipeline_type_kind_ord_at(arena, ld_tr):-1),
+    (int)((lname_len>0&&lname_len<40)?lname_len:0), (char*)lname_buf);
   return -1;
  }) : 0);
     }
