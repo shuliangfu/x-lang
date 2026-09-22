@@ -6034,11 +6034,21 @@ pipeline_abi_heal_assign_index_undef() {
   case "$u_syms" in
     *glue_emit_assign_index_array_peel_elf_c*) need_peel=1 ;;
   esac
+  local has_mid=0
+  if nm -g "$o" 2>/dev/null | grep -E ' [Tt] glue_emit_assign_index_(bulk|array|named|simd|struct_lit|generic)_elf_c' >/dev/null; then
+    has_mid=1
+  fi
   if [ "$need_setup" = "0" ] && [ "$need_resolve" = "0" ] \
-    && [ "$need_walk" = "0" ] && [ "$need_peel" = "0" ]; then
+    && [ "$need_walk" = "0" ] && [ "$need_peel" = "0" ] && [ "$has_mid" = "0" ]; then
     return 0
   fi
-  log "pipeline_abi Class P heal assign_index UNDEF (link stubs): setup=$need_setup walk=$need_walk peel=$need_peel resolve=$need_resolve"
+  if [ "$has_mid" = "1" ]; then
+    need_setup=1
+    need_resolve=1
+    need_walk=1
+    need_peel=1
+  fi
+  log "pipeline_abi Class P heal assign_index (link stubs): setup=$need_setup walk=$need_walk peel=$need_peel resolve=$need_resolve mid=$has_mid"
   # Soft-Cap -E tip bodies SEGV on Ubuntu product (w543/w546). Use fail-closed
   # C stubs for link only; live INDEX stays leftover emit_assign (w748).
   local stub_c="seeds/assign_index_undef_link_stubs.c"
