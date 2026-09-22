@@ -18,6 +18,15 @@ extern int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
 extern int32_t pipeline_asm_emit_vector_binop_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref,
                                                              void *ctx, int32_t ta, int32_t stack_slot_off,
                                                              int32_t type_ref);
+extern int32_t pipeline_asm_simd_try_inline_select_call_elf_c(void *arena, void *elf_ctx, int32_t call_ref,
+                                                             void *ctx, int32_t ta, int32_t stack_slot_off,
+                                                             int32_t type_ref);
+extern int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(void *arena, void *elf_ctx, int32_t call_ref,
+                                                              void *ctx, int32_t ta, int32_t stack_slot_off,
+                                                              int32_t type_ref);
+extern int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(void *arena, void *elf_ctx, int32_t call_ref,
+                                                            void *ctx, int32_t ta, int32_t stack_slot_off,
+                                                            int32_t type_ref);
 extern int32_t pipeline_asm_simd_try_inline_splat_call_elf_c(void *arena, void *elf_ctx, int32_t call_ref,
                                                              void *ctx, int32_t ta, int32_t stack_slot_off,
                                                              int32_t type_ref);
@@ -40,10 +49,22 @@ int32_t glue_emit_vector_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
   if (glue_is_vector_lane_scalar_binop_ko(ko))
     return pipeline_asm_emit_vector_binop_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta,
                                                          stack_slot_off, type_ref);
-  /* CALL=48 / METHOD_CALL=49 */
+  /* CALL=48 / METHOD_CALL=49 — Class Y: wire select/shuffle/fma3 */
   if (ko == 48 || ko == 49) {
     inl = pipeline_asm_simd_try_inline_splat_call_elf_c(arena, elf_ctx, init_ref, ctx, ta,
                                                         stack_slot_off, type_ref);
+    if (inl == 1)
+      return 0;
+    inl = pipeline_asm_simd_try_inline_select_call_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                        stack_slot_off, type_ref);
+    if (inl == 1)
+      return 0;
+    inl = pipeline_asm_simd_try_inline_shuffle_call_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                         stack_slot_off, type_ref);
+    if (inl == 1)
+      return 0;
+    inl = pipeline_asm_simd_try_inline_fma3_call_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                       stack_slot_off, type_ref);
     if (inl == 1)
       return 0;
     inl = pipeline_asm_simd_try_inline_binop2_call_elf_c(arena, elf_ctx, init_ref, ctx, ta,
