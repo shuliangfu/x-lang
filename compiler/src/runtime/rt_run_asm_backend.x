@@ -1099,9 +1099,13 @@ export function rt_ab_step_open_out(): i32 {
     }
   }
   if (n_deps > 0) {
+    /* pipeline_set_dep_slots / pure twin always walk 32 slots; calloc(n_deps)
+     * alone OOB-reads past the table when n_deps < 32 (Win option n_deps=1
+     * → SIGSEGV in pipeline_set_dep_slots). Match seed stack dep_arenas[32].
+     * PLATFORM: SHARED — product -o with any n_deps in 1..32. */
     unsafe {
-      da = driver_ptr_table_calloc(n_deps);
-      dm = driver_ptr_table_calloc(n_deps);
+      da = driver_ptr_table_calloc(32);
+      dm = driver_ptr_table_calloc(32);
     }
     if (da == 0 as *u8) {
       return 1;
