@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · Win PE egg ✅；B-hybrid ✅；Win L2 **5/5**（rv＋opt102＋hello＋si＋f32）🟡；**三端硬闸仍未启用** 🟡 · tip `89d99eb0c` · 钉盘 **`ecdb5cc1e`**
+> **刷新**：2026-09-22 · 状态债 · Win PE egg ✅；B-hybrid ✅；Win L2 **5/5** ✅＠`89d99eb0c`；**三端 L2 硬闸已启用** ✅＠`7edba47f4` · 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 |
 | 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 产品链已退役；冷孪生／`.inc` 仍开 |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 |
-| Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**＠`89d99eb0c`（hello lea rcx＋assign_var 解 stub＋PE `core/types/types.o`）；Darwin／Ubuntu 抽验 5/5；**三端硬闸仍未启用** 🟡 |
+| Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**＠`89d99eb0c`；Darwin／Ubuntu 5/5；**三端 L2 硬闸已启用**＠`7edba47f4` |
 | 语言能力 L2（阶段 10） | 🟡 | 主面 ✅；残 NT／MSVC／qemu／Win 实机 |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；终局／零 cc CI 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
@@ -187,7 +187,7 @@
 
 - 🟡 **11.1.1–11.1.6** 依赖图／调度／平台／链接／`build.x`／吞并 g05 — 终局未完  
 - ⬜ **11.2.1** stage1→2→3 编排 + 自动 v2==v3  
-- 🟡 **11.2.4** Windows／MSYS2 冷底座（g05＋crt0）✅；PE egg＋B-hybrid ✅；默认 asm **5/5**＠`89d99eb0c` 🟡；**三端硬闸仍未启用** ⬜  
+- ✅ **11.2.4** Windows／MSYS2：冷底座（g05＋crt0）✅；PE egg＋B-hybrid ✅；默认 asm **5/5**＠`89d99eb0c`；**三端 L2 硬闸已启用**＠`7edba47f4`（L4 真冷仍经理另派）  
 - ⬜ **11.3.3** 其它 make 碎片（含 tree-sitter）  
 - ⬜ **11.3.4** 「无 make + 无 cc」CI 闸门  
 - 🟡 **11.4.5** docker 仍装 gcc／make  
@@ -256,7 +256,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F–M**：cfg_eval／lsp sizes／stubs／host_lit／pthread stub 纯 asm（减 host-cc）。下一刀＝下一产品梯（减 host-cc）。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F–N** 已收（N＝bootstrap_init 纯 asm；rest Cap WEAK **2→0**）。**日常放行＝三端 L2 硬闸已启用**＠`7edba47f4`。下一刀＝下一产品梯真减 host-cc。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

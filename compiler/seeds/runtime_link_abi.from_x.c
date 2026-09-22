@@ -6626,6 +6626,9 @@ int xlang_forward_main_to_main_entry(int argc, char **argv) {
   return 0;
 }
 
+/* wave763 Class N: when XLANG_LABI_HOST_LIT_FROM_X, empty no-ops live in
+ * labi_host_lit.x (pure-asm); skip Cap WEAK host-cc here. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 XLANG_WEAK void bootstrap_init_static_tls(void) {
   (void)(0);
 }
@@ -6633,6 +6636,10 @@ XLANG_WEAK void bootstrap_init_static_tls(void) {
 XLANG_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
+#else
+void bootstrap_init_static_tls(void);
+void bootstrap_init_environ(int argc, char **argv);
+#endif
 
 /* PLATFORM: SHARED — pthread large-stack availability gate.
  *   POSIX (Linux/macOS): winpthreads absent; real pthreads support 256MiB
