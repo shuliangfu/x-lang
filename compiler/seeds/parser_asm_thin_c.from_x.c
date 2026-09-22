@@ -15,11 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <xlang_io_cap.h>  /* Cap residual 9.5.3: stderr debug print via Cap IO write */
-#include <xlang_fmt_cap.h> /* Cap residual 9.5.3: xlang_snprintf format authority */
-/* G.7: Cap after stdio — thin glue debug prints must not reach libc fprintf. */
-#undef snprintf
-#define snprintf xlang_snprintf
+/* Class AH: Cap IO/fmt debug includes retired (primary/glue/seed_parse Cap strips). */
 #include <stdlib.h>
 #include <string.h>
 #include "parser_asm_stretch_audit_gate.h"

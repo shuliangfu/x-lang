@@ -222,10 +222,9 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
                                                     struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
-  const char *dbg_skip;
   if (!out || !source)
     return;
-  dbg_skip = getenv("XLANG_DEBUG_SKIP_FUNC");
+  /* Class AH: XLANG_DEBUG_SKIP_FUNC Cap gate retired. */
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_header_audit_c(&lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_async_fn_prefix_audit_c(&lex, source));
   /**
@@ -1057,13 +1056,7 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
     lexer_next_into(&r, lex_cur, source);
   }
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
-    if (dbg_skip && dbg_skip[0] && dbg_skip[0] != '0') {
-      /* Cap residual 9.5.3: Cap IO debug print (was libc fprintf; PLATFORM: SHARED). */
-      { char _db[256]; int _dn = snprintf(_db, sizeof _db,
-          "note: skip function debug: no-body start_pos=%zu scan_pos=%zu tok=%d ident_len=%d\n",
-          lex.pos, lex_cur.pos, (int)r.tok.kind, (int)r.tok.ident_len);
-        if (_dn > 0) (void)xlang_io_write(2, _db, (size_t)_dn); }
-    }
+    /* Class AH: Cap skip-function no-body debug IO retired. */
     out->pos = lex_cur.pos;
     out->line = lex_cur.line;
     out->col = lex_cur.col;
@@ -1075,16 +1068,7 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_mega_full_deep_audit_c(&r.next_lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_mega_full_deep_audit_c(&lex, source));
   parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
-  if (dbg_skip && dbg_skip[0] && dbg_skip[0] != '0') {
-    struct parser_asm_lexer_result tail;
-    memset(&tail, 0, sizeof(tail));
-    lexer_next_into(&tail, *out, source);
-    /* Cap residual 9.5.3: Cap IO debug print (was libc fprintf; PLATFORM: SHARED). */
-    { char _db[256]; int _dn = snprintf(_db, sizeof _db,
-        "note: skip function debug: start_pos=%zu body_pos=%zu out_pos=%zu next_tok=%d next_ident_len=%d\n",
-        lex.pos, r.next_lex.pos, out->pos, (int)tail.tok.kind, (int)tail.tok.ident_len);
-      if (_dn > 0) (void)xlang_io_write(2, _db, (size_t)_dn); }
-  }
+  /* Class AH: Cap skip-function tail debug IO retired (was XLANG_DEBUG_SKIP_FUNC). */
 }
 
 #endif /* !XLANG_PTHIN_GLUE_BODIES_FROM_X skip_one_function_full */

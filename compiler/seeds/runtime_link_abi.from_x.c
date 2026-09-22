@@ -3244,14 +3244,7 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
       continue;
     if (memcmp(path, k[i], n) == 0 && (n == plen || path[n] == '.' || path[n] == 0)) {
       /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-      /* Cap residual 9.5.3 slice3b: debug trace via xlang_snprintf + raw fd 2. */
-      if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-        char _db[256];
-        int _dn = snprintf(_db, sizeof _db,
-                           "xlang: [link_only] hit exact/prefix key=%s path=%s -> 1\n", k[i], path);
-        if (_dn > 0)
-          (void)xlang_io_write(2, _db, (size_t)_dn);
-      }
+      /* Class AH: Cap XLANG_DEBUG_PIPE link_only hit trace retired. */
       return 1;
     }
   }
@@ -3279,14 +3272,7 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
         return 1;
     }
   }
-  /* Cap residual 9.5.3 slice3b: debug trace via xlang_snprintf (%zu now
-   * supported by the 10.7.2 fmt authority) + raw fd 2. */
-  if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-    char _db[256];
-    int _dn = snprintf(_db, sizeof _db, "xlang: [link_only] miss path=%s plen=%zu -> 0\n", path, plen);
-    if (_dn > 0)
-      (void)xlang_io_write(2, _db, (size_t)_dn);
-  }
+  /* Class AH: Cap XLANG_DEBUG_PIPE link_only miss trace retired. */
   return 0;
 }
 

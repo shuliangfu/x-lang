@@ -1004,8 +1004,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
                                                    struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
                                                    struct parser_asm_parse_expr_result *out, int32_t first_suffix) {
   enum { PARSER_ASM_SUFFIX_STALL_LIMIT = 4096 };
-  static int parser_asm_suffix_debug_calls = 0;
-  static int parser_asm_suffix_debug_iters = 0;
+  /* Class AH: Cap suffix debug counters retired. */
   struct parser_asm_parse_expr_result arg_res;
   int32_t base_ref;
   int32_t fa_ref;
@@ -1022,7 +1021,7 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   int32_t prev_pos;
   int32_t prev_tok_kind;
   int32_t stall_count;
-  int debug_enabled;
+  /* Class AH: debug_enabled retired with Cap IO. */
 
   pending_call_num_type_args = 0;
   {
@@ -1033,36 +1032,12 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
   prev_pos = -1;
   prev_tok_kind = -1;
   stall_count = 0;
-  debug_enabled = parser_asm_suffix_debug_enabled();
-  parser_asm_suffix_debug_calls++;
-  if (debug_enabled && (parser_asm_suffix_debug_calls <= 64 || (parser_asm_suffix_debug_calls % 1024) == 0)) {
-    /* Cap residual 9.5.3: Cap IO debug print (was libc fprintf; PLATFORM: SHARED). */
-    { char _db[256]; int _dn = snprintf(_db, sizeof _db, "parser_asm suffix call=%d pos=%d tok=%d line=%d col=%d first=%d expr=%d\n",
-        parser_asm_suffix_debug_calls, lex->pos, r->tok.kind, lex->line, lex->col, first_suffix, out->expr_ref);
-      if (_dn > 0) (void)xlang_io_write(2, _db, (size_t)_dn); }
-  }
+  /* Class AH: Cap suffix debug IO retired (debug_enabled was always 0). */
   for (;;) {
-    const char *branch_tag;
     if (!first_suffix)
       lexer_next_into(r, *lex, source);
     first_suffix = 0;
-    if (r->tok.kind == (int32_t)TOKEN_DOT)
-      branch_tag = "dot";
-    else if (r->tok.kind == (int32_t)TOKEN_LT)
-      branch_tag = "lt";
-    else if (r->tok.kind == (int32_t)TOKEN_LBRACKET)
-      branch_tag = "index";
-    else if (r->tok.kind == (int32_t)TOKEN_LPAREN)
-      branch_tag = "call";
-    else
-      branch_tag = "stop";
-    parser_asm_suffix_debug_iters++;
-    if (debug_enabled && (parser_asm_suffix_debug_iters % 16384) == 0) {
-      /* Cap residual 9.5.3: Cap IO debug print (was libc fprintf; PLATFORM: SHARED). */
-      { char _db[256]; int _dn = snprintf(_db, sizeof _db, "parser_asm suffix iter=%d pos=%d tok=%d branch=%s line=%d col=%d expr=%d\n",
-          parser_asm_suffix_debug_iters, lex->pos, r->tok.kind, branch_tag, lex->line, lex->col, out->expr_ref);
-        if (_dn > 0) (void)xlang_io_write(2, _db, (size_t)_dn); }
-    }
+    /* Class AH: Cap suffix iter debug IO retired (branch_tag gone with Cap). */
     if (lex->pos == prev_pos && r->tok.kind == prev_tok_kind) {
       stall_count++;
       if (stall_count >= PARSER_ASM_SUFFIX_STALL_LIMIT) {
