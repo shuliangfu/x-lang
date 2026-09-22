@@ -9967,6 +9967,9 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
  }) : 0);
       }
       /* Cap 10.7.1 slice8: exact or variadic. Twin typeck.x. */
+      (void)((np = pipeline_module_func_num_params_at(mod, fi)));
+      fprintf(stderr, "xlang: WINDBG_ARITY er=%d fi=%d dep=%d nargs=%d np=%d mod=%p\n",
+        (int)expr_ref, (int)fi, (int)dep, (int)num_args, (int)np, (void*)mod);
       if ((typeck_call_arity_compatible(mod, fi, num_args) ==0)) {
         (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
         (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
