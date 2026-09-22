@@ -1182,30 +1182,46 @@ int32_t pipeline_asm_simd_try_inline_splat_call_elf_c(void *arena, void *elf_ctx
   return 0;
 }
 /* Win PE: identity emit-order (was return -1 → mega loop 0× → CG002 empty).
- * Real asm_wpo.from_x may be clobbered by PE ld -r stub merge; these must work. */
+ * Real asm_wpo.from_x may be clobbered by PE ld -r stub merge; these must work.
+ * wave778 Class AC: prepare was empty no-op; count/at recomputed each call.
+ * Fill bounded order[] in prepare (FROM_X twin pattern; identity = non-extern
+ * order, no PGO sort). Empty stub 1→0. PLATFORM: WINDOWS. */
+#ifndef ASM_WPO_MAX_FUNCS
+#define ASM_WPO_MAX_FUNCS 4096
+#endif
 extern int32_t pipeline_module_num_funcs(void *m);
 extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
-void pipeline_asm_wpo_pgo_emit_order_prepare(void *m) { (void)m; }
-int32_t pipeline_asm_wpo_pgo_emit_order_count(void *m) {
+static int32_t g_win_pgo_emit_order[ASM_WPO_MAX_FUNCS];
+static int32_t g_win_pgo_emit_n;
+static void *g_win_pgo_emit_mod;
+void pipeline_asm_wpo_pgo_emit_order_prepare(void *m) {
   int32_t nf, fi, n = 0;
-  if (!m) return 0;
-  nf = pipeline_module_num_funcs(m);
-  for (fi = 0; fi < nf; fi++) {
-    if (pipeline_asm_module_func_is_extern_at(m, fi) == 0)
-      n++;
-  }
-  return n;
-}
-int32_t pipeline_asm_wpo_pgo_emit_order_at(void *m, int32_t order_index) {
-  int32_t nf, fi, n = 0;
-  if (!m || order_index < 0) return -1;
+  g_win_pgo_emit_mod = m;
+  g_win_pgo_emit_n = 0;
+  if (!m) return;
   nf = pipeline_module_num_funcs(m);
   for (fi = 0; fi < nf; fi++) {
     if (pipeline_asm_module_func_is_extern_at(m, fi) != 0) continue;
-    if (n == order_index) return fi;
-    n++;
+    if (n < ASM_WPO_MAX_FUNCS) {
+      g_win_pgo_emit_order[n] = fi;
+      n++;
+    }
   }
-  return -1;
+  g_win_pgo_emit_n = n;
+}
+int32_t pipeline_asm_wpo_pgo_emit_order_count(void *m) {
+  if (!m) return 0;
+  if (m != g_win_pgo_emit_mod)
+    pipeline_asm_wpo_pgo_emit_order_prepare(m);
+  return g_win_pgo_emit_n;
+}
+int32_t pipeline_asm_wpo_pgo_emit_order_at(void *m, int32_t order_index) {
+  if (!m || order_index < 0) return -1;
+  if (m != g_win_pgo_emit_mod)
+    pipeline_asm_wpo_pgo_emit_order_prepare(m);
+  if (order_index >= g_win_pgo_emit_n || order_index >= ASM_WPO_MAX_FUNCS)
+    return -1;
+  return g_win_pgo_emit_order[order_index];
 }
 /* add_sym/add_label/ensure_label/add_common_sym: NOT stubbed.
  * Stubs merge last and were clobbering elf_ctx.windows_e real bodies
