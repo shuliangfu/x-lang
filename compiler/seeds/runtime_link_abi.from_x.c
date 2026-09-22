@@ -878,18 +878,9 @@ void link_diag_ld_debug_push(const char *rel, const char *stage, const char *pat
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* Cap residual：ld_debug_argv char** 遍历 🔒 常驻 _impl（L1 .x thin 转发） */
 void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv) {
-    int di;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "ld debug: %s",
-                 label ? label : "argv");
-    if (!argv)
-        return;
-    for (di = 0; argv[di] != NULL; di++) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "ld debug argv[%d]=%s",
-                     di,
-                     argv[di]);
-    }
+    /* Class AK: Cap XLANG_DEBUG_LD argv dump retired. */
+    (void)label;
+    (void)argv;
 }
 #ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
@@ -4863,19 +4854,11 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out) {
     const char *p = NULL;
-    int debug_runtime_obj = 0;
     if (!la || *la >= max_la - 1)
         return 0;
-    if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
-            || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
-        debug_runtime_obj = 1;
-    /* wave223 G.7: link_abi_getenv (not raw getenv). */
-    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
+    /* Class AK: XLANG_DEBUG_LD Cap notes retired (mirror thin). */
     if (primary && primary[0])
         p = asm_link_obj_skip_missing(primary);
-    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
     if (!p && rel && rel[0])
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, rel));
     if (!p && bank && rel && rel[0])
@@ -4890,8 +4873,6 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
         else
             return 0;
     }
-    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;
     argv[(*la)++] = p;
@@ -5199,8 +5180,7 @@ static int labi_linux_hosted_ld_finish_and_spawn(const char **argv, int *la, int
         return -1;
     }
     argv[*la] = NULL;
-    if (debug_tag != NULL && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_argv(debug_tag, argv);
+    /* Class AK: XLANG_DEBUG_LD argv dump retired. */
     xlang_linux_ld_child_path();
     rc = xlang_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
     if (rc != 0) {
@@ -6190,8 +6170,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
 #endif
         argv[la] = NULL;
         /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-        if (link_abi_getenv("XLANG_DEBUG_LD"))
-            link_diag_ld_debug_argv("ld argv", argv);
+        /* Class AK: XLANG_DEBUG_LD argv dump retired. */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
             intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);

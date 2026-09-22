@@ -206,15 +206,10 @@ void link_diag_freestanding_unsupported(void) {
 }
 
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
-  char msg[320];
-  msg[0] = 0;
-  labi_diag_append_c(msg, (int)sizeof(msg), "ld debug: push ");
-  labi_diag_append_c(msg, (int)sizeof(msg), rel ? rel : "(null)");
-  labi_diag_append_c(msg, (int)sizeof(msg), " ");
-  labi_diag_append_c(msg, (int)sizeof(msg), stage ? stage : "path");
-  labi_diag_append_c(msg, (int)sizeof(msg), "=");
-  labi_diag_append_c(msg, (int)sizeof(msg), path ? path : "(null)");
-  diag_report_with_code(NULL, 0, 0, "note", NULL, msg, NULL);
+  /* Class AK: XLANG_DEBUG_LD push note retired (mirror thin). */
+  (void)rel;
+  (void)stage;
+  (void)path;
 }
 
 void link_diag_ld_debug_argv(const char *label, const char *const *argv) {

@@ -657,7 +657,7 @@ export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32
  * Pure orch: capacity + pure cstr debug-target match + resolve ladder + hard bank_push +
  * pure has_obj dedup + append (reuses wave147 push_stable with bank=null after hard bank).
  * Cap residual: asm_link_obj_skip_missing, xlang_rel_o_path_from_argv0, xlang_asm_ld_bank_push,
- * link_abi_getenv("XLANG_DEBUG_LD") + link_diag_ld_debug_push for two runtime .o rels.
+ * Class AK: XLANG_DEBUG_LD + link_diag_ld_debug_push retired from this orch.
  * Pure peer: xlang_asm_ld_try_under_lib_roots (wave116), link_abi_asm_ld_argv_has_obj (146),
  * link_abi_asm_ld_argv_push_stable (147).
  * Why (wave148): hybrid still had always-mega C body over pure resolve/dedup leaves.
@@ -676,65 +676,8 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (cur >= max_la - 1) {
     return 0;
   }
-  // Pure: mark debug targets for XLANG_DEBUG_LD (two known runtime .o rels ≡ mega strcmp).
-  let debug_runtime_obj: i32 = 0;
-  if (rel != 0 as *u8) {
-    let t1: *u8 = "compiler/runtime_asm_io_stubs.o";
-    let t2: *u8 = "compiler/runtime_process_argv.o";
-    let eq1: i32 = 1;
-    let i1: i32 = 0;
-    while (i1 < 1048576) {
-      let ca: u8 = rel[i1];
-      let cb: u8 = t1[i1];
-      if (ca != cb) {
-        eq1 = 0;
-        break;
-      }
-      if (ca == 0) {
-        break;
-      }
-      i1 = i1 + 1;
-    }
-    if (eq1 != 0) {
-      debug_runtime_obj = 1;
-    }
-    if (debug_runtime_obj == 0) {
-      let eq2: i32 = 1;
-      let i2: i32 = 0;
-      while (i2 < 1048576) {
-        let ca2: u8 = rel[i2];
-        let cb2: u8 = t2[i2];
-        if (ca2 != cb2) {
-          eq2 = 0;
-          break;
-        }
-        if (ca2 == 0) {
-          break;
-        }
-        i2 = i2 + 1;
-      }
-      if (eq2 != 0) {
-        debug_runtime_obj = 1;
-      }
-    }
-  }
-  // Cap residual debug note: primary stage (only when env XLANG_DEBUG_LD set).
-  // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
-  if (debug_runtime_obj != 0) {
-    let dbg: *u8 = 0 as *u8;
-    unsafe {
-      dbg = link_abi_getenv("XLANG_DEBUG_LD");
-    }
-    if (dbg != 0 as *u8) {
-      let pp: *u8 = primary;
-      if (pp == 0 as *u8) {
-        pp = "(null)";
-      }
-      unsafe {
-        link_diag_ld_debug_push(rel, "primary", pp);
-      }
-    }
-  }
+  /* Class AK: XLANG_DEBUG_LD debug-target mark retired. */
+  /* Class AK: Cap XLANG_DEBUG_LD primary note retired. */
   // Resolve ladder: primary → argv0/rel → lib roots (Cap residual skip + rel_o_path).
   let p: *u8 = 0 as *u8;
   if (primary != 0 as *u8) {
@@ -744,21 +687,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
       }
     }
   }
-  if (debug_runtime_obj != 0) {
-    let dbg2: *u8 = 0 as *u8;
-    unsafe {
-      dbg2 = link_abi_getenv("XLANG_DEBUG_LD");
-    }
-    if (dbg2 != 0 as *u8) {
-      let ap: *u8 = p;
-      if (ap == 0 as *u8) {
-        ap = "(null)";
-      }
-      unsafe {
-        link_diag_ld_debug_push(rel, "after-primary", ap);
-      }
-    }
-  }
+  /* Class AK: Cap XLANG_DEBUG_LD after-primary note retired. */
   if (p == 0 as *u8) {
     if (rel != 0 as *u8) {
       if (rel[0] != 0) {
@@ -799,21 +728,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
     }
     p = bp;
   }
-  if (debug_runtime_obj != 0) {
-    let dbg3: *u8 = 0 as *u8;
-    unsafe {
-      dbg3 = link_abi_getenv("XLANG_DEBUG_LD");
-    }
-    if (dbg3 != 0 as *u8) {
-      let fp: *u8 = p;
-      if (fp == 0 as *u8) {
-        fp = "(null)";
-      }
-      unsafe {
-        link_diag_ld_debug_push(rel, "final", fp);
-      }
-    }
-  }
+  /* Class AK: Cap XLANG_DEBUG_LD final note retired. */
   // Single-authority append: wave147 push_stable with bank=null (already banked hard).
   let before: i32 = la[0];
   link_abi_asm_ld_argv_push_stable(0 as *u8, argv, la, max_la, p);
