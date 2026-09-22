@@ -13200,8 +13200,27 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
             (void)((dm = ((struct ast_Module *)alt_dm)));
           }
         }
-        (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({   (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
+        (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({
+  int32_t _nf = pipeline_module_num_funcs(dm);
+  int32_t _j;
+  int32_t _hits = 0;
+  for (_j = 0; _j < _nf && _j < 40; _j++) {
+    if (pipeline_module_func_name_equal_at(dm, _j, &((method_nm)[0]), method_nlen) != 0) {
+      _hits++;
+      fprintf(stderr, "xlang: WINDBG2 name_hit j=%d nparams=%d export=%d\n",
+        (int)_j, (int)pipeline_module_func_num_params_at(dm, _j),
+        (int)pipeline_module_func_is_export_at(dm, _j));
+    }
+  }
+  fprintf(stderr, "xlang: WINDBG2 nf=%d hits=%d method_nlen=%d\n", (int)_nf, (int)_hits, (int)method_nlen);
+  (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
   fprintf(stderr, "xlang: WINDBG2 find ret=%d fix=%d\n", (int)import_ret_ty, (int)func_ix);
+  /* also try arity-only / no call_expr */
+  {
+    int32_t r2 = 0; int32_t fi2 = -1;
+    r2 = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, 0, 0, ctx, &fi2);
+    fprintf(stderr, "xlang: WINDBG2 find_nocall ret=%d fix=%d\n", (int)r2, (int)fi2);
+  }
   ((import_ret_ty > 0) ? ({   (void)((dep_ix = dep_slot));
  }) : 0);
  }) : 0);
