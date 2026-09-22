@@ -10474,13 +10474,30 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
             int32_t _m = typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_PipelineDepCtx_ptr_reti32(dep, param_raw, arena, ctx);
             if ((_m > 0)) _pt = _m;
           }
-          fprintf(stderr, "xlang: WINDBG_SCORE er=%d ai=%d sc=%d arg_ty=%d ak=%d param_raw=%d pt=%d pk=%d ae=%d pe=%d\n",
+          fprintf(stderr, "xlang: WINDBG_SCORE er=%d ai=%d sc=%d arg_ty=%d ak=%d asz=%d param_raw=%d pt=%d pk=%d ae=%d pe=%d\n",
             (int)expr_ref, (int)ai, (int)sc, (int)_at,
             (int)(_at>0?pipeline_type_kind_ord_at(arena,_at):-1),
+            (int)(_at>0?pipeline_type_array_size_at(arena,_at):-1),
             (int)param_raw, (int)_pt,
             (int)(_pt>0?pipeline_type_kind_ord_at(arena,_pt):-1),
             (int)(_at>0?pipeline_type_elem_ref_at(arena,_at):-1),
             (int)(_pt>0?pipeline_type_elem_ref_at(arena,_pt):-1));
+          /* Raw Cap vs wave270 field probe via typeck_scratch — use pipeline_arena_type_ptr if available */
+          {
+            extern uint8_t * pipeline_arena_type_ptr(struct ast_ASTArena * a, int32_t ref);
+            uint8_t * ta = (_at>0) ? pipeline_arena_type_ptr(arena, _at) : 0;
+            uint8_t * tp = (_pt>0) ? pipeline_arena_type_ptr(arena, _pt) : 0;
+            if (ta) {
+              int32_t *i136=(int32_t*)(ta+136), *i140=(int32_t*)(ta+140), *i264=(int32_t*)(ta+264), *i268=(int32_t*)(ta+268);
+              fprintf(stderr, "xlang: WINDBG_SLOT arg t=%p @136=%d @140=%d @264=%d @268=%d\n",
+                (void*)ta, (int)(*i136), (int)(*i140), (int)(*i264), (int)(*i268));
+            }
+            if (tp) {
+              int32_t *i136=(int32_t*)(tp+136), *i264=(int32_t*)(tp+264);
+              fprintf(stderr, "xlang: WINDBG_SLOT param t=%p @136=%d @264=%d\n",
+                (void*)tp, (int)(*i136), (int)(*i264));
+            }
+          }
         }
         ((sc < 0) ? ({   if (((arg_ref > 0) && (typeck_call_arg_repr_compatible_ok(mod, arena, param_raw, arg_ref) !=0))) {
     (void)((ai = (ai + 1)));
