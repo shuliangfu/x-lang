@@ -338,6 +338,21 @@ export extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, id
 export extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
 export extern function parser_get_module_num_imports(module: *Module): i32;
 export extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
+/* Win/live-dep: prefer driver_dep_module_buf when ctx slot is stale/null. PLATFORM: SHARED. */
+export extern function typeck_driver_dep_module_buf(i: i32): *u8;
+export function typeck_live_dep_module(ctx: *PipelineDepCtx, dep_i: i32): *Module {
+  unsafe {
+    let dm: *Module = 0 as *Module;
+    if (ctx != 0 as *PipelineDepCtx && dep_i >= 0) {
+      dm = pipeline_dep_ctx_module_at(ctx, dep_i);
+    }
+    let alt: *u8 = typeck_driver_dep_module_buf(dep_i);
+    if (alt != 0 as *u8) {
+      return alt as *Module;
+    }
+    return dm;
+  }
+}
 /* See implementation. */
 export extern function pipeline_dep_ctx_set_current_func_index(ctx: *PipelineDepCtx, ix: i32): void;
 /* See implementation. */
@@ -2875,7 +2890,7 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
     let nd: i32 = pipeline_dep_ctx_ndep(ctx);
     let di: i32 = 0;
     while (di < nd) {
-      let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
+      let dm: *Module = typeck_live_dep_module(ctx, di);
       if (dm != 0 as *Module) {
         r = get_field_offset_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
         if (r >= 0) {
@@ -5918,7 +5933,7 @@ field_name_len: i32): i32 {
     let nd2: i32 = pipeline_dep_ctx_ndep(ctx);
     let di: i32 = 0;
     while (di < nd2) {
-      let dm: *Module = pipeline_dep_ctx_module_at(ctx, di);
+      let dm: *Module = typeck_live_dep_module(ctx, di);
       if (dm != 0 as *Module) {
         r = get_field_type_ref_from_layout(dm, type_name, type_name_len, field_name, field_name_len);
         if (r != 0) {
@@ -6196,7 +6211,7 @@ ctx: *PipelineDepCtx): void {
     nd_merge = pipeline_dep_ctx_ndep(ctx);
     di = 0;
     while (di < nd_merge) {
-      dm = pipeline_dep_ctx_module_at(ctx, di);
+      dm = typeck_live_dep_module(ctx, di);
       darena = pipeline_dep_ctx_arena_at(ctx, di);
       if (dm == 0 as *Module || darena == 0 as *ASTArena) {
         di = di + 1;

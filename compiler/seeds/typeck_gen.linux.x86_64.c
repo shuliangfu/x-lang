@@ -3633,7 +3633,7 @@ int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module * module, str
     int32_t nd = pipeline_dep_ctx_ndep(ctx);
     int32_t di = 0;
     while ((di < nd)) {
-      struct ast_Module * dm = pipeline_dep_ctx_module_at(ctx, di);
+      struct ast_Module * dm = typeck_live_dep_module(ctx, di);
       if ((dm !=0)) {
         (void)((r = typeck_get_field_offset_from_layout(dm, type_name, type_name_len, field_name, field_name_len)));
         ((r >=0) ? ({   return r;
@@ -5743,7 +5743,7 @@ int32_t typeck_get_field_type_ref_from_layout_deps(struct ast_Module * module, s
     int32_t nd2 = pipeline_dep_ctx_ndep(ctx);
     int32_t di = 0;
     while ((di < nd2)) {
-      struct ast_Module * dm = pipeline_dep_ctx_module_at(ctx, di);
+      struct ast_Module * dm = typeck_live_dep_module(ctx, di);
       if ((dm !=0)) {
         (void)((r = typeck_get_field_type_ref_from_layout(dm, type_name, type_name_len, field_name, field_name_len)));
         ((r !=0) ? ({   struct ast_ASTArena * da = pipeline_dep_ctx_arena_at(ctx, di);
@@ -5930,7 +5930,7 @@ void typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct 
     (void)((nd_merge = pipeline_dep_ctx_ndep(ctx)));
     (void)((di = 0));
     while ((di < nd_merge)) {
-      (void)((dm = pipeline_dep_ctx_module_at(ctx, di)));
+      (void)((dm = typeck_live_dep_module(ctx, di)));
       (void)((darena = pipeline_dep_ctx_arena_at(ctx, di)));
       if (((dm ==0) || (darena ==0))) {
         (void)((di = (di + 1)));
