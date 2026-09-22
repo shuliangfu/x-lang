@@ -53015,18 +53015,27 @@ uint8_t * pipeline_dep_ctx_module_at(uint8_t * ctx, int32_t idx) {
     return 0;
   }
   uint8_t * sc = pipe_depctx_sidecar_get(ctx, 0);
-  if ((sc ==0)) {
-    return 0;
+  uint8_t * m = 0;
+  if ((sc !=0)) {
+    uint8_t * mods = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
+    if ((idx < pipe_gv_load_len(mods))) {
+      uint8_t * pm = grow_vec_at(mods, idx);
+      if ((pm !=0)) {
+        (void)((m = pipe_load_ptr_slot(pm, 0)));
+      }
+    }
   }
-  uint8_t * mods = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_modules());
-  if ((idx >=pipe_gv_load_len(mods))) {
-    return 0;
+  /* Win PE: sidecar slot may hold a stale/offset pointer (observed base+0x50
+   * with num_funcs=0) while driver_dep_module_buf(idx) still has the parsed
+   * module (num_funcs>0). Prefer the live dep buffer so import.method typeck
+   * (option.none_i32 / types.placeholder) can resolve. */
+  if (((m ==0) || (pipeline_module_num_funcs(m) ==0))) {
+    uint8_t * alt = driver_dep_module_buf(idx);
+    if (((alt !=0) && (pipeline_module_num_funcs(alt) > 0))) {
+      return alt;
+    }
   }
-  uint8_t * pm = grow_vec_at(mods, idx);
-  if ((pm ==0)) {
-    return 0;
-  }
-  return pipe_load_ptr_slot(pm, 0);
+  return m;
 }
 uint8_t * pipeline_dep_ctx_arena_at(uint8_t * ctx, int32_t idx) {
   if (((ctx ==0) || (idx < 0))) {

@@ -14,8 +14,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <stdio.h> /* WINDBG_STDIO */
-extern uint8_t *typeck_driver_dep_module_buf(int32_t i);
 #ifndef XLANG_DYN_OBJ
 #define XLANG_DYN_OBJ
 
@@ -13180,38 +13178,18 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
     (void)((dep_ix = -1));
     (void)((func_ix = -1));
     (void)((import_ret_ty = 0));
-    /* WINDBG method import */
-    fprintf(stderr, "xlang: WINDBG method base_kind=%d base_ty=%d method_nlen=%d n_args=%d ctx=%p\n",
-            (int)base_kind, (int)base_ty, (int)method_nlen, (int)num_args, (void *)ctx);
-    if (method_nlen > 0 && method_nlen < 200) {
-      fprintf(stderr, "xlang: WINDBG method_nm=");
-      fwrite(method_nm, 1, (size_t)method_nlen, stderr);
-      fputc('\n', stderr);
-    }
     if (((ctx !=0) && (base_kind ==ord_var))) {
       (void)((base_nlen = pipeline_expr_var_name_len(arena, base_ref)));
       (((base_nlen > 0) && (base_nlen <=255)) ? ({   (void)(pipeline_expr_var_name_into(arena, base_ref, &((base_nm)[0])));
   (void)((n_imp = typeck_module_num_imports(module)));
-  fprintf(stderr, "xlang: WINDBG n_imp=%d base_nlen=%d\n", (int)n_imp, (int)base_nlen);
-  if (base_nlen > 0 && base_nlen < 64) { fprintf(stderr, "xlang: WINDBG base="); fwrite(base_nm,1,(size_t)base_nlen,stderr); fputc('\n',stderr); }
   (void)((ii = 0));
   while ((ii < n_imp)) {
     if (((pipeline_module_import_kind_at(module, ii) ==ord_import_binding) && typeck_import_binding_name_equal(module, ii, &((base_nm)[0]), base_nlen))) {
       (void)((dep_slot = typeck_resolve_dep_index_for_import(module, ctx, ii)));
-      fprintf(stderr, "xlang: WINDBG matched import ii=%d dep_slot=%d\n", (int)ii, (int)dep_slot);
       (void)((func_ix = -1));
       if ((dep_slot >=0)) {
         (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_slot)));
-        {
-          void *dbuf = (void *)typeck_driver_dep_module_buf(dep_slot);
-          int32_t *raw = (int32_t *)dm;
-          fprintf(stderr, "xlang: WINDBG dm=%p nfuncs=%d dbuf=%p dbuf_nfuncs=%d raw0=%d raw1=%d raw2=%d\n",
-            (void*)dm, dm ? (int)pipeline_module_num_funcs(dm) : -1,
-            dbuf, dbuf ? (int)pipeline_module_num_funcs(dbuf) : -1,
-            raw ? raw[0] : -999, raw ? raw[1] : -999, raw ? raw[2] : -999);
-        }
         (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({   (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
-  fprintf(stderr, "xlang: WINDBG find_func ret=%d func_ix=%d\n", (int)import_ret_ty, (int)func_ix);
   ((import_ret_ty > 0) ? ({   (void)((dep_ix = dep_slot));
  }) : 0);
  }) : 0);
@@ -13241,7 +13219,6 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
   }
  }) : 0);
     }
-    fprintf(stderr, "xlang: WINDBG after_import import_ret_ty=%d dep_ix=%d\n", (int)import_ret_ty, (int)dep_ix);
     (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
     if ((import_ret_ty > 0)) {
       struct ast_Module * cm = module;
