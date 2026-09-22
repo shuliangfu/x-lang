@@ -1806,6 +1806,7 @@ extern int32_t typeck_entry_module_find_struct_layout_index(struct ast_Module * 
 extern void typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern void typeck_wpo_unify_soa_layouts(struct ast_Module * entry, struct ast_PipelineDepCtx * ctx);
 extern int32_t typeck_resolve_scan_dep_with_apply(struct ast_Module * module, struct ast_ASTArena * arena, int32_t callee_expr_ref, int32_t callee_ord, int32_t call_expr_ref, struct ast_PipelineDepCtx * ctx, int32_t dep_i, int32_t imax, int32_t want_apply);
+extern struct ast_Module * typeck_live_dep_module(struct ast_PipelineDepCtx * ctx, int32_t dep_i);
 extern int32_t typeck_find_func_return_type_in_module(struct ast_Module * mod, struct ast_ASTArena * mod_arena, struct ast_ASTArena * caller_arena, struct ast_ASTArena * callee_arena, int32_t callee_expr_ref, int32_t from_dep_index, struct ast_PipelineDepCtx * ctx, int32_t * func_index_out);
 extern int32_t typeck_find_func_return_type_in_module_by_name(struct ast_Module * mod, struct ast_ASTArena * caller_arena, uint8_t * name, int32_t name_len, int32_t from_dep_index, struct ast_PipelineDepCtx * ctx, int32_t * func_index_out);
 extern int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int32_t call_expr_ref, int32_t arg_i, int32_t param_ty_raw, int32_t from_dep_index, struct ast_PipelineDepCtx * ctx);
@@ -6080,6 +6081,19 @@ void typeck_wpo_unify_soa_layouts(struct ast_Module * entry, struct ast_Pipeline
     }
   }
 }
+struct ast_Module * typeck_live_dep_module(struct ast_PipelineDepCtx * ctx, int32_t dep_i) {
+  struct ast_Module * dm = 0;
+  uint8_t * alt = 0;
+  if ((ctx !=0) && (dep_i >=0)) {
+    (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_i)));
+  }
+  (void)((alt = typeck_driver_dep_module_buf(dep_i)));
+  if ((alt !=0)) {
+    return ((struct ast_Module *)alt);
+  }
+  return dm;
+}
+
 int32_t typeck_resolve_scan_dep_with_apply(struct ast_Module * module, struct ast_ASTArena * arena, int32_t callee_expr_ref, int32_t callee_ord, int32_t call_expr_ref, struct ast_PipelineDepCtx * ctx, int32_t dep_i, int32_t imax, int32_t want_apply) {
   {
     struct ast_Module * dm = 0;
@@ -6088,7 +6102,7 @@ int32_t typeck_resolve_scan_dep_with_apply(struct ast_Module * module, struct as
     if ((dep_i >=imax)) {
       return 0;
     }
-    (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_i)));
+    (void)((dm = typeck_live_dep_module(ctx, dep_i)));
     if ((dm !=0)) {
       (void)(typeck_i32_ptr_store(fn_slot, 0));
       (void)((ret = typeck_find_func_return_type_in_module(dm, arena, arena, arena, callee_expr_ref, dep_i, ctx, fn_slot)));
@@ -6905,7 +6919,7 @@ int32_t typeck_resolve_call_callee_scan_dep(struct ast_Module * module, struct a
     if ((dep_i >=imax)) {
       return 0;
     }
-    (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_i)));
+    (void)((dm = typeck_live_dep_module(ctx, dep_i)));
     if ((dm !=0)) {
       (void)((ret = typeck_find_func_return_type_in_module(dm, arena, arena, arena, callee_expr_ref, dep_i, ctx, null_po)));
       if ((ret !=0)) {
