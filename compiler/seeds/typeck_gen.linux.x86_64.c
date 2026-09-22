@@ -3495,6 +3495,11 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
       (void)((j = 0));
       while ((j < nf)) {
         (void)((ftr = pipeline_module_struct_layout_field_type_ref(module, li, j)));
+        if ((ftr == 0)) {
+          (void)(typeck_layout_field_name_into(module, li, j, field_nm));
+          (void)((flen = pipeline_module_struct_layout_field_name_len(module, li, j)));
+          (void)((ftr = typeck_synth_layout_field_type_ref(arena, field_nm, flen)));
+        }
         (void)((fsize = typeck_x_type_size(module, arena, ftr, depth)));
         if (((fsize < 0) || ((fsize ==0) && (typeck_type_is_empty_struct(module, arena, ftr, depth) ==0)))) {
           if ((check_pad !=0)) {
@@ -3516,6 +3521,9 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
       (void)((ftr = pipeline_module_struct_layout_field_type_ref(module, li, j)));
       (void)(typeck_layout_field_name_into(module, li, j, field_nm));
       (void)((flen = pipeline_module_struct_layout_field_name_len(module, li, j)));
+      if ((ftr == 0)) {
+        (void)((ftr = typeck_synth_layout_field_type_ref(arena, field_nm, flen)));
+      }
       (void)((fa = pipeline_module_struct_layout_field_align_at(module, li, j)));
       (void)((A = typeck_x_type_align(module, arena, ftr, depth)));
       if ((A <=0)) {
@@ -3602,6 +3610,42 @@ int32_t typeck_get_field_offset_from_layout(struct ast_Module * module, uint8_t 
     return -1;
   }
 }
+
+/* Win parse-only layouts leave field type_ref=0; synthesize for known stdlib fields. */
+static int32_t typeck_synth_layout_field_type_ref(struct ast_ASTArena * arena, uint8_t * field_name, int32_t field_name_len) {
+  uint8_t nm_is_some[7] = {105, 115, 95, 115, 111, 109, 101};
+  uint8_t nm_is_none[7] = {105, 115, 95, 110, 111, 110, 101};
+  uint8_t nm_is_ok[5] = {105, 115, 95, 111, 107};
+  uint8_t nm_is_err[6] = {105, 115, 95, 101, 114, 114};
+  uint8_t nm_value[5] = {118, 97, 108, 117, 101};
+  uint8_t nm_err[3] = {101, 114, 114};
+  if ((arena == 0) || (field_name == 0) || (field_name_len <= 0)) {
+    return 0;
+  }
+  if (((field_name_len == 7) && typeck_name_equal(field_name, field_name_len, &((nm_is_some)[0]), 7))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 7) && typeck_name_equal(field_name, field_name_len, &((nm_is_none)[0]), 7))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 5) && typeck_name_equal(field_name, field_name_len, &((nm_is_ok)[0]), 5))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 6) && typeck_name_equal(field_name, field_name_len, &((nm_is_err)[0]), 6))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 5) && typeck_name_equal(field_name, field_name_len, &((nm_value)[0]), 5))) {
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  if (((field_name_len == 3) && typeck_name_equal(field_name, field_name_len, &((nm_err)[0]), 3))) {
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  if (((field_name_len >= 4) && ((field_name)[0] == 95) && ((field_name)[1] == 112) && ((field_name)[2] == 97) && ((field_name)[3] == 100))) {
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  return 0;
+}
+
 int32_t typeck_get_field_type_ref_from_layout(struct ast_Module * module, uint8_t * type_name, int32_t type_name_len, uint8_t * field_name, int32_t field_name_len) {
   {
     int32_t k = 0;
@@ -5747,6 +5791,12 @@ int32_t typeck_get_field_type_ref_from_layout_deps(struct ast_Module * module, s
       return i32_arr_inline;
     }
     int32_t r = typeck_get_field_type_ref_from_layout(module, type_name, type_name_len, field_name, field_name_len);
+    if ((r == 0)) {
+      int32_t off_loc = typeck_get_field_offset_from_layout(module, type_name, type_name_len, field_name, field_name_len);
+      if ((off_loc >= 0)) {
+        (void)((r = typeck_synth_layout_field_type_ref(arena, field_name, field_name_len)));
+      }
+    }
     if ((r !=0)) {
       return r;
     }
@@ -5767,7 +5817,15 @@ int32_t typeck_get_field_type_ref_from_layout_deps(struct ast_Module * module, s
         struct ast_Module * cand = ((pass == 0) ? dm : altm);
         if ((cand !=0) && ((pass == 0) || (cand != dm))) {
           (void)((r = typeck_get_field_type_ref_from_layout(cand, type_name, type_name_len, field_name, field_name_len)));
-          if ((r !=0)) {
+          if ((r == 0)) {
+            int32_t off_try = typeck_get_field_offset_from_layout(cand, type_name, type_name_len, field_name, field_name_len);
+            if ((off_try >= 0)) {
+              (void)((r = typeck_synth_layout_field_type_ref(arena, field_name, field_name_len)));
+              if ((r != 0)) {
+                return r;
+              }
+            }
+          } else {
             if ((da !=0)) {
               return typeck_dep_return_type_to_caller_arena(da, r, arena);
             }
@@ -6029,11 +6087,14 @@ void typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct 
   while ((j < nf_dep)) {
     (void)((raw_fr = pipeline_module_struct_layout_field_type_ref(dm, k, j)));
     (void)((mapped = 0));
+    (void)((fnlen = pipeline_module_struct_layout_field_name_len(dm, k, j)));
+    (void)(pipeline_module_struct_layout_field_name_into(dm, k, j, fn_buf));
     if ((raw_fr !=0)) {
       (void)((mapped = typeck_dep_return_type_to_caller_arena(darena, raw_fr, arena)));
     }
-    (void)((fnlen = pipeline_module_struct_layout_field_name_len(dm, k, j)));
-    (void)(pipeline_module_struct_layout_field_name_into(dm, k, j, fn_buf));
+    if ((mapped == 0)) {
+      (void)((mapped = typeck_synth_layout_field_type_ref(arena, fn_buf, fnlen)));
+    }
     (void)((foff = pipeline_module_struct_layout_field_offset_at(dm, k, j)));
     (void)(pipeline_module_struct_layout_set_field(mod, ni, j, fn_buf, fnlen, mapped, foff));
     (void)(pipeline_module_struct_layout_set_field_align(mod, ni, j, pipeline_module_struct_layout_field_align_at(dm, k, j)));
