@@ -51,10 +51,9 @@ int32_t pipeline_asm_wpo_pgo_emit_order_at(void *m, int32_t order_index) {
   }
   return -1;
 }
-int32_t pipeline_elf_ctx_add_common_sym() { return -1; }
-int32_t pipeline_elf_ctx_add_label() { return -1; }
-int32_t pipeline_elf_ctx_add_sym() { return -1; }
-int32_t pipeline_elf_ctx_ensure_label() { return -1; }
+/* add_sym/add_label/ensure_label/add_common_sym: NOT stubbed.
+ * Stubs merge last and were clobbering elf_ctx.windows_e real bodies
+ * → num_syms stayed 0 → COFF .o had .text but no main (WinMain ld fail). */
 int32_t glue_emit_assign_field_elf_c() { return -1; }
 int32_t glue_emit_assign_index_elf_c() { return -1; }
 int32_t glue_emit_assign_var_elf_c() { return -1; }

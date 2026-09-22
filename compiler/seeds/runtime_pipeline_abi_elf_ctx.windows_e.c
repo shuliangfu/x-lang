@@ -1367,46 +1367,46 @@ int32_t pipe_elf_off_reloc_sym_names(void) {
   return 34996236;
 }
 int32_t pipe_elf_off_num_relocs(void) {
-  return 39190540;
+  return 37093388;
 }
 int32_t pipe_elf_off_syms(void) {
-  return 39190544;
+  return 37093392;
 }
 int32_t pipe_elf_off_num_syms(void) {
-  return 43581456;
+  return 41484304;
 }
 int32_t pipe_elf_off_sym_name_len(void) {
-  return 43581460;
+  return 41484308;
 }
 int32_t pipe_elf_off_e_machine(void) {
-  return 43581464;
+  return 41484312;
 }
 int32_t pipe_elf_off_reloc_type_r_pc32(void) {
-  return 43581468;
+  return 41484316;
 }
 int32_t pipe_elf_off_current_frame_size(void) {
-  return 43581472;
+  return 41484320;
 }
 int32_t pipe_elf_off_macho_uscore(void) {
-  return 43581476;
+  return 41484324;
 }
 int32_t pipe_elf_off_code_hot_len(void) {
-  return 43581480;
+  return 41484328;
 }
 int32_t pipe_elf_off_emit_hot(void) {
-  return 43581484;
+  return 41484332;
 }
 int32_t pipe_elf_sizeof_access(void) {
-  return 43581488;
+  return 41484336;
 }
 int32_t pipe_elf_off_code_data(void) {
-  return 43581488;
+  return 41484336;
 }
 int32_t pipe_elf_off_code_hot_data(void) {
-  return 52297776;
+  return 50200624;
 }
 int32_t pipe_elf_off_sym_name_data(void) {
-  return 53346352;
+  return 51249200;
 }
 int32_t pipe_elf_lab_off_name(void) {
   return 0;
