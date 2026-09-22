@@ -3750,6 +3750,9 @@ ensure_pipeline_abi_prefer_one() {
       #   (tip U-complete but product reinject → L2 CG002 4/5); keep prior overlays.
       #   Does not re-run mega -E. PLATFORM: SHARED shell · LINUX gold.
       pipeline_abi_inject_assign_thin "$o" || true
+      # Class P: re-enter assign_index inject so Linux UNDEF heal can fire
+      # even when pipeline_abi.o is stamp-fresh (skip-up-to-date).
+      pipeline_abi_inject_assign_index_thin "$o" || true
       # wave609 M2: add_defs product PREFER_ASM (stamp-gated; no host-cc).
       # wave610 M2: param_ptr_slot product PREFER_ASM (stamp-gated; no host-cc).
       # PLATFORM: SHARED shell.
@@ -6141,6 +6144,8 @@ pipeline_abi_inject_assign_index_thin() {
       fi
     done
     if [ "$_ok" = "1" ]; then
+      # Class P: stamp skip still heals setup/resolve UNDEF (link surface).
+      pipeline_abi_heal_assign_index_undef "$o" || true
       return 0
     fi
   fi
@@ -6150,6 +6155,7 @@ pipeline_abi_inject_assign_index_thin() {
       touch "$stamp"
       touch "$stamp_e"
       log "pipeline_abi w607-assign-index: MACOS keep prior overlay; HARD BAN PREFER"
+      pipeline_abi_heal_assign_index_undef "$o" || true
       return 0
       ;;
     Linux)
