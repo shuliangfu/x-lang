@@ -14428,7 +14428,10 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
         ((decl_k0 ==15) ? ({   (void)((init_ctx = 0));
  }) : 0);
       }
-      ((typeck_check_expr(module, arena, ld_ir, init_ctx, ctx) !=0) ? ({   return -1;
+      ((typeck_check_expr(module, arena, ld_ir, init_ctx, ctx) !=0) ? ({
+  fprintf(stderr, "xlang: WINDBG_LET check_expr fail idx=%d ld_ir=%d ld_tr=%d init_ctx=%d\n",
+    (int)idx, (int)ld_ir, (int)ld_tr, (int)init_ctx);
+  return -1;
  }) : 0);
     }
     (void)(pipeline_type_stamp_block_let_region_c_ASTArena_ptr_i32_i32_PipelineDepCtx_ptr_reti32(arena, block_ref, idx, ctx));
@@ -14457,6 +14460,8 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
       if (((!(ast_ref_is_null(init_ty)) && !(typeck_type_refs_equal(arena, ld_tr, init_ty))) && (pipeline_typeck_linear_accepts_init_c_ASTArena_ptr_i32_i32_reti32(arena, ld_tr, init_ty) ==0))) {
         int32_t decl_k2 = pipeline_type_kind_ord_at(arena, ld_tr);
         int32_t init_k2 = pipeline_type_kind_ord_at(arena, init_ty);
+        fprintf(stderr, "xlang: WINDBG_LET mismatch idx=%d ld_tr=%d init_ty=%d dk=%d ik=%d\n",
+          (int)idx, (int)ld_tr, (int)init_ty, (int)decl_k2, (int)init_k2);
         int32_t dyn_init_reject = 0;
         int32_t fn_init_ok = 0;
         if ((decl_k2 ==17)) {
@@ -14839,6 +14844,7 @@ int32_t typeck_check_block_impl(struct ast_Module * module, struct ast_ASTArena 
         return -1;
       }
       if ((typeck_check_block_legacy_lets(module, arena, block_ref, return_type_ref, ctx, 0, nl) !=0)) {
+        fprintf(stderr, "xlang: WINDBG_BLK legacy_lets fail br=%d nl=%d\n", (int)block_ref, (int)nl);
         (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
         return -1;
       }
@@ -14851,14 +14857,18 @@ int32_t typeck_check_block_impl(struct ast_Module * module, struct ast_ASTArena 
         return -1;
       }
       if ((typeck_check_block_legacy_ifs(module, arena, block_ref, return_type_ref, ctx, 0, nif) !=0)) {
+        fprintf(stderr, "xlang: WINDBG_BLK legacy_ifs fail br=%d nif=%d\n", (int)block_ref, (int)nif);
         (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
         return -1;
       }
-      ((typeck_check_block_legacy_expr_stmts(module, arena, block_ref, return_type_ref, ctx, 0, nes) !=0) ? ({   (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
+      ((typeck_check_block_legacy_expr_stmts(module, arena, block_ref, return_type_ref, ctx, 0, nes) !=0) ? ({
+  fprintf(stderr, "xlang: WINDBG_BLK legacy_expr_stmts fail br=%d nes=%d\n", (int)block_ref, (int)nes);
+  (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
   return -1;
  }) : 0);
     }
     if ((typeck_check_block_final(module, arena, block_ref, return_type_ref, ctx, fin0) !=0)) {
+      fprintf(stderr, "xlang: WINDBG_BLK final fail br=%d fin0=%d\n", (int)block_ref, (int)fin0);
       (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
       return -1;
     }
