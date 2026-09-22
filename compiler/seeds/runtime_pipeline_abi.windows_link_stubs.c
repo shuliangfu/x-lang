@@ -157,9 +157,12 @@ int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, in
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
     } else if (nbytes <= 16) {
+      /* offset = positive rbp-down magnitude (x86_enc_movq_from_rbp_neg).
+       * High qword sits at less-negative addr → smaller magnitude = home - 8.
+       * home+8 encoded - (home+8)(%rbp) past the slot (saw Option_ptr rdx garbage → -16). */
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
-      if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, home + 8, ta) != 0)
+      if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, home - 8, ta) != 0)
         return -1;
     } else {
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
