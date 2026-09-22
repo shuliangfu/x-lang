@@ -36,6 +36,8 @@ extern int32_t pipeline_asm_emit_expr_elf_rec(void *a, void *elf, int32_t er, vo
 extern int32_t backend_enc_push_rbx_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_pop_rbx_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rdx_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t pipe_load_i32_le(void *base, int32_t off);
 extern void pipe_store_i32_le(void *base, int32_t off, int32_t v);
 extern int32_t pipe_asm_ctx_off_next_offset(void);
@@ -145,12 +147,24 @@ int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, in
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
     return -1;
   if (!dest_in_rbx) {
-    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
-      return -1;
-    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-      return -1;
+    /* ≤16B rvalue/return: materialize VALUE into GP regs (not lea pointer).
+     * Prior lea left stack addr in rax; Option_i32 is_some read low byte of
+     * pointer → none looked like some → tests/option run=-2.
+     * Win64 ≤8B aggregate returns in RAX; 9–16B dual-GP matches store_retval
+     * pair path used by POSIX/Win fallthrough. >16B keep lea (sret dest ptr).
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (nbytes <= 8) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+        return -1;
+    } else if (nbytes <= 16) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, home + 8, ta) != 0)
+        return -1;
+    } else {
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
+        return -1;
+    }
   }
   return 0;
 }
