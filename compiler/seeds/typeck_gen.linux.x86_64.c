@@ -1616,6 +1616,7 @@ extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx * ctx, in
 extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx * ctx, int32_t idx);
 extern uint8_t pipeline_dep_ctx_import_path_byte_at(struct ast_PipelineDepCtx * ctx, int32_t idx, int32_t off);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * dst);
+extern uint8_t *typeck_driver_dep_module_buf(int32_t i);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx * ctx);
 extern void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx * ctx, int32_t n);
 extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx * ctx, uint8_t * path, int32_t len);
@@ -13189,6 +13190,14 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
       (void)((func_ix = -1));
       if ((dep_slot >=0)) {
         (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_slot)));
+        /* Win: dep_ctx module pointer may be stale (num_funcs=0) while
+         * driver_dep_module_buf(dep_slot) still holds the parsed module. */
+        if (((dm ==0) || (pipeline_module_num_funcs(dm) ==0))) {
+          uint8_t * alt_dm = typeck_driver_dep_module_buf(dep_slot);
+          if (((alt_dm !=0) && (pipeline_module_num_funcs(((struct ast_Module *)alt_dm)) > 0))) {
+            (void)((dm = ((struct ast_Module *)alt_dm)));
+          }
+        }
         (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({   (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
   ((import_ret_ty > 0) ? ({   (void)((dep_ix = dep_slot));
  }) : 0);
@@ -13203,6 +13212,12 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
           int32_t try_ret = 0;
           if ((try_di !=dep_slot)) {
             (void)((try_dm = pipeline_dep_ctx_module_at(ctx, try_di)));
+            if (((try_dm ==0) || (pipeline_module_num_funcs(try_dm) ==0))) {
+              uint8_t * alt_tdm = typeck_driver_dep_module_buf(try_di);
+              if (((alt_tdm !=0) && (pipeline_module_num_funcs(((struct ast_Module *)alt_tdm)) > 0))) {
+                (void)((try_dm = ((struct ast_Module *)alt_tdm)));
+              }
+            }
             (((try_dm !=0) && (pipeline_module_num_funcs(try_dm) > 0)) ? ({   (void)((try_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(try_dm, arena, &((method_nm)[0]), method_nlen, try_di, num_args, expr_ref, 1, ctx, &(try_fn))));
   ((try_ret > 0) ? ({   (void)((import_ret_ty = try_ret));
   (void)((dep_ix = try_di));
