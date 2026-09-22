@@ -51963,26 +51963,10 @@ int32_t pipeline_type_named_name_into(uint8_t * arena, int32_t ref, uint8_t * ou
   if ((t ==0)) {
     return 0;
   }
-  /* Cap 4.2.8 Type LE uses name[256]@4 → name_len@260; wave270 / leftover
-   * writers still use name[128]@4 → name_len@132. Prefer Cap, fall back. */
   int32_t n = pipe_load_i32_le(t, pipe_ar_ty_name_len());
+  /* Still accept Cap@260 if wave270@132 empty (egg Cap writers). */
   if ((n <=0)) {
-    (void)((n = pipe_load_i32_le(t, 132)));
-  }
-  /* WINDBG_NAME_DUMP */
-  if ((ref ==5) && (n <=0)) {
-    int32_t k0 = pipe_load_i32_le(t, 0);
-    int32_t n132 = pipe_load_i32_le(t, 132);
-    int32_t n260 = pipe_load_i32_le(t, 260);
-    int32_t e136 = pipe_load_i32_le(t, 136);
-    int32_t e264 = pipe_load_i32_le(t, 264);
-    fprintf(stderr, "xlang: WINDBG_NAME ref=5 t=%p k0=%d n132=%d n260=%d e136=%d e264=%d bytes4-20=",
-      (void*)t, (int)k0, (int)n132, (int)n260, (int)e136, (int)e264);
-    int32_t bi;
-    for (bi = 4; bi < 24; bi++) {
-      fprintf(stderr, "%02x", (unsigned)(t[bi]));
-    }
-    fprintf(stderr, "\n");
+    (void)((n = pipe_load_i32_le(t, 260)));
   }
   int32_t cn = n;
   if ((cn > 255)) {
@@ -52205,9 +52189,9 @@ int32_t pipeline_type_elem_ref_at(uint8_t * arena, int32_t ref) {
     return 0;
   }
   int32_t v = pipe_load_i32_le(t, pipe_ar_ty_elem());
-  /* wave270 writers store elem@136; Cap pipe_ar uses @264. */
+  /* Cap 4.2.8 leftover writers may still store elem@264. */
   if ((v ==0)) {
-    (void)((v = pipe_load_i32_le(t, 136)));
+    (void)((v = pipe_load_i32_le(t, 264)));
   }
   return v;
 }
@@ -52226,9 +52210,8 @@ int32_t pipeline_type_array_size_at(uint8_t * arena, int32_t ref) {
     return 0;
   }
   int32_t v = pipe_load_i32_le(t, pipe_ar_ty_arr());
-  /* wave270 writers store array_size@140; Cap pipe_ar uses @268. */
   if ((v ==0)) {
-    (void)((v = pipe_load_i32_le(t, 140)));
+    (void)((v = pipe_load_i32_le(t, 268)));
   }
   return v;
 }
@@ -58047,14 +58030,16 @@ int32_t pipe_ar_ty_kind(void) {
 int32_t pipe_ar_ty_name(void) {
   return 4;
 }
+/* Wave270 / Win leftover type slot (not Cap 4.2.8 name[256]@4→len@260).
+ * Parser + FROM_X type pool write name_len@132 elem@136 array_size@140. */
 int32_t pipe_ar_ty_name_len(void) {
-  return 260;
+  return 132;
 }
 int32_t pipe_ar_ty_elem(void) {
-  return 264;
+  return 136;
 }
 int32_t pipe_ar_ty_arr(void) {
-  return 268;
+  return 140;
 }
 int32_t pipe_ar_fn_name(void) {
   return 0;
